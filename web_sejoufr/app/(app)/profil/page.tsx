@@ -3,6 +3,19 @@
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
+import type {ReactNode} from "react";
+import {
+    ChartColumn,
+    ChevronRight,
+    CircleHelp,
+    GraduationCap,
+    LogOut,
+    MapPin,
+    PenLine,
+    Pencil,
+    Target,
+    X,
+} from "lucide-react";
 import {useAuth} from "@/lib/auth-context";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, ApiException, billingApi, dashboardApi} from "@/lib/api";
@@ -14,17 +27,17 @@ import type {
 } from "@/lib/types";
 
 /**
- * Page profil web — parité avec l'onglet Profil mobile (`profile_screen.dart`),
- * en design web (hero éditorial + cartes tokens). Sections :
- *   - identité (avatar, nom, email, parcours) + bouton « Modifier »
- *   - 3 stat cards (maîtrise / série / niveau estimé) issues de /api/me/dashboard
- *   - « Mon pass » (statut Premium agrégé) → /profil/abonnement ou /paiement
- *   - « Mon objectif » (CSP/CR/NAT) → /parcours
- *   - « Mes informations » → modale d'édition (identité + email + mot de passe)
- *   - zone danger : suppression de compte (DELETE /api/account) + déconnexion
+ * Page profil web — maquette du propriétaire
+ * (`docs/progression/maquettes-progression/profil.html`), en parité de contenu
+ * avec l'onglet Profil mobile (`profile_screen.dart`). Sections :
+ *   - barre de titre « Mon profil » (le burger est celui du shell `(app)`)
+ *   - hero bleu : avatar, nom, e-mail, démarche, bouton « Modifier »
+ *   - 3 tuiles (maîtrise / série / niveau estimé + périmètre) issues de /api/me/dashboard
+ *   - grille « Mon pass » (subscription-status) | « Mon objectif » (démarche)
+ *   - « Mon compte » : Mes informations (modale), Ma progression, Aide & assistance
+ *   - déconnexion + suppression de compte (DELETE /api/account)
  *
- * Volontairement SANS date d'examen, plan de révision, centre d'aide ni
- * réinitialisation de progression (décision produit).
+ * Tout ce qui est affiché est servi : aucun nombre n'est classé ici.
  */
 export default function ProfilPage() {
     const router = useRouter();
@@ -115,15 +128,17 @@ export default function ProfilPage() {
     const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
     // Le palier VISÉ, plancher de la démarche appliqué — pas une table locale.
     const niveauVise = niveauViseTcf(user);
+    const isLocal = !user.authProvider || user.authProvider === "LOCAL";
 
-    // ── 3 stats (parité mobile) ───────────────────────────────────────────
+    // ── 3 tuiles (parité mobile) ──────────────────────────────────────────
     const masteryValue =
         dashboard?.globalSuccessPercent != null
-            ? `${dashboard.globalSuccessPercent} %`
+            ? `${dashboard.globalSuccessPercent} %`
             : "—";
-    const streakValue = dashboard ? `${dashboard.currentStreakDays} j` : "—";
+    const streakValue = dashboard ? `${dashboard.currentStreakDays} j` : "—";
     // Forme courte partagée (« <A1 » et pas « A1 »), jamais une table locale.
     const levelValue = niveauCecrlShort(dashboard?.estimatedTcfLevel ?? null);
+    // Périmètre SERVI (épreuves comptées / attendues), une seule chaîne partagée.
     const levelScope = estimatedTcfLevelScopeLabel(dashboard);
 
     // ── Mon pass ──────────────────────────────────────────────────────────
@@ -134,7 +149,6 @@ export default function ProfilPage() {
         : access === "INTEGRAL"
             ? "Pass Intégral"
             : "Pass Civique";
-    const passAccent = !premium ? "neutral" : access === "INTEGRAL" ? "red" : "blue";
     const expiresAt = subscription?.expiresAt ?? user.premiumEndsAt ?? null;
     const passSub = !premium
         ? "Accès limité — débloquez tout SejourFR"
@@ -145,124 +159,150 @@ export default function ProfilPage() {
 
     return (
         <main className="pr">
-            {/* ---- Hero + identité ---- */}
-            <section className="pr-hero">
-                <div className="pr-hero-main">
-                    <div className="breadcrumb">
-                        ACCUEIL <span className="sep">/</span> PROFIL
-                    </div>
-                    <h1>Mon <em>profil</em></h1>
-                    <p>Gère ton compte, ton objectif d&apos;examen et ton abonnement.</p>
+            <div className="pr-shell">
+                {/* ---- Barre de titre : la case de gauche est celle du burger du shell ---- */}
+                <div className="pr-topbar">
+                    <span className="pr-topbar-slot" aria-hidden/>
+                    <div className="pr-page-title">Mon profil</div>
+                    <span className="pr-topbar-slot" aria-hidden/>
                 </div>
 
-                <div className="pr-id">
-                    <span className="pr-avatar">{initials}</span>
-                    <div className="pr-id-body">
-                        <div className="pr-id-name">{fullName}</div>
-                        <div className="pr-id-email">{user.email}</div>
-                        {proc && (
-                            <span className="pr-id-tag">
-                                <span aria-hidden>📍</span> {proc.short}
+                {/* ---- Hero ---- */}
+                <section className="pr-hero">
+                    <div className="pr-hero-head">
+                        <span className="pr-avatar" aria-hidden>{initials}</span>
+                        <div className="pr-identity">
+                            <h1>{fullName}</h1>
+                            <p>{user.email}</p>
+                            {proc && (
+                                <span className="pr-badge">
+                                    <MapPin size={13} aria-hidden/> {proc.short}
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            className="pr-edit-btn"
+                            onClick={() => setShowEdit(true)}
+                            aria-label="Modifier mes informations"
+                        >
+                            <span className="pr-edit-txt">Modifier</span>
+                            <Pencil className="pr-edit-ico" size={16} aria-hidden/>
+                        </button>
+                    </div>
+                </section>
+
+                {/* ---- 3 tuiles ---- */}
+                <section className="pr-stats">
+                    <StatTile label="Maîtrise" value={masteryValue}/>
+                    <StatTile label="Série" value={streakValue} tone="red"/>
+                    <StatTile label="Niveau estimé" value={levelValue} meta={levelScope}/>
+                </section>
+
+                <div className="pr-grid">
+                    {/* ---- Mon pass ---- */}
+                    <section className="pr-card">
+                        <h2 className="pr-card-title">Mon pass</h2>
+                        <Link href={passHref} className="pr-row">
+                            <RowIcon tone={premium ? "green" : "muted"}>
+                                <GraduationCap size={21}/>
+                            </RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">
+                                    {passName}
+                                    <span className={`pr-status ${premium ? "is-active" : "is-free"}`}>
+                                        {premium ? "Actif" : "Gratuit"}
+                                    </span>
+                                </span>
+                                <span className="pr-row-sub">{passSub}</span>
                             </span>
-                        )}
-                    </div>
-                    <button type="button" className="pr-id-edit" onClick={() => setShowEdit(true)}>
-                        Modifier
-                    </button>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </Link>
+                    </section>
+
+                    {/* ---- Mon objectif ---- */}
+                    <section className="pr-card">
+                        <h2 className="pr-card-title">Mon objectif</h2>
+                        <Link href={journeyTargetPathHref("/profil")} className="pr-row">
+                            <RowIcon><Target size={21}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">
+                                    {proc ? proc.title : "Choisir mon parcours"}
+                                </span>
+                                <span className="pr-row-sub">
+                                    {proc
+                                        ? `Niveau de français visé : ${niveauVise}`
+                                        : "Définissez votre objectif administratif"}
+                                </span>
+                            </span>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </Link>
+                    </section>
+
+                    {/* ---- Mon compte ---- */}
+                    <section className="pr-card pr-full">
+                        <h2 className="pr-card-title">Mon compte</h2>
+                        <button type="button" className="pr-row" onClick={() => setShowEdit(true)}>
+                            <RowIcon><PenLine size={20}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">Mes informations</span>
+                                <span className="pr-row-sub">
+                                    {isLocal
+                                        ? "Nom, prénom, e-mail et mot de passe"
+                                        : "Nom et prénom"}
+                                </span>
+                            </span>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </button>
+                        {/* Profil = « Ma progression » (D16) : l'entrée vers les
+                            écrans de progression. Miroir de la ligne du Profil mobile. */}
+                        <Link href="/progression/tcf" className="pr-row">
+                            <RowIcon><ChartColumn size={20}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">Ma progression</span>
+                                <span className="pr-row-sub">Maîtrise par parcours et niveau estimé</span>
+                            </span>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </Link>
+                        <Link href="/contact" className="pr-row">
+                            <RowIcon><CircleHelp size={20}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">Aide &amp; assistance</span>
+                                <span className="pr-row-sub">Une question sur votre parcours ?</span>
+                            </span>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </Link>
+                    </section>
+
+                    {/* ---- Session ---- */}
+                    <section className="pr-card pr-full">
+                        <button type="button" className="pr-row" onClick={() => setShowLogoutConfirm(true)}>
+                            <RowIcon><LogOut size={20}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">Se déconnecter</span>
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            className="pr-row pr-row-danger"
+                            onClick={() => {
+                                setDeleteError(null);
+                                setShowDeleteConfirm(true);
+                            }}
+                        >
+                            <RowIcon tone="red"><X size={21}/></RowIcon>
+                            <span className="pr-row-main">
+                                <span className="pr-row-title">Supprimer mon compte</span>
+                            </span>
+                            <ChevronRight className="pr-arrow" size={22} aria-hidden/>
+                        </button>
+                    </section>
                 </div>
-            </section>
 
-            {/* ---- 3 stats ---- */}
-            <section className="pr-stats">
-                <StatCard label="Maîtrise" value={masteryValue} accent="blue"/>
-                <StatCard label="Série" value={streakValue} accent="red"/>
-                <StatCard label="Niveau estimé" value={levelValue} accent="blue" hint={levelScope}/>
-            </section>
-
-            {/* ---- Mon pass ---- */}
-            <div className="pr-section-title"><h2>Mon pass</h2></div>
-            <Link href={passHref} className={`pr-line-card pr-pass accent-${passAccent}`}>
-                <span className="pr-line-icon" aria-hidden>🎓</span>
-                <div className="pr-line-body">
-                    <div className="pr-line-head">
-                        <h3>{passName}</h3>
-                        <span className={`pr-pill ${premium ? "pill-active" : "pill-free"}`}>
-                            {premium ? "Actif" : "Gratuit"}
-                        </span>
-                    </div>
-                    <p>{passSub}</p>
-                </div>
-                <span className="pr-chevron" aria-hidden>›</span>
-            </Link>
-
-            {/* ---- Mon objectif ---- */}
-            <div className="pr-section-title"><h2>Mon objectif</h2></div>
-            <Link href={journeyTargetPathHref("/profil")} className="pr-line-card pr-objectif">
-                <span className="pr-line-icon tone-objectif" aria-hidden>🎯</span>
-                <div className="pr-line-body">
-                    <div className="pr-line-head">
-                        <h3>{proc ? proc.title : "Choisir mon parcours"}</h3>
-                    </div>
-                    <p>
-                        {proc
-                            ? `Niveau de français visé : ${niveauVise} — toucher pour modifier`
-                            : "Définissez votre objectif administratif"}
-                    </p>
-                </div>
-                <span className="pr-chevron" aria-hidden>›</span>
-            </Link>
-
-            {/* ---- Mon compte ---- */}
-            <div className="pr-section-title"><h2>Mon compte</h2></div>
-            <div className="pr-group">
-                <button type="button" className="pr-row" onClick={() => setShowEdit(true)}>
-                    <span className="pr-row-icon" aria-hidden>✎</span>
-                    <span className="pr-row-body">
-                        <span className="pr-row-title">Mes informations</span>
-                        <span className="pr-row-sub">{user.email}</span>
-                    </span>
-                    <span className="pr-chevron" aria-hidden>›</span>
-                </button>
-                {/* « Ma progression » a quitté l'écran Plan : le Plan dit quoi
-                    travailler maintenant, la progression se consulte. C'est
-                    aussi la seule entrée vers /statistiques, absent de la barre
-                    latérale. Miroir de la ligne du Profil mobile. */}
-                <Link href="/statistiques" className="pr-row">
-                    <span className="pr-row-icon" aria-hidden>▦</span>
-                    <span className="pr-row-body">
-                        <span className="pr-row-title">Ma progression</span>
-                        <span className="pr-row-sub">Maîtrise par parcours et niveau estimé</span>
-                    </span>
-                    <span className="pr-chevron" aria-hidden>›</span>
-                </Link>
+                <div className="pr-footer">SejourFR · v0.1.0</div>
             </div>
 
-            {/* ---- Danger ---- */}
-            <div className="pr-group">
-                <button
-                    type="button"
-                    className="pr-row pr-row-danger"
-                    onClick={() => {
-                        setDeleteError(null);
-                        setShowDeleteConfirm(true);
-                    }}
-                >
-                    <span className="pr-row-icon tone-danger" aria-hidden>✕</span>
-                    <span className="pr-row-body">
-                        <span className="pr-row-title">Supprimer mon compte</span>
-                    </span>
-                </button>
-                <button type="button" className="pr-row" onClick={() => setShowLogoutConfirm(true)}>
-                    <span className="pr-row-icon tone-muted" aria-hidden>⤺</span>
-                    <span className="pr-row-body">
-                        <span className="pr-row-title">Se déconnecter</span>
-                    </span>
-                </button>
-            </div>
-
-            <div className="pr-version">SejourFR · v0.1.0</div>
-
-            {/* ---- MODALS ---- */}
+            {/* ---- MODALES ---- */}
             {showEdit && (
                 <InfoEditModal
                     user={user}
@@ -318,32 +358,36 @@ export default function ProfilPage() {
 }
 
 // ============================================================================
-// STAT CARD
+// BRIQUES
 // ============================================================================
-function StatCard({
+function StatTile({
                       label,
                       value,
-                      accent,
-                      hint,
+                      tone = "blue",
+                      meta,
                   }: {
     label: string;
     value: string;
-    accent: "blue" | "red";
-    /** Précision facultative sous le libellé (périmètre d'un niveau estimé
-     *  partiel). Absente ⇒ la carte garde exactement ses deux lignes. */
-    hint?: string | null;
+    tone?: "blue" | "red";
+    /** Précision servie sous le libellé (périmètre d'un niveau estimé
+     *  partiel). Absente ⇒ la tuile garde ses deux lignes. */
+    meta?: string | null;
 }) {
     return (
-        <div className={`pr-stat-card accent-${accent}`}>
-            <div className="pr-stat-value">{value}</div>
+        <div className="pr-stat">
+            <div className={`pr-stat-value tone-${tone}`}>{value}</div>
             <div className="pr-stat-label">{label}</div>
-            {hint && <div className="pr-stat-hint">{hint}</div>}
+            {meta && <div className="pr-stat-meta">{meta}</div>}
         </div>
     );
 }
 
+function RowIcon({tone = "blue", children}: {tone?: "blue" | "green" | "red" | "muted"; children: ReactNode}) {
+    return <span className={`pr-icon tone-${tone}`} aria-hidden>{children}</span>;
+}
+
 // ============================================================================
-// INFO EDIT MODAL (identité + email + mot de passe)
+// MODALE « MES INFORMATIONS » (identité + e-mail + mot de passe)
 // ============================================================================
 type EditUser = {
     email: string;
@@ -352,6 +396,12 @@ type EditUser = {
     authProvider?: "LOCAL" | "GOOGLE" | "APPLE";
 };
 
+/**
+ * Le bouton « Enregistrer » ne porte que l'identité (PATCH /api/me/profile).
+ * L'e-mail et le mot de passe gardent leurs flux réels, qui exigent le mot de
+ * passe actuel (changement d'e-mail = lien de vérification) : ils s'ouvrent sur
+ * place, avec leur propre validation. Comptes Google/Apple : lecture seule.
+ */
 function InfoEditModal({
                            user,
                            onClose,
@@ -403,89 +453,93 @@ function InfoEditModal({
     }
 
     return (
-        <div className="cm" role="dialog" aria-modal="true" onClick={onClose}>
-            <div className="cm-backdrop"/>
-            <div className="cm-sheet cm-sheet-wide" onClick={(e) => e.stopPropagation()}>
-                <div className="cm-head">
-                    <h2 className="cm-title">Mes informations</h2>
-                    <button type="button" className="cm-close" onClick={onClose} aria-label="Fermer">✕</button>
-                </div>
-
-                {/* Identité */}
-                <div className="ed-label">Identité</div>
-                <div className="ed-block">
-                    <div className="ed-grid">
-                        <div className="ed-field">
-                            <label htmlFor="ed-fn">Prénom</label>
-                            <input
-                                id="ed-fn"
-                                className="ed-input"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                autoComplete="given-name"
-                            />
-                        </div>
-                        <div className="ed-field">
-                            <label htmlFor="ed-ln">Nom</label>
-                            <input
-                                id="ed-ln"
-                                className="ed-input"
-                                value={lastName}
-                                onChange={(e) => setLastName(e.target.value)}
-                                autoComplete="family-name"
-                            />
-                        </div>
-                    </div>
-                    {identityError && <p className="ed-error">{identityError}</p>}
-                    {identityOk && <p className="ed-ok">Identité mise à jour.</p>}
-                    <button type="button" className="ed-btn" disabled={savingIdentity} onClick={saveIdentity}>
-                        {savingIdentity ? "Enregistrement…" : "Enregistrer"}
+        <div className="pm" role="dialog" aria-modal="true" aria-labelledby="pm-title" onClick={onClose}>
+            <section className="pm-sheet" onClick={(e) => e.stopPropagation()}>
+                <div className="pm-top">
+                    <h2 id="pm-title" className="pm-title">Mes informations</h2>
+                    <button type="button" className="pm-close" onClick={onClose} aria-label="Fermer">
+                        <X size={20} aria-hidden/>
                     </button>
                 </div>
 
-                {/* Email */}
-                <div className="ed-label">Adresse e-mail</div>
-                <div className="ed-block">
-                    <div className="ed-readline">
-                        <span className="ed-readval">{user.email}</span>
-                        {isLocal && !emailOpen && (
-                            <button type="button" className="ed-ghost" onClick={() => setEmailOpen(true)}>
-                                Changer
-                            </button>
+                <div className="pm-fields">
+                    <div className="pm-field">
+                        <label htmlFor="pm-fn">Prénom</label>
+                        <input
+                            id="pm-fn"
+                            className="pm-input"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            autoComplete="given-name"
+                        />
+                    </div>
+                    <div className="pm-field">
+                        <label htmlFor="pm-ln">Nom</label>
+                        <input
+                            id="pm-ln"
+                            className="pm-input"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            autoComplete="family-name"
+                        />
+                    </div>
+
+                    <div className="pm-field pm-span">
+                        <span className="pm-label">Adresse e-mail</span>
+                        <div className="pm-readline">
+                            <span className="pm-input pm-readonly">{user.email}</span>
+                            {isLocal && !emailOpen && (
+                                <button type="button" className="pm-ghost" onClick={() => setEmailOpen(true)}>
+                                    Changer
+                                </button>
+                            )}
+                        </div>
+                        {!isLocal && (
+                            <p className="pm-note">
+                                Connexion via {providerLabel} — l&apos;e-mail se gère côté {providerLabel}.
+                            </p>
+                        )}
+                        {isLocal && emailOpen && (
+                            <ChangeEmailForm currentEmail={user.email} onClose={() => setEmailOpen(false)}/>
                         )}
                     </div>
-                    {!isLocal && (
-                        <p className="ed-note">
-                            Connexion via {providerLabel} — l&apos;e-mail se gère côté {providerLabel}.
-                        </p>
-                    )}
-                    {isLocal && emailOpen && (
-                        <ChangeEmailForm currentEmail={user.email} onClose={() => setEmailOpen(false)}/>
-                    )}
-                </div>
 
-                {/* Mot de passe */}
-                <div className="ed-label">Mot de passe</div>
-                <div className="ed-block">
-                    <div className="ed-readline">
-                        <span className="ed-readval">••••••••••</span>
-                        {isLocal && !pwdOpen && (
-                            <button type="button" className="ed-ghost" onClick={() => setPwdOpen(true)}>
-                                Modifier
-                            </button>
+                    <div className="pm-field pm-span">
+                        <span className="pm-label">Mot de passe</span>
+                        <div className="pm-readline">
+                            <span className="pm-input pm-readonly" aria-label="Mot de passe masqué">••••••••••</span>
+                            {isLocal && !pwdOpen && (
+                                <button type="button" className="pm-ghost" onClick={() => setPwdOpen(true)}>
+                                    Modifier
+                                </button>
+                            )}
+                        </div>
+                        {!isLocal && (
+                            <p className="pm-note">
+                                Connexion via {providerLabel} — pas de mot de passe SejourFR.
+                            </p>
                         )}
+                        {isLocal && pwdOpen && <ChangePasswordForm onClose={() => setPwdOpen(false)}/>}
                     </div>
-                    {!isLocal && (
-                        <p className="ed-note">
-                            Connexion via {providerLabel} — pas de mot de passe SejourFR.
-                        </p>
-                    )}
-                    {isLocal && pwdOpen && <ChangePasswordForm onClose={() => setPwdOpen(false)}/>}
                 </div>
 
-                <style>{modalStyles}</style>
-                <style>{editStyles}</style>
-            </div>
+                {identityError && <p className="pm-error">{identityError}</p>}
+                {identityOk && <p className="pm-ok">Identité mise à jour.</p>}
+
+                <div className="pm-actions">
+                    <button type="button" className="pm-btn pm-btn-secondary" onClick={onClose}>
+                        Annuler
+                    </button>
+                    <button
+                        type="button"
+                        className="pm-btn pm-btn-primary"
+                        disabled={savingIdentity}
+                        onClick={saveIdentity}
+                    >
+                        {savingIdentity ? "Enregistrement…" : "Enregistrer"}
+                    </button>
+                </div>
+            </section>
         </div>
     );
 }
@@ -521,23 +575,25 @@ function ChangeEmailForm({currentEmail, onClose}: {currentEmail: string; onClose
 
     if (done) {
         return (
-            <div className="ed-sub">
-                <p className="ed-ok">
+            <div className="pm-sub">
+                <p className="pm-ok">
                     Lien de vérification envoyé à {newEmail}. Cliquez dessus pour confirmer. Votre compte
                     reste accessible avec {currentEmail} en attendant.
                 </p>
-                <button type="button" className="ed-ghost" onClick={onClose}>Fermer</button>
+                <div className="pm-sub-actions">
+                    <button type="button" className="pm-ghost" onClick={onClose}>Fermer</button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="ed-sub">
-            <div className="ed-field">
-                <label htmlFor="ed-newmail">Nouvel e-mail</label>
+        <div className="pm-sub">
+            <div className="pm-field">
+                <label htmlFor="pm-newmail">Nouvel e-mail</label>
                 <input
-                    id="ed-newmail"
-                    className="ed-input"
+                    id="pm-newmail"
+                    className="pm-input"
                     type="email"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
@@ -545,21 +601,21 @@ function ChangeEmailForm({currentEmail, onClose}: {currentEmail: string; onClose
                     autoComplete="email"
                 />
             </div>
-            <div className="ed-field">
-                <label htmlFor="ed-mailpwd">Mot de passe actuel</label>
+            <div className="pm-field">
+                <label htmlFor="pm-mailpwd">Mot de passe actuel</label>
                 <input
-                    id="ed-mailpwd"
-                    className="ed-input"
+                    id="pm-mailpwd"
+                    className="pm-input"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
                 />
             </div>
-            {error && <p className="ed-error">{error}</p>}
-            <div className="ed-actions">
-                <button type="button" className="ed-ghost" onClick={onClose}>Annuler</button>
-                <button type="button" className="ed-btn" disabled={submitting} onClick={submit}>
+            {error && <p className="pm-error">{error}</p>}
+            <div className="pm-sub-actions">
+                <button type="button" className="pm-ghost" onClick={onClose}>Annuler</button>
+                <button type="button" className="pm-btn pm-btn-primary" disabled={submitting} onClick={submit}>
                     {submitting ? "Envoi…" : "Envoyer le lien"}
                 </button>
             </div>
@@ -602,31 +658,33 @@ function ChangePasswordForm({onClose}: {onClose: () => void}) {
 
     if (done) {
         return (
-            <div className="ed-sub">
-                <p className="ed-ok">Mot de passe modifié.</p>
-                <button type="button" className="ed-ghost" onClick={onClose}>Fermer</button>
+            <div className="pm-sub">
+                <p className="pm-ok">Mot de passe modifié.</p>
+                <div className="pm-sub-actions">
+                    <button type="button" className="pm-ghost" onClick={onClose}>Fermer</button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="ed-sub">
-            <div className="ed-field">
-                <label htmlFor="ed-curpwd">Mot de passe actuel</label>
+        <div className="pm-sub">
+            <div className="pm-field">
+                <label htmlFor="pm-curpwd">Mot de passe actuel</label>
                 <input
-                    id="ed-curpwd"
-                    className="ed-input"
+                    id="pm-curpwd"
+                    className="pm-input"
                     type="password"
                     value={current}
                     onChange={(e) => setCurrent(e.target.value)}
                     autoComplete="current-password"
                 />
             </div>
-            <div className="ed-field">
-                <label htmlFor="ed-newpwd">Nouveau mot de passe</label>
+            <div className="pm-field">
+                <label htmlFor="pm-newpwd">Nouveau mot de passe</label>
                 <input
-                    id="ed-newpwd"
-                    className="ed-input"
+                    id="pm-newpwd"
+                    className="pm-input"
                     type="password"
                     value={next}
                     onChange={(e) => setNext(e.target.value)}
@@ -634,21 +692,21 @@ function ChangePasswordForm({onClose}: {onClose: () => void}) {
                     autoComplete="new-password"
                 />
             </div>
-            <div className="ed-field">
-                <label htmlFor="ed-confpwd">Confirmer le nouveau</label>
+            <div className="pm-field">
+                <label htmlFor="pm-confpwd">Confirmer le nouveau</label>
                 <input
-                    id="ed-confpwd"
-                    className="ed-input"
+                    id="pm-confpwd"
+                    className="pm-input"
                     type="password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     autoComplete="new-password"
                 />
             </div>
-            {error && <p className="ed-error">{error}</p>}
-            <div className="ed-actions">
-                <button type="button" className="ed-ghost" onClick={onClose}>Annuler</button>
-                <button type="button" className="ed-btn" disabled={submitting} onClick={submit}>
+            {error && <p className="pm-error">{error}</p>}
+            <div className="pm-sub-actions">
+                <button type="button" className="pm-ghost" onClick={onClose}>Annuler</button>
+                <button type="button" className="pm-btn pm-btn-primary" disabled={submitting} onClick={submit}>
                     {submitting ? "Mise à jour…" : "Mettre à jour"}
                 </button>
             </div>
@@ -657,7 +715,7 @@ function ChangePasswordForm({onClose}: {onClose: () => void}) {
 }
 
 // ============================================================================
-// CONFIRM MODAL
+// CONFIRMATION (déconnexion, suppression, avis post-suppression)
 // ============================================================================
 function ConfirmModal({
                           title,
@@ -685,27 +743,25 @@ function ConfirmModal({
     }, [onCancel]);
 
     return (
-        <div className="cm" role="dialog" aria-modal="true" onClick={onCancel}>
-            <div className="cm-backdrop"/>
-            <div className="cm-sheet" onClick={(e) => e.stopPropagation()}>
-                <h2 className="cm-title">{title}</h2>
-                <p className="cm-body">{body}</p>
-                <div className="cm-actions">
+        <div className="pm" role="dialog" aria-modal="true" aria-labelledby="pm-confirm-title" onClick={onCancel}>
+            <section className="pm-sheet pm-sheet-narrow" onClick={(e) => e.stopPropagation()}>
+                <h2 id="pm-confirm-title" className="pm-title">{title}</h2>
+                <p className="pm-body">{body}</p>
+                <div className="pm-actions">
                     {!singleAction && (
-                        <button type="button" className="cm-btn cm-btn-ghost" onClick={onCancel}>
+                        <button type="button" className="pm-btn pm-btn-secondary" onClick={onCancel}>
                             Annuler
                         </button>
                     )}
                     <button
                         type="button"
-                        className={`cm-btn cm-btn-${confirmTone}`}
+                        className={`pm-btn pm-btn-${confirmTone}`}
                         onClick={onConfirm}
                     >
                         {confirmLabel}
                     </button>
                 </div>
-            </div>
-            <style>{modalStyles}</style>
+            </section>
         </div>
     );
 }
@@ -729,7 +785,7 @@ function formatDate(iso: string): string {
 function ProfilSkeleton() {
     return (
         <div className="pr-loading">
-            <style>{`.pr-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+            <style>{`.pr-loading { min-height: calc(100vh - 80px); background: var(--color-paper); }`}</style>
         </div>
     );
 }
@@ -744,232 +800,238 @@ const gateStyles = `
 `;
 
 // ============================================================================
-// STYLES
+// STYLES — géométrie de la maquette, couleurs et polices de l'application.
+// Aucune valeur hexadécimale : tokens `var(--color-*)`, `white`, `color-mix()`.
 // ============================================================================
 const styles = `
-  .pr { padding: 24px 36px 64px; max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
-  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; } }
+  .pr {
+    --pr-shadow: 0 10px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+    min-height: 100vh; padding: 24px 18px 48px;
+  }
+  .pr-shell { width: min(980px, 100%); margin: 0 auto; }
+
+  /* ---- Barre de titre ---- */
+  .pr-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 18px; }
+  .pr-topbar-slot { width: 48px; height: 48px; flex-shrink: 0; }
+  .pr-page-title {
+    font-family: var(--font-mono); font-size: 15px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--color-muted); text-align: center; min-width: 0;
+  }
 
   /* ---- Hero ---- */
   .pr-hero {
-    display: grid; grid-template-columns: 1fr; gap: 20px;
-    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
-    color: #fff; border-radius: 20px; padding: 24px; margin-bottom: 6px;
+    position: relative; overflow: hidden; border-radius: 30px; padding: 28px; color: white;
+    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-mid) 100%);
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--color-blue) 18%, transparent);
   }
-  .pr-hero .breadcrumb {
-    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
-    text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 6px;
+  .pr-hero::after {
+    content: ""; position: absolute; width: 220px; height: 220px; right: -80px; top: -90px;
+    border-radius: 50%; background: color-mix(in srgb, white 7%, transparent); pointer-events: none;
   }
-  .pr-hero .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .pr-hero-main h1 {
-    font-family: var(--font-display); font-weight: 600; font-size: clamp(24px, 3.4vw, 32px);
-    letter-spacing: -0.02em; line-height: 1.12; margin: 0; color: #fff;
-  }
-  .pr-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
-  .pr-hero-main p { color: rgba(255,255,255,0.82); font-size: 14.5px; line-height: 1.6; margin: 10px 0 0; max-width: 520px; }
-
-  .pr-id {
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px;
-  }
+  .pr-hero-head { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
   .pr-avatar {
-    width: 54px; height: 54px; border-radius: 14px; flex-shrink: 0;
-    background: #fff; color: var(--color-ink);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 600; font-size: 21px;
+    width: 70px; height: 70px; flex: 0 0 70px; border-radius: 20px; background: white; color: var(--color-ink);
+    display: grid; place-items: center; font-family: var(--font-display); font-size: 27px; font-weight: 700;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--color-ink) 10%, transparent);
   }
-  .pr-id-body { flex: 1; min-width: 0; }
-  .pr-id-name { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: #fff;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pr-id-email { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 1px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pr-id-tag {
-    display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
-    background: rgba(255,255,255,0.16); color: #fff; border-radius: 999px;
-    padding: 3px 10px; font-size: 11.5px; font-weight: 700; font-family: var(--font-mono);
-    letter-spacing: 0.03em;
+  .pr-identity { min-width: 0; flex: 1; }
+  .pr-identity h1 {
+    margin: 0 0 5px; font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.05;
+    letter-spacing: -0.01em; color: white; overflow-wrap: anywhere;
   }
-  .pr-id-edit {
-    flex-shrink: 0; align-self: flex-start;
-    background: #fff; color: var(--color-blue); border: none; cursor: pointer;
-    padding: 9px 16px; border-radius: 10px; font-family: var(--font-sans);
-    font-size: 13px; font-weight: 700; transition: transform 0.15s, background 0.15s;
+  .pr-identity p {
+    margin: 0; font-size: 15px; color: color-mix(in srgb, white 84%, var(--color-blue));
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   }
-  .pr-id-edit:hover { transform: translateY(-1px); background: #F1F5F9; }
+  .pr-badge {
+    display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 7px 10px;
+    border-radius: 999px; background: color-mix(in srgb, white 13%, transparent); color: white;
+    font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  }
+  .pr-edit-btn {
+    position: relative; z-index: 1; flex-shrink: 0; cursor: pointer;
+    border: 1px solid color-mix(in srgb, white 25%, transparent);
+    background: color-mix(in srgb, white 12%, transparent); color: white;
+    border-radius: 14px; padding: 11px 15px; font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s;
+  }
+  .pr-edit-btn:hover { background: color-mix(in srgb, white 20%, transparent); }
+  .pr-edit-btn:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+  .pr-edit-ico { display: none; }
 
-  /* ---- Stats ---- */
-  .pr-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 8px; }
-  .pr-stat-card {
-    background: #fff; border: 1px solid var(--color-line); border-radius: 16px;
-    padding: 16px 14px; text-align: center; min-width: 0;
+  /* ---- Tuiles ---- */
+  .pr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 14px 0 28px; }
+  .pr-stat {
+    background: white; border: 1px solid var(--color-line); border-radius: 20px; padding: 17px 15px; min-width: 0;
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--color-ink) 3.5%, transparent);
   }
-  .pr-stat-value { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: -0.01em; line-height: 1.1; }
-  .pr-stat-card.accent-blue .pr-stat-value { color: var(--color-blue); }
-  .pr-stat-card.accent-red .pr-stat-value { color: var(--color-red); }
+  .pr-stat-value { font-family: var(--font-display); font-size: 25px; font-weight: 700; line-height: 1.15; }
+  .pr-stat-value.tone-blue { color: var(--color-blue); }
+  .pr-stat-value.tone-red { color: var(--color-red); }
   .pr-stat-label {
-    margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+    margin-top: 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--color-muted);
   }
-  /* Périmètre d'un niveau estimé partiel : une précision, pas une alerte —
-     ni couleur d'avertissement, ni majuscules. Doit tenir sur une carte de
-     grille à 3 colonnes dès 360 px. */
-  .pr-stat-hint {
-    margin-top: 4px; font-family: var(--font-sans); font-size: 11px; line-height: 1.3;
-    color: var(--color-muted-2); overflow-wrap: anywhere;
+  .pr-stat-meta { margin-top: 3px; font-size: 12px; line-height: 1.3; color: var(--color-muted-2); overflow-wrap: anywhere; }
+
+  /* ---- Grille de contenu ---- */
+  .pr-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+  .pr-card {
+    background: white; border: 1px solid var(--color-line); border-radius: 24px;
+    box-shadow: var(--pr-shadow); overflow: hidden; min-width: 0;
+  }
+  .pr-full { grid-column: 1 / -1; }
+  .pr-card-title {
+    margin: 0; padding: 20px 22px 10px; font-family: var(--font-display); font-weight: 600;
+    font-size: 18px; letter-spacing: -0.01em; color: var(--color-ink);
   }
 
-  /* ---- Section titles ---- */
-  .pr-section-title { margin-top: 12px; }
-  .pr-section-title h2 {
-    font-family: var(--font-display); font-weight: 600; font-size: 17px;
-    letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 4px;
-  }
-
-  /* ---- Line cards (pass / objectif) ---- */
-  .pr-line-card {
-    display: flex; align-items: center; gap: 14px; text-decoration: none;
-    background: #fff; border: 1px solid var(--color-line); border-radius: 16px; padding: 16px;
-    transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
-  }
-  .pr-line-card:hover { transform: translateY(-2px); border-color: var(--color-blue);
-    box-shadow: 0 16px 38px -24px rgba(30,58,140,0.3); }
-  .pr-objectif { background: var(--color-paper); }
-  .pr-line-icon {
-    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
-    background: var(--color-blue-soft);
-  }
-  .pr-pass.accent-blue .pr-line-icon { background: var(--color-blue); }
-  .pr-pass.accent-red .pr-line-icon { background: var(--color-red); }
-  .pr-pass.accent-neutral .pr-line-icon { background: var(--color-paper-2); }
-  .pr-line-icon.tone-objectif { background: #fff; border: 1px solid var(--color-line); }
-  .pr-line-body { flex: 1; min-width: 0; }
-  .pr-line-head { display: flex; align-items: center; gap: 8px; }
-  .pr-line-head h3 { font-family: var(--font-sans); font-weight: 700; font-size: 15.5px; color: var(--color-ink); margin: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pr-line-body p { font-size: 12.5px; color: var(--color-muted); margin: 2px 0 0; line-height: 1.45;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pr-pill {
-    flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
-    letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 8px; border-radius: 7px;
-  }
-  .pill-active { background: rgba(22,143,91,0.14); color: var(--color-green); }
-  .pill-free { background: var(--color-paper-2); color: var(--color-muted); }
-  .pr-chevron { flex-shrink: 0; font-size: 22px; line-height: 1; color: var(--color-muted-2); font-weight: 400; }
-
-  /* ---- Row groups ---- */
-  .pr-group { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; overflow: hidden; }
+  /* ---- Lignes ---- */
   .pr-row {
-    width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
-    background: none; border: none; cursor: pointer; padding: 14px 16px; font-family: inherit;
-    border-bottom: 1px solid var(--color-line-2); transition: background 0.15s;
+    width: 100%; display: flex; align-items: center; gap: 14px; padding: 17px 20px;
+    border: 0; border-top: 1px solid var(--color-line); background: none; cursor: pointer;
+    text-align: left; text-decoration: none; color: inherit; font-family: inherit; transition: background 0.15s;
   }
-  .pr-group .pr-row:last-child { border-bottom: none; }
+  .pr-card-title + .pr-row, .pr-card > .pr-row:first-child { border-top: 0; }
   .pr-row:hover { background: var(--color-blue-soft); }
-  .pr-row-icon {
-    width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
-    background: var(--color-blue-soft); color: var(--color-blue);
+  .pr-row:focus-visible { outline: 2px solid var(--color-blue); outline-offset: -2px; }
+  .pr-icon {
+    width: 48px; height: 48px; flex: 0 0 48px; border-radius: 15px; display: grid; place-items: center;
   }
-  .pr-row-icon.tone-danger { background: var(--color-red-light); color: var(--color-red); }
-  .pr-row-icon.tone-muted { background: var(--color-paper-2); color: var(--color-muted); }
-  .pr-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .pr-row-title { font-family: var(--font-sans); font-weight: 700; font-size: 14.5px; color: var(--color-ink); }
+  .pr-icon.tone-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .pr-icon.tone-green { background: var(--color-green-light); color: var(--color-green); }
+  .pr-icon.tone-red { background: var(--color-red-light); color: var(--color-red); }
+  .pr-icon.tone-muted { background: var(--color-paper-2); color: var(--color-muted); }
+  .pr-row-main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+  .pr-row-title { font-weight: 800; font-size: 16px; line-height: 1.2; color: var(--color-ink); }
+  .pr-row-sub {
+    margin-top: 4px; font-size: 13px; line-height: 1.35; color: var(--color-muted);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .pr-arrow { flex-shrink: 0; color: var(--color-muted-2); }
+  .pr-status {
+    display: inline-flex; align-items: center; margin-left: 8px; padding: 5px 9px; border-radius: 999px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; vertical-align: 2px;
+  }
+  .pr-status.is-active { background: var(--color-green-light); color: var(--color-green); }
+  .pr-status.is-free { background: var(--color-paper-2); color: var(--color-muted); }
   .pr-row-danger .pr-row-title { color: var(--color-red); }
-  .pr-row-sub { font-size: 12px; color: var(--color-muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pr-row-danger:hover { background: var(--color-red-light); }
 
-  .pr-version { text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-muted-2); margin-top: 12px; }
+  .pr-footer {
+    margin-top: 28px; text-align: center; font-family: var(--font-mono); font-size: 12px;
+    letter-spacing: 0.08em; color: var(--color-muted-2);
+  }
 
-  @media (min-width: 760px) {
-    .pr-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
+  /* ---- Modales : feuille posée en bas (maquette) ---- */
+  .pm {
+    position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center;
+    padding: 18px; background: color-mix(in srgb, var(--color-ink) 42%, transparent);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: pm-fade 0.18s ease-out;
   }
-  @media (max-width: 420px) {
-    .pr-stats { gap: 8px; }
-    .pr-stat-value { font-size: 19px; }
-    .pr-id { flex-wrap: wrap; }
-    .pr-id-edit { width: 100%; text-align: center; }
+  @keyframes pm-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pm-slide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .pm-sheet {
+    width: min(620px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; background: white;
+    border-radius: 28px 28px 22px 22px; padding: 24px; animation: pm-slide 0.22s ease-out;
+    box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 22%, transparent);
   }
-`;
+  .pm-sheet-narrow { width: min(480px, 100%); }
+  .pm-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .pm-title {
+    margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 25px;
+    letter-spacing: -0.02em; color: var(--color-ink);
+  }
+  .pm-sheet-narrow .pm-title { font-size: 22px; margin-bottom: 8px; }
+  .pm-close {
+    flex-shrink: 0; width: 40px; height: 40px; border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--color-paper); color: var(--color-muted); display: grid; place-items: center;
+  }
+  .pm-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
+  .pm-body { margin: 0 0 22px; font-size: 14px; line-height: 1.55; color: var(--color-muted); white-space: pre-line; }
 
-const editStyles = `
-  .cm-sheet-wide { max-width: 520px; }
-  .cm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-  .cm-head .cm-title { margin: 0; }
-  .cm-close {
-    background: none; border: none; cursor: pointer; font-size: 16px; color: var(--color-muted);
-    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  .pm-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .pm-span { grid-column: 1 / -1; }
+  .pm-field { display: flex; flex-direction: column; min-width: 0; }
+  .pm-field label, .pm-label {
+    display: block; margin-bottom: 7px; font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-muted);
   }
-  .cm-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
+  .pm-input {
+    width: 100%; min-width: 0; border: 1px solid var(--color-line); background: var(--color-paper);
+    color: var(--color-ink); border-radius: 14px; padding: 14px 15px; font-family: var(--font-sans);
+    font-size: 16px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .pm-input:focus { border-color: var(--color-blue); box-shadow: 0 0 0 3px var(--color-blue-light); }
+  .pm-readline { display: flex; align-items: center; gap: 10px; }
+  .pm-readonly { flex: 1; color: var(--color-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pm-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
+  .pm-sub {
+    margin-top: 12px; padding: 14px; border: 1px solid var(--color-line-2); border-radius: 14px;
+    background: var(--color-blue-soft); display: flex; flex-direction: column; gap: 12px;
+  }
+  .pm-sub-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  .pm-error { margin: 12px 0 0; font-size: 12.5px; color: var(--color-red); }
+  .pm-ok { margin: 12px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--color-green); }
+  .pm-sub .pm-error, .pm-sub .pm-ok { margin: 0; }
 
-  .ed-label {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--color-muted); margin: 18px 0 8px;
+  .pm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .pm-btn {
+    border-radius: 13px; padding: 12px 16px; font-family: var(--font-sans); font-size: 14px; font-weight: 800;
+    cursor: pointer; border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
   }
-  .ed-label:first-of-type { margin-top: 0; }
-  .ed-block {
-    background: var(--color-paper); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 14px;
+  .pm-btn:disabled { opacity: 0.6; cursor: default; }
+  .pm-btn-secondary { background: white; border-color: var(--color-line); color: var(--color-ink); }
+  .pm-btn-secondary:hover { border-color: var(--color-ink); }
+  .pm-btn-primary { background: var(--color-blue); color: white; }
+  .pm-btn-primary:hover:not(:disabled) { background: var(--color-blue-dark); }
+  .pm-btn-danger { background: var(--color-red); color: white; }
+  .pm-btn-danger:hover { background: var(--color-red-dark); }
+  .pm-btn-neutral { background: var(--color-ink); color: white; }
+  .pm-btn-neutral:hover { background: var(--color-ink-2); }
+  .pm-ghost {
+    flex-shrink: 0; cursor: pointer; background: white; border: 1px solid var(--color-line);
+    border-radius: 12px; padding: 10px 14px; font-family: var(--font-sans); font-size: 13px; font-weight: 700;
+    color: var(--color-blue); transition: border-color 0.15s;
   }
-  .ed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 460px) { .ed-grid { grid-template-columns: 1fr; } }
-  .ed-field { display: flex; flex-direction: column; gap: 6px; }
-  .ed-field label {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--color-muted);
-  }
-  .ed-input {
-    font-family: var(--font-sans); font-size: 16px; color: var(--color-ink);
-    background: #fff; border: 1px solid var(--color-line); border-radius: 10px;
-    padding: 10px 12px; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .ed-input:focus { outline: none; border-color: var(--color-blue); box-shadow: 0 0 0 3px var(--color-blue-soft); }
-  .ed-error { color: var(--color-red); font-size: 12.5px; margin: 10px 0 0; }
-  .ed-ok { color: var(--color-green); font-size: 12.5px; margin: 10px 0 0; line-height: 1.45; }
-  .ed-note { color: var(--color-muted); font-size: 12.5px; margin: 8px 0 0; line-height: 1.45; }
-  .ed-btn {
-    margin-top: 12px; background: var(--color-blue); color: #fff; border: none; cursor: pointer;
-    padding: 11px 18px; border-radius: 10px; font-family: var(--font-sans); font-weight: 700; font-size: 13.5px;
-    transition: background 0.15s;
-  }
-  .ed-btn:hover { background: var(--color-blue-dark); }
-  .ed-btn:disabled { opacity: 0.6; cursor: default; }
-  .ed-readline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .ed-readval { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--color-ink);
-    word-break: break-all; }
-  .ed-ghost {
-    background: #fff; border: 1px solid var(--color-line); cursor: pointer; flex-shrink: 0;
-    padding: 8px 14px; border-radius: 9px; font-family: var(--font-sans); font-weight: 700;
-    font-size: 12.5px; color: var(--color-blue); transition: border-color 0.15s;
-  }
-  .ed-ghost:hover { border-color: var(--color-blue); }
-  .ed-sub { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-line-2);
-    display: flex; flex-direction: column; gap: 12px; }
-  .ed-actions { display: flex; gap: 10px; justify-content: flex-end; }
-`;
+  .pm-ghost:hover { border-color: var(--color-blue); }
 
-const modalStyles = `
-  .cm { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
-  .cm-backdrop { position: absolute; inset: 0; background: rgba(15, 24, 57, 0.55); backdrop-filter: blur(4px); animation: cm-fade 0.18s ease-out; }
-  @keyframes cm-fade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes cm-slide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .cm-sheet {
-    position: relative; background: #fff; border-radius: 22px 22px 0 0; padding: 28px 28px 22px;
-    width: 100%; max-width: 460px; animation: cm-slide 0.22s ease-out;
-    box-shadow: 0 -10px 50px -10px rgba(15, 24, 57, 0.25);
-    max-height: 92vh; overflow-y: auto;
+  /* ---- ≤ 760 px ---- */
+  @media (max-width: 760px) {
+    .pr { padding: 16px 14px 34px; }
+    .pr-grid { grid-template-columns: minmax(0, 1fr); }
+    .pr-full { grid-column: auto; }
+    .pr-hero { padding: 22px 18px; border-radius: 26px; }
+    .pr-hero-head { align-items: flex-start; }
+    .pr-avatar { width: 60px; height: 60px; flex-basis: 60px; border-radius: 17px; font-size: 23px; }
+    .pr-identity h1 { font-size: 24px; }
+    .pr-identity p { font-size: 13px; }
+    .pr-edit-btn { padding: 9px 11px; font-size: 13px; }
+    .pr-stats { gap: 8px; margin-top: 10px; margin-bottom: 20px; }
+    .pr-stat { padding: 14px 10px; border-radius: 17px; }
+    .pr-stat-value { font-size: 22px; }
+    .pr-stat-label { font-size: 9px; letter-spacing: 0.1em; }
+    .pr-stat-meta { font-size: 10px; }
+    .pr-card { border-radius: 20px; }
+    .pr-card-title { padding: 18px 18px 9px; font-size: 17px; }
+    .pr-row { padding: 15px 16px; }
+    .pr-icon { width: 44px; height: 44px; flex-basis: 44px; border-radius: 14px; }
+    .pr-row-title { font-size: 15px; }
+    .pr-row-sub { font-size: 12px; }
+    .pm-fields { grid-template-columns: minmax(0, 1fr); }
+    .pm-span { grid-column: auto; }
+    .pm-sheet { padding: 20px; }
   }
-  @media (min-width: 640px) { .cm { align-items: center; } .cm-sheet { border-radius: 18px; } }
-  .cm-title { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: -0.02em; color: var(--color-ink); margin: 0 0 8px; }
-  .cm-body { font-size: 14px; line-height: 1.55; color: var(--color-muted); margin: 0 0 22px; white-space: pre-line; }
-  .cm-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-  .cm-btn { padding: 10px 16px; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
-  .cm-btn-ghost { background: #fff; border-color: var(--color-line); color: var(--color-ink); }
-  .cm-btn-ghost:hover { border-color: var(--color-ink); }
-  .cm-btn-primary { background: var(--color-blue); color: #fff; }
-  .cm-btn-primary:hover { background: var(--color-blue-dark); }
-  .cm-btn-danger { background: var(--color-red); color: #fff; }
-  .cm-btn-danger:hover { background: var(--color-red-dark); }
-  .cm-btn-neutral { background: var(--color-ink); color: #fff; }
-  .cm-btn-neutral:hover { background: var(--color-ink-2); }
+
+  /* ---- ≤ 430 px ---- */
+  @media (max-width: 430px) {
+    .pr-topbar { margin-bottom: 14px; }
+    .pr-page-title { display: none; }
+    .pr-hero-head { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; }
+    .pr-identity h1 { font-size: 22px; }
+    .pr-edit-btn { width: 38px; height: 38px; padding: 0; border-radius: 12px; }
+    .pr-edit-txt { display: none; }
+    .pr-edit-ico { display: block; }
+  }
 `;
