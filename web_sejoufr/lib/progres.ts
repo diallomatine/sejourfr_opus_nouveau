@@ -353,7 +353,7 @@ export function accueilEpreuveStatut(epreuve: ProgressEpreuveDto): string | null
         case "EN_PROGRESSION":
             return "En progression";
         case "SOLIDE":
-            return "Solide · à maintenir";
+            return "Solide, à maintenir";
         case "PROCHE":
             return PROGRES_STATUT_LABEL.CLOSE_TO_TARGET;
         case "A_RENFORCER":
@@ -492,31 +492,6 @@ export function accueilEchelleLabel(
 }
 
 /**
- * **Les quatre paliers de l'échelle**, pour la légende rendue une seule fois
- * au-dessus de la liste (2026-09-17).
- *
- * 🛑 **La même table que les crans** (`ACCUEIL_ECHELLE_CECRL`) : deux listes de
- * paliers finiraient par ne plus se superposer.
- *
- * Miroir mobile : `accueilEchelleLegende`.
- */
-export function accueilEchelleLegende(): string[] {
-    return ACCUEIL_ECHELLE_CECRL.map((niveau) => niveauCecrlShort(niveau));
-}
-
-/**
- * Le rang du palier **visé** sur cette échelle, ou `null` sans démarche
- * déclarée — le seul repère que les libellés par ligne portaient et qui dise
- * quelque chose, et il est **global** aux quatre épreuves.
- *
- * Miroir mobile : `accueilEchelleRangObjectif`.
- */
-export function accueilEchelleRangObjectif(objectif: NiveauCecrl | null): number | null {
-    const rang = cecrlIndex(objectif);
-    return rang < 0 ? null : rang;
-}
-
-/**
  * Le compteur du bandeau d'objectif — « 3 / 4 » et ses pastilles.
  *
  * 🛑 **On compte des mesures, on n'en classe aucune** : le seul fait lu est la
@@ -621,20 +596,6 @@ export function accueilEchelonsCivique(etat: CivicThemeState): LadderStep[] {
         current: rang === atteint,
         goal: false,
     }));
-}
-
-/**
- * **Les états de l'échelle civique**, pour la légende rendue une seule fois
- * au-dessus de la liste — le pendant de `accueilEchelleLegende`.
- *
- * 🛑 **La même table que les crans** (`ACCUEIL_ECHELLE_CIVIQUE`), et les mêmes
- * libellés **gelés** que la pastille de droite (`CIVIC_THEME_STATE_LABEL`) :
- * deux listes finiraient par ne plus se superposer.
- *
- * Miroir mobile : `accueilEchelleLegendeCivique`.
- */
-export function accueilEchelleLegendeCivique(): string[] {
-    return ACCUEIL_ECHELLE_CIVIQUE.map((etat) => CIVIC_THEME_STATE_LABEL[etat]);
 }
 
 /**

@@ -302,7 +302,7 @@ String? accueilEpreuveStatut(ProgressEpreuve epreuve) =>
     switch (accueilEpreuveEtat(epreuve)) {
       AccueilEpreuveEtat.aEvaluer => 'Pas encore évaluée',
       AccueilEpreuveEtat.enProgression => 'En progression',
-      AccueilEpreuveEtat.solide => 'Solide · à maintenir',
+      AccueilEpreuveEtat.solide => 'Solide, à maintenir',
       AccueilEpreuveEtat.proche =>
         kProgresStatutLabel[StatutObjectif.closeToTarget],
       AccueilEpreuveEtat.aRenforcer =>
@@ -426,25 +426,6 @@ List<SfLadderStep> accueilEchelons(
   ];
 }
 
-/// **Les quatre paliers de l'échelle**, pour la légende rendue une seule fois
-/// au-dessus de la liste (2026-09-17).
-///
-/// 🛑 **La même table que les crans** (`kAccueilEchelleCecrl`) : deux listes de
-/// paliers finiraient par ne plus se superposer. Miroir web :
-/// `accueilEchelleLegende`.
-List<String> accueilEchelleLegende() =>
-    [for (final niveau in kAccueilEchelleCecrl) niveau.shortName];
-
-/// Le rang du palier **visé** sur cette échelle, ou `null` sans démarche
-/// déclarée — le seul repère que les libellés par ligne portaient et qui dise
-/// quelque chose, et il est **global** aux quatre épreuves.
-///
-/// Miroir web : `accueilEchelleRangObjectif`.
-int? accueilEchelleRangObjectif(NiveauCecrl? objectif) {
-  final rang = _accueilRangCecrl(objectif);
-  return rang < 0 ? null : rang;
-}
-
 /// Ce que l'échelle dit à un lecteur d'écran — elle est rendue en image, ses
 /// libellés sont décoratifs.
 ///
@@ -553,17 +534,6 @@ List<SfLadderStep> accueilEchelonsCivique(CivicThemeState etat) {
       ),
   ];
 }
-
-/// **Les états de l'échelle civique**, pour la légende rendue une seule fois
-/// au-dessus de la liste — le pendant de [accueilEchelleLegende].
-///
-/// 🛑 **La même table que les crans** ([kAccueilEchelleCivique]), et les mêmes
-/// libellés **gelés** que la pastille de droite ([CivicThemeState.label]) : deux
-/// listes finiraient par ne plus se superposer.
-///
-/// Miroir web : `accueilEchelleLegendeCivique`.
-List<String> accueilEchelleLegendeCivique() =>
-    [for (final etat in kAccueilEchelleCivique) etat.label];
 
 /// Ce que l'échelle d'un thème dit à un lecteur d'écran — elle est rendue en
 /// image, ses libellés sont décoratifs.

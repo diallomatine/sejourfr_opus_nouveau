@@ -478,6 +478,20 @@ seulement leur habillage : la **grille à deux colonnes de cartes compactes**
 dans une seule carte**, chaque ligne portant une **échelle CECRL**. La maquette
 v2 est plus récente, elle fait foi.
 
+🛑 **2026-09-24 — RÉVOQUÉ par la grille 2×2** (maquette du propriétaire,
+capture « niveau-par-epreuve ») : plus de carte de tête ni de phrase de cadrage.
+L'intertitre « Où vous en êtes » passe en tête (`Section lead`) avec le lien
+**« Mon plan »** à droite (`Section action`), puis le **bandeau bleu**
+(`GoalBanner` : compteur « 4 / 4 » en gros + « évaluées », **sans pastilles**),
+puis une **grille de cartes par épreuve** (`LevelCardGrid` + `LevelCard`) :
+pastille mono, pictogramme, nom, **palier en très gros**, statut servi, échelle
+à quatre crans **avec ses libellés sous chaque carte**, filet et « Voir mes
+résultats → » épinglé en bas. Grille pilotée par sa **propre largeur** (container
+query) : 2 colonnes < 820 px, puis 4 en ligne (TCF) / 3 + 2 (civique, 5 thèmes).
+Civique : pas de valeur en gros (aucun score par thème servi), pas de libellés
+sous l'échelle. `LevelRow`, `LevelList`, `LadderLegend` sont **supprimées**.
+Ce qui suit décrit l'état antérieur, conservé pour mémoire.
+
 Une **carte de tête** — titre « Votre niveau par épreuve », phrase de cadrage —
 qui contient, **dans cet ordre** :
 🛑 **Le liseré tricolore est SUPPRIMÉ** (demande du propriétaire, 2026-09-18) :
@@ -987,7 +1001,7 @@ Elle ne lit que **deux faits servis** — `status` (`StatutObjectifResolver`) et
 |---|---|---|---|---|---|---|
 | 1 | `niveau == null` | `A_EVALUER` | Pas encore évaluée | 0 | neutre | Faire un exercice |
 | 2 | `evolution == HAUSSE` | `EN_PROGRESSION` | En progression | 0,55 | bleu | Continuer |
-| 3 | `status == TARGET_REACHED` | `SOLIDE` | Solide · à maintenir | 1 | vert | Voir mes résultats |
+| 3 | `status == TARGET_REACHED` | `SOLIDE` | Solide, à maintenir | 1 | vert | Voir mes résultats |
 | 4 | `status == CLOSE_TO_TARGET` | `PROCHE` | Proche de l'objectif | 0,75 | ambre | Voir mes résultats |
 | 5 | `status == TO_REINFORCE` | `A_RENFORCER` | À renforcer | 0,35 | rouge | Voir mes résultats |
 | 6 | `status == null` | `SANS_OBJECTIF` | *(rien)* | 0 | neutre | Voir mes résultats |

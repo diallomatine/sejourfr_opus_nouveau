@@ -161,6 +161,53 @@
   margin: 0 0 10px;
 }
 
+/* L'intertitre de tête d'un tableau de bord (« Où vous en êtes »). Variante
+   de `.sectionH`. Miroir Flutter : `SfSectionTitle(lead: true)`. */
+.sectionHLead {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* Titre + lien discret à droite (« Mon plan »). La rangée prend les marges du
+   titre, qui n'en garde aucune. */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+}
+
+.sectionHead .sectionH {
+  margin: 0;
+  min-width: 0;
+}
+
+.sectionHead.sectionHFlush {
+  margin: 0 0 12px;
+}
+
+.sectionAction {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sectionAction:hover {
+  text-decoration: underline;
+}
+
+.sectionAction:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* L'intertitre en petites capitales mono (« À FAIRE »). Variante de
    `.sectionH`, pas une seconde règle de titre. Miroir Flutter :
    `SfSectionTitle(mono: true)`. */
@@ -1071,7 +1118,7 @@
 
 .goal {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   text-align: center;
   gap: 8px;
@@ -1830,6 +1877,7 @@
   }
 
   .sectionH,
+  .sectionHead,
   .footNote {
     margin-inline: 0;
   }
@@ -1893,21 +1941,6 @@
     grid-column: 1 / -1;
   }
 
-  /* ⚠️ **La liste d'épreuves passe à DEUX colonnes**, et c'est tout ce que le
-     desktop lui fait. Sur la colonne large du kit (1080 px), une ligne unique
-     étirerait son échelle sur près de 1 000 px : quatre crans à 240 px ne
-     situent plus rien, et l'intitulé flotterait à un écran du CTA. Deux
-     colonnes ramènent chaque ligne autour de 500 px, l'ordre de grandeur des
-     440 px de la maquette.
-
-     🛑 **Aucun composant nouveau, aucune donnée de plus** : c'est le pendant de
-     `.deskGrid2`, et donc **sans miroir Flutter** — l'app est en portrait
-     téléphone. On ne tranche pas non plus la carte en deux : l'en-tête, le
-     bandeau d'objectif et la note de pied restent pleine largeur. */
-  .levelList {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
   .isLead .panelTitle {
     font-size: 28px;
   }
@@ -1953,152 +1986,216 @@
    ce bloc doit rester vide.
    ========================================================================== */
 
-/* ---------- « Où vous en êtes » : la liste et ses lignes ---------- */
+/* ---------- « Où vous en êtes » : la grille de cartes d'épreuve ---------- */
 
-/* 🛑 **Une seule colonne** sur téléphone, comme la maquette v2 (calée sur
-   440 px) : la liste verticale remplace la grille de cartes compactes de la
-   maquette v1, et chaque ligne porte son échelle CECRL.
+/* 🛑 **Maquette v3 (2026-09-24)** : une carte blanche PAR épreuve, deux
+   colonnes dès 360 px. La grille se règle sur **sa propre largeur** (requête
+   de conteneur), jamais sur la fenêtre : la barre latérale du desktop en
+   mange une part variable.
+   - < 560 px de grille : deux colonnes serrées (téléphone) ;
+   - ≥ 560 px : deux colonnes aérées (tablette, desktop étroit) ;
+   - ≥ 820 px : quatre cartes sur UNE rangée, cinq en 3 + 2.
+   Une dernière carte impaire prend toute la rangée tant que la grille est en
+   deux colonnes. Les cartes d'une rangée ont toujours la même hauteur, et
+   leur action est épinglée en bas. */
+.levelCardGridWrap {
+  container-type: inline-size;
+}
 
-   La marge négative fait affleurer les lignes au bord de la carte : leur
-   padding de 12 px les réaligne alors exactement sous le titre. */
-.levelList {
+.levelCardGrid {
   list-style: none;
   display: grid;
-  gap: 4px;
-  margin: 12px -12px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
   padding: 0;
 }
 
-/* La légende porte déjà l'espace au-dessus d'elle : la liste se contente de
-   s'en détacher. Sans ce sélecteur, une liste SANS légende collerait sous son
-   bandeau. ⚠️ La carte civique en a une depuis le 2026-09-19 (les trois états
-   servis de ses crans) : les deux parcours passent donc par cette règle. */
-.ladderLegend + .levelList {
-  margin-top: 6px;
-}
-
-.levelRow {
+.levelCardItem {
+  display: flex;
   min-width: 0;
 }
 
-.levelRowLink {
+.levelCardItem:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.levelCard {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  width: 100%;
-  padding: 11px 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px 12px 12px;
   border: 0;
-  border-radius: var(--sf-radius-md);
-  background: transparent;
+  border-radius: var(--sf-radius-lg);
+  background: white;
+  box-shadow: var(--sf-shadow-border);
   color: var(--color-ink);
   font-family: var(--font-sans);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
-  transition: background var(--sf-quick);
+  transition: box-shadow var(--sf-quick), transform var(--sf-quick);
 }
 
-.levelRowLink:hover {
-  background: var(--color-blue-soft);
+.levelCard:hover {
+  box-shadow: var(--sf-shadow-lift);
 }
 
-.levelRowLink:disabled {
+.levelCard:disabled {
   cursor: progress;
   opacity: 0.65;
 }
 
-.levelRowLink:focus-visible {
+.levelCard:focus-visible {
   outline: 2px solid var(--color-blue);
   outline-offset: 2px;
 }
 
-/* Une épreuve **jamais mesurée** se détache : c'est la seule ligne qui demande
-   un geste pour exister. 🛑 Le fait est **passé** (`measured`), jamais lu d'un
-   libellé — et il ne se confond pas avec « &lt;A1 », qui est une mesure. */
-.isTodo.levelRowLink {
+/* Une épreuve **jamais mesurée** se détache : c'est la seule carte qui
+   demande un geste pour exister. 🛑 Le fait est **passé** (`measured`), jamais
+   lu d'un libellé — et il ne se confond pas avec « &lt;A1 », qui est une
+   mesure. */
+.levelCard.isTodo {
   background: var(--color-paper-2);
 }
 
-.isTodo.levelRowLink:hover {
-  background: var(--color-line-2);
-}
-
-.levelRowTop {
+.levelCardTop {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 /* Le repère court (« CO »), en mono : c'est une étiquette technique. */
-.levelMark {
+.levelCardMark {
   flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--sf-radius-sm);
-  background: var(--color-blue-muted);
-  color: white;
+  padding: 4px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
   font-family: var(--font-mono);
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.isTodo .levelMark {
-  background: white;
-  color: var(--color-blue-muted);
-  box-shadow: inset 0 0 0 1.5px var(--color-blue-muted);
-}
-
-.levelRowId {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.levelRowName {
-  display: block;
-  font-size: 15px;
+  font-size: 12.5px;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
+}
+
+.levelCardIcon {
+  flex: 0 0 auto;
+  color: var(--color-blue);
+}
+
+/* 🛑 **Coupé entre deux mots, jamais au milieu** : « Compréhension écrite »
+   passe sur deux lignes à 360 px, et « Compréhension » tient entier dans une
+   demi-carte. */
+.levelCardName {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--color-muted);
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+}
+
+/* Le palier, en très gros : c'est LA donnée de la carte. Sa taille suit la
+   largeur de la carte (`cqi`), bornée — « &lt;A1 » tient dans une demi-carte
+   de 360 px. */
+.levelCardLevel {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(34px, 30cqi, 52px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* 🛑 Non mesuré : le mot de l'absence, en neutre et en petit. Le très gros
+   noir est réservé à un palier réel — une absence de mesure en gros se
+   lirait comme un résultat. */
+.levelCardLevel.isNa {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-muted);
+  white-space: normal;
 }
 
 /* La pastille de statut prend le ton **servi**, et le mot le redit : la
    couleur n'est jamais le seul porteur de l'information. */
-.levelRowStatus {
+.levelCardStatus {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-  font-size: 12.5px;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-muted);
+  line-height: 1.3;
 }
 
-.levelRowStatus::before {
+.levelCardStatus::before {
   content: "";
   flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
+  transform: translateY(-1px);
 }
 
-/* 🛑 **La MÊME pastille, à la place du palier** (2026-09-19, arbitrage du
-   propriétaire) : la ligne civique n'a aucun palier CECRL servi, donc sa
-   colonne de droite était vide et son état se lisait en petit sous
-   l'intitulé. Elle prend la position qu'occupe le palier en TCF — seule la
-   position change, le mot, le ton et la pastille restent ceux du statut servi.
-   ⚠️ La ligne TCF n'y touche pas : elle garde son statut à gauche et son
-   palier à droite. */
-.levelRowStatus.isRight {
+.levelCardScale {
+  display: block;
+  margin-top: 12px;
+}
+
+/* 🛑 **L'action épinglée en bas** : `margin-top: auto` pousse le filet et le
+   lien au pied de la carte, donc les barres et les « Voir mes résultats »
+   d'une même rangée restent alignés quelle que soit la longueur des noms. */
+.levelCardFoot {
+  display: block;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.levelCardCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-blue);
+}
+
+.levelCardCta > svg {
   flex: 0 0 auto;
-  margin-top: 0;
-  margin-left: 10px;
-  white-space: nowrap;
+}
+
+/* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
+   jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
+.levelCardCta.isPrimary {
+  justify-content: center;
+  padding: 9px 12px;
+  border-top: 0;
+  border-radius: var(--sf-radius-xs);
+  background: var(--color-red);
+  color: white;
+  text-align: center;
+  transition: background var(--sf-quick);
+}
+
+.levelCard:hover .levelCardCta.isPrimary {
+  background: var(--color-red-dark);
 }
 
 .toneOk { color: var(--color-green); }
@@ -2107,72 +2204,36 @@
 .toneHot { color: var(--color-red-dark); }
 .toneMuted { color: var(--color-muted); }
 
-/* Le palier, en mono : c'est un repère, pas un titre. */
-.levelChip {
-  flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-blue);
-  white-space: nowrap;
+/* Tablette et desktop étroit : mêmes deux colonnes, plus d'air. */
+@container (min-width: 560px) {
+  .levelCardGrid {
+    gap: 14px;
+  }
+
+  .levelCard {
+    padding: 18px 18px 16px;
+  }
 }
 
-/* 🛑 Non mesuré : pastille neutre et petite. Le bleu est réservé à un palier
-   réel — une pastille de marque sur une absence de mesure se lirait comme un
-   résultat. */
-.levelChip.isNa {
-  padding: 4px 8px;
-  border-radius: var(--sf-radius-xs);
-  background: white;
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 700;
-}
+/* Desktop large : les quatre épreuves sur une rangée ; les cinq thèmes
+   civiques en 3 + 2 sur une grille de six colonnes — cinq cartes côte à côte
+   y seraient trop étroites pour leurs intitulés. */
+@container (min-width: 820px) {
+  .levelCardGrid:has(> .levelCardItem:nth-child(4):last-child) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 
-/* L'échelle et la ligne d'action s'alignent sous l'intitulé, pas sous le
-   repère : 38 px de pastille + 12 px de gouttière. */
-.levelRowScale,
-.levelRowMeta {
-  display: block;
-  padding-left: 50px;
-}
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 
-/* Sans repère court (le civique), rien ne justifie le retrait. */
-.isFlush .levelRowScale,
-.isFlush .levelRowMeta {
-  padding-left: 0;
-}
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem {
+    grid-column: span 2;
+  }
 
-.levelRowMeta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 7px;
-  font-size: 12.5px;
-}
-
-.levelRowCta {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 700;
-  color: var(--color-blue);
-}
-
-/* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
-   jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
-.levelRowCta.isPrimary {
-  padding: 7px 14px;
-  border-radius: var(--sf-radius-xs);
-  background: var(--color-red);
-  color: white;
-  transition: background var(--sf-quick);
-}
-
-.levelRowLink:hover .levelRowCta.isPrimary {
-  background: var(--color-red-dark);
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem:nth-child(n + 4) {
+    grid-column: span 3;
+  }
 }
 
 /* ---------- L'échelle CECRL : l'élément signature ---------- */
@@ -2184,7 +2245,6 @@
    du 2026-09-16 — l'échelle s'arrête à B2, comme le reste du produit. */
 .ladder {
   display: block;
-  margin-top: 9px;
 }
 
 /* 🛑 **Autant de colonnes qu'on lui passe de crans, à largeur égale** : la
@@ -2226,17 +2286,14 @@
   box-shadow: inset 0 0 0 1.5px var(--color-red-muted);
 }
 
-/* 🛑 **Masqués sur téléphone** (2026-09-17) : quatre lignes de libellés pour
-   une seule échelle, c'était une hauteur d'écran perdue. `.ladderLegend` les
-   dit une fois pour toute la liste. Ils reviennent au palier desktop, où la
-   liste passe à deux colonnes — une légende ne peut pas s'aligner sur deux
-   échelles — et où la hauteur n'est pas une contrainte. */
+/* Les libellés sous CHAQUE échelle (maquette v3) : chaque carte d'épreuve
+   porte la sienne, il n'y a plus de légende commune. */
 .ladderLabels {
-  display: none;
+  display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
-  margin-top: 5px;
+  margin-top: 6px;
 }
 
 .ladderLabels span {
@@ -2257,59 +2314,6 @@
   font-weight: 700;
 }
 
-/* La légende de l'échelle, rendue UNE fois au-dessus de la liste. Le retrait
-   reprend celui des échelles : la liste affleure le bord par sa marge négative
-   de 12 px, la ligne la rattrape par son padding, et l'échelle s'indente de
-   50 px — donc 50 px suffisent ici pour tomber exactement sous les crans. */
-.ladderLegend {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 4px;
-  margin: 12px 0 0;
-  padding-left: 50px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-muted-2);
-}
-
-.ladderLegend span {
-  text-align: center;
-}
-
-.ladderLegend .isTgt {
-  color: var(--color-red);
-  font-weight: 700;
-}
-
-/* ⚠️ **Le palier desktop de cette section est déclaré ICI, pas dans le grand
-   bloc `@media` du haut du fichier** : celui-ci précède les règles de base de
-   la liste, qui le neutraliseraient à égalité de spécificité. C'est aussi ce
-   qui rend enfin effective la gouttière de 12 px entre les deux colonnes. */
-@media (min-width: 960px) {
-  .levelList {
-    gap: 4px 12px;
-    margin-top: 14px;
-  }
-
-  /* 🛑 **Les libellés reviennent PAR LIGNE, la légende s'efface.** Sur deux
-     colonnes, une légende unique ne peut pas s'aligner sur deux échelles ; et
-     la hauteur, qui a motivé son extraction sur téléphone, n'est pas une
-     contrainte ici. */
-  .ladderLabels {
-    display: grid;
-  }
-
-  .ladderLegend {
-    display: none;
-  }
-
-  .ladderLegend + .levelList {
-    margin-top: 14px;
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .ladderStep {
     transition: background var(--sf-fast);
@@ -2318,30 +2322,30 @@
 
 /* ---------- Le bandeau d'objectif ---------- */
 
-/* 🛑 **Bande bleue pleine** (maquette v2) : elle annonce l'objectif avant que
-   la liste dise où on en est. ⚠️ Remplace `.goalRibbon`, la bande claire à
-   filet de la maquette v1. */
+/* 🛑 **Bande bleue pleine** : elle annonce l'objectif avant que les cartes
+   disent où on en est. Le compteur « 4 / 4 » s'écrit en gros, sans pastilles
+   (maquette v3, 2026-09-24) : les cartes en dessous les montrent déjà. */
 .goalBanner {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 14px;
-  border-radius: var(--sf-radius-md);
-  background: var(--color-blue-muted);
+  padding: 16px;
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-blue);
   color: white;
 }
 
 /* La cocarde : trois cercles concentriques, en pur dégradé radial. */
 .goalCocarde {
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    var(--color-red) 0 30%,
-    white 31% 58%,
-    var(--color-blue-dark) 59%
+    var(--color-red) 0 36%,
+    white 37% 70%,
+    var(--color-blue-dark) 71%
   );
   box-shadow: 0 0 0 2px color-mix(in srgb, white 25%, transparent);
 }
@@ -2354,15 +2358,16 @@
 }
 
 .goalBannerBody small {
-  font-size: 12px;
-  font-weight: 600;
-  color: color-mix(in srgb, white 75%, var(--color-blue));
+  font-size: 13px;
+  font-weight: 500;
+  color: color-mix(in srgb, white 78%, var(--color-blue));
 }
 
 .goalBannerBody b {
-  margin-top: 1px;
-  font-size: 15.5px;
+  margin-top: 2px;
+  font-size: 18px;
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
@@ -2375,37 +2380,24 @@
 }
 
 .goalCount b {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .goalCount small {
-  margin-top: 4px;
-  font-size: 11px;
-  color: color-mix(in srgb, white 75%, var(--color-blue));
+  margin-top: 2px;
+  font-size: 12px;
+  color: color-mix(in srgb, white 78%, var(--color-blue));
 }
 
-/* Une pastille par épreuve SERVIE — le nombre vient du serveur, jamais d'un
-   « 4 » écrit ici. */
-.goalPips {
-  display: flex;
-  gap: 4px;
-  margin-top: 5px;
-  justify-content: flex-end;
+@media (min-width: 620px) {
+  .goalBanner {
+    padding: 18px 22px;
+  }
 }
-
-.goalPips i {
-  width: 14px;
-  height: 5px;
-  border-radius: 3px;
-  background: color-mix(in srgb, white 25%, transparent);
-}
-
-.goalPips i.isOn {
-  background: white;
-}
-
 
 /* ---------- La note discrète de bas de carte ---------- */
 
@@ -2817,9 +2809,8 @@
 /* ---------- Palier desktop (960 px) — la borne du kit, pas une de plus ---- */
 
 @media (min-width: 960px) {
-  /* ⚠️ Les deux règles de « Où vous en êtes » sont parties avec la maquette v1
-     (`.levelGrid`, `.levelCardTop`) : la liste a sa propre règle de palier, plus
-     haut, avec le reste du kit. */
+  /* ⚠️ « Où vous en êtes » n'a aucune règle ici : sa grille de cartes se
+     règle sur sa propre largeur (`@container`, avec le reste du kit). */
   .chart {
     height: 220px;
   }
@@ -2830,7 +2821,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .levelRowLink,
+  .levelCard,
   .ladderStep,
   .histItem,
   .chartDot {

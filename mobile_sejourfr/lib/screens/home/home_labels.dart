@@ -36,13 +36,12 @@ const String kHomeNowTitle = 'À faire maintenant';
 
 /// La section des cartes d'épreuve, entre l'action du jour et l'aperçu du Plan.
 const String kHomeSituationTitle = 'Où vous en êtes';
-const String kHomeSituationCardTitle = 'Votre niveau par épreuve';
 
-/// ⚠️ **Tenue sur UNE ligne** (2026-09-17) : la phrase de cadrage en prenait
-/// deux, et la carte ne tenait pas sur l'écran d'un téléphone. Elle dit la même
-/// chose.
-const String kHomeSituationCardLead =
-    'Votre niveau actuel, et ce qu\'il reste à atteindre.';
+/// Le lien de tête de section, vers le Plan **du module affiché** (maquette
+/// v3, 2026-09-24). ⚠️ L'ancienne carte-enveloppe (« Votre niveau par
+/// épreuve » / « … par thème » et leurs phrases de cadrage) est supprimée avec
+/// elle. Miroir web : `SITUATION_PLAN_LINK`.
+const String kHomeSituationPlanLink = 'Mon plan';
 
 /// La note de pied de carte (maquette du propriétaire, 2026-09-16).
 ///
@@ -53,11 +52,6 @@ const String kHomeSituationCardLead =
 const String kHomeSituationNote =
     'Le niveau affiché évolue uniquement avec vos diagnostics et vos '
     'épreuves complètes.';
-
-/// Le pendant civique : le civique se mesure en thèmes, jamais en paliers.
-const String kHomeSituationCivicCardTitle = 'Votre niveau par thème';
-const String kHomeSituationCivicCardLead =
-    'Mis à jour après vos séries et votre diagnostic.';
 
 /// Ce que propose la ligne d'un thème civique.
 ///

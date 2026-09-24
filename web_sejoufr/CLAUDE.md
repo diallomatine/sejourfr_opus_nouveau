@@ -797,8 +797,9 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   (+ `ChartPoint`), `FilterChips`, `HistoryRow`, `InfoNote`, le **liseré
   tricolore** de tête de carte (`Card rule="flag"`) et, sur la maquette v2
   (`ou_en_vous_v2.html`), **`LevelLadder`** (l'échelle CECRL à quatre crans) et
-  **`LadderLegend`** (ses libellés, écrits une seule fois pour la liste),
-  **`LevelRow`**, **`LevelList`** et **`GoalBanner`**. Elles servent « Où vous
+  **`GoalBanner`**, puis le 2026-09-24 **`LevelCard`** + **`LevelCardGrid`**
+  (grille 2×2 de « Où vous en êtes » ; `LadderLegend`, `LevelRow` et
+  `LevelList` sont supprimées ce jour-là). Elles servent « Où vous
   en êtes » (`/dashboard`) et « Vos résultats »
   (`/historique/epreuve/[domaine]`) — → `docs/regles/progression.md`.
   ⚠️ **`LevelCard`, `LevelGrid` et `GoalRibbon` sont SUPPRIMÉES** le même jour
@@ -1093,6 +1094,20 @@ Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 5. **Où vous en êtes** (pleine largeur) ;
 6. `deskPair` : **Votre progression** | **Affiner votre Plan** (TCF seulement) ;
 7. **Vos parcours** (deux lignes vers le **Plan** de chaque module).
+
+🛑 **2026-09-24 — RÉVOQUÉ par la grille 2×2** (maquette du propriétaire,
+capture « niveau-par-epreuve ») : plus de carte de tête ni de phrase de cadrage.
+L'intertitre « Où vous en êtes » passe en tête (`Section lead`) avec le lien
+**« Mon plan »** à droite (`Section action`), puis le **bandeau bleu**
+(`GoalBanner` : compteur « 4 / 4 » en gros + « évaluées », **sans pastilles**),
+puis une **grille de cartes par épreuve** (`LevelCardGrid` + `LevelCard`) :
+pastille mono, pictogramme, nom, **palier en très gros**, statut servi, échelle
+à quatre crans **avec ses libellés sous chaque carte**, filet et « Voir mes
+résultats → » épinglé en bas. Grille pilotée par sa **propre largeur** (container
+query) : 2 colonnes < 820 px, puis 4 en ligne (TCF) / 3 + 2 (civique, 5 thèmes).
+Civique : pas de valeur en gros (aucun score par thème servi), pas de libellés
+sous l'échelle. `LevelRow`, `LevelList`, `LadderLegend` sont **supprimées**.
+Ce qui suit décrit l'état antérieur, conservé pour mémoire.
 
 ✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
 jour sur les maquettes du propriétaire**. ⚠️ **La 3ᵉ passe (`ou_en_vous_v2.html`)

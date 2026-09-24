@@ -3,20 +3,33 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useState} from "react";
-import {ArrowRight, ClipboardCheck, Landmark, Sparkles, Target} from "lucide-react";
+import {
+    ArrowRight,
+    BookOpen,
+    ClipboardCheck,
+    Gavel,
+    Globe,
+    Headphones,
+    Landmark,
+    type LucideIcon,
+    Mic,
+    PenLine,
+    Scale,
+    Sparkles,
+    Target,
+    Users,
+} from "lucide-react";
 import {
     Card,
     Cta,
     GoalBanner,
-    LadderLegend,
+    LevelCard,
+    LevelCardGrid,
     LevelLadder,
-    LevelList,
-    LevelRow,
     MicroNote,
     ModuleToggle,
     NowCard,
     Pad,
-    PanelHead,
     Section,
     SejourApp,
     sejourStyles,
@@ -36,9 +49,6 @@ import {
     NON_MESURE_LABEL,
     accueilEchelleLabel,
     accueilEchelleLabelCivique,
-    accueilEchelleLegende,
-    accueilEchelleLegendeCivique,
-    accueilEchelleRangObjectif,
     accueilEchelons,
     accueilEchelonsCivique,
     accueilEpreuveBadge,
@@ -162,11 +172,13 @@ import {civicNowCard} from "@/lib/civic-plan";
  * sont deux fichiers dans la même passe.
  */
 const SITUATION_TITLE = "Où vous en êtes";
-const SITUATION_CARD_TITLE = "Votre niveau par épreuve";
-/* ⚠️ **Tenue sur UNE ligne** (2026-09-17) : la phrase de cadrage en prenait
-   deux, et la carte ne tenait pas sur l'écran d'un téléphone. Elle dit la même
-   chose. */
-const SITUATION_CARD_LEAD = "Votre niveau actuel, et ce qu'il reste à atteindre.";
+
+/**
+ * Le lien de tête de section, vers le Plan **du module affiché** (maquette v3,
+ * 2026-09-24). ⚠️ L'ancienne carte-enveloppe (« Votre niveau par épreuve » /
+ * « … par thème » et leurs phrases de cadrage) est supprimée avec elle.
+ */
+const SITUATION_PLAN_LINK = "Mon plan";
 
 /**
  * La note de pied de carte (maquette).
@@ -180,10 +192,25 @@ const SITUATION_NOTE =
     "Le niveau affiché évolue uniquement avec vos diagnostics et vos "
     + "épreuves complètes.";
 
-/** Le pendant civique : le civique se mesure en thèmes, jamais en paliers. */
-const SITUATION_CIVIC_CARD_TITLE = "Votre niveau par thème";
-const SITUATION_CIVIC_CARD_LEAD =
-    "Mis à jour après vos séries et votre diagnostic.";
+/**
+ * Le pictogramme de chaque carte. Décoratif : le repère court et l'intitulé
+ * disent déjà l'épreuve ou le thème. Miroir mobile : `_kSituationIcon`
+ * (`home_screen.dart`).
+ */
+const SITUATION_EPREUVE_ICON: Record<string, LucideIcon> = {
+    TCF_CO: Headphones,
+    TCF_CE: BookOpen,
+    TCF_EE: PenLine,
+    TCF_EO: Mic,
+};
+
+const SITUATION_THEME_ICON: Record<string, LucideIcon> = {
+    CIV_PRINCIPES: Scale,
+    CIV_INSTITUTIONS: Landmark,
+    CIV_DROITS_DEVOIRS: Gavel,
+    CIV_HISTOIRE_GEO: Globe,
+    CIV_SOCIETE: Users,
+};
 
 /**
  * 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
@@ -412,8 +439,8 @@ function DashboardRoot() {
             </div>
 
             {/* ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du
-                propriétaire) : une carte compacte par épreuve — palier, jauge,
-                état en un mot, action —, puis l'objectif.
+                propriétaire, refait en v3 le 2026-09-24) : l'objectif, puis une
+                carte par épreuve — palier, échelle, état en un mot, action.
 
                 🛑 **C'est le SEUL constat de l'écran** depuis le 2026-09-19 :
                 « Votre progression » et ses deux compteurs de compétences ont
@@ -730,13 +757,14 @@ function ActionCivique({gate, plan, journey, free}: {
 }
 
 /**
- * **Où vous en êtes** — le bandeau d'objectif, puis **une ligne par épreuve**
- * dans une seule carte, chacune portant son **échelle CECRL**.
+ * **Où vous en êtes** — le titre et son lien « Mon plan », le bandeau
+ * d'objectif, puis **une carte par épreuve** en grille, chacune portant son
+ * palier en gros et son **échelle CECRL**.
  *
- * ⚠️ **Refait le 2026-09-16 sur la maquette v2 du propriétaire**
- * (`ou_en_vous_v2.html`), qui **révoque** la grille à deux colonnes de cartes
- * compactes livrée le matin même : ce n'est pas un habillage, c'est la
- * structure qui change.
+ * ⚠️ **Refait le 2026-09-24 sur la maquette v3 du propriétaire** : la liste
+ * verticale dans une seule carte (v2, 2026-09-16) devient une grille de cartes
+ * séparées — deux colonnes sur téléphone, quatre sur une rangée quand la
+ * grille est assez large.
  *
  * 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, échelle, CTA et
  * destination viennent tous de `accueilEpreuve*` / `accueilEchelons`
@@ -778,99 +806,88 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
     const compte = accueilEvaluees(epreuves);
 
     return (
-        <Section title={SITUATION_TITLE}>
+        <Section
+            title={SITUATION_TITLE}
+            lead
+            action={{label: SITUATION_PLAN_LINK, href: planHref("TCF")}}
+        >
             <Pad>
-                <Card>
-                    <PanelHead lead title={SITUATION_CARD_TITLE} sub={SITUATION_CARD_LEAD}/>
-                    {/* 🛑 **Le bandeau passe AU-DESSUS de la liste** (maquette) :
-                        il annonce vers quoi on va avant de montrer où on en
-                        est. Sans démarche déclarée, pas de bandeau — on ne
-                        devine pas l'objectif d'un candidat qui n'en a pas
-                        donné, et le compteur part avec lui. */}
-                    {objectif && (
-                        <GoalBanner
-                            label={SITUATION_GOAL_LABEL}
-                            value={situationGoalText(niveauCecrlShort(objectif))}
-                            count={compte?.faites}
-                            total={compte?.total}
-                            caption={ACCUEIL_EVALUEES_CAPTION}
-                        />
-                    )}
-                    {/* 🛑 **L'échelle CECRL s'écrit UNE fois** (2026-09-17) :
-                        chaque ligne portait ses quatre libellés sous ses crans,
-                        soit la même échelle quatre fois et une ligne de texte
-                        par épreuve. Le palier atteint se lit déjà en gros sur la
-                        ligne, l'objectif est dans le bandeau au-dessus — et la
-                        carte ne tenait pas sur l'écran d'un téléphone. Au palier
-                        desktop, les libellés par ligne reviennent et la légende
-                        s'efface (la liste y passe à deux colonnes). */}
-                    <LadderLegend
-                        labels={accueilEchelleLegende()}
-                        goalIndex={accueilEchelleRangObjectif(objectif)}
+                {/* 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) : il
+                    annonce vers quoi on va avant de montrer où on en est. Sans
+                    démarche déclarée, pas de bandeau — on ne devine pas
+                    l'objectif d'un candidat qui n'en a pas donné, et le
+                    compteur part avec lui. */}
+                {objectif && (
+                    <GoalBanner
+                        label={SITUATION_GOAL_LABEL}
+                        value={situationGoalText(niveauCecrlShort(objectif))}
+                        count={compte?.faites}
+                        total={compte?.total}
+                        caption={ACCUEIL_EVALUEES_CAPTION}
                     />
-                    <LevelList>
-                        {epreuves.map((e) => {
-                            /* 🛑 **Trois issues, aucune inventée.**
-                               1. Épreuve jamais mesurée dont le serveur dit par
-                                  quoi la mesurer ⇒ on **lance** cette mesure,
-                                  sans étape intermédiaire.
-                               2. Quelque chose à faire, mais rien à lancer
-                                  (épreuve en progression ; ou descripteur
-                                  absent — client ancien) ⇒ la fiche du domaine,
-                                  le comportement historique.
-                               3. Rien à faire ⇒ la page des résultats.
-                               Le choix se lit sur l'état servi, jamais sur un
-                               texte de bouton. */
-                            const mesure = e.niveau === null ? e.evaluation : null;
-                            const href = accueilEpreuveOuvreLExercice(e)
-                                ? planDomainHref(
-                                    e.epreuve as Parameters<typeof planDomainHref>[0])
-                                : `/historique/epreuve/${planDomainSlug(
-                                    e.epreuve as Parameters<typeof planDomainSlug>[0])}`;
-                            const domaine = e.epreuve as Parameters<
-                                typeof planDomainLabel>[0];
-                            const mesuree = Boolean(e.niveau);
-                            return (
-                                <LevelRow
-                                    key={e.epreuve}
-                                    mark={planDomainShort(domaine)}
-                                    title={planDomainLabel(domaine)}
-                                    status={accueilEpreuveStatut(e)}
-                                    tone={accueilEpreuveTon(e)}
-                                    level={accueilEpreuveBadge(e)}
-                                    measured={mesuree}
-                                    scale={
-                                        <LevelLadder
-                                            steps={accueilEchelons(e, objectif)}
-                                            label={accueilEchelleLabel(e, objectif)}
-                                            dim={!mesuree}
-                                        />
-                                    }
-                                    cta={accueilEpreuveCta(e)}
-                                    /* Le bouton plein est réservé à l'action qui
-                                       MANQUE : mesurer une épreuve jamais
-                                       évaluée. Relire un résultat reste un lien. */
-                                    ctaPrimary={!mesuree}
-                                    busy={assessments.starting === e.epreuve}
-                                    href={mesure ? null : href}
-                                    onClick={mesure
-                                        ? () => void assessments.start(mesure)
-                                        : undefined}
-                                />
-                            );
-                        })}
-                    </LevelList>
-                    {/* ⚠️ **Hors maquette, et conservé volontairement** : elle
-                        dit ce qui fait bouger le palier (diagnostics et épreuves
-                        complètes, pas les séries). Sans elle, un candidat qui
-                        vient d'enchaîner des entraînements lit un niveau
-                        inchangé et croit à une panne. Une ligne discrète, qui ne
-                        change rien à la structure de la carte. */}
-                    <MicroNote>{SITUATION_NOTE}</MicroNote>
-                    {assessments.error && (
-                        <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
-                    )}
-                </Card>
+                )}
+                <LevelCardGrid>
+                    {epreuves.map((e) => {
+                        /* 🛑 **Trois issues, aucune inventée.**
+                           1. Épreuve jamais mesurée dont le serveur dit par
+                              quoi la mesurer ⇒ on **lance** cette mesure, sans
+                              étape intermédiaire.
+                           2. Quelque chose à faire, mais rien à lancer
+                              (épreuve en progression ; ou descripteur absent —
+                              client ancien) ⇒ la fiche du domaine, le
+                              comportement historique.
+                           3. Rien à faire ⇒ la page des résultats.
+                           Le choix se lit sur l'état servi, jamais sur un
+                           texte de bouton. */
+                        const mesure = e.niveau === null ? e.evaluation : null;
+                        const href = accueilEpreuveOuvreLExercice(e)
+                            ? planDomainHref(
+                                e.epreuve as Parameters<typeof planDomainHref>[0])
+                            : `/historique/epreuve/${planDomainSlug(
+                                e.epreuve as Parameters<typeof planDomainSlug>[0])}`;
+                        const domaine = e.epreuve as Parameters<
+                            typeof planDomainLabel>[0];
+                        const mesuree = Boolean(e.niveau);
+                        return (
+                            <LevelCard
+                                key={e.epreuve}
+                                mark={planDomainShort(domaine)}
+                                icon={SITUATION_EPREUVE_ICON[e.epreuve] ?? BookOpen}
+                                title={planDomainLabel(domaine)}
+                                status={accueilEpreuveStatut(e)}
+                                tone={accueilEpreuveTon(e)}
+                                level={accueilEpreuveBadge(e)}
+                                measured={mesuree}
+                                scale={
+                                    <LevelLadder
+                                        steps={accueilEchelons(e, objectif)}
+                                        label={accueilEchelleLabel(e, objectif)}
+                                        dim={!mesuree}
+                                    />
+                                }
+                                cta={accueilEpreuveCta(e)}
+                                /* Le bouton plein est réservé à l'action qui
+                                   MANQUE : mesurer une épreuve jamais évaluée.
+                                   Relire un résultat reste un lien. */
+                                ctaPrimary={!mesuree}
+                                busy={assessments.starting === e.epreuve}
+                                href={mesure ? null : href}
+                                onClick={mesure
+                                    ? () => void assessments.start(mesure)
+                                    : undefined}
+                            />
+                        );
+                    })}
+                </LevelCardGrid>
+                {/* ⚠️ **Hors maquette, et conservé volontairement** : elle dit
+                    ce qui fait bouger le palier (diagnostics et épreuves
+                    complètes, pas les séries). Sans elle, un candidat qui vient
+                    d'enchaîner des entraînements lit un niveau inchangé et
+                    croit à une panne. */}
+                <MicroNote>{SITUATION_NOTE}</MicroNote>
+                {assessments.error && (
+                    <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
+                )}
             </Pad>
             <PaywallSheet
                 ctaLocation="LOCKED_PLAN"
@@ -885,15 +902,15 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
 
 /**
  * Le pendant civique — **la même anatomie** (arbitrage du propriétaire,
- * 2026-09-16) : carte à liseré tricolore, en-tête, bande de tête, puis une
- * ligne par thème avec sa pastille, son statut à pastille colorée et sa ligne
- * de pied.
+ * 2026-09-16) : titre et lien vers le Plan, bande de tête, puis une carte par
+ * thème avec son repère, son pictogramme, son statut à pastille colorée, ses
+ * crans et son action.
  *
  * 🛑 **Adapté, jamais transposé.** Le civique n'a **ni palier CECRL ni
- * objectif CECRL servi** : pas d'échelle à crans, pas d'« Atteindre B2
- * partout », pas de pastille de niveau. La bande de tête dit ce qui EST servi —
- * le dernier résultat et son seuil (`progresCiviqueScore`, l'autorité déjà en
- * place) — et le compteur porte sur les **thèmes** de la liste servie.
+ * objectif CECRL servi** : pas de palier en gros, pas d'« Atteindre B2
+ * partout ». La bande de tête dit ce qui EST servi — le dernier résultat et son
+ * seuil (`progresCiviqueScore`, l'autorité déjà en place) — et le compteur
+ * porte sur les **thèmes** de la liste servie.
  */
 function SituationCivique({progres}: {progres: ProgressDto}) {
     const themes = progres.civique.themes;
@@ -905,87 +922,65 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
     const compte = accueilEvaluesCivique(themes);
 
     return (
-        <Section title={SITUATION_TITLE}>
+        <Section
+            title={SITUATION_TITLE}
+            lead
+            action={{label: SITUATION_PLAN_LINK, href: planHref("CIVIQUE")}}
+        >
             <Pad>
-                <Card>
-                    <PanelHead
-                        lead
-                        title={SITUATION_CIVIC_CARD_TITLE}
-                        sub={SITUATION_CIVIC_CARD_LEAD}
+                {dernier && (
+                    <GoalBanner
+                        label={SITUATION_CIVIC_RESULT_LABEL}
+                        value={dernier}
+                        count={compte?.faites}
+                        total={compte?.total}
+                        caption={ACCUEIL_EVALUES_CAPTION_CIVIQUE}
                     />
-                    {dernier && (
-                        <GoalBanner
-                            label={SITUATION_CIVIC_RESULT_LABEL}
-                            value={dernier}
-                            count={compte?.faites}
-                            total={compte?.total}
-                            caption={ACCUEIL_EVALUES_CAPTION_CIVIQUE}
+                )}
+                <LevelCardGrid>
+                    {themes.map((t, rang) => (
+                        <LevelCard
+                            key={t.themeId}
+                            /* 🛑 **Le repère est le RANG SERVI**, pas un code
+                               abrégé : un thème n'a aucun code de deux lettres
+                               servi (`CIV_PRINCIPES` n'en est pas un), et en
+                               inventer un serait fabriquer un libellé. */
+                            mark={`${rang + 1}`}
+                            icon={SITUATION_THEME_ICON[t.code] ?? BookOpen}
+                            title={t.label}
+                            /* 🛑 L'état arrive **servi** : on pose son libellé
+                               gelé, on ne classe aucun nombre. `NON_EVALUE`
+                               reste neutre, jamais ambre. */
+                            status={t.etat === "NON_EVALUE"
+                                ? NON_MESURE_LABEL
+                                : CIVIC_THEME_STATE_LABEL[t.etat]}
+                            tone={civicBarTone(t.etat)}
+                            /* 🛑 **Aucun palier CECRL en civique** : le civique
+                               se mesure en thèmes, jamais en paliers. La carte
+                               n'a donc pas de valeur en gros. */
+                            level={null}
+                            measured={t.etat !== "NON_EVALUE"}
+                            /* 🛑 **Le même cran segmenté que le TCF**, sur la
+                               seule donnée servie pour un thème : son `etat`
+                               (`accueilEchelonsCivique`). Sans libellés : les
+                               trois états ne tiennent pas sous une demi-carte,
+                               et la pastille de statut les dit déjà. */
+                            scale={
+                                <LevelLadder
+                                    steps={accueilEchelonsCivique(t.etat)}
+                                    label={accueilEchelleLabelCivique(t.etat)}
+                                    dim={t.etat === "NON_EVALUE"}
+                                    labels={false}
+                                />
+                            }
+                            cta={SITUATION_CIVIC_CTA}
+                            /* 🛑 **« Vos résultats » du thème**, le pendant
+                               civique de l'écran de résultats d'une épreuve
+                               TCF (2026-09-19). */
+                            href={themeHistoriqueHref(themeSlug(t.code))}
                         />
-                    )}
-                    {/* 🛑 **La légende s'écrit UNE fois**, exactement comme en
-                        TCF : les trois crans d'une ligne civique n'ont aucun
-                        libellé sous eux sur téléphone. Et **aucun cran
-                        d'objectif** — `goalIndex` est `null`, le civique n'en
-                        sert pas. */}
-                    <LadderLegend labels={accueilEchelleLegendeCivique()} goalIndex={null}/>
-                    <LevelList>
-                        {themes.map((t, rang) => (
-                            <LevelRow
-                                key={t.themeId}
-                                /* 🛑 **Le repère est le RANG SERVI**, pas un
-                                   code abrégé : un thème n'a aucun code de deux
-                                   lettres servi (`CIV_PRINCIPES` n'en est pas
-                                   un), et en inventer un serait fabriquer un
-                                   libellé. Le produit numérote déjà les cinq
-                                   thèmes du livret citoyen — on montre leur
-                                   position dans la liste que le serveur
-                                   ordonne, rien de plus. */
-                                mark={`${rang + 1}`}
-                                title={t.label}
-                                /* 🛑 L'état arrive **servi** : on pose son
-                                   libellé gelé, on ne classe aucun nombre.
-                                   `NON_EVALUE` reste neutre, jamais ambre. */
-                                status={t.etat === "NON_EVALUE"
-                                    ? NON_MESURE_LABEL
-                                    : CIVIC_THEME_STATE_LABEL[t.etat]}
-                                tone={civicBarTone(t.etat)}
-                                /* 🛑 **À DROITE, à la place du palier**
-                                   (2026-09-19) : la ligne civique n'a aucun
-                                   palier CECRL servi, donc sa colonne de droite
-                                   restait vide pendant que son état se lisait en
-                                   petit sous l'intitulé. Seule la POSITION
-                                   change — le mot et le ton restent servis. */
-                                statusRight
-                                /* 🛑 **Aucun palier CECRL en civique** : le
-                                   civique se mesure en thèmes, jamais en
-                                   paliers. La pastille de droite porte le
-                                   statut. */
-                                level={null}
-                                measured={t.etat !== "NON_EVALUE"}
-                                /* 🛑 **Le même cran segmenté que le TCF**, sur
-                                   la seule donnée servie pour un thème : son
-                                   `etat`. Les crans sont les valeurs MESURÉES de
-                                   `CivicThemeState` (`accueilEchelonsCivique`) —
-                                   aucun palier CECRL, aucun objectif. */
-                                scale={
-                                    <LevelLadder
-                                        steps={accueilEchelonsCivique(t.etat)}
-                                        label={accueilEchelleLabelCivique(t.etat)}
-                                        dim={t.etat === "NON_EVALUE"}
-                                    />
-                                }
-                                cta={SITUATION_CIVIC_CTA}
-                                /* 🛑 **« Vos résultats » du thème**, le pendant
-                                   civique de l'écran de résultats d'une épreuve
-                                   TCF (2026-09-19). ⚠️ Elle ouvrait la **grille
-                                   des examens blancs** : c'est là qu'on PASSE un
-                                   examen, pas là qu'on lit ses résultats — le
-                                   lien de pied du nouvel écran y mène. */
-                                href={themeHistoriqueHref(themeSlug(t.code))}
-                            />
-                        ))}
-                    </LevelList>
-                </Card>
+                    ))}
+                </LevelCardGrid>
             </Pad>
         </Section>
     );
@@ -1152,8 +1147,8 @@ const homeStyles = `
 
   /* ===== « Où vous en êtes » ===== */
   /* 🛑 **Plus une seule règle de cet écran.** Toute la section vit dans le KIT
-     depuis la 3ᵉ passe du 2026-09-16 (maquette v2) : PanelHead en variante
-     lead, GoalBanner, LevelList, LevelRow, LevelLadder et MicroNote, avec
+     depuis la 3ᵉ passe du 2026-09-16 ; maquette v3 du 2026-09-24 : Section
+     lead + action, GoalBanner, LevelCardGrid, LevelCard, LevelLadder et MicroNote, avec
      leur miroir Flutter dans la même passe — c'est ce qui garantit que les deux
      fronts montrent la même carte. Les classes .home-situation-title et
      .home-situation-copy sont SUPPRIMÉES avec leurs appelants, comme l'étaient

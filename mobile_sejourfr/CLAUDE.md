@@ -1165,9 +1165,10 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   **`lead`**, la tête de carte éditoriale), `SfResultHero`, `SfLevelChart`
   (+ `SfChartPoint`), `SfFilterChips`, `SfHistoryRow`, `SfInfoNote` et, sur la
   maquette v2 (`ou_en_vous_v2.html`), **`SfLevelLadder`** (+ `SfLadderStep`,
-  l'échelle CECRL à quatre crans) et **`SfLadderLegend`** (ses libellés, écrits
-  une seule fois pour la liste), **`SfLevelRow`**, **`SfLevelList`** et
-  **`SfGoalBanner`**. Elles servent « Où vous en êtes » (Accueil) et « Vos
+  l'échelle CECRL à quatre crans), **`SfGoalBanner`**, puis le 2026-09-24
+  **`SfLevelCard`** + **`SfLevelCardGrid`** (grille 2×2 de « Où vous en
+  êtes » ; `SfLadderLegend`, `SfLevelRow` et `SfLevelList` sont supprimées ce
+  jour-là). Elles servent « Où vous en êtes » (Accueil) et « Vos
   résultats » (`EpreuveHistoriqueScreen`) — → `docs/regles/progression.md`.
   ⚠️ **`SfLevelCard`, `SfLevelGrid` et `SfGoalRibbon` sont SUPPRIMÉES** le même
   jour (elles ne servaient que la maquette v1 de « Où vous en êtes »). La
@@ -1480,6 +1481,20 @@ absente) → `SfTop` « Bonjour X » + pastille d'objectif → **bascule TCF / E
 civique** → **À faire maintenant** → **Où vous en êtes** → **Votre Plan**
 (aperçu) → **Votre progression** → **Affiner votre Plan** (TCF, complet
 commencé) → **Vos parcours**.
+
+🛑 **2026-09-24 — RÉVOQUÉ par la grille 2×2** (maquette du propriétaire,
+capture « niveau-par-epreuve ») : plus de carte de tête ni de phrase de cadrage.
+L'intertitre « Où vous en êtes » passe en tête (`SfSection(lead: true)`) avec le lien
+**« Mon plan »** à droite (`SfSectionAction`), puis le **bandeau bleu**
+(`SfGoalBanner` : compteur « 4 / 4 » en gros + « évaluées », **sans pastilles**),
+puis une **grille de cartes par épreuve** (`SfLevelCardGrid` + `SfLevelCard`) :
+pastille mono, pictogramme, nom, **palier en très gros**, statut servi, échelle
+à quatre crans **avec ses libellés sous chaque carte**, filet et « Voir mes
+résultats → » épinglé en bas. Toujours 2 colonnes (portrait), cartes d'une rangée à hauteur égale ; le
+5ᵉ thème civique prend toute la largeur.
+Civique : pas de valeur en gros (aucun score par thème servi), pas de libellés
+sous l'échelle. `SfLevelRow`, `SfLevelList`, `SfLadderLegend` sont **supprimées**.
+Ce qui suit décrit l'état antérieur, conservé pour mémoire.
 
 ✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
 jour sur les maquettes du propriétaire**. ⚠️ **La 3ᵉ passe (`ou_en_vous_v2.html`)

@@ -255,6 +255,8 @@ export function Section({
   children,
   flush,
   mono,
+  lead,
+  action,
 }: {
   title?: string;
   children: ReactNode;
@@ -268,20 +270,42 @@ export function Section({
    * œils-de-bœuf. Miroir Flutter : `SfSection(mono: true)`.
    */
   mono?: boolean;
+  /**
+   * L'intertitre **de tête d'écran** (« Où vous en êtes ») : plus grand, pour
+   * une section qui ouvre un tableau de bord. Miroir Flutter :
+   * `SfSection(lead: true)`.
+   */
+  lead?: boolean;
+  /**
+   * Un lien discret aligné à droite du titre (« Mon plan »). 🛑 Une variante du
+   * titre, pas une seconde en-tête. Miroir Flutter : `SfSection.action`.
+   */
+  action?: { label: string; href: string } | null;
 }) {
+  const heading = title ? (
+    <h2
+      className={cx(
+        styles.sectionH,
+        flush && styles.sectionHFlush,
+        mono && styles.sectionHMono,
+        lead && styles.sectionHLead,
+      )}
+    >
+      {title}
+    </h2>
+  ) : null;
   return (
     <section className={cx(styles.section, flush && styles.pad)}>
-      {title ? (
-        <h2
-          className={cx(
-            styles.sectionH,
-            flush && styles.sectionHFlush,
-            mono && styles.sectionHMono,
-          )}
-        >
-          {title}
-        </h2>
-      ) : null}
+      {heading && action ? (
+        <div className={cx(styles.sectionHead, flush && styles.sectionHFlush)}>
+          {heading}
+          <Link href={action.href} className={styles.sectionAction}>
+            {action.label}
+          </Link>
+        </div>
+      ) : (
+        heading
+      )}
       {children}
     </section>
   );
@@ -856,7 +880,7 @@ export type BarTone = Tone | "now";
    son état servi avec le **même traité segmenté que l'échelle TCF**
    (`LevelLadder`). Refonte = suppression de l'ancien : sa palette de
    remplissage (`.barOk`…`.barMuted`) part avec elle, et `BarTone` reste — il
-   teinte encore la pastille de statut de `LevelRow`. Miroir Flutter :
+   teinte encore la pastille de statut de `LevelCard`. Miroir Flutter :
    `SfProgressMini`, supprimée dans la même passe. */
 
 /** Sous-ligne d'une priorité : une compétence et son état. */
@@ -1323,10 +1347,9 @@ export function ChoiceCard({
 /* ========================================================================== */
 /* Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16) */
 /*                                                                            */
-/* ⚠️ « Où vous en êtes » a été REFAIT le même jour sur une seconde maquette   */
-/* (`ou_en_vous_v2.html`) : la grille de cartes compactes est devenue une      */
-/* LISTE verticale dans une seule carte, chaque ligne portant une échelle      */
-/* CECRL à six crans. `LevelCard`, `LevelGrid` et `GoalRibbon` sont            */
+/* ⚠️ « Où vous en êtes » a été refait deux fois : liste verticale dans une    */
+/* seule carte (v2, 2026-09-16), puis GRILLE de cartes séparées, une par       */
+/* épreuve (v3, 2026-09-24). `LevelRow`, `LevelList` et `LadderLegend` sont    */
 /* **supprimées** avec leurs classes — refonte = suppression de l'ancien.     */
 /* ========================================================================== */
 
@@ -1388,6 +1411,7 @@ export function LevelLadder({
   steps,
   label,
   dim,
+  labels = true,
 }: {
   steps: LadderStep[];
   /** Ce que l'échelle DIT. Jamais dérivé ici. */
@@ -1398,6 +1422,12 @@ export function LevelLadder({
    * plus aucun cran rempli, et ce n'est pas la même chose.
    */
   dim?: boolean;
+  /**
+   * Les libellés sous les crans. `false` quand ils ne tiennent pas : les trois
+   * états civiques (« À renforcer ») débordent d'une demi-carte de téléphone,
+   * et la pastille de statut de la carte dit déjà l'état servi.
+   */
+  labels?: boolean;
 }) {
   return (
     <span className={cx(styles.ladder, dim && styles.isDim)} role="img" aria-label={label}>
@@ -1413,6 +1443,7 @@ export function LevelLadder({
           />
         ))}
       </span>
+      {labels ? (
       <span className={styles.ladderLabels} aria-hidden>
         {steps.map((step) => (
           <span
@@ -1426,74 +1457,36 @@ export function LevelLadder({
           </span>
         ))}
       </span>
+      ) : null}
     </span>
   );
 }
 
 /**
- * **La légende de l'échelle CECRL** — les quatre paliers, écrits **une seule
- * fois** pour toute la liste.
- *
- * 🛑 **Elle remplace quatre répétitions** (2026-09-17) : chaque ligne d'épreuve
- * écrivait « A1 A2 B1 B2 » sous son échelle, soit la même échelle quatre fois
- * et une ligne de texte par épreuve. Le palier atteint se lit déjà en gros à
- * droite de la ligne, et l'objectif est annoncé par le bandeau au-dessus : les
- * libellés par ligne n'ajoutaient rien et coûtaient une hauteur d'écran sur
- * téléphone.
- *
- * 🛑 **Le cran d'objectif reste marqué en rouge** : c'est le seul repère des
- * libellés qui portait une information, et il est **global** — le même pour les
- * quatre épreuves.
- *
- * ⚠️ **Elle disparaît au palier DESKTOP** (`@media`), où la liste passe à deux
- * colonnes — une légende ne peut pas s'aligner sur deux échelles à la fois — et
- * où les libellés par ligne reviennent, la hauteur n'y étant pas une
- * contrainte. C'est une media query sur des primitives existantes, pas une
- * seconde anatomie. Miroir Flutter : `SfLadderLegend` (sans palier desktop :
- * l'app est en portrait téléphone).
- */
-export function LadderLegend({
-  labels,
-  goalIndex,
-}: {
-  /** Les paliers de l'échelle, dans l'ordre. **Passés**, jamais dérivés ici. */
-  labels: string[];
-  /** Le rang du palier visé. `null` sans démarche déclarée. */
-  goalIndex: number | null;
-}) {
-  return (
-    <p className={styles.ladderLegend} aria-hidden>
-      {labels.map((label, i) => (
-        <span key={label} className={cx(i === goalIndex && styles.isTgt)}>
-          {label}
-        </span>
-      ))}
-    </p>
-  );
-}
-
-/**
- * **La ligne d'une épreuve** — le `.test` de la maquette v2 : repère court en
- * pastille mono, intitulé, statut à pastille colorée, palier à droite, puis
- * l'échelle et sa ligne d'action.
+ * **La carte d'une épreuve** — maquette « niveau par épreuve » v3 du
+ * propriétaire (2026-09-24) : repère court en pastille mono et pictogramme en
+ * tête, intitulé discret, palier en très gros, statut à pastille colorée,
+ * l'échelle et ses libellés, puis un filet et l'action, **épinglée en bas**.
  *
  * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
- * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`).
+ * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`) — palier,
+ * statut, ton, crans, CTA.
  *
- * ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, le statut est
- * sous l'intitulé et la droite porte le **palier CECRL** ; en civique, il n'y a
- * aucun palier servi et c'est le **statut** qui prend la droite (`statusRight`).
- * Les crans de l'échelle viennent de l'appelant dans les deux cas — le kit ne
- * sait pas ce qu'ils comptent.
+ * ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, `level` porte
+ * le palier CECRL servi ; en civique, aucun palier n'est servi, `level` est
+ * `null` et la carte n'en montre pas — on n'en fabrique aucun.
  *
- * Miroir Flutter : `SfLevelRow`.
+ * ⚠️ **Remplace `LevelRow`, `LevelList` et `LadderLegend`** (liste verticale
+ * dans une seule carte, maquette v2) — refonte = suppression de l'ancien.
+ *
+ * Miroir Flutter : `SfLevelCard`.
  */
-export function LevelRow({
+export function LevelCard({
   mark,
+  icon: Icon,
   title,
   status,
   tone,
-  statusRight,
   level,
   measured,
   scale,
@@ -1503,27 +1496,18 @@ export function LevelRow({
   onClick,
   busy,
 }: {
-  /** Repère court (« CO »). `null` quand rien n'en sert — on n'en invente pas. */
-  mark: string | null;
+  /** Repère court (« CO », ou le rang servi d'un thème). */
+  mark: string;
+  /** Le pictogramme de l'épreuve ou du thème, choisi par l'appelant. */
+  icon: LucideIcon;
   title: string;
   /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
   status: string | null;
   /** Le ton de la pastille de statut. */
   tone: BarTone;
   /**
-   * **La variante civique** : le statut se rend à DROITE, à la place qu'occupe
-   * le palier en TCF, au lieu de la sous-ligne de l'intitulé.
-   *
-   * 🛑 **Une position, pas une seconde anatomie** : c'est la même pastille, le
-   * même mot servi et le même ton — une ligne civique n'a aucun palier CECRL, sa
-   * colonne de droite était donc vide. La ligne TCF, elle, garde son statut à
-   * gauche et son palier à droite : `statusRight` et `level` ne se rencontrent
-   * jamais. Miroir Flutter : `SfLevelRow.statusRight`.
-   */
-  statusRight?: boolean;
-  /**
    * Le palier servi, ou le mot d'une absence de mesure. `null` retire la
-   * pastille : le civique n'a aucun palier CECRL servi.
+   * ligne : le civique n'a aucun palier CECRL servi.
    */
   level: string | null;
   /**
@@ -1533,54 +1517,41 @@ export function LevelRow({
    * d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
    */
   measured: boolean;
-  /** L'échelle, ou la jauge du civique. `null` quand rien ne la sert. */
+  /** L'échelle (`LevelLadder`). `null` quand rien ne la sert. */
   scale?: ReactNode;
   cta: string;
   /** Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit. */
   ctaPrimary?: boolean;
-  /** Où mène la ligne. `null` quand elle **lance** au lieu de naviguer. */
+  /** Où mène la carte. `null` quand elle **lance** au lieu de naviguer. */
   href: string | null;
   onClick?: () => void;
   busy?: boolean;
 }) {
   const body = (
     <>
-      <span className={styles.levelRowTop}>
-        {mark ? <span className={styles.levelMark}>{mark}</span> : null}
-        <span className={styles.levelRowId}>
-          <span className={styles.levelRowName}>{title}</span>
-          {status && !statusRight ? (
-            <span className={cx(styles.levelRowStatus, statusToneClass[tone])}>{status}</span>
-          ) : null}
-        </span>
-        {status && statusRight ? (
-          <span
-            className={cx(styles.levelRowStatus, styles.isRight, statusToneClass[tone])}
-          >
-            {status}
-          </span>
-        ) : null}
-        {level ? (
-          <span className={cx(styles.levelChip, !measured && styles.isNa)}>{level}</span>
-        ) : null}
+      <span className={styles.levelCardTop}>
+        <span className={styles.levelCardMark}>{mark}</span>
+        <Icon className={styles.levelCardIcon} size={24} strokeWidth={1.8} aria-hidden />
       </span>
-      {scale ? <span className={styles.levelRowScale}>{scale}</span> : null}
-      {/* 🛑 **Plus d'« Objectif B2 » par ligne** (2026-09-17) : il valait la
-          MÊME chaîne sur les quatre lignes, et le bandeau juste au-dessus dit
-          déjà « Atteindre B2 partout ». Quatre répétitions du bandeau. */}
-      <span className={styles.levelRowMeta}>
-        <span className={cx(styles.levelRowCta, ctaPrimary && styles.isPrimary)}>
-          {cta}
-          {ctaPrimary ? null : <ArrowRight size={14} strokeWidth={2.6} aria-hidden />}
+      <span className={styles.levelCardName}>{title}</span>
+      {level ? (
+        <span className={cx(styles.levelCardLevel, !measured && styles.isNa)}>{level}</span>
+      ) : null}
+      {status ? (
+        <span className={cx(styles.levelCardStatus, statusToneClass[tone])}>{status}</span>
+      ) : null}
+      {scale ? <span className={styles.levelCardScale}>{scale}</span> : null}
+      <span className={styles.levelCardFoot}>
+        <span className={cx(styles.levelCardCta, ctaPrimary && styles.isPrimary)}>
+          <span>{cta}</span>
+          {ctaPrimary ? null : <ArrowRight size={18} strokeWidth={2.2} aria-hidden />}
         </span>
       </span>
     </>
   );
-  /* Sans repère court (le civique), l'échelle et la ligne de pied n'ont rien
-     sous quoi s'aligner : elles reprennent le bord du texte. */
-  const cls = cx(styles.levelRowLink, !measured && styles.isTodo, !mark && styles.isFlush);
+  const cls = cx(styles.levelCard, !measured && styles.isTodo);
   return (
-    <li className={styles.levelRow}>
+    <li className={styles.levelCardItem}>
       {href ? (
         <Link href={href} className={cls}>
           {body}
@@ -1595,30 +1566,35 @@ export function LevelRow({
 }
 
 /**
- * La liste des épreuves — **une seule colonne** sur téléphone, comme la
- * maquette (calée sur 440 px).
+ * La grille des cartes d'épreuve — **deux colonnes** sur téléphone, une
+ * dernière carte impaire (les 5 thèmes civiques) prenant toute la rangée.
  *
- * ⚠️ **Deux colonnes au palier desktop du kit (≥ 960 px), et rien de plus** :
- * une échelle de six crans étirée sur 1 000 px ne veut plus rien dire. C'est
- * une **media query sur une primitive existante**, donc **sans miroir Flutter**
- * — l'app est en portrait téléphone. Le pendant de `.deskGrid2`.
+ * ⚠️ **Plus large, elle se règle sur SA largeur, pas sur la fenêtre**
+ * (requête de conteneur) : la barre latérale du desktop mange une part
+ * variable de l'écran. Dès que la grille dispose d'environ 820 px, quatre
+ * cartes tiennent sur UNE rangée, et cinq se rangent en 3 + 2. Ce sont des
+ * règles de mise en page sur une primitive existante, **sans miroir Flutter**
+ * — l'app est en portrait téléphone et garde ses deux colonnes.
  *
- * Miroir Flutter : `SfLevelList`.
+ * Miroir Flutter : `SfLevelCardGrid`.
  */
-export function LevelList({ children }: { children: ReactNode }) {
-  return <ul className={styles.levelList}>{children}</ul>;
+export function LevelCardGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className={styles.levelCardGridWrap}>
+      <ul className={styles.levelCardGrid}>{children}</ul>
+    </div>
+  );
 }
 
 /**
- * **Le bandeau d'objectif** — la bande bleue pleine de la maquette v2 :
- * cocarde, intitulé + valeur, puis le compteur « 3 / 4 », ses pastilles et le
- * mot qu'elles comptent.
+ * **Le bandeau d'objectif** — la bande bleue pleine de la maquette : cocarde,
+ * intitulé + valeur, puis le compteur « 3 / 4 » en gros et le mot qu'il
+ * compte.
  *
- * 🛑 `count` et `total` sont **passés**, jamais comptés ici — et `total` pose
- * le nombre de pastilles, donc l'écran ne peut pas en dessiner quatre quand le
- * serveur en publie trois.
+ * 🛑 `count` et `total` sont **passés**, jamais comptés ici.
  *
- * ⚠️ **Remplace `GoalRibbon`** (bande claire à filet, maquette v1).
+ * ⚠️ **Plus de pastilles sous le compteur** (maquette v3, 2026-09-24) : les
+ * cartes juste en dessous montrent déjà, une par une, ce qui est évalué.
  * Miroir Flutter : `SfGoalBanner`.
  */
 export function GoalBanner({
@@ -1635,7 +1611,7 @@ export function GoalBanner({
   total?: number | null;
   caption?: string;
 }) {
-  const pips = count != null && total != null && total > 0;
+  const counted = count != null && total != null && total > 0;
   return (
     <div className={styles.goalBanner}>
       <span className={styles.goalCocarde} aria-hidden />
@@ -1643,14 +1619,9 @@ export function GoalBanner({
         <small>{label}</small>
         <b>{value}</b>
       </span>
-      {pips ? (
+      {counted ? (
         <span className={styles.goalCount}>
           <b>{`${count} / ${total}`}</b>
-          <span className={styles.goalPips} aria-hidden>
-            {Array.from({ length: total }, (_, i) => (
-              <i key={i} className={cx(i < count && styles.isOn)} />
-            ))}
-          </span>
           {caption ? <small>{caption}</small> : null}
         </span>
       ) : null}
@@ -2667,8 +2638,8 @@ export function ChartNote({
  * d'évolution, le palier à droite avec son intitulé, un chevron.
  *
  * 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
- * - `LevelRow` porte une **échelle à crans** et une ligne d'action — c'est la
- *   ligne de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, états de
+ * - `LevelCard` porte une **échelle à crans** et une ligne d'action — c'est la
+ *   carte de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, états de
  *   thème servis en civique) ;
  * - `EpreuveRow` porte un **anneau de couverture** — c'est la ligne de Réviser,
  *   qui dit *où s'entraîner* ;
@@ -2746,8 +2717,8 @@ export function EpreuveStatRow({
  * **La liste des épreuves** — l'`.exam-list` du template : une carte unique,
  * ses lignes séparées d'un filet.
  *
- * ⚠️ **Elle n'est pas `LevelList`** : celle-là empile des lignes autonomes,
- * celle-ci les réunit dans un seul encart. Miroir Flutter : `SfEpreuveStatList`.
+ * ⚠️ **Elle n'est pas `LevelCardGrid`** : celle-là range des cartes autonomes,
+ * celle-ci réunit des lignes dans un seul encart. Miroir Flutter : `SfEpreuveStatList`.
  */
 export function EpreuveStatList({ children }: { children: ReactNode }) {
   return <ul className={styles.statList}>{children}</ul>;

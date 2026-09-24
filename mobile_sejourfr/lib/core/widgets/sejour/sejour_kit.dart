@@ -110,6 +110,8 @@ class SfSectionTitle extends StatelessWidget {
     super.key,
     this.flush = false,
     this.mono = false,
+    this.lead = false,
+    this.action,
   });
 
   final String text;
@@ -125,18 +127,60 @@ class SfSectionTitle extends StatelessWidget {
   /// œils-de-bœuf. Miroir web : `Section mono`.
   final bool mono;
 
+  /// L'intertitre **de tête d'écran** (« Où vous en êtes ») : plus grand, pour
+  /// une section qui ouvre un tableau de bord. Miroir web : `Section lead`.
+  final bool lead;
+
+  /// Un lien discret aligné à droite du titre (« Mon plan »). 🛑 Une variante
+  /// du titre, pas une seconde en-tête. Miroir web : `Section action`.
+  final SfSectionAction? action;
+
   @override
   Widget build(BuildContext context) {
+    final titre = Text(
+      text,
+      style: mono
+          ? AppFonts.label(size: 11, color: AppColors.muted)
+          : lead
+              ? AppFonts.ui(size: 24, weight: FontWeight.w800, height: 1.15)
+              : AppFonts.display(size: 16, weight: FontWeight.w700),
+    );
+    final lien = action;
     return Padding(
-      padding: EdgeInsets.fromLTRB(flush ? 0 : 16, 0, flush ? 0 : 16, 10),
-      child: Text(
-        text,
-        style: mono
-            ? AppFonts.label(size: 11, color: AppColors.muted)
-            : AppFonts.display(size: 16, weight: FontWeight.w700),
-      ),
+      padding: EdgeInsets.fromLTRB(
+          flush ? 0 : 16, 0, flush ? 0 : 16, lien != null || lead ? 12 : 10),
+      child: lien == null
+          ? titre
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(child: titre),
+                const SizedBox(width: 12),
+                InkWell(
+                  onTap: lien.onTap,
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                  child: Text(
+                    lien.label,
+                    style: AppFonts.ui(
+                      size: 15,
+                      weight: FontWeight.w600,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
+}
+
+/// Le lien de tête d'une section ([SfSectionTitle.action]).
+class SfSectionAction {
+  const SfSectionAction({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
 }
 
 /// Une section : un titre optionnel puis son contenu, avec l'espace au-dessus.
@@ -147,6 +191,8 @@ class SfSection extends StatelessWidget {
     required this.child,
     this.flush = false,
     this.mono = false,
+    this.lead = false,
+    this.action,
   });
 
   final String? title;
@@ -156,6 +202,12 @@ class SfSection extends StatelessWidget {
   /// Le titre en petites capitales. Voir [SfSectionTitle.mono].
   final bool mono;
 
+  /// Le titre de tête d'écran. Voir [SfSectionTitle.lead].
+  final bool lead;
+
+  /// Le lien à droite du titre. Voir [SfSectionTitle.action].
+  final SfSectionAction? action;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -164,7 +216,14 @@ class SfSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (title != null) SfSectionTitle(title!, flush: flush, mono: mono),
+          if (title != null)
+            SfSectionTitle(
+              title!,
+              flush: flush,
+              mono: mono,
+              lead: lead,
+              action: action,
+            ),
           child,
         ],
       ),
@@ -1384,7 +1443,7 @@ enum SfBarTone { ok, now, warn, hot, muted }
    civique de « Où vous en êtes », qui rend désormais son état servi avec le
    **même traité segmenté que l'échelle TCF** ([SfLevelLadder]). Refonte =
    suppression de l'ancien. [SfBarTone] reste — il teinte encore la pastille de
-   statut de [SfLevelRow]. Miroir web : `ProgressMini`, supprimée dans la même
+   statut de [SfLevelCard]. Miroir web : `ProgressMini`, supprimée dans la même
    passe. */
 
 /// Sous-ligne d'une priorité : une compétence et son état.
@@ -2683,16 +2742,15 @@ class SfStickyBar extends StatelessWidget {
 /* ==========================================================================
    Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16)
 
-   🛑 Miroirs de `LevelLadder`, `LevelRow`, `LevelList`, `GoalBanner`,
+   🛑 Miroirs de `LevelLadder`, `LevelCard`, `LevelCardGrid`, `GoalBanner`,
    `MicroNote`, `PanelHead`, `ResultHero`, `LevelChart`, `FilterChips`,
    `HistoryRow` et `InfoNote` côté web. Un motif qui bouge d'un côté bouge de
    l'autre dans la même passe.
 
-   ⚠️ « Où vous en êtes » a été REFAIT le même jour sur une seconde maquette
-   (`ou_en_vous_v2.html`) : la grille de cartes compactes est devenue une LISTE
-   verticale dans une seule carte, chaque ligne portant une échelle CECRL.
-   `SfLevelCard`, `SfLevelGrid` et `SfGoalRibbon` sont **supprimées** — refonte
-   = suppression de l'ancien.
+   ⚠️ « Où vous en êtes » a été refait deux fois : liste verticale dans une
+   seule carte (v2, 2026-09-16), puis GRILLE de cartes séparées, une par
+   épreuve (v3, 2026-09-24). `SfLevelRow`, `SfLevelList` et `SfLadderLegend`
+   sont **supprimées** — refonte = suppression de l'ancien.
    ========================================================================== */
 
 /// Un cran de l'échelle CECRL, **composé par l'appelant** (`accueilEchelons`,
@@ -2750,6 +2808,7 @@ class SfLevelLadder extends StatelessWidget {
     required this.steps,
     required this.label,
     this.dim = false,
+    this.labels = true,
   });
 
   final List<SfLadderStep> steps;
@@ -2763,6 +2822,12 @@ class SfLevelLadder extends StatelessWidget {
   /// elle non plus aucun cran rempli, et ce n'est pas la même chose.
   final bool dim;
 
+  /// Les libellés sous les crans (maquette v3 : chaque carte porte les
+  /// siens). `false` quand ils ne tiennent pas : les trois états civiques
+  /// (« À renforcer ») débordent d'une demi-carte, et la pastille de statut de
+  /// la carte dit déjà l'état servi. Miroir web : `LevelLadder labels`.
+  final bool labels;
+
   static const double gap = 4;
 
   @override
@@ -2771,72 +2836,51 @@ class SfLevelLadder extends StatelessWidget {
       label: label,
       image: true,
       excludeSemantics: true,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          for (var i = 0; i < steps.length; i++) ...[
-            if (i > 0) const SizedBox(width: gap),
-            Expanded(child: _SfLadderBar(step: steps[i], dim: dim)),
+          Row(
+            children: [
+              for (var i = 0; i < steps.length; i++) ...[
+                if (i > 0) const SizedBox(width: gap),
+                Expanded(child: _SfLadderBar(step: steps[i], dim: dim)),
+              ],
+            ],
+          ),
+          if (labels) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                for (var i = 0; i < steps.length; i++) ...[
+                  if (i > 0) const SizedBox(width: gap),
+                  Expanded(child: _ladderLabel(steps[i])),
+                ],
+              ],
+            ),
           ],
         ],
       ),
     );
   }
-}
 
-/// **La légende de l'échelle CECRL** — les quatre paliers, écrits **une seule
-/// fois** pour toute la liste.
-///
-/// 🛑 **Elle remplace quatre répétitions** (2026-09-17) : chaque ligne
-/// d'épreuve écrivait « A1 A2 B1 B2 » sous son échelle, soit la même échelle
-/// quatre fois et une ligne de texte par épreuve. Le palier atteint se lit déjà
-/// en gros à droite de la ligne, et l'objectif est annoncé par le bandeau
-/// au-dessus : les libellés par ligne n'ajoutaient rien et coûtaient une
-/// hauteur d'écran.
-///
-/// 🛑 **Le cran d'objectif reste marqué en rouge** : c'est le seul repère des
-/// libellés qui portait une information, et il est **global** — le même pour
-/// les quatre épreuves.
-///
-/// ⚠️ **Alignée sur les échelles des lignes** ([SfLevelRow.legendIndent]) : elle
-/// n'a de sens qu'au-dessus d'une liste dont les lignes portent un repère
-/// court. Miroir web : `LadderLegend` (que le palier desktop masque, où la
-/// hauteur n'est pas une contrainte et où la liste passe à deux colonnes).
-class SfLadderLegend extends StatelessWidget {
-  const SfLadderLegend({super.key, required this.labels, this.goalIndex});
-
-  /// Les paliers de l'échelle, dans l'ordre. **Passés**, jamais dérivés ici.
-  final List<String> labels;
-
-  /// Le rang du palier visé. `null` sans démarche déclarée.
-  final int? goalIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: Padding(
-        padding: const EdgeInsets.only(left: SfLevelRow.legendIndent),
-        child: Row(
-          children: [
-            for (var i = 0; i < labels.length; i++) ...[
-              if (i > 0) const SizedBox(width: SfLevelLadder.gap),
-              Expanded(
-                child: Text(
-                  labels[i],
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  style: AppFonts.label(
-                    size: 10,
-                    color: i == goalIndex ? AppColors.red : AppColors.muted2,
-                  ).copyWith(
-                    fontWeight:
-                        i == goalIndex ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+  /// Le palier ACTUEL en bleu, le palier VISÉ (s'il n'est pas l'actuel) en
+  /// rouge, le reste en gris — la règle de `.ladderLabels` côté web.
+  Widget _ladderLabel(SfLadderStep step) {
+    final vise = !step.current && step.goal;
+    final couleur = step.current
+        ? AppColors.blue
+        : vise
+            ? AppColors.red
+            : AppColors.muted2;
+    return Text(
+      step.label,
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      style: AppFonts.label(size: 10, color: couleur).copyWith(
+        fontWeight:
+            step.current || vise ? FontWeight.w700 : FontWeight.w500,
       ),
     );
   }
@@ -2887,25 +2931,27 @@ Color _sfStatusColor(SfBarTone tone) => switch (tone) {
       SfBarTone.muted => AppColors.muted,
     };
 
-/// **La ligne d'une épreuve** — le `.test` de la maquette v2 : repère court en
-/// pastille mono, intitulé, statut à pastille colorée, palier à droite, puis
-/// l'échelle et une ligne de pied « action · objectif ».
-///
-/// ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, le statut est
-/// sous l'intitulé et la droite porte le **palier CECRL** ; en civique, il n'y
-/// a aucun palier servi et c'est le **statut** qui prend la droite
-/// ([statusRight]). Les segments de l'échelle viennent de l'appelant dans les
-/// deux cas — le kit ne sait pas ce qu'ils comptent.
+/// **La carte d'une épreuve** — maquette « niveau par épreuve » v3 du
+/// propriétaire (2026-09-24) : repère court en pastille mono et pictogramme en
+/// tête, intitulé discret, palier en très gros, statut à pastille colorée,
+/// l'échelle et ses libellés, puis un filet et l'action, **épinglée en bas**.
 ///
 /// 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
-/// `accueilEpreuve*` (`screens/progres/progres_labels.dart`).
+/// `accueilEpreuve*` (`screens/progres/progres_labels.dart`) — palier, statut,
+/// ton, crans, CTA.
 ///
-/// ⚠️ **Remplace `SfLevelCard`**, la carte compacte de la maquette v1.
-/// Miroir web : `LevelRow`.
-class SfLevelRow extends StatelessWidget {
-  const SfLevelRow({
+/// ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, [level] porte
+/// le palier CECRL servi ; en civique, aucun palier n'est servi, [level] est
+/// `null` et la carte n'en montre pas — on n'en fabrique aucun.
+///
+/// ⚠️ **Remplace `SfLevelRow`, `SfLevelList` et `SfLadderLegend`** (liste
+/// verticale dans une seule carte, maquette v2) — refonte = suppression de
+/// l'ancien. Miroir web : `LevelCard`.
+class SfLevelCard extends StatelessWidget {
+  const SfLevelCard({
     super.key,
     required this.mark,
+    required this.icon,
     required this.title,
     required this.status,
     required this.tone,
@@ -2913,14 +2959,16 @@ class SfLevelRow extends StatelessWidget {
     required this.measured,
     required this.cta,
     required this.onTap,
-    this.statusRight = false,
     this.scale,
     this.ctaPrimary = false,
     this.busy = false,
   });
 
-  /// Repère court (« CO »). `null` quand rien n'en sert — on n'en invente pas.
-  final String? mark;
+  /// Repère court (« CO », ou le rang servi d'un thème).
+  final String mark;
+
+  /// Le pictogramme de l'épreuve ou du thème, choisi par l'appelant.
+  final IconData icon;
 
   final String title;
 
@@ -2930,18 +2978,8 @@ class SfLevelRow extends StatelessWidget {
   /// Le ton de la pastille de statut.
   final SfBarTone tone;
 
-  /// **La variante civique** : le statut se rend à DROITE, à la place qu'occupe
-  /// le palier en TCF, au lieu de la sous-ligne de l'intitulé.
-  ///
-  /// 🛑 **Une position, pas une seconde anatomie** : c'est la même pastille, le
-  /// même mot servi et le même ton — une ligne civique n'a aucun palier CECRL,
-  /// sa colonne de droite était donc vide. La ligne TCF, elle, garde son statut
-  /// à gauche et son palier à droite : [statusRight] et [level] ne se
-  /// rencontrent jamais. Miroir web : `LevelRow.statusRight`.
-  final bool statusRight;
-
   /// Le palier servi, ou le mot d'une absence de mesure. `null` retire la
-  /// pastille : le civique n'a aucun palier CECRL servi.
+  /// ligne : le civique n'a aucun palier CECRL servi.
   final String? level;
 
   /// Y a-t-il une mesure derrière [level] ?
@@ -2950,7 +2988,7 @@ class SfLevelRow extends StatelessWidget {
   /// d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
   final bool measured;
 
-  /// L'échelle, ou la jauge du civique. `null` quand rien ne la sert.
+  /// L'échelle ([SfLevelLadder]). `null` quand rien ne la sert.
   final Widget? scale;
 
   final String cta;
@@ -2961,57 +2999,105 @@ class SfLevelRow extends StatelessWidget {
   final VoidCallback onTap;
   final bool busy;
 
-  /// 38 px de pastille + 12 px de gouttière : l'échelle et la ligne de pied
-  /// s'alignent sous l'intitulé, pas sous le repère.
-  static const double _indent = 50;
-
-  /// Le retrait d'une échelle **depuis le bord de la carte** : le padding de la
-  /// ligne plus [_indent]. C'est ce dont [SfLadderLegend] a besoin pour tomber
-  /// exactement sous les crans.
-  static const double legendIndent = _padding + _indent;
-
-  static const double _padding = 12;
-
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadii.md);
-    final retrait = mark == null ? 0.0 : _indent;
+    final radius = BorderRadius.circular(AppRadii.lg);
+    final statut = status;
+    final palier = level;
     return Material(
-      // Une épreuve **jamais mesurée** se détache : c'est la seule ligne qui
+      // Une épreuve **jamais mesurée** se détache : c'est la seule carte qui
       // demande un geste pour exister. 🛑 Le fait est passé (`measured`), et il
       // ne se confond pas avec « <A1 », qui est une mesure.
-      color: measured ? Colors.transparent : AppColors.surface2,
+      color: measured ? AppColors.white : AppColors.surface2,
       borderRadius: radius,
-      child: InkWell(
-        onTap: busy ? null : onTap,
-        borderRadius: radius,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _padding,
-            vertical: 11,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SfLevelRowTop(
-                mark: mark,
-                title: title,
-                status: status,
-                tone: tone,
-                statusRight: statusRight,
-                level: level,
-                measured: measured,
-              ),
-              if (scale != null)
-                Padding(
-                  padding: EdgeInsets.only(left: retrait, top: 9),
-                  child: scale!,
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: AppShadows.card,
+        ),
+        child: InkWell(
+          onTap: busy ? null : onTap,
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.blueLight,
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
+                      ),
+                      // Un repère d'épreuve est une étiquette technique.
+                      child: Text(
+                        mark,
+                        style: AppFonts.label(size: 12.5, color: AppColors.blue),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(icon, size: 24, color: AppColors.blue),
+                  ],
                 ),
-              Padding(
-                padding: EdgeInsets.only(left: retrait, top: 7),
-                child: _SfLevelRowCta(cta: cta, primary: ctaPrimary),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: AppFonts.ui(
+                    size: 14,
+                    weight: FontWeight.w500,
+                    color: AppColors.muted,
+                    height: 1.25,
+                  ),
+                ),
+                if (palier != null)
+                  // 🛑 Non mesuré : le mot de l'absence, en neutre et en petit.
+                  // Le très gros noir est réservé à un palier réel — une absence
+                  // de mesure en gros se lirait comme un résultat.
+                  Padding(
+                    padding: EdgeInsets.only(top: measured ? 4 : 10),
+                    child: measured
+                        ? FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              palier,
+                              maxLines: 1,
+                              style: AppFonts.ui(
+                                size: 44,
+                                weight: FontWeight.w800,
+                                height: 1.05,
+                                letterSpacing: -1.6,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            palier,
+                            style: AppFonts.ui(
+                              size: 15,
+                              weight: FontWeight.w700,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                  ),
+                if (statut != null) ...[
+                  const SizedBox(height: 8),
+                  _SfStatusDot(label: statut, tone: tone),
+                ],
+                if (scale != null) ...[
+                  const SizedBox(height: 12),
+                  scale!,
+                ],
+                // 🛑 **L'action épinglée en bas** : l'espace libre passe au-dessus
+                // du filet, donc les barres et les CTA d'une même rangée restent
+                // alignés quelle que soit la longueur des noms.
+                const Spacer(),
+                const SizedBox(height: 12),
+                _SfLevelCardCta(cta: cta, primary: ctaPrimary),
+              ],
+            ),
           ),
         ),
       ),
@@ -3019,147 +3105,45 @@ class SfLevelRow extends StatelessWidget {
   }
 }
 
-class _SfLevelRowTop extends StatelessWidget {
-  const _SfLevelRowTop({
-    required this.mark,
-    required this.title,
-    required this.status,
-    required this.tone,
-    required this.statusRight,
-    required this.level,
-    required this.measured,
-  });
+/// La pastille de statut d'une carte : le ton **servi**, et le mot le redit —
+/// la couleur n'est jamais le seul porteur de l'information.
+class _SfStatusDot extends StatelessWidget {
+  const _SfStatusDot({required this.label, required this.tone});
 
-  final String? mark;
-  final String title;
-  final String? status;
+  final String label;
   final SfBarTone tone;
-  final bool statusRight;
-  final String? level;
-  final bool measured;
-
-  /// La pastille de statut, **une seule fois écrite**, rendue à l'une ou
-  /// l'autre position. La couleur n'est jamais le seul porteur du sens : le mot
-  /// servi la redit.
-  ///
-  /// Sous l'intitulé, elle occupe la largeur restante et peut passer à la
-  /// ligne ; à droite, elle prend sa largeur propre et c'est l'intitulé qui se
-  /// resserre — le pendant de `flex: 0 0 auto` + `white-space: nowrap` côté web.
-  Widget _statut({required bool sousLIntitule}) {
-    final texte = Text(
-      status!,
-      maxLines: sousLIntitule ? 2 : 1,
-      overflow: TextOverflow.ellipsis,
-      style: AppFonts.ui(
-        size: 12.5,
-        weight: FontWeight.w600,
-        color: _sfStatusColor(tone),
-      ),
-    );
-    return Row(
-      mainAxisSize: sousLIntitule ? MainAxisSize.max : MainAxisSize.min,
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            color: _sfStatusColor(tone),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 6),
-        if (sousLIntitule) Flexible(child: texte) else texte,
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    final couleur = _sfStatusColor(tone);
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (mark != null) ...[
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: measured ? AppColors.blueMuted : AppColors.white,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              border: measured
-                  ? null
-                  : Border.all(color: AppColors.blueMuted, width: 1.5),
-            ),
-            // Un repère d'épreuve est une étiquette technique.
-            child: Text(
-              mark!,
-              style: AppFonts.label(
-                size: 13.5,
-                color: measured ? AppColors.white : AppColors.blueMuted,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ],
+        Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(top: 5),
+          decoration: BoxDecoration(color: couleur, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 7),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppFonts.ui(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  height: 1.2,
-                ),
-              ),
-              if (status != null && !statusRight) ...[
-                const SizedBox(height: 3),
-                _statut(sousLIntitule: true),
-              ],
-            ],
+          child: Text(
+            label,
+            style: AppFonts.ui(
+              size: 13,
+              weight: FontWeight.w600,
+              color: couleur,
+              height: 1.3,
+            ),
           ),
         ),
-        // 🛑 **La MÊME pastille, à la place du palier** : seule la position
-        // change. Elle n'est jamais rendue en même temps que [level] — une
-        // ligne TCF garde son statut à gauche.
-        if (status != null && statusRight) ...[
-          const SizedBox(width: 10),
-          _statut(sousLIntitule: false),
-        ],
-        if (level != null) ...[
-          const SizedBox(width: 10),
-          // 🛑 Non mesuré : pastille neutre et petite. Le bleu est réservé à un
-          // palier réel — une pastille de marque sur une absence de mesure se
-          // lirait comme un résultat.
-          if (measured)
-            Text(
-              level!,
-              style: AppFonts.label(size: 18, color: AppColors.blue),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(AppRadii.sm),
-              ),
-              child: Text(
-                level!,
-                style: AppFonts.ui(
-                  size: 12,
-                  weight: FontWeight.w700,
-                  color: AppColors.muted,
-                ),
-              ),
-            ),
-        ],
       ],
     );
   }
 }
 
-class _SfLevelRowCta extends StatelessWidget {
-  const _SfLevelRowCta({required this.cta, required this.primary});
+class _SfLevelCardCta extends StatelessWidget {
+  const _SfLevelCardCta({required this.cta, required this.primary});
 
   final String cta;
   final bool primary;
@@ -3169,85 +3153,106 @@ class _SfLevelRowCta extends StatelessWidget {
     // 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
     // jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent.
     if (primary) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.red,
-            borderRadius: BorderRadius.circular(AppRadii.sm),
-          ),
-          child: Text(
-            cta,
-            style: AppFonts.ui(
-              size: 12.5,
-              weight: FontWeight.w700,
-              color: AppColors.white,
-            ),
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.red,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+        ),
+        child: Text(
+          cta,
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(
+            size: 14,
+            weight: FontWeight.w700,
+            color: AppColors.white,
+            height: 1.25,
           ),
         ),
       );
     }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Text(
-            cta,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppFonts.ui(
-              size: 12.5,
-              weight: FontWeight.w700,
-              color: AppColors.blue,
+    return Container(
+      padding: const EdgeInsets.only(top: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              cta,
+              style: AppFonts.ui(
+                size: 14,
+                weight: FontWeight.w700,
+                color: AppColors.blue,
+                height: 1.25,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 5),
-        const Icon(LucideIcons.arrowRight, size: 14, color: AppColors.blue),
-      ],
+          const SizedBox(width: 8),
+          const Icon(LucideIcons.arrowRight, size: 18, color: AppColors.blue),
+        ],
+      ),
     );
   }
 }
 
-/// La liste des épreuves — **une seule colonne**, comme la maquette v2.
+/// La grille des cartes d'épreuve — **deux colonnes**, les cartes d'une même
+/// rangée à la même hauteur ; une dernière carte impaire (les 5 thèmes
+/// civiques) prend toute la rangée.
 ///
-/// ⚠️ Le web la passe à deux colonnes au-dessus de 960 px ; **rien à porter
-/// ici**, l'app est en portrait téléphone. Une media query n'est pas une
-/// primitive.
-///
-/// ⚠️ **Remplace `SfLevelGrid`**, la grille à deux colonnes de la maquette v1.
-/// Miroir web : `LevelList`.
-class SfLevelList extends StatelessWidget {
-  const SfLevelList({super.key, required this.children});
+/// ⚠️ Le web passe à quatre cartes sur une rangée (cinq en 3 + 2) quand la
+/// grille est large ; **rien à porter ici**, l'app est en portrait téléphone.
+/// Une requête de conteneur n'est pas une primitive. Miroir web :
+/// `LevelCardGrid`.
+class SfLevelCardGrid extends StatelessWidget {
+  const SfLevelCardGrid({super.key, required this.children});
 
   final List<Widget> children;
 
-  static const double _gap = 4;
+  static const double _gap = 10;
 
   @override
   Widget build(BuildContext context) {
+    final rangees = <Widget>[];
+    for (var i = 0; i < children.length; i += 2) {
+      final seule = i + 1 >= children.length;
+      rangees.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: seule
+                ? [Expanded(child: children[i])]
+                : [
+                    Expanded(child: children[i]),
+                    const SizedBox(width: _gap),
+                    Expanded(child: children[i + 1]),
+                  ],
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var i = 0; i < children.length; i++) ...[
+        for (var i = 0; i < rangees.length; i++) ...[
           if (i > 0) const SizedBox(height: _gap),
-          children[i],
+          rangees[i],
         ],
       ],
     );
   }
 }
 
-/// **Le bandeau d'objectif** — la bande bleue pleine de la maquette v2 :
-/// cocarde, intitulé + valeur, puis le compteur « 3 / 4 », ses pastilles et le
-/// mot qu'elles comptent.
+/// **Le bandeau d'objectif** — la bande bleue pleine de la maquette : cocarde,
+/// intitulé + valeur, puis le compteur « 3 / 4 » en gros et le mot qu'il
+/// compte.
 ///
-/// 🛑 [count] et [total] sont **passés**, jamais comptés ici — et [total] pose
-/// le nombre de pastilles, donc l'écran ne peut pas en dessiner quatre quand le
-/// serveur en publie trois.
+/// 🛑 [count] et [total] sont **passés**, jamais comptés ici.
 ///
-/// ⚠️ **Remplace `SfGoalRibbon`** (bande claire à filet, maquette v1).
+/// ⚠️ **Plus de pastilles sous le compteur** (maquette v3, 2026-09-24) : les
+/// cartes juste en dessous montrent déjà, une par une, ce qui est évalué.
 /// Miroir web : `GoalBanner`.
 class SfGoalBanner extends StatelessWidget {
   const SfGoalBanner({
@@ -3271,20 +3276,20 @@ class SfGoalBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final faites = count;
     final sur = total;
-    final pastilles = faites != null && sur != null && sur > 0;
-    final doux = AppColors.white.withValues(alpha: 0.75);
+    final compte = faites != null && sur != null && sur > 0;
+    final doux = AppColors.white.withValues(alpha: 0.78);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.blueMuted,
-        borderRadius: BorderRadius.circular(AppRadii.md),
+        color: AppColors.blue,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
       ),
       child: Row(
         children: [
           // La cocarde : trois cercles concentriques, en pur dégradé radial.
           Container(
-            width: 32,
-            height: 32,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -3300,7 +3305,7 @@ class SfGoalBanner extends StatelessWidget {
                   AppColors.blueDark,
                   AppColors.blueDark,
                 ],
-                stops: [0, 0.30, 0.31, 0.58, 0.59, 1],
+                stops: [0, 0.36, 0.37, 0.70, 0.71, 1],
               ),
             ),
           ),
@@ -3312,56 +3317,43 @@ class SfGoalBanner extends StatelessWidget {
                 Text(
                   label,
                   style: AppFonts.ui(
-                    size: 12,
-                    weight: FontWeight.w600,
+                    size: 13,
+                    weight: FontWeight.w500,
                     color: doux,
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: AppFonts.ui(
-                    size: 15.5,
+                    size: 18,
                     weight: FontWeight.w800,
                     color: AppColors.white,
+                    height: 1.2,
                   ),
                 ),
               ],
             ),
           ),
-          if (pastilles) ...[
+          if (compte) ...[
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   '$faites / $sur',
-                  style: AppFonts.label(size: 15, color: AppColors.white),
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < sur; i++) ...[
-                      if (i > 0) const SizedBox(width: 4),
-                      Container(
-                        width: 14,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: i < faites
-                              ? AppColors.white
-                              : AppColors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ],
-                  ],
+                  style: AppFonts.ui(
+                    size: 22,
+                    weight: FontWeight.w800,
+                    color: AppColors.white,
+                    height: 1.1,
+                  ),
                 ),
                 if (caption != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     caption!,
-                    style: AppFonts.ui(size: 11, color: doux),
+                    style: AppFonts.ui(size: 12, color: doux),
                   ),
                 ],
               ],
@@ -5989,8 +5981,8 @@ Color _sfStatusSoft(SfBarTone tone) => Color.alphaBlend(
 /// d'evolution, le palier a droite avec son intitule, un chevron.
 ///
 /// 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
-/// - [SfLevelRow] porte une **echelle a crans** et une ligne d'action — c'est la
-///   ligne de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, etats de
+/// - [SfLevelCard] porte une **echelle a crans** et une ligne d'action — c'est la
+///   carte de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, etats de
 ///   theme servis en civique) ;
 /// - [SfEpreuveRow] porte un **anneau de couverture** et un pictogramme — c'est
 ///   la ligne de Reviser, qui dit *ou s'entrainer* ;
@@ -6165,8 +6157,8 @@ class SfEpreuveStatRow extends StatelessWidget {
 /// **La liste des epreuves** — l'`.exam-list` du template : une carte unique,
 /// ses lignes separees d'un filet.
 ///
-/// ⚠️ **Elle n'est pas [SfLevelList]** : celle-la empile des lignes autonomes a
-/// 4 px d'ecart, celle-ci les reunit dans un seul encart. Miroir web :
+/// ⚠️ **Elle n'est pas [SfLevelCardGrid]** : celle-la range des cartes
+/// autonomes, celle-ci reunit des lignes dans un seul encart. Miroir web :
 /// `EpreuveStatList`.
 class SfEpreuveStatList extends StatelessWidget {
   const SfEpreuveStatList({super.key, required this.children});
