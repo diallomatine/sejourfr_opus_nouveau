@@ -1020,8 +1020,9 @@ propriétaire : « comme l'AppBar Flutter d'un écran poussé ».
   sujets, rédaction/enregistrement, résultats, exemples, compétences),
   `CompteShell` (compte, aide connecté, favoris), kit `Top` (`backTo` /
   `onBack` : étape et historique du Plan, résultats de diagnostic TCF, rapport
-  du diagnostic), `ProgressTopbar` (`backInAppBar`, posé par
-  `ProgressionFrame` sur les écrans d'épreuve / de thème seulement). Et à la
+  du diagnostic). ⚠️ **Pas les écrans de progression** (même épreuve / thème) :
+  ils gardent le burger et leur retour libellé dans la page (propriétaire,
+  2026-09-24). Et à la
   main : rapport de `/sessions/[attemptId]`, domaine du Plan, `/diagnostic`
   connecté, `/paiement`, `/paiement/recapitulatif`, `/parcours` (hors
   onboarding), `/profil/abonnement`. Un nouveau sous-écran avec un lien de

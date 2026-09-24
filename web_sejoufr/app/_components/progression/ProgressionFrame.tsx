@@ -64,7 +64,6 @@ export function ProgressionFrame({
                     <ProgressTopbar
                         backHref={backHref}
                         backLabel={backLabel}
-                        backInAppBar={!module}
                         cta={cta}
                         onLocked={() => setPaywall(true)}
                     />

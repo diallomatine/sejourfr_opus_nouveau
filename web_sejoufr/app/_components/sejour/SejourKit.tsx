@@ -2326,26 +2326,23 @@ function ProgressChipView({ chip }: { chip: ProgressChip }) {
 export function ProgressTopbar({
   backHref,
   backLabel,
-  backInAppBar = false,
   cta,
   onLocked,
 }: {
   backHref: string;
-  backLabel: string;
   /**
-   * Sous-écran (épreuve, thème) : la flèche de la barre du haut remplace le
-   * retour libellé sous 900 px. `false` sur les écrans globaux, qui gardent
-   * le burger (premier niveau de la navigation).
+   * 🛑 Le retour reste DANS la page, y compris sous 900 px : les écrans de
+   * progression gardent le burger dans la barre du haut (demande du
+   * propriétaire, 2026-09-24) — la Progression est une entrée du menu.
    */
-  backInAppBar?: boolean;
+  backLabel: string;
   /** `null` ⇒ pas de CTA (chargement, erreur). */
   cta?: { label: string; href: string; locked: boolean } | null;
   onLocked?: () => void;
 }) {
-  const retourDansLaBarre = useAppBarBack(backInAppBar ? { fallbackHref: backHref } : null);
   return (
-    <header className={cx(styles.pTopbar, retourDansLaBarre && !cta && "in-bar-back")}>
-      <Link href={backHref} className={cx(styles.pBack, retourDansLaBarre && "in-bar-back")}>
+    <header className={styles.pTopbar}>
+      <Link href={backHref} className={styles.pBack}>
         <span className={styles.pBackIcon} aria-hidden>
           <ChevronLeft size={18} strokeWidth={2.2} />
         </span>
