@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Lightbulb } from "lucide-react";
 import {
   attemptApi,
   lotApi,
@@ -174,10 +173,12 @@ export default function CiviqueThemeSeriesPage() {
       <DetailShell
         backHref="/entrainement?module=CIVIQUE"
         backLabel="Examen civique"
-        eyebrowIcon={<Lightbulb size={18} strokeWidth={2} />}
-        eyebrow={theme?.name ?? "Thème civique"}
-        title="Séries d'entraînement"
-        subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
+        title={theme?.name ?? "Thème civique"}
+        subtitle={
+          theme?.questionCount != null
+            ? `Civique · ${theme.questionCount} questions`
+            : "Civique"
+        }
       >
         {error && <div className={detail.error}>{error}</div>}
         {loading ? (

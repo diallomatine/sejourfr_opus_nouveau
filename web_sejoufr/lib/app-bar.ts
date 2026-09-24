@@ -11,12 +11,15 @@
  * compte, du centre d'aide et des favoris (mêmes constantes que la page).
  *
  * ⚠️ **Un titre de donnée (un thème, une épreuve de progression, un sujet) ne
- * s'invente pas ici** : la barre donne le **parent** (« Examen civique »,
- * « Progression »), la page garde son propre titre.
+ * s'invente pas ici** : la table donne le **parent** (« Examen civique »,
+ * « Progression »), repli du rendu serveur.
  *
- * Exception, et une seule voie : un titre **dynamique** porté par une donnée
- * servie, que la page pose elle-même (`useAppBarTitle`,
- * `app/_components/AppBarTitle.tsx` — le Plan). La table reste le repli.
+ * Seconde voie : la page pose elle-même le titre de son `ScreenHeader` Flutter
+ * (`useAppBarTitle`, `app/_components/AppBarTitle.tsx`) — le Plan, et les
+ * coquilles de sous-écran (`DetailShell`, `SkillShell` avec `title`), qui
+ * montent leur titre + ligne de contexte dans la barre. La table reste le
+ * repli. La flèche de retour d'un sous-écran suit la même voie
+ * (`useAppBarBack`).
  */
 import {AIDE_TITLE} from "./aide";
 import {

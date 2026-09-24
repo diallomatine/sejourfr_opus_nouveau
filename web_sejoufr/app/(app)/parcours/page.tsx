@@ -7,6 +7,7 @@ import { ApiException, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { safeInternalPath } from "@/lib/security";
 import { TCF_LEVEL_BY_PROCEDURE, type TargetLevel, type TargetProcedure } from "@/lib/types";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 
 /**
  * Édition du parcours administratif visé. Sert aussi d'onboarding intégré :
@@ -109,6 +110,12 @@ function ParcoursForm() {
     }
   }
 
+  // Hors onboarding : sous-écran du Profil, la flèche de la barre du haut
+  // (≤ 900 px) remplace « ← Retour ».
+  const backInBar = useAppBarBack(
+    user?.targetProcedure ? {fallbackHref: fromParam ?? "/profil"} : null,
+  );
+
   if (status === "loading") return <ParcoursSkeleton />;
   if (!user) {
     return (
@@ -162,7 +169,7 @@ function ParcoursForm() {
           </p>
         </div>
         {!isOnboarding && (
-          <div className="topbar-actions">
+          <div className={`topbar-actions${backInBar ? " in-bar-back" : ""}`}>
             <Link href={backHref} className="btn-outline">
               ← Retour
             </Link>

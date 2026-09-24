@@ -50,6 +50,7 @@ import {
   type PassModule,
 } from "@/lib/passes";
 import type { PlanPublicResponse, SubscriptionStatusResponse } from "@/lib/types";
+import { useAppBarBack } from "@/app/_components/AppBarTitle";
 
 // ============================================================================
 // PRÉSENTATION (miroir de /paiement — ce que le module ouvre)
@@ -430,8 +431,10 @@ function AccessNote({
 // ============================================================================
 
 function BackLink() {
+  // ≤ 900 px : la flèche de la barre du haut le remplace.
+  const inBar = useAppBarBack({ fallbackHref: "/tarifs" });
   return (
-    <Link href="/tarifs" className="rcp-back">
+    <Link href="/tarifs" className={`rcp-back${inBar ? " in-bar-back" : ""}`}>
       <ArrowLeft className="rcp-back-icon" /> Modifier mon choix
     </Link>
   );

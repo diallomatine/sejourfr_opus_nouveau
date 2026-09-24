@@ -24,6 +24,7 @@ import {
   type SerieFiltre,
 } from "@/lib/serie-filtre";
 import { ProgressDonut } from "./ModuleHubParts";
+import { useAppBarBack, useAppBarTitle } from "../AppBarTitle";
 import styles from "./detail.module.css";
 
 /**
@@ -74,19 +75,26 @@ export interface ExamSlotData {
 
 /**
  * Briques des pages détail d'entraînement (maquette sejour_fr.html) :
- * shell back + eyebrow + titre, cards de niveau TCF, carte de progression +
+ * shell retour + titre, cards de niveau TCF, carte de progression +
  * cards de série (ex-lots), stat cards et grille d'examens blancs.
  */
 
+/**
+ * **La coquille d'un sous-écran d'entraînement** — l'en-tête est celui du
+ * `ScreenHeader` Flutter du même écran : un titre et une ligne de contexte
+ * courte (`subtitle`), rien d'autre. 🛑 Pas d'œil-de-bœuf ni de paragraphe
+ * d'explication : l'app mobile n'en a pas (alignement, 2026-09-24).
+ *
+ * Sous 900 px dans le shell connecté, le titre et le contexte montent dans la
+ * barre du haut (`useAppBarTitle`) et la flèche de la barre remplace le lien
+ * de retour (`useAppBarBack`).
+ */
 export function DetailShell({
   backHref,
   backLabel,
   onBack,
-  eyebrowIcon,
-  eyebrow,
   title,
   subtitle,
-  action,
   notice,
   children,
 }: {
@@ -95,39 +103,33 @@ export function DetailShell({
   /** Intercepte le retour (confirmation avant de sortir). Absent : simple lien
    *  vers `backHref`, comportement historique. */
   onBack?: () => void;
-  eyebrowIcon: React.ReactNode;
-  eyebrow: string;
   title: string;
-  subtitle: string;
-  action?: React.ReactNode;
+  /** La ligne de contexte du `ScreenHeader` mobile (« Civique · 40 questions »). */
+  subtitle?: string;
   /** Bandeau d'information rendu SOUS l'en-tête (cf. `ComplementaryNotice`).
    *  Absent : rien, comportement historique. */
   notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const backInBar = useAppBarBack({ fallbackHref: backHref, onBack });
+  const titleInBar = useAppBarTitle({ title, subtitle });
+  const backClass = `${styles.back}${backInBar ? " in-bar-back" : ""}`;
   return (
     <main className={styles.wrap}>
       {onBack ? (
-        <button type="button" className={styles.back} onClick={onBack}>
+        <button type="button" className={backClass} onClick={onBack}>
           <ArrowLeft size={16} aria-hidden />
           {backLabel}
         </button>
       ) : (
-        <Link href={backHref} className={styles.back}>
+        <Link href={backHref} className={backClass}>
           <ArrowLeft size={16} aria-hidden />
           {backLabel}
         </Link>
       )}
-      <header className={styles.head}>
-        <div className={styles.headText}>
-          <div className={styles.eyebrow}>
-            <span aria-hidden>{eyebrowIcon}</span>
-            <span className={styles.eyebrowLabel}>{eyebrow}</span>
-          </div>
-          <h1 className={styles.title}>{title}</h1>
-          <p className={styles.subtitle}>{subtitle}</p>
-        </div>
-        {action && <div className={styles.headActions}>{action}</div>}
+      <header className={`${styles.head}${titleInBar ? " in-bar-title" : ""}`}>
+        <h1 className={styles.title}>{title}</h1>
+        {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
       </header>
       {notice}
       {children}
@@ -321,15 +323,13 @@ export function DetailStatCard({
 
 /**
  * Grille de 1..count examens : les examens finis remplissent les premières
- * cards (ordre chronologique), les suivantes sont à passer. Examen 1 gratuit
- * (freeSlots), au-delà premium → onLocked. `collapsedCount` replie la grille
+ * cards (ordre chronologique), les suivantes sont à passer. Un créneau
+ * verrouillé (`slotLocks`, SERVI) → onLocked. `collapsedCount` replie la grille
  * à N cards avec un bouton "Voir tout" (jamais moins que les examens faits).
  */
 export function ExamsGrid({
   count,
   exams,
-  premium,
-  freeSlots = 1,
   slotLocks,
   starting,
   itemLabel = "Examen",
@@ -343,12 +343,10 @@ export function ExamsGrid({
   /** Examens finis. Soit une liste dense (case i = i-ᵉ examen), soit un
    *  tableau indexé par slot (case i = examen du slot i+1, trous à null). */
   exams: ReadonlyArray<ExamSlotData | null>;
-  premium: boolean;
-  freeSlots?: number;
-  /** Verrous SERVIS, créneau par créneau (case i = créneau i+1). Quand ils sont
-   *  fournis, ils priment sur `premium`/`freeSlots` — un créneau absent reste
-   *  verrouillé. */
-  slotLocks?: ReadonlyArray<boolean>;
+  /** Verrous SERVIS, créneau par créneau (case i = créneau i+1) — 🛑 le serveur
+   *  décide du verrou, la grille ne le déduit jamais du rang ni de l'accès.
+   *  Un créneau absent (grille pas encore arrivée) reste verrouillé. */
+  slotLocks: ReadonlyArray<boolean>;
   starting: boolean;
   itemLabel?: string;
   /** Texte des slots verrouillés — "Compte gratuit" en contexte guest. */
@@ -375,9 +373,7 @@ export function ExamsGrid({
         {Array.from({ length: visibleCount }, (_, i) => {
           const slot = i + 1;
           const exam = exams[i] ?? null;
-          const locked = slotLocks
-            ? (slotLocks[i] ?? true)
-            : !premium && slot > freeSlots;
+          const locked = slotLocks[i] ?? true;
           const passThresholdMet =
             exam && exam.passThreshold != null
               ? (exam.score ?? 0) >= exam.passThreshold

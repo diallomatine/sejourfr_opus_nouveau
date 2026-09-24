@@ -17,7 +17,6 @@ import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/mo
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import {
   SectionHead,
-  SkillHero,
   SkillNotice,
   SkillRowCard,
   SkillShell,
@@ -63,28 +62,20 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
       <SkillShell
         backHref={backHref}
         backLabel={valid ? `${config.label} · Tâche ${n}` : config.label}
+        title="Exemples corrigés"
+        meta={valid ? `Tâche ${n} · ${productionTaskTitle(config.epreuve, n)}` : undefined}
       >
         {!valid ? (
           <p className={s.empty}>Tâche inconnue.</p>
         ) : (
           <>
-            <SkillHero
-              eyebrow={`${config.label} · Tâche ${n}`}
-              title="Réponses-modèles"
+            <SectionHead
+              title="Des modèles à imiter"
               text={
                 config.mode === "audio"
-                  ? "Écoutez comment une réponse attendue s'organise, puis retournez produire la vôtre."
-                  : "Lisez comment une réponse attendue s'organise, puis retournez produire la vôtre."
+                  ? "Écoutez comment un candidat traite le sujet, puis reprenez la structure dans vos propres réponses."
+                  : "Lisez comment un candidat traite le sujet, puis reprenez la structure dans vos propres réponses."
               }
-              level={null}
-              attempted={0}
-              total={0}
-              percent={0}
-            />
-
-            <SectionHead
-              title={productionTaskTitle(config.epreuve, n)}
-              text="Ces modèles ne remplacent pas la production : ils montrent un plan possible."
             />
 
             {!loaded ? (

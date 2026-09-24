@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
+import { Check, ChevronRight, Lightbulb, Timer } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi, tcfDiagnosticApi } from "@/lib/api";
 import {
   TCF_DIAGNOSTIC_HUB_HREF,
@@ -586,22 +586,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             ? () => setExitConfirmOpen(true)
             : undefined
         }
-        eyebrowIcon={
-          config.mode === "audio" ? (
-            <Mic size={18} strokeWidth={2} />
-          ) : (
-            <PenLine size={18} strokeWidth={2} />
-          )
-        }
-        eyebrow={config.label}
         title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
-        subtitle={
-          phase === "bilan"
-            ? "Le niveau global est calculé sur vos 3 tâches une fois évaluées."
-            : config.mode === "text"
-              ? "3 tâches enchaînées, un seul chrono pour les trois — évaluation IA à la fin."
-              : "3 tâches enchaînées : le chrono d'une tâche ne part qu'au moment où vous la lancez — évaluation IA à la fin."
-        }
+        subtitle={config.label}
       >
         {/* Chrono de l'épreuve — écrit seulement. L'oral n'en a pas : son temps
             se compte tâche par tâche, dans l'enregistreur. */}

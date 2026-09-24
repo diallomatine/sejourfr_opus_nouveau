@@ -75,7 +75,8 @@ app/
 │   ├── Brand.tsx, TopNav.tsx, SiteHeader.tsx, Footer.tsx,
 │   ├── AppSidebar.tsx            # nav latérale des routes (app)
 │   ├── AppTopBar.tsx             # barre du haut ≤ 900 px (burger + titre, lib/app-bar.ts) + tiroir
-│   ├── AppBarTitle.tsx           # AppBarProvider + useAppBarTitle : titre dynamique posé par la page
+│   ├── AppBarTitle.tsx           # AppBarProvider + useAppBarTitle (titre posé par la page) + useAppBarBack (flèche)
+│   ├── NavHistoryTracker.tsx     # compteur d'historique interne (lib/nav-history.ts), layout racine
 │   ├── HeroSection.tsx, LandingSections.tsx, MobileAppPromo.tsx
 │   ├── MediaView.tsx             # rend MediaResponse (audio/image/vidéo/SVG inline)
 │   ├── QuestionRunner.tsx        # ★ runner réutilisable training/exam (favoris, prev/next,
@@ -340,8 +341,9 @@ spécifiquement le 401 (mauvais credentials sur connexion, "créez un compte" su
 **Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO, « Refaire ») : passer par
 `lib/start-failure.ts` — `handleStartFailure(e, {onPaywall, onMessage, fallbackMessage})` ouvre l'offre sur
 un **403** et affiche le message backend sinon. Le paywall des examens blancs est appliqué **par le
-backend** (`AttemptService.enforceMockExamSlotAccess`, slot 1 offert / 2+ abonnés) : un écran dont le statut
-premium en cache est périmé reçoit un 403 là où son UI croyait le slot ouvert — c'est un refus attendu, pas
+backend** (`ExamenBlancAccessService` / `ProductionAccessService.isProductionExamSlotLocked`), qui **sert**
+aussi le `locked` de chaque créneau (§ « Les grilles d'examens blancs lisent un verrou SERVI ») : un écran
+dont la grille servie est périmée reçoit un 403 là où son UI croyait le slot ouvert — c'est un refus attendu, pas
 une panne, il ne doit jamais s'afficher en erreur technique. **Ne pas réécrire ce `if (status === 403)` dans
 une page** : la règle vit à un seul endroit (miroir de `core/utils/start_failure.dart` côté mobile). Les
 écrans duals guest/connecté routent le 403 vers `GuestGateSheet` en guest, `PaywallSheet` sinon.
@@ -951,7 +953,9 @@ infos de la page ».
   subtitle})`, que la page appelle ; `AppTopBar` lit `useAppBarOverride()` et
   retombe sur `appBarInfo` quand la page ne dit rien. 🛑 **Réservé aux titres
   portés par une donnée servie** — la table reste l'autorité par défaut, on
-  n'y recopie pas un titre statique. Pose en `useLayoutEffect` (SSR : titre
+  n'y recopie pas un titre statique — exception : les coquilles de
+  sous-écran (`DetailShell`, `SkillShell`) y montent le titre de leur
+  `ScreenHeader` Flutter. Pose en `useLayoutEffect` (SSR : titre
   de la table, puis bascule avant la 1ʳᵉ peinture client) ; retrait au
   démontage, clé `useId` (deux pages ne s'écrasent pas). Hors shell, le hook
   ne fait rien et rend `false`.
@@ -982,9 +986,60 @@ infos de la page ».
 - **Pas de doublon juste sous la barre** : `CompteShell` (compte, aide,
   favoris) masque **à l'œil** son `<h1>` sous 900 px dans le shell (il reste
   pour les lecteurs d'écran) ; le Profil masque sa barre « MON PROFIL » sous
-  900 px ; le Plan monte son en-tête dans la barre (`TopInAppBar`). Les
-  autres écrans gardent leur en-tête (il dit autre chose que la barre :
-  « Bonjour Karim », le nom d'un thème…).
+  900 px ; le Plan monte son en-tête dans la barre (`TopInAppBar`) ;
+  `DetailShell` / `SkillShell` y montent le leur (`in-bar-title`, voir plus
+  bas). Les autres écrans gardent leur en-tête (il dit autre chose que la
+  barre : « Bonjour Karim »…).
+
+**Burger ou flèche de retour — `useAppBarBack` (2026-09-24).** Demande du
+propriétaire : « comme l'AppBar Flutter d'un écran poussé ».
+
+- **Écrans de premier niveau** (Accueil, Plan, Réviser / hubs TCF IRN et Examen
+  civique, Examens blancs, Progression globales `/progression/tcf|civique`,
+  Profil) : **burger**. **Sous-écran** : la page appelle
+  `useAppBarBack({fallbackHref, onBack?})` (`AppBarTitle.tsx`) et la barre
+  montre une **flèche** (`ArrowLeft`) **à la place** du burger — l'app Flutter
+  n'a pas de menu sur un écran poussé.
+- 🛑 **La flèche remonte à l'écran PRÉCÉDENT** : `retourOuRepli`
+  (`lib/retour.ts`) fait `router.back()` quand l'onglet a un écran SejourFR
+  derrière lui, sinon **remplace** l'entrée par `fallbackHref` (l'adresse du
+  lien de retour de la page ; `replace`, jamais `push`, sinon la flèche du
+  parent reviendrait à l'enfant — boucle). « A un écran SejourFR derrière
+  lui » = compteur par onglet `lib/nav-history.ts` (sessionStorage, +1 par
+  navigation client, −1 par `popstate`), tenu par `NavHistoryTracker` (layout
+  racine). ⚠️ Jamais `history.length` seul : il compte les pages d'avant le
+  site. `onBack` : la page intercepte (confirmation de sortie d'une épreuve).
+- 🛑 **Le lien de retour de la page s'efface sous 900 px** dès que le hook
+  rend `true` (shell connecté) : classe globale **`in-bar-back`**
+  (`globals.css`, `display: none` scopé `.app-shell--has-drawer`). Desktop et
+  visiteur : aucune barre, le lien reste. Même relais pour un en-tête monté
+  dans la barre : classe **`in-bar-title`** (effacé à l'œil, reste le `<h1>`).
+- **Déjà branché dans les coquilles** — un écran qui les monte n'a rien à
+  faire : `DetailShell` (épreuve CO/CE/Structure, niveau, séries, thème
+  civique, examens d'épreuve/thème, session EE/EO), `SkillShell` (tâches,
+  sujets, rédaction/enregistrement, résultats, exemples, compétences),
+  `CompteShell` (compte, aide connecté, favoris), kit `Top` (`backTo` /
+  `onBack` : étape et historique du Plan, résultats de diagnostic TCF, rapport
+  du diagnostic), `ProgressTopbar` (`backInAppBar`, posé par
+  `ProgressionFrame` sur les écrans d'épreuve / de thème seulement). Et à la
+  main : rapport de `/sessions/[attemptId]`, domaine du Plan, `/diagnostic`
+  connecté, `/paiement`, `/paiement/recapitulatif`, `/parcours` (hors
+  onboarding), `/profil/abonnement`. Un nouveau sous-écran avec un lien de
+  retour ⇒ `useAppBarBack` + `in-bar-back`, dans la même passe.
+
+**En-têtes des sous-écrans d'entraînement = le `ScreenHeader` Flutter
+(2026-09-24).** `DetailShell` et `SkillShell` (avec `title`) n'ont plus qu'un
+**titre + une ligne de contexte courte**, les mêmes que l'écran mobile, et les
+montent dans la barre (`useAppBarTitle`) : « Compréhension orale » /
+« Choisir un niveau · TCF IRN », « Séries » / « Compréhension orale · A2 »,
+le nom du thème / « Civique · N questions », « Examens blancs » /
+« {épreuve} · TCF IRN » ou « {thème} · Civique », « Examens blancs » /
+« Expression écrite · 3 tâches enchaînées », « Exemples corrigés » /
+« Tâche n · … ». 🛑 **Plus d'œil-de-bœuf ni de paragraphe d'explication**
+(« Chaque série contient jusqu'à 20 questions… », « Les questions sont
+organisées par niveau… ») — ni sous 900 px, ni sur desktop, qui garde
+seulement le titre + contexte. Un texte que l'écran Flutter n'a pas ne
+revient pas sur le web.
 
 🛑 **Un seul burger par écran, et c'est `APP_GROUP_PREFIXES` qui le garantit
 (2026-09-12).** `app/(app)/layout.tsx` monte `AppTopBar` pour TOUTE
@@ -2033,7 +2088,10 @@ rabattre le candidat sur un palier qui n'est pas le sien.
 Une page ouverte directement — lien partagé, nouvel onglet, retour de
 paiement — n'a pas d'historique : le bouton ne fait alors **rien**, ou sort du
 site. `retourOuRepli` (`lib/retour.ts`, miroir de `retourOuRepli` côté mobile)
-teste l'historique puis retombe sur une adresse **par page**. Il vient de
+teste l'historique **interne** (`hasInAppHistory`, `lib/nav-history.ts`,
+depuis le 2026-09-24 — plus `history.length`) puis **remplace** l'entrée par
+une adresse **par page**. C'est aussi le geste de la flèche de la barre du
+haut (`useAppBarBack`). Il vient de
 `/sessions/[attemptId]`, qui portait déjà la règle en clair ; `/paiement`
 l'écrivait sans garde.
 ✅ **Une adresse fixe reste préférable** : les écrans du kit passent `backTo` à
@@ -2987,6 +3045,9 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       `app/_components/hub/DetailParts.tsx` + `detail.module.css` (DetailShell,
       LevelChoiceCard, SeriesProgressCard, SerieCard, DetailStatCard,
       ExamsGrid) :
+        - ⚠️ En-têtes alignés sur le `ScreenHeader` Flutter le 2026-09-24
+          (titre + contexte, sans paragraphe) — voir « Burger ou flèche de
+          retour » plus haut ; les anciens titres cités ci-dessous sont périmés.
         - `/entrainement/tcf/[code]` = **« Choisissez votre niveau »** (3 cards
           A2/B1/B2 avec donut = moyenne des séries faites + compteur x/y).
         - `/entrainement/tcf/[code]/[level]` et `/entrainement/civique/[themeId]`
@@ -4887,4 +4948,32 @@ dans le Plan.
   (« DÉTAIL · X », « PASSAGE », « EXPLICATION ») sont ceux de `QuestionDetailSheet` (mobile).
 - Corrigé dans la foulée : l'invitation « Choisir mon objectif » de Réviser revenait sur
   `/revision` ; elle revient désormais sur `/entrainement?module=TCF`.
+
+
+## Les grilles d'examens blancs lisent un verrou SERVI (2026-09-24)
+
+> Arbitrage du propriétaire : « c'est le serveur qui décide du verrouillage — aligne ». Règle et
+> autorités : `docs/regles/freemium.md` § « Le serveur décide du verrou des grilles d'examens
+> blancs ». Miroir mobile posé dans la même passe.
+
+⚠️ **Cette section prime sur toutes les mentions de `freeSlots` / `FREE_SLOTS` / `premium=` d'une
+grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et constantes n'existent plus.
+
+- **`ExamsGrid` ne prend plus que `slotLocks`** (obligatoire, case i = créneau i+1) : `premium` et
+  `freeSlots` sont **supprimées**. Un créneau absent (grille pas encore arrivée, lecture en échec)
+  reste **verrouillé** — on n'ouvre jamais par défaut.
+- **`useExamSlotLocks(epreuve)`** (`lib/use-exam-slot-locks.ts`) lit
+  `examSlotsApi.get(epreuve, auth)` — `GET /api/exam-slots?epreuve=…`, ou `/api/public/exam-slots`
+  pour un visiteur — et se relit quand l'accès du compte change. Miroir de `ExamSlotsDto` :
+  `ExamSlots` / `ExamSlot` (`lib/types.ts`) ; `CivicThemeExamSlots` partage `ExamSlot`.
+- **Qui le lit** : `/entrainement/tcf/[code]/examens` (`TCF_CO` / `TCF_CE` / `TCF_STRUCTURE`,
+  visiteur compris — la garde `isGuest && slot > FREE_SLOTS` est supprimée : un créneau verrouillé
+  passe par `onLocked`), `/examens-blancs` connecté **et** visiteur (`TCF_COMPLET`, `CIVIQUE` — pour
+  un visiteur le serveur n'ouvre que le gabarit gratuit de chaque parcours), `ProductionExams`
+  (`TCF_EE` / `TCF_EO`). Les examens de thème civique gardent leur route
+  (`themeApi.examSlots` / `publicThemeApi.examSlots`).
+- ⚠️ **Restent déduits d'un rang, hors examens blancs** : les séries (`lot.numero > 1`,
+  `[code]/[level]`, `civique/[theme]`) et les sujets de production (`ProductionSubjects`,
+  `!isPremium && i > 0`) — aucun `locked` n'est servi pour eux (dette nommée dans
+  `docs/regles/freemium.md`).
 

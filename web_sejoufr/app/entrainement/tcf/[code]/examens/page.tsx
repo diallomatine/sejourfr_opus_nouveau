@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
+import { Flame, GraduationCap, Trophy } from "lucide-react";
 import { attemptApi, publicAttemptApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
-  canAccessModule,
+  type EpreuveType,
   niveauCecrlLabel,
   type QuestionType,
 } from "@/lib/types";
@@ -26,17 +26,11 @@ import {
 import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
 import { comprehensionExamIntro } from "@/lib/exam-intro";
 import { examSlotGrid } from "@/lib/exam-slots";
+import { useExamSlotLocks } from "@/lib/use-exam-slot-locks";
 import { plannedEpreuveLabel } from "@/lib/exam-durations";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
-
-/**
- * Examens ouverts sans abonnement — et, depuis le 2026-08-16, sans compte du
- * tout. Miroir de `AttemptService.enforceMockExamSlotAccess` (slot 1 offert et
- * rejouable) et de `AttemptService.startGuestModuleExam` (slot 1 seulement).
- */
-const FREE_SLOTS = 1;
 
 // CO et CE lisent la table de référence partagée (`lib/exam-durations.ts`) :
 // la même épreuve doit annoncer la même durée jouée seule et dans un examen
@@ -44,16 +38,19 @@ const FREE_SLOTS = 1;
 const TCF_QCM = {
   co: {
     questionType: "CO" as QuestionType,
+    epreuve: "TCF_CO" as EpreuveType,
     title: "Compréhension orale",
     duration: plannedEpreuveLabel("TCF_CO"),
   },
   ce: {
     questionType: "CE" as QuestionType,
+    epreuve: "TCF_CE" as EpreuveType,
     title: "Compréhension écrite",
     duration: plannedEpreuveLabel("TCF_CE"),
   },
   structure: {
     questionType: "STRUCTURE" as QuestionType,
+    epreuve: "TCF_STRUCTURE" as EpreuveType,
     title: "Structure de la langue",
     // Épreuve absente de l'examen complet : aucune donnée serveur avant le
     // démarrage, la minute reste écrite ici (cf. rapport).
@@ -65,22 +62,22 @@ type TcfCode = keyof typeof TCF_QCM;
 /**
  * Examens blancs d'une épreuve TCF QCM (25 Q A2→B1→B2, score /499) — maquette
  * sejour_fr.html : 3 stat cards (passés / meilleur score / niveau estimé) +
- * grille de 20 examens. Examen 1 gratuit, 2+ premium.
+ * grille de 20 examens. 🛑 Le verrou de chaque créneau est SERVI
+ * (`GET /api/exam-slots?epreuve=…`, `/api/public/…` pour un visiteur) et
+ * opposable (403) : l'écran le lit, il ne le déduit jamais du rang.
  *
  * Mode guest (règle du 2026-08-16, elle REMPLACE la vitrine intégrale) :
  * l'examen 1 se joue **sans compte**, en anonyme, par la voie publique
  * (`publicAttemptApi.startDemo` → attempt `user NULL` côté backend, exactement
- * le montage de la série 1). Les examens 2 à 20 ouvrent la GuestGateSheet.
- * Le backend applique le même verrou (403 au-delà du slot 1).
+ * le montage de la série 1). Un créneau verrouillé ouvre la GuestGateSheet.
  */
 export default function TcfModuleExamsPage() {
   const params = useParams<{ code: string }>();
   const code = (params?.code ?? "").toLowerCase() as TcfCode;
   const config = TCF_QCM[code];
   const router = useRouter();
-  const { user, status } = useAuth();
+  const { status } = useAuth();
   const isGuest = status === "guest";
-  const isPremium = user ? canAccessModule(user, "TCF") : false;
 
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
   const [starting, setStarting] = useState(false);
@@ -109,15 +106,13 @@ export default function TcfModuleExamsPage() {
 
   // Grille indexée par slot : refaire l'examen N met à jour la case N.
   const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
+  // 🛑 Le verrou est SERVI créneau par créneau (compte ou visiteur) : l'écran
+  // ne le déduit jamais du rang. Un créneau verrouillé ouvre l'offre (compte)
+  // ou l'inscription (visiteur) via `onLocked`.
+  const slotLocks = useExamSlotLocks(config?.epreuve ?? null);
 
   function requestStart(slot: number) {
     if (starting) return;
-    // Un visiteur n'a droit qu'à l'examen 1 (même verrou que ExamsGrid, et
-    // que le backend). Au-delà : inscription.
-    if (isGuest && slot > FREE_SLOTS) {
-      setGuestGateOpen(true);
-      return;
-    }
     setError(null);
     setPendingSlot(slot);
     setIntroOpen(true);
@@ -199,18 +194,10 @@ export default function TcfModuleExamsPage() {
     <DualChromeShell>
       <DetailShell
         backHref={`/entrainement/tcf/${code}`}
-        backLabel="TCF IRN"
-        eyebrowIcon={<Target size={18} strokeWidth={2} />}
-        eyebrow={config.title}
+        backLabel={config.title}
         title="Examens blancs"
+        subtitle={`${config.title} · TCF IRN`}
         notice={code === "structure" ? <ComplementaryNotice /> : undefined}
-        subtitle={`${SLOTS} examens blancs de 25 questions (${config.duration}), dans les conditions de l'épreuve. Choisissez-en un et retrouvez votre dernier score.`}
-        action={
-          <Link href={`/entrainement/tcf/${code}`} className={detail.headBtn}>
-            <LayoutGrid size={17} strokeWidth={1.7} aria-hidden />
-            Mode entraînement
-          </Link>
-        }
       >
         <div className={detail.statCards}>
           <DetailStatCard
@@ -241,8 +228,7 @@ export default function TcfModuleExamsPage() {
         <ExamsGrid
           count={SLOTS}
           exams={bySlot}
-          premium={isPremium}
-          freeSlots={FREE_SLOTS}
+          slotLocks={slotLocks}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={requestStart}

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Headphones, SpellCheck } from "lucide-react";
 import { attemptApi, lotApi, publicAttemptApi, publicLotApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { loadFailureMessage } from "@/lib/load-failure";
@@ -32,17 +31,14 @@ const TCF_QCM = {
   co: {
     questionType: "CO" as QuestionType,
     title: "Compréhension orale",
-    icon: <Headphones size={18} strokeWidth={2} />,
   },
   ce: {
     questionType: "CE" as QuestionType,
     title: "Compréhension écrite",
-    icon: <BookOpen size={18} strokeWidth={2} />,
   },
   structure: {
     questionType: "STRUCTURE" as QuestionType,
     title: "Structure de la langue",
-    icon: <SpellCheck size={18} strokeWidth={2} />,
   },
 } as const;
 type TcfCode = keyof typeof TCF_QCM;
@@ -178,11 +174,9 @@ export default function TcfLevelSeriesPage() {
       <DetailShell
         backHref={`/entrainement/tcf/${code}`}
         backLabel={`${config.title} · niveaux`}
-        eyebrowIcon={config.icon}
-        eyebrow={`${config.title} · Niveau ${levelKey.toUpperCase()}`}
-        title="Séries d'entraînement"
+        title="Séries"
+        subtitle={`${config.title} · ${levelKey.toUpperCase()}`}
         notice={code === "structure" ? <ComplementaryNotice /> : undefined}
-        subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
       >
         {error && <div className={detail.error}>{error}</div>}
         {loading ? (

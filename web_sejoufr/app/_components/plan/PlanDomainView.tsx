@@ -40,6 +40,7 @@ import {
   SkillMasteryPill,
 } from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 
 /**
  * **La fiche d'un domaine du TCF** — CO, CE, EE ou EO.
@@ -128,8 +129,10 @@ export function PlanDomainView() {
 }
 
 function BackToPlan() {
+  // ≤ 900 px (shell connecté) : la flèche de la barre du haut le remplace.
+  const inBar = useAppBarBack({fallbackHref: "/plan"});
   return (
-    <Link className={styles.back} href="/plan">
+    <Link className={`${styles.back}${inBar ? " in-bar-back" : ""}`} href="/plan">
       <ArrowLeft size={17} aria-hidden /> Mon plan
     </Link>
   );

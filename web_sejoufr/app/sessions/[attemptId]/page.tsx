@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
-import { useAppBarTitle } from "@/app/_components/AppBarTitle";
+import { useAppBarBack, useAppBarTitle } from "@/app/_components/AppBarTitle";
 import {
   QuestionRunner,
   type RunnerBackend,
@@ -390,6 +390,19 @@ function SessionRunnerInner({ params }: PageProps) {
       : null,
   );
 
+  // Rapport : la flèche de la barre du haut (≤ 900 px) remplace « Retour ».
+  // Même geste, même repli que le bouton de la page (`goBack` plus bas).
+  const backInBar = useAppBarBack(
+    attempt && phase === "result"
+      ? {
+          fallbackHref:
+            attempt.type === "MOCK_EXAM"
+              ? examReturnPath(attempt)
+              : (lotReturnPath(attempt) ?? "/entrainement"),
+        }
+      : null,
+  );
+
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
   }
@@ -442,7 +455,11 @@ function SessionRunnerInner({ params }: PageProps) {
     return (
       <main className="sess">
         <div className="sess-back-row">
-          <button type="button" className="sess-back" onClick={goBack}>
+          <button
+            type="button"
+            className={`sess-back${backInBar ? " in-bar-back" : ""}`}
+            onClick={goBack}
+          >
             <ArrowLeft size={16} aria-hidden />
             Retour
           </button>

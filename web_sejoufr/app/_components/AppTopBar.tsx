@@ -1,11 +1,12 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ArrowLeft, Menu, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { appBarInfo } from "@/lib/app-bar";
-import { useAppBarOverride } from "./AppBarTitle";
+import { retourOuRepli } from "@/lib/retour";
+import { useAppBarBackOverride, useAppBarOverride } from "./AppBarTitle";
 
 /**
  * **La barre du haut de l'espace connecté, sous 900 px** — le pendant web de
@@ -21,6 +22,10 @@ import { useAppBarOverride } from "./AppBarTitle";
  * 🛑 Titre : `appBarInfo` (`lib/app-bar.ts`), l'autorité par défaut — sauf
  * quand la page pose le sien (titre dynamique, `useAppBarTitle` dans
  * `AppBarTitle.tsx`, ex. le Plan : « Mon plan du jour » + son objectif).
+ * 🛑 Gauche : **burger** sur les écrans de premier niveau, **flèche de retour**
+ * sur un sous-écran qui la pose (`useAppBarBack`) — miroir de l'`AppBar`
+ * Flutter d'un écran poussé, qui n'a pas de menu. La flèche remonte à l'écran
+ * précédent, sinon à l'adresse parente de la page (`retourOuRepli`).
  * 🛑 Montée par `app/(app)/layout.tsx` et `DualChromeShell` **uniquement**,
  * sous la garde de `isAppShellMounted` : un seul burger par écran.
  *
@@ -31,6 +36,8 @@ import { useAppBarOverride } from "./AppBarTitle";
  */
 export function AppTopBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const back = useAppBarBackOverride();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -86,15 +93,28 @@ export function AppTopBar() {
   return (
     <>
       <header className={`atb${scrolled ? " is-scrolled" : ""}`}>
-        <button
-          type="button"
-          className="atb-burger"
-          aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <Menu size={20} aria-hidden />
-        </button>
+        {back ? (
+          <button
+            type="button"
+            className="atb-burger"
+            aria-label="Retour"
+            onClick={() =>
+              back.onBack ? back.onBack() : retourOuRepli(router, back.fallbackHref)
+            }
+          >
+            <ArrowLeft size={20} aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="atb-burger"
+            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            <Menu size={20} aria-hidden />
+          </button>
+        )}
         <Suspense fallback={<AppTopBarTitle pathname={pathname} />}>
           <AppTopBarTitleWithQuery pathname={pathname} />
         </Suspense>

@@ -753,6 +753,22 @@ a {
 
 @media (max-width: 900px) {
   .atb { display: flex; }
+  /* Le lien de retour d'un sous-écran : la flèche de la barre le remplace
+     (`useAppBarBack`). Desktop et visiteur : il reste. */
+  .app-shell--has-drawer .in-bar-back { display: none !important; }
+  /* L'en-tête de page monté dans la barre (`useAppBarTitle`) : effacé à
+     l'œil, il reste le `<h1>` des lecteurs d'écran. */
+  .app-shell--has-drawer .in-bar-title {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
   /* Une ancre (#section) ne s'arrête pas sous la barre sticky. */
   html:has(.app-shell--has-drawer) { scroll-padding-top: 64px; }
   .ms-overlay { display: block; }

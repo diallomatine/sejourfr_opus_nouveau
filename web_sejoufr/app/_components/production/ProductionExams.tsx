@@ -16,6 +16,7 @@ import {
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { useCachedData } from "@/lib/use-cached-data";
+import { useExamSlotLocks } from "@/lib/use-exam-slot-locks";
 import {
   canAccessModule,
   cecrlIndex,
@@ -46,8 +47,6 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 import { type ProductionConfig } from "./config";
 
 const SLOTS = PRODUCTION_EXAM_SLOTS;
-/** Examen 1 offert à tous les comptes (règle backend `ProductionAccessService`). */
-const FREE_SLOTS = 1;
 
 /**
  * Bande de difficulté **du sujet**, par slot — composition déterministe côté
@@ -87,6 +86,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const { user, status } = useAuth();
   const level = useParcoursLevel();
   const isPremium = user ? canAccessModule(user, "TCF") : false;
+  const slotLocks = useExamSlotLocks(config.epreuve);
 
   const [past, setPast] = useState<PastSession[]>([]);
   const [bestLevel, setBestLevel] = useState<NiveauCecrl | null>(null);
@@ -223,7 +223,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
         backHref={config.base}
         backLabel={config.label}
         title="Examens blancs"
-        meta={`${config.label} · 3 tâches · ${config.examTiming.short}`}
+        meta={`${config.label} · 3 tâches enchaînées`}
         level={level}
       >
         {/* Le héros du parcours reste ici — c'est le seul écran de l'épreuve où
@@ -254,17 +254,16 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           note={bestLevel ? `Niveau estimé · ${niveauCecrlLabel(bestLevel)}` : null}
         />
 
-        <SectionHead
-          title="Choisissez un examen"
-          text="La difficulté monte avec le numéro : 1-3 niveau A2, 4-6 niveau B1, 7-10 niveau B2."
-        />
+        <SectionHead title="Choisissez un examen" />
 
         {error && <div className={s.error}>{error}</div>}
 
         <div className={s.packGrid}>
           {Array.from({ length: SLOTS }, (_, i) => i + 1).map((slot) => {
             const sess = bySlot.get(slot);
-            const locked = !isPremium && slot > FREE_SLOTS;
+            // 🛑 Verrou SERVI (`ProductionAccessService.isProductionExamSlotLocked`,
+            // la règle que le démarrage oppose en 403) : jamais déduit du rang.
+            const locked = slotLocks[slot - 1] ?? true;
             const band = slotBand(slot);
             return (
               <article key={slot} className={`${s.card} ${s.pack}`}>

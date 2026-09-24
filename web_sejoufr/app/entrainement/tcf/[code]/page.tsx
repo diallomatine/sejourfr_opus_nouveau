@@ -163,11 +163,9 @@ export default function TcfQcmDetailPage() {
       <DetailShell
         backHref="/entrainement?module=TCF"
         backLabel="TCF IRN"
-        eyebrowIcon={<config.icon size={18} strokeWidth={2} />}
-        eyebrow={config.title}
-        title="Choisissez votre niveau"
+        title={config.title}
+        subtitle="Choisir un niveau · TCF IRN"
         notice={code === "structure" ? <ComplementaryNotice /> : undefined}
-        subtitle="Les questions sont organisées par niveau du Cadre européen (CECRL). Commencez par le niveau qui vous correspond, puis montez progressivement."
       >
         {config.bloc && (
           <PlanEpreuveReco

@@ -10,6 +10,7 @@ import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {useExamSlotLocks} from "@/lib/use-exam-slot-locks";
 import {
     EPREUVE_PRESENTATION,
     FULL_TCF_EXAM_INDICATIVE_SEC,
@@ -99,7 +100,10 @@ function ExamsConnectedHome() {
     const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
 
     const tcfPremium = user != null && canAccessModule(user, "TCF");
-    const civiquePremium = user != null && canAccessModule(user, "CIVIQUE");
+    // 🛑 Les verrous des deux grilles sont SERVIS, créneau par créneau : la
+    // page ne les déduit ni du rang ni de l'accès du compte.
+    const tcfSlotLocks = useExamSlotLocks("TCF_COMPLET");
+    const civiqueSlotLocks = useExamSlotLocks("CIVIQUE");
 
     useEffect(() => {
         if (status !== "authenticated") return;
@@ -361,8 +365,7 @@ function ExamsConnectedHome() {
                     <ExamsGrid
                         count={SLOTS}
                         exams={fullExamSlotData}
-                        premium={tcfPremium}
-                        freeSlots={1}
+                        slotLocks={tcfSlotLocks}
                         starting={false}
                         itemLabel="Examen"
                         collapsedCount={COLLAPSED}
@@ -383,7 +386,7 @@ function ExamsConnectedHome() {
                     <ExamsGrid
                         count={SLOTS}
                         exams={civiqueSlotData}
-                        premium={civiquePremium}
+                        slotLocks={civiqueSlotLocks}
                         starting={false}
                         itemLabel="Examen"
                         collapsedCount={COLLAPSED}
@@ -573,6 +576,10 @@ function ExamsGuestHome() {
     const [demoStarting, setDemoStarting] = useState(false);
     const [demoError, setDemoError] = useState<string | null>(null);
     const [active, setActive] = useState<ExamModule>("TCF");
+    // Grilles vues d'un visiteur : le serveur n'y ouvre que ce qui est offert
+    // sans compte (l'examen gratuit de chaque parcours, au créneau 1).
+    const tcfSlotLocks = useExamSlotLocks("TCF_COMPLET");
+    const civiqueSlotLocks = useExamSlotLocks("CIVIQUE");
 
     useEffect(() => {
         let cancelled = false;
@@ -682,7 +689,7 @@ function ExamsGuestHome() {
                     <ExamsGrid
                         count={SLOTS}
                         exams={[]}
-                        premium={false}
+                        slotLocks={tcfSlotLocks}
                         starting={false}
                         itemLabel="Épreuve"
                         collapsedCount={COLLAPSED}
@@ -703,7 +710,7 @@ function ExamsGuestHome() {
                     <ExamsGrid
                         count={SLOTS}
                         exams={[]}
-                        premium={false}
+                        slotLocks={civiqueSlotLocks}
                         starting={false}
                         itemLabel="Examen"
                         collapsedCount={COLLAPSED}

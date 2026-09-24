@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { SITE } from "@/lib/site";
 import { SiteHeader } from "./_components/SiteHeader";
 import { Footer } from "./_components/Footer";
+import { NavHistoryTracker } from "./_components/NavHistoryTracker";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -78,6 +79,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body suppressHydrationWarning>
+        <NavHistoryTracker />
         <AuthProvider>
           <SiteHeader />
           {children}

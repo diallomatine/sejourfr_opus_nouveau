@@ -1,3 +1,4 @@
+import {hasInAppHistory, skipNextNavigation} from "./nav-history";
 import {safeInternalPath} from "./security";
 
 /**
@@ -45,30 +46,33 @@ export function withRetour(href: string, retour: string | null | undefined): str
 }
 
 /**
- * **Le geste « retour » d'une page**, quand elle n'a pas d'adresse fixe où
- * remonter.
+ * **Le geste « retour » d'une page** : l'écran précédent de SejourFR s'il y en
+ * a un, sinon l'adresse parente déclarée par la page.
  *
  * 🛑 **`router.back()` seul ne suffit pas.** Une page ouverte directement — lien
- * partagé, nouvel onglet, retour de paiement — n'a pas d'historique : le bouton
- * ne fait alors **rien**, ou sort du site. Le candidat est enfermé sur une page
- * dont la flèche ne répond pas.
+ * partagé, nouvel onglet, retour de paiement — n'a pas d'historique interne :
+ * le bouton ne ferait **rien**, ou sortirait du site. D'où le compteur
+ * `hasInAppHistory` (`lib/nav-history.ts`), et non `history.length`, qui
+ * compte aussi les pages d'avant le site.
  *
- * ⚠️ Le repli doit mener là où il serait arrivé en remontant, d'où le paramètre
- * — jamais une valeur unique codée ici.
+ * ⚠️ Le repli **remplace** l'entrée courante (`replace`) : un `push` rendrait
+ * au parent un historique qui pointe vers l'enfant, et la flèche du parent y
+ * reviendrait — une boucle.
  *
- * ✅ **Une adresse fixe reste préférable** : la plupart des écrans du kit
- * passent `backTo` à `Top`, donc un vrai lien, qui mène toujours quelque part et
- * se partage. Ce helper est pour les pages où le retour dépend d'où l'on vient.
+ * C'est aussi le geste de la flèche de la barre du haut (`AppTopBar`).
  *
  * Miroir de `retourOuRepli` (`mobile_sejourfr/lib/core/router/retour.dart`).
  */
 export function retourOuRepli(
-    router: {back(): void; push(href: string): void},
+    router: {back(): void; replace(href: string): void},
     repli: string,
 ): void {
-    if (typeof window !== "undefined" && window.history.length > 1) {
+    if (hasInAppHistory()) {
         router.back();
         return;
     }
-    router.push(repli);
+    if (new URL(repli, window.location.origin).pathname !== window.location.pathname) {
+        skipNextNavigation();
+    }
+    router.replace(repli);
 }

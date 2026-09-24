@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {retourOuRepli} from "@/lib/retour";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {useAuth} from "@/lib/auth-context";
 import {trackPaywallViewed, trackSubscribeClicked} from "@/lib/funnel-events";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
@@ -170,6 +171,8 @@ export default function PaiementPage() {
 function PaiementInner() {
     const {user, status} = useAuth();
     const router = useRouter();
+    // ≤ 900 px : la flèche de la barre du haut remplace « Retour » (même geste).
+    const backInBar = useAppBarBack({fallbackHref: "/dashboard"});
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const currentPlan = deriveCurrentPlan(user);
@@ -324,7 +327,11 @@ function PaiementInner() {
     return (
         <main className="pay">
             <header className="pay-hero">
-                <button type="button" className="pay-back" onClick={() => retourOuRepli(router, "/dashboard")}>
+                <button
+                    type="button"
+                    className={`pay-back${backInBar ? " in-bar-back" : ""}`}
+                    onClick={() => retourOuRepli(router, "/dashboard")}
+                >
                     <ArrowLeftIcon/> Retour
                 </button>
                 <div className="breadcrumb">

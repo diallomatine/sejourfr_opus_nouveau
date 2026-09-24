@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {EeWritingForm, clearEeDraft} from "@/app/_components/production/EeWritingForm";
 import {EoRecordingForm} from "@/app/_components/production/EoRecordingForm";
 import {ApiException, diagnosticApi, productionApi} from "@/lib/api";
@@ -1107,10 +1108,12 @@ function DiagnosticShell({
   compact?: boolean;
   guest?: boolean;
 }) {
+  // ≤ 900 px (shell connecté) : la flèche de la barre du haut remplace le lien.
+  const backInBar = useAppBarBack(guest ? null : { fallbackHref: "/dashboard" });
   return (
     <main className={`${styles.page} ${compact ? styles.pageCompact : ""}`}>
       <nav className={styles.backNav} aria-label="Sortir du diagnostic">
-        <Link href={guest ? "/" : "/dashboard"}>
+        <Link href={guest ? "/" : "/dashboard"} className={backInBar ? "in-bar-back" : undefined}>
           <ArrowLeft size={16} aria-hidden /> Accueil
         </Link>
         <span>

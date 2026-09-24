@@ -7,6 +7,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Eye, EyeOff, Load
 import { useAuth } from "@/lib/auth-context";
 import { COMPTE_GATE_CTA, COMPTE_GATE_TEXT, COMPTE_PASSWORD_HIDE, COMPTE_PASSWORD_SHOW } from "@/lib/compte";
 import type { AuthenticatedUser } from "@/lib/types";
+import { useAppBarBack } from "../AppBarTitle";
 import s from "./compte.module.css";
 
 /**
@@ -39,10 +40,13 @@ export function CompteShell({
   lead?: string;
   children: ReactNode;
 }) {
+  // Sous 900 px (shell connecté), la flèche de la barre du haut remplace le
+  // lien de retour — l'écran de compte Flutter n'a que celle de son en-tête.
+  const backInBar = useAppBarBack(backHref ? { fallbackHref: backHref } : null);
   return (
     <main className={s.page}>
       <div className={s.inner}>
-        <div className={s.topbar}>
+        <div className={cx(s.topbar, backInBar && "in-bar-back")}>
           {backHref ? (
             <Link href={backHref} className={s.back}>
               <ChevronLeft size={18} aria-hidden />

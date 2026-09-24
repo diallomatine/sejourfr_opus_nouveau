@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Flame, LayoutGrid, Target, Trophy } from "lucide-react";
+import { CheckCircle2, Flame, Trophy } from "lucide-react";
 import { attemptApi, publicAttemptApi, publicThemeApi, themeApi } from "@/lib/api";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { themeSlug, resolveThemeRef } from "@/lib/themes";
 import {
   type AttemptSummaryResponse,
-  canAccessModule,
   type ThemeUserResponse,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
@@ -49,7 +48,6 @@ export default function CiviqueThemeExamsPage() {
   const router = useRouter();
   const { user, status } = useAuth();
   const isGuest = status === "guest";
-  const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
   const [theme, setTheme] = useState<ThemeUserResponse | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -168,18 +166,10 @@ export default function CiviqueThemeExamsPage() {
   return (
     <DualChromeShell>
       <DetailShell
-        backHref="/entrainement?module=CIVIQUE"
-        backLabel="Examen civique"
-        eyebrowIcon={<Target size={18} strokeWidth={2} />}
-        eyebrow={theme?.name ?? "Thème civique"}
+        backHref={`/entrainement/civique/${slug}`}
+        backLabel={theme?.name ?? "Thème civique"}
         title="Examens blancs"
-        subtitle={`${SLOTS} examens blancs de 20 questions, dans les conditions de l'épreuve. Choisissez-en un et retrouvez votre dernier score.`}
-        action={
-          <Link href={`/entrainement/civique/${slug}`} className={detail.headBtn}>
-            <LayoutGrid size={17} strokeWidth={1.7} aria-hidden />
-            Mode entraînement
-          </Link>
-        }
+        subtitle={`${theme?.name ?? "Thème civique"} · Civique`}
       >
         <div className={detail.statCards}>
           <DetailStatCard
@@ -210,7 +200,6 @@ export default function CiviqueThemeExamsPage() {
         <ExamsGrid
           count={SLOTS}
           exams={bySlot}
-          premium={isPremium}
           slotLocks={slotLocks ?? []}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}

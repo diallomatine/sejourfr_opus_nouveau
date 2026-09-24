@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useCallback, useEffect, useState} from "react";
 import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {ApiException, billingApi} from "@/lib/api";
 import type {
     PlanPublicResponse,
@@ -20,6 +21,9 @@ import type {
  */
 export default function MonPassPage() {
     const {user, status: authStatus} = useAuth();
+    // Sous-écran du Profil : flèche de retour dans la barre du haut (≤ 900 px),
+    // comme l'écran Flutter poussé depuis le Profil.
+    useAppBarBack({fallbackHref: "/profil"});
 
     const [status, setStatus] = useState<SubscriptionStatusResponse | null>(null);
     const [plans, setPlans] = useState<PlanPublicResponse[]>([]);

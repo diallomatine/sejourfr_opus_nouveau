@@ -3712,6 +3712,8 @@
 
 .pCta {
   flex: 0 1 auto;
+  /* Reste à droite quand le retour libellé est passé dans la barre du haut. */
+  margin-left: auto;
   max-width: 62%;
   display: inline-flex;
   align-items: center;

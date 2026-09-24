@@ -14,7 +14,7 @@
  */
 
 import Link from "next/link";
-import { useAppBarTitle } from "@/app/_components/AppBarTitle";
+import { useAppBarBack, useAppBarTitle } from "@/app/_components/AppBarTitle";
 import {
   ArrowRight,
   BadgeCheck,
@@ -206,6 +206,11 @@ export function Top({
   const slot = useContext(TopSlotContext);
   const versLaBarre = useContext(TopInAppBarContext);
   const dansLaBarre = useAppBarTitle(versLaBarre ? { title, subtitle: kicker } : null);
+  /* La flèche de retour monte dans la barre du haut (≤ 900 px, shell
+     connecté) — le chevron de l'en-tête s'efface alors (`in-bar-back`). */
+  const retourDansLaBarre = useAppBarBack(
+    backTo ? { fallbackHref: backTo } : onBack ? { fallbackHref: "/dashboard", onBack } : null,
+  );
   /* 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
      2026-09-12). Il **révoque** `.topPlain`, qui centrait sous 620 px un
      en-tête sans flèche de retour : un titre centré au-dessus d'un contenu
@@ -216,11 +221,20 @@ export function Top({
     <>
       <header className={cx(styles.top, dansLaBarre && styles.topInAppBar)}>
         {backTo ? (
-          <Link href={backTo} className={styles.iconBtn} aria-label="Retour">
+          <Link
+            href={backTo}
+            className={cx(styles.iconBtn, retourDansLaBarre && "in-bar-back")}
+            aria-label="Retour"
+          >
             <ChevronLeft size={24} strokeWidth={2} aria-hidden />
           </Link>
         ) : onBack ? (
-          <button type="button" onClick={onBack} className={styles.iconBtn} aria-label="Retour">
+          <button
+            type="button"
+            onClick={onBack}
+            className={cx(styles.iconBtn, retourDansLaBarre && "in-bar-back")}
+            aria-label="Retour"
+          >
             <ChevronLeft size={24} strokeWidth={2} aria-hidden />
           </button>
         ) : null}
@@ -2312,18 +2326,26 @@ function ProgressChipView({ chip }: { chip: ProgressChip }) {
 export function ProgressTopbar({
   backHref,
   backLabel,
+  backInAppBar = false,
   cta,
   onLocked,
 }: {
   backHref: string;
   backLabel: string;
+  /**
+   * Sous-écran (épreuve, thème) : la flèche de la barre du haut remplace le
+   * retour libellé sous 900 px. `false` sur les écrans globaux, qui gardent
+   * le burger (premier niveau de la navigation).
+   */
+  backInAppBar?: boolean;
   /** `null` ⇒ pas de CTA (chargement, erreur). */
   cta?: { label: string; href: string; locked: boolean } | null;
   onLocked?: () => void;
 }) {
+  const retourDansLaBarre = useAppBarBack(backInAppBar ? { fallbackHref: backHref } : null);
   return (
-    <header className={styles.pTopbar}>
-      <Link href={backHref} className={styles.pBack}>
+    <header className={cx(styles.pTopbar, retourDansLaBarre && !cta && "in-bar-back")}>
+      <Link href={backHref} className={cx(styles.pBack, retourDansLaBarre && "in-bar-back")}>
         <span className={styles.pBackIcon} aria-hidden>
           <ChevronLeft size={18} strokeWidth={2.2} />
         </span>
