@@ -163,8 +163,7 @@ lib/
     │   └── widgets/progression_page.dart  squelette commun, CTA, retour, panneau
     ├── progres/                   `progres_labels.dart` (« Où vous en êtes » de l'Accueil,
     │                              autorité d'affichage du niveau)
-    ├── review/                    Favoris + erreurs récentes (tabs)
-    │   └── widgets/               module_switch.dart
+    ├── favoris/                   « Mes favoris » (Profil), bascule Civique/TCF
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
 

@@ -964,6 +964,10 @@ infos de la page ».
     jour » + « Votre parcours personnalisé vers B2 » (TCF) / « Votre
     préparation personnalisée à l'Examen civique » (civique), qui suit la
     bascule ; la bascule de parcours devient le 1ᵉʳ élément visible.
+    Et `/sessions/[attemptId]` (`sessionAppBarInfo`, `lib/app-bar.ts`) :
+    « Examen blanc » / « Entraînement » / « Diagnostic » pendant la session,
+    « Bilan de la série » / « Rapport d'examen » / « Résultat » ensuite —
+    miroir des écrans Flutter.
 - 🛑 **L'écart barre → 1ᵉʳ élément : `--app-bar-gap` (14 px, `:root` de
   `globals.css`), partout (2026-09-24).** Chaque conteneur d'écran le lit
   dans une media query `≤ 900 px` scopée `.app-shell--has-drawer` (desktop et

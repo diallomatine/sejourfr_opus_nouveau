@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { useAppBarTitle } from "@/app/_components/AppBarTitle";
 import {
   QuestionRunner,
   type RunnerBackend,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import {retourOuRepli} from "@/lib/retour";
+import {sessionAppBarInfo} from "@/lib/app-bar";
 import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
 import {
   CIVIC_DIAGNOSTIC_PARAM,
@@ -374,6 +376,20 @@ function SessionRunnerInner({ params }: PageProps) {
     };
   }, [attemptId, status, fullExamId, tcfDiagnosticId, civicDiagnosticId, router]);
 
+  useAppBarTitle(
+    attempt && (phase === "running" || phase === "result")
+      ? sessionAppBarInfo({
+          phase,
+          isExam: attempt.type === "MOCK_EXAM",
+          isDiagnostic: Boolean(civicDiagnosticId || tcfDiagnosticId),
+          isSerie:
+            sessionMode !== "guest" &&
+            (lotNumero != null || resultMode === "tcfLot"),
+          openedAsFinished: openedAsFinished && sessionMode !== "guest",
+        })
+      : null,
+  );
+
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
   }
@@ -680,7 +696,7 @@ function GuestResultCta() {
         <p>
           Vos réponses ne sont pas conservées tant que vous n&apos;avez pas de
           compte. Créez-en un gratuitement pour suivre vos statistiques par
-          thème, réviser vos erreurs et lancer un entraînement illimité.
+          thème et lancer un entraînement illimité.
         </p>
         <div className="sess-guest-cta-actions">
           <Link href="/inscription" className="btn btn-red btn-lg">

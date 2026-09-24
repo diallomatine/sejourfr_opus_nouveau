@@ -61,12 +61,13 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
   ["/entrainement/civique", {title: CIVIQUE}],
 
   ["/examens-blancs", {title: "Examens blancs"}],
-  ["/sessions", {title: "Session"}],
+  ["/sessions", {title: "Entraînement"}],
 
   ["/parcours", {title: "Mon objectif"}],
   ["/paiement", {title: "Paiement"}],
 
   ["/profil", {title: "Profil"}],
+  ["/profil/abonnement", {title: "Mon pass"}],
   ["/profil/informations", {title: COMPTE_INFO_TITLE}],
   ["/profil/informations/identite", {title: COMPTE_IDENTITY_TITLE}],
   ["/profil/informations/email", {title: COMPTE_EMAIL_TITLE}],
@@ -74,6 +75,30 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
   ["/favoris", {title: FAVORIS_TITLE}],
   ["/aide", {title: AIDE_TITLE}],
 ];
+
+/**
+ * `/sessions/[attemptId]` : runner et rapport sur la même route, le titre suit
+ * la phase et le type d'attempt servi (posé par la page, `useAppBarTitle`).
+ * Miroir des écrans Flutter : `ExamResultScreen` (« Résultat », fin à chaud
+ * d'un examen blanc et d'un entraînement), `ExamReportScreen` (« Rapport
+ * d'examen », « Bilan de la série » pour une série). Le runner Flutter n'a pas
+ * de titre (en-tête de progression) : la barre dit la nature de la session.
+ */
+export function sessionAppBarInfo(s: {
+  phase: "running" | "result";
+  isExam: boolean;
+  isDiagnostic: boolean;
+  isSerie: boolean;
+  openedAsFinished: boolean;
+}): AppBarInfo {
+  if (s.phase === "running") {
+    if (s.isDiagnostic) return {title: "Diagnostic"};
+    return {title: s.isExam ? "Examen blanc" : "Entraînement"};
+  }
+  if (s.isSerie && !s.isExam) return {title: "Bilan de la série"};
+  if (s.openedAsFinished) return {title: "Rapport d'examen"};
+  return {title: "Résultat"};
+}
 
 const FALLBACK: AppBarInfo = {title: "SejourFR"};
 
