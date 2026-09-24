@@ -319,8 +319,10 @@ niveau se recalcule à la lecture depuis les réponses (compréhension) ou les
 persisté » et figerait un résultat qu'un recalibrage devrait pouvoir revoir.
 
 Seule exception, déjà en place pour l'examen complet : le niveau global est
-recopié sur `attempts.final_cecrl_level` à la clôture — **cache de lecture**,
-jamais la source.
+recopié sur `attempts.final_cecrl_level` à la clôture — **trace**, jamais la
+source. 🛑 Depuis D19 (2026-09-24), **aucun chemin de restitution ne la relit** :
+le plancher d'un examen complet se re-dérive à chaque lecture
+(`FullTcfExamResponseBuilder`).
 
 ## Le calcul du niveau
 

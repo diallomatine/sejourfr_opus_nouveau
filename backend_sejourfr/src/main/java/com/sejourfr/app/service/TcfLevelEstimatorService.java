@@ -23,7 +23,7 @@ import java.util.UUID;
 /**
  * 🛑 <b>Autorité UNIQUE du niveau CECRL d'un QCM TCF (CO / CE).</b>
  * {@code AttemptScoringService}, {@code AttemptMapper}, {@code TcfProfileService},
- * {@code NiveauActuelEpreuveResolver}, {@code EpreuveHistoriqueService} et
+ * {@code NiveauActuelEpreuveResolver}, {@code ProgressionExamensService} et
  * {@code FullTcfExamResponseBuilder} en héritent <b>sans une ligne de règle</b>.
  *
  * <h2>La règle : le plus haut palier MAÎTRISÉ, sans saut (2026-09-20)</h2>
@@ -88,6 +88,11 @@ public class TcfLevelEstimatorService {
     /** Base et amplitude du score de progression (100 → 499). */
     private static final int SCORE_BASE = 100;
     private static final int SCORE_SPAN = 399;
+
+    /** Borne basse du score de progression (hasard pur) — publiée pour les axes servis. */
+    public static final int SCORE_PROGRESSION_MIN = SCORE_BASE;
+    /** Borne haute du score de progression (sans-faute) — publiée pour les axes servis. */
+    public static final int SCORE_PROGRESSION_MAX = SCORE_BASE + SCORE_SPAN;
 
     /**
      * Ligne de base du hasard d'un QCM à 4 choix : ~25 % de réussite pondérée
@@ -261,7 +266,7 @@ public class TcfLevelEstimatorService {
     /**
      * 🛑 <b>La forme à utiliser sur tout écran de LISTE</b> : les niveaux de
      * toutes les tentatives de la page en <b>une seule requête agrégée</b>
-     * (historique, profil TCF, « Voir mes résultats », liste des examens
+     * (historique, profil TCF, écrans de progression, liste des examens
      * blancs, bilan d'examen complet).
      *
      * @return une entrée par tentative <b>qui porte un niveau</b> ; une

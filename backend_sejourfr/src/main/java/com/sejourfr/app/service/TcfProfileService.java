@@ -159,14 +159,14 @@ public class TcfProfileService {
      * doit représenter le niveau actuel estimé, donc il peut monter comme
      * descendre</i> ». Un mauvais examen récent <b>fait</b> baisser le palier
      * affiché. Le meilleur niveau atteint reste lisible dans la chronologie de
-     * « Voir mes résultats » ({@code EpreuveHistoriqueService}) — il ne se
+     * l'écran de progression d'une épreuve ({@code ProgressionExamensService}) — il ne se
      * confond plus avec le niveau actuel.
      *
      * <p>Ce qui <b>n'a pas</b> changé : un entraînement EE/EO n'entre jamais
      * dans cette moyenne (arbitrage du même jour) — la liste des examens
      * qualifiants reste celle de
      * {@link EpreuvesProductionQualifiantesResolver}, la même autorité que
-     * « Voir mes résultats ». Sans examen qualifiant, l'épreuve reste
+     * l'écran de progression d'une épreuve. Sans examen qualifiant, l'épreuve reste
      * <b>{@code null}</b> (« À évaluer »), jamais un plancher fabriqué.
      *
      * <p>⚠️ <b>Ce n'est PAS la lecture du Plan.</b> Le premier jet de la règle

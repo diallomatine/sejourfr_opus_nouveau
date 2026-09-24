@@ -17,7 +17,11 @@ import java.util.UUID;
  * <p>{@link #finalCecrlLevel} est le niveau plancher des sous-épreuves
  * <b>réellement passées</b> (règle officielle TCF IRN). NULL tant que toutes
  * les évaluations IA (EE/EO) ne sont pas EVALUATED, ou tant que l'examen n'a
- * pas été finalisé. Sont hors périmètre : une épreuve {@link SubAttempt#locked
+ * pas été finalisé. 🛑 <b>Toujours re-dérivé à la lecture</b> (D19, 2026-09-24) :
+ * la colonne {@code attempts.final_cecrl_level} n'est plus qu'une trace écrite
+ * à la finalisation, jamais relue — un palier figé sous une règle révoquée
+ * (« A1 non atteint » de l'ancienne table QCM) ne peut plus l'emporter sur la
+ * règle du jour. Sont hors périmètre : une épreuve {@link SubAttempt#locked
  * verrouillée} par le freemium (jamais passée), une épreuve close <b>sans avoir
  * jamais été ouverte</b> (le candidat a quitté avant d'y arriver) et une épreuve
  * dont le niveau est resté inconnu (évaluations IA échouées). Le périmètre effectif est
@@ -152,6 +156,16 @@ public record FullTcfExamResponse(
      *                            temps court pendant l'absence : quitter ne suspend
      *                            rien, et passé cette échéance l'épreuve est clôturée
      *                            automatiquement avec ce qui avait été enregistré.
+     * @param noteSur20           EE/EO uniquement : <b>note d'épreuve /20</b>, celle du
+     *                            bilan ({@code ProductionBilanService.noteEpreuve}, les
+     *                            mêmes évaluations et le même « reste noté 0 » que
+     *                            {@code cecrlLevel}). Servie <b>seulement avec un
+     *                            niveau</b> : NULL pour CO/CE, pour une épreuve
+     *                            {@code locked}, jamais ouverte, en vol ou en échec.
+     *                            ⚠️ Peut tomber dans une bande officielle plus haute
+     *                            que {@code cecrlLevel} quand une tâche a été
+     *                            plafonnée : le plafond abaisse le niveau, jamais la
+     *                            note (assumé, cf. {@code noteEpreuve}).
      */
     public record SubAttempt(
             UUID attemptId,
@@ -166,7 +180,8 @@ public record FullTcfExamResponse(
             boolean locked,
             Integer timeLimitSeconds,
             Instant timerStartedAt,
-            Instant deadlineAt
+            Instant deadlineAt,
+            java.math.BigDecimal noteSur20
     ) {
     }
 }

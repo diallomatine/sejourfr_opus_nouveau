@@ -77,4 +77,22 @@ public class AttemptQuestionManager {
         }
         return out;
     }
+
+    /**
+     * Part de chaque thème dans ces examens civiques, en une requête (cf.
+     * {@code AttemptQuestionRepository.aggregatePartsParTheme}). Aucun accès
+     * base sur une liste vide ; une question sans thème est ignorée.
+     */
+    public List<com.sejourfr.app.dto.LignePartTheme> partsParTheme(Collection<UUID> attemptIds) {
+        if (attemptIds == null || attemptIds.isEmpty()) return List.of();
+        List<com.sejourfr.app.dto.LignePartTheme> out = new java.util.ArrayList<>();
+        for (Object[] r : repository.aggregatePartsParTheme(attemptIds)) {
+            if (r[0] == null || r[1] == null) continue;
+            out.add(new com.sejourfr.app.dto.LignePartTheme(
+                    (UUID) r[0], (UUID) r[1],
+                    ((Number) r[2]).intValue(),
+                    r[3] == null ? 0 : ((Number) r[3]).intValue()));
+        }
+        return out;
+    }
 }

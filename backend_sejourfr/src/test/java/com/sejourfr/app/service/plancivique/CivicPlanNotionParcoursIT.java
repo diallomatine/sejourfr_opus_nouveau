@@ -200,19 +200,8 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
         assertThat(servies(user.getId(), plan)).anyMatch(c -> c.id().equals(fx.jamaisVue()));
         parcoursCoherent(prochaine, false);
 
-        // --------------------------------------------------------------------
-        // 5. 🛑 « Travaillée » veut dire TRAVAILLÉE, pas « proposable »
-        // --------------------------------------------------------------------
-        CivicPlanService.Compteurs compteurs = service.compteurs(user.getId());
-        assertThat(compteurs.travaillees()).isEqualTo(ciblesReellementRepondues(user, fx));
-        assertThat(compteurs.maitrisees()).isZero();
-        assertThat(compteurs.grainNotion()).isFalse();
-        // 🛑 Et le compteur est STRICTEMENT sous le nombre de cibles proposables :
-        // `jamaisVue` est éligible sans avoir jamais été touchée. C'est ce qui
-        // rendait l'écran Progrès faux au grain notion, où l'immense majorité
-        // des notions n'a aucune réponse.
-        assertThat(compteurs.travaillees())
-                .isLessThan(plan.prioritesVisibles().size() + plan.autresPriorites());
+        // 5. (supprimé le 2026-09-24 : les compteurs « travaillées / maîtrisées »
+        //    n'avaient d'autre lecteur que l'ancien écran « Votre progression ».)
 
         // --------------------------------------------------------------------
         // 6. La série ciblée tire DANS la notion — ⚠️ et PLUS dans la mention
@@ -278,9 +267,6 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                     assertThat(t.apres()).isEqualTo(CivicMaitrise.MAITRISEE);
                     assertThat(t.progres()).isTrue();
                 });
-
-        // Et l'écran Progrès compte enfin une cible tenue.
-        assertThat(service.compteurs(user.getId()).maitrisees()).isEqualTo(1);
 
         // --------------------------------------------------------------------
         // 8. 🛑 L'échéance se franchit TOUTE SEULE : aucun job, aucune table
@@ -613,26 +599,6 @@ class CivicPlanNotionParcoursIT extends AbstractIntegrationTest {
                 WHERE module = 'CIVIQUE' AND is_active = true AND civic_notion_id = ?
                 """, Long.class, notionId);
         return n == null ? 0L : n;
-    }
-
-    /**
-     * Le nombre de cibles portant <b>au moins une réponse</b>, recompté en SQL —
-     * volontairement <b>hors</b> du moteur : un compteur qui se vérifierait
-     * contre lui-même ne vérifierait rien.
-     */
-    private int ciblesReellementRepondues(User user, Fixture fx) {
-        Integer n = jdbc.queryForObject("""
-                SELECT COUNT(DISTINCT cible) FROM (
-                    SELECT CASE WHEN q.theme_id = ? THEN q.civic_notion_id ELSE q.theme_id END
-                               AS cible
-                    FROM answers a
-                             JOIN attempt_questions aq ON aq.id = a.attempt_question_id
-                             JOIN attempts at ON at.id = aq.attempt_id
-                             JOIN questions q ON q.id = aq.question_id
-                    WHERE at.user_id = ? AND q.module = 'CIVIQUE' AND a.is_correct IS NOT NULL
-                ) s WHERE cible IS NOT NULL
-                """, Integer.class, fx.themeId(), user.getId());
-        return n == null ? 0 : n;
     }
 
     /** Une cible, où qu'elle soit servie. */

@@ -15,6 +15,64 @@ Maquettes du propriétaire, copiées sous `docs/progression/maquettes-progressio
 
 ---
 
+## Arbitrages du propriétaire, 2026-09-24
+
+Les décisions D1 à D20 du §8 sont **tranchées**. Formulation du propriétaire,
+reprise au plus près ; ce qui suit l'emporte sur les « recommandations » du §8.
+
+- **D1** — La progression TCF ne se calcule que sur les **examens blancs** :
+  l'épreuve passée seule + la sous-épreuve de cette épreuve dans un examen
+  complet. **Aucun diagnostic.**
+- **D2** — CO/CE : score de progression **/499**, **sans bandes CECRL** sur la
+  courbe. Le palier est servi à part.
+- **D3** — EE/EO : note **/20** avec les **bandes officielles**, servies par le
+  backend.
+- **D4** — Afficher le palier du **dernier examen**, et en secondaire le
+  **niveau actuel estimé**.
+- **D5** — **Pas d'anneau en TCF** ; l'anneau reste en **civique** (le serveur
+  sert ce qu'il lui faut : taux du dernier examen face au seuil).
+- **D6** — **Aucun score global TCF inventé.** Servir le palier global actuel, le
+  dernier examen complet et l'évolution de palier.
+- **D7** — Ne compter que les examens complets ayant **au moins une épreuve
+  réellement mesurée** ; meilleur / premier seulement parmi les examens **non
+  partiels**.
+- **D8** — Ordinal chronologique servi par le backend. Historique **complet** sur
+  les écrans épreuve / thème ; les écrans globaux servent les **3 derniers + le
+  total**, et le front renvoie vers l'historique complet (servi par
+  `?tous=true`).
+- **D9** — Durée servie **seulement quand elle est fiable** (critère du §8), sinon
+  `null` (le front affiche « — »).
+- **D10** — Écran d'un thème civique : **examens de thème (20 Q) seulement**.
+- **D11** — Dans un examen civique global, résultats par thème en **« x / n
+  posées »** réels, jamais « / 20 ».
+- **D12** — États civiques **Solide / À renforcer / Faible / Non évalué** servis
+  par le backend (autorité et libellés existants, pas de doublon).
+- **D13** — **Ne pas toucher au moteur de l'Accueil** ; l'endpoint de thème dit
+  clairement que l'état vient du **dernier examen du thème** (champ + libellé).
+- **D14** — Nouvelle famille sous **`/api/me/progression`** ; l'endpoint mort
+  existant est remplacé / supprimé (« refonte = suppression immédiate »).
+- **D15** — **Aucune ancienne statistique / compétence** sur ces écrans.
+- **D18** — La production ne peut pas être consultée d'ici : vérifier si
+  l'autorité commune traite mal les anciens attempts CO de 50/60 questions, la
+  corriger si c'est clairement nécessaire et sûr (avec tests), sinon le signaler.
+- **D19** — **En premier** : un `final_cecrl_level` historique persisté (figé
+  sous d'anciennes règles, ex. « A1 non atteint ») ne doit plus l'emporter sur la
+  re-dérivation. Invariants : un garde-fou ne peut qu'abaisser, `null` =
+  inconnu, on versionne sans réécrire. Tests requis.
+- **D20** — **Tous les résultats visibles** d'un compte gratuit ; seuls les CTA
+  vers de nouveaux examens peuvent être verrouillés — le backend sert l'état
+  (`locked`) pour que les fronts ne le déduisent pas.
+- **Ajout du même jour** — À la fin du chantier, l'espace Progression ne contient
+  **que ce que montrent les 4 maquettes** : tout ce que les écrans de
+  progression actuels étaient seuls à lire disparaît (backend compris), sauf ce
+  que l'Accueil et l'historique des cycles du Plan (« Mes cycles ») utilisent.
+
+D16 et D17 relèvent de la phase front (libellés, entrées de navigation).
+Implémentation backend (phase 1) : `docs/regles/progression.md` § « Écrans de
+progression ».
+
+---
+
 ## 0. Règle directrice — le visuel vient des maquettes, les données viennent du backend
 
 🛑 **Principe du propriétaire, qui gouverne toute la suite de ce document.**

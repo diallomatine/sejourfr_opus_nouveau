@@ -41,6 +41,12 @@ automatique** dans le client HTTP de chaque front.
 - `GET /api/me/full-tcf-exams?limit=N`
 - `POST /api/full-tcf-exams?slotNumber=N` — `slotNumber` borné à 1..20.
 
+🛑 **`finalCecrlLevel` est re-dérivé à chaque lecture** (D19, 2026-09-24) : la
+colonne `attempts.final_cecrl_level` n'est plus qu'une trace écrite à la
+finalisation, jamais relue ; `null` tant que l'examen n'est pas `COMPLETED`.
+`subAttempts[].noteSur20` (EE/EO, 2026-09-24) : la note d'épreuve /20 du bilan,
+servie seulement avec un `cecrlLevel`.
+
 Cf. `exams-tcf.md`.
 
 ## Me / utilisateur
@@ -59,7 +65,7 @@ Cf. `exams-tcf.md`.
   → **tous les filtres sont appliqués en base, avant le plafond de 30 erreurs** :
   ce sont les 30 erreurs les plus récentes *correspondant à la demande*. Un
   filtre `CO` inclut `CO_IMAGE` (règle transverse du projet).
-- `GET /api/me/stats?module=...` — toute la réponse est scopée au module,
+- `GET /api/me/stats?module=...` (⚠️ aucun appelant web ni mobile au 2026-09-24) — toute la réponse est scopée au module,
   `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
   sont exclus de ce compteur et de l'historique `/api/me/attempts`.
 - `GET /api/me/plan/journey[?expand=all]` → `JourneyDto` — **le parcours TCF**, la file
@@ -444,97 +450,82 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
   son diagnostic gratuit ne s'en offre pas un second en repassant par le tunnel
   invité — le front propose alors le diagnostic existant.
 
-## Progrès (T28)
+## « Où vous en êtes » (Accueil)
 
-« Montrer le **mouvement**, pas un tableau de bord » (`30_` §7). À distinguer de
-`/api/me/dashboard`, qui sert la **maîtrise** par catégorie : celui-ci répond à
-« où j'en suis », celui-là à « qu'est-ce qui a bougé ».
+- `GET /api/me/progress` → `ProgressDto { tcf: { objectif, epreuves[4] }, civique: { historique, themes } }`.
+  🛑 **Élagué le 2026-09-24** : `activite`, `tcf.disponible`, `tcf.niveauActuel`,
+  `tcf.historique`, `tcf.competences`, `civique.disponible`, `civique.travaillees`,
+  `civique.maitrisees`, `civique.grainNotion` n'étaient lus que par l'ancien écran
+  « Votre progression » (`/statistiques` ⇄ `ProgresScreen`), supprimé au profit
+  des écrans de progression ci-dessous. Il ne reste que ce que l'Accueil lit.
+  🛑 Les 4 épreuves sont **toujours** servies ; `evolution` vaut `INCONNUE` dès
+  qu'un côté n'est pas évalué (**`INCONNUE` n'est pas `STABLE`**, `BAISSE` se
+  sert) ; `epreuve.evaluation` (`PlanDomainAssessmentDto`) est servi **quand et
+  seulement quand `niveau == null`**. `civique.historique` porte les diagnostics
+  clos (l'Accueil en affiche le dernier score), `civique.themes` les lignes du
+  moteur du plan civique (`CivicPlanService.themesAccueil`).
+- ~~`GET /api/me/progress/tcf/{epreuve}/historique`~~ — **supprimé le
+  2026-09-24** (« Vos résultats »), remplacé par
+  `GET /api/me/progression/tcf/{epreuve}`.
 
-🛑 **Ce service n'invente aucune mesure** : il assemble ce que d'autres autorités
-servent déjà — profil TCF (`TcfProfileService`), résolveur d'évolution (L7),
-moteur de maîtrise des compétences, moteur du plan civique (L10). Aucun niveau,
-aucun palier, aucun état n'est recalculé.
+## Écrans de progression (2026-09-24)
 
-- `GET /api/me/progress` → `ProgressDto`.
-  🛑 **Jamais 204** : un candidat sans diagnostic reçoit `disponible: false` sur
-  chaque moitié. L'écran a besoin de savoir *pourquoi* il n'a rien à montrer.
-  🛑 **Aucun pourcentage de progression vers un palier** (`30_` §7, règle
-  explicite) : un palier CECRL n'est pas une barre. On sert des **paliers** et
-  des **sens d'évolution**.
-  🛑 **Aucune série de flammes, aucune gamification** (`30_` §7). L'activité se
-  dit en **jours travaillés** et en semaines, sans record à battre. Le streak
-  existe déjà sur le tableau de bord, où il est une information ; le ramener ici
-  en ferait un enjeu.
-  🛑 **Aucune liste d'historique** : le bloc 5 de la spec est déjà servi par les
-  écrans d'historique existants. Le redupliquer créerait une seconde vérité — les
-  fronts servent un **lien**.
-  🛑 `evolution` vaut `INCONNUE` dès qu'un des deux côtés n'est pas évalué, et
-  **`INCONNUE` n'est pas `STABLE`** : les confondre déguiserait l'incident
-  V040/V041/V042 en bonne nouvelle. `BAISSE` existe et se sert.
-  🛑 Les 4 épreuves sont **toujours** servies, évaluées ou non : une épreuve
-  absente de la liste disparaîtrait de l'écran au lieu de se dire « non
-  évaluée ».
-  🛑 **`epreuves` NE DÉPEND PAS de `tcf.disponible`** (2026-09-16). Ce booléen
-  dit « un diagnostic TCF 4 épreuves est clos » et ne commande que la **courbe**
-  (`historique`), le **palier global** et `niveauInitial` ; le palier d'une
-  épreuve vient du **profil TCF**, donc d'un examen de module comme d'une
-  section de diagnostic close isolément. La liste coupée sous `disponible`
-  masquait toute la section « Où vous en êtes » de l'Accueil.
-  🛑 `epreuve.evaluation` (`PlanDomainAssessmentDto`) est servi **quand et
-  seulement quand `niveau == null`** : par quoi mesurer cette épreuve. C'est le
-  **même** descripteur que « Compléter mon profil » et que la ligne `A_EVALUER`
-  de la séance (`PlanDomainAssessmentResolver`, autorité unique), donc le même
-  lanceur côté front — aucun mécanisme n'est créé pour l'Accueil.
-  🛑 `competences` porte ses **compteurs même verrouillés** (`30_` §7 : « blocs 1
-  et 2 visibles, 3 et 5 verrouillés ») : c'est le **détail** qui est premium, pas
-  le fait d'avoir progressé.
-  ⚠️ `activite.fenetreJours` vaut **28** (quatre semaines pleines), là où
-  `30_` §7 écrit « 30 jours » : 30 ne fait pas un nombre entier de semaines, et
-  une frise dont la somme ne vaut pas le compteur affiché au-dessus serait pire
-  qu'un ordre de grandeur arrondi. La fenêtre est **servie** — aucun écran ne
-  l'écrit en dur.
-  ⚠️ `activite` est **transverse**, pas ventilée par module : les jours de
-  travail ne se répartissent pas — une séance civique et une production TCF sont
-  le même effort du même jour.
+Les quatre maquettes `docs/progression/maquettes-progression/*.html`. Contrat
+complet et arbitrages D1–D20 : `docs/regles/progression.md` § « Écrans de
+progression » · étude : `docs/progression/ETUDE_FAISABILITE_ecrans_progression.md`.
+Authentifiés, `USER`. 🛑 **Tout est servi** (états, bandes, écarts, sens,
+ordinaux, meilleur / premier / dernier, durées fiables) ; aucun front ne
+recalcule rien. 🛑 **D20** : un compte gratuit voit tous ses résultats ; seul
+`cta.locked` peut être vrai. Coût **constant** en requêtes, verrouillé à
+l'égalité par `ProgressionSansNPlusUnIT`.
 
-- `GET /api/me/progress/tcf/{epreuve}/historique` → `EpreuveHistoriqueDto`
-  (**2026-09-16**). « **D'où sort mon niveau ?** » — les **3 dernières
-  évaluations qualifiantes** d'une épreuve TCF : `mesureA`, `source`, `niveau`.
-  `{epreuve}` vaut `TCF_CO` / `TCF_CE` / `TCF_EE` / `TCF_EO`.
-  🛑 **Un endpoint à part, et c'est la raison d'être de la règle voisine.**
-  `ProgressDto` refuse une liste d'historique parce qu'elle y serait servie à
-  **tous** les écrans et deviendrait une seconde vérité. Ici la liste est le
-  **détail d'UNE ligne**, demandée quand le candidat ouvre une carte de
-  l'Accueil — l'Accueil, lui, garde son appel unique.
-  🛑 **CO/CE : la définition n'est pas nouvelle** — même requête que
-  `TcfProfileService` (`findQcmEpreuvesPassees` : examen fini portant au moins
-  une réponse, quelle que soit sa provenance) et même autorité de niveau
-  (`niveauEpreuveQcm`). Ce qui est servi ici explique exactement le palier servi
-  par `/api/me/progress`.
-  ⚠️ **EE/EO : plus étroit que le profil, arbitrage OUVERT.** Ici, une **session
-  d'examen de production terminée** (verdict de `ProductionBilanService`) plus la
-  **baseline du diagnostic rapide** ; le profil, lui, retient un maximum **par
-  tâche** sur **toute** tâche évaluée, entraînement libre compris. Un candidat
-  qui n'a fait que de l'entraînement libre a donc un `niveau` servi et une liste
-  **vide**. Détail, conséquences et les deux sorties possibles :
-  `docs/regles/progression.md`, section « Arbitrage OUVERT ».
-  🛑 **Ce qui n'y entre pas** : les **petits sujets de compétence**
-  (`user_skill_attempts`, aucun palier CECRL) et l'**entraînement libre** de
-  production (« jamais de niveau en entraînement libre »). Les montrer
-  laisserait croire qu'un micro-entraînement mesure une épreuve.
-  🛑 **`source` est servie BRUTE et en quatre valeurs** — `DIAGNOSTIC_RAPIDE`,
-  `DIAGNOSTIC_COMPLET`, `EPREUVE_SEULE`, `EXAMEN_BLANC` — et elles ne se fondent
-  pas deux à deux : une sous-épreuve de diagnostic complet n'est ni l'un ni
-  l'autre, et porte **aussi** un `parentAttempt`, donc l'ordre des tests compte.
-  Les fronts posent le libellé (`SOURCE_EVALUATION_LABEL` ⇄
-  `SourceEvaluation.label`).
-  🛑 **Jamais 404 pour une épreuve jamais mesurée** : `evaluations` est **vide**.
-  Une absence de mesure n'est pas une erreur. En revanche une épreuve **hors des
-  quatre** (`TCF_STRUCTURE`, `CIVIQUE`) est bien un 400 : là, c'est le client qui
-  se trompe.
-  🛑 **Trois lignes servies, plafond d'AFFICHAGE** : le serveur balaie plus large
-  puis trie, sinon une baseline ancienne évincerait une épreuve d'hier par le
-  seul hasard de l'ordre de lecture.
+Briques communes :
+
+```text
+Echelle  { unite: PROGRESSION_499|NOTE_20|QUESTIONS, min, max, seuil?,
+           bandes: [{ niveau?, etat?, min, max }] /* [] en CO/CE */, reperes: int[] }
+Mesure   { attemptId, numero /*1 = le plus ancien*/, date, score?, max, niveau? /*TCF*/,
+           etat?, seuilAtteint?, pointsManquants?, taux? /*civique*/, dureeSecondes?,
+           provenance: EPREUVE_SEULE|EXAMEN_COMPLET|EXAMEN_THEME|EXAMEN_GLOBAL,
+           rapport: { kind: QCM|PRODUCTION|EXAMEN_COMPLET, attemptId } }
+Resume   { nombre, dernier?, meilleur?, premier?, ecart? /*null à 1 examen*/,
+           sens: HAUSSE|STABLE|BAISSE|INCONNUE, serie: number[≤7] }
+Cta      { locked }
+```
+
+- `GET /api/me/progression/tcf/{epreuve}` → `ProgressionEpreuveDto
+  { epreuve, echelle, resume, niveauActuel?, examens: Mesure[≤50], cta }`.
+  `{epreuve}` ∈ `TCF_CO|TCF_CE|TCF_EE|TCF_EO`, sinon **400**. Examens = l'épreuve
+  passée **seule** + la même épreuve **dans un examen complet** ; ni diagnostic
+  (D1), ni examen piloté par un `ExamTemplate` mixte (D18). CO/CE : score de
+  progression /499 **sans bande** (D2) ; EE/EO : note /20 + bandes officielles
+  `BandeNoteTcf` (D3). `niveauActuel` = le niveau affiché sur l'Accueil (D4).
+  `cta.locked` : CO/CE jamais ; EE/EO = `ProductionAccessService.isProductionExamLocked`.
+- `GET /api/me/progression/tcf[?tous=true]` → `ProgressionTcfDto { niveauActuel?,
+  niveauActuelEpreuves, niveauActuelPartiel, examensComplets: { nombre, dernier?,
+  meilleur?, premier?, evolution }, epreuves: [{ epreuve, echelle, resume }×4],
+  examens: ExamenComplet[3 | ≤50], cta }` avec `ExamenComplet { attemptId (parent),
+  numero, date, niveau?, partiel, epreuvesComptees, continuite?, parEpreuve:
+  [{ epreuve, attemptId?, score?, max, niveau?, locked }×4] }`. 🛑 Aucun score
+  global (D6). Comptés : examens complets **terminés** avec au moins une épreuve
+  mesurée ; meilleur / premier sur les seuls **non partiels** (D7). Le palier
+  d'un examen complet est **re-dérivé à la lecture** (D19). `cta.locked` toujours
+  `false` (la grille des examens complets est ouverte).
+- `GET /api/me/progression/civique[?tous=true]` → `ProgressionCiviqueDto
+  { echelle (/40, seuil 32), global: Resume, themes: [{ themeId, code, label,
+  echelle (/20), resume }×5], examens: [{ mesure, parTheme: [{ themeId, code,
+  label, bonnes, posees }×5] }][3 | ≤50], cta }`. Parts par thème en « x / n
+  posées », mises en situation **comprises**, **sans état** (D11). Cartes de
+  thème sur les seuls **examens de thème** (D10). `cta.locked` = pas d'accès
+  civique **et** aucun template civique gratuit publié.
+- `GET /api/me/progression/civique/themes/{themeId}` → `ProgressionThemeDto
+  { themeId, code, label, echelle (/20, seuil 16), resume, etat?, etatSource:
+  DERNIER_EXAMEN_THEME, etatSourceLabel, examens: Mesure[≤50], cta }`. **404** si
+  le thème n'existe pas ou n'est pas civique. `etat` = état du **dernier examen du
+  thème**, pas celui de l'Accueil (D13). `cta.locked` = pas d'accès civique
+  (examens de thème premium, D-33).
+- ~~`GET /api/me/progression?module=`~~ (`ProgressionSummaryResponse`) — code mort,
+  **supprimé** ; son chemin est réattribué à la famille ci-dessus.
 
 ## Plan civique (L10)
 

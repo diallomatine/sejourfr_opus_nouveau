@@ -150,16 +150,19 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     );
 
     /**
-     * Cette session QCM porte-t-elle au moins une réponse enregistrée ?
-     * Même définition que le {@code EXISTS} de
+     * Parmi ces sessions QCM, lesquelles portent au moins une réponse
+     * enregistrée ? Même définition que le {@code EXISTS} de
      * {@code AttemptRepository.findQcmEpreuvesPassees} : « zéro réponse » =
      * rien n'a été rendu. Sert à distinguer, sur une sous-épreuve d'examen
      * complet, une épreuve <b>jamais ouverte</b> d'une épreuve ouverte puis
      * écourtée — la première n'a pas de niveau, la seconde en a un.
+     *
+     * <p>🛑 <b>Forme groupée</b> : une requête pour toute une page d'examens
+     * complets, jamais une par sous-épreuve.
      */
     @Query("""
-        SELECT COUNT(a) > 0 FROM Answer a
-        WHERE a.attemptQuestion.attempt.id = :attemptId
+        SELECT DISTINCT a.attemptQuestion.attempt.id FROM Answer a
+        WHERE a.attemptQuestion.attempt.id IN :attemptIds
         """)
-    boolean existsByAttemptId(@Param("attemptId") UUID attemptId);
+    List<UUID> findAttemptIdsWithAnswer(@Param("attemptIds") Collection<UUID> attemptIds);
 }

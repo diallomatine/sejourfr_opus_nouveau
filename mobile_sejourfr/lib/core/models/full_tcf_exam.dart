@@ -72,6 +72,7 @@ class FullTcfExamSubAttempt {
     this.timeLimitSeconds,
     this.timerStartedAt,
     this.deadlineAt,
+    this.noteSur20,
   });
 
   final String attemptId;
@@ -130,6 +131,12 @@ class FullTcfExamSubAttempt {
   /// passé cette échéance le serveur clôture l'épreuve avec ce qui était
   /// enregistré.
   final DateTime? deadlineAt;
+
+  /// EE/EO : **note d'épreuve /20**, celle du bilan (mêmes évaluations et même
+  /// « reste noté 0 » que [cecrlLevel]). Servie **seulement avec un niveau** :
+  /// null pour CO/CE, une épreuve verrouillée, jamais ouverte, en vol ou en
+  /// échec.
+  final double? noteSur20;
 
   bool get isFinished => finishedAt != null;
   bool get hasFailures => failedSubmissionIds.isNotEmpty;
@@ -218,6 +225,7 @@ class FullTcfExamSubAttempt {
       deadlineAt: json['deadlineAt'] != null
           ? DateTime.parse(json['deadlineAt'] as String).toLocal()
           : null,
+      noteSur20: (json['noteSur20'] as num?)?.toDouble(),
     );
   }
 }

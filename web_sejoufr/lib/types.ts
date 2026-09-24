@@ -3928,6 +3928,12 @@ export interface FullTcfExamSubAttempt {
      *  temps a couru pendant l'absence. Ne jamais recalculer une échéance côté
      *  client. */
     deadlineAt: string | null;
+    /** EE/EO : **note d'épreuve /20**, celle du bilan (mêmes évaluations et même
+     *  « reste noté 0 » que `cecrlLevel`). Servie **seulement avec un niveau** :
+     *  null pour CO/CE, une épreuve verrouillée, jamais ouverte, en vol ou en
+     *  échec. Peut tomber dans une bande officielle plus haute que `cecrlLevel`
+     *  quand une tâche a été plafonnée (assumé serveur). */
+    noteSur20?: number | null;
 }
 
 /** Comment l'examen a été mené : d'une traite, ou repris en plusieurs fois.
@@ -4233,6 +4239,191 @@ export interface EpreuveHistoriqueDto {
     epreuve: EpreuveType;
     /** De la plus récente à la plus ancienne, plafonnée par le serveur. */
     evaluations: EvaluationQualifianteDto[];
+}
+
+// ============================================================================
+// ÉCRANS DE PROGRESSION — miroirs de `/api/me/progression/*` (2026-09-24)
+// Contrat : docs/regles/progression.md § « Écrans de progression ».
+// 🛑 Tout est SERVI : états, bandes, écarts, sens, ordinaux, durées fiables,
+// meilleur / premier / dernier. Aucun front ne recalcule ni ne classe rien.
+// ============================================================================
+
+/** Ce que mesure un axe : score de progression /499 (CO/CE, SANS bande),
+ *  note officielle /20 (EE/EO), bonnes réponses (civique). */
+export type ProgressionUnite = "PROGRESSION_499" | "NOTE_20" | "QUESTIONS";
+
+export type ProgressionProvenance =
+    | "EPREUVE_SEULE"
+    | "EXAMEN_COMPLET"
+    | "EXAMEN_THEME"
+    | "EXAMEN_GLOBAL";
+
+/** Quel rapport ouvre « Voir → ». 🛑 Choisi par ce champ, jamais par une route. */
+export type ProgressionRapport = "QCM" | "PRODUCTION" | "EXAMEN_COMPLET";
+
+export type ProgressionEtatSource = "DERNIER_EXAMEN_THEME";
+
+/** Une zone de l'axe, bornes incluses. `niveau` en EE/EO, `etat` en civique. */
+export interface ProgressionBandeDto {
+    niveau: NiveauCecrl | null;
+    etat: CivicThemeState | null;
+    min: number;
+    max: number;
+}
+
+export interface ProgressionEchelleDto {
+    unite: ProgressionUnite;
+    min: number;
+    max: number;
+    /** Civique seulement (16 / 20, 32 / 40). */
+    seuil: number | null;
+    /** 🛑 Vide en CO/CE. */
+    bandes: ProgressionBandeDto[];
+    /** Lignes neutres de l'axe. */
+    reperes: number[];
+}
+
+/** Un examen blanc : un point de la courbe ET une ligne de la liste. */
+export interface ProgressionMesureDto {
+    attemptId: string;
+    /** Ordinal chronologique, 1 = le plus ancien. Jamais le `slotNumber`. */
+    numero: number;
+    date: string;
+    /** /499, /20 (une décimale) ou bonnes réponses ; null = inconnu (« — »). */
+    score: number | null;
+    max: number;
+    /** TCF : palier DE CET EXAMEN. Null en civique. */
+    niveau: NiveauCecrl | null;
+    /** Civique : état de l'examen. Null en TCF. */
+    etat: CivicThemeState | null;
+    seuilAtteint: boolean | null;
+    pointsManquants: number | null;
+    /** Civique : bonnes / posées (0..1), ce que remplit l'anneau. Null en TCF. */
+    taux: number | null;
+    /** Servie seulement si fiable ; null ⇒ « — » (toujours en EO). */
+    dureeSecondes: number | null;
+    provenance: ProgressionProvenance;
+    rapport: { kind: ProgressionRapport; attemptId: string };
+}
+
+export interface ProgressionResumeDto {
+    nombre: number;
+    dernier: ProgressionMesureDto | null;
+    /** Plus haut score ; à égalité, le plus récent. */
+    meilleur: ProgressionMesureDto | null;
+    /** Le plus ancien portant un score. */
+    premier: ProgressionMesureDto | null;
+    /** dernier − premier ; 🛑 null avec un seul examen (jamais « +0 »). */
+    ecart: number | null;
+    sens: NiveauEvolution;
+    /** Sparkline : au plus 7 scores, du plus ancien au plus récent. */
+    serie: number[];
+}
+
+/** 🛑 D20 : seul le bouton porte un cadenas ; tous les résultats sont visibles. */
+export interface ProgressionCtaDto {
+    locked: boolean;
+}
+
+/** `GET /api/me/progression/tcf/{epreuve}`. */
+export interface ProgressionEpreuveDto {
+    epreuve: EpreuveType;
+    echelle: ProgressionEchelleDto;
+    resume: ProgressionResumeDto;
+    /** Niveau actuel estimé (le chiffre de l'Accueil) — ligne secondaire (D4). */
+    niveauActuel: NiveauCecrl | null;
+    /** Tous les examens (≤ 50), du plus récent au plus ancien. */
+    examens: ProgressionMesureDto[];
+    cta: ProgressionCtaDto;
+}
+
+export interface ProgressionEpreuveLigneDto {
+    epreuve: EpreuveType;
+    attemptId: string | null;
+    /** /499 (CO/CE) ou /20 (EE/EO) ; null = « — », jamais 0. */
+    score: number | null;
+    max: number;
+    niveau: NiveauCecrl | null;
+    locked: boolean;
+}
+
+export interface ProgressionExamenCompletDto {
+    /** Le PARENT : « Voir → » ouvre le bilan de l'examen complet. */
+    attemptId: string;
+    numero: number;
+    date: string;
+    /** Palier global re-dérivé à la lecture ; null tant qu'une évaluation est en vol. */
+    niveau: NiveauCecrl | null;
+    partiel: boolean;
+    epreuvesComptees: number;
+    continuite: FullTcfExamContinuite | null;
+    /** CO, CE, EE, EO. */
+    parEpreuve: ProgressionEpreuveLigneDto[];
+}
+
+/** 🛑 D7 : examens terminés avec ≥ 1 épreuve mesurée ; meilleur/premier non partiels. */
+export interface ProgressionExamensCompletsDto {
+    nombre: number;
+    dernier: ProgressionExamenCompletDto | null;
+    meilleur: ProgressionExamenCompletDto | null;
+    premier: ProgressionExamenCompletDto | null;
+    evolution: NiveauEvolution;
+}
+
+/** `GET /api/me/progression/tcf[?tous=true]`. 🛑 Aucun score global (D6). */
+export interface ProgressionTcfDto {
+    niveauActuel: NiveauCecrl | null;
+    niveauActuelEpreuves: number;
+    niveauActuelPartiel: boolean;
+    examensComplets: ProgressionExamensCompletsDto;
+    /** Toujours les 4, ordre CO, CE, EE, EO. */
+    epreuves: { epreuve: EpreuveType; echelle: ProgressionEchelleDto; resume: ProgressionResumeDto }[];
+    /** 3 derniers, ou tous (≤ 50) avec `?tous=true`. */
+    examens: ProgressionExamenCompletDto[];
+    cta: ProgressionCtaDto;
+}
+
+/** Part d'un thème dans un examen global : « x / n posées », jamais « / 20 » (D11). */
+export interface ProgressionPartThemeDto {
+    themeId: string;
+    code: string;
+    label: string;
+    bonnes: number;
+    /** 0 = thème non posé (« — »), pas raté. */
+    posees: number;
+}
+
+/** `GET /api/me/progression/civique[?tous=true]`. */
+export interface ProgressionCiviqueDto {
+    echelle: ProgressionEchelleDto;
+    global: ProgressionResumeDto;
+    /** Toujours les 5 thèmes, dans l'ordre officiel ; résumés sur leurs examens de thème. */
+    themes: {
+        themeId: string;
+        code: string;
+        label: string;
+        echelle: ProgressionEchelleDto;
+        resume: ProgressionResumeDto;
+    }[];
+    /** 3 derniers, ou tous (≤ 50) avec `?tous=true` ; le total est `global.nombre`. */
+    examens: { mesure: ProgressionMesureDto; parTheme: ProgressionPartThemeDto[] }[];
+    cta: ProgressionCtaDto;
+}
+
+/** `GET /api/me/progression/civique/themes/{themeId}`. */
+export interface ProgressionThemeDto {
+    themeId: string;
+    code: string;
+    label: string;
+    echelle: ProgressionEchelleDto;
+    resume: ProgressionResumeDto;
+    /** État d'après le DERNIER EXAMEN DE CE THÈME (pas celui de l'Accueil, D13). */
+    etat: CivicThemeState | null;
+    etatSource: ProgressionEtatSource;
+    /** Phrase servie, à afficher à côté de l'état. */
+    etatSourceLabel: string;
+    examens: ProgressionMesureDto[];
+    cta: ProgressionCtaDto;
 }
 
 // ============================================================================

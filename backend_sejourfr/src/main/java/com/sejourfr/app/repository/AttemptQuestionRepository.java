@@ -145,4 +145,28 @@ public interface AttemptQuestionRepository extends JpaRepository<AttemptQuestion
             GROUP BY aq.attempt.id, aq.question.questionType, aq.question.difficulty
             """)
     List<Object[]> aggregateStratesByAttempts(@Param("attemptIds") Collection<UUID> attemptIds);
+
+    /**
+     * Part de chaque THÈME dans plusieurs examens civiques, en <b>une</b>
+     * requête : {@code [attemptId, themeId, poses, reussis]}.
+     *
+     * <p>Forme groupée de {@link #aggregateByThemeAndType}, pour la liste des
+     * examens globaux de l'écran de progression civique. 🛑 <b>Tous les types
+     * de question comptent</b>, mises en situation comprises (D11, 2026-09-24) :
+     * l'arrêté les place <b>dans</b> les thématiques « Principes et valeurs » et
+     * « Droits et devoirs », et les exclure ramènerait la part de la première à
+     * 5 questions sur 11. Une question sans réponse est posée et non réussie
+     * ({@code LEFT JOIN}), comme au diagnostic.
+     */
+    @Query("""
+            SELECT aq.attempt.id,
+                   aq.question.theme.id,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id IN :attemptIds
+            GROUP BY aq.attempt.id, aq.question.theme.id
+            """)
+    List<Object[]> aggregatePartsParTheme(@Param("attemptIds") Collection<UUID> attemptIds);
 }

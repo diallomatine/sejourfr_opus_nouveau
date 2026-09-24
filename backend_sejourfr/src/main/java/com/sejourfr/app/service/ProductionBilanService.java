@@ -121,6 +121,31 @@ public class ProductionBilanService {
     }
 
     /**
+     * {@link #latestEvalsByTache(List)} pour <b>plusieurs sessions d'un coup</b> :
+     * les évaluations de toutes leurs soumissions sont lues en <b>une</b>
+     * requête, puis la règle ci-dessus s'applique session par session.
+     *
+     * <p>🛑 Existe pour le coût d'une page d'examens complets (bilan, liste,
+     * écrans de progression) : la forme unitaire lit une évaluation par
+     * soumission. La règle, elle, n'est pas recopiée.
+     *
+     * @return une entrée par session reçue, jamais {@code null}
+     */
+    public Map<UUID, Map<Integer, AiEvaluation>> latestEvalsParAttempt(
+            Map<UUID, List<ProductionSubmission>> soumissionsParAttempt) {
+        if (soumissionsParAttempt == null || soumissionsParAttempt.isEmpty()) return Map.of();
+        Map<UUID, AiEvaluation> dernieres = aiEvaluationManager.findLatestBySubmissionIds(
+                soumissionsParAttempt.values().stream()
+                        .flatMap(List::stream)
+                        .map(ProductionSubmission::getId)
+                        .toList());
+        Map<UUID, Map<Integer, AiEvaluation>> out = new LinkedHashMap<>();
+        soumissionsParAttempt.forEach((attemptId, soumissions) -> out.put(attemptId,
+                latestEvalsByTache(soumissions, id -> Optional.ofNullable(dernieres.get(id)))));
+        return out;
+    }
+
+    /**
      * Niveau CECRL global d'une épreuve productive en examen blanc :
      * {@code competence_epreuve = Σ(competence_tache × poids) / Σ(poids)} →
      * seuils, plafonné B2. Une tâche hors-sujet (note 0) entre avec une
@@ -199,7 +224,7 @@ public class ProductionBilanService {
      *
      * <p>Extraite le 2026-09-16 à sa 2ᵉ occurrence : le bilan d'une session
      * ({@code ProductionSubmissionService.bilan}) et l'historique d'une épreuve
-     * ({@code EpreuveHistoriqueService}) doivent annoncer <b>le même palier</b>
+     * ({@code ProgressionExamensService}) doivent annoncer <b>le même palier</b>
      * pour la même session. Deux copies de cet enchaînement de conditions
      * auraient fini par en annoncer deux.
      *

@@ -40,7 +40,6 @@ class NiveauQcmDeriveSansNPlusUnIT extends AbstractIntegrationTest {
 
     @Autowired private TestData data;
     @Autowired private TcfLevelEstimatorService levelEstimator;
-    @Autowired private EpreuveHistoriqueService historiqueService;
     @Autowired private EntityManager entityManager;
 
     /**
@@ -69,30 +68,9 @@ class NiveauQcmDeriveSansNPlusUnIT extends AbstractIntegrationTest {
                 .containsValue(NiveauCecrl.A2);
     }
 
-    /**
-     * L'écran « Voir mes résultats » de bout en bout : <b>deux</b> requêtes —
-     * les sessions, puis leurs niveaux — et ce compte ne bouge pas quand le
-     * candidat a six examens au lieu d'un.
-     */
-    @Test
-    @DisplayName("🛑 « Voir mes résultats » : 2 requêtes pour 1 examen comme pour 6")
-    void historiqueDEpreuve_neGrossitPasAvecLeNombreDExamens() {
-        User unSeul = data.user();
-        data.examenQcmTcfPasse(unSeul, EpreuveType.TCF_CE, NiveauCecrl.B1);
-
-        User sixExamens = data.user();
-        for (int i = 0; i < 6; i++) {
-            data.examenQcmTcfPasse(sixExamens, EpreuveType.TCF_CE, NiveauCecrl.A2);
-        }
-
-        long avecUn = compterRequetes(
-                () -> historiqueService.historique(unSeul.getId(), EpreuveType.TCF_CE));
-        long avecSix = compterRequetes(
-                () -> historiqueService.historique(sixExamens.getId(), EpreuveType.TCF_CE));
-
-        assertThat(avecUn).isEqualTo(2);
-        assertThat(avecSix).isEqualTo(2);
-    }
+    // L'écran de bout en bout (« Voir mes résultats », remplacé le 2026-09-24
+    // par l'écran de progression d'une épreuve) est verrouillé par
+    // `ProgressionSansNPlusUnIT`.
 
     /** Requêtes préparées émises par {@code action}, session vidée au préalable. */
     private long compterRequetes(Runnable action) {

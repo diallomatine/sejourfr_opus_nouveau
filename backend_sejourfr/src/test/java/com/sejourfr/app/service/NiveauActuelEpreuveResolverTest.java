@@ -157,7 +157,7 @@ class NiveauActuelEpreuveResolverTest {
                     // Le palier de la session : il n'entre PAS dans la moyenne,
                     // c'est la compétence qui la porte. Le poser cohérent évite
                     // qu'un lecteur du test croie le contraire.
-                    niveauDeReference(c), c));
+                    niveauDeReference(c), c, null));
         }
         when(qualifiantesResolver.qualifiantes(eq(userId), eq(epreuve), anyInt()))
                 .thenReturn(List.copyOf(sessions));
@@ -377,10 +377,10 @@ class NiveauActuelEpreuveResolverTest {
         when(qualifiantesResolver.qualifiantes(eq(userId), eq(EpreuveType.TCF_EE), anyInt()))
                 .thenReturn(Arrays.asList(
                         new EpreuvesProductionQualifiantesResolver.EpreuveQualifiante(
-                                new Attempt(), Instant.now(), NiveauCecrl.A2, null),
+                                new Attempt(), Instant.now(), NiveauCecrl.A2, null, null),
                         new EpreuvesProductionQualifiantesResolver.EpreuveQualifiante(
                                 new Attempt(), Instant.now().minus(2, ChronoUnit.DAYS),
-                                NiveauCecrl.B2, null)));
+                                NiveauCecrl.B2, null, null)));
 
         assertThat(resolver.production(userId, EpreuveType.TCF_EE, SCAN))
                 .isEqualTo(NiveauCecrl.A2);

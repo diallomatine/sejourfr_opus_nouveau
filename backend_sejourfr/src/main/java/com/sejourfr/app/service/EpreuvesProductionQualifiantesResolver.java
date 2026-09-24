@@ -70,7 +70,7 @@ import java.util.UUID;
  * mauvais</b>.
  *
  * <h2>Qui lit ce resolver, et qui ne le lit PAS</h2>
- * <p>Extrait le 2026-09-16 à sa 2ᵉ occurrence. {@code EpreuveHistoriqueService}
+ * <p>Extrait le 2026-09-16 à sa 2ᵉ occurrence. L'ancien {@code EpreuveHistoriqueService} (remplacé le 2026-09-24 par {@code ProgressionExamensService})
  * listait déjà ces sessions <b>en chronologie</b> (« d'où sort mon niveau ? »)
  * pendant que la carte d'épreuve de l'Accueil annonçait un palier tiré de
  * <b>n'importe quelle tâche évaluée</b> : elle proposait « Voir mes résultats »
@@ -93,7 +93,7 @@ import java.util.UUID;
  * <p>🛑 <b>3 requêtes par épreuve</b>, que le candidat ait passé une session ou
  * dix : les sessions, puis leurs soumissions (tâche jointe), puis leurs
  * évaluations — chacune en <b>un lot</b>. Ce resolver tourne à chaque lecture
- * d'Accueil et de « Voir mes résultats » ; la version naïve (une requête par
+ * d'Accueil et des écrans de progression ; la version naïve (une requête par
  * session, une par soumission, plus un lazy-load de tâche par soumission)
  * coûtait <b>+14 requêtes</b> et grandissait avec l'historique.
  *
@@ -124,9 +124,15 @@ public class EpreuvesProductionQualifiantesResolver {
      *                {@code null} quand le niveau vient du repli sur les
      *                niveaux persistés : une session peut donc porter un
      *                palier sans porter de score
+     * @param note    la <b>note d'épreuve /20</b> affichée au bilan
+     *                ({@code ProductionBilanService.noteEpreuve}, mêmes
+     *                évaluations et même « reste noté 0 » que {@code niveau}) —
+     *                ce que les écrans de progression tracent en EE/EO.
+     *                {@code null} quand aucune évaluation ne porte de note
      */
     public record EpreuveQualifiante(
-            Attempt attempt, Instant mesureA, NiveauCecrl niveau, BigDecimal competence) {
+            Attempt attempt, Instant mesureA, NiveauCecrl niveau, BigDecimal competence,
+            BigDecimal note) {
     }
 
     /**
@@ -172,7 +178,8 @@ public class EpreuvesProductionQualifiantesResolver {
                     true, true);
             if (bilan.niveau() == null || a.getFinishedAt() == null) continue;
             out.add(new EpreuveQualifiante(
-                    a, a.getFinishedAt(), bilan.niveau(), bilan.competence()));
+                    a, a.getFinishedAt(), bilan.niveau(), bilan.competence(),
+                    bilanService.noteEpreuve(bilan.evalsByTache(), bilan.manquantesAZero())));
         }
         return out;
     }

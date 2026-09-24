@@ -383,7 +383,7 @@ class FullTcfExamServiceTest {
         return r.subAttempts().stream().filter(s -> s.epreuve() == e).findFirst().orElseThrow();
     }
 
-    // ---- listMine / findLatestForUser ----
+    // ---- listMine ----
 
     @Test
     void listMine_mappeLesParents() {
@@ -399,28 +399,5 @@ class FullTcfExamServiceTest {
         assertThat(list).hasSize(1);
         assertThat(list.get(0).id()).isEqualTo(id);
         assertThat(list.get(0).slotNumber()).isEqualTo(2);
-    }
-
-    @Test
-    void findLatestForUser_aucunExamen_renvoieNull() {
-        when(attemptManager.findByUserAndEpreuve(userId, EpreuveType.TCF_COMPLET, 1))
-                .thenReturn(List.of());
-
-        assertThat(service.findLatestForUser(userId)).isNull();
-        verify(attemptManager, never()).findSubAttempts(any(UUID.class));
-    }
-
-    @Test
-    void findLatestForUser_renvoieLeDernier() {
-        UUID id = UUID.randomUUID();
-        when(attemptManager.findByUserAndEpreuve(userId, EpreuveType.TCF_COMPLET, 1))
-                .thenReturn(List.of(parent(id)));
-        when(attemptManager.findSubAttempts(id)).thenReturn(List.of());
-
-        FullTcfExamResponse r = service.findLatestForUser(userId);
-
-        assertThat(r).isNotNull();
-        assertThat(r.id()).isEqualTo(id);
-        verify(attemptManager, atLeastOnce()).findSubAttempts(id);
     }
 }

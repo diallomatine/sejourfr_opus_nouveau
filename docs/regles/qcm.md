@@ -109,7 +109,7 @@ pour toutes les tentatives de la page**, jamais une boucle.
   `AttemptQuestionManager.stratesParAttempt`.
 - La forme à appeler : `TcfLevelEstimatorService.niveauxQcm(Collection<UUID>)`. La forme
   unitaire `niveauEpreuveQcm(Attempt)` existe, mais **une boucle dessus est un N+1**.
-- Verrouillé par `NiveauQcmDeriveSansNPlusUnIT`, qui compte les requêtes **à l'ÉGALITÉ** et
+- Verrouillé par `NiveauQcmDeriveSansNPlusUnIT` (et, pour les écrans de progression, `ProgressionSansNPlusUnIT`), qui compte les requêtes **à l'ÉGALITÉ** et
   vérifie que le compte **ne bouge pas** entre 1 et 6 tentatives. Un `<=` laisserait passer
   précisément ce qu'on interdit. Le budget global du Plan (`LearningPlanCycleIT`) passe de
   21 à **23** : deux requêtes agrégées, une par épreuve de compréhension, constantes.
@@ -118,7 +118,7 @@ pour toutes les tentatives de la page**, jamais une boucle.
 
 🛑 **`TcfLevelEstimatorService` est le seul endroit du dépôt qui calcule un niveau QCM.**
 `AttemptScoringService`, `AttemptMapper`, `TcfProfileService`, `NiveauActuelEpreuveResolver`,
-`EpreuveHistoriqueService` et `FullTcfExamResponseBuilder` en héritent **sans une ligne de
+`ProgressionExamensService` et `FullTcfExamResponseBuilder` en héritent **sans une ligne de
 règle**.
 
 - `AttemptScoringService.computeLevelAchieved` portait un **second seuil** (60 % par strate,

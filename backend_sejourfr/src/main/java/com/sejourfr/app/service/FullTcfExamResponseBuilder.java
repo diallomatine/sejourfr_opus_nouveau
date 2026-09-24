@@ -30,7 +30,8 @@ import org.springframework.stereotype.Component;
  * / {@link FullTcfExamSummaryResponse}) à partir du parent {@code TCF_COMPLET} et
  * de ses 4 sous-attempts : mapping des sous-épreuves, calcul du statut agrégé,
  * scoring CO/CE et plancher CECRL. Sans état ni persistance — la finalisation
- * (pose de {@code finalCecrlLevel}) reste portée par {@link FullTcfExamService}.
+ * (pose de {@code finalCecrlLevel}, une TRACE jamais relue depuis D19) reste
+ * portée par {@link FullTcfExamService}.
  */
 @Component
 @RequiredArgsConstructor
@@ -56,17 +57,18 @@ public class FullTcfExamResponseBuilder {
 
     public FullTcfExamResponse buildResponse(Attempt parent) {
         List<Attempt> subs = attemptManager.findSubAttempts(parent.getId());
-        return buildResponse(parent, subs, niveauxQcmDe(subs));
+        return assembler(List.of(parent), java.util.Collections.singletonMap(parent.getId(), subs)).getFirst();
     }
 
     /**
-     * 🛑 <b>La forme de LISTE de l'écran « Mes examens blancs ».</b> Le niveau
-     * CECRL d'une épreuve QCM n'est plus persisté : il se dérive des réponses.
-     * Construire chaque bilan séparément aurait donc payé, par examen affiché,
-     * une requête de sous-épreuves <b>et</b> une requête de strates. Ici les
-     * deux sont posées <b>une fois pour la page entière</b>.
+     * 🛑 <b>La forme de LISTE</b> : plusieurs examens complets, leurs
+     * sous-épreuves, leurs niveaux QCM, leurs réponses, leurs soumissions et
+     * leurs évaluations — <b>chacun en une requête pour la page entière</b>.
+     * Le coût ne grandit pas avec le nombre d'examens affichés
+     * ({@code ProgressionSansNPlusUnIT}). Même règle que {@link #buildResponse},
+     * par construction : les deux passent par {@link #assembler}.
      */
-    public List<FullTcfExamSummaryResponse> buildSummaries(List<Attempt> parents) {
+    public List<FullTcfExamResponse> buildResponses(List<Attempt> parents) {
         if (parents == null || parents.isEmpty()) return List.of();
         List<Attempt> subs = attemptManager.findSubAttempts(
                 parents.stream().map(Attempt::getId).toList());
@@ -76,33 +78,92 @@ public class FullTcfExamResponseBuilder {
             if (p == null) continue;
             parParent.computeIfAbsent(p.getId(), k -> new ArrayList<>()).add(sub);
         }
-        Map<UUID, NiveauCecrl> niveaux = niveauxQcmDe(subs);
-        List<FullTcfExamSummaryResponse> out = new ArrayList<>(parents.size());
-        for (Attempt parent : parents) {
-            out.add(toSummary(parent, buildResponse(
-                    parent, parParent.getOrDefault(parent.getId(), List.of()), niveaux)));
+        return assembler(parents, parParent);
+    }
+
+    /**
+     * La forme de liste de l'écran « Mes examens blancs » : le résumé de
+     * {@link #buildResponses}, sans le détail par épreuve.
+     */
+    public List<FullTcfExamSummaryResponse> buildSummaries(List<Attempt> parents) {
+        List<FullTcfExamResponse> responses = buildResponses(parents);
+        List<FullTcfExamSummaryResponse> out = new ArrayList<>(responses.size());
+        for (int i = 0; i < responses.size(); i++) {
+            out.add(toSummary(parents.get(i), responses.get(i)));
         }
         return out;
     }
 
     /**
-     * Niveaux QCM des sous-épreuves CO/CE données, en <b>une seule requête</b>
-     * agrégée — l'autorité unique les dérive des réponses.
+     * Ce qu'il faut savoir de TOUTES les sous-épreuves d'une page, chargé une
+     * fois : les niveaux QCM (dérivés des réponses), les QCM qui portent au
+     * moins une réponse (seulement parmi celles qui pourraient être « jamais
+     * ouvertes »), les soumissions EE/EO et leurs dernières évaluations par
+     * tâche.
      */
-    private Map<UUID, NiveauCecrl> niveauxQcmDe(List<Attempt> subs) {
-        return levelEstimator.niveauxQcm(subs.stream()
-                .filter(s -> s.getEpreuve() == EpreuveType.TCF_CO
-                        || s.getEpreuve() == EpreuveType.TCF_CE)
-                .map(Attempt::getId)
-                .toList());
+    private record Lots(
+            Map<UUID, NiveauCecrl> niveauxQcm,
+            Set<UUID> qcmAvecReponse,
+            Map<UUID, List<ProductionSubmission>> soumissions,
+            Map<UUID, Map<Integer, AiEvaluation>> evaluations) {
+
+        List<ProductionSubmission> soumissionsDe(UUID attemptId) {
+            return soumissions.getOrDefault(attemptId, List.of());
+        }
     }
 
-    private FullTcfExamResponse buildResponse(
-            Attempt parent, List<Attempt> subs, Map<UUID, NiveauCecrl> niveauxQcm) {
+    private Lots charger(List<Attempt> subs) {
+        List<UUID> qcm = new ArrayList<>();
+        List<UUID> qcmSansAncre = new ArrayList<>();
+        List<UUID> production = new ArrayList<>();
+        for (Attempt s : subs) {
+            if (estQcm(s.getEpreuve())) {
+                qcm.add(s.getId());
+                if (peutEtreJamaisOuverte(s)) qcmSansAncre.add(s.getId());
+            } else if (estProduction(s.getEpreuve())) {
+                production.add(s.getId());
+            }
+        }
+        // Une requête agrégée pour les niveaux QCM, toujours posée (même vide :
+        // le manager n'interroge pas la base sur une liste vide).
+        Map<UUID, NiveauCecrl> niveaux = levelEstimator.niveauxQcm(qcm);
+        // Retour anticipé ASSUMÉ : une sous-épreuve lancée ne peut pas être
+        // « jamais ouverte », on n'interroge donc les réponses que pour les
+        // rares candidates (sous-attempts antérieurs au chrono, ou clos sans
+        // lancement).
+        Set<UUID> avecReponse = qcmSansAncre.isEmpty()
+                ? Set.of()
+                : answerManager.attemptIdsAvecReponse(qcmSansAncre);
+        Map<UUID, List<ProductionSubmission>> soumissions =
+                productionSubmissionManager.findByAttemptIdsGrouped(production);
+        Map<UUID, Map<Integer, AiEvaluation>> evaluations =
+                productionBilanService.latestEvalsParAttempt(soumissions);
+        return new Lots(niveaux, avecReponse, soumissions, evaluations);
+    }
+
+    private List<FullTcfExamResponse> assembler(
+            List<Attempt> parents, Map<UUID, List<Attempt>> subsParParent) {
+        Lots lots = charger(subsParParent.values().stream().flatMap(List::stream).toList());
+        List<FullTcfExamResponse> out = new ArrayList<>(parents.size());
+        for (Attempt parent : parents) {
+            out.add(buildResponse(parent, subsParParent.getOrDefault(parent.getId(), List.of()), lots));
+        }
+        return out;
+    }
+
+    private static boolean estQcm(EpreuveType e) {
+        return e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE;
+    }
+
+    private static boolean estProduction(EpreuveType e) {
+        return e == EpreuveType.TCF_EE || e == EpreuveType.TCF_EO;
+    }
+
+    private FullTcfExamResponse buildResponse(Attempt parent, List<Attempt> subs, Lots lots) {
         Map<EpreuveType, Sous> mapped = new EnumMap<>(EpreuveType.class);
         for (Attempt sub : subs) {
             mapped.put(sub.getEpreuve(),
-                    mapSubAttempt(sub, parent.isProductionLocked(), niveauxQcm));
+                    mapSubAttempt(sub, parent.isProductionLocked(), lots));
         }
 
         // Ordre canonique d'affichage : CO → CE → EE → EO.
@@ -115,14 +176,22 @@ public class FullTcfExamResponseBuilder {
             if (s.jamaisOuverte()) jamaisOuvertes.add(e);
         }
 
-        FullTcfExamResponse.FullTcfExamStatus status = computeStatus(parent, ordered, jamaisOuvertes);
-        NiveauCecrl finalCecrl = parent.getFinalCecrlLevel();
-        if (finalCecrl == null && status == FullTcfExamResponse.FullTcfExamStatus.COMPLETED) {
-            finalCecrl = floorOfCecrls(ordered);
-        }
-        // Plafond IRN B2, y compris pour un finalCecrlLevel persisté avant le
-        // cap (données antérieures où EE/EO pouvait remonter C1/C2).
-        finalCecrl = levelEstimator.capB2(finalCecrl);
+        FullTcfExamResponse.FullTcfExamStatus status =
+                computeStatus(parent, ordered, jamaisOuvertes, lots);
+        // 🛑 D19 (2026-09-24) : le palier global se RE-DÉRIVE à chaque lecture,
+        // jamais relu dans `attempts.final_cecrl_level`. Cette colonne a été
+        // écrite sous la règle QCM du jour de la finalisation ; les 6 valeurs
+        // de la base locale, toutes A1_NON_ATTEINT, datent de l'ancienne table
+        // score → palier révoquée le 2026-09-20. La préférer figeait
+        // l'historique sous une règle morte — l'inverse de la doctrine « un
+        // changement de règle relit tout l'historique, sans migration »
+        // (docs/regles/qcm.md). La colonne reste ÉCRITE (trace + marqueur
+        // « l'examen vient de devenir complet » de FullTcfExamService), et
+        // n'est plus lue par aucun chemin de restitution. Tant que l'examen
+        // n'est pas COMPLETED, le palier est inconnu : null.
+        NiveauCecrl finalCecrl = status == FullTcfExamResponse.FullTcfExamStatus.COMPLETED
+                ? levelEstimator.capB2(floorOfCecrls(ordered))
+                : null;
         int counted = countEpreuvesInFloor(ordered);
         return new FullTcfExamResponse(
                 parent.getId(),
@@ -193,14 +262,16 @@ public class FullTcfExamResponseBuilder {
      * par épreuve portent tous {@code timer_started_at} null : sans le second
      * critère, on effacerait le niveau d'épreuves réellement passées.
      */
-    private boolean jamaisOuverteQcm(Attempt sub) {
-        return sub.getFinishedAt() != null
-                && sub.getTimerStartedAt() == null
-                && !answerManager.hasAnyAnswer(sub.getId());
+    private static boolean jamaisOuverteQcm(Attempt sub, Lots lots) {
+        return peutEtreJamaisOuverte(sub) && !lots.qcmAvecReponse().contains(sub.getId());
     }
 
-    private Sous mapSubAttempt(
-            Attempt sub, boolean parentProductionLocked, Map<UUID, NiveauCecrl> niveauxQcm) {
+    /** Terminée sans ancre de lancement : seule candidate au « jamais ouverte ». */
+    private static boolean peutEtreJamaisOuverte(Attempt sub) {
+        return sub.getFinishedAt() != null && sub.getTimerStartedAt() == null;
+    }
+
+    private Sous mapSubAttempt(Attempt sub, boolean parentProductionLocked, Lots lots) {
         EpreuveType e = sub.getEpreuve();
         // Le verrou ne concerne que les épreuves productives EE/EO.
         //
@@ -225,7 +296,7 @@ public class FullTcfExamResponseBuilder {
             return new Sous(new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), null,
                     null, null, null, 0, List.of(), true,
-                    null, null, null), false);
+                    null, null, null, null), false);
         }
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
             // Même raisonnement que le verrou ci-dessus, appliqué à l'autre
@@ -234,7 +305,7 @@ public class FullTcfExamResponseBuilder {
             // compter A1_NON_ATTEINT (0 réponse → 0 % → borne basse) restituait
             // une absence comme un verdict de langue. Doctrine du dépôt :
             // null = inconnu, jamais mauvais.
-            boolean jamaisOuverte = jamaisOuverteQcm(sub);
+            boolean jamaisOuverte = jamaisOuverteQcm(sub, lots);
             // 🛑 Source de vérité : les RÉPONSES, relues par l'autorité unique
             // (TcfLevelEstimatorService, règle du palier maîtrisé). Ni
             // `cecrl_level` — la colonne n'est plus ni écrite ni lue — ni une
@@ -244,7 +315,7 @@ public class FullTcfExamResponseBuilder {
             // autres. Un dérivé qui ne se persiste pas relit tout l'historique.
             NiveauCecrl level = null;
             if (sub.getFinishedAt() != null && !jamaisOuverte) {
-                level = levelEstimator.capB2(niveauxQcm.get(sub.getId()));
+                level = levelEstimator.capB2(lots.niveauxQcm().get(sub.getId()));
             }
             return new Sous(new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
@@ -252,7 +323,7 @@ public class FullTcfExamResponseBuilder {
                     calibratedScoreOf(sub),
                     null, List.of(), locked,
                     sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
-                    AttemptChrono.echeance(sub)), jamaisOuverte);
+                    AttemptChrono.echeance(sub), null), jamaisOuverte);
         }
         // EE / EO : on compte les tâches EVALUATED pour le niveau CECRL
         // ET on remonte les ids des FAILED — le mobile propose un bouton
@@ -260,7 +331,7 @@ public class FullTcfExamResponseBuilder {
         // POST /api/production-submissions/{id}/retry pour chacune. Tant
         // qu'une submission est FAILED, le bilan affiche un état partiel
         // (pas de tolérance silencieuse — l'utilisateur voit le problème).
-        List<ProductionSubmission> submissions = productionSubmissionManager.findByAttemptId(sub.getId());
+        List<ProductionSubmission> submissions = lots.soumissionsDe(sub.getId());
         List<UUID> failedIds = new ArrayList<>();
         boolean inFlight = false;
         for (ProductionSubmission s : submissions) {
@@ -278,7 +349,7 @@ public class FullTcfExamResponseBuilder {
                 && submissions.isEmpty();
         Map<Integer, AiEvaluation> evalsByTache = jamaisOuverte
                 ? Map.of()
-                : productionBilanService.latestEvalsByTache(submissions);
+                : lots.evaluations().getOrDefault(sub.getId(), Map.of());
         int evaluatedCount = evalsByTache.size();
         // Niveau d'épreuve = moyenne pondérée des compétences des 3 tâches
         // (cf. ProductionBilanService), plafonné B2. La note brute reste
@@ -289,12 +360,17 @@ public class FullTcfExamResponseBuilder {
         // candidat n'a pas vu le sujet, ce n'est pas un abandon mais une
         // absence, et une absence n'a pas de niveau.
         NiveauCecrl level;
+        // La note /20 suit exactement le niveau : mêmes évaluations, même
+        // « reste noté 0 », et aucune note là où il n'y a pas de niveau.
+        java.math.BigDecimal note = null;
         if (jamaisOuverte) {
             level = null;
         } else if (evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS) {
             level = levelEstimator.capB2(productionBilanService.bilanEpreuve(evalsByTache));
+            if (level != null) note = productionBilanService.noteEpreuve(evalsByTache, false);
         } else if (sub.getFinishedAt() != null && !inFlight && failedIds.isEmpty()) {
             level = levelEstimator.capB2(productionBilanService.bilanEpreuveTerminee(evalsByTache));
+            if (level != null) note = productionBilanService.noteEpreuve(evalsByTache, true);
         } else {
             level = null;
         }
@@ -307,7 +383,7 @@ public class FullTcfExamResponseBuilder {
                 sub.getId(), e, sub.getFinishedAt(), level,
                 null, null, null, evaluatedCount, failedIds, locked,
                 sub.getTimeLimitSeconds(), sub.getTimerStartedAt(),
-                AttemptChrono.echeance(sub)), jamaisOuverte);
+                AttemptChrono.echeance(sub), note), jamaisOuverte);
     }
 
     /**
@@ -331,7 +407,7 @@ public class FullTcfExamResponseBuilder {
 
     private FullTcfExamResponse.FullTcfExamStatus computeStatus(
             Attempt parent, List<FullTcfExamResponse.SubAttempt> subs,
-            Set<EpreuveType> jamaisOuvertes) {
+            Set<EpreuveType> jamaisOuvertes, Lots lots) {
         // 4 sous-attempts attendus (CO, CE, EE, EO). Si un manque ou n'est
         // pas fini → IN_PROGRESS.
         if (subs.size() < EXPECTED_EPREUVES) return FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS;
@@ -352,7 +428,7 @@ public class FullTcfExamResponseBuilder {
                 // abandonné avec moins de 3 (voire 0) submissions n'a rien en
                 // cours → il est aussi complet qu'il le sera. Les FAILED sont
                 // terminales (retry exposé via failedSubmissionIds), pas pending.
-                if (hasInFlightProduction(s.attemptId())) {
+                if (hasInFlightProduction(lots.soumissionsDe(s.attemptId()))) {
                     return FullTcfExamResponse.FullTcfExamStatus.PENDING_EVALUATIONS;
                 }
             } else if (s.cecrlLevel() == null && !jamaisOuvertes.contains(s.epreuve())) {
@@ -370,8 +446,8 @@ public class FullTcfExamResponseBuilder {
 
     /** Vrai s'il existe au moins une submission de cet attempt encore dans le
      *  pipeline IA (non terminale). FAILED et EVALUATED sont terminales. */
-    private boolean hasInFlightProduction(UUID attemptId) {
-        for (ProductionSubmission s : productionSubmissionManager.findByAttemptId(attemptId)) {
+    private static boolean hasInFlightProduction(List<ProductionSubmission> soumissions) {
+        for (ProductionSubmission s : soumissions) {
             SubmissionStatut st = s.getStatut();
             if (st == SubmissionStatut.SUBMITTED
                     || st == SubmissionStatut.TRANSCRIBING

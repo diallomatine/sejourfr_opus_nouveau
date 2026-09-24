@@ -275,6 +275,40 @@ class ProductionBilanServiceTest {
         assertThat(svc.noteEpreuve(evals, true)).isEqualByComparingTo(new BigDecimal("5.0"));
     }
 
+    /**
+     * La forme groupée : une seule lecture d'évaluations pour toutes les
+     * sessions, puis la même règle que la forme unitaire, session par session.
+     */
+    @Test
+    void latestEvalsParAttempt_uneLecturePourToutesLesSessions_memeRegle() {
+        AiEvaluationManager manager = mock(AiEvaluationManager.class);
+        ProductionRubricsProvider rubrics = mock(ProductionRubricsProvider.class);
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        org.mockito.Mockito.lenient().when(rubrics.niveauCecrl()).thenReturn(props.getNiveauCecrl());
+        ProductionBilanService svc = new ProductionBilanService(
+            manager, new TcfLevelEstimatorService(mock(com.sejourfr.app.manager.AttemptQuestionManager.class)), rubrics, props);
+
+        java.util.UUID a1 = java.util.UUID.randomUUID();
+        java.util.UUID a2 = java.util.UUID.randomUUID();
+        ProductionSubmission t1 = submissionEvaluee(1);
+        ProductionSubmission t2 = submissionEvaluee(2);
+        AiEvaluation inexploitable = new AiEvaluation();
+        inexploitable.setEvaluabilite(ProductionEvaluabilite.NON_EVALUABLE);
+        when(manager.findLatestBySubmissionIds(org.mockito.ArgumentMatchers.anyCollection()))
+            .thenReturn(Map.of(t1.getId(), eval(15, 15, "15"), t2.getId(), inexploitable));
+
+        Map<java.util.UUID, Map<Integer, AiEvaluation>> parAttempt = svc.latestEvalsParAttempt(
+            Map.of(a1, List.of(t1), a2, List.of(t2)));
+
+        assertThat(parAttempt.get(a1)).containsOnlyKeys(1);
+        assertThat(parAttempt.get(a2)).isEmpty();
+        org.mockito.Mockito.verify(manager, org.mockito.Mockito.times(1))
+            .findLatestBySubmissionIds(org.mockito.ArgumentMatchers.anyCollection());
+        org.mockito.Mockito.verify(manager, org.mockito.Mockito.never())
+            .findLatestBySubmissionId(org.mockito.ArgumentMatchers.any());
+        assertThat(svc.latestEvalsParAttempt(Map.of())).isEmpty();
+    }
+
     private static ProductionSubmission submissionEvaluee(int tacheNumero) {
         ProductionTask task = new ProductionTask();
         task.setTacheNumero((short) tacheNumero);

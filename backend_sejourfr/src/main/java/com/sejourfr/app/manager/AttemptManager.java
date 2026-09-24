@@ -219,4 +219,19 @@ public class AttemptManager {
         if (ids == null || ids.isEmpty()) return Set.of();
         return new LinkedHashSet<>(repository.findMockExamIdsAmong(ids));
     }
+
+    /** Cf. {@code AttemptRepository.findCivicExamensGlobauxPasses}. */
+    public List<Attempt> findCivicExamensGlobauxPasses(UUID userId, int limit) {
+        return repository.findCivicExamensGlobauxPasses(userId, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Cf. {@code AttemptRepository.findCivicExamensThemePasses}. Aucun accès
+     * base sur une liste de thèmes vide.
+     */
+    public List<Attempt> findCivicExamensThemePasses(
+            UUID userId, Collection<UUID> themeIds, int limit) {
+        if (themeIds == null || themeIds.isEmpty()) return List.of();
+        return repository.findCivicExamensThemePasses(userId, themeIds, PageRequest.of(0, limit));
+    }
 }

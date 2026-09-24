@@ -56,7 +56,11 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/dashboard"),
                 Arguments.of(HttpMethod.GET, "/api/me/stats"),
                 Arguments.of(HttpMethod.GET, "/api/me/attempts"),
-                Arguments.of(HttpMethod.GET, "/api/me/progression"),
+                // ProgressionController — les 4 écrans de progression (2026-09-24).
+                Arguments.of(HttpMethod.GET, "/api/me/progression/tcf"),
+                Arguments.of(HttpMethod.GET, "/api/me/progression/tcf/TCF_CO"),
+                Arguments.of(HttpMethod.GET, "/api/me/progression/civique"),
+                Arguments.of(HttpMethod.GET, "/api/me/progression/civique/themes/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/me/plan"),
                 Arguments.of(HttpMethod.GET, "/api/me/plan/journey"),
                 // Les deux transitions de fin de cycle (spec §6). Elles
@@ -96,12 +100,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 // elle est premium (D-33). Son 403 metier est le sujet de
                 // `CivicSerieSurUniteIT`.
                 Arguments.of(HttpMethod.GET, "/api/me/civic-plan"),
-                // ProgressController (T28) — « montrer le mouvement ».
+                // ProgressController — « Où vous en êtes » de l'Accueil.
                 Arguments.of(HttpMethod.GET, "/api/me/progress"),
-                // Le detail d'une ligne : « d'ou sort mon niveau ? ». Il sert
-                // les evaluations qualifiantes d'UN candidat — donc jamais en
-                // anonyme.
-                Arguments.of(HttpMethod.GET, "/api/me/progress/tcf/TCF_CO/historique"),
                 Arguments.of(HttpMethod.POST,
                         "/api/diagnostics/" + RANDOM_ID + "/retry-analysis"),
                 // AttemptController

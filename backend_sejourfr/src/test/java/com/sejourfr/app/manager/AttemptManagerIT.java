@@ -394,6 +394,29 @@ class AttemptManagerIT extends AbstractIntegrationTest {
     }
 
     /**
+     * 🛑 <b>D18 (2026-09-24)</b> : un examen piloté par un {@code ExamTemplate}
+     * TCF mêle CO, CE et STRUCTURE sur 50 à 60 questions, et porte
+     * {@code epreuve = TCF_CO} par simple défaut. Ce n'est pas un examen de
+     * CO : il ne doit ni entrer dans le niveau affiché de la CO, ni dans son
+     * historique. L'examen d'épreuve voisin, lui, reste compté.
+     */
+    @Test
+    void findQcmEpreuvesPassees_excluLesExamensPilotesParUnTemplate() {
+        User user = testData.user();
+        Instant t0 = Instant.now().minus(3, ChronoUnit.HOURS);
+
+        Attempt coSeule = mockExam(user, EpreuveType.TCF_CO, t0);
+        testData.answer(testData.attemptQuestion(coSeule, testData.question()));
+        Attempt mixte = mockExam(user, EpreuveType.TCF_CO, t0.plus(1, ChronoUnit.HOURS));
+        mixte.setExamTemplate(testData.examTemplate());
+        save(mixte);
+        testData.answer(testData.attemptQuestion(mixte, testData.question()));
+
+        assertThat(manager.findQcmEpreuvesPassees(user.getId(), EpreuveType.TCF_CO, 50))
+                .extracting(Attempt::getId).containsExactly(coSeule.getId());
+    }
+
+    /**
      * 🛑 <b>Revocation de l'exclusion V049</b> (2026-09-16). Une sous-epreuve
      * CE/CO de diagnostic complet compte comme n'importe quelle epreuve passee :
      * depuis le 2026-09-13 elle est composee exactement comme un examen de

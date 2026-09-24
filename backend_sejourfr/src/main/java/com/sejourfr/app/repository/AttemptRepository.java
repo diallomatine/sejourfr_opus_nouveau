@@ -325,10 +325,25 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * retient le <b>meilleur</b> résultat par épreuve — jamais une somme ni une
      * moyenne, donc une même épreuve mesurée deux fois n'est comptée qu'une, à
      * sa meilleure valeur. ⚠️ <b>Second appelant depuis le 2026-09-16</b> :
-     * {@code EpreuveHistoriqueService.qcm}, qui en garde la <b>chronologie</b>
+     * {@code ProgressionExamensService} (écran de progression d'une épreuve), qui en garde la <b>chronologie</b>
      * (les 3 plus récentes) pour expliquer ce niveau au candidat. Il n'agrège
      * rien non plus. 🛑 Tout appelant futur qui <b>sommerait</b> ces lignes
      * rouvrirait la question que la révocation de V049 avait fermée.
+     *
+     * <p>🛑 <b>Les examens pilotés par un {@code ExamTemplate} sont exclus</b>
+     * (D18, 2026-09-24). Un template TCF ({@code tcf-diagnostic},
+     * {@code tcf-mix-*}) compose un examen de <b>50 à 60 questions mêlant CO,
+     * CE et STRUCTURE</b>, et {@code Attempt.prePersist} lui pose
+     * {@code epreuve = TCF_CO} <b>par défaut</b> ({@code deriveEpreuveFromModule}) :
+     * son {@code epreuve} ne dit donc rien de ce qu'il mesure. Le compter comme
+     * une CO versait des items de CE et de STRUCTURE dans le niveau affiché de
+     * la CO ({@code NiveauActuelEpreuveResolver} cumule les strates) et dans
+     * l'historique de l'épreuve. Mesuré sur la base locale : 3 attempts de ce
+     * type répondaient au prédicat. Le chemin reste ouvert côté web (briefing
+     * {@code /examens-blancs/[slug]}, démo invitée), l'exclusion vaut donc aussi
+     * pour l'avenir. Les examens d'épreuve ({@code moduleExamQuestionType}),
+     * les sous-épreuves d'examen complet et de diagnostic n'ont jamais de
+     * template : ils ne sont pas touchés.
      */
     @Query("""
             SELECT a FROM Attempt a
@@ -337,6 +352,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.epreuve = :epreuve
               AND a.finishedAt IS NOT NULL
               AND a.civicDiagnostic IS NULL
+              AND a.examTemplate IS NULL
               AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
             ORDER BY a.finishedAt DESC
             """)
@@ -356,7 +372,7 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
      * {@code slotNumber} posé au démarrage (épreuve jouée seule) <b>ou</b>
      * {@code parentAttempt} (sous-épreuve d'un examen complet, diagnostic TCF
      * complet inclus). Les deux conditions doivent rester synchronisées avec
-     * ce prédicat — {@code EpreuveHistoriqueServiceIT} le vérifie sur les deux
+     * ce prédicat — {@code ProgressionExamensServiceIT} le vérifie sur les deux
      * provenances.
      *
      * <p>🛑 <b>L'entraînement libre est exclu, et c'est voulu</b> : une tâche
@@ -402,4 +418,50 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
               AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
             """)
     List<UUID> findMockExamIdsAmong(@Param("ids") Collection<UUID> ids);
+
+    /**
+     * Examens civiques <b>globaux</b> réellement passés (écran de progression
+     * civique, D10/D11) : {@code MOCK_EXAM} civique terminé, hors diagnostic,
+     * sans thème, portant au moins une réponse — du plus récent au plus ancien.
+     *
+     * <p>« Au moins une réponse » : même définition du « qualifiant » que
+     * {@link #findQcmEpreuvesPassees} — un examen ouvert puis abandonné sans
+     * rien rendre n'est pas un mauvais résultat, il n'est pas une mesure.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
+              AND a.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND a.finishedAt IS NOT NULL
+              AND a.civicDiagnostic IS NULL
+              AND a.lotThemeId IS NULL
+              AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
+            ORDER BY a.finishedAt DESC
+            """)
+    List<Attempt> findCivicExamensGlobauxPasses(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Examens civiques <b>de thème</b> réellement passés, pour les thèmes
+     * demandés (un seul : écran de thème ; les cinq : écran global) — même
+     * prédicat que {@link #findCivicExamensGlobauxPasses}, du plus récent au
+     * plus ancien. Une requête pour tous les thèmes, jamais une par thème.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.type = com.sejourfr.app.enums.AttemptType.MOCK_EXAM
+              AND a.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND a.finishedAt IS NOT NULL
+              AND a.civicDiagnostic IS NULL
+              AND a.lotThemeId IN :themeIds
+              AND EXISTS (SELECT 1 FROM Answer an WHERE an.attemptQuestion.attempt = a)
+            ORDER BY a.finishedAt DESC
+            """)
+    List<Attempt> findCivicExamensThemePasses(
+            @Param("userId") UUID userId,
+            @Param("themeIds") Collection<UUID> themeIds,
+            Pageable pageable);
 }

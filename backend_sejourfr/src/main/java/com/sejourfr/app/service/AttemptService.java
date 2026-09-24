@@ -577,10 +577,33 @@ public class AttemptService {
      * autorité, et une <b>promesse publique</b> (D-46).
      */
     private void enforceAccesExamenCivique(UUID userId, String label) {
-        if (subscriptionService.hasCivique(userId)) return;
+        if (!isExamenCiviqueVerrouille(userId)) return;
         throw new AccessDeniedException(
                 "Les examens blancs " + label + "font partie de l'abonnement Civique. "
                         + "Votre plan, lui, reste entier.");
+    }
+
+    /**
+     * <b>Jumelle en lecture</b> du verrou des examens civiques hors gratuité
+     * ({@link #enforceAccesExamenCivique}) : les examens de thème, et les
+     * examens globaux qui ne sont pas un template gratuit, sont premium (D-33).
+     * Sert le {@code locked} du bouton « Nouvel examen blanc » de l'écran de
+     * progression d'un thème — jamais une seconde implémentation de la règle.
+     */
+    public boolean isExamenCiviqueVerrouille(UUID userId) {
+        return !subscriptionService.hasCivique(userId);
+    }
+
+    /**
+     * La grille des examens civiques <b>globaux</b> n'offre-t-elle plus rien à
+     * ce candidat ? Faux dès qu'un template civique <b>gratuit</b> est publié
+     * ({@code civique-decouverte}, ouvert à tous par {@link #startFromTemplate}),
+     * sinon la même règle que {@link #isExamenCiviqueVerrouille}.
+     */
+    public boolean isGrilleCiviqueGlobaleVerrouillee(UUID userId) {
+        if (!isExamenCiviqueVerrouille(userId)) return false;
+        return examTemplateManager.findPublishedByModule(Module.CIVIQUE).stream()
+                .noneMatch(ExamTemplate::isFree);
     }
 
     private static String moduleLabel(Module module) {

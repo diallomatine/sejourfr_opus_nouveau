@@ -89,12 +89,14 @@ public class AnswerManager {
     }
 
     /**
-     * Cette session QCM porte-t-elle au moins une réponse ? « Zéro réponse » =
-     * rien n'a été rendu — même définition que
-     * {@code AttemptManager.findQcmEpreuvesPassees}.
+     * Parmi ces sessions QCM, celles qui portent au moins une réponse. « Zéro
+     * réponse » = rien n'a été rendu — même définition que
+     * {@code AttemptManager.findQcmEpreuvesPassees}. Une requête pour toutes ;
+     * aucun accès base sur une liste vide.
      */
-    public boolean hasAnyAnswer(UUID attemptId) {
-        return repository.existsByAttemptId(attemptId);
+    public java.util.Set<UUID> attemptIdsAvecReponse(Collection<UUID> attemptIds) {
+        if (attemptIds == null || attemptIds.isEmpty()) return java.util.Set.of();
+        return new java.util.HashSet<>(repository.findAttemptIdsWithAnswer(attemptIds));
     }
 
     /**

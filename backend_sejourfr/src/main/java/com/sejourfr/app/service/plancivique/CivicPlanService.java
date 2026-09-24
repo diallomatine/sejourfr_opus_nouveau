@@ -472,75 +472,25 @@ public class CivicPlanService {
 
 
     /**
-     * Ce que l'ecran <b>Progres</b> (T28) compte : combien de cibles ont ete
-     * travaillees, et combien sont tenues.
+     * Le <b>détail par thème</b> que lit l'Accueil (« Où vous en êtes »,
+     * {@code ProgressDto.Civique.themes}) — exactement les lignes du Plan / de
+     * Réviser, {@code CivicThemeState} brut.
      *
-     * <p>🛑 <b>Compte sur TOUTES les cibles, jamais sur {@code priorites}</b> :
-     * cette liste est plafonnee a trois par regle d'affichage, et compter dessus
-     * afficherait « 3 » quel que soit le nombre reel. C'est exactement le defaut
-     * qui a prive trois domaines sur quatre de toute action cote TCF
-     * (2026-08-25).
+     * <p>🛑 Aucun second calcul de maîtrise : on <b>réexpose</b> ce que le
+     * moteur produit, sur le même {@code calculer(userId)}, par la même autorité
+     * que l'écran Plan — deux lectures du même candidat ne peuvent donc pas
+     * rendre deux états différents pour un thème. Vide quand aucun diagnostic
+     * n'est clos : rien n'a été mesuré.
      *
-     * <p>🛑 <b>« Travaillee » veut dire TRAVAILLEE</b> : au moins une reponse
-     * sur cette cible. Le compteur a d'abord ete derive du DTO
-     * ({@code solides + aRevoir} pour les tenues, {@code priorites +
-     * autresPriorites} pour le reste), ce qui comptait comme travaillee toute
-     * cible <b>proposable</b> — y compris celles que le candidat n'a jamais
-     * vues. Au grain THEME le defaut etait presque invisible (un diagnostic de
-     * 40 questions touche les cinq themes) ; <b>au grain NOTION il devient
-     * faux de plein fouet</b> : le meme diagnostic laisse la plupart des
-     * 46 notions sans une seule reponse, et l'ecran Progres annoncait
-     * « 2 maitrisees sur 30 travaillees » a quelqu'un qui en avait vu huit.
-     * Le compteur se lit donc sur les <b>faits d'historique</b>, jamais sur
-     * l'eligibilite.
-     *
-     * <p>🛑 Et il se lit sur <b>toutes</b> les cibles, jamais sur les listes du
-     * DTO : {@code priorites} est plafonnee a trois et {@code aRevoir} aussi —
-     * compter dessus faisait servir un plafond d'affichage comme budget de
-     * mesure, exactement le defaut qui a prive trois domaines sur quatre de
-     * toute action cote TCF (2026-08-25).
-     *
-     * <p>Tout a zero quand aucun diagnostic n'est clos : rien n'a ete mesure.
-     *
-     * @param travaillees cibles portant au moins une reponse
-     * @param maitrisees  dont l'etat servi est {@code MAITRISEE}
-     * @param grainNotion le plan travaille-t-il deja par notion ? L'ecran doit
-     *                    pouvoir <b>nommer</b> ce qu'il compte
-     * @param themes      le <b>detail par theme</b> — exactement les lignes du
-     *                    Plan / de Reviser, {@code CivicThemeState} brut. 🛑
-     *                    Aucun second calcul de maitrise : on <b>reexpose</b>
-     *                    ce que le moteur vient de produire, dans le meme
-     *                    {@code calculer(userId)}, donc sans une requete de
-     *                    plus. Vide quand aucun diagnostic n'est clos
+     * <p>⚠️ Remplace {@code compteurs(userId)} (2026-09-24) : ses compteurs
+     * « travaillées / maîtrisées / grain » n'étaient lus que par l'ancien écran
+     * « Votre progression », supprimé.
      */
-    public record Compteurs(
-            int travaillees,
-            int maitrisees,
-            boolean grainNotion,
-            List<CivicPlanDto.ThemeLigne> themes) {
-    }
-
     @Transactional(readOnly = true)
-    public Compteurs compteurs(UUID userId) {
+    public List<CivicPlanDto.ThemeLigne> themesAccueil(UUID userId) {
         Calcul calcul = calculer(userId);
-        if (!calcul.disponible()) return new Compteurs(0, 0, false, List.of());
-
-        int travaillees = (int) calcul.cibles().stream()
-                .filter(c -> c.reponses() > 0)
-                .count();
-        // `maitrisees` est un sous-ensemble par construction : MAITRISEE exige
-        // deux reponses (CivicMaitrise.of), donc les deux compteurs ne peuvent
-        // plus se croiser.
-        int maitrisees = (int) calcul.cibles().stream()
-                .filter(c -> c.maitrise() == CivicMaitrise.MAITRISEE)
-                .count();
-        return new Compteurs(
-                travaillees, maitrisees,
-                grain(calcul.taggage()).courant() == CivicPlanGrain.NOTION,
-                // La MEME autorite que l'ecran Plan, appelee sur le MEME calcul
-                // — deux lectures du meme candidat ne peuvent donc pas rendre
-                // deux etats differents pour un theme.
-                themeLignes(calcul, prochaine(proposables(calcul.cibles()))));
+        if (!calcul.disponible()) return List.of();
+        return themeLignes(calcul, prochaine(proposables(calcul.cibles())));
     }
 
     // ------------------------------------------------------------------------

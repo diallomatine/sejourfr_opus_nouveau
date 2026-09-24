@@ -6,31 +6,21 @@ import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
-import com.sejourfr.app.entity.LearningPlanObservation;
-import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
-import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.QuestionType;
-import com.sejourfr.app.enums.SkillMasteryState;
-import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.StatutObjectif;
 import com.sejourfr.app.enums.TcfDiagnosticSectionState;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
-import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
-import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
-import com.sejourfr.app.service.SkillMasteryEngine;
-import com.sejourfr.app.service.SkillMasteryResolver;
-import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticViewService;
 import com.sejourfr.app.service.diagnostictcf.TcfDiagnosticReadService;
@@ -50,8 +40,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -59,26 +47,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * <b>« X compétences maîtrisées »</b> — le compteur de la carte « Votre
- * progression », servi tel quel au web et au mobile.
+ * <b>« Où vous en êtes »</b> de l'Accueil ({@code GET /api/me/progress}) : les
+ * 4 épreuves, leur statut face à l'objectif, leur descripteur de mesure, et le
+ * détail civique par thème.
  *
- * <p>🛑 <b>Le défaut du 2026-09-16.</b> Cet écran filtrait encore sur
- * {@code state() == SOLID} pendant que le Plan de la même app rangeait la
- * compétence dans {@code completedSteps} / {@code ACQUIS} sur
- * {@code transferProven()}. Le parcours <b>normal</b> — cinq petits sujets puis
- * une vérification réussie — plafonne autour de {@code 0,68} et n'atteint donc
- * jamais {@code SOLID} : le candidat lisait « 0 compétence maîtrisée » en face
- * d'un Plan qui en cochait plusieurs.
- *
- * <p>Une règle, une autorité : c'est {@link SkillMasteryEngine.SkillMastery#transferProven()}
- * qui dit « acquis », ici comme ailleurs.
+ * <p>⚠️ Les tests des compteurs de compétences, de l'activité et de la courbe
+ * des diagnostics sont partis le 2026-09-24 avec l'ancien écran « Votre
+ * progression », leur seul lecteur.
  */
 class ProgressServiceTest {
 
     private UserManager userManager;
-    private LearningPlanObservationManager observationManager;
-    private SkillMasteryResolver masteryResolver;
-    private SubscriptionService subscriptionService;
     private TcfDiagnosticSessionManager tcfSessionManager;
     private TcfDiagnosticReadService tcfReadService;
     private TcfDiagnosticService tcfDiagnosticService;
@@ -94,9 +73,6 @@ class ProgressServiceTest {
     @BeforeEach
     void setUp() {
         userManager = mock(UserManager.class);
-        observationManager = mock(LearningPlanObservationManager.class);
-        masteryResolver = mock(SkillMasteryResolver.class);
-        subscriptionService = mock(SubscriptionService.class);
         tcfSessionManager = mock(TcfDiagnosticSessionManager.class);
         tcfReadService = mock(TcfDiagnosticReadService.class);
         tcfDiagnosticService = mock(TcfDiagnosticService.class);
@@ -107,7 +83,6 @@ class ProgressServiceTest {
 
         service = new ProgressService(
                 userManager,
-                mock(AttemptManager.class),
                 tcfSessionManager,
                 tcfReadService,
                 tcfDiagnosticService,
@@ -115,10 +90,6 @@ class ProgressServiceTest {
                 civicSessionManager,
                 civicViewService,
                 civicPlanService,
-                observationManager,
-                masteryResolver,
-                subscriptionService,
-                mock(ActiviteResolver.class),
                 // 🛑 Le VRAI resolveur : c'est lui l'autorite du statut, et le
                 // mocker ne verrouillerait que le fait de l'appeler.
                 new StatutObjectifResolver(),
@@ -138,85 +109,8 @@ class ProgressServiceTest {
         // pas la meme chose que le Plan.
         when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
                 new TcfLevelProfile(null, null, null, null, null));
-        // Abonne : le DETAIL est servi, donc le test voit aussi QUELLES
-        // competences sont tenues, pas seulement combien.
-        when(subscriptionService.hasTcf(userId)).thenReturn(true);
     }
 
-    /**
-     * 🛑 Le cas du parcours normal : le transfert est prouvé, l'état agrégé ne
-     * dit que {@code CONSOLIDATING}. La compétence est maîtrisée.
-     */
-    @Test
-    @DisplayName("Transfert prouve sans SOLID : la competence compte comme maitrisee")
-    void leTransfertProuveCompteMemeSansSolid() {
-        Skill tenue = competence("EE1_ARGUMENTER", "Argumenter", SkillSection.EE);
-        Skill fragile = competence("EO2_RACONTER", "Raconter", SkillSection.EO);
-        Instant preuve = Instant.now().minus(2, ChronoUnit.DAYS);
-
-        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
-                observation(tenue, LearningPlanSkillStatus.SOLID, preuve),
-                observation(fragile, LearningPlanSkillStatus.PRIORITY, preuve)));
-        when(masteryResolver.bySkillIds(eq(userId), anyCollection())).thenReturn(Map.of(
-                tenue.getId(), moteur(SkillMasteryState.CONSOLIDATING, true),
-                fragile.getId(), moteur(SkillMasteryState.TO_REINFORCE, false)));
-
-        ProgressDto.Competences competences = service.progres(userId).tcf().competences();
-
-        assertThat(competences.travaillees()).isEqualTo(2);
-        assertThat(competences.maitrisees()).isEqualTo(1);
-        assertThat(competences.dernieres())
-                .extracting(ProgressDto.CompetenceAcquise::code)
-                .containsExactly("EE1_ARGUMENTER");
-        // La date servie reste celle de la derniere observation SOLID : c'est
-        // la preuve, et elle existe forcement — `transferProven` par la seconde
-        // voie exige justement une reussite contextualisee.
-        assertThat(competences.dernieres().getFirst().preuveA()).isEqualTo(preuve);
-    }
-
-    /** {@code SOLID} implique {@code transferProven} : rien ne se perd. */
-    @Test
-    @DisplayName("SOLID compte toujours, et une competence sans preuve ne compte pas")
-    void solidCompteToujoursEtLeResteNon() {
-        Skill solide = competence("CE1_LIRE", "Lire", SkillSection.CE);
-        Skill jamaisTenue = competence("CO1_ECOUTER", "Ecouter", SkillSection.CO);
-
-        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of(
-                observation(solide, LearningPlanSkillStatus.SOLID, Instant.now()),
-                observation(jamaisTenue, LearningPlanSkillStatus.TO_REINFORCE, Instant.now())));
-        when(masteryResolver.bySkillIds(eq(userId), anyCollection())).thenReturn(Map.of(
-                solide.getId(), moteur(SkillMasteryState.SOLID, true),
-                jamaisTenue.getId(), SkillMasteryEngine.SkillMastery.NONE));
-
-        ProgressDto.Competences competences = service.progres(userId).tcf().competences();
-
-        assertThat(competences.travaillees()).isEqualTo(2);
-        assertThat(competences.maitrisees()).isEqualTo(1);
-    }
-
-    /** Sans aucune observation, on ne conclut rien — et on n'invente aucun compteur. */
-    @Test
-    @DisplayName("Aucune observation : deux zeros, pas une estimation")
-    void aucuneObservation() {
-        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
-
-        ProgressDto.Competences competences = service.progres(userId).tcf().competences();
-
-        assertThat(competences.travaillees()).isZero();
-        assertThat(competences.maitrisees()).isZero();
-        assertThat(competences.dernieres()).isEmpty();
-    }
-
-    // ------------------------------------------------------------------------
-    // Le STATUT d'une epreuve face a l'objectif (spec V2 §2)
-    // ------------------------------------------------------------------------
-
-    /**
-     * 🛑 Le cas qui fait mal : trois épreuves mesurées à trois distances de
-     * l'objectif, et une <b>jamais mesurée</b>. Les quatre sont servies, chacune
-     * avec son statut — et l'épreuve non mesurée reste reconnaissable à son
-     * {@code niveau == null}, pas à son statut.
-     */
     @Test
     @DisplayName("Le statut de chaque epreuve est derive serveur de actuel vs objectif")
     void leStatutEstServiParEpreuve() {
@@ -307,12 +201,7 @@ class ProgressServiceTest {
 
         ProgressDto.Tcf tcf = service.progres(userId).tcf();
 
-        // 🛑 Le booleen garde son sens : aucun diagnostic 4 epreuves n'est clos,
-        // donc pas de courbe. Ce n'est plus lui qui commande la liste.
-        assertThat(tcf.disponible()).isFalse();
-        assertThat(tcf.historique()).isEmpty();
         assertThat(tcf.epreuves()).hasSize(4);
-        assertThat(tcf.niveauActuel()).isEqualTo(NiveauCecrl.A2);
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(tcf);
         assertThat(parEpreuve.get(EpreuveType.TCF_CO).niveau()).isEqualTo(NiveauCecrl.B1);
@@ -395,20 +284,18 @@ class ProgressServiceTest {
 
     /**
      * 🛑 Le détail par thème est <b>réexposé</b>, pas recalculé : il sort du même
-     * {@code CivicPlanService.compteurs(userId)} que les compteurs, donc du même
-     * passage du moteur — et il arrive en {@code CivicThemeState} brut, les
+     * {@code CivicPlanService.themesAccueil(userId)}, donc du même
+     * passage du moteur que le Plan — et il arrive en {@code CivicThemeState} brut, les
      * fronts posant le libellé.
      */
     @Test
     @DisplayName("Le detail civique par theme est reexpose tel quel, etat brut compris")
     void leDetailCiviqueParThemeEstReexpose() {
         diagnosticCiviqueClos();
-        when(civicPlanService.compteurs(userId)).thenReturn(new CivicPlanService.Compteurs(
-                12, 3, false,
-                List.of(
-                        themeLigne("CIV_PRINCIPES", "Principes", CivicThemeState.SOLIDE),
-                        themeLigne("CIV_SOCIETE", "Société", CivicThemeState.FAIBLE),
-                        themeLigne("CIV_HISTOIRE", "Histoire", CivicThemeState.NON_EVALUE))));
+        when(civicPlanService.themesAccueil(userId)).thenReturn(List.of(
+                themeLigne("CIV_PRINCIPES", "Principes", CivicThemeState.SOLIDE),
+                themeLigne("CIV_SOCIETE", "Société", CivicThemeState.FAIBLE),
+                themeLigne("CIV_HISTOIRE", "Histoire", CivicThemeState.NON_EVALUE)));
 
         ProgressDto.Civique civique = service.progres(userId).civique();
 
@@ -422,7 +309,10 @@ class ProgressServiceTest {
                         tuple("CIV_SOCIETE", CivicThemeState.FAIBLE),
                         tuple("CIV_HISTOIRE", CivicThemeState.NON_EVALUE));
         // 🛑 Le moteur civique n'est relu QU'UNE fois pour la même requête.
-        verify(civicPlanService, times(1)).compteurs(userId);
+        verify(civicPlanService, times(1)).themesAccueil(userId);
+        // Et le dernier score du diagnostic, que l'Accueil affiche.
+        assertThat(civique.historique()).singleElement()
+                .satisfies(sc -> assertThat(sc.bonnes()).isEqualTo(28));
     }
 
     /** Aucun diagnostic civique clos : rien n'est inventé, pas même une liste. */
@@ -431,7 +321,7 @@ class ProgressServiceTest {
     void sansDiagnosticCiviqueAucunTheme() {
         ProgressDto.Civique civique = service.progres(userId).civique();
 
-        assertThat(civique.disponible()).isFalse();
+        assertThat(civique.historique()).isEmpty();
         assertThat(civique.themes()).isEmpty();
     }
 
@@ -486,29 +376,5 @@ class ProgressServiceTest {
         return new CivicPlanDto.ThemeLigne(
                 UUID.randomUUID(), code, label, etat,
                 CivicPlanGrain.THEME, 5, 1, 3, null);
-    }
-
-    private static Skill competence(String code, String titre, SkillSection section) {
-        Skill skill = new Skill();
-        skill.setId(UUID.randomUUID());
-        skill.setCode(code);
-        skill.setTitle(titre);
-        skill.setSection(section);
-        return skill;
-    }
-
-    private static LearningPlanObservation observation(
-            Skill skill, LearningPlanSkillStatus status, Instant quand) {
-        LearningPlanObservation observation = new LearningPlanObservation();
-        observation.setSkill(skill);
-        observation.setStatus(status);
-        observation.setObservedAt(quand);
-        return observation;
-    }
-
-    private static SkillMasteryEngine.SkillMastery moteur(
-            SkillMasteryState state, boolean transferProven) {
-        return new SkillMasteryEngine.SkillMastery(
-                state, 0, 0, 0, 0, 0, false, false, transferProven, false, null);
     }
 }

@@ -1,27 +1,17 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.FullTcfExamResponse;
-import com.sejourfr.app.dto.ProgressionSummaryResponse;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
-import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
-import com.sejourfr.app.enums.AttemptType;
-import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
-import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
-import com.sejourfr.app.enums.TargetLevel;
-import com.sejourfr.app.enums.CivicExamFormat;
 import com.sejourfr.app.enums.TargetProcedure;
-import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.QuestionManager;
-import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.mapper.QuestionMapper;
@@ -35,11 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -59,9 +46,6 @@ public class MeService {
     private final QuestionManager questionManager;
     private final UserManager userManager;
     private final QuestionMapper questionMapper;
-    private final ThemeManager themeManager;
-    private final AiEvaluationManager aiEvaluationManager;
-    private final FullTcfExamService fullTcfExamService;
     private final JourneyService journeyService;
 
     /**
@@ -156,162 +140,6 @@ public class MeService {
                 rate,
                 byTheme
         );
-    }
-
-    // ------------------------------------------------------------------------
-    // Progression (écran "Progression" mobile)
-    // ------------------------------------------------------------------------
-
-    /**
-     * Résumé de progression aligné sur les vrais examens passés par le user
-     * (et pas l'activité brute du type {@link #stats}). Le front (écran
-     * {@code StatsScreen}) ne fait qu'afficher cette structure — toute la
-     * logique d'agrégation (examens blancs, thèmes consolidés, niveau CECRL
-     * plafond, etc.) vit ici.
-     */
-    @Transactional(readOnly = true)
-    public ProgressionSummaryResponse progressionSummary(UUID userId, Module module) {
-        if (module == Module.CIVIQUE) {
-            return civiqueProgression(userId);
-        }
-        return tcfProgression(userId);
-    }
-
-    private ProgressionSummaryResponse civiqueProgression(UUID userId) {
-        // Tous les MOCK_EXAM civique du user (limit large pour bien couvrir
-        // l'historique des deux variantes : examens blancs complets + théma).
-        final List<Attempt> mockExams = attemptManager.findByUserFiltered(
-                userId, AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null, 500);
-
-        // Examens blancs complets civique = MOCK_EXAM CIVIQUE finis sans
-        // lotThemeId. Triés DESC par finishedAt pour exposer le dernier en tête.
-        final List<Attempt> fullExams = mockExams.stream()
-                .filter(a -> a.getFinishedAt() != null && a.getLotThemeId() == null)
-                .sorted(Comparator.comparing(Attempt::getFinishedAt).reversed())
-                .toList();
-
-        Integer latestScore = fullExams.isEmpty() ? null : fullExams.get(0).getScore();
-        Integer bestScore = fullExams.stream()
-                .map(Attempt::getScore)
-                .filter(s -> s != null)
-                .max(Integer::compareTo)
-                .orElse(null);
-
-        // Thèmes "consolidés" : un thème dont au moins un examen thématique
-        // (themeId non null) a été passé au seuil de l'examen de thème.
-        //
-        // 🛑 Le seuil est LU chez son autorité (CivicExamFormat.SEUIL_REUSSITE_THEME),
-        // plus recopié en littéral : il a vécu ici en `16` et dans AttemptService
-        // en constante privée, et deux copies d'un seuil finissent par diverger.
-        final Set<UUID> themesConsolidated = new HashSet<>();
-        for (final Attempt a : mockExams) {
-            if (a.getFinishedAt() == null || a.getLotThemeId() == null) continue;
-            final Integer score = a.getScore();
-            if (score != null && score >= CivicExamFormat.SEUIL_REUSSITE_THEME) {
-                themesConsolidated.add(a.getLotThemeId());
-            }
-        }
-
-        final int themesTotal = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE).size();
-
-        return new ProgressionSummaryResponse(
-                Module.CIVIQUE,
-                new ProgressionSummaryResponse.CiviqueProgression(
-                        fullExams.size(),
-                        latestScore,
-                        bestScore,
-                        40,
-                        32,
-                        themesConsolidated.size(),
-                        themesTotal),
-                null);
-    }
-
-    private ProgressionSummaryResponse tcfProgression(UUID userId) {
-        // Examens module TCF (CO/CE/STRUCTURE) finis — base pour les 3
-        // stats cards (Épreuves QCM tentées, Meilleur QCM).
-        final List<Attempt> moduleExams = attemptManager.findByUserFiltered(
-                userId, AttemptType.MOCK_EXAM, Module.TCF, null, null, 500).stream()
-                .filter(a -> a.getFinishedAt() != null && a.getModuleExamQuestionType() != null)
-                .toList();
-
-        final Set<QuestionType> qcmTried = new HashSet<>();
-        for (final Attempt a : moduleExams) {
-            qcmTried.add(a.getModuleExamQuestionType());
-        }
-
-        Integer bestWeightedScore = null;
-        Integer bestWeightedMax = null;
-        double bestRatio = -1.0;
-        for (final Attempt a : moduleExams) {
-            final Integer ws = a.getWeightedScore();
-            final Integer mws = a.getMaxWeightedScore();
-            if (ws == null || mws == null || mws == 0) continue;
-            final double ratio = (double) ws / mws;
-            if (ratio > bestRatio) {
-                bestRatio = ratio;
-                bestWeightedScore = ws;
-                bestWeightedMax = mws;
-            }
-        }
-
-        // Productions évaluées (stat card "EE / EO évaluées" /2). Une
-        // épreuve compte comme "évaluée" dès qu'au moins 1 submission
-        // a un niveau CECRL non null côté AiEvaluation.
-        int productionsEvaluated = 0;
-        for (final EpreuveType ep : List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO)) {
-            final boolean hasAny = aiEvaluationManager.findByUserAndEpreuve(userId, ep).stream()
-                    .anyMatch(e -> e.getNiveauCecrl() != null);
-            if (hasAny) productionsEvaluated++;
-        }
-
-        // Dernier examen blanc complet TCF (TCF_COMPLET) — c'est ce qui
-        // alimente le hero "Niveau TCF IRN". Si null, le mobile affiche une
-        // CTA "Passe un examen blanc". Le calcul CECRL par épreuve + le
-        // plancher final vivent dans `FullTcfExamService` qu'on délègue.
-        ProgressionSummaryResponse.LastFullExam lastFullExam = null;
-        final FullTcfExamResponse latest = fullTcfExamService.findLatestForUser(userId);
-        if (latest != null) {
-            NiveauCecrl coLvl = null, ceLvl = null, eeLvl = null, eoLvl = null;
-            for (final FullTcfExamResponse.SubAttempt sub : latest.subAttempts()) {
-                switch (sub.epreuve()) {
-                    case TCF_CO -> coLvl = sub.cecrlLevel();
-                    case TCF_CE -> ceLvl = sub.cecrlLevel();
-                    case TCF_EE -> eeLvl = sub.cecrlLevel();
-                    case TCF_EO -> eoLvl = sub.cecrlLevel();
-                    default -> {
-                    }
-                }
-            }
-            lastFullExam = new ProgressionSummaryResponse.LastFullExam(
-                    latest.id(),
-                    latest.finishedAt(),
-                    latest.status().name(),
-                    latest.finalCecrlLevel(),
-                    coLvl, ceLvl, eeLvl, eoLvl);
-        }
-
-        // Cible du user : la démarche fait PLANCHER (cf. TargetProcedure.niveauVise),
-        // pas la valeur stockée seule — sinon une ligne héritée NAT + B1 afficherait
-        // un objectif B1 à un candidat qui a besoin du B2.
-        final User user = userManager.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
-        final TargetLevel vise = TargetProcedure.niveauVise(
-                user.getTargetProcedure(), user.getTargetLevel());
-        final NiveauCecrl target = vise == null ? null : NiveauCecrl.valueOf(vise.name());
-
-        return new ProgressionSummaryResponse(
-                Module.TCF,
-                null,
-                new ProgressionSummaryResponse.TcfProgression(
-                        qcmTried.size(),
-                        3,
-                        productionsEvaluated,
-                        2,
-                        bestWeightedScore,
-                        bestWeightedMax,
-                        lastFullExam,
-                        target));
     }
 
     // ------------------------------------------------------------------------

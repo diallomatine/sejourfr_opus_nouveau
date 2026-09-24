@@ -367,6 +367,16 @@ silence, sur une donnée matérialisée que rien ne recalcule dans le chemin nom
 
 ## Écran Progrès (T28, 2026-09-10) — le MOUVEMENT, pas l'état
 
+> 🛑 **RÉVOQUÉ le 2026-09-24** (propriétaire : l'espace Progression ne contient
+> plus que les 4 maquettes). Côté serveur, ce que cet écran était seul à lire est
+> **supprimé** : `ProgressDto.activite` (+ `ActiviteResolver`),
+> `tcf.disponible / niveauActuel / historique / competences`,
+> `civique.disponible / travaillees / maitrisees / grainNotion`
+> (+ `CivicPlanService.compteurs`, remplacé par `themesAccueil`). Les écrans
+> `/statistiques` ⇄ `ProgresScreen` partent dans la phase front. Remplacé par
+> § « Écrans de progression » plus bas. Le texte ci-dessous est conservé comme
+> archive.
+
 🛑 **À distinguer de `/api/me/dashboard`**, qui sert la **maîtrise** par
 catégorie. Le dashboard répond à « où j'en suis » ; `GET /api/me/progress`
 répond à « **qu'est-ce qui a bougé** » (`30_` §7). Les deux coexistent, et
@@ -909,8 +919,8 @@ Deux faits différents, et depuis le 2026-09-16 **deux écrans différents** :
 
 | | ce que c'est | où le candidat le lit |
 |---|---|---|
-| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `/statistiques`, `TcfHub`, `/examens-blancs`, **écran Diagnostic TCF**, **Réviser** |
-| **meilleur niveau atteint** | le plus haut palier jamais obtenu | « Voir mes résultats » (`EpreuveHistoriqueService`), qui liste les 3 dernières mesures avec leur date et leur provenance |
+| **niveau actuel estimé** | moyenne des ≤3 derniers examens qualifiants | Accueil, Profil, `/dashboard`, `TcfHub`, `/examens-blancs`, **écran Diagnostic TCF**, **Réviser**, et la ligne secondaire de l'**écran de progression d'une épreuve** (D4, 2026-09-24) |
+| **meilleur résultat** | le plus haut score d'un examen blanc, avec son palier | l'**écran de progression d'une épreuve** (`resume.meilleur`, 2026-09-24 — remplace « Voir mes résultats ») |
 
 Ne jamais présenter l'un comme l'autre : un candidat dont la moyenne redescend
 garde son meilleur jour lisible, mais ce n'est plus son niveau.
@@ -1130,6 +1140,13 @@ parlent d'un niveau, qui n'existe pas ici.
 
 ### La page « Voir mes résultats »
 
+> 🛑 **RÉVOQUÉE le 2026-09-24** : `GET /api/me/progress/tcf/{epreuve}/historique`,
+> `EpreuveHistoriqueService`, `EpreuveHistoriqueDto` et `SourceEvaluation` sont
+> **supprimés** ; la page est remplacée par l'écran de progression d'une épreuve
+> (`GET /api/me/progression/tcf/{epreuve}`, § « Écrans de progression »). Le
+> « meilleur niveau atteint » y devient le **meilleur score** d'un examen, avec
+> son palier. Archive ci-dessous.
+
 `/historique/epreuve/{co|ce|ee|eo}` (web) ⇄ `/historiques/epreuve/:domainKey`
 (mobile) — les **évaluations qualifiantes** d'une épreuve, servies par
 `GET /api/me/progress/tcf/{epreuve}/historique`.
@@ -1225,3 +1242,153 @@ avez-vous passée ? ».
 Ce que la page ajoute, et c'est voulu : la **baseline du diagnostic rapide** y
 apparaît toujours en 4ᵉ provenance, alors que les deux lectures du profil ne s'en
 servent qu'**en repli** (cf. plus bas).
+
+---
+
+## Écrans de progression (2026-09-24) — contrat de données
+
+Les quatre maquettes `docs/progression/maquettes-progression/*.html` (TCF global,
+une épreuve TCF, civique global, un thème civique) lisent **quatre endpoints**
+sous `/api/me/progression`, servis par `ProgressionExamensService`
+(`backend_sejourfr/.../service/progres/`). Étude et arbitrages :
+`docs/progression/ETUDE_FAISABILITE_ecrans_progression.md` (§ « Arbitrages du
+propriétaire, 2026-09-24 »). Formes JSON : `docs/api-endpoints.md` § « Écrans de
+progression ». Miroirs : `web_sejoufr/lib/types.ts` (`Progression*Dto`) ⇄
+`mobile_sejourfr/lib/core/models/progression_models.dart`.
+
+🛑 **L'espace Progression ne contient plus que ces quatre écrans** (propriétaire,
+2026-09-24). Ce que les anciens écrans étaient seuls à lire est supprimé côté
+serveur (voir les deux sections révoquées plus haut) ; la suppression des écrans
+eux-mêmes est la phase front.
+
+### Ce qui est lu — des EXAMENS BLANCS, jamais un diagnostic
+
+| Écran | Examens lus | Arbitrage |
+|---|---|---|
+| une épreuve TCF | l'examen de l'épreuve passé **seul** + la même épreuve **dans un examen complet**. Qualifiant = la définition existante (`findQcmEpreuvesPassees` ⇄ `EpreuvesProductionQualifiantesResolver`), **moins** les sections de diagnostic | D1 |
+| TCF global | les 4 cartes = le résumé de chaque épreuve (même record que l'en-tête de l'écran épreuve) ; les examens complets **terminés dont au moins une épreuve est mesurée** | D6, D7 |
+| un thème civique | ses **examens de thème** (20 Q) seulement | D10 |
+| civique global | ses **examens globaux** (40 Q), hors diagnostic ; cartes de thème sur les examens de thème | D10, D11 |
+
+🛑 **D18 — un examen piloté par un `ExamTemplate` TCF n'est plus un examen de
+CO.** Les templates `tcf-diagnostic` / `tcf-mix-*` composent 50 à 60 questions
+mêlant CO, CE et STRUCTURE, et `Attempt.prePersist` leur pose `epreuve = TCF_CO`
+par défaut. Ils sont exclus **dans l'autorité** (`findQcmEpreuvesPassees`,
+`a.examTemplate IS NULL`), donc aussi du niveau affiché sur l'Accueil et du
+profil du Plan — jamais dans la seule nouvelle liste. Mesuré en local : 3 attempts
+concernés (2 de 50 Q, 1 de 60 Q). ⚠️ Le chemin reste ouvert côté web (briefing
+`/examens-blancs/[slug]`, démo invitée) : l'exclusion vaut pour l'avenir aussi.
+**La production n'a pas été mesurée d'ici** : la requête à y passer est dans le
+rapport de la passe.
+
+### Les échelles — servies, jamais écrites par un front
+
+| Épreuve | Axe | Bandes | Palier d'un examen |
+|---|---|---|---|
+| CO / CE | score de **progression** 100-499 | 🛑 **aucune** (D2) | strates, `TcfLevelEstimatorService.niveauxQcm` |
+| EE / EO | **note /20** (`ProductionBilanService.noteEpreuve`, celle du bilan) | officielles `BandeNoteTcf` 0 · 1 · 2–5 · 6–9 · 10–20 (D3) | `ProductionBilanService.niveauEpreuve` |
+| thème civique | bonnes réponses /20, seuil 16 | Faible 0–10 · À renforcer 11–15 · Solide 16–20 | `CivicDiagnosticThemeResolver.etat` (D12) |
+| civique global | bonnes réponses /40, seuil 32 | Faible 0–21 · À renforcer 22–31 · Solide 32–40 | idem |
+
+Les bandes civiques sont **obtenues en demandant l'état de chaque score** au
+resolver (`ProgressionEchelleResolver.civique`) : les seuils 0,55 / 0,80 ne sont
+recopiés nulle part, et la borne « Solide » tombe d'elle-même sur le seuil de
+réussite. ⚠️ Un seul écart note ⇄ palier possible en EE/EO, assumé : une tâche
+plafonnée abaisse le palier, jamais la note.
+
+### Ce qui est dérivé serveur (et nulle part ailleurs)
+
+`ResumeExamensResolver` — le seul code à règle neuf, composant pur :
+
+- **ordinal** `numero` chronologique, 1 = le plus ancien — 🛑 jamais le
+  `slotNumber`, créneau de grille réutilisé à chaque rejeu (D8) ;
+- **dernier** (le plus récent), **meilleur** (plus haut score, à égalité le plus
+  récent), **premier** (le plus ancien qui porte un score) ;
+- **écart** `dernier − premier` et son **sens** (`NiveauEvolution`) — 🛑 `null` /
+  `INCONNUE` avec un seul examen, jamais « +0 » ; `BAISSE` se sert ;
+- **série** de la sparkline : au plus 7 scores, du plus ancien au plus récent ;
+- **examens complets** (D7) : dernier (partiel ou non), meilleur palier et premier
+  sur les seuls **non partiels**, évolution de palier premier → dernier non
+  partiel par `TcfDiagnosticProgressionResolver.evolution` (`INCONNUE` à moins de
+  deux) ;
+- **durée fiable** (D9) : `finishedAt − ancre` (`AttemptChrono`) **seulement** si
+  l'examen s'est clos dans sa limite + 60 s de grâce ; `null` sur une clôture
+  paresseuse, une sous-épreuve sans `timerStartedAt`, un examen sans limite, et
+  **toujours** en EO.
+
+🛑 Ce sont des écarts de **score**, jamais un pourcentage vers un palier.
+
+### Les arbitrages du propriétaire appliqués (2026-09-24)
+
+- **D1** examens blancs seulement ; **D2** CO/CE /499 sans bandes, palier servi à
+  part ; **D3** EE/EO /20 + bandes officielles ;
+- **D4** palier du dernier examen **et** `niveauActuel` (le chiffre de l'Accueil)
+  en ligne secondaire ;
+- **D5** pas d'anneau en TCF (aucune jauge servie) ; en civique, l'anneau lit
+  `taux` (bonnes / posées) et `seuilAtteint` ;
+- **D6** aucun score global TCF : palier global actuel, dernier examen complet,
+  évolution de palier ;
+- **D7** examens complets comptés s'ils ont ≥ 1 épreuve mesurée ; meilleur /
+  premier sur les non partiels ;
+- **D8** ordinal servi ; historique complet sur les écrans épreuve / thème (≤ 50) ;
+  les écrans globaux servent les **3 derniers** + le total, et **`?tous=true`**
+  rend la liste entière (≤ 50) pour « Tous mes examens blancs » ;
+- **D9** durée servie seulement si fiable ;
+- **D10** écran de thème sur les examens de thème seuls ; **D11** parts d'un
+  examen global en « x / n posées », mises en situation comprises, sans état ;
+- **D12** états `CivicThemeState` servis (Solide / À renforcer / Faible / Non
+  évalué), libellés existants (`CIVIC_THEME_STATE_LABEL` ⇄ `CivicThemeState.label`) ;
+- **D13** l'Accueil garde son moteur (état civique issu du diagnostic) ; l'écran
+  de thème sert `etatSource = DERNIER_EXAMEN_THEME` et `etatSourceLabel`
+  (« D'après votre dernier examen de ce thème », gelé) ;
+- **D14** nouvelle famille `/api/me/progression/*` ; l'ancien
+  `/api/me/progression` (mort) et `/api/me/progress/tcf/{e}/historique` sont
+  supprimés ;
+- **D15** aucune ancienne statistique / compétence sur ces écrans ;
+- **D18** voir ci-dessus ; **D19** voir ci-dessous ;
+- **D20** tout est visible d'un compte gratuit ; seul `cta.locked` peut être
+  vrai, lu chez les jumelles en lecture des verrous serveur :
+
+| Bouton | `cta.locked` |
+|---|---|
+| épreuve CO / CE | toujours `false` (créneau 1 offert et rejouable) |
+| épreuve EE / EO | `ProductionAccessService.isProductionExamLocked` (gratuité consommée, pas d'accès TCF) |
+| TCF global (examens complets) | toujours `false` |
+| thème civique | `AttemptService.isExamenCiviqueVerrouille` (premium, D-33) |
+| civique global | `AttemptService.isGrilleCiviqueGlobaleVerrouillee` (pas d'accès civique **et** aucun template civique gratuit publié) |
+
+### 🛑 D19 — le palier d'un examen complet se RE-DÉRIVE toujours
+
+`FullTcfExamResponseBuilder` préférait `attempts.final_cecrl_level` persisté à la
+re-dérivation. Les 6 valeurs de la base locale, toutes `A1_NON_ATTEINT`, avaient
+été écrites sous l'ancienne table score → palier (révoquée le 2026-09-20) : un
+écran global les aurait affichées figées. Désormais le plancher est **toujours**
+relu (`COMPLETED` ⇒ plancher des épreuves mesurées ; sinon `null`, inconnu). La
+colonne reste **écrite** à la finalisation (trace, et marqueur « l'examen vient
+de devenir complet » du branchement parcours) mais **n'est relue par aucun
+chemin de restitution**. Aucune migration, aucune réécriture : un changement de
+règle relit l'historique. Tests : `FullTcfExamResponseBuilderTest.d19_*`,
+`ProgressionExamensServiceIT.TcfGlobal`.
+
+### Coût
+
+Constant en requêtes, quel que soit le nombre d'examens : le builder d'examen
+complet charge sous-épreuves, niveaux QCM, réponses (seulement pour les
+sous-épreuves sans ancre), soumissions et évaluations **en lot**
+(`buildResponses`, `ProductionBilanService.latestEvalsParAttempt`,
+`AnswerManager.attemptIdsAvecReponse`) ; les parts civiques par thème sortent
+d'une requête groupée (`AttemptQuestionManager.partsParTheme`). Verrouillé à
+l'**égalité** entre 1 et 6 examens par `ProgressionSansNPlusUnIT`.
+
+### Ce que la phase front doit savoir
+
+- « Voir → » se choisit par `rapport.kind` : `QCM` → rapport d'attempt (web
+  `/sessions/[id]` ⇄ mobile `/exam-report/:attemptId`) ; `PRODUCTION` → bilan
+  de production (web `/entrainement/tcf/{ee|eo}/session/[id]` ⇄ mobile
+  `/tcf/{ee|eo}/sessions/:attemptId`) ; `EXAMEN_COMPLET` → bilan de l'examen
+  complet avec `rapport.attemptId` = le **parent** (web
+  `/examens-blancs/tcf/[id]/bilan` ⇄ mobile `/tcf/examen-blanc/:parentId/bilan`).
+- Score `null` ⇒ « — » ; `ecart` `null` ⇒ aucun marqueur ; `dureeSecondes`
+  `null` ⇒ « — » ; `etat` `null` ⇒ « Pas encore d'examen de thème ».
+- Une part de thème à `posees == 0` ⇒ « — » (non posé), jamais « 0 / 0 ».
+

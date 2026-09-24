@@ -98,6 +98,21 @@ class FullTcfExamResponseBuilderTest {
                 new TcfLevelEstimatorService(attemptQuestionManager), productionBilanService);
 
         when(productionSubmissionManager.findByAttemptId(any())).thenReturn(List.of());
+        // Le builder charge les soumissions et les évaluations EN LOT (une
+        // requête pour toute la page). Les fixtures restent écrites par
+        // sous-épreuve : la forme groupée les rassemble, sans rien décider.
+        when(productionSubmissionManager.findByAttemptIdsGrouped(any())).thenAnswer(inv -> {
+            java.util.Collection<UUID> ids = inv.getArgument(0);
+            Map<UUID, List<ProductionSubmission>> out = new java.util.LinkedHashMap<>();
+            for (UUID id : ids) out.put(id, productionSubmissionManager.findByAttemptId(id));
+            return out;
+        });
+        when(productionBilanService.latestEvalsParAttempt(any())).thenAnswer(inv -> {
+            Map<UUID, List<ProductionSubmission>> parAttempt = inv.getArgument(0);
+            Map<UUID, Map<Integer, AiEvaluation>> out = new java.util.LinkedHashMap<>();
+            parAttempt.forEach((id, subs) -> out.put(id, productionBilanService.latestEvalsByTache(subs)));
+            return out;
+        });
         // Fidèle au vrai service : seules les submissions EVALUATED donnent une
         // évaluation exploitable (une par tâche). Une épreuve dont tout a échoué
         // rend donc une map vide, comme en production.
@@ -649,7 +664,7 @@ class FullTcfExamResponseBuilderTest {
                 qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
                 production(EpreuveType.TCF_EE),
                 production(EpreuveType.TCF_EO)));
-        when(answerManager.hasAnyAnswer(co.getId())).thenReturn(false);
+        when(answerManager.attemptIdsAvecReponse(any())).thenReturn(java.util.Set.of());
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
@@ -678,7 +693,7 @@ class FullTcfExamResponseBuilderTest {
                 qcm(EpreuveType.TCF_CE, NiveauCecrl.B1),
                 production(EpreuveType.TCF_EE),
                 production(EpreuveType.TCF_EO)));
-        when(answerManager.hasAnyAnswer(co.getId())).thenReturn(true);
+        when(answerManager.attemptIdsAvecReponse(any())).thenReturn(java.util.Set.of(co.getId()));
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
@@ -723,7 +738,7 @@ class FullTcfExamResponseBuilderTest {
 
         FullTcfExamResponse r = builder.buildResponse(p);
 
-        verify(answerManager, never()).hasAnyAnswer(any());
+        verify(answerManager, never()).attemptIdsAvecReponse(any());
         assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS);
     }
 
@@ -739,6 +754,116 @@ class FullTcfExamResponseBuilderTest {
 
         builder.buildResponse(p);
 
-        verify(answerManager, never()).hasAnyAnswer(any());
+        verify(answerManager, never()).attemptIdsAvecReponse(any());
+    }
+
+    // ------------------------------------------- D19 : palier toujours re-dérivé
+
+    /**
+     * 🛑 <b>D19 (2026-09-24)</b> : un {@code final_cecrl_level} persisté sous
+     * l'ancienne règle QCM (table score → palier, révoquée le 2026-09-20) ne
+     * l'emporte plus sur la re-dérivation. C'est exactement le cas des 6
+     * examens de la base locale, tous figés à {@code A1_NON_ATTEINT} alors que
+     * leurs réponses démontrent aujourd'hui un palier.
+     */
+    @Test
+    void d19_unPalierPersisteSousLAncienneRegle_neLEmportePlusSurLaRederivation() {
+        Attempt p = parent(false);
+        p.setFinalCecrlLevel(NiveauCecrl.A1_NON_ATTEINT);
+        Attempt ee = production(EpreuveType.TCF_EE);
+        Attempt eo = production(EpreuveType.TCF_EO);
+        List<ProductionSubmission> evaluees = List.of(
+                submission(SubmissionStatut.EVALUATED),
+                submission(SubmissionStatut.EVALUATED),
+                submission(SubmissionStatut.EVALUATED));
+        when(productionSubmissionManager.findByAttemptId(ee.getId())).thenReturn(evaluees);
+        when(productionSubmissionManager.findByAttemptId(eo.getId())).thenReturn(evaluees);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B2),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B2),
+                ee, eo));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        // Plancher relu : CO B2, CE B2, EE/EO B1 → B1, jamais le A1 non atteint figé.
+        assertThat(r.finalCecrlLevel()).isEqualTo(NiveauCecrl.B1);
+        assertThat(builder.buildSummary(p).finalCecrlLevel()).isEqualTo(NiveauCecrl.B1);
+        // La colonne n'est pas réécrite par une lecture : c'est une trace.
+        assertThat(p.getFinalCecrlLevel()).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    /**
+     * D19, l'autre face : tant que l'examen n'est pas {@code COMPLETED}, le
+     * palier est <b>inconnu</b>, même si une valeur a été persistée un jour.
+     * {@code null} = inconnu, jamais un verdict relu d'une colonne.
+     */
+    @Test
+    void d19_examenNonTermine_naAucunPalier_memeAvecUneValeurPersistee() {
+        Attempt p = parent(false);
+        p.setFinalCecrlLevel(NiveauCecrl.B2);
+        Attempt ce = qcm(EpreuveType.TCF_CE, NiveauCecrl.B2);
+        ce.setFinishedAt(null);
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B2), ce,
+                production(EpreuveType.TCF_EE), production(EpreuveType.TCF_EO)));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(r.status()).isEqualTo(FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS);
+        assertThat(r.finalCecrlLevel()).isNull();
+    }
+
+    /**
+     * La note /20 d'une épreuve de production accompagne son niveau, et
+     * seulement lui : aucune note sur une épreuve verrouillée ou sans niveau.
+     */
+    @Test
+    void noteSur20_accompagneLeNiveauDeProductionEtRienDAutre() {
+        Attempt p = parent(false);
+        Attempt ee = production(EpreuveType.TCF_EE);
+        Attempt eo = jamaisOuverte(EpreuveType.TCF_EO);
+        when(productionSubmissionManager.findByAttemptId(ee.getId())).thenReturn(List.of(
+                submission(SubmissionStatut.EVALUATED),
+                submission(SubmissionStatut.EVALUATED),
+                submission(SubmissionStatut.EVALUATED)));
+        when(productionBilanService.noteEpreuve(any(), org.mockito.ArgumentMatchers.eq(false)))
+                .thenReturn(new java.math.BigDecimal("7.5"));
+        when(attemptManager.findSubAttempts(p.getId())).thenReturn(List.of(
+                qcm(EpreuveType.TCF_CO, NiveauCecrl.B1),
+                qcm(EpreuveType.TCF_CE, NiveauCecrl.B1), ee, eo));
+
+        FullTcfExamResponse r = builder.buildResponse(p);
+
+        assertThat(subOf(r, EpreuveType.TCF_EE).noteSur20()).isEqualByComparingTo("7.5");
+        assertThat(subOf(r, EpreuveType.TCF_EO).noteSur20()).isNull();
+        assertThat(subOf(r, EpreuveType.TCF_CO).noteSur20()).isNull();
+    }
+
+    /**
+     * La forme de LISTE rend, examen par examen, exactement ce que rend la
+     * forme unitaire — et charge soumissions et réponses en un lot.
+     */
+    @Test
+    void buildResponses_rendLeMemeResultatQueLaFormeUnitaire_etChargeEnLot() {
+        Attempt p1 = parent(false);
+        Attempt p2 = parent(true);
+        Attempt co1 = qcm(EpreuveType.TCF_CO, NiveauCecrl.A2);
+        co1.setParentAttempt(p1);
+        Attempt ee1 = production(EpreuveType.TCF_EE);
+        ee1.setParentAttempt(p1);
+        Attempt co2 = qcm(EpreuveType.TCF_CO, NiveauCecrl.B2);
+        co2.setParentAttempt(p2);
+        Attempt ee2 = production(EpreuveType.TCF_EE);
+        ee2.setParentAttempt(p2);
+        when(attemptManager.findSubAttempts(org.mockito.ArgumentMatchers.<java.util.Collection<UUID>>any()))
+                .thenReturn(List.of(co1, ee1, co2, ee2));
+
+        List<FullTcfExamResponse> rs = builder.buildResponses(List.of(p1, p2));
+
+        assertThat(rs).extracting(FullTcfExamResponse::id).containsExactly(p1.getId(), p2.getId());
+        assertThat(subOf(rs.get(0), EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.A2);
+        assertThat(subOf(rs.get(1), EpreuveType.TCF_CO).cecrlLevel()).isEqualTo(NiveauCecrl.B2);
+        assertThat(subOf(rs.get(1), EpreuveType.TCF_EE).locked()).isTrue();
+        verify(productionSubmissionManager, org.mockito.Mockito.times(1)).findByAttemptIdsGrouped(any());
     }
 }

@@ -251,23 +251,6 @@ public class FullTcfExamService {
     }
 
     /**
-     * Dernier examen blanc complet TCF du user (parent TCF_COMPLET le plus
-     * récent) avec son détail intégral — sub-attempts mappés, niveau CECRL
-     * par épreuve, statut. Renvoie {@code null} si l'utilisateur n'en a
-     * jamais lancé.
-     *
-     * <p>Utilisé par {@code MeService.progressionSummary} pour alimenter le
-     * hero "Progression" mobile sans dupliquer la logique de calcul CECRL.
-     */
-    @Transactional(readOnly = true)
-    public FullTcfExamResponse findLatestForUser(UUID userId) {
-        List<Attempt> parents = attemptManager.findByUserAndEpreuve(
-                userId, EpreuveType.TCF_COMPLET, 1);
-        if (parents.isEmpty()) return null;
-        return responseBuilder.buildResponse(parents.get(0));
-    }
-
-    /**
      * Marque explicitement un sous-attempt EE/EO comme terminé, sans attendre
      * que toutes les submissions soient persistées. Appelé par le mobile
      * après la dernière tâche d'une épreuve productive en mode examen blanc
@@ -417,6 +400,13 @@ public class FullTcfExamService {
      * si toutes les conditions sont réunies (terminé + toutes les évals IA
      * EVALUATED). Utilisé par get/finish — la persistance n'a lieu qu'une
      * fois (idempotent).
+     *
+     * <p>🛑 <b>D19 (2026-09-24) : la valeur écrite n'est plus qu'une TRACE.</b>
+     * Aucun chemin de restitution ne la relit — {@link FullTcfExamResponseBuilder}
+     * re-dérive le plancher à chaque lecture, pour qu'un palier figé sous une
+     * règle révoquée ne l'emporte jamais sur la règle du jour. Elle sert encore
+     * de marqueur « l'examen vient de devenir complet » (branchement du
+     * parcours ci-dessous, une seule fois).
      */
     private FullTcfExamResponse buildAndPersistCecrlIfReady(Attempt parent) {
         FullTcfExamResponse response = responseBuilder.buildResponse(parent);

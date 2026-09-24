@@ -10,7 +10,6 @@ import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UpdateExamDateRequest;
 import com.sejourfr.app.dto.UpdateProfileRequest;
 import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
-import com.sejourfr.app.dto.ProgressionSummaryResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
@@ -145,11 +144,6 @@ public class MeController {
     }
 
     /**
-     * Résumé de progression aligné sur les examens passés par le user.
-     * Sert à l'écran "Progression" mobile : header + 3 stats cards. Voir
-     * {@link MeService#progressionSummary} pour le détail de l'agrégation.
-     */
-    /**
      * <b>Ou en sont les deux preparations</b> — l'etat UNIQUE que l'Accueil, le
      * Plan et les Examens lisent tous les trois.
      *
@@ -164,11 +158,6 @@ public class MeController {
     @GetMapping("/preparation")
     public PreparationDto preparation() {
         return preparationService.lire(currentUser.getId());
-    }
-
-    @GetMapping("/progression")
-    public ProgressionSummaryResponse progression(@RequestParam Module module) {
-        return meService.progressionSummary(currentUser.getId(), module);
     }
 
     // ------------------------------------------------------------------------

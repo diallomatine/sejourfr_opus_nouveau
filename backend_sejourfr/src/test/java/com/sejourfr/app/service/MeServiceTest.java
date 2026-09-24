@@ -10,11 +10,9 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
-import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.QuestionManager;
-import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.mapper.QuestionMapper;
@@ -65,13 +63,9 @@ class MeServiceTest {
         questionManager = mock(QuestionManager.class);
         userManager = mock(UserManager.class);
         questionMapper = mock(QuestionMapper.class);
-        ThemeManager themeManager = mock(ThemeManager.class);
-        AiEvaluationManager aiEvaluationManager = mock(AiEvaluationManager.class);
-        FullTcfExamService fullTcfExamService = mock(FullTcfExamService.class);
         journeyService = mock(JourneyService.class);
         service = new MeService(answerManager, attemptManager, statusManager, questionManager,
-                userManager, questionMapper, themeManager, aiEvaluationManager, fullTcfExamService,
-                journeyService);
+                userManager, questionMapper, journeyService);
     }
 
     private static User user() {

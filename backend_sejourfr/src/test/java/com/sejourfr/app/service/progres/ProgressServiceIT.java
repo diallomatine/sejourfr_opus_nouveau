@@ -27,23 +27,20 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * L'ÉCRAN PROGRÈS (T28, {@code 30_} §7), contre la vraie base.
+ * « Où vous en êtes » de l'ACCUEIL ({@code GET /api/me/progress}), contre la
+ * vraie base. ⚠️ Les tests de l'activité, de la courbe des diagnostics et des
+ * compteurs (compétences, civique) sont partis le 2026-09-24 avec l'ancien
+ * écran « Votre progression », leur seul lecteur.
  *
  * <p>Ce que ce test verrouille, et pourquoi chacun compte :
  * <ul>
- *   <li>🛑 <b>sans diagnostic, on n'invente ni palier ni courbe</b> — les deux
- *       moitiés disent {@code disponible: false}, et l'écran ouvre la porte qui
- *       débloque au lieu d'afficher des blocs vides ;</li>
+ *   <li>🛑 <b>sans diagnostic, on n'invente rien</b> ;</li>
  *   <li>🛑 <b>les 4 épreuves sont TOUJOURS servies</b>, évaluées ou non. Une
  *       épreuve absente de la liste disparaîtrait de l'écran au lieu de se dire
  *       « non évaluée » ;</li>
  *   <li>🛑 <b>{@code INCONNUE} n'est pas {@code STABLE}</b> : une épreuve non
  *       comparable n'a ni progressé ni tenu. Les confondre déguiserait
  *       l'incident V040/V041/V042 en bonne nouvelle ;</li>
- *   <li>🛑 <b>les compteurs de compétences sont servis MÊME verrouillés</b> :
- *       c'est le détail qui est premium, pas le fait d'avoir progressé ;</li>
- *   <li>l'activité est <b>transverse</b> et servie même sans aucun diagnostic —
- *       travailler est un fait, pas une conséquence d'une mesure.</li>
  * </ul>
  */
 class ProgressServiceIT extends AbstractIntegrationTest {
@@ -77,23 +74,15 @@ class ProgressServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 Sans aucun diagnostic, on n'invente ni palier ni courbe")
+    @DisplayName("🛑 Sans aucun diagnostic, on n'invente rien")
     void sansDiagnostic() {
         User user = testData.user();
 
         ProgressDto progres = service.progres(user.getId());
 
-        assertThat(progres.tcf().disponible()).isFalse();
-        assertThat(progres.tcf().niveauActuel()).isNull();
-        assertThat(progres.tcf().historique()).isEmpty();
-        assertThat(progres.civique().disponible()).isFalse();
+        assertThat(progres.tcf().epreuves()).allSatisfy(e -> assertThat(e.niveau()).isNull());
         assertThat(progres.civique().historique()).isEmpty();
-
-        // 🛑 L'activité, elle, est servie : travailler est un fait, pas une
-        // conséquence d'une mesure. Et la frise existe même vide.
-        assertThat(progres.activite()).isNotNull();
-        assertThat(progres.activite().semaines()).hasSize(4);
-        assertThat(progres.activite().fenetreJours()).isEqualTo(28);
+        assertThat(progres.civique().themes()).isEmpty();
     }
 
     /**
@@ -111,7 +100,6 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         ProgressDto.Tcf tcf = service.progres(user.getId()).tcf();
 
         // Aucun diagnostic clos, et pourtant les 4 cartes existent.
-        assertThat(tcf.disponible()).isFalse();
         assertThat(tcf.epreuves())
                 .extracting(ProgressDto.Epreuve::epreuve)
                 .containsExactly(
@@ -213,7 +201,6 @@ class ProgressServiceIT extends AbstractIntegrationTest {
 
         ProgressDto.Civique civique = service.progres(user.getId()).civique();
 
-        assertThat(civique.disponible()).isTrue();
         assertThat(civique.historique()).hasSize(1);
         ProgressDto.Score score = civique.historique().getFirst();
         assertThat(score.sessionId()).isEqualTo(session.getId());
@@ -223,32 +210,6 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         // connaître, et ne promet jamais la réussite.
         assertThat(score.seuil()).isEqualTo(32);
         assertThat(score.format()).isEqualTo(40);
-    }
-
-    @Test
-    @DisplayName("🛑 Les compteurs civiques comptent TOUTES les cibles, pas les 3 priorités servies")
-    void compteursCiviquesNonTronques() {
-        User user = testData.user();
-        diagnosticCiviqueTermine(user);
-
-        ProgressDto.Civique civique = service.progres(user.getId()).civique();
-
-        // Cinq thèmes civiques : le compteur ne doit pas s'arrêter au plafond
-        // d'affichage de trois priorités.
-        assertThat(civique.travaillees()).isGreaterThan(3);
-        assertThat(civique.maitrisees()).isNotNegative();
-        // Tout est faux : rien n'est tenu, et un thème n'est de toute façon
-        // jamais annoncé maîtrisé (L10).
-        assertThat(civique.maitrisees()).isZero();
-        // 🛑 `grainNotion` est VRAI depuis V296/V297 (2026-09-19). L'assertion
-        // attendait `false` -- vrai quand le corpus n'était pas tagué, et il ne
-        // l'était pas parce que la campagne du 2026-09-11 vivait hors migration
-        // (DETTE-T1). Les cinq thèmes sont tagués à 100 % sur une base neuve.
-        // ⚠️ Ce test ne porte pas sur le grain : il vérifie que les compteurs ne
-        // sont pas tronqués au plafond d'affichage de 3. On corrige l'assertion
-        // plutôt que de remettre le corpus à non tagué, parce que le compteur se
-        // mesure MIEUX au grain notion -- c'est là qu'il y a le plus de cibles.
-        assertThat(civique.grainNotion()).isTrue();
     }
 
     /**
@@ -287,31 +248,5 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         User user = testData.user();
 
         assertThat(service.progres(user.getId()).civique().themes()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("🛑 Un compte gratuit garde ses compteurs de compétences, il perd le DÉTAIL")
-    void competencesVerrouilleesGardentLeursCompteurs() {
-        User user = testData.user();
-
-        ProgressDto.Competences competences = service.progres(user.getId()).tcf().competences();
-
-        assertThat(competences.locked()).isTrue();
-        assertThat(competences.dernieres()).isEmpty();
-        // Les compteurs existent quoi qu'il arrive : cacher le nombre
-        // reviendrait à cacher au candidat ce qu'il a lui-même produit.
-        assertThat(competences.travaillees()).isNotNegative();
-        assertThat(competences.maitrisees()).isNotNegative();
-    }
-
-    @Test
-    @DisplayName("Un abonné TCF n'a plus de verrou sur le détail de ses compétences")
-    void abonneVoitLeDetail() {
-        User user = testData.user();
-        testData.userSubscription(user, testData.plan());
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(service.progres(user.getId()).tcf().competences().locked()).isFalse();
     }
 }

@@ -39,7 +39,7 @@ import java.util.UUID;
  * que l'ancienne règle interdisait, et c'est celui que le propriétaire veut :
  * un niveau affiché est une <b>estimation d'aujourd'hui</b>, pas un trophée.
  * Le <b>meilleur</b> niveau reste lisible ailleurs, dans la chronologie de
- * « Voir mes résultats » ({@code EpreuveHistoriqueService}).
+ * l'écran de progression d'une épreuve ({@code ProgressionExamensService}).
  *
  * <p>⚠️ <b>La lecture du PLAN n'est PAS concernée</b>
  * ({@code TcfProfileService.levelProfile}) : elle garde son maximum sur toute
@@ -48,7 +48,7 @@ import java.util.UUID;
  *
  * <h2>Ce qui compte comme « examen qualifiant »</h2>
  * <p>🛑 <b>Aucune définition n'est écrite ici</b> : les deux qui existent sont
- * appelées, et ce sont les mêmes que celles de la page « Voir mes résultats ».
+ * appelées, et ce sont les mêmes que celles de l'écran de progression d'une épreuve.
  * <ul>
  *   <li><b>CO / CE</b> : {@code AttemptManager.findQcmEpreuvesPassees} —
  *       l'épreuve passée seule, dans un examen blanc complet ou comme
@@ -106,7 +106,7 @@ public class NiveauActuelEpreuveResolver {
      * propriétaire : les trois derniers, et seulement eux — au-delà, un examen
      * d'il y a six mois ne décrit plus le niveau d'aujourd'hui.
      *
-     * <p>Même valeur que {@code EpreuveHistoriqueService.MAX_EVALUATIONS}, et
+     * <p>Même valeur que l'ancien plafond de « Voir mes résultats » (supprimé le 2026-09-24), et
      * c'est une coïncidence <b>voulue mais pas partagée</b> : là-bas c'est un
      * plafond d'AFFICHAGE, ici une fenêtre de CALCUL. Les lier ferait d'un
      * réglage d'écran un réglage de règle métier.
@@ -151,8 +151,8 @@ public class NiveauActuelEpreuveResolver {
      *
      * <p>⚠️ <b>Une moyenne n'a pas de rapport</b> : sur trois examens retenus,
      * {@code attemptId} n'en nomme qu'un. C'est assumé — le candidat entre dans
-     * son historique par le plus récent, et « Voir mes résultats »
-     * ({@code EpreuveHistoriqueService}) reste l'écran qui les montre tous.
+     * son historique par le plus récent, et l'écran de progression d'une épreuve
+     * ({@code ProgressionExamensService}) reste l'écran qui les montre tous.
      *
      * @param niveau    {@code null} = <b>aucun examen qualifiant</b>, donc
      *                  épreuve non mesurée. Jamais un plancher fabriqué.
