@@ -322,6 +322,8 @@ function SuccesSkeleton() {
 const styles = `
   .succes { padding: 24px 36px 64px; max-width: 1100px; }
   @media (max-width: 760px) { .succes { padding: 20px 16px 56px; } }
+  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+  @media (max-width: 900px) { .app-shell--has-drawer .succes { padding-top: var(--app-bar-gap); } }
 
   /* ========== TOPBAR ========== */
   .topbar { margin-bottom: 22px; }

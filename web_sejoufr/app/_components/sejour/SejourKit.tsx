@@ -14,6 +14,7 @@
  */
 
 import Link from "next/link";
+import { useAppBarTitle } from "@/app/_components/AppBarTitle";
 import {
   ArrowRight,
   BadgeCheck,
@@ -158,6 +159,28 @@ export function TopSlot({ node, children }: { node: ReactNode; children: ReactNo
   return <TopSlotContext.Provider value={node}>{children}</TopSlotContext.Provider>;
 }
 
+/**
+ * **L'en-tête de page monte dans la barre du haut** (`AppTopBar`, ≤ 900 px).
+ *
+ * Pour un écran dont le titre est une DONNÉE (le Plan : « Mon plan du jour »,
+ * et son eyebrow « Votre parcours personnalisé vers B2 », qui change avec la
+ * bascule TCF / civique) : chaque `Top` rendu dessous donne son titre et son
+ * eyebrow à la barre (`useAppBarTitle`), et s'efface **à l'œil** sous 900 px
+ * — il reste le `<h1>` des lecteurs d'écran. Desktop : aucune barre, l'en-tête
+ * reste. Hors shell connecté (pas de barre), rien ne change.
+ *
+ * Même relais que `TopSlot`, pour la même raison : les sept variantes du Plan
+ * portent chacune leur `Top`, et aucune n'a à le déclarer.
+ *
+ * ⚠️ Pas de miroir Flutter : c'est la barre du web sous 900 px qui en a
+ * besoin, l'app Flutter a son propre en-tête d'écran.
+ */
+const TopInAppBarContext = createContext(false);
+
+export function TopInAppBar({ children }: { children: ReactNode }) {
+  return <TopInAppBarContext.Provider value>{children}</TopInAppBarContext.Provider>;
+}
+
 export function Top({
   backTo,
   onBack,
@@ -181,6 +204,8 @@ export function Top({
   badge?: string;
 }) {
   const slot = useContext(TopSlotContext);
+  const versLaBarre = useContext(TopInAppBarContext);
+  const dansLaBarre = useAppBarTitle(versLaBarre ? { title, subtitle: kicker } : null);
   /* 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
      2026-09-12). Il **révoque** `.topPlain`, qui centrait sous 620 px un
      en-tête sans flèche de retour : un titre centré au-dessus d'un contenu
@@ -189,7 +214,7 @@ export function Top({
      en dessous. Même retrait côté mobile (`SfTop`) dans la même passe. */
   return (
     <>
-      <header className={styles.top}>
+      <header className={cx(styles.top, dansLaBarre && styles.topInAppBar)}>
         {backTo ? (
           <Link href={backTo} className={styles.iconBtn} aria-label="Retour">
             <ChevronLeft size={24} strokeWidth={2} aria-hidden />

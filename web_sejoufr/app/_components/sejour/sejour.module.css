@@ -75,6 +75,47 @@
   outline: none;
 }
 
+/* ---------- Sous la barre du haut de l'espace connecté (≤ 900 px) ----------
+
+   🛑 Le premier élément d'un écran du kit se pose à `--app-bar-gap` de la
+   barre (`AppTopBar`) : `.app` n'ajoute plus rien, c'est l'en-tête qui porte
+   l'écart — 8 px ici + les 6 px de `.topText` (alignement sur la flèche de
+   retour). Hors shell connecté (`/diagnostic` invité, sous le `SiteHeader`) :
+   inchangé.
+
+   `.topInAppBar` : l'en-tête a monté dans la barre (`TopInAppBar`, le Plan).
+   Il s'efface à l'œil et reste le `<h1>` des lecteurs d'écran ; la bascule de
+   parcours qui le suit devient le premier élément visible. */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .app {
+    padding-top: 0;
+  }
+
+  :global(.app-shell--has-drawer) .top {
+    padding-top: calc(var(--app-bar-gap) - 6px);
+  }
+
+  .topInAppBar {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .topInAppBar + .segWrap {
+    padding-top: var(--app-bar-gap);
+  }
+
+  :global(.app-shell--has-drawer) .pTopbar {
+    margin-top: var(--app-bar-gap);
+  }
+}
+
 /* La tete d'un ecran de transition (`SheetHead`) : la croix a gauche,
    l'oeil-de-boeuf a droite. Miroir Flutter : `SfSheetHead`. */
 .sheetHead {

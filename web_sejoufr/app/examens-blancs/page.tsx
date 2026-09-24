@@ -982,4 +982,8 @@ const styles = `
     .ebh-stat-lbl { font-size: 11px; }
     .ebh-stat-hint { font-size: 10.5px; }
   }
+  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+  @media (max-width: 900px) {
+    .app-shell--has-drawer .ebh { padding-top: var(--app-bar-gap); }
+  }
 `;

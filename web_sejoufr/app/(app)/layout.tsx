@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "../_components/AppSidebar";
 import { AppTopBar } from "../_components/AppTopBar";
+import { AppBarProvider } from "../_components/AppBarTitle";
 import { useAuth } from "@/lib/auth-context";
 import { isAppShellMounted } from "@/lib/chrome-routes";
 
@@ -48,8 +49,10 @@ export default function AppGroupLayout({
     <div className="app-shell app-shell--has-drawer">
       <AppSidebar />
       <div className="app-shell__main">
-        <AppTopBar />
-        {children}
+        <AppBarProvider>
+          <AppTopBar />
+          {children}
+        </AppBarProvider>
       </div>
 
       <style>{`

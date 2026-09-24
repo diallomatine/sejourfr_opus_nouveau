@@ -354,3 +354,10 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .root {
+    padding-top: var(--app-bar-gap);
+  }
+}

@@ -540,6 +540,8 @@ const styles = `
   .pm-btn-neutral:hover { background: var(--color-ink-2); }
   @media (max-width: 900px) {
     .pr-topbar { display: none; }
+    /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+    .app-shell--has-drawer .pr { padding-top: var(--app-bar-gap); }
   }
   /* ---- ≤ 760 px ---- */
   @media (max-width: 760px) {

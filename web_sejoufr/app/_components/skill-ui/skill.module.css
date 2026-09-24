@@ -4488,3 +4488,10 @@
 .wrap:has(> [data-exams-bar]) {
   padding-bottom: 0;
 }
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .wrap {
+    padding-top: var(--app-bar-gap);
+  }
+}

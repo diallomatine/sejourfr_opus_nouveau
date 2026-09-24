@@ -13,6 +13,10 @@
  * ⚠️ **Un titre de donnée (un thème, une épreuve de progression, un sujet) ne
  * s'invente pas ici** : la barre donne le **parent** (« Examen civique »,
  * « Progression »), la page garde son propre titre.
+ *
+ * Exception, et une seule voie : un titre **dynamique** porté par une donnée
+ * servie, que la page pose elle-même (`useAppBarTitle`,
+ * `app/_components/AppBarTitle.tsx` — le Plan). La table reste le repli.
  */
 import {AIDE_TITLE} from "./aide";
 import {

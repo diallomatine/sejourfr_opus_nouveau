@@ -75,6 +75,7 @@ app/
 │   ├── Brand.tsx, TopNav.tsx, SiteHeader.tsx, Footer.tsx,
 │   ├── AppSidebar.tsx            # nav latérale des routes (app)
 │   ├── AppTopBar.tsx             # barre du haut ≤ 900 px (burger + titre, lib/app-bar.ts) + tiroir
+│   ├── AppBarTitle.tsx           # AppBarProvider + useAppBarTitle : titre dynamique posé par la page
 │   ├── HeroSection.tsx, LandingSections.tsx, MobileAppPromo.tsx
 │   ├── MediaView.tsx             # rend MediaResponse (audio/image/vidéo/SVG inline)
 │   ├── QuestionRunner.tsx        # ★ runner réutilisable training/exam (favoris, prev/next,
@@ -934,7 +935,7 @@ infos de la page ».
   **Aucune page ne compense** — ne jamais réintroduire de `padding-top` « pour
   dégager la barre ». Une page qui ajoute un élément `sticky; top: 0` sous 900 px
   le posera **sous** la barre (prévoir `top: 56px`).
-- 🛑 **Titre : `lib/app-bar.ts` (`appBarInfo`), l'autorité unique** — préfixe le
+- 🛑 **Titre : `lib/app-bar.ts` (`appBarInfo`), l'autorité par défaut** — préfixe le
   plus long, miroir des en-têtes Flutter : libellé d'onglet pour les écrans
   d'onglet (Accueil, Plan, Réviser, Examens blancs, Profil), titre du
   `ScreenHeader` pour les écrans du compte, de l'aide et des favoris (mêmes
@@ -944,11 +945,42 @@ infos de la page ».
   IRN »), la page garde son titre. Réviser (`/entrainement`) lit `?module=` pour
   son contexte. Une route de plus dans l'espace connecté ⇒ une ligne de plus
   dans la table.
+- **Titre DYNAMIQUE : la page le donne à la barre (2026-09-24)** —
+  `app/_components/AppBarTitle.tsx` : `AppBarProvider` (monté par les deux
+  shells, autour d'`AppTopBar` et de la page) + `useAppBarTitle({title,
+  subtitle})`, que la page appelle ; `AppTopBar` lit `useAppBarOverride()` et
+  retombe sur `appBarInfo` quand la page ne dit rien. 🛑 **Réservé aux titres
+  portés par une donnée servie** — la table reste l'autorité par défaut, on
+  n'y recopie pas un titre statique. Pose en `useLayoutEffect` (SSR : titre
+  de la table, puis bascule avant la 1ʳᵉ peinture client) ; retrait au
+  démontage, clé `useId` (deux pages ne s'écrasent pas). Hors shell, le hook
+  ne fait rien et rend `false`.
+  - Dans le kit : **`<TopInAppBar>`** (`SejourKit.tsx`, même relais que
+    `TopSlot`) — chaque `Top` rendu dessous donne `title` + `kicker` à la
+    barre et s'efface **à l'œil** sous 900 px (`.topInAppBar`, reste le
+    `<h1>` des lecteurs d'écran) ; ≥ 901 px l'en-tête reste. Pas de miroir
+    Flutter (chrome web).
+  - **Qui s'en sert** : le **Plan** (`PlanModules`) — barre « Mon plan du
+    jour » + « Votre parcours personnalisé vers B2 » (TCF) / « Votre
+    préparation personnalisée à l'Examen civique » (civique), qui suit la
+    bascule ; la bascule de parcours devient le 1ᵉʳ élément visible.
+- 🛑 **L'écart barre → 1ᵉʳ élément : `--app-bar-gap` (14 px, `:root` de
+  `globals.css`), partout (2026-09-24).** Chaque conteneur d'écran le lit
+  dans une media query `≤ 900 px` scopée `.app-shell--has-drawer` (desktop et
+  visiteur inchangés) : kit `.app` → 0 et `.top` → `gap − 6` (+ 6 de
+  `.topText`), `.pTopbar` (progression) en marge, compte `.page` (+ rangée de
+  retour vide masquée, marge d'un en-tête réduit au titre effacé retirée),
+  `detail .wrap`, `skill .wrap`, `production .wrap`, `ModuleDetail .root`,
+  `diagnostic .page`, `plan .page`, `tcfFullExam .page`, `.tcfd`, `.ebh`,
+  `.brf`, `.sess-back-row`, `.pr`, `.ab`, `.pc`, `.pay`, `.rcp`, `.succes` ;
+  Accueil : bannière de parcours et squelette en marge. Un nouveau conteneur
+  d'écran connecté fait de même — jamais de valeur en dur.
 - **Pas de doublon juste sous la barre** : `CompteShell` (compte, aide,
   favoris) masque **à l'œil** son `<h1>` sous 900 px dans le shell (il reste
   pour les lecteurs d'écran) ; le Profil masque sa barre « MON PROFIL » sous
-  900 px. Les autres écrans gardent leur en-tête (il dit autre chose que la
-  barre : « Bonjour Karim », « Mon plan du jour », le nom d'un thème…).
+  900 px ; le Plan monte son en-tête dans la barre (`TopInAppBar`). Les
+  autres écrans gardent leur en-tête (il dit autre chose que la barre :
+  « Bonjour Karim », le nom d'un thème…).
 
 🛑 **Un seul burger par écran, et c'est `APP_GROUP_PREFIXES` qui le garantit
 (2026-09-12).** `app/(app)/layout.tsx` monte `AppTopBar` pour TOUTE

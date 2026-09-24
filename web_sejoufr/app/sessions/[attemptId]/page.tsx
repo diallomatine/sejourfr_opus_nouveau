@@ -486,6 +486,10 @@ function SessionRunnerInner({ params }: PageProps) {
             margin: 0 auto;
             padding: 20px 18px 0;
           }
+          /* Sous la barre du haut de l'espace connecté : --app-bar-gap. */
+          @media (max-width: 900px) {
+            .app-shell--has-drawer .sess-back-row { padding-top: var(--app-bar-gap); }
+          }
           .sess-back {
             display: inline-flex;
             align-items: center;

@@ -989,6 +989,8 @@ const styles = `
 
   .pay { padding: 24px 36px 64px; max-width: 1100px; }
   @media (max-width: 760px) { .pay { padding: 20px 16px 56px; } }
+  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+  @media (max-width: 900px) { .app-shell--has-drawer .pay { padding-top: var(--app-bar-gap); } }
 
   /* ========== HERO ========== */
   .pay-hero {

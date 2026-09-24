@@ -684,3 +684,10 @@ button.bilanCard {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   }
 }
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .page {
+    padding-top: var(--app-bar-gap);
+  }
+}

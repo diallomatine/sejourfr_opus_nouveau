@@ -125,6 +125,13 @@
   --sf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --sf-quick: 150ms;
   --sf-fast: 250ms;
+
+  /* 🛑 **L'écart entre la barre du haut (`AppTopBar`, ≤ 900 px) et le premier
+     élément d'un écran connecté** (demande du propriétaire, 2026-09-24 :
+     « baisser la distance, partout »). UNE valeur, lue par chaque conteneur
+     d'écran dans sa media query `≤ 900 px` scopée `.app-shell--has-drawer`.
+     Desktop : aucune barre, les conteneurs gardent leur respiration. */
+  --app-bar-gap: 14px;
 }
 
 /* ============================================================================

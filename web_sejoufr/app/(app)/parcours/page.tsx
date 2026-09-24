@@ -349,6 +349,8 @@ const styles = `
     padding-bottom: 140px; /* place pour la sticky action bar */
   }
   @media (max-width: 760px) { .pc { padding: 20px 16px 140px; } }
+  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+  @media (max-width: 900px) { .app-shell--has-drawer .pc { padding-top: var(--app-bar-gap); } }
 
   /* ========== TOPBAR ========== */
   .topbar {

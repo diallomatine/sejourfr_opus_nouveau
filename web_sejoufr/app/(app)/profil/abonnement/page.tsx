@@ -355,6 +355,8 @@ const gateStyles = `
 const styles = `
 .ab { max-width: 720px; margin: 0 auto; padding: 24px 24px 64px; display: flex; flex-direction: column; gap: 18px; }
 @media (max-width: 600px) { .ab { padding: 20px 16px 56px; gap: 16px; } }
+/* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
+@media (max-width: 900px) { .app-shell--has-drawer .ab { padding-top: var(--app-bar-gap); } }
 
 .ab-breadcrumb { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted); }
 .ab-breadcrumb a { color: var(--color-muted); text-decoration: none; }

@@ -600,6 +600,10 @@ function Styles() {
                 flex-direction: column;
                 gap: 16px;
             }
+            /* Sous la barre du haut de l'espace connecté : --app-bar-gap. */
+            @media (max-width: 900px) {
+                .app-shell--has-drawer .tcfd { padding-top: var(--app-bar-gap); }
+            }
             .tcfd h1 {
                 font-family: var(--font-display);
                 font-size: 28px;

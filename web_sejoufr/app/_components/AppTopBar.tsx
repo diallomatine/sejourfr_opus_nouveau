@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
 import { appBarInfo } from "@/lib/app-bar";
+import { useAppBarOverride } from "./AppBarTitle";
 
 /**
  * **La barre du haut de l'espace connecté, sous 900 px** — le pendant web de
@@ -17,7 +18,9 @@ import { appBarInfo } from "@/lib/app-bar";
  *   elle occupe sa place dans le flux, aucune page n'a donc à « dégager » de
  *   gouttière pour elle.
  *
- * 🛑 Titre : `appBarInfo` (`lib/app-bar.ts`), et rien d'autre.
+ * 🛑 Titre : `appBarInfo` (`lib/app-bar.ts`), l'autorité par défaut — sauf
+ * quand la page pose le sien (titre dynamique, `useAppBarTitle` dans
+ * `AppBarTitle.tsx`, ex. le Plan : « Mon plan du jour » + son objectif).
  * 🛑 Montée par `app/(app)/layout.tsx` et `DualChromeShell` **uniquement**,
  * sous la garde de `isAppShellMounted` : un seul burger par écran.
  *
@@ -149,7 +152,8 @@ function AppTopBarTitle({
   pathname: string | null;
   searchParams?: { get(name: string): string | null } | null;
 }) {
-  const { title, subtitle } = appBarInfo(pathname, searchParams);
+  const override = useAppBarOverride();
+  const { title, subtitle } = override ?? appBarInfo(pathname, searchParams);
   return (
     <div className="atb-titles">
       <span className="atb-title">{title}</span>

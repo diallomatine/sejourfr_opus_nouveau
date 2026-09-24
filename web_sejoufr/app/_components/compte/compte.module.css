@@ -71,6 +71,19 @@
     white-space: nowrap;
     border: 0;
   }
+
+  /* Le premier élément se pose à `--app-bar-gap` de la barre (globals.css) :
+     la rangée du retour vide ne garde pas ses 44 px, et un en-tête réduit au
+     titre effacé ne garde pas sa marge. */
+  :global(.app-shell--has-drawer) .page {
+    padding-top: var(--app-bar-gap);
+  }
+  :global(.app-shell--has-drawer) .topbar:empty {
+    display: none;
+  }
+  :global(.app-shell--has-drawer) .head:not(:has(.lead)) {
+    margin-bottom: 0;
+  }
 }
 
 .gate {

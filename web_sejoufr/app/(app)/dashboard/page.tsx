@@ -1140,4 +1140,12 @@ const homeStyles = `
     }
     .home-hello h1 { font-size: 32px; }
   }
+
+  /* Sous la barre du haut : « Bonjour » se pose déjà à 14 px (le kit ôte le
+     padding de .app) ; la bannière de parcours et le squelette, qui arrivent
+     en premier sans marge propre, prennent le même écart, --app-bar-gap. */
+  @media (max-width: 900px) {
+    .app-shell--has-drawer .home-banner,
+    .app-shell--has-drawer .home .sk-head { margin-top: var(--app-bar-gap); }
+  }
 `;

@@ -37,7 +37,7 @@
 import {useEffect, useState} from "react";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Landmark} from "lucide-react";
-import {ModuleToggle, SejourApp, TopSlot} from "@/app/_components/sejour/SejourKit";
+import {ModuleToggle, SejourApp, TopInAppBar, TopSlot} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
@@ -158,30 +158,35 @@ export function PlanModules() {
 
     return (
         <SejourApp sticky={sticky} wide={wide} report={report}>
-            <TopSlot node={toggle}>
-                {indisponible ? (
-                    <PlanGate
-                        gate={indisponible}
-                        prep={moduleprep}
-                        kicker={
-                            affiche === "TCF"
-                                ? "Votre parcours personnalisé"
-                                : "Votre préparation personnalisée à l'Examen civique"
-                        }
-                        icon={affiche === "CIVIQUE" ? Landmark : undefined}
-                    />
-                ) : affiche === "TCF" ? (
-                    /* 🛑 `prep` descend jusqu'ici pour la PORTE d'entrée
-                       (`PlanGate`), qui lit l'état servi du diagnostic. Un
-                       second appel à `preparation()` plus bas aurait pu
-                       répondre autre chose que celui qui a ouvert l'écran. */
-                    <LearningPlanView prep={moduleprep} />
-                ) : (
-                    /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
-                       L10) : c'est un moteur, plus un écho du diagnostic. */
-                    <CivicPlanPanel />
-                )}
-            </TopSlot>
+            {/* 🛑 Sous 900 px, « Mon plan du jour » et son eyebrow (l'objectif,
+                servi) montent dans la barre du haut : c'est le titre de cet
+                écran, pas le « Plan » générique de `lib/app-bar.ts`. */}
+            <TopInAppBar>
+                <TopSlot node={toggle}>
+                    {indisponible ? (
+                        <PlanGate
+                            gate={indisponible}
+                            prep={moduleprep}
+                            kicker={
+                                affiche === "TCF"
+                                    ? "Votre parcours personnalisé"
+                                    : "Votre préparation personnalisée à l'Examen civique"
+                            }
+                            icon={affiche === "CIVIQUE" ? Landmark : undefined}
+                        />
+                    ) : affiche === "TCF" ? (
+                        /* 🛑 `prep` descend jusqu'ici pour la PORTE d'entrée
+                           (`PlanGate`), qui lit l'état servi du diagnostic. Un
+                           second appel à `preparation()` plus bas aurait pu
+                           répondre autre chose que celui qui a ouvert l'écran. */
+                        <LearningPlanView prep={moduleprep} />
+                    ) : (
+                        /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
+                           L10) : c'est un moteur, plus un écho du diagnostic. */
+                        <CivicPlanPanel />
+                    )}
+                </TopSlot>
+            </TopInAppBar>
         </SejourApp>
     );
 }

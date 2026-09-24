@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "./AppSidebar";
 import { AppTopBar } from "./AppTopBar";
+import { AppBarProvider } from "./AppBarTitle";
 import { useAuth } from "@/lib/auth-context";
 
 /**
@@ -33,8 +34,10 @@ export function DualChromeShell({ children }: { children: React.ReactNode }) {
     <div className="dual-shell app-shell--has-drawer">
       <AppSidebar />
       <div className="dual-shell__main">
-        <AppTopBar />
-        {children}
+        <AppBarProvider>
+          <AppTopBar />
+          {children}
+        </AppBarProvider>
       </div>
       <style>{`
         .dual-shell {
