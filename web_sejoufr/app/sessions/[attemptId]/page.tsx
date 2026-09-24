@@ -1,5 +1,6 @@
 "use client";
 
+import {progressionHref} from "@/lib/progression";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
@@ -442,7 +443,7 @@ function SessionRunnerInner({ params }: PageProps) {
               retrying={retrying}
               moreHref={isGuest ? undefined : examReturnPath(attempt)}
               moreLabel="Autres examens blancs"
-              progressHref={isGuest ? undefined : "/statistiques"}
+              progressHref={isGuest ? undefined : progressionHref(attempt.module)}
             />
             {isGuest && <GuestResultCta />}
           </>
@@ -458,7 +459,7 @@ function SessionRunnerInner({ params }: PageProps) {
               retrying={retrying}
               moreHref={serieReturnHref}
               moreLabel="Autres séries"
-              progressHref="/statistiques"
+              progressHref={progressionHref(attempt.module)}
             />
           </>
         ) : (

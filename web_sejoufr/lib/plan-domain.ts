@@ -155,44 +155,13 @@ export function planCycleLine(cycle: PlanCycleDto): string {
 
 
 
-/* ------------------------------------------------------- ma progression */
+/* --------------------------------------------------------------- mes cycles */
 
-/**
- * **« Ma progression »** — l'écran de suivi adossé au Plan.
- *
- * ⚠️ **À ne pas confondre avec `/statistiques`**, qui reste et garde sa propre
- * entrée : celui-là répond à « quels thèmes ai-je révisés, combien de séries
- * ai-je jouées ? », celui-ci à « où j'en suis sur les quatre domaines du TCF,
- * et à quelle distance de mon objectif ? ».
- */
-/* ⚠️ **`PLAN_PROGRESS_HREF` est SUPPRIMÉE** (P8.9, 2026-09-20) : elle doublait
-   `JOURNEY_HISTORY_HREF` (`lib/journey.ts`) pour le même chemin, et son unique
-   lecteur passe désormais par `journeyHistoryHref(module)` — l'adresse est
-   scopée au parcours, une seconde copie n'aurait pas pu le savoir. */
-
-/** Le libellé de l'action qui ouvre l'écran, et son titre quand l'objectif
- *  n'est pas connu. */
-export const PLAN_PROGRESS_TITLE_SHORT = "Ma progression";
-
-/**
- * Le titre de l'écran.
- *
- * 🛑 **`objectiveLevel` est NULLABLE et aucun front n'invente « B2 »** : sans
- * démarche déclarée, le titre se lit simplement « Ma progression ». La maquette
- * l'écrit en dur, ce qui retirerait son A2 à un dossier CSP.
- */
-export function planProgressTitle(cycle: PlanCycleDto): string {
-    return cycle.objectiveLevel
-        ? `${PLAN_PROGRESS_TITLE_SHORT} vers le ${cycle.objectiveLevel}`
-        : PLAN_PROGRESS_TITLE_SHORT;
-}
-
-export const PLAN_PROGRESS_TEXT =
-    "Ce que vos passages ont mesuré, domaine par domaine, et ce que votre plan en construit.";
-
-/* Les deux étiquettes de la carte de tête. */
-export const PLAN_PROGRESS_LEVEL_LABEL = "Niveau estimé";
-export const PLAN_PROGRESS_OBJECTIVE_LABEL = "Objectif";
+/* ⚠️ **« Ma progression » s'appelle « Mes cycles »** (D16, 2026-09-24) : le
+   titre et le lien vivent dans `JOURNEY_HISTORY_TITLE` (`lib/journey.ts`).
+   `PLAN_PROGRESS_TITLE_SHORT`, `planProgressTitle` et leurs trois libellés sans
+   lecteur sont supprimés ; « Ma progression » désigne désormais les écrans de
+   progression (`lib/progression.ts`). */
 
 /** Ce que porte la carte de tête quand rien n'a encore été mesuré. *null =
  *  inconnu, jamais mauvais* : on ne pose pas « A1 » à la place. */

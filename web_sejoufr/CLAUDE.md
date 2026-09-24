@@ -105,26 +105,20 @@ app/
 │   │                              #   tâches (expression) et leurs paliers (compréhension)
 │   ├── plan/domaine/[domaine]/   # ★ fiche d'un domaine (co|ce|ee|eo) : paliers ou tâches
 │   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
-│   ├── plan/progression/page.tsx # ★ « Ma progression vers le {objectif} » : niveau estimé →
-│   │                              #   objectif + rail, une carte par domaine (paliers CO/CE,
-│   │                              #   tâches EE/EO), mesure d'un domaine manquant, ce qui a
-│   │                              #   changé. ⚠️ N'EST PAS /statistiques, qui reste.
+│   ├── plan/progression/page.tsx # ★ « Mes cycles » (ex-« Ma progression », D16) : l'archive
+│   │                              #   des cycles terminés du Plan (?module=CIVIQUE pour le civique)
+│   ├── progression/              # ★ LES ÉCRANS DE PROGRESSION (2026-09-24) : tcf, tcf/[epreuve]
+│   │                              #   (co|ce|ee|eo), civique, civique/[theme] (slug ou UUID).
+│   │                              #   Cf. § « Les écrans de progression » en fin de fichier
 │   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
 │   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
 │   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
-│   ├── statistiques/page.tsx     # ★ progression par thème (tri faibles d'abord), couleurs
-│   │                              #   vert/ambre/rouge, clic sur thème → start training ciblé
 │   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
 │   │                              #   (statement, choix résolus, explanation, toggle favori)
 │   ├── historique/page.tsx       # ★ liste examens MOCK_EXAM passés, header résumé (taux moyen),
 │   │                              #   graphique custom SVG (barres + ligne seuil), clic → /sessions/<id>
-│   ├── profil/page.tsx           # ★ profil (parité onglet Profil mobile, design web) : hero
-│   │                              #   éditorial + identité, 3 stat cards (maîtrise/série/niveau via
-│   │                              #   /api/me/dashboard), « Mon pass » (subscription-status →
-│   │                              #   /profil/abonnement|/paiement), « Mon objectif » → /parcours,
-│   │                              #   « Mes informations » = modale d'édition (identité PATCH + email
-│   │                              #   change-request + mot de passe change), suppr compte, logout.
-│   │                              #   Sans date d'examen / plan de révision / centre d'aide / reset
+│   ├── profil/page.tsx           # ★ profil, refait sur la maquette du propriétaire (2026-09-24,
+│   │                              #   cf. § « Le Profil (/profil) » plus bas)
 │   ├── parcours/page.tsx         # ★ édition target path (CSP/CR/NAT) avec cards radio + niveau TCF
 │   │                              #   dérivé. Sert d'onboarding si user.targetProcedure manquant.
 │   │                              #   Support ?from=<route> pour retour.
@@ -648,6 +642,39 @@ par `middleware.ts`, dont le test est un **préfixe** (`/paiement` couvre
   code inconnu, plan désactivé (`listPlans` ne sert que les actifs) ou catalogue
   injoignable ⇒ carte explicite + « Voir les pass → ».
 
+## Le Profil (`/profil`) — maquette du propriétaire (2026-09-24)
+
+Maquette : `docs/progression/maquettes-progression/profil.html`. Refonte **visuelle web
+seule**, aucun endpoint ni DTO touché. `app/(app)/profil/page.tsx`, styles en `<style>`
+scoped (`.pr-*` pour la page, `.pm-*` pour les modales) — **pas sur le kit** : le
+Profil n'en a jamais fait partie, et aucune brique n'y est réemployée ailleurs.
+
+- **Ordre** : barre « MON PROFIL » (sa case de gauche est **réservée au burger du
+  shell** sous 900 px — aucun second burger ; titre masqué sous 430 px, la rangée
+  reste pour ne pas passer sous le burger) → hero bleu (dégradé
+  `--color-blue` → `--color-blue-mid`, avatar, nom, e-mail, démarche, « Modifier »
+  qui devient **icône seule** sous 430 px) → 3 tuiles → grille 2 colonnes « Mon pass »
+  | « Mon objectif » (1 colonne sous 760 px) → « Mon compte » pleine largeur → carte
+  « Se déconnecter » / « Supprimer mon compte » → version.
+- 🛑 **Tout est servi** : Maîtrise = `globalSuccessPercent`, Série =
+  `currentStreakDays`, Niveau estimé = `niveauCecrlShort(estimatedTcfLevel)` et sa
+  ligne de périmètre = `estimatedTcfLevelScopeLabel` (« D'après N épreuves sur 4 »,
+  la chaîne partagée des cinq surfaces — **pas** le « 3 épreuves sur 4 » nu de la
+  maquette). `null` ⇒ « — ». Pass = `subscription-status`, objectif =
+  `niveauViseTcf(user)`.
+- **Série en rouge** : convention existante (web et mobile `StatValueCard` rouge).
+- **Pass** : pictogramme **vert** + pastille « Actif » en premium, gris + « Gratuit »
+  sinon (le rouge du pass Intégral est retiré : ce n'est pas un CTA critique).
+- **« Ma progression »** → `/progression/tcf` (D16). **« Aide & assistance »** →
+  `/contact` (le web n'a pas de centre d'aide ; le mobile a `helpCenter`).
+- **Modale « Mes informations »** = feuille posée en bas (maquette), mais le
+  **comportement réel est conservé** : « Enregistrer » ne porte que prénom + nom
+  (`PATCH /api/me/profile`) ; e-mail et mot de passe sont en lecture avec
+  « Changer » / « Modifier », qui ouvrent sur place les flux existants (lien de
+  vérification + mot de passe actuel ; ancien + nouveau + confirmation). Comptes
+  Google/Apple : lecture seule. Déconnexion et suppression gardent leur
+  confirmation (et l'avis post-suppression des abonnements store).
+
 ## « Mon pass » (détail de l'accès — lot 5, achat unique)
 
 Page `app/(app)/profil/abonnement/page.tsx` (route `/profil/abonnement`),
@@ -793,15 +820,15 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
   `ChoiceCard`, `PassCard`, `Cta`, `Sticky`, `ModuleToggle`, **`TopSlot`**…).
   ✅ **Ajoutées le 2026-09-16** sur les maquettes du propriétaire, **avec leur
   miroir Flutter dans la même passe** : `MicroNote`, `PanelHead` (+ sa variante
-  **`lead`**, la tête de carte éditoriale), `ResultHero`, `LevelChart`
-  (+ `ChartPoint`), `FilterChips`, `HistoryRow`, `InfoNote`, le **liseré
+  **`lead`**, la tête de carte éditoriale), `InfoNote` (⚠️ `ResultHero`,
+  `LevelChart` + `ChartPoint`/`ChartRung`, `FilterChips` et `HistoryRow` sont
+  **supprimées le 2026-09-24** avec « Vos résultats »), le **liseré
   tricolore** de tête de carte (`Card rule="flag"`) et, sur la maquette v2
   (`ou_en_vous_v2.html`), **`LevelLadder`** (l'échelle CECRL à quatre crans) et
   **`GoalBanner`**, puis le 2026-09-24 **`LevelCard`** + **`LevelCardGrid`**
   (grille 2×2 de « Où vous en êtes » ; `LadderLegend`, `LevelRow` et
   `LevelList` sont supprimées ce jour-là). Elles servent « Où vous
-  en êtes » (`/dashboard`) et « Vos résultats »
-  (`/historique/epreuve/[domaine]`) — → `docs/regles/progression.md`.
+  en êtes » (`/dashboard`) — → `docs/regles/progression.md`.
   ⚠️ **`LevelCard`, `LevelGrid` et `GoalRibbon` sont SUPPRIMÉES** le même jour
   (elles ne servaient que la maquette v1 de « Où vous en êtes »), avec leurs
   classes `.levelCard` / `.levelGrid` / `.goalRibbon` et leurs dérivées. La
@@ -2304,6 +2331,11 @@ détour par `/inscription`.
   compte — c'est LA mesure de conversion du parcours.
 
 ### Progrès — « ce qui a bougé » (T28, 2026-09-10)
+
+🛑 **SUPPRIMÉ le 2026-09-24** avec `/statistiques`, `ProgresMouvement` et tout
+`app/_components/progres/` : l'espace Progression ne contient plus que les
+quatre écrans des maquettes (§ « Les écrans de progression », fin de fichier).
+Ce qui suit est conservé pour mémoire.
 
 `GET /api/me/progress` → `ProgresMouvement` (`app/_components/progres/`), greffé
 **en tête de `/statistiques`**, au-dessus de la maîtrise par catégorie. Règles
@@ -4604,3 +4636,108 @@ achat ne fait pas. Le signal « l'accès a changé » existe désormais, jumeau 
 
 ⚠️ **Un verrou se lit en `watch`, jamais en `read` dans un `build`** : le paywall est poussé
 **au-dessus** de l'écran, qui reste monté — un `read` lui rend la main avec ses cadenas.
+
+
+## Les écrans de progression (2026-09-24)
+
+> Maquettes : `docs/progression/maquettes-progression/{progression_global_tcf,
+> progression_epreuve_tcf,progression_global_civique,progression_theme_civique}.html`
+> · contrat de données et arbitrages D1–D20 : `docs/regles/progression.md`
+> § « Écrans de progression » · étude : `docs/progression/ETUDE_FAISABILITE_ecrans_progression.md`.
+
+🛑 **Le visuel vient des maquettes, TOUTES les données du backend.** Échelle,
+bandes, seuil, palier, état, écart, sens, ordinal, meilleur / premier /
+dernier, durée fiable, `cta.locked` : servis par `/api/me/progression/*`
+(`progressionApi`, `lib/api.ts`, cache sous le préfixe `progress:` — donc vidé
+par toute écriture de mesure et par la relecture d'accès). Le front **écrit**,
+il ne classe rien (`node scripts/verifier-contrat-front-progression.mjs`).
+
+**Routes** (groupe `(app)`, `/progression` dans `APP_GROUP_PREFIXES` **et**
+dans les préfixes protégés de `middleware.ts`) :
+
+| route | écran | endpoint |
+|---|---|---|
+| `/progression/tcf[?tous=true]` | TCF global | `GET /api/me/progression/tcf[?tous=true]` |
+| `/progression/tcf/[epreuve]` (`co\|ce\|ee\|eo`) | une épreuve | `GET /api/me/progression/tcf/TCF_XX` |
+| `/progression/civique[?tous=true]` | civique global | `GET /api/me/progression/civique[?tous=true]` |
+| `/progression/civique/[theme]` (slug `themeSlug(code)`, UUID accepté) | un thème | `GET /api/me/progression/civique/themes/{id}` |
+
+Le slug d'un thème se résout sur la liste servie de l'écran civique global (en
+cache quand on en vient). **Anciennes adresses = redirections** (`next.config.ts`,
+307) : `/progression` et `/statistiques` → `/progression/tcf`,
+`/historique/epreuve/:domaine` → `/progression/tcf/:domaine`,
+`/historique/theme/:theme` → `/progression/civique/:theme`.
+
+**Entrées** : Profil « Ma progression » → `/progression/tcf` (D16) ; Accueil,
+issue 3 « Voir mes résultats » d'une carte d'épreuve → `/progression/tcf/[epreuve]`
+et carte de thème → `/progression/civique/[theme]` (D17, issues 1 et 2
+inchangées) ; « Voir ma progression » du rapport d'examen (`/sessions/[id]`) →
+l'écran global du module de l'attempt ; `/paiement/succes` → `/progression/tcf`.
+Retours : épreuve → TCF global (« Progression globale »), thème → civique
+global (« Examen civique »), écrans globaux → `/dashboard?module=…`.
+
+**« Voir → » se choisit par `rapport.kind`** (`progressionRapportHref`) : `QCM` →
+`/sessions/[id]`, `PRODUCTION` → `/entrainement/tcf/{ee|eo}/session/[id]`,
+`EXAMEN_COMPLET` → `/examens-blancs/tcf/[parent]/bilan`. La ligne entière est
+le lien ; « Voir → » et la durée s'effacent sous 780 px de contenu (maquette).
+
+**CTA** : la **grille** d'examens, jamais un démarrage direct — épreuve
+`/entrainement/tcf/{x}/examens`, thème `civicThemeExamsHref`, écrans globaux
+`/examens-blancs`. 🛑 **D20** : tous les résultats sont visibles d'un compte
+gratuit ; seul `cta.locked` (servi) pose un cadenas, et le bouton ouvre alors la
+`PaywallSheet` (INTEGRAL en TCF, CIVIQUE en civique).
+
+**Fichiers** : vues `app/_components/progression/{ProgressionFrame,
+ProgressionTcfView,ProgressionEpreuveView,ProgressionCiviqueView,
+ProgressionThemeView}.tsx` ; mots, adresses et mise en forme dans
+**`lib/progression.ts`** (miroir de `progression_labels.dart`) ; pictogrammes
+dans **`lib/situation-icons.ts`**, extraits de l'Accueil (Lucide au lieu des
+émojis des maquettes, miroir `situation_icons.dart`).
+
+**Briques du kit** (miroirs Flutter `Sf…` dans la même passe) :
+`ProgressTopbar` (retour libellé + CTA, cadenas servi), `ProgressIntro`,
+`ProgressHero` (+ `ProgressChip` ; anneau **civique seulement**, D5),
+`ProgressStatTile` / `ProgressStatGrid` (`boxed` : 2 × 2 dans une carte ; sinon
+une carte par compteur), `ProgressDomainCard` (sparkline interne),
+`ProgressChart` (+ `ProgressChartBand` / `ProgressChartPoint` ; bandes
+**seulement servies** — aucune en CO/CE, D2 ; défile sous 720 px),
+`ProgressScaleLegend`, `ProgressExamRow`, `ProgressGlobalExamRow` (parts
+civiques en « x / n posées », « — » si non posé, D11). Classes de disposition
+(sans miroir) : `pScreen` (conteneur `@container pscreen`), `pSummary`,
+`pOverview`, `pDomainGrid`, `pExamList`, `pPanel`, `pCard`.
+⚠️ **Les bornes sont celles de la maquette, mesurées sur le CONTENU**
+(`@container`, 470 / 620 / 780 / 860 px), pas sur la fenêtre : la barre
+latérale mange 248 px.
+
+**Couleurs** : tokens seuls. Le rouge de la maquette (anneau, dernier point,
+badge B2, œil-de-bœuf) ne passe pas — anneau bleu (vert au seuil servi),
+dernier point bleu foncé avec halo, badges bleus ; seule la pastille de
+l'œil-de-bœuf garde le rouge de `.heroDot`, convention du kit. Tons d'état
+civique : `civicBarTone` (l'autorité existante). Écart : `HAUSSE` vert,
+`BAISSE` ambre, `STABLE` neutre, `INCONNUE` / écart `null` ⇒ **aucun** marqueur.
+
+**Supprimés** (refonte = suppression immédiate) : `/statistiques` (page),
+`/historique/epreuve/[domaine]`, `/historique/theme/[theme]`,
+`app/_components/progres/` (`ProgresMouvement`, `EpreuveHistoriqueView`,
+`ThemeHistoriqueView`) ; dans le kit `ResultHero`, `LevelChart` /
+`ChartRung` / `ChartPoint`, `FilterChips`, `HistoryRow`, `LevelStrip` /
+`LevelStripItem` / `TrendTone`, `ChartTitle`, `ChartNote`,
+`EpreuveStatRow` / `EpreuveStatList` et leurs classes (`GoalHero` reste :
+l'écran de déblocage du Plan le lit) ; dans `lib/progres.ts` tout ce qui
+n'est pas l'Accueil (`PROGRES_*`, `PROGRESSION_*`, `THEME_RESULTATS_*`,
+`progresCourbe`, `civiqueThemeCourbe`, `suiviNiveauLabel`,
+`progressionResultatsHref`…) ; `themeHistoriqueHref` (`lib/themes.ts`) ;
+`progressApi.historique` ; les miroirs `EpreuveHistoriqueDto`,
+`EvaluationQualifianteDto`, `SourceEvaluation`, `ProgressActiviteDto`,
+`ProgressSemaineDto`, `ProgressEstimationDto`, `ProgressCompetence(s)Dto` et les
+champs élagués de `ProgressDto` (le backend ne les sert plus) ;
+`PLAN_PROGRESS_TITLE_SHORT` / `planProgressTitle` (`lib/plan-domain.ts`).
+
+**« Ma progression » ⇄ « Mes cycles » (D16)** : l'historique des cycles du Plan
+(`/plan/progression`) s'appelle **« Mes cycles »** (`JOURNEY_HISTORY_TITLE`, lien
+d'« Aller plus loin » et titre) ; « Ma progression » désigne les écrans
+ci-dessus.
+
+⚠️ **`/recommandations` reste** : elle est atteinte par la barre latérale et
+par `/historique`, pas seulement par l'ancien écran — à arbitrer avec le mobile.
+

@@ -1345,7 +1345,7 @@ export function ChoiceCard({
    de `SfChoiceCard`, retiré dans la même passe. */
 
 /* ========================================================================== */
-/* Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16) */
+/* Maquette « Où vous en êtes » (propriétaire, 2026-09-16) */
 /*                                                                            */
 /* ⚠️ « Où vous en êtes » a été refait deux fois : liste verticale dans une    */
 /* seule carte (v2, 2026-09-16), puis GRILLE de cartes séparées, une par       */
@@ -1670,261 +1670,6 @@ export function PanelHead({
 }
 
 /**
- * **Le héros d'une page de résultats** — le `.result-hero` de la maquette :
- * fond sombre de marque, le palier en très gros, l'objectif à droite, une
- * pastille d'évolution et une note de portée.
- *
- * 🛑 **Aucune valeur n'est dérivée ici** : palier, objectif et pastille
- * arrivent composés d'un fait servi. Miroir Flutter : `SfResultHero`.
- */
-export function ResultHero({
-  label,
-  level,
-  goalLabel,
-  goal,
-  trend,
-  note,
-}: {
-  label: string;
-  level: string;
-  goalLabel: string;
-  /** `null` quand aucune démarche n'est déclarée : rien vers quoi situer. */
-  goal: string | null;
-  /** `null` quand l'évolution est inconnue — surtout pas un « = » consolant. */
-  trend?: string | null;
-  note?: string | null;
-}) {
-  return (
-    <div className={styles.resultHero}>
-      <p className={styles.resultHeroLabel}>{label}</p>
-      <div className={styles.resultHeroRow}>
-        <span className={styles.resultHeroLevel}>{level}</span>
-        {goal ? (
-          <span className={styles.resultHeroGoal}>
-            {goalLabel}
-            <b>{goal}</b>
-          </span>
-        ) : null}
-      </div>
-      {trend ? <span className={styles.trendChip}>{trend}</span> : null}
-      {note ? <p className={styles.resultHeroFoot}>{note}</p> : null}
-    </div>
-  );
-}
-
-/**
- * **Un cran de l'échelle verticale** — un repère de l'axe, avec sa hauteur.
- *
- * 🛑 **`at` est SERVI par l'appelant**, jamais déduit d'un rang : c'est ce qui
- * permet à la même brique de porter une échelle **régulière** (les paliers
- * CECRL du TCF, régulièrement espacés) et une échelle **de valeurs** (les
- * scores d'un thème civique, où `16 / 20` ne tombe pas au milieu de `0` et
- * `20`). Une échelle régulière posée sur des valeurs irrégulières mentirait sur
- * la position du seuil.
- */
-export type ChartRung = {
-  /** Le libellé du cran sur l'axe (« B2 », « 16 »). */
-  label: string;
-  /** Sa hauteur dans le cadre : `0` = tout en haut, `1` = tout en bas. */
-  at: number;
-  /**
-   * Le cran est un **seuil à franchir** : trait pointillé accentué et libellé
-   * ambre. 🛑 Ce n'est **pas un verdict** — il dit où est la barre, pas si elle
-   * est passée.
-   */
-  seuil?: boolean;
-};
-
-/** Un point de la courbe : sa date, sa valeur, et sa hauteur dans l'échelle. */
-export type ChartPoint = {
-  /** Abscisse lisible (« 11 sept. »). */
-  date: string;
-  /** La valeur, telle qu'elle s'écrit sur la pastille (« B1 », « 17 / 20 »). */
-  level: string;
-  /** Sa hauteur dans le cadre, `0` = tout en haut. **Passée, jamais devinée.** */
-  at: number;
-};
-
-/**
- * **La courbe d'évolution** d'une épreuve TCF ou d'un thème civique.
- *
- * 🛑 **Aucune interpolation, aucune moyenne** : un point par mesure **servie**,
- * posé sur l'échelle que l'appelant lui donne — `rungs` porte les libellés ET
- * leurs hauteurs, la brique ne classe rien et n'espace rien d'elle-même.
- *
- * Miroir Flutter : `SfLevelChart`.
- */
-export function LevelChart({
-  rungs,
-  points,
-  activeIndex,
-  onSelect,
-}: {
-  /** Du plus haut au plus bas (« B2 », « B1 », « A2 » / « 20 », « 16 », « 0 »). */
-  rungs: ChartRung[];
-  /** Du plus ancien au plus récent. */
-  points: ChartPoint[];
-  activeIndex: number;
-  onSelect: (index: number) => void;
-}) {
-  const cols = Math.max(points.length - 1, 1);
-  const y = (at: number) => at * 100;
-  const x = (i: number) => (points.length > 1 ? (i / cols) * 100 : 50);
-
-  return (
-    <div className={styles.chart}>
-      <div className={styles.chartYAxis} aria-hidden>
-        {rungs.map((r) => (
-          <span
-            key={r.label}
-            className={cx(styles.chartYLabel, r.seuil && styles.isSeuil)}
-            style={{ top: `${y(r.at)}%` }}
-          >
-            {r.label}
-          </span>
-        ))}
-      </div>
-      <div className={styles.chartPlot}>
-        {rungs.map((r) => (
-          <span
-            key={r.label}
-            className={cx(styles.chartGrid, r.seuil && styles.isSeuil)}
-            style={{ top: `${y(r.at)}%` }}
-            aria-hidden
-          />
-        ))}
-        {points.length > 1 ? (
-          <svg
-            className={styles.chartLine}
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            aria-hidden
-          >
-            <polyline
-              points={points.map((p, i) => `${x(i)},${y(p.at)}`).join(" ")}
-              fill="none"
-              stroke="var(--color-blue)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-        ) : null}
-        {points.map((p, i) => (
-          <button
-            key={`p-${i}`}
-            type="button"
-            className={cx(styles.chartDot, i === activeIndex && styles.isOn)}
-            style={{ left: `${x(i)}%`, top: `${y(p.at)}%` }}
-            aria-label={`${p.date} : ${p.level}`}
-            aria-pressed={i === activeIndex}
-            onClick={() => onSelect(i)}
-          />
-        ))}
-        {points.map((p, i) => (
-          <span
-            key={`d-${i}`}
-            className={styles.chartDate}
-            style={{ left: `${x(i)}%` }}
-            aria-hidden
-          >
-            {p.date}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/**
- * La rangée de filtres d'une liste. 🛑 **Les options sont servies par
- * l'appelant** : le kit ne sait pas ce qu'il filtre.
- *
- * Miroir Flutter : `SfFilterChips`.
- */
-export function FilterChips<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: ReadonlyArray<{ id: T; label: string }>;
-  value: T;
-  onChange: (id: T) => void;
-}) {
-  return (
-    <div className={styles.filterRow} role="tablist">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="tab"
-          aria-selected={o.id === value}
-          className={cx(styles.filter, o.id === value && styles.isOn)}
-          onClick={() => onChange(o.id)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
- * **Une ligne d'historique dépliable** : pictogramme, intitulé + date, palier,
- * et un détail qui s'ouvre au toucher.
- *
- * Miroir Flutter : `SfHistoryRow`.
- */
-export function HistoryRow({
-  icon: Icon,
-  title,
-  date,
-  level,
-  detail,
-  active,
-  open,
-  onToggle,
-}: {
-  icon: LucideIcon;
-  title: string;
-  /** `null` quand le serveur n'a pas de date — on n'en invente pas. */
-  date: string | null;
-  level: string;
-  detail: ReactNode;
-  active?: boolean;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const panelId = useId();
-  return (
-    <article className={cx(styles.histItem, active && styles.isOn)}>
-      <button
-        type="button"
-        className={styles.histMain}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={onToggle}
-      >
-        <span className={styles.histIco}>
-          <Icon size={18} strokeWidth={2} aria-hidden />
-        </span>
-        <span className={styles.histBody}>
-          <b>{title}</b>
-          {date ? <small>{date}</small> : null}
-        </span>
-        <span className={styles.histLevel}>{level}</span>
-      </button>
-      {/* `hidden` plutôt qu'un démontage : le détail replié sort de l'arbre
-          d'accessibilité ET du parcours clavier. */}
-      <div id={panelId} className={styles.histDetail} hidden={!open}>
-        {detail}
-      </div>
-    </article>
-  );
-}
-
-/**
  * L'encart ambre de pied de page (`.footer-info`) : ce que la liste au-dessus
  * compte, et ce qu'elle ne compte pas.
  *
@@ -2104,7 +1849,7 @@ export function CycleProgress({
  * que de rétrécir le titre. Miroir Flutter présent : 360 px est un téléphone.
  *
  * ⚠️ Le corps est rendu **replié, pas démonté** (`hidden`) : il sort de l'arbre
- * d'accessibilité et du parcours clavier, comme chez `Prio` et `HistoryRow`.
+ * d'accessibilité et du parcours clavier, comme chez `Prio`.
  *
  * Composition attendue : une `JourneyList` de `JourneyRow` (les étapes, avec
  * leur rail), puis un `ExamStepBox`. Le corps ne porte donc aucun retrait de
@@ -2372,8 +2117,7 @@ export function StatGrid({
  *
  * 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
  * lui :
- * - `ResultHero` porte **un palier** en très gros — c'est un résultat, pas une
- *   introduction ;
+ * - `ProgressHero` porte **un résultat** en très gros, pas une introduction ;
  * - `NextStepCard` porte **deux actions** — c'est une décision à prendre.
  *
  * Ce bandeau, lui, n'a **aucune action** : il présente. C'est ce qui lui évite
@@ -2411,16 +2155,11 @@ export function HeroBanner({
 }
 
 /* ============================================================================
-   L'ÉCRAN « VOTRE PROGRESSION » (template `docs/progression/
-   ecran_progression_normal.html`, 2026-09-19)
-
-   Les cinq briques de sa PREMIÈRE partie : le bandeau d'objectif et sa bande de
-   paliers, la tête et le pied de la carte à courbe, et la ligne d'une épreuve.
-
-   🛑 **Aucune ne classe quoi que ce soit.** Palier, mot d'état, ton, flèche,
-   part parcourue : tout arrive **composé** de faits servis (`lib/progres.ts`).
-   Miroirs Flutter : `SfGoalHero`, `SfLevelStrip`, `SfChartTitle`,
-   `SfChartNote`, `SfEpreuveStatRow` / `SfEpreuveStatList`.
+   Le BANDEAU D'OBJECTIF (né avec l'ancien écran « Votre progression »,
+   2026-09-19). ⚠️ Cet écran est SUPPRIMÉ (2026-09-24) avec ses autres briques
+   (`LevelStrip`, `ChartTitle`, `ChartNote`, `EpreuveStatRow/List`) ; le
+   bandeau reste parce que l'écran de déblocage du Plan le lit.
+   Miroir Flutter : `SfGoalHero`.
    ========================================================================== */
 
 /**
@@ -2430,7 +2169,7 @@ export function HeroBanner({
  * paliers).
  *
  * 🛑 **Distinct des trois héros voisins**, qu'il ne faut pas remplacer par lui :
- * - `ResultHero` porte **un palier** en très gros — c'est un résultat ;
+ * - `ProgressHero` porte **un résultat** — c'est une carte de tête de progression ;
  * - `HeroBanner` **présente** un écran d'archive, sans aucun chiffre ;
  * - `GoalBanner` est une bande **compacte**, posée DANS une carte.
  *
@@ -2497,71 +2236,475 @@ export function GoalHero({
   );
 }
 
-/**
- * Le ton d'une **flèche de tendance**, posée sur un fond de marque.
- *
- * 🛑 **Il se passe, il ne se dérive d'aucun nombre** : l'appelant le tient du
- * sens d'évolution **servi** (`NiveauEvolution`).
- *
- * ⚠️ **Ce n'est pas un doublon de `BarTone`** : celui-là teinte un état
- * pédagogique sur fond clair (cinq valeurs, dont « non mesuré »), celui-ci dit
- * un **sens** sur fond sombre (trois valeurs). Miroir Flutter : `SfTrendTone`.
- */
-export type TrendTone = "up" | "flat" | "down";
+/* ==========================================================================
+   Les ÉCRANS DE PROGRESSION (maquettes du propriétaire, 2026-09-24 ;
+   `docs/progression/maquettes-progression/*.html`)
 
-const trendToneClass: Record<TrendTone, string> = {
-  up: styles.trendUp,
-  flat: styles.trendFlat,
-  down: styles.trendDown,
+   TCF global, une épreuve TCF, civique global, un thème civique. Ils
+   assemblent ces briques et RIEN d'autre : barre haute, intro, carte de tête,
+   compteurs, cartes d'épreuve / de thème, courbe, légende d'échelle, lignes
+   d'examen.
+
+   🛑 **Aucune ne classe quoi que ce soit.** Score, palier, état, bande, écart,
+   sens, ordinal, durée : tout arrive **écrit** par l'appelant à partir de faits
+   servis (`lib/progression.ts`). La courbe PLACE des valeurs servies sur un axe
+   dont les bornes sont servies — placer n'est pas classer.
+
+   🛑 Couleurs : la maquette met du rouge sur l'anneau, le dernier point et
+   l'œil-de-bœuf. Le rouge est réservé aux CTA critiques : l'anneau est bleu
+   (vert au seuil, sémantique de `Ring`), le dernier point est bleu foncé avec
+   un halo ; seule la pastille de l'œil-de-bœuf garde le rouge de `.heroDot`,
+   convention déjà en place dans le kit.
+
+   Miroirs Flutter (même passe, même nom, préfixe `Sf`) : `SfProgressTopbar`,
+   `SfProgressIntro`, `SfProgressHero`, `SfProgressStatTile`,
+   `SfProgressStatGrid`, `SfProgressDomainCard`, `SfProgressChart`,
+   `SfProgressScaleLegend`, `SfProgressExamRow`, `SfProgressGlobalExamRow`.
+   ========================================================================== */
+
+/** Une pastille de la carte de tête ou d'une carte d'épreuve. */
+export type ProgressChip = { label: string; tone: BarTone };
+
+const progressChipClass: Record<BarTone, string> = {
+  ok: styles.pChipOk,
+  now: styles.pChipNow,
+  warn: styles.pChipWarn,
+  hot: styles.pChipHot,
+  muted: styles.pChipMuted,
 };
 
-/**
- * Un palier de la bande d'un bandeau d'objectif.
- *
- * 🛑 Tout est **composé par l'appelant**, `trend` compris : le kit ne sait ni ce
- * qu'est un palier, ni ce qu'une flèche signifie. Miroir Flutter :
- * `SfLevelStripItem`.
- */
-export type LevelStripItem = {
-  /** Repère court (« CO »). */
-  mark: string;
-  /** Le palier, ou le mot d'une absence de mesure (« — »). */
-  level: string;
-  /**
-   * Le **glyphe** de tendance. `null` quand l'évolution est inconnue — surtout
-   * pas un signe de stabilité, qui déguiserait une absence de mesure en bonne
-   * nouvelle.
-   */
-  trend?: string | null;
-  trendTone?: TrendTone;
-  /** L'état en un mot. `null` = rien à dire. */
-  caption?: string | null;
-};
+function ProgressChipView({ chip }: { chip: ProgressChip }) {
+  return <span className={cx(styles.pChip, progressChipClass[chip.tone])}>{chip.label}</span>;
+}
 
 /**
- * **La bande des paliers** d'un bandeau d'objectif — la `.level-strip` du
- * template : une tuile par épreuve, sur le fond de marque du bandeau.
+ * **La barre haute** — le retour libellé à gauche, le CTA à droite.
  *
- * 🛑 **Autant de tuiles qu'on lui en donne** : le nombre vient de la liste
- * servie, jamais d'un « 4 » écrit ici. Miroir Flutter : `SfLevelStrip`.
+ * 🛑 **Le cadenas est SERVI** (`cta.locked`, D20) : verrouillé, le bouton porte
+ * un cadenas et appelle `onLocked` (la feuille de paywall de l'écran) au lieu
+ * de naviguer. Le kit ne décide jamais qu'un bouton est fermé.
  */
-export function LevelStrip({ items }: { items: LevelStripItem[] }) {
+export function ProgressTopbar({
+  backHref,
+  backLabel,
+  cta,
+  onLocked,
+}: {
+  backHref: string;
+  backLabel: string;
+  /** `null` ⇒ pas de CTA (chargement, erreur). */
+  cta?: { label: string; href: string; locked: boolean } | null;
+  onLocked?: () => void;
+}) {
   return (
-    <ul className={styles.levelStrip}>
-      {items.map((item) => (
-        <li key={item.mark} className={styles.levelStripTile}>
-          <span className={styles.levelStripMark}>{item.mark}</span>
-          <span className={styles.levelStripValue}>
-            {item.level}
-            {item.trend ? (
-              <i className={trendToneClass[item.trendTone ?? "flat"]} aria-hidden>
-                {item.trend}
-              </i>
+    <header className={styles.pTopbar}>
+      <Link href={backHref} className={styles.pBack}>
+        <span className={styles.pBackIcon} aria-hidden>
+          <ChevronLeft size={18} strokeWidth={2.2} />
+        </span>
+        <span>{backLabel}</span>
+      </Link>
+      {cta ? (
+        cta.locked ? (
+          <button type="button" className={styles.pCta} onClick={onLocked}>
+            <Lock size={15} strokeWidth={2.4} aria-hidden />
+            <span>{cta.label}</span>
+          </button>
+        ) : (
+          <Link href={cta.href} className={styles.pCta}>
+            {cta.label}
+          </Link>
+        )
+      ) : null}
+    </header>
+  );
+}
+
+/** **L'intro** — œil-de-bœuf « Votre progression », titre, phrase de cadrage. */
+export function ProgressIntro({
+  eyebrow,
+  title,
+  lead,
+}: {
+  eyebrow: string;
+  title: string;
+  lead?: string | null;
+}) {
+  return (
+    <section className={styles.pIntro}>
+      <p className={styles.pEyebrow}>
+        <i className={styles.heroDot} aria-hidden />
+        {eyebrow}
+      </p>
+      <h1 className={styles.pTitle}>{title}</h1>
+      {lead ? <p className={styles.pLead}>{lead}</p> : null}
+    </section>
+  );
+}
+
+/**
+ * **La carte de tête** — « Dernier résultat » : le gros chiffre (ou le palier)
+ * et son unité, une rangée de pastilles (palier ou état, écart), une ligne
+ * secondaire, et l'anneau.
+ *
+ * 🛑 **L'anneau n'existe qu'en civique** (D5) : il lit le `taux` servi et
+ * `reached` (`seuilAtteint` servi) le passe au vert. Aucun anneau en TCF — un
+ * disque rempli à côté d'un palier se lirait comme un pourcentage de niveau.
+ */
+export function ProgressHero({
+  label,
+  value,
+  unit,
+  chips,
+  notes,
+  ring,
+}: {
+  label: string;
+  /** Le chiffre ou le palier, déjà écrit. « — » quand rien n'est mesuré. */
+  value: string;
+  /** « / 499 ». Absent pour un palier. */
+  unit?: string | null;
+  chips?: ProgressChip[];
+  /** Les lignes secondaires (niveau actuel estimé, verdict de seuil…). */
+  notes?: Array<string | null>;
+  ring?: { ratio: number; label: string; reached: boolean } | null;
+}) {
+  const lignes = (notes ?? []).filter((n): n is string => Boolean(n));
+  return (
+    <article className={cx(styles.pCard, styles.pHero)}>
+      <div className={styles.pHeroBody}>
+        <p className={styles.pHeroLabel}>{label}</p>
+        <p className={styles.pHeroScore}>
+          <strong>{value}</strong>
+          {unit ? <span>{unit}</span> : null}
+        </p>
+        {chips && chips.length > 0 ? (
+          <div className={styles.pChips}>
+            {chips.map((c) => (
+              <ProgressChipView key={c.label} chip={c} />
+            ))}
+          </div>
+        ) : null}
+        {lignes.map((n) => (
+          <p key={n} className={styles.pHeroNote}>{n}</p>
+        ))}
+      </div>
+      {ring ? <ProgressRing {...ring} /> : null}
+    </article>
+  );
+}
+
+function ProgressRing({ ratio, label, reached }: { ratio: number; label: string; reached: boolean }) {
+  const part = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  const r = 44;
+  const c = 2 * Math.PI * r;
+  return (
+    <span className={styles.pRing} role="img" aria-label={label}>
+      <svg viewBox="0 0 100 100" aria-hidden>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-line)" strokeWidth="11" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke={reached ? "var(--color-green)" : "var(--color-blue)"}
+          strokeWidth="11"
+          strokeDasharray={`${c * part} ${c}`}
+          transform="rotate(-90 50 50)"
+        />
+      </svg>
+      <b>{label}</b>
+    </span>
+  );
+}
+
+/** **Un compteur** : son intitulé, sa valeur, sa précision. */
+export function ProgressStatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string | null;
+}) {
+  return (
+    <div className={styles.pStat}>
+      <span className={styles.pStatLabel}>{label}</span>
+      <div>
+        <strong className={styles.pStatValue}>{value}</strong>
+        {sub ? <small className={styles.pStatSub}>{sub}</small> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * **La grille des compteurs.**
+ *
+ * - `boxed` (écrans globaux) : une carte qui range quatre encarts en 2 × 2 ;
+ * - sinon (épreuve, thème) : chaque compteur est sa propre petite carte, deux
+ *   par rangée.
+ */
+export function ProgressStatGrid({ children, boxed }: { children: ReactNode; boxed?: boolean }) {
+  return (
+    <div className={cx(styles.pStatGrid, boxed ? cx(styles.pCard, styles.isBoxed) : styles.isCards)}>
+      {children}
+    </div>
+  );
+}
+
+/** La sparkline d'une carte : au plus 7 scores servis, du plus ancien au plus récent. */
+function ProgressSparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const w = 145;
+  const h = 58;
+  const pad = 6;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const pts = values.map((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - 2 * pad);
+    const y = hi === lo ? h / 2 : h - pad - ((v - lo) / span) * (h - 2 * pad);
+    return [x, y] as const;
+  });
+  const last = pts[pts.length - 1];
+  return (
+    <svg className={styles.pSpark} viewBox={`0 0 ${w} ${h}`} aria-hidden>
+      <path d={pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ")} />
+      <circle cx={last[0]} cy={last[1]} r="4" />
+    </svg>
+  );
+}
+
+/**
+ * **La carte d'une épreuve ou d'un thème** — pictogramme, nom, sous-titre,
+ * flèche ; puis le dernier score, sa pastille (palier ou état servi), l'écart
+ * servi et la sparkline. Toute la carte est un lien vers l'écran détaillé.
+ *
+ * `empty` remplace le chiffre quand l'épreuve n'a aucun examen : ni pastille,
+ * ni écart, ni sparkline — jamais un 0.
+ */
+export function ProgressDomainCard({
+  href,
+  icon: Icon,
+  title,
+  sub,
+  value,
+  unit,
+  pill,
+  delta,
+  serie,
+  empty,
+}: {
+  href: string;
+  icon: LucideIcon;
+  title: string;
+  sub: string;
+  value?: string | null;
+  unit?: string | null;
+  pill?: ProgressChip | null;
+  delta?: ProgressChip | null;
+  serie?: number[];
+  /** Le mot d'une absence d'examen. Prioritaire sur `value`. */
+  empty?: string | null;
+}) {
+  return (
+    <Link href={href} className={cx(styles.pCard, styles.pDomain)}>
+      <span className={styles.pDomainHead}>
+        <span className={styles.pDomainName}>
+          <span className={styles.pDomainIcon} aria-hidden>
+            <Icon size={20} strokeWidth={1.9} />
+          </span>
+          <span>
+            <b>{title}</b>
+            <small>{sub}</small>
+          </span>
+        </span>
+        <ChevronRight className={styles.pDomainArrow} size={20} strokeWidth={2} aria-hidden />
+      </span>
+      <span className={styles.pDomainMain}>
+        {empty ? (
+          <span className={styles.pDomainEmpty}>{empty}</span>
+        ) : (
+          <span className={styles.pDomainFigures}>
+            <span className={styles.pDomainScore}>
+              <strong>{value}</strong>
+              {unit ? <span> {unit}</span> : null}
+            </span>
+            {pill ? <ProgressChipView chip={pill} /> : null}
+            {delta ? (
+              <span className={cx(styles.pDelta, statusToneClass[delta.tone])}>{delta.label}</span>
             ) : null}
           </span>
-          {item.caption ? (
-            <span className={styles.levelStripCaption}>{item.caption}</span>
-          ) : null}
+        )}
+        {!empty && serie ? <ProgressSparkline values={serie} /> : null}
+      </span>
+    </Link>
+  );
+}
+
+/** Une zone servie de l'axe, déjà nommée. `tone` teinte son fond, très pâle. */
+export type ProgressChartBand = { label: string; min: number; max: number; tone: BarTone };
+
+/** Un point : sa date d'axe, sa valeur servie, et ce qu'on écrit dessus. */
+export type ProgressChartPoint = { date: string; value: number; label: string };
+
+const progressBandClass: Record<BarTone, string> = {
+  ok: styles.pBandOk,
+  now: styles.pBandNow,
+  warn: styles.pBandWarn,
+  hot: styles.pBandHot,
+  muted: styles.pBandMuted,
+};
+
+/**
+ * **La courbe d'évolution** — aire, ligne, un point par examen, le dernier
+ * accentué, les repères servis sur l'axe, les dates en abscisse.
+ *
+ * 🛑 **Les bandes ne se dessinent que SERVIES** : vides en CO/CE (D2), elles
+ * n'apparaissent pas. Une bande couvre de son `min` au `min` de la suivante —
+ * les notes décimales tombent ainsi dans la bande de leur partie entière.
+ *
+ * Plus étroite que 720 px, elle défile horizontalement (maquette).
+ */
+export function ProgressChart({
+  min,
+  max,
+  reperes,
+  bands,
+  seuil,
+  seuilLabel,
+  points,
+  note,
+  ariaLabel,
+}: {
+  min: number;
+  max: number;
+  reperes: number[];
+  bands?: ProgressChartBand[];
+  seuil?: number | null;
+  seuilLabel?: string | null;
+  /** Du plus ancien au plus récent. */
+  points: ProgressChartPoint[];
+  /** Ce que mesure l'axe (« Score de progression · /499 »). */
+  note?: string | null;
+  ariaLabel: string;
+}) {
+  const gradientId = useId();
+  const span = max - min || 1;
+  const y = (v: number) => 100 - ((Math.min(Math.max(v, min), max) - min) / span) * 100;
+  const inset = 4;
+  const x = (i: number) =>
+    points.length > 1 ? inset + (i / (points.length - 1)) * (100 - 2 * inset) : 50;
+  const sorted = [...(bands ?? [])].sort((a, b) => a.min - b.min);
+  const last = points.length - 1;
+  /* Au-delà de 6 points, les dates s'écrivent une sur deux (ou moins) : le
+     défilement garde un point par examen, l'axe reste lisible. */
+  const pasDate = Math.max(1, Math.ceil(points.length / 7));
+  const coords = points.map((p, i) => `${x(i)},${y(p.value)}`);
+  return (
+    <div className={styles.pChart}>
+      {note ? <p className={styles.pChartNote}>{note}</p> : null}
+      <div className={styles.pChartScroll}>
+        <div
+          className={styles.pChartInner}
+          style={{ minWidth: `${Math.max(720, points.length * 44)}px` }}
+          role="img"
+          aria-label={ariaLabel}
+        >
+          <div className={styles.pChartPlot}>
+            {sorted.map((b, i) => {
+              const haut = i < sorted.length - 1 ? sorted[i + 1].min : max;
+              const top = y(haut);
+              const height = y(b.min) - top;
+              return (
+                <span
+                  key={`${b.label}-${b.min}`}
+                  className={cx(styles.pBand, progressBandClass[b.tone])}
+                  style={{ top: `${top}%`, height: `${height}%` }}
+                  aria-hidden
+                >
+                  {height >= 12 ? <i>{b.label}</i> : null}
+                </span>
+              );
+            })}
+            {reperes.map((r) => (
+              <span key={`g-${r}`} className={styles.pGrid} style={{ top: `${y(r)}%` }} aria-hidden>
+                <i>{r}</i>
+              </span>
+            ))}
+            {seuil != null ? (
+              <span className={styles.pSeuil} style={{ top: `${y(seuil)}%` }} aria-hidden>
+                {seuilLabel ? <i>{seuilLabel}</i> : null}
+              </span>
+            ) : null}
+            {points.length > 1 ? (
+              <svg className={styles.pChartSvg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: "var(--color-blue)", stopOpacity: 0.13 }} />
+                    <stop offset="100%" style={{ stopColor: "var(--color-blue)", stopOpacity: 0 }} />
+                  </linearGradient>
+                </defs>
+                <polygon
+                  points={`${x(0)},100 ${coords.join(" ")} ${x(last)},100`}
+                  fill={`url(#${gradientId})`}
+                />
+                <polyline
+                  points={coords.join(" ")}
+                  fill="none"
+                  stroke="var(--color-blue)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            ) : null}
+            {points.map((p, i) => (
+              <span
+                key={`p-${i}`}
+                className={cx(styles.pDot, i === last && styles.isLast)}
+                style={{ left: `${x(i)}%`, top: `${y(p.value)}%` }}
+                aria-hidden
+              />
+            ))}
+            {points.map((p, i) =>
+              i === 0 || i === last || points.length <= 5 ? (
+                <span
+                  key={`v-${i}`}
+                  className={cx(styles.pValue, i === last && styles.isLast)}
+                  style={{ left: `${x(i)}%`, top: `${y(p.value)}%` }}
+                  aria-hidden
+                >
+                  {p.label}
+                </span>
+              ) : null,
+            )}
+            {points.map((p, i) =>
+              i % pasDate === 0 || i === last ? (
+                <span key={`d-${i}`} className={styles.pDate} style={{ left: `${x(i)}%` }} aria-hidden>
+                  {p.date}
+                </span>
+              ) : null,
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** **La légende de l'échelle** — une case par bande servie : son nom, son étendue. */
+export function ProgressScaleLegend({ items }: { items: Array<{ label: string; range: string }> }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className={styles.pScale}>
+      {items.map((it) => (
+        <li key={`${it.label}-${it.range}`} className={styles.pScaleItem}>
+          <strong>{it.label}</strong>
+          <span>{it.range}</span>
         </li>
       ))}
     </ul>
@@ -2569,159 +2712,117 @@ export function LevelStrip({ items }: { items: LevelStripItem[] }) {
 }
 
 /**
- * **La tête d'une carte à courbe** — le `.chart-title` du template : le nom de
- * l'épreuve à gauche, son palier en gros à droite et son intitulé sous lui.
+ * **La ligne d'un examen** (écran épreuve / thème) — ordinal servi et date,
+ * score, badge servi (palier ou état), durée fiable ou « — », « Voir → ».
  *
- * 🛑 **Rien n'est dérivé** : les trois chaînes arrivent composées, « — »
- * compris. Miroir Flutter : `SfChartTitle`.
+ * Toute la ligne est un lien vers le rapport choisi par `rapport.kind`. Sur
+ * téléphone, durée et « Voir → » s'effacent (maquette) — la ligne reste un lien.
  */
-export function ChartTitle({
-  name,
-  level,
-  caption,
-}: {
-  name: string;
-  level: string;
-  caption: string;
-}) {
-  return (
-    <div className={styles.chartTitle}>
-      <span className={styles.chartName}>{name}</span>
-      <span className={styles.chartLevel}>
-        {level}
-        <small>{caption}</small>
-      </span>
-    </div>
-  );
-}
-
-/**
- * **Le pied d'une carte à courbe** — le `.chart-note` du template : ce que dit
- * la dernière mesure, et le lien qui l'ouvre.
- *
- * 🛑 **Distinct d'`InfoNote`**, l'encart ambre qui dit la *portée* d'une liste :
- * celui-ci porte une **donnée** et une **action**. `actionLabel` et `href` vont
- * ensemble : sans action, le pied reste un simple constat.
- *
- * Miroir Flutter : `SfChartNote`.
- */
-export function ChartNote({
-  title,
-  text,
-  actionLabel,
+export function ProgressExamRow({
   href,
-}: {
-  title: string;
-  text?: string | null;
-  actionLabel?: string | null;
-  href?: string | null;
-}) {
-  return (
-    <div className={styles.chartNote}>
-      <span className={styles.chartNoteBody}>
-        <b>{title}</b>
-        {text ? <span>{text}</span> : null}
-      </span>
-      {actionLabel && href ? (
-        <Link href={href} className={styles.chartNoteLink}>
-          {actionLabel}
-          <ArrowRight size={13} strokeWidth={2.6} aria-hidden />
-        </Link>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * **La ligne d'une épreuve sur un écran de progression** — l'`.exam-row` du
- * template : repère court en tuile, nom + pastille de tendance, une phrase
- * d'évolution, le palier à droite avec son intitulé, un chevron.
- *
- * 🛑 **Distincte des trois lignes voisines**, et ce n'est pas un doublon :
- * - `LevelCard` porte une **échelle à crans** et une ligne d'action — c'est la
- *   carte de l'Accueil, qui dit *quoi faire* (paliers CECRL en TCF, états de
- *   thème servis en civique) ;
- * - `EpreuveRow` porte un **anneau de couverture** — c'est la ligne de Réviser,
- *   qui dit *où s'entraîner* ;
- * - `ExamRow` porte un état de passage.
- *
- * Celle-ci dit **un palier et une tendance**, et rien d'autre.
- *
- * 🛑 `desc`, `pill`, `pillTone` et `level` arrivent **composés** : la brique ne
- * classe rien et ne compare aucun palier. Miroir Flutter : `SfEpreuveStatRow`.
- */
-export function EpreuveStatRow({
-  mark,
   title,
-  pill,
-  pillTone,
-  desc,
-  level,
-  levelCaption,
-  measured,
-  selected,
-  onClick,
+  date,
+  score,
+  badge,
+  duration,
+  action,
 }: {
-  mark: string;
+  /** `null` ⇒ ligne sans lien (aucun rapport servi). */
+  href: string | null;
   title: string;
-  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
-  pill?: string | null;
-  pillTone?: BarTone;
-  /** La phrase d'évolution. `null` ⇒ rien à sa place. */
-  desc?: string | null;
-  /** Le palier servi, ou « — » quand rien n'est mesuré. 🛑 Jamais « A1 ». */
-  level: string;
-  /** L'intitulé sous le palier (« actuel » / « niveau »). */
-  levelCaption: string;
-  /**
-   * Y a-t-il une mesure derrière `level` ?
-   *
-   * 🛑 **Passé, jamais deviné du texte** : comparer une chaîne pour décider
-   * d'une couleur ferait dépendre l'apparence d'un libellé reformulable.
-   */
-  measured: boolean;
-  /** La ligne est-elle celle que la courbe affiche ? */
-  selected?: boolean;
-  onClick: () => void;
+  date: string;
+  score: { label: string; value: string };
+  badge?: ProgressChip | null;
+  duration?: { label: string; value: string } | null;
+  action: string;
 }) {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onClick}
-        className={cx(styles.statRow, selected && styles.isOn)}
-      >
-        <span className={cx(styles.statMark, !measured && styles.isNa)}>{mark}</span>
-        <span className={styles.statId}>
-          <span className={styles.statName}>
-            {title}
-            {pill ? (
-              <i className={cx(styles.statPill, statusToneClass[pillTone ?? "muted"])}>
-                {pill}
-              </i>
-            ) : null}
-          </span>
-          {desc ? <span className={styles.statDesc}>{desc}</span> : null}
+  const body = (
+    <>
+      <span className={styles.pRowId}>
+        <b>{title}</b>
+        <small>{date}</small>
+      </span>
+      <span className={styles.pRowStat}>
+        <small>{score.label}</small>
+        <b>{score.value}</b>
+      </span>
+      <span className={styles.pRowBadgeCell}>
+        {badge ? (
+          <span className={cx(styles.pRowBadge, progressChipClass[badge.tone])}>{badge.label}</span>
+        ) : null}
+      </span>
+      {duration ? (
+        <span className={cx(styles.pRowStat, styles.pRowWide)}>
+          <small>{duration.label}</small>
+          <b>{duration.value}</b>
         </span>
-        <span className={cx(styles.statLevel, !measured && styles.isNa)}>
-          {level}
-          <small>{levelCaption}</small>
-        </span>
-        <ChevronRight size={18} strokeWidth={2} aria-hidden className={styles.statChevron} />
-      </button>
-    </li>
+      ) : (
+        <span className={styles.pRowWide} />
+      )}
+      <span className={cx(styles.pRowAction, styles.pRowWide)}>{href ? action : null}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={styles.pRow}>
+      {body}
+    </Link>
+  ) : (
+    <div className={styles.pRow}>{body}</div>
   );
 }
 
 /**
- * **La liste des épreuves** — l'`.exam-list` du template : une carte unique,
- * ses lignes séparées d'un filet.
+ * **La ligne d'un examen COMPLET** (écrans globaux) — ordinal et date, une part
+ * par épreuve ou par thème, le badge global.
  *
- * ⚠️ **Elle n'est pas `LevelCardGrid`** : celle-là range des cartes autonomes,
- * celle-ci réunit des lignes dans un seul encart. Miroir Flutter : `SfEpreuveStatList`.
+ * 🛑 Les parts arrivent écrites : « 392 / 499 », « 12 / 20 », « 3 / 4 »
+ * posées (D11), « — » pour une épreuve verrouillée, jamais ouverte, ou un
+ * thème non posé — jamais « 0 ». Sur téléphone, les parts s'effacent.
  */
-export function EpreuveStatList({ children }: { children: ReactNode }) {
-  return <ul className={styles.statList}>{children}</ul>;
+export function ProgressGlobalExamRow({
+  href,
+  title,
+  date,
+  parts,
+  badge,
+  action,
+}: {
+  href: string | null;
+  title: string;
+  date: string;
+  parts: Array<{ label: string; value: string }>;
+  badge?: ProgressChip | null;
+  action?: string | null;
+}) {
+  const body = (
+    <>
+      <span className={styles.pRowId}>
+        <b>{title}</b>
+        <small>{date}</small>
+      </span>
+      <span className={styles.pRowParts} style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}>
+        {parts.map((p) => (
+          <span key={p.label} className={styles.pRowStat} title={p.label}>
+            <small>{p.label}</small>
+            <b>{p.value}</b>
+          </span>
+        ))}
+      </span>
+      <span className={styles.pRowEnd}>
+        {badge ? (
+          <span className={cx(styles.pRowBadge, progressChipClass[badge.tone])}>{badge.label}</span>
+        ) : null}
+        {href && action ? <span className={cx(styles.pRowAction, styles.pRowWide)}>{action}</span> : null}
+      </span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cx(styles.pRow, styles.isGlobal)}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cx(styles.pRow, styles.isGlobal)}>{body}</div>
+  );
 }
 
 /* ==========================================================================

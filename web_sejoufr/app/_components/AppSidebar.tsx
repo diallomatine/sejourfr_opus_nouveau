@@ -77,13 +77,9 @@ function AppSidebarInner() {
     pathname?.startsWith("/recommandations/") ||
     pathname === "/revision" ||
     pathname?.startsWith("/revision/");
-  // Progression est désormais une vue secondaire du Plan : garder le parent
-  // visuellement actif quand l'utilisateur consulte /statistiques.
   const isPlanActive =
     pathname === "/plan" ||
-    pathname?.startsWith("/plan/") ||
-    pathname === "/statistiques" ||
-    pathname?.startsWith("/statistiques/");
+    pathname?.startsWith("/plan/");
 
   const [streak, setStreak] = useState<number | null>(null);
 

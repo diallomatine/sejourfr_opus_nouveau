@@ -234,9 +234,9 @@ function SuccesInner() {
                             num="03"
                             tone="green"
                             title="Suivre votre progression"
-                            body="Statistiques par thématique, calendrier d'activité et révision ciblée de vos erreurs."
-                            href="/statistiques"
-                            ctaLabel="Mes stats"
+                            body="Vos résultats d'examens blancs, épreuve par épreuve et thème par thème."
+                            href="/progression/tcf"
+                            ctaLabel="Ma progression"
                         />
                     </div>
                 </section>

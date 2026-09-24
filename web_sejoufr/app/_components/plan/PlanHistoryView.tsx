@@ -52,7 +52,7 @@ import {
 import type {JourneyHistoryCycleDto, JourneyHistoryDto} from "@/lib/types";
 
 /**
- * **« Ma progression »** — l'archive du parcours, derrière « Voir ma
+ * **« Mes cycles »** (ex-« Ma progression », D16) — l'archive du parcours, derrière « Voir ma
  * progression » au bas du Plan.
  *
  * Maquette du propriétaire : `docs/progression/histo_cycle.html`.

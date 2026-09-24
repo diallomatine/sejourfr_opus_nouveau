@@ -11,7 +11,7 @@ import styles from "./moduleHub.module.css";
  * `/entrainement` ont été **refaits sur la maquette** (`ReviserScreen`,
  * 2026-09-12) et ces briques n'ont plus d'appelant : elles sont supprimées —
  * refonte = suppression immédiate de l'ancien. Seul `ProgressDonut` reste, lu
- * par `/statistiques` et par `DetailParts`.
+ * par `DetailParts`.
  */
 
 const DONUT_R = 23;

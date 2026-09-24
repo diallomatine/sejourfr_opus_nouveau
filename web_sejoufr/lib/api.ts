@@ -9,7 +9,10 @@ import type {
   CivicPlanDto,
   CivicPlanGrain,
   ProgressDto,
-  EpreuveHistoriqueDto,
+  ProgressionCiviqueDto,
+  ProgressionEpreuveDto,
+  ProgressionTcfDto,
+  ProgressionThemeDto,
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
@@ -1370,40 +1373,72 @@ export const civicDiagnosticApi = {
 };
 
 /**
- * **Progrès** (T28, `30_` §7) — « montrer le mouvement, pas un tableau de bord ».
+ * **« Où vous en êtes »** — ce que l'Accueil lit de la progression
+ * (`GET /api/me/progress`, élagué le 2026-09-24).
  *
- * 🛑 **Rien n'est calculé côté front** : les paliers, les sens d'évolution, les
- * états de maîtrise et les compteurs arrivent servis. Cet écran met en forme.
+ * 🛑 **Rien n'est calculé côté front** : les paliers, les sens d'évolution et
+ * les états arrivent servis. L'Accueil met en forme.
  */
 export const progressApi = {
-    /**
-     * 🛑 **Jamais `null`** : un candidat sans diagnostic reçoit
-     * `disponible: false` sur chaque moitié. L'écran a besoin de savoir
-     * *pourquoi* il n'a rien à montrer.
-     */
     get(): Promise<ProgressDto> {
         return cached(`${PROGRESS_CACHE_PREFIX}current`, () =>
             apiFetch<ProgressDto>("/api/me/progress", {auth: true}),
         );
     },
+};
 
-    /**
-     * « D'où sort mon niveau ? » — les dernières évaluations **qualifiantes**
-     * d'une épreuve.
-     *
-     * 🛑 **Un appel à la demande**, quand le candidat ouvre une carte : il ne
-     * part pas avec l'Accueil, qui garde son lot unique.
-     *
-     * 🛑 **En cache sous le même préfixe que les progrès**, donc vidé par
-     * `invalidateDiagnosticAndPlan` : un examen blanc qui vient d'être corrigé
-     * ne doit pas laisser cet écran expliquer l'ancien palier.
-     *
-     * 🛑 **Jamais 404 pour une épreuve jamais mesurée** : la liste est vide.
-     */
-    historique(epreuve: EpreuveType): Promise<EpreuveHistoriqueDto> {
-        return cached(`${PROGRESS_CACHE_PREFIX}historique:${epreuve}`, () =>
-            apiFetch<EpreuveHistoriqueDto>(
-                `/api/me/progress/tcf/${epreuve}/historique`, {auth: true}),
+/**
+ * **Les écrans de progression** (`/api/me/progression/*`, D1–D20 du
+ * 2026-09-24) — un endpoint par écran, le même que le mobile.
+ *
+ * 🛑 **En cache sous le préfixe des progrès**, donc vidé par
+ * `invalidateDiagnosticAndPlan` (toute écriture de mesure) et par la relecture
+ * d'accès après un achat : un examen blanc qui vient d'être corrigé doit
+ * apparaître, et un `cta.locked` ne doit pas survivre à un achat.
+ */
+function progressionKey(chemin: string): string {
+    return `${PROGRESS_CACHE_PREFIX}progression:${chemin}`;
+}
+
+export const progressionApi = {
+    tcfKey(tous: boolean): string {
+        return progressionKey(`tcf:${tous}`);
+    },
+    /** TCF global : 3 derniers examens complets, ou tous (≤ 50) avec `tous`. */
+    tcf(tous: boolean): Promise<ProgressionTcfDto> {
+        return cached(progressionApi.tcfKey(tous), () =>
+            apiFetch<ProgressionTcfDto>(
+                `/api/me/progression/tcf${tous ? "?tous=true" : ""}`, {auth: true}),
+        );
+    },
+    epreuveKey(epreuve: EpreuveType): string {
+        return progressionKey(`epreuve:${epreuve}`);
+    },
+    /** Une épreuve TCF (`TCF_CO|TCF_CE|TCF_EE|TCF_EO`, sinon 400). */
+    epreuve(epreuve: EpreuveType): Promise<ProgressionEpreuveDto> {
+        return cached(progressionApi.epreuveKey(epreuve), () =>
+            apiFetch<ProgressionEpreuveDto>(
+                `/api/me/progression/tcf/${epreuve}`, {auth: true}),
+        );
+    },
+    civiqueKey(tous: boolean): string {
+        return progressionKey(`civique:${tous}`);
+    },
+    /** Civique global : 3 derniers examens globaux, ou tous avec `tous`. */
+    civique(tous: boolean): Promise<ProgressionCiviqueDto> {
+        return cached(progressionApi.civiqueKey(tous), () =>
+            apiFetch<ProgressionCiviqueDto>(
+                `/api/me/progression/civique${tous ? "?tous=true" : ""}`, {auth: true}),
+        );
+    },
+    themeKey(themeId: string): string {
+        return progressionKey(`theme:${themeId}`);
+    },
+    /** Un thème civique (404 s'il n'existe pas ou n'est pas civique). */
+    theme(themeId: string): Promise<ProgressionThemeDto> {
+        return cached(progressionApi.themeKey(themeId), () =>
+            apiFetch<ProgressionThemeDto>(
+                `/api/me/progression/civique/themes/${themeId}`, {auth: true}),
         );
     },
 };

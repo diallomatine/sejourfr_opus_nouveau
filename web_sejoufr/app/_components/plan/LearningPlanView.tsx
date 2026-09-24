@@ -14,11 +14,10 @@ import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
   PLAN_PROGRESS_LEVEL_UNKNOWN,
-  PLAN_PROGRESS_TITLE_SHORT,
   PLAN_STARTING,
   planNowCard,
 } from "@/lib/plan-domain";
-import {journeyHistoryHref, journeyTargetPathHref} from "@/lib/journey";
+import {JOURNEY_HISTORY_TITLE, journeyHistoryHref, journeyTargetPathHref} from "@/lib/journey";
 import {planHref} from "@/lib/module-switch";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
@@ -66,7 +65,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * « Déjà travaillé et validé », « Progression détectée », la carte du
  * diagnostic complet en cours, « Toutes mes compétences », « Mes examens
  * blancs » et « Revoir mon diagnostic rapide » ont été supprimés. Sous le
- * cycle il ne reste que « Ma progression » et « Mon diagnostic ». Ne pas les
+ * cycle il ne reste que « Mes cycles » et « Mon diagnostic ». Ne pas les
  * réintroduire.
  *
  * 🛑 **Rien n'est dérivé ici.** L'ordre des priorités, la nature de l'action,
@@ -494,7 +493,7 @@ function ActionMaintenant({plan, journey, free}: {
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
 function AllerPlusLoin() {
   const rows: Array<{href: string; label: string}> = [
-    {href: journeyHistoryHref("TCF"), label: PLAN_PROGRESS_TITLE_SHORT},
+    {href: journeyHistoryHref("TCF"), label: JOURNEY_HISTORY_TITLE},
     {href: "/diagnostic", label: "Mon diagnostic"},
   ];
   return (

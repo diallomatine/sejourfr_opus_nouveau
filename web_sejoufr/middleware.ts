@@ -14,7 +14,7 @@ const COOKIE_NAME = "sejourfr.accessToken";
 // Le test est un préfixe : "/paiement" couvre donc aussi "/paiement/recapitulatif"
 // (l'écran de choix d'un pass) — inutile de l'y ajouter, et surtout ne pas
 // remplacer le startsWith par une égalité.
-const PROTECTED_PREFIXES = ["/dashboard", "/paiement", "/plan"];
+const PROTECTED_PREFIXES = ["/dashboard", "/paiement", "/plan", "/progression"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

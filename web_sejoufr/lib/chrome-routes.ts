@@ -30,9 +30,9 @@ export const APP_GROUP_PREFIXES = [
   "/parcours",
   "/profil",
   "/plan",
+  "/progression",
   "/recommandations",
   "/revision",
-  "/statistiques",
   "/succes",
 ];
 

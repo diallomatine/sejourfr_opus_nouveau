@@ -4035,36 +4035,14 @@ export const CIVIC_THEME_STATE_LABEL: Record<CivicThemeState, string> = {
 };
 
 // ============================================================================
-// PROGRÈS (T28) — miroirs de `ProgressDto`
+// « OÙ VOUS EN ÊTES » (Accueil) — miroirs de `ProgressDto`
+//
+// 🛑 Élagué le 2026-09-24 avec le DTO backend : `activite`, `tcf.disponible`,
+// `tcf.niveauActuel`, `tcf.historique`, `tcf.competences`, `civique.disponible`,
+// `civique.travaillees`, `civique.maitrisees` et `civique.grainNotion`
+// n'étaient lus que par l'ancien écran « Votre progression », supprimé. Les
+// écrans de progression lisent `/api/me/progression/*` (plus bas).
 // ============================================================================
-
-/** Une semaine de la frise d'activité. `jours` vaut 0 à 7. */
-export interface ProgressSemaineDto {
-    debut: string;
-    jours: number;
-}
-
-/**
- * L'activité récente — des **faits**, jamais un jeu.
- *
- * 🛑 Ni flamme, ni record, ni objectif hebdomadaire (`30_` §7 : « pas de série
- * de flammes, pas de gamification agressive »). Un compteur qu'on peut casser
- * transforme une mesure en dette.
- */
-export interface ProgressActiviteDto {
-    joursActifs: number;
-    /** **Servi** : aucun écran n'écrit la fenêtre en dur, donc aucun ne ment. */
-    fenetreJours: number;
-    /** De la plus ancienne à la plus récente — le sens de lecture d'une frise. */
-    semaines: ProgressSemaineDto[];
-}
-
-/** Un point de l'historique des estimations TCF. */
-export interface ProgressEstimationDto {
-    sessionId: string;
-    niveau: NiveauCecrl | null;
-    mesureA: string | null;
-}
 
 /**
  * Où en est une épreuve **face à l'objectif** du candidat — dérivé serveur
@@ -4099,58 +4077,14 @@ export interface ProgressEpreuveDto {
     evaluation: PlanDomainAssessmentDto | null;
 }
 
-/**
- * Une compétence tenue.
- *
- * 🛑 `preuveA` est la date de la **dernière observation solide** — pas une
- * « date d'acquisition » : le moteur agrège plusieurs observations, aucune ne
- * marque un instant d'acquisition.
- */
-export interface ProgressCompetenceDto {
-    skillId: string;
-    code: string;
-    titre: string;
-    section: SkillSection;
-    preuveA: string | null;
-}
-
-/**
- * Bloc 3 — « 4 compétences maîtrisées sur 11 travaillées ».
- *
- * 🛑 **Les compteurs sont servis même verrouillés** : c'est le *détail* qui est
- * premium, pas le fait d'avoir progressé.
- */
-export interface ProgressCompetencesDto {
-    travaillees: number;
-    maitrisees: number;
-    /** Vide quand `locked`. */
-    dernieres: ProgressCompetenceDto[];
-    locked: boolean;
-}
-
 export interface ProgressTcfDto {
-    /**
-     * `false` tant qu'aucun **diagnostic TCF 4 épreuves** n'est clos : rien à
-     * tracer. 🛑 Il commande la **courbe** et le **palier global**, pas la
-     * liste des épreuves.
-     */
-    disponible: boolean;
-    niveauActuel: NiveauCecrl | null;
+    /** 🛑 `null` quand aucune démarche n'est déclarée : on ne devine pas. */
     objectif: NiveauCecrl | null;
-    /** Du plus ancien au plus récent. 🛑 Une courbe demande **deux** points. */
-    historique: ProgressEstimationDto[];
-    /**
-     * Les 4 épreuves, **toutes**, évaluées ou non.
-     *
-     * 🛑 **Indépendantes de `disponible` depuis le 2026-09-16** : une CO
-     * mesurée par un examen de module existe sans qu'aucun diagnostic
-     * 4 épreuves ait jamais été clos. La liste n'est donc jamais vide.
-     */
+    /** Les 4 épreuves, **toutes**, évaluées ou non. */
     epreuves: ProgressEpreuveDto[];
-    competences: ProgressCompetencesDto;
 }
 
-/** Un résultat civique, directement comparable au seuil. */
+/** Un diagnostic civique clos, directement comparable au seuil. */
 export interface ProgressScoreDto {
     sessionId: string;
     bonnes: number;
@@ -4162,83 +4096,19 @@ export interface ProgressScoreDto {
 
 /** 🛑 **Aucune métrique CECRL côté civique** (`20_` §12). */
 export interface ProgressCiviqueDto {
-    disponible: boolean;
+    /** Les diagnostics clos, du plus ancien au plus récent. */
     historique: ProgressScoreDto[];
-    travaillees: number;
-    maitrisees: number;
-    /** L'écran doit pouvoir **nommer** ce qu'il compte : notions ou thèmes. */
-    grainNotion: boolean;
     /**
-     * Le détail par thème, **même record que le Plan / Réviser** : le serveur
-     * réexpose ce que son moteur civique produit déjà.
-     *
-     * 🛑 L'`etat` est **servi**, et se rend par `CIVIC_THEME_STATE_LABEL` : le
-     * front pose un libellé, il ne classe aucun nombre.
+     * Le détail par thème, **même record que le Plan / Réviser**. 🛑 L'`etat`
+     * est **servi**, rendu par `CIVIC_THEME_STATE_LABEL`.
      */
     themes: CivicPlanThemeLigneDto[];
 }
 
-/**
- * **Progrès** (`30_` §7) — « montrer le mouvement, pas un tableau de bord ».
- *
- * 🛑 `activite` est **transverse** : les jours de travail ne se répartissent pas
- * par module — une séance civique et une production TCF sont le même effort du
- * même jour.
- */
+/** `GET /api/me/progress` — ce que l'Accueil lit de la progression. */
 export interface ProgressDto {
-    activite: ProgressActiviteDto;
     tcf: ProgressTcfDto;
     civique: ProgressCiviqueDto;
-}
-
-// ============================================================================
-// « D'OÙ SORT MON NIVEAU ? » — miroirs de `EpreuveHistoriqueDto`
-// ============================================================================
-
-/**
- * D'où vient une évaluation qualifiante.
- *
- * 🛑 **Les quatre valeurs ne se fondent pas deux à deux** : une sous-épreuve de
- * diagnostic complet n'est ni le diagnostic rapide, ni un examen blanc, et les
- * confondre nommerait faux la seule ligne qui explique un palier.
- */
-export type SourceEvaluation =
-    | "DIAGNOSTIC_RAPIDE"
-    | "DIAGNOSTIC_COMPLET"
-    | "EPREUVE_SEULE"
-    | "EXAMEN_BLANC";
-
-/**
- * Libellés FR **gelés**, miroirs mot pour mot de `SourceEvaluation.label`
- * côté Flutter.
- */
-export const SOURCE_EVALUATION_LABEL: Record<SourceEvaluation, string> = {
-    DIAGNOSTIC_RAPIDE: "Diagnostic rapide",
-    DIAGNOSTIC_COMPLET: "Diagnostic complet",
-    EPREUVE_SEULE: "Épreuve passée seule",
-    EXAMEN_BLANC: "Examen blanc complet",
-};
-
-/** Une évaluation qualifiante : quand, d'où, quel palier. */
-export interface EvaluationQualifianteDto {
-    mesureA: string | null;
-    /** 🛑 Brut : le front pose le libellé, il ne le déduit d'aucun autre champ. */
-    source: SourceEvaluation;
-    /** Jamais `null` — une évaluation sans palier n'est pas servie. */
-    niveau: NiveauCecrl;
-}
-
-/**
- * L'historique d'une épreuve.
- *
- * 🛑 `evaluations` **vide** quand rien n'a été mesuré — jamais une erreur.
- * 🛑 Ce n'est **pas** la seconde liste d'historique que `ProgressDto` refuse :
- * c'est le détail d'UNE ligne, demandé quand le candidat ouvre une carte.
- */
-export interface EpreuveHistoriqueDto {
-    epreuve: EpreuveType;
-    /** De la plus récente à la plus ancienne, plafonnée par le serveur. */
-    evaluations: EvaluationQualifianteDto[];
 }
 
 // ============================================================================

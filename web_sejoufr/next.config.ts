@@ -50,6 +50,26 @@ const nextConfig: NextConfig = {
     async headers() {
         return [{source: "/:path*", headers: securityHeaders}];
     },
+    // Les anciennes adresses de progression (supprimées le 2026-09-24, D14)
+    // ne servent plus d'écran : elles REDIRIGENT vers leurs équivalents, pour
+    // qu'un lien déjà partagé aboutisse. Temporaires (307) : ce ne sont pas des
+    // adresses à indexer.
+    async redirects() {
+        return [
+            {source: "/progression", destination: "/progression/tcf", permanent: false},
+            {source: "/statistiques", destination: "/progression/tcf", permanent: false},
+            {
+                source: "/historique/epreuve/:domaine",
+                destination: "/progression/tcf/:domaine",
+                permanent: false,
+            },
+            {
+                source: "/historique/theme/:theme",
+                destination: "/progression/civique/:theme",
+                permanent: false,
+            },
+        ];
+    },
     images: {
         remotePatterns: [
             {protocol: "https", hostname: "images.unsplash.com"},

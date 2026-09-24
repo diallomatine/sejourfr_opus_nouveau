@@ -28,23 +28,6 @@ export function civicThemeExamsHref(ref: string): string {
 }
 
 /**
- * **« Vos résultats » d'un thème civique** — le pendant civique de
- * `/historique/epreuve/[domaine]`.
- *
- * 🛑 **À ne pas confondre avec `civicThemeExamsHref`** : là on **passe** un
- * examen, ici on **lit** ses résultats. C'est cette adresse que porte « Voir
- * mes résultats » sur l'Accueil ; la grille d'examens est le lien de pied de
- * l'écran d'arrivée.
- *
- * ⚠️ Elle prend le **segment d'URL** comme sa voisine : l'appelant passe
- * `themeSlug(code)` quand il tient un code, son `ref` hérité sinon.
- * Miroir mobile : `AppRoutes.themeHistoriquePath`.
- */
-export function themeHistoriqueHref(ref: string): string {
-  return `/historique/theme/${ref}`;
-}
-
-/**
  * Résout le segment d'URL d'un thème : slug (nouvelles URLs) ou UUID
  * (héritage — retours de session, anciens liens).
  */

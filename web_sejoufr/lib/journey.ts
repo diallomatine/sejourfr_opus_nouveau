@@ -613,7 +613,7 @@ function tacheLabel(taskCode: SkillTaskCode): string {
 }
 
 /* ==========================================================================
-   L'HISTORIQUE DES CYCLES — « Ma progression »
+   L'HISTORIQUE DES CYCLES — « Mes cycles » (ex-« Ma progression », D16)
    Maquette `docs/progression/histo_cycle.html` (propriétaire, 2026-09-18)
 
    🛑 Miroir mot pour mot de `mobile .../screens/plan/journey_labels.dart`.
@@ -623,12 +623,12 @@ function tacheLabel(taskCode: SkillTaskCode): string {
    `lot`, `step` et `journey` n'apparaissent nulle part (D-21).
    ========================================================================== */
 
-/** La destination de « Voir ma progression ». 🛑 Une seule constante : un
+/** La destination de « Mes cycles ». 🛑 Une seule constante : un
  *  chemin recopié dans un composant finirait par diverger du router. */
 export const JOURNEY_HISTORY_HREF = "/plan/progression";
 
 /**
- * La destination de « Ma progression », **scopée au parcours** (P8.9).
+ * La destination de « Mes cycles », **scopée au parcours** (P8.9).
  *
  * 🛑 **`?module=` est le seul mécanisme de sélection de module du web**, et
  * l'écran d'historique n'y fait pas exception : un second chemin
@@ -655,7 +655,7 @@ function uniteMot(module: ParcoursModule, n: number): string {
 }
 
 /** Le titre de l'écran, et le libellé du lien qui l'ouvre. */
-export const JOURNEY_HISTORY_TITLE = "Ma progression";
+export const JOURNEY_HISTORY_TITLE = "Mes cycles";
 
 export const JOURNEY_HISTORY_EYEBROW = "Votre parcours";
 export const JOURNEY_HISTORY_HEADLINE = "Tout ce que vous avez déjà travaillé";

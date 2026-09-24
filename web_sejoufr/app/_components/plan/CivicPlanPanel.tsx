@@ -338,7 +338,7 @@ function lancer(
 }
 
 /**
- * **L'accès à « Ma progression »**, au bas du Plan civique.
+ * **L'accès à « Mes cycles »**, au bas du Plan civique.
  *
  * 🛑 **Le MÊME point d'entrée que le TCF** (`AllerPlusLoin` de
  * `LearningPlanView`) : même section, même carte, même libellé, même écran

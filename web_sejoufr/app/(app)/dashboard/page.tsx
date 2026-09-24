@@ -5,19 +5,10 @@ import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useState} from "react";
 import {
     ArrowRight,
-    BookOpen,
     ClipboardCheck,
-    Gavel,
-    Globe,
-    Headphones,
     Landmark,
-    type LucideIcon,
-    Mic,
-    PenLine,
-    Scale,
     Sparkles,
     Target,
-    Users,
 } from "lucide-react";
 import {
     Card,
@@ -42,7 +33,9 @@ import {
     journeyTargetPathHref,
 } from "@/lib/journey";
 import {civicBarTone} from "@/lib/civic-diagnostic";
-import {themeHistoriqueHref, themeSlug} from "@/lib/themes";
+import {themeSlug} from "@/lib/themes";
+import {progressionEpreuveHref, progressionThemeHref} from "@/lib/progression";
+import {situationIcon} from "@/lib/situation-icons";
 import {
     ACCUEIL_EVALUEES_CAPTION,
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
@@ -73,7 +66,6 @@ import {
     planDomainHref,
     planDomainLabel,
     planDomainShort,
-    planDomainSlug,
     planNowCard,
 } from "@/lib/plan-domain";
 import {planNowIcon} from "@/app/_components/plan/PlanBits";
@@ -127,9 +119,8 @@ import {civicNowCard} from "@/lib/civic-plan";
  * « Votre progression », la carte « Continuez votre diagnostic complet »
  * (`AffinerPlanCard`, supprimée avec son autorité `affinerPlan`) et les deux
  * lignes de « Vos parcours » — la bascule ci-dessus fait déjà ce travail.
- * **Ne pas les réintroduire** : le Plan se lit sur `/plan`, les compteurs de
- * compétences sur `/statistiques` (`ProgresMouvement`, qui les dit autrement),
- * et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser,
+ * **Ne pas les réintroduire** : le Plan se lit sur `/plan`, les résultats sur
+ * les écrans de progression (`/progression/*`), et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser,
  * le Plan et le rapport de diagnostic. Même passe côté mobile.
  *
  * 🛑 **Sans objectif déclaré, on INVITE — on ne ferme rien** (arbitrage du
@@ -192,31 +183,16 @@ const SITUATION_NOTE =
     "Le niveau affiché évolue uniquement avec vos diagnostics et vos "
     + "épreuves complètes.";
 
-/**
- * Le pictogramme de chaque carte. Décoratif : le repère court et l'intitulé
- * disent déjà l'épreuve ou le thème. Miroir mobile : `_kSituationIcon`
- * (`home_screen.dart`).
- */
-const SITUATION_EPREUVE_ICON: Record<string, LucideIcon> = {
-    TCF_CO: Headphones,
-    TCF_CE: BookOpen,
-    TCF_EE: PenLine,
-    TCF_EO: Mic,
-};
-
-const SITUATION_THEME_ICON: Record<string, LucideIcon> = {
-    CIV_PRINCIPES: Scale,
-    CIV_INSTITUTIONS: Landmark,
-    CIV_DROITS_DEVOIRS: Gavel,
-    CIV_HISTOIRE_GEO: Globe,
-    CIV_SOCIETE: Users,
-};
+/* Le pictogramme de chaque carte vient de `lib/situation-icons.ts` : les
+   écrans de progression reprennent les mêmes (miroir mobile :
+   `situation_icons.dart`). */
 
 /**
  * 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
- * propriétaire, 2026-09-19) : la ligne d'un thème ouvre **l'historique de ses
- * examens blancs**, la page qui existe déjà — pendant exact du « Voir mes
- * résultats » d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
+ * propriétaire, 2026-09-19) : la ligne d'un thème ouvre **l'écran de
+ * progression du thème** (`/progression/civique/[theme]`, D17) — pendant exact
+ * du « Voir mes résultats » d'une épreuve TCF mesurée. Le lanceur de série
+ * reste au Plan.
  */
 const SITUATION_CIVIC_CTA = "Voir mes résultats";
 
@@ -444,7 +420,7 @@ function DashboardRoot() {
 
                 🛑 **C'est le SEUL constat de l'écran** depuis le 2026-09-19 :
                 « Votre progression » et ses deux compteurs de compétences ont
-                été supprimés (ils se lisent sur `/statistiques`).
+                été supprimés.
 
                 🛑 **Aucun appel de plus** : `progres` est déjà dans l'état de
                 l'écran, et le même `ProgressDto` porte déjà les 4 épreuves.
@@ -836,15 +812,16 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                               (épreuve en progression ; ou descripteur absent —
                               client ancien) ⇒ la fiche du domaine, le
                               comportement historique.
-                           3. Rien à faire ⇒ la page des résultats.
+                           3. Rien à faire ⇒ l'écran de progression de
+                              l'épreuve (`/progression/tcf/[epreuve]`, D17).
                            Le choix se lit sur l'état servi, jamais sur un
                            texte de bouton. */
                         const mesure = e.niveau === null ? e.evaluation : null;
                         const href = accueilEpreuveOuvreLExercice(e)
                             ? planDomainHref(
                                 e.epreuve as Parameters<typeof planDomainHref>[0])
-                            : `/historique/epreuve/${planDomainSlug(
-                                e.epreuve as Parameters<typeof planDomainSlug>[0])}`;
+                            : progressionEpreuveHref(e.epreuve) ?? planDomainHref(
+                                e.epreuve as Parameters<typeof planDomainHref>[0]);
                         const domaine = e.epreuve as Parameters<
                             typeof planDomainLabel>[0];
                         const mesuree = Boolean(e.niveau);
@@ -852,7 +829,7 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                             <LevelCard
                                 key={e.epreuve}
                                 mark={planDomainShort(domaine)}
-                                icon={SITUATION_EPREUVE_ICON[e.epreuve] ?? BookOpen}
+                                icon={situationIcon(e.epreuve)}
                                 title={planDomainLabel(domaine)}
                                 status={accueilEpreuveStatut(e)}
                                 tone={accueilEpreuveTon(e)}
@@ -946,7 +923,7 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                servi (`CIV_PRINCIPES` n'en est pas un), et en
                                inventer un serait fabriquer un libellé. */
                             mark={`${rang + 1}`}
-                            icon={SITUATION_THEME_ICON[t.code] ?? BookOpen}
+                            icon={situationIcon(t.code)}
                             title={t.label}
                             /* 🛑 L'état arrive **servi** : on pose son libellé
                                gelé, on ne classe aucun nombre. `NON_EVALUE`
@@ -974,10 +951,9 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                                 />
                             }
                             cta={SITUATION_CIVIC_CTA}
-                            /* 🛑 **« Vos résultats » du thème**, le pendant
-                               civique de l'écran de résultats d'une épreuve
-                               TCF (2026-09-19). */
-                            href={themeHistoriqueHref(themeSlug(t.code))}
+                            /* 🛑 **L'écran de progression du thème**, le
+                               pendant civique de celui d'une épreuve TCF (D17). */
+                            href={progressionThemeHref(themeSlug(t.code))}
                         />
                     ))}
                 </LevelCardGrid>

@@ -1965,7 +1965,7 @@
    `position: fixed` (`.ms-toggle`, 44 px posé à 12 px du coin haut-gauche, cf.
    `globals.css`) : il recouvrait le début de l'eyebrow et du titre, devenus le
    premier bloc de ces écrans. Même remède que partout ailleurs dans l'espace
-   connecté (`/dashboard`, `/statistiques`, les hubs de module…) : une gouttière
+   connecté (`/dashboard`, les hubs de module…) : une gouttière
    de 64 px, soit 12 (marge du bouton) + 44 (sa taille) + 8 (respiration).
 
    La gouttière existe EXACTEMENT quand le burger existe — même borne que sa
@@ -1979,7 +1979,7 @@
 }
 
 /* ==========================================================================
-   Maquette « Où vous en êtes » + « Vos résultats » (propriétaire, 2026-09-16)
+   Maquette « Où vous en êtes » (propriétaire, 2026-09-16)
 
    🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
    `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
@@ -2466,307 +2466,6 @@
   line-height: 1.4;
 }
 
-/* ---------- Le héros d'une page de résultats ---------- */
-
-.resultHero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 28px;
-  padding: 20px 18px;
-  background: var(--gradient-ink-blue);
-  box-shadow: var(--sf-shadow-lift);
-  color: white;
-}
-
-.resultHero::after {
-  content: "";
-  position: absolute;
-  right: -46px;
-  top: -60px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: color-mix(in srgb, white 8%, transparent);
-}
-
-.resultHeroLabel {
-  position: relative;
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 800;
-  color: color-mix(in srgb, white 78%, var(--color-blue));
-}
-
-.resultHeroRow {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.resultHeroLevel {
-  font-family: var(--font-display);
-  font-size: 46px;
-  font-weight: 620;
-  line-height: 0.95;
-  letter-spacing: -0.05em;
-  color: white;
-}
-
-.resultHeroGoal {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  font-size: 12px;
-  color: color-mix(in srgb, white 82%, var(--color-blue));
-  white-space: nowrap;
-}
-
-.resultHeroGoal b {
-  margin-top: 2px;
-  font-size: 17px;
-  font-weight: 800;
-  color: white;
-}
-
-.trendChip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-  padding: 7px 11px;
-  border-radius: var(--sf-radius-pill);
-  background: color-mix(in srgb, white 14%, transparent);
-  border: 1px solid color-mix(in srgb, white 16%, transparent);
-  font-size: 11.5px;
-  font-weight: 800;
-  color: white;
-}
-
-.resultHeroFoot {
-  position: relative;
-  margin: 10px 0 0;
-  max-width: 320px;
-  font-size: 11.5px;
-  line-height: 1.4;
-  color: color-mix(in srgb, white 76%, var(--color-blue));
-}
-
-/* ---------- La courbe d'évolution ---------- */
-
-.chart {
-  position: relative;
-  height: 180px;
-  padding: 10px 6px 26px 38px;
-}
-
-.chartYAxis {
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 26px;
-  width: 34px;
-}
-
-.chartYLabel {
-  position: absolute;
-  left: 0;
-  transform: translateY(-50%);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-
-.chartPlot {
-  position: relative;
-  height: 100%;
-}
-
-.chartGrid {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--color-line-2);
-}
-
-/* 🛑 **Le seuil se LIT sur la courbe.** C'est l'information utile d'un examen
-   civique : savoir où passe la barre. Un pointillé ambre, la famille « la barre
-   à franchir » du kit — jamais du rouge, qui dirait « raté », ni du vert, qui
-   dirait « acquis ». Miroir Flutter : `SfChartRung.seuil`. */
-.chartGrid.isSeuil {
-  height: 0;
-  background: none;
-  border-top: 2px dashed var(--color-amber);
-}
-
-.chartYLabel.isSeuil {
-  font-weight: 800;
-  color: var(--color-amber-dark);
-}
-
-.chartLine {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.chartDot {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  border-radius: 50%;
-  border: 4px solid var(--color-blue);
-  background: white;
-  transform: translate(-50%, -50%);
-  cursor: pointer;
-  transition: box-shadow var(--sf-quick);
-}
-
-.chartDot.isOn {
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-blue) 12%, transparent);
-}
-
-.chartDot:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 3px;
-}
-
-.chartDate {
-  position: absolute;
-  bottom: -22px;
-  transform: translateX(-50%);
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
-/* ---------- La rangée de filtres ---------- */
-
-.filterRow {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filterRow::-webkit-scrollbar {
-  display: none;
-}
-
-.filter {
-  flex: 0 0 auto;
-  border: 0;
-  padding: 8px 12px;
-  border-radius: var(--sf-radius-pill);
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-  font-family: var(--font-sans);
-  font-size: 11.5px;
-  font-weight: 800;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.filter.isOn {
-  background: var(--color-ink);
-  color: white;
-}
-
-.filter:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 2px;
-}
-
-/* ---------- Une ligne d'historique ---------- */
-
-.histItem {
-  border-radius: var(--sf-radius-md);
-  background: var(--color-blue-soft);
-  overflow: hidden;
-  transition: background var(--sf-quick);
-}
-
-.histItem.isOn {
-  background: var(--color-blue-light);
-}
-
-.histMain {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border: 0;
-  background: transparent;
-  font-family: var(--font-sans);
-  text-align: left;
-  cursor: pointer;
-}
-
-.histMain:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: -2px;
-}
-
-.histIco {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--sf-radius-sm);
-  background: white;
-  color: var(--color-blue);
-}
-
-.histBody {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.histBody b {
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.25;
-  color: var(--color-ink);
-}
-
-.histBody small {
-  margin-top: 2px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-
-.histLevel {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-blue);
-  white-space: nowrap;
-}
-
-.histDetail {
-  padding: 0 12px 12px 64px;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: var(--color-muted);
-}
-
-.histDetail strong {
-  color: var(--color-ink);
-  font-weight: 800;
-}
-
 /* ---------- L'encart de pied de liste ---------- */
 
 .infoNote {
@@ -2806,25 +2505,9 @@
   color: var(--color-blue);
 }
 
-/* ---------- Palier desktop (960 px) — la borne du kit, pas une de plus ---- */
-
-@media (min-width: 960px) {
-  /* ⚠️ « Où vous en êtes » n'a aucune règle ici : sa grille de cartes se
-     règle sur sa propre largeur (`@container`, avec le reste du kit). */
-  .chart {
-    height: 220px;
-  }
-
-  .resultHeroLevel {
-    font-size: 54px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .levelCard,
-  .ladderStep,
-  .histItem,
-  .chartDot {
+  .ladderStep {
     transition: none;
   }
 }
@@ -3797,13 +3480,10 @@
 }
 
 /* ============================================================================
-   L'ÉCRAN « VOTRE PROGRESSION » (template `docs/progression/
-   ecran_progression_normal.html`, 2026-09-19)
-
-   Le bandeau d'objectif et sa bande de paliers, la tête et le pied de la carte
-   à courbe, la liste des épreuves. Miroirs Flutter : `SfGoalHero`,
-   `SfLevelStrip`, `SfChartTitle`, `SfChartNote`, `SfEpreuveStatRow` /
-   `SfEpreuveStatList`.
+   Le BANDEAU D'OBJECTIF (`GoalHero`) et la phrase de cadrage de `Top`.
+   ⚠️ L'ancien écran « Votre progression » qui les a fait naître est SUPPRIMÉ
+   (2026-09-24), avec ses autres classes (`.levelStrip*`, `.chartTitle`,
+   `.chartNote*`, `.statList` / `.statRow*`). Miroir Flutter : `SfGoalHero`.
    ========================================================================== */
 
 /* La phrase de cadrage de l'en-tête (`Top lead`). */
@@ -3925,287 +3605,7 @@
   margin-top: 12px;
 }
 
-/* ---------- La bande des paliers ---------- */
-
-/* 🛑 **Autant de colonnes que de tuiles servies** : `repeat(auto-fit)` suit la
-   liste, aucun « 4 » n'est écrit ici. */
-.levelStrip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  grid-auto-flow: column;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.levelStripTile {
-  min-width: 0;
-  padding: 10px 8px;
-  border-radius: 14px;
-  background: color-mix(in srgb, white 10%, transparent);
-  border: 1px solid color-mix(in srgb, white 8%, transparent);
-}
-
-.levelStripMark {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: color-mix(in srgb, white 80%, var(--color-blue));
-}
-
-.levelStripValue {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  margin-top: 4px;
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 620;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-}
-
-.levelStripValue i {
-  font-style: normal;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-/* Le ton d'une flèche : trois teintes **lisibles sur le bleu**, jamais les
-   teintes pleines du produit. */
-.trendUp { color: var(--color-green-bright); }
-.trendFlat { color: var(--color-amber); }
-.trendDown { color: var(--color-red-bright); }
-
-.levelStripCaption {
-  display: block;
-  margin-top: 3px;
-  font-size: 9.5px;
-  line-height: 1.25;
-  color: color-mix(in srgb, white 84%, var(--color-blue));
-}
-
-/* ---------- La tête d'une carte à courbe ---------- */
-
-.chartTitle {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.chartName {
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-
-.chartLevel {
-  flex: 0 0 auto;
-  font-family: var(--font-display);
-  font-size: 23px;
-  font-weight: 620;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  color: var(--color-ink);
-  text-align: right;
-}
-
-.chartLevel small {
-  display: block;
-  margin-top: 2px;
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--color-muted-2);
-}
-
-/* ---------- Le pied d'une carte à courbe ---------- */
-
-.chartNote {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 5px;
-  padding: 10px 11px;
-  border-radius: var(--sf-radius-md);
-  background: var(--color-blue-soft);
-  border: 1px solid var(--color-line-2);
-}
-
-.chartNoteBody {
-  min-width: 0;
-}
-
-.chartNoteBody b {
-  display: block;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.3;
-  color: var(--color-ink);
-}
-
-.chartNoteBody span {
-  display: block;
-  margin-top: 2px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--color-muted);
-}
-
-.chartNoteLink {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px;
-  border-radius: var(--sf-radius-xs);
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--color-blue);
-  text-decoration: none;
-}
-
-.chartNoteLink:hover {
-  background: var(--color-blue-light);
-}
-
-/* ---------- La liste des épreuves ---------- */
-
-.statList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  border-radius: var(--sf-radius-xl);
-  background: white;
-  box-shadow: var(--sf-shadow-border);
-}
-
-.statList > li + li {
-  border-top: 1px solid var(--color-line-2);
-}
-
-.statRow {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  border: 0;
-  padding: 13px 14px;
-  background: transparent;
-  text-align: left;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  transition: background var(--sf-quick);
-}
-
-.statRow:hover,
-.statRow.isOn {
-  background: var(--color-blue-soft);
-}
-
-.statRow:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: -2px;
-}
-
-.statMark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  background: var(--color-blue-light);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--color-blue);
-}
-
-.statMark.isNa {
-  background: var(--color-paper-2);
-  color: var(--color-muted);
-}
-
-.statId {
-  min-width: 0;
-}
-
-.statName {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.25;
-  color: var(--color-ink);
-}
-
-/* La pastille reprend la teinte du ton servi, fond compris : `currentColor`
-   évite une seconde table de fonds clairs. */
-.statPill {
-  flex: 0 0 auto;
-  font-style: normal;
-  padding: 3px 6px;
-  border-radius: var(--sf-radius-pill);
-  background: color-mix(in srgb, currentColor 13%, white);
-  font-size: 9.5px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.statDesc {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--color-muted-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.statLevel {
-  flex: 0 0 auto;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 620;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  color: var(--color-ink);
-  text-align: right;
-}
-
-.statLevel.isNa {
-  color: var(--color-muted-2);
-}
-
-.statLevel small {
-  display: block;
-  margin-top: 2px;
-  font-family: var(--font-sans);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--color-muted-2);
-}
-
-.statChevron {
-  flex: 0 0 auto;
-  color: var(--color-muted-2);
-}
-
-/* ⚠️ Palier desktop : les deux blocs respirent, rien d'autre ne change. Une
+/* ⚠️ Palier desktop : le bandeau respire, rien d'autre ne change. Une
    media query n'est pas une primitive — aucun miroir Flutter. */
 @media (min-width: 960px) {
   .goalHero {
@@ -4215,11 +3615,915 @@
   .goalHeroValue {
     font-size: 31px;
   }
+}
 
-  .statRow {
-    padding: 15px 20px;
+/* ============================================================================
+   LES ÉCRANS DE PROGRESSION (maquettes du propriétaire, 2026-09-24 ;
+   `docs/progression/maquettes-progression/*.html`)
+
+   Portage de la maquette, remappé sur les tokens : `--brand` → `--color-blue`
+   (fonds, boutons) / `--color-blue-dark` (textes de marque), `--brand-soft` →
+   `--color-blue-light`, `--green(-soft)` → `--color-green(-light)`, `--line`
+   → `--color-line`. Titres en Fraunces, le reste en Plus Jakarta Sans.
+
+   🛑 **Le rouge de la maquette ne passe pas** (réservé aux CTA critiques) :
+   anneau bleu (vert au seuil servi), dernier point bleu foncé avec halo,
+   badge « B2 » bleu comme les autres. L'œil-de-bœuf garde la pastille rouge
+   de `.heroDot`, déjà la convention du kit.
+
+   🛑 **Les bornes sont celles de la maquette, mais sur la largeur du
+   CONTENU** (`@container pscreen`), pas sur la fenêtre : la barre latérale du
+   desktop mange 248 px, et une borne de fenêtre casserait la grille entre 960
+   et 1 100 px. 780 px (épreuve, thème) et 860 px (écrans globaux) sont ses
+   deux bornes ; 620 / 470 px ses deux crans de confort. Une media query n'est
+   pas une primitive : aucun miroir Flutter pour ces bornes.
+   ========================================================================== */
+
+.pScreen {
+  container: pscreen / inline-size;
+}
+
+.pCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 7%, transparent);
+}
+
+/* ---------- La barre haute ---------- */
+
+.pTopbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 4px 0 24px;
+}
+
+.pBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  color: var(--color-blue-dark);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pBack > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pBackIcon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 11px;
+  background: white;
+}
+
+.pCta {
+  flex: 0 1 auto;
+  max-width: 62%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 13px;
+  padding: 11px 14px;
+  background: var(--color-blue);
+  color: white;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-blue) 14%, transparent);
+  transition: background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.pCta:hover,
+.pCta:focus-visible {
+  background: var(--color-blue-dark);
+}
+
+/* ---------- L'intro ---------- */
+
+.pIntro {
+  margin-bottom: 20px;
+}
+
+.pEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4.2cqi, 39px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--color-blue-dark);
+}
+
+.pLead {
+  margin: 9px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+}
+
+/* ---------- Carte de tête + compteurs ---------- */
+
+.pSummary,
+.pOverview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.pHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 21px;
+}
+
+.pHeroBody {
+  min-width: 0;
+}
+
+.pHeroLabel {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pHeroScore {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  margin: 0;
+  color: var(--color-blue-dark);
+}
+
+.pHeroScore strong {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.pHeroScore span {
+  padding-bottom: 5px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.pChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: var(--sf-radius-pill);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pChipNow {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.pChipOk {
+  background: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
+.pChipWarn {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+
+.pChipHot {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.pChipMuted {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.pHeroNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.pHeroNote + .pHeroNote {
+  margin-top: 4px;
+}
+
+.pRing {
+  position: relative;
+  flex: 0 0 auto;
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+}
+
+.pRing svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pRing b {
+  position: relative;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--color-blue-dark);
+}
+
+.pStatGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.pStat {
+  min-width: 0;
+}
+
+.pStatLabel {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pStatValue {
+  display: block;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--color-blue-dark);
+}
+
+.pStatSub {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Écran épreuve / thème : chaque compteur est sa propre carte. */
+.pStatGrid.isCards > .pStat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  padding: 17px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 7%, transparent);
+}
+
+/* Écrans globaux : une carte, quatre encarts. */
+.pStatGrid.isBoxed {
+  gap: 10px;
+  padding: 16px;
+}
+
+.isBoxed > .pStat {
+  padding: 15px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+
+.isBoxed .pStatLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.isBoxed .pStatValue {
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+
+.isBoxed .pStatSub {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+/* ---------- Titre de section hors carte ---------- */
+
+.pSectionHead {
+  margin: 28px 0 14px;
+}
+
+/* ---------- Cartes d'épreuve / de thème ---------- */
+
+.pDomainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.pDomain {
+  display: block;
+  padding: 18px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--sf-fast) var(--sf-ease-out),
+    box-shadow var(--sf-fast) var(--sf-ease-out),
+    border-color var(--sf-fast) var(--sf-ease-out);
+}
+
+.pDomain:hover,
+.pDomain:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--color-line-strong);
+  box-shadow: 0 20px 46px color-mix(in srgb, var(--color-blue) 10%, transparent);
+}
+
+.pDomainHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pDomainName {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pDomainName b {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-blue-dark);
+}
+
+.pDomainName small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pDomainIcon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.pDomainArrow {
+  flex: 0 0 auto;
+  color: var(--color-muted-2);
+}
+
+.pDomainMain {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.pDomainFigures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pDomainScore {
+  color: var(--color-blue-dark);
+}
+
+.pDomainScore strong {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.pDomainScore span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pDomain .pChip {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.pDelta {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pDomainEmpty {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pSpark {
+  flex: 0 0 auto;
+  width: 115px;
+  height: 58px;
+}
+
+.pSpark path {
+  fill: none;
+  stroke: var(--color-blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pSpark circle {
+  fill: white;
+  stroke: var(--color-blue-dark);
+  stroke-width: 2.5;
+}
+
+/* ---------- Panneaux (courbe, historique) ---------- */
+
+.pPanel {
+  margin-bottom: 14px;
+  padding: 18px;
+}
+
+/* ---------- La courbe ---------- */
+
+.pChart {
+  margin-top: 4px;
+}
+
+.pChartNote {
+  margin: 0 0 6px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pChartScroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pChartInner {
+  position: relative;
+  height: 300px;
+  padding: 26px 30px 44px 56px;
+  box-sizing: border-box;
+}
+
+.pChartPlot {
+  position: relative;
+  height: 100%;
+}
+
+.pBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-line-strong);
+}
+
+.pBand i {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+.pBandNow {
+  background: color-mix(in srgb, var(--color-blue) 4%, white);
+}
+
+.pBandNow:nth-of-type(even) {
+  background: color-mix(in srgb, var(--color-blue) 8%, white);
+}
+
+.pBandOk {
+  background: color-mix(in srgb, var(--color-green) 7%, white);
+}
+
+.pBandWarn {
+  background: color-mix(in srgb, var(--color-amber) 10%, white);
+}
+
+.pBandHot {
+  background: color-mix(in srgb, var(--color-red) 5%, white);
+}
+
+.pBandMuted {
+  background: var(--color-paper);
+}
+
+.pGrid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.pGrid i {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: -8px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--color-muted);
+}
+
+.pSeuil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px dashed var(--color-amber-dark);
+}
+
+.pSeuil i {
+  position: absolute;
+  right: 6px;
+  top: -19px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--color-amber-dark);
+}
+
+.pChartSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pDot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 3px solid var(--color-blue);
+  border-radius: 50%;
+  background: white;
+  box-sizing: border-box;
+}
+
+.pDot.isLast {
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  border: 4px solid var(--color-blue-dark);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-blue) 16%, transparent);
+}
+
+.pValue {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-blue);
+}
+
+.pValue.isLast {
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 2px 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-dark);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.pDate {
+  position: absolute;
+  bottom: -30px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+/* ---------- La légende de l'échelle ---------- */
+
+.pScale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pScaleItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 11px;
+  background: var(--color-paper);
+}
+
+.pScaleItem strong {
+  font-size: 12px;
+  color: var(--color-blue-dark);
+}
+
+.pScaleItem span {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+/* ---------- Les lignes d'examen ---------- */
+
+.pExamList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    border-color var(--sf-quick) var(--sf-ease-out);
+}
+
+a.pRow:hover,
+a.pRow:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--color-line-strong);
+}
+
+.pRow.isGlobal {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pRowId {
+  min-width: 0;
+}
+
+.pRowId b {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-blue-dark);
+}
+
+.pRowId small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pRowStat {
+  min-width: 0;
+}
+
+.pRowStat small {
+  display: block;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+
+.pRowStat b {
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.pRowBadge {
+  display: inline-block;
+  min-width: 45px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.pRowBadgeCell {
+  display: flex;
+}
+
+.pRowParts {
+  display: none;
+  gap: 14px;
+}
+
+.pRowEnd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.pRowAction {
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-blue);
+}
+
+.pRowWide {
+  display: none;
+}
+
+.pMore {
+  margin-top: 14px;
+}
+
+/* ---------- Les bornes, sur la largeur du contenu ---------- */
+
+@container pscreen (min-width: 471px) {
+  .pHeroScore strong {
+    font-size: 44px;
+  }
+
+  .pRing {
+    width: 88px;
+    height: 88px;
+  }
+
+  .pRing b {
+    font-size: 18px;
+  }
+
+  .pStatGrid.isCards > .pStat {
+    min-height: 145px;
+    padding: 22px;
+  }
+
+  .pStatValue {
+    font-size: 28px;
   }
 }
+
+@container pscreen (min-width: 621px) {
+  .pTopbar {
+    margin-bottom: 30px;
+  }
+
+  .pCta {
+    padding: 13px 18px;
+  }
+
+  .pHero {
+    align-items: center;
+    padding: 24px 26px;
+  }
+
+  .pStatGrid.isBoxed {
+    gap: 14px;
+    padding: 24px;
+  }
+
+  .isBoxed > .pStat {
+    padding: 17px;
+  }
+
+  .pDomain {
+    padding: 21px;
+  }
+
+  .pSpark {
+    width: 145px;
+  }
+}
+
+@container pscreen (min-width: 781px) {
+  .pSummary {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.3fr);
+  }
+
+  .pPanel {
+    padding: 24px;
+  }
+
+  .pRow {
+    grid-template-columns: minmax(180px, 1.3fr) minmax(0, 0.6fr) minmax(0, 0.5fr) minmax(0, 0.6fr) auto;
+    gap: 16px;
+    padding: 15px 17px;
+  }
+
+  .pRowWide {
+    display: block;
+  }
+}
+
+@container pscreen (min-width: 861px) {
+  .pOverview {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  }
+
+  .pOverview .pRing {
+    width: 100px;
+    height: 100px;
+  }
+
+  .pDomainGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .pRow.isGlobal {
+    grid-template-columns: minmax(150px, 1.1fr) minmax(0, 3fr) auto;
+  }
+
+  .pRowParts {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pCta,
+  .pDomain,
+  .pRow {
+    transition: none;
+  }
+
+  .pDomain:hover,
+  a.pRow:hover {
+    transform: none;
+  }
+}
+
 
 /* ==========================================================================
    Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
