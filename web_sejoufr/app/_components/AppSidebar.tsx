@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import {
   ChartColumn,
@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Lightbulb,
   ListChecks,
+  LogOut,
   Target,
   Waves,
 } from "lucide-react";
@@ -20,7 +21,7 @@ import { objectifLabel } from "@/lib/preparation";
 /**
  * Barre latérale de l'espace personnel : logo, **six entrées à icône en liste
  * plate** — Accueil · Plan · TCF IRN · Examen civique · Examens blancs ·
- * Progression —, badge streak et carte utilisateur cliquable vers /profil (le logout vit sur la page profil).
+ * Progression —, badge streak et carte utilisateur cliquable vers /profil, et la flèche de déconnexion à sa droite.
  *
  * 🛑 **Plus d'intertitres de section** (« Parcours », « Suivi » : décision du
  * propriétaire, 2026-09-24), et l'ordre ci-dessus est le sien. « Progression »
@@ -62,7 +63,8 @@ export function AppSidebar() {
 function AppSidebarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, status } = useAuth();
+  const { user, status, logout } = useAuth();
+  const router = useRouter();
 
   /* Les deux entrées de parcours pointent sur la même route : c'est `?module=` qui
      les départage, et sur les sous-routes c'est le chemin. Sans `?module=`, le
@@ -178,15 +180,29 @@ function AppSidebarInner() {
         )}
 
         {user && (
-          <Link href="/profil" className="user-mini" title="Mon profil">
-            <span className="user-avatar">{initial}</span>
-            <span className="user-info">
-              <span className="user-name">{fullName || "Utilisateur"}</span>
-              <span className="user-objective">
-                {objectifLabel(user.targetProcedure)}
+          <div className="user-row">
+            <Link href="/profil" className="user-mini" title="Mon profil">
+              <span className="user-avatar">{initial}</span>
+              <span className="user-info">
+                <span className="user-name">{fullName || "Utilisateur"}</span>
+                <span className="user-objective">
+                  {objectifLabel(user.targetProcedure)}
+                </span>
               </span>
-            </span>
-          </Link>
+            </Link>
+            <button
+              type="button"
+              className="user-logout"
+              aria-label="Se déconnecter"
+              title="Se déconnecter"
+              onClick={() => {
+                logout();
+                router.push("/");
+              }}
+            >
+              <LogOut size={18} aria-hidden />
+            </button>
+          </div>
         )}
       </div>
 
@@ -333,12 +349,32 @@ const sidebarStyles = `
     margin-top: 1px;
   }
 
+  .user-row {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%;
+  }
+  .user-logout {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .user-logout:hover {
+    background: var(--color-blue-soft);
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
   .user-mini {
+    flex: 1; min-width: 0;
     display: flex; align-items: center; gap: 10px;
     padding: 8px;
     border: 1px solid transparent;
     border-radius: 10px;
-    width: 100%;
     text-decoration: none;
     transition: background 0.15s, border-color 0.15s;
   }
