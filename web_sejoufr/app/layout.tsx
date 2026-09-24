@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { SITE } from "@/lib/site";
-import { MobileAppBanner } from "./_components/MobileAppPromo";
 import { SiteHeader } from "./_components/SiteHeader";
 import { Footer } from "./_components/Footer";
 import "./globals.css";
@@ -80,7 +79,6 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning>
         <AuthProvider>
-          <MobileAppBanner />
           <SiteHeader />
           {children}
           <Footer />
