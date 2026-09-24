@@ -337,18 +337,7 @@ function ExamsConnectedHome() {
 
     return (
         <main className="ebh">
-            <header className="ebh-head">
-                <div className="ebh-eyebrow">
-                    <Target size={16} aria-hidden/>
-                    <span>Conditions réelles</span>
-                </div>
-                <h1>Examens blancs complets</h1>
-                <p>
-                    Une épreuve entière par parcours, qui mélange tous les thèmes.
-                    Retrouvez les examens déjà passés et leur score, ou lancez-en un
-                    nouveau.
-                </p>
-            </header>
+            <h1 className="ebh-sr">Examens blancs</h1>
 
             <ModuleToggle active={active} onChange={setActive}/>
 
@@ -834,6 +823,12 @@ const styles = `
   }
 
   /* ===== header ===== */
+  /* Connecté : le titre vit dans la barre d'app (sous 900 px) et le menu ;
+     il reste le <h1> des lecteurs d'écran. */
+  .ebh-sr {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   .ebh-head { margin-bottom: 24px; }
   .ebh-eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
