@@ -496,10 +496,12 @@ export function SiteHeader() {
           background: var(--color-blue-soft);
           color: var(--color-blue);
         }
+        /* margin-top: auto pousse les CTAs en bas du panneau (colonne flex). */
         .site-header__mobileCtas {
           display: flex; flex-direction: column; gap: 10px;
-          margin-top: 18px;
+          margin-top: auto;
           padding-top: 18px;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
           border-top: 1px solid var(--color-line-2);
         }
         .site-header__mobileGhost {
