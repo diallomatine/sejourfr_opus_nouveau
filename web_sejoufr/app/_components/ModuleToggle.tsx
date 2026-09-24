@@ -34,7 +34,7 @@ export function ModuleToggle({
                     className={`mtg-btn mtg-btn-red${active === "TCF" ? " is-active" : ""}`}
                     onClick={() => onChange("TCF")}
                 >
-                    <Waves size={18} strokeWidth={1.8} aria-hidden />
+                    <Waves size={16} strokeWidth={1.8} aria-hidden />
                     TCF IRN
                 </button>
                 <button
@@ -44,7 +44,7 @@ export function ModuleToggle({
                     className={`mtg-btn mtg-btn-blue${active === "CIVIQUE" ? " is-active" : ""}`}
                     onClick={() => onChange("CIVIQUE")}
                 >
-                    <Lightbulb size={18} strokeWidth={1.8} aria-hidden />
+                    <Lightbulb size={16} strokeWidth={1.8} aria-hidden />
                     Examen civique
                 </button>
             </div>
@@ -65,40 +65,45 @@ function Styles() {
     return (
         <style>{`
   .mtg {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 20px;
+    max-width: 440px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
   }
   .mtg-btn {
-    flex: 1 1 0;
     min-width: 0;
+    min-height: 42px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid var(--color-line);
-    background: #fff;
+    gap: 7px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
     font-family: var(--font-sans);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
     color: var(--color-muted);
     cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease;
   }
   .mtg-btn svg { flex-shrink: 0; }
-  .mtg-btn:hover {
-    color: var(--color-ink);
-    border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
-  }
-  .mtg-btn.is-active {
-    color: #fff;
-    border-color: transparent;
-  }
+  .mtg-btn:hover { color: var(--color-ink); }
+  .mtg-btn.is-active { color: #fff; }
   /* Les deux couleurs du produit : rouge = TCF, bleu = civique. */
   .mtg-btn-red.is-active { background: var(--color-red); }
   .mtg-btn-blue.is-active { background: var(--color-blue); }
+  @media (max-width: 380px) {
+    .mtg-btn { font-size: 13px; gap: 6px; padding: 8px 6px; }
+  }
 `}</style>
     );
 }

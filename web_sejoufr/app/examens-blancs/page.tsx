@@ -976,7 +976,7 @@ const styles = `
     .ebh { padding: 64px 18px 48px; }
     .ebh-module-chip { display: none; }
     .ebh-module-titles p { white-space: normal; }
-    .ebh-toggle-btn { font-size: 13.5px; padding: 12px 10px; gap: 7px; }
+    .ebh-module { padding: 18px 16px; }
     .ebh-stats { gap: 7px; }
     .ebh-stat { padding: 10px; }
     .ebh-stat-val { font-size: 17px; }

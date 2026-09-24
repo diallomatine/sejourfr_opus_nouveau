@@ -863,6 +863,9 @@
     grid-area: title;
     align-self: end;
     min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .examMeta {
@@ -884,8 +887,10 @@
 
   .examBtn {
     width: auto;
-    min-width: 100px;
-    padding: 9px 14px;
+    min-width: 0;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    gap: 6px;
   }
 }
 
