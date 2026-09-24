@@ -2175,6 +2175,19 @@ bornage, au verrou de l'examen et à la destination des priorités. Le reste de 
 section-là (R1, le budget de 3, l'étape exécutable, le garde-fou de la carte) est
 **inchangé** : le cycle est une couche de **bornage**, pas un second moteur.
 
+### Changer d'objectif : UNE autorité, et tout se relit (2026-09-24)
+
+🛑 **`users.target_procedure` est l'autorité**, écrite par `PUT /api/me/target-path` et par
+lui seul (`MeService.updateTargetProcedure`). Le cycle `EN_COURS` n'en porte qu'une **copie**,
+réalignée **dans la même transaction** (`JourneyService.alignerObjectif`, A27 / D-34 : même
+id, aucun cycle créé) — et encore à la lecture par `getOrCreate`. Verrouillé par
+`JourneyServiceIT` §18-51 / §18-52.
+Côté fronts, le changement **purge tout ce qui se dérive de l'objectif** : web
+`afterObjectifWrite` (`lib/api.ts`), mobile `compteObjectifProvider` observé par chaque source
+gardée en vie. Sans ça, le Profil disait « Naturalisation » pendant que le Plan affichait
+l'ancienne démarche. L'écran de parcours s'ouvre toujours avec son retour
+(`journeyTargetPathHref(from)` ⇄ `AppRoutes.targetPathFrom(from)`).
+
 ### Un bloc est une LECTURE, pas une table
 
 Un **bloc** = une épreuve. Ses étapes sont les `journey_step` du cycle qui portent cet

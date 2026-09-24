@@ -32,6 +32,7 @@ import {
     userContentApi,
 } from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {journeyTargetPathHref} from "@/lib/journey";
 import {
     adopterSiInvite,
     ecrireInvite,
@@ -442,9 +443,7 @@ export function CivicDiagnosticHub() {
                                 variant="line"
                                 disabled={action}
                                 onClick={() =>
-                                    router.push(
-                                        `/parcours?from=${encodeURIComponent(CIVIC_DIAGNOSTIC_HUB_HREF)}`,
-                                    )
+                                    router.push(journeyTargetPathHref(CIVIC_DIAGNOSTIC_HUB_HREF))
                                 }
                             >
                                 {CIVIC_DIAGNOSTIC_PROCEDURE_CHANGE_CTA}

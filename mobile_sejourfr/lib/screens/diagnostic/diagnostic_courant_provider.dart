@@ -34,6 +34,7 @@ final diagnosticCourantProvider =
   // n'aurait rien invalidé. `null` reste « personne n'est connecté ».
   final compte = ref.watch(compteIdProvider);
   if (compte == null) return null;
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   // 🛑 **Le signal « l'accès a changé »** : ce que cette lecture porte dépend du
   // pass du candidat (`locked` servi, quota, détail verrouillé). Sans lui, un

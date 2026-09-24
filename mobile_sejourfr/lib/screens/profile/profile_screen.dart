@@ -55,7 +55,6 @@ class ProfileScreen extends ConsumerWidget {
     final user = auth.user;
     final dashboard = ref.watch(dashboardProvider);
     final subscription = ref.watch(_subscriptionStatusProvider);
-    final fromHere = Uri.encodeComponent(AppRoutes.profile);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -135,7 +134,7 @@ class ProfileScreen extends ConsumerWidget {
                   _ObjectifCard(
                     user: user,
                     onTap: () =>
-                        context.push('${AppRoutes.targetPath}?from=$fromHere'),
+                        context.push(AppRoutes.targetPathFrom(AppRoutes.profile)),
                   ),
                   const SizedBox(height: 20),
                   const SectionTitle(title: 'Mon compte'),

@@ -194,7 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return <Widget>[
       if (user != null && user.targetProcedure == null)
-        HomeBanner(onTap: () => context.push(AppRoutes.targetPath)),
+        HomeBanner(onTap: () => context.push(AppRoutes.targetPathFrom(AppRoutes.home))),
       SfTop(
         title: homeHello(user?.firstName),
         badges: [objectifLabel(user?.targetProcedure)],
@@ -756,7 +756,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const SfCard(child: Text(kJourneyNeedsObjectiveText)),
         SfButton(
           label: kJourneyNeedsObjectiveCta,
-          onPressed: () => context.push(AppRoutes.targetPath),
+          onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.home)),
         ),
       ],
     );

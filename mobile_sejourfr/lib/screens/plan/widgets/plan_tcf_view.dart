@@ -180,7 +180,7 @@ class PlanTcfView extends ConsumerWidget {
             SfButton(
               label: kPlanGoalPick,
               variant: SfButtonVariant.line,
-              onPressed: () => context.push(AppRoutes.targetPath),
+              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.plan)),
             ),
           ],
         ],

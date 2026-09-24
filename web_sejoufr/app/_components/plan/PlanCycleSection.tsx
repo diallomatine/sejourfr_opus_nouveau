@@ -28,7 +28,7 @@ import {
     JOURNEY_STEP_ACTION_LINK,
     JOURNEY_STEP_UNLOCK_LINK,
     JOURNEY_SUGGESTION_MOCK_EXAM,
-    JOURNEY_TARGET_PATH_HREF,
+    journeyTargetPathHref,
     JOURNEY_UP_TO_DATE_TEXT,
     JOURNEY_UP_TO_DATE_TITLE,
     journeyBadge,
@@ -137,7 +137,7 @@ export function PlanCycleSection({
                         <Card>
                             <p className={sejourStyles.sub}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
                         </Card>
-                        <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+                        <Cta href={journeyTargetPathHref(planHref(module))}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
                     </Stack>
                 </Pad>
             </Section>

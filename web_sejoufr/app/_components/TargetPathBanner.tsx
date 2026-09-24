@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { TargetProcedure, TargetLevel } from "@/lib/types";
+import { journeyTargetPathHref } from "@/lib/journey";
 
 const PROC_INFO: Record<TargetProcedure, { title: string; sub: string }> = {
   CSP: {
@@ -38,7 +39,7 @@ export function TargetPathBanner({
   const primary = proc ?? lvl;
   const code = procedure ?? level;
   if (!primary || !code) return null;
-  const editHref = `/parcours?from=${encodeURIComponent(pathname || "/profil")}`;
+  const editHref = journeyTargetPathHref(pathname || "/profil");
 
   return (
     <Link href={editHref} className="tpb" aria-label="Modifier mon parcours">

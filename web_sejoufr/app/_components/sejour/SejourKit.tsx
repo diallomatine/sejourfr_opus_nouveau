@@ -394,18 +394,30 @@ export function GoalStrip({
       <div className={styles.goal}>
         <div>
           <small>{currentLabel}</small>
-          <b>{current}</b>
+          <GoalValue value={current} />
         </div>
         <div className={styles.goalArrow} aria-hidden>
           <ArrowRight size={20} strokeWidth={2} />
         </div>
         <div>
           <small>{goalLabel}</small>
-          <b>{goal}</b>
+          <GoalValue value={goal} />
         </div>
       </div>
     </Card>
   );
+}
+
+/**
+ * 🛑 **Jamais coupée au milieu d'un mot** : la taille se règle sur le **mot le
+ * plus long** (`--goal-word`, en caractères) pour qu'il tienne dans sa colonne,
+ * et le retour à la ligne ne se fait qu'entre deux mots. Sans ça,
+ * « Naturalisation » débordait de la carte à 360 px. Miroir mobile :
+ * `_SfGoalValue` (`sejour_kit.dart`).
+ */
+function GoalValue({value}: {value: string}) {
+  const word = Math.max(1, ...value.split(/\s+/).map((w) => w.length));
+  return <b style={{"--goal-word": word} as CSSProperties}>{value}</b>;
 }
 
 /* ----------------------------------------------------------------- Boutons */

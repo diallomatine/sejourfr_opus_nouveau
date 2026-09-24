@@ -550,13 +550,67 @@ class SfGoalStrip extends StatelessWidget {
             style: AppFonts.label(size: 11, color: AppColors.muted),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppFonts.display(
-                size: 32, weight: FontWeight.w600, color: AppColors.blue),
-          ),
+          _SfGoalValue(value),
         ],
       );
+}
+
+/// La valeur d'une cellule de [SfGoalStrip] — un palier (« B2 ») ou une
+/// démarche (« Naturalisation », « Carte de résident »).
+///
+/// 🛑 **Jamais coupée au milieu d'un mot.** Flutter casse un mot plus large
+/// que sa colonne : à grande taille d'affichage, « Naturalisation » se lisait
+/// « Naturalis / ation » à côté de la flèche. La taille se réduit donc jusqu'à
+/// ce que le **mot le plus long** tienne, et le retour à la ligne ne se fait
+/// plus qu'entre deux mots. Miroir web : `GoalStrip` (`--goal-word`).
+class _SfGoalValue extends StatelessWidget {
+  const _SfGoalValue(this.value);
+
+  final String value;
+
+  static const double _size = 32;
+
+  /// Marge d'arrondi : un mot mesuré « juste à la largeur » peut encore casser.
+  static const double _safety = 0.97;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppFonts.display(
+        size: _size, weight: FontWeight.w600, color: AppColors.blue);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        var size = _size;
+        if (width.isFinite && width > 0) {
+          final longest = _longestWordWidth(context, style);
+          if (longest > width * _safety) {
+            size = _size * width * _safety / longest;
+          }
+        }
+        return Text(
+          value,
+          textAlign: TextAlign.center,
+          style: style.copyWith(fontSize: size),
+        );
+      },
+    );
+  }
+
+  double _longestWordWidth(BuildContext context, TextStyle style) {
+    var longest = 0.0;
+    for (final word in value.split(RegExp(r'\s+'))) {
+      if (word.isEmpty) continue;
+      final painter = TextPainter(
+        text: TextSpan(text: word, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+        maxLines: 1,
+      )..layout();
+      if (painter.width > longest) longest = painter.width;
+      painter.dispose();
+    }
+    return longest;
+  }
 }
 
 /* ----------------------------------------------------------------- Boutons */

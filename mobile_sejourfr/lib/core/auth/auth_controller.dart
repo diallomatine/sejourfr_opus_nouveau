@@ -332,6 +332,34 @@ final compteIdProvider = Provider<String?>((ref) {
   ));
 });
 
+/// **L'objectif déclaré du compte** — sa démarche et son palier TCF — ou
+/// `(null, null)` quand personne n'est connecté.
+///
+/// 🛑 **C'est la clé de fraîcheur de tout ce que l'objectif façonne.** Le Plan,
+/// les deux cycles, la préparation, la progression, le diagnostic courant et
+/// les compétences sont gardés en vie (`ref.keepAlive`) et le serveur les
+/// calcule **à partir de l'objectif**. Changer de démarche ne rafraîchissait
+/// que le profil ([AuthController.refreshUser]) : le Profil disait
+/// « Naturalisation » pendant que le Plan affichait encore « Carte de
+/// résident », jusqu'au prochain redémarrage. Tout provider de compte dont la
+/// réponse dépend de l'objectif l'observe en tête — `ref.watch` suffit.
+///
+/// 🛑 **Aucune liste d'appelants à tenir** : il se lit sur l'état d'auth, donc
+/// **tous** les chemins qui changent l'objectif (écran de parcours, diagnostic
+/// civique, inscription) sont couverts dès qu'ils relisent le profil.
+///
+/// ⚠️ Un enregistrement Dart compare par **valeur** : un rafraîchissement du
+/// profil qui rend le même objectif ne recharge rien. Pendant web :
+/// `invalidateObjectifServi()` (`web_sejoufr/lib/api.ts`).
+final compteObjectifProvider =
+    Provider<(TargetProcedure?, TargetLevel?)>((ref) {
+  return ref.watch(authControllerProvider.select(
+    (state) => state is AuthAuthenticated
+        ? (state.user.targetProcedure, state.user.targetLevel)
+        : (null, null),
+  ));
+});
+
 /// **Le signal « l'ACCÈS du compte a changé »** — un pass vient d'être acheté,
 /// restauré, prolongé, ou n'est plus actif.
 ///

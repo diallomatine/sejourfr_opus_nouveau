@@ -18,6 +18,7 @@ import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.mapper.QuestionMapper;
+import com.sejourfr.app.service.journey.JourneyService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,7 @@ class MeServiceTest {
     private QuestionManager questionManager;
     private UserManager userManager;
     private QuestionMapper questionMapper;
+    private JourneyService journeyService;
     private MeService service;
 
     @BeforeEach
@@ -66,8 +68,10 @@ class MeServiceTest {
         ThemeManager themeManager = mock(ThemeManager.class);
         AiEvaluationManager aiEvaluationManager = mock(AiEvaluationManager.class);
         FullTcfExamService fullTcfExamService = mock(FullTcfExamService.class);
+        journeyService = mock(JourneyService.class);
         service = new MeService(answerManager, attemptManager, statusManager, questionManager,
-                userManager, questionMapper, themeManager, aiEvaluationManager, fullTcfExamService);
+                userManager, questionMapper, themeManager, aiEvaluationManager, fullTcfExamService,
+                journeyService);
     }
 
     private static User user() {
@@ -120,6 +124,20 @@ class MeServiceTest {
         service.updateTargetProcedure(u.getId(), TargetProcedure.NAT);
 
         assertThat(u.getTargetLevel()).isEqualTo(TargetLevel.B2);
+    }
+
+    /**
+     * Le cycle en cours porte une COPIE de l'objectif : changer de démarche la
+     * réaligne dans le même geste, sinon le Plan et le Profil se contredisent.
+     */
+    @Test
+    void updateTargetProcedure_realigneLeCycleEnCours() {
+        User u = user();
+        when(userManager.findById(u.getId())).thenReturn(Optional.of(u));
+
+        service.updateTargetProcedure(u.getId(), TargetProcedure.CR);
+
+        verify(journeyService).alignerObjectif(u.getId());
     }
 
     @Test

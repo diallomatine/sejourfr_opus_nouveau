@@ -258,9 +258,13 @@ export const JOURNEY_NEEDS_OBJECTIVE_TEXT =
     "Votre parcours dépend de la démarche que vous visez.";
 export const JOURNEY_NEEDS_OBJECTIVE_CTA = "Choisir ma démarche";
 
-/** L'écran qui pose la question. 🛑 Une seule constante : un chemin recopié
- *  dans un composant finirait par diverger du router. */
-export const JOURNEY_TARGET_PATH_HREF = "/parcours";
+/** L'écran qui pose la question, et **où revenir** une fois l'objectif changé.
+ *  🛑 Un seul constructeur : un chemin recopié dans un composant finirait par
+ *  diverger du router — et sans `from`, `/parcours` renvoyait au Profil le
+ *  candidat venu du Plan. Miroir mobile : `AppRoutes.targetPathFrom`. */
+export function journeyTargetPathHref(from: string): string {
+    return `/parcours?from=${encodeURIComponent(from)}`;
+}
 
 /**
  * Rien n'est exécutable : on le dit, au lieu de laisser un cycle sans étape

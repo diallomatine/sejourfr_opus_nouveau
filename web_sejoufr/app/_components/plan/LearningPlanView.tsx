@@ -18,7 +18,8 @@ import {
   PLAN_STARTING,
   planNowCard,
 } from "@/lib/plan-domain";
-import {journeyHistoryHref} from "@/lib/journey";
+import {journeyHistoryHref, journeyTargetPathHref} from "@/lib/journey";
+import {planHref} from "@/lib/module-switch";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
   canAccessModule,
@@ -324,7 +325,7 @@ function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
         goal={cycle.objectiveLevel ?? cycle.targetLevel}
       />
       {!cycle.objectiveLevel && (
-        <Link className={sejourStyles.link} href="/parcours">
+        <Link className={sejourStyles.link} href={journeyTargetPathHref(planHref("TCF"))}>
           <Target size={15} aria-hidden /> Choisir ma démarche pour fixer mon objectif
           <ChevronRight size={15} aria-hidden />
         </Link>

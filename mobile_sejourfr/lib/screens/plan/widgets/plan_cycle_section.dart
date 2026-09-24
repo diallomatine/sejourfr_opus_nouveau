@@ -121,7 +121,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
             const SfCard(child: Text(kJourneyNeedsObjectiveText)),
             SfButton(
               label: kJourneyNeedsObjectiveCta,
-              onPressed: () => context.push(AppRoutes.targetPath),
+              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.plan)),
             ),
           ],
         ),

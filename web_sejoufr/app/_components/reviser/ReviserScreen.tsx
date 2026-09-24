@@ -139,7 +139,7 @@ import {
   JOURNEY_NEEDS_OBJECTIVE_CTA,
   JOURNEY_NEEDS_OBJECTIVE_TEXT,
   JOURNEY_NEEDS_OBJECTIVE_TITLE,
-  JOURNEY_TARGET_PATH_HREF,
+  journeyTargetPathHref,
 } from "@/lib/journey";
 import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
 import styles from "./reviser.module.css";
@@ -346,7 +346,7 @@ function TcfBody({
           <Pad>
             <Card>
               <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-              <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+              <Cta href={journeyTargetPathHref("/revision")}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
             </Card>
           </Pad>
         </Section>

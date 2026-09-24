@@ -146,6 +146,22 @@ function invalidateAccesServi(): void {
 }
 
 /**
+ * **Après un changement d'OBJECTIF** (démarche, donc palier TCF visé).
+ *
+ * 🛑 Le Plan, les deux cycles, la préparation, la progression, le diagnostic et
+ * les compétences sont calculés **à partir de l'objectif**, et mis en cache. Le
+ * changer ne rafraîchissait que le profil (`refreshUser()`) : le Profil disait
+ * « Naturalisation » pendant que le Plan affichait encore l'ancienne démarche.
+ * **Même périmètre que l'accès** — tout ce qui se dérive du compte —, d'où le
+ * même helper. Purge **après** la réponse, jamais avant (cf. `afterMeasureWrite`).
+ * Pendant mobile : `compteObjectifProvider` (`core/auth/auth_controller.dart`).
+ */
+function afterObjectifWrite<T>(res: T): T {
+    invalidateAccesServi();
+    return res;
+}
+
+/**
  * La signature de l'accès servi : ce qui, en changeant, rouvre des surfaces.
  *
  * ⚠️ Ni prénom, ni objectif, ni date d'examen — un `/api/auth/me` qui rend les
@@ -880,7 +896,7 @@ export const userContentApi = {
             method: "PUT",
             json: {targetProcedure: procedure},
             auth: true,
-        });
+        }).then(afterObjectifWrite);
     },
 
     /**

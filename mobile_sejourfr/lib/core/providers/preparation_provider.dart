@@ -29,6 +29,7 @@ final preparationProvider = FutureProvider.autoDispose<PreparationDto>((ref) asy
   // autre compte sans tuer l'app affichait les données du précédent ; sans
   // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   // 🛑 **Le signal d'avancement**, partagé : sans lui, cette source gardée en
   // vie resterait figée après un diagnostic ou une production.
   ref.watch(learningPlanRevisionProvider);

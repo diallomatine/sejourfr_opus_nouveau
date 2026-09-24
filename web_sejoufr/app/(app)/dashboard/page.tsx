@@ -26,7 +26,7 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_CTA,
     JOURNEY_NEEDS_OBJECTIVE_TEXT,
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
-    JOURNEY_TARGET_PATH_HREF,
+    journeyTargetPathHref,
 } from "@/lib/journey";
 import {civicBarTone} from "@/lib/civic-diagnostic";
 import {themeHistoriqueHref, themeSlug} from "@/lib/themes";
@@ -335,7 +335,7 @@ function DashboardRoot() {
         <SejourApp wide className="home">
             {!user.targetProcedure && (
                 <Pad>
-                    <Link href="/parcours?from=/dashboard" className="home-banner">
+                    <Link href={journeyTargetPathHref("/dashboard")} className="home-banner">
                         <span>
                             <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
                             naturalisation) pour personnaliser votre préparation.
@@ -1017,7 +1017,7 @@ function ObjectifManquant({civique, journey}: {
             <Pad>
                 <Card>
                     <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-                    <Cta href={JOURNEY_TARGET_PATH_HREF}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+                    <Cta href={journeyTargetPathHref("/dashboard")}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
                 </Card>
             </Pad>
         </Section>

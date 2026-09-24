@@ -198,6 +198,57 @@ public class JourneyService {
     }
 
     /**
+     * <b>Aligne l'objectif des cycles EN COURS deja crees</b> sur le profil, au
+     * moment meme ou le candidat change de demarche.
+     *
+     * <p>🛑 <b>{@code users.target_procedure} est l'autorite</b>, le cycle n'en
+     * porte qu'une copie. Elle ne se realignait qu'a la lecture du parcours
+     * ({@link #getOrCreate}) : entre le changement et cette lecture, tout ce qui
+     * lit le cycle directement (le detail d'une etape, l'historique) montrait
+     * encore l'ancien objectif. Appele par {@code MeService.updateTargetProcedure},
+     * le seul point d'ecriture de la demarche.
+     *
+     * <p>D-34 / A27 : le cycle <b>survit avec le meme id</b>, seul son objectif
+     * change. 🛑 <b>Aucun cycle n'est cree ici</b> : un candidat qui n'a jamais
+     * ouvert son Plan n'a pas de parcours, et ce n'est pas un changement de
+     * demarche qui doit lui en fabriquer un (R19).
+     */
+    @Transactional
+    public void alignerObjectif(UUID userId) {
+        User user = userManager.findById(userId).orElse(null);
+        if (user == null) return;
+        TargetLevel cible = TargetProcedure.niveauVise(
+                user.getTargetProcedure(), user.getTargetLevel());
+        if (cible != null) {
+            journeyManager.find(userId, Module.TCF, JourneyStatus.EN_COURS)
+                    .ifPresent(courant -> alignerTcf(courant, cible));
+        }
+        TargetProcedure mention = user.getTargetProcedure();
+        if (mention != null) {
+            journeyManager.find(userId, Module.CIVIQUE, JourneyStatus.EN_COURS)
+                    .ifPresent(courant -> alignerCivique(courant, mention));
+        }
+    }
+
+    /** A27 : le cycle TCF survit, son palier cible est mis a jour. */
+    private void alignerTcf(Journey courant, TargetLevel cible) {
+        if (courant.getTargetLevel() == cible) return;
+        courant.poserObjectif(cible);
+        journeyManager.save(courant);
+    }
+
+    /**
+     * D-34 : changer de mention ne detruit pas le cycle — A27 s'applique telle
+     * quelle, le cycle survit avec le MEME id et son objectif est mis a jour.
+     * Historiser jetterait le plan que le candidat a sous les yeux.
+     */
+    private void alignerCivique(Journey courant, TargetProcedure mention) {
+        if (courant.getTargetProcedure() == mention) return;
+        courant.poserObjectif(mention);
+        journeyManager.save(courant);
+    }
+
+    /**
      * Le cycle <b>TCF</b> : son objectif est un palier CECRL, lu chez
      * {@code TargetProcedure.niveauVise()} et jamais recalcule ici.
      */
@@ -209,11 +260,7 @@ public class JourneyService {
         Optional<Journey> existant =
                 journeyManager.find(user.getId(), Module.TCF, JourneyStatus.EN_COURS);
         if (existant.isPresent()) {
-            Journey courant = existant.get();
-            if (courant.getTargetLevel() != cible) {
-                courant.poserObjectif(cible);
-                journeyManager.save(courant);
-            }
+            alignerTcf(existant.get(), cible);
             return existant;
         }
 
@@ -256,15 +303,7 @@ public class JourneyService {
         Optional<Journey> existant =
                 journeyManager.find(user.getId(), Module.CIVIQUE, JourneyStatus.EN_COURS);
         if (existant.isPresent()) {
-            Journey courant = existant.get();
-            // D-34 : changer de mention ne detruit pas le cycle — A27 s'applique
-            // telle quelle, le cycle survit avec le MEME id et son objectif est
-            // mis a jour. Historiser jetterait le plan que le candidat a sous
-            // les yeux.
-            if (courant.getTargetProcedure() != mention) {
-                courant.poserObjectif(mention);
-                journeyManager.save(courant);
-            }
+            alignerCivique(existant.get(), mention);
             return existant;
         }
 

@@ -236,6 +236,12 @@ class AppRoutes {
   static const profile = '/profile';
   static const onboarding = '/onboarding';
   static const targetPath = '/target-path';
+
+  /// L'écran de parcours, et **où revenir** une fois l'objectif enregistré.
+  /// 🛑 Sans `from`, il renvoyait à l'Accueil le candidat venu du Plan. Miroir
+  /// web : `journeyTargetPathHref` (`lib/journey.ts`).
+  static String targetPathFrom(String from) =>
+      '$targetPath?from=${Uri.encodeComponent(from)}';
   static const examResult = '/exam-result/:attemptId';
 
   /// Historique des examens blancs **civique complets** (40 Q tous thèmes,

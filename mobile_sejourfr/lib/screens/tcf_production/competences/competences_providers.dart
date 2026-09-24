@@ -49,6 +49,9 @@ final skillsSectionProvider = FutureProvider.autoDispose
   // autre compte sans tuer l'app affichait les données du précédent ; sans
   // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  // 🛑 Le statut d'une compétence se lit contre le palier VISÉ : changer
+  // d'objectif le rend faux.
+  ref.watch(compteObjectifProvider);
   ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
   try {

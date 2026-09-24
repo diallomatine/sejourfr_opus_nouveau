@@ -25,6 +25,7 @@ import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.mapper.QuestionMapper;
+import com.sejourfr.app.service.journey.JourneyService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,7 @@ public class MeService {
     private final ThemeManager themeManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final FullTcfExamService fullTcfExamService;
+    private final JourneyService journeyService;
 
     /**
      * Plafond d'erreurs exposees en revision, par module (CIVIQUE / TCF). On ne
@@ -101,6 +103,9 @@ public class MeService {
         user.setTargetProcedure(procedure);
         user.setTargetLevel(procedure == null ? null : procedure.getRequiredTcfLevel());
         userManager.save(user);
+        // 🛑 Dans la MEME transaction : le cycle en cours porte une copie de
+        // l'objectif, et elle ne doit jamais contredire le profil (D-34).
+        journeyService.alignerObjectif(userId);
     }
 
     /**

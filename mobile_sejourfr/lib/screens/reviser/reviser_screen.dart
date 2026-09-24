@@ -215,7 +215,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
               const SfCard(child: Text(kJourneyNeedsObjectiveText)),
               SfButton(
                 label: kJourneyNeedsObjectiveCta,
-                onPressed: () => context.push(AppRoutes.targetPath),
+                onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.reviser)),
               ),
             ],
           ),

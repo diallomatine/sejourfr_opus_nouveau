@@ -55,7 +55,8 @@ void signalerMesureEcrite(WidgetRef ref) {
 ///
 /// **Ses points de fraîcheur** : [learningPlanRevisionProvider] (toute activité
 /// qui peut le changer), [accesRevisionProvider] (un pass acheté ou restauré —
-/// le Plan porte des `locked` servis), le tiré-pour-rafraîchir de l'Accueil et
+/// le Plan porte des `locked` servis), [compteObjectifProvider] (une démarche
+/// changée depuis le Profil ou le Plan), le tiré-pour-rafraîchir de l'Accueil et
 /// du Plan, et le retour d'un flux poussé au-dessus du Plan (`didPopNext`).
 ///
 /// L'échec n'est **pas** mis en cache : un « Réessayer » repart sur un appel
@@ -66,6 +67,7 @@ final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) asyn
   // autre compte sans tuer l'app affichait les données du précédent ; sans
   // l'accès, un achat laissait cette lecture sur les `locked` d'avant.
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
@@ -88,6 +90,7 @@ final learningPlanProvider = FutureProvider.autoDispose<LearningPlan>((ref) asyn
 /// L'échec n'est **pas** mis en cache.
 final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
@@ -113,6 +116,7 @@ final journeyProvider = FutureProvider.autoDispose<Journey>((ref) async {
 /// le 2026-09-16 a corrigé côté TCF.
 final journeyCiviqueProvider = FutureProvider.autoDispose<Journey>((ref) async {
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   ref.watch(accesRevisionProvider);
   final link = ref.keepAlive();
@@ -145,6 +149,7 @@ final journeyHistoryProvider =
     FutureProvider.autoDispose.family<JourneyHistory, AppModule>(
         (ref, module) async {
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   ref.watch(accesRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).history(module: module);
@@ -163,6 +168,7 @@ final journeyStepProvider =
     FutureProvider.autoDispose.family<JourneyStepDetail, String>(
         (ref, stepId) async {
   ref.watch(compteIdProvider);
+  ref.watch(compteObjectifProvider);
   ref.watch(learningPlanRevisionProvider);
   ref.watch(accesRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).stepDetail(stepId);

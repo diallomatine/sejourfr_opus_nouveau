@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {useAuth} from "@/lib/auth-context";
+import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, ApiException, billingApi, dashboardApi} from "@/lib/api";
 import {estimatedTcfLevelScopeLabel, niveauCecrlShort, niveauViseTcf} from "@/lib/types";
 import type {
@@ -196,7 +197,7 @@ export default function ProfilPage() {
 
             {/* ---- Mon objectif ---- */}
             <div className="pr-section-title"><h2>Mon objectif</h2></div>
-            <Link href="/parcours?from=/profil" className="pr-line-card pr-objectif">
+            <Link href={journeyTargetPathHref("/profil")} className="pr-line-card pr-objectif">
                 <span className="pr-line-icon tone-objectif" aria-hidden>🎯</span>
                 <div className="pr-line-body">
                     <div className="pr-line-head">

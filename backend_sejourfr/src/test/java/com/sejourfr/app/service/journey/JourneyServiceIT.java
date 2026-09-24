@@ -33,6 +33,7 @@ import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.repository.JourneyRepository;
 import com.sejourfr.app.repository.JourneyStepRepository;
 import com.sejourfr.app.service.AccountDeletionService;
+import com.sejourfr.app.service.MeService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.AfterEach;
@@ -80,6 +81,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private JourneyRepository journeys;
     @Autowired private JourneyStepRepository journeySteps;
+    @Autowired private MeService meService;
 
     private final List<UUID> candidats = new java.util.ArrayList<>();
 
@@ -718,6 +720,46 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         // fantomes.
         assertThat(apres.getId()).isEqualTo(cycle);
         assertThat(apres.getTargetProcedure()).isEqualTo(TargetProcedure.NAT);
+    }
+
+    @Test
+    @DisplayName("§18-51 — changer de demarche realigne les DEUX cycles stockes, sans attendre une lecture")
+    void changerDeDemarcheRealigneLesCyclesStockes() {
+        User user = candidat(TargetProcedure.CR);
+        UUID tcf = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow().getId();
+        UUID civique = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow().getId();
+
+        meService.updateTargetProcedure(user.getId(), TargetProcedure.NAT);
+
+        // 🛑 Lu sur les LIGNES, pas via `getOrCreate` : celui-ci realigne a la
+        // lecture et masquerait le defaut. Le detail d'une etape et l'historique
+        // lisent le cycle directement — ils montraient l'ancien objectif tant
+        // que personne n'avait rouvert le Plan.
+        Journey tcfApres = journeys.findById(tcf).orElseThrow();
+        Journey civiqueApres = journeys.findById(civique).orElseThrow();
+        assertThat(tcfApres.getTargetLevel()).isEqualTo(TargetLevel.B2);
+        assertThat(civiqueApres.getTargetProcedure()).isEqualTo(TargetProcedure.NAT);
+        // A27 / D-34 : les memes cycles, jamais des cycles neufs.
+        assertThat(journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.TCF, JourneyStatus.EN_COURS).orElseThrow().getId())
+                .isEqualTo(tcf);
+        assertThat(journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.CIVIQUE, JourneyStatus.EN_COURS).orElseThrow().getId())
+                .isEqualTo(civique);
+    }
+
+    @Test
+    @DisplayName("§18-52 — changer de demarche ne FABRIQUE aucun cycle (R19)")
+    void changerDeDemarcheNeCreeAucunCycle() {
+        User user = candidat(TargetProcedure.CR);
+
+        meService.updateTargetProcedure(user.getId(), TargetProcedure.NAT);
+
+        for (Module module : Module.values()) {
+            assertThat(journeys.countByUserIdAndModuleAndStatus(
+                    user.getId(), module, JourneyStatus.EN_COURS)).isZero();
+        }
     }
 
     @Test
