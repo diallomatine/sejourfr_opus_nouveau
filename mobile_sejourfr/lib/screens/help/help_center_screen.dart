@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_config.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import 'help_center_labels.dart';
 
 /// Hub "Centre d'aide" accessible depuis le profil. Regroupe :
 ///   - **FAQ**                       → WebView sur `${webBaseUrl}/faq`
@@ -15,6 +16,9 @@ import '../../core/theme/app_theme.dart';
 /// FAQ / CGU / Privacy passent par WebView pour éviter de dupliquer 1200+
 /// lignes de contenu en Dart natif. Le contact reste natif (UX bien meilleure
 /// + on contrôle la validation + retour direct via snackbar).
+///
+/// Textes : `help_center_labels.dart`, miroir mot pour mot de la page web
+/// `/aide` (`web_sejoufr/lib/aide.ts`).
 class HelpCenterScreen extends StatelessWidget {
   const HelpCenterScreen({super.key});
 
@@ -33,7 +37,7 @@ class HelpCenterScreen extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Centre d\'aide',
+          kAideTitle,
           style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
@@ -44,13 +48,13 @@ class HelpCenterScreen extends StatelessWidget {
           children: [
             _HelpHero(),
             const SizedBox(height: 22),
-            const _SectionLabel('Ressources'),
+            const _SectionLabel(kAideSectionRessources),
             const SizedBox(height: 10),
             _HelpTile(
               icon: LucideIcons.circleHelp,
               accent: AppColors.blue,
-              title: 'Aide & FAQ',
-              subtitle: 'Réponses aux questions fréquentes sur l\'examen et la procédure.',
+              title: kAideFaqTitle,
+              subtitle: kAideFaqSub,
               onTap: () => context.push(
                 '${AppRoutes.helpWebview}?url=$webBase/faq&title=Aide+%26+FAQ',
               ),
@@ -59,18 +63,18 @@ class HelpCenterScreen extends StatelessWidget {
             _HelpTile(
               icon: LucideIcons.mail,
               accent: AppColors.red,
-              title: 'Nous contacter',
-              subtitle: 'Un message à l\'équipe — réponse sous 24 h ouvrées.',
+              title: kAideContactTitle,
+              subtitle: kAideContactSub,
               onTap: () => context.push(AppRoutes.contact),
             ),
             const SizedBox(height: 22),
-            const _SectionLabel('Documents légaux'),
+            const _SectionLabel(kAideSectionLegal),
             const SizedBox(height: 10),
             _HelpTile(
               icon: LucideIcons.scale,
               accent: AppColors.muted,
-              title: 'Conditions d\'utilisation',
-              subtitle: 'Les règles d\'usage du service.',
+              title: kAideCguTitle,
+              subtitle: kAideCguSub,
               onTap: () => context.push(
                 '${AppRoutes.helpWebview}?url=$webBase/cgu&title=Conditions+d%27utilisation',
               ),
@@ -79,8 +83,8 @@ class HelpCenterScreen extends StatelessWidget {
             _HelpTile(
               icon: LucideIcons.shield,
               accent: AppColors.muted,
-              title: 'Politique de confidentialité',
-              subtitle: 'Ce qu\'on collecte, pourquoi et comment.',
+              title: kAideConfidentialiteTitle,
+              subtitle: kAideConfidentialiteSub,
               onTap: () => context.push(
                 '${AppRoutes.helpWebview}?url=$webBase/confidentialite&title=Confidentialit%C3%A9',
               ),
@@ -89,9 +93,8 @@ class HelpCenterScreen extends StatelessWidget {
             _HelpTile(
               icon: LucideIcons.info,
               accent: AppColors.blue,
-              title: 'À propos de SejourFR',
-              subtitle:
-                  'Outil indépendant, non affilié à l\'État. Sources officielles.',
+              title: kAideAboutTitle,
+              subtitle: kAideAboutSub,
               onTap: () => context.push(AppRoutes.about),
             ),
           ],
@@ -145,7 +148,7 @@ class _HelpHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Une question ?',
+                  kAideHeroTitle,
                   style: AppFonts.display(
                     size: 17,
                     weight: FontWeight.w600,
@@ -154,7 +157,7 @@ class _HelpHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'L\'équipe SejourFR te répond sous 24 h ouvrées.',
+                  kAideHeroText,
                   style: AppFonts.ui(
                     size: 12.5,
                     color: AppColors.muted,

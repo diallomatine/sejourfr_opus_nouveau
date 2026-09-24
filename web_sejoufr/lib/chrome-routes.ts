@@ -22,6 +22,7 @@ export const DUAL_CHROME_PREFIXES = [
  *  ⚠️ Le test est un **préfixe** : `/paiement` couvre `/paiement/succes` et
  *  `/diagnostic-tcf` couvre `/diagnostic-tcf/{id}/resultat`. */
 export const APP_GROUP_PREFIXES = [
+  "/aide",
   "/dashboard",
   "/diagnostic-civique",
   "/diagnostic-tcf",
@@ -81,8 +82,9 @@ export function shouldHideGlobalChrome(
 }
 
 /** Routes du groupe `(app)/` qu'un VISITEUR rend réellement (diagnostic
- *  civique joué avant le compte, V053). Sur elles, un invité n'a pas de shell. */
-const GUEST_ACCESSIBLE_PREFIXES = ["/diagnostic-civique"];
+ *  civique joué avant le compte, V053 ; centre d'aide). Sur elles, un invité
+ *  n'a pas de shell. */
+const GUEST_ACCESSIBLE_PREFIXES = ["/aide", "/diagnostic-civique"];
 
 export function isGuestAccessibleRoute(pathname: string | null): boolean {
   if (!pathname) return false;

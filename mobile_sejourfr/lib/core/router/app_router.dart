@@ -41,6 +41,9 @@ import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/mon_entrainement_screen.dart';
+import '../../screens/profile/change_email_screen.dart';
+import '../../screens/profile/change_password_screen.dart';
+import '../../screens/profile/edit_identity_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_domain_screen.dart';
@@ -298,8 +301,12 @@ class AppRoutes {
   // officielles — conformité stores). Publique comme la WebView légale.
   static const about = '/about';
 
-  // Édition des informations personnelles (firstName/lastName/email/password).
+  // « Mes informations » (hub) et ses trois écrans d'édition — miroirs des
+  // pages web `/profil/informations{,/identite,/email,/mot-de-passe}`.
   static const personalInfo = '/profile/personal-info';
+  static const personalInfoIdentity = '/profile/personal-info/identity';
+  static const personalInfoEmail = '/profile/personal-info/email';
+  static const personalInfoPassword = '/profile/personal-info/password';
 
   // Gestion de l'abonnement Premium en cours (détails + résiliation). Le
   // routing serveur/store est décidé côté backend selon la source (Stripe,
@@ -616,6 +623,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.personalInfo,
         builder: (_, __) => const PersonalInfoScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.personalInfoIdentity,
+        builder: (_, __) => const EditIdentityScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.personalInfoEmail,
+        builder: (_, __) => const ChangeEmailScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.personalInfoPassword,
+        builder: (_, __) => const ChangePasswordScreen(),
       ),
       GoRoute(
         path: AppRoutes.manageSubscription,
