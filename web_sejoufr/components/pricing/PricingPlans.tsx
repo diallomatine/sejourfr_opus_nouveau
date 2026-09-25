@@ -9,6 +9,7 @@ import { withTrafficSource, type TrafficSource } from "@/lib/traffic-source";
 import { useAuth } from "@/lib/auth-context";
 import { useTrafficSource } from "@/lib/use-traffic-source";
 import {
+  FREE_OFFER_FEATURES,
   formatPassPrice,
   isOneTimeCatalog,
   oneTimePassesOf,
@@ -24,8 +25,6 @@ import type { PlanPublicResponse } from "@/lib/types";
 
 interface Props {
   plans: PlanPublicResponse[];
-  /** Variante d'affichage : pleine page ou compacte pour la landing. */
-  variant?: "full" | "compact";
   /** Pré-sélection de la périodicité (par défaut : trimestriel). */
   defaultPeriodicity?: PlanPeriodicity;
   /**
@@ -51,12 +50,7 @@ interface Preset {
 const PRESENTATIONS: { CIVIQUE: Preset; INTEGRAL: Preset; FREE: Preset } = {
   FREE: {
     description: "Pour découvrir la plateforme et passer un premier examen blanc.",
-    features: [
-      { label: "1 Lot d'entraînement gratuit par sous-module" },
-      { label: "1 examen blanc gratuit par sous-module" },
-      { label: "T1 d'EE/EO 1 fois pour découvrir l'évaluation IA" },
-      { label: "Accès sans limite de durée" },
-    ],
+    features: FREE_OFFER_FEATURES.map((label) => ({ label })),
     cta: { label: "Commencer gratuitement", variant: "ghost" },
   },
   CIVIQUE: {
@@ -131,7 +125,6 @@ function indexPaidPlans(
 
 export function PricingPlans({
   plans,
-  variant = "full",
   defaultPeriodicity = "quarterly",
   measured = false,
 }: Props) {
@@ -173,7 +166,7 @@ export function PricingPlans({
     // `loading` → null : on vise le récapitulatif et le middleware tranche.
     const authenticated = status === "loading" ? null : status === "authenticated";
     return (
-      <div className={`pp pp-${variant}`}>
+      <div className="pp">
         <p className="pp-lead">
           Un pass se paie <strong>une seule fois</strong>. Choisissez la durée qui
           couvre votre échéance — aucune reconduction, et les durées se cumulent
@@ -216,7 +209,7 @@ export function PricingPlans({
   const integral = index.get(`INTEGRAL:${periodicity}`);
 
   return (
-    <div className={`pp pp-${variant}`}>
+    <div className="pp">
       <div className="pp-toggle" role="tablist" aria-label="Périodicité de l'abonnement">
         {PERIODICITIES.map((p) => {
           const active = p.value === periodicity;
@@ -758,7 +751,4 @@ const styles = `
     min-height: 48px;
   }
 
-  /* Variante compacte (landing) */
-  .pp-compact .pp-card { padding: 28px 22px; }
-  .pp-compact .pp-price-num { font-size: 38px; }
 `;

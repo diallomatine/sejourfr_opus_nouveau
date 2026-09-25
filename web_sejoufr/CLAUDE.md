@@ -73,14 +73,18 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 app/
 ├── layout.tsx                    # injection fonts via next/font, variables CSS
 ├── globals.css                   # @import "tailwindcss" + @theme (tokens design)
-├── page.tsx                      # landing one-pager (compose les sous-sections)
+├── page.tsx                      # accueil public (serveur, ISR 30 min, JSON-LD) : compose
+│                                 #   _components/landing/ (cf. § « L'accueil public »)
 ├── _components/                  # composants partagés (PascalCase.tsx, "use client")
-│   ├── Brand.tsx, TopNav.tsx, SiteHeader.tsx, Footer.tsx,
+│   ├── Brand.tsx, SiteHeader.tsx (+ .module.css), Footer.tsx (+ .module.css),
+│   ├── StoreBadge.tsx            # badge sombre App Store / Google Play (/continuer-sur-app)
+│   │                              #   + logos monochromes AppleIcon / GooglePlayMonoIcon
 │   ├── AppSidebar.tsx            # nav latérale des routes (app)
 │   ├── AppTopBar.tsx             # barre du haut ≤ 900 px (burger + titre, lib/app-bar.ts) + tiroir
 │   ├── AppBarTitle.tsx           # AppBarProvider + useAppBarTitle (titre posé par la page) + useAppBarBack (flèche)
 │   ├── NavHistoryTracker.tsx     # compteur d'historique interne (lib/nav-history.ts), layout racine
-│   ├── HeroSection.tsx, LandingSections.tsx, MobileAppPromo.tsx
+│   ├── landing/                  # accueil `/` : LandingSections, LandingPricing,
+│   │                              #   LandingTracking, landing.module.css
 │   ├── MediaView.tsx             # rend MediaResponse (audio/image/vidéo/SVG inline)
 │   ├── QuestionRunner.tsx        # ★ runner réutilisable training/exam (favoris, prev/next,
 │   │                              #   training infini avec extension auto, raccourcis 1-4/Enter/B/←/→)
@@ -549,8 +553,9 @@ Intégral × mensuel / trimestriel / annuel.
 **Composants** :
 
 - `components/pricing/PricingPlans.tsx` (client) — toggle + 3 cards
-  (Free/Civique/Intégral). Variante `compact` pour la landing. Partagé entre
-  `/tarifs` et la `PricingSection` du `/` (landing).
+  (Free/Civique/Intégral), servi à `/tarifs` seulement (la variante `compact`
+  de l'ancienne landing est supprimée). L'accueil et `/reussir` montent
+  `components/pricing/PassCard.tsx` (cf. § « L'accueil public »).
 - `app/_components/PaywallSheet.tsx` — bottom sheet d'incitation à l'achat,
   prop `module: "CIVIQUE" | "INTEGRAL"` (plus de `plan`).
 - `app/(app)/paiement/page.tsx` — page de checkout authentifiée, toggle
@@ -859,6 +864,9 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   min indicatif) : la carte affichait un chrono global « 89:47 » et le titre
   disait « 90 minutes », deux affirmations **fausses depuis le 2026-08-15** (cf.
   § *Temps des examens blancs TCF*). Ne pas y remettre de décompte global.
+- **Cartes de prix** : `PassCard` partagée avec l'accueil (`components/pricing/`),
+  textes propres à `/reussir` passés en props (kicker, titre, notes de rang,
+  CTA rouge/bleu, « Paiement unique · aucune reconduction »).
 - **Mesure d'audience** : `lib/analytics.ts`, envoi **en lot** — cf. § « Mesure
   d'audience et trace du tunnel » en fin de fichier. `/reussir` émet `LANDING_VIEWED`,
   `DIAGNOSTIC_CTA_CLICKED` / `CIVIQUE_CTA_CLICKED` et les CTA de prix.
@@ -2137,9 +2145,10 @@ helper est pour les pages dont le retour dépend d'où l'on vient.
 bouton doit lancer le diagnostic rapide, pas ouvrir une page qui redemande de le
 lancer.
 
-- **La carte « Examen civique » de `DiagnosticIntro` n'existe plus que pour un
-  VISITEUR** (`guest`) : sans compte ni parcours déclaré, `/diagnostic` est sa
-  seule entrée. Un compte connecté arrive depuis un parcours choisi, et le
+- **Le choix TCF / Examen civique n'existe que pour un VISITEUR** (`guest`) :
+  `DiagnosticChoice` (`app/_components/diagnostic/`, refonte 2026-09-26, miroir
+  mobile `widgets/diagnostic_choice.dart`) — sans compte ni parcours déclaré,
+  `/diagnostic` est sa seule entrée. `DiagnosticIntro` est réservé aux comptes. Un compte connecté arrive depuis un parcours choisi, et le
   diagnostic civique garde ses propres portes (`planIndisponible`, Accueil et
   Plan civiques).
 - **`?demarrer=1` saute la présentation** — `DIAGNOSTIC_START_PARAM` /
@@ -2430,7 +2439,11 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
 
 ### Écran de présentation — « 5 minutes », pas un examen (2026-08-14)
 
-`DiagnosticIntro` (dans `DiagnosticView.tsx`, **partagé visiteur ⇄ compte**) annonce
+> Depuis le 2026-09-26, le **visiteur** voit `DiagnosticChoice` (choix TCF / civique,
+> pastilles dérivées par `diagnosticExpressionMinutes` et `CIVIC_EXAM_QUESTIONS`) ;
+> ce qui suit ne vaut plus que pour un **compte**.
+
+`DiagnosticIntro` (dans `DiagnosticView.tsx`, **réservé aux comptes**) annonce
 un budget court **en tête** (pilule `.duration`, avant le titre) puis les **deux
 exercices séparément**, chacun avec sa mesure. Le premier contact décidait de tout :
 « 2 exercices · environ 8 à 10 min » et trois puces de promesses donnaient
@@ -2968,7 +2981,7 @@ Toute valeur de « progression » d'un thème / d'une épreuve vient de
 
 ### Mode guest & quotas gratuits (validés 2026-06-06)
 
-**Guests (non connectés)** — header public aligné sur la sidebar (Accueil ·
+**Guests (non connectés)** — header public (logo → accueil ·
 TCF IRN · Examen civique · Examens blancs · Tarifs, cf. `SiteHeader`) ;
 navigation libre des hubs et pages détail (`DualChromeShell` rend les
 enfants sans sidebar quand `status !== "authenticated"`).
@@ -5082,3 +5095,51 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   vaut `OTHER` (exercice, série civique) ou `MOCK_EXAM` (mesure), sans `journeyId`. Origine
   inconnue : `null` ⇒ `?cta=inconnu` ⇒ aucun `ctaLocation` envoyé ⇒ `UNKNOWN`.
 
+
+
+## L'accueil public `/`, l'en-tête et le pied de page (2026-09-26)
+
+> Maquette du propriétaire : « accueil v3 » (sections, textes, mise en page). Les
+> données de la maquette sont **fictives** : ce qui est chiffré vient du backend.
+
+- **`app/page.tsx`** (serveur, `revalidate = 1800`, métadonnées + JSON-LD dont
+  `sameAs` = `STORE_LINKS`) compose `app/_components/landing/` :
+  `LandingSections.tsx` (composants serveur : Hero, PromiseStrip, Reason, Exams
+  `#examens`, TcfDetail `#tcf`, CiviqueThemes `#civique`, AiValue, MobileApp
+  `#mobile`, Diagnostic `#diagnostic`, FinalCta), `LandingPricing.tsx` (client,
+  `#tarifs`), `LandingTracking.tsx` (client : `TrackedLink`, `LandingViewTracker`)
+  et `landing.module.css`. ⚠️ `Landing.tsx`, l'ancien `landing.module.css` et
+  `MobileAppPromo.tsx` (section app + `PhoneMock`) sont **supprimés** ; seul
+  `StoreBadge` survit, dans `app/_components/StoreBadge.tsx`.
+- 🛑 **Tarifs** : cartes = passes **actifs** servis (`oneTimePassesOf`), ordre
+  `PASS_MODULES_IN_ORDER` (Intégral d'abord, ruban « Le plus complet »), puis la
+  carte Gratuit. Prix d'entrée `passFromPrice`, badge « Populaire » sur
+  `POPULAR_PASS_CODE`, simulations par ligne `passSessionsLabel`, chaque durée et
+  le CTA « Choisir X » → `passCheckoutHref` (CTA = pass mis en avant,
+  `popularPassCodeOf`). Catalogue injoignable ⇒ la carte Gratuit seule.
+- 🛑 **Ce que le compte gratuit ouvre** : `FREE_OFFER_FEATURES` (`lib/passes.ts`),
+  lu par l'accueil **et** `/tarifs`. Les anciens libellés (« 1 découverte de
+  l'évaluation IA en EE/EO », « T1 d'EE/EO 1 fois ») étaient faux : c'est un
+  examen blanc EE + un EO **entiers**, corrigés (D-17).
+- **`components/pricing/PassCard.tsx`** (+ `.module.css`) : `PriceCard` (carte nue)
+  et `PassCard` (passes d'un module + mesure `PREMIUM_CTA_CLICKED` /
+  `PRICING_CTA_CLICKED`, `screen` = `accueil_offres` ou `reussir_offres`).
+  Partagée par l'accueil et `/reussir` — ne pas en recopier une troisième.
+- **Mesure** : `LANDING_VIEWED {landingPath: "/"}` ; diagnostic TCF
+  (`/diagnostic`, « Tester mon niveau TCF » → `DIAGNOSTIC_RAPIDE_START_HREF`) →
+  `DIAGNOSTIC_CTA_CLICKED` ; « Commencer le civique » (`/diagnostic-civique`) →
+  `CIVIQUE_CTA_CLICKED` ; « Commencer gratuitement » → `SIGNUP_CTA_CLICKED`.
+  Les liens emportent `?src=` (`withTrafficSource`).
+- **`SiteHeader`** (+ `SiteHeader.module.css`) : logo (le logo porte l'accueil,
+  plus d'entrée « Accueil »), TCF IRN · Examen civique · Examens blancs · Tarifs ;
+  visiteur « Connexion » (`LOGIN_CLICKED`) + « Tester mon niveau » rouge →
+  `/diagnostic` (`DIAGNOSTIC_CTA_CLICKED`, `HERO` ; `STICKY` dans le tiroir).
+  Liens masqués et bouton de menu à droite ≤ 1020 px, « Connexion » masqué
+  ≤ 760 px. Compte : menu avatar et tiroir `AppSidebar` inchangés (tiroir
+  désormais à droite). Règles de masquage inchangées (`lib/chrome-routes.ts`).
+- **`Footer`** (+ `Footer.module.css`) : fond clair, marque + Produit /
+  Ressources / Légal (liens relatifs, Cookies → `/confidentialite#article-8`),
+  non-affiliation, « Made with ♥ in France », « FR / EN · bientôt » **non
+  interactif**. ⚠️ La newsletter du pied de page est **supprimée**
+  (`newsletterApi` reste : `components/blog/NewsletterCTA.tsx`), ainsi que les
+  pastilles de stores du pied de page.

@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useState} from "react";
-import {StoreBadge} from "@/app/_components/MobileAppPromo";
+import {StoreBadge} from "@/app/_components/StoreBadge";
 import {detectMobilePlatform, type MobilePlatform} from "@/lib/app-link";
 
 /**

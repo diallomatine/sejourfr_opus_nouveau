@@ -262,3 +262,23 @@ export function passFrom(
   if (passes.length === 0) return null;
   return passes.reduce((min, p) => (p.price < min.price ? p : min), passes[0]);
 }
+
+/**
+ * 🛑 **CE QUE LE COMPTE GRATUIT OUVRE, en puces de carte de prix** — déclaré une
+ * seule fois pour tout le web (accueil `/` et `/tarifs`).
+ *
+ * Chaque ligne est une règle de `docs/regles/freemium.md`, jamais une promesse
+ * éditoriale :
+ *  · série 1 offerte par thème civique et par (épreuve TCF × niveau) — D-46 ;
+ *  · créneau 1 de chaque grille d'examens blancs QCM, rejouable — D-33, D-62 ;
+ *  · **un** examen blanc EE et **un** examen blanc EO, corrigés en entier par
+ *    l'IA, à vie — D-17 / D-17 bis. ⚠️ Deux libellés faux l'ont précédée
+ *    (« 1 découverte de l'évaluation IA en EE/EO », « T1 d'EE/EO 1 fois ») :
+ *    la gratuité n'est ni une tâche isolée ni un aperçu, c'est l'examen entier.
+ */
+export const FREE_OFFER_FEATURES: readonly string[] = [
+  "La 1ʳᵉ série d'entraînement de chaque thème et de chaque niveau",
+  "Le 1ᵉʳ examen blanc de chaque épreuve et de chaque thème, rejouable",
+  "1 examen blanc d'expression écrite et 1 d'expression orale, corrigés par l'IA",
+  "Accès sans limite de durée",
+];

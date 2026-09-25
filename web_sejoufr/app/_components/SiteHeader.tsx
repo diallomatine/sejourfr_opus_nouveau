@@ -3,17 +3,25 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useRef, useState} from "react";
-import {Menu, X} from "lucide-react";
+import {ChevronDown, Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
 import {AppSidebar} from "./AppSidebar";
 import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
-import {isAppShellMounted, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
+import {isAppShellMounted, isDualChromeRoute, shouldHideGlobalChrome} from "@/lib/chrome-routes";
+import {DIAGNOSTIC_RAPIDE_HREF} from "@/lib/preparation";
+import styles from "./SiteHeader.module.css";
 
-// Miroir public de la sidebar connectée : les guests naviguent librement les
-// hubs et la page examens blancs (série 1 / examen 1 offerts, le reste gated).
+/**
+ * En-tête public du site (maquette « accueil v3 », 2026-09-26) : logo, liens de
+ * navigation, « Connexion » + « Tester mon niveau » pour un visiteur, menu
+ * avatar pour un compte. Monté une fois par le layout racine, masqué sur les
+ * routes applicatives d'un compte et sur les landings autoportantes
+ * (`shouldHideGlobalChrome`).
+ *
+ * Le logo porte l'accueil : « Accueil » n'est plus une entrée de la barre.
+ */
 const NAV_LINKS = [
-    {href: "/", label: "Accueil"},
     {href: "/entrainement?module=TCF", label: "TCF IRN"},
     {href: "/entrainement?module=CIVIQUE", label: "Examen civique"},
     {href: "/examens-blancs", label: "Examens blancs"},
@@ -42,25 +50,14 @@ function renderNavLinks(
     isActive: (href: string) => boolean,
     onNavigate?: () => void,
 ) {
+    const base = variant === "desktop" ? styles.link : styles.drawerLink;
     return NAV_LINKS.map((l) => {
         const active = isActive(l.href);
-        if (variant === "desktop") {
-            return (
-                <Link
-                    key={l.href}
-                    href={l.href}
-                    className={active ? "is-active" : undefined}
-                    aria-current={active ? "page" : undefined}
-                >
-                    {l.label}
-                </Link>
-            );
-        }
         return (
             <Link
                 key={l.href}
                 href={l.href}
-                className={active ? "site-header__mobileLink is-active" : "site-header__mobileLink"}
+                className={`${base} ${active ? styles.isActive : ""}`}
                 aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
             >
@@ -71,24 +68,26 @@ function renderNavLinks(
 }
 
 /** Liens de nav avec marquage de l'onglet courant. Isolé dans son propre
- *  <Suspense> (cf. usages) car `useSearchParams` y est lu — on évite ainsi de
- *  différer l'hydratation du reste du header (sinon les CTAs auth flashent un
- *  mismatch loading/guest). */
+ *  <Suspense> car `useSearchParams` y est lu — on évite ainsi de différer
+ *  l'hydratation du reste de l'en-tête. */
 function ActiveNavLinks({variant, onNavigate}: {variant: NavVariant; onNavigate?: () => void}) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const currentModule = searchParams.get("module");
     const isActive = (href: string) => {
         const {path, module} = parseNavHref(href);
-        if (path === "/") return pathname === "/";
         if (pathname !== path && !pathname.startsWith(`${path}/`)) return false;
         // /entrainement : on départage TCF / Civique. Sur les sous-routes le
-        // module est dans le chemin (/entrainement/tcf/…) — s'en remettre au
-        // `?module=` absent y allumait « Examen civique » sur tout le TCF.
+        // module est dans le chemin (/entrainement/tcf/…).
         if (module) return (moduleFromPath(pathname) ?? currentModule ?? "CIVIQUE") === module;
         return true;
     };
     return <>{renderNavLinks(variant, isActive, onNavigate)}</>;
+}
+
+/** « Tester mon niveau » : la porte du diagnostic, mesurée comme telle. */
+function trackDiagnosticCta(ctaLocation: "HERO" | "STICKY") {
+    track("DIAGNOSTIC_CTA_CLICKED", {ctaLocation, diagnosticType: "UNKNOWN"});
 }
 
 export function SiteHeader() {
@@ -110,28 +109,34 @@ export function SiteHeader() {
         return () => document.removeEventListener("mousedown", onClick);
     }, [menuOpen]);
 
-    // Ferme le drawer mobile quand on change de route.
-    useEffect(() => {
+    // Ferme le tiroir mobile quand on change de route (remise à zéro au rendu,
+    // pas dans un effet : pas de rendu en cascade).
+    const [navPath, setNavPath] = useState(pathname);
+    if (navPath !== pathname) {
+        setNavPath(pathname);
         setMobileNavOpen(false);
-    }, [pathname]);
+    }
 
-    // Lock du scroll body quand le drawer mobile est ouvert.
+    // Verrou du scroll de la page tant que le tiroir est ouvert, et Échap le ferme.
     useEffect(() => {
-        if (typeof document === "undefined") return;
-        if (mobileNavOpen) {
-            const prev = document.body.style.overflow;
-            document.body.style.overflow = "hidden";
-            return () => {
-                document.body.style.overflow = prev;
-            };
-        }
+        if (!mobileNavOpen) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setMobileNavOpen(false);
+        };
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.body.style.overflow = prev;
+            document.removeEventListener("keydown", onKey);
+        };
     }, [mobileNavOpen]);
 
     const isAuth = status === "authenticated" && user !== null;
     if (shouldHideGlobalChrome(pathname, isAuth)) return null;
 
-    /** Sur les routes connectées qui montent déjà AppTopBar (sidebar
-     *  drawer dédié), on cache notre propre burger pour ne pas en empiler deux. */
+    /** Sur les routes qui montent déjà `AppTopBar` (tiroir dédié), on cache
+     *  notre propre bouton de menu pour ne pas en empiler deux. */
     const hideMobileBurger =
         isAppShellMounted(pathname, status) || (isAuth && isDualChromeRoute(pathname));
 
@@ -147,88 +152,58 @@ export function SiteHeader() {
 
     return (
         <>
-            <nav className="site-header" aria-label="Navigation principale">
-                <div className="site-header__inner">
+            <header className={styles.header}>
+                <nav className={styles.nav} aria-label="Navigation principale">
                     <Brand href={homeHref}/>
 
-                    <div className="site-header__links">
+                    <div className={styles.links}>
                         <Suspense fallback={renderNavLinks("desktop", () => false)}>
                             <ActiveNavLinks variant="desktop"/>
                         </Suspense>
                     </div>
 
-                    {!hideMobileBurger && (
-                        <button
-                            type="button"
-                            className="site-header__burger"
-                            aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
-                            aria-expanded={mobileNavOpen}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setMobileNavOpen((v) => !v);
-                            }}
-                        >
-                            {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
-                        </button>
-                    )}
-
-                    <div className="site-header__ctas">
+                    <div className={styles.actions}>
                         {isLoading ? (
-                            <span className="site-header__ctaPlaceholder" aria-hidden/>
+                            <span className={styles.placeholder} aria-hidden/>
                         ) : isAuth ? (
-                            <div className="site-header__user" ref={menuRef}>
+                            <div className={styles.user} ref={menuRef}>
                                 <button
                                     type="button"
-                                    className="site-header__userBtn"
+                                    className={styles.userBtn}
                                     onClick={() => setMenuOpen((v) => !v)}
                                     aria-haspopup="menu"
                                     aria-expanded={menuOpen}
                                 >
-                <span className="site-header__avatar">
-                  {user.firstName?.[0]?.toUpperCase() ??
-                      user.email[0].toUpperCase()}
-                </span>
-                                    <span className="site-header__userName">
-                  {user.firstName ?? user.email}
-                </span>
-                                    <span className="site-header__caret" aria-hidden>
-                  ▾
-                </span>
+                                    <span className={styles.avatar}>
+                                        {user.firstName?.[0]?.toUpperCase() ?? user.email[0].toUpperCase()}
+                                    </span>
+                                    <span className={styles.userName}>{user.firstName ?? user.email}</span>
+                                    <ChevronDown size={14} className={styles.caret} aria-hidden/>
                                 </button>
 
                                 {menuOpen && (
-                                    <div className="site-header__menu" role="menu">
-                                        <div className="site-header__menuHead">
-                                            <div className="site-header__menuName">
+                                    <div className={styles.menu} role="menu">
+                                        <div className={styles.menuHead}>
+                                            <div className={styles.menuName}>
                                                 {user.firstName} {user.lastName}
                                             </div>
-                                            <div className="site-header__menuEmail">{user.email}</div>
+                                            <div className={styles.menuEmail}>{user.email}</div>
                                         </div>
-                                        <Link
-                                            href="/dashboard"
-                                            className="site-header__menuItem"
-                                            onClick={() => setMenuOpen(false)}
-                                        >
+                                        <Link href="/dashboard" className={styles.menuItem}
+                                              onClick={() => setMenuOpen(false)}>
                                             Accueil
                                         </Link>
-                                        <Link
-                                            href="/entrainement"
-                                            className="site-header__menuItem"
-                                            onClick={() => setMenuOpen(false)}
-                                        >
+                                        <Link href="/entrainement" className={styles.menuItem}
+                                              onClick={() => setMenuOpen(false)}>
                                             Entrainements
                                         </Link>
-                                        <Link
-                                            href="/profil"
-                                            className="site-header__menuItem"
-                                            onClick={() => setMenuOpen(false)}
-                                        >
+                                        <Link href="/profil" className={styles.menuItem}
+                                              onClick={() => setMenuOpen(false)}>
                                             Mon profil
                                         </Link>
                                         <button
                                             type="button"
-                                            className="site-header__menuItem site-header__menuItem--danger"
+                                            className={`${styles.menuItem} ${styles.menuItemDanger}`}
                                             onClick={handleLogout}
                                         >
                                             Se déconnecter
@@ -240,322 +215,50 @@ export function SiteHeader() {
                             <>
                                 <Link
                                     href="/connexion"
-                                    className="site-header__ghost site-header__hideMobile"
+                                    className={`${styles.btn} ${styles.btnLight}`}
                                     onClick={() => track("LOGIN_CLICKED", {})}
                                 >
-                                    Se connecter
+                                    Connexion
                                 </Link>
                                 <Link
-                                    href="/inscription"
-                                    className="btn site-header__primary"
-                                    onClick={() => track("SIGNUP_CTA_CLICKED", {ctaLocation: "HERO"})}
+                                    href={DIAGNOSTIC_RAPIDE_HREF}
+                                    className={`${styles.btn} ${styles.btnRed}`}
+                                    onClick={() => trackDiagnosticCta("HERO")}
                                 >
-                                    Commencer
+                                    Tester mon niveau
                                 </Link>
                             </>
                         )}
+
+                        {!hideMobileBurger && (
+                            <button
+                                type="button"
+                                className={styles.burger}
+                                aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                                aria-expanded={mobileNavOpen}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMobileNavOpen((v) => !v);
+                                }}
+                            >
+                                {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
+                            </button>
+                        )}
                     </div>
-                </div>
+                </nav>
+            </header>
 
-                <style>{`
-        .site-header {
-          position: sticky; top: 0; z-index: 50;
-          /* Fond opaque blanc sur mobile pour éviter les bugs de hit-testing
-             d'iOS Safari liés au backdrop-filter sur élément sticky. */
-          background: #fff;
-          border-bottom: 1px solid var(--color-line);
-          isolation: isolate;
-        }
-        /* Effet blur translucide réservé aux devices avec pointeur fin
-           (desktop) où le bug iOS n'existe pas. */
-        @media (hover: hover) and (min-width: 961px) {
-          .site-header {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: saturate(180%) blur(14px);
-            -webkit-backdrop-filter: saturate(180%) blur(14px);
-          }
-        }
-        .site-header__inner {
-          max-width: 1180px; margin: 0 auto;
-          padding: 0 28px;
-          height: 68px;
-          display: flex; align-items: center; justify-content: space-between;
-          gap: 24px;
-        }
-        .site-header__ctaPlaceholder {
-          display: inline-block;
-          width: 200px; height: 36px;
-          border-radius: 100px;
-          background: var(--color-line-2);
-          opacity: 0.5;
-        }
-        .site-header__links {
-          display: flex; align-items: center; gap: 32px;
-          font-size: 14px; font-weight: 500; color: var(--color-ink-2);
-        }
-        .site-header__links a {
-          position: relative;
-          color: inherit; text-decoration: none;
-          padding: 4px 1px;
-          transition: color 0.15s;
-        }
-        .site-header__links a:hover { color: var(--color-blue); }
-        .site-header__links a.is-active { color: var(--color-blue); }
-        .site-header__links a.is-active::after {
-          content: "";
-          position: absolute;
-          left: 1px; right: 1px; bottom: -5px;
-          height: 2px; border-radius: 2px;
-          background: var(--color-blue);
-        }
-        .site-header__ctas {
-          display: flex; align-items: center; gap: 10px;
-        }
-
-        .site-header__ghost {
-          font-size: 14px; font-weight: 600;
-          color: var(--color-ink-2);
-          padding: 10px 16px;
-          border-radius: 10px;
-          transition: background 0.15s, color 0.15s;
-        }
-        .site-header__ghost:hover {
-          background: var(--color-blue-soft);
-          color: var(--color-blue);
-        }
-        .site-header__primary {
-          padding: 11px 20px;
-          border-radius: 12px;
-          font-size: 14px;
-        }
-
-        .site-header__user { position: relative; }
-        .site-header__userBtn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 6px 10px 6px 6px;
-          border: 1px solid var(--color-line);
-          background: #fff; border-radius: 100px;
-          cursor: pointer;
-          font-family: var(--font-sans);
-          font-size: 13.5px; color: var(--color-ink);
-          transition: all 0.15s;
-        }
-        .site-header__userBtn:hover { border-color: var(--color-blue); }
-        .site-header__avatar {
-          width: 28px; height: 28px; border-radius: 50%;
-          background: linear-gradient(135deg, var(--color-blue), var(--color-red));
-          color: #fff;
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700; font-size: 12px;
-        }
-        .site-header__userName { font-weight: 600; }
-        .site-header__caret { color: var(--color-muted); font-size: 10px; }
-
-        .site-header__menu {
-          position: absolute; right: 0; top: calc(100% + 8px);
-          min-width: 240px;
-          background: #fff;
-          border: 1px solid var(--color-line);
-          border-radius: 12px;
-          box-shadow: 0 30px 60px -20px rgba(15, 24, 57, 0.18);
-          overflow: hidden;
-        }
-        .site-header__menuHead {
-          padding: 14px 16px;
-          border-bottom: 1px solid var(--color-line-2);
-          background: var(--color-paper);
-        }
-        .site-header__menuName {
-          font-weight: 700; font-size: 13.5px; color: var(--color-ink);
-        }
-        .site-header__menuEmail {
-          font-size: 12px; color: var(--color-muted);
-          margin-top: 2px;
-          word-break: break-all;
-        }
-        .site-header__menuItem {
-          display: block;
-          padding: 11px 16px;
-          font-size: 13.5px; color: var(--color-ink-2);
-          text-decoration: none;
-          background: none; border: none; width: 100%; text-align: left;
-          font-family: var(--font-sans); cursor: pointer;
-          transition: background 0.1s;
-        }
-        .site-header__menuItem:hover { background: var(--color-blue-soft); }
-        .site-header__menuItem--danger {
-          color: var(--color-red);
-          border-top: 1px solid var(--color-line-2);
-        }
-        .site-header__menuItem--danger:hover { background: var(--color-red-light); }
-
-        /* Burger : visible uniquement sous 960px, premier élément à gauche */
-        .site-header__burger {
-          display: none;
-          width: 44px; height: 44px;
-          align-items: center; justify-content: center;
-          background: #fff;
-          border: 1px solid var(--color-line);
-          border-radius: 10px;
-          color: var(--color-ink);
-          cursor: pointer;
-          font-family: inherit;
-          transition: background 0.15s, border-color 0.15s;
-          flex-shrink: 0;
-          /* iOS / Android : supprime le délai 300ms et le highlight bleu au tap. */
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-          -webkit-touch-callout: none;
-          /* Stacking context explicite pour s'assurer que le button est
-             cliquable au-dessus de tous les éléments décoratifs du header. */
-          position: relative;
-          z-index: 2;
-          -webkit-appearance: none;
-          appearance: none;
-        }
-        /* :hover uniquement sur device pointeur fin (souris) — sinon iOS
-           "colle" le hover et la première tap ne déclenche pas onClick. */
-        @media (hover: hover) {
-          .site-header__burger:hover {
-            background: var(--color-blue-soft);
-            border-color: var(--color-blue);
-          }
-        }
-        .site-header__burger:active {
-          background: var(--color-blue-soft);
-          border-color: var(--color-blue);
-        }
-
-        /* Mobile drawer (left-slide, style Flutter) */
-        .site-header__mobileOverlay {
-          position: fixed; inset: 0;
-          background: rgba(15, 24, 57, 0.5);
-          -webkit-backdrop-filter: blur(2px);
-          backdrop-filter: blur(2px);
-          z-index: 80;
-          animation: site-mobile-overlay-in 0.18s ease-out;
-        }
-        @keyframes site-mobile-overlay-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .site-header__mobilePanel {
-          position: fixed;
-          top: 0; left: 0; bottom: 0;
-          width: min(86vw, 320px);
-          background: #fff;
-          z-index: 90;
-          padding: 20px 22px;
-          display: flex; flex-direction: column;
-          gap: 6px;
-          overflow-y: auto;
-          box-shadow: 18px 0 40px -20px rgba(15, 24, 57, 0.35);
-          animation: site-mobile-panel-in 0.22s ease-out;
-        }
-        @keyframes site-mobile-panel-in {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
-        }
-        /* Variante connectée : l'AppSidebar (via .ms-drawer-inner) porte son
-           propre padding/scroll, le panneau ne fait que le cadre fixe. */
-        .site-header__mobilePanel--app {
-          padding: 0;
-          gap: 0;
-          overflow: hidden;
-          width: min(86vw, 300px);
-        }
-        .site-header__mobileHead {
-          display: flex; align-items: center; justify-content: space-between;
-          padding-bottom: 14px;
-          border-bottom: 1px solid var(--color-line-2);
-          margin-bottom: 14px;
-        }
-        .site-header__mobileClose {
-          width: 36px; height: 36px;
-          display: inline-flex; align-items: center; justify-content: center;
-          background: var(--color-paper);
-          border: 1px solid var(--color-line);
-          border-radius: 10px;
-          color: var(--color-ink);
-          cursor: pointer;
-          font-family: inherit;
-        }
-        .site-header__mobileLink {
-          padding: 12px 6px;
-          font-size: 16px; font-weight: 600;
-          color: var(--color-ink);
-          text-decoration: none;
-          border-radius: 8px;
-          transition: background 0.15s, color 0.15s;
-        }
-        .site-header__mobileLink:hover {
-          background: var(--color-blue-soft);
-          color: var(--color-blue);
-        }
-        .site-header__mobileLink.is-active {
-          background: var(--color-blue-soft);
-          color: var(--color-blue);
-        }
-        /* margin-top: auto pousse les CTAs en bas du panneau (colonne flex). */
-        .site-header__mobileCtas {
-          display: flex; flex-direction: column; gap: 10px;
-          margin-top: auto;
-          padding-top: 18px;
-          padding-bottom: env(safe-area-inset-bottom, 0px);
-          border-top: 1px solid var(--color-line-2);
-        }
-        .site-header__mobileGhost {
-          padding: 12px 16px;
-          border: 1px solid var(--color-line);
-          border-radius: 10px;
-          text-align: center;
-          font-weight: 600; font-size: 14.5px;
-          color: var(--color-ink);
-          text-decoration: none;
-        }
-        .site-header__mobilePrimary {
-          width: 100%;
-          text-align: center;
-        }
-
-        @media (max-width: 960px) {
-          /* Sur mobile : burger à gauche (order: -1), nav links + CTAs desktop
-             cachés (accessibles depuis le drawer uniquement). */
-          .site-header__inner {
-            justify-content: flex-start;
-            gap: 14px;
-            padding: 0 16px;
-          }
-          .site-header__links { display: none; }
-          .site-header__ctas { display: none; }
-          .site-header__burger {
-            display: inline-flex;
-            order: -1;
-          }
-        }
-        @media (max-width: 480px) {
-          .site-header__hideMobile { display: none; }
-          .site-header__userName { display: none; }
-        }
-      `}</style>
-            </nav>
-
-            {/* Drawer rendu HORS du <nav> : backdrop-filter sur .site-header
-            crée un containing block qui contraindrait un fixed enfant. */}
+            {/* Tiroir rendu HORS de l'en-tête : le backdrop-filter de l'en-tête
+                crée un containing block qui contraindrait un `fixed` enfant. */}
             {mobileNavOpen && (
                 <>
-                    <div
-                        className="site-header__mobileOverlay"
-                        onClick={() => setMobileNavOpen(false)}
-                        aria-hidden
-                    />
+                    <div className={styles.overlay} onClick={() => setMobileNavOpen(false)} aria-hidden/>
                     {isAuth ? (
-                        /* Connecté (accueil + autres routes vitrine) : le drawer
-                           rend la même AppSidebar que l'espace perso, pour que le
-                           burger soit identique partout. Réutilise les overrides
-                           globaux `.ms-drawer-inner .app-sidebar` + `.ms-close`. */
+                        /* Compte : le tiroir rend la même AppSidebar que l'espace
+                           perso (overrides globaux `.ms-drawer-inner` + `.ms-close`). */
                         <aside
-                            className="site-header__mobilePanel site-header__mobilePanel--app"
+                            className={`${styles.panel} ${styles.panelApp}`}
                             role="dialog"
                             aria-modal="true"
                             aria-label="Menu"
@@ -580,17 +283,12 @@ export function SiteHeader() {
                             </div>
                         </aside>
                     ) : (
-                        <aside
-                            className="site-header__mobilePanel"
-                            role="dialog"
-                            aria-modal="true"
-                            aria-label="Menu"
-                        >
-                            <div className="site-header__mobileHead">
+                        <aside className={styles.panel} role="dialog" aria-modal="true" aria-label="Menu">
+                            <div className={styles.panelHead}>
                                 <Brand href={homeHref}/>
                                 <button
                                     type="button"
-                                    className="site-header__mobileClose"
+                                    className={styles.panelClose}
                                     onClick={() => setMobileNavOpen(false)}
                                     aria-label="Fermer le menu"
                                 >
@@ -599,30 +297,31 @@ export function SiteHeader() {
                             </div>
 
                             <Suspense
-                                fallback={renderNavLinks("mobile", () => false, () =>
-                                    setMobileNavOpen(false),
-                                )}
+                                fallback={renderNavLinks("mobile", () => false, () => setMobileNavOpen(false))}
                             >
-                                <ActiveNavLinks
-                                    variant="mobile"
-                                    onNavigate={() => setMobileNavOpen(false)}
-                                />
+                                <ActiveNavLinks variant="mobile" onNavigate={() => setMobileNavOpen(false)}/>
                             </Suspense>
 
-                            <div className="site-header__mobileCtas">
-                                <Link href="/connexion" className="site-header__mobileGhost"
-                                      onClick={() => {
-                                          track("LOGIN_CLICKED", {});
-                                          setMobileNavOpen(false);
-                                      }}>
-                                    Se connecter
+                            <div className={styles.panelCtas}>
+                                <Link
+                                    href="/connexion"
+                                    className={`${styles.btn} ${styles.btnLight} ${styles.btnFull}`}
+                                    onClick={() => {
+                                        track("LOGIN_CLICKED", {});
+                                        setMobileNavOpen(false);
+                                    }}
+                                >
+                                    Connexion
                                 </Link>
-                                <Link href="/inscription" className="btn site-header__mobilePrimary"
-                                      onClick={() => {
-                                          track("SIGNUP_CTA_CLICKED", {ctaLocation: "STICKY"});
-                                          setMobileNavOpen(false);
-                                      }}>
-                                    Commencer
+                                <Link
+                                    href={DIAGNOSTIC_RAPIDE_HREF}
+                                    className={`${styles.btn} ${styles.btnRed} ${styles.btnFull}`}
+                                    onClick={() => {
+                                        trackDiagnosticCta("STICKY");
+                                        setMobileNavOpen(false);
+                                    }}
+                                >
+                                    Tester mon niveau
                                 </Link>
                             </div>
                         </aside>

@@ -31,15 +31,12 @@ import {
 import { diagnosticApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
-  formatPassPrice,
   oneTimePassesOf,
   PASS_MODULES_IN_ORDER,
-  passCheckoutHref,
-  passDurationLabel,
   passSessionsLabel,
-  popularPassCodeOf,
   type PassModule,
 } from "@/lib/passes";
+import { PassCard } from "@/components/pricing/PassCard";
 import { type PlanPublicResponse } from "@/lib/types";
 import styles from "./reussir.module.css";
 
@@ -847,13 +844,32 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
             const passes = module === "CIVIQUE" ? civique : integral;
             if (passes.length === 0) return null;
             return (
-              <PriceCard
+              <PassCard
                 key={module}
                 module={module}
-                plans={passes}
-                isAuth={isAuth}
-                origin={origin}
+                passes={passes}
+                authenticated={isAuth}
+                source={origin}
+                screen="reussir_offres"
                 featured={module === "INTEGRAL"}
+                ribbon={module === "INTEGRAL" ? "Le plus complet" : null}
+                kicker={module === "CIVIQUE" ? "Examen civique uniquement" : "TCF IRN + examen civique"}
+                kickerAccent={module === "INTEGRAL"}
+                title={module === "CIVIQUE" ? "Pass Examen civique" : "Pass Intégral"}
+                description={
+                  module === "CIVIQUE"
+                    ? "Pour réviser les connaissances demandées et vous entraîner avec des examens blancs."
+                    : "Toute la préparation de l'examen civique, plus les 4 épreuves du TCF IRN."
+                }
+                rowNote={reussirRowNote(module)}
+                features={module === "CIVIQUE" ? CIVIQUE_FEATURES : INTEGRAL_FEATURES}
+                ctaLabel={
+                  module === "CIVIQUE"
+                    ? "Préparer l'examen civique"
+                    : "Préparer TCF IRN + examen civique"
+                }
+                ctaTone={module === "INTEGRAL" ? "red" : "blue"}
+                footnote="Paiement unique · aucune reconduction"
               />
             );
           })}
@@ -867,92 +883,14 @@ function PricingSection({ plans }: { plans: PlanPublicResponse[] }) {
   );
 }
 
-function PriceCard({
-  module,
-  plans,
-  isAuth,
-  origin,
-  featured = false,
-}: {
-  module: PassModule;
-  plans: PlanPublicResponse[];
-  isAuth: boolean;
-  origin: TrafficSource | null;
-  featured?: boolean;
-}) {
-  const popularCode = popularPassCodeOf(plans);
+/** Les rangs de durée sont une note éditoriale (position dans la liste triée),
+ *  le nombre de simulations orales, lui, reste servi par le backend. */
+function reussirRowNote(module: PassModule) {
   const notes = module === "CIVIQUE" ? CIVIQUE_ROW_NOTES : INTEGRAL_ROW_NOTES;
-  const ctaPlan = plans.find((p) => p.code === popularCode) ?? plans[0];
-  const ctaHref = passCheckoutHref(ctaPlan.code, isAuth, origin);
-
-  return (
-    <article
-      className={`${styles.priceCard} ${featured ? styles.priceFeatured : ""}`}
-      data-rv
-    >
-      {featured && <span className={styles.popularTag}>Le plus complet</span>}
-      <span className={`${styles.offerKicker} ${featured ? styles.offerKickerRed : ""}`}>
-        {module === "CIVIQUE" ? "Examen civique uniquement" : "TCF IRN + examen civique"}
-      </span>
-      <h3>{module === "CIVIQUE" ? "Pass Examen civique" : "Pass Intégral"}</h3>
-      <p className={styles.offerDesc}>
-        {module === "CIVIQUE"
-          ? "Pour réviser les connaissances demandées et vous entraîner avec des examens blancs."
-          : "Toute la préparation de l'examen civique, plus les 4 épreuves du TCF IRN."}
-      </p>
-
-      <div className={styles.durationList}>
-        {plans.map((plan, i) => {
-          const selected = plan.code === popularCode;
-          const sessions = module === "INTEGRAL" ? passSessionsLabel(plan) : null;
-          const note = [notes[i], sessions].filter(Boolean).join(" · ");
-          return (
-            <Link
-              key={plan.code}
-              href={passCheckoutHref(plan.code, isAuth, origin)}
-              className={`${styles.durationRow} ${selected ? styles.durationRowSelected : ""}`}
-              onClick={() => trackPassChosen(plan.code)}
-            >
-              <div>
-                <span className={styles.durationName}>{passDurationLabel(plan.durationDays)}</span>
-                {note ? <span className={styles.durationNote}>{note}</span> : null}
-              </div>
-              <div className={styles.durationPrice}>{formatPassPrice(plan.price)}&nbsp;€</div>
-            </Link>
-          );
-        })}
-      </div>
-
-      <ul className={styles.featuresList}>
-        {(module === "CIVIQUE" ? CIVIQUE_FEATURES : INTEGRAL_FEATURES).map((f) => (
-          <li key={f}>
-            <Check aria-hidden />
-            {f}
-          </li>
-        ))}
-      </ul>
-
-      <Link
-        href={ctaHref}
-        className={`${styles.btn} ${featured ? styles.btnP : styles.btnBlue} ${styles.btnFull}`}
-        onClick={() => trackPassChosen(ctaPlan.code)}
-      >
-        {module === "CIVIQUE" ? "Préparer l'examen civique" : "Préparer TCF IRN + examen civique"}
-        <ArrowRight aria-hidden />
-      </Link>
-      <p className={styles.trustNote}>Paiement unique · aucune reconduction</p>
-    </article>
-  );
-}
-
-/**
- * Un pass choisi depuis la landing dit **deux** choses différentes : « cet
- * écran a déclenché une intention d'achat » et « c'est ce pass-là qui a été
- * choisi ». Les deux événements du registre existent pour ça.
- */
-function trackPassChosen(planCode: string): void {
-  track("PREMIUM_CTA_CLICKED", { ctaLocation: "PRICING", planCode, screen: "reussir_offres" });
-  track("PRICING_CTA_CLICKED", { planCode });
+  return (plan: PlanPublicResponse, i: number): string | null => {
+    const sessions = module === "INTEGRAL" ? passSessionsLabel(plan) : null;
+    return [notes[i], sessions].filter(Boolean).join(" · ") || null;
+  };
 }
 
 // ============================================================================

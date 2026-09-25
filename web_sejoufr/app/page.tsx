@@ -1,23 +1,22 @@
+import type { Metadata } from "next";
 import {
-  Competences,
-  Examens,
+  AiValue,
+  CiviqueThemes,
+  Diagnostic,
+  Exams,
   FinalCta,
   Hero,
-  Niveau,
-  Parcours,
-  Simulation,
-  Tarifs,
-  Temoignages,
-} from "./_components/landing/Landing";
-import type { Metadata } from "next";
-import { MobileAppSection } from "./_components/MobileAppPromo";
+  MobileApp,
+  PromiseStrip,
+  Reason,
+  TcfDetail,
+} from "./_components/landing/LandingSections";
+import { LandingPricing } from "./_components/landing/LandingPricing";
+import { LandingViewTracker } from "./_components/landing/LandingTracking";
+import styles from "./_components/landing/landing.module.css";
 import { billingApi } from "@/lib/api";
 import type { PlanPublicResponse } from "@/lib/types";
-import { SITE } from "@/lib/site";
-
-const APP_STORE_URL = "https://apps.apple.com/fr/app/sejourfr/id6771509569";
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr";
+import { SITE, STORE_LINKS } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "SejourFR — Préparation TCF IRN & Examen civique",
@@ -43,7 +42,7 @@ const jsonLd = [
     alternateName: ["SéjourFR", "Sejour FR", "Séjour FR", "SejourFR app"],
     url: SITE.url,
     logo: `${SITE.url}/logo_sejourFR.png`,
-    sameAs: [APP_STORE_URL, PLAY_STORE_URL],
+    sameAs: [STORE_LINKS.ios, STORE_LINKS.android],
   },
   {
     "@context": "https://schema.org",
@@ -56,8 +55,8 @@ const jsonLd = [
 ];
 
 // Plans actifs récupérés côté serveur (ISR 30 min, comme /tarifs) pour la
-// section Tarifs de la landing. Fallback vide si l'API est down au build →
-// PricingPlans n'affiche que la carte Free, plutôt que de casser la page.
+// section Tarifs. Fallback vide si l'API est down au build → seule la carte
+// Gratuit reste, plutôt que de casser la page.
 export const revalidate = 1800;
 
 async function fetchPlans(): Promise<PlanPublicResponse[]> {
@@ -72,22 +71,24 @@ export default async function HomePage() {
   const plans = await fetchPlans();
 
   return (
-    <main>
+    <main className={styles.page}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
         }}
       />
+      <LandingViewTracker />
       <Hero />
-      <Parcours />
-      <Examens />
-      <Competences />
-      <Simulation />
-      <Niveau />
-      <Temoignages />
-      <Tarifs plans={plans} />
-      <MobileAppSection />
+      <PromiseStrip />
+      <Reason />
+      <Exams />
+      <TcfDetail />
+      <CiviqueThemes />
+      <AiValue />
+      <MobileApp />
+      <Diagnostic />
+      <LandingPricing plans={plans} />
       <FinalCta />
     </main>
   );
