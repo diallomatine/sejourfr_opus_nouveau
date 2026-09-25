@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// **L'identité anonyme d'un appareil**, miroir mobile de `lib/analytics.ts`
@@ -72,6 +73,24 @@ class AnalyticsIdentity {
       );
     } catch (_) {
       return _memoryIds(at);
+    }
+  }
+
+  /// L'identifiant de l'appareil **seul**, sans toucher à la session.
+  ///
+  /// C'est lui que `X-Sejourfr-Anonymous-Id` porte sur **chaque** requête : un
+  /// appel d'API n'est pas une activité de mesure, il ne doit pas prolonger la
+  /// session d'audience. Tiré au premier lancement, il survit aux connexions et
+  /// aux déconnexions — il désigne l'appareil, jamais le compte. Ne lève
+  /// jamais.
+  Future<String> anonymousId({DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    final prefs = await _prefs();
+    if (prefs == null) return _memoryAnonymousId ??= _uuidV4();
+    try {
+      return await _anonymousId(prefs, at);
+    } catch (_) {
+      return _memoryAnonymousId ??= _uuidV4();
     }
   }
 
@@ -151,3 +170,9 @@ class AnalyticsIds {
   final String anonymousId;
   final String sessionId;
 }
+
+/// **L'unique instance** de l'identité anonyme : l'en-tête de chaque requête et
+/// les événements d'analytics doivent désigner le même appareil, y compris
+/// dans le repli en mémoire quand le stockage est indisponible.
+final analyticsIdentityProvider =
+    Provider<AnalyticsIdentity>((ref) => AnalyticsIdentity());

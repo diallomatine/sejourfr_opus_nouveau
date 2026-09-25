@@ -900,10 +900,10 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
 - Les liens profonds protégés conservent leur destination dans `redirect` jusqu'à la connexion,
   y compris lors d'un démarrage à froid tant que `AuthLoading` n'a pas encore résolu le token ;
   `safePostLoginDestination` refuse tout schéma/hôte externe et toute boucle vers l'auth.
-- La mesure d'audience passe par `core/api/analytics_repository.dart` (ingestion publique
-  `/api/public/analytics/*`, `skipAuth`) — `POST /api/public/page-views` est **supprimé**
-  (2026-09-25, lot 1a du chantier Suivi). Aucun contenu de production n'est envoyé et un échec
-  analytics ne bloque jamais le parcours. **Le funnel reste mesurable en invité** ;
+- La mesure d'audience passe par `AnalyticsService` → file persistante → lot
+  (`POST /api/public/analytics/events/batch`) — cf. § « Mesure d'audience et tunnel
+  « Suivi » ». Aucun contenu de production n'est envoyé et un échec analytics ne bloque
+  jamais le parcours. **Le funnel reste mesurable en invité** ;
   `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
   est la mesure de conversion du parcours.
 
@@ -3858,6 +3858,48 @@ EE/EO survit entre les écrans du même flow. Si l'utilisateur quitte et revient
 attempts, l'écran progression repart de l'état serveur — pas de "session" client à reprendre, l'état
 canonique vit côté backend.
 
+## Mesure d'audience et tunnel « Suivi » (lot 3, 2026-09-25)
+
+> Arbitrages : `docs/admin/decisions-suivi.md` (Q3, claim, Q4, Q12, Q15, Q17) · règles :
+> `docs/regles/mesure-audience.md`, `docs/regles/diagnostic.md` § « La trace du tunnel »,
+> `docs/regles/paiements.md` § « Intention d'achat ». Miroir web : `lib/client-context.ts`,
+> `lib/diagnostic-run*.ts`, `lib/analytics.ts`, `lib/purchase-origin.ts`.
+
+- **En-têtes, un seul point de câblage** : `core/analytics/client_context.dart`
+  (`ClientContext`), posé par l'intercepteur d'`ApiClient` sur **toutes** les requêtes
+  (`skipAuth` et refresh compris) : `X-Sejourfr-Client` = `ios|android` (plus jamais
+  `mobile`), `X-Sejourfr-Anonymous-Id` (UUID de l'appareil, `AnalyticsIdentity`, instance
+  unique `analyticsIdentityProvider`, survit aux connexions), `X-Sejourfr-App-Version`
+  (`package_info_plus`, `version+build`). Valeur inconnue ⇒ en-tête absent.
+- **Événements = file, jamais un POST direct** : `AnalyticsService.track` fige `eventId` et
+  `occurredAt` **à la création**, puis `AnalyticsQueue` (`core/analytics/analytics_queue.dart`,
+  `SharedPreferences`, 200 max, 160 h max) envoie par lots de 50 groupés par
+  `(anonymousId, sessionId)` : au lancement, à la reprise, en passant en arrière-plan, toutes
+  les 60 s, 2 s après un ajout, et au **retour réseau** (`ApiClient.onReachable` — toute
+  réponse du serveur). Purge après **202** (rejets individuels compris) ; réseau / 429 / 5xx ⇒
+  backoff 5 s → 5 min ; lot refusé en bloc ⇒ 3 essais puis abandon. 🛑 L'unitaire
+  `POST /api/public/analytics/events` n'est plus appelé.
+- **Registre** (`analytics_events.dart`) aligné sur `AnalyticsEvent` serveur : +
+  `CIVIQUE_CTA_CLICKED`, `PLAN_UNLOCK_CLICKED`, `displayedPriceCents`, et
+  `kAnalyticsEventContext` (quels événements portent run / parcours — le reste est filtré).
+  🛑 Pas de `DIAGNOSTIC_SUBJECT_VIEWED` : l'étape 1 se lit sur la run.
+- **La run du diagnostic** : `DiagnosticRunTracker` (`core/analytics/diagnostic_run_tracker.dart`)
+  est l'**unique** stockage run + `claimToken` (un enregistrement par type, `SharedPreferences`,
+  `clientKey` tirée par passage via `SubmissionKeys.newKey`). Création à la 1ʳᵉ question :
+  écrit du TCF rapide (`diagnostic_screen`), ouverture du runner avec `?civicDiagnosticId=` (civique),
+  `startSection` (TCF complet). « Soumis » : **TCF rapide seulement**, à la validation de la
+  dernière production. Handoff : `POST /api/diagnostics?diagnosticRunId=`. Passage clos quand
+  le brouillon est effacé (la run reste connue pour les événements).
+  🛑 **Le `claimToken` ne sort du tracker que vers `submit` et l'auth** ; les événements ne
+  reçoivent que `runIdFor(type)`, et seulement si la run est celle du compte connecté.
+- **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + la run d'invité la plus
+  récente dont le jeton vaut encore (`claimForAuth`), puis `onAuthenticated` la marque au compte
+  **avant** le passage en connecté.
+- **Plan** : `Journey.journeyId` (miroir de `JourneyDto.journeyId`) accompagne `PLAN_OPENED`
+  (une fois par ouverture, quand le parcours affiché est connu), `PLAN_EXERCISE_STARTED` et
+  `PLAN_UNLOCK_CLICKED` (bouton de `PlanUnlockScreen`, avec `planCode` + prix affiché du pass
+  d'entrée, `passFromPlan`). `DIAGNOSTIC_REPORT_VIEWED` porte la run (TCF rapide, civique).
+
 ## In-App Purchase (lot 4d) — Apple StoreKit + Google Play Billing
 
 Depuis le **lot 4d**, le mobile vend les abonnements via **IAP natif**, plus
@@ -3919,6 +3961,17 @@ en gros, l'équivalent mensuel en sous-texte (« soit 13,33 €/mois »). Un pas
 se paie une fois — un « /mois » en principal laisserait croire à un
 abonnement. Même hiérarchie côté web (`/paiement`, `/tarifs`) : ne pas
 réinverser d'un seul côté.
+
+**Intention d'achat (Q12, lot 3 « Suivi »)** : `BillingController.startPurchase(product,
+ctaLocation:, journeyId:)` crée `POST /api/billing/purchase-intents` (SKU du store, 4 s au
+plus) et **persiste** son id par SKU (`core/billing/purchase_intent_store.dart`) **avant**
+d'ouvrir la feuille ; `verify-receipt` le renvoie (`purchaseIntentId`, avec `amountCents` +
+`currency`), y compris au rejeu d'un achat au lancement suivant ; il est effacé après une
+vérification réussie d'un achat `purchased`. 🛑 Un échec de création **ne bloque jamais**
+l'achat (origine `UNKNOWN`), et `appAccountToken` / `obfuscatedAccountId` /
+`obfuscatedProfileId` ne sont **jamais** détournés. Le CTA suit `showPaywallSheet(ctaLocation:,
+journeyId:)` jusqu'à `PaywallScreen` ; sans CTA connu ⇒ `OTHER`. Les « Débloquer » du Plan
+(`PlanUnlockScreen`, lignes verrouillées, étape de séries) passent `LOCKED_PLAN` + le parcours.
 
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
 sous les cartes du paywall).

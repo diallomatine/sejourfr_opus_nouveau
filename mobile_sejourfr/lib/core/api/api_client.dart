@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:dio/dio.dart';
 
+import '../analytics/client_context.dart';
 import '../analytics/traffic_source.dart';
 import '../auth/token_storage.dart';
 import '../models/auth_models.dart';
@@ -13,17 +14,15 @@ import 'api_exception.dart';
 ///  - refresh automatique sur 401 + rejeu de la requête
 ///  - mapping des erreurs vers [ApiException]
 class ApiClient {
-  ApiClient({required TokenStorage tokenStorage}) : _tokenStorage = tokenStorage {
+  ApiClient({required TokenStorage tokenStorage, ClientContext? clientContext})
+      : _tokenStorage = tokenStorage,
+        _clientContext = clientContext {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: ApiConfig.connectTimeout,
       receiveTimeout: ApiConfig.receiveTimeout,
       headers: {
         'Accept': 'application/json',
-        // Identifie la plateforme d'origine (compte, session de diagnostic) pour
-        // le funnel d'audience — envoyé sur TOUTES les requêtes, y compris
-        // `skipAuth` (l'inscription en fait partie). Un seul point de câblage.
-        'X-Sejourfr-Client': 'mobile',
         'User-Agent': userAgent,
       },
       validateStatus: (status) => status != null && status < 500,
@@ -60,9 +59,15 @@ class ApiClient {
 
   late final Dio _dio;
   final TokenStorage _tokenStorage;
+  final ClientContext? _clientContext;
 
   /// Callback déclenché si le refresh échoue → déconnexion globale.
   void Function()? onUnauthorized;
+
+  /// Callback déclenché à chaque réponse reçue du serveur : le réseau répond.
+  /// C'est le signal « retour réseau » de la file d'événements d'analytics,
+  /// sans dépendance de plus sur un détecteur de connectivité.
+  void Function()? onReachable;
 
   Dio get dio => _dio;
 
@@ -81,7 +86,20 @@ class ApiClient {
       }
     }
     _applyTrafficSource(options.headers);
+    await _applyClientContext(options.headers);
     handler.next(options);
+  }
+
+  /// Pose `X-Sejourfr-Client` (`ios` | `android`), `X-Sejourfr-Anonymous-Id`
+  /// et `X-Sejourfr-App-Version` sur **toutes** les requêtes, `skipAuth`
+  /// comprises — l'inscription et les routes publiques du diagnostic en font
+  /// partie. Un seul point de câblage : [ClientContext]. Un en-tête déjà posé
+  /// par l'appelant n'est pas écrasé.
+  Future<void> _applyClientContext(Map<String, dynamic> headers) async {
+    final context = _clientContext;
+    if (context == null) return;
+    final values = await context.headers();
+    values.forEach((name, value) => headers.putIfAbsent(name, () => value));
   }
 
   /// Pose `X-Sejourfr-Source` **quand, et seulement quand, une provenance a
@@ -104,6 +122,7 @@ class ApiClient {
   }
 
   void _onResponse(Response response, ResponseInterceptorHandler handler) {
+    onReachable?.call();
     final status = response.statusCode ?? 0;
     if (status >= 400) {
       // `validateStatus` laisse passer les 4xx comme des réponses "réussies".
@@ -181,10 +200,11 @@ class ApiClient {
     final refresh = await _tokenStorage.readRefresh();
     if (refresh == null) return false;
     try {
+      final context = await _clientContext?.headers() ?? const {};
       final res = await Dio(BaseOptions(
         baseUrl: ApiConfig.baseUrl,
         headers: {
-          'X-Sejourfr-Client': 'mobile',
+          ...context,
           'User-Agent': userAgent,
           // Le refresh sort du Dio principal : sans ce rappel, il serait la
           // seule requête de l'app à perdre la provenance.

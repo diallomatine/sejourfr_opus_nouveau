@@ -38,18 +38,24 @@ int? joursAvantExamen(DateTime? examDate, {DateTime? now}) {
 double? passFromPrice(
   List<PlanPublicResponse>? plans,
   PlanModuleTarget module,
+) =>
+    passFromPlan(plans, module)?.price;
+
+/// **Le pass dont [passFromPrice] affiche le prix** — le moins cher du module.
+/// Sert à dire, dans la mesure du clic « Débloquer mon plan », quel pass et
+/// quel montant le candidat avait sous les yeux. `null` dans les mêmes cas.
+PlanPublicResponse? passFromPlan(
+  List<PlanPublicResponse>? plans,
+  PlanModuleTarget module,
 ) {
   if (plans == null) return null;
   final cible = module == PlanModuleTarget.civique
       ? ModuleAccess.civique
       : ModuleAccess.integral;
-  final passes = plans
-      .where((p) => p.isOneTime && p.moduleAccess == cible)
-      .toList(growable: false);
-  if (passes.isEmpty) return null;
-  var min = passes.first.price;
-  for (final p in passes) {
-    if (p.price < min) min = p.price;
+  PlanPublicResponse? min;
+  for (final p in plans) {
+    if (!p.isOneTime || p.moduleAccess != cible) continue;
+    if (min == null || p.price < min.price) min = p;
   }
   return min;
 }

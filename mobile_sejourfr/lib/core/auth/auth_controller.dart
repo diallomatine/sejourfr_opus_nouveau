@@ -1,5 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../analytics/analytics.dart';
+import '../analytics/analytics_identity.dart';
+import '../analytics/client_context.dart';
+import '../analytics/diagnostic_run_tracker.dart';
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../api/auth_repository.dart';
@@ -18,13 +22,19 @@ import 'token_storage.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 
-final apiClientProvider = Provider<ApiClient>((ref) {
+final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(tokenStorageProvider);
-  final client = ApiClient(tokenStorage: storage);
+  final client = ApiClient(
+    tokenStorage: storage,
+    clientContext: ClientContext(identity: ref.watch(analyticsIdentityProvider)),
+  );
   client.onUnauthorized = () {
     // Force le passage en état "déconnecté" si le refresh échoue.
     ref.read(authControllerProvider.notifier).forceLogout();
   };
+  // Le serveur répond : si la file d'événements attendait le réseau, elle
+  // repart sans attendre la fin de son délai.
+  client.onReachable = () => ref.read(analyticsQueueProvider).notifyNetworkUp();
   return client;
 });
 
@@ -190,13 +200,37 @@ class AuthController extends StateNotifier<AuthState> {
     );
   }
 
+  /// L'identifiant de l'appareil et la run de diagnostic à rattacher, lus
+  /// **juste avant** l'appel d'auth. Ne lève jamais : sans eux, on
+  /// s'authentifie comme avant.
+  Future<AuthTunnel> _tunnel() async {
+    String? anonymousId;
+    try {
+      anonymousId = await _ref.read(analyticsIdentityProvider).anonymousId();
+    } catch (_) {
+      anonymousId = null;
+    }
+    final claim = await _ref.read(diagnosticRunTrackerProvider).claimForAuth();
+    return (anonymousId: anonymousId, claim: claim);
+  }
+
+  /// Après une auth réussie : la run transmise est désormais celle du compte,
+  /// pour l'appareil. Attendu **avant** de passer en connecté, pour que les
+  /// événements émis dès le premier écran la retrouvent. Ne lève jamais.
+  Future<void> _afterAuth(AuthUser user, AuthTunnel tunnel) => _ref
+      .read(diagnosticRunTrackerProvider)
+      .onAuthenticated(user.id, tunnel.claim);
+
   Future<void> login({required String email, required String password}) async {
-    final tokens = await _repo.login(email: email, password: password);
+    final tunnel = await _tunnel();
+    final tokens =
+        await _repo.login(email: email, password: password, tunnel: tunnel);
     await _storage.save(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: tokens.user,
     );
+    await _afterAuth(tokens.user, tunnel);
     state = AuthAuthenticated(tokens.user);
   }
 
@@ -206,17 +240,20 @@ class AuthController extends StateNotifier<AuthState> {
     required String firstName,
     required String lastName,
   }) async {
+    final tunnel = await _tunnel();
     final tokens = await _repo.register(
       email: email,
       password: password,
       firstName: firstName,
       lastName: lastName,
+      tunnel: tunnel,
     );
     await _storage.save(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: tokens.user,
     );
+    await _afterAuth(tokens.user, tunnel);
     state = AuthAuthenticated(tokens.user);
   }
 
@@ -225,28 +262,34 @@ class AuthController extends StateNotifier<AuthState> {
   /// appelant pour distinguer annulation et erreur.
   Future<void> loginWithGoogle() async {
     final result = await _socialService.signInWithGoogle();
-    final tokens = await _repo.loginWithGoogle(idToken: result.idToken);
+    final tunnel = await _tunnel();
+    final tokens =
+        await _repo.loginWithGoogle(idToken: result.idToken, tunnel: tunnel);
     await _storage.save(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: tokens.user,
     );
+    await _afterAuth(tokens.user, tunnel);
     state = AuthAuthenticated(tokens.user);
   }
 
   /// Sign-in via Apple (iOS uniquement). Idem Google cote levees.
   Future<void> loginWithApple() async {
     final result = await _socialService.signInWithApple();
+    final tunnel = await _tunnel();
     final tokens = await _repo.loginWithApple(
       identityToken: result.idToken,
       firstName: result.firstName,
       lastName: result.lastName,
+      tunnel: tunnel,
     );
     await _storage.save(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: tokens.user,
     );
+    await _afterAuth(tokens.user, tunnel);
     state = AuthAuthenticated(tokens.user);
   }
 

@@ -2,7 +2,22 @@ import 'package:dio/dio.dart';
 
 import '../models/account_models.dart';
 import '../models/auth_models.dart';
+import '../models/diagnostic_run_models.dart';
 import 'api_client.dart';
+
+/// Ce que l'authentification transmet au tunnel « Suivi » : l'identifiant de
+/// l'appareil (lien `analytics_identity`) et, s'il y en a une, la run de
+/// diagnostic à rattacher **avec son jeton**. Tous facultatifs : un client qui
+/// n'envoie rien s'authentifie exactement comme avant.
+typedef AuthTunnel = ({String? anonymousId, DiagnosticRunClaim? claim});
+
+Map<String, Object?> _tunnelFields(AuthTunnel? tunnel) => {
+      if (tunnel?.anonymousId != null) 'anonymousId': tunnel!.anonymousId,
+      if (tunnel?.claim != null) ...{
+        'diagnosticRunId': tunnel!.claim!.diagnosticRunId,
+        'claimToken': tunnel.claim!.claimToken,
+      },
+    };
 
 class AuthRepository {
   AuthRepository(this._client);
@@ -12,10 +27,11 @@ class AuthRepository {
   Future<TokenResponse> login({
     required String email,
     required String password,
+    AuthTunnel? tunnel,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/auth/login',
-      data: {'email': email, 'password': password},
+      data: {'email': email, 'password': password, ..._tunnelFields(tunnel)},
       options: _publicOptions(),
     );
     return TokenResponse.fromJson(res.data!);
@@ -26,6 +42,7 @@ class AuthRepository {
     required String password,
     required String firstName,
     required String lastName,
+    AuthTunnel? tunnel,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/auth/register',
@@ -34,6 +51,7 @@ class AuthRepository {
         'password': password,
         'firstName': firstName,
         'lastName': lastName,
+        ..._tunnelFields(tunnel),
       },
       options: _publicOptions(),
     );
@@ -42,10 +60,13 @@ class AuthRepository {
 
   /// Echange un ID token Google (obtenu via `google_sign_in`) contre une
   /// session SejourFR. Cree le compte automatiquement s'il n'existe pas.
-  Future<TokenResponse> loginWithGoogle({required String idToken}) async {
+  Future<TokenResponse> loginWithGoogle({
+    required String idToken,
+    AuthTunnel? tunnel,
+  }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/auth/google',
-      data: {'idToken': idToken},
+      data: {'idToken': idToken, ..._tunnelFields(tunnel)},
       options: _publicOptions(),
     );
     return TokenResponse.fromJson(res.data!);
@@ -58,6 +79,7 @@ class AuthRepository {
     required String identityToken,
     String? firstName,
     String? lastName,
+    AuthTunnel? tunnel,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/auth/apple',
@@ -65,6 +87,7 @@ class AuthRepository {
         'identityToken': identityToken,
         if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
         if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+        ..._tunnelFields(tunnel),
       },
       options: _publicOptions(),
     );

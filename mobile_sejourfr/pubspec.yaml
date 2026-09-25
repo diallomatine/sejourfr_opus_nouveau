@@ -81,6 +81,10 @@ dependencies:
   web_socket_channel: ^3.0.3
   flutter_pcm_sound: ^3.3.3
   wakelock_plus: ^1.5.2
+  # Version de l'app pour l'en-tete `X-Sejourfr-App-Version` (chantier
+  # « Suivi », lot 3). Deja embarque en transitif par wakelock_plus : le
+  # declarer ne change ni le binaire ni les plugins natifs.
+  package_info_plus: ^9.0.1
 
 dev_dependencies:
   flutter_test:

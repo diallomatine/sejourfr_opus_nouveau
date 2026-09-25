@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/diagnostic_repository.dart';
 import '../../core/api/repositories.dart';
+import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../plan/learning_plan_provider.dart';
 import 'diagnostic_draft_service.dart';
 import '../../core/utils/submission_key.dart';
@@ -132,6 +134,8 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
     required SubmitDiagnosticAudio submitAudio,
     required void Function() onChanged,
     DiagnosticDraftStore? draftStore,
+    Future<String?> Function()? handoffRunId,
+    Future<void> Function()? onPassageClosed,
     bool isAuthenticated = true,
     Duration pollInterval = const Duration(seconds: 3),
     // 10 min : l'analyse tient d'ordinaire en moins de deux minutes, mais deux
@@ -146,6 +150,8 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         _submitAudio = submitAudio,
         _onChanged = onChanged,
         _draftStore = draftStore ?? DiagnosticDraftStore(),
+        _handoffRunId = handoffRunId,
+        _onPassageClosed = onPassageClosed,
         _isAuthenticated = isAuthenticated,
         _pollInterval = pollInterval,
         _maxPolls = maxPolls,
@@ -185,6 +191,14 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
   final SubmitDiagnosticAudio _submitAudio;
   final void Function() _onChanged;
   final DiagnosticDraftStore _draftStore;
+
+  /// La run du passage invité, à lier à la session au handoff (tunnel
+  /// « Suivi »). Facultatif : sans lui, le parcours est celui d'avant.
+  final Future<String?> Function()? _handoffRunId;
+
+  /// Le passage est fini (production transmise ou effacée) : la trace du
+  /// tunnel le sait, et le prochain diagnostic tirera une run neuve.
+  final Future<void> Function()? _onPassageClosed;
   final bool _isAuthenticated;
   final Duration _pollInterval;
   final int _maxPolls;
@@ -440,6 +454,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       // autre énoncé que celui traité par le candidat.
       var journey = await _diagnosticRepository.startOrResume(
         writtenTaskId: draft.writtenTaskId,
+        diagnosticRunId: await _safeHandoffRunId(),
       );
       if (!mounted) return false;
       state = state.copyWith(journey: journey);
@@ -583,6 +598,19 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       await _draftStore.clear();
     } catch (_) {
       // Une clé résiduelle ne doit pas transformer un envoi réussi en échec.
+    }
+    try {
+      await _onPassageClosed?.call();
+    } catch (_) {
+      // Une mesure ne transforme jamais un envoi réussi en échec.
+    }
+  }
+
+  Future<String?> _safeHandoffRunId() async {
+    try {
+      return await _handoffRunId?.call();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -854,6 +882,10 @@ final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
       );
     },
     onChanged: () => ref.read(learningPlanRevisionProvider.notifier).state++,
+    handoffRunId: () => ref.read(diagnosticRunTrackerProvider).handoffRunId(),
+    onPassageClosed: () => ref
+        .read(diagnosticRunTrackerProvider)
+        .close(DiagnosticRunType.quickTcf),
   );
   unawaited(controller.loadCurrent());
   return controller;

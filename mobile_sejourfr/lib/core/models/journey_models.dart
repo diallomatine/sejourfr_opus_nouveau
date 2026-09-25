@@ -643,7 +643,14 @@ class Journey {
     this.suggestion,
     this.cycle,
     this.nextStep,
+    this.journeyId,
   });
+
+  /// **L'identifiant du parcours** (`journey.id`, le `plan_id` du tunnel
+  /// « Suivi », Q8). `null` sans parcours. Il ne sert qu'à la **mesure** : il
+  /// accompagne `PLAN_OPENED`, `PLAN_UNLOCK_CLICKED` et l'intention d'achat,
+  /// jamais un affichage.
+  final String? journeyId;
 
   /// **L'objectif du cycle, servi.** `null` quand [state] vaut
   /// [JourneyState.needsObjective].
@@ -672,6 +679,7 @@ class Journey {
   final JourneySuggestionType? suggestion;
 
   factory Journey.fromJson(Map<String, dynamic> json) => Journey(
+        journeyId: json['journeyId'] as String?,
         objectif: JourneyObjectifRef.fromJsonNullable(json['objectif']),
         state: JourneyState.fromWireNullable(json['state'] as String?) ??
             JourneyState.needsObjective,

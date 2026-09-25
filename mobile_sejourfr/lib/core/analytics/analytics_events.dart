@@ -20,6 +20,11 @@ library;
 enum AnalyticsEvent {
   landingViewed('LANDING_VIEWED'),
   diagnosticCtaClicked('DIAGNOSTIC_CTA_CLICKED'),
+
+  /// « Passer l'examen découverte » — la porte du civique. Au registre serveur
+  /// (distinct de [diagnosticCtaClicked]) ; déclaré ici pour que le miroir soit
+  /// complet, même si aucun écran mobile ne l'émet encore.
+  civiqueCtaClicked('CIVIQUE_CTA_CLICKED'),
   pricingViewed('PRICING_VIEWED'),
   pricingCtaClicked('PRICING_CTA_CLICKED'),
   signupCtaClicked('SIGNUP_CTA_CLICKED'),
@@ -63,7 +68,14 @@ enum AnalyticsEvent {
   /// 12 » : mesurés après coup, ils n'auraient plus de point de comparaison.
   planCurtainShown('PLAN_CURTAIN_SHOWN'),
   planCurtainExpanded('PLAN_CURTAIN_EXPANDED'),
-  planPaywallViewed('PLAN_PAYWALL_VIEWED');
+  planPaywallViewed('PLAN_PAYWALL_VIEWED'),
+
+  /// Tap sur « Débloquer mon plan » de l'écran de déblocage — **étape 6 du
+  /// tunnel « Suivi »**. 🛑 Distinct de [premiumCtaClicked] et de
+  /// [planPaywallViewed] : c'est LE geste d'intention depuis le Plan.
+  /// `planCode` / `displayedPriceCents` disent ce que le candidat avait sous
+  /// les yeux, jamais ce qu'il a payé.
+  planUnlockClicked('PLAN_UNLOCK_CLICKED');
 
   const AnalyticsEvent(this.wire);
 
@@ -128,6 +140,7 @@ enum AnalyticsRegistrationContext {
 const Map<AnalyticsEvent, Set<String>> kAnalyticsPropertyKeys = {
   AnalyticsEvent.landingViewed: {'landingPath', 'landingVariant'},
   AnalyticsEvent.diagnosticCtaClicked: {'ctaLocation', 'diagnosticType'},
+  AnalyticsEvent.civiqueCtaClicked: {'ctaLocation'},
   AnalyticsEvent.pricingViewed: <String>{},
   AnalyticsEvent.pricingCtaClicked: {'planCode'},
   AnalyticsEvent.signupCtaClicked: {'ctaLocation'},
@@ -155,6 +168,52 @@ const Map<AnalyticsEvent, Set<String>> kAnalyticsPropertyKeys = {
   },
   AnalyticsEvent.planCurtainExpanded: {'ctaLocation', 'epreuve'},
   AnalyticsEvent.planPaywallViewed: {'ctaLocation'},
+  AnalyticsEvent.planUnlockClicked: {
+    'ctaLocation',
+    'planCode',
+    'displayedPriceCents',
+  },
+};
+
+/// Les identifiants de **contexte** qu'un événement peut porter en colonne
+/// (`AnalyticsEvent.Contexte` côté serveur) : la run (et son type), le
+/// parcours. Même doctrine que les propriétés — le serveur **rejette** un
+/// contexte non admis, donc on le retire ici plutôt que de perdre l'événement.
+///
+/// 🛑 Le `claimToken` n'est jamais un contexte : il n'existe aucune clé pour
+/// lui, ni ici ni au registre.
+enum AnalyticsContext {
+  /// `diagnosticRunId` + `diagnosticType`.
+  diagnostic(run: true, journey: false),
+
+  /// `journeyId` seul.
+  plan(run: false, journey: true),
+
+  /// Les deux.
+  diagnosticAndPlan(run: true, journey: true);
+
+  const AnalyticsContext({required this.run, required this.journey});
+
+  final bool run;
+  final bool journey;
+}
+
+/// Miroir de `AnalyticsEvent.getContexte()`. Absent = aucun contexte admis.
+const Map<AnalyticsEvent, AnalyticsContext> kAnalyticsEventContext = {
+  AnalyticsEvent.diagnosticStarted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticEeStarted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticEeCompleted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticEoStarted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticEoCompleted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticCoStarted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticCoCompleted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticCeStarted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticCeCompleted: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticAccountRequired: AnalyticsContext.diagnostic,
+  AnalyticsEvent.diagnosticReportViewed: AnalyticsContext.diagnostic,
+  AnalyticsEvent.planOpened: AnalyticsContext.diagnosticAndPlan,
+  AnalyticsEvent.planExerciseStarted: AnalyticsContext.plan,
+  AnalyticsEvent.planUnlockClicked: AnalyticsContext.diagnosticAndPlan,
 };
 
 /// Chemins admis par le serveur. Le mobile n'a pas d'URL, mais ses écrans ont
@@ -169,7 +228,11 @@ class AnalyticsPath {
   const AnalyticsPath._();
 
   static const String diagnostic = '/diagnostic';
+  static const String civicDiagnosticResult = '/diagnostic-civique/resultat';
   static const String plan = '/plan';
+
+  /// L'écran de déblocage du Plan (`PlanUnlockScreen`), miroir de la page web.
+  static const String planUnlock = '/plan/debloquer';
 
   /// L'écran paywall natif. Déclaré côté serveur dans la section « Mobile »
   /// d'`AnalyticsPaths` : il n'a pas d'URL, mais il a une place dans le

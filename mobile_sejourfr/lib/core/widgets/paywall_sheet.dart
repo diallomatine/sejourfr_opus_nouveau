@@ -28,10 +28,18 @@ import '../../screens/paywall/paywall_screen.dart';
 /// gonflerait l'étape du funnel avec des refus techniques. L'affichage de
 /// l'écran, lui, est mesuré à l'arrivée (`PAYWALL_VIEWED` / `PRICING_VIEWED`),
 /// donc rien n'est perdu.
+///
+/// **Attribution de l'achat (Q12) — [ctaLocation] + [journeyId] suivent
+/// l'écran jusqu'à l'achat**, qu'il y ait eu clic mesuré ou non : ils forment
+/// l'intention d'achat créée avant la feuille Apple / Google. `LOCKED_PLAN`
+/// est le CTA « du Plan » ; avec le `journeyId` du parcours affiché, c'est ce
+/// qui permet au serveur de rattacher l'achat au tunnel. Sans CTA connu,
+/// l'intention part en `OTHER`.
 Future<void> showPaywallSheet(
   BuildContext context, {
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) {
   if (ref != null && ctaLocation != null) {
     ref.read(analyticsServiceProvider).track(
@@ -41,7 +49,10 @@ Future<void> showPaywallSheet(
   }
   return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
-      builder: (_) => const PaywallScreen(),
+      builder: (_) => PaywallScreen(
+        ctaLocation: ctaLocation ?? AnalyticsCtaLocation.other,
+        journeyId: journeyId,
+      ),
       fullscreenDialog: true,
     ),
   );

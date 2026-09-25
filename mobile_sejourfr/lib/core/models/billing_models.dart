@@ -391,6 +391,7 @@ class VerifyReceiptRequest {
     required this.productId,
     this.amountCents,
     this.currency,
+    this.purchaseIntentId,
   });
 
   final SubscriptionSource source;
@@ -411,6 +412,12 @@ class VerifyReceiptRequest {
   /// un montant sans devise ne veut rien dire.
   final String? currency;
 
+  /// L'intention d'achat créée **avant** d'ouvrir la feuille du store (Q12),
+  /// renvoyée telle quelle — y compris au rejeu d'un achat au lancement
+  /// suivant. Absente ou refusée par le serveur : l'achat est crédité
+  /// normalement, son origine est simplement `UNKNOWN`.
+  final String? purchaseIntentId;
+
   Map<String, dynamic> toJson() => {
         'source': source.backendName,
         'receipt': receipt,
@@ -419,7 +426,28 @@ class VerifyReceiptRequest {
           'amountCents': amountCents,
           'currency': currency,
         },
+        if (purchaseIntentId != null) 'purchaseIntentId': purchaseIntentId,
       };
+}
+
+/// Réponse de `POST /api/billing/purchase-intents` (201).
+class PurchaseIntentResponse {
+  const PurchaseIntentResponse({
+    required this.purchaseIntentId,
+    this.expiresAt,
+  });
+
+  final String purchaseIntentId;
+  final DateTime? expiresAt;
+
+  static PurchaseIntentResponse? fromJson(Map<String, dynamic> json) {
+    final id = json['purchaseIntentId'] as String?;
+    if (id == null || id.isEmpty) return null;
+    return PurchaseIntentResponse(
+      purchaseIntentId: id,
+      expiresAt: DateTime.tryParse(json['expiresAt'] as String? ?? ''),
+    );
+  }
 }
 
 /// Réponse de `POST /api/billing/cancel`. Deux variantes :

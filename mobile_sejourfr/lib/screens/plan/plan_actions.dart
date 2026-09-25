@@ -17,6 +17,7 @@ import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/production_exam_launcher.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
+import 'learning_plan_provider.dart' show journeyProvider;
 import 'plan_labels.dart';
 import 'plan_milestone_launcher.dart';
 import 'plan_seance_state.dart';
@@ -44,6 +45,7 @@ Future<void> openPlanExercise(
           AnalyticsEvent.planExerciseStarted,
           path: AnalyticsPath.plan,
           exerciseKind: exercise.kind.wire,
+          journeyId: ref.read(journeyProvider).valueOrNull?.journeyId,
         );
   }
   // 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**, jamais le
@@ -110,6 +112,7 @@ Future<void> openPlanSeanceItem(
       context,
       ref: ref,
       ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      journeyId: ref.read(journeyProvider).valueOrNull?.journeyId,
     );
     return;
   }
@@ -157,6 +160,7 @@ Future<void> startPlanSeanceItem(
       context,
       ref: ref,
       ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      journeyId: ref.read(journeyProvider).valueOrNull?.journeyId,
     );
     return;
   }

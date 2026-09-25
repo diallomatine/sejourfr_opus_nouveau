@@ -9,6 +9,7 @@ import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/preparation_models.dart';
@@ -62,16 +63,39 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     // L'état UNIQUE des deux préparations : il décide de ce que chaque onglet
     // affiche, et il est chargé une fois pour l'écran.
     unawaited(_chargerPreparation());
-    // Une mesure d'usage, à côté du contenu de l'écran : elle ne sert aucun
-    // bloc affiché, elle existe pour ne pas perdre ce qui se comptait déjà
-    // dans l'ancien `page_views`.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  }
+
+  /// `PLAN_OPENED` part **une fois par ouverture** de l'écran, comme avant ;
+  /// il attend seulement de savoir QUEL plan est affiché.
+  bool _planOuvertTrace = false;
+
+  /// Étape 5 du tunnel « Suivi » (« plan vu ») : l'ouverture du Plan, avec le
+  /// `journeyId` servi du parcours affiché (`plan_id`, Q8) et la run du
+  /// diagnostic de ce module que l'appareil connaît pour ce compte. Parcours
+  /// injoignable ⇒ l'événement part quand même, sans contexte : on ne perd pas
+  /// la mesure d'usage que l'ancien `page_views` portait déjà.
+  void _tracerPlanOuvert(bool civique) {
+    if (_planOuvertTrace) return;
+    _planOuvertTrace = true;
+    unawaited(() async {
+      String? journeyId;
+      try {
+        final journey = await ref
+            .read(civique ? journeyCiviqueProvider.future : journeyProvider.future)
+            .timeout(const Duration(seconds: 10));
+        journeyId = journey.journeyId;
+      } catch (_) {
+        journeyId = null;
+      }
       if (!mounted) return;
       ref.read(analyticsServiceProvider).track(
             AnalyticsEvent.planOpened,
             path: AnalyticsPath.plan,
+            journeyId: journeyId,
+            diagnosticRun:
+                civique ? DiagnosticRunType.civique : DiagnosticRunType.quickTcf,
           );
-    });
+    }());
   }
 
   @override
@@ -247,7 +271,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     // palier visé du compte. `null` reste `null` : on ne devine jamais un B2.
     final objective = plan.valueOrNull?.cycle?.objectiveLevel ??
         ref.watch(userTargetLevelProvider);
-    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
+    final parcours = ref.watch(parcoursCiviqueProvider);
+    final civique = parcours ?? false;
+    if (parcours != null) _tracerPlanOuvert(parcours);
 
     // 🛑 **Le MÊME toggle que les Examens et Réviser**, et pas une copie :
     // `SegmentedTabs` + `parcoursSegments` portent déjà les deux couleurs du

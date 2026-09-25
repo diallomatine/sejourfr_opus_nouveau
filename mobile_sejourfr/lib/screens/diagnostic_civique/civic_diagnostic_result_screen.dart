@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../plan/learning_plan_provider.dart';
+import '../../core/analytics/analytics.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/civic_diagnostic_repository.dart';
@@ -57,6 +59,9 @@ class _CivicDiagnosticResultScreenState
   bool _loading = true;
   String? _error;
 
+  /// Le rapport ne se compte qu'une fois par affichage de l'écran.
+  bool _rapportVuTrace = false;
+
   bool get _authentifie =>
       ref.read(authControllerProvider) is AuthAuthenticated;
 
@@ -108,6 +113,7 @@ class _CivicDiagnosticResultScreenState
         _invite = null;
         _loading = false;
       });
+      _tracerRapportVu();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -115,6 +121,18 @@ class _CivicDiagnosticResultScreenState
         _loading = false;
       });
     }
+  }
+
+  /// Étape 4 du tunnel « Suivi » — le rapport du diagnostic civique est à
+  /// l'écran, avec la run du passage (jamais son jeton).
+  void _tracerRapportVu() {
+    if (_rapportVuTrace) return;
+    _rapportVuTrace = true;
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.diagnosticReportViewed,
+          path: AnalyticsPath.civicDiagnosticResult,
+          diagnosticRun: DiagnosticRunType.civique,
+        );
   }
 
   Future<void> _adopterSiInvite(CivicDiagnosticGateway repo) async {

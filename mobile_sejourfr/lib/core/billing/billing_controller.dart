@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+import '../analytics/analytics_events.dart';
 import '../api/api_client.dart';
 import '../api/billing_repository.dart';
 import '../api/repositories.dart';
@@ -11,6 +12,7 @@ import '../auth/auth_controller.dart';
 import '../models/auth_models.dart';
 import '../models/billing_models.dart';
 import 'iap_service.dart';
+import 'purchase_intent_store.dart';
 
 // ============================================================================
 // État
@@ -117,9 +119,11 @@ class BillingController extends StateNotifier<BillingState> {
     required Ref ref,
     required IapService iapService,
     required BillingRepository repository,
+    PurchaseIntentStore? intentStore,
   })  : _ref = ref,
         _iap = iapService,
         _repo = repository,
+        _intents = intentStore ?? PurchaseIntentStore(),
         super(const BillingState()) {
     _subscribePurchaseStream();
     // Pas de load() automatique au boot — l'app peut tourner longtemps sans
@@ -129,6 +133,11 @@ class BillingController extends StateNotifier<BillingState> {
   final Ref _ref;
   final IapService _iap;
   final BillingRepository _repo;
+  final PurchaseIntentStore _intents;
+
+  /// Délai maximal accordé à la création de l'intention : au-delà, l'achat
+  /// s'ouvre sans elle. 🛑 Une mesure ne retarde jamais un paiement longtemps.
+  static const _intentTimeout = Duration(seconds: 4);
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
 
@@ -324,11 +333,22 @@ class BillingController extends StateNotifier<BillingState> {
   // Déclenchement de l'achat natif
   // --------------------------------------------------------------------------
 
-  Future<void> startPurchase(IapProduct product) async {
+  /// [ctaLocation] / [journeyId] : d'où part l'achat (Q12). Ils forment
+  /// l'intention créée juste avant la feuille du store.
+  Future<void> startPurchase(
+    IapProduct product, {
+    AnalyticsCtaLocation ctaLocation = AnalyticsCtaLocation.other,
+    String? journeyId,
+  }) async {
     state = state.copyWith(
       purchaseInProgress: true,
       purchasingSku: product.plan.code,
       clearError: true,
+    );
+    await _prepareIntent(
+      productId: product.productDetails.id,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
     );
     try {
       // Pass one-time = produit consommable (ré-achetable) ; abonnement =
@@ -355,6 +375,34 @@ class BillingController extends StateNotifier<BillingState> {
         error: d.message,
         actionBlocked: d.blocking,
       );
+    }
+  }
+
+  /// Crée l'intention d'achat et la **persiste avant** d'ouvrir la feuille :
+  /// un crash pendant l'achat, ou un achat « en attente » livré au lancement
+  /// suivant, la retrouvera par son produit.
+  ///
+  /// 🛑 **Un échec ne bloque JAMAIS l'achat** — réseau, 4xx, délai dépassé :
+  /// on ouvre la feuille quand même, et l'achat sera `UNKNOWN`. Une ancienne
+  /// intention du même produit est écartée : elle décrirait un autre geste.
+  Future<void> _prepareIntent({
+    required String productId,
+    required AnalyticsCtaLocation ctaLocation,
+    String? journeyId,
+  }) async {
+    try {
+      await _intents.clear(productId);
+      final intent = await _repo
+          .createPurchaseIntent(
+            productId: productId,
+            ctaLocation: ctaLocation.wire,
+            journeyId: journeyId,
+          )
+          .timeout(_intentTimeout);
+      if (intent == null) return;
+      await _intents.save(productId, intent.purchaseIntentId);
+    } catch (_) {
+      // L'achat part sans intention : origine UNKNOWN, jamais un blocage.
     }
   }
 
@@ -512,6 +560,10 @@ class BillingController extends StateNotifier<BillingState> {
       // seul moment où on le connaît.
       final priced = _pricedProduct(purchase.productID);
 
+      // L'intention persistée avant la feuille — retrouvée même quand l'achat
+      // est re-livré au lancement suivant.
+      final intentId = await _intents.find(purchase.productID);
+
       final status = await _repo.verifyReceipt(VerifyReceiptRequest(
         source: source,
         receipt: receipt,
@@ -520,8 +572,16 @@ class BillingController extends StateNotifier<BillingState> {
             ? null
             : (priced.rawPrice * 100).round(),
         currency: priced?.currencyCode,
+        purchaseIntentId: intentId,
       ));
       final outcome = _outcomeFor(prevUser, status);
+
+      // Vérification réussie d'un achat NEUF : l'intention a servi. Une
+      // transaction `restored` (consommable périmé re-livré par StoreKit) ne la
+      // consomme pas — elle reste pour l'achat réellement en cours.
+      if (purchase.status == PurchaseStatus.purchased) {
+        await _intents.clear(purchase.productID);
+      }
 
       // Rafraîchit l'utilisateur authentifié — hasCivique / hasTcf /
       // premiumEndsAt doivent refléter le nouvel état immédiatement.

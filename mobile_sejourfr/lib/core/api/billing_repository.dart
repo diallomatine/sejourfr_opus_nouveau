@@ -32,6 +32,30 @@ class BillingRepository {
     return SubscriptionStatusResponse.fromJson(res.data as Map<String, dynamic>);
   }
 
+  /// `POST /api/billing/purchase-intents` — **avant** d'ouvrir la feuille
+  /// Apple / Google (Q12). [productId] = le SKU du store (le serveur accepte
+  /// aussi le code du pass) ; [ctaLocation] = valeur d'`AnalyticsCtaLocation` ;
+  /// [journeyId] = le parcours affiché, s'il y en a un. La run fondatrice est
+  /// résolue par le serveur, jamais envoyée.
+  Future<PurchaseIntentResponse?> createPurchaseIntent({
+    required String productId,
+    required String ctaLocation,
+    String? journeyId,
+  }) async {
+    final Response res = await _client.dio.post(
+      '/api/billing/purchase-intents',
+      data: {
+        'productId': productId,
+        'ctaLocation': ctaLocation,
+        if (journeyId != null) 'journeyId': journeyId,
+      },
+    );
+    final data = res.data;
+    return data is Map<String, dynamic>
+        ? PurchaseIntentResponse.fromJson(data)
+        : null;
+  }
+
   Future<SubscriptionStatusResponse> verifyReceipt(VerifyReceiptRequest req) async {
     final Response res = await _client.dio.post(
       '/api/billing/verify-receipt',

@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
 
+import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/providers/lots_provider.dart';
@@ -55,11 +59,23 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
     // bouton Terminer apparaît à la dernière question du lot.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final from = GoRouterState.of(context).uri.queryParameters['from'];
+      final query = GoRouterState.of(context).uri.queryParameters;
+      final from = query['from'];
       if (from == 'tcfLot' || from == 'civiqueLot') {
         ref
             .read(runnerControllerProvider(widget.attemptId).notifier)
             .setFixedBatch(true);
+      }
+      // DIAGNOSTIC CIVIQUE : l'ouverture du runner est l'affichage de la
+      // première question — l'étape 1 du tunnel « Suivi », tracée sur la run
+      // (Q3), avec la session pour que le serveur la lie. Reprendre le même
+      // diagnostic ne crée rien de plus : la run est déjà connue.
+      final civicSessionId = query[kCivicDiagnosticParam];
+      if (civicSessionId != null) {
+        unawaited(ref.read(diagnosticRunTrackerProvider).subjectViewed(
+              DiagnosticRunType.civique,
+              sessionId: civicSessionId,
+            ));
       }
     });
   }

@@ -14,7 +14,14 @@ abstract interface class DiagnosticGateway {
   /// (L3). **Facultatif** et **vérifié serveur** : un identifiant inconnu
   /// retombe sur un tirage plutôt que de bloquer un candidat dont le sujet a
   /// été désactivé entre-temps.
-  Future<DiagnosticJourney> startOrResume({String? writtenTaskId});
+  ///
+  /// [diagnosticRunId] : la run du TCF rapide faite **en invité**, à lier à la
+  /// session (handoff, D24). Le serveur l'ignore sans erreur si elle n'est pas
+  /// déjà au compte — c'est un identifiant, jamais un jeton.
+  Future<DiagnosticJourney> startOrResume({
+    String? writtenTaskId,
+    String? diagnosticRunId,
+  });
   Future<DiagnosticJourney> detail(String sessionId);
   Future<DiagnosticJourney> retryAnalysis(String sessionId);
 }
@@ -44,12 +51,17 @@ class DiagnosticRepository implements DiagnosticGateway {
   }
 
   @override
-  Future<DiagnosticJourney> startOrResume({String? writtenTaskId}) async {
+  Future<DiagnosticJourney> startOrResume({
+    String? writtenTaskId,
+    String? diagnosticRunId,
+  }) async {
+    final query = <String, String>{
+      if (writtenTaskId != null) 'writtenTaskId': writtenTaskId,
+      if (diagnosticRunId != null) 'diagnosticRunId': diagnosticRunId,
+    };
     final response = await _client.dio.post<Map<String, dynamic>>(
       '/api/diagnostics',
-      queryParameters: writtenTaskId == null
-          ? null
-          : {'writtenTaskId': writtenTaskId},
+      queryParameters: query.isEmpty ? null : query,
     );
     return DiagnosticJourney.fromJson(response.data!);
   }

@@ -11,6 +11,7 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -261,14 +262,46 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
     }));
   }
 
-  Future<void> _ouvrirOffre() => showPaywallSheet(context);
+  bool get _civique => widget.module == PlanUnlockModule.civique;
+
+  /// Le `journey.id` du Plan qui a poussé cet écran — déjà chargé, jamais
+  /// redemandé. `null` s'il ne l'est pas : l'achat reste attribué au CTA.
+  String? get _journeyId => ref
+      .read(_civique ? journeyCiviqueProvider : journeyProvider)
+      .valueOrNull
+      ?.journeyId;
+
+  /// 🛑 Toute offre ouverte d'ici est un CTA **du Plan** (`LOCKED_PLAN`) : avec
+  /// le parcours, c'est ce qui rattache l'achat au tunnel (Q12, D32).
+  Future<void> _ouvrirOffre() => showPaywallSheet(
+        context,
+        ctaLocation: AnalyticsCtaLocation.lockedPlan,
+        journeyId: _journeyId,
+      );
 
   void _acheter() {
-    ref.read(analyticsServiceProvider).track(
-          AnalyticsEvent.premiumCtaClicked,
-          ctaLocation: AnalyticsCtaLocation.lockedPlan,
-          path: AnalyticsPath.plan,
-        );
+    final analytics = ref.read(analyticsServiceProvider);
+    analytics.track(
+      AnalyticsEvent.premiumCtaClicked,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      path: AnalyticsPath.plan,
+    );
+    // Étape 6 du tunnel « Suivi » : ce que le candidat avait sous les yeux —
+    // le pass d'entrée et son prix AFFICHÉ, jamais un montant payé.
+    final pass = passFromPlan(
+      ref.read(_plansProvider).valueOrNull,
+      planUnlockPassModule(widget.module),
+    );
+    analytics.track(
+      AnalyticsEvent.planUnlockClicked,
+      path: AnalyticsPath.planUnlock,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      planCode: pass?.code,
+      displayedPriceCents: pass == null ? null : (pass.price * 100).round(),
+      journeyId: _journeyId,
+      diagnosticRun:
+          _civique ? DiagnosticRunType.civique : DiagnosticRunType.quickTcf,
+    );
     unawaited(_ouvrirOffre());
   }
 

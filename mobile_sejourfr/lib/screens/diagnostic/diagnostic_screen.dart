@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/analytics/analytics.dart';
+import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers/target_level_provider.dart';
@@ -49,6 +51,10 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   bool _eeStartedTracked = false;
   bool _eoStartedTracked = false;
   bool _accountRequiredTracked = false;
+
+  /// L'étape 1 du tunnel (sujet vu) n'est tracée qu'une fois par montage :
+  /// l'écran se reconstruit à chaque frappe.
+  bool _subjectViewedTracked = false;
   bool _writingHydrated = false;
 
   /// 🛑 **Le démarrage direct n'a lieu qu'UNE fois.** `build` est rappelé à
@@ -124,7 +130,30 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           event,
           path: AnalyticsPath.diagnostic,
           diagnosticType: _diagnosticType,
+          diagnosticRun: DiagnosticRunType.quickTcf,
         );
+  }
+
+  DiagnosticRunTracker get _runs => ref.read(diagnosticRunTrackerProvider);
+
+  /// « Analyser mes réponses » : la **dernière** production attendue vient
+  /// d'être validée — l'écrit seul sur le diagnostic rapide, l'oral sur la
+  /// paire. C'est l'étape 2 du tunnel, posée par le client pour le TCF rapide
+  /// (D23) : invité, rien n'existe encore côté serveur.
+  void _markSubmittedIfComplete() {
+    final state = ref.read(diagnosticControllerProvider);
+    final journey = state.journey;
+    final complete = state.isGuest
+        ? state.guestStep == DiagnosticGuestStep.accountRequired
+        : journey != null &&
+            (journey.nextStep == DiagnosticStep.analysis ||
+                journey.nextStep == DiagnosticStep.result ||
+                journey.status == DiagnosticJourneyStatus.analyzing ||
+                journey.status == DiagnosticJourneyStatus.completed);
+    if (!complete) return;
+    unawaited(_runs.submitted(
+      sessionId: state.isGuest ? null : journey?.sessionId,
+    ));
   }
 
   DiagnosticController get _controller =>
@@ -166,7 +195,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final submitted = isGuest
         ? await _controller.submitGuestWritten(text)
         : await _controller.submitWritten(text);
-    if (submitted) _track(AnalyticsEvent.diagnosticEeCompleted);
+    if (!submitted) return;
+    _track(AnalyticsEvent.diagnosticEeCompleted);
+    _markSubmittedIfComplete();
   }
 
   // ---------------------------------------------------------------------------
@@ -204,6 +235,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           );
     if (!submitted) return;
     _track(AnalyticsEvent.diagnosticEoCompleted);
+    _markSubmittedIfComplete();
     // En invité, l'enregistrement a déjà été recopié dans le dossier de
     // l'application : effacer le fichier temporaire ne coûte rien.
     await _recordingController.cancel();
@@ -520,6 +552,16 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final onOral = state.isGuest
         ? state.guestStep == DiagnosticGuestStep.oral
         : state.journey?.nextStep == DiagnosticStep.oral;
+    // 🛑 L'étape 1 du tunnel se lit sur la RUN (Q3), jamais sur un événement :
+    // pas de `DIAGNOSTIC_SUBJECT_VIEWED`. La première question du TCF rapide,
+    // c'est l'écrit.
+    if (onWritten && !_subjectViewedTracked) {
+      _subjectViewedTracked = true;
+      unawaited(_runs.subjectViewed(
+        DiagnosticRunType.quickTcf,
+        sessionId: state.isGuest ? null : state.journey?.sessionId,
+      ));
+    }
     if (onWritten && !_eeStartedTracked) {
       _eeStartedTracked = true;
       _track(AnalyticsEvent.diagnosticEeStarted);

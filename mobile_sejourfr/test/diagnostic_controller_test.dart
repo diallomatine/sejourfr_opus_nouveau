@@ -170,7 +170,10 @@ class _FakeDiagnosticGateway implements DiagnosticGateway {
   Future<DiagnosticJourney> current() async => currentJourney;
 
   @override
-  Future<DiagnosticJourney> startOrResume({String? writtenTaskId}) async {
+  Future<DiagnosticJourney> startOrResume({
+    String? writtenTaskId,
+    String? diagnosticRunId,
+  }) async {
     lastWrittenTaskId = writtenTaskId;
     return currentJourney;
   }

@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/parcours_affiche.dart';
 import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -222,7 +224,7 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
       onAction: ferme || _occupe
           ? null
           : detail.locked
-              ? () => unawaited(showPaywallSheet(context))
+              ? () => unawaited(_ouvrirOffre())
               : () => unawaited(_lancer(serie.index)),
       // 🛑 **Le corrigé passe par le chemin EXISTANT** — le rapport des séries
       // de « Réviser ».
@@ -243,6 +245,19 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
   /// 🛑 **Le runner existant**, comme toute série ciblée : `from=planEtape` lui
   /// dit de pousser le rapport en fin de série, donc la flèche du rapport
   /// redépile **sur cet écran** — pas sur le Plan.
+  /// Le verrou **commercial** de l'étape : un CTA du Plan (`LOCKED_PLAN`),
+  /// avec le parcours affiché — l'achat qui en part se rattache au tunnel.
+  Future<void> _ouvrirOffre() => showPaywallSheet(
+        context,
+        ctaLocation: AnalyticsCtaLocation.lockedPlan,
+        journeyId: ref
+            .read((ref.read(parcoursCiviqueProvider) ?? false)
+                ? journeyCiviqueProvider
+                : journeyProvider)
+            .valueOrNull
+            ?.journeyId,
+      );
+
   Future<void> _lancer(int index) async {
     if (_occupe) return;
     setState(() {

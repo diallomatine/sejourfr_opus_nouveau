@@ -36,8 +36,14 @@ Future<void> showTcfLockPaywall(
   BuildContext context, {
   WidgetRef? ref,
   AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) =>
-    showPaywallSheet(context, ref: ref, ctaLocation: ctaLocation);
+    showPaywallSheet(
+      context,
+      ref: ref,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
 
 /// Pilule « Abonnement » à poser à côté d'un titre ou d'un statut.
 class PremiumLockTag extends StatelessWidget {

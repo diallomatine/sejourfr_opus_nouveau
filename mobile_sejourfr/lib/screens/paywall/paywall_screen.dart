@@ -29,7 +29,16 @@ import '../../core/widgets/app_button.dart';
 /// L'ancien `initialTarget` ne faisait plus qu'ordonner — il est parti avec la
 /// règle qu'il portait, jusqu'à ses appelants.
 class PaywallScreen extends ConsumerStatefulWidget {
-  const PaywallScreen({super.key});
+  const PaywallScreen({
+    super.key,
+    this.ctaLocation = AnalyticsCtaLocation.other,
+    this.journeyId,
+  });
+
+  /// Le CTA qui a ouvert l'offre, et le parcours affiché s'il vient du Plan :
+  /// l'intention d'achat les porte (Q12). Jamais affichés.
+  final AnalyticsCtaLocation ctaLocation;
+  final String? journeyId;
 
   @override
   ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
@@ -69,7 +78,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           path: AnalyticsPath.paywall,
           planCode: product.plan.code,
         );
-    ref.read(billingControllerProvider.notifier).startPurchase(product);
+    ref.read(billingControllerProvider.notifier).startPurchase(
+          product,
+          ctaLocation: widget.ctaLocation,
+          journeyId: widget.journeyId,
+        );
   }
 
   @override

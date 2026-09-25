@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +9,10 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/analytics/analytics_events.dart';
+import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -167,6 +171,13 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
       await ref
           .read(tcfDiagnosticRepositoryProvider)
           .startSection(d.sessionId, section.epreuve);
+      // Étape 1 du tunnel « Suivi » : la première question d'une section
+      // s'affiche juste après. Idempotent par session côté serveur, et rien
+      // n'est rappelé tant que l'appareil connaît déjà la run.
+      unawaited(ref.read(diagnosticRunTrackerProvider).subjectViewed(
+            DiagnosticRunType.fullTcf,
+            sessionId: d.sessionId,
+          ));
       if (!mounted) return;
       setState(() => _busy = false);
       _ouvrirPassation(d, section);
