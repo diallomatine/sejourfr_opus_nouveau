@@ -257,7 +257,7 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
         Instant soumis = Instant.now();
         FenetreMesure jour = new FenetreMesure(LocalDate.ofInstant(soumis, FenetreMesure.PARIS),
                 LocalDate.ofInstant(soumis, FenetreMesure.PARIS));
-        runManager.markSubmittedByCivicSession(session.getId(), null, soumis);
+        runManager.markSubmittedByCivicSession(session.getId(), null, 40, 40, soumis);
         long jamaisRattachesAvant = jamaisRattaches(jour);
 
         purge();

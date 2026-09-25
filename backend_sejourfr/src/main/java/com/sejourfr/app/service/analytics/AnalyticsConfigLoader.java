@@ -68,6 +68,9 @@ public final class AnalyticsConfigLoader {
         positif(config.anonymousIdTtlDays(), "anonymousIdTtlDays", path);
         positif(config.rawEventRetentionDays(), "rawEventRetentionDays", path);
         positif(config.purgeBatchSize(), "purgeBatchSize", path);
+        if (!(config.civicSubmittedMinAnsweredRatio() > 0 && config.civicSubmittedMinAnsweredRatio() <= 1)) {
+            throw new IllegalStateException("civicSubmittedMinAnsweredRatio doit etre dans ]0, 1] dans " + path);
+        }
         verifierIngestion(config.ingestion(), path);
         verifierFenetres(config.diagnosticRunRateLimit(), "diagnosticRunRateLimit", path);
         verifierGroupes(config, path);

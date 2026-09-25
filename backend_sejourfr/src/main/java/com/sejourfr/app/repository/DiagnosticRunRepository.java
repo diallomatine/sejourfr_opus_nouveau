@@ -161,16 +161,23 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
     int markSubmitted(@Param("id") UUID id, @Param("authenticated") boolean authenticated,
                       @Param("userId") UUID userId, @Param("now") Instant now);
 
+    /**
+     * « Soumis » civique, avec la MESURE figee au meme instant (V076, controle
+     * C) : questions posees et repondues. La regle de seuil vit a la lecture.
+     */
     @Modifying(flushAutomatically = true)
     @Query(value = """
             UPDATE diagnostic_run
                SET submitted_at = :now, submitted_authenticated = :authenticated,
-                   user_id = COALESCE(user_id, :userId), updated_at = :now
+                   user_id = COALESCE(user_id, :userId),
+                   submitted_answered_count = :answered, submitted_question_count = :questions,
+                   updated_at = :now
              WHERE civic_diagnostic_session_id = :sessionId AND submitted_at IS NULL
             """, nativeQuery = true)
     int markSubmittedByCivicSession(@Param("sessionId") UUID sessionId,
                                     @Param("authenticated") boolean authenticated,
-                                    @Param("userId") UUID userId, @Param("now") Instant now);
+                                    @Param("userId") UUID userId, @Param("answered") int answered,
+                                    @Param("questions") int questions, @Param("now") Instant now);
 
     @Modifying(flushAutomatically = true)
     @Query(value = """

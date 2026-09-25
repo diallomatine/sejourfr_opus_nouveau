@@ -378,7 +378,7 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
 |---|---|---|---|
 | **Sujet vu** (création) | client, `POST /api/public/diagnostic-runs` à l'affichage de la 1ʳᵉ question | idem, avec `sessionId` | idem, avec `sessionId`, compte requis |
 | **Session liée** | connecté : `sessionId` à la création ; invité : au handoff, `POST /api/diagnostics?diagnosticRunId=` | à la création (compte, ou IP de l'invité) | à la création |
-| **Soumis** | **client**, `POST …/{id}/submit` à « Analyser mes réponses » | **serveur**, fin de l'attempt (`AttemptInteractionService.doFinish`, ou clôture) | **serveur**, `TcfDiagnosticService.cloturer` |
+| **Soumis** | **client**, `POST …/{id}/submit` à « Analyser mes réponses » | **serveur**, fin de l'attempt (`AttemptInteractionService.doFinish`, ou clôture), avec la mesure répondues / posées (V076) ; compté soumis à la lecture si ≥ 80 % | **serveur**, `TcfDiagnosticService.cloturer` |
 | **Rattaché** | soumis connecté, ou claim à l'auth | idem | toujours connecté |
 
 - 🛑 **Une seule autorité de « soumis » par type.** Le TCF rapide invité n'a aucun fait
@@ -387,6 +387,16 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   fiable, l'appel client y est refusé (409). « Soumis » s'écrit **une seule fois**
   (`UPDATE … WHERE submitted_at IS NULL`). Un soumis **connecté** pose aussi le porteur :
   « soumis connecté » implique « compte rattaché ».
+- 🛑 **« Soumis » civique = au moins 80 % des questions répondues** (contrôle C, V076,
+  2026-09-25). Le civique n'a pas d'échéance, et « Quitter » confirmé passe par la même fin
+  d'attempt qu'une copie rendue : un abandon à 0/40 posait `submitted_at`. Le serveur
+  **fige la mesure** dans le même `UPDATE` (`submitted_answered_count`,
+  `submitted_question_count` ; répondue = une réponse existe, même règle que l'écran de
+  résultat) ; la **règle** vit à la lecture (`civicSubmittedMinAnsweredRatio` de
+  `analytics-config-v1.json`, 0,8), donc un changement de seuil ne demande aucune migration.
+  Une run civique sans mesure (antérieure à V076) est **inconnue** : jamais comptée soumise,
+  jamais lue comme 0 réponse. Vaut pour le tunnel, les ratios, l'activité et « jamais
+  rattachées ». `submitted_at` reste posé : c'est le fait brut, pas le verdict.
 - 🛑 **Un runId n'est jamais cru sur parole** : c'est un identifiant (il voyage dans les
   événements), pas un secret. L'appartenance se prouve par le **compte porteur** ou par le
   **`claimToken`** (et, s'ils sont tous deux connus, le même `X-Sejourfr-Anonymous-Id`).

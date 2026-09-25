@@ -64,7 +64,8 @@ public class SuiviService {
                 query.type() == SuiviTypeFilter.ALL ? null : query.type().name(),
                 runType(query.type()),
                 query.platform() == SuiviPlatformFilter.ALL ? null : query.platform().name(),
-                query.source(), query.includeInternal(), sourceMapJson(), config.utmSourceFallbackGroup()));
+                query.source(), query.includeInternal(), sourceMapJson(), config.utmSourceFallbackGroup(),
+                config.civicSubmittedMinAnsweredRatio()));
         SuiviMapper.Mesure mesure = new SuiviMapper.Mesure(starts, query.window().from(), previous.from(),
                 SuiviMapper.needsPlatformDetail(query.platform()));
         return mapper.toResponse(query, previous, windowDays, clock.instant(), availableSources(), starts,

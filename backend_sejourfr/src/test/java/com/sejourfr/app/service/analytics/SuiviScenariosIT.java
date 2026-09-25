@@ -481,6 +481,36 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
         assertThat(tcf.kpis().purchases().value()).isZero();
     }
 
+    @Test
+    @DisplayName("Contrôle C — civique : 79 % de réponses non soumis, 80 % soumis, mesure absente = inconnu")
+    void seuilCivique() {
+        UUID a79 = run("CIVIQUE", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+        submitCivique(a79, paris(D3, 10), false, 79, 100);
+        UUID a80 = run("CIVIQUE", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+        submitCivique(a80, paris(D3, 10), false, 80, 100);
+        UUID abandon = run("CIVIQUE", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+        submitCivique(abandon, paris(D3, 10), false, 0, 40);
+        UUID inconnu = run("CIVIQUE", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+        submitCivique(inconnu, paris(D3, 10), false, null, null);
+        // Le seuil ne vise que le civique : un TCF rapide soumis reste soumis.
+        UUID tcf = run("QUICK_TCF", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+        submitCivique(tcf, paris(D3, 10), false, null, null);
+
+        AdminSuiviResponse civique = lire(jour(D3), SuiviTypeFilter.CIVIQUE);
+        AdminSuiviResponse tous = lire(jour(D3), SuiviTypeFilter.ALL);
+
+        // 4 sujets vus, 1 seul soumis retenu (80 %) : 79 %, l'abandon et l'inconnu n'y sont pas.
+        assertThat(step(civique, 1).count()).isEqualTo(4L);
+        assertThat(step(civique, 2).count()).isEqualTo(1L);
+        assertThat(civique.ratios().subjectToSubmissionPct()).isEqualTo(25.0);
+        assertThat(civique.kpis().submitted().value()).isEqualTo(1L);
+        assertThat(civique.activity().submittedRaw()).isEqualTo(1L);
+        // « Jamais rattachées » ne compte que les soumis retenus, jamais l'inconnu comme 0 réponse.
+        assertThat(civique.activity().anonymousSubmittedNeverAttached()).isEqualTo(1L);
+        assertThat(tous.kpis().submitted().value()).isEqualTo(2L);
+        assertThat(tous.byType()).extracting(AdminSuiviResponse.TypeRow::submitted).containsExactly(1L, 1L);
+    }
+
     // ------------------------------------------------------------------------
     // Semis
     // ------------------------------------------------------------------------
@@ -529,9 +559,21 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
         return id;
     }
 
+    /** « Soumis » ; un civique est seme complet (40/40), comme l'ecrit le serveur depuis V076. */
     private void submit(UUID run, Instant at, boolean authenticated) {
-        jdbc.update("UPDATE diagnostic_run SET submitted_at = ?, submitted_authenticated = ? WHERE id = ?",
-                ts(at), authenticated, run);
+        jdbc.update("""
+                UPDATE diagnostic_run SET submitted_at = ?, submitted_authenticated = ?,
+                       submitted_answered_count = CASE WHEN diagnostic_type = 'CIVIQUE' THEN 40 END,
+                       submitted_question_count = CASE WHEN diagnostic_type = 'CIVIQUE' THEN 40 END
+                 WHERE id = ?""", ts(at), authenticated, run);
+    }
+
+    /** « Soumis » civique avec la mesure donnee ; {@code null} = run anterieure a V076. */
+    private void submitCivique(UUID run, Instant at, boolean authenticated, Integer answered, Integer questions) {
+        jdbc.update("""
+                UPDATE diagnostic_run SET submitted_at = ?, submitted_authenticated = ?,
+                       submitted_answered_count = ?, submitted_question_count = ?
+                 WHERE id = ?""", ts(at), authenticated, answered, questions, run);
     }
 
     private void claim(UUID run, User user, String kind, Instant at) {

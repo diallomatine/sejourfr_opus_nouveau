@@ -66,6 +66,14 @@ public class DiagnosticRun {
     @Column(name = "submitted_authenticated")
     private Boolean submittedAuthenticated;
 
+    /** Civique : questions repondues a la soumission (V076, controle C). {@code null} = inconnu. */
+    @Column(name = "submitted_answered_count")
+    private Integer submittedAnsweredCount;
+
+    /** Civique : questions posees a la soumission (V076, controle C). {@code null} = inconnu. */
+    @Column(name = "submitted_question_count")
+    private Integer submittedQuestionCount;
+
     @Column(name = "claim_token_hash", length = 64)
     private String claimTokenHash;
 

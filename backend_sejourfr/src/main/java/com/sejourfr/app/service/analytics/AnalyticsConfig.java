@@ -35,6 +35,10 @@ import java.util.Optional;
  * @param utmSourceFallbackGroup groupe de tout ce qui n'est dans aucun groupe
  * @param measurementStart       date de debut de mesure par indicateur (Q16),
  *                               {@code null} = pas encore mesure
+ * @param civicSubmittedMinAnsweredRatio part minimale de questions repondues
+ *                               pour qu'une run CIVIQUE compte « soumise » a la
+ *                               lecture (controle C, V076), dans {@code ]0, 1]}.
+ *                               Une run sans mesure n'est jamais comptee
  */
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record AnalyticsConfig(
@@ -50,7 +54,8 @@ public record AnalyticsConfig(
         RateLimit diagnosticRunRateLimit,
         Map<String, List<String>> utmSourceGroups,
         String utmSourceFallbackGroup,
-        Map<SuiviIndicator, String> measurementStart
+        Map<SuiviIndicator, String> measurementStart,
+        double civicSubmittedMinAnsweredRatio
 ) {
 
     /**

@@ -125,11 +125,17 @@ public class DiagnosticRunManager {
         return repository.markSubmitted(runId, userId != null, userId, now) == 1;
     }
 
-    /** « Soumis » serveur a la fin de l'attempt civique ; {@code userId} nul = invite. */
+    /**
+     * « Soumis » serveur a la fin de l'attempt civique ; {@code userId} nul =
+     * invite. {@code answered} / {@code questions} : la mesure figee a cet
+     * instant (V076), lue par le seuil de la config.
+     */
     @Transactional
-    public int markSubmittedByCivicSession(UUID sessionId, UUID userId, Instant now) {
+    public int markSubmittedByCivicSession(UUID sessionId, UUID userId, int answered, int questions,
+                                           Instant now) {
         if (sessionId == null) return 0;
-        return repository.markSubmittedByCivicSession(sessionId, userId != null, userId, now);
+        return repository.markSubmittedByCivicSession(sessionId, userId != null, userId, answered, questions,
+                now);
     }
 
     /** « Soumis » serveur a la cloture du diagnostic complet (toujours connecte). */

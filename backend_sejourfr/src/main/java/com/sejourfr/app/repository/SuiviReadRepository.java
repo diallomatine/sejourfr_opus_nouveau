@@ -57,6 +57,20 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     String CLE_SOURCE_DU_COMPTE = " COALESCE(vu.ft_source_raw, vu.ft_source, vi.k, u.signup_source) ";
 
     /**
+     * <b>« Soumis » retenu</b> d'une run {@code r} (controle C, V076). TCF : le
+     * fait pose. Civique : le fait pose ET au moins {@code :civicMinRatio} des
+     * questions repondues, mesure figee a la soumission — une run civique sans
+     * mesure (anterieure a V076) est INCONNUE : jamais comptee soumise, jamais
+     * lue comme 0 reponse. Applique une fois, dans {@link #RUNS} : tunnel,
+     * ratios, activite et « jamais rattachees » lisent tous cette colonne.
+     */
+    String SOUMIS_RETENU = """
+            (r.diagnostic_type <> 'CIVIQUE'
+                  OR (r.submitted_question_count > 0
+                      AND r.submitted_answered_count
+                          >= CAST(:civicMinRatio AS float8) * r.submitted_question_count))""";
+
+    /**
      * Les runs du tunnel (rapide TCF et civique, Q2), personne et groupe de
      * source resolus, comptes internes exclus sauf demande.
      */
@@ -65,7 +79,11 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                 SELECT x.*, """ + GROUPE + """
              AS grp
                   FROM (SELECT r.id, r.diagnostic_type, r.platform, r.user_id, r.subject_viewed_at,
-                               r.submitted_at, r.submitted_authenticated, r.claimed_at, r.claim_kind,
+                               CASE WHEN """ + SOUMIS_RETENU + """
+             THEN r.submitted_at END AS submitted_at,
+                               CASE WHEN """ + SOUMIS_RETENU + """
+             THEN r.submitted_authenticated END AS submitted_authenticated,
+                               r.claimed_at, r.claim_kind,
                                COALESCE(CAST(r.user_id AS text), CAST(r.anonymous_id AS text),
                                         CAST(r.id AS text)) AS pk,
                                COALESCE(vr.ft_source_raw, vr.ft_source, """ + CLE_SOURCE_DU_COMPTE + """
@@ -301,7 +319,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                            @Param("horizon") Instant horizon, @Param("windowDays") int windowDays,
                            @Param("platform") String platform, @Param("source") String source,
                            @Param("includeInternal") boolean includeInternal,
-                           @Param("srcMap") String srcMap, @Param("fallback") String fallback);
+                           @Param("srcMap") String srcMap, @Param("fallback") String fallback,
+                           @Param("civicMinRatio") double civicMinRatio);
 
     // ------------------------------------------------------------------------
     // 3. Activite des runs (periode) : soumis, jamais rattaches, connexions
@@ -364,7 +383,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                          @Param("to") Instant to, @Param("windowDays") int windowDays,
                          @Param("runType") String runType, @Param("platform") String platform,
                          @Param("source") String source, @Param("includeInternal") boolean includeInternal,
-                         @Param("srcMap") String srcMap, @Param("fallback") String fallback);
+                         @Param("srcMap") String srcMap, @Param("fallback") String fallback,
+                         @Param("civicMinRatio") double civicMinRatio);
 
     // ------------------------------------------------------------------------
     // 4. Achats et remboursements (periode et periode precedente)

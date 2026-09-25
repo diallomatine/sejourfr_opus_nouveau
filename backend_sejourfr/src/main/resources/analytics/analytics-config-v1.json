@@ -2,6 +2,7 @@
   "analyticsConfigVersion": 1,
   "timezone": "Europe/Paris",
   "cohortWindowDays": 14,
+  "civicSubmittedMinAnsweredRatio": 0.8,
   "claimTokenTtlDays": 30,
   "purchaseIntentTtlHours": 24,
   "anonymousIdTtlDays": 395,

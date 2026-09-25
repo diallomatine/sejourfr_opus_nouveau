@@ -397,7 +397,7 @@ public class AttemptInteractionService {
         // Fin de l'attempt d'un diagnostic civique = « soumis » de sa run
         // (chantier Suivi, lot 2a). Ici et nulle part ailleurs : c'est le seul
         // point de fin d'un QCM (fin explicite publique ou connectee, echeance).
-        diagnosticRunService.onCivicAttemptFinished(attempt);
+        diagnosticRunService.onCivicAttemptFinished(attempt, aqs);
         recordComprehension(attempt, aqs);
         recordCivique(attempt, aqs);
         recordProgression(attempt, aqs);

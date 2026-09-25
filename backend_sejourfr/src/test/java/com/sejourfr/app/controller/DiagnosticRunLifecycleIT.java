@@ -603,6 +603,31 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         assertThat(row.get("user_id")).isEqualTo(user.getId());
     }
 
+    @Test
+    @DisplayName("Contrôle C — « Quitter » à 0 réponse : « soumis » posé, avec la mesure 0 / N figée")
+    void civiqueFigeLaMesure() throws Exception {
+        UUID[] civique = civiqueInvite();
+        Creee c = creer(creation("CIVIQUE", UUID.randomUUID(), UUID.randomUUID(), civique[0]));
+        finirInvite(civique[1]);
+
+        Map<String, Object> row = run(c.id());
+        Integer posees = jdbc.queryForObject("SELECT count(*) FROM attempt_questions WHERE attempt_id = ?",
+                Integer.class, civique[1]);
+        assertThat(posees).isPositive();
+        assertThat(row.get("submitted_at")).isNotNull();
+        assertThat(row.get("submitted_answered_count")).isEqualTo(0);
+        assertThat(row.get("submitted_question_count")).isEqualTo(posees);
+    }
+
+    @Test
+    @DisplayName("Contrôle C — un TCF rapide soumis n'a pas de mesure de réponses")
+    void tcfSansMesure() throws Exception {
+        Creee c = creerInvite("QUICK_TCF", UUID.randomUUID());
+        mvc.perform(soumission(c.id(), c.token())).andExpect(status().isNoContent());
+        assertThat(run(c.id()).get("submitted_answered_count")).isNull();
+        assertThat(run(c.id()).get("submitted_question_count")).isNull();
+    }
+
     /** Scenario 16, sur le civique (Q2 : le TCF rapide ne se refait pas). */
     @Test
     @DisplayName("Scénario 16 — civique refait 3 fois : 3 soumissions brutes, 1 personne")

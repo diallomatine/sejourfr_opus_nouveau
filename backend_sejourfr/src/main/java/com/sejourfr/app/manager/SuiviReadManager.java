@@ -28,10 +28,12 @@ public class SuiviReadManager {
      * @param source    groupe de source ou {@code null}
      * @param srcMap    objet JSON source declaree → groupe (config)
      * @param fallback  groupe de repli (config)
+     * @param civicMinRatio part minimale de questions repondues d'un « soumis »
+     *                  civique (config, controle C)
      */
     public record Requete(Instant prevFrom, Instant from, Instant to, Instant horizon, int windowDays,
                           String type, String runType, String platform, String source,
-                          boolean includeInternal, String srcMap, String fallback) {
+                          boolean includeInternal, String srcMap, String fallback, double civicMinRatio) {
     }
 
     /** Les six lectures d'un appel, dans une seule transaction (instantane coherent). */
@@ -49,9 +51,9 @@ public class SuiviReadManager {
                 repository.visitors(q.prevFrom(), q.from(), q.to(), q.platform(), q.source(),
                         q.includeInternal(), q.srcMap(), q.fallback()),
                 repository.funnel(q.from(), q.to(), q.horizon(), q.windowDays(), q.platform(), q.source(),
-                        q.includeInternal(), q.srcMap(), q.fallback()),
+                        q.includeInternal(), q.srcMap(), q.fallback(), q.civicMinRatio()),
                 repository.activity(q.prevFrom(), q.from(), q.to(), q.windowDays(), q.runType(), q.platform(),
-                        q.source(), q.includeInternal(), q.srcMap(), q.fallback()),
+                        q.source(), q.includeInternal(), q.srcMap(), q.fallback(), q.civicMinRatio()),
                 repository.purchases(q.prevFrom(), q.from(), q.to(), q.type(), q.platform(), q.source(),
                         q.includeInternal(), q.srcMap(), q.fallback()),
                 repository.refunds(q.prevFrom(), q.from(), q.to(), q.type(), q.platform(), q.source(),

@@ -24,6 +24,7 @@ class AnalyticsConfigLoaderTest {
     private static String json(String timezone, String groupes, String debuts) {
         return """
                 {"analyticsConfigVersion":1,"timezone":"%s","cohortWindowDays":14,"claimTokenTtlDays":30,
+                 "civicSubmittedMinAnsweredRatio":0.8,
                  "purchaseIntentTtlHours":24,"anonymousIdTtlDays":395,"rawEventRetentionDays":395,
                  "purgeBatchSize":1000,
                  "ingestion":{"maxBatchSize":50,"clockSkewToleranceMinutes":10,"maxEventAgeHours":168,
@@ -58,6 +59,7 @@ class AnalyticsConfigLoaderTest {
         assertThat(config.anonymousIdTtlDays()).isEqualTo(395);
         assertThat(config.cohortWindowDays()).isEqualTo(14);
         assertThat(config.claimTokenTtlDays()).isEqualTo(30);
+        assertThat(config.civicSubmittedMinAnsweredRatio()).isEqualTo(0.8);
         assertThat(config.purchaseIntentTtlHours()).isEqualTo(24);
         assertThat(config.ingestion().maxBatchSize()).isEqualTo(50);
         assertThat(config.ingestion().clockSkewToleranceMinutes()).isEqualTo(10);
@@ -158,5 +160,17 @@ class AnalyticsConfigLoaderTest {
         assertThatThrownBy(() -> parse(zero))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("rawEventRetentionDays");
+    }
+
+    @Test
+    @DisplayName("Seuil civique hors ]0, 1] : le démarrage échoue")
+    void seuilCiviqueHorsBornes() {
+        for (String seuil : new String[]{"0", "1.2", "-0.5"}) {
+            String json = json("Europe/Paris", GROUPES, DEBUTS).replace("\"civicSubmittedMinAnsweredRatio\":0.8",
+                    "\"civicSubmittedMinAnsweredRatio\":" + seuil);
+            assertThatThrownBy(() -> parse(json))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("civicSubmittedMinAnsweredRatio");
+        }
     }
 }

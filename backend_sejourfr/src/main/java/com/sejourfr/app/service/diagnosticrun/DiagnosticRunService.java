@@ -4,12 +4,14 @@ import com.sejourfr.app.dto.DiagnosticRunCreateRequest;
 import com.sejourfr.app.dto.DiagnosticRunCreatedResponse;
 import com.sejourfr.app.dto.DiagnosticRunSubmitRequest;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.DiagnosticRun;
 import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.DiagnosticRunType;
 import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.DiagnosticRunManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,6 +73,7 @@ public class DiagnosticRunService {
     private final DiagnosticSessionManager quickSessionManager;
     private final TcfDiagnosticSessionManager tcfSessionManager;
     private final CivicDiagnosticSessionManager civicSessionManager;
+    private final AttemptQuestionManager attemptQuestionManager;
     private final AnalyticsConfig config;
 
     // ------------------------------------------------------------------------
@@ -270,10 +274,27 @@ public class DiagnosticRunService {
      * A CET INSTANT — un invite qui s'inscrit ensuite reste un soumis anonyme.
      */
     public void onCivicAttemptFinished(Attempt attempt) {
+        if (attempt.getCivicDiagnostic() == null) return;
+        onCivicAttemptFinished(attempt, attemptQuestionManager.findByAttemptOrderedByPosition(attempt.getId()));
+    }
+
+    /**
+     * Meme geste, avec les questions deja chargees par l'appelant (fin d'attempt).
+     *
+     * <p>🛑 <b>La mesure est figee ici, la regle vit a la lecture</b> (controle
+     * C, V076) : « Quitter » confirme et « Terminer » passent par la meme fin
+     * d'attempt, un abandon a 0/40 pose donc aussi {@code submitted_at}. On
+     * ecrit, dans le meme {@code UPDATE}, les questions posees et repondues ; le
+     * dashboard ne compte « soumis » qu'au-dela du seuil de la config
+     * ({@code civicSubmittedMinAnsweredRatio}). Repondue = une reponse existe
+     * (meme regle que l'ecran de resultat civique).
+     */
+    public void onCivicAttemptFinished(Attempt attempt, List<AttemptQuestion> questions) {
         CivicDiagnosticSession session = attempt.getCivicDiagnostic();
         if (session == null) return;
         UUID userId = attempt.getUser() == null ? null : attempt.getUser().getId();
-        runManager.markSubmittedByCivicSession(session.getId(), userId, Instant.now());
+        int answered = (int) questions.stream().filter(aq -> aq.getAnswer() != null).count();
+        runManager.markSubmittedByCivicSession(session.getId(), userId, answered, questions.size(), Instant.now());
     }
 
     /** Cloture du diagnostic complet : toujours un compte, donc un soumis connecte. */
