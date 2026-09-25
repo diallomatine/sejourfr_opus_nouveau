@@ -1,7 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.AdminSubscriptionDto;
-import com.sejourfr.app.dto.AdminSubscriptionListResponse;
+import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
@@ -18,17 +18,19 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
- * Service admin pour la liste paginée des UserSubscription. Filtres optionnels
- * par source / status / moduleAccess et recherche LIKE sur email + nom. Tri :
- * plus récentes en tête (updatedAt desc) — utile pour voir les changements
- * récents (paiements, annulations, refunds).
+ * Service admin pour la liste paginée des UserSubscription. Pagination, filtres
+ * (source / status / moduleAccess) et recherche (email, prénom, nom) sont tous
+ * appliqués dans la requête SQL. Tri : plus récentes en tête (updatedAt desc),
+ * départagées par l'id — sans ce second critère, deux lignes au même
+ * {@code updated_at} (import, backfill) pouvaient apparaître sur deux pages ou
+ * sur aucune.
  *
- * <p>L'open-in-view est désactivé : la transaction read-only ouverte ici
- * autorise les lookups lazy (User, Plan) faits dans {@link UserSubscriptionMapper}.
+ * <p>User et Plan arrivent par jointure dans la requête de page
+ * ({@code @EntityGraph} du repository) : une page coûte deux requêtes (contenu +
+ * total), quel que soit le nombre de lignes.
  */
 @Service
 @RequiredArgsConstructor
@@ -40,7 +42,9 @@ public class AdminSubscriptionService {
     private final UserSubscriptionManager userSubscriptionManager;
     private final UserSubscriptionMapper userSubscriptionMapper;
 
-    public AdminSubscriptionListResponse list(
+    static final Sort ORDER = Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"));
+
+    public PageResponse<AdminSubscriptionDto> list(
             SubscriptionSource source,
             SubscriptionStatus status,
             ModuleAccess moduleAccess,
@@ -58,20 +62,9 @@ public class AdminSubscriptionService {
                 .and(UserSubscriptionSpecifications.userSearch(search));
 
         Page<UserSubscription> result = userSubscriptionManager.findAll(
-                spec,
-                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "updatedAt"))
-        );
+                spec, PageRequest.of(safePage, safeSize, ORDER));
 
-        List<AdminSubscriptionDto> items = result.getContent().stream()
-                .map(userSubscriptionMapper::toAdminDto)
-                .toList();
-
-        return new AdminSubscriptionListResponse(
-                items,
-                result.getTotalElements(),
-                safePage,
-                safeSize
-        );
+        return PageResponse.from(result.map(userSubscriptionMapper::toAdminDto));
     }
 
     /**

@@ -2,6 +2,10 @@ package com.sejourfr.app.repository;
 
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -20,6 +24,16 @@ public interface UserSubscriptionRepository
                 JpaSpecificationExecutor<UserSubscription> {
 
     List<UserSubscription> findByUserId(UUID userId);
+
+    /**
+     * Liste admin paginée : user et plan chargés dans la même requête que la
+     * page (le mapper admin lit les deux). Sans ce graphe, une page de 100
+     * lignes coûtait jusqu'à 201 requêtes. Deux {@code @ManyToOne} seulement,
+     * donc aucune pagination en mémoire ; la requête de comptage n'en hérite pas.
+     */
+    @Override
+    @EntityGraph(attributePaths = {"user", "plan"})
+    Page<UserSubscription> findAll(Specification<UserSubscription> spec, Pageable pageable);
 
     /**
      * Lookup historique des souscriptions Stripe par session/subscription id.

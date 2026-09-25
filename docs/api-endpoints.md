@@ -737,6 +737,29 @@ visiteurs uniques. Cf. migration V020.
   ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
   le web et le mobile consomment aussi.
 
+### Admin — Abonnements (`/subscriptions`)
+
+- `GET /api/admin/subscriptions?source=&status=&moduleAccess=&search=&page=&size=` →
+  `PageResponse<AdminSubscriptionDto>` (`content`, `page`, `size`, `totalElements`,
+  `totalPages`, `first`, `last`). ⚠️ Remplace l'ancienne enveloppe
+  `AdminSubscriptionListResponse {items, total, page, size}`, supprimée le 2026-09-25.
+  - **Pagination serveur** : `page` indexée à 0 (négative ⇒ 0), `size` défaut 25 et
+    bornée à `[1, 100]`. Une page au-delà de la dernière rend `content: []` avec les
+    totaux justes (le front s'y recale).
+  - **Filtres dans la requête SQL**, jamais en mémoire : `source` (`STRIPE|APPLE|GOOGLE`),
+    `status` (`SubscriptionStatus`), `moduleAccess` (`CIVIQUE|INTEGRAL`, via le plan) et
+    `search` — « contient », sans casse, sur l'email, le prénom, le nom ou « prénom nom » ;
+    `%` et `_` saisis sont échappés (un `_` d'email n'est pas un joker).
+  - **Tri imposé et stable** : `updatedAt` DESC puis `id` DESC. Le second critère empêche
+    une ligne d'apparaître sur deux pages (ou sur aucune) quand plusieurs partagent le
+    même `updated_at`. Pas de paramètre `sort` exposé.
+  - **Coût figé : 2 requêtes par page** (contenu avec `user` et `plan` joints par
+    `@EntityGraph`, + comptage), quel que soit `size` — verrouillé par égalité dans
+    `AdminSubscriptionControllerIT`.
+- `POST /api/admin/subscriptions/{id}/cancel` → `CancelSubscriptionResponse`
+  (`DONE` Stripe / `REDIRECT` Apple-Google).
+- `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` → `AdminSubscriptionDto`.
+
 ### Admin — Moteur de progression V4.2
 
 Le **seul** endroit du produit où `masteryScore` et `confidence` sortent du moteur

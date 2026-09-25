@@ -1,13 +1,19 @@
 package com.sejourfr.app.specification;
 
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
-import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Locale;
+
 public final class UserSubscriptionSpecifications {
+
+    private static final char LIKE_ESCAPE = '\\';
 
     private UserSubscriptionSpecifications() {}
 
@@ -20,21 +26,34 @@ public final class UserSubscriptionSpecifications {
     }
 
     public static Specification<UserSubscription> hasModuleAccess(ModuleAccess moduleAccess) {
-        // Plan.moduleAccess est lazy : on JOIN explicitement pour pouvoir filtrer.
         return (root, q, cb) -> moduleAccess == null
                 ? null
                 : cb.equal(root.get("plan").get("moduleAccess"), moduleAccess);
     }
 
-    /** Recherche LIKE (case-insensitive) sur email ou first_name+last_name du user. */
+    /**
+     * Recherche « contient », insensible à la casse, sur l'email, le prénom, le nom
+     * ou « prénom nom ». Les jokers LIKE saisis ({@code %}, {@code _}) sont
+     * échappés : un {@code _} est courant dans un email et ne doit pas valoir
+     * « n'importe quel caractère ».
+     */
     public static Specification<UserSubscription> userSearch(String search) {
         return (root, q, cb) -> {
             if (search == null || search.isBlank()) return null;
-            String like = "%" + search.toLowerCase() + "%";
-            Predicate emailMatch = cb.like(cb.lower(root.get("user").get("email")), like);
-            Predicate firstNameMatch = cb.like(cb.lower(root.get("user").get("firstName")), like);
-            Predicate lastNameMatch = cb.like(cb.lower(root.get("user").get("lastName")), like);
-            return cb.or(emailMatch, firstNameMatch, lastNameMatch);
+            String like = "%" + escapeLike(search.trim().toLowerCase(Locale.ROOT)) + "%";
+            Path<User> user = root.get("user");
+            Expression<String> firstName = cb.coalesce(user.get("firstName"), "");
+            Expression<String> lastName = cb.coalesce(user.get("lastName"), "");
+            Expression<String> fullName = cb.concat(cb.concat(firstName, " "), lastName);
+            return cb.or(
+                    cb.like(cb.lower(user.get("email")), like, LIKE_ESCAPE),
+                    cb.like(cb.lower(user.get("firstName")), like, LIKE_ESCAPE),
+                    cb.like(cb.lower(user.get("lastName")), like, LIKE_ESCAPE),
+                    cb.like(cb.lower(fullName), like, LIKE_ESCAPE));
         };
+    }
+
+    private static String escapeLike(String raw) {
+        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

@@ -152,6 +152,36 @@ class UserSubscriptionSpecificationsIT extends AbstractIntegrationTest {
                 .extracting(UserSubscription::getId).contains(s.getId());
     }
 
+    /** Un {@code _} saisi est un caractère, pas le joker LIKE « n'importe lequel ». */
+    @Test
+    void userSearchEchappeLesJokersLike() {
+        Plan plan = testData.plan();
+        long n = System.nanoTime();
+        User souligne = user("jo_" + n + "@test.sejourfr", "A", "B");
+        User autre = user("jox" + n + "@test.sejourfr", "A", "B");
+        UserSubscription hit = sub(souligne, plan, SubscriptionSource.STRIPE, SubscriptionStatus.ACTIVE);
+        UserSubscription miss = sub(autre, plan, SubscriptionSource.STRIPE, SubscriptionStatus.ACTIVE);
+
+        assertThat(repository.findAll(UserSubscriptionSpecifications.userSearch("jo_" + n)))
+                .extracting(UserSubscription::getId)
+                .contains(hit.getId())
+                .doesNotContain(miss.getId());
+        assertThat(repository.findAll(UserSubscriptionSpecifications.userSearch("%" + n)))
+                .isEmpty();
+    }
+
+    @Test
+    void userSearchTrouvePrenomEtNomSaisisEnsemble() {
+        Plan plan = testData.plan();
+        String nom = "Quenaudon" + System.nanoTime();
+        User u = user("d" + System.nanoTime() + "@test.sejourfr", "Mireille", nom);
+        UserSubscription s = sub(u, plan, SubscriptionSource.STRIPE, SubscriptionStatus.ACTIVE);
+
+        assertThat(repository.findAll(UserSubscriptionSpecifications.userSearch("  mireille " + nom.toLowerCase() + " ")))
+                .extracting(UserSubscription::getId)
+                .containsExactly(s.getId());
+    }
+
     @Test
     void whereAndChainCombinesAllFiltersLikeService() {
         Plan integralPlan = plan(ModuleAccess.INTEGRAL);

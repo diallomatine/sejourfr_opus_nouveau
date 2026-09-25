@@ -2,13 +2,13 @@ import { apiRequest } from "./http";
 import type {
   AdminSubscriptionDto,
   AdminSubscriptionFilters,
-  AdminSubscriptionListResponse,
   CancelSubscriptionResponse,
+  PageResponse,
 } from "../types/api";
 
 export const subscriptionsApi = {
   list(filters: AdminSubscriptionFilters = {}) {
-    return apiRequest<AdminSubscriptionListResponse>("/api/admin/subscriptions", {
+    return apiRequest<PageResponse<AdminSubscriptionDto>>("/api/admin/subscriptions", {
       query: {
         source: filters.source,
         status: filters.status,

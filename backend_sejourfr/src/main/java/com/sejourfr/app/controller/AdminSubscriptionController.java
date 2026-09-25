@@ -2,8 +2,8 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.AdminSetRealtimeSessionsRequest;
 import com.sejourfr.app.dto.AdminSubscriptionDto;
-import com.sejourfr.app.dto.AdminSubscriptionListResponse;
 import com.sejourfr.app.dto.CancelSubscriptionResponse;
+import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
@@ -36,7 +36,7 @@ public class AdminSubscriptionController {
     private final SubscriptionCancellationService subscriptionCancellationService;
 
     @GetMapping
-    public AdminSubscriptionListResponse list(
+    public PageResponse<AdminSubscriptionDto> list(
             @RequestParam(required = false) SubscriptionSource source,
             @RequestParam(required = false) SubscriptionStatus status,
             @RequestParam(required = false) ModuleAccess moduleAccess,

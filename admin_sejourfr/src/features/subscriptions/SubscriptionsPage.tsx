@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useMutation,
   useQuery,
@@ -10,13 +10,13 @@ import { subscriptionsApi } from "../../api/subscriptionsApi";
 import { Button } from "../../components/ui/Button";
 import { Input, Select } from "../../components/ui/Form";
 import { Modal } from "../../components/ui/Modal";
+import { Pagination } from "../../components/ui/Pagination";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import type {
   AdminSubscriptionDto,
-  AdminSubscriptionFilters,
   CancelSubscriptionResponse,
   ModuleAccess,
   SubscriptionSource,
@@ -24,8 +24,17 @@ import type {
 } from "../../types/api";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import styles from "./SubscriptionsPage.module.css";
+import {
+  PAGE_SIZE_OPTIONS,
+  useSubscriptionListParams,
+} from "./useSubscriptionListParams";
 
-const PAGE_SIZE = 25;
+const NUMBER_FORMAT = new Intl.NumberFormat("fr-FR");
+
+function errorMessage(error: unknown): string {
+  if (error instanceof HttpError) return error.payload?.message ?? error.message;
+  return error instanceof Error ? error.message : "erreur inconnue";
+}
 
 const SOURCE_LABEL: Record<SubscriptionSource, string> = {
   STRIPE: "Stripe (web)",
@@ -99,39 +108,28 @@ function fullName(sub: AdminSubscriptionDto): string {
 }
 
 export function SubscriptionsPage() {
-  const [source, setSource] = useState<SubscriptionSource | "">("");
-  const [status, setStatus] = useState<SubscriptionStatus | "">("");
-  const [moduleAccess, setModuleAccess] = useState<ModuleAccess | "">("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(0);
+  const { filters, hasActiveFilter, setFilter, setPage, setSize, resetFilters } =
+    useSubscriptionListParams();
+  const urlSearch = filters.search ?? "";
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const [syncedSearch, setSyncedSearch] = useState(urlSearch);
   const [detail, setDetail] = useState<AdminSubscriptionDto | null>(null);
 
-  // Debounce de la recherche (300ms) pour éviter de spammer le backend.
+  // L'URL fait foi : un retour arrière ou un lien partagé repose le champ.
+  // La comparaison sur la valeur rognée évite d'effacer l'espace que l'on tape.
+  if (syncedSearch !== urlSearch) {
+    setSyncedSearch(urlSearch);
+    if (searchInput.trim() !== urlSearch) setSearchInput(urlSearch);
+  }
+
+  // Recherche debouncée (300 ms), écrite en `replace` : une frappe n'est pas
+  // une entrée d'historique.
   useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(0);
-    }, 300);
+    const typed = searchInput.trim();
+    if (typed === urlSearch) return;
+    const t = setTimeout(() => setFilter("search", typed || undefined, { replace: true }), 300);
     return () => clearTimeout(t);
-  }, [searchInput]);
-
-  // Reset à la page 0 quand on change un filtre.
-  useEffect(() => {
-    setPage(0);
-  }, [source, status, moduleAccess]);
-
-  const filters = useMemo<AdminSubscriptionFilters>(
-    () => ({
-      source: source || undefined,
-      status: status || undefined,
-      moduleAccess: moduleAccess || undefined,
-      search: search || undefined,
-      page,
-      size: PAGE_SIZE,
-    }),
-    [source, status, moduleAccess, search, page],
-  );
+  }, [searchInput, urlSearch, setFilter]);
 
   const subscriptionsQuery = useQuery({
     queryKey: ["adminSubscriptions", filters],
@@ -139,9 +137,21 @@ export function SubscriptionsPage() {
     placeholderData: keepPreviousData,
   });
 
-  const totalPages = subscriptionsQuery.data
-    ? Math.max(1, Math.ceil(subscriptionsQuery.data.total / PAGE_SIZE))
-    : 1;
+  const data = subscriptionsQuery.data;
+  const isStale = subscriptionsQuery.isPlaceholderData;
+
+  // Page devenue hors bornes (lien ancien, résiliation qui vide la dernière
+  // page) : on se recale sur la dernière page existante au lieu d'un faux vide.
+  useEffect(() => {
+    if (!data || isStale) return;
+    const lastPage = Math.max(0, data.totalPages - 1);
+    if (filters.page > lastPage) setPage(lastPage, { replace: true });
+  }, [data, isStale, filters.page, setPage]);
+
+  const handleReset = () => {
+    setSearchInput("");
+    resetFilters();
+  };
 
   return (
     <>
@@ -154,23 +164,31 @@ export function SubscriptionsPage() {
       <Panel noPadding>
         <div className={styles.filtersBar}>
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Source</label>
+            <label className={styles.filterLabel} htmlFor="sub-filter-source">
+              Source
+            </label>
             <Select
-              value={source}
-              onChange={(e) => setSource(e.target.value as SubscriptionSource | "")}
+              id="sub-filter-source"
+              value={filters.source ?? ""}
+              onChange={(e) => setFilter("source", e.target.value || undefined)}
             >
               <option value="">Toutes</option>
-              <option value="STRIPE">Stripe (web)</option>
-              <option value="APPLE">Apple (iOS)</option>
-              <option value="GOOGLE">Google (Android)</option>
+              {(Object.keys(SOURCE_LABEL) as SubscriptionSource[]).map((s) => (
+                <option key={s} value={s}>
+                  {SOURCE_LABEL[s]}
+                </option>
+              ))}
             </Select>
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Statut</label>
+            <label className={styles.filterLabel} htmlFor="sub-filter-status">
+              Statut
+            </label>
             <Select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as SubscriptionStatus | "")}
+              id="sub-filter-status"
+              value={filters.status ?? ""}
+              onChange={(e) => setFilter("status", e.target.value || undefined)}
             >
               <option value="">Tous</option>
               {(Object.keys(STATUS_LABEL) as SubscriptionStatus[]).map((s) => (
@@ -182,20 +200,26 @@ export function SubscriptionsPage() {
           </div>
 
           <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Module</label>
+            <label className={styles.filterLabel} htmlFor="sub-filter-module">
+              Module
+            </label>
             <Select
-              value={moduleAccess}
-              onChange={(e) => setModuleAccess(e.target.value as ModuleAccess | "")}
+              id="sub-filter-module"
+              value={filters.moduleAccess ?? ""}
+              onChange={(e) => setFilter("moduleAccess", e.target.value || undefined)}
             >
               <option value="">Tous</option>
-              <option value="CIVIQUE">Civique</option>
-              <option value="INTEGRAL">Intégral</option>
+              <option value="CIVIQUE">{MODULE_LABEL.CIVIQUE}</option>
+              <option value="INTEGRAL">{MODULE_LABEL.INTEGRAL}</option>
             </Select>
           </div>
 
           <div className={`${styles.filterGroup} ${styles.searchGroup}`}>
-            <label className={styles.filterLabel}>Recherche (email ou nom)</label>
+            <label className={styles.filterLabel} htmlFor="sub-filter-search">
+              Recherche (email ou nom)
+            </label>
             <Input
+              id="sub-filter-search"
               type="search"
               placeholder="user@exemple.fr"
               value={searchInput}
@@ -203,31 +227,72 @@ export function SubscriptionsPage() {
             />
           </div>
         </div>
+        {hasActiveFilter && (
+          <div className={styles.filtersFooter}>
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              Réinitialiser les filtres
+            </Button>
+          </div>
+        )}
       </Panel>
 
-      {subscriptionsQuery.isLoading && <Spinner label="Chargement..." />}
+      {subscriptionsQuery.isPending && <Spinner label="Chargement..." />}
 
-      {subscriptionsQuery.isError && (
+      {subscriptionsQuery.isError && !data && (
         <Panel>
           <div className={styles.error}>
-            Erreur : {(subscriptionsQuery.error as Error).message}
+            <span>Impossible de charger les souscriptions : {errorMessage(subscriptionsQuery.error)}</span>
+            <Button variant="ghost" size="sm" onClick={() => subscriptionsQuery.refetch()}>
+              Réessayer
+            </Button>
           </div>
         </Panel>
       )}
 
-      {subscriptionsQuery.data && (
+      {data && (
         <Panel
           title="Souscriptions"
-          sub={`${subscriptionsQuery.data.total} résultats · page ${page + 1} / ${totalPages}`}
+          sub={`${NUMBER_FORMAT.format(data.totalElements)} résultat${data.totalElements > 1 ? "s" : ""}`}
+          actions={
+            subscriptionsQuery.isFetching ? (
+              <span className={styles.refreshing} role="status">
+                Mise à jour…
+              </span>
+            ) : undefined
+          }
           noPadding
         >
-          {subscriptionsQuery.data.items.length === 0 ? (
-            <EmptyState
-              title="Aucune souscription"
-              description="Essayez d'autres filtres ou supprimez la recherche."
-            />
+          {subscriptionsQuery.isError && (
+            <div className={styles.inlineError} role="alert">
+              <span>Actualisation impossible : {errorMessage(subscriptionsQuery.error)}</span>
+              <Button variant="ghost" size="sm" onClick={() => subscriptionsQuery.refetch()}>
+                Réessayer
+              </Button>
+            </div>
+          )}
+
+          {data.totalElements === 0 ? (
+            hasActiveFilter ? (
+              <div className={styles.emptyWithAction}>
+                <EmptyState
+                  title="Aucune souscription ne correspond"
+                  description="Aucun résultat pour ces filtres."
+                />
+                <Button variant="ghost" size="sm" onClick={handleReset}>
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            ) : (
+              <EmptyState
+                title="Aucune souscription"
+                description="Les achats Stripe, Apple et Google apparaîtront ici."
+              />
+            )
           ) : (
-            <div className={tableStyles.tableWrap}>
+            <div
+              className={`${tableStyles.tableWrap} ${isStale ? styles.stale : ""}`}
+              aria-busy={isStale}
+            >
               <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
                 <thead>
                   <tr>
@@ -241,7 +306,7 @@ export function SubscriptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {subscriptionsQuery.data.items.map((sub) => (
+                  {data.content.map((sub) => (
                     <tr key={sub.id}>
                       <td data-label="Client">
                         <div>
@@ -298,25 +363,17 @@ export function SubscriptionsPage() {
             </div>
           )}
 
-          <div className={styles.pagination}>
-            <Button
-              variant="ghost"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0 || subscriptionsQuery.isFetching}
-            >
-              ← Précédent
-            </Button>
-            <span className={styles.paginationInfo}>
-              Page {page + 1} / {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page + 1 >= totalPages || subscriptionsQuery.isFetching}
-            >
-              Suivant →
-            </Button>
-          </div>
+          <Pagination
+            page={data.page}
+            size={data.size}
+            totalElements={data.totalElements}
+            totalPages={data.totalPages}
+            onPageChange={(p) => setPage(p)}
+            onSizeChange={setSize}
+            sizeOptions={PAGE_SIZE_OPTIONS}
+            busy={subscriptionsQuery.isFetching}
+            itemLabel="souscriptions"
+          />
         </Panel>
       )}
 

@@ -114,7 +114,8 @@ Endpoints utilisés actuellement :
   — inspection/génération explicite de la consigne EO fixe (seed-only ; pas de
   CRUD des sujets diagnostiques)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
-- `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
+- `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…`
+  → `PageResponse<AdminSubscriptionDto>` (contrat complet : `docs/api-endpoints.md`)
 - `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
@@ -435,6 +436,11 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
 - Validation simple via les options de `register` (required, etc.). Si on a besoin de plus complexe, on ajoutera Zod plus tard.
 
 **UI**
+- **Pagination** : `components/ui/Pagination.tsx` (« x–y sur N », précédent/suivant,
+  numéros avec « … », sélecteur de taille, repli « n / N » sous 720 px). Page
+  indexée à 0 comme le `PageResponse` ; ne s'affiche pas sur une liste vide. Utilisée
+  par `/subscriptions` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
+  précédent/suivant maison, à migrer au prochain passage.
 - Les couleurs sont dans `:root` de `styles/global.css`. **Ne jamais hardcoder une couleur** dans un module — toujours utiliser `var(--blue)`, `var(--red)`, `var(--ink)`, etc.
 - Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
 - Le style général s'inspire du template `admin__1_.html` fourni en début de projet — typographique, fait main, sans framework UI.
@@ -485,9 +491,19 @@ Pas encore d'API côté backend, donc pas implémenté ici :
   côté backend : un plan payant actif doit avoir au moins un SKU renseigné.
   Les Plans sont créés en migration Flyway (V100/V106) — pas de POST/DELETE
   côté admin.
-- `features/subscriptions/` — liste paginée des UserSubscription, filtres
-  source/status/moduleAccess + recherche email+nom (debounced 300ms),
-  pagination prev/next. Tri par updatedAt desc. Modal détail montrant tous
+- `features/subscriptions/` — liste des UserSubscription **paginée serveur**
+  (`PageResponse`), filtres source/status/moduleAccess + recherche email/nom
+  (debounce 300 ms). **Tout l'état de la liste vit dans l'URL**
+  (`useSubscriptionListParams` : `?source&status&moduleAccess&search&page&size`,
+  `page` compté **à partir de 1 dans l'URL**, 0 vers l'API ; valeur illisible
+  ignorée ; valeur par défaut non écrite) : lien partageable, bouton retour
+  fonctionnel. Un filtre, la recherche ou la taille de page **ramènent en page 1
+  dans la même écriture d'URL** (jamais un `useEffect` qui remet la page à 0 après
+  coup : il partait une requête avec l'ancienne page). La frappe s'écrit en
+  `replace` (pas d'entrée d'historique par lettre), filtres et pages en `push`.
+  `placeholderData: keepPreviousData` + tableau estompé pendant le changement de
+  page ; page hors bornes ⇒ recalage sur la dernière. Tri serveur `updatedAt`
+  desc puis `id` desc (stable). Modal détail montrant tous
   les transactionIds, dates, plan, montant. Trois sources possibles : Stripe
   (web), Apple (iOS), Google (Android) — cf. CLAUDE.md racine pour le schéma.
   Modal détail : bouton **Résilier l'abonnement** (variant danger) actif uniquement

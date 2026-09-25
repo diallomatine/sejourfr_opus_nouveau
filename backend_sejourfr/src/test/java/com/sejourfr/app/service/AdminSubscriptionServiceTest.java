@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.AdminSubscriptionListResponse;
+import com.sejourfr.app.dto.AdminSubscriptionDto;
+import com.sejourfr.app.dto.PageResponse;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.mapper.UserSubscriptionMapper;
@@ -23,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Couvre le clamp de pagination (size dans [1,100], page &gt;= 0), le tri
- * updatedAt desc et le passage du total à la réponse. Les Specifications sont
+ * updatedAt desc départagé par l'id, et le passage du total à la réponse. Les Specifications sont
  * construites par {@code UserSubscriptionSpecifications} (statiques, sans DB) ;
  * on capture juste le Pageable passé au manager. Test unitaire pur.
  */
@@ -71,32 +72,33 @@ class AdminSubscriptionServiceTest {
     }
 
     @Test
-    void tri_parUpdatedAtDescendant() {
+    void tri_parUpdatedAtDescendant_puisIdDescendant() {
         Pageable p = captureListCall(new PageImpl<>(List.of()), 0, 20);
-        Sort.Order order = p.getSort().getOrderFor("updatedAt");
-        assertThat(order).isNotNull();
-        assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(p.getSort().toList())
+                .extracting(Sort.Order::getProperty, Sort.Order::getDirection)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("updatedAt", Sort.Direction.DESC),
+                        org.assertj.core.groups.Tuple.tuple("id", Sort.Direction.DESC));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void response_porteTotalEtPageSizeClampes() {
+    void response_porteTotalEtNombreDePages() {
         UserSubscription sub = new UserSubscription();
         Page<UserSubscription> page = new PageImpl<>(
-                List.of(sub), PageRequest.of(0, 100), 42L);
+                List.of(sub), PageRequest.of(2, 10), 42L);
         when(userSubscriptionManager.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(page);
         when(userSubscriptionMapper.toAdminDto(any())).thenReturn(null);
 
-        AdminSubscriptionListResponse res = service.list(null, null, null, null, 0, 5000);
+        PageResponse<AdminSubscriptionDto> res = service.list(null, null, null, null, 2, 10);
 
-        // PageImpl normalise le total : avec une page de taille 100 à l'offset 0 et
-        // un contenu d'1 élément, offset+pageSize (100) > total (42), donc PageImpl
-        // recalcule total = offset + content.size() = 1. C'est ce que renvoie
-        // getTotalElements() et donc ce que porte la réponse.
-        assertThat(res.total()).isEqualTo(1L);
-        assertThat(res.page()).isEqualTo(0);
-        assertThat(res.size()).isEqualTo(100);
-        assertThat(res.items()).hasSize(1);
+        assertThat(res.totalElements()).isEqualTo(42L);
+        assertThat(res.totalPages()).isEqualTo(5);
+        assertThat(res.page()).isEqualTo(2);
+        assertThat(res.size()).isEqualTo(10);
+        assertThat(res.first()).isFalse();
+        assertThat(res.last()).isFalse();
+        assertThat(res.content()).hasSize(1);
     }
 }

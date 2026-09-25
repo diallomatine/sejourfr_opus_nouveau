@@ -671,13 +671,6 @@ export interface AdminSubscriptionDto {
   realtimeEoSessionsRemaining: number;
 }
 
-export interface AdminSubscriptionListResponse {
-  items: AdminSubscriptionDto[];
-  total: number;
-  page: number;
-  size: number;
-}
-
 export interface AdminSubscriptionFilters {
   source?: SubscriptionSource;
   status?: SubscriptionStatus;
