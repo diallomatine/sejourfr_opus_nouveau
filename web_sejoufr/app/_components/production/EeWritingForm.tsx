@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useRef, useState, type ReactNode} from "react";
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
 import {Clock, FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
 import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
@@ -194,6 +194,16 @@ export function EeWritingForm({
   }, [autoSubmitSignal, words, min, max, text, onAutoSubmit]);
   const counterClass = words === 0 ? "" : inRange ? s.counterOk : s.counterWarn;
 
+  // La zone grandit avec le texte : sur téléphone, une boîte fixe qui défile
+  // en interne fait passer les dernières lignes sous le compteur et le clavier.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, [text]);
+
   const canSubmit = submittable && !submitting;
 
   // En carte, le compteur annonce la cible (« 12 / 35 mots ») : le candidat
@@ -262,6 +272,7 @@ export function EeWritingForm({
             <h2 className={s.answerTitle}>{answerCard.title}</h2>
           </div>
           <textarea
+            ref={textareaRef}
             className={`${s.textarea} ${s.textareaBare}`}
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -291,6 +302,7 @@ export function EeWritingForm({
           </div>
           <div className={s.editor}>
             <textarea
+              ref={textareaRef}
               className={s.textarea}
               value={text}
               onChange={(e) => setText(e.target.value)}
