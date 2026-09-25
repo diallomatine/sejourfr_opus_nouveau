@@ -33,13 +33,24 @@ cliquent son CTA, découpé par réseau de provenance.
   réécrite dans la même passe. Ne pas réintroduire l'ancienne formule au motif
   qu'elle traîne encore quelque part. **Reste vrai et doit le rester** : aucun
   outil tiers, aucun partage, aucun suivi entre sites, aucune CMP.
-- 🛑 **Ce système est LEGACY depuis le 2026-08-21.** `page_views`,
-  `PageViewService`, `PublicPageViewController`, `AdminPageViewController`,
-  `PageViewEvent` et `PageViewStatsResponse` sont **supprimés** ; la **table
-  reste en base**, plus jamais écrite, plus mappée — c'est de la donnée réelle
-  (~700 hits), même doctrine que `cout_estime_centimes`. Aucune migration
-  destructive, aucun recalcul. Ce qui suit décrit l'état d'avant, conservé pour
-  relire l'historique.
+- 🛑 **Ce système est LEGACY depuis le 2026-08-21** : plus aucun front ne
+  l'appelle depuis cette date. ⚠️ **Correction du 2026-09-25** : ce paragraphe
+  affirmait jusque-là le code « supprimé » le 2026-08-21, ce qui était **faux**
+  — les classes étaient toujours présentes, l'endpoint public
+  `POST /api/public/page-views` toujours ouvert et **sans rate-limit** (relevé
+  par `docs/admin/audit-dashboard-analytics.md` §6.2). Elles ont été
+  **réellement supprimées le 2026-09-25** (chantier « Suivi », lot 1a, arbitrage
+  Q10 « supprimer le code sans appelant, garder les tables ») :
+  `PublicPageViewController`, `AdminPageViewController`, `PageViewService`,
+  `PageViewManager`, `PageViewRepository`, `PageView`, `PageViewEvent`,
+  `PageViewRequest`, `PageViewStatsResponse`, et avec elles le funnel admin
+  par compte `AdminAudienceController` (`GET /api/admin/audience/funnel`),
+  `AudienceFunnelService`, `AudienceFunnelManager`, `AudienceFunnelRepository`,
+  `AudienceFunnelResponse`, `FunnelStage`, ainsi que leurs tests. La **table
+  `page_views` reste en base**, plus jamais écrite, plus mappée — c'est de la
+  donnée réelle (~700 hits), même doctrine que `cout_estime_centimes`. Aucune
+  migration destructive, aucun recalcul. Ce qui suit décrit l'état d'avant,
+  conservé pour relire l'historique.
 - **Deux allowlists** dans `PageViewService` : `EVENTS_BY_PATH` borne à la fois
   les chemins et les événements admis sur chaque écran, `KNOWN_SOURCES` borne
   les provenances (tout le reste devient `autre`). L'endpoint d'écriture étant
@@ -58,6 +69,7 @@ cliquent son CTA, découpé par réseau de provenance.
   `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
+  *(Sans objet depuis le 2026-09-25 : l'endpoint est supprimé, pas limité.)*
 - **Chemins suivis** : `/reussir`, `/diagnostic`, `/plan`, plus `/tarifs` et
   `/paiement` (`VIEW` + `CTA`, 2026-08-19) — ces deux derniers mesurent les
   visiteurs qui regardent les prix **sans jamais créer de compte**, angle mort

@@ -62,11 +62,8 @@ public class RateLimitProperties {
     /**
      * Ingestion d'evenements d'analytics : burst par IP.
      *
-     * <p>Cette route est publique ET ecrit une ligne a chaque appel — a la
-     * difference de {@code /api/public/page-views}, dont la table est un agregat
-     * borne par construction et qui n'a jamais eu de limite (trou connu,
-     * documente). Ici, l'absence de garde-fou laisserait un bot faire enfler
-     * {@code analytics_event} indefiniment.
+     * <p>Cette route est publique ET ecrit une ligne a chaque appel : sans
+     * garde-fou, un bot ferait enfler {@code analytics_event} indefiniment.
      *
      * <p>120 / 10 min : un vrai visiteur emet une poignee d'evenements par page.
      * Il faut vingt pages en dix minutes pour approcher la limite — largement

@@ -57,6 +57,10 @@ l'entrée** — on garde la trace.
   donnée réelle »), pas comme règle applicable. Le bandeau est là pour qu'on ne l'applique pas.
 - **Comment trancher** : rien à trancher — c'est de l'histoire. À déplacer plus bas dans le
   fichier si elle gêne la lecture.
+- ⚠️ **Correction du 2026-09-25** : l'affirmation « supprimés » était **fausse** jusqu'à cette
+  date (classes présentes, `POST /api/public/page-views` ouvert sans rate-limit). Le code a été
+  réellement supprimé le 2026-09-25 (chantier « Suivi », lot 1a) ; la table `page_views`
+  reste. Le paragraphe du journal a été rendu exact.
 
 ## #5 — « ⏳ À gérer plus tard — garde-fou attempts guest (`user IS NULL`) »
 

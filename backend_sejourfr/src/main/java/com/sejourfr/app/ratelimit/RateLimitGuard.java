@@ -111,9 +111,7 @@ public class RateLimitGuard {
      * Ingestion d'un evenement d'analytics : double garde-fou par IP.
      *
      * <p>C'est le seul frein a l'inflation d'{@code analytics_event}, route
-     * publique qui ecrit une ligne par appel. Le trou laisse sur
-     * {@code /api/public/page-views} (table agregee, donc bornee autrement) ne
-     * se reproduit pas ici.
+     * publique qui ecrit une ligne par appel.
      *
      * <p>Volontairement genereux : on coupe la boucle automatisee, on ne gene
      * pas un visiteur qui parcourt le site.

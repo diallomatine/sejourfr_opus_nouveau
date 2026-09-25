@@ -767,32 +767,17 @@ pendant la requête de soumission, puis il disparaît. La transcription est donc
 de transcription rend **503** et rien n'est enregistré : le candidat renvoie. Cf.
 `notation-ia-eo-ee.md` §11 bis.
 
-## Audience des landings
+## Audience des landings — retirée (2026-09-25)
 
-- `POST /api/public/page-views` — public, sans authentification. Corps
-  `{path, source, event}`. Répond **204** (émis en `sendBeacon`, la réponse
-  n'est jamais lue). Le backend vérifie la paire dans
-  `PageViewService.EVENTS_BY_PATH` et normalise `source`
-  (`tiktok|instagram|whatsapp|facebook|youtube|direct`, tout le reste →
-  `autre`) : c'est ce qui borne la table face à un endpoint ouvert.
-- Chemins/événements : `/reussir` accepte `VIEW`, `CTA` et
-  `SOCIAL_LANDING_DIAGNOSTIC_CLICKED`; `/diagnostic` accepte les six étapes
-  `DIAGNOSTIC_*` du parcours, `DIAGNOSTIC_ACCOUNT_REQUIRED` (le visiteur a
-  produit ses deux réponses sans compte et atteint l'écran qui en demande un —
-  la mesure de conversion du parcours invité) et
-  `DIAGNOSTIC_TO_PREMIUM_CLICKED`; `/plan`
-  accepte `PLAN_OPENED`, `PLAN_RECOMMENDED_EXERCISE_STARTED` et le clic Premium.
-- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source, par
-  jour et compte brut par événement (`PageViewStatsResponse.events`).
-- `GET /api/admin/page-views/paths` — pages mesurées, pour le sélecteur admin.
-
-**Aucune donnée personnelle** : ni IP, ni user-agent, ni identifiant de
-visiteur, et rien n'est écrit dans le navigateur. Compte des **vues**, pas des
-visiteurs uniques. Cf. migration V020.
+`POST /api/public/page-views`, `GET /api/admin/page-views`, `GET /api/admin/page-views/paths`
+et `GET /api/admin/audience/funnel` ont été **supprimés** au lot 1a du chantier « Suivi » :
+aucun front ne les appelait plus. La table `page_views` (V020) reste en base, plus jamais
+écrite ni lue. La mesure d'audience passe par `POST /api/public/analytics/events` et
+`POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
 
 ## Admin
 
-- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views,diagnostics}`
+- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},diagnostics}`
 - `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
   — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
   principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire

@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.support.AbstractIntegrationTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -13,6 +14,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -41,7 +43,6 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/public/lots"),
                 Arguments.of(HttpMethod.POST, "/api/public/attempts/demo"),
                 Arguments.of(HttpMethod.GET, "/api/public/attempts/" + RANDOM_ID),
-                Arguments.of(HttpMethod.POST, "/api/public/page-views"),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events"),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events/batch"),
                 Arguments.of(HttpMethod.GET, "/api/public/diagnostics/current"),
@@ -82,6 +83,17 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
         assertTrue(status != 401 && status != 403,
                 () -> "Route publique " + method + " " + path
                         + " ne doit pas renvoyer 401/403 en anonyme (reçu " + status + ")");
+    }
+
+    /**
+     * L'ancien compteur {@code page_views} (public et jamais rate-limité) est
+     * supprimé depuis le 2026-09-25 : la route ne doit pas renaître.
+     */
+    @Test
+    void ancienneRoutePageViewsSupprimee() throws Exception {
+        MvcResult result = mockMvc.perform(build(HttpMethod.POST, "/api/public/page-views"))
+                .andReturn();
+        assertEquals(404, result.getResponse().getStatus());
     }
 
     private MockHttpServletRequestBuilder build(HttpMethod method, String path) {

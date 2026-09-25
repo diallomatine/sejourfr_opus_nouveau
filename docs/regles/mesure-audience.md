@@ -52,9 +52,9 @@ Premium affiché → clic abonnement → paiement*.
   dire. `integrity`, lui, est **global** et n'est jamais filtré par la période.
 - **La provenance et la plateforme voyagent en EN-TÊTES**, résolues serveur par
   `util/ClientContextResolver` (patron `ClientIpResolver`) : `X-Sejourfr-Source`
-  (normalisée par **`util/TrafficSource`**, autorité unique dont
-  `PageViewService` est désormais un client — l'allowlist n'existe plus en deux
-  copies) et `X-Sejourfr-Client` (`web` / `mobile`, enum `ClientPlatform`).
+  (normalisée par **`util/TrafficSource`**, autorité unique — l'ancien
+  `PageViewService`, qui en était client, est supprimé depuis le 2026-09-25) et
+  `X-Sejourfr-Client` (`web` / `mobile`, enum `ClientPlatform`).
   Un en-tête plutôt qu'un champ de DTO : ça couvre d'un coup l'inscription
   locale, les sign-in Google/Apple et la création de diagnostic **sans toucher
   quatre DTO**, et chaque front n'a qu'**un seul point de câblage** (client HTTP
@@ -81,7 +81,12 @@ Premium affiché → clic abonnement → paiement*.
   **uniquement sur un CTA qui engage l'achat**. Un lien de navigation vers
   `/paiement` n'est pas un clic d'abonnement — sinon les deux étapes affichent le
   même nombre.
-- **`GET /api/admin/audience/funnel`** : `stages` (ordre figé `SIGNUP` →
+- ⚠️ **Supprimé le 2026-09-25** (chantier « Suivi », lot 1a) : plus aucun écran
+  ne l'appelait depuis que `features/audience/` a été remplacé. `AdminAudienceController`,
+  `AudienceFunnelService`/`Manager`/`Repository`, `AudienceFunnelResponse` et
+  `FunnelStage` n'existent plus ; `user_funnel_events` et `POST /api/me/funnel-events`
+  restent (écrits, et lus par l'écran Analytics). Description conservée pour l'historique :
+  **`GET /api/admin/audience/funnel`** : `stages` (ordre figé `SIGNUP` →
   `PURCHASE`, jamais réordonné par un front), `bySource`, `byPlatform`, `daily`,
   `integrity`. `PURCHASE` = au moins une `user_subscriptions` de statut
   ≠ `PENDING` (un remboursement a bien été un paiement). **6 requêtes agrégées
@@ -104,7 +109,8 @@ Premium affiché → clic abonnement → paiement*.
   est intact et doit le rester : **aucun cookie, rien écrit sur le terminal,
   aucun outil tiers, aucun bandeau de consentement**. Ne rien ajouter qui écrive
   côté visiteur sans repasser sur cette page.
-- **Admin** : `features/audience/` est scindé en **deux sections étiquetées** —
+- **Admin** *(historique : `features/audience/` a été supprimé le 2026-08-21, cf.
+  section suivante)* : `features/audience/` est scindé en **deux sections étiquetées** —
   « comptage exact · par compte » (le funnel) puis « agrégat anonyme · par
   page » (l'existant). Les lire comme comparables produit des conclusions
   fausses ; l'étiquette est là pour ça. Un **filtre de période unique** en tête
@@ -177,8 +183,9 @@ serveur par `BillingService`, qui n'a pas d'`anonymousId`) — c'est
 
 ### Ingestion — `POST /api/public/analytics/events`
 
-Public, **rate-limité** (`analytics:burst` 120 / 10 min, `analytics:daily` 2000 / j)
-— le trou connu de `/api/public/page-views` ne se reproduit pas. Allowlists fermées :
+Public, **rate-limité** (`analytics:burst` 120 / 10 min, `analytics:daily` 2000 / j).
+L'ancien `POST /api/public/page-views`, public et jamais limité, a été **supprimé le
+2026-09-25** (la table `page_views` reste en base, plus écrite). Allowlists fermées :
 événement, propriétés **par événement**, chemins (`util/AnalyticsPaths`). Hors
 allowlist ⇒ **400 nommé**. Pays et device sont résolus **serveur** (le client les
 falsifierait) ; les UTM trop longues sont **tronquées, pas rejetées** (borne de

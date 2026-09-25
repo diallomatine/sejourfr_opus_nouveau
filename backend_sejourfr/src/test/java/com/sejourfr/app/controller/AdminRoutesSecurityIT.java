@@ -7,6 +7,7 @@ import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -59,15 +60,6 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/conversations"),
                 Arguments.of(HttpMethod.GET, "/api/admin/conversations/unread-count"),
                 Arguments.of(HttpMethod.GET, "/api/admin/dashboard"),
-                Arguments.of(HttpMethod.GET, "/api/admin/page-views"),
-                Arguments.of(HttpMethod.GET, "/api/admin/page-views/paths"),
-                // Funnel d'acquisition par compte (distinct de l'agrégat anonyme).
-                Arguments.of(HttpMethod.GET, "/api/admin/audience/funnel"),
-                Arguments.of(HttpMethod.GET, "/api/admin/audience/funnel?days=7"),
-                Arguments.of(HttpMethod.GET,
-                        "/api/admin/audience/funnel?from=2026-08-18&to=2026-08-18"),
-                Arguments.of(HttpMethod.GET,
-                        "/api/admin/page-views?path=/reussir&from=2026-08-18&to=2026-08-18"),
                 // Ecran Analytics : un seul endpoint de lecture, plus ses reperes.
                 // L8 — le referentiel de notions civiques et son tagging.
                 // Il porte le programme civique : jamais ouvert hors ADMIN.
@@ -160,6 +152,24 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
         assertTrue(status != 401 && status != 403,
                 () -> "ADMIN ne doit pas recevoir 401/403 sur " + method + " " + path
                         + " (reçu " + status + ")");
+    }
+
+    /**
+     * Lectures de l'ancienne route admin {@code /audience} et de l'agrégat
+     * {@code page_views}, supprimées le 2026-09-25 (aucun appelant).
+     */
+    @ParameterizedTest(name = "ADMIN GET {0} -> 404 (route supprimée)")
+    @ValueSource(strings = {
+            "/api/admin/page-views",
+            "/api/admin/page-views/paths",
+            "/api/admin/audience/funnel"})
+    void anciennesRoutesAudienceSupprimees(String path) throws Exception {
+        User admin = testData.admin();
+        MvcResult result = mockMvc.perform(build(HttpMethod.GET, path)
+                        .header(HttpHeaders.AUTHORIZATION, auth.bearer(admin)))
+                .andReturn();
+        assertEquals(404, result.getResponse().getStatus(),
+                () -> "Route supprimée, attendu 404 sur " + path);
     }
 
     private MockHttpServletRequestBuilder build(HttpMethod method, String path) {
