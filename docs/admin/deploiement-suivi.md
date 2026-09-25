@@ -27,6 +27,14 @@ Références : `docs/admin/decisions-suivi.md` (§3 récapitulatif, D1 → D112)
   `checkout.session.async_payment_failed`, `charge.refunded`, `charge.dispute.closed`.
 - [ ] Le Checkout est restreint **dans le code** à la carte (Apple Pay / Google Pay compris,
   D109) : rien à régler, mais Bancontact, iDEAL et Klarna ne sont plus proposés.
+- [ ] **Apple Pay** : dans le Dashboard, *Settings → Payment methods*, vérifier que **Apple Pay**
+  et **Google Pay** sont activés (ils passent par la carte, `payment_method_types = [card]`), et
+  **enregistrer le domaine** `sejourfr.fr` sous *Payment method domains*. ⚠️ Le Checkout actuel
+  est la page **hébergée par Stripe** (`session.getUrl()`, `BillingService.java:376`), servie
+  depuis `checkout.stripe.com` : Stripe y gère lui-même le domaine Apple Pay. L'enregistrement
+  de `sejourfr.fr` ne devient **obligatoire** que si l'on passe un jour au Checkout intégré
+  (`ui_mode=embedded`) ou à Elements ; le faire dès maintenant est sans risque. Contrôle : ouvrir
+  un Checkout depuis Safari sur iPhone et vérifier que le bouton Apple Pay apparaît.
 
 ## 2. Backend
 
