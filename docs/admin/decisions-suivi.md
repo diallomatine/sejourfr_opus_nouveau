@@ -321,6 +321,27 @@ retour (faible / moyenne / forte).
 - Fichiers : `web_sejoufr/app/confidentialite/page.tsx`.
 - Difficulté de retour : faible.
 
+**D18 — Références périmées laissées dans les fichiers des autres lots** · Lot 1a
+- Contexte : des Javadoc citent encore des classes supprimées (`PageViewService`, `AudienceFunnel*`, `/api/public/page-views`) — commentaires seuls, sans effet de compilation.
+- Options : corriger tout de suite ; laisser aux lots propriétaires.
+- Choix : laisser au lot propriétaire, pour éviter les collisions avec le lot 1b (ingestion) et le lot 4 (qui supprime ces fichiers).
+- Fichiers : lot 1b → `PublicAnalyticsController:35-38`, `util/TrafficSource:11`, `util/AnalyticsPaths:17` ; lot 4 → `AdminAnalyticsResponse:19`, `AnalyticsReadRepository:29,202`, `AdminAnalyticsService:46,332`.
+- Difficulté de retour : faible.
+
+**D19 — Tests de garde des routes supprimées** · Lot 1a
+- Contexte : tout changement d'endpoint se verrouille par un test backend.
+- Options : aucun test ; asserter 404.
+- Choix : 404 asserté sur les 4 routes retirées (admin appelées en ADMIN), pour que l'endpoint public sans rate-limit ne puisse pas revenir en silence.
+- Fichiers : `AdminRoutesSecurityIT`, `PublicRoutesSecurityIT`.
+- Difficulté de retour : faible.
+
+**D20 — Doc périmée corrigée par note datée, pas réécrite** · Lot 1a
+- Contexte : la doc affirmait à tort ces classes supprimées le 2026-08-21 ; les fichiers `docs/decisions/` sont des journaux.
+- Options : réécrire / supprimer ; corriger par note datée.
+- Choix : note « Supprimé / Correction du 2026-09-25 », l'historique est conservé. Les `CLAUDE.md` web et mobile, qui décrivaient encore `page-views` et `lib/audience*.ts`, ont été corrigés par l'orchestrateur.
+- Fichiers : `docs/decisions/mesure-audience.md`, `docs/regles/mesure-audience.md`, `docs/decisions/suspects-perimes.md`, `web_sejoufr/CLAUDE.md`, `mobile_sejourfr/CLAUDE.md`.
+- Difficulté de retour : faible.
+
 ---
 
 ## 3. Récapitulatif final

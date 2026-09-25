@@ -36,7 +36,7 @@ lib/
 │   │   ├── api_exception.dart     ApiException typée
 │   │   ├── diagnostic_repository.dart  Reprise/démarrage/polling du diagnostic TCF
 │   │   ├── learning_plan_repository.dart  Plan adaptatif de l'utilisateur
-│   │   ├── audience_repository.dart  Événements agrégés publics (sans donnée perso)
+│   │   ├── analytics_repository.dart Ingestion analytics publique (sans donnée perso)
 │   │   ├── auth_repository.dart
 │   │   ├── themes_repository.dart
 │   │   ├── attempts_repository.dart
@@ -900,10 +900,10 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
 - Les liens profonds protégés conservent leur destination dans `redirect` jusqu'à la connexion,
   y compris lors d'un démarrage à froid tant que `AuthLoading` n'a pas encore résolu le token ;
   `safePostLoginDestination` refuse tout schéma/hôte externe et toute boucle vers l'auth.
-- L'audience agrégée utilise uniquement `POST /api/public/page-views` avec `{path, source:
-  "direct", event}` : `direct` est la seule source backend compatible avec une ouverture native.
-  Aucun identifiant ni contenu de production n'est envoyé et un échec analytics ne bloque jamais
-  le parcours. La route étant publique (`skipAuth`), **le funnel reste mesurable en invité** ;
+- La mesure d'audience passe par `core/api/analytics_repository.dart` (ingestion publique
+  `/api/public/analytics/*`, `skipAuth`) — `POST /api/public/page-views` est **supprimé**
+  (2026-09-25, lot 1a du chantier Suivi). Aucun contenu de production n'est envoyé et un échec
+  analytics ne bloque jamais le parcours. **Le funnel reste mesurable en invité** ;
   `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
   est la mesure de conversion du parcours.
 

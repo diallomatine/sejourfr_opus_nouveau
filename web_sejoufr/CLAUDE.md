@@ -151,7 +151,7 @@ lib/
 │                                 #   caches/invalidation, tokenStorage, ApiException
 ├── diagnostic.ts                 # helpers purs : état dashboard, adaptation exercice,
 │                                 #   route exacte du micro-exercice recommandé
-├── audience-events.ts            # allowlist fermée path × événement, miroir backend
+├── analytics.ts                  # SDK de mesure (remplace audience.ts/audience-events.ts)
 ├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
 │                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
@@ -856,9 +856,9 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   min indicatif) : la carte affichait un chrono global « 89:47 » et le titre
   disait « 90 minutes », deux affirmations **fausses depuis le 2026-08-15** (cf.
   § *Temps des examens blancs TCF*). Ne pas y remettre de décompte global.
-- **Mesure d'audience** : `lib/audience.ts` utilise `sendBeacon` (survit à la
-  navigation), sans cookie ni stockage navigateur. `lib/audience-events.ts`
-  borne strictement les couples chemin/événement autorisés par le backend.
+- **Mesure d'audience** : `lib/analytics.ts` (qui a remplacé `lib/audience.ts` et
+  `lib/audience-events.ts`) utilise `sendBeacon` (survit à la navigation) et borne
+  les couples chemin/événement autorisés par le backend. Règles : `docs/regles/mesure-audience.md`.
   `/reussir` envoie `VIEW` et `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` ; les étapes
   diagnostic et Plan ont leurs événements dédiés, sans réponse ni identifiant.
 - Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
@@ -2525,9 +2525,9 @@ détour par `/inscription`.
   illustratif du bilan, badgé « Exemple — pas votre résultat » et légendé
   « valeurs fictives » : aucun résultat réel n'est calculé avant le compte
   (l'analyse coûte deux appels LLM payés).
-- **Audience** : le funnel reste mesurable en invité (`/api/public/page-views`
-  est public). Nouvel événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
-  `lib/audience-events.ts`, miroir backend) émis à l'affichage de l'écran de
+- **Audience** : le funnel reste mesurable en invité (ingestion analytics
+  publique ; `/api/public/page-views` est supprimé). Événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
+  `lib/analytics.ts`, miroir backend) émis à l'affichage de l'écran de
   compte — c'est LA mesure de conversion du parcours.
 
 ### Progrès — « ce qui a bougé » (T28, 2026-09-10)
