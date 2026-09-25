@@ -80,4 +80,21 @@ class SignupAttributionTest {
             assertThat(user.getSignupContext()).isEqualTo(SignupContext.OUTSIDE_DIAGNOSTIC);
         }
     }
+
+    @Test
+    @DisplayName("Contrôle N2 — inscription native sans provenance : signup_source inconnue (null), le web reste direct")
+    void provenanceInscription() {
+        User natif = new User();
+        SignupAttribution.stamp(natif, new ClientContext(ClientPlatform.IOS, "direct", null, "2.4.1"), null);
+        assertThat(natif.getSignupSource()).isNull();
+
+        User natifDeclare = new User();
+        SignupAttribution.stamp(natifDeclare, new ClientContext(ClientPlatform.ANDROID, "tiktok", null, "2.4.1"),
+                null);
+        assertThat(natifDeclare.getSignupSource()).isEqualTo("tiktok");
+
+        User web = new User();
+        SignupAttribution.stamp(web, RECENT, null);
+        assertThat(web.getSignupSource()).isEqualTo("direct");
+    }
 }

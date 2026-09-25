@@ -41,11 +41,36 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     String GROUPE = " (CASE WHEN src_key IS NULL THEN NULL"
             + " ELSE COALESCE(CAST(:srcMap AS jsonb) ->> lower(src_key), CAST(:fallback AS text)) END) ";
 
+    /**
+     * <b>Source declaree d'un visiteur</b> (controle N2). La source
+     * brute si quelqu'un l'a declaree ; sinon la source normalisee, SAUF pour
+     * l'application native (iOS, Android, « mobile ») : sans provenance declaree,
+     * le serveur y ecrivait le repli {@code direct}, qui n'a jamais ete observe —
+     * c'est une source inconnue ({@code NULL}), comptee sous « Toutes » seulement.
+     * Le web sans provenance, lui, est un vrai acces direct. Ecrite pour le
+     * visiteur {@code v} (constante d'annotation : pas de fonction possible).
+     */
+    String SOURCE_V = " (CASE WHEN v.ft_source_raw IS NOT NULL THEN v.ft_source_raw"
+            + " WHEN v.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE v.ft_source END) ";
+
+    /** {@link #SOURCE_V} pour le visiteur d'inscription {@code vu}. */
+    String SOURCE_VU = " (CASE WHEN vu.ft_source_raw IS NOT NULL THEN vu.ft_source_raw"
+            + " WHEN vu.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE vu.ft_source END) ";
+
+    /** {@link #SOURCE_V} pour le visiteur de la run {@code vr}. */
+    String SOURCE_VR = " (CASE WHEN vr.ft_source_raw IS NOT NULL THEN vr.ft_source_raw"
+            + " WHEN vr.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE vr.ft_source END) ";
+
+    /** Meme regle pour {@code users.signup_source} : un {@code direct} natif est le repli, pas une source. */
+    String SOURCE_INSCRIPTION = " (CASE WHEN u.signup_platform IN ('IOS', 'ANDROID', 'MOBILE')"
+            + " AND u.signup_source = 'direct' THEN NULL ELSE u.signup_source END) ";
+
     /** Visiteur d'inscription ({@code vu}) et plus ancien visiteur lie ({@code vi}) du compte {@code u}. */
     String SOURCE_DU_COMPTE = """
             LEFT JOIN analytics_visitor vu ON vu.anonymous_id = u.signup_anonymous_id
             LEFT JOIN LATERAL (
-                  SELECT COALESCE(v.ft_source_raw, v.ft_source) AS k
+                  SELECT """ + SOURCE_V + """
+             AS k
                     FROM analytics_identity i
                     JOIN analytics_visitor v ON v.anonymous_id = i.anonymous_id
                    WHERE i.user_id = u.id
@@ -54,7 +79,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
             """;
 
     /** Cle de source du compte {@code u}, apres {@link #SOURCE_DU_COMPTE}. */
-    String CLE_SOURCE_DU_COMPTE = " COALESCE(vu.ft_source_raw, vu.ft_source, vi.k, u.signup_source) ";
+    String CLE_SOURCE_DU_COMPTE = " COALESCE(" + SOURCE_VU + ", vi.k, " + SOURCE_INSCRIPTION + ") ";
 
     /**
      * <b>« Soumis » retenu</b> d'une run {@code r} (controle C, V076). TCF : le
@@ -86,7 +111,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                                r.claimed_at, r.claim_kind,
                                COALESCE(CAST(r.user_id AS text), CAST(r.anonymous_id AS text),
                                         CAST(r.id AS text)) AS pk,
-                               COALESCE(vr.ft_source_raw, vr.ft_source, """ + CLE_SOURCE_DU_COMPTE + """
+                               COALESCE(""" + SOURCE_VR + ", " + CLE_SOURCE_DU_COMPTE + """
             ) AS src_key
                           FROM diagnostic_run r
                           LEFT JOIN analytics_visitor vr ON vr.anonymous_id = r.anonymous_id
@@ -110,7 +135,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
         /** {@code CUR} ou {@code PREV}. */
         String getPer();
 
-        /** Groupe de source ; jamais nul (un visiteur a toujours une source). */
+        /** Groupe de source ; {@code null} = source inconnue (natif sans provenance, N2). */
         String getGrp();
 
         long getN();
@@ -134,7 +159,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
             vis AS (
                 SELECT x.per, """ + GROUPE + """
              AS grp
-                  FROM (SELECT ev.per, COALESCE(v.ft_source_raw, v.ft_source) AS src_key
+                  FROM (SELECT ev.per, """ + SOURCE_V + """
+             AS src_key
                           FROM ev
                           JOIN analytics_visitor v ON v.anonymous_id = ev.anonymous_id
                          WHERE :includeInternal

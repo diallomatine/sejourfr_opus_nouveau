@@ -165,6 +165,8 @@ class PublicAnalyticsBatchControllerIT extends AbstractIntegrationTest {
         assertThat(visiteur.getPlatform()).isEqualTo(ClientPlatform.IOS);
         // iOS DECLARE : le type d'appareil ne depend plus du user-agent.
         assertThat(visiteur.getDeviceType()).isEqualTo(AnalyticsDeviceType.IOS);
+        // Controle N2 : l'app sans provenance declaree n'est pas « direct », sa source est inconnue.
+        assertThat(visiteur.getFirstTouchSource()).isNull();
     }
 
     /** Scenario 10 : le meme lot mobile envoye deux fois ne cree aucun doublon. */

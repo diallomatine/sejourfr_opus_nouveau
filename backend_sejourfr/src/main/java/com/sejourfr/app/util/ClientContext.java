@@ -49,6 +49,22 @@ public record ClientContext(ClientPlatform platform, String source, UUID anonymo
                 || (platform == ClientPlatform.WEB && appVersion == null);
     }
 
+    /**
+     * <b>Provenance a persister</b> (controle N2) : la source normalisee, sauf
+     * pour l'application native sans provenance declaree — {@code null},
+     * inconnue. {@link TrafficSource#DIRECT} n'y est qu'un repli : l'app n'a ni
+     * deep link ni install referrer, « direct » n'y a jamais ete observe. Le web
+     * sans provenance, lui, reste un vrai acces direct. Autorite unique, lue par
+     * l'attribution du visiteur et par {@code users.signup_source}.
+     */
+    public String attributedSource() {
+        if (platform != null && platform.isNativeApp()
+                && (source == null || TrafficSource.DIRECT.equals(source))) {
+            return null;
+        }
+        return source;
+    }
+
     /** Contexte d'un appel qui n'a rien declare. */
     public static ClientContext unknown() {
         return new ClientContext(ClientPlatform.UNKNOWN, TrafficSource.DIRECT, null, null);

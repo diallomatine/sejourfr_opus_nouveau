@@ -299,7 +299,9 @@ hisserait en tête un réseau à 1 inscrit / 1 payant), `inconnu` toujours en de
 - **Aucune provenance mobile** : ni deep link, ni install referrer, ni paramètre
   d'URL. La plomberie est prête (un seul point de câblage) mais l'attribution
   mobile restera « inconnu » tant qu'aucune campagne n'ouvrira l'app par un lien.
-  🛑 **Ne pas « réparer » en renvoyant `direct`** — c'était le bug d'avant.
+  🛑 **Ne pas « réparer » en renvoyant `direct`** — c'était le bug d'avant. Le serveur
+  l'écrivait encore par repli jusqu'au contrôle N2 (2026-09-25) : corrigé à l'écriture
+  (`null`) et à la lecture (natif sans source brute = inconnu).
 - **`DIAGNOSTIC_CO_COMPLETED` / `_CE_COMPLETED` ne sont pas émis** : la
   compréhension se joue dans le runner QCM ordinaire, qui ignore pourquoi il
   s'ouvre. Les maillons `co2`/`ce2` valent **`null`, jamais 0** — un zéro se lirait
@@ -433,10 +435,17 @@ Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
   canal pour les achats (Stripe = web, Apple = iOS, Google = Android). `MOBILE`/`UNKNOWN` ne
   sont comptés que sous « Toutes ».
 - **Source** = groupe de `utmSourceGroups` (lecture, réversible) appliqué à la source
-  first-touch **déclarée** (`COALESCE(ft_source_raw, ft_source)`) : visiteur de la run,
+  first-touch **déclarée** (`ft_source_raw`, sinon `ft_source`) : visiteur de la run,
   sinon visiteur d'inscription du compte (`signup_anonymous_id`), sinon son plus ancien
   visiteur lié (`analytics_identity`), sinon `users.signup_source`. Aucune ⇒ inconnue,
   comptée sous « Toutes » seulement (jamais rangée dans « autre »).
+  🛑 **Natif sans provenance = inconnu, jamais `direct`** (contrôle N2, 2026-09-25) : à
+  la lecture, un visiteur `IOS`/`ANDROID`/`MOBILE` sans `ft_source_raw`, et un compte
+  natif dont `signup_source = 'direct'`, n'ont pas de source (`SuiviReadRepository.SOURCE_V*`,
+  `SOURCE_INSCRIPTION`). À l'écriture, `ClientContext.attributedSource()` rend `null` au
+  lieu du repli `direct` pour l'app native sans provenance déclarée
+  (`analytics_visitor.ft_source`/`lt_source`, nullables depuis V076, et
+  `users.signup_source`). Le web sans provenance reste un vrai `direct`.
 - **Interne** : `users.is_internal`, ou identifiant de mesure lié à un compte interne, ou
   `analytics_event.is_internal` ; exclu sauf `includeInternal=true`.
 - **Achats** : `user_subscriptions` datés par `purchased_at`, statut ≠ `PENDING`, remboursés

@@ -146,6 +146,28 @@ class AnalyticsEventNormalizerTest {
     }
 
     @Test
+    @DisplayName("Contrôle N2 — app native sans provenance : source inconnue (null), jamais « direct » ; le web reste direct")
+    void natifSansProvenanceInconnu() {
+        for (ClientPlatform natif : new ClientPlatform[]{ClientPlatform.IOS, ClientPlatform.ANDROID,
+                ClientPlatform.MOBILE}) {
+            ClientContext ctx = new ClientContext(natif, TrafficSource.DIRECT);
+            assertThat(normalizer.attribution(null, ctx, null).source()).as(natif.name()).isNull();
+            assertThat(normalizer.attribution(firstTouch(null, null, null, null), ctx, null).source())
+                    .as(natif.name()).isNull();
+            assertThat(normalizer.attribution(null, ctx, null).sourceRaw()).isNull();
+        }
+        assertThat(normalizer.attribution(null, WEB_DIRECT, null).source()).isEqualTo(TrafficSource.DIRECT);
+        assertThat(normalizer.attribution(null, new ClientContext(ClientPlatform.UNKNOWN, TrafficSource.DIRECT),
+                null).source()).isEqualTo(TrafficSource.DIRECT);
+        // Une provenance DECLAREE par l'app reste la sienne.
+        assertThat(normalizer.attribution(null, new ClientContext(ClientPlatform.IOS, "tiktok"), null).source())
+                .isEqualTo("tiktok");
+        assertThat(normalizer.attribution(firstTouch("IG", null, null, null),
+                new ClientContext(ClientPlatform.ANDROID, TrafficSource.DIRECT), null).source())
+                .isEqualTo(TrafficSource.OTHER);
+    }
+
+    @Test
     @DisplayName("Un bloc d'attribution normalise la provenance et ne garde que l'hôte du referrer")
     void blocAttribution() {
         AnalyticsVisitorManager.Attribution attribution = normalizer.attribution(

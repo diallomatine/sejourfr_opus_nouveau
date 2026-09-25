@@ -42,7 +42,7 @@ public class AnalyticsVisitor {
 
     // --- First touch : fige a la premiere requete, jamais reecrit ------------
 
-    @Column(name = "ft_source", nullable = false, length = 40)
+    @Column(name = "ft_source", length = 40)
     private String firstTouchSource;
 
     @Column(name = "ft_medium", length = 40)
@@ -66,7 +66,7 @@ public class AnalyticsVisitor {
 
     // --- Last touch : reecrit sur source explicite ---------------------------
 
-    @Column(name = "lt_source", nullable = false, length = 40)
+    @Column(name = "lt_source", length = 40)
     private String lastTouchSource;
 
     @Column(name = "lt_medium", length = 40)

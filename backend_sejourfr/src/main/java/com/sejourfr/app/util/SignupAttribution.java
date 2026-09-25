@@ -31,7 +31,7 @@ public final class SignupAttribution {
      */
     public static void stamp(User user, ClientContext client, String declaredAnonymousId) {
         ClientContext ctx = client == null ? ClientContext.unknown() : client;
-        user.setSignupSource(ctx.source());
+        user.setSignupSource(ctx.attributedSource());
         user.setSignupPlatform(ctx.platform());
         user.setSignupAnonymousId(ctx.anonymousIdPreferring(declaredAnonymousId));
     }

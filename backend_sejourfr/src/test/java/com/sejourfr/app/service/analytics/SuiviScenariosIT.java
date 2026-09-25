@@ -511,6 +511,36 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
         assertThat(tous.byType()).extracting(AdminSuiviResponse.TypeRow::submitted).containsExactly(1L, 1L);
     }
 
+    @Test
+    @DisplayName("Contrôle N2 — natif sans provenance : source inconnue (« Toutes » seulement), jamais « direct »")
+    void natifSansProvenanceInconnu() {
+        // Ligne ecrite avant V076 : repli « direct » en ft_source, aucune source brute.
+        UUID natif = visitorNatif("IOS", "direct", paris(D3, 9));
+        event(natif, "LANDING_VIEWED", paris(D3, 9), null, null);
+        UUID runNatif = run("QUICK_TCF", natif, null, "IOS", paris(D3, 9));
+        submit(runNatif, paris(D3, 10), false);
+        // Ligne ecrite depuis V076 : source NULL.
+        UUID natifNeuf = visitorNatif("ANDROID", null, paris(D3, 9));
+        event(natifNeuf, "LANDING_VIEWED", paris(D3, 9), null, null);
+        // Le web sans provenance, lui, est un vrai direct.
+        UUID web = visitor("direct", paris(D3, 9));
+        event(web, "LANDING_VIEWED", paris(D3, 9), null, null);
+        // Inscription native sans provenance, sans visiteur : users.signup_source = direct (repli).
+        data.userCreatedAt("direct", ClientPlatform.IOS, paris(D3, 11));
+
+        AdminSuiviResponse tous = lire(jour(D3), SuiviTypeFilter.ALL);
+        AdminSuiviResponse direct = lireSource(jour(D3), "direct");
+
+        assertThat(tous.kpis().visitors().value()).isEqualTo(3L);
+        assertThat(tous.sources()).filteredOn(r -> r.group().equals("direct"))
+                .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(1L);
+        assertThat(direct.kpis().visitors().value()).isEqualTo(1L);
+        assertThat(step(tous, 1).count()).isEqualTo(1L);
+        assertThat(step(direct, 1).count()).isZero();
+        assertThat(tous.signups().total()).isEqualTo(1L);
+        assertThat(direct.signups().total()).isZero();
+    }
+
     // ------------------------------------------------------------------------
     // Semis
     // ------------------------------------------------------------------------
@@ -535,6 +565,18 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
                                                lt_source, lt_seen_at, device_type, platform)
                 VALUES (?, ?, ?, ?, ?, ?, ?, 'DESKTOP_WEB', 'WEB')""",
                 id, ts(at), ts(at), normalized, declaredSource.toLowerCase(), normalized, ts(at));
+        return id;
+    }
+
+    /** Visiteur de l'app native ; {@code ftSource} tel qu'ecrit (repli « direct » avant V076, NULL depuis). */
+    private UUID visitorNatif(String platform, String ftSource, Instant at) {
+        em.flush();
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO analytics_visitor (anonymous_id, first_seen_at, last_seen_at, ft_source, ft_source_raw,
+                                               lt_source, lt_seen_at, device_type, platform)
+                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)""",
+                id, ts(at), ts(at), ftSource, ftSource, ts(at), platform, platform);
         return id;
     }
 

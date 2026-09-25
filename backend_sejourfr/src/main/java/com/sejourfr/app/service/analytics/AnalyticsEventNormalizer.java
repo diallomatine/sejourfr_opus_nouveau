@@ -164,11 +164,13 @@ public class AnalyticsEventNormalizer {
 
         if (firstTouch == null) {
             return new AnalyticsVisitorManager.Attribution(
-                    ctx.source(), null, null, null, null, path, null, sourceRaw(null, ctx));
+                    ctx.attributedSource(), null, null, null, null, path, null, sourceRaw(null, ctx));
         }
+        // Sans provenance declaree : direct sur le web, INCONNUE (null) pour
+        // l'app native (controle N2, ClientContext.attributedSource).
         String source = firstTouch.source() != null && !firstTouch.source().isBlank()
                 ? TrafficSource.normalize(firstTouch.source())
-                : ctx.source();
+                : ctx.attributedSource();
         String landing = firstTouch.landingPath() == null || firstTouch.landingPath().isBlank()
                 ? path
                 : AnalyticsPaths.isKnown(firstTouch.landingPath())
