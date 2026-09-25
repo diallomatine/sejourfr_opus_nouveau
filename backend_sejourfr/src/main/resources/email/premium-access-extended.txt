@@ -1,0 +1,11 @@
+Votre accès a été prolongé
+
+{{greeting}},
+
+Merci ! Votre pass {{offerName}} a bien été pris en compte. Comme un accès était déjà en cours, les durées se cumulent : vous ne perdez rien.
+
+Votre accès reste désormais ouvert jusqu'au {{accessEndDate}}.
+
+Reprendre mon entraînement : {{appUrl}}
+
+Achat unique, sans abonnement ni renouvellement automatique : rien ne sera prélevé à cette date.

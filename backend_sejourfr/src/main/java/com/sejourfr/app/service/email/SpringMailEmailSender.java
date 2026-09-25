@@ -127,9 +127,10 @@ public class SpringMailEmailSender implements EmailSender {
     }
 
     /** Le rendu complet d'un message : sujet, HTML dans le layout, texte dans le layout. */
-    record Rendered(String subject, String html, String text) {}
+    public record Rendered(String subject, String html, String text) {}
 
-    Rendered render(EmailMessage message) {
+    /** Public pour que les tests verifient qu'aucun gabarit ne laisse de placeholder. */
+    public Rendered render(EmailMessage message) {
         EmailProperties.Template template = templates.resolve(message.type());
         Map<String, String> vars = message.variables();
         String subject = renderer.renderInline(template.getSubject(), vars);

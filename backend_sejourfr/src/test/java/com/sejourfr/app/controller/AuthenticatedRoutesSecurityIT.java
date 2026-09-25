@@ -72,6 +72,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.POST, "/api/me/plan/journey/measurement-cycle"),
                 Arguments.of(HttpMethod.GET, "/api/me/questions/favorites"),
                 Arguments.of(HttpMethod.PUT, "/api/me/exam-date"),
+                Arguments.of(HttpMethod.GET, "/api/me/email-preferences"),
+                Arguments.of(HttpMethod.PATCH, "/api/me/email-preferences"),
                 // TcfDiagnosticController — le diagnostic TCF 4 épreuves
                 Arguments.of(HttpMethod.POST, "/api/tcf-diagnostics"),
                 Arguments.of(HttpMethod.GET, "/api/tcf-diagnostics/current"),

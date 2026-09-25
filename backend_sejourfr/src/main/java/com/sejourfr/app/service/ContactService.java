@@ -2,6 +2,9 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ContactRequest;
 import com.sejourfr.app.dto.ContactResponse;
+import com.sejourfr.app.service.email.EmailErrors;
+import com.sejourfr.app.service.email.EmailSender;
+import com.sejourfr.app.service.email.SupportRelayMessage;
 import com.sejourfr.app.util.LogMask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +24,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ContactService {
 
-    private final MailService mailService;
+    private final EmailSender emailSender;
     private final ConversationService conversationService;
 
     /**
@@ -44,6 +47,19 @@ public class ContactService {
         return "SF-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 
+    private static String relayBody(String name, String email, String subject, String message) {
+        return """
+                Nouveau message via le formulaire de contact SejourFR.
+
+                De      : %s <%s>
+                Sujet   : %s
+
+                --------
+                %s
+                --------
+                """.formatted(name, email, subject, message);
+    }
+
     public ContactResponse submit(ContactRequest req) {
         String ticketId = generateTicketId();
         String name = req.name().trim();
@@ -54,18 +70,24 @@ public class ContactService {
         log.info("Contact form submission from {} : '{}' (ticket {})", LogMask.email(email), subject, ticketId);
 
         // Source de vérité : la demande atterrit dans la boite de réception admin.
-        conversationService.createFromContact(name, email, subject, message);
+        // Sa transaction publie l'accusé de réception (CONTACT_RECEIVED), envoyé
+        // à l'expéditeur APRÈS le commit.
+        conversationService.createFromContact(name, email, subject, message, ticketId);
 
-        // Notification best-effort à l'équipe (la boite admin reste l'autorité,
-        // donc un échec SMTP ici ne doit pas faire échouer la soumission).
+        // Relais vers l'équipe : SYNCHRONE, par le port d'envoi, sans ligne
+        // email_deliveries (le destinataire n'est pas un utilisateur). Le port
+        // remonte l'échec ; il reste avalé ICI comme avant — la boîte admin est
+        // l'autorité, la demande est déjà enregistrée (blocage B-1 de
+        // docs/email/decisions.md : à arbitrer).
         try {
-            mailService.sendContactMessage(sanitizeHeader(name), email, sanitizeHeader(subject), message);
+            emailSender.relayToSupport(new SupportRelayMessage(
+                    email, "[Contact SejourFR] " + sanitizeHeader(subject),
+                    relayBody(sanitizeHeader(name), email, sanitizeHeader(subject), message)));
+            log.info("Contact relaye au support depuis {} (ticket {})", LogMask.email(email), ticketId);
         } catch (RuntimeException e) {
-            log.warn("Contact support notification failed (ticket {}) : {}", ticketId, e.getMessage());
+            log.warn("Contact support notification failed (ticket {}) : {}", ticketId,
+                    EmailErrors.sanitize(e));
         }
-
-        // Best-effort : accusé de réception à l'expéditeur (async).
-        mailService.sendContactReceivedEmail(email, name, subject, message, ticketId);
 
         return new ContactResponse(ticketId);
     }

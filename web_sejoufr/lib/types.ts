@@ -3892,6 +3892,16 @@ export interface AccountDeletionResponse {
     manualActionMessage: string | null;
 }
 
+/** Miroir de `EmailPreferencesResponse` — `GET|PATCH /api/me/email-preferences`.
+ *  Seul `engagementEnabled` est affiché (V1) ; `marketingEnabled` n'a aucun écran. */
+export interface EmailPreferences {
+    engagementEnabled: boolean;
+    marketingEnabled: boolean;
+}
+
+/** Corps du `PATCH /api/me/email-preferences` : un champ absent reste inchangé. */
+export type UpdateEmailPreferencesRequest = Partial<EmailPreferences>;
+
 // ============================================================================
 // EXAMEN BLANC TCF COMPLET (TCF_COMPLET) — orchestration CO → CE → EE → EO
 // Miroirs de FullTcfExamResponse / FullTcfExamSummaryResponse côté Java

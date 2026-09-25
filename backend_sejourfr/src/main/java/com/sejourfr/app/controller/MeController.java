@@ -20,6 +20,9 @@ import com.sejourfr.app.service.MeService;
 import com.sejourfr.app.service.PreparationService;
 import com.sejourfr.app.service.UserDashboardService;
 import com.sejourfr.app.service.UserProfileService;
+import com.sejourfr.app.service.email.EmailPreferenceService;
+import com.sejourfr.app.dto.EmailPreferencesDto;
+import com.sejourfr.app.dto.UpdateEmailPreferencesRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -54,6 +57,7 @@ public class MeController {
     private final UserDashboardService userDashboardService;
     private final PreparationService preparationService;
     private final CurrentUser currentUser;
+    private final EmailPreferenceService emailPreferenceService;
 
     // ------------------------------------------------------------------------
     // Parcours administratif vise (CSP / CR / NAT)
@@ -74,6 +78,21 @@ public class MeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateExamDate(@Valid @RequestBody UpdateExamDateRequest req) {
         meService.updateExamDate(currentUser.getId(), req.examDate());
+    }
+
+    // ------------------------------------------------------------------------
+    // Notifications par e-mail (docs/regles/emails.md). Aucun champ REQUIRED :
+    // les mails de compte, de securite et de paiement ne se desactivent pas.
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/email-preferences")
+    public EmailPreferencesDto emailPreferences() {
+        return emailPreferenceService.get(currentUser.getId());
+    }
+
+    @PatchMapping("/email-preferences")
+    public EmailPreferencesDto updateEmailPreferences(@RequestBody UpdateEmailPreferencesRequest req) {
+        return emailPreferenceService.update(currentUser.getId(), req);
     }
 
     // ------------------------------------------------------------------------

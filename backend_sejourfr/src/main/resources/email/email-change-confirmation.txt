@@ -1,0 +1,9 @@
+Confirmez votre nouvelle adresse
+
+{{greeting}},
+
+Vous avez demandé à associer cette adresse à votre compte SejourFR. Confirmez ce changement en ouvrant le lien ci-dessous. Ce lien est valable {{expiresInMinutes}} minutes.
+
+{{confirmUrl}}
+
+Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : l'adresse de votre compte reste inchangée.

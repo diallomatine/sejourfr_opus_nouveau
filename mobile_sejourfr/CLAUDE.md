@@ -4027,6 +4027,7 @@ Le reste du Profil n'a pas bougé (refonte à venir, décision du propriétaire)
 | `personalInfoIdentity` `…/identity` | `EditIdentityScreen` | `PATCH /api/me/profile` |
 | `personalInfoEmail` `…/email` | `ChangeEmailScreen` | `POST /api/me/change-email-request` |
 | `personalInfoPassword` `…/password` | `ChangePasswordScreen` | `POST /api/me/change-password` |
+| `notifications` `/profile/notifications` | `NotificationsScreen` — un interrupteur « Recevoir les conseils et rappels d'entraînement » | `GET` / `PATCH /api/me/email-preferences` |
 
 - **Briques** : `screens/profile/account_widgets.dart` — `AccountScaffold`
   (`ScreenHeader` + phrase de cadrage), `AccountFormCard`, `AccountField` (libellé,
@@ -4043,6 +4044,15 @@ Le reste du Profil n'a pas bougé (refonte à venir, décision du propriétaire)
 - **Comptes Google / Apple** : nom modifiable ; lignes e-mail / mot de passe sans
   action sur le hub + note en pied ; un lien profond vers leurs écrans n'affiche que
   la note.
+- **Notifications par e-mail** (2026-09-25, miroir de la page web `/profil/notifications`) :
+  ligne du groupe « Mon compte » du Profil sous « Mes informations ». Modèle
+  `core/models/email_preferences.dart`, appels dans `ProfileRepository`, état dans
+  `emailPreferencesProvider` (`AsyncNotifierProvider.autoDispose`, bascule **optimiste**
+  rétablie si le `PATCH` échoue). 🛑 Seul `engagementEnabled` est affiché ;
+  `marketingEnabled` n'a aucun écran. Interrupteur : `AccountSwitch`
+  (`account_widgets.dart`, couleurs `AppColors`) dans `ListRow.right` ; `ListRow.subMaxLines`
+  laisse la précision s'écrire en entier. Libellés : bloc « Notifications par e-mail »
+  de `account_labels.dart`.
 - **Centre d'aide** (`screens/help/`, `AppRoutes.helpCenter`) : **inchangé dans sa
   forme** ; ses textes vivent désormais dans `help_center_labels.dart`, **miroir mot
   pour mot** de `web_sejoufr/lib/aide.ts` (page web `/aide`). Seul texte modifié :

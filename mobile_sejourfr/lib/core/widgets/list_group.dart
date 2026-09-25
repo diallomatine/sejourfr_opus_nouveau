@@ -49,6 +49,7 @@ class ListRow extends StatelessWidget {
     this.badge,
     this.right,
     this.onTap,
+    this.subMaxLines = 1,
   });
 
   final String title;
@@ -59,6 +60,10 @@ class ListRow extends StatelessWidget {
   final Widget? badge;
   final Widget? right;
   final VoidCallback? onTap;
+
+  /// Une précision de préférence s'écrit en entier ; une ligne de navigation
+  /// garde son sous-titre sur une ligne.
+  final int subMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +117,7 @@ class ListRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     sub!,
-                    maxLines: 1,
+                    maxLines: subMaxLines,
                     overflow: TextOverflow.ellipsis,
                     style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
                   ),

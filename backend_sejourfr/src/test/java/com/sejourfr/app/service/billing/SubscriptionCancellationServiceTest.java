@@ -8,7 +8,7 @@ import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sejourfr.app.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ class SubscriptionCancellationServiceTest {
     private SubscriptionService subscriptionService;
     private UserSubscriptionManager userSubscriptionManager;
     private StripeSubscriptionService stripeSubscriptionService;
-    private MailService mailService;
+    private ApplicationEventPublisher mailService;
     private SubscriptionCancellationService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -49,7 +49,7 @@ class SubscriptionCancellationServiceTest {
         subscriptionService = mock(SubscriptionService.class);
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         stripeSubscriptionService = mock(StripeSubscriptionService.class);
-        mailService = mock(MailService.class);
+        mailService = mock(ApplicationEventPublisher.class);
         service = new SubscriptionCancellationService(
                 subscriptionService, userSubscriptionManager, stripeSubscriptionService,
                 new SubscriptionNotificationService(mailService));
@@ -97,8 +97,7 @@ class SubscriptionCancellationServiceTest {
         assertThat(s.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
         assertThat(s.isAutoRenew()).isFalse();
         verify(userSubscriptionManager).save(s);
-        verify(mailService).sendSubscriptionCanceledEmail(
-                "u@sejourfr.fr", "Lea", "Intégral", s.getEndsAt(), "STRIPE");
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test
@@ -113,7 +112,7 @@ class SubscriptionCancellationServiceTest {
         assertThat(s.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(stripeSubscriptionService, never()).cancelAtPeriodEnd(anyString());
         verify(userSubscriptionManager, never()).save(any());
-        verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test

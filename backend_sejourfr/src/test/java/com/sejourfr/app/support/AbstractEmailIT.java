@@ -6,6 +6,8 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EmailDeliveryStatus;
 import com.sejourfr.app.enums.EmailType;
 import com.sejourfr.app.manager.EmailDeliveryManager;
+import com.sejourfr.app.service.email.EmailMessage;
+import com.sejourfr.app.service.email.SpringMailEmailSender;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base des tests d'integration du systeme d'emails.
@@ -39,6 +43,8 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
     protected ThreadPoolTaskExecutor emailExecutor;
 
     private final List<UUID> createdUsers = new ArrayList<>();
+    private final List<String> trackedRecipients = new ArrayList<>();
+    private final List<UUID> trackedPlans = new ArrayList<>();
 
     /** Un compte USER commite, nettoye apres le test. */
     protected User user() {
@@ -52,6 +58,27 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
     protected User track(User user) {
         createdUsers.add(user.getId());
         return user;
+    }
+
+    /**
+     * Un plan cree pour le test, supprime apres ses acheteurs : un plan actif
+     * laisse en base fausserait le controle du catalogue (PlanCatalogueSeedIT).
+     */
+    protected com.sejourfr.app.entity.Plan trackPlan(com.sejourfr.app.entity.Plan plan) {
+        trackedPlans.add(plan.getId());
+        return plan;
+    }
+
+    /** Une adresse sans compte (contact, support) dont les lignes seront nettoyees. */
+    protected String trackRecipient(String email) {
+        trackedRecipients.add(email);
+        return email;
+    }
+
+    protected List<EmailDelivery> rowsTo(String recipient) {
+        return jdbc.query("SELECT id FROM email_deliveries WHERE lower(recipient) = lower(?) ORDER BY created_at",
+                (rs, i) -> rs.getObject(1, UUID.class), recipient).stream()
+                .map(id -> deliveries.findById(id).orElseThrow()).toList();
     }
 
     protected List<EmailDelivery> rows(String key) {
@@ -77,19 +104,48 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
                         && emailExecutor.getThreadPoolExecutor().getQueue().isEmpty());
     }
 
+    @Autowired private SpringMailEmailSender springMailRenderer;
+
+    /**
+     * 🛑 Chaque mail compose par un test d'integration est aussi RENDU par le vrai
+     * provider local : un gabarit qui attend une variable que son composeur ne
+     * fournit pas laisserait un {@code {{placeholder}}} chez le candidat.
+     */
+    private void assertEverySentMailRendersCleanly() {
+        for (EmailMessage m : mails.sent()) {
+            SpringMailEmailSender.Rendered r = springMailRenderer.render(m);
+            assertThat(r.subject() + r.html() + r.text())
+                    .as("gabarit %s rendu sans placeholder", m.type())
+                    .doesNotContain("{{");
+        }
+    }
+
     @AfterEach
     void cleanUpEmails() {
         try {
             awaitEmailExecutorIdle();
+            assertEverySentMailRendersCleanly();
         } finally {
             mails.reset();
             clock.reset();
+            for (String email : trackedRecipients) {
+                jdbc.update("DELETE FROM email_deliveries WHERE lower(recipient) = lower(?)", email);
+                jdbc.update("DELETE FROM messages WHERE conversation_id IN "
+                        + "(SELECT id FROM conversations WHERE lower(contact_email) = lower(?))", email);
+                jdbc.update("DELETE FROM conversations WHERE lower(contact_email) = lower(?)", email);
+            }
+            trackedRecipients.clear();
             for (UUID id : createdUsers) {
                 jdbc.update("DELETE FROM email_deliveries WHERE user_id = ?", id);
                 jdbc.update("DELETE FROM answers WHERE user_id = ?", id);
                 jdbc.update("DELETE FROM users WHERE id = ?", id);
             }
             createdUsers.clear();
+            for (UUID id : trackedPlans) {
+                jdbc.update("DELETE FROM user_subscriptions WHERE plan_id = ?", id);
+                jdbc.update("DELETE FROM plans WHERE id = ?", id);
+            }
+            trackedPlans.clear();
         }
     }
 }

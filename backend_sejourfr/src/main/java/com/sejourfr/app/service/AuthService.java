@@ -15,6 +15,8 @@ import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
 import com.sejourfr.app.util.ClientContext;
 import com.sejourfr.app.service.email.event.AccountCreatedEvent;
+import com.sejourfr.app.service.email.event.PasswordChangedEvent;
+import com.sejourfr.app.service.email.event.PasswordResetRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -52,7 +54,6 @@ public class AuthService {
     private final JwtService jwtService;
     private final SessionService sessionService;
     private final SubscriptionService subscriptionService;
-    private final MailService mailService;
     private final MeService meService;
     private final PasswordEncoder passwordEncoder;
     private final AnalyticsIdentityService analyticsIdentityService;
@@ -188,7 +189,10 @@ public class AuthService {
         token.setExpiresAt(Instant.now().plus(RESET_TOKEN_TTL));
         passwordResetTokenManager.save(token);
 
-        mailService.sendPasswordResetEmail(user.getEmail(), rawToken);
+        // Envoi APRES COMMIT et hors du thread de requete : la reponse ne met plus
+        // plus longtemps a revenir quand le compte existe (oracle temporel S3).
+        eventPublisher.publishEvent(new PasswordResetRequestedEvent(
+                user.getId(), user.getEmail(), token.getId(), rawToken, RESET_TOKEN_TTL.toMinutes()));
     }
 
     /**
@@ -215,6 +219,10 @@ public class AuthService {
         // refresh token volé devient invalide après reset, donc l'attaquant
         // ne peut plus prolonger sa session.
         sessionService.revokeAllForUser(user.getId());
+
+        // Un reset EST un changement de mot de passe (arbitrage n°8).
+        eventPublisher.publishEvent(new PasswordChangedEvent(
+                user.getId(), user.getEmail(), UUID.randomUUID(), Instant.now()));
     }
 
     // ------------------------------------------------------------------------

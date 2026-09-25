@@ -74,42 +74,25 @@ puce de liste doit exister même vide.
   (CANCELED / EXPIRED / REFUNDED). Pour Apple/Google l'admin reçoit le `REDIRECT`
   comme l'user — à charge pour le support de transmettre l'URL au client.
 
-**Emails transactionnels Premium** (`MailService.sendSubscriptionActivatedEmail`
-+ `sendSubscriptionCanceledEmail`) :
-- **Activation** envoyée une fois lors de la première souscription. Triggers :
-  Stripe `handleCheckoutCompleted` quand création neuve ; Apple/Google
-  `activateFromReceipt` quand la ligne `user_subscriptions` n'existait pas
-  encore (les restaurations sur un originalTransactionId connu n'envoient pas).
-- **Premier achat vs prolongation (achat unique)** : `OneTimeAccessService`
-  distingue les deux selon qu'un accès de module ≥ était déjà en cours
-  (`currentEndForAtLeast`). Premier achat → `sendSubscriptionActivatedEmail`
-  (bienvenue) ; prolongation → `sendAccessExtendedEmail` (template
-  `access-extended.html`, wording « durées cumulées, accès ouvert jusqu'au … »).
-- **Résiliation** envoyée sur transition `oldStatus ≠ CANCELED → newStatus = CANCELED`.
-  Triggers : `SubscriptionCancellationService.cancelStripe` (cancel via notre
-  endpoint, le webhook qui arrive après ne renvoie pas car oldStatus est déjà
-  CANCELED) ; webhook Stripe `customer.subscription.updated` (user annule
-  directement dans Stripe), Apple `DID_CHANGE_RENEWAL_STATUS`, Google
-  `subscriptionsv2.get` → SUBSCRIPTION_STATE_CANCELED. Pas de mail sur
-  expiration naturelle ni sur refund/revoke (sémantique différente).
-- **Templates HTML externalisés** dans `backend_sejourfr/src/main/resources/mail/`
-  (`layout.html` + un fragment par email : `access-activated`, `access-expiring`,
-  `subscription-canceled`, `password-reset`, `email-change`), rendus par
-  `MailTemplateRenderer` (placeholders `{{escaped}}` / `{{{raw}}}`). Inline CSS
-  (compat Gmail/Outlook) + preheader, logo en image inline CID depuis
-  `resources/static/mail/logo.png`. **Tous** les emails clients (y compris reset
-  mot de passe + changement d'email) passent par ce layout brandé.
-- **Wording achat unique** : aucun « abonnement » / « renouvellement automatique »
-  côté client. `sendSubscriptionActivatedEmail(..., boolean autoRenew)` —
-  `autoRenew=false` (achat unique : « accès ouvert jusqu'au … ») posé par
-  `OneTimeAccessService` ; `autoRenew=true` (récurrent dormant : « prochain
-  renouvellement… ») posé par les flux Stripe/Apple/Google abonnement.
-  `sendSubscriptionCanceledEmail` n'est déclenché que par ces flux dormants.
-- Envoi **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
-  `sendSubscriptionCanceledEmail`, `@EnableAsync` global) : le SMTP est hors du
-  chemin critique, donc `verify-receipt`/`cancel` répondent sans attendre l'envoi
-  (sinon un SMTP lent/injoignable bloquait la requête ~15-20 s). Un mail raté log
-  warn sans propager (cf. pattern reset password).
+**Emails Premium** — système d'emails, `docs/regles/emails.md` (refonte du 2026-09-25 ;
+l'ancien `MailService` n'existe plus pour eux) :
+- **`PREMIUM_ACCESS_STARTED`** (premier accès) / **`PREMIUM_ACCESS_EXTENDED`** (achat qui
+  **prolonge** un accès de module ≥ en cours, « durées cumulées ») : publiés par
+  `OneTimeAccessService` au moment où l'accès est **accordé** (arbitrage n°20), commun aux
+  trois canaux ; clé `…:{user_subscriptions.id}` ; envoyés **après commit**. `offerName` =
+  `plans.name` (« pass »). Un rejeu du même reçu ne crée ni ligne ni mail.
+- Flux **abonnement récurrent dormants** (Stripe/Apple/Google, via
+  `SubscriptionNotificationService`) : activation = `PREMIUM_ACCESS_STARTED` (wording
+  « renouvelé automatiquement » porté par `accessTerms`), résiliation =
+  `PREMIUM_SUBSCRIPTION_CANCELED` (transition `oldStatus ≠ CANCELED → CANCELED`, triggers
+  inchangés). Pas de mail sur expiration naturelle ni sur refund/revoke.
+- **Fin d'accès** : scénarios ENGAGEMENT `PREMIUM_ENDING_7_DAYS` / `_2_DAYS` / `PREMIUM_ENDED`
+  (passage quotidien), qui remplacent l'ancien `ExpiryReminderJob` ; `expiry_reminded_at` reste
+  en base mais n'est plus écrit. Les abonnements récurrents dormants en sont exclus.
+- **Wording achat unique** : aucun « abonnement » / « renouvellement automatique » côté client,
+  sauf dans les deux mails du mode récurrent dormant.
+- 🛑 Un échec d'envoi ne fait jamais échouer un paiement : l'événement est publié dans la
+  transaction, le mail part après son commit sur l'executor email.
 - `POST /api/billing/webhook` — Stripe (signé HMAC).
 - `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
 - `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.

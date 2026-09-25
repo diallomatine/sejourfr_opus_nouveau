@@ -53,6 +53,37 @@ Code : `backend_sejourfr/src/main/java/com/sejourfr/app/service/email/` (+ `even
 La catégorie, la politique de relance différée et l'exemption de plafond de chaque type sont des
 **règles** : elles vivent dans `enums/EmailType.java`. Clés anti-doublon : `EmailKeys`.
 
+| Type | Cat. | Déclenchement (point de publication) | Clé | Relance différée |
+|---|---|---|---|---|
+| `WELCOME` | REQ | compte créé : `AuthService.register`, branche création de `SocialAuthService` | `WELCOME:{userId}` | 24 h |
+| `PREMIUM_ACCESS_STARTED` | REQ | premier accès accordé : `OneTimeAccessService` ; activation du récurrent dormant | `…:{accessId}` | 24 h |
+| `PREMIUM_ACCESS_EXTENDED` | REQ | achat qui prolonge un accès en cours : `OneTimeAccessService` | `…:{accessId}` | 24 h |
+| `PREMIUM_SUBSCRIPTION_CANCELED` | REQ | résiliation du récurrent **dormant** | `…:{accessId}` | 24 h |
+| `PASSWORD_RESET` | REQ | `AuthService.requestPasswordReset` | `…:{password_reset_tokens.id}` | 🛑 jamais |
+| `PASSWORD_CHANGED` | REQ | `AuthService.resetPassword` **et** `UserProfileService.changePassword` | `…:{UUID de l'événement}` | 24 h |
+| `EMAIL_CHANGE_CONFIRMATION` | REQ | `UserProfileService.requestEmailChange` → **nouvelle** adresse | `…:{email_change_tokens.id}` | 🛑 jamais |
+| `EMAIL_CHANGED` | REQ | `UserProfileService.confirmEmailChange` → **ancienne** adresse (nouvelle masquée) | `…:{email_change_tokens.id}` | 24 h |
+| `CONTACT_RECEIVED` | REQ | `ConversationService.createFromContact` (avec numéro de suivi) | `…:{conversationId}` | jamais (suivi non persisté) |
+| `SUPPORT_REPLY` | REQ | `ConversationService.reply` (conversation de contact) | `…:{messageId}` | 24 h |
+| `DIAGNOSTIC_PLAN_READY` | ENG | premier Plan du module (voir plus bas) | `…:{userId}:{module}` | 24 h |
+| `NO_PREMIUM_AFTER_7_DAYS` | ENG | scénario quotidien | `…:{userId}` | tant qu'éligible |
+| `NO_TRAINING_7_DAYS` | ENG | scénario quotidien | `…:{userId}:{date de dernière activité}` | tant qu'éligible |
+| `PREMIUM_INACTIVE_2_DAYS` | ENG | scénario quotidien | `…:{userId}:{date de référence}` | tant qu'éligible |
+| `PREMIUM_ENDING_7_DAYS` / `_2_DAYS` | ENG | scénario quotidien | `…:{accessId}` | tant qu'éligible |
+| `PREMIUM_ENDED` | ENG | scénario quotidien | `…:{accessId}` | tant qu'éligible |
+
+**Relance différée** (au plus `maxDeferredAttempts` = 3 nouvelles lignes par clé) : les types
+« 24 h » sont repris par la passe de maintenance horaire tant que la PREMIÈRE ligne de la clé a
+moins de 24 h, variables reconstruites depuis la source (`reference_id`, `occurred_at`, et pour
+`EMAIL_CHANGED` l'ancienne adresse lue sur la ligne du journal) ; les scénarios sont repris par
+leur propre réévaluation quotidienne (une clé `FAILED` ne bloque pas). 🛑 `PASSWORD_RESET` et
+`EMAIL_CHANGE_CONFIRMATION` jamais : leur jeton n'est stocké que haché.
+
+**Le relais du formulaire de contact** vers le support n'est pas un mail client : synchrone,
+`EmailSender.relayToSupport`, **aucune ligne de journal**, et son échec remonte à
+`ContactService` — qui garde la demande (la boîte admin fait foi, point en attente d'arbitrage :
+blocage B-1 de `docs/email/decisions.md`).
+
 ## Les règles d'envoi — `EmailService`, dans l'ordre
 
 1. catégorie du type ;
@@ -114,7 +145,11 @@ le système, jusqu'à 9 jours après le dernier acte). Lue par le scheduler, jam
   Jeton invalide / compte inconnu ou supprimé : **même page neutre**, 400.
 - En-têtes `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` et bloc de
   pied « Ne plus recevoir les conseils et rappels d'entraînement » : **ENGAGEMENT uniquement**.
-- Réactivation : page « Notifications par e-mail » des deux fronts.
+- Réactivation : page « Notifications par e-mail » des deux fronts (`/profil/notifications` ⇄
+  `/profile/notifications`), un seul interrupteur en V1 (« Recevoir les conseils et rappels
+  d'entraînement »), `GET/PATCH /api/me/email-preferences`. La préférence MARKETING est prête
+  côté backend (consentement daté) mais n'est affichée nulle part tant qu'aucun mail marketing
+  n'existe.
 
 ## `DIAGNOSTIC_PLAN_READY`
 

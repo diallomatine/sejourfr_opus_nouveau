@@ -10,7 +10,7 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Event;
@@ -50,7 +50,7 @@ class StripeSubscriptionServiceTest {
     private UserManager userManager;
     private PlanManager planManager;
     private UserSubscriptionManager userSubscriptionManager;
-    private MailService mailService;
+    private ApplicationEventPublisher mailService;
     private OneTimeAccessService oneTimeAccessService;
     private BillingProperties billingProperties;
     private StripeSubscriptionService service;
@@ -62,7 +62,7 @@ class StripeSubscriptionServiceTest {
         userManager = mock(UserManager.class);
         planManager = mock(PlanManager.class);
         userSubscriptionManager = mock(UserSubscriptionManager.class);
-        mailService = mock(MailService.class);
+        mailService = mock(ApplicationEventPublisher.class);
         oneTimeAccessService = mock(OneTimeAccessService.class);
         billingProperties = mock(BillingProperties.class);
         service = new StripeSubscriptionService(
@@ -123,7 +123,7 @@ class StripeSubscriptionServiceTest {
         dispatchUpdate("active", false, existing);
         assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         assertThat(existing.isAutoRenew()).isTrue();
-        verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test
@@ -133,8 +133,7 @@ class StripeSubscriptionServiceTest {
         assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
         assertThat(existing.isAutoRenew()).isFalse();
         // Transition ACTIVE → CANCELED → mail de résiliation.
-        verify(mailService).sendSubscriptionCanceledEmail(
-                "u@sejourfr.fr", "Lea", "Civique", null, "STRIPE");
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test
@@ -142,7 +141,7 @@ class StripeSubscriptionServiceTest {
         UserSubscription existing = existingSub(SubscriptionStatus.CANCELED);
         dispatchUpdate("active", true, existing);
         assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
-        verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test
@@ -171,7 +170,7 @@ class StripeSubscriptionServiceTest {
         service.dispatch(eventOf("customer.subscription.updated",
                 subscriptionMock("active", false)));
         verify(userSubscriptionManager, never()).save(any());
-        verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     /**

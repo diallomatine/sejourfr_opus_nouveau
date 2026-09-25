@@ -51,7 +51,6 @@ class AuthServiceTest {
     private JwtService jwtService;
     private SessionService sessionService;
     private SubscriptionService subscriptionService;
-    private MailService mailService;
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private MeService meService;
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -65,13 +64,12 @@ class AuthServiceTest {
         jwtService = mock(JwtService.class);
         sessionService = mock(SessionService.class);
         subscriptionService = mock(SubscriptionService.class);
-        mailService = mock(MailService.class);
         eventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
         meService = mock(MeService.class);
         passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
 
         service = new AuthService(authenticationManager, userManager, passwordResetTokenManager,
-                jwtService, sessionService, subscriptionService, mailService, meService,
+                jwtService, sessionService, subscriptionService, meService,
                 passwordEncoder,
                 mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class),
                 eventPublisher);
@@ -141,7 +139,6 @@ class AuthServiceTest {
         assertThat(event.getValue()).isInstanceOfSatisfying(
                 com.sejourfr.app.service.email.event.AccountCreatedEvent.class,
                 e -> assertThat(e.email()).isEqualTo("user@test.fr"));
-        verify(mailService, never()).sendPasswordResetEmail(any(), any());
     }
 
     // -------------------------------------------------- register + démarche visée
@@ -315,7 +312,7 @@ class AuthServiceTest {
         service.requestPasswordReset("Ghost@Test.fr");
 
         verify(passwordResetTokenManager, never()).save(any());
-        verify(mailService, never()).sendPasswordResetEmail(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -327,7 +324,12 @@ class AuthServiceTest {
 
         verify(passwordResetTokenManager).invalidateAllForUser(eq(u.getId()), any());
         verify(passwordResetTokenManager).save(any(PasswordResetToken.class));
-        verify(mailService).sendPasswordResetEmail(eq("reset@test.fr"), any());
+        // Le mail part APRES COMMIT : l'evenement porte l'id de la demande (cle
+        // PASSWORD_RESET:{id}) et la duree de vie du jeton, lue sur RESET_TOKEN_TTL.
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e ->
+                e instanceof com.sejourfr.app.service.email.event.PasswordResetRequestedEvent r
+                        && r.email().equals("reset@test.fr") && r.expiresInMinutes() == 60
+                        && r.rawToken() != null && !r.toString().contains(r.rawToken())));
     }
 
     @Test
@@ -365,6 +367,10 @@ class AuthServiceTest {
         assertThat(token.getUsedAt()).isNotNull();
         verify(userManager).save(u);
         verify(sessionService).revokeAllForUser(u.getId());
+        // Un reset EST un changement de mot de passe (arbitrage n°8).
+        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e ->
+                e instanceof com.sejourfr.app.service.email.event.PasswordChangedEvent c && c.email().equals("u@test.fr")
+                        && c.eventId() != null && c.changedAt() != null));
     }
 
     // ------------------------------------------------------------------ refresh / logout

@@ -19,6 +19,7 @@ import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../favoris/favoris_labels.dart';
+import 'account_labels.dart';
 
 /// Statut d'abonnement pour la carte « Mon pass » du profil.
 ///
@@ -147,6 +148,12 @@ class ProfileScreen extends ConsumerWidget {
                         title: 'Mes informations',
                         sub: user.email,
                         onTap: () => context.push(AppRoutes.personalInfo),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.bell,
+                        title: kCompteNotifRowTitle,
+                        sub: kCompteNotifRowSub,
+                        onTap: () => context.push(AppRoutes.notifications),
                       ),
                       // « Ma progression » ouvre l'écran de progression
                       // GLOBAL TCF (D16, 2026-09-24), comme le web ; le global

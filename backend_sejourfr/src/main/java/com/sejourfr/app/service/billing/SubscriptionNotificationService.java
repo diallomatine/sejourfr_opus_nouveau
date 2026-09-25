@@ -2,35 +2,37 @@ package com.sejourfr.app.service.billing;
 
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
-import com.sejourfr.app.service.MailService;
+import com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent;
+import com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
- * Envoi des emails transactionnels Premium (activation / résiliation) à partir
- * d'une {@link UserSubscription}. Mutualise la logique qui était dupliquée à
- * l'identique dans les trois canaux de paiement (Stripe / Apple / Google) —
- * un seul endroit pour le wording et les déclencheurs.
+ * Emails Premium des flux ABONNEMENT RECURRENT (dormants, conserves pour la
+ * reversibilite) : activation et resiliation. Mutualise pour Stripe / Apple /
+ * Google.
+ *
+ * <p>Ne fait que PUBLIER un evenement : le mail part apres le commit de la
+ * transaction appelante (tous les appelants sont transactionnels —
+ * {@code BillingService.handleWebhook}, les {@code @Transactional} des services
+ * Apple / Google, {@code SubscriptionCancellationService}).
  */
 @Service
 @RequiredArgsConstructor
 public class SubscriptionNotificationService {
 
-    private final MailService mailService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void sendActivation(UserSubscription sub) {
         User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionActivatedEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.isAutoRenew());
+        eventPublisher.publishEvent(new PremiumAccessGrantedEvent(
+                user.getId(), user.getEmail(), sub.getId(), false));
     }
 
     public void sendCancellation(UserSubscription sub) {
         User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionCanceledEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.getSource().name());
+        eventPublisher.publishEvent(new PremiumSubscriptionCanceledEvent(
+                user.getId(), user.getEmail(), sub.getId()));
     }
 }

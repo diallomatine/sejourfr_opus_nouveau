@@ -7,9 +7,10 @@ import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent;
 import com.sejourfr.app.util.LogMask;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -47,7 +48,7 @@ public class OneTimeAccessService {
     private final UserManager userManager;
     private final UserSubscriptionManager userSubscriptionManager;
     private final SubscriptionService subscriptionService;
-    private final MailService mailService;
+    private final ApplicationEventPublisher eventPublisher;
     private final MontantEncaisseResolver montantEncaisseResolver;
 
     /**
@@ -148,15 +149,12 @@ public class OneTimeAccessService {
         log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",
                 userId, plan.getCode(), source, endsAt, base);
 
-        // Premier achat → email de bienvenue ; prolongation d'un accès en cours
-        // → email « accès prolongé » (wording différent : on rassure sur le cumul).
-        if (extension) {
-            mailService.sendAccessExtendedEmail(
-                    user.getEmail(), user.getFirstName(), plan.getName(), endsAt);
-        } else {
-            mailService.sendSubscriptionActivatedEmail(
-                    user.getEmail(), user.getFirstName(), plan.getName(), endsAt, false);
-        }
+        // Premier achat → PREMIUM_ACCESS_STARTED ; prolongation d'un accès en cours
+        // → PREMIUM_ACCESS_EXTENDED (arbitrage n°4). Publié ICI, au moment où
+        // l'accès est effectivement accordé (arbitrage n°20), et envoyé APRÈS le
+        // commit : un rollback de l'octroi n'envoie rien.
+        eventPublisher.publishEvent(new PremiumAccessGrantedEvent(
+                user.getId(), user.getEmail(), sub.getId(), extension));
 
         return sub;
     }

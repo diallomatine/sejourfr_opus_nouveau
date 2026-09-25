@@ -1,0 +1,9 @@
+L'adresse de votre compte a changé
+
+{{greeting}},
+
+L'adresse email de votre compte SejourFR a été remplacée par {{newEmailMasked}} le {{changedAt}}. Cette adresse-ci ne recevra plus les emails du compte.
+
+Si vous n'êtes pas à l'origine de ce changement, contactez-nous sans attendre : {{supportUrl}}
+
+Si c'est bien vous, vous n'avez rien à faire.

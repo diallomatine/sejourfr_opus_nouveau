@@ -39,7 +39,7 @@ class UserProfileServiceTest {
     private UserManager userManager;
     private EmailChangeTokenManager emailChangeTokenManager;
     private PasswordEncoder passwordEncoder;
-    private MailService mailService;
+    private org.springframework.context.ApplicationEventPublisher mailService;
     private MailTemplateRenderer templateRenderer;
     private SessionService sessionService;
     private UserProfileService service;
@@ -49,7 +49,7 @@ class UserProfileServiceTest {
         userManager = mock(UserManager.class);
         emailChangeTokenManager = mock(EmailChangeTokenManager.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        mailService = mock(MailService.class);
+        mailService = mock(org.springframework.context.ApplicationEventPublisher.class);
         templateRenderer = mock(MailTemplateRenderer.class);
         sessionService = mock(SessionService.class);
         service = new UserProfileService(userManager, emailChangeTokenManager, passwordEncoder,
@@ -139,6 +139,8 @@ class UserProfileServiceTest {
         assertThat(u.getPasswordHash()).isEqualTo("newHash");
         verify(userManager).save(u);
         verify(sessionService).revokeAllForUser(u.getId());
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e ->
+                e instanceof com.sejourfr.app.service.email.event.PasswordChangedEvent c && c.userId().equals(u.getId())));
     }
 
     // ------------------------------------------------------------------ requestEmailChange
@@ -206,7 +208,8 @@ class UserProfileServiceTest {
                 org.mockito.ArgumentCaptor.forClass(EmailChangeToken.class);
         verify(emailChangeTokenManager).save(captor.capture());
         assertThat(captor.getValue().getNewEmail()).isEqualTo("new@test.fr");
-        verify(mailService).sendEmailChangeConfirmation(eq("new@test.fr"), any());
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e ->
+                e instanceof com.sejourfr.app.service.email.event.EmailChangeRequestedEvent r && r.newEmail().equals("new@test.fr")));
     }
 
     // ------------------------------------------------------------------ confirmEmailChange
@@ -264,6 +267,10 @@ class UserProfileServiceTest {
 
         assertThat(result).isEqualTo("new@test.fr");
         assertThat(u.getEmail()).isEqualTo("new@test.fr");
+        // L'ANCIENNE adresse est prevenue (arbitrage n°10).
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e ->
+                e instanceof com.sejourfr.app.service.email.event.EmailChangedEvent c && c.newEmail().equals("new@test.fr")
+                        && !c.oldEmail().equals("new@test.fr")));
         assertThat(token.getUsedAt()).isNotNull();
         verify(userManager).save(u);
         verify(sessionService).revokeAllForUser(u.getId());
@@ -271,14 +278,14 @@ class UserProfileServiceTest {
 
     @Test
     void renderEmailChangeConfirmationPage_delegatesToRenderer() {
-        when(templateRenderer.render(eq("mail/email-change-confirmed.html"), any())).thenReturn("<html/>");
+        when(templateRenderer.render(eq("email/pages/email-change-confirmed.html"), any())).thenReturn("<html/>");
 
         String html = service.renderEmailChangeConfirmationPage(true, "ok");
 
         assertThat(html).isEqualTo("<html/>");
         org.mockito.ArgumentCaptor<Map<String, String>> captor =
                 org.mockito.ArgumentCaptor.forClass(Map.class);
-        verify(templateRenderer).render(eq("mail/email-change-confirmed.html"), captor.capture());
+        verify(templateRenderer).render(eq("email/pages/email-change-confirmed.html"), captor.capture());
         assertThat(captor.getValue()).containsEntry("message", "ok");
     }
 }

@@ -1,7 +1,8 @@
 import '../../core/models/enums.dart';
 
 /// Les écrans du compte : « Mes informations » et ses trois écrans d'édition
-/// (nom et prénom, adresse e-mail, mot de passe).
+/// (nom et prénom, adresse e-mail, mot de passe), et « Notifications par
+/// e-mail ».
 ///
 /// 🛑 **Miroir mot pour mot** de `web_sejoufr/lib/compte.ts` : libellés,
 /// messages de validation et règles de saisie. Un texte qui bouge ici bouge
@@ -101,6 +102,24 @@ const String kComptePasswordSuccessBody =
 const String kComptePasswordFailed = 'La modification a échoué. Réessayez.';
 const String kComptePasswordShow = 'Afficher le mot de passe';
 const String kComptePasswordHide = 'Masquer le mot de passe';
+
+// ── Notifications par e-mail ────────────────────────────────────────────
+const String kCompteNotifRowTitle = 'Notifications par e-mail';
+const String kCompteNotifRowSub = "Conseils et rappels d'entraînement";
+const String kCompteNotifTitle = 'Notifications par e-mail';
+const String kCompteNotifLead =
+    'Choisissez les e-mails que SejourFR peut vous envoyer pour vous accompagner.';
+const String kCompteNotifEngagementLabel =
+    "Recevoir les conseils et rappels d'entraînement";
+const String kCompteNotifEngagementSub =
+    "Votre plan prêt après un diagnostic, un rappel quand vous n'avez pas pratiqué depuis quelques jours, la fin prochaine de votre accès.";
+const String kCompteNotifFootnote =
+    'Les emails indispensables liés à votre compte, votre sécurité ou vos paiements continueront à être envoyés.';
+const String kCompteNotifLoadFailed =
+    'Impossible de charger vos préférences. Réessayez.';
+const String kCompteNotifSaveFailed =
+    "Votre choix n'a pas pu être enregistré. Réessayez.";
+const String kCompteNotifSaved = 'Préférence enregistrée.';
 
 // ── Commun ──────────────────────────────────────────────────────────────
 const String kCompteBackToInfo = 'Retour à mes informations';

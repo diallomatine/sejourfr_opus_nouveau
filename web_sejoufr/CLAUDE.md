@@ -713,6 +713,29 @@ nouveau** : `accountApi` (`lib/api.ts`).
   masqué à l'œil : la barre du haut (`AppTopBar`) porte le même titre. Un
   visiteur (centre d'aide) le garde.
 
+## « Notifications par e-mail » (`/profil/notifications`, 2026-09-25)
+
+Arbitrage n°13 du propriétaire : une page dédiée de « Mon compte », miroir de
+`NotificationsScreen` mobile. Ligne « Notifications par e-mail » du Profil entre
+« Mes informations » et « Mes favoris » (`COMPTE_NOTIFICATIONS_HREF`).
+
+- **Endpoint** : `GET|PATCH /api/me/email-preferences` via `accountApi.getEmailPreferences`
+  / `updateEmailPreferences` ; DTO `EmailPreferences { engagementEnabled, marketingEnabled }`
+  (`lib/types.ts`), `PATCH` partiel (champ absent = inchangé).
+- 🛑 **Un seul interrupteur en V1** : `engagementEnabled` (e-mails d'accompagnement).
+  `marketingEnabled` est dans le miroir mais **jamais affiché**.
+- **Vue** `app/_components/compte/NotificationsView.tsx` ; brique **`CompteToggleRow`**
+  (`CompteParts.tsx`) : `<button role="switch" aria-checked>` nommé par le titre de la
+  ligne, figé (`busy`) pendant l'envoi. Miroir mobile : `ListRow` + `AccountSwitch`.
+- **États** : chargement (`CompteLoading`) ou alerte d'échec ; bascule **optimiste**,
+  rétablie + alerte rouge si le `PATCH` échoue, alerte verte brève sinon ; note fixe
+  en pied (les e-mails de compte/sécurité/paiement restent envoyés).
+- **Libellés** : bloc « Notifications par e-mail » de `lib/compte.ts`, mot pour mot
+  avec `account_labels.dart`. Titre de barre : `lib/app-bar.ts`.
+- `/confidentialite` (articles 4 et 5) décrit ces e-mails : compte (non désactivables),
+  accompagnement (intérêt légitime, désactivables, ≤ 1/jour), aucun e-mail commercial
+  sans consentement, journal d'envoi conservé 12 mois.
+
 ## Le centre d'aide (`/aide`, 2026-09-24)
 
 Miroir de `HelpCenterScreen` mobile : accroche « Une question ? », « Ressources »

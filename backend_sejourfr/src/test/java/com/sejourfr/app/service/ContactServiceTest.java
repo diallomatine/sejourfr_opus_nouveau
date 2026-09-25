@@ -2,6 +2,9 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ContactRequest;
 import com.sejourfr.app.dto.ContactResponse;
+import com.sejourfr.app.service.email.EmailSendException;
+import com.sejourfr.app.service.email.EmailSender;
+import com.sejourfr.app.service.email.SupportRelayMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -11,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -20,7 +22,7 @@ import static org.mockito.Mockito.verify;
 class ContactServiceTest {
 
     @Mock
-    private MailService mailService;
+    private EmailSender emailSender;
     @Mock
     private ConversationService conversationService;
 
@@ -28,17 +30,20 @@ class ContactServiceTest {
     private ContactService service;
 
     @Test
-    void submitCreatesConversationTrimsAndLowercasesEmailAndReturnsTicket() {
+    void submitCreatesConversationWithTicketAndRelaysToSupport() {
         ContactResponse res = service.submit(new ContactRequest(
                 "  Alice  ", "  Alice@EXAMPLE.com ", "  Sujet  ", "  Mon message  "));
 
         assertThat(res.ticketId()).startsWith("SF-");
-
+        // La conversation porte le numero de suivi : c'est sa transaction qui
+        // publie l'accuse de reception (CONTACT_RECEIVED), envoye apres commit.
         verify(conversationService).createFromContact(
-                eq("Alice"), eq("alice@example.com"), eq("Sujet"), eq("Mon message"));
-        verify(mailService).sendContactMessage(eq("Alice"), eq("alice@example.com"), eq("Sujet"), eq("Mon message"));
-        verify(mailService).sendContactReceivedEmail(
-                eq("alice@example.com"), eq("Alice"), eq("Sujet"), eq("Mon message"), anyString());
+                eq("Alice"), eq("alice@example.com"), eq("Sujet"), eq("Mon message"), eq(res.ticketId()));
+        ArgumentCaptor<SupportRelayMessage> relay = ArgumentCaptor.forClass(SupportRelayMessage.class);
+        verify(emailSender).relayToSupport(relay.capture());
+        assertThat(relay.getValue().replyTo()).isEqualTo("alice@example.com");
+        assertThat(relay.getValue().subject()).isEqualTo("[Contact SejourFR] Sujet");
+        assertThat(relay.getValue().textBody()).contains("Alice <alice@example.com>").contains("Mon message");
     }
 
     @Test
@@ -46,25 +51,24 @@ class ContactServiceTest {
         service.submit(new ContactRequest(
                 "Bob\r\nBcc: victim@x.com", "bob@example.com", "Sujet\r\nBcc: x", "Corps libre"));
 
-        ArgumentCaptor<String> name = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> subject = ArgumentCaptor.forClass(String.class);
-        verify(mailService).sendContactMessage(name.capture(), eq("bob@example.com"), subject.capture(), eq("Corps libre"));
-
-        assertThat(name.getValue()).doesNotContain("\r", "\n");
-        assertThat(subject.getValue()).doesNotContain("\r", "\n");
+        ArgumentCaptor<SupportRelayMessage> relay = ArgumentCaptor.forClass(SupportRelayMessage.class);
+        verify(emailSender).relayToSupport(relay.capture());
+        assertThat(relay.getValue().subject()).doesNotContain("\r", "\n");
+        assertThat(relay.getValue().textBody().lines().filter(l -> l.startsWith("De ")).findFirst().orElseThrow())
+                .doesNotContain("\r");
     }
 
     @Test
     void submitSucceedsEvenWhenSupportRelayFails() {
-        doThrow(new RuntimeException("smtp down"))
-                .when(mailService).sendContactMessage(anyString(), anyString(), anyString(), anyString());
+        doThrow(new EmailSendException("smtp down")).when(emailSender).relayToSupport(any());
 
         ContactResponse res = service.submit(new ContactRequest(
                 "Carol", "carol@example.com", "Sujet", "Message"));
 
+        // La demande est deja dans la boite admin (l'autorite) : le candidat ne
+        // doit pas la renvoyer. L'accuse de reception part quand meme.
         assertThat(res.ticketId()).startsWith("SF-");
-        // L'accusé de réception part malgré l'échec du relai support.
-        verify(mailService).sendContactReceivedEmail(
-                eq("carol@example.com"), any(), any(), any(), anyString());
+        verify(conversationService).createFromContact(
+                eq("Carol"), eq("carol@example.com"), eq("Sujet"), eq("Message"), eq(res.ticketId()));
     }
 }

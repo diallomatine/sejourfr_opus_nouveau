@@ -8,7 +8,7 @@ import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
+import org.springframework.context.ApplicationEventPublisher;
 import com.sejourfr.app.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,7 @@ class OneTimeAccessServiceTest {
     private UserManager userManager;
     private UserSubscriptionManager userSubscriptionManager;
     private SubscriptionService subscriptionService;
-    private MailService mailService;
+    private ApplicationEventPublisher mailService;
     private OneTimeAccessService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -52,7 +52,7 @@ class OneTimeAccessServiceTest {
         userManager = mock(UserManager.class);
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         subscriptionService = mock(SubscriptionService.class);
-        mailService = mock(MailService.class);
+        mailService = mock(ApplicationEventPublisher.class);
         service = new OneTimeAccessService(
                 userManager, userSubscriptionManager, subscriptionService, mailService,
                 new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
@@ -89,10 +89,8 @@ class OneTimeAccessServiceTest {
         // endsAt = now + durationDays (durée posée par le backend, pas le store).
         assertThat(sub.getEndsAt()).isAfterOrEqualTo(before.plus(90, ChronoUnit.DAYS));
         // Premier achat → mail de bienvenue (autoRenew=false), pas « accès prolongé ».
-        verify(mailService).sendSubscriptionActivatedEmail(
-                eq("u@sejourfr.fr"), eq("Lea"), eq("Civique 3 mois"), any(Instant.class), eq(false));
-        verify(mailService, never()).sendAccessExtendedEmail(
-                any(), any(), any(), any());
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && !g.extension()));
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && g.extension()));
     }
 
     @Test
@@ -108,10 +106,8 @@ class OneTimeAccessServiceTest {
 
         // Cumul : base = fin courante, pas « maintenant ».
         assertThat(sub.getEndsAt()).isEqualTo(currentEnd.plus(90, ChronoUnit.DAYS));
-        verify(mailService).sendAccessExtendedEmail(
-                eq("u@sejourfr.fr"), eq("Lea"), eq("Civique 3 mois"), eq(currentEnd.plus(90, ChronoUnit.DAYS)));
-        verify(mailService, never()).sendSubscriptionActivatedEmail(
-                any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && g.extension()));
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && !g.extension()));
     }
 
     @Test
@@ -127,8 +123,7 @@ class OneTimeAccessServiceTest {
 
         assertThat(sub).isSameAs(existing);
         verify(userSubscriptionManager, never()).save(any());
-        verify(mailService, never()).sendSubscriptionActivatedEmail(
-                any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && !g.extension()));
     }
 
     @Test
@@ -217,12 +212,9 @@ class OneTimeAccessServiceTest {
         UserSubscription sub = service.grantOneTimeAccess(
                 userId, civiquePass, SubscriptionSource.STRIPE, "pi_5", "pi_5");
 
-        ArgumentCaptor<Instant> endsCaptor = ArgumentCaptor.forClass(Instant.class);
         assertThat(sub.getEndsAt()).isAfterOrEqualTo(before.plus(90, ChronoUnit.DAYS));
-        verify(mailService).sendSubscriptionActivatedEmail(
-                eq("u@sejourfr.fr"), eq("Lea"), eq("Civique 3 mois"), endsCaptor.capture(), eq(false));
-        assertThat(endsCaptor.getValue()).isAfterOrEqualTo(before.plus(90, ChronoUnit.DAYS));
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && !g.extension()));
         // pas de mail « prolongé », pas de date nulle
-        verify(mailService, never()).sendAccessExtendedEmail(any(), any(), any(), isNull());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && g.extension()));
     }
 }

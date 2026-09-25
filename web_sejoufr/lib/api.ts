@@ -610,6 +610,23 @@ export const accountApi = {
             auth: true,
         });
     },
+
+    /** Préférences d'e-mails. `GET /api/me/email-preferences`. */
+    getEmailPreferences(): Promise<import("./types").EmailPreferences> {
+        return apiFetch<import("./types").EmailPreferences>("/api/me/email-preferences", {auth: true});
+    },
+
+    /** Met à jour les préférences d'e-mails (champ absent = inchangé).
+     *  `PATCH /api/me/email-preferences`. */
+    updateEmailPreferences(
+        patch: import("./types").UpdateEmailPreferencesRequest,
+    ): Promise<import("./types").EmailPreferences> {
+        return apiFetch<import("./types").EmailPreferences>("/api/me/email-preferences", {
+            method: "PATCH",
+            json: patch,
+            auth: true,
+        });
+    },
 };
 
 // ============================================================================

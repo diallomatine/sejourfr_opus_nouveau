@@ -83,6 +83,14 @@ Cf. `exams-tcf.md`.
 
 ## Me / utilisateur
 
+- `GET /api/me/email-preferences` → `{ "engagementEnabled": true, "marketingEnabled": false }`
+  (valeurs par défaut quand le compte n'a jamais rien changé — aucune ligne n'est écrite à la
+  lecture). `PATCH /api/me/email-preferences` `{ "engagementEnabled"?: bool,
+  "marketingEnabled"?: bool }` → 200 et le même DTO ; un champ absent ne change rien ; passer
+  `marketingEnabled` à `true` date le consentement (`marketing_consent_at`, conservé ensuite).
+  🛑 Aucun champ ne concerne les mails REQUIRED. Miroirs : `web_sejoufr/lib/types.ts`
+  (`EmailPreferences`) ⇄ `mobile_sejourfr/lib/core/models/email_preferences.dart` ; pages
+  « Notifications par e-mail » (`/profil/notifications` ⇄ `/profile/notifications`). Admin : aucun.
 - `PUT /api/me/exam-date` — `{ "examDate": "2026-10-18" | null }` → 204. Jour de
   l'examen déclaré par le candidat (V047). **Route séparée de `/api/me/target-path`**,
   et elle doit le rester : loger la date dans la mise à jour de la démarche

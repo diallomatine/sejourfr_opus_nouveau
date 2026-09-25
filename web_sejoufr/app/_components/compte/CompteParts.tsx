@@ -182,6 +182,57 @@ export function CompteRow({
   return <div className={className}>{content}</div>;
 }
 
+/**
+ * Une ligne à interrupteur : titre, précision, et un `role="switch"` nommé
+ * par ce titre. `busy` fige l'interrupteur pendant l'enregistrement.
+ * Miroir mobile : `ListRow` avec `AccountSwitch` à droite.
+ */
+export function CompteToggleRow({
+  id,
+  icon,
+  tone,
+  title,
+  sub,
+  checked,
+  busy,
+  onChange,
+}: {
+  id: string;
+  icon?: ReactNode;
+  tone?: CompteTone;
+  title: string;
+  sub?: string;
+  checked: boolean;
+  busy?: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  const titleId = `${id}-title`;
+  const subId = sub ? `${id}-sub` : undefined;
+  return (
+    <div className={s.row}>
+      {icon ? <CompteIcon tone={tone}>{icon}</CompteIcon> : null}
+      <span className={s.rowMain}>
+        <span id={titleId} className={s.rowTitle}>{title}</span>
+        {sub ? <span id={subId} className={s.rowSub}>{sub}</span> : null}
+      </span>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-labelledby={titleId}
+        aria-describedby={subId}
+        aria-busy={busy || undefined}
+        disabled={busy}
+        className={cx(s.switch, checked && s.switchOn)}
+        onClick={() => onChange(!checked)}
+      >
+        <span className={s.switchKnob} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 // ── Formulaires ─────────────────────────────────────────────────────────
 export function CompteForm({
   onSubmit,

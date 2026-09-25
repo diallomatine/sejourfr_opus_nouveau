@@ -14,7 +14,10 @@ import com.sejourfr.app.manager.MessageManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.MessageMapper;
 import com.sejourfr.app.specification.ConversationSpecifications;
+import com.sejourfr.app.service.email.event.ContactReceivedEvent;
+import com.sejourfr.app.service.email.event.SupportReplyEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -40,7 +43,7 @@ public class ConversationService {
     private final MessageManager messageManager;
     private final UserManager userManager;
     private final MessageMapper mapper;
-    private final MailService mailService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public Page<ConversationSummaryDto> search(
@@ -88,11 +91,10 @@ public class ConversationService {
         c.setStatus(MessageStatus.REPONDU);
 
         // Conversation issue du formulaire de contact (visiteur sans compte) :
-        // la réponse part par email (async, best-effort). Les conversations
-        // in-app (user rattaché) se lisent dans l'app, pas d'email.
+        // la réponse part par email APRES COMMIT (SUPPORT_REPLY). Les
+        // conversations in-app (user rattaché) se lisent dans l'app, pas d'email.
         if (c.getContactEmail() != null && !c.getContactEmail().isBlank()) {
-            mailService.sendConversationReplyEmail(
-                    c.getContactEmail(), c.getContactName(), c.getSubject(), body);
+            eventPublisher.publishEvent(new SupportReplyEvent(saved.getId(), c.getContactEmail()));
         }
 
         return mapper.toDto(saved);
@@ -105,6 +107,15 @@ public class ConversationService {
      * la boite de réception admin.
      */
     public Conversation createFromContact(String name, String email, String subject, String message) {
+        return createFromContact(name, email, subject, message, null);
+    }
+
+    /**
+     * Idem, et publie l'accuse de reception ({@code CONTACT_RECEIVED}) quand un
+     * numero de suivi est fourni — envoye APRES le commit de cette transaction.
+     */
+    public Conversation createFromContact(String name, String email, String subject, String message,
+                                          String ticketId) {
         Conversation c = new Conversation();
         c.setContactName(name);
         c.setContactEmail(email);
@@ -122,6 +133,10 @@ public class ConversationService {
 
         saved.setLastMessageAt(
                 savedMessage.getCreatedAt() != null ? savedMessage.getCreatedAt() : Instant.now());
+        if (ticketId != null) {
+            eventPublisher.publishEvent(new ContactReceivedEvent(
+                    saved.getId(), email, name, subject, message, ticketId));
+        }
         return saved;
     }
 

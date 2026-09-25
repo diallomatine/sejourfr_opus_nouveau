@@ -236,6 +236,93 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Réversibilité : facile.
 - Fichiers : `compose/DiagnosticEmailComposer.java`
 
+## D-18 — L'activation du mode récurrent dormant réutilise `PREMIUM_ACCESS_STARTED`
+- Phase : 3
+- Importance : mineure
+- Contexte : l'ancien `sendSubscriptionActivatedEmail` servait aussi les flux abonnement
+  dormants (wording « renouvelé automatiquement »). Aucun type n'était prévu pour eux.
+- Options : A) un type dédié `PREMIUM_SUBSCRIPTION_STARTED` ; B) `PREMIUM_ACCESS_STARTED`, le
+  wording venant d'une variable plate `accessTerms` calculée en Java selon `auto_renew`.
+- Choix : B — même fait (un premier accès), même clé par `accessId`, aucun type de plus à
+  maintenir pour un mode dormant. Ces flux (store) ne se testent pas en IT : leurs appelants sont
+  tous transactionnels (`BillingService.handleWebhook`, `@Transactional` Apple/Google,
+  `SubscriptionCancellationService`) et la publication est couverte par leurs tests unitaires.
+- Réversibilité : facile.
+- Fichiers : `compose/PremiumEmailComposer.java`, `billing/SubscriptionNotificationService.java`
+
+## D-19 — `EMAIL_CHANGED` cite la nouvelle adresse MASQUÉE
+- Phase : 3
+- Importance : mineure
+- Contexte : le mail part vers l'ancienne adresse (arbitrage n°10) ; citer la nouvelle en clair
+  l'exposerait à qui lit l'ancienne boîte.
+- Options : A) ne pas la citer ; B) la citer en clair ; C) la citer masquée (`n***@domaine.fr`).
+- Choix : C — la victime d'une prise de contrôle reconnaît que ce n'est pas elle, sans que
+  l'adresse circule.
+- Réversibilité : facile.
+- Fichiers : `compose/SecurityEmailComposer.java`
+
+## D-20 — Accusé de contact : publié par la transaction de la conversation
+- Phase : 3
+- Importance : mineure
+- Contexte : `ContactService.submit` n'est pas transactionnel ; un événement publié hors
+  transaction serait perdu (complément D). Le numéro de suivi n'est persisté nulle part.
+- Options : A) rendre `submit` transactionnel (le relais SMTP synchrone tiendrait alors la
+  transaction) ; B) publier depuis `ConversationService.createFromContact`, qui l'est déjà, en lui
+  passant le numéro de suivi.
+- Choix : B. `CONTACT_RECEIVED` et `SUPPORT_REPLY` ont `user_id` nul (visiteur) ; `CONTACT_RECEIVED`
+  n'a **pas** de relance différée (numéro de suivi non reconstructible), `SUPPORT_REPLY` si (relu
+  sur le message).
+- Réversibilité : facile.
+- Fichiers : `ConversationService.java`, `ContactService.java`, `compose/SupportEmailComposer.java`
+
+## D-21 — Date de mise à jour des documents légaux
+- Phase : 3
+- Importance : mineure
+- Contexte : la politique de confidentialité change (e-mails d'accompagnement, conservation du
+  journal 12 mois). La date `LEGAL_INFO.lastUpdated` est commune à tous les documents légaux.
+- Options : A) ne pas la toucher ; B) la passer au 2026-09-25.
+- Choix : B — une politique modifiée sans date modifiée est pire qu'une date commune avancée.
+- Réversibilité : facile.
+- Fichiers : `web_sejoufr/content/legal/legal-info.ts`, `web_sejoufr/app/confidentialite/page.tsx`
+
+## D-22 — `MailService` survit une phase, réduit à l'ancien rappel d'expiration
+- Phase : 3
+- Importance : mineure
+- Contexte : tous les mails passent par le port en phase 3, mais l'arbitrage n°6 ne supprime
+  `ExpiryReminderJob` qu'une fois `PREMIUM_ENDING_*` en service (phase 4).
+- Options : A) supprimer le job dès la phase 3 (trou d'un jour sans rappel) ; B) garder
+  `MailService` réduit à `sendAccessExpiringSoonEmail` jusqu'à la phase 4.
+- Choix : B — puis suppression complète en phase 4 (job, méthode, gabarits `mail/`, logo CID).
+- Réversibilité : facile.
+- Fichiers : `service/MailService.java`
+
+## D-23 — Écarts de forme entre les deux pages « Notifications par e-mail »
+- Phase : 3
+- Importance : mineure
+- Contexte : parité web ⇄ mobile. Le web réutilise le squelette de chargement des pages du compte
+  (`CompteLoading`), le mobile un indicateur centré ; la ligne à interrupteur est une brique
+  nouvelle des deux côtés (`CompteToggleRow` ⇄ `AccountSwitch` dans `ListRow.right`, qui gagne
+  un `subMaxLines`). `/profil/notifications` est déclaré dans `lib/app-bar.ts` pour le titre de la
+  barre du haut sous 900 px.
+- Options : A) aligner les chargements ; B) garder la convention locale de chaque front.
+- Choix : B — mêmes libellés (miroirs mot pour mot), mêmes états (optimiste, retour arrière et
+  alerte d'erreur, confirmation 3 s), même endpoint.
+- Réversibilité : facile.
+- Fichiers : `web_sejoufr/app/_components/compte/NotificationsView.tsx`,
+  `mobile_sejourfr/lib/screens/profile/notifications_screen.dart`
+
+## D-24 — Chaque mail d'un test d'intégration est aussi RENDU
+- Phase : 3
+- Importance : mineure
+- Contexte : un gabarit qui attend une variable que son composeur ne fournit pas laisserait un
+  `{{placeholder}}` chez le candidat, et aucun test unitaire ne relie les deux.
+- Options : A) un test par gabarit avec des variables écrites à la main ; B) `AbstractEmailIT`
+  rend, après chaque test, TOUS les messages réellement composés avec le vrai
+  `SpringMailEmailSender` et exige zéro placeholder.
+- Choix : B — c'est le couple composeur ⇄ gabarit réel qui est vérifié, pas une copie.
+- Réversibilité : facile.
+- Fichiers : `support/AbstractEmailIT.java`
+
 ---
 
 # Sujets séparés (interdits sans accord du propriétaire)
@@ -244,4 +331,21 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 
 # Blocages
 
-Aucun.
+## B-1 — Relais du formulaire de contact : « remonter l'échec à l'utilisateur » (arbitrage n°9)
+- Phase : 3
+- Constat : l'arbitrage dit que le relais « reste synchrone et doit **continuer** à remonter
+  l'échec à l'utilisateur ». Le code ne l'a jamais fait : `MailService.sendContactMessage`
+  levait bien une exception, mais `ContactService.submit` l'avalait (la conversation, déjà
+  enregistrée dans la boîte admin, est l'autorité) — comportement voulu et figé par
+  `ContactServiceTest.submitSucceedsEvenWhenSupportRelayFails`. L'audit (§2.1) décrivait le
+  niveau `MailService`, pas le parcours utilisateur.
+- Ce qui est fait : le relais est synchrone, passe par le port (`EmailSender.relayToSupport`), n'a
+  pas de ligne `email_deliveries`, et **son échec remonte à `ContactService`** — dont le
+  comportement est **inchangé** (demande enregistrée, accusé de réception envoyé, le candidat
+  ne renvoie pas un doublon).
+- Ce qui n'est PAS fait : faire échouer la requête du candidat. Le faire proprement exigerait
+  d'annuler aussi la conversation (sinon doublon au renvoi) : c'est un changement de règle
+  produit sur la boîte de réception, à arbitrer.
+- Pour trancher : « le visiteur voit une erreur et la demande n'est pas enregistrée » (rendre
+  `submit` transactionnel, relayer avant le commit, relancer l'exception) **ou** statu quo.
+

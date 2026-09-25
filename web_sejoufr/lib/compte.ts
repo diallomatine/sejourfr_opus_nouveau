@@ -1,6 +1,7 @@
 /**
  * Les écrans du compte : « Mes informations » et ses trois pages d'édition
- * (nom et prénom, adresse e-mail, mot de passe).
+ * (nom et prénom, adresse e-mail, mot de passe), et « Notifications par
+ * e-mail ».
  *
  * 🛑 **Miroir mot pour mot** de
  * `mobile_sejourfr/lib/screens/profile/account_labels.dart` : libellés,
@@ -21,6 +22,7 @@ export const COMPTE_IDENTITE_HREF = "/profil/informations/identite";
 export const COMPTE_EMAIL_HREF = "/profil/informations/email";
 export const COMPTE_MOT_DE_PASSE_HREF = "/profil/informations/mot-de-passe";
 export const COMPTE_PROFIL_HREF = "/profil";
+export const COMPTE_NOTIFICATIONS_HREF = "/profil/notifications";
 
 // ── Bornes (miroirs du backend) ─────────────────────────────────────────
 export const COMPTE_NAME_MAX = 120;
@@ -114,6 +116,20 @@ export const COMPTE_PASSWORD_SUCCESS_BODY = "Utilisez-le dès votre prochaine co
 export const COMPTE_PASSWORD_FAILED = "La modification a échoué. Réessayez.";
 export const COMPTE_PASSWORD_SHOW = "Afficher le mot de passe";
 export const COMPTE_PASSWORD_HIDE = "Masquer le mot de passe";
+
+// ── Notifications par e-mail ────────────────────────────────────────────
+export const COMPTE_NOTIF_ROW_TITLE = "Notifications par e-mail";
+export const COMPTE_NOTIF_ROW_SUB = "Conseils et rappels d'entraînement";
+export const COMPTE_NOTIF_TITLE = "Notifications par e-mail";
+export const COMPTE_NOTIF_LEAD = "Choisissez les e-mails que SejourFR peut vous envoyer pour vous accompagner.";
+export const COMPTE_NOTIF_ENGAGEMENT_LABEL = "Recevoir les conseils et rappels d'entraînement";
+export const COMPTE_NOTIF_ENGAGEMENT_SUB =
+  "Votre plan prêt après un diagnostic, un rappel quand vous n'avez pas pratiqué depuis quelques jours, la fin prochaine de votre accès.";
+export const COMPTE_NOTIF_FOOTNOTE =
+  "Les emails indispensables liés à votre compte, votre sécurité ou vos paiements continueront à être envoyés.";
+export const COMPTE_NOTIF_LOAD_FAILED = "Impossible de charger vos préférences. Réessayez.";
+export const COMPTE_NOTIF_SAVE_FAILED = "Votre choix n'a pas pu être enregistré. Réessayez.";
+export const COMPTE_NOTIF_SAVED = "Préférence enregistrée.";
 
 // ── Commun ──────────────────────────────────────────────────────────────
 export const COMPTE_BACK_TO_INFO = "Retour à mes informations";

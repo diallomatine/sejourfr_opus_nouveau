@@ -26,6 +26,7 @@ import {
   COMPTE_EMAIL_TITLE,
   COMPTE_IDENTITY_TITLE,
   COMPTE_INFO_TITLE,
+  COMPTE_NOTIF_TITLE,
   COMPTE_PASSWORD_TITLE,
 } from "./compte";
 import {FAVORIS_TITLE} from "./favoris";
@@ -75,6 +76,7 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
   ["/profil/informations/identite", {title: COMPTE_IDENTITY_TITLE}],
   ["/profil/informations/email", {title: COMPTE_EMAIL_TITLE}],
   ["/profil/informations/mot-de-passe", {title: COMPTE_PASSWORD_TITLE}],
+  ["/profil/notifications", {title: COMPTE_NOTIF_TITLE}],
   ["/favoris", {title: FAVORIS_TITLE}],
   ["/aide", {title: AIDE_TITLE}],
 ];

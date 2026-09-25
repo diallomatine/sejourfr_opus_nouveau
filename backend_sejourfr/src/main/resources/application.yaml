@@ -130,6 +130,42 @@ sejourfr:
         subject: "Votre plan d'entraînement est prêt"
         preheader: "Votre diagnostic {{diagnosticType}} est terminé : découvrez vos priorités."
         local-template: email/diagnostic-plan-ready
+      PREMIUM_ACCESS_STARTED:
+        subject: "Votre accès Premium est activé"
+        preheader: "Votre accès {{offerName}} est ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-access-started
+      PREMIUM_ACCESS_EXTENDED:
+        subject: "Votre accès a été prolongé"
+        preheader: "Votre accès reste ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-access-extended
+      PREMIUM_SUBSCRIPTION_CANCELED:
+        subject: "Résiliation enregistrée"
+        preheader: "Votre accès reste ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-subscription-canceled
+      PASSWORD_RESET:
+        subject: "Réinitialisation de votre mot de passe"
+        preheader: "Choisissez un nouveau mot de passe : lien valable {{expiresInMinutes}} minutes."
+        local-template: email/password-reset
+      PASSWORD_CHANGED:
+        subject: "Votre mot de passe a été modifié"
+        preheader: "Si vous n'êtes pas à l'origine de ce changement, contactez-nous."
+        local-template: email/password-changed
+      EMAIL_CHANGE_CONFIRMATION:
+        subject: "Confirmez votre nouvelle adresse email"
+        preheader: "Confirmez votre nouvelle adresse : lien valable {{expiresInMinutes}} minutes."
+        local-template: email/email-change-confirmation
+      EMAIL_CHANGED:
+        subject: "L'adresse de votre compte SejourFR a changé"
+        preheader: "Si vous n'êtes pas à l'origine de ce changement, contactez-nous."
+        local-template: email/email-changed
+      CONTACT_RECEIVED:
+        subject: "Votre message a bien été reçu"
+        preheader: "Numéro de suivi {{ticketId}} : réponse sous 24 h ouvrées."
+        local-template: email/contact-received
+      SUPPORT_REPLY:
+        subject: "Réponse à votre message"
+        preheader: "Notre équipe a répondu à votre demande."
+        local-template: email/support-reply
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —

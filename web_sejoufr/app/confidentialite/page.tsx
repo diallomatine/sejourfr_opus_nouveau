@@ -262,8 +262,12 @@ export default function ConfidentialitePage() {
               "Exécution du contrat (art. 6.1.b)",
             ],
             [
-              "Envoi d'emails transactionnels (confirmation d'inscription, réinitialisation de mot de passe, accusé de paiement)",
+              "Envoi des e-mails liés à votre compte : création de compte, sécurité du compte (réinitialisation et changement de mot de passe, changement d'adresse), confirmation ou prolongation d'un accès Premium ou d'un pass, réponses du support",
               "Exécution du contrat (art. 6.1.b)",
+            ],
+            [
+              "Envoi d'e-mails d'accompagnement (conseils et rappels d'entraînement : plan prêt après un diagnostic, rappels d'inactivité, fin prochaine d'un accès), pour vous accompagner dans votre préparation",
+              "Intérêt légitime de SejourFR à accompagner l'utilisation du service souscrit (art. 6.1.f)",
             ],
             ["Envoi de newsletters et actualités", "Consentement (art. 6.1.a)"],
             [
@@ -282,6 +286,30 @@ export default function ConfidentialitePage() {
             ["Lutte contre la fraude et la sécurité de la Plateforme", "Intérêt légitime (art. 6.1.f)"],
           ]}
         />
+        <p>
+          <strong>Les e-mails que nous vous envoyons.</strong> Les e-mails liés à
+          votre compte (création de compte, sécurité du compte — réinitialisation
+          et changement de mot de passe, changement d&apos;adresse —, confirmation
+          ou prolongation d&apos;un accès Premium ou d&apos;un pass, réponses du support) sont
+          nécessaires au fonctionnement du service : ils ne peuvent pas être
+          désactivés.
+        </p>
+        <p>
+          Les <strong>e-mails d&apos;accompagnement</strong> (conseils et rappels
+          d&apos;entraînement : votre plan prêt après un diagnostic, un rappel quand
+          vous n&apos;avez pas pratiqué depuis quelques jours, la fin prochaine de
+          votre accès) ont pour finalité de vous accompagner dans votre
+          préparation. Ils reposent sur l&apos;intérêt légitime de SejourFR à
+          accompagner l&apos;utilisation du service souscrit. Ils sont activés par
+          défaut et <strong>désactivables à tout moment</strong>, via le lien
+          présent en bas de chaque e-mail ou depuis « Notifications par e-mail »
+          dans votre compte. Vous recevez{" "}
+          <strong>au plus un e-mail d&apos;accompagnement automatique par jour</strong>.
+        </p>
+        <p>
+          Aucun e-mail commercial ou promotionnel ne vous est envoyé sans votre{" "}
+          <strong>consentement préalable et explicite</strong>.
+        </p>
       </LegalSection>
 
       <LegalSection id="article-5" number={5} title="Durée de conservation des données">
@@ -313,6 +341,10 @@ export default function ConfidentialitePage() {
               "13 mois, puis suppression ; l'identifiant est renouvelé au-delà de 13 mois",
             ],
             ["Logs de connexion", "12 mois"],
+            [
+              "Journal des e-mails envoyés (type d'e-mail, adresse destinataire, date, statut d'envoi — jamais le contenu)",
+              "12 mois, puis suppression automatique ; supprimé immédiatement à la suppression du compte",
+            ],
             ["Cookie de session et stockage local", "Voir Article 8"],
             ["Messages de contact", "3 ans après dernier échange"],
             ["Newsletters", "Jusqu'au retrait du consentement, puis 3 ans"],

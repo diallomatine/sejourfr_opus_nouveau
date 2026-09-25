@@ -18,7 +18,7 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -51,7 +51,7 @@ class AppleSubscriptionServiceTest {
     private UserManager userManager;
     private UserSubscriptionManager userSubscriptionManager;
     private ProcessedExternalEventManager processedEventManager;
-    private MailService mailService;
+    private ApplicationEventPublisher mailService;
     private BillingProperties billingProperties;
     private AppleSubscriptionService service;
 
@@ -66,7 +66,7 @@ class AppleSubscriptionServiceTest {
         userManager = mock(UserManager.class);
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         processedEventManager = mock(ProcessedExternalEventManager.class);
-        mailService = mock(MailService.class);
+        mailService = mock(ApplicationEventPublisher.class);
         OneTimeAccessService oneTimeAccessService = mock(OneTimeAccessService.class);
         billingProperties = mock(BillingProperties.class); // isOneTime() = false par défaut
         service = new AppleSubscriptionService(
@@ -117,11 +117,7 @@ class AppleSubscriptionServiceTest {
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         assertThat(sub.getSource()).isEqualTo(SubscriptionSource.APPLE);
         assertThat(sub.getOriginalTransactionId()).isEqualTo("orig_1");
-        verify(mailService).sendSubscriptionActivatedEmail(
-                org.mockito.ArgumentMatchers.eq("u@sejourfr.fr"),
-                org.mockito.ArgumentMatchers.eq("Lea"),
-                org.mockito.ArgumentMatchers.eq("Intégral"),
-                any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent g && !g.extension()));
     }
 
     @Test
@@ -282,8 +278,7 @@ class AppleSubscriptionServiceTest {
         service.handleNotification("payload");
 
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
-        verify(mailService).sendSubscriptionCanceledEmail(
-                "u@sejourfr.fr", "Lea", "Intégral", sub.getEndsAt(), "APPLE");
+        verify(mailService).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 
     @Test
@@ -380,6 +375,6 @@ class AppleSubscriptionServiceTest {
 
         service.handleNotification("payload");
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
-        verify(mailService, never()).sendSubscriptionCanceledEmail(any(), any(), any(), any(), any());
+        verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
     }
 }

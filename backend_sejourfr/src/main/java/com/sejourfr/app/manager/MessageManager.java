@@ -21,6 +21,10 @@ public class MessageManager {
         return repository.findByConversationIdOrderByCreatedAtAsc(conversationId);
     }
 
+    public java.util.Optional<Message> findById(UUID id) {
+        return repository.findById(id);
+    }
+
     public Message save(Message message) {
         return repository.save(message);
     }

@@ -24,6 +24,10 @@ public class EmailChangeTokenManager {
         return repository.findByTokenHash(tokenHash);
     }
 
+    public Optional<EmailChangeToken> findById(UUID id) {
+        return repository.findById(id);
+    }
+
     public EmailChangeToken save(EmailChangeToken token) {
         return repository.save(token);
     }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {
+    Bell,
     Bookmark,
     CircleHelp,
     GraduationCap,
@@ -19,7 +20,14 @@ import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, billingApi, dashboardApi} from "@/lib/api";
 import {AIDE_HREF} from "@/lib/aide";
 import {FAVORIS_HREF, FAVORIS_ROW_SUB, FAVORIS_TITLE} from "@/lib/favoris";
-import {COMPTE_INFORMATIONS_HREF, COMPTE_PROFIL_HREF, compteIsLocal} from "@/lib/compte";
+import {
+    COMPTE_INFORMATIONS_HREF,
+    COMPTE_NOTIF_ROW_SUB,
+    COMPTE_NOTIF_ROW_TITLE,
+    COMPTE_NOTIFICATIONS_HREF,
+    COMPTE_PROFIL_HREF,
+    compteIsLocal,
+} from "@/lib/compte";
 import {CompteCard, CompteGate, CompteLoading, CompteRow} from "../../_components/compte/CompteParts";
 import {estimatedTcfLevelScopeLabel, niveauCecrlShort, niveauViseTcf} from "@/lib/types";
 import type {
@@ -38,7 +46,8 @@ import type {
  *   - 3 tuiles (maîtrise / série / niveau estimé + périmètre) issues de /api/me/dashboard
  *   - grille « Mon pass » (subscription-status) | « Mon objectif » (démarche)
  *   - « Mon compte » : Mes informations (`/profil/informations`, ses trois pages
- *     d'édition), Mes favoris (`/favoris`), Aide & assistance (`/aide`). « Ma
+ *     d'édition), Notifications par e-mail (`/profil/notifications`), Mes
+ *     favoris (`/favoris`), Aide & assistance (`/aide`). « Ma
  *     progression » est dans la barre latérale (« Progression »), pas ici.
  *   - déconnexion + suppression de compte (DELETE /api/account)
  *
@@ -230,6 +239,12 @@ export default function ProfilPage() {
                             icon={<PenLine size={20}/>}
                             title="Mes informations"
                             sub={isLocal ? "Nom, prénom, e-mail et mot de passe" : "Nom et prénom"}
+                        />
+                        <CompteRow
+                            href={COMPTE_NOTIFICATIONS_HREF}
+                            icon={<Bell size={20}/>}
+                            title={COMPTE_NOTIF_ROW_TITLE}
+                            sub={COMPTE_NOTIF_ROW_SUB}
                         />
                         {/* « Ma progression » n'est PAS ici sur le web : elle vit dans
                             la barre latérale (« Progression », 2026-09-24). Le Profil

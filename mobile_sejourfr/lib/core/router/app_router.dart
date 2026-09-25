@@ -40,6 +40,7 @@ import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/change_email_screen.dart';
 import '../../screens/profile/change_password_screen.dart';
 import '../../screens/profile/edit_identity_screen.dart';
+import '../../screens/profile/notifications_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_domain_screen.dart';
@@ -286,6 +287,9 @@ class AppRoutes {
   static const personalInfoIdentity = '/profile/personal-info/identity';
   static const personalInfoEmail = '/profile/personal-info/email';
   static const personalInfoPassword = '/profile/personal-info/password';
+
+  // « Notifications par e-mail » — miroir de la page web `/profil/notifications`.
+  static const notifications = '/profile/notifications';
 
   // Gestion de l'abonnement Premium en cours (détails + résiliation). Le
   // routing serveur/store est décidé côté backend selon la source (Stripe,
@@ -592,6 +596,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.personalInfoPassword,
         builder: (_, __) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (_, __) => const NotificationsScreen(),
       ),
       GoRoute(
         path: AppRoutes.manageSubscription,

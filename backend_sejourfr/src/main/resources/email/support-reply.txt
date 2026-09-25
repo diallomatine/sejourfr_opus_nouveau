@@ -1,0 +1,9 @@
+Réponse à votre message
+
+{{greeting}},
+
+Notre équipe a répondu à votre message « {{subject}} » :
+
+{{reply}}
+
+Pour poursuivre l'échange, répondez simplement à cet email : votre réponse nous parviendra directement.

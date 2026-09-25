@@ -6,6 +6,10 @@ import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.email.MailTemplateRenderer;
+import com.sejourfr.app.service.email.event.EmailChangeRequestedEvent;
+import com.sejourfr.app.service.email.event.EmailChangedEvent;
+import com.sejourfr.app.service.email.event.PasswordChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +54,7 @@ public class UserProfileService {
     private final UserManager userManager;
     private final EmailChangeTokenManager emailChangeTokenManager;
     private final PasswordEncoder passwordEncoder;
-    private final MailService mailService;
+    private final ApplicationEventPublisher eventPublisher;
     private final MailTemplateRenderer templateRenderer;
     private final SessionService sessionService;
     private final SecureRandom random = new SecureRandom();
@@ -104,6 +108,9 @@ public class UserProfileService {
         // qui détenait un refresh token devient incapable de prolonger sa
         // session — l'utilisateur devra se reconnecter avec le nouveau mdp.
         sessionService.revokeAllForUser(userId);
+
+        eventPublisher.publishEvent(new PasswordChangedEvent(
+                user.getId(), user.getEmail(), UUID.randomUUID(), Instant.now()));
     }
 
     // ------------------------------------------------------------------------
@@ -156,7 +163,8 @@ public class UserProfileService {
         token.setExpiresAt(Instant.now().plus(EMAIL_CHANGE_TOKEN_TTL));
         emailChangeTokenManager.save(token);
 
-        mailService.sendEmailChangeConfirmation(newEmail, rawToken);
+        eventPublisher.publishEvent(new EmailChangeRequestedEvent(
+                user.getId(), newEmail, token.getId(), rawToken, EMAIL_CHANGE_TOKEN_TTL.toMinutes()));
     }
 
     /**
@@ -190,6 +198,7 @@ public class UserProfileService {
         }
 
         User user = token.getUser();
+        String oldEmail = user.getEmail();
         user.setEmail(token.getNewEmail());
         try {
             userManager.save(user);
@@ -212,6 +221,11 @@ public class UserProfileService {
         // token de l'ancien compte.
         sessionService.revokeAllForUser(user.getId());
 
+        // L'ANCIENNE adresse est prevenue (arbitrage n°10) : une prise de
+        // controle ne doit pas etre invisible pour sa victime.
+        eventPublisher.publishEvent(new EmailChangedEvent(
+                user.getId(), oldEmail, user.getEmail(), token.getId(), Instant.now()));
+
         return user.getEmail();
     }
 
@@ -219,7 +233,7 @@ public class UserProfileService {
      * Rend la page HTML de confirmation servie au navigateur après le clic sur
      * le lien de changement d'email (le user n'est pas forcément connecté sur
      * ce device, donc on renvoie une page autonome plutôt que du JSON). Comme
-     * les emails, le HTML vit dans un template ({@code mail/email-change-confirmed.html})
+     * les emails, le HTML vit dans un template ({@code email/pages/email-change-confirmed.html})
      * rendu via {@link MailTemplateRenderer} — pas de markup en dur dans le
      * controller. Le {@code message} est échappé par le renderer.
      *
@@ -227,7 +241,7 @@ public class UserProfileService {
      * @param message texte à afficher à l'utilisateur.
      */
     public String renderEmailChangeConfirmationPage(boolean ok, String message) {
-        return templateRenderer.render("mail/email-change-confirmed.html", Map.of(
+        return templateRenderer.render("email/pages/email-change-confirmed.html", Map.of(
                 "title", ok ? "Email confirmé" : "Lien invalide",
                 "accent", ok ? "#168F5B" : "#E1372F",
                 "emoji", ok ? "✅" : "⚠️",

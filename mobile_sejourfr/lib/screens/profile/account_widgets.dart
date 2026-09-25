@@ -389,3 +389,35 @@ class AccountProviderNote extends StatelessWidget {
     );
   }
 }
+
+/// L'interrupteur d'une ligne de préférence (`ListRow.right`). `busy` le fige
+/// pendant l'enregistrement. Miroir web : `CompteToggleRow`.
+class AccountSwitch extends StatelessWidget {
+  const AccountSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.busy = false,
+    this.semanticLabel,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final bool busy;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel,
+      child: Switch(
+        value: value,
+        onChanged: busy ? null : onChanged,
+        activeTrackColor: AppColors.blue,
+        inactiveTrackColor: AppColors.muted2,
+        thumbColor: const WidgetStatePropertyAll(AppColors.white),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+    );
+  }
+}
