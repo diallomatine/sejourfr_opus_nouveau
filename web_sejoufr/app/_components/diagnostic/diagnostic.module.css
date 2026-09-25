@@ -18,7 +18,8 @@
   font-size: 13px;
 }
 
-.backNav a {
+.backNav a,
+.backNav button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -26,8 +27,42 @@
   font-weight: 700;
 }
 
+.backNav button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .backNav a:hover,
-.backNav a:focus-visible {
+.backNav a:focus-visible,
+.backNav button:hover,
+.backNav button:focus-visible {
+  text-decoration: underline;
+}
+
+/* Retour de l'écran de compte vers l'écrit — même geste que « ← Accueil »
+   du choix d'examen (`diagnostic-choice.module.css`, `.back`). */
+.gateBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gateBack:hover,
+.gateBack:focus-visible {
   text-decoration: underline;
 }
 

@@ -192,13 +192,38 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Future<void> _submitWritten({required bool isGuest}) async {
     FocusScope.of(context).unfocus();
     _autosave?.cancel();
+    final editing = ref.read(diagnosticControllerProvider).isEditingWritten;
     final text = _writingController.text.trim();
     final submitted = isGuest
         ? await _controller.submitGuestWritten(text)
         : await _controller.submitWritten(text);
     if (!submitted) return;
-    _track(AnalyticsEvent.diagnosticEeCompleted);
+    // Une modification depuis l'écran de compte n'est pas un second écrit :
+    // aucune mesure de plus (le « soumis » de la run, lui, est idempotent).
+    if (!editing) _track(AnalyticsEvent.diagnosticEeCompleted);
     _markSubmittedIfComplete();
+  }
+
+  /// Remet dans la zone de saisie la production ENREGISTRÉE — le point de
+  /// départ d'une modification, et ce qu'on retrouve en l'annulant.
+  void _resetWritingToDraft() {
+    _autosave?.cancel();
+    final text = ref.read(diagnosticControllerProvider).draft?.writtenText ?? '';
+    _writingController.text = text;
+    setState(() => _wordCount = _countWords(text));
+  }
+
+  /// « ← Modifier mon texte » (écran de compte) : l'écrit rouvert, pré-rempli.
+  void _openWrittenEditor() {
+    _resetWritingToDraft();
+    _controller.editGuestWritten();
+  }
+
+  /// « ← Revenir sans modifier » : retour au compte, texte d'origine intact.
+  void _cancelWrittenEdit() {
+    FocusScope.of(context).unfocus();
+    _resetWritingToDraft();
+    _controller.cancelGuestEdit();
   }
 
   // ---------------------------------------------------------------------------
@@ -351,10 +376,22 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     });
 
     final recordingActive = recording.canStop;
+    // Pendant la modification de l'écrit, le retour (système comme flèche)
+    // ramène à l'écran de compte : c'est de là qu'on est venu, comme le
+    // « précédent » du navigateur côté web.
+    final editingWritten = state.isGuest && state.isEditingWritten;
     return PopScope(
-      canPop: !recordingActive && !state.isSubmitting && !state.isSyncing,
+      canPop: !recordingActive &&
+          !state.isSubmitting &&
+          !state.isSyncing &&
+          !editingWritten,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop) await _confirmBack();
+        if (didPop) return;
+        if (editingWritten) {
+          if (!state.isSubmitting) _cancelWrittenEdit();
+          return;
+        }
+        await _confirmBack();
       },
       child: Scaffold(
         backgroundColor: AppColors.bg,
@@ -376,8 +413,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                         ? 'Diagnostic'
                         : 'Diagnostic TCF',
                 sub: _headerSub(state),
-                onBack:
-                    state.isSubmitting || state.isSyncing ? null : _confirmBack,
+                onBack: state.isSubmitting || state.isSyncing
+                    ? null
+                    : editingWritten
+                        ? _cancelWrittenEdit
+                        : _confirmBack,
               ),
               Expanded(
                 child: _content(
@@ -512,6 +552,15 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           errorMessage: state.errorMessage ?? state.noticeMessage,
           onChanged: (text) => _onWritingChanged(text, isGuest: true),
           onSubmit: () => unawaited(_submitWritten(isGuest: true)),
+          // L'écrit rouvert depuis l'écran de compte : pré-rempli, avec un
+          // retour sans modification et un bouton qui ramène au compte.
+          submitLabel: state.isEditingWritten
+              ? kDiagnosticEditSubmit
+              : 'Valider mon écrit',
+          onCancelEdit: state.isEditingWritten ? _cancelWrittenEdit : null,
+          editNote: state.isEditingWritten
+              ? diagnosticEditNote(hasOral: subjects.oral != null)
+              : null,
         ),
       // 🛑 L'étape orale ne se rend que si ce diagnostic en porte une (L3).
       // Sans sujet, le contrôleur a déjà envoyé le visiteur au compte : ce cas
@@ -542,6 +591,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           noticeMessage: state.noticeMessage,
           onRegister: _openRegister,
           onLogin: _openLogin,
+          onEditWritten: _openWrittenEditor,
         ),
     };
   }
@@ -550,8 +600,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   /// connecté, les deux parcours jouent les deux mêmes exercices. Une seule
   /// émission par lancement : l'écran se reconstruit à chaque frappe.
   void _trackStepReached(DiagnosticFlowState state) {
+    // L'écrit rouvert depuis l'écran de compte n'est pas un écrit commencé :
+    // ni « sujet vu » ni `DIAGNOSTIC_EE_STARTED` de plus.
     final onWritten = state.isGuest
-        ? state.guestStep == DiagnosticGuestStep.written
+        ? state.guestStep == DiagnosticGuestStep.written &&
+            !state.isEditingWritten
         : state.journey?.nextStep == DiagnosticStep.written;
     final onOral = state.isGuest
         ? state.guestStep == DiagnosticGuestStep.oral

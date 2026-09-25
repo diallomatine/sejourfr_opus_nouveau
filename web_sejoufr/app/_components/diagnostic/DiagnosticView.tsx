@@ -32,7 +32,10 @@ import {
   trackDiagnosticReportViewed,
 } from "@/lib/diagnostic-run";
 import {
+  DIAGNOSTIC_EDIT_CANCEL,
+  DIAGNOSTIC_EDIT_SUBMIT,
   type DiagnosticExerciseContent,
+  diagnosticEditNote,
   diagnosticExerciseAsProductionTask,
 } from "@/lib/diagnostic";
 import {
@@ -165,6 +168,17 @@ function guestStep(
   return started ? "written" : "presentation";
 }
 
+/**
+ * Marqueur de l'entrée d'historique posée quand l'écrit est rouvert depuis
+ * l'écran de compte : le « précédent » du navigateur y ramène au compte au
+ * lieu de quitter `/diagnostic`, et le « suivant » y retourne.
+ */
+const EDIT_HISTORY_KEY = "sfDiagnosticEditWritten";
+
+function isEditHistoryState(state: unknown): boolean {
+  return Boolean((state as Record<string, unknown> | null)?.[EDIT_HISTORY_KEY]);
+}
+
 function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const [subjects, setSubjects] = useState<PublicDiagnosticResponse | null>(null);
   const [local, setLocal] = useState<LocalDiagnosticProductions | null>(null);
@@ -175,6 +189,37 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   // Faux quand le navigateur a refusé l'écriture disque : la production vit
   // alors seulement dans l'onglet, et on le dit au lieu de le taire.
   const [storedOnDevice, setStoredOnDevice] = useState(true);
+  // 🛑 Un OVERRIDE d'affichage, jamais une étape : l'étape reste dérivée de la
+  // production locale (`guestStep`). Rouvrir l'écrit n'efface rien — la
+  // production enregistrée ne change qu'au clic « Enregistrer mes
+  // modifications », et « Revenir sans modifier » la laisse intacte.
+  const [editingWritten, setEditingWritten] = useState(false);
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      setEditingWritten(isEditHistoryState(event.state));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  function openWrittenEditor() {
+    try {
+      window.history.pushState({[EDIT_HISTORY_KEY]: true}, "", window.location.href);
+    } catch {
+      // Historique indisponible : le retour passe alors par le seul bouton.
+    }
+    setEditingWritten(true);
+    window.scrollTo({top: 0});
+  }
+
+  function closeWrittenEditor() {
+    setEditingWritten(false);
+    // L'entrée posée à l'ouverture est dépilée : sans ça, le « précédent »
+    // suivant tomberait sur une entrée morte de la même adresse.
+    if (isEditHistoryState(window.history.state)) window.history.back();
+    window.scrollTo({top: 0});
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -236,8 +281,8 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     if (step === "written" || step === "oral") void ensureDiagnosticRun("QUICK_TCF");
   }, [step]);
 
-  async function keepWritten(text: string) {
-    if (!subjects || saving) return;
+  async function keepWritten(text: string, options: {editing?: boolean} = {}): Promise<boolean> {
+    if (!subjects || saving) return false;
     setSaving(true);
     setError(null);
     const ok = await saveLocalWritten(
@@ -261,11 +306,18 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       oralRequired: subjects.oral !== null,
       savedAt: Date.now(),
     }));
-    trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
+    // Une modification n'est pas un second écrit : aucune mesure de plus.
+    if (!options.editing) trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
     // Sans oral, ce bouton EST « analyser mes réponses » : le « soumis » du
-    // TCF rapide se pose ici, côté client (D23).
+    // TCF rapide se pose ici, côté client (D23). Idempotent : une
+    // modification ne le repose pas.
     if (subjects.oral === null) void submitQuickTcfRun();
     setSaving(false);
+    return true;
+  }
+
+  async function saveEditedWritten(text: string) {
+    if (await keepWritten(text, {editing: true})) closeWrittenEditor();
   }
 
   async function keepOral(audio: Blob, durationSec: number) {
@@ -317,6 +369,30 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     );
   }
 
+  if (step === "account" && editingWritten) {
+    // L'écrit rouvert depuis l'écran de compte, PRÉ-REMPLI avec la production
+    // enregistrée (prioritaire sur le brouillon, qui peut retarder de quelques
+    // frappes). Avec un oral, seul l'écrit se modifie : l'enregistrement est
+    // gardé tel quel et l'on revient directement au compte.
+    return (
+      <DiagnosticShell guest compact back={{label: DIAGNOSTIC_EDIT_CANCEL, onClick: closeWrittenEditor}}>
+        <DiagnosticSteps current="written" guest complete={false} oral={subjects.oral !== null} />
+        <ExerciseHeader kind="written" note={diagnosticEditNote(subjects.oral !== null)} />
+        <EeWritingForm
+          key="edit-written"
+          task={diagnosticExerciseAsProductionTask(subjects.written)}
+          initialText={local?.writtenText ?? ""}
+          submitting={saving}
+          error={error}
+          submitLabel={DIAGNOSTIC_EDIT_SUBMIT}
+          promptSlot={<ExercisePrompt exercise={subjects.written} kind="written" />}
+          criteriaSlot={null}
+          onSubmit={(text) => void saveEditedWritten(text)}
+        />
+      </DiagnosticShell>
+    );
+  }
+
   if (step === "account") {
     // Le rendu de `/inscription` (AuthShell), pas le shell du diagnostic : le
     // fil des étapes passe dans l'en-tête de l'écran de compte.
@@ -326,6 +402,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         oralDurationSec={local?.oralDurationSec ?? null}
         hasOral={subjects.oral !== null}
         storedOnDevice={storedOnDevice}
+        onEditWritten={openWrittenEditor}
       />
     );
   }
@@ -1144,19 +1221,29 @@ function DiagnosticShell({
   children,
   compact = false,
   guest = false,
+  back,
 }: {
   children: ReactNode;
   compact?: boolean;
   guest?: boolean;
+  /** Remplace le lien « Accueil » par un retour dans le parcours (l'écrit
+   *  rouvert depuis l'écran de compte revient au compte, il ne sort pas). */
+  back?: {label: string; onClick: () => void};
 }) {
   // ≤ 900 px (shell connecté) : la flèche de la barre du haut remplace le lien.
   const backInBar = useAppBarBack(guest ? null : { fallbackHref: "/dashboard" });
   return (
     <main className={`${styles.page} ${compact ? styles.pageCompact : ""}`}>
       <nav className={styles.backNav} aria-label="Sortir du diagnostic">
-        <Link href={guest ? "/" : "/dashboard"} className={backInBar ? "in-bar-back" : undefined}>
-          <ArrowLeft size={16} aria-hidden /> Accueil
-        </Link>
+        {back ? (
+          <button type="button" onClick={back.onClick}>
+            <ArrowLeft size={16} aria-hidden /> {back.label}
+          </button>
+        ) : (
+          <Link href={guest ? "/" : "/dashboard"} className={backInBar ? "in-bar-back" : undefined}>
+            <ArrowLeft size={16} aria-hidden /> Accueil
+          </Link>
+        )}
         <span>
           {guest
             ? "Vos réponses restent sur cet appareil"

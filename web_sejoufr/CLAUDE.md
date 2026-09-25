@@ -2547,6 +2547,21 @@ détour par `/inscription`.
   rattachement et l'analyse partent de `runHandoff` à la bascule d'auth.
   Même traitement pour `CivicDiagnosticGate` (panneau `CIVIC_DIAGNOSTIC_PANEL`,
   démarche préremplie, sans `SIGNUP_STARTED` comme avant).
+- **Revenir à son écrit depuis l'écran de compte** (2026-09-26) : le gate porte
+  « ← Modifier mon texte » (`onEditWritten`, dans le `header` d'`AuthShell`),
+  qui rouvre l'écrit **pré-rempli** avec la production enregistrée
+  (`EeWritingForm.initialText`, prioritaire sur le brouillon). 🛑 L'étape reste
+  **dérivée** : `editingWritten` n'est qu'un override d'affichage, rien n'est
+  effacé. « Enregistrer mes modifications » réécrit la production locale
+  (l'oral éventuel est gardé) puis revient au compte ; « ← Revenir sans
+  modifier » (à la place de « Accueil » dans `DiagnosticShell`) la laisse
+  intacte. Le navigateur suit : une entrée d'historique (`sfDiagnosticEditWritten`)
+  est posée à l'ouverture, le « précédent » ramène au compte. Une modification
+  n'émet **aucun** événement de plus (`DIAGNOSTIC_EE_COMPLETED` sauté, `*_STARTED`
+  et `DIAGNOSTIC_ACCOUNT_REQUIRED` restent `{once}` sur l'étape dérivée).
+  Libellés : `DIAGNOSTIC_EDIT_*` / `diagnosticEditNote` (`lib/diagnostic.ts`),
+  miroirs de `diagnostic_common.dart`. ⚠️ Le diagnostic **civique** n'a pas ce
+  retour : ses réponses sont corrigées serveur sur un examen déjà clos.
 - **Audience** : le funnel reste mesurable en invité (ingestion analytics
   publique ; `/api/public/page-views` est supprimé). Événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
   `lib/analytics.ts`, miroir backend) émis à l'affichage de l'écran de

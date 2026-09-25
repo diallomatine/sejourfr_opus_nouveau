@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../tcf_production/widgets/writing_zone.dart';
@@ -17,6 +18,9 @@ class DiagnosticWrittenStep extends StatelessWidget {
     required this.onChanged,
     required this.onSubmit,
     this.errorMessage,
+    this.submitLabel = 'Valider mon écrit',
+    this.onCancelEdit,
+    this.editNote,
   });
 
   final DiagnosticExerciseView exercise;
@@ -26,6 +30,15 @@ class DiagnosticWrittenStep extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
   final String? errorMessage;
+  final String submitLabel;
+
+  /// Présent quand l'écrit a été rouvert depuis l'écran de compte : le lien
+  /// « ← Revenir sans modifier » ramène au compte sans toucher à la
+  /// production enregistrée.
+  final VoidCallback? onCancelEdit;
+
+  /// Ce qui reste conservé pendant la modification.
+  final String? editNote;
 
   @override
   Widget build(BuildContext context) {
@@ -39,8 +52,33 @@ class DiagnosticWrittenStep extends StatelessWidget {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
+              if (onCancelEdit != null) ...[
+                DiagnosticBackLink(
+                  label: kDiagnosticEditCancel,
+                  onTap: onCancelEdit!,
+                ),
+                const SizedBox(height: 8),
+              ],
               const DiagnosticProgress(activeStep: 1, completedSteps: 0),
               const SizedBox(height: 14),
+              if (editNote != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.blueSoft,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Text(
+                    editNote!,
+                    style: AppFonts.ui(
+                      size: 13.5,
+                      color: AppColors.inkSoft,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
               DiagnosticExerciseCard(exercise: exercise),
               const SizedBox(height: 18),
               WritingZone(
@@ -68,7 +106,7 @@ class DiagnosticWrittenStep extends StatelessWidget {
         ),
         FixedActionBar(
           child: AppButton(
-            label: 'Valider mon écrit',
+            label: submitLabel,
             iconRight: LucideIcons.arrowRight,
             isLoading: isSubmitting,
             onPressed: valid && !isSubmitting ? onSubmit : null,

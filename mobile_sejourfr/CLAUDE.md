@@ -683,6 +683,17 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
     — c'est précisément pourquoi le détail des productions (qui listait « À travailler ») n'y
     a plus sa place. **Le profil TCF, lui, reste entier** : ce sont ses mesures, pas une
     action verrouillée.
+- **Revenir à son écrit depuis l'écran de compte** (2026-09-26, miroir du web) :
+  `DiagnosticAccountGate.onEditWritten` (« ← Modifier mon texte ») →
+  `DiagnosticController.editGuestWritten()` rouvre l'écrit **pré-rempli** avec la
+  production enregistrée (`isEditingWritten`, rien n'est effacé).
+  « Enregistrer mes modifications » la réécrit (l'oral éventuel est gardé,
+  `_stepAfterWritten`) et revient au compte ; « ← Revenir sans modifier »,
+  la flèche d'en-tête **et le retour système** (`PopScope`) ramènent au compte
+  sans rien changer (`cancelGuestEdit`). 🛑 L'autosave est **coupé** pendant la
+  modification : le brouillon y est la production validée. Aucun événement de
+  plus (`DIAGNOSTIC_EE_COMPLETED` / `EE_STARTED` / « sujet vu » sautés en
+  modification). Libellés : `kDiagnosticEdit*` (`widgets/diagnostic_common.dart`).
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions

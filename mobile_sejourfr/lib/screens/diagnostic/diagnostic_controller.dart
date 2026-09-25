@@ -55,6 +55,7 @@ class DiagnosticFlowState {
     this.canRetrySync = false,
     this.errorMessage,
     this.noticeMessage,
+    this.isEditingWritten = false,
   });
 
   /// Parcours serveur (compte existant). `null` tant que le visiteur n'a pas
@@ -91,6 +92,13 @@ class DiagnosticFlowState {
   /// passé son diagnostic ».
   final String? noticeMessage;
 
+  /// L'écrit a été rouvert depuis l'écran de compte pour être modifié.
+  ///
+  /// 🛑 La production enregistrée n'est PAS touchée tant que la modification
+  /// n'est pas validée : ni effacée, ni réécrite par l'autosave. « Revenir
+  /// sans modifier » ramène au compte avec le texte d'origine intact.
+  final bool isEditingWritten;
+
   DiagnosticFlowState copyWith({
     DiagnosticJourney? journey,
     PublicDiagnostic? subjects,
@@ -105,6 +113,7 @@ class DiagnosticFlowState {
     bool? canRetrySync,
     String? errorMessage,
     String? noticeMessage,
+    bool? isEditingWritten,
     bool clearError = false,
     bool clearNotice = false,
     bool clearDraft = false,
@@ -124,6 +133,7 @@ class DiagnosticFlowState {
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
         noticeMessage:
             clearNotice ? null : (noticeMessage ?? this.noticeMessage),
+        isEditingWritten: isEditingWritten ?? this.isEditingWritten,
       );
 }
 
@@ -279,6 +289,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
         subjects: subjects,
         draft: draft,
         guestStep: _resumeStep(usable ? draft : null, draft),
+        isEditingWritten: false,
         isLoading: false,
         noticeMessage: draft != null && !usable
             ? 'Les sujets du diagnostic ont été mis à jour. Votre texte est '
@@ -322,11 +333,44 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
     );
   }
 
+  /// Rouvre l'écrit depuis l'écran de compte (« Modifier mon texte »). Rien
+  /// n'est effacé : l'étape reste celle du compte tant que la modification
+  /// n'est pas validée. Miroir de `openWrittenEditor` (web).
+  void editGuestWritten() {
+    if (state.guestStep != DiagnosticGuestStep.accountRequired ||
+        !(state.draft?.hasWritten ?? false)) {
+      return;
+    }
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.written,
+      isEditingWritten: true,
+      clearError: true,
+    );
+  }
+
+  /// « Revenir sans modifier » : retour au compte, production d'origine
+  /// intacte.
+  void cancelGuestEdit() {
+    if (!state.isEditingWritten) return;
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.accountRequired,
+      isEditingWritten: false,
+      clearError: true,
+    );
+  }
+
   /// Sauvegarde silencieuse pendant la frappe. Jamais bloquante, jamais
   /// signalée : elle ne fait que réduire la fenêtre de perte.
+  ///
+  /// 🛑 Coupée pendant une MODIFICATION : le brouillon y est la production
+  /// déjà validée. L'écraser à chaque frappe rendrait « Revenir sans
+  /// modifier » mensonger, et un kill de l'app laisserait au compte un texte
+  /// hors bornes qui partirait tel quel à l'analyse.
   Future<void> autosaveGuestWritten(String text) async {
     final subjects = state.subjects;
-    if (subjects == null || text.trim().isEmpty) return;
+    if (subjects == null || text.trim().isEmpty || state.isEditingWritten) {
+      return;
+    }
     try {
       final draft = await _draftStore.saveWritten(
         diagnosticCode: subjects.diagnosticCode,
@@ -358,36 +402,57 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       state = state.copyWith(
         draft: draft,
         isSubmitting: false,
-        // 🛑 Sans étape orale (diagnostic rapide, L3), l'écrit rendu mène
-        // DIRECTEMENT au compte. Renvoyer vers `oral` bloquerait le visiteur
-        // sur un écran d'enregistrement qui n'a pas de sujet.
-        guestStep: subjects.oral == null
-            ? DiagnosticGuestStep.accountRequired
-            : DiagnosticGuestStep.oral,
+        guestStep: _stepAfterWritten(draft, subjects),
+        isEditingWritten: false,
         clearError: true,
       );
       return true;
     } catch (_) {
       if (!mounted) return false;
       // Le disque a refusé, mais le texte est en mémoire : on avance en le
-      // gardant en état plutôt que de bloquer le visiteur sur son écrit.
+      // gardant en état plutôt que de bloquer le visiteur sur son écrit. Un
+      // oral déjà enregistré (modification depuis le compte) est conservé.
+      final previous = state.draft;
+      final draft = (previous != null &&
+                  previous.matches(
+                    subjects.diagnosticCode,
+                    subjects.diagnosticVersion,
+                  )
+              ? previous
+              : DiagnosticDraft(
+                  diagnosticCode: subjects.diagnosticCode,
+                  diagnosticVersion: subjects.diagnosticVersion,
+                ))
+          .copyWith(
+        writtenTaskId: subjects.written.productionTaskId,
+        writtenText: text,
+        oralRequired: subjects.oral != null,
+      );
       state = state.copyWith(
-        draft: DiagnosticDraft(
-          diagnosticCode: subjects.diagnosticCode,
-          diagnosticVersion: subjects.diagnosticVersion,
-          writtenTaskId: subjects.written.productionTaskId,
-          writtenText: text,
-          oralRequired: subjects.oral != null,
-        ),
+        draft: draft,
         isSubmitting: false,
-        guestStep: subjects.oral == null
-            ? DiagnosticGuestStep.accountRequired
-            : DiagnosticGuestStep.oral,
+        guestStep: _stepAfterWritten(draft, subjects),
+        isEditingWritten: false,
         errorMessage: _localSaveWarning,
       );
       return true;
     }
   }
+
+  /// Après l'écrit : le compte si tout ce que ce diagnostic demande est là
+  /// (diagnostic rapide, ou oral déjà enregistré lors d'une modification),
+  /// l'oral sinon.
+  ///
+  /// 🛑 Sans étape orale (diagnostic rapide, L3), l'écrit rendu mène
+  /// DIRECTEMENT au compte. Renvoyer vers `oral` bloquerait le visiteur sur un
+  /// écran d'enregistrement qui n'a pas de sujet.
+  static DiagnosticGuestStep _stepAfterWritten(
+    DiagnosticDraft draft,
+    PublicDiagnostic subjects,
+  ) =>
+      subjects.oral == null || draft.isComplete
+          ? DiagnosticGuestStep.accountRequired
+          : DiagnosticGuestStep.oral;
 
   Future<bool> submitGuestOral({
     required File audioFile,

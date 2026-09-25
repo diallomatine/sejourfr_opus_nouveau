@@ -22,6 +22,7 @@ class DiagnosticAccountGate extends StatelessWidget {
     required this.hasOral,
     required this.onRegister,
     required this.onLogin,
+    this.onEditWritten,
     this.errorMessage,
     this.noticeMessage,
   });
@@ -32,6 +33,10 @@ class DiagnosticAccountGate extends StatelessWidget {
   final bool hasOral;
   final VoidCallback onRegister;
   final VoidCallback onLogin;
+
+  /// Rouvre l'écrit pré-rempli (« ← Modifier mon texte ») : rien n'est encore
+  /// parti au serveur, le candidat peut revoir sa production avant le compte.
+  final VoidCallback? onEditWritten;
   final String? errorMessage;
   final String? noticeMessage;
 
@@ -43,6 +48,13 @@ class DiagnosticAccountGate extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
+              if (onEditWritten != null) ...[
+                DiagnosticBackLink(
+                  label: kDiagnosticEditWrittenCta,
+                  onTap: onEditWritten!,
+                ),
+                const SizedBox(height: 8),
+              ],
               const DiagnosticProgress(activeStep: 2, completedSteps: 2),
               const SizedBox(height: 14),
               Container(

@@ -477,3 +477,23 @@ export const DIAGNOSTIC_COMMUNICATION_TONE: Record<DiagnosticCommunicationStatus
   PARTIAL: "mid",
   INEFFECTIVE: "weak",
 };
+
+// ---------------------------------------------------------------------------
+// Revenir à son écrit depuis l'écran de compte (diagnostic invité)
+// ---------------------------------------------------------------------------
+// Miroir mot pour mot de `mobile_sejourfr/lib/screens/diagnostic/widgets/
+// diagnostic_common.dart` (`kDiagnosticEdit*`, `diagnosticEditNote`).
+
+/** Le retour de l'écran de compte vers l'écrit, pré-rempli. */
+export const DIAGNOSTIC_EDIT_WRITTEN_CTA = "Modifier mon texte";
+/** Quitter la modification sans rien changer à la production enregistrée. */
+export const DIAGNOSTIC_EDIT_CANCEL = "Revenir sans modifier";
+/** Le bouton de l'écrit rouvert : il remplace la production, puis ramène au compte. */
+export const DIAGNOSTIC_EDIT_SUBMIT = "Enregistrer mes modifications";
+
+/** Ce qui ne bouge pas tant que la modification n'est pas enregistrée. */
+export function diagnosticEditNote(hasOral: boolean): string {
+  return hasOral
+    ? "Votre texte et votre enregistrement restent conservés tant que vous n'enregistrez pas vos modifications."
+    : "Votre texte reste conservé tant que vous n'enregistrez pas vos modifications.";
+}

@@ -6,6 +6,81 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/rich_paragraph_text.dart';
 
+// ---------------------------------------------------------------------------
+// Revenir à son écrit depuis l'écran de compte (parcours invité)
+// ---------------------------------------------------------------------------
+// Miroir mot pour mot de `web_sejoufr/lib/diagnostic.ts`
+// (`DIAGNOSTIC_EDIT_*`, `diagnosticEditNote`).
+
+/// Le retour de l'écran de compte vers l'écrit, pré-rempli.
+const kDiagnosticEditWrittenCta = 'Modifier mon texte';
+
+/// Quitter la modification sans rien changer à la production enregistrée.
+const kDiagnosticEditCancel = 'Revenir sans modifier';
+
+/// Le bouton de l'écrit rouvert : il remplace la production, puis ramène au
+/// compte.
+const kDiagnosticEditSubmit = 'Enregistrer mes modifications';
+
+/// Ce qui ne bouge pas tant que la modification n'est pas enregistrée.
+String diagnosticEditNote({required bool hasOral}) => hasOral
+    ? 'Votre texte et votre enregistrement restent conservés tant que vous '
+        'n’enregistrez pas vos modifications.'
+    : 'Votre texte reste conservé tant que vous n’enregistrez pas vos '
+        'modifications.';
+
+/// Lien de retour dans le parcours (« ← Modifier mon texte », « ← Revenir
+/// sans modifier ») : flèche + libellé, zone tactile de 44 px.
+class DiagnosticBackLink extends StatelessWidget {
+  const DiagnosticBackLink({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    LucideIcons.arrowLeft,
+                    size: 16,
+                    color: AppColors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: AppFonts.ui(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DiagnosticProgress extends StatelessWidget {
   const DiagnosticProgress({
     super.key,

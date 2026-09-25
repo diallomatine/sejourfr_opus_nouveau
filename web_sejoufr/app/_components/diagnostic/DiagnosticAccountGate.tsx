@@ -1,7 +1,7 @@
 "use client";
 
 import {useState} from "react";
-import {FilePenLine, Mic} from "lucide-react";
+import {ArrowLeft, FilePenLine, Mic} from "lucide-react";
 import {AuthShell} from "@/app/_components/auth/AuthShell";
 import {LoginForm} from "@/app/_components/auth/LoginForm";
 import {RegisterForm} from "@/app/_components/auth/RegisterForm";
@@ -9,8 +9,10 @@ import {TCF_DIAGNOSTIC_PANEL} from "@/app/_components/auth/auth-panels";
 import authStyles from "@/app/_components/auth/auth.module.css";
 import {ContinueOnAppLink} from "@/app/_components/diagnostic/ContinueOnAppLink";
 import {userContentApi} from "@/lib/api";
+import {DIAGNOSTIC_EDIT_WRITTEN_CTA} from "@/lib/diagnostic";
 import {DiagnosticGateRecap, type DiagnosticGateRecapItem} from "./DiagnosticGateRecap";
 import {DiagnosticSteps} from "./DiagnosticSteps";
+import styles from "./diagnostic.module.css";
 
 function formatDuration(seconds: number | null): string | null {
   if (seconds == null || seconds <= 0) return null;
@@ -35,6 +37,10 @@ function formatDuration(seconds: number | null): string | null {
  * - **l'écran ne lance rien lui-même** : le rattachement et l'analyse partent
  *   de `DiagnosticView` dès que l'authentification bascule (`runHandoff`).
  *
+ * Un retour « ← Modifier mon texte » rouvre l'écrit **pré-rempli** : rien
+ * n'est encore parti au serveur, le candidat peut donc revoir sa production
+ * avant de créer son compte (`onEditWritten`, porté par `GuestDiagnostic`).
+ *
  * Miroir mobile : `widgets/diagnostic_account_gate.dart`, texte pour texte.
  */
 export function DiagnosticAccountGate({
@@ -42,6 +48,7 @@ export function DiagnosticAccountGate({
   oralDurationSec,
   hasOral = true,
   storedOnDevice,
+  onEditWritten,
 }: {
   writtenWords: number;
   oralDurationSec: number | null;
@@ -58,6 +65,9 @@ export function DiagnosticAccountGate({
    *  quota) : on le dit franchement plutôt que de promettre une reprise qui
    *  n'aurait pas lieu. */
   storedOnDevice: boolean;
+  /** Rouvre l'écrit pré-rempli. Absent = pas de retour (aucun appelant ne
+   *  devrait l'omettre : c'est la seule sortie vers la production). */
+  onEditWritten?: () => void;
 }) {
   const [mode, setMode] = useState<"register" | "login">("register");
 
@@ -87,7 +97,16 @@ export function DiagnosticAccountGate({
 
   return (
     <AuthShell
-      header={<DiagnosticSteps current="account" guest complete={false} oral={hasOral} />}
+      header={
+        <>
+          {onEditWritten && (
+            <button type="button" className={styles.gateBack} onClick={onEditWritten}>
+              <ArrowLeft size={16} aria-hidden /> {DIAGNOSTIC_EDIT_WRITTEN_CTA}
+            </button>
+          )}
+          <DiagnosticSteps current="account" guest complete={false} oral={hasOral} />
+        </>
+      }
       kicker="Dernière étape · compte gratuit"
       title={
         hasOral ? (

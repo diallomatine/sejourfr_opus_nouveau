@@ -74,6 +74,7 @@ export function EeWritingForm({
   advisedTimeLabel,
   autoSubmitSignal = 0,
   onAutoSubmit,
+  initialText,
   onSubmit,
 }: {
   task: ProductionTaskDto;
@@ -128,18 +129,22 @@ export function EeWritingForm({
   /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax]).
    *  Au parent de décider quoi en faire (soumettre ou finir à vide). */
   onAutoSubmit?: (texte: string, recevable: boolean) => void;
+  /** Texte de départ, **prioritaire sur le brouillon** : c'est la production
+   *  déjà validée qu'on rouvre pour la modifier (diagnostic invité). Lu au
+   *  montage seulement. Absent = le brouillon, comportement historique. */
+  initialText?: string;
   onSubmit: (texte: string) => void;
 }) {
   const [text, setText] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const draftKey = DRAFT_PREFIX + task.id;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialTextRef = useRef(initialText);
 
   // Charge le brouillon existant au montage / changement de tâche.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = localStorage.getItem(draftKey) ?? "";
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    const saved = initialTextRef.current ?? localStorage.getItem(draftKey) ?? "";
     setText(saved);
     setHydrated(true);
   }, [draftKey]);
