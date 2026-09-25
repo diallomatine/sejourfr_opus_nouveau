@@ -994,7 +994,7 @@ retour (faible / moyenne / forte).
 - Contexte : D94 comptait « Reprendre » comme un exercice du Plan. Consigne du propriétaire : Plan seulement si l'exercice repris avait lui-même été lancé depuis le Plan, avec un marqueur **persisté au lancement**, sans en créer. Constat (web et mobile) : « Reprendre » relance l'**action courante calculée à la lecture** (`planNowCard` / `civicNowCard`, `reviser.ts:160,202` ; `reviser_screen.dart:289,371`), pas une tentative en cours ; **aucun marqueur persisté** n'existe (aucune colonne d'origine sur `attempts`, aucun stockage local ; `PLAN_EXERCISE_STARTED` est un événement d'audience jamais relu, émis aussi par « Reprendre » ; `?etape=1` est un marqueur de route).
 - Options : garder D94 ; créer un marqueur (exclu) ; « Reprendre » hors Plan.
 - Choix : hors Plan, web et mobile, TCF et civique. Un 403 prend le CTA de l'écran d'arrivée, sans parcours : `OTHER` (exercice, série civique, ligne de séance), `MOCK_EXAM` (mesure d'un domaine). Corrige D94 sur ce point ; « À faire maintenant » de l'Accueil reste Plan.
-- Chemins laissés tels quels, **à trancher par le propriétaire** (ils partent de la carte mais passent par un écran du Plan) : (1) geste `DEBLOQUER` → `/plan/debloquer`, qui pose toujours `LOCKED_PLAN` + `journeyId` — probablement le chemin d'achat le plus fréquent depuis la carte ; (2) geste `OUVRIR_ETAPE` → écran `/plan/*` (D96 : tout geste y est Plan) ; (3) petit sujet et re-vérification ouverts avec `?etape=1` (le marqueur règle aussi l'affichage « x/5 » de l'étape). Les corriger demanderait un paramètre d'origine sur ces écrans.
+- Chemins laissés tels quels, **tranchés par D115 (restent Plan)** (ils partent de la carte mais passent par un écran du Plan) : (1) geste `DEBLOQUER` → `/plan/debloquer`, qui pose toujours `LOCKED_PLAN` + `journeyId` — probablement le chemin d'achat le plus fréquent depuis la carte ; (2) geste `OUVRIR_ETAPE` → écran `/plan/*` (D96 : tout geste y est Plan) ; (3) petit sujet et re-vérification ouverts avec `?etape=1` (le marqueur règle aussi l'affichage « x/5 » de l'étape). Les corriger demanderait un paramètre d'origine sur ces écrans.
 - Fichiers : web `ReviserScreen.tsx`, `CLAUDE.md` ; mobile `reviser_screen.dart`, `plan_cta.dart`, `plan_actions.dart`, `CLAUDE.md`. Commit `4ab4172c`.
 - Difficulté de retour : faible.
 
@@ -1004,6 +1004,13 @@ retour (faible / moyenne / forte).
 - Choix : `db/migration-dev/R__seed_dev_suivi.sql`, rejouée à chaque démarrage dev, idempotente (supprime puis réinsère son seul périmètre : comptes `suivi.*@sejourfr.test` sans mot de passe, ids `5e1f5e1f-*`), couvre les 20 scénarios, respecte les CHECK et l'invariant revenu ; jamais en prod ni dans Zonky (qui ne lisent que `db/migration`). Dates : propriété `sejourfr.analytics.measurement-start-overrides`, posée seulement dans `application-dev.yaml` (14 indicateurs au 2026-01-01) ; **démarrage refusé** si elle est posée hors profil dev ; un test vérifie qu'aucun autre fichier de config ne la déclare. Inconvénient : une ligne de plus dans `flyway_schema_history` par démarrage dev.
 - Fichiers : `R__seed_dev_suivi.sql`, `application.yaml`, `application-dev.yaml`, `AnalyticsProperties`, `AnalyticsConfigLoader`, `AnalyticsConfigProvider`, `AnalyticsConfigLoaderTest`, `docs/migrations-flyway.md`, `docs/regles/mesure-audience.md`. Commit `bd774de6`.
 - Difficulté de retour : faible.
+
+**D115 — Les écrans du Plan restent comptés comme Plan, même atteints depuis « Reprendre »** · Arbitrage propriétaire
+- Contexte : D113 a laissé ouverts trois chemins qui partent de la carte « Reprendre » de Réviser mais passent par un écran du Plan : geste `DEBLOQUER` → `/plan/debloquer` ; geste `OUVRIR_ETAPE` → écran `/plan/*` ; petit sujet et re-vérification ouverts avec `?etape=1`.
+- Options : ajouter un paramètre d'origine à ces écrans pour les exclure ; les garder comptés comme Plan.
+- Choix (propriétaire, 2026-09-25) : **gardés comptés comme Plan**. L'achat part réellement d'un écran du Plan : c'est un fait observé, pas une déduction — cohérent avec D96 et avec « inconnu plutôt que faux ». Aucune modification de code.
+- Fichiers : aucun.
+- Difficulté de retour : faible (un paramètre d'origine sur trois écrans, web et mobile).
 
 ---
 
