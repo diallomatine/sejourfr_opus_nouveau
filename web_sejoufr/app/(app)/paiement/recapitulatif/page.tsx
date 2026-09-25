@@ -26,6 +26,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { retourDe } from "@/lib/retour";
+import { purchaseOriginDe } from "@/lib/purchase-origin";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -214,7 +215,13 @@ function RecapInner() {
       /* Le chemin d'où le candidat est parti acheter, relayé jusqu'à Stripe.
          `null` est le cas nominal (on arrive ici depuis les tarifs ou un lien
          partagé) : la `success_url` reste exactement celle d'avant. */
-      const { url } = await billingApi.getPaymentLink(plan.code, retourDe(searchParams));
+      /* L'intention d'achat (Q12) : le CTA relayé par l'adresse, sinon la
+         grille de prix qui mène ici. */
+      const { url } = await billingApi.getPaymentLink(
+        plan.code,
+        retourDe(searchParams),
+        purchaseOriginDe(searchParams, "PRICING"),
+      );
       window.location.assign(url);
     } catch (err) {
       if (err instanceof ApiException) {

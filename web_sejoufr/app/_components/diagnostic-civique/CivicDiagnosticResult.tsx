@@ -21,6 +21,7 @@ import {useCallback, useEffect, useState} from "react";
 import {AlertCircle, Check} from "lucide-react";
 import {ApiException, civicDiagnosticApi, publicCivicDiagnosticApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {trackDiagnosticReportViewed} from "@/lib/diagnostic-run";
 import {adopterSiInvite, lireInvite} from "@/lib/civic-diagnostic-guest";
 import {CivicDiagnosticGate} from "./CivicDiagnosticGate";
 import {
@@ -126,6 +127,12 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
         if (status === "loading") return;
         void charger();
     }, [charger, status]);
+
+    // Étape 4 du tunnel : le résultat affiché avec ses données — jamais
+    // l'écran de compte qui le précède pour un visiteur.
+    useEffect(() => {
+        if (etat.kind === "pret") trackDiagnosticReportViewed("CIVIQUE", sessionId);
+    }, [etat.kind, sessionId]);
 
     if (etat.kind === "compte") {
         return (

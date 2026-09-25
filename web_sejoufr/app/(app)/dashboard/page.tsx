@@ -640,6 +640,7 @@ function ActionPlanDuJour({plan, journey, free}: {
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
                 module="INTEGRAL"
+                journeyId={journey?.journeyId}
                 open={paywallOpen || assessments.paywallOpen}
                 onClose={() => { closePaywall(); assessments.closePaywall(); }}
             />

@@ -421,6 +421,7 @@ function CycleBody({journey, plan, module}: {
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module={passOffre}
+                journeyId={journey.journeyId}
                 open={exercises.paywallOpen || assessments.paywallOpen}
                 onClose={() => {
                     exercises.closePaywall();

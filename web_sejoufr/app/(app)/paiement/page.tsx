@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {retourDe} from "@/lib/retour";
+import {purchaseOriginDe} from "@/lib/purchase-origin";
 import {Suspense, useEffect, useMemo, useRef, useState} from "react";
 import {
     ApiException,
@@ -263,6 +264,9 @@ function PaiementInner() {
        le cas nominal (achat depuis les tarifs, le profil, un lien partagé) :
        la `success_url` est alors exactement celle d'avant. */
     const retour = retourDe(searchParams);
+    /* Le CTA qui a lancé l'achat et le parcours affiché (Q12), relayés comme
+       `retour`. Rien d'arrivé avec l'adresse ⇒ cet écran de prix est l'origine. */
+    const origin = purchaseOriginDe(searchParams, "PRICING");
 
     async function handleSubscribe(planCode: string) {
         // Ce clic engage réellement l'achat (ouverture de la Checkout Stripe),
@@ -275,7 +279,7 @@ function PaiementInner() {
         setError(null);
         setLoadingCode(planCode);
         try {
-            const {url} = await billingApi.getPaymentLink(planCode, retour);
+            const {url} = await billingApi.getPaymentLink(planCode, retour, origin);
             window.location.assign(url);
         } catch (err) {
             if (err instanceof ApiException) {

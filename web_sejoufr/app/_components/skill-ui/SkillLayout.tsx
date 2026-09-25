@@ -1,6 +1,7 @@
 "use client";
 
 import {track} from "@/lib/analytics";
+import {withPurchaseOrigin} from "@/lib/purchase-origin";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -620,7 +621,9 @@ export function SkillRowCard({
  * `PaywallSheet` le fait déjà, et on ne fabrique surtout pas un second parcours
  * de paiement.
  */
-export const SKILL_PREMIUM_HREF = "/paiement?module=INTEGRAL";
+export const SKILL_PREMIUM_HREF = withPurchaseOrigin("/paiement?module=INTEGRAL", {
+  ctaLocation: "OTHER",
+});
 
 /** Le libellé du bouton qui ouvre l'offre depuis le module. Wording neutre
  *  (guidelines Apple 3.1.1), **miroir mot pour mot** de `kPremiumLockCta`

@@ -8,6 +8,7 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
 import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
+import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {
   CIVIC_PLAN_LOCKED_CTA,
@@ -98,6 +99,7 @@ export function CivicPlanPanel() {
   /* 🛑 **Le CYCLE civique** (D-50) : c'est lui qui porte « À faire maintenant »
      et les blocs. `null` est un cas normal — pas encore lu. */
   const [journey, setJourney] = useState<JourneyDto | null>(null);
+  const [journeyRead, setJourneyRead] = useState(false);
 
   useEffect(() => {
     let vivant = true;
@@ -108,9 +110,20 @@ export function CivicPlanPanel() {
     journeyApi.getCached("CIVIQUE").then(
       (j) => { if (vivant) setJourney(j); },
       () => { /* idem : le cycle absent fait disparaître sa section, pas l'écran */ },
-    );
+    ).finally(() => {
+      if (vivant) setJourneyRead(true);
+    });
     return () => { vivant = false; };
   }, []);
+
+  // Étape 5 du tunnel « Suivi » : le Plan civique affiché, avec son
+  // `journeyId`. Miroir de `LearningPlanView`.
+  const planShown = plan?.disponible === true;
+  const journeyId = journey?.journeyId ?? null;
+  useEffect(() => {
+    if (!planShown || !journeyRead) return;
+    track("PLAN_OPENED", {}, {once: true, context: {journeyId}});
+  }, [planShown, journeyRead, journeyId]);
 
   /* 🛑 **La bascule de parcours ne se fait jamais attendre.** C'est l'en-tête
      qui la porte (`TopSlot`), donc on le rend dès le premier passage, avant le

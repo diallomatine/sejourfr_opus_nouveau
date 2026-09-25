@@ -72,12 +72,24 @@ export function questionTypeLabel(type: QuestionType): string {
 // ============ AUTH ============
 export type AuthProvider = "LOCAL" | "GOOGLE" | "APPLE";
 
-export interface LoginRequest {
+/**
+ * Ce qu'une authentification transmet pour rattacher le parcours anonyme
+ * (chantier « Suivi », Q3). Posé par `authApi` lui-même, jamais par un écran :
+ * un écran d'auth de plus ne peut pas l'oublier.
+ */
+export interface AuthAttributionFields {
+    anonymousId?: string | null;
+    diagnosticRunId?: string | null;
+    /** 🛑 Secret : ne part que vers l'auth et le « soumis », jamais dans un événement. */
+    claimToken?: string | null;
+}
+
+export interface LoginRequest extends AuthAttributionFields {
     email: string;
     password: string;
 }
 
-export interface RegisterRequest {
+export interface RegisterRequest extends AuthAttributionFields {
     email: string;
     password: string;
     firstName: string;
@@ -93,8 +105,31 @@ export interface RegisterRequest {
  * Payload envoye a POST /api/auth/google. Le `idToken` est obtenu via
  * Google Identity Services dans le navigateur (credential.credential).
  */
-export interface GoogleSignInRequest {
+export interface GoogleSignInRequest extends AuthAttributionFields {
     idToken: string;
+}
+
+// ============ TRACE DU TUNNEL DIAGNOSTIC (chantier « Suivi ») ============
+
+/** Miroir de `DiagnosticRunType`. */
+export type DiagnosticRunType = "QUICK_TCF" | "FULL_TCF" | "CIVIQUE";
+
+/** `POST /api/public/diagnostic-runs`. */
+export interface DiagnosticRunCreateRequest {
+    diagnosticType: DiagnosticRunType;
+    clientKey: string;
+    sessionId?: string | null;
+}
+
+/** Réponse de création. 🛑 `claimToken` est un secret (cf. `lib/diagnostic-run-store.ts`). */
+export interface DiagnosticRunCreatedResponse {
+    diagnosticRunId: string;
+    diagnosticType: DiagnosticRunType;
+    claimToken: string;
+    claimTokenExpiresAt: string;
+    subjectViewedAt: string;
+    /** `false` = rejeu : même run, NOUVEAU jeton. */
+    created: boolean;
 }
 
 export interface TokenResponse {
@@ -5052,6 +5087,11 @@ export interface JourneyDto {
     nextStep: JourneyNextStepDto | null;
     /** `null` est le cas courant. */
     suggestion: JourneySuggestionType | null;
+    /** **L'identifiant du parcours** (`journey.id`) : le `plan_id` du chantier
+     *  « Suivi » (Q8). Recopié dans les événements du Plan (`PLAN_OPENED`,
+     *  `PLAN_UNLOCK_CLICKED`) et dans l'intention d'achat ; le serveur en déduit
+     *  lui-même la run de diagnostic fondatrice. `null` sans parcours. */
+    journeyId: string | null;
 }
 
 /* ===========================================================================

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { track } from "@/lib/analytics";
+import { withPurchaseOrigin } from "@/lib/purchase-origin";
 
 /**
  * Affiché à la place de la liste de thèmes/du runner quand l'utilisateur
@@ -30,7 +31,7 @@ export function TcfPaywallCard({ compact = false }: { compact?: boolean }) {
       </ul>
       <div className="tpc-actions">
         <Link
-          href="/paiement?module=INTEGRAL"
+          href={withPurchaseOrigin("/paiement?module=INTEGRAL", {ctaLocation: "OTHER"})}
           className="btn btn-red"
           onClick={() =>
             track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "tcf_verrou"})

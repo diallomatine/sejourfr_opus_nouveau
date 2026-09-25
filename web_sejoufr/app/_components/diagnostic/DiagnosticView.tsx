@@ -25,6 +25,13 @@ import {
 } from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {
+  bindQuickTcfSession,
+  ensureDiagnosticRun,
+  quickTcfRunForHandoff,
+  submitQuickTcfRun,
+  trackDiagnosticReportViewed,
+} from "@/lib/diagnostic-run";
+import {
   type DiagnosticExerciseContent,
   diagnosticExerciseAsProductionTask,
 } from "@/lib/diagnostic";
@@ -223,6 +230,9 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     // de `DIAGNOSTIC_EO_COMPLETED` — entre les deux se joue la décision même
     // de créer un compte.
     if (step === "account") trackDiagnostic("DIAGNOSTIC_ACCOUNT_REQUIRED", {once: true});
+    // « Sujet vu » (chantier Suivi) : la trace du passage naît à l'affichage
+    // de la première question. Idempotente, sans appel si elle existe déjà.
+    if (step === "written" || step === "oral") void ensureDiagnosticRun("QUICK_TCF");
   }, [step]);
 
   async function keepWritten(text: string) {
@@ -251,6 +261,9 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       savedAt: Date.now(),
     }));
     trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
+    // Sans oral, ce bouton EST « analyser mes réponses » : le « soumis » du
+    // TCF rapide se pose ici, côté client (D23).
+    if (subjects.oral === null) void submitQuickTcfRun();
     setSaving(false);
   }
 
@@ -280,6 +293,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       savedAt: Date.now(),
     }));
     trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
+    void submitQuickTcfRun();
     setSaving(false);
   }
 
@@ -471,8 +485,12 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         // sujet écrit peut être tiré, et sans cet identifiant la session
         // s'ouvrirait sur un autre énoncé que celui traité par le candidat.
         // Vérifié serveur — un identifiant inconnu retombe sur un tirage.
-        let session = await diagnosticApi.start(local.writtenTaskId ?? undefined);
+        // La run du passage d'invité : le serveur la lie à cette session si
+        // elle a été claimée par ce compte à l'auth, et l'ignore sinon (D24).
+        const runId = await quickTcfRunForHandoff();
+        let session = await diagnosticApi.start(local.writtenTaskId ?? undefined, runId);
         setDiagnostic(session);
+        if (runId && session.sessionId) void bindQuickTcfSession(runId, session.sessionId);
 
         if (
           session.diagnosticCode != null &&
@@ -642,12 +660,34 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     if (diagnostic.nextStep === "ORAL" && diagnostic.oral) {
       trackDiagnostic("DIAGNOSTIC_EO_STARTED", {once: true});
     }
-    if (diagnostic.status === "COMPLETED") {
-      // 🛑 Pas d'événement « diagnostic terminé » : il se lit sur
-      // `diagnostic_sessions.status`, on ne crée pas une seconde vérité.
-      trackDiagnostic("DIAGNOSTIC_REPORT_VIEWED", {once: true});
+    // 🛑 Pas d'événement « diagnostic terminé » : il se lit sur
+    // `diagnostic_sessions.status`, on ne crée pas une seconde vérité. Le
+    // rapport, lui, est compté quand il s'affiche AVEC ses données — et porte
+    // la run de CETTE session si l'appareil la connaît (étape 4 du tunnel).
+    const sessionId = diagnostic.sessionId;
+    if (
+      sessionId &&
+      diagnostic.result &&
+      (diagnostic.status === "COMPLETED" || diagnostic.nextStep === "RESULT")
+    ) {
+      trackDiagnosticReportViewed("QUICK_TCF", sessionId);
     }
   }, [diagnostic]);
+
+  // « Sujet vu » d'un parcours connecté : la question affichée, hors reprise
+  // des productions d'invité (qui n'affiche aucune question).
+  useEffect(() => {
+    if (!diagnostic?.sessionId || handoff.kind !== "idle") return;
+    const shown =
+      diagnostic.nextStep === "WRITTEN"
+        ? diagnostic.written
+        : diagnostic.nextStep === "ORAL"
+          ? diagnostic.oral
+          : null;
+    if (shown && shown.submissionId == null) {
+      void ensureDiagnosticRun("QUICK_TCF", diagnostic.sessionId);
+    }
+  }, [diagnostic, handoff.kind]);
 
   // L'analyse des productions est asynchrone. La session, et non le front,
   // décide de l'étape suivante ; ce polling ne fait que relire cette décision.
@@ -759,6 +799,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         ),
       });
       trackDiagnostic("DIAGNOSTIC_EE_COMPLETED", {once: true});
+      if (diagnostic.oral == null) void submitQuickTcfRun(diagnostic.sessionId);
       clearEeDraft(exercise.productionTaskId);
       await refreshAfterSubmission(diagnostic.sessionId, "WRITTEN");
     } catch (cause) {
@@ -781,6 +822,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         submissionKey(`${exercise.attemptId}:${exercise.productionTaskId}`),
       );
       trackDiagnostic("DIAGNOSTIC_EO_COMPLETED", {once: true});
+      void submitQuickTcfRun(diagnostic.sessionId);
       await refreshAfterSubmission(diagnostic.sessionId, "ORAL");
     } catch (cause) {
       setError(errorMessage(cause, "Impossible d'envoyer votre enregistrement."));

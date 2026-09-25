@@ -47,6 +47,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+    // Version déclarée au serveur (`X-Sejourfr-App-Version`, `lib/client-context.ts`).
+    // Un déploiement peut la fixer (numéro de build) ; sinon la version du
+    // `package.json`, exposée par npm à ses scripts.
+    env: {
+        NEXT_PUBLIC_APP_VERSION:
+            process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.npm_package_version ?? "",
+    },
     async headers() {
         return [{source: "/:path*", headers: securityHeaders}];
     },

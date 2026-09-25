@@ -19,6 +19,7 @@
  */
 
 import {useCallback, useEffect, useState} from "react";
+import {trackDiagnosticReportViewed} from "@/lib/diagnostic-run";
 import {BookOpen, Check, Headphones, Mic, PenLine, type LucideIcon} from "lucide-react";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
 import {EPREUVE_PRESENTATION} from "@/lib/exam-durations";
@@ -135,6 +136,11 @@ export function TcfDiagnosticResult({sessionId}: {sessionId: string}) {
     useEffect(() => {
         void charger();
     }, [charger]);
+
+    // Le rapport s'affiche avec ses données : il compte (chantier Suivi).
+    useEffect(() => {
+        if (etat.kind === "pret") trackDiagnosticReportViewed("FULL_TCF", sessionId);
+    }, [etat.kind, sessionId]);
 
     if (etat.kind === "loading") {
         return (

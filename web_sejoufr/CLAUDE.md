@@ -46,7 +46,10 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | POST    | `/api/diagnostics/{id}/retry-analysis` | relancer une analyse échouée sans ressaisie      | oui  |
 | GET     | `/api/me/plan`                         | priorité courante et Plan personnalisé           | oui  |
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
-| GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
+| GET     | `/api/billing/payment-link?planCode=…&ctaLocation=…&journeyId=…` | Checkout Stripe + intention d'achat (Q12) | oui  |
+| POST    | `/api/public/analytics/events/batch`   | ingestion des événements, par lots (≤ 50)       | non  |
+| POST    | `/api/public/diagnostic-runs`          | trace du diagnostic, « sujet vu »               | non  |
+| POST    | `/api/public/diagnostic-runs/{id}/submit` | « soumis » du TCF rapide                     | non  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
 | POST    | `/api/billing/cancel`                  | résiliation de l'abonnement courant             | oui  |
 | DELETE  | `/api/account`                         | suppression de compte (anonymisation)           | oui  |
@@ -856,11 +859,9 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   min indicatif) : la carte affichait un chrono global « 89:47 » et le titre
   disait « 90 minutes », deux affirmations **fausses depuis le 2026-08-15** (cf.
   § *Temps des examens blancs TCF*). Ne pas y remettre de décompte global.
-- **Mesure d'audience** : `lib/analytics.ts` (qui a remplacé `lib/audience.ts` et
-  `lib/audience-events.ts`) utilise `sendBeacon` (survit à la navigation) et borne
-  les couples chemin/événement autorisés par le backend. Règles : `docs/regles/mesure-audience.md`.
-  `/reussir` envoie `VIEW` et `SOCIAL_LANDING_DIAGNOSTIC_CLICKED` ; les étapes
-  diagnostic et Plan ont leurs événements dédiés, sans réponse ni identifiant.
+- **Mesure d'audience** : `lib/analytics.ts`, envoi **en lot** — cf. § « Mesure
+  d'audience et trace du tunnel » en fin de fichier. `/reussir` émet `LANDING_VIEWED`,
+  `DIAGNOSTIC_CTA_CLICKED` / `CIVIQUE_CTA_CLICKED` et les CTA de prix.
 - Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
   `url: null` **n'est pas rendue** — on ne publie jamais un lien vers un compte
   qui n'existe pas encore.
@@ -5005,4 +5006,56 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   `[code]/[level]`, `civique/[theme]`) et les sujets de production (`ProductionSubjects`,
   `!isPremium && i > 0`) — aucun `locked` n'est servi pour eux (dette nommée dans
   `docs/regles/freemium.md`).
+
+
+## Mesure d'audience et trace du tunnel (chantier « Suivi », lot 3, 2026-09-25)
+
+> Contrat backend : `docs/regles/mesure-audience.md`, `docs/regles/diagnostic.md`
+> § « La trace du tunnel » · arbitrages et décisions : `docs/admin/decisions-suivi.md`.
+
+- **`lib/client-context.ts` — autorité unique du contexte client** : identifiant de mesure
+  (`sejourfr.aid`, 13 mois), visite (`sejourfr.sid`, 30 min) et les en-têtes
+  `X-Sejourfr-Client: web`, `X-Sejourfr-Anonymous-Id`, `X-Sejourfr-App-Version`
+  (`NEXT_PUBLIC_APP_VERSION`, sinon la version de `package.json`, posée par `next.config.ts`),
+  `X-Sejourfr-Source`. `lib/api.ts` les pose sur **toutes** les requêtes. N'importe ni `api`
+  ni `analytics` (cycle).
+- **`lib/analytics.ts` — ingestion EN LOT** (`POST /api/public/analytics/events/batch`) :
+  `eventId` tiré **à la création** de l'événement, tampon mémoire, envoi après 4 s ou à
+  50 événements, **vidage `sendBeacon`** au `visibilitychange: hidden` / `pagehide` (sans
+  en-têtes : `client` et `appVersion` voyagent dans le corps). 202 ⇒ purge (rejets compris) ;
+  400 ⇒ lot abandonné ; 429 / 5xx / réseau ⇒ le lot repart plus tard sous les mêmes
+  `eventId`. Sans identifiant de mesure (stockage refusé), rien ne part : le serveur l'exige.
+  🛑 **L'endpoint unitaire n'est plus appelé par le web.**
+- **Premier contact capté au PREMIER HIT** (`FirstTouchCapture`, layout racine →
+  `captureFirstTouchOnLanding`) : source déclarée **brute** (`utm_source` / `src`, sinon hôte
+  du referrer), UTM, écran d'arrivée (s'il est suivi), envoyé avec le premier lot et marqué
+  « envoyé » seulement si le serveur a retenu au moins un événement de ce lot.
+- 🛑 **Chemins : miroir FERMÉ de `AnalyticsPaths.KNOWN`** (`TRACKED_PATHS` + routes
+  dynamiques ramenées à leur écran, `/diagnostic-civique/{id}/resultat` →
+  `/diagnostic-civique/resultat`). Un écran non déclaré part avec `path: null` — un chemin
+  hors liste rejette l'événement, et un `landingPath` de premier contact hors liste rejette
+  **tout le lot**. Ajouter un écran suivi = une ligne ici ET côté backend.
+- **Contexte d'un événement** (`track(…, {context})`) : `diagnosticRunId`, `diagnosticType`,
+  `journeyId` en colonnes serveur. 🛑 **Le `claimToken` n'y entre jamais** (aucun type ne le
+  porte).
+- **La run de diagnostic** : `lib/diagnostic-run-store.ts` (stockage, IndexedDB
+  `sejourfr-diagnostic` v2, magasin `runs`, une entrée par type — n'importe pas `api`) et
+  `lib/diagnostic-run.ts` (cycle de vie, seul appelant de `diagnosticRunApi`).
+  | Fait | Où |
+  |---|---|
+  | Sujet vu (`ensureDiagnosticRun`) | TCF rapide : 1ʳᵉ question affichée (`DiagnosticView`, invité et connecté) · civique : runner `/sessions/[id]?civicDiagnosticId=` en `running` · complet : `lancerSection` du hub |
+  | Soumis (`submitQuickTcfRun`) | TCF rapide seulement, au bouton final (« Valider mon diagnostic » / « Terminer et analyser ») ; serveur pour les deux autres |
+  | Session liée | à la création (`sessionId`) ; rapide invité : `diagnosticApi.start(…, diagnosticRunId)` au handoff |
+  | Rattaché | `authApi.login/register/google` ajoutent `anonymousId` + la run d'invité la plus récente (`diagnosticRunToClaim`) et son jeton |
+- **Événements du tunnel** : `DIAGNOSTIC_REPORT_VIEWED` (`trackDiagnosticReportViewed`, rapport
+  affiché **avec ses données**, run de **cette** session seulement), `PLAN_OPENED` (Plan TCF et
+  civique affichés, `journeyId`), `PLAN_UNLOCK_CLICKED` (bouton « Débloquer mon plan » de
+  `/plan/debloquer`, `planCode` + `displayedPriceCents` du pass d'entrée, `passFrom`).
+  🛑 Les événements du Plan ne portent **pas** de `diagnosticRunId` : le serveur résout la run
+  fondatrice depuis le parcours (Q8).
+- **Intention d'achat** : `lib/purchase-origin.ts` fait voyager `?cta=` et `?journey=` (validés à
+  l'arrivée) jusqu'à `billingApi.getPaymentLink(planCode, retour, origin)`, **obligatoire**.
+  `/plan/debloquer` pose `LOCKED_PLAN` + son `journeyId` ; `PaywallSheet` pose son
+  `ctaLocation` (et `journeyId` sur le Plan) ; sans rien, `/paiement` et le récapitulatif
+  valent `PRICING`.
 

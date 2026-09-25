@@ -102,6 +102,9 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
      un backend antérieur à l'endpoint ne doit pas casser le Plan, qui garde sa
      règle tant que le parcours n'a rien à dire. */
   const [journey, setJourney] = useState<JourneyDto | null>(null);
+  /** La lecture du parcours a abouti ou échoué : `PLAN_OPENED` l'attend pour
+   *  porter son `journeyId`, sans jamais attendre indéfiniment. */
+  const [journeyRead, setJourneyRead] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const trafficSource = useTrafficSource();
@@ -127,16 +130,20 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     journeyApi.getCached().then(
       (current) => { if (!cancelled) setJourney(current); },
       () => { /* silencieux : le Plan reste lisible sans son parcours */ },
-    );
+    ).finally(() => {
+      if (!cancelled) setJourneyRead(true);
+    });
     return () => { cancelled = true; };
   }, [authStatus, user]);
 
-  // Ne sert aucun bloc de cet écran : posé pour ne pas perdre une mesure qui
-  // existait avant la migration vers `lib/analytics.ts` (cf. CLAUDE.md racine).
+  // Étape 5 du tunnel « Suivi » : le Plan affiché, avec son `journeyId`. La
+  // run fondatrice se résout serveur depuis le parcours (Q8), jamais ici.
+  const planShown = plan?.state === "ACTIVE";
+  const journeyId = journey?.journeyId ?? null;
   useEffect(() => {
-    if (!user) return;
-    track("PLAN_OPENED", {}, {once: true});
-  }, [user]);
+    if (!planShown || !journeyRead) return;
+    track("PLAN_OPENED", {}, {once: true, context: {journeyId}});
+  }, [planShown, journeyRead, journeyId]);
 
   if (authStatus === "loading" || (Boolean(user) && loading)) {
     return <Top kicker="Votre parcours personnalisé" title="Mon plan du jour" />;
@@ -469,6 +476,7 @@ function ActionMaintenant({plan, journey, free}: {
         ctaLocation="LOCKED_PLAN"
         screen="plan"
         module="INTEGRAL"
+        journeyId={journey?.journeyId}
         open={paywallOpen || assessments.paywallOpen}
         onClose={() => {
           closePaywall();

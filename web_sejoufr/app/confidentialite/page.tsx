@@ -468,7 +468,7 @@ export default function ConfidentialitePage() {
               [
                 "sejourfr-diagnostic, sejourfr.civic-diagnostic.invite et sejourfr.ee.draft.*",
                 "Stockage du navigateur (IndexedDB et stockage local)",
-                "Garder vos réponses d'un diagnostic ou d'une production en cours, pour ne pas les perdre avant de créer votre compte ou d'envoyer votre texte. Rien n'en est transmis tant que vous ne les envoyez pas.",
+                "Garder vos réponses d'un diagnostic ou d'une production en cours, pour ne pas les perdre avant de créer votre compte ou d'envoyer votre texte. Rien n'en est transmis tant que vous ne les envoyez pas. S'y ajoutent le numéro du diagnostic commencé et une clé qui sert uniquement à le rattacher à votre compte quand vous le créez ou vous connectez (jamais vos réponses).",
                 "Jusqu'à l'envoi de vos réponses, ou jusqu'à ce que vous effaciez les données du site",
               ],
               [

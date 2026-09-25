@@ -5,6 +5,7 @@ import { SITE } from "@/lib/site";
 import { SiteHeader } from "./_components/SiteHeader";
 import { Footer } from "./_components/Footer";
 import { NavHistoryTracker } from "./_components/NavHistoryTracker";
+import { FirstTouchCapture } from "./_components/FirstTouchCapture";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -79,6 +80,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body suppressHydrationWarning>
+        <FirstTouchCapture />
         <NavHistoryTracker />
         <AuthProvider>
           <SiteHeader />

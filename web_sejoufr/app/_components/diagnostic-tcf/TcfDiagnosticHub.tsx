@@ -25,6 +25,7 @@ import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {useCallback, useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
 import {ApiException, tcfDiagnosticApi} from "@/lib/api";
+import {ensureDiagnosticRun} from "@/lib/diagnostic-run";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {EPREUVE_PRESENTATION, minutesLabel, EO_PAR_TACHE_LABEL} from "@/lib/exam-durations";
 import {
@@ -151,6 +152,10 @@ export function TcfDiagnosticHub() {
             setAction(true);
             try {
                 await tcfDiagnosticApi.startSection(sessionId, section.epreuve);
+                // « Sujet vu » du diagnostic complet (chantier Suivi) : la
+                // première section lancée. Idempotente par session, sans
+                // appel aux sections suivantes ; « soumis » est posé serveur.
+                void ensureDiagnosticRun("FULL_TCF", sessionId);
                 router.push(sectionHref(section.epreuve, section.attemptId, sessionId));
             } catch (e) {
                 setEtat({

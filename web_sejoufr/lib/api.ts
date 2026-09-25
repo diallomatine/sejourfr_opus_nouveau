@@ -65,9 +65,14 @@ import type {
   UserStatsResponse,
     JourneyDto,
     JourneyHistoryDto,
+    AuthAttributionFields,
+    DiagnosticRunCreateRequest,
+    DiagnosticRunCreatedResponse,
     JourneyStepDetailDto,
 } from "./types";
-import {detectTrafficSource} from "./traffic-source";
+import {anonymousId, clientContextHeaders} from "./client-context";
+import {diagnosticRunToClaim} from "./diagnostic-run-store";
+import type {AnalyticsCtaLocation} from "./analytics";
 import {withRetour} from "./retour";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
@@ -378,33 +383,14 @@ async function refreshAccessToken(): Promise<string | null> {
     return refreshPromise;
 }
 
-/**
- * En-têtes d'identification du client, posés sur **toutes** les requêtes — un
- * seul point de câblage, jamais un ajout appel par appel.
- *
- * - `X-Sejourfr-Client: web` distingue le site des applications mobiles ;
- * - `X-Sejourfr-Source` transporte la provenance (TikTok, Instagram…) quand
- *   elle est connue. Le serveur ne la lit qu'à la création du compte et d'une
- *   session de diagnostic ; l'envoyer partout coûte quelques octets et évite de
- *   devoir la câbler sur chaque appel qui pourrait un jour compter.
- *
- * Rien n'est stocké côté navigateur : la provenance est relue de l'URL (ou du
- * referrer) à chaque requête. En rendu serveur, `detectTrafficSource` rend
- * `null` sans lever — l'en-tête est simplement absent.
- */
-function clientHeaders(): Record<string, string> {
-    const source = detectTrafficSource();
-    return source
-        ? {"X-Sejourfr-Client": "web", "X-Sejourfr-Source": source}
-        : {"X-Sejourfr-Client": "web"};
-}
-
 async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     const {auth, json, headers, skipRefresh: _skip, cache, next, ...rest} = opts;
 
     const finalHeaders: Record<string, string> = {
         Accept: "application/json",
-        ...clientHeaders(),
+        // Contexte client (plateforme, identifiant de mesure, version,
+        // provenance) : un seul point de câblage, `lib/client-context.ts`.
+        ...clientContextHeaders(),
         ...((headers as Record<string, string>) || {}),
     };
 
@@ -495,11 +481,29 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
 // Endpoints Auth
 // ============================================================================
 
+/**
+ * **Le rattachement du parcours anonyme, posé sur chaque authentification**
+ * (chantier « Suivi », Q3) : l'identifiant de mesure et la run de diagnostic
+ * d'invité de cet appareil avec son `claimToken`. Le serveur claime dans la
+ * transaction d'auth, et un jeton faux, expiré ou déjà utilisé n'empêche
+ * jamais d'entrer (D25). Ici et pas dans les écrans : un écran d'auth ajouté
+ * plus tard est couvert sans rien déclarer.
+ */
+async function withAttribution<T extends AuthAttributionFields>(body: T): Promise<T> {
+    const run = await diagnosticRunToClaim().catch(() => null);
+    return {
+        ...body,
+        anonymousId: anonymousId(),
+        diagnosticRunId: run?.diagnosticRunId ?? null,
+        claimToken: run?.claimToken ?? null,
+    };
+}
+
 export const authApi = {
     async login(body: LoginRequest): Promise<TokenResponse> {
         const tokens = await apiFetch<TokenResponse>("/api/auth/login", {
             method: "POST",
-            json: body,
+            json: await withAttribution(body),
         });
         tokenStorage.set(tokens);
         return tokens;
@@ -508,7 +512,7 @@ export const authApi = {
     async register(body: RegisterRequest): Promise<TokenResponse> {
         const tokens = await apiFetch<TokenResponse>("/api/auth/register", {
             method: "POST",
-            json: body,
+            json: await withAttribution(body),
         });
         tokenStorage.set(tokens);
         return tokens;
@@ -522,7 +526,7 @@ export const authApi = {
     async google(body: GoogleSignInRequest): Promise<TokenResponse> {
         const tokens = await apiFetch<TokenResponse>("/api/auth/google", {
             method: "POST",
-            json: body,
+            json: await withAttribution(body),
         });
         tokenStorage.set(tokens);
         return tokens;
@@ -702,9 +706,19 @@ export const billingApi = {
      *                 retrouvera **après** le paiement. Le serveur le valide et
      *                 l'ignore en silence s'il ne passe pas ; absent, la
      *                 `success_url` est exactement celle d'avant.
+     * @param origin   le CTA qui a lancé l'achat et le parcours affiché
+     *                 (`lib/purchase-origin.ts`) : le serveur en fait
+     *                 l'intention d'achat (Q12). Seul `LOCKED_PLAN` range
+     *                 l'achat dans le tunnel du diagnostic (D32).
      */
-    getPaymentLink(planCode: string, retour?: string | null): Promise<{ url: string }> {
-        const base = `/api/billing/payment-link?planCode=${encodeURIComponent(planCode)}`;
+    getPaymentLink(
+        planCode: string,
+        retour: string | null | undefined,
+        origin: {ctaLocation: AnalyticsCtaLocation; journeyId: string | null},
+    ): Promise<{ url: string }> {
+        const params = new URLSearchParams({planCode, ctaLocation: origin.ctaLocation});
+        if (origin.journeyId) params.set("journeyId", origin.journeyId);
+        const base = `/api/billing/payment-link?${params.toString()}`;
         return apiFetch<{ url: string }>(withRetour(base, retour), {auth: true});
     },
 
@@ -1581,12 +1595,18 @@ export const diagnosticApi = {
      * (L3). Il est **facultatif** et **vérifié serveur** : un identifiant
      * inconnu retombe sur un tirage plutôt que de bloquer un candidat dont le
      * sujet a été désactivé entre-temps.
+     *
+     * `diagnosticRunId` : au handoff du tunnel invité, la run créée à
+     * l'affichage du sujet. Le serveur ne la lie que si elle appartient déjà
+     * au compte (claimée à l'auth) — jamais de jeton en query string (D24).
      */
-    start(writtenTaskId?: string): Promise<DiagnosticResponse> {
+    start(writtenTaskId?: string, diagnosticRunId?: string | null): Promise<DiagnosticResponse> {
         invalidateDiagnosticAndPlan();
-        const query = writtenTaskId
-            ? `?writtenTaskId=${encodeURIComponent(writtenTaskId)}`
-            : "";
+        const params = new URLSearchParams();
+        if (writtenTaskId) params.set("writtenTaskId", writtenTaskId);
+        if (diagnosticRunId) params.set("diagnosticRunId", diagnosticRunId);
+        const encoded = params.toString();
+        const query = encoded ? `?${encoded}` : "";
         return apiFetch<DiagnosticResponse>(`/api/diagnostics${query}`, {
             method: "POST",
             auth: true,
@@ -1605,6 +1625,34 @@ export const diagnosticApi = {
             `/api/diagnostics/${sessionId}/retry-analysis`,
             {method: "POST", auth: true},
         ).then(afterDiagnosticRead);
+    },
+};
+
+/**
+ * **La trace du tunnel diagnostic** (chantier « Suivi », lot 2a). Routes
+ * publiques : un jeton, s'il existe, fait de l'appelant le porteur. Appelées
+ * par `lib/diagnostic-run.ts` seulement, jamais par un écran.
+ */
+export const diagnosticRunApi = {
+    /** À l'affichage de la 1ʳᵉ question. Idempotent : un rejeu rend la même
+     *  run et un NOUVEAU jeton. */
+    create(body: DiagnosticRunCreateRequest): Promise<DiagnosticRunCreatedResponse> {
+        return apiFetch<DiagnosticRunCreatedResponse>("/api/public/diagnostic-runs", {
+            method: "POST",
+            json: body,
+            auth: true,
+            skipRefresh: true,
+        });
+    },
+
+    /** « Soumis » du TCF rapide seulement (D23) : 204, une seule fois. */
+    submit(diagnosticRunId: string, claimToken: string | null): Promise<void> {
+        return apiFetch<void>(`/api/public/diagnostic-runs/${diagnosticRunId}/submit`, {
+            method: "POST",
+            json: {claimToken},
+            auth: true,
+            skipRefresh: true,
+        });
     },
 };
 

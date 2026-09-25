@@ -1,34 +1,39 @@
 import {API_BASE_URL} from "./api";
+import {
+  anonymousRecord,
+  APP_VERSION,
+  CLIENT_PLATFORM,
+  clientContextHeaders,
+  markFirstTouchSent,
+  readJson,
+  uuidV4,
+  visitSessionId,
+  writeJson,
+} from "./client-context";
 import {trafficSourceFromRaw} from "./traffic-source";
-import type {PlanExerciseKind} from "./types";
+import type {DiagnosticRunType, PlanExerciseKind} from "./types";
 
 /**
  * Mesure d'audience SejourFR — le seul point d'émission du web.
  *
- * Remplace `lib/audience.ts` + `lib/audience-events.ts`, dont il reprend le
- * patron d'envoi (`sendBeacon`, repli `fetch keepalive`, best-effort absolu).
+ * **Envoi en LOT** (chantier « Suivi », Q17) : chaque événement reçoit son
+ * `eventId` **à sa création**, attend dans un tampon mémoire, et part avec les
+ * autres vers `POST /api/public/analytics/events/batch`. Le serveur
+ * dédoublonne sur l'`eventId` : un lot renvoyé après une coupure n'écrit rien
+ * deux fois. L'endpoint unitaire n'est plus appelé par le web.
  *
- * ⚠️ **Ce module dépose désormais un identifiant sur l'appareil du visiteur**,
- * ce que l'ancien s'interdisait. C'est un arbitrage du propriétaire
- * (2026-08-21) : sans identifiant, on comptait des *vues* et jamais des
- * *visiteurs*, donc aucun parcours « landing → diagnostic → compte → paiement »
- * n'était reconstituable. L'identifiant est :
+ * L'identité (identifiant de mesure 13 mois, visite 30 min) et les en-têtes de
+ * contexte vivent dans `lib/client-context.ts` — c'est **un traceur**, décrit à
+ * l'article 8 de `/confidentialite` : toute information ajoutée ici doit être
+ * décrite là-bas dans la même passe.
  *
- * - **first-party** : lu et écrit par ce seul domaine, jamais partagé, jamais
- *   utilisé pour suivre quelqu'un d'un site à l'autre ;
- * - **limité à la mesure d'audience**, sans profilage ni publicité ;
- * - **régénéré au-delà de 13 mois** — c'est la condition de l'exemption de
- *   consentement retenue, pas un détail d'implémentation. Ne pas allonger
- *   cette durée sans repasser sur `/confidentialite`.
+ * 🛑 **Best-effort absolu** : aucune erreur n'est remontée, aucun état
+ * d'attente n'est affiché. Une mesure perdue est sans conséquence ; une page
+ * qui plante ne l'est pas.
  *
- * C'est ce qui permet à `/confidentialite` (art. 8.2 à 8.5) de continuer
- * d'affirmer qu'**aucun bandeau de consentement n'est requis**. Toute
- * information ajoutée ici doit être décrite là-bas dans la même passe.
- *
- * 🛑 **Chaque accès au stockage est enveloppé dans un `try/catch`** : en
- * navigation privée, stockage bloqué ou quota plein, on émet **sans identité**
- * plutôt que de casser la page. Une mesure perdue est sans conséquence ; une
- * page qui plante ne l'est pas.
+ * 🛑 **Le `claimToken` d'une run n'entre JAMAIS ici** : aucun type de ce
+ * module ne le porte. Le `diagnosticRunId`, lui, est un identifiant et voyage
+ * dans le contexte d'un événement.
  *
  * À ne pas confondre avec `lib/funnel-events.ts`, qui pose des étapes de funnel
  * **rattachées à un compte** (endpoint authentifié, idempotent serveur).
@@ -100,7 +105,10 @@ type AnalyticsEventProperties = {
   DIAGNOSTIC_CO_COMPLETED: {diagnosticType: AnalyticsDiagnosticType};
   DIAGNOSTIC_CE_STARTED: {diagnosticType: AnalyticsDiagnosticType};
   DIAGNOSTIC_CE_COMPLETED: {diagnosticType: AnalyticsDiagnosticType};
-  DIAGNOSTIC_REPORT_VIEWED: {diagnosticType: AnalyticsDiagnosticType};
+  /** Étape 4 du tunnel « Suivi » quand il porte la run (contexte). Émis quand
+   *  le rapport s'affiche **avec ses données**. `diagnosticType` n'a de sens
+   *  que pour le TCF (rapide / complet) : le civique n'en porte pas. */
+  DIAGNOSTIC_REPORT_VIEWED: {diagnosticType?: AnalyticsDiagnosticType};
   PREMIUM_CTA_CLICKED: {
     ctaLocation: AnalyticsCtaLocation;
     planCode?: string;
@@ -116,8 +124,8 @@ type AnalyticsEventProperties = {
    *  `DIAGNOSTIC_EO_COMPLETED` — entre les deux se joue la décision même de
    *  créer un compte. */
   DIAGNOSTIC_ACCOUNT_REQUIRED: {diagnosticType: AnalyticsDiagnosticType};
-  /** N'alimentent aucun bloc du dashboard : posés pour ne pas perdre une
-   *  mesure qui existait avant la migration (`page_views`). */
+  /** Étape 5 du tunnel « Suivi » : le Plan affiché, avec son `journeyId`
+   *  (contexte). */
   PLAN_OPENED: Record<string, never>;
   PLAN_EXERCISE_STARTED: {exerciseKind: PlanExerciseKind};
   /**
@@ -139,6 +147,18 @@ type AnalyticsEventProperties = {
   };
   PLAN_CURTAIN_EXPANDED: {ctaLocation: AnalyticsCtaLocation; epreuve: string};
   PLAN_PAYWALL_VIEWED: {ctaLocation: AnalyticsCtaLocation};
+  /**
+   * Étape 6 du tunnel « Suivi » : le tap sur « Débloquer mon plan » de l'écran
+   * de déblocage. 🛑 Distinct de `PREMIUM_CTA_CLICKED` et de
+   * `PLAN_PAYWALL_VIEWED`. `planCode` / `displayedPriceCents` disent ce que le
+   * candidat avait sous les yeux (absents si le catalogue n'a pas répondu),
+   * jamais ce qu'il a payé.
+   */
+  PLAN_UNLOCK_CLICKED: {
+    ctaLocation: AnalyticsCtaLocation;
+    planCode?: string;
+    displayedPriceCents?: number;
+  };
 };
 
 export type AnalyticsEvent = keyof AnalyticsEventProperties;
@@ -146,147 +166,66 @@ export type AnalyticsEvent = keyof AnalyticsEventProperties;
 /** Propriétés exigées par un événement donné. */
 export type AnalyticsPropertiesFor<E extends AnalyticsEvent> = AnalyticsEventProperties[E];
 
+
 // ============================================================================
-// IDENTITÉ — localStorage (13 mois) + sessionStorage (30 min d'inactivité)
+// CHEMINS SUIVIS — miroir FERMÉ de `util/AnalyticsPaths.KNOWN`
 // ============================================================================
-
-const ANONYMOUS_ID_KEY = "sejourfr.aid";
-const SESSION_KEY = "sejourfr.sid";
-
-/** Durée de vie de l'identifiant de mesure. **Condition de l'exemption de
- *  consentement** : annoncée telle quelle à l'article 8.3 de
- *  `/confidentialite`. */
-const ANONYMOUS_ID_MAX_AGE_MS = 13 * 30 * 24 * 60 * 60 * 1000;
-
-/** Une nouvelle visite commence après ce silence. */
-const SESSION_IDLE_MS = 30 * 60 * 1000;
-
-type AnonymousRecord = {
-  /** UUID v4. */
-  id: string;
-  /** Date de pose, en millisecondes. C'est elle qui rend les 13 mois vérifiables. */
-  createdAt: number;
-  /** Le premier contact a déjà été transmis : on ne le réécrit jamais. */
-  firstTouchSent?: boolean;
-};
-
-type SessionRecord = {id: string; lastSeenAt: number};
-
-/** UUID v4. `crypto.randomUUID` n'existe pas partout (contextes non sécurisés,
- *  vieux Safari) : le repli reste un v4 valide, tiré de `getRandomValues`. */
-function uuidV4(): string {
-  try {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-      const bytes = crypto.getRandomValues(new Uint8Array(16));
-      bytes[6] = (bytes[6] & 0x0f) | 0x40;
-      bytes[8] = (bytes[8] & 0x3f) | 0x80;
-      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    }
-  } catch {
-    // On tombe sur le repli ci-dessous.
-  }
-  // Dernier repli : sans source aléatoire cryptographique, la collision est
-  // improbable et sans conséquence — c'est un compteur, pas une identité.
-  const random = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, "0");
-  return `${random()}${random()}-${random()}-4${random().slice(1)}-a${random().slice(1)}-${random()}${random()}${random()}`;
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function readJson<T>(storage: Storage, key: string): T | null {
-  try {
-    const raw = storage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeJson(storage: Storage, key: string, value: unknown): void {
-  try {
-    storage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Navigation privée, stockage bloqué, quota plein : on continue sans.
-  }
-}
 
 /**
- * Identifiant de mesure de ce visiteur, ou `null` si le navigateur refuse
- * d'écrire. `null` n'est **pas** une erreur : l'événement part sans identité,
- * la page ne casse pas.
+ * Les écrans qu'un événement peut nommer. Le serveur **refuse** un chemin hors
+ * liste (l'événement est rejeté, et un `landingPath` de premier contact hors
+ * liste rejette **tout le lot**) : un écran non déclaré part donc avec
+ * `path: null`, jamais avec son adresse brute. Ajouter un écran suivi = une
+ * ligne ici ET une dans `AnalyticsPaths.KNOWN`, dans la même passe.
+ *
+ * Les routes mobiles de la liste serveur (`/home`, `/target-path`, `/paywall`)
+ * n'ont rien à faire ici.
  */
-function anonymousRecord(): AnonymousRecord | null {
-  if (typeof window === "undefined") return null;
-  let storage: Storage;
+const TRACKED_PATHS: ReadonlySet<string> = new Set([
+  "/",
+  "/reussir",
+  "/diagnostic",
+  "/diagnostic/resultat",
+  "/diagnostic-civique",
+  "/diagnostic-civique/resultat",
+  "/plan",
+  "/plan/debloquer",
+  "/tarifs",
+  "/paiement",
+  "/connexion",
+  "/inscription",
+  "/dashboard",
+  "/entrainement",
+  "/examens-blancs",
+  "/competences",
+  "/profil",
+]);
+
+/** Routes web à segment dynamique, ramenées à l'écran qu'elles sont. Un
+ *  identifiant de session n'a rien à faire dans une mesure d'audience. */
+const DYNAMIC_PATHS: ReadonlyArray<[RegExp, string]> = [
+  [/^\/diagnostic-civique\/[^/]+\/resultat$/, "/diagnostic-civique/resultat"],
+];
+
+/** Chemin suivi de cette adresse, ou `null` — jamais une valeur hors liste. */
+export function trackedPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let path = raw.split(/[?#]/)[0].trim().toLowerCase();
+  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+  if (!path) path = "/";
+  if (TRACKED_PATHS.has(path)) return path;
+  for (const [pattern, normalized] of DYNAMIC_PATHS) {
+    if (pattern.test(path)) return normalized;
+  }
+  return null;
+}
+
+function currentPath(): string | null {
   try {
-    storage = window.localStorage;
-    if (!storage) return null;
+    return trackedPath(window.location.pathname);
   } catch {
     return null;
   }
-
-  const stored = readJson<Partial<AnonymousRecord>>(storage, ANONYMOUS_ID_KEY);
-  const now = Date.now();
-  const valid =
-    typeof stored?.id === "string" &&
-    UUID_RE.test(stored.id) &&
-    typeof stored.createdAt === "number" &&
-    Number.isFinite(stored.createdAt) &&
-    // Une date de pose dans le futur est une horloge déréglée : on repart de
-    // zéro plutôt que de garder un identifiant qui ne périmera jamais.
-    stored.createdAt <= now &&
-    now - stored.createdAt < ANONYMOUS_ID_MAX_AGE_MS;
-
-  if (valid) return stored as AnonymousRecord;
-
-  const fresh: AnonymousRecord = {id: uuidV4(), createdAt: now};
-  writeJson(storage, ANONYMOUS_ID_KEY, fresh);
-  // Relecture : si l'écriture a échoué en silence (quota, mode privé), on ne
-  // prétend pas porter une identité stable.
-  const confirmed = readJson<Partial<AnonymousRecord>>(storage, ANONYMOUS_ID_KEY);
-  return confirmed?.id === fresh.id ? fresh : null;
-}
-
-function markFirstTouchSent(record: AnonymousRecord): void {
-  if (typeof window === "undefined") return;
-  try {
-    writeJson(window.localStorage, ANONYMOUS_ID_KEY, {...record, firstTouchSent: true});
-  } catch {
-    // Sans marqueur, le premier contact repartira — le serveur l'ignore
-    // (`ON CONFLICT DO NOTHING`), il n'écrase jamais l'attribution d'origine.
-  }
-}
-
-/** Identifiant de visite. Renouvelé après 30 min d'inactivité. */
-function sessionId(): string | null {
-  if (typeof window === "undefined") return null;
-  let storage: Storage;
-  try {
-    storage = window.sessionStorage;
-    if (!storage) return null;
-  } catch {
-    return null;
-  }
-
-  const now = Date.now();
-  const stored = readJson<Partial<SessionRecord>>(storage, SESSION_KEY);
-  const alive =
-    typeof stored?.id === "string" &&
-    UUID_RE.test(stored.id) &&
-    typeof stored.lastSeenAt === "number" &&
-    Number.isFinite(stored.lastSeenAt) &&
-    now - stored.lastSeenAt < SESSION_IDLE_MS;
-
-  const record: SessionRecord = alive
-    ? {id: stored!.id as string, lastSeenAt: now}
-    : {id: uuidV4(), lastSeenAt: now};
-  writeJson(storage, SESSION_KEY, record);
-  const confirmed = readJson<Partial<SessionRecord>>(storage, SESSION_KEY);
-  return confirmed?.id === record.id ? record.id : null;
 }
 
 // ============================================================================
@@ -299,6 +238,8 @@ type FirstTouch = {
   campaign?: string;
   content?: string;
   term?: string;
+  /** Écran d'arrivée, **dans la liste suivie** — sinon absent (le serveur
+   *  rejetterait tout le lot). */
   landingPath?: string;
   /** **Hôte seul**, jamais l'URL complète : elle pourrait porter un chemin ou
    *  un paramètre personnels venant d'un site tiers. */
@@ -324,7 +265,13 @@ function referrerHost(): string | undefined {
   }
 }
 
-function firstTouch(): FirstTouch {
+/**
+ * Le premier contact, **capté au premier événement** de la page d'arrivée
+ * (l'URL porte encore ses UTM). La source déclarée part **brute** : le
+ * serveur la garde telle quelle (`ft_source_raw`, D11) et la normalise à
+ * part — la réduire ici perdrait « ig », « google » ou « newsletter ».
+ */
+function captureFirstTouch(): FirstTouch {
   let params: URLSearchParams;
   try {
     params = new URLSearchParams(window.location.search);
@@ -334,9 +281,6 @@ function firstTouch(): FirstTouch {
   const utmSource = trimmed(params.get("utm_source"), 40);
   const src = trimmed(params.get("src"), 40);
   const referrer = referrerHost();
-  // On envoie la valeur brute quand elle existe : le serveur est l'autorité de
-  // normalisation (`util/TrafficSource`). La réduire ici perdrait « google » ou
-  // « newsletter », que la liste fermée du web ne connaît pas.
   const source =
     utmSource?.toLowerCase() ??
     src?.toLowerCase() ??
@@ -350,55 +294,220 @@ function firstTouch(): FirstTouch {
     campaign: trimmed(params.get("utm_campaign"), 120),
     content: trimmed(params.get("utm_content"), 120),
     term: trimmed(params.get("utm_term"), 120),
-    landingPath: trimmed(window.location.pathname, 160),
+    landingPath: currentPath() ?? undefined,
     referrerHost: referrer,
   };
+}
+
+/** Capté au premier chargement, envoyé avec le premier lot. */
+let pendingFirstTouch: FirstTouch | null = null;
+
+/**
+ * **Le premier contact se capte au PREMIER HIT**, pas au premier événement :
+ * une page d'arrivée qui n'émet rien (l'accueil, un article) perdrait ses
+ * UTM à la première navigation. Appelé par `FirstTouchCapture`, monté dans le
+ * layout racine ; il n'envoie rien, le premier lot emportera l'attribution.
+ */
+export function captureFirstTouchOnLanding(): void {
+  if (typeof window === "undefined" || pendingFirstTouch !== null) return;
+  const record = anonymousRecord();
+  if (record && !record.firstTouchSent) pendingFirstTouch = captureFirstTouch();
+}
+
+// ============================================================================
+// CONTEXTE D'UN ÉVÉNEMENT — colonnes serveur, pas des propriétés
+// ============================================================================
+
+/**
+ * Les identifiants qu'un événement peut porter **en colonne**
+ * (`AnalyticsEvent.Contexte`) : ils se joignent aux runs et aux parcours. Le
+ * serveur rejette un événement qui en porte un qu'il n'admet pas.
+ */
+export type AnalyticsContext = {
+  diagnosticRunId?: string | null;
+  diagnosticType?: DiagnosticRunType | null;
+  journeyId?: string | null;
+};
+
+// ============================================================================
+// FILE D'ENVOI — tampon mémoire, envoi par lots
+// ============================================================================
+
+const BATCH_ENDPOINT = "/api/public/analytics/events/batch";
+/** `ingestion.maxBatchSize` côté serveur. */
+const MAX_BATCH = 50;
+/** Au-delà, les plus anciens tombent : un onglet hors ligne pendant des heures
+ *  ne doit pas gonfler la mémoire. */
+const MAX_QUEUE = 200;
+const FLUSH_DELAY_MS = 4_000;
+const RETRY_DELAY_MS = 30_000;
+
+type QueuedEvent = {
+  eventId: string;
+  event: AnalyticsEvent;
+  occurredAt: string;
+  path: string | null;
+  properties: Record<string, string>;
+  diagnosticRunId?: string;
+  diagnosticType?: DiagnosticRunType;
+  journeyId?: string;
+};
+
+type BatchBody = {
+  anonymousId: string;
+  sessionId: string;
+  client: string;
+  appVersion?: string;
+  firstTouch?: FirstTouch;
+  events: QueuedEvent[];
+};
+
+/** Réponse 202 du lot (seuls les compteurs servent ici). */
+type BatchReport = {received: number; accepted: number; duplicates: number};
+
+let queue: QueuedEvent[] = [];
+let timer: ReturnType<typeof setTimeout> | null = null;
+let sending = false;
+let listening = false;
+
+function schedule(delay: number): void {
+  if (timer !== null) return;
+  timer = setTimeout(() => {
+    timer = null;
+    void flush();
+  }, delay);
+}
+
+/**
+ * La page se cache ou se ferme : ce qui reste part par `sendBeacon`, le seul
+ * envoi qui survit à la navigation (un clic de CTA quitte déjà la page).
+ */
+function listenForPageExit(): void {
+  if (listening) return;
+  listening = true;
+  try {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushOnExit();
+    });
+    window.addEventListener("pagehide", flushOnExit);
+  } catch {
+    // Sans écouteur, le tampon part au prochain délai : au pire, un lot perdu.
+  }
+}
+
+/** L'enveloppe d'un lot, ou `null` sans identité de mesure : le serveur exige
+ *  `anonymousId` et `sessionId`, et un visiteur sans stockage n'en a pas. */
+function envelope(events: QueuedEvent[]): BatchBody | null {
+  const record = anonymousRecord();
+  const session = visitSessionId();
+  if (!record || !session) return null;
+  const body: BatchBody = {
+    anonymousId: record.id,
+    sessionId: session,
+    client: CLIENT_PLATFORM,
+    events,
+  };
+  if (APP_VERSION) body.appVersion = APP_VERSION;
+  if (!record.firstTouchSent) {
+    body.firstTouch = pendingFirstTouch ?? captureFirstTouch();
+  }
+  return body;
+}
+
+/** Le premier contact est parti : on ne le renverra plus. */
+function firstTouchDelivered(body: BatchBody): void {
+  if (!body.firstTouch) return;
+  const record = anonymousRecord();
+  if (record) markFirstTouchSent(record);
+  pendingFirstTouch = null;
+}
+
+/**
+ * Envoi normal, en-têtes compris. **202** : le lot est purgé, rejets
+ * compris (un rejet est définitif, le renvoyer serait rejeté de nouveau, D5).
+ * **400** : l'enveloppe est refusée telle quelle — la renvoyer à l'identique
+ * échouerait toujours, le lot est abandonné. **429, 5xx, réseau** : le lot
+ * revient en tête de file et repart plus tard, sous le même `eventId`.
+ */
+async function flush(): Promise<void> {
+  if (sending || queue.length === 0 || typeof window === "undefined") return;
+  const batch = queue.slice(0, MAX_BATCH);
+  const body = envelope(batch);
+  if (!body) {
+    queue = [];
+    return;
+  }
+  queue = queue.slice(batch.length);
+  sending = true;
+  try {
+    const res = await fetch(`${API_BASE_URL}${BATCH_ENDPOINT}`, {
+      method: "POST",
+      headers: {...clientContextHeaders(), "Content-Type": "application/json"},
+      body: JSON.stringify(body),
+      keepalive: true,
+    });
+    if (res.ok) {
+      // Le serveur ne pose l'attribution qu'avec au moins un événement
+      // retenu : un lot entièrement rejeté la garde pour le suivant.
+      const report = (await res.json().catch(() => null)) as BatchReport | null;
+      if (report && report.accepted + report.duplicates > 0) firstTouchDelivered(body);
+    } else if (res.status !== 400) {
+      queue = [...batch, ...queue].slice(-MAX_QUEUE);
+      schedule(RETRY_DELAY_MS);
+      return;
+    }
+  } catch {
+    queue = [...batch, ...queue].slice(-MAX_QUEUE);
+    schedule(RETRY_DELAY_MS);
+    return;
+  } finally {
+    sending = false;
+  }
+  if (queue.length > 0) schedule(0);
+}
+
+/** Vidage de sortie : `sendBeacon` (sans en-têtes — `client` et `appVersion`
+ *  voyagent dans le corps), repli `fetch keepalive`. */
+function flushOnExit(): void {
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  while (queue.length > 0) {
+    const batch = queue.slice(0, MAX_BATCH);
+    queue = queue.slice(batch.length);
+    const body = envelope(batch);
+    if (!body) {
+      queue = [];
+      return;
+    }
+    const payload = JSON.stringify(body);
+    const url = `${API_BASE_URL}${BATCH_ENDPOINT}`;
+    let sent = false;
+    try {
+      sent = navigator.sendBeacon?.(url, new Blob([payload], {type: "application/json"})) ?? false;
+    } catch {
+      sent = false;
+    }
+    if (!sent) {
+      void fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: payload,
+        keepalive: true,
+      }).catch(() => undefined);
+    }
+    firstTouchDelivered(body);
+  }
 }
 
 // ============================================================================
 // ÉMISSION
 // ============================================================================
 
-const ENDPOINT = "/api/public/analytics/events";
-
 /** Déduplication par onglet uniquement — rien de plus n'est écrit sur
  *  l'appareil pour ça. */
 const sentOnce = new Set<string>();
-
-type EventBody = {
-  anonymousId: string | null;
-  sessionId: string | null;
-  event: AnalyticsEvent;
-  path: string | null;
-  occurredAt: string;
-  properties: Record<string, string>;
-  firstTouch?: FirstTouch;
-};
-
-function post(body: EventBody): void {
-  const payload = JSON.stringify(body);
-  const url = `${API_BASE_URL}${ENDPOINT}`;
-
-  // `sendBeacon` survit à la navigation : indispensable sur un clic de CTA, où
-  // la page est déjà en train d'être quittée quand la requête part. Repli
-  // `fetch keepalive` pour les navigateurs qui refusent le beacon.
-  try {
-    const blob = new Blob([payload], {type: "application/json"});
-    if (navigator.sendBeacon?.(url, blob)) return;
-  } catch {
-    // On tombe sur le repli ci-dessous.
-  }
-
-  void fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: payload,
-    keepalive: true,
-  }).catch(() => {
-    // La mesure d'audience ne doit jamais casser la page ni remonter d'erreur
-    // à l'utilisateur : un compteur perdu est sans conséquence.
-  });
-}
 
 /** N'envoie que des chaînes, et jamais une clé vide : le serveur oppose une
  *  allowlist, on ne lui donne pas de quoi la contourner par accident. */
@@ -413,51 +522,46 @@ function normalizeProperties(properties: Record<string, unknown>): Record<string
 }
 
 /**
- * Émet un événement de mesure. **Best-effort et jamais bloquant** : aucune
- * erreur n'est remontée, aucun état d'attente n'est affiché.
+ * Émet un événement de mesure. **Best-effort et jamais bloquant** : il entre
+ * dans la file, avec son `eventId` et son horodate de geste, et part avec le
+ * lot suivant.
  *
- * `once` déduplique pendant la vie de l'onglet seulement.
+ * `once` déduplique pendant la vie de l'onglet seulement (contexte compris).
  */
 export function track<E extends AnalyticsEvent>(
   event: E,
   properties: AnalyticsPropertiesFor<E>,
-  options: {once?: boolean} = {},
+  options: {once?: boolean; context?: AnalyticsContext} = {},
 ): void {
   if (typeof window === "undefined") return;
 
   const normalized = normalizeProperties(properties as Record<string, unknown>);
+  const context = options.context ?? {};
 
   if (options.once) {
-    const key = `${event}:${JSON.stringify(normalized)}`;
+    const key = `${event}:${JSON.stringify(normalized)}:${context.diagnosticRunId ?? ""}:${context.journeyId ?? ""}`;
     if (sentOnce.has(key)) return;
     sentOnce.add(key);
   }
 
-  const record = anonymousRecord();
-  const body: EventBody = {
-    anonymousId: record?.id ?? null,
-    sessionId: sessionId(),
+  captureFirstTouchOnLanding();
+
+  const queued: QueuedEvent = {
+    eventId: uuidV4(),
     event,
-    path: safePathname(),
     occurredAt: new Date().toISOString(),
+    path: currentPath(),
     properties: normalized,
   };
+  if (context.diagnosticRunId) queued.diagnosticRunId = context.diagnosticRunId;
+  if (context.diagnosticType) queued.diagnosticType = context.diagnosticType;
+  if (context.journeyId) queued.journeyId = context.journeyId;
 
-  // Premier contact : une seule fois par visiteur, jamais réécrit ensuite.
-  if (record && !record.firstTouchSent) {
-    body.firstTouch = firstTouch();
-    markFirstTouchSent(record);
-  }
-
-  post(body);
-}
-
-function safePathname(): string | null {
-  try {
-    return window.location.pathname.slice(0, 160);
-  } catch {
-    return null;
-  }
+  queue.push(queued);
+  if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
+  listenForPageExit();
+  if (queue.length >= MAX_BATCH) void flush();
+  else schedule(FLUSH_DELAY_MS);
 }
 
 // ============================================================================

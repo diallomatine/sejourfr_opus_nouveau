@@ -21,8 +21,12 @@
  */
 
 const DB_NAME = "sejourfr-diagnostic";
-const DB_VERSION = 1;
+/** v2 (chantier « Suivi », lot 3) : ajoute `runs`, la trace du passage
+ *  (`lib/diagnostic-run-store.ts`). Une seule base, un seul ouvreur : deux
+ *  modules qui ouvriraient la même base à deux versions se bloqueraient. */
+const DB_VERSION = 2;
 const STORE = "productions";
+export const DIAGNOSTIC_RUNS_STORE = "runs";
 
 /** Une production locale, telle qu'elle est relue au chargement de la page. */
 export interface LocalDiagnosticProductions {
@@ -71,7 +75,8 @@ function storeKey(diagnosticCode: string, diagnosticVersion: number): string {
   return `${diagnosticCode}/v${diagnosticVersion}`;
 }
 
-function openDb(): Promise<IDBDatabase | null> {
+/** L'ouvreur de la base du diagnostic, partagé avec `diagnostic-run-store`. */
+export function openDiagnosticDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === "undefined") return Promise.resolve(null);
   return new Promise((resolve) => {
     let request: IDBOpenDBRequest;
@@ -84,6 +89,9 @@ function openDb(): Promise<IDBDatabase | null> {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains(DIAGNOSTIC_RUNS_STORE)) {
+        db.createObjectStore(DIAGNOSTIC_RUNS_STORE);
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => resolve(null);
@@ -159,7 +167,7 @@ export async function readLocalDiagnostic(
   diagnosticCode: string,
   diagnosticVersion: number,
 ): Promise<LocalDiagnosticProductions | null> {
-  const db = await openDb();
+  const db = await openDiagnosticDb();
   if (!db) return null;
   const record = await readRecord(db, storeKey(diagnosticCode, diagnosticVersion));
   db.close();
@@ -175,7 +183,7 @@ export async function readLocalDiagnostic(
  * sujet » plutôt que de faire disparaître le travail en silence.
  */
 export async function readLatestLocalDiagnostic(): Promise<LocalDiagnosticProductions | null> {
-  const db = await openDb();
+  const db = await openDiagnosticDb();
   if (!db) return null;
   const records = await new Promise<StoredRecord[]>((resolve) => {
     try {
@@ -201,7 +209,7 @@ export async function saveLocalWritten(
   text: string,
   oralRequired: boolean,
 ): Promise<boolean> {
-  const db = await openDb();
+  const db = await openDiagnosticDb();
   if (!db) return false;
   const key = storeKey(diagnosticCode, diagnosticVersion);
   const current = (await readRecord(db, key)) ?? emptyRecord(diagnosticCode, diagnosticVersion);
@@ -224,7 +232,7 @@ export async function saveLocalOral(
   audio: Blob,
   durationSec: number | null,
 ): Promise<boolean> {
-  const db = await openDb();
+  const db = await openDiagnosticDb();
   if (!db) return false;
   const key = storeKey(diagnosticCode, diagnosticVersion);
   const current = (await readRecord(db, key)) ?? emptyRecord(diagnosticCode, diagnosticVersion);
@@ -256,7 +264,7 @@ export async function clearLocalDiagnostic(
   diagnosticCode: string,
   diagnosticVersion: number,
 ): Promise<void> {
-  const db = await openDb();
+  const db = await openDiagnosticDb();
   if (!db) return;
   await new Promise<void>((resolve) => {
     try {

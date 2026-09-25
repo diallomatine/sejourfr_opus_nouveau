@@ -32,10 +32,17 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {AlertCircle} from "lucide-react";
-import {billingApi, civicDiagnosticApi, learningPlanApi, tcfDiagnosticApi} from "@/lib/api";
+import {
+    billingApi,
+    civicDiagnosticApi,
+    journeyApi,
+    learningPlanApi,
+    tcfDiagnosticApi,
+} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {retourOuRepli, withRetour} from "@/lib/retour";
-import {passFromPrice} from "@/lib/passes";
+import {withPurchaseOrigin} from "@/lib/purchase-origin";
+import {passFrom} from "@/lib/passes";
 import {useAuth} from "@/lib/auth-context";
 import {canAccessModule} from "@/lib/types";
 import {
@@ -232,6 +239,10 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     const {user} = useAuth();
     const [etat, setEtat] = useState<Etat>({kind: "chargement"});
     const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
+    /** Le parcours affiché (`plan_id`, Q8) : il suit l'achat jusqu'à
+     *  l'intention, et le serveur en déduit la run fondatrice. `null` =
+     *  inconnu, l'achat part quand même. */
+    const [journeyId, setJourneyId] = useState<string | null>(null);
 
     /* 🛑 **C'est ICI que le chemin de retour est POSÉ** : l'écran de transition
        est le seul point du parcours d'achat qui sache d'où le candidat vient —
@@ -240,7 +251,21 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
        ensuite jusqu'à Stripe (`?retour=` sur `payment-link`, validé serveur) et
        ramène le candidat sur son Plan une fois l'accès confirmé, au lieu de le
        laisser planté sur la page de succès. */
-    const paywallHref = withRetour(planUnlockPaywallHref(module), planRetourHref(module));
+    /* Et le CTA du Plan (`LOCKED_PLAN`, D32) voyage avec lui : c'est ce qui
+       range l'achat dans le tunnel du diagnostic. */
+    const paywallHref = withPurchaseOrigin(
+        withRetour(planUnlockPaywallHref(module), planRetourHref(module)),
+        {ctaLocation: "LOCKED_PLAN", journeyId},
+    );
+
+    useEffect(() => {
+        let annule = false;
+        journeyApi.getCached(planUnlockAccessModule(module)).then(
+            (j) => { if (!annule) setJourneyId(j.journeyId ?? null); },
+            () => { /* sans parcours lisible, l'achat reste possible */ },
+        );
+        return () => { annule = true; };
+    }, [module]);
 
     /* Le catalogue est un CONFORT : son échec retire la ligne de prix, il
        n'empêche jamais d'acheter. */
@@ -331,10 +356,26 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
         retourOuRepli(router, planRetourHref(module));
     }, [module, router]);
 
-    const priceLine = useMemo(() => {
-        if (!plans) return null;
-        return planUnlockPriceLine(passFromPrice(plans, planUnlockPassModule(module)));
-    }, [plans, module]);
+    const entryPass = useMemo(
+        () => (plans ? passFrom(plans, planUnlockPassModule(module)) : null),
+        [plans, module],
+    );
+    const priceLine = plans ? planUnlockPriceLine(entryPass?.price ?? null) : null;
+
+    /* Étape 6 du tunnel « Suivi » : ce que le candidat avait sous les yeux,
+       jamais ce qu'il paiera. Catalogue muet ⇒ ni code ni prix. */
+    const trackUnlock = useCallback(() => {
+        track("PREMIUM_CTA_CLICKED", {ctaLocation: "LOCKED_PLAN", screen: "plan_debloquer"});
+        track(
+            "PLAN_UNLOCK_CLICKED",
+            {
+                ctaLocation: "LOCKED_PLAN",
+                planCode: entryPass?.code,
+                displayedPriceCents: entryPass ? Math.round(entryPass.price * 100) : undefined,
+            },
+            {context: {journeyId}},
+        );
+    }, [entryPass, journeyId]);
 
     if (etat.kind !== "pret") {
         return (
@@ -404,12 +445,7 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
                         href={paywallHref}
                         lead={priceLine}
                         caption={PLAN_UNLOCK_PRICE_NOTE}
-                        onClick={() =>
-                            track("PREMIUM_CTA_CLICKED", {
-                                ctaLocation: "LOCKED_PLAN",
-                                screen: "plan_debloquer",
-                            })
-                        }
+                        onClick={trackUnlock}
                     >
                         {PLAN_UNLOCK_CTA}
                     </Cta>

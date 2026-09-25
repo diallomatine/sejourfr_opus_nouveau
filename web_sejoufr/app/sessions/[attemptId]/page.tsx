@@ -22,6 +22,7 @@ import {
   userContentApi,
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
+import { ensureDiagnosticRun } from "@/lib/diagnostic-run";
 import {retourOuRepli} from "@/lib/retour";
 import {sessionAppBarInfo} from "@/lib/app-bar";
 import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
@@ -227,6 +228,15 @@ function SessionRunnerInner({ params }: PageProps) {
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [retryPaywallOpen, setRetryPaywallOpen] = useState(false);
+
+  /* « Sujet vu » du diagnostic civique (chantier Suivi) : la trace naît quand
+     la première question s'affiche, invité ou connecté. Idempotente par
+     session — une reprise retrouve la même run, sans nouvel appel. */
+  useEffect(() => {
+    if (phase === "running" && civicDiagnosticId) {
+      void ensureDiagnosticRun("CIVIQUE", civicDiagnosticId);
+    }
+  }, [phase, civicDiagnosticId]);
 
   /** "Refaire" depuis le rapport : relance une session avec les mêmes
    *  paramètres (examen template / thématique / module, ou série). */

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
+import { withPurchaseOrigin } from "@/lib/purchase-origin";
 
 interface PaywallSheetProps {
   open: boolean;
@@ -25,6 +26,9 @@ interface PaywallSheetProps {
   ctaLocation?: AnalyticsCtaLocation;
   /** Écran précis, quand il apporte plus que l'emplacement. */
   screen?: string;
+  /** Le parcours affiché (`plan_id`), quand la feuille s'ouvre sur un Plan :
+   *  il suit l'achat jusqu'à l'intention (Q12). */
+  journeyId?: string | null;
 }
 
 /**
@@ -40,6 +44,7 @@ export function PaywallSheet({
   module = "CIVIQUE",
   ctaLocation = "OTHER",
   screen,
+  journeyId = null,
 }: PaywallSheetProps) {
   // Une feuille de paywall ouverte, c'est un écran Premium vu : l'étape de
   // funnel est la même que sur `/paiement`. Idempotente côté serveur, et
@@ -49,7 +54,10 @@ export function PaywallSheet({
   }, [open]);
 
   // La provenance suit le visiteur jusqu'à la page d'achat.
-  const paymentHref = useTrafficSourceHref(`/paiement?module=${module}`);
+  // Le CTA de la feuille voyage aussi : c'est lui qui fonde l'intention d'achat.
+  const paymentHref = useTrafficSourceHref(
+    withPurchaseOrigin(`/paiement?module=${module}`, {ctaLocation, journeyId}),
+  );
 
   // Fermeture par ESC
   useEffect(() => {

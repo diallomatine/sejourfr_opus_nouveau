@@ -246,7 +246,19 @@ export function passFromPrice(
   plans: PlanPublicResponse[],
   module: PassModule,
 ): number | null {
+  return passFrom(plans, module)?.price ?? null;
+}
+
+/**
+ * **Le pass d'entrée d'un module** — celui dont `passFromPrice` affiche le
+ * prix. La mesure de « Débloquer mon plan » dit ce que le candidat avait sous
+ * les yeux (`planCode` + `displayedPriceCents`) : c'est ce pass-là.
+ */
+export function passFrom(
+  plans: PlanPublicResponse[],
+  module: PassModule,
+): PlanPublicResponse | null {
   const passes = oneTimePassesOf(plans, module);
   if (passes.length === 0) return null;
-  return passes.reduce((min, p) => (p.price < min ? p.price : min), passes[0].price);
+  return passes.reduce((min, p) => (p.price < min.price ? p : min), passes[0]);
 }

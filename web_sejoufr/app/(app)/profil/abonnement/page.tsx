@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {useCallback, useEffect, useState} from "react";
 import {track} from "@/lib/analytics";
+import {withPurchaseOrigin} from "@/lib/purchase-origin";
 import {useAuth} from "@/lib/auth-context";
 import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {ApiException, billingApi} from "@/lib/api";
@@ -202,7 +203,7 @@ function PremiumView({
             <div className="pass-actions">
                 {isIntegral ? (
                     <Link
-                        href="/paiement?module=INTEGRAL"
+                        href={withPurchaseOrigin("/paiement?module=INTEGRAL", ACCESS_CTA)}
                         className="pass-btn pass-btn-primary"
                         onClick={() => trackAccessCta()}
                     >
@@ -211,14 +212,14 @@ function PremiumView({
                 ) : (
                     <>
                         <Link
-                            href="/paiement?module=CIVIQUE"
+                            href={withPurchaseOrigin("/paiement?module=CIVIQUE", ACCESS_CTA)}
                             className="pass-btn pass-btn-primary"
                             onClick={() => trackAccessCta()}
                         >
                             Prolonger mon Pass Civique
                         </Link>
                         <Link
-                            href="/paiement?module=INTEGRAL"
+                            href={withPurchaseOrigin("/paiement?module=INTEGRAL", ACCESS_CTA)}
                             className="pass-btn pass-btn-accent"
                             onClick={() => trackAccessCta()}
                         >
@@ -426,6 +427,8 @@ const styles = `
 
 /** Prolonger ou monter en gamme depuis « Mon accès » : c'est une intention
  *  d'achat, mais pas un verrou rencontré — d'où l'emplacement « Autre ». */
+const ACCESS_CTA = {ctaLocation: "OTHER"} as const;
+
 function trackAccessCta(): void {
     track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "profil_abonnement"});
 }
