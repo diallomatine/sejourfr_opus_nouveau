@@ -28,14 +28,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Les scenarios automatises (brief §7 et §10), a horloge fixee.
  *
- * <p>L'instant de reference est dans le FUTUR ({@link #T}) : les donnees laissees
- * par d'autres tests, datees d'aujourd'hui, tombent hors de toutes les fenetres.
- * Chaque assertion ne regarde que les comptes crees par le test.
+ * <p>L'instant de reference {@link #T} est calcule a partir de l'horloge
+ * d'EXECUTION, decale d'un an : les donnees laissees par d'autres tests, datees
+ * d'aujourd'hui, tombent hors de toutes les fenetres (au plus 14 jours), et aucun
+ * test ne depend d'une date ecrite en dur. Chaque assertion ne regarde que les
+ * comptes crees par le test.
  */
 class EmailAutomationIT extends AbstractEmailIT {
 
-    /** Un mercredi, 9 h a Paris. */
-    private static final Instant T = Instant.parse("2027-03-10T08:00:00Z");
+    /** Aujourd'hui + 365 jours, a 8 h UTC (9 ou 10 h a Paris, loin de minuit). */
+    private static final Instant T = java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(365)
+            .atTime(8, 0).toInstant(java.time.ZoneOffset.UTC);
     private static final Duration JOUR = Duration.ofDays(1);
 
     @Autowired private EmailAutomationService automation;
@@ -159,7 +162,8 @@ class EmailAutomationIT extends AbstractEmailIT {
 
         assertThat(recus(u)).containsExactly(EmailType.NO_TRAINING_7_DAYS);
         assertThat(rowsOf(u, EmailType.NO_TRAINING_7_DAYS).getFirst().getDeduplicationKey())
-                .isEqualTo("NO_TRAINING_7_DAYS:" + u.getId() + ":2027-03-08");
+                .isEqualTo("NO_TRAINING_7_DAYS:" + u.getId() + ":"
+                        + java.time.LocalDate.ofInstant(derniere, EmailFormats.PARIS));
     }
 
     @Test
@@ -295,7 +299,7 @@ class EmailAutomationIT extends AbstractEmailIT {
     }
 
     @Test
-    @DisplayName("Un pass achete il y a moins de 3 jours n'annonce pas deja sa fin (ENDING_7)")
+    @DisplayName("Un pass achete il y a moins de 3 jours (et de moins de 14 jours) n'annonce pas deja sa fin (ENDING_7)")
     void passRecentPasDeEnding7() {
         User u = compte(T.minus(JOUR.multipliedBy(60)));
         acces(u, ModuleAccess.CIVIQUE, T.minus(JOUR), T.plus(JOUR.multipliedBy(5)));
@@ -382,5 +386,43 @@ class EmailAutomationIT extends AbstractEmailIT {
         assertThat(report.stalePending()).isGreaterThanOrEqualTo(1);
         assertThat(rows(key).getFirst().getStatus()).isEqualTo(EmailDeliveryStatus.FAILED);
         assertThat(rows(key).getFirst().getErrorMessage()).isEqualTo("stale");
+    }
+
+    /**
+     * Revue du proprietaire : ENDING_7 exige un acces d'au moins 14 jours
+     * ({@code minAccessDurationDays}). Un pass 7 jours recoit au plus le rappel
+     * d'inactivite, ENDING_2 puis ENDED — jamais ENDING_7.
+     */
+    @Test
+    @DisplayName("Pass 7 jours : jamais ENDING_7 ; ENDING_2 puis ENDED")
+    void passSeptJoursJamaisEnding7() {
+        User u = compte(T.minus(JOUR.multipliedBy(60)));
+        Instant debut = T.minus(JOUR.multipliedBy(4));
+        Instant fin = debut.plus(JOUR.multipliedBy(7));
+        acces(u, ModuleAccess.CIVIQUE, debut, fin);
+
+        for (int jour = 0; jour <= 6; jour++) {
+            Instant at = T.plus(JOUR.multipliedBy(jour));
+            activite(u, at.minus(Duration.ofHours(1)));
+            passage(at);
+        }
+
+        assertThat(recus(u)).doesNotContain(EmailType.PREMIUM_ENDING_7_DAYS)
+                .containsSubsequence(EmailType.PREMIUM_ENDING_2_DAYS, EmailType.PREMIUM_ENDED);
+        EmailMessage m = mails.sentOfType(EmailType.PREMIUM_ENDING_2_DAYS).stream()
+                .filter(x -> x.recipient().equals(u.getEmail())).findFirst().orElseThrow();
+        assertThat(m.variables()).containsEntry("accessEndDate", EmailFormats.date(fin));
+    }
+
+    @Test
+    @DisplayName("Pass de 14 jours : ENDING_7 reste envoye")
+    void passQuatorzeJoursEnding7() {
+        User u = compte(T.minus(JOUR.multipliedBy(60)));
+        acces(u, ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(9)), T.plus(JOUR.multipliedBy(5)));
+        activite(u, T.minus(Duration.ofHours(1)));
+
+        passage(T);
+
+        assertThat(recus(u)).containsExactly(EmailType.PREMIUM_ENDING_7_DAYS);
     }
 }

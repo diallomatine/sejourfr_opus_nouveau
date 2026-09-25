@@ -123,6 +123,9 @@ public class EmailAutomationService {
                         if (!endResolver.seTermineSansRelais(access, all, now)) return Optional.empty();
                         if (access.getStartsAt() != null && access.getStartsAt()
                                 .isAfter(now.minus(w.minAccessAgeDays(), ChronoUnit.DAYS))) return Optional.empty();
+                        if (w.minAccessDurationDays() > 0 && (access.getStartsAt() == null
+                                || Duration.between(access.getStartsAt(), access.getEndsAt())
+                                .compareTo(Duration.ofDays(w.minAccessDurationDays())) < 0)) return Optional.empty();
                         return Optional.of(composer.premiumEnding(type, access, c.getEmail(), c.getFirstName(),
                                 endResolver.wording(access, all, access.getEndsAt())));
                     });

@@ -4053,6 +4053,10 @@ Le reste du Profil n'a pas bougé (refonte à venir, décision du propriétaire)
   (`account_widgets.dart`, couleurs `AppColors`) dans `ListRow.right` ; `ListRow.subMaxLines`
   laisse la précision s'écrire en entier. Libellés : bloc « Notifications par e-mail »
   de `account_labels.dart`.
+  🧪 **Tests par demande EXPLICITE du propriétaire** (revue du chantier e-mails,
+  2026-09-25) : `test/notifications_screen_test.dart` (notifier via `ProviderContainer`
+  + écran : bascule optimiste, succès, échec + retour arrière). **Exception** à « aucun
+  nouveau test front », **limitée à cet écran** ; miroir web `lib/notifications.test.ts`.
 - **Centre d'aide** (`screens/help/`, `AppRoutes.helpCenter`) : **inchangé dans sa
   forme** ; ses textes vivent désormais dans `help_center_labels.dart`, **miroir mot
   pour mot** de `web_sejoufr/lib/aide.ts` (page web `/aide`). Seul texte modifié :

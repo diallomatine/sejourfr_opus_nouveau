@@ -78,12 +78,17 @@ public record EmailAutomationConfig(
      * {@code PREMIUM_ENDING_*} ; fin dans {@code [now - max, now]} pour
      * {@code PREMIUM_ENDED}.
      *
-     * @param minAccessAgeDays anciennete minimale de l'acces (ENDING_7 : 3 jours,
-     *                         pour ne pas annoncer la fin d'un pass qu'on vient
-     *                         d'acheter) ; 0 ailleurs
+     * @param minAccessAgeDays      anciennete minimale de l'acces (ENDING_7 : 3 jours,
+     *                              pour ne pas annoncer la fin d'un pass qu'on vient
+     *                              d'acheter) ; 0 ailleurs
+     * @param minAccessDurationDays duree totale minimale de l'acces
+     *                              ({@code ends_at - starts_at}) : ENDING_7 = 14 jours.
+     *                              Un pass de 7 jours ne recoit jamais « se termine
+     *                              dans une semaine » des son achat : au plus
+     *                              ENDING_2 puis ENDED (revue du proprietaire)
      */
     @JsonIgnoreProperties(ignoreUnknown = false)
-    public record ScenarioWindow(int minDays, int maxDays, int minAccessAgeDays) {}
+    public record ScenarioWindow(int minDays, int maxDays, int minAccessAgeDays, int minAccessDurationDays) {}
 
     public ScenarioWindow window(EmailType type) {
         return scenarios.get(type);

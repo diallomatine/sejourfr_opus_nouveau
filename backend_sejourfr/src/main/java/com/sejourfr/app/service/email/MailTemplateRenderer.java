@@ -59,23 +59,42 @@ public class MailTemplateRenderer {
      * Une seule passe sur le gabarit : une valeur injectee n'est jamais relue
      * comme un placeholder (un message de contact contenant {@code {{body}}}
      * reste du texte).
+     *
+     * <p><b>Ligne sans objet = ligne retiree.</b> Une ligne du gabarit dont
+     * TOUS les placeholders valent la chaine vide disparait entiere, avec son
+     * balisage : un passage optionnel (les priorites d'un Plan provisoire, le
+     * bloc de desabonnement d'un mail REQUIRED) ne laisse ni paragraphe vide ni
+     * ligne blanche. Ce n'est pas une condition ecrite dans le gabarit : la
+     * decision reste en Java (la variable vide), le moteur ne fait que ne pas
+     * imprimer une ligne qui ne dit plus rien (decision D-32).
      */
     private static String substitute(String template, Map<String, String> vars, boolean escapeHtml) {
-        Matcher m = PLACEHOLDER.matcher(template);
         StringBuilder out = new StringBuilder(template.length());
-        while (m.find()) {
-            boolean raw = m.group(1) != null;
-            String key = raw ? m.group(1) : m.group(2);
-            String replacement;
-            if (!vars.containsKey(key)) {
-                replacement = m.group();
-            } else {
-                String value = vars.get(key) == null ? "" : vars.get(key);
-                replacement = raw || !escapeHtml ? value : escape(value);
+        for (String line : template.split("(?<=\n)", -1)) {
+            Matcher m = PLACEHOLDER.matcher(line);
+            StringBuilder rendered = new StringBuilder(line.length());
+            boolean hasKnown = false;
+            boolean allEmpty = true;
+            while (m.find()) {
+                boolean raw = m.group(1) != null;
+                String key = raw ? m.group(1) : m.group(2);
+                String replacement;
+                if (!vars.containsKey(key)) {
+                    replacement = m.group();
+                    allEmpty = false;
+                } else {
+                    String value = vars.get(key) == null ? "" : vars.get(key);
+                    hasKnown = true;
+                    if (!value.isBlank()) allEmpty = false;
+                    replacement = raw || !escapeHtml ? value : escape(value);
+                }
+                m.appendReplacement(rendered, Matcher.quoteReplacement(replacement));
             }
-            m.appendReplacement(out, Matcher.quoteReplacement(replacement));
+            m.appendTail(rendered);
+            if (!(hasKnown && allEmpty)) {
+                out.append(rendered);
+            }
         }
-        m.appendTail(out);
         return out.toString();
     }
 

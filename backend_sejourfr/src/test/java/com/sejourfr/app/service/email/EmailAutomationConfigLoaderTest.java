@@ -19,12 +19,12 @@ class EmailAutomationConfigLoaderTest {
                       "eventWindowHours":24,"stalePendingMinutes":60},
              "batchSize":200,"retentionMonths":12,
              "scenarios":{
-               "NO_PREMIUM_AFTER_7_DAYS":{"minDays":7,"maxDays":10,"minAccessAgeDays":0},
-               "NO_TRAINING_7_DAYS":{"minDays":7,"maxDays":14,"minAccessAgeDays":0},
-               "PREMIUM_INACTIVE_2_DAYS":{"minDays":2,"maxDays":5,"minAccessAgeDays":0},
-               "PREMIUM_ENDING_7_DAYS":{"minDays":2,"maxDays":7,"minAccessAgeDays":3},
-               "PREMIUM_ENDING_2_DAYS":{"minDays":0,"maxDays":2,"minAccessAgeDays":0},
-               "PREMIUM_ENDED":{"minDays":0,"maxDays":3,"minAccessAgeDays":0}}}
+               "NO_PREMIUM_AFTER_7_DAYS":{"minDays":7,"maxDays":10,"minAccessAgeDays":0,"minAccessDurationDays":0},
+               "NO_TRAINING_7_DAYS":{"minDays":7,"maxDays":14,"minAccessAgeDays":0,"minAccessDurationDays":0},
+               "PREMIUM_INACTIVE_2_DAYS":{"minDays":2,"maxDays":5,"minAccessAgeDays":0,"minAccessDurationDays":0},
+               "PREMIUM_ENDING_7_DAYS":{"minDays":2,"maxDays":7,"minAccessAgeDays":3,"minAccessDurationDays":14},
+               "PREMIUM_ENDING_2_DAYS":{"minDays":0,"maxDays":2,"minAccessAgeDays":0,"minAccessDurationDays":0},
+               "PREMIUM_ENDED":{"minDays":0,"maxDays":3,"minAccessAgeDays":0,"minAccessDurationDays":0}}}
             """;
 
     private static EmailAutomationConfig parse(String json) throws Exception {
@@ -43,6 +43,7 @@ class EmailAutomationConfigLoaderTest {
         assertThat(config.scenarios().keySet())
                 .containsExactlyInAnyOrderElementsOf(EmailAutomationConfigLoader.SCENARIOS);
         assertThat(config.window(EmailType.PREMIUM_ENDING_7_DAYS).minAccessAgeDays()).isEqualTo(3);
+        assertThat(config.window(EmailType.PREMIUM_ENDING_7_DAYS).minAccessDurationDays()).isEqualTo(14);
     }
 
     @Test
@@ -94,5 +95,17 @@ class EmailAutomationConfigLoaderTest {
     void unTypeNonScenarioEchoue() {
         assertThatThrownBy(() -> parse(VALIDE.replace("\"NO_TRAINING_7_DAYS\"", "\"WELCOME\"")))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void uneDureeMinimaleNegativeEchoue() {
+        assertThatThrownBy(() -> parse(VALIDE.replace("\"minAccessDurationDays\":14", "\"minAccessDurationDays\":-1")))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void uneDureeMinimaleAbsenteEchoue() {
+        assertThatThrownBy(() -> parse(VALIDE.replace(",\"minAccessDurationDays\":14", "")))
+                .isInstanceOf(Exception.class);
     }
 }

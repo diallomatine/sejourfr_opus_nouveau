@@ -21,11 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * La relance DIFFEREE (brief §5 et §10) et la retention (arbitrage n°16).
- * Horloge dans le futur : les lignes des autres tests sont hors fenetre.
+ * Instant de reference calcule sur l'horloge d'execution, decale d'un an : les
+ * lignes des autres tests sont hors de la fenetre de 24 h.
  */
 class EmailDeferredRetryIT extends AbstractEmailIT {
 
-    private static final Instant T = Instant.parse("2027-04-14T08:00:00Z");
+    private static final Instant T = java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(365)
+            .atTime(8, 0).toInstant(java.time.ZoneOffset.UTC);
 
     @Autowired private EmailDeferredRetryService retryService;
     @Autowired private EmailRetentionService retentionService;

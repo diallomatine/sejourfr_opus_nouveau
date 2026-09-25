@@ -73,7 +73,8 @@ public final class EmailAutomationConfigLoader {
             if (w == null) {
                 throw new IllegalStateException("scenarios n'a pas d'entree pour " + scenario + " dans " + path);
             }
-            if (w.minDays() < 0 || w.maxDays() < w.minDays() || w.maxDays() == 0 || w.minAccessAgeDays() < 0) {
+            if (w.minDays() < 0 || w.maxDays() < w.minDays() || w.maxDays() == 0 || w.minAccessAgeDays() < 0
+                    || w.minAccessDurationDays() < 0) {
                 throw new IllegalStateException("Fenetre invalide pour " + scenario + " dans " + path);
             }
         }

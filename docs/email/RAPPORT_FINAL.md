@@ -35,7 +35,7 @@ Rien n'a été poussé ni déployé ; aucun mail réel n'a été envoyé (tests 
   `PREMIUM_SUBSCRIPTION_CANCELED` (dormant), `PASSWORD_RESET`, `PASSWORD_CHANGED` (reset appliqué
   **et** changement connecté), `EMAIL_CHANGE_CONFIRMATION`, `EMAIL_CHANGED` (ancienne adresse,
   nouvelle masquée), `CONTACT_RECEIVED`, `SUPPORT_REPLY` ; composeurs qui relisent la source.
-- Relais contact → support : synchrone, par le port, sans journal (voir blocage B-1).
+- Relais contact → support : synchrone, par le port, sans journal ; échec absorbé par `ContactService` (B-1, clos en revue : statu quo).
 - `GET/PATCH /api/me/email-preferences` ; pages **« Notifications par e-mail »** web
   (`/profil/notifications`) ⇄ mobile (`/profile/notifications`), un interrupteur, libellés
   miroirs mot pour mot, nouvelles briques `CompteToggleRow` ⇄ `AccountSwitch`.
@@ -85,15 +85,13 @@ sans placeholder résiduel (D-24).
 
 ## Décisions
 
-`docs/email/decisions.md` : **31 décisions, dont 8 structurantes** (D-1 à D-7 et D-25), 23
-mineures.
+`docs/email/decisions.md` : **36 décisions, dont 9 structurantes** (D-1 à D-7, D-25 et D-32),
+27 mineures — les 31 premières validées en revue, D-32 à D-36 issues de la revue.
 
 ## Blocage
 
-- **B-1 — relais du formulaire de contact** : l'arbitrage n°9 demande que l'échec du relais
-  « continue » de remonter à l'utilisateur ; le code ne l'a jamais fait (la conversation est
-  enregistrée et fait foi, figé par un test). Le port remonte l'échec, `ContactService` garde
-  son comportement. À trancher par le propriétaire (options dans `decisions.md`).
+- **B-1 — relais du formulaire de contact** : **clos** en revue (statu quo). La conversation
+  enregistrée fait foi ; l'échec du relais est absorbé (log masqué), le visiteur voit un succès.
 
 ## Sujets séparés (non traités, interdits sans accord)
 
@@ -122,3 +120,31 @@ Nginx) ; SS-5 liens universels mobiles ; SS-6 `BrevoEmailSender` et webhooks Bre
 - Types ajoutés au brief, validés par les arbitrages : `PREMIUM_ACCESS_EXTENDED`,
   `PREMIUM_SUBSCRIPTION_CANCELED`, `EMAIL_CHANGE_CONFIRMATION`, `EMAIL_CHANGED`,
   `CONTACT_RECEIVED`, `SUPPORT_REPLY`.
+
+## Corrections de revue (2026-09-25)
+
+Toutes les décisions D-1 → D-31 validées par le propriétaire, sous réserve des corrections
+suivantes, faites dans un commit dédié :
+
+- **B-1 clos** : statu quo (voir plus haut) ; invariant 3 de `docs/regles/emails.md` reformulé —
+  le relais n'est pas une exception, son erreur est absorbée délibérément par `ContactService`.
+- **D-17 vérifiée** : nouveau test d'intégration du cas nominal (rapide TCF clos par le pipeline,
+  Plan jamais ouvert, aucune épingle) : le mail porte **exactement** les priorités que le Plan
+  sert ensuite. Constat : les priorités étaient bien présentes, la lecture seule suffit, aucune
+  lecture pure supplémentaire n'a été écrite. Sans priorité, le bloc « Vos premières priorités »
+  disparaît **entier** du HTML et du texte (règle de rendu D-32, testée).
+- **Pass courts (D-33)** : `PREMIUM_ENDING_7_DAYS` exige un accès d'au moins 14 jours
+  (`minAccessDurationDays`, config versionnée validée par le chargeur). Un pass 7 jours reçoit
+  `ENDING_2` puis `ENDED`, jamais `ENDING_7` (testé). Aucun délai écrit en dur dans un mail
+  ENGAGEMENT (D-34, testé) : deux gabarits corrigés (« une semaine »).
+- **Horloge des tests (D-35)** : plus de date 2027 fixe ; instant de référence = horloge
+  d'exécution + 365 jours. Infrastructure de test partagée non modifiée.
+- **Tests front (D-36)**, à la demande explicite du propriétaire (exception à « aucun nouveau
+  test front », notée dans les deux `CLAUDE.md` des fronts) : web `lib/notifications.test.ts`
+  (logique extraite dans `lib/notifications.ts`), mobile `test/notifications_screen_test.dart`
+  — chargement, bascule optimiste dans les deux sens, succès, erreur API, retour arrière + erreur.
+  Aucune dépendance ajoutée.
+
+Résultats après corrections (build propre) : backend **3 186 unitaires** (2 ignorés) et
+**1 575 d'intégration**, 0 échec ; web `tsc` OK, `build` OK, **275/275** tests ; mobile
+`flutter analyze` 0 problème, **303/303** tests.

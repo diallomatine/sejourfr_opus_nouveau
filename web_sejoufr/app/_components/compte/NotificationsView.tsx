@@ -16,7 +16,13 @@ import {
   COMPTE_NOTIFICATIONS_HREF,
   COMPTE_PROFIL_HREF,
 } from "@/lib/compte";
-import type { EmailPreferences } from "@/lib/types";
+import {
+  loadEmailPreferences,
+  NOTIF_INITIAL_STATE,
+  NOTIF_SAVED_DISMISS_MS,
+  toggleEngagement,
+  type NotifState,
+} from "@/lib/notifications";
 import {
   CompteAlert,
   CompteAuth,
@@ -50,30 +56,22 @@ export function NotificationsView() {
   );
 }
 
-type Load = { state: "loading" } | { state: "error" } | { state: "ready"; prefs: EmailPreferences };
-
 function NotificationsBody() {
-  const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<"saved" | "failed" | null>(null);
+  const [state, setState] = useState<NotifState>(NOTIF_INITIAL_STATE);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let alive = true;
-    accountApi
-      .getEmailPreferences()
-      .then((prefs) => {
-        if (alive) setLoad({ state: "ready", prefs });
-      })
-      .catch(() => {
-        if (alive) setLoad({ state: "error" });
-      });
+    loadEmailPreferences(() => accountApi.getEmailPreferences()).then((loaded) => {
+      if (alive) setState(loaded);
+    });
     return () => {
       alive = false;
       if (savedTimer.current) clearTimeout(savedTimer.current);
     };
   }, []);
 
+  const { load, saving, feedback } = state;
   if (load.state === "loading") return <CompteLoading />;
   if (load.state === "error") return <CompteAlert tone="error">{COMPTE_NOTIF_LOAD_FAILED}</CompteAlert>;
 
@@ -81,19 +79,18 @@ function NotificationsBody() {
 
   async function toggle(next: boolean) {
     if (savedTimer.current) clearTimeout(savedTimer.current);
-    setFeedback(null);
-    setSaving(true);
-    setLoad({ state: "ready", prefs: { ...previous, engagementEnabled: next } });
-    try {
-      const prefs = await accountApi.updateEmailPreferences({ engagementEnabled: next });
-      setLoad({ state: "ready", prefs });
-      setFeedback("saved");
-      savedTimer.current = setTimeout(() => setFeedback(null), 3000);
-    } catch {
-      setLoad({ state: "ready", prefs: previous });
-      setFeedback("failed");
-    } finally {
-      setSaving(false);
+    const final = await toggleEngagement(
+      previous,
+      next,
+      (patch) => accountApi.updateEmailPreferences(patch),
+      setState,
+    );
+    setState(final);
+    if (final.feedback === "saved") {
+      savedTimer.current = setTimeout(
+        () => setState((s) => ({ ...s, feedback: null })),
+        NOTIF_SAVED_DISMISS_MS,
+      );
     }
   }
 

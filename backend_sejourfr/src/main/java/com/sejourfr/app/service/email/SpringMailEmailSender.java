@@ -162,6 +162,6 @@ public class SpringMailEmailSender implements EmailSender {
 
         return new Rendered(subject,
                 renderer.render(LAYOUT + ".html", htmlLayout),
-                renderer.renderText(LAYOUT + ".txt", textLayout));
+                renderer.renderText(LAYOUT + ".txt", textLayout).replaceAll("\n{3,}", "\n\n"));
     }
 }

@@ -40,6 +40,8 @@ class DiagnosticPlanReadyEmailIT extends AbstractEmailIT {
     @Autowired private TcfDiagnosticService tcfService;
     @Autowired private AttemptManager attemptManager;
     @Autowired private DiagnosticSessionCoordinator coordinator;
+    @Autowired private com.sejourfr.app.repository.SkillRepository skillRepository;
+    @Autowired private com.sejourfr.app.service.LearningPlanService learningPlanService;
 
     private void finirAttempt(Attempt attempt) {
         Attempt a = attemptManager.findById(attempt.getId()).orElseThrow();
@@ -165,5 +167,54 @@ class DiagnosticPlanReadyEmailIT extends AbstractEmailIT {
         // un epinglage concurrent de celui du candidat faisait echouer SA requete.
         assertThat(jdbc.queryForObject("SELECT count(*) FROM plan_pinned_priorities WHERE user_id = ?",
                 Long.class, u.getId())).isZero();
+    }
+
+    /**
+     * 🔴 Cas NOMINAL (revue D-17) : rapide TCF clos par le pipeline, Plan JAMAIS
+     * ouvert par le candidat, aucune epingle. Le mail doit porter les priorites
+     * REELLES du Plan — celles que le candidat verra en l'ouvrant.
+     */
+    @Test
+    @DisplayName("Rapide clos, Plan jamais ouvert : le mail porte les vraies priorites du Plan")
+    void lesPrioritesDuPlanSontDansLeMail() {
+        User u = user();
+        u.setTargetProcedure(com.sejourfr.app.enums.TargetProcedure.NAT);
+        u.setTargetLevel(com.sejourfr.app.enums.TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(u);
+        DiagnosticSession session = data.diagnosticSession(u, DiagnosticSessionStatus.IN_PROGRESS);
+        ProductionSubmission ecrit = data.diagnosticSubmission(
+                session.getWrittenAttempt(), session.getWrittenTask(), u);
+        ProductionSubmission oral = data.diagnosticSubmission(
+                session.getOralAttempt(), session.getOralTask(), u);
+        data.diagnosticAnalysis(ecrit, NiveauCecrl.A2);
+        data.diagnosticAnalysis(oral, NiveauCecrl.A2);
+        // Une fragilite observee sur une competence du REFERENTIEL PUBLIE (elle a
+        // des sujets actifs, donc une carte) — ce que l'analyse du rapide ecrit.
+        java.util.UUID skillId = jdbc.queryForObject(
+                "SELECT id FROM skills WHERE section = 'EE' AND is_active ORDER BY display_order, id LIMIT 1",
+                java.util.UUID.class);
+        com.sejourfr.app.entity.Skill skill = skillRepository.findById(skillId).orElseThrow();
+        data.learningPlanObservation(u, skill, com.sejourfr.app.enums.LearningPlanSourceType.DIAGNOSTIC_EE,
+                com.sejourfr.app.enums.LearningPlanSkillStatus.TO_REINFORCE,
+                com.sejourfr.app.enums.ObservationConfidence.MEDIUM, null, java.time.Instant.now());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM plan_pinned_priorities WHERE user_id = ?",
+                Long.class, u.getId())).isZero();
+
+        coordinator.onAnalysisCompleted(oral.getId());
+
+        awaitPlanReady(u);
+        EmailMessage m = mails.sentTo(u.getEmail()).getFirst();
+        // La reference : ce que le Plan sert au candidat quand il l'ouvre ENSUITE.
+        com.sejourfr.app.dto.LearningPlanDto plan = learningPlanService.get(u.getId());
+        java.util.List<String> attendues = new java.util.ArrayList<>();
+        attendues.add(plan.currentPriority().title());
+        plan.nextPriorities().forEach(p -> attendues.add(p.title()));
+        assertThat(attendues).isNotEmpty();
+        assertThat(m.variables().get("priority1")).isEqualTo(attendues.getFirst()).isNotBlank();
+        assertThat(m.variables()).containsEntry("prioritiesIntro", "Vos premières priorités :");
+        for (int i = 0; i < 3; i++) {
+            assertThat(m.variables().get("priority" + (i + 1)))
+                    .isEqualTo(i < attendues.size() ? attendues.get(i) : "");
+        }
     }
 }

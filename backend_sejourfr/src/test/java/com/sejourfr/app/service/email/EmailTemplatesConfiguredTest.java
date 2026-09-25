@@ -62,4 +62,27 @@ class EmailTemplatesConfiguredTest {
                     .doesNotContain("promo").doesNotContain("/paiement").doesNotContain("abonnement");
         });
     }
+
+    /**
+     * Revue du proprietaire : aucun delai ecrit en dur (« dans 7 jours », « une
+     * semaine »…) dans un mail ENGAGEMENT. Un rappel peut partir un jour de
+     * rattrapage, un pass peut avoir ete prolonge : la vraie date
+     * ({@code accessEndDate}) est la seule autorite.
+     */
+    @Test
+    void aucunDelaiEcritEnDur() {
+        java.util.regex.Pattern delai = java.util.regex.Pattern.compile(
+                "(\\d+\\s*(jour|jours|semaine|semaines|mois|h|heures))|semaine|demain|dans \\d");
+        EmailProperties p = bind();
+        MailTemplateRenderer renderer = new MailTemplateRenderer();
+        p.getTemplates().forEach((type, t) -> {
+            if (type.category() != com.sejourfr.app.enums.EmailCategory.ENGAGEMENT) return;
+            String texte = (t.getSubject() + " " + t.getPreheader() + " "
+                    + renderer.renderText(t.getLocalTemplate() + ".html", java.util.Map.of()) + " "
+                    + renderer.renderText(t.getLocalTemplate() + ".txt", java.util.Map.of())).toLowerCase();
+            assertThat(delai.matcher(texte).find()).as("delai en dur dans %s", type).isFalse();
+        });
+        assertThat(p.getTemplates().get(EmailType.PREMIUM_ENDING_7_DAYS).getSubject()).contains("{{accessEndDate}}");
+        assertThat(p.getTemplates().get(EmailType.PREMIUM_ENDING_2_DAYS).getSubject()).contains("{{accessEndDate}}");
+    }
 }

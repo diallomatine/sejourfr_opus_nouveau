@@ -67,4 +67,13 @@ class MailTemplateRendererTest {
         assertThat(renderer.renderInline("Votre accès {{x}}", java.util.Map.of("x", "TCF & Civique")))
                 .isEqualTo("Votre accès TCF & Civique");
     }
+
+    @Test
+    void uneLigneDontTousLesPlaceholdersSontVidesDisparait() {
+        String t = "avant\n<p>{{a}}</p>\n<p>{{a}} et {{b}}</p>\n<p>fixe</p>\n{{inconnu}}\napres";
+
+        String out = renderer.renderInline(t, java.util.Map.of("a", "", "b", "B"));
+
+        assertThat(out).isEqualTo("avant\n<p> et B</p>\n<p>fixe</p>\n{{inconnu}}\napres");
+    }
 }

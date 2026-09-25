@@ -12,11 +12,11 @@
   "batchSize": 200,
   "retentionMonths": 12,
   "scenarios": {
-    "NO_PREMIUM_AFTER_7_DAYS": { "minDays": 7, "maxDays": 10, "minAccessAgeDays": 0 },
-    "NO_TRAINING_7_DAYS": { "minDays": 7, "maxDays": 14, "minAccessAgeDays": 0 },
-    "PREMIUM_INACTIVE_2_DAYS": { "minDays": 2, "maxDays": 5, "minAccessAgeDays": 0 },
-    "PREMIUM_ENDING_7_DAYS": { "minDays": 2, "maxDays": 7, "minAccessAgeDays": 3 },
-    "PREMIUM_ENDING_2_DAYS": { "minDays": 0, "maxDays": 2, "minAccessAgeDays": 0 },
-    "PREMIUM_ENDED": { "minDays": 0, "maxDays": 3, "minAccessAgeDays": 0 }
+    "NO_PREMIUM_AFTER_7_DAYS": { "minDays": 7, "maxDays": 10, "minAccessAgeDays": 0, "minAccessDurationDays": 0 },
+    "NO_TRAINING_7_DAYS": { "minDays": 7, "maxDays": 14, "minAccessAgeDays": 0, "minAccessDurationDays": 0 },
+    "PREMIUM_INACTIVE_2_DAYS": { "minDays": 2, "maxDays": 5, "minAccessAgeDays": 0, "minAccessDurationDays": 0 },
+    "PREMIUM_ENDING_7_DAYS": { "minDays": 2, "maxDays": 7, "minAccessAgeDays": 3, "minAccessDurationDays": 14 },
+    "PREMIUM_ENDING_2_DAYS": { "minDays": 0, "maxDays": 2, "minAccessAgeDays": 0, "minAccessDurationDays": 0 },
+    "PREMIUM_ENDED": { "minDays": 0, "maxDays": 3, "minAccessAgeDays": 0, "minAccessDurationDays": 0 }
   }
 }

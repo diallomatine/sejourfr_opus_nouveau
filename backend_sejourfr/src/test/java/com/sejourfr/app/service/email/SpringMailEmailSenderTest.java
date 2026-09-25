@@ -158,4 +158,38 @@ class SpringMailEmailSenderTest {
         assertThatThrownBy(s::verifierGabarits).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("email/nexiste-pas");
     }
+
+    /** Revue D-17 : sans priorite, le bloc disparait ENTIER, en HTML comme en texte. */
+    @Test
+    void sansPrioriteLeBlocEstAbsentDesDeuxParties() {
+        java.util.Map<String, String> vars = new java.util.HashMap<>(Map.of("firstName", "Alice",
+                "greeting", "Bonjour Alice", "diagnosticType", "TCF", "planUrl", "https://sejourfr.fr/plan?module=TCF"));
+        vars.putAll(Map.of("prioritiesIntro", "", "priority1", "", "priority2", "", "priority3", ""));
+
+        SpringMailEmailSender.Rendered vide = sender.render(new EmailMessage("a@b.fr",
+                EmailType.DIAGNOSTIC_PLAN_READY, vars, null, null));
+
+        assertThat(vide.html()).doesNotContain("priorités").doesNotContain("font-weight:700;\"></p>")
+                .doesNotContain("{{").contains("Voir mon plan");
+        assertThat(vide.text()).doesNotContain("priorités").doesNotContain("\n\n\n")
+                .contains("Voir mon plan");
+
+        vars.putAll(Map.of("prioritiesIntro", "Vos premières priorités :", "priority1", "Organiser un texte",
+                "priority2", "Argumenter"));
+        SpringMailEmailSender.Rendered deux = sender.render(new EmailMessage("a@b.fr",
+                EmailType.DIAGNOSTIC_PLAN_READY, vars, null, null));
+
+        assertThat(deux.html()).contains("Vos premières priorités :").contains("Organiser un texte")
+                .contains("Argumenter").doesNotContain("font-weight:700;\"></p>");
+        assertThat(deux.text()).contains("Vos premières priorités :\nOrganiser un texte\nArgumenter\n");
+    }
+
+    @Test
+    void unMailRequiredNeGardeAucuneTraceDuBlocDeDesabonnement() {
+        SpringMailEmailSender.Rendered r = sender.render(new EmailMessage("a@b.fr", EmailType.WELCOME,
+                Map.of("firstName", "", "greeting", "Bonjour", "appUrl", "https://sejourfr.fr"), null, null));
+
+        assertThat(r.html()).doesNotContain("unsubscribe").doesNotContain("rappels d'entraînement");
+        assertThat(r.text()).doesNotContain("\n\n\n");
+    }
 }

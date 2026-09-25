@@ -133,6 +133,22 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Fichiers : `SubscriptionService.covers`, `automation/PremiumAccessEndResolver.java`,
   `automation/EmailAutomationService.java`, `repository/EmailScenarioRepository.java`
 
+## D-32 — Une ligne de gabarit dont tous les placeholders sont vides est retirée
+- Phase : revue
+- Importance : structurante
+- Contexte : revue D-17 — sans priorité, le bloc « Vos premières priorités » doit être absent,
+  en HTML comme en texte. Le moteur n'a pas de condition (complément F), et laissait des
+  paragraphes vides.
+- Options : A) des fragments HTML composés en Java (du HTML dans les variables, mauvais pour
+  Brevo) ; B) une condition dans le moteur (interdit) ; C) règle générique de rendu : une ligne
+  dont TOUS les placeholders valent la chaîne vide disparaît, balisage compris ; le texte replie
+  les lignes blanches en trop.
+- Choix : C — la décision reste en Java (la variable vide), le moteur ne fait que ne pas imprimer
+  une ligne qui ne dit plus rien. Sert aussi le bloc de désabonnement d'un mail REQUIRED. Chez
+  Brevo, le même effet s'écrira avec ses conditions sur les mêmes params.
+- Réversibilité : facile.
+- Fichiers : `service/email/MailTemplateRenderer.java`, `SpringMailEmailSender.java`
+
 ---
 
 # Décisions mineures
@@ -236,7 +252,7 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Réversibilité : facile — `EmailType.DIAGNOSTIC_PLAN_READY`.
 - Fichiers : `EmailType`
 
-## D-17 — La composition de `DIAGNOSTIC_PLAN_READY` lit le Plan en lecture seule
+## D-17 — La composition de `DIAGNOSTIC_PLAN_READY` lit le Plan en lecture seule (vérifiée en revue)
 - Phase : 2
 - Importance : mineure
 - Contexte : lire le Plan TCF (`LearningPlanService.get`) épingle sa première place. Composé sur
@@ -248,6 +264,10 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
   tentée devient un mail sans priorité.
 - Choix : B — correctif local, sans toucher au moteur du Plan ; verrouillé par
   `DiagnosticPlanReadyEmailIT` (aucune ligne `plan_pinned_priorities` écrite par le mail).
+- Revue : le cas nominal (rapide clos par le pipeline, Plan jamais ouvert, aucune épingle) est
+  verrouillé par `DiagnosticPlanReadyEmailIT.lesPrioritesDuPlanSontDansLeMail` : le mail porte
+  exactement les priorités que le Plan sert ensuite. Aucune lecture pure supplémentaire n'a été
+  nécessaire.
 - Réversibilité : facile.
 - Fichiers : `compose/DiagnosticEmailComposer.java`
 
@@ -395,7 +415,7 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Réversibilité : facile.
 - Fichiers : `automation/EmailAutomationService.PRIORITE`
 
-## D-31 — Tests des scénarios : horloge dans le futur, activité par simulation orale
+## D-31 — Tests des scénarios : horloge dans le futur, activité par simulation orale (révisée par D-35)
 - Phase : 4
 - Importance : mineure
 - Contexte : les requêtes de scénario balaient toute la base, où d'autres tests laissent des
@@ -406,6 +426,58 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Choix : B.
 - Réversibilité : facile.
 - Fichiers : `EmailAutomationIT`, `EmailDeferredRetryIT`, `support/MutableClock`
+
+## D-33 — `PREMIUM_ENDING_7_DAYS` seulement pour un accès d'au moins 14 jours
+- Phase : revue
+- Importance : mineure
+- Contexte : revue du propriétaire, option B validée — un pass 7 jours serait prévenu de sa fin
+  presque dès l'achat.
+- Options : A) garder la seule ancienneté de 3 jours ; B) une durée totale minimale, en config.
+- Choix : B — `scenarios.*.minAccessDurationDays` (14 pour ENDING_7, 0 ailleurs) dans
+  `email-automation-config-v1.json`, validé par le chargeur ; durée = `ends_at − starts_at` de la
+  ligne d'accès (une prolongation, qui crée une ligne plus longue, reste prévenue). L'ancienneté
+  de 3 jours devient redondante pour ENDING_7 (une fin à ≤ 7 jours d'un accès de ≥ 14 jours
+  implique ≥ 7 jours d'ancienneté) ; elle est conservée.
+- Réversibilité : facile — la valeur de config.
+- Fichiers : `email-automation-config-v1.json`, `EmailAutomationConfig`, `EmailAutomationService`
+
+## D-34 — Aucun délai écrit en dur dans les mails ENGAGEMENT
+- Phase : revue
+- Importance : mineure
+- Contexte : revue — la vraie `accessEndDate` est l'autorité. Deux gabarits disaient « une
+  semaine » (compte créé, dernier entraînement), faux un jour de rattrapage.
+- Options : A) calculer le délai réel en variable ; B) des formulations sans durée.
+- Choix : B — « il y a quelques jours », « remonte à plusieurs jours » ; sujets de fin d'accès
+  portés par `{{accessEndDate}}`. Figé par `EmailTemplatesConfiguredTest.aucunDelaiEcritEnDur`.
+- Réversibilité : facile.
+- Fichiers : `resources/email/no-premium-after-7-days.*`, `no-training-7-days.*`
+
+## D-35 — D-31 révisée : horloge des tests relative à l'exécution
+- Phase : revue
+- Importance : mineure
+- Contexte : revue — pas de date fixe (2027) dans les tests.
+- Options : A) isoler les données de scénario ; B) un décalage relatif.
+- Choix : B — `T` = aujourd'hui (UTC) + 365 jours à 8 h UTC dans `EmailAutomationIT` et
+  `EmailDeferredRetryIT` ; les dates attendues se calculent depuis `T`. Aucune infrastructure de
+  test partagée modifiée.
+- Réversibilité : facile.
+- Fichiers : `EmailAutomationIT`, `EmailDeferredRetryIT`
+
+## D-36 — Tests front de la page « Notifications par e-mail » : exception demandée par le propriétaire
+- Phase : revue
+- Importance : mineure
+- Contexte : la règle racine « aucun nouveau test front » ; le propriétaire demande
+  explicitement des tests pour cette page (revue du 2026-09-25), exception limitée à ce cas.
+- Options : A) tester le composant React (exige une bibliothèque DOM nouvelle) ; B) extraire la
+  logique d'état dans un module pur et la tester avec le runner existant.
+- Choix : B — web : `lib/notifications.ts` + `lib/notifications.test.ts` (runner `node --test`
+  déjà en place, aucune dépendance ajoutée), la vue l'utilise sans changer son rendu ; mobile :
+  `test/notifications_screen_test.dart` (notifier + widget, faux dépôt comme les tests
+  existants). Couvre chargement, bascule optimiste dans les deux sens, succès, erreur API,
+  retour arrière + message d'erreur. Noté dans les deux `CLAUDE.md` des fronts.
+- Réversibilité : facile.
+- Fichiers : `web_sejoufr/lib/notifications*.ts`, `web_sejoufr/app/_components/compte/NotificationsView.tsx`,
+  `mobile_sejourfr/test/notifications_screen_test.dart`
 
 ---
 
@@ -433,21 +505,11 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 
 # Blocages
 
-## B-1 — Relais du formulaire de contact : « remonter l'échec à l'utilisateur » (arbitrage n°9)
-- Phase : 3
-- Constat : l'arbitrage dit que le relais « reste synchrone et doit **continuer** à remonter
-  l'échec à l'utilisateur ». Le code ne l'a jamais fait : `MailService.sendContactMessage`
-  levait bien une exception, mais `ContactService.submit` l'avalait (la conversation, déjà
-  enregistrée dans la boîte admin, est l'autorité) — comportement voulu et figé par
-  `ContactServiceTest.submitSucceedsEvenWhenSupportRelayFails`. L'audit (§2.1) décrivait le
-  niveau `MailService`, pas le parcours utilisateur.
-- Ce qui est fait : le relais est synchrone, passe par le port (`EmailSender.relayToSupport`), n'a
-  pas de ligne `email_deliveries`, et **son échec remonte à `ContactService`** — dont le
-  comportement est **inchangé** (demande enregistrée, accusé de réception envoyé, le candidat
-  ne renvoie pas un doublon).
-- Ce qui n'est PAS fait : faire échouer la requête du candidat. Le faire proprement exigerait
-  d'annuler aussi la conversation (sinon doublon au renvoi) : c'est un changement de règle
-  produit sur la boîte de réception, à arbitrer.
-- Pour trancher : « le visiteur voit une erreur et la demande n'est pas enregistrée » (rendre
-  `submit` transactionnel, relayer avant le commit, relancer l'exception) **ou** statu quo.
-
+## B-1 — Relais du formulaire de contact — ✅ CLOS (revue du propriétaire, 2026-09-25)
+- Arbitrage : **statu quo**. La conversation enregistrée dans la boîte admin est la source de
+  vérité. Demande enregistrée ⇒ le visiteur voit un succès. La notification email au support est
+  secondaire : si elle échoue, log serveur masqué, réponse utilisateur inchangée. Un incident SMTP
+  ne doit pas provoquer un second envoi du formulaire et des doublons.
+- Le relais n'est donc **pas** une exception au principe « un échec d'envoi ne fait pas échouer le
+  parcours » : son erreur remonte techniquement à `ContactService`, qui l'absorbe délibérément.
+  Invariant 3 de `docs/regles/emails.md` reformulé en conséquence.

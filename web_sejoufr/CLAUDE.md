@@ -735,6 +735,12 @@ Arbitrage n°13 du propriétaire : une page dédiée de « Mon compte », miroir
 - `/confidentialite` (articles 4 et 5) décrit ces e-mails : compte (non désactivables),
   accompagnement (intérêt légitime, désactivables, ≤ 1/jour), aucun e-mail commercial
   sans consentement, journal d'envoi conservé 12 mois.
+- **État sans React** : `lib/notifications.ts` (`loadEmailPreferences`, `toggleEngagement`,
+  API injectée) ; la vue ne fait que l'afficher.
+- 🧪 **Tests par demande EXPLICITE du propriétaire** (revue du chantier e-mails,
+  2026-09-25) : `lib/notifications.test.ts` (chargement, bascule optimiste dans les
+  deux sens, succès, échec + retour arrière). **Exception** à « aucun nouveau test
+  front », **limitée à cette page** ; miroir mobile `test/notifications_screen_test.dart`.
 
 ## Le centre d'aide (`/aide`, 2026-09-24)
 

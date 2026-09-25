@@ -23,8 +23,11 @@ Code : `backend_sejourfr/src/main/java/com/sejourfr/app/service/email/` (+ `even
    `EmailSender`. Passer à Brevo = créer `BrevoEmailSender`, renseigner les `brevo-template-id`,
    `EMAIL_PROVIDER=brevo`. Rien d'autre ne bouge.
 3. **Un échec d'envoi ne fait jamais échouer** une inscription, un paiement, un diagnostic ou un
-   entraînement. Seule exception, voulue : le **relais du formulaire de contact** vers le support
-   est synchrone et son échec remonte à `ContactService` (arbitrage n°9).
+   entraînement. Le **relais du formulaire de contact** vers le support n'y fait **pas**
+   exception : il est synchrone et son erreur remonte techniquement à `ContactService`, qui
+   l'**absorbe délibérément** (log serveur masqué) parce que la conversation enregistrée dans la
+   boîte admin est l'autorité. Demande enregistrée ⇒ le visiteur voit un succès ; un incident
+   SMTP ne doit jamais provoquer un second envoi du formulaire, donc un doublon (arbitrage B-1).
 4. **REQUIRED ne se désactive pas.** Aucun champ de préférence ne le concerne.
 5. **Aucun token, mot de passe ni URL à token dans un log**, et aucune adresse en clair
    (`LogMask.email`). Les `record` d'événement et de message redéfinissent `toString()`.
@@ -35,7 +38,9 @@ Code : `backend_sejourfr/src/main/java/com/sejourfr/app/service/email/` (+ `even
    composeur que l'envoi initial.
 7. **Aucune logique métier dans un gabarit.** Le moteur (`MailTemplateRenderer`) ne connaît que
    `{{x}}` (échappé) et `{{{x}}}` (brut), en une seule passe. Un passage optionnel arrive en
-   variable plate déjà calculée en Java, éventuellement vide.
+   variable plate déjà calculée en Java, éventuellement vide ; **une ligne de gabarit dont tous
+   les placeholders sont vides est retirée entière** (décision D-32) — ni paragraphe vide ni
+   ligne blanche.
 8. **Aucun prix, remise, « offre » ni urgence commerciale dans un mail ENGAGEMENT.** Le CTA de fin
    d'accès mène à « Mon pass » (`/profil/abonnement`), jamais à `/paiement`.
 9. **Vocabulaire** : « accès Premium », « pass », « accès TCF / Civique ». Jamais « abonnement »
@@ -80,9 +85,8 @@ leur propre réévaluation quotidienne (une clé `FAILED` ne bloque pas). 🛑 `
 `EMAIL_CHANGE_CONFIRMATION` jamais : leur jeton n'est stocké que haché.
 
 **Le relais du formulaire de contact** vers le support n'est pas un mail client : synchrone,
-`EmailSender.relayToSupport`, **aucune ligne de journal**, et son échec remonte à
-`ContactService` — qui garde la demande (la boîte admin fait foi, point en attente d'arbitrage :
-blocage B-1 de `docs/email/decisions.md`).
+`EmailSender.relayToSupport`, **aucune ligne de journal** ; son échec remonte à `ContactService`,
+qui l'absorbe (log masqué, réponse inchangée) : la conversation enregistrée fait foi (B-1, clos).
 
 ## Les règles d'envoi — `EmailService`, dans l'ordre
 
@@ -165,7 +169,10 @@ le système, jusqu'à 9 jours après le dernier acte). Lue par le scheduler, jam
   (`SKIPPED / KEY_CONSUMED`, complément C). Le TCF invité n'a pas d'adoption serveur : sa première
   soumission après inscription est un diagnostic ordinaire (décision D-7).
 - Variables : au plus les **trois premières priorités servies** par le Plan du module,
-  `priority2/3` **vides** si le Plan provisoire en a moins — jamais comblées.
+  `priority2/3` **vides** si le Plan provisoire en a moins — jamais comblées. Lues en
+  **lecture seule** (aucun épinglage) : ce sont bien celles que le candidat verra en ouvrant son
+  Plan (`DiagnosticPlanReadyEmailIT.lesPrioritesDuPlanSontDansLeMail`). Sans priorité, le bloc
+  « Vos premières priorités » **disparaît entier**, en HTML comme en texte.
 
 ## Les scénarios automatisés (passage quotidien)
 
@@ -188,10 +195,15 @@ manqué et n'envoient rien rétroactivement au premier déploiement :
 | `NO_PREMIUM_AFTER_7_DAYS` | inscrit, **jamais** d'accès payant (passé ou actuel) | 7 à 10 jours calendaires depuis l'inscription |
 | `NO_TRAINING_7_DAYS` | au moins une activité | 7 à 14 jours depuis la dernière activité |
 | `PREMIUM_INACTIVE_2_DAYS` | un accès couvrant | 2 à 5 jours depuis `max(dernière activité, début de l'accès couvrant le plus récent)` (arbitrage n°19) |
-| `PREMIUM_ENDING_7_DAYS` | pass couvrant, commencé il y a ≥ 3 jours, rien ne le prolonge | fin dans `]now+2 j, now+7 j]` |
+| `PREMIUM_ENDING_7_DAYS` | pass couvrant, commencé il y a ≥ 3 jours, **d'une durée totale ≥ 14 jours** (`minAccessDurationDays`), rien ne le prolonge | fin dans `]now+2 j, now+7 j]` |
 | `PREMIUM_ENDING_2_DAYS` | pass couvrant, rien ne le prolonge | fin dans `]now, now+2 j]` |
 | `PREMIUM_ENDED` | le pass couvrait jusqu'à sa fin, aucun accès de module ≥ actif ni à venir | fin dans `[now−3 j, now]` |
 
+- **Pass courts** : un pass de 7 jours ne reçoit jamais `PREMIUM_ENDING_7_DAYS` (il serait
+  prévenu de sa fin dès l'achat) — au plus le rappel d'inactivité, `ENDING_2`, puis `ENDED`.
+- 🛑 **Aucun délai écrit en dur** dans un mail ENGAGEMENT (« dans 7 jours », « une semaine »…) :
+  un rappel peut partir un jour de rattrapage et un pass peut être prolongé. La vraie date
+  (`accessEndDate`) est la seule autorité (figé par `EmailTemplatesConfiguredTest`).
 - Jours **calendaires Europe/Paris** pour l'âge du compte et l'inactivité ; **instants** pour les
   fins d'accès (décision D-26).
 - **Épisodes d'inactivité** : la clé porte la date qui a ouvert l'épisode ⇒ au plus un mail par

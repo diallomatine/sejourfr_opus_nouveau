@@ -76,9 +76,9 @@ public class ContactService {
 
         // Relais vers l'équipe : SYNCHRONE, par le port d'envoi, sans ligne
         // email_deliveries (le destinataire n'est pas un utilisateur). Le port
-        // remonte l'échec ; il reste avalé ICI comme avant — la boîte admin est
-        // l'autorité, la demande est déjà enregistrée (blocage B-1 de
-        // docs/email/decisions.md : à arbitrer).
+        // remonte l'échec, absorbé ICI délibérément : la conversation enregistrée
+        // fait foi, le visiteur voit un succès, et un incident SMTP ne doit pas
+        // provoquer un second envoi du formulaire (B-1, arbitré : statu quo).
         try {
             emailSender.relayToSupport(new SupportRelayMessage(
                     email, "[Contact SejourFR] " + sanitizeHeader(subject),
