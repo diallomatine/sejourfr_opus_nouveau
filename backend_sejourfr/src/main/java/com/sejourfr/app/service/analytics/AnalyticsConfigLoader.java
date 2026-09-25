@@ -64,6 +64,7 @@ public final class AnalyticsConfigLoader {
         }
         positif(config.cohortWindowDays(), "cohortWindowDays", path);
         positif(config.claimTokenTtlDays(), "claimTokenTtlDays", path);
+        positif(config.runReuseWindowHours(), "runReuseWindowHours", path);
         positif(config.purchaseIntentTtlHours(), "purchaseIntentTtlHours", path);
         positif(config.anonymousIdTtlDays(), "anonymousIdTtlDays", path);
         positif(config.rawEventRetentionDays(), "rawEventRetentionDays", path);

@@ -39,6 +39,8 @@ import java.util.Optional;
  *                               pour qu'une run CIVIQUE compte « soumise » a la
  *                               lecture (controle C, V076), dans {@code ]0, 1]}.
  *                               Une run sans mesure n'est jamais comptee
+ * @param runReuseWindowHours    age maximal d'une run rendue par sa
+ *                               {@code clientKey} (controle F2) ; au-dela, run neuve
  */
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record AnalyticsConfig(
@@ -55,7 +57,8 @@ public record AnalyticsConfig(
         Map<String, List<String>> utmSourceGroups,
         String utmSourceFallbackGroup,
         Map<SuiviIndicator, String> measurementStart,
-        double civicSubmittedMinAnsweredRatio
+        double civicSubmittedMinAnsweredRatio,
+        int runReuseWindowHours
 ) {
 
     /**
@@ -112,6 +115,10 @@ public record AnalyticsConfig(
             if (group.getValue().contains(value)) return group.getKey();
         }
         return utmSourceFallbackGroup;
+    }
+
+    public Duration runReuseWindow() {
+        return Duration.ofHours(runReuseWindowHours);
     }
 
     public Duration claimTokenTtl() {

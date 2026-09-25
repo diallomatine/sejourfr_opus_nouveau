@@ -100,6 +100,12 @@ public class DiagnosticRunManager {
         };
     }
 
+    /** F2 : la run perd sa {@code client_key}, qui passe a une run neuve. */
+    @Transactional
+    public void releaseClientKey(UUID runId, Instant now) {
+        repository.releaseClientKey(runId, now);
+    }
+
     @Transactional
     public void rotateToken(UUID runId, String claimTokenHash, Instant expiresAt, Instant now) {
         repository.rotateToken(runId, claimTokenHash, expiresAt, now);

@@ -95,13 +95,21 @@ s'il accompagne la requête, fait de l'appelant le porteur. Détail et règles :
     clientKey)` → la **même run** (`created=false`) avec un **nouveau** `claimToken`
     (seul le hash est stocké ; l'ancien ne vaut plus rien). Sans en-tête d'identifiant,
     pas d'idempotence par clé.
+  - 🛑 **Réutilisation par la clé bornée** (contrôle F2, 2026-09-25) : la run désignée
+    par `(anonymousId, clientKey)` n'est rendue que si son porteur est nul ou est
+    l'appelant, **et** si son sujet a été vu il y a moins de `runReuseWindowHours`
+    (24 h). Sinon : **run neuve** (`created=true`), la `clientKey` quitte l'ancienne run
+    et passe à la neuve (les rejeux suivants retrouvent la neuve).
   - `sessionId` : `civic_diagnostic_sessions` (CIVIQUE, compte **ou IP** de l'invité),
     `tcf_diagnostic_sessions` (FULL_TCF), `diagnostic_sessions` (QUICK_TCF connecté).
     Doit appartenir à l'appelant, sinon **404**.
   - Type inconnu → **400** ; `FULL_TCF` sans compte → **403** ; `clientKey` rejouée pour
     un autre type → **409**.
-  - 🛑 `claimToken` (256 bits, TTL `claimTokenTtlDays` = 30 j) : le client le garde avec
-    son brouillon et ne l'envoie qu'à `submit` et à l'auth, **jamais** dans un événement.
+  - 🛑 `claimToken` (256 bits) : le client le garde avec son brouillon et ne l'envoie
+    qu'à `submit` et à l'auth, **jamais** dans un événement. **Échéance ancrée** sur le
+    sujet vu : `claimTokenExpiresAt = subjectViewedAt + claimTokenTtlDays` (**2 j**,
+    contrôle E) ; un rejeu rend un nouveau jeton **sans repousser l'échéance** (déjà
+    passée ⇒ jeton inutilisable). Vaut aussi pour le lien web → app.
 - `POST /api/public/diagnostic-runs/{id}/submit` → **204**. « Soumis » d'une run
   **`QUICK_TCF`**, à « Analyser mes réponses ». Corps facultatif `{claimToken?}` : requis
   sauf si l'appelant connecté porte déjà la run. **Une seule fois** (un second appel ne

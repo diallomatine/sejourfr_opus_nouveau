@@ -334,7 +334,8 @@ Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
   13 mois = durée de vie du **traceur** (condition CNIL) ; les 395 j de conservation des
   données brutes sont notre choix, aligné. `/confidentialite` art. 5, 8.2-8.4 à jour.
 - **Configurations versionnées** : `analytics/analytics-config-v1.json` (cohorte 14 j,
-  claim 30 j, intention 24 h, rétention, ingestion, groupes de sources, **date de début
+  claim 2 j ancré sur le sujet vu — 30 j avant le contrôle E —, réutilisation d'une run
+  par sa clé 24 h, seuil civique 0,8, intention 24 h, rétention, ingestion, groupes de sources, **date de début
   de mesure par indicateur** — `null` = pas encore mesuré, l'indicateur vaut alors
   `null`) et `billing/revenue-rules-v1.json` (`FRANCHISE_293B`, TVA store 20 %,
   commission `MULTIPLY` 0,15 Apple et Google **à confirmer**, Stripe 1,5 % + 25 c).

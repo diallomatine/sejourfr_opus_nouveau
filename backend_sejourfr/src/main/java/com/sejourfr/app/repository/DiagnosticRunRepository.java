@@ -117,6 +117,15 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
     int rotateToken(@Param("id") UUID id, @Param("hash") String hash, @Param("expiresAt") Instant expiresAt,
                     @Param("now") Instant now);
 
+    /**
+     * La cle d'idempotence quitte une run qui n'est plus reutilisable (F2) :
+     * l'index {@code (anonymous_id, client_key)} la laisse alors a la run neuve.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = "UPDATE diagnostic_run SET client_key = NULL, updated_at = :now WHERE id = :id",
+            nativeQuery = true)
+    int releaseClientKey(@Param("id") UUID id, @Param("now") Instant now);
+
     // ------------------------------------------------------------------------
     // Rattachement a la session reelle (FK V074), une seule fois
     // ------------------------------------------------------------------------

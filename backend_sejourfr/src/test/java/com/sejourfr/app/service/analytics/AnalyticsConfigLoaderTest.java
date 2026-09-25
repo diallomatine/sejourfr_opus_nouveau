@@ -23,8 +23,8 @@ class AnalyticsConfigLoaderTest {
 
     private static String json(String timezone, String groupes, String debuts) {
         return """
-                {"analyticsConfigVersion":1,"timezone":"%s","cohortWindowDays":14,"claimTokenTtlDays":30,
-                 "civicSubmittedMinAnsweredRatio":0.8,
+                {"analyticsConfigVersion":1,"timezone":"%s","cohortWindowDays":14,"claimTokenTtlDays":2,
+                 "civicSubmittedMinAnsweredRatio":0.8,"runReuseWindowHours":24,
                  "purchaseIntentTtlHours":24,"anonymousIdTtlDays":395,"rawEventRetentionDays":395,
                  "purgeBatchSize":1000,
                  "ingestion":{"maxBatchSize":50,"clockSkewToleranceMinutes":10,"maxEventAgeHours":168,
@@ -58,14 +58,15 @@ class AnalyticsConfigLoaderTest {
         assertThat(config.rawEventRetentionDays()).isEqualTo(395);
         assertThat(config.anonymousIdTtlDays()).isEqualTo(395);
         assertThat(config.cohortWindowDays()).isEqualTo(14);
-        assertThat(config.claimTokenTtlDays()).isEqualTo(30);
+        assertThat(config.claimTokenTtlDays()).isEqualTo(2);
+        assertThat(config.runReuseWindowHours()).isEqualTo(24);
         assertThat(config.civicSubmittedMinAnsweredRatio()).isEqualTo(0.8);
         assertThat(config.purchaseIntentTtlHours()).isEqualTo(24);
         assertThat(config.ingestion().maxBatchSize()).isEqualTo(50);
         assertThat(config.ingestion().clockSkewToleranceMinutes()).isEqualTo(10);
         assertThat(config.diagnosticRunRateLimit().perIpBurst().max()).isEqualTo(30);
         assertThat(config.diagnosticRunRateLimit().perAnonymousIdDaily().max()).isEqualTo(100);
-        assertThat(config.claimTokenTtl()).isEqualTo(java.time.Duration.ofDays(30));
+        assertThat(config.claimTokenTtl()).isEqualTo(java.time.Duration.ofDays(2));
         // Q16 : un indicateur pas encore mesure n'a pas de date, jamais une date inventee.
         assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
         assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 8, 21));

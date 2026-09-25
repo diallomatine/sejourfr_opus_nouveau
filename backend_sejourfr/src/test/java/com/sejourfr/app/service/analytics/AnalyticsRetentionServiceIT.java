@@ -125,7 +125,7 @@ class AnalyticsRetentionServiceIT extends AbstractIntegrationTest {
                         config.rawEventRetentionDays(), 2, config.ingestion(), config.diagnosticRunRateLimit(),
                         config.utmSourceGroups(),
                         config.utmSourceFallbackGroup(), config.measurementStart(),
-                        config.civicSubmittedMinAnsweredRatio()));
+                        config.civicSubmittedMinAnsweredRatio(), config.runReuseWindowHours()));
 
         assertThat(petitsLots.purge(MAINTENANT)).isEqualTo(5);
         assertThat(visitorManager.findById(anon)).isEmpty();

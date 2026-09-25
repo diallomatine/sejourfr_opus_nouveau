@@ -161,7 +161,7 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         assertThat(row.get("claim_token_hash")).isEqualTo(JetonSecret.sha256Hex(c.token()));
         assertThat(row.get("claim_token_hash")).isNotEqualTo(c.token());
         Instant expire = ((Timestamp) row.get("claim_token_expires_at")).toInstant();
-        assertThat(expire).isCloseTo(Instant.now().plus(Duration.ofDays(30)), within(Duration.ofMinutes(5)));
+        assertThat(expire).isCloseTo(Instant.now().plus(Duration.ofDays(2)), within(Duration.ofMinutes(5)));
     }
 
     @Test
@@ -186,6 +186,94 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         Creee autre = creer(creation("QUICK_TCF", cle, UUID.randomUUID(), null));
         assertThat(autre.id()).isNotEqualTo(premiere.id());
         assertThat(autre.created()).isTrue();
+    }
+
+    /** Recule le « sujet vu » d'une run (et son echeance, comme l'ecrirait le serveur). */
+    private void vieillir(UUID runId, Duration age) {
+        Instant vu = Instant.now().minus(age);
+        jdbc.update("UPDATE diagnostic_run SET subject_viewed_at = ?, claim_token_expires_at = ? WHERE id = ?",
+                Timestamp.from(vu), Timestamp.from(vu.plus(Duration.ofDays(2))), runId);
+    }
+
+    private Instant echeance(UUID runId) {
+        return ((Timestamp) run(runId).get("claim_token_expires_at")).toInstant();
+    }
+
+    @Test
+    @DisplayName("Contrôle E — un rejeu ne prolonge plus le jeton : échéance = sujet vu + 2 j")
+    void rejeuNeProlongePas() throws Exception {
+        UUID anon = UUID.randomUUID();
+        UUID cle = UUID.randomUUID();
+        Creee premiere = creer(creation("QUICK_TCF", cle, anon, null));
+        vieillir(premiere.id(), Duration.ofHours(20));
+        Instant vu = ((Timestamp) run(premiere.id()).get("subject_viewed_at")).toInstant();
+
+        String json = mvc.perform(creation("QUICK_TCF", cle, anon, null)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(UUID.fromString(JsonPath.read(json, "$.diagnosticRunId"))).isEqualTo(premiere.id());
+        assertThat(echeance(premiere.id())).isCloseTo(vu.plus(Duration.ofDays(2)), within(Duration.ofSeconds(1)));
+        assertThat(Instant.parse(JsonPath.read(json, "$.claimTokenExpiresAt")))
+                .isCloseTo(vu.plus(Duration.ofDays(2)), within(Duration.ofSeconds(1)));
+    }
+
+    @Test
+    @DisplayName("Contrôle E — claim hors du délai de 2 j refusée, même avec un jeton fraîchement ré-émis")
+    void claimHorsDelai() throws Exception {
+        UUID[] civique = civiqueInvite();
+        Creee c = creer(creation("CIVIQUE", UUID.randomUUID(), UUID.randomUUID(), civique[0]));
+        finirInvite(civique[1]);
+        vieillir(c.id(), Duration.ofDays(2).plusMinutes(5));
+        // Rejeu par la session deja tracee : nouveau jeton, echeance inchangee (passee).
+        Creee reemis = creer(creation("CIVIQUE", UUID.randomUUID(), UUID.randomUUID(), civique[0]));
+        assertThat(reemis.id()).isEqualTo(c.id());
+        assertThat(echeance(c.id())).isBefore(Instant.now());
+
+        inscrire("horsdelai@test.sejourfr", c.id(), reemis.token(), null);
+
+        assertThat(run(c.id()).get("claimed_at")).isNull();
+        assertThat(run(c.id()).get("user_id")).isNull();
+    }
+
+    @Test
+    @DisplayName("Contrôle F2 — une run de plus de 24 h n'est pas réutilisée : run neuve, la clé la suit")
+    void vieilleRunNonReutilisee() throws Exception {
+        UUID anon = UUID.randomUUID();
+        UUID cle = UUID.randomUUID();
+        Creee vieille = creer(creation("QUICK_TCF", cle, anon, null));
+        vieillir(vieille.id(), Duration.ofHours(25));
+
+        Creee neuve = creer(creation("QUICK_TCF", cle, anon, null));
+        Creee rejeu = creer(creation("QUICK_TCF", cle, anon, null));
+
+        assertThat(neuve.id()).isNotEqualTo(vieille.id());
+        assertThat(neuve.created()).isTrue();
+        // Les rejeux suivants du passage retrouvent la run neuve, pas une troisieme.
+        assertThat(rejeu.id()).isEqualTo(neuve.id());
+        assertThat(run(vieille.id()).get("client_key")).isNull();
+        assertThat(run(neuve.id()).get("client_key")).isEqualTo(cle);
+        assertThat(echeance(neuve.id())).isAfter(Instant.now().plus(Duration.ofDays(1)));
+    }
+
+    @Test
+    @DisplayName("Contrôle F2 — la run d'un autre porteur n'est pas réutilisée, même récente")
+    void runDUnAutrePorteurNonReutilisee() throws Exception {
+        User proprietaire = testData.user();
+        User autre = testData.user();
+        em.flush();
+        UUID anon = UUID.randomUUID();
+        UUID cle = UUID.randomUUID();
+        Creee aLui = creer(creation("QUICK_TCF", cle, anon, null).header("Authorization", auth.bearer(proprietaire)));
+
+        Creee pourLAutre = creer(creation("QUICK_TCF", cle, anon, null).header("Authorization", auth.bearer(autre)));
+        Creee invite = creer(creation("QUICK_TCF", cle, anon, null));
+
+        assertThat(pourLAutre.id()).isNotEqualTo(aLui.id());
+        assertThat(run(pourLAutre.id()).get("user_id")).isEqualTo(autre.getId());
+        assertThat(run(aLui.id()).get("user_id")).isEqualTo(proprietaire.getId());
+        // Un invite (deconnecte) ne reprend pas la run d'un compte.
+        assertThat(invite.id()).isNotIn(aLui.id(), pourLAutre.id());
+        assertThat(run(invite.id()).get("user_id")).isNull();
     }
 
     @Test

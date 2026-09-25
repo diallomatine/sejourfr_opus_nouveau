@@ -397,13 +397,24 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   Une run civique sans mesure (antérieure à V076) est **inconnue** : jamais comptée soumise,
   jamais lue comme 0 réponse. Vaut pour le tunnel, les ratios, l'activité et « jamais
   rattachées ». `submitted_at` reste posé : c'est le fait brut, pas le verdict.
+- 🛑 **Une run n'est reprise par sa `clientKey` que si elle est récente et à
+  l'appelant** (contrôle F2, 2026-09-25) : porteur nul ou égal à l'appelant, sujet vu
+  depuis moins de `runReuseWindowHours` (24 h). Sinon run neuve, et la clé passe à la
+  neuve. Une vieille run d'invité restée sur l'appareil ne devient donc plus le passage
+  d'un diagnostic connecté (vieille cohorte, soumission hors fenêtre), ni la run d'un
+  autre compte.
 - 🛑 **Un runId n'est jamais cru sur parole** : c'est un identifiant (il voyage dans les
   événements), pas un secret. L'appartenance se prouve par le **compte porteur** ou par le
   **`claimToken`** (et, s'ils sont tous deux connus, le même `X-Sejourfr-Anonymous-Id`).
   Une session fournie à la création doit appartenir à l'appelant (même règle que sa
   lecture : compte, ou IP pour le civique invité).
 - **Claim** (`DiagnosticRunClaimService`) dans la **transaction d'auth** : jeton qui
-  correspond au hash, non expiré (30 j), run jamais claimée et sans porteur. `claim_kind`
+  correspond au hash, non expiré, run jamais claimée et sans porteur. 🛑 **Échéance
+  ancrée sur le sujet vu** (contrôle E, 2026-09-25) : `subject_viewed_at + 2 j`
+  (`claimTokenTtlDays`), **jamais prolongée** par un rejeu de la création — sur un
+  appareil partagé, la run d'un tiers ne reste claimable que 2 jours. Compromis
+  assumé : un vrai candidat qui s'inscrit après ce délai sort `OUTSIDE_DIAGNOSTIC`, et
+  le lien web → app expire pareil. `claim_kind`
   = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` ou `APP_LINK` (champ `claimVia` de la
   requête d'auth, déclaré par le client, **mêmes vérifications**). 🛑 **Aucune recherche par
   `anonymous_id`** : sans jeton, pas de claim.

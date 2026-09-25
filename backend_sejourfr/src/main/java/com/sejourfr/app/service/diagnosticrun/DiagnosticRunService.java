@@ -116,7 +116,16 @@ public class DiagnosticRunService {
 
         Optional<DiagnosticRun> rejeu = runManager.findByClientKey(ctx.anonymousId(), request.clientKey());
         if (rejeu.isPresent()) {
-            return rejouer(rejeu.get(), type, sessionId, now);
+            if (reutilisable(rejeu.get(), userId, now)) {
+                return rejouer(rejeu.get(), type, sessionId, now);
+            }
+            // F2 : la cle designe une run trop vieille ou portee par un autre
+            // compte. Elle passe a la run neuve (l'ancienne garde ses faits,
+            // elle perd seulement son idempotence), pour que les rejeux
+            // suivants de ce passage retrouvent la run neuve.
+            runManager.releaseClientKey(rejeu.get().getId(), now);
+            log.info("Run non reutilisee pour un nouveau passage : ancienne={} (porteur autre ou plus de {} h)",
+                    rejeu.get().getId(), config.runReuseWindowHours());
         }
 
         String token = JetonSecret.tirer(CLAIM_TOKEN_BYTES);
@@ -138,6 +147,18 @@ public class DiagnosticRunService {
         return new DiagnosticRunCreatedResponse(id, type, token, expiresAt, now, true);
     }
 
+    /**
+     * <b>F2 — une run n'est reutilisee par sa cle que si elle est RECENTE et a
+     * l'appelant</b> : porteur nul ou egal a l'appelant, et sujet vu depuis moins
+     * de {@code runReuseWindowHours}. Sinon, une vieille run d'invite laissee sur
+     * un appareil deviendrait le passage d'un diagnostic connecte (vieille
+     * cohorte, soumission hors fenetre), ou la run d'un tiers.
+     */
+    boolean reutilisable(DiagnosticRun run, UUID userId, Instant now) {
+        boolean porteurOk = run.getUserId() == null || run.getUserId().equals(userId);
+        return porteurOk && run.getSubjectViewedAt().isAfter(now.minus(config.runReuseWindow()));
+    }
+
     private DiagnosticRunCreatedResponse rejouer(DiagnosticRun run, DiagnosticRunType type, UUID sessionId,
                                                  Instant now) {
         if (run.getDiagnosticType() != type) {
@@ -152,9 +173,16 @@ public class DiagnosticRunService {
         return reemettre(run, now);
     }
 
+    /**
+     * Nouveau jeton pour une run existante. 🛑 <b>L'echeance ne bouge pas</b>
+     * (controle E) : elle est ancree sur le sujet vu, {@code subject_viewed_at +
+     * claimTokenTtlDays}, et un rejeu ne la repousse jamais — sinon un appareil
+     * partage rouvrirait indefiniment le claim de la run d'un tiers. Un jeton
+     * rendu pour une run dont l'echeance est passee ne claime plus rien.
+     */
     private DiagnosticRunCreatedResponse reemettre(DiagnosticRun run, Instant now) {
         String token = JetonSecret.tirer(CLAIM_TOKEN_BYTES);
-        Instant expiresAt = now.plus(config.claimTokenTtl());
+        Instant expiresAt = run.getSubjectViewedAt().plus(config.claimTokenTtl());
         runManager.rotateToken(run.getId(), JetonSecret.sha256Hex(token), expiresAt, now);
         return new DiagnosticRunCreatedResponse(run.getId(), run.getDiagnosticType(), token, expiresAt,
                 run.getSubjectViewedAt(), false);
