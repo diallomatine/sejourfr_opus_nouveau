@@ -153,7 +153,24 @@ export function SiteHeader() {
         <>
             <header className={styles.header}>
                 <nav className={styles.nav} aria-label="Navigation principale">
-                    <Brand href={homeHref}/>
+                    <div className={styles.start}>
+                        {!hideMobileBurger && (
+                            <button
+                                type="button"
+                                className={styles.burger}
+                                aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                                aria-expanded={mobileNavOpen}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMobileNavOpen((v) => !v);
+                                }}
+                            >
+                                {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
+                            </button>
+                        )}
+                        <Brand href={homeHref}/>
+                    </div>
 
                     <div className={styles.links}>
                         <Suspense fallback={renderNavLinks("desktop", () => false)}>
@@ -229,21 +246,6 @@ export function SiteHeader() {
                             </>
                         )}
 
-                        {!hideMobileBurger && (
-                            <button
-                                type="button"
-                                className={styles.burger}
-                                aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
-                                aria-expanded={mobileNavOpen}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setMobileNavOpen((v) => !v);
-                                }}
-                            >
-                                {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
-                            </button>
-                        )}
                     </div>
                 </nav>
             </header>

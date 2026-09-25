@@ -31,6 +31,13 @@
   gap: 24px;
 }
 
+.start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
 .links {
   display: flex;
   align-items: center;
@@ -353,6 +360,13 @@
     width: min(100% - 24px, 1180px);
     height: 68px;
     gap: 10px;
+  }
+  .start {
+    gap: 8px;
+  }
+  .burger {
+    width: 40px;
+    height: 40px;
   }
   .actions {
     gap: 8px;
