@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import {useRouter} from "next/navigation";
+import {retourOuRepli} from "@/lib/retour";
 import {useCallback, useEffect, useRef, useState, type ReactNode} from "react";
 import {
   ArrowLeft,
@@ -435,8 +437,9 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   }
 
   if (step === "written") {
+    // L'écran précédent de l'écrit est le choix d'examen, sur la même URL.
     return (
-      <DiagnosticShell guest compact>
+      <DiagnosticShell guest compact back={{label: "Retour", onClick: () => setStarted(false)}}>
         <DiagnosticSteps current="written" guest complete={false} oral={subjects.oral !== null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
@@ -452,7 +455,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     );
   }
 
-  // Le choix d'examen porte sa propre page (retour « Accueil » compris) : la
+  // Le choix d'examen porte sa propre page (bouton « Retour » compris) : la
   // barre de `DiagnosticShell` dit « Vos réponses restent sur cet appareil »,
   // ce qui n'a de sens qu'une fois le TCF commencé.
   return (
@@ -1226,10 +1229,11 @@ function DiagnosticShell({
   children: ReactNode;
   compact?: boolean;
   guest?: boolean;
-  /** Remplace le lien « Accueil » par un retour dans le parcours (l'écrit
+  /** Remplace le retour de page par un retour dans le parcours (l'écrit
    *  rouvert depuis l'écran de compte revient au compte, il ne sort pas). */
   back?: {label: string; onClick: () => void};
 }) {
+  const router = useRouter();
   // ≤ 900 px (shell connecté) : la flèche de la barre du haut remplace le lien.
   const backInBar = useAppBarBack(guest ? null : { fallbackHref: "/dashboard" });
   return (
@@ -1240,9 +1244,13 @@ function DiagnosticShell({
             <ArrowLeft size={16} aria-hidden /> {back.label}
           </button>
         ) : (
-          <Link href={guest ? "/" : "/dashboard"} className={backInBar ? "in-bar-back" : undefined}>
-            <ArrowLeft size={16} aria-hidden /> Accueil
-          </Link>
+          <button
+            type="button"
+            className={backInBar ? "in-bar-back" : undefined}
+            onClick={() => retourOuRepli(router, guest ? "/" : "/dashboard")}
+          >
+            <ArrowLeft size={16} aria-hidden /> Retour
+          </button>
         )}
         <span>
           {guest

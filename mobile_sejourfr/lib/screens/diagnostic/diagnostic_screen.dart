@@ -380,15 +380,24 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     // ramène à l'écran de compte : c'est de là qu'on est venu, comme le
     // « précédent » du navigateur côté web.
     final editingWritten = state.isGuest && state.isEditingWritten;
+    // Visiteur sur l'écrit : l'écran précédent est le choix d'examen.
+    final writtenFromChoice = state.isGuest &&
+        !editingWritten &&
+        state.guestStep == DiagnosticGuestStep.written;
     return PopScope(
       canPop: !recordingActive &&
           !state.isSubmitting &&
           !state.isSyncing &&
-          !editingWritten,
+          !editingWritten &&
+          !writtenFromChoice,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (editingWritten) {
           if (!state.isSubmitting) _cancelWrittenEdit();
+          return;
+        }
+        if (writtenFromChoice) {
+          if (!state.isSubmitting) _controller.backToGuestChoice();
           return;
         }
         await _confirmBack();
@@ -417,7 +426,9 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                     ? null
                     : editingWritten
                         ? _cancelWrittenEdit
-                        : _confirmBack,
+                        : writtenFromChoice
+                            ? _controller.backToGuestChoice
+                            : _confirmBack,
               ),
               Expanded(
                 child: _content(

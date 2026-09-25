@@ -333,6 +333,16 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
     );
   }
 
+  /// Retour de l'écrit vers le choix d'examen : c'est l'écran précédent.
+  /// Miroir de `setStarted(false)` (web).
+  void backToGuestChoice() {
+    if (state.guestStep != DiagnosticGuestStep.written) return;
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.presentation,
+      clearError: true,
+    );
+  }
+
   /// Rouvre l'écrit depuis l'écran de compte (« Modifier mon texte »). Rien
   /// n'est effacé : l'étape reste celle du compte tant que la modification
   /// n'est pas validée. Miroir de `openWrittenEditor` (web).

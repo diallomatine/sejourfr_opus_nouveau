@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {useRouter} from "next/navigation";
 import {ArrowLeft, ArrowRight, Landmark, Languages} from "lucide-react";
 import {
   type DiagnosticExerciseMeasure,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/diagnostic";
 import {CIVIC_DIAGNOSTIC_HUB_HREF, CIVIC_EXAM_QUESTIONS} from "@/lib/civic-diagnostic";
 import {DIAGNOSTIC_DISCLAIMER, DIAGNOSTIC_OUTCOMES} from "./diagnostic-outcomes";
+import {retourOuRepli} from "@/lib/retour";
 import styles from "./diagnostic-choice.module.css";
 
 /**
@@ -40,6 +42,7 @@ export function DiagnosticChoice({
   /** Lance le diagnostic **TCF** sur place. Le civique, lui, est un lien. */
   onStartTcf: () => void;
 }) {
+  const router = useRouter();
   const minutes = diagnosticExpressionMinutes(written, oral);
   // Le rapide ne porte qu'une production écrite ; un sujet oral servi en ajoute
   // une seconde. Le compte se lit sur le contenu servi, jamais sur un réglage.
@@ -52,9 +55,9 @@ export function DiagnosticChoice({
 
   return (
     <main className={styles.page}>
-      <Link href="/" className={styles.back}>
-        <ArrowLeft size={16} aria-hidden /> Accueil
-      </Link>
+      <button type="button" className={styles.back} onClick={() => retourOuRepli(router, "/")}>
+        <ArrowLeft size={16} aria-hidden /> Retour
+      </button>
 
       <header className={styles.hero}>
         <p className={styles.eyebrow}>Diagnostic gratuit</p>
