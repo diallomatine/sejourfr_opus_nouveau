@@ -34,15 +34,7 @@ public class AnalyticsBatchRateLimit {
 
     public void check(String ip, UUID anonymousId) {
         if (!props.isEnabled()) return;
-        AnalyticsConfig.RateLimit rl = config.ingestion().rateLimit();
-        limiter.check("analytics-batch:ip:burst", ip, limit(rl.perIpBurst()));
-        limiter.check("analytics-batch:ip:daily", ip, limit(rl.perIpDaily()));
-        String anon = anonymousId == null ? null : anonymousId.toString();
-        limiter.check("analytics-batch:anon:burst", anon, limit(rl.perAnonymousIdBurst()));
-        limiter.check("analytics-batch:anon:daily", anon, limit(rl.perAnonymousIdDaily()));
-    }
-
-    private static RateLimitProperties.Limit limit(AnalyticsConfig.Window w) {
-        return new RateLimitProperties.Limit(w.max(), w.windowSeconds());
+        IpEtIdentifiantLimites.verifier(limiter, "analytics-batch", config.ingestion().rateLimit(),
+                ip, anonymousId);
     }
 }

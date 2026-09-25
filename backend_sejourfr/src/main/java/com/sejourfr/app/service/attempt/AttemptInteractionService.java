@@ -32,6 +32,7 @@ import com.sejourfr.app.progression.domain.EvidenceSourceType;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter;
 import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter.ReponseQcm;
 import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
 import com.sejourfr.app.service.journey.JourneyProductionBridge;
 import com.sejourfr.app.util.TcfDomaine;
 import com.sejourfr.app.service.journey.JourneyService;
@@ -89,6 +90,7 @@ public class AttemptInteractionService {
     private final CivicExamCompositionService civicCompositionService;
     private final JourneyService journeyService;
     private final JourneyProductionBridge journeyProductionBridge;
+    private final DiagnosticRunService diagnosticRunService;
 
     // ------------------------------------------------------------------------
     // Lecture
@@ -392,6 +394,10 @@ public class AttemptInteractionService {
         }
 
         attemptManager.save(attempt);
+        // Fin de l'attempt d'un diagnostic civique = « soumis » de sa run
+        // (chantier Suivi, lot 2a). Ici et nulle part ailleurs : c'est le seul
+        // point de fin d'un QCM (fin explicite publique ou connectee, echeance).
+        diagnosticRunService.onCivicAttemptFinished(attempt);
         recordComprehension(attempt, aqs);
         recordCivique(attempt, aqs);
         recordProgression(attempt, aqs);

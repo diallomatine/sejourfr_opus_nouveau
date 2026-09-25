@@ -166,7 +166,7 @@ public class JourneyReadService {
      */
     public JourneyDto sansObjectif() {
         return new JourneyDto(null, JourneyState.NEEDS_OBJECTIVE, null, null,
-                null, List.of(), null);
+                null, List.of(), null, null);
     }
 
     /**
@@ -281,7 +281,8 @@ public class JourneyReadService {
                 suggestion(state, userId),
                 vue.cycle(),
                 vue.blocs(),
-                nextStep(vue.cycle()));
+                nextStep(vue.cycle()),
+                journey.getId());
     }
 
     /**

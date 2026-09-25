@@ -367,6 +367,57 @@ section « Le diagnostic se passe AVANT le compte ».
 
 ---
 
+## La trace du tunnel — `diagnostic_run` (chantier Suivi, lot 2a, 2026-09-25)
+
+Une `diagnostic_run` (V074) est la **trace** d'un passage dans le tunnel diagnostic,
+**jamais son contenu** (Q3, invariant V053 intact : la production TCF invitée reste sur
+l'appareil). Elle mesure le tunnel du dashboard « Suivi » : sujet vu → soumis → compte
+rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
+
+| Fait | TCF rapide (`QUICK_TCF`) | Civique (`CIVIQUE`) | TCF complet (`FULL_TCF`) |
+|---|---|---|---|
+| **Sujet vu** (création) | client, `POST /api/public/diagnostic-runs` à l'affichage de la 1ʳᵉ question | idem, avec `sessionId` | idem, avec `sessionId`, compte requis |
+| **Session liée** | connecté : `sessionId` à la création ; invité : au handoff, `POST /api/diagnostics?diagnosticRunId=` | à la création (compte, ou IP de l'invité) | à la création |
+| **Soumis** | **client**, `POST …/{id}/submit` à « Analyser mes réponses » | **serveur**, fin de l'attempt (`AttemptInteractionService.doFinish`, ou clôture) | **serveur**, `TcfDiagnosticService.cloturer` |
+| **Rattaché** | soumis connecté, ou claim à l'auth | idem | toujours connecté |
+
+- 🛑 **Une seule autorité de « soumis » par type.** Le TCF rapide invité n'a aucun fait
+  serveur avant le compte, et `POST /api/diagnostics` est appelé au **démarrage** par un
+  connecté : ce n'est pas une soumission. Le civique et le complet ont un fait serveur
+  fiable, l'appel client y est refusé (409). « Soumis » s'écrit **une seule fois**
+  (`UPDATE … WHERE submitted_at IS NULL`). Un soumis **connecté** pose aussi le porteur :
+  « soumis connecté » implique « compte rattaché ».
+- 🛑 **Un runId n'est jamais cru sur parole** : c'est un identifiant (il voyage dans les
+  événements), pas un secret. L'appartenance se prouve par le **compte porteur** ou par le
+  **`claimToken`** (et, s'ils sont tous deux connus, le même `X-Sejourfr-Anonymous-Id`).
+  Une session fournie à la création doit appartenir à l'appelant (même règle que sa
+  lecture : compte, ou IP pour le civique invité).
+- **Claim** (`DiagnosticRunClaimService`) dans la **transaction d'auth** : jeton qui
+  correspond au hash, non expiré (30 j), run jamais claimée et sans porteur. `claim_kind`
+  = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` (`APP_LINK` accepté par le service,
+  réservé au lot 3b, même jeton). 🛑 **Aucune recherche par `anonymous_id`** : sans jeton,
+  pas de claim.
+- 🛑 **Le claim ne dépend pas du quota.** Un compte qui a déjà son diagnostic claime quand
+  même la run (le tunnel le compte « rattaché ») ; **le contenu reste refusé comme avant**
+  (adoption civique en 422, productions du handoff TCF abandonnées).
+- **Contexte d'inscription** (`users.signup_context`) posé au même instant que le claim,
+  à l'inscription seulement : `AFTER_DIAGNOSTIC` si la run claimée est **soumise** (avec
+  `signup_diagnostic_type`, `signup_diagnostic_run_id`), `OUTSIDE_DIAGNOSTIC` sinon — y
+  compris une run claimée jamais soumise. Autorité : `SignupAttribution.stampContext`.
+- `GuestAttemptPurgeJob` **ne touche jamais** `diagnostic_run` : la purge d'un attempt
+  civique invité passe la FK de session à `NULL`, la run et son « soumis » restent
+  (scénario 19, `GuestAttemptPurgeJobIT`).
+- **Plan ↔ run (Q8)** : `DiagnosticRunManager.findFoundingRun(journeyId, userId)` rend la
+  run du diagnostic **le plus ancien journalisé** sur le parcours
+  (`journey_assessment_event`), reliée par les FK de session, et seulement si elle
+  appartient au porteur du parcours. `JourneyDto.journeyId` sert `journey.id`. Un
+  diagnostic sans run liée (client ancien) rend vide : inconnu, jamais deviné.
+
+Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 5, 6, 7, 16 civique, 20),
+`DiagnosticRunQuickTcfHandoffIT`, `DiagnosticRunFoundingIT`, `GuestAttemptPurgeJobIT`.
+
+---
+
 ## `estimationSessionId` — le rapide reste relisible après le démarrage du complet (2026-09-12)
 
 `PreparationService.tcf()` ne servait, dans la branche « complet présent », que le `sessionId`

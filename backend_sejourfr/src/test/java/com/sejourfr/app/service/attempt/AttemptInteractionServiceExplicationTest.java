@@ -75,7 +75,8 @@ class AttemptInteractionServiceExplicationTest {
                 mock(CivicObservationService.class),
                 mock(CivicExamCompositionService.class),
                 mock(JourneyService.class),
-                mock(JourneyProductionBridge.class));
+                mock(JourneyProductionBridge.class),
+                mock(com.sejourfr.app.service.diagnosticrun.DiagnosticRunService.class));
         when(answerManager.save(any(Answer.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 

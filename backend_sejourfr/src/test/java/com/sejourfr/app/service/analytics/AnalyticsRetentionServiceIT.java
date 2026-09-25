@@ -65,6 +65,14 @@ class AnalyticsRetentionServiceIT extends AbstractIntegrationTest {
         run.setSubjectViewedAt(limite.minus(Duration.ofDays(2)));
         run.setUpdatedAt(limite.minus(Duration.ofDays(2)));
         diagnosticRunManager.save(run);
+        DiagnosticRun runRecente = new DiagnosticRun();
+        runRecente.setId(UUID.randomUUID());
+        runRecente.setDiagnosticType(DiagnosticRunType.QUICK_TCF);
+        runRecente.setAnonymousId(recent);
+        runRecente.setClientKey(UUID.randomUUID());
+        runRecente.setSubjectViewedAt(limite.plus(Duration.ofDays(1)));
+        runRecente.setUpdatedAt(limite.plus(Duration.ofDays(1)));
+        diagnosticRunManager.save(runRecente);
         em.flush();
 
         int purges = retention.purge(MAINTENANT);
@@ -78,7 +86,13 @@ class AnalyticsRetentionServiceIT extends AbstractIntegrationTest {
         assertThat(visitorManager.findById(recent)).isPresent();
 
         em.clear();
-        assertThat(em.find(DiagnosticRun.class, run.getId())).isNotNull();
+        // D27 : la run survit, mais oublie l'identifiant de mesure d'un
+        // visiteur qui n'existe plus ; une run recente le garde.
+        DiagnosticRun survivante = em.find(DiagnosticRun.class, run.getId());
+        assertThat(survivante).isNotNull();
+        assertThat(survivante.getAnonymousId()).isNull();
+        assertThat(survivante.getDiagnosticType()).isEqualTo(DiagnosticRunType.CIVIQUE);
+        assertThat(em.find(DiagnosticRun.class, runRecente.getId()).getAnonymousId()).isEqualTo(recent);
     }
 
     /** Un visiteur ancien mais revenu recemment n'est pas purge : on balaie la derniere activite. */
@@ -105,10 +119,11 @@ class AnalyticsRetentionServiceIT extends AbstractIntegrationTest {
         UUID anon = visiteurVuLe(vieux);
         for (int i = 0; i < 3; i++) testData.analyticsEvent(anon, AnalyticsEvent.PRICING_VIEWED, vieux);
 
-        AnalyticsRetentionService petitsLots = new AnalyticsRetentionService(eventManager, visitorManager,
+        AnalyticsRetentionService petitsLots = new AnalyticsRetentionService(eventManager, visitorManager, diagnosticRunManager,
                 new AnalyticsConfig(config.analyticsConfigVersion(), config.timezone(), config.cohortWindowDays(),
                         config.claimTokenTtlDays(), config.purchaseIntentTtlHours(), config.anonymousIdTtlDays(),
-                        config.rawEventRetentionDays(), 2, config.ingestion(), config.utmSourceGroups(),
+                        config.rawEventRetentionDays(), 2, config.ingestion(), config.diagnosticRunRateLimit(),
+                        config.utmSourceGroups(),
                         config.utmSourceFallbackGroup(), config.measurementStart()));
 
         assertThat(petitsLots.purge(MAINTENANT)).isEqualTo(5);

@@ -16,6 +16,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,7 @@ public class TcfDiagnosticService {
     private final TcfDiagnosticReadService readService;
     private final TcfDiagnosticProperties props;
     private final DiagnosticPlanReadyNotifier planReadyNotifier;
+    private final DiagnosticRunService diagnosticRunService;
 
     // ------------------------------------------------------------------------
     // Ouverture
@@ -182,6 +184,8 @@ public class TcfDiagnosticService {
         attemptManager.save(parent);
 
         TcfDiagnosticSession saved = sessionManager.save(session);
+        // « Soumis » de la run du diagnostic complet (chantier Suivi, lot 2a).
+        diagnosticRunService.onFullTcfClosed(saved);
         // Un complet clos SANS Plan TCF prealable ouvre le Plan : mail apres commit.
         // S'il vient affiner un Plan existant, le notifieur ne publie rien.
         planReadyNotifier.tcfClos(saved.getUser(), saved.getId());

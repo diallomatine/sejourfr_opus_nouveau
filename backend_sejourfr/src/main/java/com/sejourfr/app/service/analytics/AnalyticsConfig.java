@@ -28,6 +28,9 @@ import java.util.Optional;
  * @param anonymousIdTtlDays     duree de vie du traceur cote client (13 mois)
  * @param rawEventRetentionDays  conservation des evenements bruts (Q5 : 395 j)
  * @param purgeBatchSize         lignes supprimees par transaction de purge
+ * @param diagnosticRunRateLimit garde-fous des routes publiques de
+ *                               {@code diagnostic_run} (creation, « soumis »),
+ *                               par IP et par identifiant de mesure
  * @param utmSourceGroups        groupe -> sources declarees (minuscules)
  * @param utmSourceFallbackGroup groupe de tout ce qui n'est dans aucun groupe
  * @param measurementStart       date de debut de mesure par indicateur (Q16),
@@ -44,6 +47,7 @@ public record AnalyticsConfig(
         int rawEventRetentionDays,
         int purgeBatchSize,
         Ingestion ingestion,
+        RateLimit diagnosticRunRateLimit,
         Map<String, List<String>> utmSourceGroups,
         String utmSourceFallbackGroup,
         Map<SuiviIndicator, String> measurementStart
@@ -75,7 +79,7 @@ public record AnalyticsConfig(
         }
     }
 
-    /** Lots acceptes par fenetre, par IP et par identifiant de mesure. */
+    /** Appels acceptes par fenetre, par IP et par identifiant de mesure. */
     @JsonIgnoreProperties(ignoreUnknown = false)
     public record RateLimit(Window perIpBurst, Window perIpDaily,
                             Window perAnonymousIdBurst, Window perAnonymousIdDaily) {
@@ -103,6 +107,10 @@ public record AnalyticsConfig(
             if (group.getValue().contains(value)) return group.getKey();
         }
         return utmSourceFallbackGroup;
+    }
+
+    public Duration claimTokenTtl() {
+        return Duration.ofDays(claimTokenTtlDays);
     }
 
     public Duration rawEventRetention() {

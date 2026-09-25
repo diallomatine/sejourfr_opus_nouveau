@@ -13,10 +13,20 @@ import jakarta.validation.constraints.NotBlank;
  * {@code AnalyticsIdentityService}). Absent — navigation privée, stockage
  * bloqué, client qui ne l'envoie pas encore —, on ne fait rien : une mesure
  * d'audience ne conditionne jamais l'accès à son propre compte.
+ *
+ * <p><b>{@code diagnosticRunId} + {@code claimToken} sont FACULTATIFS</b>
+ * (chantier Suivi, lot 2a) : la run de diagnostic passee sur cet appareil avant
+ * l'authentification, et le jeton rendu a sa creation. Ensemble, ils la
+ * rattachent au compte dans la transaction d'auth. Absents, faux, expires ou
+ * deja utilises : rien n'est rattache et l'authentification reussit quand meme.
  */
 public record GoogleSignInRequest(
         @NotBlank(message = "idToken requis")
         String idToken,
 
-        String anonymousId
+        String anonymousId,
+
+        String diagnosticRunId,
+
+        String claimToken
 ) {}

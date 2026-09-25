@@ -326,6 +326,36 @@ Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
   Loaders qui échouent au boot (`AnalyticsConfigLoader`, `RevenueRulesLoader`).
 - **Liaison identité à l'auth** : `anonymousId` du corps, sinon l'en-tête ;
   `SignupAttribution` pose la provenance à la création (autorité unique, local et
-  social) ; `AnalyticsIdentityService.onAuthenticated(user, AuthKind, anonymousId)` est
-  le point d'extension du claim (lot 2).
+  social) ; `AnalyticsIdentityService.onAuthenticated(user, AuthKind, anonymousId)` pose
+  le lien best-effort, le claim de la run vit à côté (lot 2a, ci-dessous).
+
+## Chantier « Suivi » — cycle de vie de `diagnostic_run`, claim, `signup_context` (lot 2a, 2026-09-25)
+
+Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
+`docs/regles/diagnostic.md` § « La trace du tunnel ».
+
+- **Étape 1 = `diagnostic_run.subject_viewed_at`**, écrite par
+  `POST /api/public/diagnostic-runs` (horloge serveur). Toujours pas d'événement
+  `DIAGNOSTIC_SUBJECT_VIEWED` (Q3). Idempotente par `(anonymous_id, client_key)` et par
+  session ; rate-limitée par IP et par identifiant (`DiagnosticRunRateLimit`, seuils
+  `diagnosticRunRateLimit` de la config ; les quatre fenêtres sont écrites une fois,
+  `IpEtIdentifiantLimites`, partagées avec l'ingestion en lot).
+- **Étape 2 (« soumis »)** : client pour le TCF rapide, serveur pour le civique et le
+  complet ; une seule fois. **Étape 3 (« rattaché »)** : soumis connecté, ou claim à
+  l'auth (`claim_kind` `SIGNUP` = « inscrit après diagnostic », `LOGIN` = « connecté après
+  diagnostic »). « Soumis anonymes jamais rattachés » = `submitted_at IS NOT NULL AND
+  user_id IS NULL` — la purge des invités n'y touche pas (scénario 19).
+- 🛑 **Le `claimToken` ne part jamais dans un événement.** Le `diagnosticRunId`, lui,
+  voyage dans `analytics_event.diagnostic_run_id` (lot 1b).
+- **`users.signup_context`** est posé à **chaque** inscription (locale, Google, Apple),
+  dans la transaction, par `SignupAttribution.stampContext`.
+- **Rétention** : au-delà de `rawEventRetentionDays`, `AnalyticsRetentionService` fait
+  oublier à la run son `anonymous_id` et sa `client_key` (D27) ; la run et ses faits
+  restent.
+- ⚠️ **Dates de début de mesure** (Q16) : `DIAGNOSTIC_SUBJECT_VIEWED`,
+  `DIAGNOSTIC_SUBMITTED`, `ACCOUNT_ATTACHED` et `SIGNUP_CONTEXT` restent **`null`** dans
+  `analytics-config-v1.json` : le serveur est prêt, mais la mesure ne démarre qu'avec les
+  clients du lot 3 (sans eux, aucune run n'est créée et toute inscription s'écrit
+  `OUTSIDE_DIAGNOSTIC`). **Le lot 3 pose la date de sa mise en production** ; la lecture
+  (lot 4) ignore tout ce qui précède (D28).
 

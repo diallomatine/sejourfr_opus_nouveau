@@ -37,13 +37,18 @@ public class DiagnosticController {
      * — un client ancien continue de marcher — et <b>vérifié serveur</b> contre
      * le pool actif : un identifiant arbitraire ne peut pas ouvrir le diagnostic
      * sur une tâche officielle du TCF.
+     *
+     * <p>{@code diagnosticRunId} (facultatif, lot 2a) : au handoff du tunnel
+     * invité, la run créée à l'affichage du sujet. Liée à la session si elle
+     * appartient déjà à ce compte ; ignorée sinon.
      */
     @PostMapping
     public DiagnosticResponse startOrResume(
             HttpServletRequest http,
-            @RequestParam(required = false) UUID writtenTaskId) {
+            @RequestParam(required = false) UUID writtenTaskId,
+            @RequestParam(required = false) UUID diagnosticRunId) {
         return diagnosticService.startOrResume(currentUser.getId(),
-                clientContextResolver.resolve(http).platform(), writtenTaskId);
+                clientContextResolver.resolve(http).platform(), writtenTaskId, diagnosticRunId);
     }
 
     @GetMapping("/{sessionId}")

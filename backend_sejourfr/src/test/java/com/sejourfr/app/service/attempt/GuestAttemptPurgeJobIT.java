@@ -2,13 +2,19 @@ package com.sejourfr.app.service.attempt;
 
 import com.sejourfr.app.config.GuestAttemptPurgeProperties;
 import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticRunType;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.manager.DiagnosticRunManager;
+import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -16,10 +22,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +48,9 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
     @Autowired AttemptQuestionManager attemptQuestionManager;
     @Autowired TestData data;
     @Autowired EntityManager em;
+    @Autowired CivicDiagnosticService civicDiagnosticService;
+    @Autowired DiagnosticRunManager runManager;
+    @Autowired JdbcTemplate jdbc;
 
     /**
      * Le POJO est un singleton partagé par le contexte Spring mis en cache :
@@ -216,5 +227,39 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
 
         assertThat(purge()).isZero();
         assertThat(exists(vieux)).isTrue();
+    }
+
+    /**
+     * Scenario 19 (chantier Suivi) : la purge des invites emporte l'attempt
+     * civique et sa session, JAMAIS la run. Le fait « soumis anonyme jamais
+     * rattache » survit, seule la FK de session passe a NULL (V074, SET NULL).
+     */
+    @Test
+    void active_scenario19_laRunDuTunnelSurvitALaPurge() {
+        properties.setEnabled(true);
+        CivicDiagnosticSession session = civicDiagnosticService.ouvrirInvite(TargetProcedure.CSP, "198.51.100.7");
+        em.flush();
+        jdbc.update("UPDATE attempts SET started_at = ? WHERE id = ?",
+                java.sql.Timestamp.from(hoursAgo(3)), session.getAttempt().getId());
+        UUID runId = UUID.randomUUID();
+        runManager.insertIfAbsent(new DiagnosticRunManager.NewRun(runId, DiagnosticRunType.CIVIQUE,
+                ClientPlatform.WEB, null, UUID.randomUUID(), null, UUID.randomUUID(), null, null,
+                null, null, session.getId()), Instant.now());
+        runManager.markSubmittedByCivicSession(session.getId(), null, Instant.now());
+        long jamaisRattachesAvant = jamaisRattaches();
+
+        purge();
+
+        assertThat(exists(session.getAttempt().getId())).isFalse();
+        Map<String, Object> run = jdbc.queryForMap("SELECT * FROM diagnostic_run WHERE id = ?", runId);
+        assertThat(run.get("civic_diagnostic_session_id")).isNull();
+        assertThat(run.get("submitted_at")).isNotNull();
+        assertThat(run.get("user_id")).isNull();
+        assertThat(jamaisRattaches()).isEqualTo(jamaisRattachesAvant).isPositive();
+    }
+
+    private long jamaisRattaches() {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM diagnostic_run WHERE submitted_at IS NOT NULL AND user_id IS NULL", Long.class);
     }
 }

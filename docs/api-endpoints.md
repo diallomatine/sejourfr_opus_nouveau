@@ -17,8 +17,15 @@ automatique** dans le client HTTP de chaque front.
   `X-Sejourfr-Anonymous-Id` ; le corps prime. Pose le lien `analytics_identity`
   (best-effort, idempotent, un identifiant inconnu n'écrit rien) et, à la création du
   compte, `users.signup_anonymous_id`. Client ancien : rien d'envoyé, rien d'écrit.
-  Le claim d'une `diagnostic_run` (`diagnosticRunId` + `claimToken`) s'ajoutera ici au
-  lot 2 du chantier Suivi.
+- **Claim d'une `diagnostic_run` à l'auth** (lot 2a, `login`, `register`, `google`,
+  `apple`) : champs facultatifs `diagnosticRunId` (texte UUID) + `claimToken` (texte)
+  dans le corps. Dans la **transaction d'auth** : la run passe au compte si le jeton
+  correspond à son hash, n'est pas expiré, et si la run n'a jamais été claimée ni portée
+  (`claim_kind = SIGNUP | LOGIN`, `claimed_via = SAME_DEVICE`). À l'inscription,
+  `users.signup_context` est posé au même instant : `AFTER_DIAGNOSTIC` (+
+  `signup_diagnostic_type`, `signup_diagnostic_run_id`) si la run claimée est
+  **soumise**, `OUTSIDE_DIAGNOSTIC` sinon. Absents, illisibles, faux, expirés, déjà
+  utilisés : **aucun claim, aucune erreur**. Aucune recherche par `anonymousId`.
 
 ## En-têtes de contexte client (tous les appels)
 
@@ -59,6 +66,38 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
     compte lié à l'`anonymousId`).
 - `POST /api/public/analytics/events` (unitaire, **204**) : conservé pendant la
   bascule des deux fronts vers le lot (arbitrage Q17), puis retiré. Même validation.
+
+## Diagnostic run — trace du tunnel (public, lot 2a)
+
+Trace d'un passage dans le tunnel diagnostic (`diagnostic_run`, V074), **sans aucun
+contenu**. Rate-limitées par IP et par `X-Sejourfr-Anonymous-Id`
+(`diagnosticRunRateLimit` de `analytics-config-v1.json`, 429 au-delà). Un JWT valide,
+s'il accompagne la requête, fait de l'appelant le porteur. Détail et règles :
+`docs/regles/diagnostic.md` § « La trace du tunnel ».
+
+- `POST /api/public/diagnostic-runs` → **200** `DiagnosticRunCreatedResponse
+  {diagnosticRunId, diagnosticType, claimToken, claimTokenExpiresAt, subjectViewedAt,
+  created}`. Appelé **à l'affichage de la première question**. Corps
+  `{diagnosticType: QUICK_TCF|FULL_TCF|CIVIQUE, clientKey: UUID (requis, un par
+  passage), sessionId?: UUID}`. En-têtes `X-Sejourfr-Client`, `X-Sejourfr-Anonymous-Id`,
+  `X-Sejourfr-App-Version` → `platform`, `anonymous_id`, `app_version`.
+  - **Idempotent** : même session déjà tracée, ou même `(X-Sejourfr-Anonymous-Id,
+    clientKey)` → la **même run** (`created=false`) avec un **nouveau** `claimToken`
+    (seul le hash est stocké ; l'ancien ne vaut plus rien). Sans en-tête d'identifiant,
+    pas d'idempotence par clé.
+  - `sessionId` : `civic_diagnostic_sessions` (CIVIQUE, compte **ou IP** de l'invité),
+    `tcf_diagnostic_sessions` (FULL_TCF), `diagnostic_sessions` (QUICK_TCF connecté).
+    Doit appartenir à l'appelant, sinon **404**.
+  - Type inconnu → **400** ; `FULL_TCF` sans compte → **403** ; `clientKey` rejouée pour
+    un autre type → **409**.
+  - 🛑 `claimToken` (256 bits, TTL `claimTokenTtlDays` = 30 j) : le client le garde avec
+    son brouillon et ne l'envoie qu'à `submit` et à l'auth, **jamais** dans un événement.
+- `POST /api/public/diagnostic-runs/{id}/submit` → **204**. « Soumis » d'une run
+  **`QUICK_TCF`**, à « Analyser mes réponses ». Corps facultatif `{claimToken?}` : requis
+  sauf si l'appelant connecté porte déjà la run. **Une seule fois** (un second appel ne
+  redate rien, 204). Run absente ou pas à l'appelant → **404** ; `CIVIQUE` / `FULL_TCF`
+  → **409** (leur « soumis » est posé par le serveur : fin de l'attempt civique, clôture du
+  complet).
 
 ## Emails — désabonnement (public, sans compte)
 
@@ -187,6 +226,9 @@ Cf. `exams-tcf.md`.
   même passe que la bascule des fronts sur `blocs` : un nouveau lecteur se branche sur `blocs`,
   qui porte **toutes** les étapes non obsolètes, sans plafond d'affichage.
   Spec : `docs/progression/SPEC_cycle_plan.md` · arbitrages : `docs/decisions/plan-parcours-tcf.md`.
+  `journeyId` (lot 2a) : `journey.id`, le `plan_id` du chantier Suivi (Q8), `null` sans
+  parcours. Le serveur en déduit lui-même la run fondatrice
+  (`DiagnosticRunManager.findFoundingRun`), il ne la reçoit jamais d'un client.
 - `GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` — **l'écran d'ÉTAPE**
   (2026-09-20) : les **2 séries à réussir** d'une compétence de compréhension (CO/CE) ou d'une
   unité officielle civique, leur état, leur score. Sert `bloc`, `unite` *(code, label,
@@ -446,6 +488,9 @@ sur R2 (`diagnostic_sessions.user_id` reste `NOT NULL`).
 - `POST /api/diagnostics` → crée ou reprend idempotemment la session active,
   avec ses deux attempts et ses deux exercices. Deux appels concurrents
   aboutissent à la même session.
+  Paramètre facultatif `diagnosticRunId` (lot 2a) : au handoff, la run créée en invité
+  est liée à la session **si elle appartient déjà au compte** (claimée à l'auth, ou
+  créée connecté) ; ignorée sinon, jamais une erreur.
 - `GET /api/diagnostics/{sessionId}` → même DTO agrégé. Une session d'un autre
   utilisateur répond **404**, pour ne pas révéler son existence.
 - `POST /api/diagnostics/{sessionId}/retry-analysis` → relance seulement une

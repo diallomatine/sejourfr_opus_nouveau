@@ -1,6 +1,8 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.enums.DiagnosticRunType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,10 +21,11 @@ import java.util.UUID;
  * <b>trace</b>, jamais le contenu. Aucun texte, aucun audio, aucune reponse
  * (invariant V053, arbitrage Q3).
  *
- * <p>Le cycle de vie (creation publique, « soumis », claim) est ecrit au lot 2
- * du chantier Suivi. L'ingestion d'analytics s'en sert deja pour verifier
- * qu'une run citee par un evenement existe, et en deduire son type cote
- * serveur.
+ * <p>Cycle de vie (lot 2a du chantier Suivi) : creation publique idempotente
+ * a l'affichage du sujet, « soumis » une seule fois, claim dans la transaction
+ * d'auth. Toutes les transitions sont des {@code UPDATE} conditionnels
+ * ({@code DiagnosticRunRepository}) : aucune ne s'ecrit par cette entite, qui
+ * sert a la LECTURE. → {@code service/diagnosticrun/}.
  */
 @Entity
 @Table(name = "diagnostic_run")
@@ -72,11 +75,13 @@ public class DiagnosticRun {
     @Column(name = "claimed_at")
     private Instant claimedAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "claim_kind", length = 8)
-    private String claimKind;
+    private AuthKind claimKind;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "claimed_via", length = 16)
-    private String claimedVia;
+    private DiagnosticRunClaimVia claimedVia;
 
     @Column(name = "diagnostic_session_id", columnDefinition = "uuid")
     private UUID diagnosticSessionId;

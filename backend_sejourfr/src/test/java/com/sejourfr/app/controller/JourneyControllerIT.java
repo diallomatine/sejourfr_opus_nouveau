@@ -40,6 +40,8 @@ class JourneyControllerIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("NEEDS_OBJECTIVE"))
+                // Pas de parcours, pas d'identifiant de parcours (Q8).
+                .andExpect(jsonPath("$.journeyId").doesNotExist())
                 .andExpect(jsonPath("$.targetLevel").doesNotExist())
                 .andExpect(jsonPath("$.current").doesNotExist())
                 // Aucun parcours : aucun bloc, aucun cycle.
@@ -65,6 +67,8 @@ class JourneyControllerIT extends AbstractIntegrationTest {
         mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("IN_PROGRESS"))
+                // `journey.id` = le plan_id du chantier Suivi (Q8), servi.
+                .andExpect(jsonPath("$.journeyId").isNotEmpty())
                 // ⚠️ `targetLevel` a ete REMPLACE par `objectif` (D-50) : un
                 // cycle civique ne pouvait pas s'exprimer dans un TargetLevel.
                 // Le contrat sert la NATURE, le CODE et le LIBELLE -- l'ecran

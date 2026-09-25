@@ -12,10 +12,10 @@ import java.util.UUID;
  * Ce que la mesure fait d'une authentification reussie : rattacher le parcours
  * anonyme de l'appareil au compte (brief §3.2).
  *
- * <p><b>Point d'extension du lot 2 (chantier Suivi)</b> : c'est ici, dans la
- * meme transaction d'auth, que se fera le claim d'une {@code diagnostic_run}
- * ({@code diagnosticRunId} + {@code claimToken} transmis par le client,
- * {@code claim_kind} = {@link AuthKind}). Aucune recherche heuristique par
+ * <p>Le claim d'une {@code diagnostic_run} (lot 2a) ne vit PAS ici : il est
+ * transactionnel et porte le contexte d'inscription, la ou ce lien-ci est
+ * best-effort. Les services d'auth appellent les deux cote a cote
+ * ({@code DiagnosticRunClaimService}). Aucune recherche heuristique par
  * {@code anonymous_id} : le lien pose ici ne sert qu'a la mesure d'audience.
  *
  * <p><b>Pourquoi un lien plutot qu'un backfill.</b> On pourrait poser le

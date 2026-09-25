@@ -2,7 +2,9 @@ package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticRunType;
 import com.sejourfr.app.enums.Role;
+import com.sejourfr.app.enums.SignupContext;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import org.hibernate.annotations.UuidGenerator;
@@ -106,6 +108,24 @@ public class User {
     private UUID signupAnonymousId;
 
     /**
+     * Contexte d'inscription (V074, lot 2a) : pose dans la transaction
+     * d'inscription, au meme instant que le claim de la run, jamais reecrit.
+     * {@code null} = compte anterieur a la mesure. → {@code SignupAttribution}.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "signup_context", length = 24)
+    private SignupContext signupContext;
+
+    /** Type de la run soumise claimee a l'inscription ; {@code null} hors {@code AFTER_DIAGNOSTIC}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "signup_diagnostic_type", length = 16)
+    private DiagnosticRunType signupDiagnosticType;
+
+    /** La run soumise claimee a l'inscription ; {@code null} hors {@code AFTER_DIAGNOSTIC}. */
+    @Column(name = "signup_diagnostic_run_id", columnDefinition = "uuid")
+    private UUID signupDiagnosticRunId;
+
+    /**
      * Compte interne / de test, exclu des statistiques par defaut (V074, Q6).
      * <b>Seule autorite</b> de l'exclusion : la liste YAML d'adresses n'existe
      * plus.
@@ -200,6 +220,15 @@ public class User {
 
     public UUID getSignupAnonymousId() { return signupAnonymousId; }
     public void setSignupAnonymousId(UUID signupAnonymousId) { this.signupAnonymousId = signupAnonymousId; }
+
+    public SignupContext getSignupContext() { return signupContext; }
+    public void setSignupContext(SignupContext signupContext) { this.signupContext = signupContext; }
+
+    public DiagnosticRunType getSignupDiagnosticType() { return signupDiagnosticType; }
+    public void setSignupDiagnosticType(DiagnosticRunType signupDiagnosticType) { this.signupDiagnosticType = signupDiagnosticType; }
+
+    public UUID getSignupDiagnosticRunId() { return signupDiagnosticRunId; }
+    public void setSignupDiagnosticRunId(UUID signupDiagnosticRunId) { this.signupDiagnosticRunId = signupDiagnosticRunId; }
 
     public boolean isInternal() { return internal; }
     public void setInternal(boolean internal) { this.internal = internal; }

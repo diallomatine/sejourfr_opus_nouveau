@@ -18,6 +18,12 @@
       "perAnonymousIdDaily": { "max": 1000, "windowSeconds": 86400 }
     }
   },
+  "diagnosticRunRateLimit": {
+    "perIpBurst": { "max": 30, "windowSeconds": 600 },
+    "perIpDaily": { "max": 300, "windowSeconds": 86400 },
+    "perAnonymousIdBurst": { "max": 20, "windowSeconds": 600 },
+    "perAnonymousIdDaily": { "max": 100, "windowSeconds": 86400 }
+  },
   "utmSourceGroups": {
     "instagram": ["instagram", "ig", "insta"],
     "tiktok": ["tiktok", "tt"],

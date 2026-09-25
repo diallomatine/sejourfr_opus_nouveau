@@ -43,6 +43,7 @@ class SocialAuthServiceTest {
     private AppleTokenVerifier appleVerifier;
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private com.sejourfr.app.service.analytics.AnalyticsIdentityService identityService;
+    private com.sejourfr.app.service.diagnosticrun.DiagnosticRunClaimService claimService;
     private SocialAuthService service;
 
     @BeforeEach
@@ -57,7 +58,9 @@ class SocialAuthServiceTest {
 
         identityService = mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class);
         service = new SocialAuthService(userManager, jwtService, sessionService,
-                subscriptionService, googleVerifier, appleVerifier, identityService, eventPublisher);
+                subscriptionService, googleVerifier, appleVerifier, identityService,
+                claimService = mock(com.sejourfr.app.service.diagnosticrun.DiagnosticRunClaimService.class),
+                eventPublisher);
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -88,7 +91,7 @@ class SocialAuthServiceTest {
         User user = existing("known@test.fr", AuthProvider.GOOGLE);
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-1")).thenReturn(Optional.of(user));
 
-        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
+        TokenResponse resp = service.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "ip", CTX);
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(user.getLastLoginAt()).isNotNull();
@@ -104,7 +107,7 @@ class SocialAuthServiceTest {
         User local = existing("local@test.fr", AuthProvider.LOCAL);
         when(userManager.findByEmail("local@test.fr")).thenReturn(Optional.of(local));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "ip", CTX);
 
         // auth_provider reste celui de la création initiale (immutable ici).
         assertThat(local.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
@@ -119,7 +122,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-3")).thenReturn(Optional.empty());
         when(userManager.findByEmail("new@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
@@ -154,7 +157,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-9"))
                 .thenReturn(Optional.of(existing));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "ip", CTX);
 
         assertThat(existing.getSignupSource()).isEqualTo("instagram");
         assertThat(existing.getSignupPlatform()).isEqualTo(ClientPlatform.WEB);
@@ -167,7 +170,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.APPLE, "apple-sub")).thenReturn(Optional.empty());
         when(userManager.findByEmail("apple@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont ", null), "ua", "ip", CTX);
+        service.loginWithApple(new AppleSignInRequest("idtok", " Jean ", " Dupont ", null, null, null), "ua", "ip", CTX);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
@@ -203,7 +206,7 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-9")).thenReturn(Optional.empty());
         when(userManager.findByEmail("neuf@test.fr")).thenReturn(Optional.empty());
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", ctx);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "ip", ctx);
 
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
@@ -221,10 +224,40 @@ class SocialAuthServiceTest {
         when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-10")).thenReturn(Optional.empty());
         when(userManager.findByEmail("deja@test.fr")).thenReturn(Optional.of(local));
 
-        service.loginWithGoogle(new GoogleSignInRequest("tok", anon.toString()), "ua", "ip", CTX);
+        service.loginWithGoogle(new GoogleSignInRequest("tok", anon.toString(), null, null), "ua", "ip", CTX);
 
         assertThat(local.getSignupAnonymousId()).isNull();
         verify(identityService).onAuthenticated(any(), org.mockito.ArgumentMatchers.eq(
                 com.sejourfr.app.enums.AuthKind.LOGIN), org.mockito.ArgumentMatchers.eq(anon));
+    }
+
+    /**
+     * Lot 2a : le claim de la run suit la meme nature que le lien d'identite --
+     * SIGNUP sur la branche de creation (et c'est lui qui pose le contexte
+     * d'inscription), LOGIN sinon -- avec le runId et le jeton de la requete.
+     */
+    @Test
+    void claimDeLaRun_signupALaCreation_loginSinon() {
+        UUID runId = UUID.randomUUID();
+        when(googleVerifier.verify("tok")).thenReturn(google("neuf2@test.fr", "sub-11"));
+        when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-11")).thenReturn(Optional.empty());
+        when(userManager.findByEmail("neuf2@test.fr")).thenReturn(Optional.empty());
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null, runId.toString(), "jeton"), "ua", "ip", CTX);
+        verify(claimService).onAuthenticated(any(), org.mockito.ArgumentMatchers.eq(
+                        com.sejourfr.app.enums.AuthKind.SIGNUP), org.mockito.ArgumentMatchers.eq(runId.toString()),
+                org.mockito.ArgumentMatchers.eq("jeton"), org.mockito.ArgumentMatchers.eq(
+                        com.sejourfr.app.enums.DiagnosticRunClaimVia.SAME_DEVICE));
+
+        User local = existing("deja2@test.fr", AuthProvider.LOCAL);
+        when(appleVerifier.verify("idtok")).thenReturn(new SocialIdentity(AuthProvider.APPLE, "sub-12",
+                "deja2@test.fr", null, null));
+        when(userManager.findByProvider(AuthProvider.APPLE, "sub-12")).thenReturn(Optional.empty());
+        when(userManager.findByEmail("deja2@test.fr")).thenReturn(Optional.of(local));
+        service.loginWithApple(new AppleSignInRequest("idtok", null, null, null, runId.toString(), "jeton"),
+                "ua", "ip", CTX);
+        verify(claimService).onAuthenticated(org.mockito.ArgumentMatchers.eq(local), org.mockito.ArgumentMatchers.eq(
+                        com.sejourfr.app.enums.AuthKind.LOGIN), org.mockito.ArgumentMatchers.eq(runId.toString()),
+                org.mockito.ArgumentMatchers.eq("jeton"), org.mockito.ArgumentMatchers.eq(
+                        com.sejourfr.app.enums.DiagnosticRunClaimVia.SAME_DEVICE));
     }
 }

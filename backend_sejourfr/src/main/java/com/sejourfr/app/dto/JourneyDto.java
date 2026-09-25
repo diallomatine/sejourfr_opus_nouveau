@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneySuggestionType;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Le parcours TCF, tel que {@code GET /api/me/plan/journey} le sert.
@@ -78,5 +79,15 @@ public record JourneyDto(
          * Les issues de fin de cycle (spec §6). 🛑 <b>{@code null} sauf cycle
          * termine.</b>
          */
-        JourneyNextStepDto nextStep
+        JourneyNextStepDto nextStep,
+        /**
+         * <b>L'identifiant du parcours</b> ({@code journey.id}) : c'est le
+         * {@code plan_id} du chantier Suivi (Q8). Les fronts le recopient dans
+         * les evenements du Plan ({@code PLAN_OPENED}, {@code PLAN_UNLOCK_CLICKED},
+         * contexte {@code journeyId}) et dans l'intention d'achat ; le serveur
+         * en deduit lui-meme la run de diagnostic fondatrice
+         * ({@code DiagnosticRunManager.findFoundingRun}), il ne la recoit jamais.
+         * {@code null} sans parcours ({@code NEEDS_OBJECTIVE}).
+         */
+        UUID journeyId
 ) {}

@@ -342,6 +342,75 @@ retour (faible / moyenne / forte).
 - Fichiers : `docs/decisions/mesure-audience.md`, `docs/regles/mesure-audience.md`, `docs/decisions/suspects-perimes.md`, `web_sejoufr/CLAUDE.md`, `mobile_sejourfr/CLAUDE.md`.
 - Difficulté de retour : faible.
 
+**D21 — Création de run : route, double idempotence, jeton re-tiré** · Lot 2a
+- Contexte : Q3 (appel public idempotent à l'affichage du sujet) et D1 (`client_key` par `anonymous_id`) ; seul le hash du jeton est stocké, donc un rejeu ne peut pas rendre le jeton d'origine.
+- Options : rejeu → 409 ; rejeu → même run sans jeton ; rejeu → même run avec un nouveau jeton ; jeton dérivé (HMAC du runId) pour le rendre identique.
+- Choix : `POST /api/public/diagnostic-runs` (nouveau `PublicDiagnosticRunController`), **200** avec `created` (pas 201/200 selon le cas, plus simple à consommer). Idempotence dans l'ordre : session déjà tracée → sa run ; `(anonymous_id, clientKey)` déjà vue → sa run ; sinon `INSERT … ON CONFLICT DO NOTHING` (course gagnée par l'autre requête → sa run). Un rejeu rend la **même run et un nouveau jeton** (`rotateToken`), l'ancien ne vaut plus rien : le client garde toujours la dernière réponse. Le HMAC a été écarté (secret serveur de plus, et Q3 demande un aléa). `clientKey` rejouée pour un autre type → 409. `FULL_TCF` sans compte → 403. Jeton 256 bits base64url, TTL `claimTokenTtlDays`.
+- Fichiers : `controller/PublicDiagnosticRunController`, `dto/DiagnosticRun{CreateRequest,CreatedResponse,SubmitRequest}`, `service/diagnosticrun/DiagnosticRunService`, `manager/DiagnosticRunManager`, `repository/DiagnosticRunRepository`.
+- Difficulté de retour : moyenne après le lot 3 (contrat client).
+
+**D22 — Sans identifiant de mesure, pas d'idempotence par clé** · Lot 2a
+- Contexte : l'index `ux_diagnostic_run_client_key (anonymous_id, client_key)` ne lie pas les `NULL` ; une navigation privée ou un stockage bloqué n'a pas d'`anonymous_id`.
+- Options : exiger l'en-tête (400) ; borner la clé au compte ; accepter sans idempotence.
+- Choix : accepter, sans idempotence par clé (l'idempotence par session reste). Refuser ferait perdre l'étape 1 de ces visiteurs, et élargir la clé à `NULL` ferait résoudre la clé d'un inconnu vers la run d'un autre (même doctrine que V046). Le lot 3 envoie l'en-tête partout.
+- Fichiers : `DiagnosticRunRepository.insertIfAbsent`, `DiagnosticRunManager.findByClientKey`.
+- Difficulté de retour : faible.
+
+**D23 — Une seule autorité de « soumis » par type** · Lot 2a
+- Contexte : Q3 (« soumis » une seule fois) ; le TCF rapide invité n'a aucun fait serveur avant le compte (V053), et `POST /api/diagnostics` est appelé **au démarrage** par un connecté (`DiagnosticView.tsx`), donc le handoff n'est pas une soumission fiable.
+- Options : appel client pour tous ; serveur pour tous ; mixte.
+- Choix : **`QUICK_TCF` = appel client** `POST /api/public/diagnostic-runs/{id}/submit` (invité et connecté, à « Analyser mes réponses ») ; **`CIVIQUE` = serveur** à la fin de l'attempt (`AttemptInteractionService.doFinish` : fin publique, connectée ou échéance ; et `CivicDiagnosticService.cloturer` s'il ferme l'attempt) ; **`FULL_TCF` = serveur** à `TcfDiagnosticService.cloturer`. L'appel client est refusé en **409** pour les deux derniers : deux autorités se contrediraient. `UPDATE … WHERE submitted_at IS NULL` : une seule fois. `submitted_authenticated` = porteur de l'attempt / appelant JWT **à cet instant** ; un soumis connecté pose aussi `user_id` (« soumis connecté » ⇒ « rattaché »). ⚠️ Une échéance civique close paresseusement compte « soumis » (l'attempt est bien clos).
+- Fichiers : `DiagnosticRunService`, `AttemptInteractionService`, `CivicDiagnosticService`, `TcfDiagnosticService`, `DiagnosticRunRepository.markSubmitted*`.
+- Difficulté de retour : moyenne.
+
+**D24 — Un runId n'est jamais cru : règle d'appartenance et liaison aux sessions** · Lot 2a
+- Contexte : le runId voyage dans les événements (pas un secret) ; il faut lier la run à sa session (FK V074) sans faire confiance au client.
+- Options : jeton dans l'URL des routes de session ; liaison à la création (session prouvée) ; liaison à l'ouverture de session (run prouvée).
+- Choix : **appartenance d'une run** = compte porteur, ou `claimToken` valide (et, si run et appelant ont chacun un `anonymous_id`, le même) ; une run portée par un compte n'est écrite par aucun autre compte, même muni du jeton. **Liaison** : à la **création** (`sessionId` facultatif, session vérifiée comme sa propre lecture : compte, ou IP pour le civique invité — 404 sinon) pour civique, complet et rapide connecté ; au **handoff** (`POST /api/diagnostics?diagnosticRunId=`) pour le rapide invité, **seulement si la run appartient déjà au compte** (claimée à l'auth) — aucun jeton en query string (journaux d'accès). Une run inconnue, d'un tiers ou déjà liée est ignorée sans erreur au handoff. Une session déjà tracée rend sa run.
+- Fichiers : `DiagnosticRunService`, `DiagnosticService`, `DiagnosticController`, `DiagnosticRunRepository.link*`.
+- Difficulté de retour : moyenne.
+
+**D25 — Claim dans la transaction d'auth, jamais une erreur** · Lot 2a
+- Contexte : Q3 « claim dans la transaction d'auth » ; doctrine « une mesure n'empêche jamais d'entrer » ; mais une exception SQL dans une transaction Postgres l'avorte, `catch` ou pas.
+- Options : best-effort hors transaction (`REQUIRES_NEW`) ; dans la transaction avec vérifications préalables.
+- Choix : **dans la transaction**, `DiagnosticRunClaimService.onAuthenticated` appelé à côté du lien d'identité (local, Google, Apple). Toutes les conditions (hash, expiration, jamais claimée, **sans porteur**) sont vérifiées en Java **avant** un `UPDATE` conditionnel qui les redit (deux auths concurrentes ne claiment qu'une fois) : un runId illisible, un jeton faux, expiré ou utilisé ne touchent pas la base et l'auth réussit. Une run déjà portée (créée ou soumise connectée) n'est pas « claimée » : elle était déjà rattachée. Une run claimée mais **non soumise** est rattachée, et l'inscription reste `OUTSIDE_DIAGNOSTIC`. Le claim ne regarde pas le quota (Q3). `claimed_via` : paramètre du service (`SAME_DEVICE` aujourd'hui) — **aucun champ de DTO** pour `APP_LINK` tant que le lot 3b n'a pas de client : il ajoutera le sien. `signup_context` / `signup_diagnostic_*` posés au même instant par `SignupAttribution.stampContext` (autorité unique, local et social).
+- Fichiers : `DiagnosticRunClaimService`, `AuthService`, `SocialAuthService`, `SignupAttribution`, `User`, `dto/{Login,Register,GoogleSignIn,AppleSignIn}Request`, `DiagnosticRunClaimVia`, `SignupContext`.
+- Difficulté de retour : faible.
+
+**D26 — L'état d'une run se relit en colonnes, jamais en entité** · Lot 2a
+- Contexte : les transitions sont des `UPDATE` natifs ; une entité déjà chargée dans le contexte de persistance garde ses anciennes valeurs (constaté en test : l'ancien jeton restait valide après un rejeu dans la même transaction).
+- Options : `clearAutomatically` (détache tout au milieu d'une fin d'attempt ou d'une auth) ; projection scalaire.
+- Choix : toute vérification (appartenance, claim, handoff) lit `DiagnosticRunManager.findState` (projection JPQL relue en base). Les `UPDATE` ne vident jamais le contexte.
+- Fichiers : `DiagnosticRunRepository.findStateById`, `DiagnosticRunManager.State`.
+- Difficulté de retour : faible.
+
+**D27 — La run oublie son `anonymous_id` au-delà de 395 j (tranche D14)** · Lot 2a
+- Contexte : D14 laissait au lot 2 le sort de `diagnostic_run.anonymous_id` après la purge du visiteur.
+- Options : garder ; oublier.
+- Choix : **oublier** `anonymous_id` et `client_key` des runs vues avant la limite de rétention, par lots, troisième passe d'`AnalyticsRetentionService` (non comptée dans le total « lignes supprimées »). La run et ses faits restent ; l'identifiant, qui ne désigne plus aucun visiteur, reste un identifiant de traceur (Q5). Conséquence : une cohorte de plus de 13 mois ne déduplique plus ses anonymes, sans effet sur un dashboard à 14 j. `users.signup_anonymous_id` (donnée de compte) n'est pas touché.
+- Fichiers : `AnalyticsRetentionService`, `DiagnosticRunRepository.forgetAnonymousIdBefore`, `AnalyticsRetentionServiceIT`.
+- Difficulté de retour : faible.
+
+**D28 — Dates de début de mesure laissées à `null`, posées par le lot 3** · Lot 2a
+- Contexte : Q16 et D12 (« chaque lot qui met un indicateur en service pose sa date »). Le serveur est prêt, mais sans les clients du lot 3 aucune run n'est créée, et **toute inscription s'écrit `OUTSIDE_DIAGNOSTIC`** faute de jeton.
+- Options : dater au jour du lot 2a ; laisser `null`.
+- Choix : **`null`** pour `DIAGNOSTIC_SUBJECT_VIEWED`, `DIAGNOSTIC_SUBMITTED`, `ACCOUNT_ATTACHED`, `SIGNUP_CONTEXT`. Une date posée aujourd'hui afficherait des zéros et 100 % d'« inscription directe » jusqu'au déploiement des fronts : un chiffre faux, là où Q16 veut un chiffre inconnu. ⚠️ **Le lot 3 pose la date de sa mise en production** (web et mobile le même jour, sinon la plus tardive) ; le lot 4 ignore les lignes antérieures (`users.created_at`, `subject_viewed_at`).
+- Fichiers : `analytics/analytics-config-v1.json` (inchangé sur ces clés).
+- Difficulté de retour : faible (config).
+
+**D29 — Plan ↔ run (Q8) : la run fondatrice** · Lot 2a
+- Contexte : Q8 (`plan_id = journey.id`, le serveur résout la run lui-même) ; le lot 2b s'en sert pour `purchase_intent`. Rien ne relie `journey` à un diagnostic, sauf le journal `journey_assessment_event`.
+- Options : run la plus récente du compte (heuristique interdite par Q12) ; journal des évaluations.
+- Choix : `DiagnosticRunManager.findFoundingRun(UUID journeyId, UUID userId) : Optional<DiagnosticRun>` — la run du diagnostic (`QUICK_DIAGNOSTIC` → session, `CIVIC_DIAGNOSTIC` → session civique, `FULL_DIAGNOSTIC` → section → `attempts.tcf_diagnostic_id`) **le plus ancien** journalisé sur le parcours, reliée par les FK de session, appartenant au porteur du parcours (`j.user_id = :userId` : l'id d'un autre parcours ne résout rien). Vide si aucun diagnostic n'a de run liée : inconnu. `JourneyDto.journeyId` expose `journey.id` (`null` sans parcours). ⚠️ **Miroirs fronts au lot 3** : `web_sejoufr/lib/types.ts`, `mobile_sejourfr/lib/core/models/` (`JourneyDto`), admin non concerné.
+- Fichiers : `DiagnosticRunRepository.findFoundingRun`, `DiagnosticRunManager`, `dto/JourneyDto`, `JourneyReadService`, `DiagnosticRunFoundingIT`, `JourneyControllerIT`.
+- Difficulté de retour : faible.
+
+**D30 — Extractions et configuration** · Lot 2a
+- Contexte : un 3ᵉ SHA-256 privé et une 2ᵉ copie des quatre fenêtres de rate-limit se profilaient.
+- Choix : `util/JetonSecret` (tirage, SHA-256 hex, comparaison à temps constant), désormais utilisé par `AuthService` (réinitialisation, format inchangé) ; `UserProfileService` garde son hash base64url (jetons déjà émis). `ratelimit/IpEtIdentifiantLimites` porte les quatre fenêtres, partagées par `AnalyticsBatchRateLimit` et `DiagnosticRunRateLimit` (compteurs séparés création / soumission). Nouvelle section **`diagnosticRunRateLimit`** dans `analytics-config-v1.json` (IP 30 / 10 min et 300 / j ; identifiant 20 / 10 min et 100 / j), validée au boot : v1 n'est pas encore en production, on l'étend plutôt que d'ouvrir une v2. **Aucune migration** : V074 suffisait, V075 reste libre.
+- Fichiers : `util/JetonSecret`, `AuthService`, `ratelimit/*`, `AnalyticsConfig`, `AnalyticsConfigLoader`, `analytics-config-v1.json`.
+- Difficulté de retour : faible.
+
 ---
 
 ## 3. Récapitulatif final

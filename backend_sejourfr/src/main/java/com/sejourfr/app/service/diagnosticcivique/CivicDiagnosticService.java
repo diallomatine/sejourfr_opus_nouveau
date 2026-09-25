@@ -20,6 +20,7 @@ import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
 import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,6 +64,7 @@ public class CivicDiagnosticService {
     private final CivicDiagnosticComposer composer;
     private final CivicDiagnosticProperties props;
     private final DiagnosticPlanReadyNotifier planReadyNotifier;
+    private final DiagnosticRunService diagnosticRunService;
 
     /**
      * Ouvre un diagnostic, ou rend celui deja en cours.
@@ -378,6 +380,9 @@ public class CivicDiagnosticService {
             attempt.setFinishedAt(now);
             attempt.setStatus(AttemptStatus.TERMINE);
             attemptManager.save(attempt);
+            // Seconde fin possible de l'attempt (resultat demande avant la fin
+            // explicite) : meme « soumis » que dans AttemptInteractionService.
+            diagnosticRunService.onCivicAttemptFinished(attempt);
         }
         CivicDiagnosticSession saved = sessionManager.save(session);
         planReadyNotifier.civiqueClos(saved.getUser(), saved.getId());

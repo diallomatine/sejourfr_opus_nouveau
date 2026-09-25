@@ -8,6 +8,7 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.AuthProvider;
+import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
@@ -15,6 +16,7 @@ import com.sejourfr.app.service.social.AppleTokenVerifier;
 import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
 import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunClaimService;
 import com.sejourfr.app.util.ClientContext;
 import com.sejourfr.app.util.SignupAttribution;
 import com.sejourfr.app.service.email.event.AccountCreatedEvent;
@@ -66,6 +68,7 @@ public class SocialAuthService {
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
     private final AnalyticsIdentityService analyticsIdentityService;
+    private final DiagnosticRunClaimService diagnosticRunClaimService;
     private final ApplicationEventPublisher eventPublisher;
 
     public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent,
@@ -74,7 +77,7 @@ public class SocialAuthService {
         Resolution r = findOrCreate(identity, null, null, client, req.anonymousId());
         // Même geste qu'en connexion locale : le parcours anonyme de cet
         // appareil rejoint le compte. Idempotent et best-effort.
-        onAuthenticated(r, client, req.anonymousId());
+        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken());
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -83,7 +86,7 @@ public class SocialAuthService {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
         Resolution r = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client,
                 req.anonymousId());
-        onAuthenticated(r, client, req.anonymousId());
+        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken());
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -109,11 +112,16 @@ public class SocialAuthService {
     private record Resolution(User user, boolean created) {
     }
 
-    private void onAuthenticated(Resolution r, ClientContext client, String declaredAnonymousId) {
+    private void onAuthenticated(Resolution r, ClientContext client, String declaredAnonymousId,
+                                 String diagnosticRunId, String claimToken) {
         ClientContext ctx = client == null ? ClientContext.unknown() : client;
-        analyticsIdentityService.onAuthenticated(r.user().getId(),
-                r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN,
+        AuthKind kind = r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN;
+        analyticsIdentityService.onAuthenticated(r.user().getId(), kind,
                 ctx.anonymousIdPreferring(declaredAnonymousId));
+        // Meme geste qu'en auth locale : claim dans cette transaction, contexte
+        // d'inscription pose au meme instant sur la branche de creation.
+        diagnosticRunClaimService.onAuthenticated(r.user(), kind, diagnosticRunId, claimToken,
+                DiagnosticRunClaimVia.SAME_DEVICE);
     }
 
     private Resolution findOrCreate(SocialIdentity identity, String firstNameOverride,

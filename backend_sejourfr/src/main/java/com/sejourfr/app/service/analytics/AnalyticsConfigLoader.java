@@ -69,6 +69,7 @@ public final class AnalyticsConfigLoader {
         positif(config.rawEventRetentionDays(), "rawEventRetentionDays", path);
         positif(config.purgeBatchSize(), "purgeBatchSize", path);
         verifierIngestion(config.ingestion(), path);
+        verifierFenetres(config.diagnosticRunRateLimit(), "diagnosticRunRateLimit", path);
         verifierGroupes(config, path);
         verifierDebutsDeMesure(config.measurementStart(), path);
         log.info("Configuration d'analytics chargee (v{}) : retention {} j, cohorte {} j, lot max {}",
@@ -84,11 +85,17 @@ public final class AnalyticsConfigLoader {
         positif(ingestion.maxBatchSize(), "ingestion.maxBatchSize", path);
         positif(ingestion.clockSkewToleranceMinutes(), "ingestion.clockSkewToleranceMinutes", path);
         positif(ingestion.maxEventAgeHours(), "ingestion.maxEventAgeHours", path);
-        AnalyticsConfig.RateLimit rl = ingestion.rateLimit();
-        fenetre(rl.perIpBurst(), "perIpBurst", path);
-        fenetre(rl.perIpDaily(), "perIpDaily", path);
-        fenetre(rl.perAnonymousIdBurst(), "perAnonymousIdBurst", path);
-        fenetre(rl.perAnonymousIdDaily(), "perAnonymousIdDaily", path);
+        verifierFenetres(ingestion.rateLimit(), "ingestion.rateLimit", path);
+    }
+
+    private static void verifierFenetres(AnalyticsConfig.RateLimit rl, String section, String path) {
+        if (rl == null) {
+            throw new IllegalStateException("Section " + section + " absente de " + path);
+        }
+        fenetre(rl.perIpBurst(), section + ".perIpBurst", path);
+        fenetre(rl.perIpDaily(), section + ".perIpDaily", path);
+        fenetre(rl.perAnonymousIdBurst(), section + ".perAnonymousIdBurst", path);
+        fenetre(rl.perAnonymousIdDaily(), section + ".perAnonymousIdDaily", path);
     }
 
     private static void verifierGroupes(AnalyticsConfig config, String path) {
@@ -145,7 +152,7 @@ public final class AnalyticsConfigLoader {
 
     private static void fenetre(AnalyticsConfig.Window w, String cle, String path) {
         if (w == null || w.max() <= 0 || w.windowSeconds() <= 0) {
-            throw new IllegalStateException("ingestion.rateLimit." + cle + " absent ou non positif dans " + path);
+            throw new IllegalStateException(cle + " absent ou non positif dans " + path);
         }
     }
 

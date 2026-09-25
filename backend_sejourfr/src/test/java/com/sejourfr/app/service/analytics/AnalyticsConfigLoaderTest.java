@@ -31,6 +31,10 @@ class AnalyticsConfigLoaderTest {
                                 "perIpDaily":{"max":3000,"windowSeconds":86400},
                                 "perAnonymousIdBurst":{"max":60,"windowSeconds":600},
                                 "perAnonymousIdDaily":{"max":1000,"windowSeconds":86400}}},
+                 "diagnosticRunRateLimit":{"perIpBurst":{"max":30,"windowSeconds":600},
+                                "perIpDaily":{"max":300,"windowSeconds":86400},
+                                "perAnonymousIdBurst":{"max":20,"windowSeconds":600},
+                                "perAnonymousIdDaily":{"max":100,"windowSeconds":86400}},
                  "utmSourceGroups":%s,"utmSourceFallbackGroup":"autre",
                  %s}
                 """.formatted(timezone, groupes, debuts);
@@ -57,6 +61,9 @@ class AnalyticsConfigLoaderTest {
         assertThat(config.purchaseIntentTtlHours()).isEqualTo(24);
         assertThat(config.ingestion().maxBatchSize()).isEqualTo(50);
         assertThat(config.ingestion().clockSkewToleranceMinutes()).isEqualTo(10);
+        assertThat(config.diagnosticRunRateLimit().perIpBurst().max()).isEqualTo(30);
+        assertThat(config.diagnosticRunRateLimit().perAnonymousIdDaily().max()).isEqualTo(100);
+        assertThat(config.claimTokenTtl()).isEqualTo(java.time.Duration.ofDays(30));
         // Q16 : un indicateur pas encore mesure n'a pas de date, jamais une date inventee.
         assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
         assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 8, 21));
@@ -123,6 +130,16 @@ class AnalyticsConfigLoaderTest {
         assertThatThrownBy(() -> parse(json("Europe/Paris", GROUPES, debuts)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("VISITORS");
+    }
+
+    @Test
+    @DisplayName("Sans garde-fous des routes diagnostic_run, le démarrage échoue")
+    void garde_fousDiagnosticRunObligatoires() {
+        String json = json("Europe/Paris", GROUPES, DEBUTS);
+        String sans = json.substring(0, json.indexOf("\"diagnosticRunRateLimit\""))
+                + json.substring(json.indexOf("\"utmSourceGroups\""));
+        // Refusee des la lecture (propriete de creation manquante) : jamais un defaut muet.
+        assertThatThrownBy(() -> parse(sans)).hasMessageContaining("diagnosticRunRateLimit");
     }
 
     @Test

@@ -8,13 +8,16 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
+import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunClaimService;
 import com.sejourfr.app.util.ClientContext;
+import com.sejourfr.app.util.JetonSecret;
 import com.sejourfr.app.util.SignupAttribution;
 import com.sejourfr.app.service.email.event.AccountCreatedEvent;
 import com.sejourfr.app.service.email.event.PasswordChangedEvent;
@@ -28,13 +31,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,9 +57,8 @@ public class AuthService {
     private final MeService meService;
     private final PasswordEncoder passwordEncoder;
     private final AnalyticsIdentityService analyticsIdentityService;
+    private final DiagnosticRunClaimService diagnosticRunClaimService;
     private final ApplicationEventPublisher eventPublisher;
-
-    private final SecureRandom random = new SecureRandom();
 
     // ------------------------------------------------------------------------
     // Login / refresh / me
@@ -91,6 +88,11 @@ public class AuthService {
         // d'audience n'a jamais le droit d'empêcher quelqu'un de se connecter.
         ClientContext ctx = client == null ? ClientContext.unknown() : client;
         analyticsIdentityService.onAuthenticated(u.getId(), kind, ctx.anonymousIdPreferring(req.anonymousId()));
+        // Claim de la run de diagnostic passée sur cet appareil, DANS cette
+        // transaction ; à l'inscription, le contexte d'inscription est posé au
+        // même instant. Jeton absent ou faux : rien, et la connexion réussit.
+        diagnosticRunClaimService.onAuthenticated(u, kind, req.diagnosticRunId(), req.claimToken(),
+                DiagnosticRunClaimVia.SAME_DEVICE);
         return buildTokenResponse(u, userAgent, ipAddress);
     }
 
@@ -167,7 +169,8 @@ public class AuthService {
         // Le lien anonyme -> compte est posé par l'authentification enchaînée
         // ci-dessous, marquée SIGNUP : un seul point d'écriture, donc aucun
         // risque qu'inscription et connexion divergent.
-        return authenticate(new LoginRequest(email, req.password(), req.anonymousId()),
+        return authenticate(new LoginRequest(email, req.password(), req.anonymousId(),
+                        req.diagnosticRunId(), req.claimToken()),
                 userAgent, ipAddress, client, AuthKind.SIGNUP);
     }
 
@@ -248,21 +251,11 @@ public class AuthService {
                 AuthenticatedUser.from(u, current.module(), current.endsAt()));
     }
 
-    private String generateRawToken() {
-        byte[] bytes = new byte[RESET_TOKEN_BYTES];
-        random.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    private static String generateRawToken() {
+        return JetonSecret.tirer(RESET_TOKEN_BYTES);
     }
 
     private static String sha256(String value) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(value.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+        return JetonSecret.sha256Hex(value);
     }
 }

@@ -45,6 +45,9 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/public/attempts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events"),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events/batch"),
+                // Cycle de vie de diagnostic_run (lot 2a) : avant le compte.
+                Arguments.of(HttpMethod.POST, "/api/public/diagnostic-runs"),
+                Arguments.of(HttpMethod.POST, "/api/public/diagnostic-runs/" + RANDOM_ID + "/submit"),
                 Arguments.of(HttpMethod.GET, "/api/public/diagnostics/current"),
                 // Le diagnostic civique se passe AVANT le compte (V053) : le
                 // tirage et la reprise sont publics, le RESULTAT ne l'est pas.

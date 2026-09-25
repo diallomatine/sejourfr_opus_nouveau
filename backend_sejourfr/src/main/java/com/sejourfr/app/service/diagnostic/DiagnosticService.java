@@ -30,6 +30,7 @@ import com.sejourfr.app.service.ProductionEvaluationService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleFields;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,7 @@ public class DiagnosticService {
     private final ProductionEvaluationService evaluationService;
     private final DiagnosticSessionCoordinator coordinator;
     private final RateLimitGuard rateLimitGuard;
+    private final DiagnosticRunService diagnosticRunService;
 
     public DiagnosticResponse current(UUID userId) {
         String code = content.activeCode();
@@ -79,6 +81,26 @@ public class DiagnosticService {
      *                      désigne jamais une tâche arbitraire du catalogue.
      */
     public DiagnosticResponse startOrResume(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId) {
+        return startOrResume(userId, platform, writtenTaskId, null);
+    }
+
+    /**
+     * @param diagnosticRunId la run creee par le client a l'affichage du sujet
+     *                        (chantier Suivi, lot 2a), facultative. Liee a la
+     *                        session seulement si elle appartient DEJA a ce
+     *                        compte (claimee a l'auth, ou creee connecte) —
+     *                        jamais crue sur parole. Best-effort : elle ne fait
+     *                        jamais echouer le demarrage.
+     */
+    public DiagnosticResponse startOrResume(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId, UUID diagnosticRunId) {
+        DiagnosticResponse response = startOrResumeSession(userId, platform, writtenTaskId);
+        diagnosticRunService.linkQuickTcfAtHandoff(diagnosticRunId, userId, response.sessionId());
+        return response;
+    }
+
+    private DiagnosticResponse startOrResumeSession(
             UUID userId, ClientPlatform platform, UUID writtenTaskId) {
         String code = content.activeCode();
         int version = content.activeVersion(code);

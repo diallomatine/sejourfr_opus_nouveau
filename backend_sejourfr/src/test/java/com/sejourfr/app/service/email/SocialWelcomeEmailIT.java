@@ -35,13 +35,13 @@ class SocialWelcomeEmailIT extends AbstractEmailIT {
         SocialIdentity id = data.socialIdentity();
         when(googleVerifier.verify("tok")).thenReturn(id);
 
-        socialAuthService.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "127.0.0.1",
+        socialAuthService.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "127.0.0.1",
                 ClientContext.unknown());
         User u = track(userManager.findByEmail(id.email()).orElseThrow());
 
         EmailTestSupport.await("WELCOME envoye", () -> hasStatus(u, EmailType.WELCOME, EmailDeliveryStatus.SENT));
 
-        socialAuthService.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "127.0.0.1",
+        socialAuthService.loginWithGoogle(new GoogleSignInRequest("tok", null, null, null), "ua", "127.0.0.1",
                 ClientContext.unknown());
         EmailTestSupport.settle();
         awaitEmailExecutorIdle();
