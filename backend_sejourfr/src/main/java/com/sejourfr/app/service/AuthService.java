@@ -8,7 +8,6 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
-import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
@@ -93,8 +92,8 @@ public class AuthService {
         // même instant. Jeton absent ou faux : rien, et la connexion réussit.
         // Le canal (même appareil ou lien web → app) est déclaré par le client
         // et ne fait que qualifier un claim que le jeton seul autorise.
-        diagnosticRunClaimService.onAuthenticated(u, kind, ctx, req.diagnosticRunId(), req.claimToken(),
-                DiagnosticRunClaimVia.fromClient(req.claimVia()));
+        diagnosticRunClaimService.onAuthenticated(u, kind, ctx, DiagnosticRunClaimService.candidates(
+                req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
         return buildTokenResponse(u, userAgent, ipAddress);
     }
 
@@ -172,7 +171,7 @@ public class AuthService {
         // ci-dessous, marquée SIGNUP : un seul point d'écriture, donc aucun
         // risque qu'inscription et connexion divergent.
         return authenticate(new LoginRequest(email, req.password(), req.anonymousId(),
-                        req.diagnosticRunId(), req.claimToken(), req.claimVia()),
+                        req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()),
                 userAgent, ipAddress, client, AuthKind.SIGNUP);
     }
 

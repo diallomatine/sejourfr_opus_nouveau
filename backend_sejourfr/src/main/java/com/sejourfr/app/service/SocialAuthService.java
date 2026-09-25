@@ -8,7 +8,6 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.AuthProvider;
-import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
@@ -27,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -77,8 +77,8 @@ public class SocialAuthService {
         Resolution r = findOrCreate(identity, null, null, client, req.anonymousId());
         // Même geste qu'en connexion locale : le parcours anonyme de cet
         // appareil rejoint le compte. Idempotent et best-effort.
-        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken(),
-                DiagnosticRunClaimVia.fromClient(req.claimVia()));
+        onAuthenticated(r, client, req.anonymousId(), DiagnosticRunClaimService.candidates(
+                req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -87,8 +87,8 @@ public class SocialAuthService {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
         Resolution r = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client,
                 req.anonymousId());
-        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken(),
-                DiagnosticRunClaimVia.fromClient(req.claimVia()));
+        onAuthenticated(r, client, req.anonymousId(), DiagnosticRunClaimService.candidates(
+                req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -115,14 +115,14 @@ public class SocialAuthService {
     }
 
     private void onAuthenticated(Resolution r, ClientContext client, String declaredAnonymousId,
-                                 String diagnosticRunId, String claimToken, DiagnosticRunClaimVia via) {
+                                 List<DiagnosticRunClaimService.Candidate> runs) {
         ClientContext ctx = client == null ? ClientContext.unknown() : client;
         AuthKind kind = r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN;
         analyticsIdentityService.onAuthenticated(r.user().getId(), kind,
                 ctx.anonymousIdPreferring(declaredAnonymousId));
         // Meme geste qu'en auth locale : claim dans cette transaction, contexte
         // d'inscription pose au meme instant sur la branche de creation.
-        diagnosticRunClaimService.onAuthenticated(r.user(), kind, ctx, diagnosticRunId, claimToken, via);
+        diagnosticRunClaimService.onAuthenticated(r.user(), kind, ctx, runs);
     }
 
     private Resolution findOrCreate(SocialIdentity identity, String firstNameOverride,

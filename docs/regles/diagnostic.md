@@ -416,7 +416,10 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   assumé : un vrai candidat qui s'inscrit après ce délai sort `OUTSIDE_DIAGNOSTIC`, et
   le lien web → app expire pareil. `claim_kind`
   = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` ou `APP_LINK` (champ `claimVia` de la
-  requête d'auth, déclaré par le client, **mêmes vérifications**). 🛑 **Aucune recherche par
+  requête d'auth, déclaré par le client, **mêmes vérifications**). **Plusieurs runs par
+  authentification** (contrôle N3, 2026-09-25) : `diagnosticRunClaims` (liste, 3 au
+  plus, avec le trio unique historique) ; chaque run valide est claimée, et le
+  contexte d'inscription se lit sur la **soumise la plus récente** parmi elles. 🛑 **Aucune recherche par
   `anonymous_id`** : sans jeton, pas de claim.
 - **Lien web → app** (lot 3b, scénario 4, D82 → D86) : sur l'écran de compte invité (TCF
   rapide et civique), **sur téléphone** et pour une run d'invité au jeton valide, le web

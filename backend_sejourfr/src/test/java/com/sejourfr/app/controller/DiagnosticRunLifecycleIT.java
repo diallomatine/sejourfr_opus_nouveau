@@ -566,6 +566,65 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         assertThat(relire("ios-recent@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
     }
 
+    private static String claims(String... idsEtJetons) {
+        StringBuilder sb = new StringBuilder(",\"diagnosticRunClaims\":[");
+        for (int i = 0; i < idsEtJetons.length; i += 2) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"diagnosticRunId\":\"").append(idsEtJetons[i]).append("\",\"claimToken\":\"")
+                    .append(idsEtJetons[i + 1]).append("\"}");
+        }
+        return sb.append("]}").toString();
+    }
+
+    @Test
+    @DisplayName("Contrôle N3 — deux runs (TCF rapide et civique) claimées en une inscription ; contexte = la soumise la plus récente")
+    void deuxRunsEnUneInscription() throws Exception {
+        UUID anon = UUID.randomUUID();
+        Creee tcf = creerInvite("QUICK_TCF", anon);
+        mvc.perform(soumission(tcf.id(), tcf.token())).andExpect(status().isNoContent());
+        UUID[] civique = civiqueInvite();
+        Creee civ = creer(creation("CIVIQUE", UUID.randomUUID(), anon, civique[0]));
+        finirInvite(civique[1]);
+        // Le TCF soumis en premier, le civique ensuite : le civique est le plus recent.
+        jdbc.update("UPDATE diagnostic_run SET submitted_at = now() - interval '1 hour' WHERE id = ?", tcf.id());
+
+        String body = inscription("deuxruns@test.sejourfr", null, null)
+                .replaceFirst("}$", claims(tcf.id().toString(), tcf.token(), civ.id().toString(), civ.token()));
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .header(ClientContextResolver.HEADER_CLIENT, "web")
+                        .header(ClientContextResolver.HEADER_APP_VERSION, "0.1.0").content(body))
+                .andExpect(status().isOk());
+
+        User user = relire("deuxruns@test.sejourfr");
+        assertThat(run(tcf.id()).get("user_id")).isEqualTo(user.getId());
+        assertThat(run(civ.id()).get("user_id")).isEqualTo(user.getId());
+        assertThat(run(tcf.id()).get("claim_kind")).isEqualTo("SIGNUP");
+        assertThat(run(civ.id()).get("claim_kind")).isEqualTo("SIGNUP");
+        assertThat(user.getSignupContext()).hasToString("AFTER_DIAGNOSTIC");
+        assertThat(user.getSignupDiagnosticType()).hasToString("CIVIQUE");
+        assertThat(user.getSignupDiagnosticRunId()).isEqualTo(civ.id());
+    }
+
+    @Test
+    @DisplayName("Contrôle N3 — une run valide et une fausse : la valide est claimée, l'auth réussit")
+    void uneValideUneFausse() throws Exception {
+        Creee valide = creerInvite("QUICK_TCF", UUID.randomUUID());
+        mvc.perform(soumission(valide.id(), valide.token())).andExpect(status().isNoContent());
+        Creee autre = creerInvite("CIVIQUE", UUID.randomUUID());
+        User existant = testData.user();
+        em.flush();
+
+        String body = "{\"email\":\"" + existant.getEmail() + "\",\"password\":\"" + TestData.DEFAULT_PASSWORD + "\""
+                + claims(autre.id().toString(), "faux-jeton", valide.id().toString(), valide.token());
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        assertThat(run(valide.id()).get("user_id")).isEqualTo(existant.getId());
+        assertThat(run(valide.id()).get("claim_kind")).isEqualTo("LOGIN");
+        assertThat(run(autre.id()).get("user_id")).isNull();
+        assertThat(run(autre.id()).get("claimed_at")).isNull();
+    }
+
     /** Scenario 20. */
     @Test
     @DisplayName("Scénario 20 — runId valide, jeton absent ou faux : pas de claim, l'inscription réussit")

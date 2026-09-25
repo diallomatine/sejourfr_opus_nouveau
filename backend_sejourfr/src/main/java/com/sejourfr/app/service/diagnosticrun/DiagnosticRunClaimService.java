@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.diagnosticrun;
 
+import com.sejourfr.app.dto.DiagnosticRunClaimRequest;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.DiagnosticRunClaimVia;
@@ -13,6 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,24 +53,76 @@ public class DiagnosticRunClaimService {
     private final DiagnosticRunManager runManager;
     private final UserManager userManager;
 
+    /** Runs claimees au plus par authentification (controle N3). */
+    public static final int MAX_CLAIMS = 3;
+
     /**
-     * @param runIdRaw   {@code diagnosticRunId} de la requete d'auth (texte : un
-     *                   identifiant illisible ne doit pas faire un 400 d'auth)
-     * @param claimToken {@code claimToken} de la requete d'auth
-     * @param via        canal declare par le client ({@code claimVia}) : meme
-     *                   appareil, ou lien web → app (lot 3b) ; memes verifications
-     * @param client     contexte de la requete d'auth : un client ancien laisse
-     *                   le contexte d'inscription inconnu (controle G)
-     * @return la run claimee (etat lu AVANT le claim), vide sinon
+     * Une run a claimer, telle que la requete d'auth la declare.
+     *
+     * @param runIdRaw   {@code diagnosticRunId} (texte : un identifiant illisible
+     *                   ne doit pas faire un 400 d'auth)
+     * @param claimToken {@code claimToken}
+     * @param via        canal declare ({@code claimVia}) : meme appareil, ou lien
+     *                   web → app (lot 3b) ; memes verifications
      */
-    public Optional<DiagnosticRunManager.State> onAuthenticated(User user, AuthKind kind, ClientContext client,
-                                                                String runIdRaw, String claimToken,
-                                                                DiagnosticRunClaimVia via) {
-        Optional<DiagnosticRunManager.State> claimed = claim(user.getId(), kind, runIdRaw, claimToken, via);
+    public record Candidate(String runIdRaw, String claimToken, DiagnosticRunClaimVia via) {
+    }
+
+    /**
+     * Les runs a claimer d'une requete d'auth : le trio unique historique
+     * (anciens clients) puis la liste {@code diagnosticRunClaims} (controle N3),
+     * dedoublonnees par run, identifiants illisibles ecartes, bornees a
+     * {@link #MAX_CLAIMS}. Jamais une erreur.
+     */
+    public static List<Candidate> candidates(String runIdRaw, String claimToken, String claimVia,
+                                             List<DiagnosticRunClaimRequest> claims) {
+        Map<UUID, Candidate> uniques = new LinkedHashMap<>();
+        ajouter(uniques, runIdRaw, claimToken, claimVia);
+        if (claims != null) {
+            for (DiagnosticRunClaimRequest c : claims) {
+                if (c != null) ajouter(uniques, c.diagnosticRunId(), c.claimToken(), c.claimVia());
+            }
+        }
+        return uniques.values().stream().limit(MAX_CLAIMS).toList();
+    }
+
+    private static void ajouter(Map<UUID, Candidate> uniques, String runIdRaw, String claimToken, String claimVia) {
+        UUID runId = ClientContextResolver.parseAnonymousId(runIdRaw);
+        if (runId == null || claimToken == null || claimToken.isBlank()) return;
+        uniques.putIfAbsent(runId, new Candidate(runIdRaw, claimToken, DiagnosticRunClaimVia.fromClient(claimVia)));
+    }
+
+    /**
+     * Claime chaque run valide parmi {@code candidates} ; a l'inscription, pose
+     * le contexte d'inscription.
+     *
+     * <p><b>Plusieurs runs</b> (controle N3) : un invite qui a passe le TCF rapide
+     * ET le civique rattache les deux ; une run fausse, expiree ou deja claimee
+     * n'empeche pas les autres. Le contexte d'inscription se lit sur la run
+     * <b>soumise la plus recente</b> parmi celles claimees (le diagnostic le plus
+     * proche de l'inscription) ; aucune soumise ⇒ {@code OUTSIDE_DIAGNOSTIC}, ou
+     * inconnu pour un client ancien.
+     *
+     * @param client contexte de la requete d'auth : un client ancien laisse le
+     *               contexte d'inscription inconnu (controle G)
+     * @return les runs claimees (etat lu AVANT le claim), dans l'ordre des candidats
+     */
+    public List<DiagnosticRunManager.State> onAuthenticated(User user, AuthKind kind, ClientContext client,
+                                                            List<Candidate> candidates) {
+        List<DiagnosticRunManager.State> claimed = new ArrayList<>();
+        if (candidates != null) {
+            for (Candidate c : candidates.stream().limit(MAX_CLAIMS).toList()) {
+                claim(user.getId(), kind, c.runIdRaw(), c.claimToken(), c.via()).ifPresent(claimed::add);
+            }
+        }
         if (kind == AuthKind.SIGNUP) {
-            SignupAttribution.stampContext(user, claimed.map(DiagnosticRunManager.State::id).orElse(null),
-                    claimed.map(DiagnosticRunManager.State::type).orElse(null),
-                    claimed.map(DiagnosticRunManager.State::submittedAt).orElse(null), client);
+            Optional<DiagnosticRunManager.State> reference = claimed.stream()
+                    .filter(run -> run.submittedAt() != null)
+                    .max(Comparator.comparing(DiagnosticRunManager.State::submittedAt)
+                            .thenComparing(run -> run.id().toString()));
+            SignupAttribution.stampContext(user, reference.map(DiagnosticRunManager.State::id).orElse(null),
+                    reference.map(DiagnosticRunManager.State::type).orElse(null),
+                    reference.map(DiagnosticRunManager.State::submittedAt).orElse(null), client);
             userManager.save(user);
         }
         return claimed;

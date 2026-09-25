@@ -2,6 +2,8 @@ package com.sejourfr.app.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 /**
  * Payload envoye par le client iOS apres "Sign in with Apple".
  * <p>
@@ -28,6 +30,14 @@ import jakarta.validation.constraints.NotBlank;
  * la run et son jeton sont arrives par le lien web → app « Continuer sur
  * l'application » ; toute autre valeur (ou rien) vaut {@code SAME_DEVICE}. Il
  * qualifie le claim, il ne l'autorise pas : seul le jeton prouve la run.
+ *
+ * <p><b>{@code diagnosticRunClaims} est FACULTATIF</b> (controle N3) : une
+ * liste de runs a rattacher ({@link DiagnosticRunClaimRequest}), pour l'invite
+ * qui a passe plusieurs diagnostics (TCF rapide ET civique, plus une run recue
+ * par le lien web → app). Le serveur y ajoute le trio unique ci-dessus (anciens
+ * clients), dedoublonne par run et en garde {@value
+ * com.sejourfr.app.service.diagnosticrun.DiagnosticRunClaimService#MAX_CLAIMS}
+ * au plus : chaque run valide est claimee, les autres sont ignorees.
  */
 public record AppleSignInRequest(
         @NotBlank(message = "identityToken requis")
@@ -42,5 +52,7 @@ public record AppleSignInRequest(
 
         String claimToken,
 
-        String claimVia
+        String claimVia,
+
+        List<DiagnosticRunClaimRequest> diagnosticRunClaims
 ) {}

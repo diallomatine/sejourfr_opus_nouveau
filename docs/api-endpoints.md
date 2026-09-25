@@ -19,7 +19,14 @@ automatique** dans le client HTTP de chaque front.
   compte, `users.signup_anonymous_id`. Client ancien : rien d'envoyé, rien d'écrit.
 - **Claim d'une `diagnostic_run` à l'auth** (lot 2a, `login`, `register`, `google`,
   `apple`) : champs facultatifs `diagnosticRunId` (texte UUID) + `claimToken` (texte)
-  dans le corps. Dans la **transaction d'auth** : la run passe au compte si le jeton
+  dans le corps, **et/ou** (contrôle N3, 2026-09-25) une liste facultative
+  `diagnosticRunClaims: [{diagnosticRunId, claimToken, claimVia?}]` pour rattacher
+  plusieurs runs d'invité (TCF rapide **et** civique, run reçue par lien). Le serveur
+  fusionne le trio unique puis la liste, dédoublonne par run, écarte les identifiants
+  illisibles et en garde **3** au plus ; chaque run valide est claimée, une fausse
+  n'empêche ni les autres ni l'auth. À l'inscription, `signup_context` /
+  `signup_diagnostic_*` se lisent sur la run **soumise la plus récente** parmi celles
+  claimées. Dans la **transaction d'auth** : la run passe au compte si le jeton
   correspond à son hash, n'est pas expiré, et si la run n'a jamais été claimée ni portée
   (`claim_kind = SIGNUP | LOGIN`). Champ facultatif `claimVia` (lot 3b) : `"APP_LINK"`
   quand la run et son jeton sont arrivés par le lien web → app « Continuer sur
