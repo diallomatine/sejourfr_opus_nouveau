@@ -157,7 +157,8 @@ export function validateIdentity(firstName: string, lastName: string): IdentityE
   return errors;
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Forme minimale d'une adresse e-mail, partagée par le compte et les pages d'auth. */
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateEmailChange(
   newEmail: string,

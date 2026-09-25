@@ -1,122 +1,96 @@
+import { ArrowRight, Check, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import type { AuthPanel } from "./auth-panels";
 import styles from "./auth.module.css";
 
-const STATS = [
-  { num: "2 500+", label: "Questions calibrées" },
-  { num: "94 %", label: "Taux de réussite" },
-  { num: "8 200+", label: "Candidats inscrits" },
-  { num: "4,8 /5", label: "Note utilisateurs" },
-];
-
-interface Visual {
-  tag: string;
-  quote: string;
-  authorInitials: string;
-  authorName: string;
-  authorMeta: string;
-  avatarTone: "blue" | "red";
-}
-
 interface AuthShellProps {
-  eyebrow: string;
-  eyebrowTone: "blue" | "green";
-  title: React.ReactNode;
-  subtitle: React.ReactNode;
-  /** Le <form> et tout ce qui suit (submit, Google, lien de bascule). */
-  children: React.ReactNode;
-  visual: Visual;
+  kicker: string;
+  title: ReactNode;
+  subtitle: ReactNode;
+  panel: AuthPanel;
+  /** Le formulaire et tout ce qui suit (submit, Google, lien de bascule). */
+  children: ReactNode;
 }
 
 /**
- * Shell partagé des pages d'auth : colonne formulaire (gauche) + panneau visuel
- * témoignage (droite, masqué sous 980px). Mobile-first. Toute la logique de
- * formulaire vit dans la page appelante, passée en `children`.
+ * Coquille des pages d'auth, dans le langage de l'accueil : carte formulaire +
+ * panneau d'argumentaire (`auth-panels.ts`). ≥ 980 px, deux colonnes ; en
+ * dessous, le panneau passe sous le formulaire en version résumée. La logique
+ * du formulaire vit dans la page, passée en `children`.
  */
-export function AuthShell({
-  eyebrow,
-  eyebrowTone,
-  title,
-  subtitle,
-  children,
-  visual,
-}: AuthShellProps) {
+export function AuthShell({ kicker, title, subtitle, panel, children }: AuthShellProps) {
   return (
-    <div className={styles.wrap}>
-      {/* ----- Colonne formulaire ----- */}
-      <div className={styles.formSide}>
-        <div className={styles.inner}>
-          <span
-            className={`${styles.eyebrow} ${
-              eyebrowTone === "green" ? styles.eyebrowGreen : styles.eyebrowBlue
-            }`}
-          >
-            <span className={styles.eyebrowDot} aria-hidden />
-            {eyebrow}
-          </span>
-          <h1 className={styles.h1}>{title}</h1>
+    <div className={styles.page}>
+      <div className={styles.grid}>
+        <section className={styles.card} aria-labelledby="auth-title">
+          <span className={styles.kicker}>{kicker}</span>
+          <h1 id="auth-title" className={styles.h1}>
+            {title}
+          </h1>
           <p className={styles.sub}>{subtitle}</p>
 
           {children}
 
           <p className={styles.legal}>
-            <ShieldIcon /> Données hébergées en France · Conforme RGPD · Aucun
-            partage avec des tiers.
+            <ShieldCheck size={14} aria-hidden />
+            <span>
+              Hébergement en France · Aucune donnée vendue ·{" "}
+              <Link href="/confidentialite">Confidentialité</Link>
+            </span>
           </p>
-        </div>
+        </section>
+
+        <AuthPanelView panel={panel} />
       </div>
-
-      {/* ----- Panneau visuel ----- */}
-      <aside className={styles.visualSide} aria-hidden>
-        <div className={styles.visualBg} />
-        <div className={styles.visualContent}>
-          <div className={styles.visualTop}>
-            <span className={styles.visualTopBar} />
-            {visual.tag}
-          </div>
-
-          <blockquote className={styles.quote}>
-            <div className={styles.quoteMark}>&ldquo;</div>
-            <p className={styles.quoteText}>{visual.quote}</p>
-            <footer className={styles.author}>
-              <div
-                className={`${styles.avatar} ${
-                  visual.avatarTone === "red" ? styles.avatarRed : styles.avatarBlue
-                }`}
-              >
-                {visual.authorInitials}
-              </div>
-              <div>
-                <div className={styles.authorName}>{visual.authorName}</div>
-                <div className={styles.authorMeta}>{visual.authorMeta}</div>
-              </div>
-            </footer>
-          </blockquote>
-
-          <div className={styles.stats}>
-            {STATS.map((s) => (
-              <div key={s.label}>
-                <div className={styles.statNum}>{s.num}</div>
-                <div className={styles.statLabel}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }
 
-const ShieldIcon = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
+function AuthPanelView({ panel }: { panel: AuthPanel }) {
+  return (
+    <aside className={styles.panel} aria-labelledby="auth-panel-title">
+      <div className={styles.panelCard}>
+        <span className={styles.kicker}>{panel.kicker}</span>
+        <h2 id="auth-panel-title" className={styles.panelTitle}>
+          {panel.title.lead} <em>{panel.title.em}</em>
+          {panel.title.tail ? ` ${panel.title.tail}` : null}
+        </h2>
+
+        <ol className={styles.points}>
+          {panel.items.map(({ title, text, Icon }, i) => (
+            <li key={title} className={styles.point}>
+              <span className={styles.pointBadge} aria-hidden>
+                {Icon ? <Icon size={18} /> : String(i + 1).padStart(2, "0")}
+              </span>
+              <div className={styles.pointCopy}>
+                <strong>{title}</strong>
+                {text ? <span>{text}</span> : null}
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        {panel.trust ? (
+          <ul className={styles.trust}>
+            {panel.trust.map((t) => (
+              <li key={t}>
+                <span className={styles.trustIcon} aria-hidden>
+                  <Check size={11} strokeWidth={3} />
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {panel.link ? (
+          <Link href={panel.link.href} className={styles.panelLink}>
+            {panel.link.label}
+            <ArrowRight size={15} aria-hidden />
+          </Link>
+        ) : null}
+      </div>
+    </aside>
+  );
+}

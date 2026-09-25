@@ -3,13 +3,12 @@ import {
   ArrowUp,
   Check,
   Landmark,
-  Sparkles,
   Target,
-  TrendingUp,
 } from "lucide-react";
 import { AppleIcon, GooglePlayMonoIcon } from "../StoreBadge";
 import { DIAGNOSTIC_RAPIDE_HREF, DIAGNOSTIC_RAPIDE_START_HREF } from "@/lib/preparation";
 import { STORE_LINKS } from "@/lib/site";
+import { HERO_TRUST, PROMISES } from "./landing-copy";
 import { TrackedLink } from "./LandingTracking";
 import styles from "./landing.module.css";
 
@@ -47,7 +46,6 @@ function SectionHead({
    ========================================================================== */
 
 const HERO_CHIPS = ["Titre de séjour", "Carte de résident", "Naturalisation"];
-const HERO_TRUST = ["Sans carte bancaire", "Niveau estimé", "Analyse IA utile"];
 
 export function Hero() {
   return (
@@ -162,13 +160,6 @@ export function Hero() {
     </section>
   );
 }
-
-const PROMISES = [
-  { Icon: Target, title: "Vous vous testez", text: "Pour connaître votre point de départ" },
-  { Icon: TrendingUp, title: "Vous voyez votre niveau", text: "Un repère simple et compréhensible" },
-  { Icon: Sparkles, title: "L’IA vous analyse", text: "Oral et écrit avec retours utiles" },
-  { Icon: Check, title: "Vous avancez mieux", text: "Plan ciblé jusqu’aux examens blancs" },
-];
 
 export function PromiseStrip() {
   return (

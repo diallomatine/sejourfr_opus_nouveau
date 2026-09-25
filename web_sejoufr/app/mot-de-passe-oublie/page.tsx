@@ -1,8 +1,12 @@
 "use client";
 
+import { Check, Mail } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { AuthField } from "@/app/_components/auth/AuthField";
+import { AuthAlert, AuthSubmit } from "@/app/_components/auth/AuthForm";
 import { AuthShell } from "@/app/_components/auth/AuthShell";
+import { SIGNIN_PANEL } from "@/app/_components/auth/auth-panels";
 import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException, authApi } from "@/lib/api";
 
@@ -37,8 +41,7 @@ export default function MotDePasseOubliePage() {
 
   return (
     <AuthShell
-      eyebrow="Récupération de compte"
-      eyebrowTone="blue"
+      kicker="Récupération de compte"
       title={
         <>
           Mot de passe <em>oublié</em>.
@@ -49,20 +52,12 @@ export default function MotDePasseOubliePage() {
           ? "Vérifiez votre boîte mail."
           : "Saisissez votre email — nous vous enverrons un lien pour choisir un nouveau mot de passe."
       }
-      visual={{
-        tag: "RÉCUPÉRATION · SÉCURITÉ",
-        quote:
-          "J'avais perdu l'accès à mon compte avant l'examen. Le lien de réinitialisation est arrivé en quelques secondes, tout était intact.",
-        authorInitials: "VO",
-        authorName: "Viktor O.",
-        authorMeta: "CARTE DE RÉSIDENT · LYON",
-        avatarTone: "blue",
-      }}
+      panel={SIGNIN_PANEL}
     >
       {sent ? (
         <div className={`${styles.notice} ${styles.noticeSuccess}`}>
           <span className={styles.noticeIcon}>
-            <CheckIcon />
+            <Check size={22} strokeWidth={2.4} aria-hidden />
           </span>
           <p className={styles.noticeTitle}>Email envoyé.</p>
           <p className={styles.noticeText}>
@@ -87,33 +82,21 @@ export default function MotDePasseOubliePage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
-          {error && (
-            <div className="form-error" role="alert">
-              {error}
-            </div>
-          )}
+          {error ? <AuthAlert>{error}</AuthAlert> : null}
 
-          <div className="field">
-            <label htmlFor="email" className="field-label">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              placeholder="vous@exemple.com"
-              className="field-input"
-              autoComplete="email"
-              autoFocus
-              suppressHydrationWarning
-            />
-          </div>
+          <AuthField
+            id="email"
+            name="email"
+            type="email"
+            label="Adresse e-mail"
+            icon={Mail}
+            autoComplete="email"
+            placeholder="vous@exemple.com"
+            autoFocus
+            disabled={submitting}
+          />
 
-          <button type="submit" disabled={submitting} className={`${styles.submit} ${styles.submitBlue}`}>
-            {submitting ? "Envoi…" : "Envoyer le lien"}
-            <span className={styles.submitArrow}>→</span>
-          </button>
+          <AuthSubmit loading={submitting} label="Envoyer le lien" loadingLabel="Envoi…" />
 
           <p className={styles.backLink}>
             <Link href="/connexion">← Revenir à la connexion</Link>
@@ -123,19 +106,3 @@ export default function MotDePasseOubliePage() {
     </AuthShell>
   );
 }
-
-const CheckIcon = () => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);

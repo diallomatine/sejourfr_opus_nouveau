@@ -1,15 +1,21 @@
 "use client";
 
+import { Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
+import { AuthField } from "@/app/_components/auth/AuthField";
+import { AuthAlert, AuthSubmit, focusFirstError } from "@/app/_components/auth/AuthForm";
 import { AuthShell } from "@/app/_components/auth/AuthShell";
-import { PasswordInput } from "@/app/_components/auth/PasswordInput";
+import { SIGNIN_PANEL } from "@/app/_components/auth/auth-panels";
 import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException } from "@/lib/api";
+import { splitServerErrors, validateLogin, type AuthFieldErrors } from "@/lib/auth-form";
 import { useAuth } from "@/lib/auth-context";
 import { safeInternalPath } from "@/lib/security";
+
+const FIELD_ORDER = ["email", "password"] as const;
 
 export default function ConnexionPage() {
   return (
@@ -27,6 +33,7 @@ function ConnexionInner() {
   const registerHref = `/inscription?next=${encodeURIComponent(nextHref)}`;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
 
   useEffect(() => {
     if (status === "authenticated" && user) {
@@ -34,10 +41,12 @@ function ConnexionInner() {
     }
   }, [status, user, router, nextHref]);
 
+  const clearField = (name: keyof AuthFieldErrors) =>
+    setFieldErrors((prev) => (prev[name] ? { ...prev, [name]: undefined } : prev));
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setSubmitting(true);
 
     const fd = new FormData(e.currentTarget);
     const payload = {
@@ -45,12 +54,27 @@ function ConnexionInner() {
       password: String(fd.get("password") ?? ""),
     };
 
+    const invalid = validateLogin(payload);
+    setFieldErrors(invalid);
+    if (Object.keys(invalid).length > 0) {
+      focusFirstError(FIELD_ORDER, invalid);
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await login(payload);
       router.push(nextHref);
     } catch (err) {
       if (err instanceof ApiException) {
-        setError(err.status === 401 ? "Email ou mot de passe incorrect." : err.message);
+        if (err.status === 401) {
+          setError("Email ou mot de passe incorrect.");
+        } else {
+          const { fields, global } = splitServerErrors(err);
+          setFieldErrors(fields);
+          setError(global);
+          focusFirstError(FIELD_ORDER, fields);
+        }
       } else {
         setError("Impossible de se connecter. Réessayez dans un instant.");
       }
@@ -61,88 +85,65 @@ function ConnexionInner() {
 
   return (
     <AuthShell
-      eyebrow="Espace personnel"
-      eyebrowTone="blue"
+      kicker="Espace personnel"
       title={
         <>
           Heureux de vous <em>revoir</em>.
         </>
       }
       subtitle="Connectez-vous pour reprendre votre préparation là où vous l'avez laissée."
-      visual={{
-        tag: "ESPACE PERSONNEL · CONTINUITÉ",
-        quote:
-          "Le TCF B1 me faisait peur. Les exercices de compréhension orale m'ont vraiment préparé. J'ai eu ma carte de résident.",
-        authorInitials: "VO",
-        authorName: "Viktor O.",
-        authorMeta: "CARTE DE RÉSIDENT · LYON",
-        avatarTone: "blue",
-      }}
+      panel={SIGNIN_PANEL}
     >
       <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
-        {error && (
-          <div className="form-error" role="alert">
-            {error}
-          </div>
-        )}
+        {error ? <AuthAlert>{error}</AuthAlert> : null}
 
-        <div className="field">
-          <label htmlFor="email" className="field-label">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            placeholder="vous@exemple.com"
-            className="field-input"
-            autoComplete="email"
-            autoFocus
-            suppressHydrationWarning
-          />
-        </div>
-
-        <div className="field">
-          <div className={styles.pwdRow}>
-            <label htmlFor="password" className="field-label">
-              Mot de passe
-            </label>
-            <Link href="/mot-de-passe-oublie" className={styles.pwdForgot}>
-              Oublié ?
-            </Link>
-          </div>
-          <PasswordInput
-            id="password"
-            name="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
-          />
-        </div>
-
-        <label className={styles.check}>
-          <input type="checkbox" defaultChecked />
-          <span>Rester connecté sur cet appareil</span>
-        </label>
-
-        <button type="submit" disabled={submitting} className={`${styles.submit} ${styles.submitBlue}`}>
-          {submitting ? "Connexion…" : "Se connecter"}
-          <span className={styles.submitArrow}>→</span>
-        </button>
-
-        <GoogleSignInButton
-          variant="signin"
-          onSuccess={() => router.push(nextHref)}
-          onError={setError}
+        <AuthField
+          id="email"
+          name="email"
+          type="email"
+          label="Adresse e-mail"
+          icon={Mail}
+          autoComplete="email"
+          placeholder="vous@exemple.com"
+          autoFocus
+          disabled={submitting}
+          error={fieldErrors.email}
+          onChange={() => clearField("email")}
         />
 
-        <p className={`${styles.switchLine} ${styles.switchLineTop}`}>
-          Nouveau sur SejourFR ?{" "}
-          <Link href={registerHref} className={`${styles.switchLink} ${styles.switchLinkRed}`}>
-            Créer un compte gratuit →
-          </Link>
-        </p>
+        <AuthField
+          id="password"
+          name="password"
+          type="password"
+          label="Mot de passe"
+          icon={Lock}
+          autoComplete="current-password"
+          placeholder="Votre mot de passe"
+          disabled={submitting}
+          error={fieldErrors.password}
+          onChange={() => clearField("password")}
+          labelAside={
+            <Link href="/mot-de-passe-oublie" className={styles.labelLink}>
+              Mot de passe oublié ?
+            </Link>
+          }
+        />
+
+        <AuthSubmit loading={submitting} label="Se connecter" loadingLabel="Connexion…" />
       </form>
+
+      <GoogleSignInButton
+        variant="signin"
+        onSuccess={() => router.push(nextHref)}
+        onError={setError}
+      />
+
+      <p className={styles.switchLine}>
+        Nouveau sur SejourFR ?{" "}
+        <Link href={registerHref} className={styles.switchLink}>
+          Créer un compte gratuit
+        </Link>
+      </p>
     </AuthShell>
   );
 }

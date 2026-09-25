@@ -1,10 +1,13 @@
 "use client";
 
+import { Check, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { AuthField } from "@/app/_components/auth/AuthField";
+import { AuthAlert, AuthSubmit } from "@/app/_components/auth/AuthForm";
 import { AuthShell } from "@/app/_components/auth/AuthShell";
-import { PasswordInput } from "@/app/_components/auth/PasswordInput";
+import { SIGNIN_PANEL } from "@/app/_components/auth/auth-panels";
 import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException, authApi } from "@/lib/api";
 
@@ -15,16 +18,6 @@ export default function ReinitialiserMotDePassePage() {
     </Suspense>
   );
 }
-
-const VISUAL = {
-  tag: "SÉCURITÉ · NOUVEAU MOT DE PASSE",
-  quote:
-    "Réinitialisation simple et rapide. Mes statistiques et mes favoris étaient toujours là après reconnexion.",
-  authorInitials: "VO",
-  authorName: "Viktor O.",
-  authorMeta: "CARTE DE RÉSIDENT · LYON",
-  avatarTone: "blue" as const,
-};
 
 function ResetInner() {
   const router = useRouter();
@@ -72,15 +65,14 @@ function ResetInner() {
   if (!token) {
     return (
       <AuthShell
-        eyebrow="Lien invalide"
-        eyebrowTone="blue"
+        kicker="Lien invalide"
         title={
           <>
             Lien de <em>réinitialisation</em> incomplet.
           </>
         }
         subtitle="Le lien est incomplet ou a expiré. Demandez-en un nouveau."
-        visual={VISUAL}
+        panel={SIGNIN_PANEL}
       >
         <div className={`${styles.notice} ${styles.noticeError}`}>
           <p className={styles.noticeText}>
@@ -98,8 +90,7 @@ function ResetInner() {
 
   return (
     <AuthShell
-      eyebrow="Nouveau mot de passe"
-      eyebrowTone="blue"
+      kicker="Nouveau mot de passe"
       title={
         <>
           Choisissez un <em>nouveau mot de passe</em>.
@@ -110,72 +101,49 @@ function ResetInner() {
           ? "C'est fait."
           : "Au moins 8 caractères. Évitez ceux de vos autres comptes."
       }
-      visual={VISUAL}
+      panel={SIGNIN_PANEL}
     >
       {done ? (
         <div className={`${styles.notice} ${styles.noticeSuccess}`}>
           <span className={styles.noticeIcon}>
-            <CheckIcon />
+            <Check size={22} strokeWidth={2.4} aria-hidden />
           </span>
           <p className={styles.noticeTitle}>Mot de passe modifié.</p>
           <p className={styles.noticeText}>Redirection vers la connexion…</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
-          {error && (
-            <div className="form-error" role="alert">
-              {error}
-            </div>
-          )}
+          {error ? <AuthAlert>{error}</AuthAlert> : null}
 
-          <div className="field">
-            <label htmlFor="password" className="field-label">
-              Nouveau mot de passe
-            </label>
-            <PasswordInput
-              id="password"
-              name="password"
-              placeholder="8 caractères minimum"
-              autoComplete="new-password"
-              minLength={8}
-            />
-          </div>
+          <AuthField
+            id="password"
+            name="password"
+            type="password"
+            label="Nouveau mot de passe"
+            icon={Lock}
+            placeholder="8 caractères minimum"
+            autoComplete="new-password"
+            disabled={submitting}
+          />
 
-          <div className="field">
-            <label htmlFor="confirm" className="field-label">
-              Confirmer
-            </label>
-            <PasswordInput
-              id="confirm"
-              name="confirm"
-              placeholder="Le même mot de passe"
-              autoComplete="new-password"
-              minLength={8}
-            />
-          </div>
+          <AuthField
+            id="confirm"
+            name="confirm"
+            type="password"
+            label="Confirmer"
+            icon={Lock}
+            placeholder="Le même mot de passe"
+            autoComplete="new-password"
+            disabled={submitting}
+          />
 
-          <button type="submit" disabled={submitting} className={`${styles.submit} ${styles.submitBlue}`}>
-            {submitting ? "Enregistrement…" : "Réinitialiser le mot de passe"}
-            <span className={styles.submitArrow}>→</span>
-          </button>
+          <AuthSubmit
+            loading={submitting}
+            label="Réinitialiser le mot de passe"
+            loadingLabel="Enregistrement…"
+          />
         </form>
       )}
     </AuthShell>
   );
 }
-
-const CheckIcon = () => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);

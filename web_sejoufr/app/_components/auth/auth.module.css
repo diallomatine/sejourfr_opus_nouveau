@@ -1,98 +1,79 @@
 /* ============================================================================
-   Shell d'auth partagé (connexion / inscription / mot de passe oublié / reset).
-   Mobile-first : colonne unique (formulaire seul), le panneau visuel
-   n'apparaît qu'à partir de 980px. Réutilise les globals .field / .field-input
-   / .field-label / .form-error / .cocarde.
+   Pages d'auth (connexion, inscription, mot de passe oublié / réinitialisé),
+   dans le langage de l'accueil (`landing.module.css`) : kicker mono rouge,
+   titre Fraunces à <em> rouge, cartes blanches sur fond bleu pâle, badges
+   numérotés. Tokens `globals.css` uniquement, aucune valeur hexadécimale hors
+   du blanc. Mobile-first : une colonne, le panneau d'argumentaire passe sous
+   le formulaire en version résumée ; deux colonnes à partir de 980 px.
    ============================================================================ */
 
-.wrap {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr;
-  background: #fff;
-  /* Filet de sécurité : aucune colonne ne doit déborder horizontalement. */
-  overflow-x: hidden;
-  max-width: 100%;
+.page {
+  --au-shadow: 0 22px 70px color-mix(in srgb, var(--color-blue-dark) 10%, transparent);
+  --au-shadow-xs: 0 8px 24px color-mix(in srgb, var(--color-blue-dark) 4%, transparent);
+  --au-ring: 0 0 0 4px color-mix(in srgb, var(--color-blue) 16%, transparent);
+  --au-ring-error: 0 0 0 4px color-mix(in srgb, var(--color-red) 14%, transparent);
+
+  padding: 28px 0 56px;
+  background:
+    radial-gradient(circle at 94% 8%, color-mix(in srgb, var(--color-blue) 9%, transparent), transparent 26%),
+    radial-gradient(circle at 4% 96%, color-mix(in srgb, var(--color-red) 6%, transparent), transparent 24%),
+    linear-gradient(180deg, #fff 0%, var(--color-blue-soft) 100%);
+  color: var(--color-ink);
+  overflow-x: clip;
 }
 
-/* ---- Colonne formulaire ---------------------------------------------------- */
-.formSide {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 32px 20px 48px;
-  background: #fff;
-  /* Empêche le blowout de grille : sans min-width:0, un contenu à large
-     min-content (texte mono long) force la track 1fr à s'élargir → scroll X. */
-  min-width: 0;
-}
-.inner {
-  width: 100%;
-  max-width: 460px;
+.grid {
+  width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+.grid > * {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  padding: 6px 12px;
-  border-radius: 100px;
+/* ---- Carte formulaire ------------------------------------------------------ */
+.card {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  padding: 26px 20px 22px;
+  box-shadow: var(--au-shadow);
+}
+
+.kicker {
+  display: block;
+  margin-bottom: 11px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.12em;
-  font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 16px;
-}
-.eyebrowDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.eyebrowBlue {
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-}
-.eyebrowBlue .eyebrowDot {
-  background: var(--color-blue);
-  box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.18);
-}
-.eyebrowGreen {
-  background: rgba(22, 143, 91, 0.1);
-  color: var(--color-green);
-}
-.eyebrowGreen .eyebrowDot {
-  background: var(--color-green);
-  box-shadow: 0 0 0 3px rgba(22, 143, 91, 0.18);
+  color: var(--color-red);
 }
 
 .h1 {
+  margin: 0 0 10px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: clamp(30px, 6vw, 44px);
-  line-height: 1.05;
-  letter-spacing: -0.025em;
-  margin: 0 0 12px;
+  font-size: clamp(30px, 6vw, 40px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
   color: var(--color-ink);
 }
 .h1 em {
   font-style: italic;
-  font-weight: 500;
-  color: var(--color-blue);
+  color: var(--color-red);
 }
 .sub {
+  margin: 0 0 24px;
   color: var(--color-muted);
-  font-size: 15.5px;
-  line-height: 1.55;
-  margin: 0 0 28px;
-  max-width: 420px;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* ---- Formulaire ------------------------------------------------------------ */
@@ -103,106 +84,232 @@
 }
 .row2 {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
 }
 
-.pwdRow {
+.field {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.labelRow {
+  display: flex;
   align-items: baseline;
-  margin-bottom: 7px;
+  justify-content: space-between;
+  gap: 12px;
 }
-.pwdForgot {
+.label {
+  padding: 0;
   font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--color-blue);
+  font-size: 14px;
   font-weight: 700;
-  text-decoration: none;
-  transition: color 0.15s;
+  color: var(--color-ink);
 }
-.pwdForgot:hover {
+.labelLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.labelLink:hover {
   color: var(--color-blue-dark);
   text-decoration: underline;
 }
+.labelLink:focus-visible,
+.switchLink:focus-visible,
+.panelLink:focus-visible,
+.check a:focus-visible,
+.legal a:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 
-/* Champ mot de passe avec bouton afficher/masquer */
+.control {
+  position: relative;
+}
+.inputIcon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: var(--color-muted-2);
+  pointer-events: none;
+  z-index: 1;
+  transition: color var(--sf-quick) ease;
+}
+.control:focus-within .inputIcon {
+  color: var(--color-blue);
+}
+
+.input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 14px;
+  background: #fff;
+  font-family: var(--font-sans);
+  /* 16px minimum : en dessous, iOS zoome au focus du champ. */
+  font-size: 16px;
+  color: var(--color-ink);
+  transition:
+    border-color var(--sf-quick) ease,
+    box-shadow var(--sf-quick) ease,
+    background var(--sf-quick) ease;
+}
+.inputWithIcon {
+  padding-left: 46px;
+}
+.input::placeholder {
+  color: var(--color-muted-2);
+}
+.input:hover:not(:disabled) {
+  border-color: var(--color-muted-2);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: var(--au-ring);
+}
+.input:disabled {
+  background: var(--color-paper);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+.inputInvalid,
+.inputInvalid:hover:not(:disabled) {
+  border-color: var(--color-red);
+}
+.inputInvalid:focus {
+  border-color: var(--color-red);
+  box-shadow: var(--au-ring-error);
+}
+.control:has(.inputInvalid) .inputIcon {
+  color: var(--color-red);
+}
+
+.fieldError,
+.requirement {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.fieldError {
+  color: var(--color-red-dark);
+  font-weight: 600;
+}
+.fieldError svg,
+.requirement svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.requirement {
+  color: var(--color-muted);
+}
+.requirementMet {
+  color: var(--color-green);
+  font-weight: 600;
+}
+
+/* Mot de passe : bouton afficher / masquer (aussi utilisé nu par les écrans
+   de compte des diagnostics, sur `.field-input`). */
 .pwdWrap {
   position: relative;
 }
 .pwdWrap input {
-  padding-right: 44px;
+  padding-right: 50px;
 }
 .pwdToggle {
   position: absolute;
   right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  background: none;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: none;
   color: var(--color-muted);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s, background 0.15s;
+  transition: color var(--sf-quick) ease, background var(--sf-quick) ease;
 }
-.pwdToggle:hover {
+.pwdToggle:hover:not(:disabled) {
   color: var(--color-blue);
   background: var(--color-blue-soft);
 }
+.pwdToggle:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+.pwdToggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
-/* Cases à cocher */
-.check {
+/* Bandeau d'erreur global */
+.alert {
   display: flex;
-  gap: 10px;
   align-items: flex-start;
-  font-size: 13px;
-  color: var(--color-ink-2);
-  line-height: 1.5;
-  cursor: pointer;
-}
-.check input {
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  accent-color: var(--color-blue);
-  flex-shrink: 0;
-}
-.check a {
-  color: var(--color-blue);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-red) 30%, transparent);
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+  font-size: 14px;
   font-weight: 600;
-  text-decoration: none;
+  line-height: 1.45;
 }
-.check a:hover {
-  text-decoration: underline;
+.alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
-/* Sélecteur de démarche (CSP / CR / NAT) */
+/* Démarche (CSP / CR / NAT) */
+.mentions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.mentions legend {
+  margin-bottom: 8px;
+}
 .mentionGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 .mentionOpt {
   position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  border: 1.5px solid var(--color-line);
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 14px;
   background: #fff;
-  border-radius: 12px;
-  padding: 12px 14px;
-  text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s, background 0.18s;
+  transition: border-color var(--sf-quick) ease, background var(--sf-quick) ease;
 }
 .mentionOpt:hover {
   border-color: var(--color-blue);
-  background: var(--color-blue-soft);
+}
+.mentionOpt:has(input:focus-visible) {
+  box-shadow: var(--au-ring);
+  border-color: var(--color-blue);
 }
 .mentionOpt input {
   position: absolute;
@@ -213,200 +320,257 @@
   font-family: var(--font-mono);
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--color-blue);
   letter-spacing: 0.08em;
+  color: var(--color-blue);
 }
 .mentionName {
-  font-size: 12.5px;
-  color: var(--color-muted);
+  font-size: 14px;
+  color: var(--color-ink-2);
   line-height: 1.3;
 }
 .mentionTcf {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: var(--color-muted-2);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  white-space: nowrap;
 }
 .mentionTcf strong {
-  color: var(--color-red);
+  color: var(--color-blue);
   font-weight: 700;
 }
 .mentionActive {
   border-color: var(--color-blue);
   background: var(--color-blue-light);
 }
-.mentionActive .mentionCode {
-  color: var(--color-blue-dark);
-}
 .mentionActive .mentionName {
   color: var(--color-ink);
-  font-weight: 600;
+  font-weight: 700;
 }
 
-/* Bouton de soumission (pleine largeur) */
-.submit {
+/* Consentement */
+.consent {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  cursor: pointer;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--color-blue);
+}
+.check input[aria-invalid="true"] {
+  outline: 2px solid var(--color-red);
+  outline-offset: 2px;
+}
+.check a {
+  color: var(--color-blue);
+  font-weight: 700;
+  text-decoration: none;
+}
+.check a:hover {
+  text-decoration: underline;
+}
+
+/* Bouton d'envoi */
+.submit {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
   width: 100%;
-  border: none;
-  border-radius: 12px;
-  padding: 15px 22px;
+  min-height: 52px;
+  margin-top: 4px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 700;
-  font-family: var(--font-sans);
   color: #fff;
+  text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
-  margin-top: 4px;
+  transition:
+    transform var(--sf-quick) ease,
+    background var(--sf-quick) ease,
+    box-shadow var(--sf-quick) ease;
+}
+.submit:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 45%, transparent);
+  outline-offset: 2px;
 }
 .submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  cursor: progress;
+  opacity: 0.75;
 }
 .submitArrow {
-  transition: transform 0.15s;
+  transition: transform var(--sf-quick) ease;
+}
+.submit:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 .submit:hover:not(:disabled) .submitArrow {
   transform: translateX(3px);
 }
 .submitBlue {
   background: var(--color-blue);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-blue) 18%, transparent);
 }
 .submitBlue:hover:not(:disabled) {
   background: var(--color-blue-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -10px rgba(30, 58, 140, 0.4);
 }
 .submitRed {
   background: var(--color-red);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-red) 18%, transparent);
 }
 .submitRed:hover:not(:disabled) {
   background: var(--color-red-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -10px rgba(225, 55, 47, 0.4);
+}
+.submitOutline {
+  background: #fff;
+  color: var(--color-ink);
+  border-color: var(--color-line);
+  box-shadow: none;
+}
+.submitOutline:hover:not(:disabled) {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+.spin {
+  animation: auSpin 0.9s linear infinite;
+}
+@keyframes auSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+  .submit:hover:not(:disabled),
+  .submit:hover:not(:disabled) .submitArrow {
+    transform: none;
+  }
 }
 
-/* Lien de bascule connexion <-> inscription */
+/* Bascule connexion <-> inscription */
 .switchLine {
-  text-align: center;
-  font-size: 13.5px;
-  color: var(--color-muted);
-  margin: 0;
-}
-.switchLineTop {
+  margin: 20px 0 0;
   padding-top: 18px;
   border-top: 1px solid var(--color-line-2);
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-muted);
 }
 .switchLink {
   font-weight: 700;
+  color: var(--color-blue);
   text-decoration: none;
 }
 .switchLink:hover {
   text-decoration: underline;
 }
-.switchLinkRed {
-  color: var(--color-red);
+
+.legal {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  text-align: center;
 }
-.switchLinkBlue {
+.legal svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-green);
+}
+.legal a {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+.legal a:hover {
   color: var(--color-blue);
 }
 
-.legal {
-  margin-top: 28px;
-  max-width: 100%;
-  font-size: 11.5px;
-  color: var(--color-muted-2);
-  text-align: center;
-  line-height: 1.5;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.04em;
-}
-
-/* ---- Lien retour + variante bouton outline --------------------------------- */
+/* ---- Lien retour + états (mot de passe oublié / réinitialisé) -------------- */
 .backLink {
-  text-align: center;
   margin: 0;
   padding-top: 4px;
-  font-size: 13.5px;
+  text-align: center;
+  font-size: 14px;
 }
 .backLink a {
   color: var(--color-muted);
   font-weight: 600;
   text-decoration: none;
-  transition: color 0.15s;
 }
 .backLink a:hover {
   color: var(--color-blue);
 }
-.submitOutline {
-  background: #fff;
-  color: var(--color-ink);
-  border: 1px solid var(--color-line);
-}
-.submitOutline:hover:not(:disabled) {
-  background: var(--color-paper);
-  border-color: var(--color-blue);
-  color: var(--color-blue);
-  box-shadow: none;
-  transform: none;
-}
 
-/* ---- Bloc état (succès envoi / mdp modifié / lien invalide) ---------------- */
 .notice {
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 24px;
   text-align: center;
 }
 .noticeSuccess {
-  background: linear-gradient(135deg, rgba(22, 143, 91, 0.08), #fff);
-  border: 1px solid rgba(22, 143, 91, 0.25);
+  background: var(--color-green-light);
+  border: 1px solid var(--color-green-border);
 }
 .noticeError {
   background: var(--color-red-light);
-  border: 1px solid rgba(225, 55, 47, 0.3);
+  border: 1px solid color-mix(in srgb, var(--color-red) 30%, transparent);
 }
 .noticeIcon {
   width: 52px;
   height: 52px;
+  margin-bottom: 14px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  margin-bottom: 14px;
   background: var(--color-green);
-  box-shadow: 0 8px 20px -8px rgba(22, 143, 91, 0.5);
+  color: #fff;
 }
 .noticeTitle {
+  margin: 0 0 6px;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 21px;
-  color: var(--color-ink);
   letter-spacing: -0.015em;
-  margin: 0 0 6px;
+  color: var(--color-ink);
 }
 .noticeText {
-  color: var(--color-muted);
-  font-size: 13.5px;
-  line-height: 1.55;
   margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-muted);
 }
 .noticeText:last-child {
   margin-bottom: 0;
 }
 .noticeText strong {
-  color: var(--color-ink);
-  font-weight: 700;
   font-family: var(--font-mono);
   font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
 }
 .noticeActions {
   display: flex;
@@ -414,163 +578,220 @@
   gap: 12px;
 }
 .retry {
-  background: none;
-  border: none;
-  color: var(--color-blue);
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
   padding: 4px;
+  border: none;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-blue);
+  cursor: pointer;
 }
 .retry:hover {
   text-decoration: underline;
 }
 
-/* ---- Panneau visuel (caché en mobile) -------------------------------------- */
-.visualSide {
-  display: none;
-  position: relative;
-  overflow: hidden;
-  padding: 56px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+/* ---- Panneau d'argumentaire ------------------------------------------------ */
+/* Mobile : résumé sous le formulaire (liste compacte, sans ombre portée). */
+.panel {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
 }
-.visualBg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  background:
-    radial-gradient(circle at 100% 0%, var(--color-red) 0%, transparent 35%),
-    radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+.panelCard {
+  padding: 20px;
+  border-radius: 24px;
+  border: 1px solid var(--color-line);
+  background: linear-gradient(145deg, var(--color-blue-light), #fff);
 }
-.visualContent {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.visualTop {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.65);
+.panelTitle {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
   font-weight: 600;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
 }
-.visualTopBar {
-  width: 32px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.4);
+.panelTitle em {
+  font-style: italic;
+  color: var(--color-red);
 }
 
-.quote {
-  margin: 56px 0;
+.points {
+  display: grid;
+  gap: 8px;
+  margin: 0;
   padding: 0;
+  list-style: none;
 }
-.quoteMark {
-  font-family: var(--font-display);
-  font-size: 96px;
-  line-height: 0.5;
-  color: rgba(255, 255, 255, 0.18);
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-.quoteText {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: clamp(22px, 2.4vw, 30px);
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  color: #fff;
-  margin: 0 0 28px;
-  max-width: 480px;
-}
-.author {
-  display: flex;
+.point {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--color-line);
+  background: #fff;
 }
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-  color: #fff;
-  flex-shrink: 0;
-}
-.avatarBlue {
-  background: linear-gradient(135deg, var(--color-green), var(--color-blue));
-}
-.avatarRed {
-  background: linear-gradient(135deg, var(--color-red), var(--color-amber));
-}
-.authorName {
-  font-weight: 700;
-  font-size: 15px;
-}
-.authorMeta {
+.pointBadge {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 0.12em;
-  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.point:nth-child(4n + 2) .pointBadge {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+.point:nth-child(4n + 3) .pointBadge {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+.point:nth-child(4n + 4) .pointBadge {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+.pointCopy strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--color-ink);
+}
+.pointCopy span {
+  display: none;
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted);
 }
 
-.stats {
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.trust li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.trustIcon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.16);
-  padding-top: 32px;
+  place-items: center;
+  background: var(--color-green-light);
+  color: var(--color-green);
 }
-.statNum {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(26px, 2.8vw, 32px);
-  letter-spacing: -0.025em;
-  line-height: 1;
-  color: #fff;
-  margin-bottom: 6px;
+
+.panelLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
 }
-.statLabel {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+.panelLink:hover {
+  text-decoration: underline;
 }
 
 /* ============================================================================
-   Desktop : 2 colonnes + panneau visuel
+   Paliers
    ============================================================================ */
-@media (min-width: 540px) {
+@media (min-width: 560px) {
+  .card {
+    padding: 34px 32px 28px;
+    border-radius: 28px;
+  }
   .row2 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .mentionGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .mentionOpt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 14px;
+  }
+  .mentionTcf {
+    margin-left: 0;
+  }
+  .pointCopy span {
+    display: block;
   }
 }
 
 @media (min-width: 980px) {
-  .wrap {
-    grid-template-columns: 1fr 1fr;
+  .page {
+    padding: 56px 0 88px;
   }
-  .formSide {
-    padding: 28px 48px 48px;
+  .grid {
+    width: min(1180px, calc(100% - 40px));
+    grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
   }
-  .inner {
-    justify-content: center;
+  .card {
+    margin: 0;
   }
-  .visualSide {
-    display: flex;
-    flex-direction: column;
+  .panel {
+    max-width: none;
+    margin: 0;
+    position: sticky;
+    top: 96px;
+  }
+  .panelCard {
+    padding: 36px;
+    border-radius: 34px;
+    box-shadow: var(--au-shadow);
+  }
+  .panelTitle {
+    margin-bottom: 24px;
+    font-size: clamp(30px, 3vw, 40px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+  }
+  .points {
+    gap: 12px;
+  }
+  .point {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 18px;
+    border-radius: 21px;
+    box-shadow: var(--au-shadow-xs);
+  }
+  .pointBadge {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+  .pointCopy strong {
+    font-size: 15px;
+  }
+  .trust {
+    margin-top: 22px;
   }
 }
