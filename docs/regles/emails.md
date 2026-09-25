@@ -40,7 +40,10 @@ Code : `backend_sejourfr/src/main/java/com/sejourfr/app/service/email/` (+ `even
    `{{x}}` (échappé) et `{{{x}}}` (brut), en une seule passe. Un passage optionnel arrive en
    variable plate déjà calculée en Java, éventuellement vide ; **une ligne de gabarit dont tous
    les placeholders sont vides est retirée entière** (décision D-32) — ni paragraphe vide ni
-   ligne blanche.
+   ligne blanche. 🛑 Corollaire : **un bloc optionnel tient sur des lignes DÉDIÉES**, chacune
+   portant au moins une de ses variables (titre du bloc compris : `{{prioritiesIntro}}`, jamais
+   un titre en dur). Un placeholder optionnel posé sur une ligne qui contient aussi du texte fixe
+   ou une variable toujours remplie ne disparaît pas : la ligne reste, avec un trou.
 8. **Aucun prix, remise, « offre » ni urgence commerciale dans un mail ENGAGEMENT.** Le CTA de fin
    d'accès mène à « Mon pass » (`/profil/abonnement`), jamais à `/paiement`.
 9. **Vocabulaire** : « accès Premium », « pass », « accès TCF / Civique ». Jamais « abonnement »

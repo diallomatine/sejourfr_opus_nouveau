@@ -501,7 +501,12 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - **SS-5 — Liens mobiles** (arbitrage n°14) : les mails pointent vers le web ; universal links /
   app links à traiter séparément.
 - **SS-6 — Webhooks Brevo** (rebonds, plaintes → préférences) et `BrevoEmailSender` : hors
-  périmètre (brief §11), `provider_message_id` prêt.
+  périmètre (brief §11), `provider_message_id` prêt. ⚠️ **Les templates Brevo devront reproduire
+  D-32 par des conditions** (`{% if params.x %}…{% endif %}`) : Brevo ne retire pas une ligne
+  vide de lui-même. En particulier le bloc « Vos premières priorités » de
+  `DIAGNOSTIC_PLAN_READY` (`prioritiesIntro` + `priority1..3`), qui doit disparaître entièrement, HTML et
+  texte, quand aucune priorité n'est servie — et, par la même règle, le pied de désabonnement
+  des mails REQUIRED.
 
 # Blocages
 

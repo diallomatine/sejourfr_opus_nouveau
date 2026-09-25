@@ -97,7 +97,7 @@ sans placeholder résiduel (D-24).
 
 SS-1 vérification `payment_status == "paid"` côté Stripe ; SS-2 endpoint newsletter absent
 (footer) ; SS-3 S5 (`GET confirm-email-change` modifie l'état) ; SS-4 S6 (jetons dans les journaux
-Nginx) ; SS-5 liens universels mobiles ; SS-6 `BrevoEmailSender` et webhooks Brevo.
+Nginx) ; SS-5 liens universels mobiles ; SS-6 `BrevoEmailSender` et webhooks Brevo (templates Brevo : reproduire D-32 par des conditions, cf. `decisions.md`).
 
 ## Avant le prochain déploiement
 
