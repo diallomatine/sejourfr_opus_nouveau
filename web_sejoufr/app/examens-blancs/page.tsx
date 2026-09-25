@@ -650,11 +650,6 @@ function ExamsGuestHome() {
                     <span>Conditions réelles</span>
                 </div>
                 <h1>Examens blancs complets</h1>
-                <p>
-                    Une épreuve entière par parcours, qui mélange tous les thèmes.
-                    Le premier examen de chaque parcours est offert, sans création de
-                    compte — vos résultats ne seront pas sauvegardés.
-                </p>
             </header>
 
             {error && <div className="ebh-error">{error}</div>}
@@ -838,17 +833,11 @@ const styles = `
     margin-bottom: 8px;
   }
   .ebh-head h1 {
-    margin: 0 0 8px;
+    margin: 0;
     font-family: var(--font-sans);
     font-size: clamp(24px, 4vw, 32px);
     font-weight: 800; letter-spacing: -0.02em;
     color: var(--color-ink); line-height: 1.1;
-  }
-  .ebh-head p {
-    margin: 0;
-    color: var(--color-muted);
-    font-size: 15.5px; line-height: 1.5;
-    max-width: 640px;
   }
 
   .ebh-error {
