@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
+import com.sejourfr.app.manager.DiagnosticRunManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.FreeEntitlementUsageManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
@@ -27,6 +28,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -66,6 +68,7 @@ public class AccountDeletionService {
     private final UserFunnelEventManager userFunnelEventManager;
     private final AnalyticsIdentityManager analyticsIdentityManager;
     private final AnalyticsEventManager analyticsEventManager;
+    private final DiagnosticRunManager diagnosticRunManager;
     private final RefreshTokenManager refreshTokenManager;
     private final EmailDeliveryManager emailDeliveryManager;
     private final UserEmailPreferenceManager userEmailPreferenceManager;
@@ -138,6 +141,10 @@ public class AccountDeletionService {
         // ON DELETE SET NULL de la base ne se déclenchent d'eux-mêmes.
         analyticsIdentityManager.deleteByUserId(userId);
         analyticsEventManager.detachUser(userId);
+        // Meme geste sur la trace du tunnel (controle N9) : les runs du compte
+        // oublient leur identifiant de mesure et leur cle d'appareil. La run et
+        // ses faits restent comptes ; elle ne relie plus le compte a un traceur.
+        diagnosticRunManager.forgetIdentifiersOfUser(userId, Instant.now());
         // Journal d'envoi et preferences email (arbitrage n°16) : le journal
         // porte l'ADRESSE REELLE du destinataire, il ne survit pas a
         // l'anonymisation. Avant anonymize(), tant que l'adresse est connue :

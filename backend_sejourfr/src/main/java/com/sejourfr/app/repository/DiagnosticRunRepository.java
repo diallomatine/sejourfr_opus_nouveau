@@ -237,6 +237,23 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
     Optional<DiagnosticRun> findFoundingRun(@Param("journeyId") UUID journeyId, @Param("userId") UUID userId);
 
     // ------------------------------------------------------------------------
+    // Suppression de compte (controle N9)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Les runs d'un compte supprime oublient leur identifiant de mesure et leur
+     * cle : le lien porteur ↔ traceur d'appareil ne survit pas au compte. La run
+     * et ses faits restent (le tunnel les compte) ; le jeton de claim aussi, sans
+     * effet (la run a un porteur).
+     */
+    @Modifying(flushAutomatically = true)
+    @Query(value = """
+            UPDATE diagnostic_run SET anonymous_id = NULL, client_key = NULL, updated_at = :now
+             WHERE user_id = :userId AND (anonymous_id IS NOT NULL OR client_key IS NOT NULL)
+            """, nativeQuery = true)
+    int forgetIdentifiersOfUser(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    // ------------------------------------------------------------------------
     // Retention (D14 → D27)
     // ------------------------------------------------------------------------
 

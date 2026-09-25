@@ -40,7 +40,22 @@ logging:
     com.sejourfr: INFO
 
 server:
-  forward-headers-strategy: framework
+  # Controle N8 (2026-09-25) : `native`, jamais `framework`. `framework` pose le
+  # ForwardedHeaderFilter de Spring, qui reecrit l'IP de TOUTE requete avec la
+  # PREMIERE valeur de X-Forwarded-For, sans regarder qui parle : un client la
+  # choisit (verrouille par ForwardedHeadersStrategyTest), et les rate-limits
+  # par IP deviennent decoratifs. `native` = valve RemoteIp de Tomcat : l'en-tete
+  # n'est lu que si la connexion vient d'un proxy interne (loopback et plages
+  # privees par defaut), et c'est la derniere adresse non interne de la chaine
+  # qui est retenue. X-Forwarded-Proto est traite de la meme facon.
+  # Reverse-proxy sur une adresse PUBLIQUE (load balancer externe) : declarer
+  # son adresse (regex Java) dans TOMCAT_TRUSTED_PROXIES, sinon tout le monde
+  # aurait l'IP du proxy. TRUSTED_PROXY_RANGES (ClientIpResolver) reste VIDE :
+  # l'IP est deja resolue par la valve.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      trusted-proxies: ${TOMCAT_TRUSTED_PROXIES:}
 
 sejourfr:
   cors:

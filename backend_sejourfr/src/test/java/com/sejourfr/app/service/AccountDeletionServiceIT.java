@@ -227,6 +227,36 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
         assertThat(restants).isEqualTo(1);
     }
 
+    /** Controle N9 : les runs du compte oublient leur identifiant de mesure et leur cle, pas leurs faits. */
+    @Test
+    void laSuppressionFaitOublierAuxRunsLeurIdentifiantDeMesure() {
+        User user = data.user();
+        User autre = data.user();
+        entityManager.flush();
+        UUID run = UUID.randomUUID();
+        UUID runDUnAutre = UUID.randomUUID();
+        UUID anon = UUID.randomUUID();
+        for (Object[] r : new Object[][]{{run, user.getId()}, {runDUnAutre, autre.getId()}}) {
+            jdbc.update("""
+                    INSERT INTO diagnostic_run (id, diagnostic_type, anonymous_id, user_id, client_key,
+                                                subject_viewed_at, submitted_at, submitted_authenticated, updated_at)
+                    VALUES (?, 'QUICK_TCF', ?, ?, ?, now(), now(), true, now())""",
+                    r[0], anon, r[1], UUID.randomUUID());
+        }
+
+        service.deleteAccount(user.getId());
+        entityManager.flush();
+
+        var row = jdbc.queryForMap("SELECT * FROM diagnostic_run WHERE id = ?", run);
+        assertThat(row.get("anonymous_id")).isNull();
+        assertThat(row.get("client_key")).isNull();
+        assertThat(row.get("submitted_at")).isNotNull();
+        assertThat(row.get("user_id")).isEqualTo(user.getId());
+        var autreRow = jdbc.queryForMap("SELECT * FROM diagnostic_run WHERE id = ?", runDUnAutre);
+        assertThat(autreRow.get("anonymous_id")).isEqualTo(anon);
+        assertThat(autreRow.get("client_key")).isNotNull();
+    }
+
     private int count(String table, UUID userId) {
         Integer value = jdbc.queryForObject(
                 "SELECT count(*) FROM " + table + " WHERE user_id = ?", Integer.class, userId);

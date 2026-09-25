@@ -29,6 +29,15 @@ invitées — passe par `util/ClientIpResolver`.
 - Quand le proxy est de confiance, on retient la **dernière adresse non-proxy**
   de la chaîne `X-Forwarded-For` (les valeurs forgées par le client sont à
   gauche de celle ajoutée par notre proxy, donc ignorées).
+- 🛑 **Production : `server.forward-headers-strategy: native`, jamais `framework`**
+  (contrôle N8, 2026-09-25). `framework` pose le `ForwardedHeaderFilter` de Spring, qui
+  réécrit `getRemoteAddr()` avec la **première** valeur de `X-Forwarded-For` quelle que
+  soit la connexion : un client choisissait son IP, et `ClientIpResolver` ne voyait plus
+  la socket (verrouillé par `ForwardedHeadersStrategyTest`). `native` = valve RemoteIp de
+  Tomcat : l'en-tête n'est lu que depuis un proxy interne (loopback, plages privées), la
+  dernière adresse non interne est retenue. Proxy sur une adresse publique : la déclarer
+  dans `TOMCAT_TRUSTED_PROXIES`. `TRUSTED_PROXY_RANGES` reste **vide** en production
+  (l'IP est déjà résolue ; `*` rouvrirait la falsification).
 - Le rate-limit de connexion **se réinitialise sur authentification réussie**
   (`RateLimitGuard.onLoginSuccess`) : on freine l'enchaînement d'échecs, pas
   l'utilisateur qui se reconnecte.
@@ -395,7 +404,8 @@ Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
   dans la transaction, par `SignupAttribution.stampContext`.
 - **Rétention** : au-delà de `rawEventRetentionDays`, `AnalyticsRetentionService` fait
   oublier à la run son `anonymous_id` et sa `client_key` (D27) ; la run et ses faits
-  restent.
+  restent. **Suppression de compte** (contrôle N9) : `AccountDeletionService` fait de même,
+  immédiatement, sur toutes les runs du compte (`DiagnosticRunManager.forgetIdentifiersOfUser`).
 - ⚠️ **Dates de début de mesure** (Q16) : `DIAGNOSTIC_SUBJECT_VIEWED`,
   `DIAGNOSTIC_SUBMITTED`, `ACCOUNT_ATTACHED` et `SIGNUP_CONTEXT` restent **`null`** dans
   `analytics-config-v1.json` : le serveur est prêt, mais la mesure ne démarre qu'avec les
@@ -468,7 +478,8 @@ Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
 | CA net cohorte | net HT des achats de l'étape 7, **tous** leurs remboursements déduits (quelle que soit leur date) ; un achat sans décomposition est compté à part (`cohortPurchasesWithoutBreakdown`), jamais à 0 |
 | « En cours » | la fenêtre d'une entrée de la période n'est pas écoulée (`fin + 14 j > maintenant`) |
 | Par type | colonnes TCF et Civique du tunnel (étapes 1, 2, 7) |
-| Revenus | brut, TVA, frais, net après frais, net HT des achats de la période (sommes des lignes **décomposées**, `purchasesWithoutBreakdown` à côté) ; remboursements datés dans la période (nombre, montant, delta de net) ; net après remboursements = KPI |
+| Runs sans identifiant (contrôle D) | `funnel.runsWithoutIdentifier` : entrées de l'étape 1 sans `user_id` ni `anonymous_id` (navigateur qui refuse `localStorage` et IndexedDB). Chacune est sa propre personne, faute d'idempotence : doublons possibles, jamais des pertes. Aucune réparation serveur (pas d'heuristique) : l'inconnu est rendu visible |
+| Revenus | brut, TVA, frais, net après frais, net HT des achats de la période (sommes des lignes **décomposées**, `purchasesWithoutBreakdown` à côté ; `grossUnknownPurchases` = achats au brut en euros inconnu, absents de `grossCents`, qui est alors partiel — contrôle N5) ; remboursements datés dans la période (nombre, montant, delta de net) ; net après remboursements = KPI |
 | Inscriptions | comptes créés dans la période, non supprimés : après / hors diagnostic (`signup_context`), TCF / Civique (`signup_diagnostic_type`), `contextUnknown` (comptes antérieurs), plateformes ; `loggedInAfterDiagnostic` = comptes ayant claimé une run par connexion dans la période |
 | Sources | visiteurs de la période par groupe, dans l'ordre de la config, repli en dernier |
 | Ratios (§7.4) | sur la cohorte : 2/1 ; inscrits après / soumis anonymes (les « déjà connectés » exclus des deux termes) ; 4/3 ; 5/4 ; 6/5 ; 7/6 ; 7/2 ; CA net cohorte / étape 2 |

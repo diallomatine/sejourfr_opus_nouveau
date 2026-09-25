@@ -171,6 +171,13 @@ public class DiagnosticRunManager {
         return repository.findFoundingRun(journeyId, userId);
     }
 
+    /** Suppression de compte (N9) : ses runs oublient identifiant de mesure et cle. */
+    @Transactional
+    public int forgetIdentifiersOfUser(UUID userId, Instant now) {
+        if (userId == null) return 0;
+        return repository.forgetIdentifiersOfUser(userId, now);
+    }
+
     /** Retention : oublie l'identifiant de mesure des runs plus vieilles que {@code cutoff}. */
     @Transactional
     public int forgetAnonymousIdBefore(Instant cutoff, int limit, Instant now) {
