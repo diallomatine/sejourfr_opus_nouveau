@@ -901,8 +901,9 @@ d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes bil
 `POST /api/public/page-views`, `GET /api/admin/page-views`, `GET /api/admin/page-views/paths`
 et `GET /api/admin/audience/funnel` ont été **supprimés** au lot 1a du chantier « Suivi » :
 aucun front ne les appelait plus. La table `page_views` (V020) reste en base, plus jamais
-écrite ni lue. La mesure d'audience passe par `POST /api/public/analytics/events/batch` et
-`POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
+écrite ni lue. La mesure d'audience passe par `POST /api/public/analytics/events/batch`
+(et, pour l'app publiée, l'unitaire `POST /api/public/analytics/events` rétabli, cf. plus
+haut) et `POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
 
 ## Admin
 

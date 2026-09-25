@@ -216,7 +216,9 @@ le `signedTransactionInfo` inclus dans la notification est déjà autoritatif
    `https://api.sejourfr.fr/api/billing/webhook`, sélectionner les events :
    `checkout.session.completed`, `customer.subscription.created`,
    `customer.subscription.updated`, `customer.subscription.deleted`,
-   `charge.refunded`.
+   `charge.refunded`. ⚠️ C'est la liste du mode **abonnement** (dormant) ; en mode
+   `ONE_TIME` (actuel), la liste qui fait foi est celle des **cinq** events de
+   `docs/setup-paiement-one-time.md` §1.
 
 **Events Stripe gérés** (cf. `StripeSubscriptionService`) :
 - `checkout.session.completed` (mode=SUBSCRIPTION) → init UserSubscription,
@@ -391,7 +393,9 @@ Schéma : V074 (colonnes de revenu et d'attribution de `user_subscriptions`,
 - 🛑 `checkout.session.completed` n'accorde l'accès que si `payment_status = paid`. Un paiement
   différé est accordé sur `checkout.session.async_payment_succeeded`.
   ⚠️ **Action propriétaire** : abonner l'endpoint webhook Stripe à
-  `checkout.session.async_payment_succeeded` et `checkout.session.async_payment_failed`.
+  `checkout.session.async_payment_succeeded` et `checkout.session.async_payment_failed`
+  (liste complète des **cinq** events du mode one-time, litiges compris :
+  `docs/setup-paiement-one-time.md` §1).
 - 🛑 **Carte seule, imposée dans le code** (contrôle B, 2026-09-25) : la session Checkout
   one-time porte `payment_method_types = [card]` (`BillingService.createOneTimeCheckout`).
   Apple Pay / Google Pay passent par la carte ; Link n'est pas ajouté (il peut être adossé à
