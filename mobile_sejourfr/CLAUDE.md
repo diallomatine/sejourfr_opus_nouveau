@@ -4008,10 +4008,11 @@ avant démarrage (`MOCK_EXAM` / `OTHER`) ; un écran que le Plan ouvre avec le m
 planStep: true)`) passe `LOCKED_PLAN` + parcours (`planStepCta`). Les lanceurs du Plan
 (`openPlanExercise`, `startPlanSeanceItem`, `openPlanAssessment`, `startPlanMilestone`)
 prennent une `PlanOrigine` **requise** (`screens/plan/plan_cta.dart`) : `plan` (écrans du
-Plan) ; `relais` = l'action du Plan relayée par la carte « À faire maintenant » de l'Accueil,
-« Reprendre » (TCF **et** civique) et la reco d'épreuve de Réviser → `LOCKED_PLAN` **seulement
-si le parcours est connu** ; `horsPlan` (carte d'épreuve de l'Accueil) → CTA de l'écran
-d'arrivée. Jamais d'origine déduite d'un `journeyId` en cache.
+Plan) ; `relais` = l'action du Plan relayée par la carte « À faire maintenant » de l'Accueil
+et la reco d'épreuve → `LOCKED_PLAN` **seulement si le parcours est connu** ; `horsPlan`
+(carte d'épreuve de l'Accueil, « Reprendre » de Réviser TCF **et** civique) → CTA de l'écran
+d'arrivée. 🛑 « Reprendre » n'est le Plan que sur un marqueur PERSISTÉ de lancement depuis
+le Plan, qui n'existe pas (D113). Jamais d'origine déduite d'un `journeyId` en cache.
 
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
 sous les cartes du paywall).

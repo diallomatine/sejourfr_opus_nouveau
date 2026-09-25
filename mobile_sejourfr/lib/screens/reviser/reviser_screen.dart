@@ -283,9 +283,13 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   /// 🛑 **Une MESURE passe devant tout le reste**, ici comme sur le Plan et sur
   /// l'Accueil : c'est [planNowCard] qui l'a tranché, l'écran exécute.
   ///
-  /// Contrôle F : l'action du Plan **relayée** ([PlanOrigine.relais]) — une
-  /// offre ouverte en chemin est celle du Plan (`LOCKED_PLAN` + parcours)
-  /// seulement si le parcours est connu, sinon celle de l'écran d'arrivée.
+  /// 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
+  /// contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
+  /// avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement, et
+  /// ce marqueur n'existe pas — la carte relance l'action calculée à la
+  /// lecture, pas une tentative en cours. [PlanOrigine.horsPlan] : une offre
+  /// ouverte en chemin prend le CTA de l'écran d'arrivée, sans parcours
+  /// (`OTHER` pour un exercice, `MOCK_EXAM` pour une mesure) — miroir du web.
   Future<void> _reprendreTcf(PlanNowCard carte) async {
     if (_lancement) return;
     setState(() => _lancement = true);
@@ -293,13 +297,13 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     final exercice = carte.exercise;
     if (mesure != null) {
       await startPlanSeanceItem(context, ref, mesure,
-          origine: PlanOrigine.relais);
+          origine: PlanOrigine.horsPlan);
     } else if (exercice != null) {
       await openPlanExercise(
         context,
         ref,
         exercice,
-        origine: PlanOrigine.relais,
+        origine: PlanOrigine.horsPlan,
         masteryBefore: carte.priority?.masteryState,
       );
     }
@@ -371,9 +375,9 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   Future<void> _reprendreCivique(CivicNowSource? source) async {
     if (_lancement || source == null) return;
     setState(() => _lancement = true);
-    // Contrôle F : la série est l'action du Plan civique relayée ici —
-    // `LOCKED_PLAN` + son parcours s'il est connu, sinon `OTHER`.
-    final cta = planCta(ref, PlanOrigine.relais,
+    // Contrôle F (D113) : sans marqueur persisté de lancement depuis le Plan,
+    // la reprise n'est pas le Plan — le CTA d'une série (`OTHER`), sans parcours.
+    final cta = planCta(ref, PlanOrigine.horsPlan,
         horsPlan: AnalyticsCtaLocation.other, civique: true);
     switch (source) {
       case CivicNowUnite(code: final code):

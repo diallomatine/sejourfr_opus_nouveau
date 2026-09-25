@@ -5075,7 +5075,10 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   fabriquait des `OTHER_CTA`). Hors Plan : le CTA du verrou de l'écran. Depuis le
   Plan : `LOCKED_PLAN` + `journeyId` — lanceurs du Plan, « À faire maintenant » de
   l'Accueil (et **seulement** elle : une carte d'épreuve de l'Accueil vaut
-  `MOCK_EXAM`), reprise de Réviser, et tout écran ouvert avec le marqueur
-  `?etape=1` (`usePlanStepPurchaseOrigin`, vérification comprise). Origine
+  `MOCK_EXAM`), et tout écran ouvert avec le marqueur
+  `?etape=1` (`usePlanStepPurchaseOrigin`, vérification comprise).
+  🛑 **« Reprendre » de Réviser n'est PAS le Plan** (D113) : il ne le serait que
+  sur un marqueur PERSISTÉ de lancement depuis le Plan, qui n'existe pas — son 403
+  vaut `OTHER` (exercice, série civique) ou `MOCK_EXAM` (mesure), sans `journeyId`. Origine
   inconnue : `null` ⇒ `?cta=inconnu` ⇒ aucun `ctaLocation` envoyé ⇒ `UNKNOWN`.
 

@@ -35,9 +35,10 @@ import 'plan_seance_state.dart';
 /// mentirait) : c'est le lanceur partagé qui tranche et ouvre l'offre — ici
 /// comme sur le résultat du diagnostic.
 ///
-/// 🛑 [origine] est **requise** (contrôle F) : l'Accueil et Réviser relaient
-/// l'exercice du Plan ([PlanOrigine.relais]), le Plan le lance
-/// ([PlanOrigine.plan]). Ce lanceur n'impose plus `LOCKED_PLAN`.
+/// 🛑 [origine] est **requise** (contrôle F) : l'Accueil relaie l'exercice du
+/// Plan ([PlanOrigine.relais]), le Plan le lance ([PlanOrigine.plan]),
+/// « Reprendre » de Réviser n'est pas le Plan ([PlanOrigine.horsPlan], D113).
+/// Ce lanceur n'impose plus `LOCKED_PLAN`.
 Future<void> openPlanExercise(
   BuildContext context,
   WidgetRef ref,

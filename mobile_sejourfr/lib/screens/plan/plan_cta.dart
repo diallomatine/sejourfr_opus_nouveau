@@ -19,13 +19,14 @@ enum PlanOrigine {
   plan,
 
   /// L'action **du Plan** relayée par un autre écran : la carte « À faire
-  /// maintenant » de l'Accueil, « Reprendre » et la reco d'épreuve de
-  /// Réviser. Du Plan **seulement si son parcours est connu** ; sinon le CTA
-  /// de l'écran d'arrivée.
+  /// maintenant » de l'Accueil et la reco d'épreuve. Du Plan **seulement si
+  /// son parcours est connu** ; sinon le CTA de l'écran d'arrivée.
   relais,
 
-  /// Tout autre point d'entrée (carte d'épreuve de l'Accueil…) : le CTA de
-  /// l'écran d'arrivée, sans parcours.
+  /// Tout autre point d'entrée (carte d'épreuve de l'Accueil, « Reprendre »
+  /// de Réviser — D113 : aucun marqueur persisté ne dit qu'il reprend un
+  /// exercice lancé depuis le Plan) : le CTA de l'écran d'arrivée, sans
+  /// parcours.
   horsPlan,
 }
 

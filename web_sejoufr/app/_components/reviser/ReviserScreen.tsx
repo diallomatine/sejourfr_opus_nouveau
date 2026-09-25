@@ -352,13 +352,17 @@ function TcfBody({
           </Pad>
         </Section>
       )}
-      {/* 🛑 Ces deux lanceurs ne partent que de la reprise, c'est-à-dire de
-          l'action du Plan (`planNowCard`) : un 403 y est le CTA du Plan
-          (contrôle F), avec le parcours servi — miroir du mobile. */}
+      {/* 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
+          contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
+          avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement,
+          et ce marqueur n'existe pas — la carte relance l'action calculée à la
+          lecture, pas une tentative en cours. Un 403 y prend donc le CTA de
+          l'écran d'arrivée, sans parcours : `MOCK_EXAM` pour une mesure (les
+          grilles d'examens), `OTHER` pour un exercice — miroir du mobile. */}
       <PaywallSheet
-        ctaLocation="LOCKED_PLAN"
+        ctaLocation={assessment.paywallOpen ? "MOCK_EXAM" : "OTHER"}
         screen="reviser"
-        journeyId={journey.data?.journeyId ?? null}
+        journeyId={null}
         open={exercise.paywallOpen || assessment.paywallOpen}
         module="INTEGRAL"
         onClose={() => {
@@ -587,12 +591,13 @@ function CiviqueBody({
           </Stack>
         </Pad>
       </Section>
-      {/* La reprise civique lance l'action du Plan civique (`civicNowCard`) :
-          son 403 est le CTA du Plan (contrôle F). */}
+      {/* 🛑 La reprise civique relance l'action de `civicNowCard`, sans
+          marqueur persisté de lancement depuis le Plan : pas le Plan (D113),
+          le CTA d'une série (`OTHER`), sans parcours — miroir du mobile. */}
       <PaywallSheet
-        ctaLocation="LOCKED_PLAN"
+        ctaLocation="OTHER"
         screen="reviser"
-        journeyId={journey.data?.journeyId ?? null}
+        journeyId={null}
         open={paywall || serieUnite.paywall}
         module="CIVIQUE"
         onClose={() => {
