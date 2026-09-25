@@ -502,6 +502,272 @@ retour (faible / moyenne / forte).
 - Fichiers : `analytics/analytics-config-v1.json` (inchangé).
 - Difficulté de retour : faible (une valeur de config).
 
+**D44 — Rendu d'une étape de tunnel non mesurée** · Lot 4 admin
+- Contexte : aujourd'hui les 7 étapes valent `null` ; une barre grise vide se lirait « personne ».
+- Options : barre vide ; « 0 » ; cadre pointillé avec mention ; encart unique.
+- Choix : tunnel entièrement `null` → un encart unique « Non mesuré… » ; tunnel partiel → étapes `null` en cadre pointillé « non mesuré » / « mesuré depuis le JJ/MM », taux « — ». Une étape à 0 réel affiche « 0 » sans barre (le template imposait 52 px minimum, qui dessinait une barre pour zéro).
+- Fichiers : `FunnelCard.tsx`, `measurement.ts`.
+- Difficulté de retour : faible.
+
+**D45 — Longueur des barres de sources calculée par le front** · Lot 4 admin
+- Contexte : le contrat ne sert pas de largeur de barre pour les sources ; le template en dessine.
+- Options : pas de barre ; échelle au plus gros groupe ; champ backend.
+- Choix : échelle visuelle rapportée au maximum, aucun pourcentage affiché. Seule arithmétique de l'écran, documentée dans `admin_sejourfr/CLAUDE.md`.
+- Fichiers : `SourcesCard.tsx`.
+- Difficulté de retour : faible.
+
+**D46 — « Apple » conservé dans le bloc Revenus** · Lot 4 admin
+- Contexte : l'écart « Apple → iOS » vise la plateforme ; dans Revenus, APPLE est le fournisseur de paiement.
+- Options : « iOS » partout ; « iOS » pour les plateformes seulement.
+- Choix : « iOS » dans la grille Inscriptions ; « Stripe / Apple / Google » dans Revenus.
+- Fichiers : `labels.ts`.
+- Difficulté de retour : triviale.
+
+**D47 — Placement Activité / Sources** · Lot 4 admin
+- Contexte : le retrait du bloc « Utilisation du plan » libère la place de gauche de la dernière rangée.
+- Options : Sources seul ; Activité pleine largeur dessous ; [Activité | Sources].
+- Choix : rangée [Activité | Sources] : Sources garde sa place du template, pas de trou. Activité n'est pas un proxy du bloc Plan (libellés explicites).
+- Fichiers : `SuiviPage.tsx`.
+- Difficulté de retour : triviale.
+
+**D48 — Filtres dans l'URL** · Lot 4 admin
+- Contexte : l'ancien écran gardait ses filtres en `localStorage` ; `/subscriptions` les met dans l'URL.
+- Options : `localStorage` ; URL.
+- Choix : URL (`?period&from&to&type&platform&source&internal`), défauts non écrits, valeurs illisibles ignorées ; plage incomplète ou inversée → « Aujourd'hui » ; > 365 j → 400 affiché en erreur.
+- Fichiers : `useSuiviParams.ts`, `SuiviFilters.tsx`.
+- Difficulté de retour : faible.
+
+**D49 — Formatage des pourcentages servis** · Lot 4 admin
+- Contexte : le serveur sert une décimale (64.0) ; le template affiche « 64 % » et « 11,4 % ».
+- Options : —
+- Choix : `maximumFractionDigits: 1` (affichage seul, aucun recalcul) ; variations signées ; montants retirés avec le signe moins U+2212.
+- Fichiers : `format.ts`, `labels.ts`.
+- Difficulté de retour : triviale.
+
+**D50 — Écarts de template non listés, gardés au minimum** · Lot 4 admin
+- Contexte : le template ne prévoit ni les filtres plateforme/source/internes, ni la période appliquée, ni les notes d'inconnu.
+- Options : —
+- Choix : ligne « période appliquée » sous le titre ; seconde ligne de filtres discrets (Plateforme et Source en `<select>`, case « Inclure internes », dates visibles seulement en « Personnalisé ») ; badge « en cours » dans l'en-tête du tunnel ; notes de bas de bloc conditionnelles (achats sans décomposition, frais estimés, bloc qui ignore le filtre type, connexions après diagnostic, plateformes anciennes, « Origine inconnue » seulement si > 0) ; palier responsive à 400 px pour tenir 360 px ; charte admin (tokens, Fraunces pour titres et chiffres principaux, JetBrains Mono pour badges).
+- Fichiers : `features/suivi/*`.
+- Difficulté de retour : faible.
+
+**D51 — Un module unique pour le contexte client** · Lot 3 web
+- Contexte : `api.ts` a besoin de l'identifiant (en-têtes) et `analytics.ts` importe `api` : cycle d'import.
+- Options : identité dans `analytics.ts` ; module dédié.
+- Choix : `lib/client-context.ts` (identifiant, visite, en-têtes, version), qui n'importe que `traffic-source`. Version : `NEXT_PUBLIC_APP_VERSION`, sinon `npm_package_version`.
+- Fichiers : `client-context.ts`, `api.ts`, `analytics.ts`, `next.config.ts`.
+- Difficulté de retour : faible.
+
+**D52 — Run + jeton stockés dans l'IndexedDB du diagnostic** · Lot 3 web
+- Contexte : Q3 : jeton gardé avec le brouillon ; deux modules ne peuvent pas ouvrir la même base à deux versions.
+- Options : `localStorage` ; même base IndexedDB.
+- Choix : base `sejourfr-diagnostic` v2 avec un magasin `runs` (une entrée par type), un seul ouvreur (`openDiagnosticDb`), repli mémoire.
+- Fichiers : `diagnostic-local-store.ts`, `diagnostic-run-store.ts`, `confidentialite/page.tsx`.
+- Difficulté de retour : faible.
+
+**D53 — Ce qu'est un « passage »** · Lot 3 web
+- Contexte : quand réutiliser une `clientKey` et quand en tirer une nouvelle.
+- Options : —
+- Choix : même session, ou trace d'invité sans session non soumise (un invité qui se connecte continue le même passage) → même clé ; sinon nouvelle. Pas d'appel si la trace est complète et le jeton valide. Clé écrite avant l'appel pour être rejouée après coupure.
+- Fichiers : `diagnostic-run.ts`.
+- Difficulté de retour : faible.
+
+**D54 — Quelle run une authentification envoie** · Lot 3 web
+- Contexte : —
+- Options : écran par écran ; dans `authApi`.
+- Choix : dans `authApi` : la run invitée la plus récente de l'appareil dont le jeton est valide. Jeton conservé après l'auth (lot 3b) ; le renvoyer est sans effet serveur.
+- Fichiers : `api.ts`, `diagnostic-run-store.ts`.
+- Difficulté de retour : faible.
+
+**D55 — « Soumis » du TCF rapide sur le web** · Lot 3 web
+- Contexte : le bouton « Analyser mes réponses » n'existe pas sur le web.
+- Options : —
+- Choix : le bouton de la dernière production (« Valider mon diagnostic » / « Terminer et analyser » en invité ; envoi de la dernière production connecté). Jamais la run d'une autre session.
+- Fichiers : `DiagnosticView.tsx`.
+- Difficulté de retour : faible.
+
+**D56 — Les événements du Plan ne portent pas de run** · Lot 3 web
+- Contexte : Q8 (le serveur résout la run fondatrice) contredisait la consigne « run + journey » donnée par l'orchestrateur.
+- Options : run + journey ; journey seul.
+- Choix : `journeyId` seul sur `PLAN_OPENED` et `PLAN_UNLOCK_CLICKED` ; la lecture Suivi joint journey → run fondatrice. **Arbitrage orchestrateur : Q8 prime, le mobile est aligné.**
+- Fichiers : `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `PlanUnlockScreen.tsx`.
+- Difficulté de retour : faible.
+
+**D57 — Le rapport ne cite que la run de sa propre session** · Lot 3 web
+- Contexte : —
+- Options : —
+- Choix : run jointe seulement si la trace locale désigne cette session, sinon `null`. Le rapport du TCF complet émet aussi l'événement (activité).
+- Fichiers : `diagnostic-run.ts`, écrans de résultat.
+- Difficulté de retour : faible.
+
+**D58 — Emplacement et contenu de `PLAN_UNLOCK_CLICKED`** · Lot 3 web
+- Contexte : —
+- Options : —
+- Choix : bouton rouge de `/plan/debloquer` (seul à afficher un prix) ; `planCode` = pass d'entrée affiché, `displayedPriceCents = round(prix × 100)` ; catalogue injoignable ⇒ ni code ni prix.
+- Fichiers : `PlanUnlockScreen.tsx`, `passes.ts`.
+- Difficulté de retour : faible.
+
+**D59 — Transport de l'intention d'achat par l'adresse** · Lot 3 web
+- Contexte : —
+- Options : —
+- Choix : `?cta=` et `?journey=` validés à l'arrivée ; sans rien : `PRICING` sur `/paiement` ; `PaywallSheet` et les CTA `OTHER` transmettent leur `ctaLocation` ; `origin` obligatoire dans `getPaymentLink`. **Suite orchestrateur** : toutes les feuilles du Plan en `LOCKED_PLAN` transmettent aussi `journeyId`.
+- Fichiers : `purchase-origin.ts`, `api.ts`, pages de paiement, `PaywallSheet.tsx`, `SkillLayout.tsx`, `TcfPaywallCard.tsx`, `profil/abonnement`.
+- Difficulté de retour : faible.
+
+**D60 — Politique d'envoi des lots** · Lot 3 web
+- Contexte : —
+- Options : —
+- Choix : 202 → purge (rejets compris) ; 400 → lot abandonné (écart à la lettre de D5 : renvoyer à l'identique échouerait toujours) ; 429/5xx/réseau → nouvel essai à 30 s sous les mêmes `eventId` ; sans identifiant de mesure, rien ne part ; file plafonnée à 200.
+- Fichiers : `analytics.ts`.
+- Difficulté de retour : faible.
+
+**D61 — Allowlist de chemins miroir et first-touch au premier chargement** · Lot 3 web
+- Contexte : l'accueil n'émet rien et perdait ses UTM à la première navigation.
+- Options : —
+- Choix : `TRACKED_PATHS` recopie `AnalyticsPaths.KNOWN` ; écran non déclaré → `path: null` ; first-touch capté au premier chargement (`FirstTouchCapture` dans le layout racine).
+- Fichiers : `analytics.ts`, `FirstTouchCapture.tsx`, `layout.tsx`.
+- Difficulté de retour : faible.
+
+**D62 — « Sujet vu » du TCF complet dans le hub** · Lot 3 web
+- Contexte : les sections EE/EO ne passent pas par le runner.
+- Options : —
+- Choix : création de la run au lancement de section (`lancerSection`), idempotente par session.
+- Fichiers : `TcfDiagnosticHub.tsx`.
+- Difficulté de retour : faible.
+
+**D63 — Achat `LOCKED_PLAN` sans parcours résoluble** · Orchestrateur
+- Contexte : plusieurs feuilles d'achat du Plan envoyaient `LOCKED_PLAN` sans `journeyId` ; la règle 2b (D32) aurait rangé l'achat en `OTHER_CTA`, ce qui est faux (c'est bien le CTA du Plan).
+- Options : `OTHER_CTA` ; `DIAGNOSTIC_PLAN` sans run ; résoudre le parcours actif côté serveur ; `UNKNOWN`.
+- Choix : `UNKNOWN`, run nulle (inconnu plutôt que faux, aucune résolution devinée), et le web comme le mobile transmettent le `journeyId` sur toutes les feuilles du Plan pour que ce cas reste marginal.
+- Fichiers : backend lot 4 (`AttributionAchat`), web et mobile (feuilles d'achat du Plan).
+- Difficulté de retour : faible.
+
+**D64 — Un seul contexte client, `package_info_plus` en dépendance directe** · Lot 3 mobile
+- Contexte : Q4 demande trois en-têtes ; l'app n'avait aucune source pour sa version.
+- Options : `--dart-define` ; `package_info_plus`.
+- Choix : `ClientContext`, posé par l'intercepteur d'`ApiClient` et par le refresh. `package_info_plus` était déjà embarqué par `wakelock_plus` (9.0.1) : binaire inchangé. `X-Sejourfr-Client` vaut `ios|android`, plus jamais `mobile`.
+- Fichiers : `client_context.dart`, `api_client.dart`, `analytics_identity.dart`, `auth_controller.dart`, `pubspec.yaml`.
+- Difficulté de retour : faible.
+
+**D65 — Retour réseau détecté par les réponses du serveur, sans `connectivity_plus`** · Lot 3 mobile
+- Contexte : Q15 demande un envoi au retour du réseau.
+- Options : paquet de connectivité ; réponses d'`ApiClient`.
+- Choix : `ApiClient.onReachable` relance la file si le dernier échec était réseau ; + reprise de l'app, minuterie 60 s, délai croissant 5 s → 5 min. Aucune dépendance ajoutée.
+- Fichiers : `analytics_queue.dart`, `api_client.dart`.
+- Difficulté de retour : faible.
+
+**D66 — File SharedPreferences groupée par visite** · Lot 3 mobile
+- Contexte : l'enveloppe ne porte qu'un `sessionId`, la file hors ligne mélange plusieurs visites.
+- Options : —
+- Choix : chaque événement garde son `anonymousId` et son `sessionId` ; un lot = la visite la plus ancienne, ≤ 50 ; file ≤ 200 événements et ≤ 160 h (le serveur rejette à 168 h) ; 202 purge (rejets compris), 4xx abandonne, 429/5xx/réseau réessaie sous les mêmes `eventId`.
+- Fichiers : `analytics_queue.dart`, `analytics_repository.dart`, `analytics.dart`, `analytics_events.dart`.
+- Difficulté de retour : faible.
+
+**D67 — Une trace de run par type, rattachée à un passage** · Lot 3 mobile
+- Contexte : un visiteur peut commencer le civique et le TCF rapide.
+- Options : —
+- Choix : `DiagnosticRunTracker`, seul stockage run + jeton, une entrée par type ; `clientKey` réutilisée tant que le passage n'est pas clos et la session identique. Le « soumis » du TCF rapide crée la run si elle manque (étape 1 datée un peu tard, passage non perdu).
+- Fichiers : `diagnostic_run_tracker.dart`, `diagnostic_controller.dart`, `diagnostic_screen.dart`, `runner_screen.dart`, `tcf_diagnostic_screen.dart`.
+- Difficulté de retour : moyenne.
+
+**D68 — Moments de création de la run sur mobile** · Lot 3 mobile
+- Contexte : « à l'affichage de la 1ʳᵉ question ».
+- Options : —
+- Choix : écran de l'écrit (TCF rapide) ; ouverture du runner `civicDiagnosticId` (civique) ; démarrage d'une section (TCF complet), comme le web (D62).
+- Fichiers : idem D67.
+- Difficulté de retour : faible.
+
+**D69 — Un événement ne porte que la run du compte connecté** · Lot 3 mobile
+- Contexte : appareil partagé entre plusieurs comptes. Le web vérifie la session (D57) : mécanisme différent, contrat identique.
+- Options : —
+- Choix : le tracker note le compte porteur de la run ; `runIdFor` ne renvoie rien pour un autre compte.
+- Fichiers : `diagnostic_run_tracker.dart`, `auth_controller.dart`.
+- Difficulté de retour : faible.
+
+**D70 — CTA par défaut `OTHER` — **révoqué**** · Lot 3 mobile
+- Contexte : l'agent mobile avait choisi `OTHER` par défaut quand une offre ne connaît pas son CTA.
+- Options : `OTHER` ; aucune intention.
+- Choix : **Révoqué par l'orchestrateur** : un `OTHER` fabriqué rangerait à tort un achat du Plan en `OTHER_CTA`. Parité web : CTA inconnu → aucune intention → `UNKNOWN`.
+- Fichiers : `paywall_sheet.dart`, `premium_lock.dart`, `paywall_screen.dart`, `start_failure.dart`.
+- Difficulté de retour : faible.
+
+**D71 — Cycle de vie de l'intention d'achat** · Lot 3 mobile
+- Contexte : Q12.
+- Options : —
+- Choix : ancienne intention du même produit effacée ; nouvelle créée (délai max 4 s) et enregistrée par SKU avant la feuille du store ; tout échec ouvre quand même l'achat ; effacée seulement après la vérification réussie d'un achat réellement nouveau (pas d'une transaction restaurée) ; purge à 7 j ; `appAccountToken` / `obfuscated*` intacts.
+- Fichiers : `billing_controller.dart`, `purchase_intent_store.dart`, `billing_repository.dart`, `billing_models.dart`.
+- Difficulté de retour : faible.
+
+**D72 — `PLAN_OPENED` une fois par ouverture, Plan affiché connu** · Lot 3 mobile
+- Contexte : l'événement partait au montage, avant de savoir quel parcours était affiché.
+- Options : —
+- Choix : émis une fois par ouverture, onglet TCF / civique connu, `journeyId` lu en cache ; sans parcours chargé, il part sans contexte.
+- Fichiers : `plan_screen.dart`.
+- Difficulté de retour : faible.
+
+**D73 — Parité web** · Lot 3 mobile
+- Contexte : arbitrage orchestrateur après le lot 3 web.
+- Options : —
+- Choix : événements du Plan en `journeyId` seul (D56) ; `PLAN_UNLOCK_CLICKED` sur le bouton à prix ; toute offre du Plan transmet `LOCKED_PLAN` + `journeyId` (y compris sur un 403) ; même politique de lots ; l'auth envoie la run invitée la plus récente au jeton valide, conservé pour le lot 3b ; `DIAGNOSTIC_REPORT_VIEWED` aussi sur le résultat du TCF complet.
+- Fichiers : commits `f0031a2c` et suivant.
+- Difficulté de retour : faible.
+
+**D74 — Parcours → run fondatrice dans une vue SQL (V075)** · Lot 4 backend
+- Contexte : la règle avait deux lecteurs (`purchase_intent` pour un parcours, étapes 5–6 du tunnel pour beaucoup) et la copie du lot 2b divergeait déjà (départage différent).
+- Options : seconde copie SQL ; résolution Java par événement (N+1) ; vue.
+- Choix : `v_journey_founding_run`, lue par `findFoundingRun` et par `SuiviReadRepository` : une règle, une autorité. La copie 2b (D31) est supprimée. Les événements du Plan passent par le parcours, sinon par la run qu'ils portent.
+- Fichiers : `V075__vue_run_fondatrice_parcours.sql`, `DiagnosticRunRepository`, `SuiviReadRepository`, `PurchaseIntentService`.
+- Difficulté de retour : faible.
+
+**D75 — Dates de mesure injectées dans le calcul** · Lot 4 backend
+- Contexte : la config de production laisse les dates à `null` jusqu'au déploiement (D43) : un test qui la lit ne verrait que `null`.
+- Options : config de test sur le classpath ; contexte Spring séparé ; paramètre.
+- Choix : `SuiviService.compute(query, starts)` : les scénarios passent 2020-01-01, `AdminSuiviControllerIT` vérifie la config réelle.
+- Fichiers : `SuiviService`, `SuiviScenariosIT`.
+- Difficulté de retour : faible.
+
+**D76 — Ce qu'une mesure manquante annule** · Lot 4 backend
+- Contexte : D43 dit « non mesuré = `null` » sans dire comment cela se propage dans un tunnel séquentiel ou un filtre plateforme.
+- Options : annuler l'étape seule ; l'étape et les suivantes.
+- Choix : une étape non mesurée annule elle-même et toutes les suivantes. Un filtre iOS / Android exige aussi `SIGNUP_PLATFORM_DETAIL` pour visiteurs, sources et inscriptions (sinon faux 0). Une somme mesurée et vide vaut 0.
+- Fichiers : `SuiviMapper`.
+- Difficulté de retour : faible.
+
+**D77 — Règles de type, de source et de personne à la lecture** · Lot 4 backend
+- Contexte : le brief ne dit pas comment typer un achat, quelle source a une personne, ni comment compter « Tous ».
+- Options : deviner ; laisser inconnu.
+- Choix : type d'achat : run attribuée, sinon module du parcours, sinon Civique pour un pass Civique seul ; un pass Intégral non attribué n'a pas de type (compté sous « Tous » seulement). `FULL_TCF` exclu de tout indicateur. Source : first-touch déclaré (visiteur de la run → visiteur d'inscription → plus ancien visiteur lié → `signup_source`), groupé par la config ; sans source → « Toutes » seulement, jamais « autre ». Le filtre type ne s'applique ni aux visiteurs, ni aux sources, ni aux inscriptions, ni au bloc par type. Sous « Tous », les 3 sous-lignes de « Compte rattaché » sont comptées par priorité (déjà connecté → inscrit après → connecté après) et somment l'étape 3.
+- Fichiers : `SuiviReadRepository`, `SuiviMapper`.
+- Difficulté de retour : moyenne.
+
+**D78 — Sommes partielles signalées, pas effacées** · Lot 4 backend
+- Contexte : un achat sans décomposition (ex. devise sans taux) rend les sommes incomplètes.
+- Options : `null` pour tout le total ; somme partielle signalée.
+- Choix : sommes sur les achats à décomposition connue, et `purchasesWithoutBreakdown` / `cohortPurchasesWithoutBreakdown` servis à côté (l'écran affiche une note).
+- Fichiers : `SuiviReadRepository`, `SuiviMapper`.
+- Difficulté de retour : faible.
+
+**D79 — Ancien backend de lecture supprimé, restes compris** · Lot 4 backend
+- Contexte : Q9/Q10.
+- Options : garder `RepartitionArrondie` et les annotations (l'audit §6.2 le suggérait) ; supprimer.
+- Choix : supprimés (plus aucun appelant) : `AdminAnalyticsController/Service`, `AnalyticsReadManager/Repository`, `AdminAnalyticsResponse`, `AnalyticsInsightsBuilder`, `AnalyticsCalculs`, `AnalyticsGrain`, `AnalyticsLibelles`, `RepartitionArrondie`, annotations, 8 classes de test ; tables conservées ; 404 verrouillé. `GeoIpCountryResolver` reste (l'ingestion l'utilise), bien que plus rien ne lise le pays : point ouvert.
+- Fichiers : voir commit `e708af0f`.
+- Difficulté de retour : faible (git).
+
+**D80 — Retours du lot 3 web appliqués** · Lot 4 backend
+- Contexte : écarts 1, 2, 3, 5 remontés par le web.
+- Options : —
+- Choix : champs de first-touch illisibles → `null`, lot accepté ; une enveloppe valide enregistre le visiteur et son first-touch même si tous les événements sont rejetés ; `sessionId` reste requis (colonne `NOT NULL`, un id serveur ferait de chaque lot une visite) ; `LOCKED_PLAN` sans run fondatrice → `UNKNOWN` (remplace en partie D32, applique D63).
+- Fichiers : `AnalyticsEventNormalizer`, `AnalyticsBatchIngestionService`, `PurchaseIntentService`, `PurchaseOrigin`, tests associés.
+- Difficulté de retour : faible.
+
+**D81 — Pas de cache** · Lot 4 backend
+- Contexte : l'ancien dashboard mettait sa lecture en cache 60 s.
+- Options : cache ; pas de cache.
+- Choix : pas de cache : 6 requêtes fixes (verrouillé par `SuiviPerformanceIT`), ≈ 160 ms sur un mois réaliste (3 000 comptes, 40 000 événements, 6 000 runs, 900 achats) — pas de vue matérialisée.
+- Fichiers : `SuiviService`.
+- Difficulté de retour : faible.
+
 ---
 
 ## 3. Récapitulatif final
