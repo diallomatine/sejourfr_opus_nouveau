@@ -348,6 +348,11 @@ sejourfr:
     # Purge des evenements bruts et des visiteurs inactifs au-dela de la retention
     # de la config (condition de l'exemption CNIL). Quotidienne, Europe/Paris.
     retention-cron: "0 10 4 * * *"
+    # Surcharge des dates de debut de mesure (measurementStart du fichier
+    # versionne). RESERVEE AU PROFIL DEV (application-dev.yaml) : hors dev, une
+    # entree ici fait echouer le demarrage. En production, les dates se posent
+    # au deploiement dans analytics-config-vN.json (D43).
+    measurement-start-overrides: {}
     geoip:
       # Chemin du fichier GeoLite2-Country.mmdb. VIDE PAR DEFAUT : la base
       # exige un compte MaxMind et sa licence interdit de la versionner, donc

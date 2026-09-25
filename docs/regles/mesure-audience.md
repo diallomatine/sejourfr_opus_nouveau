@@ -433,6 +433,11 @@ Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
   toutes les suivantes** (le tunnel est séquentiel). Un filtre `IOS`/`ANDROID` exige en plus
   `SIGNUP_PLATFORM_DETAIL` pour les visiteurs, les sources et les inscriptions. Une somme
   **mesurée** mais vide vaut 0.
+  **Profil dev seulement** : `sejourfr.analytics.measurement-start-overrides`
+  (`application-dev.yaml`) remplace ces dates pour relire l'écran sur le jeu
+  `db/migration-dev/R__seed_dev_suivi.sql` ; hors profil dev, une surcharge fait échouer le
+  démarrage (`AnalyticsConfigLoader.withMeasurementStartOverrides`). Le fichier versionné ne
+  change pas.
 - **Personne** (`pk`) = `COALESCE(run.user_id, run.anonymous_id)` ; une run sans l'un ni
   l'autre est sa propre personne. « Tous » compte des **personnes distinctes**.
 - **Type** : TCF = `QUICK_TCF` seulement (Q2) ; `FULL_TCF` n'entre dans aucun indicateur.

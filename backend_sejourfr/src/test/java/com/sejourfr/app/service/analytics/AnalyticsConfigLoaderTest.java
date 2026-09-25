@@ -7,6 +7,12 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Properties;
+
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.io.ClassPathResource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -173,5 +179,96 @@ class AnalyticsConfigLoaderTest {
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("civicSubmittedMinAnsweredRatio");
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // Surcharge des dates de debut de mesure : profil dev seulement
+    // ------------------------------------------------------------------------
+
+    private static Map<SuiviIndicator, String> surcharge(String date) {
+        Map<SuiviIndicator, String> overrides = new EnumMap<>(SuiviIndicator.class);
+        overrides.put(SuiviIndicator.DIAGNOSTIC_SUBMITTED, date);
+        overrides.put(SuiviIndicator.VISITORS, date);
+        return overrides;
+    }
+
+    @Test
+    @DisplayName("Sans surcharge, les dates restent celles du fichier versionné, profil dev ou non")
+    void sansSurchargeLesDatesDuFichier() {
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+
+        for (boolean dev : new boolean[]{true, false}) {
+            AnalyticsConfig config = AnalyticsConfigLoader.withMeasurementStartOverrides(
+                    fichier, new EnumMap<>(SuiviIndicator.class), dev);
+            assertThat(config).isSameAs(fichier);
+            assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
+            assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 8, 21));
+        }
+        assertThat(AnalyticsConfigLoader.withMeasurementStartOverrides(fichier, null, false)).isSameAs(fichier);
+    }
+
+    @Test
+    @DisplayName("Une surcharge hors profil dev fait échouer le démarrage")
+    void surchargeHorsDevRefusee() {
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+
+        assertThatThrownBy(() -> AnalyticsConfigLoader.withMeasurementStartOverrides(
+                fichier, surcharge("2026-01-01"), false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("profil dev");
+    }
+
+    @Test
+    @DisplayName("En profil dev, seules les dates surchargées changent, le reste de la config est intact")
+    void surchargeEnDev() {
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+
+        AnalyticsConfig dev = AnalyticsConfigLoader.withMeasurementStartOverrides(
+                fichier, surcharge("2026-01-01"), true);
+
+        assertThat(dev.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).contains(LocalDate.of(2026, 1, 1));
+        assertThat(dev.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 1, 1));
+        assertThat(dev.measurementStartOf(SuiviIndicator.PURCHASES)).isEmpty();
+        assertThat(dev.measurementStart()).hasSize(SuiviIndicator.values().length);
+        assertThat(dev.cohortWindowDays()).isEqualTo(fichier.cohortWindowDays());
+        assertThat(dev.civicSubmittedMinAnsweredRatio()).isEqualTo(fichier.civicSubmittedMinAnsweredRatio());
+        assertThat(dev.utmSourceGroups()).isEqualTo(fichier.utmSourceGroups());
+        // Le fichier charge n'est pas modifie en place.
+        assertThat(fichier.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Une date surchargée illisible est refusée")
+    void surchargeIllisible() {
+        assertThatThrownBy(() -> AnalyticsConfigLoader.withMeasurementStartOverrides(
+                AnalyticsConfigLoader.load(1), surcharge("01/01/2026"), true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("measurement-start-overrides");
+    }
+
+    /** Seul application-dev.yaml declare une surcharge : ni le socle, ni la prod, ni les tests. */
+    @Test
+    @DisplayName("Aucune surcharge des dates de mesure hors application-dev.yaml")
+    void surchargeDeclareeSeulementEnDev() {
+        for (String fichier : new String[]{"application.yaml", "application-prod.yaml", "application-test.yaml"}) {
+            assertThat(surchargesDeclarees(fichier)).as(fichier).isEmpty();
+        }
+        assertThat(surchargesDeclarees("application-dev.yaml")).hasSize(SuiviIndicator.values().length);
+    }
+
+    private static Map<Object, Object> surchargesDeclarees(String fichier) {
+        YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
+        yaml.setResources(new ClassPathResource(fichier));
+        Properties props = yaml.getObject();
+        Map<Object, Object> declarees = new java.util.HashMap<>();
+        if (props == null) return declarees;
+        props.forEach((cle, valeur) -> {
+            String c = cle.toString();
+            if (c.startsWith("sejourfr.analytics.measurement-start-overrides")
+                    && !"".equals(String.valueOf(valeur))) {
+                declarees.put(cle, valeur);
+            }
+        });
+        return declarees;
     }
 }

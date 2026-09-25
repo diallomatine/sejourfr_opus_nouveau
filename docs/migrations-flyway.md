@@ -138,7 +138,12 @@ db/migration/
     └── expression/                  V760-V799   production_examples (exemples-modèles EE/EO)
 
 db/migration-dev/                    V900+       seeds dev uniquement (comptes seed, sub démo,
-                                                 ~15 questions démo, conversations factices)
+│                                                ~15 questions démo, conversations factices)
+└── R__seed_dev_suivi.sql            repetable   jeu de relecture de l'écran admin « Suivi »
+                                                 (20 scénarios, comptes suivi.*@sejourfr.test,
+                                                 ids 5e1f5e1f-*), dates relatives à now() :
+                                                 rejoué à CHAQUE boot dev via ${flyway:timestamp},
+                                                 idempotent (efface puis ressème son périmètre)
 ```
 
 🛑 **UNE EXCEPTION DE NUMÉROTATION, ET UNE SEULE** :

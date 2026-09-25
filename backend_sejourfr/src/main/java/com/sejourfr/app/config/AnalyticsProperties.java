@@ -2,7 +2,10 @@ package com.sejourfr.app.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import com.sejourfr.app.enums.SuiviIndicator;
+
 import java.math.BigDecimal;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -58,6 +61,18 @@ public class AnalyticsProperties {
     /** Base MaxMind GeoLite2-Country. */
     private Geoip geoip = new Geoip();
 
+    /**
+     * Dates de debut de mesure qui REMPLACENT celles de
+     * {@code analytics-config-vN.json}, indicateur par indicateur (date ISO).
+     *
+     * <p>🛑 <b>Reserve au profil {@code dev}</b> : en production, les dates sont
+     * posees au deploiement dans le fichier versionne (D43), et une surcharge
+     * hors profil dev fait echouer le demarrage ({@code AnalyticsConfigLoader}).
+     * Sert a la relecture de l'ecran « Suivi » sur le jeu de donnees dev
+     * ({@code db/migration-dev/R__seed_dev_suivi.sql}). Vide par defaut.
+     */
+    private Map<SuiviIndicator, String> measurementStartOverrides = new EnumMap<>(SuiviIndicator.class);
+
     private static Map<String, BigDecimal> defaultFxRates() {
         Map<String, BigDecimal> rates = new LinkedHashMap<>();
         rates.put("EUR", BigDecimal.ONE);
@@ -82,6 +97,11 @@ public class AnalyticsProperties {
 
     public String getRetentionCron() { return retentionCron; }
     public void setRetentionCron(String retentionCron) { this.retentionCron = retentionCron; }
+
+    public Map<SuiviIndicator, String> getMeasurementStartOverrides() { return measurementStartOverrides; }
+    public void setMeasurementStartOverrides(Map<SuiviIndicator, String> measurementStartOverrides) {
+        this.measurementStartOverrides = measurementStartOverrides;
+    }
 
     public Geoip getGeoip() { return geoip; }
     public void setGeoip(Geoip geoip) { this.geoip = geoip; }

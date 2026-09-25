@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -80,6 +81,37 @@ public final class AnalyticsConfigLoader {
                 config.analyticsConfigVersion(), config.rawEventRetentionDays(),
                 config.cohortWindowDays(), config.ingestion().maxBatchSize());
         return config;
+    }
+
+    /**
+     * Remplace des dates de debut de mesure, <b>en profil dev seulement</b> :
+     * relire l'ecran « Suivi » sur le jeu de donnees dev sans toucher le fichier
+     * versionne, dont les dates sont posees au deploiement (D43).
+     *
+     * <p>Sans surcharge, la config du fichier est rendue telle quelle. Une
+     * surcharge hors profil dev fait echouer le demarrage : une date posee par
+     * erreur en production afficherait des zeros faux (Q16).
+     */
+    public static AnalyticsConfig withMeasurementStartOverrides(AnalyticsConfig config,
+                                                                Map<SuiviIndicator, String> overrides,
+                                                                boolean devProfile) {
+        if (overrides == null || overrides.isEmpty()) return config;
+        String source = "sejourfr.analytics.measurement-start-overrides";
+        if (!devProfile) {
+            throw new IllegalStateException(source + " est reserve au profil dev : en production, les dates"
+                    + " de debut de mesure se posent dans analytics-config-v" + config.analyticsConfigVersion()
+                    + ".json (D43).");
+        }
+        Map<SuiviIndicator, String> debuts = new EnumMap<>(SuiviIndicator.class);
+        debuts.putAll(config.measurementStart());
+        debuts.putAll(overrides);
+        verifierDebutsDeMesure(debuts, source);
+        log.warn("Profil dev : dates de debut de mesure surchargees pour {}", overrides.keySet());
+        return new AnalyticsConfig(config.analyticsConfigVersion(), config.timezone(), config.cohortWindowDays(),
+                config.claimTokenTtlDays(), config.purchaseIntentTtlHours(), config.anonymousIdTtlDays(),
+                config.rawEventRetentionDays(), config.purgeBatchSize(), config.ingestion(),
+                config.diagnosticRunRateLimit(), config.utmSourceGroups(), config.utmSourceFallbackGroup(),
+                debuts, config.civicSubmittedMinAnsweredRatio(), config.runReuseWindowHours());
     }
 
     private static void verifierIngestion(AnalyticsConfig.Ingestion ingestion, String path) {
