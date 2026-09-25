@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/auth/auth_controller.dart';
@@ -365,9 +366,19 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     setState(() => _lancement = true);
     switch (source) {
       case CivicNowUnite(code: final code):
-        await startCivicUniteSerie(context, ref, code);
+        await startCivicUniteSerie(
+          context,
+          ref,
+          code,
+          ctaLocation: AnalyticsCtaLocation.other,
+        );
       case CivicNowCible(cible: final cible):
-        await startCivicSerie(context, ref, cible);
+        await startCivicSerie(
+          context,
+          ref,
+          cible,
+          ctaLocation: AnalyticsCtaLocation.other,
+        );
     }
     if (!mounted) return;
     setState(() => _lancement = false);

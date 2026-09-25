@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics.dart';
+import '../../core/models/diagnostic_run_models.dart';
 import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -48,10 +50,27 @@ class _TcfDiagnosticResultScreenState
   bool _loading = true;
   String? _error;
 
+  /// Le rapport ne se compte qu'une fois par affichage de l'écran.
+  bool _rapportVuTrace = false;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// `DIAGNOSTIC_REPORT_VIEWED` du TCF complet — une mesure d'ACTIVITÉ (le
+  /// tunnel ne lit que le TCF rapide, Q2), avec la run du passage. 🛑 Sans
+  /// `path` : l'écran n'est pas déclaré dans l'allowlist serveur, et un
+  /// chemin inventé ferait rejeter l'événement. Même choix que le web.
+  void _tracerRapportVu() {
+    if (_rapportVuTrace) return;
+    _rapportVuTrace = true;
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.diagnosticReportViewed,
+          diagnosticType: AnalyticsDiagnosticType.complete,
+          diagnosticRun: DiagnosticRunType.fullTcf,
+        );
   }
 
   Future<void> _load() async {
@@ -68,6 +87,7 @@ class _TcfDiagnosticResultScreenState
         _resultat = r;
         _loading = false;
       });
+      _tracerRapportVu();
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -33,8 +33,10 @@ import '../../screens/paywall/paywall_screen.dart';
 /// l'écran jusqu'à l'achat**, qu'il y ait eu clic mesuré ou non : ils forment
 /// l'intention d'achat créée avant la feuille Apple / Google. `LOCKED_PLAN`
 /// est le CTA « du Plan » ; avec le `journeyId` du parcours affiché, c'est ce
-/// qui permet au serveur de rattacher l'achat au tunnel. Sans CTA connu,
-/// l'intention part en `OTHER`.
+/// qui permet au serveur de rattacher l'achat au tunnel. 🛑 Sans CTA connu,
+/// **aucune intention** n'est créée : l'achat sera `UNKNOWN` côté serveur —
+/// un `OTHER` fabriqué rangerait à tort un achat du Plan en `OTHER_CTA`
+/// (« inconnu plutôt que faux »). Un geste réellement connu passe sa valeur.
 Future<void> showPaywallSheet(
   BuildContext context, {
   WidgetRef? ref,
@@ -50,7 +52,7 @@ Future<void> showPaywallSheet(
   return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
       builder: (_) => PaywallScreen(
-        ctaLocation: ctaLocation ?? AnalyticsCtaLocation.other,
+        ctaLocation: ctaLocation,
         journeyId: journeyId,
       ),
       fullscreenDialog: true,

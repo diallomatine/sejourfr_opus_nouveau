@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
@@ -1040,7 +1041,10 @@ void _showTrainingResultDialog(
                   if (!context.mounted) return;
                   GoRouter.of(context).pop();
                   if (!context.mounted) return;
-                  showPaywallSheet(context);
+                  showPaywallSheet(
+                    context,
+                    ctaLocation: AnalyticsCtaLocation.other,
+                  );
                 },
               ),
               const SizedBox(height: 6),

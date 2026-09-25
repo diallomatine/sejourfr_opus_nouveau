@@ -61,7 +61,12 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
       return;
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    showModuleExamBriefingSheet(context, widget.module, slotNumber: slotNumber);
+    showModuleExamBriefingSheet(
+      context,
+      widget.module,
+      slotNumber: slotNumber,
+      ctaLocation: AnalyticsCtaLocation.mockExam,
+    );
   }
 
   /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination

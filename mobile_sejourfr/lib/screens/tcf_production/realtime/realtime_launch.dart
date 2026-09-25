@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/widgets/paywall_sheet.dart';
@@ -77,7 +78,7 @@ Future<RealtimeNegotiation> negotiateRealtimeSession(
   if (choice == null) return RealtimeNegotiation.cancelled;
   if (choice == RealtimeLaunchChoice.paywall) {
     if (context.mounted) {
-      await showPaywallSheet(context);
+      await showPaywallSheet(context, ctaLocation: AnalyticsCtaLocation.other);
     }
     return RealtimeNegotiation.cancelled;
   }

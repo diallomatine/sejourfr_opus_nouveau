@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/widgets/premium_lock.dart';
@@ -60,7 +61,9 @@ class _CompetencesListViewState extends ConsumerState<CompetencesListView> {
   /// lieu de sujets sur lesquels rien ne pourrait être produit.
   void _open(SkillDto skill) {
     if (skill.locked) {
-      unawaited(showTcfLockPaywall(context));
+      unawaited(
+        showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
+      );
       return;
     }
     context.push(competenceDetailPath(widget.module, skill.id));

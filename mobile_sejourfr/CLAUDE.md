@@ -3904,7 +3904,8 @@ canonique vit côté backend.
   (une fois par ouverture, quand le parcours affiché est connu), `PLAN_EXERCISE_STARTED` et
   `PLAN_UNLOCK_CLICKED` (bouton prix de `PlanUnlockScreen`, `planCode` + prix affiché du pass
   d'entrée via `passFromPlan` ; rien si le catalogue est injoignable).
-  `DIAGNOSTIC_REPORT_VIEWED` porte la run (TCF rapide, civique).
+  `DIAGNOSTIC_REPORT_VIEWED` porte la run (TCF rapide, civique, et TCF complet — activité, sans
+  `path`, l'écran n'étant pas dans l'allowlist).
 
 ## In-App Purchase (lot 4d) — Apple StoreKit + Google Play Billing
 
@@ -3976,7 +3977,9 @@ d'ouvrir la feuille ; `verify-receipt` le renvoie (`purchaseIntentId`, avec `amo
 vérification réussie d'un achat `purchased`. 🛑 Un échec de création **ne bloque jamais**
 l'achat (origine `UNKNOWN`), et `appAccountToken` / `obfuscatedAccountId` /
 `obfuscatedProfileId` ne sont **jamais** détournés. Le CTA suit `showPaywallSheet(ctaLocation:,
-journeyId:)` jusqu'à `PaywallScreen` ; sans CTA connu ⇒ `OTHER`. 🛑 **Toute** offre ouverte
+journeyId:)` jusqu'à `PaywallScreen`. 🛑 **CTA inconnu ⇒ aucune intention** (achat `UNKNOWN`),
+jamais un `OTHER` fabriqué ; un geste connu (profil, compétences, lots, exemples…) passe sa valeur
+explicite, `MOCK_EXAM` pour les grilles d'examens. 🛑 **Toute** offre ouverte
 depuis le Plan passe `LOCKED_PLAN` + le parcours (`planJourneyId`, `learning_plan_provider.dart`) :
 écran de déblocage (et donc les cartes de l'Accueil, la reco d'épreuve), lignes verrouillées,
 jalon, série ciblée, mesure d'un domaine (sas CO/CE et EE/EO), fin de cycle, écran d'étape,

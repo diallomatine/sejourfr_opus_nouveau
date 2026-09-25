@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/api/api_client.dart';
@@ -105,7 +106,7 @@ class ManageSubscriptionScreen extends ConsumerWidget {
   /// `accesRevisionProvider`, que `_subscriptionStatusProvider` observe — et ce
   /// signal-là rouvre **toutes** les surfaces, pas seulement celle-ci.
   Future<void> _openPaywall(BuildContext context, WidgetRef ref) =>
-      showPaywallSheet(context);
+      showPaywallSheet(context, ctaLocation: AnalyticsCtaLocation.other);
 }
 
 // ---------------------------------------------------------------------------

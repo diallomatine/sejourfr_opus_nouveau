@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/router/route_observer.dart';
@@ -143,7 +144,9 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   /// un écran de production que le serveur refuserait (403).
   void _openPrompt(SkillPromptSummary prompt) {
     if (prompt.locked) {
-      unawaited(showTcfLockPaywall(context));
+      unawaited(
+        showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
+      );
       return;
     }
     context.push(
@@ -456,7 +459,9 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
               onAction: () {
                 final target = next.prompt;
                 if (target == null) {
-                  unawaited(showTcfLockPaywall(context));
+                  unawaited(
+        showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
+      );
                   return;
                 }
                 _openPrompt(target);

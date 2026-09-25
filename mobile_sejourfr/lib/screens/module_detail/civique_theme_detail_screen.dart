@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
@@ -116,7 +117,7 @@ class _CiviqueThemeDetailScreenState
   Future<void> _startLot(ThemeDto theme, LotDto lot) async {
     if (_starting) return;
     if (!_isPremium() && lot.numero > 1) {
-      showPaywallSheet(context);
+      showPaywallSheet(context, ctaLocation: AnalyticsCtaLocation.other);
       return;
     }
     setState(() => _starting = true);
@@ -208,7 +209,10 @@ class _CiviqueThemeDetailScreenState
               .then<ExamSlots?>((g) => g, onError: (_) => null);
           if (!mounted) return;
           if (grille?.isLocked(slot) ?? true) {
-            showPaywallSheet(context);
+            showPaywallSheet(
+              context,
+              ctaLocation: AnalyticsCtaLocation.mockExam,
+            );
             return;
           }
           showCiviqueThemeExamBriefingSheet(

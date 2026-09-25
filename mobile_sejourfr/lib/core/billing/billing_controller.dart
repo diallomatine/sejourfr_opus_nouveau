@@ -334,10 +334,11 @@ class BillingController extends StateNotifier<BillingState> {
   // --------------------------------------------------------------------------
 
   /// [ctaLocation] / [journeyId] : d'où part l'achat (Q12). Ils forment
-  /// l'intention créée juste avant la feuille du store.
+  /// l'intention créée juste avant la feuille du store. 🛑 [ctaLocation]
+  /// `null` = CTA inconnu : **aucune** intention, l'achat sera `UNKNOWN`.
   Future<void> startPurchase(
     IapProduct product, {
-    AnalyticsCtaLocation ctaLocation = AnalyticsCtaLocation.other,
+    AnalyticsCtaLocation? ctaLocation,
     String? journeyId,
   }) async {
     state = state.copyWith(
@@ -387,11 +388,12 @@ class BillingController extends StateNotifier<BillingState> {
   /// intention du même produit est écartée : elle décrirait un autre geste.
   Future<void> _prepareIntent({
     required String productId,
-    required AnalyticsCtaLocation ctaLocation,
+    required AnalyticsCtaLocation? ctaLocation,
     String? journeyId,
   }) async {
     try {
       await _intents.clear(productId);
+      if (ctaLocation == null) return;
       final intent = await _repo
           .createPurchaseIntent(
             productId: productId,

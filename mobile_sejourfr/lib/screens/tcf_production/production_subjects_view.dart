@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
@@ -407,7 +408,7 @@ class _ProductionSubjectsViewState
             locked: !premium && origIndex > 0,
             onTap: () {
               if (!premium && origIndex > 0) {
-                showPaywallSheet(context);
+                showPaywallSheet(context, ctaLocation: AnalyticsCtaLocation.other);
                 return;
               }
               final last = done[task.id];

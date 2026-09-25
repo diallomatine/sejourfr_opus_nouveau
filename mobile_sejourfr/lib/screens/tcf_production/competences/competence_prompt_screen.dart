@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
 import '../../../core/theme/app_theme.dart';
@@ -177,7 +178,9 @@ class _LockedPromptView extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _LockedAnswerCard(
-                onSubscribe: () => unawaited(showTcfLockPaywall(context)),
+                onSubscribe: () => unawaited(
+                  showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
+                ),
               ),
             ],
           ),

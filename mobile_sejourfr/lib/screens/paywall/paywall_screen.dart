@@ -31,13 +31,14 @@ import '../../core/widgets/app_button.dart';
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({
     super.key,
-    this.ctaLocation = AnalyticsCtaLocation.other,
+    this.ctaLocation,
     this.journeyId,
   });
 
   /// Le CTA qui a ouvert l'offre, et le parcours affiché s'il vient du Plan :
-  /// l'intention d'achat les porte (Q12). Jamais affichés.
-  final AnalyticsCtaLocation ctaLocation;
+  /// l'intention d'achat les porte (Q12). Jamais affichés. `null` = CTA
+  /// inconnu : aucune intention, achat `UNKNOWN`.
+  final AnalyticsCtaLocation? ctaLocation;
   final String? journeyId;
 
   @override
