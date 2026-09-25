@@ -236,7 +236,7 @@ export default function CiviqueThemeSeriesPage() {
           }}
           onClose={() => setSelectedLot(null)}
         />
-        <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
+        <PaywallSheet ctaLocation="OTHER" screen="series_civique" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}

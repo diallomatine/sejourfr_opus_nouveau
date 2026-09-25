@@ -5067,4 +5067,12 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   (`JourneyDto.journeyId` déjà en main, sinon `usePlanJourneyId(module)`, même clé de cache
   que le Plan) ; sans rien, `/paiement` et le récapitulatif
   valent `PRICING`.
+  🛑 **CTA obligatoire** (contrôle F, 2026-09-25) : `PaywallSheet.ctaLocation` et
+  `SkillLockedCard.origin` sont **requis, sans défaut** (l'ancien défaut `OTHER`
+  fabriquait des `OTHER_CTA`). Hors Plan : le CTA du verrou de l'écran. Depuis le
+  Plan : `LOCKED_PLAN` + `journeyId` — lanceurs du Plan, « À faire maintenant » de
+  l'Accueil (et **seulement** elle : une carte d'épreuve de l'Accueil vaut
+  `MOCK_EXAM`), reprise de Réviser, et tout écran ouvert avec le marqueur
+  `?etape=1` (`usePlanStepPurchaseOrigin`, vérification comprise). Origine
+  inconnue : `null` ⇒ `?cta=inconnu` ⇒ aucun `ctaLocation` envoyé ⇒ `UNKNOWN`.
 

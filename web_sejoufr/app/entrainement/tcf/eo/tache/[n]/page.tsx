@@ -1,8 +1,15 @@
+import {Suspense} from "react";
 import {ProductionSubjects} from "@/app/_components/production/ProductionSubjects";
 import {EO_CONFIG, PRODUCTION_TASK_PARAMS} from "@/app/_components/production/config";
 
 export default function EoTaskPage() {
-  return <ProductionSubjects config={EO_CONFIG} />;
+  /* `Suspense` obligatoire : l'écran lit le marqueur de provenance du Plan
+     (`?etape=1`) via `useSearchParams`, sans quoi le prérendu échoue. */
+  return (
+    <Suspense>
+      <ProductionSubjects config={EO_CONFIG} />
+    </Suspense>
+  );
 }
 
 /** Les 3 tâches sont prérendues : changer de mode ne redemande pas la page au

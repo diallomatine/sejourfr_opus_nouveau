@@ -352,15 +352,19 @@ function TcfBody({
           </Pad>
         </Section>
       )}
+      {/* 🛑 Ces deux lanceurs ne partent que de la reprise, c'est-à-dire de
+          l'action du Plan (`planNowCard`) : un 403 y est le CTA du Plan
+          (contrôle F), avec le parcours servi — miroir du mobile. */}
       <PaywallSheet
-        open={exercise.paywallOpen}
+        ctaLocation="LOCKED_PLAN"
+        screen="reviser"
+        journeyId={journey.data?.journeyId ?? null}
+        open={exercise.paywallOpen || assessment.paywallOpen}
         module="INTEGRAL"
-        onClose={exercise.closePaywall}
-      />
-      <PaywallSheet
-        open={assessment.paywallOpen}
-        module="INTEGRAL"
-        onClose={assessment.closePaywall}
+        onClose={() => {
+          exercise.closePaywall();
+          assessment.closePaywall();
+        }}
       />
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="TCF" />
       <Section title={reviserSectionTitle("TCF", stats.length)}>
@@ -583,10 +587,18 @@ function CiviqueBody({
           </Stack>
         </Pad>
       </Section>
+      {/* La reprise civique lance l'action du Plan civique (`civicNowCard`) :
+          son 403 est le CTA du Plan (contrôle F). */}
       <PaywallSheet
-        open={paywall}
+        ctaLocation="LOCKED_PLAN"
+        screen="reviser"
+        journeyId={journey.data?.journeyId ?? null}
+        open={paywall || serieUnite.paywall}
         module="CIVIQUE"
-        onClose={() => setPaywall(false)}
+        onClose={() => {
+          setPaywall(false);
+          serieUnite.setPaywall(false);
+        }}
       />
     </>
   );

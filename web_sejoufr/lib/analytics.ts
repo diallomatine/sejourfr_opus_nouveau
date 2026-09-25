@@ -110,7 +110,9 @@ type AnalyticsEventProperties = {
    *  que pour le TCF (rapide / complet) : le civique n'en porte pas. */
   DIAGNOSTIC_REPORT_VIEWED: {diagnosticType?: AnalyticsDiagnosticType};
   PREMIUM_CTA_CLICKED: {
-    ctaLocation: AnalyticsCtaLocation;
+    /** Absent quand l'écran ne connaît pas son origine (contrôle F) : jamais
+     *  un `OTHER` fabriqué. */
+    ctaLocation?: AnalyticsCtaLocation;
     planCode?: string;
     screen?: string;
   };

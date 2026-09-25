@@ -271,10 +271,16 @@ export function recommendedExerciseHref(
   }
   const base = `/entrainement/tcf/${exercise.section.toLowerCase()}`;
   if (exercise.kind === "REASSESSMENT") {
+    /* Le marqueur d'étape suit aussi la vérification : sans lui, un verrou
+       rencontré sur la tâche désignée par le Plan n'était plus le CTA du Plan
+       (contrôle F, 2026-09-25). */
     if (exercise.productionTaskId) {
-      return productionTaskHref(exercise.section, exercise.productionTaskId);
+      return withPlanStep(
+        productionTaskHref(exercise.section, exercise.productionTaskId),
+        options.planStep === true,
+      );
     }
-    return `${base}/tache/${exercise.tacheNumero ?? 1}`;
+    return withPlanStep(`${base}/tache/${exercise.tacheNumero ?? 1}`, options.planStep === true);
   }
   const task = skillTaskNumber(exercise.skillCode);
   /* 🛑 **Le marqueur d'étape voyage jusqu'au SUJET**, pas seulement jusqu'à la

@@ -74,6 +74,7 @@ import {
   usePlanAssessment,
   usePlanExercise,
 } from "@/app/_components/plan/use-plan-exercise";
+import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import s from "@/app/_components/skill-ui/skill.module.css";
 
 type Filter = "all" | "todo" | "done";
@@ -155,6 +156,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const exercise = usePlanExercise();
   const assessment = usePlanAssessment();
   const step = fromPlan ? planStepFor(planQuery.data, skillId) : null;
+  /* Venu du Plan (marqueur), tout verrou de la fiche est le CTA du Plan
+     (contrôle F) ; sinon, celui de l'écran. */
+  const origin = usePlanStepPurchaseOrigin(fromPlan, "OTHER");
   /* Tant que le Plan n'est pas revenu, on ne sait pas encore si l'écran est
      celui d'une étape : afficher la fiche complète en attendant la ferait
      passer de 15 sujets à 5 sous les yeux du candidat. On garde le
@@ -657,9 +661,18 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
               onClose={() => setDonePrompt(null)}
             />
 
+            {/* Le 403 des lanceurs du Plan (étape suivante) ouvre la même
+                feuille : sans elle, il n'ouvrait rien. */}
             <PaywallSheet
-              open={paywallOpen}
-              onClose={() => setPaywallOpen(false)}
+              ctaLocation={origin.ctaLocation}
+              journeyId={origin.journeyId}
+              screen="competence_fiche"
+              open={paywallOpen || exercise.paywallOpen || assessment.paywallOpen}
+              onClose={() => {
+                setPaywallOpen(false);
+                exercise.closePaywall();
+                assessment.closePaywall();
+              }}
               module="INTEGRAL"
               title="Tous les petits sujets"
               message="Ce sujet est réservé à l'abonnement Intégral. Il ouvre tous les petits sujets de chaque compétence, les 8 compétences de chaque tâche et l'analyse IA sans limite. Ton plan personnalisé, lui, reste entier."

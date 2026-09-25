@@ -18,6 +18,7 @@ import {
 import {ApiException, learningPlanApi, skillApi} from "@/lib/api";
 import {useCachedData} from "@/lib/use-cached-data";
 import {isPlanStep, planStepFor, planStepNextPromptId, withPlanStep} from "@/lib/plan-step";
+import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {useAuth} from "@/lib/auth-context";
 import {
   referencesOpenByDefault,
@@ -133,6 +134,8 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
      15 sujets. Absent, tout se comporte exactement comme avant. */
   const step = isPlanStep(searchParams);
   const skillHref = withPlanStep(`${base}/${skillId}`, step);
+  /* Venu du Plan (marqueur), le quota épuisé est le CTA du Plan (contrôle F). */
+  const quotaOrigin = usePlanStepPurchaseOrigin(step, "AI_CORRECTION");
   /* Le périmètre de l'étape, **servi** : il décide du sujet suivant quand on
      travaille une étape. Relu sur le cache, donc aucun appel quand on arrive du
      Plan, et **rien du tout** hors Plan. */
@@ -524,7 +527,8 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           </section>
         )}
 
-        <PaywallSheet ctaLocation="AI_CORRECTION" screen="competence_resultat"
+        <PaywallSheet ctaLocation={quotaOrigin.ctaLocation} journeyId={quotaOrigin.journeyId}
+          screen="competence_resultat"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

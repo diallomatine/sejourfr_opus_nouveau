@@ -14,6 +14,7 @@ import {
 import {useCachedData} from "@/lib/use-cached-data";
 import {useSubmissionKey} from "@/lib/idempotency";
 import {isPlanStep, planStepFor, planStepPosition, withPlanStep} from "@/lib/plan-step";
+import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {loadSectionSkills} from "@/lib/skill-catalog";
 import {findSkillProgress, type SkillProgress} from "@/lib/skill-progress";
 import {handleStartFailure} from "@/lib/start-failure";
@@ -124,6 +125,10 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
      ce que fait naturellement le « retour » du mobile, qui dépile. */
   const step = isPlanStep(searchParams);
   const skillHref = withPlanStep(`${base}/${skillId}`, step);
+  /* Venu du Plan (marqueur), le verrou et le quota sont le CTA du Plan
+     (contrôle F) ; sinon, ceux de l'écran. */
+  const lockOrigin = usePlanStepPurchaseOrigin(step, "OTHER");
+  const quotaOrigin = usePlanStepPurchaseOrigin(step, "AI_CORRECTION");
   const oral = config.mode === "audio";
 
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -397,6 +402,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
             <SkillLockedCard
               title="Ce sujet demande l'abonnement Intégral"
               text="L'abonnement ouvre tous les petits sujets de chaque compétence et l'analyse IA sans limite. Ton plan personnalisé et tes résultats déjà obtenus, eux, restent visibles."
+              origin={lockOrigin}
             />
           </>
         ) : (
@@ -525,7 +531,8 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           </>
         )}
 
-        <PaywallSheet ctaLocation="AI_CORRECTION" screen="competence_sujet"
+        <PaywallSheet ctaLocation={quotaOrigin.ctaLocation} journeyId={quotaOrigin.journeyId}
+          screen="competence_sujet"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

@@ -517,7 +517,10 @@ function SessionRunnerInner({ params }: PageProps) {
             {isGuest && <GuestResultCta />}
           </>
         )}
+        {/* Relancer une série de lot : le verrou de l'écran des lots (`OTHER`). */}
         <PaywallSheet
+          ctaLocation="OTHER"
+          screen="session_relance"
           open={retryPaywallOpen}
           onClose={() => setRetryPaywallOpen(false)}
           module={attempt.module === "TCF" ? "INTEGRAL" : "CIVIQUE"}

@@ -429,7 +429,7 @@ function DashboardRoot() {
                 `deskPair` au-dessus : quatre cartes dans une demi-colonne de
                 1080 px se replieraient en une file illisible, et la maquette la
                 montre pleine largeur. */}
-            <OuVousEnEtes progres={progres} civique={civique} journeyId={journey?.journeyId ?? null}/>
+            <OuVousEnEtes progres={progres} civique={civique}/>
 
             <style>{homeStyles}</style>
         </SejourApp>
@@ -636,6 +636,7 @@ function ActionPlanDuJour({plan, journey, free}: {
             {(error ?? assessments.error) && (
                 <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
             )}
+            {/* « À faire maintenant » lance l'action du Plan : CTA du Plan. */}
             <PaywallSheet
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
@@ -755,19 +756,17 @@ function ActionCivique({gate, plan, journey, free}: {
  *
  * 🛑 **Miroir de `_ouVousEnEtes` côté mobile**, bloc pour bloc.
  */
-function OuVousEnEtes({progres, civique, journeyId}: {
+function OuVousEnEtes({progres, civique}: {
     progres: ProgressDto | null;
     civique: boolean;
-    /** Parcours TCF servi, pour l'intention d'achat de la feuille (Q8). */
-    journeyId: string | null;
 }) {
     if (!progres) return null;
     return civique
         ? <SituationCivique progres={progres}/>
-        : <SituationTcf progres={progres} journeyId={journeyId}/>;
+        : <SituationTcf progres={progres}/>;
 }
 
-function SituationTcf({progres, journeyId}: {progres: ProgressDto; journeyId: string | null}) {
+function SituationTcf({progres}: {progres: ProgressDto}) {
     /* 🛑 **Le lanceur du Plan, jamais un second** : une épreuve jamais mesurée
        porte le descripteur `evaluation` servi, et c'est `usePlanAssessment` —
        celui de « Compléter mon profil » et de la ligne `A_EVALUER` de la
@@ -869,11 +868,14 @@ function SituationTcf({progres, journeyId}: {progres: ProgressDto; journeyId: st
                     <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
                 )}
             </Pad>
+            {/* 🛑 L'Accueil ne compte comme le Plan QUE pour « À faire
+                maintenant » (arbitrage du propriétaire, contrôle F). Une carte
+                d'épreuve lance un examen blanc hors Plan : `MOCK_EXAM`, comme
+                l'écran Progrès, sans parcours. */}
             <PaywallSheet
-                ctaLocation="LOCKED_PLAN"
-                screen="dashboard"
+                ctaLocation="MOCK_EXAM"
+                screen="dashboard_epreuve"
                 module="INTEGRAL"
-                journeyId={journeyId}
                 open={assessments.paywallOpen}
                 onClose={assessments.closePaywall}
             />

@@ -1,9 +1,11 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
+import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
+import {isPlanStep} from "@/lib/plan-step";
+import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {useSubmissionKey} from "@/lib/idempotency";
 import {useAuth} from "@/lib/auth-context";
 import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
@@ -36,6 +38,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const taskId = params?.taskId ?? "";
   const router = useRouter();
   const {user, status} = useAuth();
+  /* Une vérification lancée depuis le Plan arrive avec le marqueur d'étape :
+     son verrou est alors le CTA du Plan (contrôle F). */
+  const origin = usePlanStepPurchaseOrigin(isPlanStep(useSearchParams()), "AI_CORRECTION");
 
   const [task, setTask] = useState<ProductionTaskDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -310,7 +315,8 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           />
         )}
 
-        <PaywallSheet ctaLocation="AI_CORRECTION" screen="production_saisie"
+        <PaywallSheet ctaLocation={origin.ctaLocation} journeyId={origin.journeyId}
+          screen="production_saisie"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

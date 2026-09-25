@@ -1,7 +1,7 @@
 "use client";
 
 import {track} from "@/lib/analytics";
-import {withPurchaseOrigin} from "@/lib/purchase-origin";
+import {type PurchaseOrigin, withPurchaseOrigin} from "@/lib/purchase-origin";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -621,9 +621,9 @@ export function SkillRowCard({
  * `PaywallSheet` le fait déjà, et on ne fabrique surtout pas un second parcours
  * de paiement.
  */
-export const SKILL_PREMIUM_HREF = withPurchaseOrigin("/paiement?module=INTEGRAL", {
-  ctaLocation: "OTHER",
-});
+function skillPremiumHref(origin: PurchaseOrigin): string {
+  return withPurchaseOrigin("/paiement?module=INTEGRAL", origin);
+}
 
 /** Le libellé du bouton qui ouvre l'offre depuis le module. Wording neutre
  *  (guidelines Apple 3.1.1), **miroir mot pour mot** de `kPremiumLockCta`
@@ -676,10 +676,14 @@ export function SkillLockedCard({
   title,
   text,
   ctaLabel = SKILL_PREMIUM_CTA,
+  origin,
 }: {
   title: string;
   text: string;
   ctaLabel?: string;
+  /** Origine de l'achat, **obligatoire** (contrôle F) : `LOCKED_PLAN` + parcours
+   *  quand l'écran vient du Plan, sinon le CTA de l'écran. */
+  origin: PurchaseOrigin;
 }) {
   return (
     <section className={`${s.card} ${s.lockCard}`}>
@@ -689,10 +693,15 @@ export function SkillLockedCard({
       <h2 className={s.lockCardTitle}>{title}</h2>
       <p className={s.lockCardText}>{text}</p>
       <Link
-        href={SKILL_PREMIUM_HREF}
+        href={skillPremiumHref(origin)}
         className={`${s.primary} ${s.lockCardCta}`}
         onClick={() =>
-          track("PREMIUM_CTA_CLICKED", {ctaLocation: "OTHER", screen: "competence_verrou"})
+          track(
+            "PREMIUM_CTA_CLICKED",
+            origin.ctaLocation
+              ? {ctaLocation: origin.ctaLocation, screen: "competence_verrou"}
+              : {screen: "competence_verrou"},
+          )
         }
       >
         {ctaLabel} <ArrowRight size={16} aria-hidden />

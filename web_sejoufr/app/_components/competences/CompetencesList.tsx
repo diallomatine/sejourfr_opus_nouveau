@@ -6,6 +6,7 @@ import {skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {competenceBadge, competenceStatus} from "@/lib/expression";
 import {isPlanStep, PLAN_STEP_BACK_LABEL} from "@/lib/plan-step";
+import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {loadSectionSkills, skillsOfTask, skillsSectionKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {
@@ -57,6 +58,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   const fromPlan = isPlanStep(searchParams);
   const backHref = fromPlan ? "/plan" : config.base;
   const backLabel = fromPlan ? PLAN_STEP_BACK_LABEL : config.label;
+  const origin = usePlanStepPurchaseOrigin(fromPlan, "OTHER");
 
   const section = skillSectionOf(config.epreuve);
 
@@ -137,6 +139,9 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
         </SkillNotice>
 
         <PaywallSheet
+          ctaLocation={origin.ctaLocation}
+          journeyId={origin.journeyId}
+          screen="competences"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

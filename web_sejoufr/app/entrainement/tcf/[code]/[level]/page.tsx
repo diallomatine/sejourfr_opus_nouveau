@@ -239,7 +239,7 @@ export default function TcfLevelSeriesPage() {
           }}
           onClose={() => setSelectedLot(null)}
         />
-        <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
+        <PaywallSheet ctaLocation="OTHER" screen="series_tcf" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}

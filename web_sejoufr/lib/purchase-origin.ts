@@ -32,10 +32,19 @@ const CTA_LOCATIONS: ReadonlySet<AnalyticsCtaLocation> = new Set<AnalyticsCtaLoc
   "OTHER",
 ]);
 
+/**
+ * `ctaLocation: null` = **origine inconnue**, dite explicitement par l'appelant
+ * (contrôle F, 2026-09-25) : aucun `ctaLocation` ne part au serveur, donc pas
+ * d'intention, donc `UNKNOWN`. Jamais remplacée par un CTA « par défaut ».
+ */
 export type PurchaseOrigin = {
-  ctaLocation: AnalyticsCtaLocation;
+  ctaLocation: AnalyticsCtaLocation | null;
   journeyId: string | null;
 };
+
+/** Marqueur d'adresse de l'origine inconnue : il empêche la page d'arrivée de
+ *  retomber sur son CTA de repli (`PRICING`), qui serait alors une invention. */
+const UNKNOWN_CTA = "inconnu";
 
 /**
  * L'origine lue sur l'adresse, sinon `fallback` : l'écran qui porte le bouton
@@ -48,6 +57,7 @@ export function purchaseOriginDe(
 ): PurchaseOrigin {
   const cta = params.get(CTA_PARAM) as AnalyticsCtaLocation | null;
   const journey = params.get(JOURNEY_PARAM);
+  if (params.get(CTA_PARAM) === UNKNOWN_CTA) return {ctaLocation: null, journeyId: null};
   return {
     ctaLocation: cta && CTA_LOCATIONS.has(cta) ? cta : fallback,
     journeyId: journey && UUID_RE.test(journey) ? journey : null,
@@ -57,11 +67,11 @@ export function purchaseOriginDe(
 /** Pose l'origine sur une adresse interne du parcours d'achat. */
 export function withPurchaseOrigin(
   href: string,
-  origin: {ctaLocation: AnalyticsCtaLocation; journeyId?: string | null},
+  origin: {ctaLocation: AnalyticsCtaLocation | null; journeyId?: string | null},
 ): string {
   const [base, hash = ""] = href.split("#");
-  const params = new URLSearchParams({[CTA_PARAM]: origin.ctaLocation});
-  if (origin.journeyId) params.set(JOURNEY_PARAM, origin.journeyId);
+  const params = new URLSearchParams({[CTA_PARAM]: origin.ctaLocation ?? UNKNOWN_CTA});
+  if (origin.ctaLocation && origin.journeyId) params.set(JOURNEY_PARAM, origin.journeyId);
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}${params.toString()}${hash ? `#${hash}` : ""}`;
 }

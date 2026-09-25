@@ -715,10 +715,12 @@ export const billingApi = {
     getPaymentLink(
         planCode: string,
         retour: string | null | undefined,
-        origin: {ctaLocation: AnalyticsCtaLocation; journeyId: string | null},
+        origin: {ctaLocation: AnalyticsCtaLocation | null; journeyId: string | null},
     ): Promise<{ url: string }> {
-        const params = new URLSearchParams({planCode, ctaLocation: origin.ctaLocation});
-        if (origin.journeyId) params.set("journeyId", origin.journeyId);
+        // CTA inconnu ⇒ rien n'est envoyé : pas d'intention, achat `UNKNOWN` (D33).
+        const params = new URLSearchParams({planCode});
+        if (origin.ctaLocation) params.set("ctaLocation", origin.ctaLocation);
+        if (origin.ctaLocation && origin.journeyId) params.set("journeyId", origin.journeyId);
         const base = `/api/billing/payment-link?${params.toString()}`;
         return apiFetch<{ url: string }>(withRetour(base, retour), {auth: true});
     },

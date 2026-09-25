@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Check, Lock } from "lucide-react";
 import { productionApi } from "@/lib/api";
@@ -24,6 +24,8 @@ import {
 } from "@/lib/production-feedback";
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import { useCachedData } from "@/lib/use-cached-data";
+import { isPlanStep } from "@/lib/plan-step";
+import { usePlanStepPurchaseOrigin } from "@/app/_components/plan/use-plan-journey-id";
 import {
   canAccessModule,
   productionSubjectTitle,
@@ -84,6 +86,9 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const params = useParams<{ n: string }>();
   const router = useRouter();
   const { user, status } = useAuth();
+  /* Repli d'une vérification du Plan sans tâche désignée : le marqueur d'étape
+     dit la provenance, et le verrou est alors le CTA du Plan (contrôle F). */
+  const origin = usePlanStepPurchaseOrigin(isPlanStep(useSearchParams()), "OTHER");
 
   // Les sujets des 3 tâches arrivent en un seul appel, mémorisé pour la
   // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
@@ -300,6 +305,9 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
         </SkillNotice>
 
         <PaywallSheet
+          ctaLocation={origin.ctaLocation}
+          journeyId={origin.journeyId}
+          screen="production_sujets"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

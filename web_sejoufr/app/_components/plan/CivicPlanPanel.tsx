@@ -306,7 +306,12 @@ function CiviquePlan({plan, journey, free}: {
           d'achat du Plan passe par l'écran de transition, plus rien ici ne
           l'ouvre délibérément. Il reste parce qu'un lanceur peut toujours se
           voir refuser au démarrage — c'est un refus, pas une vente. */}
+      {/* Un 403 d'une série lancée depuis le Plan civique : c'est le CTA du Plan
+          (contrôle F), avec le parcours servi. */}
       <PaywallSheet
+        ctaLocation="LOCKED_PLAN"
+        screen="plan_civique"
+        journeyId={journey?.journeyId ?? null}
         open={serieCible.paywall || serieUnite.paywall}
         module="CIVIQUE"
         onClose={() => {

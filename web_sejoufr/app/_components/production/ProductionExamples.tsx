@@ -118,6 +118,8 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
         )}
 
         <PaywallSheet
+          ctaLocation="OTHER"
+          screen="production_exemples"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"

@@ -19,11 +19,13 @@ interface PaywallSheetProps {
    */
   module?: "CIVIQUE" | "INTEGRAL";
   /**
-   * D'où le verrou a été rencontré. C'est ce qui alimente la table « Quel écran
-   * déclenche l'achat ? » : sans lui, tous les cadenas du produit se
-   * confondraient en une seule ligne « Autre ».
+   * D'où le verrou a été rencontré — **obligatoire, sans défaut** (contrôle F,
+   * 2026-09-25) : l'ancien défaut `OTHER` rangeait en `OTHER_CTA` des achats
+   * partis du Plan. Chaque appel choisit : hors Plan, le CTA que l'écran pose
+   * déjà sur son verrou ; depuis le Plan, `LOCKED_PLAN` + `journeyId` servi ;
+   * origine réellement inconnue, `null` ⇒ aucune intention ⇒ `UNKNOWN`.
    */
-  ctaLocation?: AnalyticsCtaLocation;
+  ctaLocation: AnalyticsCtaLocation | null;
   /** Écran précis, quand il apporte plus que l'emplacement. */
   screen?: string;
   /** Le parcours affiché (`plan_id`), quand la feuille s'ouvre sur un Plan :
@@ -42,7 +44,7 @@ export function PaywallSheet({
   title = "Continuez en illimité",
   message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, et l'entraînement illimité.",
   module = "CIVIQUE",
-  ctaLocation = "OTHER",
+  ctaLocation,
   screen,
   journeyId = null,
 }: PaywallSheetProps) {
@@ -133,7 +135,7 @@ export function PaywallSheet({
           href={paymentHref}
           className="btn btn-red btn-lg pws-cta"
           onClick={() => {
-            track("PREMIUM_CTA_CLICKED", {ctaLocation, screen});
+            track("PREMIUM_CTA_CLICKED", ctaLocation ? {ctaLocation, screen} : {screen});
             onClose();
           }}
         >
