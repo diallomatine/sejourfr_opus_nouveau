@@ -3901,16 +3901,20 @@ canonique vit côté backend.
   Même borne côté serveur (`rejouer`).
   🛑 **Le `claimToken` ne sort du tracker que vers `submit` et l'auth** ; les événements ne
   reçoivent que `runIdFor(type)`, et seulement si la run est celle du compte connecté.
-- **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + la run **d'invité** la plus
-  récente dont le jeton vaut encore (`claimForAuth`) ; le jeton est **conservé** après l'auth
-  (lot 3b). `onAuthenticated` marque la run au **premier** compte qui l'a transmise, **avant** le
-  passage en connecté.
+- **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + **toutes** les runs
+  **d'invité** dont le `claimTokenExpiresAt` servi vaut encore, et celle du lien web → app
+  (`claimsForAuth`, la plus récente d'abord) dans `diagnosticRunClaims` (contrôle N3) ; les champs
+  uniques `diagnosticRunId`/`claimToken`/`claimVia` restent remplis avec la plus récente (compat,
+  le serveur dédoublonne et en garde 3). Le jeton est **conservé** après l'auth (lot 3b).
+  `onAuthenticated` marque chaque run au **premier** compte qui l'a transmise, **avant** le
+  passage en connecté. `X-Sejourfr-Client: ios|android` + `X-Sejourfr-App-Version` partent sur
+  les 4 appels (intercepteur, `skipAuth` compris) : c'est ce qui distingue un client ancien (G-b).
 - **Lien web → app** (lot 3b) : `https://{sejourfr.fr,app.sejourfr.fr}/continuer-sur-app#run=…&token=…`
   (intent-filter `autoVerify` + `applinks:` dans `Runner.entitlements`). Le `redirect` de
   `app_router.dart` le consomme **avant** la branche du boot (jamais une destination après
   connexion) : `AppLinkClaim.fromUri` (fragment seulement) → `receiveAppLink`, rangé **à part**
   des passages (`sejourfr.diagnosticRun.appLink`), puis `/register` (ou l'Accueil si connecté).
-  `claimForAuth` rend la plus récente entre run d'invité et lien, avec `claimVia` ; le lien est
+  `claimsForAuth` l'ajoute aux runs d'invité, avec `claimVia` ; le lien est
   oublié après l'auth qui l'a transmis et n'est jamais attaché à un événement.
 - **Plan** : `Journey.journeyId` (miroir de `JourneyDto.journeyId`) accompagne `PLAN_OPENED`
   (une fois par ouverture, quand le parcours affiché est connu), `PLAN_EXERCISE_STARTED` et
@@ -4211,8 +4215,13 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
   démarrage à `CIVIQUE`. Si on veut le mémoriser, ajouter une lecture dans `TokenStorage` (ou un service de
   prefs dédié) et le restaurer au boot.
 
-- Pour gérer les **mises à jour forcées** (kill-switch côté serveur), ajouter un endpoint `/api/app-config`
-  qui renvoie la version minimum acceptée, et bloquer l'app au splash si la version locale est trop ancienne.
+- **Version minimale (contrôle G-a)** : `updateRequiredProvider` (`core/app_update/min_version.dart`)
+  lit `GET /api/public/app-config` (`minSupportedVersion.{ios,android}`) une fois par lancement,
+  en arrière-plan ; `app.dart` remplace alors toute l'app par `UpdateRequiredScreen` (lien vers le
+  store **de la plateforme** seulement, `IOS_APP_STORE_URL` / `ANDROID_PLAY_STORE_URL` en `.env`).
+  🛑 **Ne bloque jamais sur un doute** : chargement, erreur réseau, `null` servi, version non
+  numérique ⇒ l'app s'ouvre. Comparaison `isVersionBelow`, numérique composant par composant,
+  build `+N` ignoré.
 
 ## Le PARCOURS TCF — la file d'étapes du Plan (2026-09-17)
 

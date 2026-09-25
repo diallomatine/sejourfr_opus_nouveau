@@ -200,7 +200,7 @@ class AuthController extends StateNotifier<AuthState> {
     );
   }
 
-  /// L'identifiant de l'appareil et la run de diagnostic à rattacher, lus
+  /// L'identifiant de l'appareil et les runs de diagnostic à rattacher, lus
   /// **juste avant** l'appel d'auth. Ne lève jamais : sans eux, on
   /// s'authentifie comme avant.
   Future<AuthTunnel> _tunnel() async {
@@ -210,16 +210,17 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {
       anonymousId = null;
     }
-    final claim = await _ref.read(diagnosticRunTrackerProvider).claimForAuth();
-    return (anonymousId: anonymousId, claim: claim);
+    final claims =
+        await _ref.read(diagnosticRunTrackerProvider).claimsForAuth();
+    return (anonymousId: anonymousId, claims: claims);
   }
 
-  /// Après une auth réussie : la run transmise est désormais celle du compte,
+  /// Après une auth réussie : les runs transmises sont désormais celles du compte,
   /// pour l'appareil. Attendu **avant** de passer en connecté, pour que les
   /// événements émis dès le premier écran la retrouvent. Ne lève jamais.
   Future<void> _afterAuth(AuthUser user, AuthTunnel tunnel) => _ref
       .read(diagnosticRunTrackerProvider)
-      .onAuthenticated(user.id, tunnel.claim);
+      .onAuthenticated(user.id, tunnel.claims);
 
   Future<void> login({required String email, required String password}) async {
     final tunnel = await _tunnel();

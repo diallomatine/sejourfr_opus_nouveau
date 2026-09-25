@@ -6,19 +6,36 @@ import '../models/diagnostic_run_models.dart';
 import 'api_client.dart';
 
 /// Ce que l'authentification transmet au tunnel « Suivi » : l'identifiant de
-/// l'appareil (lien `analytics_identity`) et, s'il y en a une, la run de
-/// diagnostic à rattacher **avec son jeton**. Tous facultatifs : un client qui
-/// n'envoie rien s'authentifie exactement comme avant.
-typedef AuthTunnel = ({String? anonymousId, DiagnosticRunClaim? claim});
+/// l'appareil (lien `analytics_identity`) et les runs de diagnostic à
+/// rattacher **avec leur jeton**, la plus récente d'abord. Tous facultatifs :
+/// un client qui n'envoie rien s'authentifie exactement comme avant.
+typedef AuthTunnel = ({String? anonymousId, List<DiagnosticRunClaim> claims});
 
-Map<String, Object?> _tunnelFields(AuthTunnel? tunnel) => {
-      if (tunnel?.anonymousId != null) 'anonymousId': tunnel!.anonymousId,
-      if (tunnel?.claim != null) ...{
-        'diagnosticRunId': tunnel!.claim!.diagnosticRunId,
-        'claimToken': tunnel.claim!.claimToken,
-        'claimVia': tunnel.claim!.via.wire,
-      },
-    };
+/// 🛑 **Contrôle N3** : **toutes** les runs rattachables partent dans
+/// `diagnosticRunClaims` (une par type d'invité + celle du lien web → app) —
+/// un invité TCF rapide **et** civique n'est plus compté deux fois. Les
+/// champs uniques restent remplis avec la plus récente, pour un serveur qui
+/// ne lit pas encore la liste ; le serveur dédoublonne par run.
+Map<String, Object?> _tunnelFields(AuthTunnel? tunnel) {
+  final claims = tunnel?.claims ?? const <DiagnosticRunClaim>[];
+  final latest = claims.isEmpty ? null : claims.first;
+  return {
+    if (tunnel?.anonymousId != null) 'anonymousId': tunnel!.anonymousId,
+    if (latest != null) ...{
+      'diagnosticRunId': latest.diagnosticRunId,
+      'claimToken': latest.claimToken,
+      'claimVia': latest.via.wire,
+      'diagnosticRunClaims': [
+        for (final claim in claims)
+          {
+            'diagnosticRunId': claim.diagnosticRunId,
+            'claimToken': claim.claimToken,
+            'claimVia': claim.via.wire,
+          },
+      ],
+    },
+  };
+}
 
 class AuthRepository {
   AuthRepository(this._client);

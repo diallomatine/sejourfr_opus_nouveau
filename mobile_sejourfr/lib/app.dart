@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/analytics/analytics.dart';
+import 'core/app_update/min_version.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'screens/update/update_required_screen.dart';
 
 class SejourFrApp extends ConsumerWidget {
   const SejourFrApp({super.key});
@@ -15,6 +17,9 @@ class SejourFrApp extends ConsumerWidget {
     // lancement (envoi de ce qui reste du lancement précédent, reprise,
     // minuterie), même si aucun écran n'émet encore rien.
     ref.watch(analyticsQueueProvider);
+    // Contrôle G-a : la version minimale, lue en arrière-plan. Tant qu'elle
+    // n'a pas répondu — ou sur toute erreur — l'app s'ouvre normalement.
+    final bloquee = ref.watch(updateRequiredProvider).valueOrNull ?? false;
     return MaterialApp.router(
       title: 'SejourFR',
       debugShowCheckedModeBanner: false,
@@ -24,7 +29,7 @@ class SejourFrApp extends ConsumerWidget {
         return MediaQuery.withClampedTextScaling(
           minScaleFactor: 0.9,
           maxScaleFactor: 1.2,
-          child: child!,
+          child: bloquee ? const UpdateRequiredScreen() : child!,
         );
       },
     );

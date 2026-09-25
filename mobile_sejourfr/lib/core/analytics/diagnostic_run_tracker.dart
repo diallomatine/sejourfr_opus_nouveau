@@ -306,56 +306,66 @@ class DiagnosticRunTracker {
   // Étape 3 — rattachement à l'authentification
   // ---------------------------------------------------------------------------
 
-  /// La run à transmettre à `login` / `register` / `google` / `apple`, ou
-  /// `null`. Le serveur n'en rattache qu'une : on prend la plus récente entre
-  /// la run **d'invité** de l'appareil dont le jeton vaut encore (même règle
-  /// que le web) et celle reçue par le **lien web → app** ([receiveAppLink]).
-  Future<DiagnosticRunClaim?> claimForAuth() async {
+  /// Les runs à transmettre à `login` / `register` / `google` / `apple`, **la
+  /// plus récente d'abord** (vide s'il n'y en a aucune). 🛑 **Contrôle N3** :
+  /// toutes, plus seulement la plus récente — chaque run **d'invité** de
+  /// l'appareil dont le jeton vaut encore (`claimTokenExpiresAt` **servi**,
+  /// jamais recalculé ici), et celle reçue par le **lien web → app**
+  /// ([receiveAppLink]). Le serveur en garde trois et dédoublonne ; une run
+  /// refusée n'empêche ni l'auth ni le rattachement des autres.
+  Future<List<DiagnosticRunClaim>> claimsForAuth() async {
+    final found = <({DiagnosticRunClaim claim, DateTime at})>[];
     try {
       final now = DateTime.now();
-      DiagnosticRunEntry? best;
       for (final type in DiagnosticRunType.values) {
         final entry = await _read(type);
         if (entry == null || !entry.claimUsable(now)) continue;
-        if (best == null || entry.touchedAt.isAfter(best.touchedAt)) {
-          best = entry;
-        }
+        found.add((
+          claim: DiagnosticRunClaim(
+            diagnosticRunId: entry.diagnosticRunId!,
+            claimToken: entry.claimToken!,
+          ),
+          at: entry.touchedAt,
+        ));
       }
       final link = await _readAppLink();
       if (link != null &&
-          (best == null || link.receivedAt.isAfter(best.touchedAt))) {
-        return link.claim;
+          found.every(
+              (f) => f.claim.diagnosticRunId != link.claim.diagnosticRunId)) {
+        found.add((claim: link.claim, at: link.receivedAt));
       }
-      if (best == null) return null;
-      return DiagnosticRunClaim(
-        diagnosticRunId: best.diagnosticRunId!,
-        claimToken: best.claimToken!,
-      );
     } catch (_) {
-      return null;
+      // Best-effort : ce qui a été lu part quand même.
     }
+    found.sort((a, b) => b.at.compareTo(a.at));
+    return [for (final f in found) f.claim];
   }
 
-  /// L'authentification a réussi en transmettant [claim] : la run est
-  /// désormais connue comme celle de [userId]. Le serveur peut l'avoir
-  /// refusée (compte qui porte déjà sa run, jeton expiré) — il ne le dit pas,
+  /// L'authentification a réussi en transmettant [claims] : ces runs sont
+  /// désormais connues comme celles de [userId]. Le serveur peut en avoir
+  /// refusé (compte qui porte déjà sa run, jeton expiré) — il ne le dit pas,
   /// et un rattachement refusé laisse simplement la run hors des événements
   /// de ce compte côté serveur. Aucune vérité n'en dépend ici.
-  Future<void> onAuthenticated(String userId, DiagnosticRunClaim? claim) async {
-    if (claim == null) return;
-    if (claim.via == DiagnosticRunClaimVia.appLink) {
+  Future<void> onAuthenticated(
+    String userId,
+    List<DiagnosticRunClaim> claims,
+  ) async {
+    if (claims.isEmpty) return;
+    if (claims.any((c) => c.via == DiagnosticRunClaimVia.appLink)) {
       // Transmise une fois : rattachée ou refusée, le serveur a tranché. La
       // run du web ne devient pas une run de l'appareil (son rapport n'est
       // pas ici) : aucun événement ne la portera.
       await _forgetAppLink();
-      return;
     }
+    final sent = {
+      for (final c in claims)
+        if (c.via != DiagnosticRunClaimVia.appLink) c.diagnosticRunId,
+    };
+    if (sent.isEmpty) return;
     try {
       for (final type in DiagnosticRunType.values) {
         final entry = await _read(type);
-        if (entry == null || entry.diagnosticRunId != claim.diagnosticRunId) {
-          continue;
-        }
+        if (entry == null || !sent.contains(entry.diagnosticRunId)) continue;
         // 🛑 Premier compte seulement : une run déjà claimée, renvoyée par un
         // autre compte, ne change pas de porteur (le serveur l'a refusée).
         if (entry.ownerUserId != null) continue;
