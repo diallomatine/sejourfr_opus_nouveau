@@ -362,6 +362,7 @@ retour (faible / moyenne / forte).
 - Choix : **`QUICK_TCF` = appel client** `POST /api/public/diagnostic-runs/{id}/submit` (invité et connecté, à « Analyser mes réponses ») ; **`CIVIQUE` = serveur** à la fin de l'attempt (`AttemptInteractionService.doFinish` : fin publique, connectée ou échéance ; et `CivicDiagnosticService.cloturer` s'il ferme l'attempt) ; **`FULL_TCF` = serveur** à `TcfDiagnosticService.cloturer`. L'appel client est refusé en **409** pour les deux derniers : deux autorités se contrediraient. `UPDATE … WHERE submitted_at IS NULL` : une seule fois. `submitted_authenticated` = porteur de l'attempt / appelant JWT **à cet instant** ; un soumis connecté pose aussi `user_id` (« soumis connecté » ⇒ « rattaché »). ⚠️ Une échéance civique close paresseusement compte « soumis » (l'attempt est bien clos).
 - Fichiers : `DiagnosticRunService`, `AttemptInteractionService`, `CivicDiagnosticService`, `TcfDiagnosticService`, `DiagnosticRunRepository.markSubmitted*`.
 - Difficulté de retour : moyenne.
+- ⚠️ **Correction du 2026-09-25 (contrôle, point C)** : le diagnostic civique n'a **pas d'échéance** (`CivicDiagnosticService` ne pose jamais `timeLimitSeconds`) ; la mention « échéance » ci-dessus est inexacte. Le vrai défaut : « Quitter » confirmé passe par `finish` et comptait « soumis » même à 0 réponse. Remplacé par D90 (seuil de 80 % des questions répondues).
 
 **D24 — Un runId n'est jamais cru : règle d'appartenance et liaison aux sessions** · Lot 2a
 - Contexte : le runId voyage dans les événements (pas un secret) ; il faut lier la run à sa session (FK V074) sans faire confiance au client.
@@ -690,6 +691,7 @@ retour (faible / moyenne / forte).
 - Choix : **Révoqué par l'orchestrateur** : un `OTHER` fabriqué rangerait à tort un achat du Plan en `OTHER_CTA`. Parité web : CTA inconnu → aucune intention → `UNKNOWN`.
 - Fichiers : `paywall_sheet.dart`, `premium_lock.dart`, `paywall_screen.dart`, `start_failure.dart`.
 - Difficulté de retour : faible.
+- ⚠️ **Correction du 2026-09-25 (contrôle, point F)** : la « parité web » invoquée ici n'existait pas — le web mettait `ctaLocation = "OTHER"` par défaut dans `PaywallSheet`, fabriquant des `OTHER_CTA` faux (dont un 403 depuis le Plan civique). Corrigé par D92 (CTA obligatoire à chaque appel, web et mobile).
 
 **D71 — Cycle de vie de l'intention d'achat** · Lot 3 mobile
 - Contexte : Q12.
@@ -816,6 +818,14 @@ retour (faible / moyenne / forte).
 - Choix : supprimés `PublicAnalyticsController`, `AnalyticsIngestionService` (et sa borne ± 24 h), `AnalyticsEventRequest`, `RateLimitGuard.checkAnalytics` et `RateLimitProperties.analyticsBurst/analyticsDaily` (aucune clé YAML ne les surchargeait), `PublicAnalyticsControllerIT`, `AnalyticsIngestionServiceTest`. **Conservés** : `AnalyticsEventNormalizer`, `AnalyticsFirstTouchRequest`, `GeoIpCountryResolver`, `DeviceTypeResolver` (le lot s'en sert). Les cas de l'ancien test qui verrouillaient une **règle partagée** (événement serveur, allowlists de propriétés et de chemins, `dedupKey`, attribution, troncature, hôte du referrer) sont repris dans `AnalyticsEventNormalizerTest` ; ceux propres à l'unitaire (fenêtre ± 24 h, 204) disparaissent avec lui. 404 verrouillé dans `PublicRoutesSecurityIT`. Les lignes déjà écrites par l'unitaire (`event_id` nul) restent en base.
 - Fichiers : les classes citées, `AnalyticsEventRecord`, `AnalyticsEventManager` (Javadoc), `docs/api-endpoints.md`, `docs/regles/mesure-audience.md`, `CLAUDE.md` web et mobile.
 - Difficulté de retour : faible (git).
+
+**D89 — Mesure préalable du seuil civique** · Contrôle (orchestrateur)
+- Contexte : le propriétaire fixe « soumis » civique à ≥ 80 % de questions répondues, sauf si les données montrent un problème évident ; la requête de mesure doit tourner d'abord.
+- Mesure (base locale `sejourfr_db`, 2026-09-25) : `diagnostic_run` n'existe pas encore en local (V074 non appliquée), la mesure porte donc sur les **sessions de diagnostic civique** elles-mêmes (`civic_diagnostic_sessions` → `attempts` → `answers`). Résultat : **6 sessions, toutes closes, toutes connectées, 40 questions chacune** — 0 à zéro réponse, 0 sous 50 %, 0 entre 50 et 80 %, **1 entre 80 et 99 %**, **5 complètes**.
+- Lecture : échantillon de dev, non représentatif de la production ; il ne montre aucun problème avec 80 % (la seule session incomplète passerait le seuil).
+- Choix : **80 % conservé**. La même requête est à relancer en production après quelques semaines (checklist de déploiement) ; changer le seuil = changer la config, sans migration.
+- Requête : voir `docs/admin/deploiement-suivi.md` (§ vérifications après déploiement).
+- Difficulté de retour : faible.
 
 ---
 
