@@ -337,6 +337,15 @@ public class BillingService {
         }
         SessionCreateParams params = builder
                 .setMode(SessionCreateParams.Mode.PAYMENT)
+                // Contrôle B : CARTE SEULE, imposée dans le code — Apple Pay et
+                // Google Pay passent par la carte. Sans cette ligne, les moyens
+                // proposés étaient ceux du Dashboard : un SEPA / Multibanco activé
+                // là-bas créait un paiement différé (client prélevé, accès ouvert
+                // seulement si `async_payment_succeeded` est abonné). Un réglage
+                // Dashboard ne peut plus réintroduire ce cas. Link n'est PAS
+                // ajouté : il peut être adossé à un compte bancaire (paiement
+                // non immédiat) ; une carte enregistrée dans Link reste une carte.
+                .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
                 .setClientReferenceId(user.getId().toString())
                 .setCustomerEmail(user.getEmail())
                 .setSuccessUrl(successUrl)

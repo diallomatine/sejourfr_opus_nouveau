@@ -190,7 +190,9 @@ public class StripeSubscriptionService {
      * paiement différé (SEPA…) termine la session avec {@code unpaid} — rien
      * n'est encore encaissé, rien n'est accordé. L'accès s'ouvre sur
      * {@code checkout.session.async_payment_succeeded}, qui repasse ici avec
-     * {@code paid}.
+     * {@code paid}. Depuis le contrôle B, la session n'accepte plus que la
+     * carte (voir {@code BillingService.createOneTimeCheckout}) : ce chemin ne
+     * sert plus qu'aux sessions ouvertes avant ce changement.
      */
     private void handleOneTimeCheckout(Session session, Event event) {
         UUID userId = parseUserIdOrLog(session.getClientReferenceId(), session.getId());
@@ -227,11 +229,17 @@ public class StripeSubscriptionService {
         Integer fraisReel = dejaAccorde ? null
                 : stripeFeeClient.fraisReelEurCents(paymentIntent).orElse(null);
         String intentId = session.getMetadata().get(METADATA_INTENT_ID);
+        // Contrôle B : `purchased_at` = l'encaissement (date de l'évènement,
+        // plusieurs jours après la session pour un paiement différé), mais
+        // l'intention, posée juste avant la création de la session, se juge à
+        // la CRÉATION de la session — sinon un paiement différé sortirait
+        // toujours `UNKNOWN`.
         oneTimeAccessService.grantOneTimeAccess(
                 userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId(),
                 montantEncaisseResolver.enUnitesMineures(
                         session.getAmountTotal(), session.getCurrency()),
-                new ContexteAchat(fraisReel, toInstant(event.getCreated(), null), intentId));
+                new ContexteAchat(fraisReel, toInstant(event.getCreated(), null), intentId,
+                        toInstant(session.getCreated(), null)));
         log.info("Stripe one-time pass accordé user={} plan={} session={}",
                 userId, planCode, session.getId());
     }

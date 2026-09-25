@@ -226,6 +226,41 @@ class BillingServiceTest {
         }
     }
 
+    /**
+     * Contrôle B : les moyens de paiement sont imposés dans le code — carte
+     * seule (Apple Pay / Google Pay passent par la carte). Aucun moyen différé
+     * (SEPA, Multibanco, virement) activé dans le Dashboard ne peut plus être
+     * proposé, ni Link (adossable à un compte bancaire).
+     */
+    @Test
+    void getPaymentLink_sessionRestreinteALaCarte() {
+        when(stripeProperties.isConfigured()).thenReturn(true);
+        when(stripeProperties.getAppBaseUrl()).thenReturn("https://sejourfr.fr");
+        when(billingProperties.isOneTime()).thenReturn(true);
+        Plan pass = plan(ModuleAccess.CIVIQUE, null);
+        pass.setDurationDays(90);
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(pass));
+        when(purchaseIntentService.creerPourCheckout(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        try (MockedStatic<com.stripe.model.checkout.Session> sessions =
+                     mockStatic(com.stripe.model.checkout.Session.class)) {
+            com.stripe.model.checkout.Session created =
+                    mock(com.stripe.model.checkout.Session.class);
+            when(created.getUrl()).thenReturn("https://checkout.stripe.com/x");
+            ArgumentCaptor<com.stripe.param.checkout.SessionCreateParams> captor =
+                    ArgumentCaptor.forClass(com.stripe.param.checkout.SessionCreateParams.class);
+            sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
+                    .thenReturn(created);
+
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX);
+
+            assertThat(captor.getValue().getPaymentMethodTypes()).containsExactly(
+                    com.stripe.param.checkout.SessionCreateParams.PaymentMethodType.CARD);
+            assertThat(captor.getValue().getPaymentMethodConfiguration()).isNull();
+        }
+    }
+
     /** Sans CTA (client antérieur) : aucune intention, le paiement part quand même. */
     @Test
     void getPaymentLink_sansIntention_pasDeMetadataIntentId() {

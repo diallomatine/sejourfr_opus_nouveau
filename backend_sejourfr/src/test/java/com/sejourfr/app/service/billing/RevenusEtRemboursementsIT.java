@@ -157,6 +157,68 @@ class RevenusEtRemboursementsIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
+    // Contrôle B — paiement différé : l'intention se juge à la session
+    // ------------------------------------------------------------------------
+
+    /** Une intention posée il y a trois jours, déjà expirée (TTL 24 h) à l'heure de l'encaissement. */
+    private String intentionVieilleDeTroisJours(User user, Plan plan, Instant creeeA) {
+        String intent = purchaseIntentService
+                .creerPourCheckout(user.getId(), plan, "PRICING", null, WEB)
+                .orElseThrow().toString();
+        em.flush();
+        jdbc.update("UPDATE purchase_intent SET created_at = ?, expires_at = ? WHERE id = ?::uuid",
+                java.sql.Timestamp.from(creeeA),
+                java.sql.Timestamp.from(creeeA.plus(24, java.time.temporal.ChronoUnit.HOURS)), intent);
+        em.clear();
+        return intent;
+    }
+
+    @Test
+    @DisplayName("Contrôle B — paiement différé encaissé à J+3 : l'intention posée à la session est attribuée")
+    void paiementDiffereAJPlus3_intentionJugeeALaSession() {
+        User user = testData.user();
+        Plan plan = testData.plan();
+        Instant clic = Instant.now().minus(3, java.time.temporal.ChronoUnit.DAYS);
+        String intent = intentionVieilleDeTroisJours(user, plan, clic);
+        String pi = "pi_" + UUID.randomUUID();
+        Session session = sessionPayee(user, plan, pi, intent);
+        when(session.getCreated()).thenReturn(clic.plusSeconds(30).getEpochSecond());
+        Instant encaissement = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        Event succes = event("checkout.session.async_payment_succeeded", session);
+        when(succes.getCreated()).thenReturn(encaissement.getEpochSecond());
+
+        stripeSubscriptionService.dispatch(succes);
+        em.flush();
+
+        UserSubscription sub = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, pi).orElseThrow();
+        assertThat(sub.getOrigin()).isEqualTo(PurchaseOrigin.OTHER_CTA);
+        assertThat(sub.getPurchaseIntentId()).hasToString(intent);
+        // L'achat, lui, reste daté de l'encaissement.
+        assertThat(sub.getPurchasedAt()).isEqualTo(encaissement);
+    }
+
+    @Test
+    @DisplayName("Contrôle B — sans date de session lisible, l'intention se juge à l'encaissement (expirée → UNKNOWN)")
+    void sansDateDeSession_repliSurLEncaissement() {
+        User user = testData.user();
+        Plan plan = testData.plan();
+        String intent = intentionVieilleDeTroisJours(user, plan,
+                Instant.now().minus(3, java.time.temporal.ChronoUnit.DAYS));
+        String pi = "pi_" + UUID.randomUUID();
+        Session session = sessionPayee(user, plan, pi, intent);
+        when(session.getCreated()).thenReturn(null);
+
+        stripeSubscriptionService.dispatch(event("checkout.session.async_payment_succeeded", session));
+        em.flush();
+
+        UserSubscription sub = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, pi).orElseThrow();
+        assertThat(sub.getOrigin()).isEqualTo(PurchaseOrigin.UNKNOWN);
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+    }
+
+    // ------------------------------------------------------------------------
     // Scénario 12 — montants au centime, invariant tenu par la base
     // ------------------------------------------------------------------------
 

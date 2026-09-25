@@ -392,6 +392,15 @@ Schéma : V074 (colonnes de revenu et d'attribution de `user_subscriptions`,
   différé est accordé sur `checkout.session.async_payment_succeeded`.
   ⚠️ **Action propriétaire** : abonner l'endpoint webhook Stripe à
   `checkout.session.async_payment_succeeded` et `checkout.session.async_payment_failed`.
+- 🛑 **Carte seule, imposée dans le code** (contrôle B, 2026-09-25) : la session Checkout
+  one-time porte `payment_method_types = [card]` (`BillingService.createOneTimeCheckout`).
+  Apple Pay / Google Pay passent par la carte ; Link n'est pas ajouté (il peut être adossé à
+  un compte bancaire). Un moyen différé activé dans le Dashboard (SEPA, Multibanco…) ne peut
+  plus être proposé. On perd Bancontact, iDEAL, Klarna — assumé.
+- 🛑 **Intention d'un achat Stripe jugée à la CRÉATION de la session** (`session.created`),
+  pas à la date de l'évènement : un paiement différé encaissé à J+3 reste attribué à
+  l'intention posée au clic. `purchased_at` reste la date de l'encaissement (évènement).
+  Session sans `created` lisible ⇒ repli sur `purchased_at`.
 - 🛑 **Plus aucune garde sur l'âge de l'évènement** : Stripe garde le `created` d'origine sur ses
   relances (jusqu'à 3 jours), l'ancienne garde de 300 s rejetait définitivement un achat payé.
   Le rejeu est tenu par la tolérance de la **signature** (`Webhook.constructEvent`, horodatage

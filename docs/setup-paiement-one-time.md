@@ -60,11 +60,24 @@ existante soit en place :
    côté backend.
 2. **Dashboard Stripe → Developers → Webhooks → ton endpoint**
    (`https://api.sejourfr.fr/api/billing/webhook`) → bouton **« … » → Update
-   details → Select events** : s'assurer que ces deux events sont cochés :
+   details → Select events** : s'assurer que **ces quatre events** sont cochés :
     - `checkout.session.completed`
+    - `checkout.session.async_payment_succeeded` — accorde l'accès d'un paiement
+      différé une fois encaissé. **Obligatoire** : sans lui, un client prélevé
+      par un moyen différé n'obtient jamais son accès.
+    - `checkout.session.async_payment_failed` — trace l'échec d'un paiement
+      différé (aucun accès accordé).
     - `charge.refunded`
       (Les `customer.subscription.*` peuvent rester cochés, ils ne se déclenchent
       pas en mode one-time.) Copier le **Signing secret** dans `STRIPE_WEBHOOK_SECRET`.
+
+   ⚠️ **Moyens de paiement** : depuis le contrôle B (2026-09-25), le backend
+   impose **la carte seule** à la session Checkout (`payment_method_types =
+   [card]`) ; Apple Pay et Google Pay restent proposés (ils passent par la
+   carte), Link n'est pas proposé explicitement. Activer SEPA, Multibanco,
+   Bancontact ou iDEAL dans le Dashboard n'a donc **aucun effet** sur ce checkout.
+   Les deux events `async_*` restent obligatoires : ils couvrent les sessions
+   ouvertes avant ce changement et tout retour arrière du code.
 3. `APP_BASE_URL` pointe sur le web (pour les URLs de succès/annulation).
 
 Le prix est géré en base : pour ajuster, `UPDATE plans SET price = … WHERE code = …`

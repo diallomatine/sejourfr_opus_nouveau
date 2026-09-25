@@ -172,7 +172,9 @@ public class OneTimeAccessService {
         sub.setPurchasedAt(achat.purchasedAt() != null ? achat.purchasedAt() : now);
         sub.setPaymentStatus(PaymentStatus.PAID);
         decomposerSansJamaisBloquer(sub, source, achat.fraisReelEurCents());
-        purchaseIntentService.consommer(userId, plan, achat.purchaseIntentId(), sub.getPurchasedAt())
+        Instant intentionJugeeA = achat.intentionJugeeA() != null
+                ? achat.intentionJugeeA() : sub.getPurchasedAt();
+        purchaseIntentService.consommer(userId, plan, achat.purchaseIntentId(), intentionJugeeA)
                 .appliquerA(sub);
         userSubscriptionManager.save(sub);
 
