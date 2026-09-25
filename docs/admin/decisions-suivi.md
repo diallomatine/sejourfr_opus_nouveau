@@ -411,6 +411,97 @@ retour (faible / moyenne / forte).
 - Fichiers : `util/JetonSecret`, `AuthService`, `ratelimit/*`, `AnalyticsConfig`, `AnalyticsConfigLoader`, `analytics-config-v1.json`.
 - Difficulté de retour : faible.
 
+**D31 — Résolution journey → run fondatrice, version minimale** · Lot 2b
+- Contexte : la méthode du lot 2a n'existait pas encore quand le lot 2b l'a utilisée.
+- Options : attendre 2a ; heuristique « run la plus récente » ; lecture par FK.
+- Choix : lecture par FK dans `PurchaseIntentRepository.foundingRunOf` (1er `journey_assessment_event` diagnostic → run du même compte liée à cette session), aucune heuristique. **Réconciliée au lot 4** : remplacée par `DiagnosticRunManager.findFoundingRun` (une règle = une autorité).
+- Fichiers : `PurchaseIntentRepository`, `PurchaseIntentManager`.
+- Difficulté de retour : faible.
+
+**D32 — « CTA du Plan » = `LOCKED_PLAN` seul ; la run n'est posée que pour `DIAGNOSTIC_PLAN`** · Lot 2b
+- Contexte : Q12 dit « CTA du plan » sans liste ; tous les « Débloquer » du Plan envoient déjà `LOCKED_PLAN`.
+- Options : `{LOCKED_PLAN}` ; `{LOCKED_PLAN, DIAGNOSTIC_REPORT}`.
+- Choix : `{LOCKED_PLAN}`. En `OTHER_CTA`, `journey_id` conservé mais `diagnostic_run_id` nul : l'achat n'entre pas dans le tunnel.
+- Fichiers : `PurchaseIntentService.CTA_DU_PLAN`, `AttributionAchat`.
+- Difficulté de retour : faible (un ensemble à modifier).
+
+**D33 — Sans `ctaLocation` lisible au checkout : pas d'intention, jamais d'erreur** · Lot 2b
+- Contexte : Q12 veut une intention quel que soit le CTA, mais un client ancien n'envoie rien et un paiement ne doit jamais être bloqué.
+- Options : intention par défaut `OTHER` ; 400 ; pas d'intention.
+- Choix : pas d'intention → achat `UNKNOWN` (un CTA par défaut produirait un `OTHER_CTA` faux). L'endpoint mobile exige un CTA valide (400).
+- Fichiers : `PurchaseIntentService.creerPourCheckout`, `BillingService`.
+- Difficulté de retour : faible.
+
+**D34 — Expiration de l'intention jugée à l'instant d'achat du canal** · Lot 2b
+- Contexte : une relance de webhook ou un reçu rejoué arrive parfois bien après l'achat.
+- Options : heure de réception ; heure d'achat du canal.
+- Choix : `created` Stripe / `purchaseDate` Apple / `purchaseTimeMillis` Google, sinon maintenant. Consommation par `UPDATE` conditionnel (même compte, produit, non expirée, non consommée) ; une intention refusée reste intacte.
+- Fichiers : `PurchaseIntentRepository.consume`, `PurchaseIntentService.consommer`.
+- Difficulté de retour : faible.
+
+**D35 — Identifiant de remboursement Stripe = `<charge>:<cumul remboursé>`** · Lot 2b
+- Contexte : avec la version d'API actuelle, `charge.refunded` ne liste plus les remboursements.
+- Options : appel `Refund.list` ; clé calculée depuis `amount_refunded`.
+- Choix : clé calculée, sans appel réseau ; le montant écrit = cumul − déjà enregistré, un état rejoué n'écrit rien.
+- Fichiers : `StripeSubscriptionService.rembourserPass`.
+- Difficulté de retour : moyenne (les lignes écrites gardent ce format).
+
+**D36 — Règles de calcul des remboursements** · Lot 2b
+- Contexte : le brief §6.4 fixe les deltas, pas l'identifiant, la conversion ni les achats anciens.
+- Options : —
+- Choix : devise de l'achat convertie au taux figé ; delta `null` si l'achat n'a pas de décomposition ; Apple : `transactionId`, prorata `revocationPercentage` (absent = total), `REVOKE` retire l'accès sans ligne, `REFUND_REVERSED` ignoré ; Google : `orderId` sinon `purchaseToken`, toujours total, date = `publishTime`.
+- Fichiers : `PaymentRefundService`, `AppleSubscriptionService`, `GoogleSubscriptionService`.
+- Difficulté de retour : moyenne.
+
+**D37 — `payment_status` = `PAID | PARTIALLY_REFUNDED | REFUNDED`, distinct du statut d'accès** · Lot 2b
+- Contexte : V074 laissait la colonne sans CHECK.
+- Options : —
+- Choix : une ligne n'existe qu'une fois le paiement encaissé (pas d'état « en attente ») ; seul un remboursement total retire l'accès.
+- Fichiers : `PaymentStatus`, `UserSubscription`, `EtatAbonnement`.
+- Difficulté de retour : faible.
+
+**D38 — Prix Apple lu dans le JWS, jamais dans la requête** · Lot 2b
+- Contexte : bug Q11.
+- Options : —
+- Choix : `price` (millièmes) → centimes HALF_UP ; JWS sans prix → prix du plan.
+- Fichiers : `MontantEncaisseResolver.duJwsApple`, `AppleSubscriptionService`.
+- Difficulté de retour : faible.
+
+**D39 — Prix Google borné par le catalogue à ±50 %, en configuration** · Lot 2b
+- Contexte : Play ne renvoie aucun prix pour un consommable ; seul le client le connaît.
+- Options : tolérance stricte ; large ; ignorer le client.
+- Choix : ±50 % de `plans.price` en euros (`sejourfr.billing.store-price-tolerance: 0.5`), large car vendu en devise locale ; hors borne ou devise sans taux → prix catalogue.
+- Fichiers : `MontantEncaisseResolver.borneParCatalogue`, `BillingProperties`, `application.yaml`.
+- Difficulté de retour : faible (config).
+
+**D40 — Anti-rejeu Stripe : garde sur l'âge (300 s) supprimée** · Lot 2b
+- Contexte : Stripe garde la date de création d'origine sur ses relances (jusqu'à 3 j) : la garde rejetait définitivement des relances légitimes.
+- Options : garder ; élargir ; supprimer.
+- Choix : supprimée : le rejeu reste bloqué par la signature (tolérance sur l'horodatage de signature, régénéré à chaque livraison) et l'idempotence sur l'id d'événement.
+- Fichiers : `BillingService`.
+- Difficulté de retour : faible.
+
+**D41 — Frais réel Stripe lu seulement pour un achat neuf** · Lot 2b
+- Contexte : un webhook rejoué ne doit pas rappeler Stripe.
+- Options : —
+- Choix : erreur ou devise ≠ EUR → formule (`ESTIMATED`).
+- Fichiers : `StripeFeeClient`, `StripeSubscriptionService`.
+- Difficulté de retour : faible.
+
+**D42 — Abonnements récurrents dormants hors décomposition et attribution** · Lot 2b
+- Contexte : ces chemins ne sont pas en service (mode `ONE_TIME`).
+- Options : —
+- Choix : ils écrivent le montant comme avant, colonnes de revenu `null` = inconnu.
+- Fichiers : aucun.
+- Difficulté de retour : faible.
+
+**D43 — Dates de début de mesure : posées au déploiement, pas au commit** · Orchestrateur
+- Contexte : D12 prévoit une date `measurementStart` par indicateur ; D28 (2a) et le lot 2b ont laissé `null` les indicateurs du tunnel, des achats et des revenus. La « bonne » date est celle où le code est **en production**, inconnue au moment du commit.
+- Options : poser la date du commit ; poser une date prévisionnelle ; laisser `null` et la faire poser au déploiement.
+- Choix : laisser `null`. Une date de commit antérieure au déploiement afficherait des zéros faux entre les deux. Le lot 4 affiche « non mesuré » pour tout indicateur à `null` ou dont la période précède la date. Poser les dates est une **action du propriétaire** au déploiement (§3).
+- Fichiers : `analytics/analytics-config-v1.json` (inchangé).
+- Difficulté de retour : faible (une valeur de config).
+
 ---
 
 ## 3. Récapitulatif final
