@@ -1,4 +1,4 @@
-package com.sejourfr.app.service;
+package com.sejourfr.app.service.email;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +26,7 @@ class MailTemplateRendererTest {
     @Test
     void render_escapedPlaceholder_preventsInjection() {
         // access-expiring.html contient {{greeting}} (échappé)
-        String html = renderer.render("access-expiring.html",
+        String html = renderer.render("mail/access-expiring.html",
                 Map.of("greeting", "<script>steal()</script>"));
 
         assertThat(html)
@@ -37,7 +37,7 @@ class MailTemplateRendererTest {
     @Test
     void render_missingKey_leavesPlaceholderUntouched() {
         // on ne fournit pas planName : son placeholder doit rester en clair
-        String html = renderer.render("access-expiring.html",
+        String html = renderer.render("mail/access-expiring.html",
                 Map.of("greeting", "Karim"));
 
         assertThat(html).contains("{{planName}}");
@@ -47,10 +47,24 @@ class MailTemplateRendererTest {
     @Test
     void render_tripleBrace_isNotEscaped() {
         // layout.html contient {{{body}}} (brut, fragment HTML déjà sûr)
-        String html = renderer.render("layout.html",
+        String html = renderer.render("mail/layout.html",
                 Map.of("body", "<b>Bonjour</b>"));
 
         assertThat(html).contains("<b>Bonjour</b>");
         assertThat(html).doesNotContain("&lt;b&gt;");
+    }
+
+    @Test
+    void render_uneValeurInjecteeNestJamaisRelueCommePlaceholder() {
+        String html = renderer.render("email/layout.html",
+                java.util.Map.of("body", "{{subject}}", "subject", "<b>T</b>"));
+
+        assertThat(html).contains("{{subject}}").contains("&lt;b&gt;T&lt;/b&gt;");
+    }
+
+    @Test
+    void renderText_nEchappeRien() {
+        assertThat(renderer.renderInline("Votre accès {{x}}", java.util.Map.of("x", "TCF & Civique")))
+                .isEqualTo("Votre accès TCF & Civique");
     }
 }

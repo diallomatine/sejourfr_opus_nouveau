@@ -43,7 +43,9 @@ import com.sejourfr.app.repository.ProductionTaskRepository;
 import com.sejourfr.app.repository.SkillRepository;
 import com.sejourfr.app.security.JwtService;
 import org.springframework.boot.test.context.TestConfiguration;
+import com.sejourfr.app.service.email.Sleeper;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
@@ -118,5 +120,29 @@ public class TestSupportConfig {
     @Bean
     public AuthTestSupport authTestSupport(JwtService jwtService) {
         return new AuthTestSupport(jwtService);
+    }
+
+    /**
+     * 🛑 Le port d'envoi de TOUS les tests d'integration : il enregistre, il
+     * n'envoie jamais. Aucun test ne peut atteindre un SMTP ni une vraie adresse.
+     */
+    @Bean
+    @Primary
+    public RecordingEmailSender recordingEmailSender() {
+        return new RecordingEmailSender();
+    }
+
+    /** Les relances immediates ne dorment pas en test. */
+    @Bean
+    @Primary
+    public Sleeper noSleep() {
+        return duration -> { };
+    }
+
+    /** Horloge du systeme d'emails, figeable par test (a remettre a zero en @AfterEach). */
+    @Bean
+    @Primary
+    public MutableClock mutableClock() {
+        return new MutableClock();
     }
 }

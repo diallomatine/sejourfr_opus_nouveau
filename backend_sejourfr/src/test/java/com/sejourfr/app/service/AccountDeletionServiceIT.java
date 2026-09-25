@@ -70,6 +70,33 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
         assertThat(attemptManager.countByUserId(id)).isZero();
     }
 
+    /**
+     * Arbitrage n°16 : le journal d'envoi porte l'ADRESSE REELLE. Il part avec le
+     * compte — y compris l'accuse de contact envoye a cette adresse sans compte
+     * rattache — ainsi que les preferences email. Les lignes d'autrui restent.
+     */
+    @Test
+    void deleteAccount_purgesEmailJournalAndPreferences() {
+        User user = data.user();
+        User autre = data.user();
+        entityManager.flush();
+        String insert = "INSERT INTO email_deliveries (id, user_id, email_type, category, recipient, status, "
+                + "provider, created_at) VALUES (?, ?, ?, ?, ?, 'SENT', 'SPRING_MAIL', now())";
+        jdbc.update(insert, UUID.randomUUID(), user.getId(), "WELCOME", "REQUIRED", user.getEmail());
+        jdbc.update(insert, UUID.randomUUID(), null, "CONTACT_RECEIVED", "REQUIRED", user.getEmail().toUpperCase());
+        jdbc.update(insert, UUID.randomUUID(), autre.getId(), "WELCOME", "REQUIRED", autre.getEmail());
+        jdbc.update("INSERT INTO user_email_preferences (user_id, engagement_enabled) VALUES (?, FALSE)", user.getId());
+
+        service.deleteAccount(user.getId());
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM email_deliveries WHERE user_id = ? "
+                + "OR lower(recipient) = lower(?)", Long.class, user.getId(), user.getEmail())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_email_preferences WHERE user_id = ?",
+                Long.class, user.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM email_deliveries WHERE user_id = ?",
+                Long.class, autre.getId())).isEqualTo(1);
+    }
+
     @Test
     void deleteAccount_isIdempotent() {
         User user = data.user();

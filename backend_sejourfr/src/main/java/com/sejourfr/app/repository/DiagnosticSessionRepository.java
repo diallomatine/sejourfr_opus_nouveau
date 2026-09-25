@@ -108,4 +108,17 @@ public interface DiagnosticSessionRepository extends JpaRepository<DiagnosticSes
     @Modifying
     @Query("DELETE FROM DiagnosticSession d WHERE d.user.id = :userId")
     int deleteByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Diagnostics CLOS de ce candidat, hors {@code excludedId} : sert a savoir
+     * si une cloture ouvre le Plan du module pour la PREMIERE fois (mail
+     * {@code DIAGNOSTIC_PLAN_READY}, arbitrage n°7).
+     */
+    @Query("""
+            SELECT count(d) FROM DiagnosticSession d
+            WHERE d.user.id = :userId
+              AND d.status = com.sejourfr.app.enums.DiagnosticSessionStatus.COMPLETED
+              AND d.id <> :excludedId
+            """)
+    long countCompletedExcluding(@Param("userId") UUID userId, @Param("excludedId") UUID excludedId);
 }

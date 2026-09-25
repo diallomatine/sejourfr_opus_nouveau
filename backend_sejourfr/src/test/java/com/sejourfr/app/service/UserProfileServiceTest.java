@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.service.email.MailTemplateRenderer;
 import com.sejourfr.app.entity.EmailChangeToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthProvider;
@@ -270,14 +271,14 @@ class UserProfileServiceTest {
 
     @Test
     void renderEmailChangeConfirmationPage_delegatesToRenderer() {
-        when(templateRenderer.render(eq("email-change-confirmed.html"), any())).thenReturn("<html/>");
+        when(templateRenderer.render(eq("mail/email-change-confirmed.html"), any())).thenReturn("<html/>");
 
         String html = service.renderEmailChangeConfirmationPage(true, "ok");
 
         assertThat(html).isEqualTo("<html/>");
         org.mockito.ArgumentCaptor<Map<String, String>> captor =
                 org.mockito.ArgumentCaptor.forClass(Map.class);
-        verify(templateRenderer).render(eq("email-change-confirmed.html"), captor.capture());
+        verify(templateRenderer).render(eq("mail/email-change-confirmed.html"), captor.capture());
         assertThat(captor.getValue()).containsEntry("message", "ok");
     }
 }

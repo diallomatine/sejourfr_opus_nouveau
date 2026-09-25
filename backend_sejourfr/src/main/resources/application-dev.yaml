@@ -100,6 +100,22 @@ sejourfr:
     from: ${MAIL_FROM}
   contact:
     to: ${MAIL_FROM}
+  email:
+    from: "SejourFR <${MAIL_FROM}>"
+    unsubscribe:
+      keys:
+        # Cle de DEV, non secrete. Un dev/staging partage pose la sienne.
+        1: ${EMAIL_UNSUBSCRIBE_KEY_V1:ZGV2LXVuc3Vic2NyaWJlLWtleS1ub24tcHJvZHVjdGlvbi1zZWpvdXJmcg}
+    # 🛑 Arbitrage n°11 : le dev pointe sur un VRAI SMTP et la base locale porte
+    # des adresses reelles de testeurs. Aucun mail vers un utilisateur ne part
+    # tant que EMAIL_DEV_ALLOWLIST (adresses ou @domaine, separees par des
+    # virgules) ne l'autorise pas explicitement ; le refus est trace SKIPPED.
+    allowlist:
+      enabled: true
+      addresses: ${EMAIL_DEV_ALLOWLIST:}
+    # Scenarios automatises ETEINTS en dev par defaut (arbitrage n°11).
+    automation:
+      enabled: ${EMAIL_AUTOMATION_ENABLED:false}
   app:
     # Utilisée pour générer le lien de reset password
     # En dev, on peut pointer sur l'admin web local

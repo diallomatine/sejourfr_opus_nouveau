@@ -48,6 +48,11 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 // tirage et la reprise sont publics, le RESULTAT ne l'est pas.
                 Arguments.of(HttpMethod.POST, "/api/public/civic-diagnostics"),
                 Arguments.of(HttpMethod.GET, "/api/public/civic-diagnostics/" + RANDOM_ID),
+                // Desabonnement email : jeton signe dans l'URL, aucun compte.
+                Arguments.of(HttpMethod.GET, "/api/public/email/unsubscribe?token=x"),
+                Arguments.of(HttpMethod.POST, "/api/public/email/unsubscribe?token=x"),
+                Arguments.of(HttpMethod.GET, "/api/public/email/unsubscribe/one-click?token=x"),
+                Arguments.of(HttpMethod.POST, "/api/public/email/unsubscribe/one-click?token=x"),
                 // GET /api/exams/**
                 Arguments.of(HttpMethod.GET, "/api/exams"),
                 Arguments.of(HttpMethod.GET, "/api/exams/some-slug"),

@@ -1,0 +1,11 @@
+Bienvenue sur SejourFR
+
+{{greeting}},
+
+Votre compte est créé. Vous pouvez dès maintenant vous entraîner aux examens civique et TCF IRN, obligatoires pour votre titre de séjour ou votre naturalisation.
+
+Commencez gratuitement : un diagnostic évalue votre niveau et construit votre plan d'entraînement.
+
+Commencer mon entraînement : {{appUrl}}
+
+Vos progrès sont sauvegardés sur votre compte et synchronisés entre le web et l'application mobile.

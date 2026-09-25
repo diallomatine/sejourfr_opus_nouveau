@@ -85,4 +85,9 @@ public class DiagnosticSessionManager {
     }
 
     public int deleteByUserId(UUID userId) { return repository.deleteByUserId(userId); }
+
+    /** Diagnostics clos du candidat, hors {@code excludedId}. */
+    public long countCompletedExcluding(UUID userId, UUID excludedId) {
+        return repository.countCompletedExcluding(userId, excludedId);
+    }
 }

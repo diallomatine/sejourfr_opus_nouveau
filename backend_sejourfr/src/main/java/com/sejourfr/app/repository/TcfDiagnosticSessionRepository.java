@@ -35,4 +35,17 @@ public interface TcfDiagnosticSessionRepository extends JpaRepository<TcfDiagnos
      * premium (10_ §4.6).
      */
     long countByUserId(UUID userId);
+
+    /**
+     * Diagnostics CLOS de ce candidat, hors {@code excludedId} : sert a savoir
+     * si une cloture ouvre le Plan du module pour la PREMIERE fois (mail
+     * {@code DIAGNOSTIC_PLAN_READY}, arbitrage n°7).
+     */
+    @Query("""
+            SELECT count(d) FROM TcfDiagnosticSession d
+            WHERE d.user.id = :userId
+              AND d.status = com.sejourfr.app.enums.TcfDiagnosticStatus.COMPLETED
+              AND d.id <> :excludedId
+            """)
+    long countCompletedExcluding(@Param("userId") UUID userId, @Param("excludedId") UUID excludedId);
 }

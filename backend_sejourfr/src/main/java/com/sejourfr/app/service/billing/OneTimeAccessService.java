@@ -9,6 +9,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.MailService;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.util.LogMask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -93,8 +94,10 @@ public class OneTimeAccessService {
                         "Ce paiement est déjà rattaché à un autre compte.");
             }
             // Replay du même achat : idempotent, pas de nouvelle période.
+            // S2 : pour Google, originalTransactionId EST le purchaseToken — masque
+            // comme partout ailleurs dans le code de paiement.
             log.info("Pass one-time déjà accordé (replay) user={} source={} tx={}",
-                    userId, source, originalTransactionId);
+                    userId, source, LogMask.token(originalTransactionId));
             return existing;
         }
 

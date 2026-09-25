@@ -52,6 +52,7 @@ class AuthServiceTest {
     private SessionService sessionService;
     private SubscriptionService subscriptionService;
     private MailService mailService;
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private MeService meService;
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private AuthService service;
@@ -65,13 +66,15 @@ class AuthServiceTest {
         sessionService = mock(SessionService.class);
         subscriptionService = mock(SubscriptionService.class);
         mailService = mock(MailService.class);
+        eventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
         meService = mock(MeService.class);
         passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
 
         service = new AuthService(authenticationManager, userManager, passwordResetTokenManager,
                 jwtService, sessionService, subscriptionService, mailService, meService,
                 passwordEncoder,
-                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class));
+                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class),
+                eventPublisher);
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -104,7 +107,7 @@ class AuthServiceTest {
                 .hasMessageContaining("existe déjà");
 
         verify(userManager, never()).save(any());
-        verify(mailService, never()).sendWelcomeEmail(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -131,7 +134,14 @@ class AuthServiceTest {
         assertThat(saved.getLastName()).isEqualTo("Martin");
         assertThat(saved.getRole()).isEqualTo(Role.USER);
         assertThat(saved.getPasswordHash()).isEqualTo("hashed");
-        verify(mailService).sendWelcomeEmail("user@test.fr", "Alice");
+        // La bienvenue n'est plus envoyee ici : un evenement est publie, et le
+        // mail part APRES COMMIT (EmailEventListener).
+        org.mockito.ArgumentCaptor<Object> event = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue()).isInstanceOfSatisfying(
+                com.sejourfr.app.service.email.event.AccountCreatedEvent.class,
+                e -> assertThat(e.email()).isEqualTo("user@test.fr"));
+        verify(mailService, never()).sendPasswordResetEmail(any(), any());
     }
 
     // -------------------------------------------------- register + démarche visée

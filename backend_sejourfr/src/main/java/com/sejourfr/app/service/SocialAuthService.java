@@ -14,7 +14,9 @@ import com.sejourfr.app.service.social.AppleTokenVerifier;
 import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
 import com.sejourfr.app.util.ClientContext;
+import com.sejourfr.app.service.email.event.AccountCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,8 +62,8 @@ public class SocialAuthService {
     private final SubscriptionService subscriptionService;
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
-    private final MailService mailService;
     private final com.sejourfr.app.service.analytics.AnalyticsIdentityService analyticsIdentityService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent,
                                          String ipAddress, ClientContext client) {
@@ -142,7 +144,7 @@ public class SocialAuthService {
         user.setSignupPlatform(ctx.platform());
         log.info("Creation compte via {} : email={}", identity.provider(), LogMask.email(identity.email()));
         User saved = userManager.save(user);
-        mailService.sendWelcomeEmail(saved.getEmail(), saved.getFirstName());
+        eventPublisher.publishEvent(new AccountCreatedEvent(saved.getId(), saved.getEmail()));
         return saved;
     }
 

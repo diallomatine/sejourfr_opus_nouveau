@@ -44,6 +44,8 @@ public class RateLimitProperties {
      * ne gene pas un candidat qui revient sur ses pas.
      */
     private Limit publicDiagnostic = new Limit(120, 600);
+    /** Desabonnement email (routes publiques a jeton) : par IP. */
+    private Limit emailUnsubscribe = new Limit(30, 600);
     /** Soumission production EE/EO : burst par utilisateur (cout LLM). */
     private Limit productionBurst = new Limit(20, 600);
     /** Soumission production EE/EO : plafond journalier par utilisateur. */
@@ -115,6 +117,9 @@ public class RateLimitProperties {
 
     public Limit getAnalyticsBurst() { return analyticsBurst; }
     public void setAnalyticsBurst(Limit analyticsBurst) { this.analyticsBurst = analyticsBurst; }
+
+    public Limit getEmailUnsubscribe() { return emailUnsubscribe; }
+    public void setEmailUnsubscribe(Limit emailUnsubscribe) { this.emailUnsubscribe = emailUnsubscribe; }
 
     public Limit getAnalyticsDaily() { return analyticsDaily; }
     public void setAnalyticsDaily(Limit analyticsDaily) { this.analyticsDaily = analyticsDaily; }

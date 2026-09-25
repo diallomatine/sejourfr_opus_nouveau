@@ -98,6 +98,11 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   LLM, funnel, analytics) tourne **hors transaction**, avale ses exceptions, et **ne dégrade
   jamais** l'opération principale. Ne pas ajouter de transaction englobante autour d'un runner
   async : une exception d'un service `REQUIRED` la marquerait rollback-only.
+- **Le temps du sous-système email se lit sur un `Clock` injecté** (`config/ClockConfig`) :
+  fenêtres, plafond du jour, épisodes. Les `Instant.now()` historiques ailleurs ne sont pas
+  migrés. En IT, `MutableClock` (@Primary, `TestSupportConfig`) se fige par test ; les tests
+  d'emails étendent `AbstractEmailIT` (hors transaction de test : `AFTER_COMMIT` doit pouvoir
+  se déclencher) et n'envoient rien (`RecordingEmailSender`).
 - **Le coût d'un endroit se verrouille par une ÉGALITÉ**, pas par un `<=` : c'est la seule façon
   d'attraper un N+1. Corollaire : un chargement doit être **inconditionnel** là où on veut
   vérifier le coût, et un **retour anticipé** là où l'appel est massif.
@@ -171,6 +176,7 @@ main. Un libellé qui bouge, ce sont quatre fichiers dans la même passe.
 | une soumission orale, Whisper, R2 | `docs/regles/audio-productions.md` |
 | l'analytics, le funnel, un rate-limit par IP | `docs/regles/mesure-audience.md` |
 | `user_subscriptions`, un webhook store, un plan | `docs/regles/paiements.md` |
+| un email, un gabarit, `email_deliveries`, le désabonnement, le scheduler d'engagement | `docs/regles/emails.md` |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
 
 **Avant de changer une règle** : `docs/decisions/<même sujet>.md` (journal daté de ce qui a été

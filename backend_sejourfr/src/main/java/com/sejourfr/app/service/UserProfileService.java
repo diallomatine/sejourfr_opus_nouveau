@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.manager.EmailChangeTokenManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.email.MailTemplateRenderer;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -226,7 +227,7 @@ public class UserProfileService {
      * @param message texte à afficher à l'utilisateur.
      */
     public String renderEmailChangeConfirmationPage(boolean ok, String message) {
-        return templateRenderer.render("email-change-confirmed.html", Map.of(
+        return templateRenderer.render("mail/email-change-confirmed.html", Map.of(
                 "title", ok ? "Email confirmé" : "Lien invalide",
                 "accent", ok ? "#168F5B" : "#E1372F",
                 "emoji", ok ? "✅" : "⚠️",

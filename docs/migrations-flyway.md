@@ -87,14 +87,22 @@ db/migration/
 │   │                                             STRUCTURE ET LA CLÔTURE y vivent ; le
 │   │                                             statut d'affichage et le verrou restent
 │   │                                             dérivés à la lecture
-│   └── V067__schema_cycle_journey_et_freebie.sql le parcours devient un CYCLE BORNÉ :
-│                                                 journey.module / status / entry_level /
-│                                                 exit_level / historise_at, deux index
-│                                                 uniques PARTIELS (un EN_COURS + un
-│                                                 EN_ATTENTE par candidat et module) en
-│                                                 remplacement de uq_journey_user_target,
-│                                                 et free_entitlement_usage — le ledger
-│                                                 unique de « offert une fois »
+│   ├── V067__schema_cycle_journey_et_freebie.sql le parcours devient un CYCLE BORNÉ :
+│   │                                             journey.module / status / entry_level /
+│   │                                             exit_level / historise_at, deux index
+│   │                                             uniques PARTIELS (un EN_COURS + un
+│   │                                             EN_ATTENTE par candidat et module) en
+│   │                                             remplacement de uq_journey_user_target,
+│   │                                             et free_entitlement_usage — le ledger
+│   │                                             unique de « offert une fois »
+│   ├── V068-V072                                unités officielles de l'examen civique
+│   │                                             (V068), cycle civique (V069-V071),
+│   │                                             lien d'une série d'étape (V072)
+│   └── V073__schema_emails.sql                  le système d'emails : préférences,
+│                                                 journal d'envoi (anti-doublon par
+│                                                 index unique PARTIEL), et la VUE
+│                                                 v_derniere_activite_entrainement
+│                                                 (docs/regles/emails.md)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -209,10 +217,10 @@ postérieures alimentent se numérote APRÈS elles.**
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V067`**
-  (2026-09-18 : `V067__schema_cycle_journey_et_freebie.sql` — le cycle borné du parcours
-  (`journey.module` / `status` / niveaux d'entrée et de sortie) et le ledger
-  `free_entitlement_usage`) → le prochain est `V068`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V073`**
+  (2026-09-25 : `V073__schema_emails.sql` — `user_email_preferences`, `email_deliveries`
+  et son index unique PARTIEL d'anti-doublon, la vue `v_derniere_activite_entrainement`
+  et trois index d'activité) → le prochain est `V074`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
   numéro, donc un `UPDATE` en `V0xx` s'exécute **avant** les `INSERT` des plages 200/300 et

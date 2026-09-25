@@ -53,7 +53,8 @@ class DiagnosticSessionCoordinatorTest {
         coordinator = new DiagnosticSessionCoordinator(
                 submissionManager, analysisManager, sessionManager, attemptManager,
                 taskSkillManager, metrics,
-                mock(JourneyService.class));
+                mock(JourneyService.class),
+                mock(com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier.class));
     }
 
     @Test

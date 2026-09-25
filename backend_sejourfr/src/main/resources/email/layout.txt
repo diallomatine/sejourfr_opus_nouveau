@@ -1,0 +1,12 @@
+SejourFR
+
+{{{body}}}
+
+À bientôt,
+L'équipe SejourFR
+
+Une question ? Écrivez-nous à {{supportEmail}}.
+Vous recevez cet email car votre adresse est rattachée à SejourFR.
+{{{unsubscribeBlock}}}
+
+© {{year}} SejourFR · Préparez vos examens civique & TCF

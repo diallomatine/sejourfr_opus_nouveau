@@ -54,4 +54,9 @@ public class TcfDiagnosticSessionManager {
     public long countByUser(UUID userId) {
         return repository.countByUserId(userId);
     }
+
+    /** Diagnostics clos du candidat, hors {@code excludedId}. */
+    public long countCompletedExcluding(UUID userId, UUID excludedId) {
+        return repository.countCompletedExcluding(userId, excludedId);
+    }
 }

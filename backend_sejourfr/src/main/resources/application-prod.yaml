@@ -56,6 +56,11 @@ sejourfr:
       public-base-url: ${STORAGE_PUBLIC_BASE_URL}
   mail:
     from: ${MAIL_FROM:no-reply@sejourfr.fr}
+  email:
+    unsubscribe:
+      keys:
+        # 🛑 Obligatoire en production : sans elle le backend ne demarre pas.
+        1: ${EMAIL_UNSUBSCRIBE_KEY_V1}
   app:
     base-url: ${APP_BASE_URL:https://sejourfr.fr}
   backend:

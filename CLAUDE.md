@@ -141,6 +141,10 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   L'audio sert uniquement à produire la transcription, puis il disparaît. Ne jamais réintroduire
   d'écriture d'audio candidat, ni de migration de purge rétroactive.
   → `docs/regles/audio-productions.md`
+- 🛑 **Un email ne part jamais de la transaction métier** : un événement publié dedans,
+  écouté en `AFTER_COMMIT`, envoyé sur `emailTaskExecutor` via le port `EmailSender` (seul
+  `SpringMailEmailSender` touche `JavaMailSender`). Aucune adresse en clair ni aucun jeton dans
+  un log. → `docs/regles/emails.md`
 - **Le freemium est opposable serveur** (403), et les fronts **lisent un `locked`** servi. Ne
   jamais coder « à partir du 2ᵉ, cadenas » ni déduire un verrou d'un rang.
   → `docs/regles/freemium.md`
@@ -245,7 +249,11 @@ HTTP de chaque front. → liste complète : `docs/api-endpoints.md`
 # Backend (depuis backend_sejourfr/)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 # DB : Postgres local, db = sejourfr_db, user = diallomatine (cf. application-dev.yaml)
-# Mail : MailHog sur localhost:1025 (UI http://localhost:8025)
+# Mail : le dev pointe sur un VRAI SMTP (MAIL_HOST, via backend_sejourfr/.env), PAS sur MailHog.
+#   Garde-fous : aucune adresse ne recoit de mail tant que EMAIL_DEV_ALLOWLIST ne la liste
+#   pas (refus trace SKIPPED), et les scenarios automatises sont eteints en dev.
+#   MailHog reste possible : MAIL_HOST=localhost MAIL_PORT=1025 MAIL_SMTP_AUTH=false
+#   MAIL_SMTP_STARTTLS=false (UI http://localhost:8025). -> docs/regles/emails.md
 # Tests : ./mvnw verify  (unitaires *Test via surefire + intégration *IT via failsafe).
 #   Les *IT tournent sur un Postgres EMBARQUÉ (Zonky, pas de Docker) qui applique les
 #   vraies migrations Flyway. Détails + gabarits : docs/plan-tests-backend.md.
@@ -311,6 +319,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | une soumission orale, Whisper, R2, `AudioEphemere`, la réécoute d'une production | `docs/regles/audio-productions.md` |
 | l'analytics, le funnel, un rate-limit par IP, `/confidentialite`, une provenance | `docs/regles/mesure-audience.md` |
 | `user_subscriptions`, un webhook store, un plan, un pass, une résiliation | `docs/regles/paiements.md` |
+| un email (envoi, gabarit, préférence, désabonnement, scheduler d'engagement, `email_deliveries`), l'activité d'entraînement | `docs/regles/emails.md` |
 | le **cycle borné** du Plan, son cycle en attente, la fin de cycle, l'historique des cycles | `docs/regles/plan.md` § « Le CYCLE BORNÉ » |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
 | le détail du mode agent, de l'hygiène d'archi ou des gabarits de test backend | `docs/regles/collaboration.md` |

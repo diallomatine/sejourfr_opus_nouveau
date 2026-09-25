@@ -1,0 +1,14 @@
+Votre plan d'entraînement est prêt
+
+{{greeting}},
+
+Votre diagnostic {{diagnosticType}} est terminé. À partir de vos réponses, votre plan d'entraînement personnalisé est prêt.
+
+{{prioritiesIntro}}
+{{priority1}}
+{{priority2}}
+{{priority3}}
+
+Voir mon plan : {{planUrl}}
+
+Votre plan s'ajuste au fil de vos entraînements : chaque exercice le rend plus précis.

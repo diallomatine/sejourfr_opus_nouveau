@@ -16,6 +16,7 @@ import com.sejourfr.app.service.journey.JourneyEvaluation;
 import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class DiagnosticSessionCoordinator {
     private final DiagnosticTaskSkillManager taskSkillManager;
     private final DiagnosticReconciliationMetrics metrics;
     private final JourneyService journeyService;
+    private final DiagnosticPlanReadyNotifier planReadyNotifier;
 
     /**
      * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
@@ -155,6 +157,9 @@ public class DiagnosticSessionCoordinator {
         finishAttempt(session.getWrittenAttempt());
         if (session.hasOral()) finishAttempt(session.getOralAttempt());
         porterAuParcours(session);
+        // Mail « votre plan est pret » si ce rapide ouvre le Plan TCF pour la
+        // premiere fois — publie ici, dans la transaction, envoye apres commit.
+        planReadyNotifier.tcfClos(session.getUser(), session.getId());
     }
 
     /**

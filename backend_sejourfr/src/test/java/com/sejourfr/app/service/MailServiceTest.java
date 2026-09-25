@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.service.email.MailTemplateRenderer;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,17 +61,6 @@ class MailServiceTest {
         assertThat(message.getAllRecipients()[0].toString()).isEqualTo("user@example.com");
         assertThat(message.getSubject()).contains("Réinitialisation");
         assertThat(message.getFrom()[0].toString()).isEqualTo(FROM);
-    }
-
-    @Test
-    void sendWelcomeEmailUsesWelcomeSubject() throws Exception {
-        MimeMessage message = stubMimeMessage();
-
-        mailService.sendWelcomeEmail("new@example.com", "Alice");
-
-        verify(mailSender).send(message);
-        assertThat(message.getAllRecipients()[0].toString()).isEqualTo("new@example.com");
-        assertThat(message.getSubject()).contains("Bienvenue");
     }
 
     @Test

@@ -41,7 +41,7 @@ class SocialAuthServiceTest {
     private SubscriptionService subscriptionService;
     private GoogleTokenVerifier googleVerifier;
     private AppleTokenVerifier appleVerifier;
-    private MailService mailService;
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private SocialAuthService service;
 
     @BeforeEach
@@ -52,11 +52,12 @@ class SocialAuthServiceTest {
         subscriptionService = mock(SubscriptionService.class);
         googleVerifier = mock(GoogleTokenVerifier.class);
         appleVerifier = mock(AppleTokenVerifier.class);
-        mailService = mock(MailService.class);
+        eventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
 
         service = new SocialAuthService(userManager, jwtService, sessionService,
-                subscriptionService, googleVerifier, appleVerifier, mailService,
-                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class));
+                subscriptionService, googleVerifier, appleVerifier,
+                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class),
+                eventPublisher);
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -92,7 +93,7 @@ class SocialAuthServiceTest {
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(user.getLastLoginAt()).isNotNull();
         verify(userManager, never()).findByEmail(any());
-        verify(mailService, never()).sendWelcomeEmail(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -108,7 +109,7 @@ class SocialAuthServiceTest {
         // auth_provider reste celui de la création initiale (immutable ici).
         assertThat(local.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
         assertThat(local.getLastLoginAt()).isNotNull();
-        verify(mailService, never()).sendWelcomeEmail(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test
@@ -131,7 +132,8 @@ class SocialAuthServiceTest {
         // Provenance du premier jour, posée sur la branche de CRÉATION seulement.
         assertThat(created.getSignupSource()).isEqualTo("tiktok");
         assertThat(created.getSignupPlatform()).isEqualTo(ClientPlatform.MOBILE);
-        verify(mailService).sendWelcomeEmail("new@test.fr", created.getFirstName());
+        verify(eventPublisher).publishEvent(
+                new com.sejourfr.app.service.email.event.AccountCreatedEvent(created.getId(), "new@test.fr"));
     }
 
     /**

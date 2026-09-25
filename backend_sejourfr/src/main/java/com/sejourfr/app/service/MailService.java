@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.service.email.MailTemplateRenderer;
 import com.sejourfr.app.util.LogMask;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -94,27 +95,9 @@ public class MailService {
     // Authentification — mot de passe & email
     // ------------------------------------------------------------------------
 
-    /**
-     * Email de bienvenue envoyé une fois, juste après la création d'un compte
-     * (inscription locale ou premier sign-in social). Best-effort / {@code @Async} :
-     * un envoi raté ne doit jamais faire échouer l'inscription.
-     */
-    @Async
-    public void sendWelcomeEmail(String to, String displayName) {
-        String body = templateRenderer.render("welcome.html", Map.of(
-                "greeting", displayNameOrFallback(displayName),
-                "ctaUrl", appBaseUrl
-        ));
-        String html = renderLayout(
-                "Bienvenue sur SejourFR",
-                "Votre compte est créé — commencez votre entraînement civique et TCF.",
-                body);
-        sendHtmlWithLogo(to, "SejourFR — Bienvenue 👋", html);
-    }
-
     public void sendPasswordResetEmail(String to, String token) {
         String link = appBaseUrl + "/reinitialiser-mot-de-passe?token=" + token;
-        String body = templateRenderer.render("password-reset.html", Map.of("ctaUrl", link));
+        String body = templateRenderer.render("mail/password-reset.html", Map.of("ctaUrl", link));
         String html = renderLayout(
                 "Réinitialisation de votre mot de passe",
                 "Réinitialisez votre mot de passe SejourFR — lien valable 1 heure.",
@@ -131,7 +114,7 @@ public class MailService {
      */
     public void sendEmailChangeConfirmation(String to, String token) {
         String link = backendBaseUrl + "/api/auth/confirm-email-change?token=" + token;
-        String body = templateRenderer.render("email-change.html", Map.of("ctaUrl", link));
+        String body = templateRenderer.render("mail/email-change.html", Map.of("ctaUrl", link));
         String html = renderLayout(
                 "Confirmez votre nouvel email",
                 "Confirmez votre nouvelle adresse email SejourFR — lien valable 1 heure.",
@@ -160,7 +143,7 @@ public class MailService {
         String accessIntro = autoRenew
                 ? "Votre accès est renouvelé automatiquement. Prochain renouvellement le"
                 : "Achat unique, sans abonnement ni renouvellement automatique : votre accès reste ouvert jusqu'au";
-        String body = templateRenderer.render("access-activated.html", Map.of(
+        String body = templateRenderer.render("mail/access-activated.html", Map.of(
                 "greeting", displayNameOrFallback(displayName),
                 "planName", plan,
                 "accessIntro", accessIntro,
@@ -184,7 +167,7 @@ public class MailService {
     public void sendAccessExtendedEmail(
             String to, String displayName, String planName, Instant endsAt) {
         String plan = planOrFallback(planName);
-        String body = templateRenderer.render("access-extended.html", Map.of(
+        String body = templateRenderer.render("mail/access-extended.html", Map.of(
                 "greeting", displayNameOrFallback(displayName),
                 "planName", plan,
                 "endsLabel", formatFrenchDate(endsAt),
@@ -204,7 +187,7 @@ public class MailService {
     public void sendAccessExpiringSoonEmail(
             String to, String displayName, String planName, Instant endsAt) {
         String plan = planOrFallback(planName);
-        String body = templateRenderer.render("access-expiring.html", Map.of(
+        String body = templateRenderer.render("mail/access-expiring.html", Map.of(
                 "greeting", displayNameOrFallback(displayName),
                 "planName", plan,
                 "endsLabel", formatFrenchDate(endsAt),
@@ -226,7 +209,7 @@ public class MailService {
     public void sendSubscriptionCanceledEmail(
             String to, String displayName, String planName, Instant endsAt, String source) {
         String plan = planOrFallback(planName);
-        String body = templateRenderer.render("subscription-canceled.html", Map.of(
+        String body = templateRenderer.render("mail/subscription-canceled.html", Map.of(
                 "greeting", displayNameOrFallback(displayName),
                 "planName", plan,
                 "endsLabel", formatFrenchDate(endsAt),
@@ -246,7 +229,7 @@ public class MailService {
 
     /** Injecte un fragment de contenu dans le layout commun (logo, footer, etc.). */
     private String renderLayout(String title, String preheader, String bodyHtml) {
-        return templateRenderer.render("layout.html", Map.of(
+        return templateRenderer.render("mail/layout.html", Map.of(
                 "title", title,
                 "preheader", preheader,
                 "body", bodyHtml,
@@ -293,10 +276,11 @@ public class MailService {
             }
 
             mailSender.send(message);
-            log.info("HTML mail '{}' sent to {}", subject, to);
+            log.info("HTML mail '{}' sent to {}", subject, LogMask.email(to));
             return true;
         } catch (MessagingException | RuntimeException e) {
-            log.warn("Failed to send HTML mail '{}' to {} : {}", subject, to, e.getMessage());
+            log.warn("Failed to send HTML mail '{}' to {} : {}", subject, LogMask.email(to),
+                    com.sejourfr.app.service.email.EmailErrors.sanitize(e));
             return false;
         }
     }
@@ -347,7 +331,7 @@ public class MailService {
     @Async
     public void sendConversationReplyEmail(
             String to, String contactName, String subject, String replyBody) {
-        String body = templateRenderer.render("conversation-reply.html", Map.of(
+        String body = templateRenderer.render("mail/conversation-reply.html", Map.of(
                 "greeting", displayNameOrFallback(contactName),
                 "subject", subject == null ? "" : subject,
                 "reply", replyBody
@@ -362,7 +346,7 @@ public class MailService {
     @Async
     public void sendContactReceivedEmail(
             String to, String senderName, String subject, String message, String ticketId) {
-        String body = templateRenderer.render("contact-received.html", Map.of(
+        String body = templateRenderer.render("mail/contact-received.html", Map.of(
                 "greeting", displayNameOrFallback(senderName),
                 "subject", subject,
                 "message", message,

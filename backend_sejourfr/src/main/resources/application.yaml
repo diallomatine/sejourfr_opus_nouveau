@@ -82,6 +82,54 @@ sejourfr:
     base-url: ${APP_BASE_URL:http://localhost:3000}
   backend:
     base-url: ${BACKEND_BASE_URL:http://localhost:8080}
+  # --------------------------------------------------------------------------
+  # Systeme d'emails (docs/regles/emails.md). Valeurs par defaut identiques dans
+  # le POJO config/EmailProperties, SAUF `templates` (verifie au demarrage :
+  # chaque type configure doit avoir ses fichiers .html et .txt).
+  # Delais, fenetres, plafond et tentatives : email/email-automation-config-vN.json.
+  # --------------------------------------------------------------------------
+  email:
+    # spring-mail aujourd'hui ; brevo demain (BrevoEmailSender + brevo-template-id).
+    provider: ${EMAIL_PROVIDER:spring-mail}
+    from: "SejourFR <${MAIL_FROM:no-reply@sejourfr.fr}>"
+    reply-to: ${sejourfr.contact.to:support@sejourfr.fr}
+    # URL absolue hebergee : un template Brevo ne sait pas faire d'image CID.
+    logo-url: ${EMAIL_LOGO_URL:https://sejourfr.fr/logo_sejourFR.png}
+    unsubscribe:
+      # La cle COURANTE signe les nouveaux liens ; toutes les cles listees
+      # verifient (rotation sans casser les liens deja envoyes). SANS DEFAUT :
+      # une cle courante absente fait echouer le demarrage.
+      current-key-version: ${EMAIL_UNSUBSCRIBE_KEY_VERSION:1}
+      keys:
+        1: ${EMAIL_UNSUBSCRIBE_KEY_V1:}
+    # Liste blanche des destinataires : activee en dev (application-dev.yaml).
+    allowlist:
+      enabled: false
+    automation:
+      enabled: ${EMAIL_AUTOMATION_ENABLED:true}
+      # Passage quotidien des scenarios ENGAGEMENT, fuseau Europe/Paris.
+      cron: "0 0 9 * * *"
+      config-version: ${EMAIL_AUTOMATION_CONFIG_VERSION:1}
+    maintenance:
+      # PENDING bloques + relance differee des mails evenementiels (horaire).
+      retry-cron: "0 20 * * * *"
+      # Purge de retention d'email_deliveries (12 mois), quotidienne.
+      retention-cron: "0 40 3 * * *"
+    executor:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 500
+    # Un gabarit par type : sujet et preheader du rendu LOCAL ({{variable}}
+    # substituee), fichiers local-template(.html|.txt), et demain l'id Brevo.
+    templates:
+      WELCOME:
+        subject: "Bienvenue sur SejourFR"
+        preheader: "Votre compte est créé : commencez votre entraînement civique et TCF."
+        local-template: email/welcome
+      DIAGNOSTIC_PLAN_READY:
+        subject: "Votre plan d'entraînement est prêt"
+        preheader: "Votre diagnostic {{diagnosticType}} est terminé : découvrez vos priorités."
+        local-template: email/diagnostic-plan-ready
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —

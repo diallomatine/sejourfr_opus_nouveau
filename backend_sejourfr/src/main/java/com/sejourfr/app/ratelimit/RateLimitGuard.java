@@ -124,6 +124,15 @@ public class RateLimitGuard {
         limiter.check("analytics:daily", ip, props.getAnalyticsDaily());
     }
 
+    /**
+     * Pages et POST de desabonnement email (routes publiques a jeton signe) :
+     * borne par IP, contre une boucle qui essaierait des jetons.
+     */
+    public void checkEmailUnsubscribe(String ip) {
+        if (!props.isEnabled()) return;
+        limiter.check("email-unsubscribe", ip, props.getEmailUnsubscribe());
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase();
     }

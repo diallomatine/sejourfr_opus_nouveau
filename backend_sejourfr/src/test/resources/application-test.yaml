@@ -45,6 +45,22 @@ sejourfr:
   # (ceux-ci ont leurs propres tests ciblés).
   rate-limit:
     enabled: false
+  # Emails : l'envoi passe par un EmailSender d'enregistrement (TestSupportConfig),
+  # jamais par un SMTP. Deux cles de desabonnement pour tester la rotation (la v2
+  # signe, la v1 verifie encore). Les crons sont desactives : les tests appellent
+  # les services directement, a horloge fixee.
+  email:
+    unsubscribe:
+      current-key-version: 2
+      keys:
+        1: "dGVzdC11bnN1YnNjcmliZS1rZXktdjEtc2Vqb3VyZnI"
+        2: "dGVzdC11bnN1YnNjcmliZS1rZXktdjItc2Vqb3VyZnI"
+    automation:
+      enabled: false
+      cron: "-"
+    maintenance:
+      retry-cron: "-"
+      retention-cron: "-"
 
 logging:
   level:

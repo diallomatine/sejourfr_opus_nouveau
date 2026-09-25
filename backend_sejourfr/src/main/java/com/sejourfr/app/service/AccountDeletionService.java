@@ -19,6 +19,8 @@ import com.sejourfr.app.manager.UserFunnelEventManager;
 import com.sejourfr.app.manager.UserQuestionStatusManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
+import com.sejourfr.app.manager.EmailDeliveryManager;
+import com.sejourfr.app.manager.UserEmailPreferenceManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -65,6 +67,8 @@ public class AccountDeletionService {
     private final AnalyticsIdentityManager analyticsIdentityManager;
     private final AnalyticsEventManager analyticsEventManager;
     private final RefreshTokenManager refreshTokenManager;
+    private final EmailDeliveryManager emailDeliveryManager;
+    private final UserEmailPreferenceManager userEmailPreferenceManager;
 
     @Transactional
     public AccountDeletionResponse deleteAccount(UUID userId) {
@@ -134,6 +138,14 @@ public class AccountDeletionService {
         // ON DELETE SET NULL de la base ne se déclenchent d'eux-mêmes.
         analyticsIdentityManager.deleteByUserId(userId);
         analyticsEventManager.detachUser(userId);
+        // Journal d'envoi et preferences email (arbitrage n°16) : le journal
+        // porte l'ADRESSE REELLE du destinataire, il ne survit pas a
+        // l'anonymisation. Avant anonymize(), tant que l'adresse est connue :
+        // les accuses de contact envoyes a cette adresse sans compte rattache
+        // partent aussi. Explicite, la ligne `users` survivant, la cascade ne
+        // joue pas.
+        emailDeliveryManager.deleteForAccount(userId, user.getEmail());
+        userEmailPreferenceManager.deleteByUserId(userId);
 
         // 3. Révocation de toutes les sessions (refresh tokens).
         refreshTokenManager.revokeAllForUser(userId);

@@ -13,6 +13,21 @@ automatique** dans le client HTTP de chaque front.
   → find-or-create user via JWKS Google/Apple. 503 tant que
   `sejourfr.oauth.{google|apple}.audiences` est vide. Cf. `auth-social.md`.
 
+## Emails — désabonnement (public, sans compte)
+
+Le lien des mails ENGAGEMENT porte un jeton HMAC signé (trousseau de clés, sans
+expiration). Pages HTML rendues par le backend. Règles : `docs/regles/emails.md`.
+
+- `GET /api/public/email/unsubscribe?token=…` → 200 page de **confirmation** avec un
+  bouton. 🛑 **Ne modifie rien** (un scanner de liens ne désabonne personne).
+- `POST /api/public/email/unsubscribe` (formulaire, champ `token`) → 200 page « Vous ne
+  recevrez plus les conseils et rappels d'entraînement… » ; `engagement_enabled = false`.
+- `POST /api/public/email/unsubscribe/one-click?token=…` → 200 sans corps (RFC 8058,
+  cible des en-têtes `List-Unsubscribe` + `List-Unsubscribe-Post`). `GET` sur la même URL
+  rend la page de confirmation.
+- Jeton invalide, compte inconnu ou supprimé → **400** et la **même** page neutre (400 sans
+  corps pour le one-click). Rate-limit par IP (`sejourfr.rate-limit.email-unsubscribe`).
+
 ## Thèmes & lots
 
 - `GET /api/themes?module=CIVIQUE|TCF`

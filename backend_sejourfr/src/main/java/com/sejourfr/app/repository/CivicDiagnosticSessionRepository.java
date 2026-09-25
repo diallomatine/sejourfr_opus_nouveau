@@ -31,4 +31,17 @@ public interface CivicDiagnosticSessionRepository
 
     /** Sert au verrou freemium : le premier est offert (20_ §4.3). */
     long countByUserId(UUID userId);
+
+    /**
+     * Diagnostics CLOS de ce candidat, hors {@code excludedId} : sert a savoir
+     * si une cloture ouvre le Plan du module pour la PREMIERE fois (mail
+     * {@code DIAGNOSTIC_PLAN_READY}, arbitrage n°7).
+     */
+    @Query("""
+            SELECT count(d) FROM CivicDiagnosticSession d
+            WHERE d.user.id = :userId
+              AND d.status = com.sejourfr.app.enums.TcfDiagnosticStatus.COMPLETED
+              AND d.id <> :excludedId
+            """)
+    long countCompletedExcluding(@Param("userId") UUID userId, @Param("excludedId") UUID excludedId);
 }

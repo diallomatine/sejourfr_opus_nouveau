@@ -20,6 +20,7 @@ import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,6 +62,7 @@ public class CivicDiagnosticService {
     private final SubscriptionService subscriptionService;
     private final CivicDiagnosticComposer composer;
     private final CivicDiagnosticProperties props;
+    private final DiagnosticPlanReadyNotifier planReadyNotifier;
 
     /**
      * Ouvre un diagnostic, ou rend celui deja en cours.
@@ -241,6 +243,14 @@ public class CivicDiagnosticService {
      * encore : c'est l'attempt qui fait foi, pas l'inverse.
      */
     private CivicDiagnosticSession cloturerSiAttemptTermine(CivicDiagnosticSession session) {
+        return cloturerSiAttemptTermine(session, true);
+    }
+
+    /**
+     * @param notifier {@code false} a l'ADOPTION : le mail « plan pret » n'y part
+     *                 pas (complement C), l'adoption consomme la cle a part.
+     */
+    private CivicDiagnosticSession cloturerSiAttemptTermine(CivicDiagnosticSession session, boolean notifier) {
         if (session.getStatus() == TcfDiagnosticStatus.COMPLETED) {
             return session;
         }
@@ -250,7 +260,14 @@ public class CivicDiagnosticService {
         session.setStatus(TcfDiagnosticStatus.COMPLETED);
         session.setCompletedAt(session.getAttempt().getFinishedAt());
         log.info("Diagnostic civique cloture a la lecture : session={}", session.getId());
-        return sessionManager.save(session);
+        CivicDiagnosticSession saved = sessionManager.save(session);
+        // 🛑 Cette cloture paresseuse tourne pendant une LECTURE (GET) : toutes
+        // ses entrees publiques sont @Transactional, donc l'evenement a bien une
+        // transaction a attendre (complement D, verrouille par un test IT).
+        if (notifier) {
+            planReadyNotifier.civiqueClos(saved.getUser(), saved.getId());
+        }
+        return saved;
     }
 
     /**
@@ -323,7 +340,9 @@ public class CivicDiagnosticService {
         answerManager.rattacherAuCompte(user, attempt.getId());
 
         log.info("Diagnostic civique adopte : session={} user={}", session.getId(), userId);
-        return cloturerSiAttemptTermine(sessionManager.save(session));
+        CivicDiagnosticSession adoptee = cloturerSiAttemptTermine(sessionManager.save(session), false);
+        planReadyNotifier.civiqueAdopte(user, adoptee.getId());
+        return adoptee;
     }
 
     /** Un diagnostic precis. 404 sur celui d'autrui : on ne revele pas son existence. */
@@ -360,6 +379,8 @@ public class CivicDiagnosticService {
             attempt.setStatus(AttemptStatus.TERMINE);
             attemptManager.save(attempt);
         }
-        return sessionManager.save(session);
+        CivicDiagnosticSession saved = sessionManager.save(session);
+        planReadyNotifier.civiqueClos(saved.getUser(), saved.getId());
+        return saved;
     }
 }

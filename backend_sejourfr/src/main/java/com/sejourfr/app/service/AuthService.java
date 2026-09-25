@@ -14,7 +14,9 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
 import com.sejourfr.app.util.ClientContext;
+import com.sejourfr.app.service.email.event.AccountCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -54,6 +56,7 @@ public class AuthService {
     private final MeService meService;
     private final PasswordEncoder passwordEncoder;
     private final AnalyticsIdentityService analyticsIdentityService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -150,7 +153,9 @@ public class AuthService {
             meService.updateTargetProcedure(user.getId(), req.targetProcedure());
         }
 
-        mailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
+        // Bienvenue APRES COMMIT (EmailEventListener) : si la suite de
+        // l'inscription echoue et annule la transaction, aucun mail ne part.
+        eventPublisher.publishEvent(new AccountCreatedEvent(user.getId(), user.getEmail()));
 
         // Le lien anonyme -> compte est posé par le login enchaîné ci-dessous :
         // on lui repasse l'anonymousId reçu ici. Un seul point d'écriture, donc
