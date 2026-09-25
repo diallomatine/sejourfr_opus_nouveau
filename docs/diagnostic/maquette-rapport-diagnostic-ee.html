@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SejourFR — Diagnostic écrit</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#fff; --ink:#171b37; --muted:#747c9b; --line:#e8eaf2;
+  --navy:#1b2f73; --navy2:#324a9a; --navySoft:#eef2ff;
+  --red:#d84b3e; --redSoft:#fff0ee; --amber:#bd842e; --amberSoft:#fff7e8;
+  --green:#34795f; --greenSoft:#eef8f3; --shadow:0 12px 34px rgba(27,47,115,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{width:min(100%,1120px);min-height:100vh;margin:auto;padding:22px 20px 110px}
+.topbar{display:grid;grid-template-columns:42px 1fr 42px;align-items:center;margin-bottom:22px}
+.back{width:40px;height:40px;border:1px solid var(--line);background:#fff;border-radius:13px;display:grid;place-items:center;font-size:22px}
+.topbar-title{text-align:center;font-size:14px;font-weight:850}
+.done{font-size:11px;color:var(--green);text-align:right;font-weight:850}
+.hero{margin-bottom:16px}
+.eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:900;margin-bottom:7px}
+h1{margin:0;font-size:29px;line-height:1.08;letter-spacing:-.035em}
+.hero p{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow)}
+.result-card{padding:20px}
+.result-top{display:flex;align-items:center;gap:16px}
+.level{width:80px;height:80px;border-radius:24px;background:linear-gradient(145deg,var(--navy),var(--navy2));color:#fff;display:grid;place-items:center;font-size:29px;font-weight:950;letter-spacing:-.04em;flex:none;box-shadow:0 12px 24px rgba(27,47,115,.2)}
+.result-copy small{display:block;color:var(--muted);font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.result-copy h2{margin:0 0 5px;font-size:19px;letter-spacing:-.02em}
+.result-copy p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.45}
+.trust{margin-top:15px;background:#f7f9ff;border:1px solid #e2e7f7;border-radius:14px;padding:12px 13px;display:flex;gap:9px;color:#5d698c;font-size:11.5px;line-height:1.45}
+.trust b{color:var(--navy)}
+.section{margin-top:20px}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-bottom:10px}
+.section-head h3{margin:0;font-size:17px;letter-spacing:-.015em}
+.section-head span{color:var(--muted);font-size:11px;font-weight:750}
+.analysis-card{padding:8px 17px}
+.criterion{padding:15px 0;border-bottom:1px solid var(--line)}
+.criterion:last-child{border-bottom:0}
+.criterion-row{display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:10px}
+.criterion-icon{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--navySoft);color:var(--navy);font-size:13px;font-weight:900}
+.criterion-name{font-size:13.5px;font-weight:900;margin-bottom:2px}
+.criterion-desc{color:var(--muted);font-size:10.8px;line-height:1.35}
+.band{padding:6px 9px;border-radius:999px;font-size:10.5px;font-weight:900;white-space:nowrap}
+.band.good{background:var(--greenSoft);color:var(--green)}
+.band.mid{background:var(--amberSoft);color:var(--amber)}
+.band.weak{background:var(--redSoft);color:var(--red)}
+.mini-bar{margin:10px 0 0 48px;height:5px;border-radius:999px;background:#edf0f5;overflow:hidden}
+.mini-bar i{display:block;height:100%;border-radius:999px;background:var(--navy2)}
+.note{margin-top:11px;color:#8a92ad;font-size:10.8px;line-height:1.45;text-align:center}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.summary-card{padding:15px;box-shadow:none}
+.summary-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:900;margin-bottom:8px}
+.summary-card.strong .summary-label{color:var(--green)}
+.summary-card.focus .summary-label{color:var(--red)}
+.summary-card b{display:block;font-size:13px;line-height:1.35;margin-bottom:5px}
+.summary-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.4}
+.bridge{display:flex;align-items:center;gap:9px;margin:20px 0 9px;color:#8b92aa;font-size:10.5px;font-weight:850}
+.bridge:before,.bridge:after{content:"";height:1px;background:var(--line);flex:1}
+.plan-card{padding:18px}
+.plan-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:6px}
+.ee-badge{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--redSoft);color:var(--red);font-size:12px;font-weight:950;flex:none}
+.plan-head h3{margin:0 0 4px;font-size:16px}
+.plan-head p{margin:0;color:var(--muted);font-size:11.5px;line-height:1.4}
+.plan-skill{display:grid;grid-template-columns:28px 1fr;gap:10px;border-top:1px dashed #e5e8f0;padding:13px 0}
+.plan-skill:first-of-type{margin-top:8px}
+.num{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:var(--redSoft);color:var(--red);font-size:11px;font-weight:950}
+.plan-skill b{display:block;font-size:13px;line-height:1.3;margin-bottom:3px}
+.plan-skill small{display:block;color:var(--muted);font-size:10.8px;line-height:1.38}
+.origin{margin-top:5px;font-size:10px;color:#9aa1b6}
+.origin strong{color:#737d9d}
+.cta{width:100%;margin-top:15px;border:0;border-radius:16px;padding:15px 16px;color:#fff;background:var(--red);font-size:14px;font-weight:900;box-shadow:0 12px 26px rgba(216,75,62,.18);cursor:pointer}
+.secondary{text-align:center;margin-top:11px}
+.secondary a{color:var(--navy);text-decoration:none;font-size:11.5px;font-weight:850}
+.bottom{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,1120px);height:76px;background:rgba(255,255,255,.95);border-top:1px solid var(--line);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:space-around;padding:5px 9px 10px}
+.nav-item{text-align:center;color:#a0a7bc;font-size:9.5px}
+.nav-item span{display:block;font-size:19px;margin-bottom:2px}
+.nav-item.active{color:var(--navy);font-weight:900}
+
+.other-tests{
+  margin-top:22px;
+}
+.other-list{
+  overflow:hidden;
+}
+.other-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--line);
+}
+.other-row:last-child{border-bottom:0}
+.other-icon{
+  width:38px;height:38px;
+  border-radius:12px;
+  display:grid;place-items:center;
+  background:#f1f3f8;
+  color:#8e96ad;
+  font-size:12px;
+  font-weight:900;
+  flex:none;
+}
+.other-copy{
+  min-width:0;
+  flex:1;
+}
+.other-copy b{
+  display:block;
+  font-size:13px;
+  margin-bottom:2px;
+}
+.other-copy span{
+  color:var(--muted);
+  font-size:10.8px;
+}
+.not-evaluated{
+  padding:6px 9px;
+  border-radius:999px;
+  background:#f1f3f7;
+  color:#8a92a8;
+  font-size:10px;
+  font-weight:900;
+  white-space:nowrap;
+}
+
+
+.content-grid{
+  display:block;
+}
+
+.content-main,
+.content-side{
+  min-width:0;
+}
+
+@media (max-width:699px){
+  .app{
+    width:min(100%,460px);
+    padding:18px 16px 110px;
+  }
+}
+
+@media (min-width:700px){
+  body{
+    padding:22px 0 96px;
+  }
+
+  .app{
+    padding:26px 28px 110px;
+  }
+
+  .topbar{
+    margin-bottom:28px;
+  }
+
+  .hero{
+    margin:0 0 22px;
+    max-width:760px;
+  }
+
+  h1{
+    font-size:36px;
+  }
+
+  .hero p{
+    max-width:650px;
+    font-size:15px;
+  }
+
+  .content-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.04fr) minmax(330px,.96fr);
+    gap:26px;
+    align-items:start;
+  }
+
+  .section{
+    margin-top:18px;
+  }
+
+  .content-main .section:first-of-type{
+    margin-top:20px;
+  }
+
+  .content-side .bridge{
+    margin-top:0;
+  }
+
+  .result-card{
+    padding:24px;
+  }
+
+  .result-top{
+    gap:20px;
+  }
+
+  .level{
+    width:92px;
+    height:92px;
+    font-size:34px;
+  }
+
+  .result-copy h2{
+    font-size:22px;
+  }
+
+  .result-copy p{
+    font-size:13px;
+    max-width:420px;
+  }
+
+  .trust{
+    font-size:12px;
+    padding:12px 14px;
+  }
+
+  .analysis-card{
+    padding:8px 20px;
+  }
+
+  .criterion{
+    padding:17px 0;
+  }
+
+  .criterion-name{
+    font-size:14px;
+  }
+
+  .criterion-desc{
+    font-size:11.5px;
+  }
+
+  .plan-card{
+    padding:20px;
+  }
+
+  .plan-head h3{
+    font-size:17px;
+  }
+
+  .plan-head p,
+  .plan-skill small{
+    font-size:11.5px;
+  }
+
+  .plan-skill b{
+    font-size:13.5px;
+  }
+
+  .other-tests{
+    margin-top:18px;
+  }
+
+  .cta{
+    max-width:420px;
+    display:block;
+    margin:20px auto 0;
+  }
+
+  .bottom{
+    height:72px;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-radius:20px 20px 0 0;
+    box-shadow:0 -10px 34px rgba(27,47,115,.06);
+  }
+
+  .nav-item{
+    font-size:10px;
+  }
+}
+
+@media (min-width:1100px){
+  body{
+    padding-top:30px;
+  }
+
+  .app{
+    padding-left:0;
+    padding-right:0;
+  }
+
+  .content-grid{
+    gap:32px;
+  }
+
+  h1{
+    font-size:40px;
+  }
+}
+
+</style>
+</head>
+<body>
+<main class="app">
+
+  <header class="topbar">
+    <div class="back">‹</div>
+    <div class="topbar-title">Diagnostic écrit</div>
+    <div class="done">Terminé</div>
+  </header>
+
+  <section class="hero">
+    <div class="eyebrow">Expression écrite</div>
+    <h1>Votre niveau estimé : B1</h1>
+    <p>Vous vous faites bien comprendre à l’écrit. Voici les points qui expliquent votre résultat.</p>
+  </section>
+
+  <div class="content-grid">
+    <div class="content-main">
+
+  <section class="card result-card">
+    <div class="result-top">
+      <div class="level">B1</div>
+      <div class="result-copy">
+        <small>Niveau estimé</small>
+        <h2>Vous vous faites bien comprendre.</h2>
+        <p>Votre message est clair dans l’ensemble, avec encore quelques points à améliorer.</p>
+      </div>
+    </div>
+
+    <div class="trust">
+      <span>✓</span>
+      <div>Ce résultat nous aide à préparer un entraînement adapté à vos besoins.</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h3>Ce qui a été évalué</h3>
+      <span>Vue rapide</span>
+    </div>
+
+    <div class="card analysis-card">
+      <div class="criterion">
+        <div class="criterion-row">
+          <div class="criterion-icon">◎</div>
+          <div>
+            <div class="criterion-name">Votre message</div>
+            <div class="criterion-desc">Est-ce que votre réponse est claire et facile à comprendre ?</div>
+          </div>
+          <div class="band good">Solide</div>
+        </div>
+        <div class="mini-bar"><i style="width:78%"></i></div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-row">
+          <div class="criterion-icon">↔</div>
+          <div>
+            <div class="criterion-name">Votre réponse</div>
+            <div class="criterion-desc">Est-ce que vous répondez bien à ce qui est demandé ?</div>
+          </div>
+          <div class="band mid">À renforcer</div>
+        </div>
+        <div class="mini-bar"><i style="width:64%"></i></div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-row">
+          <div class="criterion-icon">Aa</div>
+          <div>
+            <div class="criterion-name">Vocabulaire</div>
+            <div class="criterion-desc">Les mots utilisés sont-ils adaptés et assez variés ?</div>
+          </div>
+          <div class="band mid">À renforcer</div>
+        </div>
+        <div class="mini-bar"><i style="width:58%"></i></div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-row">
+          <div class="criterion-icon">⌘</div>
+          <div>
+            <div class="criterion-name">Grammaire</div>
+            <div class="criterion-desc">Vos phrases sont-elles bien construites et faciles à suivre ?</div>
+          </div>
+          <div class="band weak">Prioritaire</div>
+        </div>
+        <div class="mini-bar"><i style="width:45%"></i></div>
+      </div>
+    </div>
+
+    <div class="note">Ces points servent simplement à comprendre votre niveau actuel.</div>
+  </section>
+
+    </div>
+
+    <div class="content-side">
+
+  <div class="bridge">L’analyse devient votre entraînement</div>
+
+  <section class="section">
+    <div class="section-head">
+      <h3>Votre Plan a choisi 3 priorités</h3>
+      <span>Cycle actuel</span>
+    </div>
+
+    <div class="card plan-card">
+      <div class="plan-head">
+        <div class="ee-badge">EE</div>
+        <div>
+          <h3>Expression écrite</h3>
+          <p>À partir des difficultés observées, SejourFR sélectionne les compétences concrètes les plus utiles à travailler.</p>
+        </div>
+      </div>
+
+      <div class="plan-skill">
+        <div class="num">1</div>
+        <div>
+          <b>Utiliser les temps du passé de manière compréhensible</b>
+          <small>Pour rendre vos récits plus précis et plus faciles à suivre.</small>
+          <div class="origin"><strong>Pourquoi :</strong> difficulté observée en grammaire</div>
+        </div>
+      </div>
+
+      <div class="plan-skill">
+        <div class="num">2</div>
+        <div>
+          <b>Relier les informations dans une description cohérente</b>
+          <small>Pour mieux organiser les idées et guider le lecteur.</small>
+          <div class="origin"><strong>Pourquoi :</strong> message à mieux structurer</div>
+        </div>
+      </div>
+
+      <div class="plan-skill">
+        <div class="num">3</div>
+        <div>
+          <b>Développer un argument</b>
+          <small>Pour expliquer davantage votre point de vue quand la tâche le demande.</small>
+          <div class="origin"><strong>Pourquoi :</strong> contenu encore trop peu développé</div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="section other-tests">
+    <div class="section-head">
+      <h3>Les autres épreuves</h3>
+      <span>Pas encore évaluées</span>
+    </div>
+
+    <div class="card other-list">
+      <div class="other-row">
+        <div class="other-icon">CO</div>
+        <div class="other-copy">
+          <b>Compréhension orale</b>
+          <span>Aucun résultat disponible pour le moment.</span>
+        </div>
+        <div class="not-evaluated">Non évalué</div>
+      </div>
+
+      <div class="other-row">
+        <div class="other-icon">CE</div>
+        <div class="other-copy">
+          <b>Compréhension écrite</b>
+          <span>Aucun résultat disponible pour le moment.</span>
+        </div>
+        <div class="not-evaluated">Non évalué</div>
+      </div>
+
+      <div class="other-row">
+        <div class="other-icon">EO</div>
+        <div class="other-copy">
+          <b>Expression orale</b>
+          <span>Aucun résultat disponible pour le moment.</span>
+        </div>
+        <div class="not-evaluated">Non évalué</div>
+      </div>
+    </div>
+  </section>
+
+  <button class="cta">Commencer mon Plan →</button>
+
+    </div>
+  </div>
+
+</main>
+
+<nav class="bottom">
+  <div class="nav-item"><span>⌂</span>Accueil</div>
+  <div class="nav-item active"><span>▱</span>Plan</div>
+  <div class="nav-item"><span>▦</span>Réviser</div>
+  <div class="nav-item"><span>◎</span>Examens</div>
+  <div class="nav-item"><span>◌</span>Profil</div>
+</nav>
+</body>
+</html>
