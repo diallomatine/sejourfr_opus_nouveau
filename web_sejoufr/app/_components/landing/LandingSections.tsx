@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ArrowRight,
   ArrowUp,
@@ -79,9 +80,9 @@ export function Hero() {
               Faire mon diagnostic gratuit
               <ArrowRight size={16} aria-hidden />
             </TrackedLink>
-            <a href="#examens" className={`${styles.btn} ${styles.btnLight}`}>
+            <Link href="/examens-blancs" className={`${styles.btn} ${styles.btnLight}`}>
               Voir les examens
-            </a>
+            </Link>
           </div>
 
           <ul className={styles.trust}>
