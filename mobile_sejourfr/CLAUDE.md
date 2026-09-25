@@ -3895,6 +3895,10 @@ canonique vit côté backend.
   `startSection` (TCF complet). « Soumis » : **TCF rapide seulement**, à la validation de la
   dernière production. Handoff : `POST /api/diagnostics?diagnosticRunId=`. Passage clos quand
   le brouillon est effacé (la run reste connue pour les événements).
+  🛑 **Contrôle F2** : un appelant **connecté** n'hérite pas d'un passage **d'invité** vieux de
+  plus de 24 h (`kGuestPassageReuseWindow`, depuis `runCreatedAt`, la 1ʳᵉ réception de la run)
+  ou porté par un autre compte — passage neuf, clé neuve (`DiagnosticRunEntry.reusableBy`).
+  Même borne côté serveur (`rejouer`).
   🛑 **Le `claimToken` ne sort du tracker que vers `submit` et l'auth** ; les événements ne
   reçoivent que `runIdFor(type)`, et seulement si la run est celle du compte connecté.
 - **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + la run **d'invité** la plus

@@ -9,6 +9,12 @@ import '../auth/auth_controller.dart';
 import '../models/diagnostic_run_models.dart';
 import '../utils/submission_key.dart';
 
+/// Âge au-delà duquel un passage **d'invité** n'est plus repris par un
+/// diagnostic **connecté** (contrôle F2). Miroir de la fenêtre du serveur
+/// (réutilisation d'une run par `rejouer`, 24 h en config) : les deux côtés
+/// ouvrent un passage neuf au même moment.
+const Duration kGuestPassageReuseWindow = Duration(hours: 24);
+
 /// Ce que l'appareil sait d'**un passage** dans un diagnostic : la clé qu'il a
 /// tirée, la run que le serveur lui a rendue et son jeton de rattachement.
 ///
@@ -24,6 +30,7 @@ class DiagnosticRunEntry {
     this.diagnosticRunId,
     this.claimToken,
     this.claimTokenExpiresAt,
+    this.runCreatedAt,
     this.ownerUserId,
     this.createdAsGuest = false,
     this.submitted = false,
@@ -44,6 +51,12 @@ class DiagnosticRunEntry {
   /// 🛑 **Ne quitte jamais cet enregistrement que vers `submit` et l'auth.**
   final String? claimToken;
   final DateTime? claimTokenExpiresAt;
+
+  /// Quand l'appareil a reçu la run **pour la première fois** (horloge
+  /// locale ; le serveur la date `subject_viewed_at`). Un rejeu ne la déplace
+  /// pas. `null` : pas encore de run, ou entrée écrite avant le contrôle F2 —
+  /// on retombe alors sur [touchedAt].
+  final DateTime? runCreatedAt;
 
   /// Le compte qui porte la run **à la connaissance de l'appareil** : celui qui
   /// était connecté à sa création, ou celui dont l'authentification a transmis
@@ -73,10 +86,25 @@ class DiagnosticRunEntry {
       claimToken != null &&
       (claimTokenExpiresAt == null || claimTokenExpiresAt!.isAfter(now));
 
+  /// 🛑 **Contrôle F2** — un passage d'invité non clos ne se prolonge pas
+  /// indéfiniment dans un diagnostic connecté : [userId] connecté ouvre un
+  /// passage neuf si l'entrée d'invité est **vieille** (plus de
+  /// [kGuestPassageReuseWindow] depuis la création de sa run) ou si elle a
+  /// **un autre porteur**. Sinon, un vieux `subject_viewed_at` rangerait le
+  /// diagnostic connecté dans une vieille cohorte — ou, run non rattachable,
+  /// ne le tracerait nulle part. Même borne côté serveur (`rejouer`).
+  bool reusableBy(String? userId, DateTime now) {
+    if (!createdAsGuest || userId == null) return true;
+    if (ownerUserId != null && ownerUserId != userId) return false;
+    final depuis = runCreatedAt ?? touchedAt;
+    return now.difference(depuis) <= kGuestPassageReuseWindow;
+  }
+
   DiagnosticRunEntry copyWith({
     String? diagnosticRunId,
     String? claimToken,
     DateTime? claimTokenExpiresAt,
+    DateTime? runCreatedAt,
     String? ownerUserId,
     bool? submitted,
     bool? closed,
@@ -88,6 +116,7 @@ class DiagnosticRunEntry {
         diagnosticRunId: diagnosticRunId ?? this.diagnosticRunId,
         claimToken: claimToken ?? this.claimToken,
         claimTokenExpiresAt: claimTokenExpiresAt ?? this.claimTokenExpiresAt,
+        runCreatedAt: runCreatedAt ?? this.runCreatedAt,
         ownerUserId: ownerUserId ?? this.ownerUserId,
         createdAsGuest: createdAsGuest,
         submitted: submitted ?? this.submitted,
@@ -101,6 +130,7 @@ class DiagnosticRunEntry {
         'diagnosticRunId': diagnosticRunId,
         'claimToken': claimToken,
         'claimTokenExpiresAt': claimTokenExpiresAt?.toIso8601String(),
+        'runCreatedAt': runCreatedAt?.toIso8601String(),
         'ownerUserId': ownerUserId,
         'createdAsGuest': createdAsGuest,
         'submitted': submitted,
@@ -119,6 +149,7 @@ class DiagnosticRunEntry {
       claimToken: json['claimToken'] as String?,
       claimTokenExpiresAt:
           DateTime.tryParse(json['claimTokenExpiresAt'] as String? ?? ''),
+      runCreatedAt: DateTime.tryParse(json['runCreatedAt'] as String? ?? ''),
       ownerUserId: json['ownerUserId'] as String?,
       createdAsGuest: json['createdAsGuest'] as bool? ?? false,
       submitted: json['submitted'] as bool? ?? false,
@@ -182,20 +213,27 @@ class DiagnosticRunTracker {
     }
   }
 
-  /// Le passage en cours pour [type] — le même tant qu'il n'est pas clos et
-  /// qu'il porte sur la même session, sinon un neuf, avec une clé neuve.
+  /// Le passage en cours pour [type] — le même tant qu'il n'est pas clos,
+  /// qu'il porte sur la même session et qu'il reste repris par l'appelant
+  /// ([DiagnosticRunEntry.reusableBy], contrôle F2), sinon un neuf, avec une
+  /// clé neuve.
   Future<DiagnosticRunEntry> _passage(
     DiagnosticRunType type,
     String? sessionId,
   ) async {
     final now = DateTime.now();
     final current = await _read(type);
+    final owner = _currentUserId();
     final sameSession = current != null &&
         (current.sessionId == null ||
             sessionId == null ||
             current.sessionId == sessionId);
-    if (current != null && !current.closed && sameSession) return current;
-    final owner = _currentUserId();
+    if (current != null &&
+        !current.closed &&
+        sameSession &&
+        current.reusableBy(owner, now)) {
+      return current;
+    }
     final fresh = DiagnosticRunEntry(
       clientKey: SubmissionKeys.newKey(),
       sessionId: sessionId,
@@ -218,12 +256,17 @@ class DiagnosticRunTracker {
     );
     if (created == null) return null;
     // 🛑 On garde TOUJOURS la dernière réponse : un rejeu a tué l'ancien jeton.
+    // La date de création, elle, reste celle de la première réponse pour
+    // cette run (F2) : un rejeu ne rajeunit pas le passage.
+    final now = DateTime.now();
+    final sameRun = entry.diagnosticRunId == created.diagnosticRunId;
     final updated = entry.copyWith(
       diagnosticRunId: created.diagnosticRunId,
       claimToken: created.claimToken,
       claimTokenExpiresAt: created.claimTokenExpiresAt,
+      runCreatedAt: sameRun ? entry.runCreatedAt ?? now : now,
       ownerUserId: entry.ownerUserId ?? _currentUserId(),
-      touchedAt: DateTime.now(),
+      touchedAt: now,
     );
     await _write(type, updated);
     return updated;
