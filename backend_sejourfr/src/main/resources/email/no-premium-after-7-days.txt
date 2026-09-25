@@ -1,0 +1,11 @@
+Où en est votre préparation ?
+
+{{greeting}},
+
+Votre compte SejourFR a une semaine. Pour avancer sereinement vers votre examen, le plus utile est de savoir où vous en êtes : un diagnostic mesure votre niveau et construit votre plan d'entraînement, étape par étape.
+
+Quelques minutes suffisent pour commencer, et vous pouvez reprendre à tout moment.
+
+Reprendre ma préparation : {{appUrl}}
+
+Vos réponses et votre progression restent enregistrées sur votre compte, sur le web comme dans l'application.

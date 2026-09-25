@@ -25,6 +25,10 @@ public interface UserSubscriptionRepository
 
     List<UserSubscription> findByUserId(UUID userId);
 
+    /** Les acces d'une page de candidats, plan charge : une requete pour toute la page. */
+    @EntityGraph(attributePaths = {"plan"})
+    List<UserSubscription> findByUserIdIn(java.util.Collection<UUID> userIds);
+
     /**
      * Liste admin paginée : user et plan chargés dans la même requête que la
      * page (le mapper admin lit les deux). Sans ce graphe, une page de 100
@@ -51,24 +55,6 @@ public interface UserSubscriptionRepository
      */
     Optional<UserSubscription> findBySourceAndOriginalTransactionId(
             SubscriptionSource source, String originalTransactionId);
-
-    /**
-     * Passes one-time ACTIVE dont l'accès expire dans la fenêtre [{@code now},
-     * {@code threshold}] et qui n'ont pas encore reçu le rappel d'expiration.
-     * Utilisé par le job de relance (lot 5). On cible bien les passes via
-     * {@code plan.purchaseType = ONE_TIME}.
-     */
-    @Query("""
-            SELECT s FROM UserSubscription s
-            WHERE s.status = com.sejourfr.app.enums.SubscriptionStatus.ACTIVE
-              AND s.plan.purchaseType = com.sejourfr.app.enums.PlanPurchaseType.ONE_TIME
-              AND s.expiryRemindedAt IS NULL
-              AND s.endsAt IS NOT NULL
-              AND s.endsAt > :now
-              AND s.endsAt <= :threshold
-            """)
-    List<UserSubscription> findOneTimeExpiringSoon(
-            @Param("now") Instant now, @Param("threshold") Instant threshold);
 
     /**
      * Débit atomique d'UNE session EO temps réel sur le pass, conditionné au

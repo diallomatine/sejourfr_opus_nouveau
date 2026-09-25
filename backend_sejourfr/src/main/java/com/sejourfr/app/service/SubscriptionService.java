@@ -165,6 +165,15 @@ public class SubscriptionService {
     }
 
     private boolean isCovering(UserSubscription s, Instant now) {
+        return covers(s, now);
+    }
+
+    /**
+     * 🛑 <b>LA regle « cette ligne ouvre-t-elle un acces a cet instant ? »</b>,
+     * exposee pour les scenarios d'emails de fin d'acces (docs/regles/emails.md) :
+     * ils l'appellent au lieu de la reecrire en SQL. Une seule autorite.
+     */
+    public static boolean covers(UserSubscription s, Instant now) {
         SubscriptionStatus status = s.getStatus();
         // ACTIVE / TRIAL / IN_GRACE = Premium ouvert sans condition.
         // CANCELED = Premium ouvert tant que ends_at est dans le futur (annulation

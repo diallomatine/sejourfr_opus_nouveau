@@ -26,6 +26,10 @@ public class UserSubscriptionManager {
         return repository.findByUserId(userId);
     }
 
+    public List<UserSubscription> findByUserIds(java.util.Collection<UUID> userIds) {
+        return userIds.isEmpty() ? List.of() : repository.findByUserIdIn(userIds);
+    }
+
     public Optional<UserSubscription> findById(UUID id) {
         return repository.findById(id);
     }
@@ -61,11 +65,5 @@ public class UserSubscriptionManager {
      */
     public Page<UserSubscription> findAll(Specification<UserSubscription> spec, Pageable pageable) {
         return repository.findAll(spec, pageable);
-    }
-
-    /** Passes one-time qui expirent entre maintenant et {@code threshold}, non rappelés (lot 5). */
-    public List<UserSubscription> findOneTimeExpiringSoon(
-            java.time.Instant now, java.time.Instant threshold) {
-        return repository.findOneTimeExpiringSoon(now, threshold);
     }
 }

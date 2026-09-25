@@ -270,9 +270,8 @@ réellement émis.
   sans le moindre changement métier. Même convention que les
   `toInstant(valeur, fallback)` / `parseExpiry(…)` / `deriveAutoRenew(…)` des
   autres champs.
-- **Ce qui n'est PAS concerné** : `ExpiryReminderJob`, dont le `save()` pose
-  réellement `expiry_reminded_at` (et dont la requête ne rend que les passes
-  jamais rappelés).
+- `expiry_reminded_at` n'est plus écrit (l'ancien `ExpiryReminderJob` est supprimé depuis le
+  2026-09-25, remplacé par les scénarios `PREMIUM_ENDING_*` du système d'emails).
 
 Verrouillé par `StripeSubscriptionServiceTest` / `AppleSubscriptionServiceTest` /
 `GoogleSubscriptionServiceTest` (un webhook rejoué à état identique ⇒ `save()`

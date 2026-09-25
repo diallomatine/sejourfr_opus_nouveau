@@ -25,8 +25,8 @@ class MailTemplateRendererTest {
 
     @Test
     void render_escapedPlaceholder_preventsInjection() {
-        // access-expiring.html contient {{greeting}} (échappé)
-        String html = renderer.render("mail/access-expiring.html",
+        // premium-access-extended.html contient {{greeting}} (échappé)
+        String html = renderer.render("email/premium-access-extended.html",
                 Map.of("greeting", "<script>steal()</script>"));
 
         assertThat(html)
@@ -36,18 +36,18 @@ class MailTemplateRendererTest {
 
     @Test
     void render_missingKey_leavesPlaceholderUntouched() {
-        // on ne fournit pas planName : son placeholder doit rester en clair
-        String html = renderer.render("mail/access-expiring.html",
+        // on ne fournit pas offerName : son placeholder doit rester en clair
+        String html = renderer.render("email/premium-access-extended.html",
                 Map.of("greeting", "Karim"));
 
-        assertThat(html).contains("{{planName}}");
+        assertThat(html).contains("{{offerName}}");
         assertThat(html).contains("Karim");
     }
 
     @Test
     void render_tripleBrace_isNotEscaped() {
         // layout.html contient {{{body}}} (brut, fragment HTML déjà sûr)
-        String html = renderer.render("mail/layout.html",
+        String html = renderer.render("email/layout.html",
                 Map.of("body", "<b>Bonjour</b>"));
 
         assertThat(html).contains("<b>Bonjour</b>");

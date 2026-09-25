@@ -130,42 +130,6 @@ class UserSubscriptionManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void findOneTimeExpiringSoonSelectsOnlyActiveOneTimeWithinWindowNotReminded() {
-        User user = testData.user();
-        Plan oneTime = testData.plan();
-        oneTime.setPurchaseType(PlanPurchaseType.ONE_TIME);
-        planManager.save(oneTime);
-        Plan subPlan = testData.plan(); // reste en SUBSCRIPTION
-
-        Instant now = Instant.now();
-        Instant threshold = now.plus(14, ChronoUnit.DAYS);
-
-        UserSubscription eligible = makeOneTime(user, oneTime, now.plus(5, ChronoUnit.DAYS), null);
-        // Déjà rappelé → exclu.
-        makeOneTime(user, oneTime, now.plus(5, ChronoUnit.DAYS), now);
-        // Au-delà de la fenêtre → exclu.
-        makeOneTime(user, oneTime, now.plus(30, ChronoUnit.DAYS), null);
-        // Déjà expiré (endsAt <= now) → exclu.
-        makeOneTime(user, oneTime, now.minus(1, ChronoUnit.DAYS), null);
-        // Abonnement récurrent dans la fenêtre → exclu (purchaseType != ONE_TIME).
-        UserSubscription recurring = testData.userSubscription(user, subPlan);
-        recurring.setEndsAt(now.plus(5, ChronoUnit.DAYS));
-        manager.save(recurring);
-
-        List<UserSubscription> found = manager.findOneTimeExpiringSoon(now, threshold);
-
-        assertThat(found).extracting(UserSubscription::getId).containsExactly(eligible.getId());
-    }
-
-    private UserSubscription makeOneTime(User user, Plan plan, Instant endsAt, Instant remindedAt) {
-        UserSubscription s = testData.userSubscription(user, plan);
-        s.setStatus(SubscriptionStatus.ACTIVE);
-        s.setEndsAt(endsAt);
-        s.setExpiryRemindedAt(remindedAt);
-        return manager.save(s);
-    }
-
-    @Test
     void decrementRealtimeSessionsDebitsOneWhenPositiveAndStopsAtZero() {
         UserSubscription sub = testData.userSubscription();
         sub.setRealtimeEoSessionsRemaining(2);

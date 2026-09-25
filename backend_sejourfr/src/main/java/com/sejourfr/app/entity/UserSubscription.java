@@ -109,9 +109,10 @@ public class UserSubscription {
     private String stripeSubscriptionId;
 
     /**
-     * Pass one-time (lot 5) : date d'envoi du rappel « ton accès se termine
-     * bientôt ». NULL tant qu'aucun rappel envoyé. Anti-doublon du job
-     * d'expiration.
+     * LEGACY (2026-09-25) : date du rappel « votre accès se termine bientôt » de
+     * l'ancien {@code ExpiryReminderJob}, supprimé au profit des scénarios
+     * {@code PREMIUM_ENDING_*} (docs/regles/emails.md, arbitrage n°6). Plus
+     * jamais écrite ; la colonne reste (règle « additif par défaut »).
      */
     @Column(name = "expiry_reminded_at")
     private Instant expiryRemindedAt;

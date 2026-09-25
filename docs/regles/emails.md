@@ -167,6 +167,63 @@ le système, jusqu'à 9 jours après le dernier acte). Lue par le scheduler, jam
 - Variables : au plus les **trois premières priorités servies** par le Plan du module,
   `priority2/3` **vides** si le Plan provisoire en a moins — jamais comblées.
 
+## Les scénarios automatisés (passage quotidien)
+
+`EmailAutomationJob.scenarios` (cron `sejourfr.email.automation.cron`, 9 h Europe/Paris) →
+`EmailAutomationService.runDaily(now)`. Une seule instance en production : pas de ShedLock.
+Au début de chaque passage (et à chaque passe de maintenance horaire) : les `PENDING` de plus
+d'une heure passent `FAILED` (« stale »).
+
+**Priorité sous plafond** (règle, constante `EmailAutomationService.PRIORITE`) :
+`PREMIUM_ENDED` > `PREMIUM_ENDING_2_DAYS` > `PREMIUM_ENDING_7_DAYS` > `PREMIUM_INACTIVE_2_DAYS` >
+`NO_TRAINING_7_DAYS` > `NO_PREMIUM_AFTER_7_DAYS`. Les scénarios passent dans cet ordre ; chaque
+envoi écrit sa ligne PENDING dans le thread du passage, donc le plafond retient les suivants pour
+le même compte — sans trace, et ils repartent le lendemain si leur fenêtre le permet.
+
+**Fenêtres bornées** (`email-automation-config-v1.json`, `scenarios`) — elles rattrapent un jour
+manqué et n'envoient rien rétroactivement au premier déploiement :
+
+| Scénario | Condition (tous : compte actif, USER, rappels activés) | Fenêtre |
+|---|---|---|
+| `NO_PREMIUM_AFTER_7_DAYS` | inscrit, **jamais** d'accès payant (passé ou actuel) | 7 à 10 jours calendaires depuis l'inscription |
+| `NO_TRAINING_7_DAYS` | au moins une activité | 7 à 14 jours depuis la dernière activité |
+| `PREMIUM_INACTIVE_2_DAYS` | un accès couvrant | 2 à 5 jours depuis `max(dernière activité, début de l'accès couvrant le plus récent)` (arbitrage n°19) |
+| `PREMIUM_ENDING_7_DAYS` | pass couvrant, commencé il y a ≥ 3 jours, rien ne le prolonge | fin dans `]now+2 j, now+7 j]` |
+| `PREMIUM_ENDING_2_DAYS` | pass couvrant, rien ne le prolonge | fin dans `]now, now+2 j]` |
+| `PREMIUM_ENDED` | le pass couvrait jusqu'à sa fin, aucun accès de module ≥ actif ni à venir | fin dans `[now−3 j, now]` |
+
+- Jours **calendaires Europe/Paris** pour l'âge du compte et l'inactivité ; **instants** pour les
+  fins d'accès (décision D-26).
+- **Épisodes d'inactivité** : la clé porte la date qui a ouvert l'épisode ⇒ au plus un mail par
+  type et par épisode. Premium : J+2 puis J+7, puis rien ; non Premium : J+7 seul ; une nouvelle
+  activité ouvre un nouvel épisode. Un Premium qui ne s'est jamais entraîné reçoit
+  `PREMIUM_INACTIVE_2_DAYS` (daté du début d'accès), jamais `NO_TRAINING_7_DAYS`.
+- 🛑 **Fins d'accès** : seuls les **achats uniques** (`purchase_type = ONE_TIME`, `auto_renew`
+  faux) — les abonnements récurrents dormants sont exclus (arbitrage n°5). « Rien ne le prolonge »
+  = aucune autre ligne couvrante de module ≥ qui finit plus tard (une prolongation crée une
+  nouvelle ligne qui chevauche l'ancienne). La **couverture** se lit sur
+  `SubscriptionService.covers`, l'autorité unique : le SQL ne fait que borner les candidats
+  (décision D-25). Un pass remboursé ne « se termine » pas.
+- **Libellé selon le module** (`PremiumAccessEndResolver`, complément F) : « Votre pass
+  Intégral », « Votre accès Civique », ou « Votre accès TCF » + « Votre accès Civique reste actif
+  jusqu'au … » quand un Civique survit à l'Intégral. Variables plates, aucune condition dans le
+  gabarit.
+- **Contenu** : informatif, aucun prix/remise/offre/urgence (figé par
+  `EmailTemplatesConfiguredTest`) ; fin d'accès → « Voir mon pass » (`/profil/abonnement`) ; fin
+  effective → « Votre progression et vos résultats restent disponibles ».
+- `nextStepLabel` (brief §9, « si disponible ») n'est pas servi en V1 (décision D-27).
+
+Les candidats se lisent **par pages** à jeu de clés (`id > :after`, `batchSize`), et les accès
+d'une page en **une** requête (`UserSubscriptionManager.findByUserIds`) : pas de N+1.
+
+**Maintenance** (`EmailAutomationJob.maintenance`, horaire) : PENDING bloqués + relance différée
+des mails événementiels (`EmailDeferredRetryService`). **Rétention**
+(`EmailAutomationJob.retention`, quotidienne) : purge des lignes de plus de 12 mois, par lots.
+
+L'ancien `ExpiryReminderJob` (rappel « Prolonger mon accès » vers `/paiement`, qui prévenait à
+tort un acheteur ayant prolongé) est **supprimé** ; `user_subscriptions.expiry_reminded_at`
+reste en base, plus jamais écrite (arbitrage n°6).
+
 ## Environnement de dev
 
 Le dev pointe sur un **vrai SMTP** (`MAIL_HOST` de `backend_sejourfr/.env`), pas sur MailHog, et

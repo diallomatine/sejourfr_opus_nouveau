@@ -166,6 +166,30 @@ sejourfr:
         subject: "Réponse à votre message"
         preheader: "Notre équipe a répondu à votre demande."
         local-template: email/support-reply
+      NO_PREMIUM_AFTER_7_DAYS:
+        subject: "Où en est votre préparation ?"
+        preheader: "Un diagnostic de quelques minutes construit votre plan d'entraînement."
+        local-template: email/no-premium-after-7-days
+      NO_TRAINING_7_DAYS:
+        subject: "On reprend votre entraînement ?"
+        preheader: "Une courte série aujourd'hui suffit à garder le rythme."
+        local-template: email/no-training-7-days
+      PREMIUM_INACTIVE_2_DAYS:
+        subject: "Votre prochaine séance vous attend"
+        preheader: "Votre plan d'entraînement est prêt."
+        local-template: email/premium-inactive-2-days
+      PREMIUM_ENDING_7_DAYS:
+        subject: "{{accessLabel}} se termine le {{accessEndDate}}"
+        preheader: "Vos entraînements restent ouverts jusqu'à cette date."
+        local-template: email/premium-ending-7-days
+      PREMIUM_ENDING_2_DAYS:
+        subject: "{{accessLabel}} se termine le {{accessEndDate}}"
+        preheader: "Vos entraînements restent ouverts jusqu'à cette date."
+        local-template: email/premium-ending-2-days
+      PREMIUM_ENDED:
+        subject: "{{accessLabel}} est terminé"
+        preheader: "Votre progression et vos résultats restent disponibles."
+        local-template: email/premium-ended
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —

@@ -1,0 +1,9 @@
+Votre prochaine séance vous attend
+
+{{greeting}},
+
+Votre accès est ouvert et votre plan d'entraînement est prêt. Quelques minutes par jour suffisent pour progresser : c'est le bon moment pour faire votre prochaine séance.
+
+Reprendre mon entraînement : {{resumeUrl}}
+
+Chaque exercice rend votre plan plus précis.

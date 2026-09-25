@@ -54,8 +54,6 @@ sejourfr:
     local:
       root: ${STORAGE_LOCAL_ROOT:/var/sejourfr/uploads}
       public-base-url: ${STORAGE_PUBLIC_BASE_URL}
-  mail:
-    from: ${MAIL_FROM:no-reply@sejourfr.fr}
   email:
     unsubscribe:
       keys:

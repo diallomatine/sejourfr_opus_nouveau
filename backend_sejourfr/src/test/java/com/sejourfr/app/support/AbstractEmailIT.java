@@ -99,9 +99,12 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
 
     /** Attend que l'executor email n'ait plus rien en cours ni en file. */
     protected void awaitEmailExecutorIdle() {
+        // taskCount compte tout ce qui a ete soumis ; completedTaskCount ce qui est
+        // fini. getActiveCount() seul laisse passer la fenetre ou une tache a
+        // quitte la file sans etre encore marquee active.
+        var pool = emailExecutor.getThreadPoolExecutor();
         EmailTestSupport.await("executor email au repos", () ->
-                emailExecutor.getActiveCount() == 0
-                        && emailExecutor.getThreadPoolExecutor().getQueue().isEmpty());
+                pool.getTaskCount() == pool.getCompletedTaskCount());
     }
 
     @Autowired private SpringMailEmailSender springMailRenderer;

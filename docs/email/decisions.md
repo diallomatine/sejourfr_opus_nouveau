@@ -118,6 +118,21 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Réversibilité : facile — un appel à `civiqueAdopte`-like dans le coordinateur.
 - Fichiers : `DiagnosticPlanReadyNotifier`, `CivicDiagnosticService.adopter`
 
+## D-25 — La couverture d'un accès reste en Java ; le SQL des scénarios ne fait que borner
+- Phase : 4
+- Importance : structurante
+- Contexte : les scénarios de fin d'accès et `PREMIUM_INACTIVE_2_DAYS` ont besoin de la règle
+  « cette ligne ouvre-t-elle un accès ? », qui ne vivait qu'en Java (`SubscriptionService
+  .isCovering`). La réécrire en SQL en ferait une seconde copie (risque n°4 de l'audit).
+- Options : A) SQL complet + un test qui confronte SQL et Java ; B) le SQL borne les candidats
+  (fenêtre de fin, achat unique, compte éligible), puis Java décide avec la règle existante,
+  rendue publique (`SubscriptionService.covers`), sur les accès de la page chargés en une requête.
+- Choix : B — une seule autorité, et le coût reste borné (une requête de candidats + une requête
+  d'accès par page).
+- Réversibilité : facile.
+- Fichiers : `SubscriptionService.covers`, `automation/PremiumAccessEndResolver.java`,
+  `automation/EmailAutomationService.java`, `repository/EmailScenarioRepository.java`
+
 ---
 
 # Décisions mineures
@@ -323,11 +338,98 @@ Règle métier qui en résulte : `docs/regles/emails.md`.
 - Réversibilité : facile.
 - Fichiers : `support/AbstractEmailIT.java`
 
+## D-26 — Jours calendaires pour l'âge et l'inactivité, instants pour les fins d'accès
+- Phase : 4
+- Importance : mineure
+- Contexte : le brief écrit « entre J-10 et J-7 » pour les uns et « fin dans ]J+2, J+7] » avec
+  `now` pour les autres ; l'exemple d'épisode (« activité le 10, mail le 12 ») raisonne en jours.
+- Options : A) tout en instants ; B) tout en jours ; C) jours calendaires Europe/Paris pour
+  l'ancienneté et l'inactivité, instants pour les fins d'accès.
+- Choix : C — c'est la lecture littérale de chaque ligne du brief, et elle colle à un passage
+  quotidien à heure fixe.
+- Réversibilité : facile — `EmailAutomationService`.
+- Fichiers : `automation/EmailAutomationService.java`
+
+## D-27 — `nextStepLabel` n'est pas servi en V1
+- Phase : 4
+- Importance : mineure
+- Contexte : le brief le demande « si disponible » pour les rappels d'inactivité. Le lire exige de
+  construire le Plan (22 requêtes, et une écriture d'épinglage, cf. D-17) pour chaque candidat
+  pendant le passage.
+- Options : A) construire le Plan en lecture seule par candidat ; B) ne pas le servir en V1.
+- Choix : B — les gabarits n'y font pas référence ; à ajouter avec une lecture légère du parcours.
+- Réversibilité : facile — une variable et une phrase de gabarit.
+- Fichiers : `compose/EngagementEmailComposer.java`
+
+## D-28 — Ce qui « se termine » : l'accès couvrait jusqu'à sa fin
+- Phase : 4
+- Importance : mineure
+- Contexte : l'expiration est paresseuse (le statut reste `ACTIVE` après `ends_at`) ; un pass
+  remboursé a une `ends_at` aussi.
+- Options : A) filtrer par statut en SQL ; B) `covers(accès, fin − 1 ms)` — il couvrait jusqu'au
+  bout — et, pour « aucun accès futur », une ligne couvrante qui commence après `now`.
+- Choix : B — même autorité que D-25 ; un remboursement ou une révocation ne déclenche pas
+  « votre accès est terminé ».
+- Réversibilité : facile.
+- Fichiers : `automation/PremiumAccessEndResolver.java`
+
+## D-29 — `expiry_reminded_at` reste mappée, plus jamais écrite
+- Phase : 4
+- Importance : mineure
+- Contexte : règle du dépôt « une colonne legacy cesse d'être écrite et mappée » ; mais le champ
+  fait partie de l'instantané `EtatAbonnement` du code de paiement.
+- Options : A) retirer le mapping (et toucher `EtatAbonnement`) ; B) garder le mapping, documenter
+  le champ comme legacy.
+- Choix : B — ne pas modifier le code de paiement (interdit du chantier) pour une colonne inerte.
+- Réversibilité : facile.
+- Fichiers : `entity/UserSubscription.java`
+
+## D-30 — Priorité des scénarios : une constante, pas un réglage
+- Phase : 4
+- Importance : mineure
+- Contexte : le brief externalise « délais, fenêtres, plafond et tentatives » ; il fixe aussi un
+  ordre de priorité.
+- Options : A) l'ordre dans le JSON versionné ; B) une constante Java.
+- Choix : B — c'est une règle produit (la fin d'un accès prime sur un rappel d'inactivité), pas
+  un bouton de réglage.
+- Réversibilité : facile.
+- Fichiers : `automation/EmailAutomationService.PRIORITE`
+
+## D-31 — Tests des scénarios : horloge dans le futur, activité par simulation orale
+- Phase : 4
+- Importance : mineure
+- Contexte : les requêtes de scénario balaient toute la base, où d'autres tests laissent des
+  données commitées ; et une question créée pour un test peut être tirée par un autre.
+- Options : A) vider les tables ; B) fixer l'horloge en 2027 (les données des autres tests
+  tombent hors fenêtre), n'assertionner que sur les comptes du test, et poser l'activité par une
+  `realtime_sessions` jointe (aucun contenu partagé créé).
+- Choix : B.
+- Réversibilité : facile.
+- Fichiers : `EmailAutomationIT`, `EmailDeferredRetryIT`, `support/MutableClock`
+
 ---
 
 # Sujets séparés (interdits sans accord du propriétaire)
 
-*(complétés au fil des phases)*
+- **SS-1 — Stripe « paiement confirmé » (arbitrage n°20).** `StripeSubscriptionService
+  .handleOneTimeCheckout` ne vérifie pas `session.payment_status == "paid"` et `BillingService`
+  ne restreint pas les moyens de paiement. Si un moyen différé (SEPA…) est activé côté Stripe,
+  l'accès — et donc `PREMIUM_ACCESS_STARTED` — part avant l'encaissement. Workflow de paiement :
+  non modifié.
+- **SS-2 — Newsletter du pied de page (arbitrage n°15).** `Footer.tsx` appelle
+  `POST /api/newsletter/subscribe`, qui **n'existe pas** côté backend ; la politique de
+  confidentialité annonce pourtant une finalité « newsletters ». Footer non modifié.
+- **SS-3 — S5 : `GET /api/auth/confirm-email-change` modifie l'état.** Un scanner de liens peut
+  consommer le jeton. Correctif proposé : même patron que le désabonnement (GET affiche une
+  confirmation, POST applique).
+- **SS-4 — S6 : jetons en query string dans les journaux Nginx** (reset, changement d'email,
+  désabonnement). Config Nginx hors dépôt : `log_format` sans `$args` sur `api.sejourfr.fr` et
+  `sejourfr.fr`, ou accepter (jetons hachés en base, TTL 1 h ; le jeton de désabonnement ne
+  donne que le droit de se désabonner).
+- **SS-5 — Liens mobiles** (arbitrage n°14) : les mails pointent vers le web ; universal links /
+  app links à traiter séparément.
+- **SS-6 — Webhooks Brevo** (rebonds, plaintes → préférences) et `BrevoEmailSender` : hors
+  périmètre (brief §11), `provider_message_id` prêt.
 
 # Blocages
 

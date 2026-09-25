@@ -96,8 +96,6 @@ sejourfr:
     local:
       root: /Users/diallomatine/Desktop/Nouveu_Projets/sejour_storage
       public-base-url: http://192.168.1.104:8080/files
-  mail:
-    from: ${MAIL_FROM}
   contact:
     to: ${MAIL_FROM}
   email:
