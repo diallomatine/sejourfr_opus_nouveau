@@ -469,12 +469,11 @@ async function flush(): Promise<void> {
 }
 
 /**
- * Type du corps de la balise. ⚠️ `application/json` **cross-origin** déclenche
- * une pré-vérification CORS que `sendBeacon` ne sait pas faire (la balise peut
- * être refusée) ; `text/plain` l'éviterait, mais l'endpoint en lot ne le lit pas
- * encore (415). À basculer quand le serveur l'accepte (contrôle N7).
+ * Type du corps de la balise : `text/plain`, car `application/json`
+ * **cross-origin** déclenche une pré-vérification CORS que `sendBeacon` ne sait
+ * pas faire. L'endpoint en lot lit le même JSON sous ce type (contrôle N7).
  */
-const BEACON_CONTENT_TYPE = "application/json";
+const BEACON_CONTENT_TYPE = "text/plain";
 
 /** Vidage de sortie : `sendBeacon` (sans en-têtes — `client` et `appVersion`
  *  voyagent dans le corps), repli `fetch keepalive`. */
