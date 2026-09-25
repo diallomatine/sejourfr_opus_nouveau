@@ -862,6 +862,7 @@ retour (faible / moyenne / forte).
 - Choix : Accueil : seule « À faire maintenant » compte comme le Plan (`LOCKED_PLAN` + `journeyId`) ; les cartes d'épreuve « Où vous en êtes » passent en `MOCK_EXAM`. **Arbitrage orchestrateur** : « Reprendre » de Réviser = exercice du Plan → `LOCKED_PLAN` + `journeyId`, TCF **et civique** (le mobile envoyait `OTHER` pour le civique, aligné).
 - Fichiers : web `dashboard/page.tsx`, `ReviserScreen.tsx` ; mobile `home_screen.dart`, `reviser_screen.dart`.
 - Difficulté de retour : faible.
+- ⚠️ **Correction du 2026-09-25** : la partie « Reprendre » de Réviser est révoquée par D113 (aucun marqueur persisté : « Reprendre » n'est pas Plan).
 
 **D95 — CTA requis et origine déclarée par les lanceurs du Plan** · Contrôle F (mobile)
 - Contexte : les lanceurs du Plan imposaient `LOCKED_PLAN` alors que l'Accueil et Réviser les appellent aussi.
@@ -988,6 +989,21 @@ retour (faible / moyenne / forte).
 - Choix : `util/SoumisRetenu` (condition SQL + jumeau Java, même clé `civicSubmittedMinAnsweredRatio`), lue par `SuiviReadRepository` et par `DiagnosticRunClaimService` ; `SoumisRetenuIT` vérifie que SQL et Java rendent le même verdict sur une grille de cas. Run civique sans compteurs = inconnue, jamais `AFTER_DIAGNOSTIC` ; plusieurs runs claimées ⇒ la plus récente parmi les retenues.
 - Fichiers : `SoumisRetenu`, `SuiviReadRepository`, `DiagnosticRunRepository`, `DiagnosticRunManager`, `DiagnosticRunClaimService`, tests.
 - Difficulté de retour : faible (les `signup_context` déjà posés ne sont jamais réécrits).
+
+**D113 — « Reprendre » de Réviser : Plan seulement sur marqueur persisté** · Contrôle F
+- Contexte : D94 comptait « Reprendre » comme un exercice du Plan. Consigne du propriétaire : Plan seulement si l'exercice repris avait lui-même été lancé depuis le Plan, avec un marqueur **persisté au lancement**, sans en créer. Constat (web et mobile) : « Reprendre » relance l'**action courante calculée à la lecture** (`planNowCard` / `civicNowCard`, `reviser.ts:160,202` ; `reviser_screen.dart:289,371`), pas une tentative en cours ; **aucun marqueur persisté** n'existe (aucune colonne d'origine sur `attempts`, aucun stockage local ; `PLAN_EXERCISE_STARTED` est un événement d'audience jamais relu, émis aussi par « Reprendre » ; `?etape=1` est un marqueur de route).
+- Options : garder D94 ; créer un marqueur (exclu) ; « Reprendre » hors Plan.
+- Choix : hors Plan, web et mobile, TCF et civique. Un 403 prend le CTA de l'écran d'arrivée, sans parcours : `OTHER` (exercice, série civique, ligne de séance), `MOCK_EXAM` (mesure d'un domaine). Corrige D94 sur ce point ; « À faire maintenant » de l'Accueil reste Plan.
+- Chemins laissés tels quels, **à trancher par le propriétaire** (ils partent de la carte mais passent par un écran du Plan) : (1) geste `DEBLOQUER` → `/plan/debloquer`, qui pose toujours `LOCKED_PLAN` + `journeyId` — probablement le chemin d'achat le plus fréquent depuis la carte ; (2) geste `OUVRIR_ETAPE` → écran `/plan/*` (D96 : tout geste y est Plan) ; (3) petit sujet et re-vérification ouverts avec `?etape=1` (le marqueur règle aussi l'affichage « x/5 » de l'étape). Les corriger demanderait un paramètre d'origine sur ces écrans.
+- Fichiers : web `ReviserScreen.tsx`, `CLAUDE.md` ; mobile `reviser_screen.dart`, `plan_cta.dart`, `plan_actions.dart`, `CLAUDE.md`. Commit `4ab4172c`.
+- Difficulté de retour : faible.
+
+**D114 — Jeu de données dev en migration répétable, dates de mesure surchargées par le profil dev** · Relecture visuelle
+- Contexte : la relecture de l'écran Suivi exige des données datées par rapport à maintenant (presets aujourd'hui / hier / 7 j / mois) et des dates de début de mesure posées — sans toucher `analytics-config-v1.json` (D43).
+- Options : V902 appliquée une fois (périmée en quelques jours) ; runner Java au démarrage ; migration répétable `R__` dans `migration-dev` avec `${flyway:timestamp}`. Pour les dates : second fichier de config dev (seconde copie) ou surcharge par propriété.
+- Choix : `db/migration-dev/R__seed_dev_suivi.sql`, rejouée à chaque démarrage dev, idempotente (supprime puis réinsère son seul périmètre : comptes `suivi.*@sejourfr.test` sans mot de passe, ids `5e1f5e1f-*`), couvre les 20 scénarios, respecte les CHECK et l'invariant revenu ; jamais en prod ni dans Zonky (qui ne lisent que `db/migration`). Dates : propriété `sejourfr.analytics.measurement-start-overrides`, posée seulement dans `application-dev.yaml` (14 indicateurs au 2026-01-01) ; **démarrage refusé** si elle est posée hors profil dev ; un test vérifie qu'aucun autre fichier de config ne la déclare. Inconvénient : une ligne de plus dans `flyway_schema_history` par démarrage dev.
+- Fichiers : `R__seed_dev_suivi.sql`, `application.yaml`, `application-dev.yaml`, `AnalyticsProperties`, `AnalyticsConfigLoader`, `AnalyticsConfigProvider`, `AnalyticsConfigLoaderTest`, `docs/migrations-flyway.md`, `docs/regles/mesure-audience.md`. Commit `bd774de6`.
+- Difficulté de retour : faible.
 
 ---
 
