@@ -56,8 +56,8 @@ Future<void> openRecommendedExercise(
   PlanRecommendedExercise exercise, {
   SkillMasteryState? masteryBefore,
   VoidCallback? onVerrou,
-  AnalyticsCtaLocation? ctaLocation,
-  String? journeyId,
+  required AnalyticsCtaLocation? ctaLocation,
+  required String? journeyId,
 }) async {
   // Garde de dernier recours : le serveur décide du verrou, l'app ne le devine
   // pas. Les cartes ouvrent déjà le paywall d'elles-mêmes.
@@ -82,6 +82,8 @@ Future<void> openRecommendedExercise(
       context,
       ref,
       skillId: exercise.skillId,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
       masteryBefore: masteryBefore,
     );
     return;
@@ -123,8 +125,8 @@ Future<void> _openReassessment(
   WidgetRef ref,
   PlanRecommendedExercise exercise,
   TcfProductionModule module, {
-  AnalyticsCtaLocation? ctaLocation,
-  String? journeyId,
+  required AnalyticsCtaLocation? ctaLocation,
+  required String? journeyId,
 }) async {
   final taskId = exercise.productionTaskId;
   // Vérification sans sujet : on ouvre la liste des sujets de sa tâche plutôt
@@ -134,8 +136,11 @@ Future<void> _openReassessment(
   // l'écran de tâche sur son onglet « Compétences » — depuis la suppression de
   // l'onglet (2026-09-20), il aurait ouvert le catalogue des 8 compétences,
   // c'est-à-dire tout autre chose qu'une vérification en situation.
+  // 🛑 Avec le **marqueur d'étape** (contrôle F) : la liste sait qu'elle est
+  // ouverte depuis le Plan, et son offre sur un 403 part en `LOCKED_PLAN`.
   if (taskId == null) {
-    context.push(productionTaskPath(module, exercise.tacheNumero ?? 1));
+    context.push(
+        productionTaskPath(module, exercise.tacheNumero ?? 1, planStep: true));
     return;
   }
   ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;

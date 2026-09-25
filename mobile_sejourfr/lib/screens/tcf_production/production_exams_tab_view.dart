@@ -245,6 +245,8 @@ class _ProductionExamsTabViewState
         ref,
         epreuve: widget.module.epreuve,
         slotNumber: slotNumber,
+        // Contrôle F : le CTA du cadenas de cette grille.
+        ctaLocation: AnalyticsCtaLocation.mockExam,
       );
     } finally {
       if (mounted) _setStarting(false);

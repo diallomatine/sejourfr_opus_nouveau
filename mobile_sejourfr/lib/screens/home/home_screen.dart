@@ -28,6 +28,7 @@ import '../../core/models/journey_models.dart';
 import '../plan/journey_labels.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
+import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
 import '../progres/progres_labels.dart';
@@ -409,11 +410,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onTap: () => unawaited(
                 mesure != null
                     // Les deux lanceurs du Plan, jamais un second chemin.
-                    ? startPlanSeanceItem(context, ref, mesure)
+                    // Contrôle F : la carte « À faire maintenant » relaie
+                    // l'action du Plan — la seule entrée de l'Accueil qui
+                    // compte comme le Plan (avec son parcours).
+                    ? startPlanSeanceItem(context, ref, mesure,
+                        origine: PlanOrigine.relais)
                     : openPlanExercise(
                         context,
                         ref,
                         exercice!,
+                        origine: PlanOrigine.relais,
                         masteryBefore: carte.priority?.masteryState,
                       ),
               ),
@@ -699,7 +705,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
     final mesure = epreuve.niveau == null ? epreuve.evaluation : null;
     if (mesure != null) {
-      openPlanAssessment(context, ref, mesure);
+      // Contrôle F : la carte d'une épreuve n'est pas le Plan — l'offre d'un
+      // examen verrouillé part avec le CTA des grilles d'examens.
+      openPlanAssessment(context, ref, mesure, origine: PlanOrigine.horsPlan);
       return;
     }
     if (accueilEpreuveOuvreLExercice(epreuve)) {

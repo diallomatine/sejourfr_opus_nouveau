@@ -39,14 +39,15 @@ class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
     this.onStart,
     this.eyebrow,
     this.durationLabel,
-    this.ctaLocation,
+    required this.ctaLocation,
     this.journeyId,
   });
 
   final TcfQcmModule module;
 
   /// L'origine d'un achat qui partirait de ce sas (Q12) : `LOCKED_PLAN` + le
-  /// parcours quand il est ouvert depuis le Plan. Absents : `OTHER`.
+  /// parcours quand il est ouvert depuis le Plan, `MOCK_EXAM` depuis la grille.
+  /// Requise (contrôle F) : `null` explicite = inconnue, aucune intention.
   final AnalyticsCtaLocation? ctaLocation;
   final String? journeyId;
 
@@ -244,7 +245,7 @@ void showModuleExamBriefingSheet(
   VoidCallback? onStart,
   String? eyebrow,
   String? durationLabel,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) {
   showModalBottomSheet<void>(

@@ -123,7 +123,8 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
-      showPaywallOrError(context, e);
+      showPaywallOrError(context, e,
+          ctaLocation: AnalyticsCtaLocation.mockExam);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

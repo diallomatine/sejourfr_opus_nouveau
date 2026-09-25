@@ -301,7 +301,8 @@ change un DTO, mettre à jour le model Dart correspondant.
 - **Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO) : passer par
   `core/utils/start_failure.dart` — `showPaywallOrError(context, e)` ouvre le paywall sur un **403**
   (verrou freemium appliqué par le backend : statut premium en cache périmé, abonnement expiré en
-  cours de session) et affiche le message backend sinon. `onForbidden:` sert à fermer un briefing
+  cours de session) et affiche le message backend sinon. `ctaLocation:` est **requis** (contrôle
+  F, cf. « Intention d'achat »). `onForbidden:` sert à fermer un briefing
   avant d'empiler le paywall. **Ne pas réécrire ce `if (isForbidden)` dans un écran** : la règle vit à
   un seul endroit, et `classifyStartFailure` la verrouille en test.
 
@@ -3988,9 +3989,21 @@ journeyId:)` jusqu'à `PaywallScreen`. 🛑 **CTA inconnu ⇒ aucune intention**
 jamais un `OTHER` fabriqué ; un geste connu (profil, compétences, lots, exemples…) passe sa valeur
 explicite, `MOCK_EXAM` pour les grilles d'examens. 🛑 **Toute** offre ouverte
 depuis le Plan passe `LOCKED_PLAN` + le parcours (`planJourneyId`, `learning_plan_provider.dart`) :
-écran de déblocage (et donc les cartes de l'Accueil, la reco d'épreuve), lignes verrouillées,
-jalon, série ciblée, mesure d'un domaine (sas CO/CE et EE/EO), fin de cycle, écran d'étape,
-séries civiques du Plan — y compris via `showPaywallOrError(ctaLocation:, journeyId:)` sur 403.
+écran de déblocage, lignes verrouillées, jalon, série ciblée, mesure d'un domaine (sas CO/CE et
+EE/EO), fin de cycle, écran d'étape, séries civiques du Plan — y compris sur 403.
+🛑 **Contrôle F (2026-09-25) — `ctaLocation` REQUIS** sur `showPaywallSheet`,
+`showPaywallOrError`, `showTcfLockPaywall`, `openCivicOffer`, `startCivic*Serie`,
+`startProductionExam`, `showModuleExamBriefingSheet`, `startTargetedSeries` : chaque appel
+choisit, `null` explicite = inconnu. Sur un **403**, un écran passe le CTA de **son** cadenas
+avant démarrage (`MOCK_EXAM` / `OTHER`) ; un écran que le Plan ouvre avec le marqueur
+`?etape=1` (fiche et sujet de compétence, liste des sujets d'une tâche via `productionTaskPath(
+planStep: true)`) passe `LOCKED_PLAN` + parcours (`planStepCta`). Les lanceurs du Plan
+(`openPlanExercise`, `startPlanSeanceItem`, `openPlanAssessment`, `startPlanMilestone`)
+prennent une `PlanOrigine` **requise** (`screens/plan/plan_cta.dart`) : `plan` (écrans du
+Plan) ; `relais` = l'action du Plan relayée par la carte « À faire maintenant » de l'Accueil,
+« Reprendre » (TCF **et** civique) et la reco d'épreuve de Réviser → `LOCKED_PLAN` **seulement
+si le parcours est connu** ; `horsPlan` (carte d'épreuve de l'Accueil) → CTA de l'écran
+d'arrivée. Jamais d'origine déduite d'un `journeyId` en cache.
 
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
 sous les cartes du paywall).

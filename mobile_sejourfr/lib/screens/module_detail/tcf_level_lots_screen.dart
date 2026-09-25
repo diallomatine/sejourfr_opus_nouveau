@@ -149,7 +149,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      showPaywallOrError(context, e);
+      showPaywallOrError(context, e,
+          ctaLocation: AnalyticsCtaLocation.other);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

@@ -26,10 +26,15 @@ class ProductionTaskScreen extends ConsumerStatefulWidget {
     super.key,
     required this.module,
     required this.tache,
+    this.planStep = false,
   });
 
   final TcfProductionModule module;
   final int tache;
+
+  /// Ouvert depuis le Plan (marqueur `?etape=1`) : décide le CTA de l'offre
+  /// ouverte sur un 403 (contrôle F).
+  final bool planStep;
 
   @override
   ConsumerState<ProductionTaskScreen> createState() =>
@@ -83,6 +88,7 @@ class _ProductionTaskScreenState extends ConsumerState<ProductionTaskScreen>
             ProductionSubjectsView(
               module: widget.module,
               tache: widget.tache,
+              planStep: widget.planStep,
               onBusy: _setBusy,
               top: taskBannerTop(
                 context,

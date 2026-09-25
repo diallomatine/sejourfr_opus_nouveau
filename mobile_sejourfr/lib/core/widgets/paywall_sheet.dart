@@ -37,10 +37,14 @@ import '../../screens/paywall/paywall_screen.dart';
 /// **aucune intention** n'est créée : l'achat sera `UNKNOWN` côté serveur —
 /// un `OTHER` fabriqué rangerait à tort un achat du Plan en `OTHER_CTA`
 /// (« inconnu plutôt que faux »). Un geste réellement connu passe sa valeur.
+///
+/// 🛑 **[ctaLocation] est REQUIS** (contrôle F, 2026-09-25) : chaque appel
+/// choisit, un `null` explicite dit « origine inconnue ». Un défaut aurait
+/// laissé des offres partir sans CTA — ou, côté web, avec un `OTHER` fabriqué.
 Future<void> showPaywallSheet(
   BuildContext context, {
   WidgetRef? ref,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) {
   if (ref != null && ctaLocation != null) {

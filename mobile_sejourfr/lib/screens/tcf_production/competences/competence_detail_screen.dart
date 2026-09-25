@@ -21,6 +21,7 @@ import '../../../core/models/journey_models.dart';
 import '../../plan/journey_labels.dart';
 import '../../plan/learning_plan_provider.dart';
 import '../../plan/plan_actions.dart';
+import '../../plan/plan_cta.dart';
 import '../../plan/plan_now_card.dart';
 import '../../plan/plan_step_labels.dart';
 import '../widgets/exam_filter_chips.dart';
@@ -140,13 +141,24 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
     context.go(widget.planStep ? '/plan' : '/tcf/${widget.module.routeKey}');
   }
 
+  /// L'origine de la fiche (contrôle F) : ouverte depuis le Plan (marqueur
+  /// `?etape=1`), ses gestes sont ceux du Plan ; sinon ceux du module.
+  PlanOrigine get _origine =>
+      widget.planStep ? PlanOrigine.plan : PlanOrigine.horsPlan;
+
+  /// L'offre d'un sujet fermé : celle du Plan si la fiche en vient, sinon
+  /// celle du cadenas du module (`OTHER`).
+  void _ouvrirOffre() {
+    final cta = planCta(ref, _origine, horsPlan: AnalyticsCtaLocation.other);
+    unawaited(showTcfLockPaywall(context,
+        ctaLocation: cta.ctaLocation, journeyId: cta.journeyId));
+  }
+
   /// Verrou freemium servi par le serveur : un sujet fermé ouvre l'offre, pas
   /// un écran de production que le serveur refuserait (403).
   void _openPrompt(SkillPromptSummary prompt) {
     if (prompt.locked) {
-      unawaited(
-        showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
-      );
+      _ouvrirOffre();
       return;
     }
     context.push(
@@ -261,12 +273,14 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
     if (action == null) return null;
     final mesure = action.mesure;
     if (mesure != null) {
-      return () => unawaited(startPlanSeanceItem(context, ref, mesure));
+      return () => unawaited(
+          startPlanSeanceItem(context, ref, mesure, origine: _origine));
     }
     return () => unawaited(openPlanExercise(
           context,
           ref,
           action.exercise!,
+          origine: _origine,
           masteryBefore: action.priority?.masteryState,
         ));
   }
@@ -459,9 +473,7 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
               onAction: () {
                 final target = next.prompt;
                 if (target == null) {
-                  unawaited(
-        showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
-      );
+                  _ouvrirOffre();
                   return;
                 }
                 _openPrompt(target);

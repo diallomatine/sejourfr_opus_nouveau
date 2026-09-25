@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
@@ -292,6 +293,8 @@ class _Body extends ConsumerWidget {
                 context,
                 ref,
                 skillId: next.skillId,
+                ctaLocation: AnalyticsCtaLocation.lockedPlan,
+                journeyId: planJourneyId(ref),
                 masteryBefore: next.masteryState,
               ),
             ),
@@ -350,6 +353,8 @@ class _Body extends ConsumerWidget {
                 context,
                 ref,
                 skillId: skillId!,
+                ctaLocation: AnalyticsCtaLocation.lockedPlan,
+                journeyId: planJourneyId(ref),
                 masteryBefore: after,
               ),
             ),

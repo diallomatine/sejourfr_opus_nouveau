@@ -9,7 +9,6 @@ import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
-import 'learning_plan_provider.dart' show planJourneyId;
 
 /// Démarre une **série ciblée de compréhension** (CO / CE) — le seul endroit
 /// qui le fasse.
@@ -27,10 +26,17 @@ import 'learning_plan_provider.dart' show planJourneyId;
 /// Plan affichait au moment du lancement, repassé au bilan pour qu'il puisse
 /// dire « avant → après » sans le deviner. Absent, le bilan n'affiche que
 /// l'après.
+///
+/// [ctaLocation] / [journeyId] : l'origine de l'offre ouverte sur un 403
+/// (contrôle F). Les écrans du Plan passent `LOCKED_PLAN` + le parcours ;
+/// l'exercice du Plan relayé par l'Accueil ou Réviser passe ce que son
+/// origine a résolu (`planCta`).
 Future<void> startTargetedSeries(
   BuildContext context,
   WidgetRef ref, {
   required String skillId,
+  required AnalyticsCtaLocation? ctaLocation,
+  required String? journeyId,
   SkillMasteryState? masteryBefore,
 }) async {
   ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
@@ -47,13 +53,11 @@ Future<void> startTargetedSeries(
     if (!context.mounted) return;
     // 403 = verrou freemium appliqué par le backend ; le reste est un message.
     // La règle vit dans `start_failure.dart`, jamais recopiée ici.
-    // Une série ciblée part toujours du Plan : l'offre ouverte est un CTA du
-    // Plan (`LOCKED_PLAN` + le parcours).
     showPaywallOrError(
       context,
       error,
-      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      journeyId: planJourneyId(ref),
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
     );
   }
 }

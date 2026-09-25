@@ -35,7 +35,7 @@ const String kPremiumLockCta = 'Voir l\'abonnement Intégral';
 Future<void> showTcfLockPaywall(
   BuildContext context, {
   WidgetRef? ref,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) =>
     showPaywallSheet(

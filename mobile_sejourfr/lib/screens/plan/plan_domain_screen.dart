@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,6 +18,7 @@ import '../../core/widgets/skill_mastery_tag.dart';
 import '../../core/router/app_router.dart';
 import 'learning_plan_provider.dart';
 import 'plan_actions.dart';
+import 'plan_cta.dart';
 import 'plan_labels.dart';
 import 'plan_series_launcher.dart';
 import 'widgets/plan_task_row.dart';
@@ -205,7 +207,8 @@ class _DomainBody extends ConsumerWidget {
             AppButton(
               label: planAssessmentCta(assessment),
               icon: LucideIcons.play,
-              onPressed: () => openPlanAssessment(context, ref, assessment),
+              onPressed: () => openPlanAssessment(context, ref, assessment,
+                  origine: PlanOrigine.plan),
             ),
           ],
         ],
@@ -277,6 +280,8 @@ class _LevelRow extends ConsumerWidget {
               context,
               ref,
               skillId: level.skillId,
+              ctaLocation: AnalyticsCtaLocation.lockedPlan,
+              journeyId: planJourneyId(ref),
               masteryBefore: level.masteryState,
             ),
           ),

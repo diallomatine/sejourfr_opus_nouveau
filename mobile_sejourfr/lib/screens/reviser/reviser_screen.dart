@@ -28,6 +28,7 @@ import '../plan/journey_labels.dart';
 import '../../core/models/journey_models.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
+import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
 import 'reviser_labels.dart';
@@ -281,18 +282,24 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   ///
   /// 🛑 **Une MESURE passe devant tout le reste**, ici comme sur le Plan et sur
   /// l'Accueil : c'est [planNowCard] qui l'a tranché, l'écran exécute.
+  ///
+  /// Contrôle F : l'action du Plan **relayée** ([PlanOrigine.relais]) — une
+  /// offre ouverte en chemin est celle du Plan (`LOCKED_PLAN` + parcours)
+  /// seulement si le parcours est connu, sinon celle de l'écran d'arrivée.
   Future<void> _reprendreTcf(PlanNowCard carte) async {
     if (_lancement) return;
     setState(() => _lancement = true);
     final mesure = carte.mesure;
     final exercice = carte.exercise;
     if (mesure != null) {
-      await startPlanSeanceItem(context, ref, mesure);
+      await startPlanSeanceItem(context, ref, mesure,
+          origine: PlanOrigine.relais);
     } else if (exercice != null) {
       await openPlanExercise(
         context,
         ref,
         exercice,
+        origine: PlanOrigine.relais,
         masteryBefore: carte.priority?.masteryState,
       );
     }
@@ -364,20 +371,26 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
   Future<void> _reprendreCivique(CivicNowSource? source) async {
     if (_lancement || source == null) return;
     setState(() => _lancement = true);
+    // Contrôle F : la série est l'action du Plan civique relayée ici —
+    // `LOCKED_PLAN` + son parcours s'il est connu, sinon `OTHER`.
+    final cta = planCta(ref, PlanOrigine.relais,
+        horsPlan: AnalyticsCtaLocation.other, civique: true);
     switch (source) {
       case CivicNowUnite(code: final code):
         await startCivicUniteSerie(
           context,
           ref,
           code,
-          ctaLocation: AnalyticsCtaLocation.other,
+          ctaLocation: cta.ctaLocation,
+          journeyId: cta.journeyId,
         );
       case CivicNowCible(cible: final cible):
         await startCivicSerie(
           context,
           ref,
           cible,
-          ctaLocation: AnalyticsCtaLocation.other,
+          ctaLocation: cta.ctaLocation,
+          journeyId: cta.journeyId,
         );
     }
     if (!mounted) return;

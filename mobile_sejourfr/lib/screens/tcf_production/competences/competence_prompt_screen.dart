@@ -22,6 +22,7 @@ import '../../../core/widgets/screen_header.dart';
 import '../audio_recorder_service.dart';
 import '../tcf_production_module.dart';
 import '../../plan/learning_plan_provider.dart';
+import '../../plan/plan_cta.dart';
 import '../../plan/plan_step_labels.dart';
 import 'competences_nav.dart';
 import 'competences_providers.dart';
@@ -144,7 +145,7 @@ class CompetencePromptScreen extends ConsumerWidget {
 /// palier — et **rien d'autre** : ni consigne, ni situation, ni zone de
 /// production. Le contenu du sujet fait partie de ce qui s'achète, et laisser
 /// produire ferait perdre la réponse sur le 403 serveur. Miroir du web.
-class _LockedPromptView extends StatelessWidget {
+class _LockedPromptView extends ConsumerWidget {
   const _LockedPromptView({
     required this.prompt,
     required this.skillId,
@@ -159,7 +160,7 @@ class _LockedPromptView extends StatelessWidget {
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         ScreenHeader(
@@ -178,9 +179,15 @@ class _LockedPromptView extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _LockedAnswerCard(
-                onSubscribe: () => unawaited(
-                  showTcfLockPaywall(context, ctaLocation: AnalyticsCtaLocation.other),
-                ),
+                onSubscribe: () {
+                  // Ouvert depuis le Plan : l'offre est celle du Plan
+                  // (contrôle F), sinon celle du cadenas du module.
+                  final cta = planStepCta(ref,
+                      planStep: planStep,
+                      horsPlan: AnalyticsCtaLocation.other);
+                  unawaited(showTcfLockPaywall(context,
+                      ctaLocation: cta.ctaLocation, journeyId: cta.journeyId));
+                },
               ),
             ],
           ),
@@ -427,7 +434,14 @@ class _PromptViewState extends ConsumerState<_PromptView> {
     if (!mounted) return;
     if (attempt == null) {
       final error = ref.read(skillSubmissionProvider(prompt.id)).error;
-      if (error != null) showPaywallOrError(context, error);
+      if (error != null) {
+        // Contrôle F : ouvert depuis le Plan (`?etape=1`), l'offre d'un 403
+        // est celle du Plan ; sinon celle du cadenas du module (`OTHER`).
+        final cta = planStepCta(ref,
+            planStep: widget.planStep, horsPlan: AnalyticsCtaLocation.other);
+        showPaywallOrError(context, error,
+            ctaLocation: cta.ctaLocation, journeyId: cta.journeyId);
+      }
       return;
     }
 

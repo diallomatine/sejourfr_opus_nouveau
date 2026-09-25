@@ -17,7 +17,8 @@ import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/production_exam_launcher.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
-import 'learning_plan_provider.dart' show journeyProvider, planJourneyId;
+import 'learning_plan_provider.dart' show journeyProvider;
+import 'plan_cta.dart';
 import 'plan_labels.dart';
 import 'plan_milestone_launcher.dart';
 import 'plan_seance_state.dart';
@@ -33,10 +34,15 @@ import 'plan_seance_state.dart';
 /// Un exercice **verrouillé n'est jamais « démarré »** (l'événement d'audience
 /// mentirait) : c'est le lanceur partagé qui tranche et ouvre l'offre — ici
 /// comme sur le résultat du diagnostic.
+///
+/// 🛑 [origine] est **requise** (contrôle F) : l'Accueil et Réviser relaient
+/// l'exercice du Plan ([PlanOrigine.relais]), le Plan le lance
+/// ([PlanOrigine.plan]). Ce lanceur n'impose plus `LOCKED_PLAN`.
 Future<void> openPlanExercise(
   BuildContext context,
   WidgetRef ref,
   PlanRecommendedExercise exercise, {
+  required PlanOrigine origine,
   SkillMasteryState? masteryBefore,
   VoidCallback? onVerrou,
 }) async {
@@ -55,7 +61,7 @@ Future<void> openPlanExercise(
   // ⚠️ **Révoque** « le bouton principal démarre l'entraînement, il n'ouvre pas
   // une fiche » : les lignes du cycle et la carte « À faire maintenant »
   // passaient par ici et sautaient donc à un sujet, pendant que la ligne de
-  // séance ([openPlanSeanceItem]) ouvrait la fiche. La même compétence menait à
+  // séance ouvrait la fiche. La même compétence menait à
   // deux écrans selon l'endroit où on la touchait.
   //
   // 🛑 **La VÉRIFICATION garde son lancement direct** : son sujet est une tâche
@@ -66,68 +72,16 @@ Future<void> openPlanExercise(
     openPlanSkill(context, exercise.skillId, section);
     return;
   }
+  final cta = planCta(ref, origine, horsPlan: AnalyticsCtaLocation.other);
   await openRecommendedExercise(
     onVerrou: onVerrou,
     context,
     ref,
     exercise,
     masteryBefore: masteryBefore,
-    ctaLocation: AnalyticsCtaLocation.lockedPlan,
-    journeyId: planJourneyId(ref),
+    ctaLocation: cta.ctaLocation,
+    journeyId: cta.journeyId,
   );
-}
-
-/// **Ouvre une ligne de la séance** — le geste de la *liste*.
-///
-/// 🛑 **Un petit sujet ciblé ouvre la FICHE DE SA COMPÉTENCE**, jamais le sujet
-/// directement : c'est là que le candidat voit ses cinq sujets et lesquels sont
-/// faits. C'est exactement ce que fait déjà la ligne correspondante de « Mes
-/// priorités » — la même compétence ne peut pas mener à deux écrans selon
-/// l'endroit où on la touche.
-///
-/// Les autres natures gardent leur lancement direct, parce qu'elles n'ont pas
-/// de fiche à ouvrir : une **série ciblée** de compréhension part dans le
-/// runner QCM, un **jalon** ouvre son examen blanc, une **mesure de domaine**
-/// ouvre son parcours d'évaluation. Une **vérification en situation** aussi :
-/// son sujet est une tâche de production qui ne fait pas partie des cinq de la
-/// fiche — l'y envoyer laisserait le candidat sans aucun moyen de la faire.
-///
-/// ⚠️ Une compétence **à acquérir** est un micro-sujet comme un autre : elle
-/// ouvre sa fiche. Sa nature change ce que la carte **dit**, pas où elle mène.
-///
-/// ⚠ Le verrou est **lu** ([planSeanceItemLocked]), jamais déduit du rang de la
-/// ligne : une action verrouillée ouvre l'offre au lieu d'être masquée.
-Future<void> openPlanSeanceItem(
-  BuildContext context,
-  WidgetRef ref,
-  PlanSeanceItem item, {
-  VoidCallback? onVerrou,
-}) async {
-  if (planSeanceItemLocked(item)) {
-    // 🛑 A145 : depuis le Plan, un geste d'achat passe par l'écran de
-    // transition. Ailleurs, le paywall direct reste le comportement.
-    if (onVerrou != null) {
-      onVerrou();
-      return;
-    }
-    await showTcfLockPaywall(
-      context,
-      ref: ref,
-      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      journeyId: ref.read(journeyProvider).valueOrNull?.journeyId,
-    );
-    return;
-  }
-  final skillId = item.skillId;
-  final section = item.section;
-  if (item.kind == PlanExerciseKind.microTraining &&
-      skillId != null &&
-      section != null &&
-      section.isProduction) {
-    openPlanSkill(context, skillId, section);
-    return;
-  }
-  await startPlanSeanceItem(context, ref, item);
 }
 
 /// **Lance une ligne de la séance**, quelle que soit sa nature.
@@ -145,10 +99,13 @@ Future<void> openPlanSeanceItem(
 /// exercice : il repart vers le parcours d'évaluation existant
 /// ([openPlanAssessment], l'autorité unique), jamais vers un second chemin
 /// écrit ici.
+///
+/// [origine] : cf. [openPlanExercise].
 Future<void> startPlanSeanceItem(
   BuildContext context,
   WidgetRef ref,
   PlanSeanceItem item, {
+  required PlanOrigine origine,
   VoidCallback? onVerrou,
 }) async {
   if (planSeanceItemLocked(item)) {
@@ -158,17 +115,18 @@ Future<void> startPlanSeanceItem(
       onVerrou();
       return;
     }
+    final cta = planCta(ref, origine, horsPlan: AnalyticsCtaLocation.other);
     await showTcfLockPaywall(
       context,
       ref: ref,
-      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      journeyId: ref.read(journeyProvider).valueOrNull?.journeyId,
+      ctaLocation: cta.ctaLocation,
+      journeyId: cta.journeyId,
     );
     return;
   }
   final assessment = item.assessment;
   if (item.nature.isAssessment && assessment != null) {
-    openPlanAssessment(context, ref, assessment);
+    openPlanAssessment(context, ref, assessment, origine: origine);
     return;
   }
   final exercise = item.exercise;
@@ -178,10 +136,11 @@ Future<void> startPlanSeanceItem(
       context,
       ref,
       exercise,
+      origine: origine,
       masteryBefore: item.masteryState,
     );
   } else if (milestone != null) {
-    await startPlanMilestone(context, ref, milestone);
+    await startPlanMilestone(context, ref, milestone, origine: origine);
   }
 }
 
@@ -247,11 +206,17 @@ void openPlanDomain(BuildContext context, EpreuveType epreuve) {
 /// ⚠️ **Ce n'est jamais une série ciblée** : une série est un `TRAINING`, elle
 /// ne rend jamais un domaine « évalué ». Le lanceur de séries reste
 /// `plan_series_launcher.dart`, il répond à une autre question.
+///
+/// 🛑 [origine] est **requise** (contrôle F) : la carte d'épreuve de l'Accueil
+/// n'est pas le Plan ([PlanOrigine.horsPlan] → `MOCK_EXAM`, le CTA des grilles
+/// d'examens).
 void openPlanAssessment(
   BuildContext context,
   WidgetRef ref,
-  PlanDomainAssessment assessment,
-) {
+  PlanDomainAssessment assessment, {
+  required PlanOrigine origine,
+}) {
+  final cta = planCta(ref, origine, horsPlan: AnalyticsCtaLocation.mockExam);
   switch (assessment.kind) {
     case PlanDomainAssessmentKind.moduleMockExam:
       // `moduleExamQuestionType` est ce que `StartAttemptRequest` attend ; le
@@ -266,8 +231,8 @@ void openPlanAssessment(
         context,
         module,
         slotNumber: assessment.slotNumber,
-        ctaLocation: AnalyticsCtaLocation.lockedPlan,
-        journeyId: planJourneyId(ref),
+        ctaLocation: cta.ctaLocation,
+        journeyId: cta.journeyId,
       );
     case PlanDomainAssessmentKind.productionMockExam:
       final module = assessment.epreuve == EpreuveType.tcfEo
@@ -282,8 +247,8 @@ void openPlanAssessment(
           ref,
           epreuve: assessment.epreuve,
           slotNumber: assessment.slotNumber ?? 1,
-          ctaLocation: AnalyticsCtaLocation.lockedPlan,
-          journeyId: planJourneyId(ref),
+          ctaLocation: cta.ctaLocation,
+          journeyId: cta.journeyId,
         ),
       );
   }

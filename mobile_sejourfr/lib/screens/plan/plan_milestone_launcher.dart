@@ -11,7 +11,7 @@ import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
 import '../tcf_production/production_exam_launcher.dart';
-import 'learning_plan_provider.dart' show planJourneyId;
+import 'plan_cta.dart';
 
 /// Démarre le **jalon** du Plan — extrait de `PlanMilestoneCard` quand la
 /// séance a eu besoin de lancer le même examen depuis une ligne de liste.
@@ -21,11 +21,16 @@ import 'learning_plan_provider.dart' show planJourneyId;
 /// n'apporte que le **chemin de démarrage**, et c'est celui des écrans
 /// d'examen blanc existants, réutilisé tel quel — aucune route n'est créée,
 /// aucun appel n'est réinventé.
+///
+/// [origine] : cf. `openPlanExercise` (contrôle F). Hors Plan, un jalon est un
+/// examen blanc : `MOCK_EXAM`.
 Future<void> startPlanMilestone(
   BuildContext context,
   WidgetRef ref,
-  PlanMilestone milestone,
-) async {
+  PlanMilestone milestone, {
+  required PlanOrigine origine,
+}) async {
+  final cta = planCta(ref, origine, horsPlan: AnalyticsCtaLocation.mockExam);
   if (!milestone.isFullExam) {
     // ⚠️ Le démarrage d'un examen de production vit dans `startProductionExam`,
     // partagé avec la mesure d'un domaine d'expression et avec la grille
@@ -36,8 +41,8 @@ Future<void> startPlanMilestone(
       ref,
       epreuve: milestone.epreuve,
       slotNumber: milestone.slotNumber,
-      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      journeyId: planJourneyId(ref),
+      ctaLocation: cta.ctaLocation,
+      journeyId: cta.journeyId,
     );
     return;
   }
@@ -57,8 +62,8 @@ Future<void> startPlanMilestone(
     showPaywallOrError(
       context,
       error,
-      ctaLocation: AnalyticsCtaLocation.lockedPlan,
-      journeyId: planJourneyId(ref),
+      ctaLocation: cta.ctaLocation,
+      journeyId: cta.journeyId,
     );
   }
 }

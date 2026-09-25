@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
+import '../plan/plan_step_labels.dart' show kPlanStepParam, kPlanStepValue;
 import 'tcf_production_module.dart';
 
 /// Chemins du parcours de production, construits en **un seul endroit**.
@@ -13,8 +14,18 @@ import 'tcf_production_module.dart';
 /// par la barre fixe du niveau 1 — leur chemin n'a pas changé.
 
 /// Niveau 2 : une tâche et ses **sujets complets**.
-String productionTaskPath(TcfProductionModule module, int tache) =>
-    '/tcf/${module.routeKey}/tache/$tache';
+///
+/// [planStep] ajoute le marqueur `?etape=1` : la liste est ouverte **depuis le
+/// Plan** (repli d'une vérification sans sujet), et l'offre ouverte sur un 403
+/// y part en `LOCKED_PLAN` (contrôle F). Sans lui, comportement inchangé.
+String productionTaskPath(
+  TcfProductionModule module,
+  int tache, {
+  bool planStep = false,
+}) {
+  final path = '/tcf/${module.routeKey}/tache/$tache';
+  return planStep ? '$path?$kPlanStepParam=$kPlanStepValue' : path;
+}
 
 /// Les **8 compétences** d'une tâche. 🛑 **Depuis le Plan, et de là seulement**
 /// (2026-09-20) : l'écran d'une tâche n'a plus d'onglet « Compétences ».

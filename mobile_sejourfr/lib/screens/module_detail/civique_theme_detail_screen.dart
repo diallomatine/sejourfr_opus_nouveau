@@ -137,7 +137,8 @@ class _CiviqueThemeDetailScreenState
       context.push('$runnerPath?from=civiqueLot&themeId=${theme.id}');
     } catch (e) {
       if (!mounted) return;
-      showPaywallOrError(context, e);
+      showPaywallOrError(context, e,
+          ctaLocation: AnalyticsCtaLocation.other);
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -171,7 +172,8 @@ class _CiviqueThemeDetailScreenState
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
-      showPaywallOrError(context, e);
+      showPaywallOrError(context, e,
+          ctaLocation: AnalyticsCtaLocation.mockExam);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

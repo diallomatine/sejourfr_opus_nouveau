@@ -10,6 +10,7 @@ import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../../reviser/reviser_labels.dart' show kReviserResumeLabel;
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
+import '../plan_cta.dart';
 import '../plan_now_card.dart';
 import 'plan_reco_card.dart';
 
@@ -87,6 +88,9 @@ class PlanEpreuveReco extends ConsumerWidget {
   /// 🛑 **Les mêmes lanceurs que le cycle du Plan**, dans le même ordre : une
   /// **mesure** passe devant, l'exercice sinon. Le geste d'achat qu'ils
   /// pourraient rencontrer repart vers l'écran de transition.
+  ///
+  /// Contrôle F : c'est l'action du Plan **relayée** sur un écran de Réviser
+  /// ([PlanOrigine.relais]) — `LOCKED_PLAN` seulement avec son parcours.
   void _lancer(BuildContext context, WidgetRef ref, PlanEpreuveCarte carte) {
     void versDeblocage() =>
         context.push(AppRoutes.planUnlockPath(civique: false));
@@ -95,7 +99,7 @@ class PlanEpreuveReco extends ConsumerWidget {
     final mesure = action.mesure;
     if (mesure != null) {
       unawaited(startPlanSeanceItem(context, ref, mesure,
-          onVerrou: versDeblocage));
+          origine: PlanOrigine.relais, onVerrou: versDeblocage));
       return;
     }
     final exercice = action.exercise;
@@ -104,6 +108,7 @@ class PlanEpreuveReco extends ConsumerWidget {
         context,
         ref,
         exercice,
+        origine: PlanOrigine.relais,
         masteryBefore: action.priority?.masteryState,
         onVerrou: versDeblocage,
       ));

@@ -836,6 +836,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: TcfProductionModule.eo,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
       GoRoute(
@@ -844,6 +845,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           module: TcfProductionModule.ee,
           tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
               .clamp(1, 3),
+          planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
       // Modèles corrigés d'une tâche (`moduleKey` ∈ {ee, eo}).

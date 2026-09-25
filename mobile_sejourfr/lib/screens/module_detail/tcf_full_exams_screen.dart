@@ -132,7 +132,8 @@ class TcfFullExamsView extends ConsumerWidget {
             // Le backend applique le verrou des slots 2+ : un 403 ouvre le
             // paywall au lieu d'une erreur technique (statut premium périmé
             // côté client, abonnement expiré en cours de session).
-            showPaywallOrError(context, e);
+            showPaywallOrError(context, e,
+                ctaLocation: AnalyticsCtaLocation.mockExam);
           }
         },
       );

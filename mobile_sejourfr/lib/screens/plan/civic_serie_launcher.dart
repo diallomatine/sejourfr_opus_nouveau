@@ -29,7 +29,7 @@ Future<void> startCivicSerie(
   WidgetRef ref,
   CivicPlanCible cible, {
   VoidCallback? onVerrou,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) async {
   if (cible.locked) {
@@ -74,7 +74,7 @@ Future<void> startCivicUniteSerie(
   BuildContext context,
   WidgetRef ref,
   String uniteCode, {
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) async {
   try {
@@ -100,10 +100,11 @@ Future<void> startCivicUniteSerie(
 /// passes et leurs prix du store.
 ///
 /// [ctaLocation] / [journeyId] : `LOCKED_PLAN` + le parcours quand le geste
-/// part du Plan civique (Q12) ; absents depuis « Réviser ».
+/// part du Plan civique (Q12). Requis (contrôle F) : `null` explicite =
+/// origine inconnue.
 Future<void> openCivicOffer(
   BuildContext context, {
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) =>
     showPaywallSheet(context, ctaLocation: ctaLocation, journeyId: journeyId);

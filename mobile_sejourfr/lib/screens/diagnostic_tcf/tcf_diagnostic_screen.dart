@@ -129,12 +129,15 @@ class _TcfDiagnosticScreenState extends ConsumerState<TcfDiagnosticScreen>
         : '${(section.timeLimitSeconds! / 60).round()} min';
     switch (section.epreuve) {
       case EpreuveType.tcfCo:
+        // Sas du diagnostic : `onStart` délégué, aucune offre ne s'y ouvre.
         showModuleExamBriefingSheet(context, TcfQcmModule.co,
+            ctaLocation: null,
             onStart: () => _lancerSection(diagnostic, section),
             eyebrow: sasEyebrow(section.epreuve),
             durationLabel: duree);
       case EpreuveType.tcfCe:
         showModuleExamBriefingSheet(context, TcfQcmModule.ce,
+            ctaLocation: null,
             onStart: () => _lancerSection(diagnostic, section),
             eyebrow: sasEyebrow(section.epreuve),
             durationLabel: duree);

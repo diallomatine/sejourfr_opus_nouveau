@@ -21,6 +21,7 @@ import '../../module_detail/tcf_full_exams_screen.dart'
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
+import '../plan_cta.dart';
 import '../plan_labels.dart';
 import '../plan_now_card.dart';
 
@@ -412,6 +413,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
             context,
             ref,
             mesure,
+            origine: PlanOrigine.plan,
             onVerrou: () => _versEcranDeDeblocage(context),
           ));
     }
@@ -420,6 +422,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
           context,
           ref,
           exercise,
+          origine: PlanOrigine.plan,
           masteryBefore: action.priority?.masteryState,
           onVerrou: () => _versEcranDeDeblocage(context),
         ));

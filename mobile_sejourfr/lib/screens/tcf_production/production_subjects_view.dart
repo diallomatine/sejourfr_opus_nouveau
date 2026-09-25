@@ -14,6 +14,7 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../plan/plan_cta.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'production_catalog.dart';
@@ -44,12 +45,18 @@ class ProductionSubjectsView extends ConsumerStatefulWidget {
     super.key,
     required this.module,
     required this.tache,
+    required this.planStep,
     required this.onBusy,
     required this.top,
   });
 
   final TcfProductionModule module;
   final int tache;
+
+  /// Ouverte depuis le Plan (marqueur `?etape=1`, repli d'une vérification
+  /// sans sujet) : l'offre ouverte sur un 403 part alors en `LOCKED_PLAN` +
+  /// le parcours, sinon avec le CTA du cadenas de la liste (`OTHER`).
+  final bool planStep;
 
   /// Remonte l'attente au parcours : le voile doit couvrir la tête du parcours.
   final ValueChanged<bool> onBusy;
@@ -180,7 +187,10 @@ class _ProductionSubjectsViewState
       if (!mounted) return;
       final err = ApiClient.toApiException(e);
       if (err.isForbidden) {
-        showPaywallSheet(context);
+        final cta = planStepCta(ref,
+            planStep: widget.planStep, horsPlan: AnalyticsCtaLocation.other);
+        showPaywallSheet(context,
+            ctaLocation: cta.ctaLocation, journeyId: cta.journeyId);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err.message), backgroundColor: AppColors.red),
@@ -408,7 +418,11 @@ class _ProductionSubjectsViewState
             locked: !premium && origIndex > 0,
             onTap: () {
               if (!premium && origIndex > 0) {
-                showPaywallSheet(context, ctaLocation: AnalyticsCtaLocation.other);
+                final cta = planStepCta(ref,
+                    planStep: widget.planStep,
+                    horsPlan: AnalyticsCtaLocation.other);
+                showPaywallSheet(context,
+                    ctaLocation: cta.ctaLocation, journeyId: cta.journeyId);
                 return;
               }
               final last = done[task.id];

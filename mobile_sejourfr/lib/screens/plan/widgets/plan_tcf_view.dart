@@ -16,6 +16,7 @@ import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../journey_labels.dart';
 import '../plan_actions.dart';
+import '../plan_cta.dart';
 import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
@@ -264,6 +265,7 @@ class PlanTcfView extends ConsumerWidget {
                       context,
                       ref,
                       mesure,
+                      origine: PlanOrigine.plan,
                       onVerrou: () => _versEcranDeDeblocage(context),
                     ))
                 : exercise == null
@@ -272,6 +274,7 @@ class PlanTcfView extends ConsumerWidget {
                           context,
                           ref,
                           exercise,
+                          origine: PlanOrigine.plan,
                           masteryBefore: carte.priority?.masteryState,
                           onVerrou: () => _versEcranDeDeblocage(context),
                         )),
@@ -313,7 +316,8 @@ class PlanTcfView extends ConsumerWidget {
               onPressed: () => unawaited(
                 milestone.locked
                     ? Future.sync(() => _versEcranDeDeblocage(context))
-                    : startPlanMilestone(context, ref, milestone),
+                    : startPlanMilestone(context, ref, milestone,
+                        origine: PlanOrigine.plan),
               ),
             ),
           ],

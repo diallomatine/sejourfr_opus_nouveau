@@ -31,13 +31,16 @@ StartFailure classifyStartFailure(Object error) =>
 /// deux feuilles). Retourne `true` si le paywall a été ouvert.
 ///
 /// [ctaLocation] / [journeyId] : l'origine de l'achat qui pourrait partir de
-/// l'offre ouverte (Q12) — `LOCKED_PLAN` + le parcours quand le geste part du
-/// Plan. Absents : l'intention part en `OTHER`.
+/// l'offre ouverte (Q12). 🛑 **Requis** (contrôle F) : hors Plan, le CTA que
+/// l'écran passe déjà sur son verrou avant démarrage (`MOCK_EXAM`, `OTHER`…) ;
+/// écran ouvert depuis le Plan (marqueur de route explicite), `LOCKED_PLAN` +
+/// le parcours. `null` explicite = origine inconnue : **aucune intention**
+/// n'est créée et l'achat sera `UNKNOWN` — jamais un `OTHER` fabriqué.
 bool showPaywallOrError(
   BuildContext context,
   Object error, {
   VoidCallback? onForbidden,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) {
   if (classifyStartFailure(error) == StartFailure.paywall) {

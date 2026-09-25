@@ -37,7 +37,7 @@ Future<void> startProductionExam(
   WidgetRef ref, {
   required EpreuveType epreuve,
   required int slotNumber,
-  AnalyticsCtaLocation? ctaLocation,
+  required AnalyticsCtaLocation? ctaLocation,
   String? journeyId,
 }) async {
   final module = epreuve == EpreuveType.tcfEo
