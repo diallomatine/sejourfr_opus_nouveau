@@ -18,10 +18,9 @@ import styles from "./SiteHeader.module.css";
  * avatar pour un compte. Monté une fois par le layout racine, masqué sur les
  * routes applicatives d'un compte et sur les landings autoportantes
  * (`shouldHideGlobalChrome`).
- *
- * Le logo porte l'accueil : « Accueil » n'est plus une entrée de la barre.
  */
 const NAV_LINKS = [
+    {href: "/", label: "Accueil"},
     {href: "/entrainement?module=TCF", label: "TCF IRN"},
     {href: "/entrainement?module=CIVIQUE", label: "Examen civique"},
     {href: "/examens-blancs", label: "Examens blancs"},

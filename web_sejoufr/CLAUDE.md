@@ -145,6 +145,7 @@ app/
 │                                 #   enregistré → (invité : écran de compte) → analyse
 │                                 #   asynchrone → résultat. Cf. section dédiée.
 ├── inscription/, connexion/, mot-de-passe-oublie/, reinitialiser-mot-de-passe/
+│                                 #   montés sur app/_components/auth/ (cf. § « Pages d'auth »)
 ├── a-propos/page.tsx             # disclaimer non-affiliation + sources officielles (conformité
 │                                 #   stores ; LegalPageLayout, miroir de l'écran /about mobile ;
 │                                 #   aussi lié depuis le footer : ligne disclaimer + colonne Légal)
@@ -5130,16 +5131,48 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   `DIAGNOSTIC_CTA_CLICKED` ; « Commencer le civique » (`/diagnostic-civique`) →
   `CIVIQUE_CTA_CLICKED` ; « Commencer gratuitement » → `SIGNUP_CTA_CLICKED`.
   Les liens emportent `?src=` (`withTrafficSource`).
-- **`SiteHeader`** (+ `SiteHeader.module.css`) : logo (le logo porte l'accueil,
-  plus d'entrée « Accueil »), TCF IRN · Examen civique · Examens blancs · Tarifs ;
+- **`SiteHeader`** (+ `SiteHeader.module.css`) : logo, Accueil (`/`) · TCF IRN · Examen civique · Examens blancs · Tarifs ;
   visiteur « Connexion » (`LOGIN_CLICKED`) + « Tester mon niveau » rouge →
   `/diagnostic` (`DIAGNOSTIC_CTA_CLICKED`, `HERO` ; `STICKY` dans le tiroir).
   Liens masqués et bouton de menu à droite ≤ 1020 px, « Connexion » masqué
-  ≤ 760 px. Compte : menu avatar et tiroir `AppSidebar` inchangés (tiroir
-  désormais à droite). Règles de masquage inchangées (`lib/chrome-routes.ts`).
+  ≤ 760 px. Compte : menu avatar et tiroir `AppSidebar` inchangés. Le tiroir
+  s'ouvre **à gauche** (visiteur comme compte, demande du propriétaire 2026-09-26). Règles de masquage inchangées (`lib/chrome-routes.ts`).
 - **`Footer`** (+ `Footer.module.css`) : fond clair, marque + Produit /
   Ressources / Légal (liens relatifs, Cookies → `/confidentialite#article-8`),
   non-affiliation, « Made with ♥ in France », « FR / EN · bientôt » **non
   interactif**. ⚠️ La newsletter du pied de page est **supprimée**
   (`newsletterApi` reste : `components/blog/NewsletterCTA.tsx`), ainsi que les
   pastilles de stores du pied de page.
+
+## Pages d'auth — `/connexion`, `/inscription`, mot de passe (2026-09-26)
+
+Refondues dans le langage de l'accueil. `app/_components/auth/` :
+
+- **`AuthShell`** : carte formulaire (kicker mono rouge, `h1` Fraunces à `<em>`
+  rouge) + panneau d'argumentaire ; deux colonnes ≥ 980 px (panneau collant),
+  en dessous le panneau passe **sous** le formulaire en version résumée.
+  Chrome global inchangé (header/footer visibles pour un visiteur).
+- 🛑 **`auth-panels.ts` n'a AUCUN texte propre** : `SIGNUP_PANEL` =
+  `FREE_OFFER_FEATURES` (`lib/passes.ts`) + `HERO_TRUST` ; `SIGNIN_PANEL` =
+  `PROMISES` — les deux constantes de l'accueil vivent dans
+  `landing/landing-copy.ts`. Ni témoignage, ni note, ni nombre d'inscrits, ni
+  taux de réussite : l'ancien shell en affichait (« 94 % », « 8 200+ »,
+  « 4,8/5 », citations signées), **tous inventés**. Ils ne reviennent pas.
+- **`AuthField`** (libellé, icône lucide, champ 52 px, anneau de focus token,
+  `aria-invalid` + `aria-describedby`, `requirement` coché en direct) monte
+  **`PasswordInput`**, seul bouton afficher/masquer de la famille (aussi
+  utilisé nu par `DiagnosticAccountGate` / `CivicDiagnosticGate`).
+  `AuthForm.tsx` : `AuthAlert`, `AuthSubmit` (spinner, `aria-busy`),
+  `focusFirstError`. ⚠️ `CompteField` (écrans du compte) reste distinct : dette
+  connue, à fusionner si un 3ᵉ formulaire en a besoin.
+- **Validation** : `lib/auth-form.ts` ne double QUE `LoginRequest` /
+  `RegisterRequest` (`@NotBlank`, `@Email`, mot de passe ≥ 8). Pas de jauge de
+  robustesse : le serveur n'a aucune autre règle. Les `fieldErrors` serveur
+  vont sous leur champ (`splitServerErrors`), le reste dans le bandeau. La case
+  CGU est désormais **réellement** exigée (le `required` était neutralisé par
+  `noValidate`).
+- Supprimé : la case « Rester connecté » (décorative : ni envoyée, ni lue — le
+  refresh token dure 30 j dans tous les cas) et la mention « Conforme RGPD ·
+  Aucun partage avec des tiers » (Stripe et les fournisseurs d'IA reçoivent des
+  données) → « Hébergement en France · Aucune donnée vendue · Confidentialité ».
+
