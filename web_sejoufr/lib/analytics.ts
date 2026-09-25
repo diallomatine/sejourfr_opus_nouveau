@@ -468,6 +468,14 @@ async function flush(): Promise<void> {
   if (queue.length > 0) schedule(0);
 }
 
+/**
+ * Type du corps de la balise. ⚠️ `application/json` **cross-origin** déclenche
+ * une pré-vérification CORS que `sendBeacon` ne sait pas faire (la balise peut
+ * être refusée) ; `text/plain` l'éviterait, mais l'endpoint en lot ne le lit pas
+ * encore (415). À basculer quand le serveur l'accepte (contrôle N7).
+ */
+const BEACON_CONTENT_TYPE = "application/json";
+
 /** Vidage de sortie : `sendBeacon` (sans en-têtes — `client` et `appVersion`
  *  voyagent dans le corps), repli `fetch keepalive`. */
 function flushOnExit(): void {
@@ -487,19 +495,30 @@ function flushOnExit(): void {
     const url = `${API_BASE_URL}${BATCH_ENDPOINT}`;
     let sent = false;
     try {
-      sent = navigator.sendBeacon?.(url, new Blob([payload], {type: "application/json"})) ?? false;
+      sent = navigator.sendBeacon?.(url, new Blob([payload], {type: BEACON_CONTENT_TYPE})) ?? false;
     } catch {
       sent = false;
     }
-    if (!sent) {
-      void fetch(url, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: payload,
-        keepalive: true,
-      }).catch(() => undefined);
+    /* 🛑 **Le premier contact n'est « envoyé » que s'il est réellement parti**
+       (contrôle N7) : balise acceptée par le navigateur, ou réponse du serveur
+       qui retient au moins un événement — la règle de `flush`. Sinon il reste
+       en attente et repart avec le lot suivant, au lieu d'être perdu. */
+    if (sent) {
+      firstTouchDelivered(body);
+      continue;
     }
-    firstTouchDelivered(body);
+    void fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: payload,
+      keepalive: true,
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const report = (await res.json().catch(() => null)) as BatchReport | null;
+        if (report && report.accepted + report.duplicates > 0) firstTouchDelivered(body);
+      })
+      .catch(() => undefined);
   }
 }
 

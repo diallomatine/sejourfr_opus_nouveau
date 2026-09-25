@@ -5029,7 +5029,10 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
 - **Premier contact capté au PREMIER HIT** (`FirstTouchCapture`, layout racine →
   `captureFirstTouchOnLanding`) : source déclarée **brute** (`utm_source` / `src`, sinon hôte
   du referrer), UTM, écran d'arrivée (s'il est suivi), envoyé avec le premier lot et marqué
-  « envoyé » seulement si le serveur a retenu au moins un événement de ce lot.
+  « envoyé » seulement si le serveur a retenu au moins un événement de ce lot — au
+  vidage de sortie aussi (contrôle N7) : balise acceptée par le navigateur, sinon
+  réponse du repli `fetch`. Balise encore en `application/json`
+  (`BEACON_CONTENT_TYPE`) tant que le lot n'accepte pas `text/plain`.
 - 🛑 **Chemins : miroir FERMÉ de `AnalyticsPaths.KNOWN`** (`TRACKED_PATHS` + routes
   dynamiques ramenées à leur écran, `/diagnostic-civique/{id}/resultat` →
   `/diagnostic-civique/resultat`). Un écran non déclaré part avec `path: null` — un chemin
