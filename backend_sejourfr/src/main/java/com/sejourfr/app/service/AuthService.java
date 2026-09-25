@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.RegisterRequest;
 import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
@@ -14,6 +15,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
 import com.sejourfr.app.util.ClientContext;
+import com.sejourfr.app.util.SignupAttribution;
 import com.sejourfr.app.service.email.event.AccountCreatedEvent;
 import com.sejourfr.app.service.email.event.PasswordChangedEvent;
 import com.sejourfr.app.service.email.event.PasswordResetRequestedEvent;
@@ -65,7 +67,12 @@ public class AuthService {
     // Login / refresh / me
     // ------------------------------------------------------------------------
 
-    public TokenResponse login(LoginRequest req, String userAgent, String ipAddress) {
+    public TokenResponse login(LoginRequest req, String userAgent, String ipAddress, ClientContext client) {
+        return authenticate(req, userAgent, ipAddress, client, AuthKind.LOGIN);
+    }
+
+    private TokenResponse authenticate(LoginRequest req, String userAgent, String ipAddress,
+                                       ClientContext client, AuthKind kind) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.email(), req.password()));
@@ -82,7 +89,8 @@ public class AuthService {
         // parcouru le site longtemps avant, sur un appareil qu'il n'utilisait
         // pas le jour de la création. Idempotent, et best-effort — une mesure
         // d'audience n'a jamais le droit d'empêcher quelqu'un de se connecter.
-        analyticsIdentityService.link(req.anonymousId(), u.getId());
+        ClientContext ctx = client == null ? ClientContext.unknown() : client;
+        analyticsIdentityService.onAuthenticated(u.getId(), kind, ctx.anonymousIdPreferring(req.anonymousId()));
         return buildTokenResponse(u, userAgent, ipAddress);
     }
 
@@ -145,9 +153,7 @@ public class AuthService {
         user.setLastName(req.lastName().trim());
         user.setRole(Role.USER);
         user.setCreatedAt(Instant.now());
-        ClientContext ctx = client == null ? ClientContext.unknown() : client;
-        user.setSignupSource(ctx.source());
-        user.setSignupPlatform(ctx.platform());
+        SignupAttribution.stamp(user, client, req.anonymousId());
         userManager.save(user);
 
         if (req.targetProcedure() != null) {
@@ -158,11 +164,11 @@ public class AuthService {
         // l'inscription echoue et annule la transaction, aucun mail ne part.
         eventPublisher.publishEvent(new AccountCreatedEvent(user.getId(), user.getEmail()));
 
-        // Le lien anonyme -> compte est posé par le login enchaîné ci-dessous :
-        // on lui repasse l'anonymousId reçu ici. Un seul point d'écriture, donc
-        // aucun risque qu'inscription et connexion divergent.
-        return login(new LoginRequest(email, req.password(), req.anonymousId()),
-                userAgent, ipAddress);
+        // Le lien anonyme -> compte est posé par l'authentification enchaînée
+        // ci-dessous, marquée SIGNUP : un seul point d'écriture, donc aucun
+        // risque qu'inscription et connexion divergent.
+        return authenticate(new LoginRequest(email, req.password(), req.anonymousId()),
+                userAgent, ipAddress, client, AuthKind.SIGNUP);
     }
 
     // ------------------------------------------------------------------------

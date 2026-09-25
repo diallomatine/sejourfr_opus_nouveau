@@ -217,10 +217,14 @@ postérieures alimentent se numérote APRÈS elles.**
 
 ## Ajouter une migration
 
-- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V073`**
-  (2026-09-25 : `V073__schema_emails.sql` — `user_email_preferences`, `email_deliveries`
-  et son index unique PARTIEL d'anti-doublon, la vue `v_derniere_activite_entrainement`
-  et trois index d'activité) → le prochain est `V074`.
+- **Évolution de schéma** → `00_schema/`, prochain `V0xx` libre. **Max actuel : `V074`**
+  (2026-09-25 : `V074__schema_suivi_tunnel_diagnostic.sql` — tout le DDL du chantier
+  « Suivi » : `diagnostic_run`, `purchase_intent`, `payment_refunds`, colonnes de
+  revenu/attribution de `user_subscriptions`, colonnes V074 d'`analytics_event`,
+  `users.signup_*` + `is_internal`, `analytics_visitor.ft_source_raw` ; son
+  initialisation de `is_internal` est rejouée par `SuiviSchemaV074IT` via la sentinelle
+  `@@INITIALISATION_IS_INTERNAL@@`) → le prochain est `V075`. Seed dev : `V901`
+  (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
   numéro, donc un `UPDATE` en `V0xx` s'exécute **avant** les `INSERT` des plages 200/300 et

@@ -30,6 +30,15 @@ public class AnalyticsIdentityManager {
         return repository.deleteByUserId(userId);
     }
 
+    /**
+     * Vrai si l'appelant est un compte interne, directement ou via un lien deja
+     * pose depuis son identifiant de mesure.
+     */
+    @Transactional(readOnly = true)
+    public boolean isInternal(UUID anonymousId, UUID userId) {
+        return repository.isInternal(anonymousId, userId);
+    }
+
     @Transactional(readOnly = true)
     public long countForUser(UUID userId) {
         return repository.countByUserId(userId);

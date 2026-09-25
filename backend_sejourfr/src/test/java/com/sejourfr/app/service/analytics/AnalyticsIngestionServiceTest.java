@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.AnalyticsDeviceType;
 import com.sejourfr.app.enums.AnalyticsEvent;
 import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.manager.AnalyticsEventManager;
+import com.sejourfr.app.manager.AnalyticsIdentityManager;
 import com.sejourfr.app.manager.AnalyticsVisitorManager;
 import com.sejourfr.app.util.ClientContext;
 import com.sejourfr.app.util.TrafficSource;
@@ -43,14 +44,25 @@ class AnalyticsIngestionServiceTest {
 
     private AnalyticsVisitorManager visitorManager;
     private AnalyticsEventManager eventManager;
+    private AnalyticsIdentityManager identityManager;
     private AnalyticsIngestionService service;
+
+    /** La ligne effectivement ecrite. */
+    private AnalyticsEventManager.Ligne ecrite() {
+        ArgumentCaptor<AnalyticsEventManager.Ligne> captor =
+                ArgumentCaptor.forClass(AnalyticsEventManager.Ligne.class);
+        verify(eventManager).record(captor.capture());
+        return captor.getValue();
+    }
 
     @BeforeEach
     void setUp() {
         visitorManager = mock(AnalyticsVisitorManager.class);
         eventManager = mock(AnalyticsEventManager.class);
-        service = new AnalyticsIngestionService(visitorManager, eventManager);
-        when(eventManager.record(any(), any(), any(), any(), any(), any(), any(), any()))
+        identityManager = mock(AnalyticsIdentityManager.class);
+        service = new AnalyticsIngestionService(visitorManager, eventManager, identityManager,
+                new AnalyticsEventNormalizer());
+        when(eventManager.record(any()))
                 .thenReturn(true);
     }
 
@@ -77,18 +89,27 @@ class AnalyticsIngestionServiceTest {
         verify(visitorManager).touch(eq(VISITEUR), any(), any(), anyBoolean(), eq("FR"),
                 eq(AnalyticsDeviceType.DESKTOP_WEB), eq(ClientPlatform.WEB));
 
-        ArgumentCaptor<String> json = ArgumentCaptor.forClass(String.class);
-        verify(eventManager).record(eq(AnalyticsEvent.DIAGNOSTIC_CTA_CLICKED), any(), eq(VISITEUR),
-                eq(SESSION), isNull(), eq("/reussir"), json.capture(), isNull());
+        AnalyticsEventManager.Ligne ligne = ecrite();
+        assertThat(ligne.event()).isEqualTo(AnalyticsEvent.DIAGNOSTIC_CTA_CLICKED);
+        assertThat(ligne.anonymousId()).isEqualTo(VISITEUR);
+        assertThat(ligne.sessionId()).isEqualTo(SESSION);
+        assertThat(ligne.userId()).isNull();
+        assertThat(ligne.path()).isEqualTo("/reussir");
+        assertThat(ligne.dedupKey()).isNull();
         // Clés triées : deux lignes du même événement sont comparables à l'œil.
-        assertThat(json.getValue())
+        assertThat(ligne.propertiesJson())
                 .isEqualTo("{\"ctaLocation\":\"HERO\",\"diagnosticType\":\"RAPID\"}");
+        // Colonnes V074 : horloge serveur, plateforme, exclusion interne résolue.
+        assertThat(ligne.receivedAt()).isNotNull();
+        assertThat(ligne.platform()).isEqualTo(ClientPlatform.WEB);
+        assertThat(ligne.eventId()).isNull();
+        assertThat(ligne.internal()).isFalse();
     }
 
     @Test
     @DisplayName("Un rejeu dédoublonné n'écrit rien et ne lève pas")
     void rejeuDedoublonne() {
-        when(eventManager.record(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(eventManager.record(any()))
                 .thenReturn(false);
         assertThat(track(requete(AnalyticsEvent.PRICING_VIEWED, "/tarifs", null))).isFalse();
     }
@@ -110,7 +131,7 @@ class AnalyticsIngestionServiceTest {
                 .hasMessageContaining("CHECKOUT_STARTED")
                 .hasMessageContaining("posé par le serveur");
         verify(visitorManager, never()).touch(any(), any(), any(), anyBoolean(), any(), any(), any());
-        verify(eventManager, never()).record(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(eventManager, never()).record(any());
     }
 
     /**
@@ -126,7 +147,7 @@ class AnalyticsIngestionServiceTest {
                 .hasMessageContaining("email")
                 .hasMessageContaining("LANDING_VIEWED")
                 .hasMessageContaining("landingPath");
-        verify(eventManager, never()).record(any(), any(), any(), any(), any(), any(), any(), any());
+        verify(eventManager, never()).record(any());
     }
 
     /**
@@ -186,7 +207,7 @@ class AnalyticsIngestionServiceTest {
         Instant declaree = Instant.now().minus(Duration.ofHours(3));
         track(new AnalyticsEventRequest(VISITEUR, SESSION, AnalyticsEvent.LANDING_VIEWED,
                 "/reussir", declaree, null, null, null));
-        verify(eventManager).record(any(), eq(declaree), any(), any(), any(), any(), any(), any());
+        assertThat(ecrite().occurredAt()).isEqualTo(declaree);
     }
 
     @Test
@@ -201,8 +222,7 @@ class AnalyticsIngestionServiceTest {
 
         track(new AnalyticsEventRequest(VISITEUR, SESSION, AnalyticsEvent.LANDING_VIEWED,
                 "/reussir", null, null, null, "landing:2026-08-21:abc"));
-        verify(eventManager).record(any(), any(), any(), any(), any(), any(), any(),
-                eq("landing:2026-08-21:abc"));
+        assertThat(ecrite().dedupKey()).isEqualTo("landing:2026-08-21:abc");
     }
 
     // ------------------------------------------------------------------------
@@ -307,8 +327,7 @@ class AnalyticsIngestionServiceTest {
         properties.put("ctaLocation", "HERO");
         properties.put("diagnosticType", "  ");
         track(requete(AnalyticsEvent.DIAGNOSTIC_CTA_CLICKED, "/reussir", properties));
-        verify(eventManager).record(any(), any(), any(), any(), any(), any(),
-                eq("{\"ctaLocation\":\"HERO\"}"), any());
+        assertThat(ecrite().propertiesJson()).isEqualTo("{\"ctaLocation\":\"HERO\"}");
     }
 
     @Test
@@ -317,15 +336,18 @@ class AnalyticsIngestionServiceTest {
         UUID userId = UUID.randomUUID();
         service.track(requete(AnalyticsEvent.PRICING_VIEWED, "/tarifs", null),
                 WEB_DIRECT, "FR", AnalyticsDeviceType.DESKTOP_WEB, userId);
-        verify(eventManager).record(any(), any(), any(), any(), eq(userId), any(), any(), any());
+        assertThat(ecrite().userId()).isEqualTo(userId);
     }
 
     @Test
     @DisplayName("Un chemin absent est un cas normal")
     void cheminAbsent() {
         track(requete(AnalyticsEvent.LOGIN_CLICKED, null, null));
-        verify(eventManager).record(any(), any(), any(), any(), isNull(), isNull(), eq("{}"),
-                isNull());
+        AnalyticsEventManager.Ligne ligne = ecrite();
+        assertThat(ligne.userId()).isNull();
+        assertThat(ligne.path()).isNull();
+        assertThat(ligne.propertiesJson()).isEqualTo("{}");
+        assertThat(ligne.dedupKey()).isNull();
     }
 
     @Test
@@ -335,5 +357,14 @@ class AnalyticsIngestionServiceTest {
                 AnalyticsDeviceType.UNKNOWN, null);
         verify(visitorManager).touch(any(), any(), any(), eq(false), isNull(),
                 eq(AnalyticsDeviceType.UNKNOWN), eq(ClientPlatform.UNKNOWN));
+    }
+
+    /** Brief §4.1 : l'exclusion interne est résolue À L'INGESTION, pas à la lecture. */
+    @Test
+    @DisplayName("Un visiteur lié à un compte interne écrit un événement interne")
+    void internePoseALIngestion() {
+        when(identityManager.isInternal(VISITEUR, null)).thenReturn(true);
+        track(requete(AnalyticsEvent.PRICING_VIEWED, "/tarifs", null));
+        assertThat(ecrite().internal()).isTrue();
     }
 }

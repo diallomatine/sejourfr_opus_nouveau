@@ -220,9 +220,11 @@ export default function ConfidentialitePage() {
               <strong>identifiant de mesure</strong> déposé sur votre terminal
               et décrit à l&apos;Article 8. Nous y ajoutons le{" "}
               <strong>pays</strong>, déduit de votre adresse IP{" "}
-              <strong>sans que celle-ci soit conservée</strong>, et le{" "}
+              <strong>sans que celle-ci soit conservée</strong>, le{" "}
               <strong>type d&apos;appareil</strong>, déduit des informations
-              transmises par votre navigateur. Cette mesure ne comporte{" "}
+              transmises par votre navigateur, et, pour l&apos;application mobile,
+              le système (iOS ou Android) et la version de l&apos;application.
+              Cette mesure ne comporte{" "}
               <strong>ni votre nom, ni votre adresse email, ni le contenu de
               vos productions</strong>, et ne sert qu&apos;à comprendre l&apos;usage de la
               Plateforme.
@@ -338,7 +340,7 @@ export default function ConfidentialitePage() {
             ],
             [
               "Données de mesure d'audience (identifiant de mesure et étapes de parcours associées)",
-              "13 mois, puis suppression ; l'identifiant est renouvelé au-delà de 13 mois",
+              "395 jours au plus (13 mois), puis suppression automatique ; l'identifiant de mesure a lui-même une durée de vie de 13 mois, puis un nouveau est tiré",
             ],
             ["Logs de connexion", "12 mois"],
             [
@@ -438,9 +440,9 @@ export default function ConfidentialitePage() {
 
         <LegalSubsection number="8.2" title="Ce qui est déposé sur votre terminal">
           <p>
-            La Plateforme dépose <strong>trois choses</strong>, et rien d&apos;autre.
-            Aucune n&apos;est un cookie publicitaire, aucune n&apos;est fournie par un
-            outil tiers, et aucune ne permet de vous suivre sur d&apos;autres sites.
+            La Plateforme dépose les éléments ci-dessous, et rien d&apos;autre.
+            Aucun n&apos;est un cookie publicitaire, aucun n&apos;est fourni par un
+            outil tiers, et aucun ne permet de vous suivre sur d&apos;autres sites.
           </p>
           <LegalTable
             columns={["Nom", "Où", "À quoi ça sert", "Durée"]}
@@ -455,13 +457,25 @@ export default function ConfidentialitePage() {
                 "sejourfr.aid",
                 "Stockage local du navigateur",
                 "Identifiant de mesure d'audience : un numéro tiré au hasard, qui ne contient ni votre nom, ni votre email, ni rien qui vienne de vous. Il sert uniquement à ne pas compter dix fois la même personne.",
-                "13 mois, puis un nouveau numéro est tiré",
+                "13 mois au plus (durée de vie maximale d'un traceur de mesure d'audience), puis un nouveau numéro est tiré",
               ],
               [
                 "sejourfr.sid et sejourfr.dgx",
                 "Stockage de l'onglet (sessionStorage)",
                 "Distinguer une visite d'une autre, et relier le début et la fin d'un même exercice. Effacés dès que vous fermez l'onglet.",
                 "Le temps de l'onglet",
+              ],
+              [
+                "sejourfr-diagnostic, sejourfr.civic-diagnostic.invite et sejourfr.ee.draft.*",
+                "Stockage du navigateur (IndexedDB et stockage local)",
+                "Garder vos réponses d'un diagnostic ou d'une production en cours, pour ne pas les perdre avant de créer votre compte ou d'envoyer votre texte. Rien n'en est transmis tant que vous ne les envoyez pas.",
+                "Jusqu'à l'envoi de vos réponses, ou jusqu'à ce que vous effaciez les données du site",
+              ],
+              [
+                "sejourfr.prodQuotaInfo.*",
+                "Stockage local du navigateur",
+                "Retenir que l'information sur votre essai d'entraînement gratuit vous a déjà été affichée, pour ne pas la répéter.",
+                "Jusqu'à ce que vous effaciez les données du site",
               ],
             ]}
           />
@@ -508,12 +522,21 @@ export default function ConfidentialitePage() {
             automatisée à votre sujet.
           </p>
           <p>
-            Si vous créez un compte, votre parcours antérieur peut être rattaché
-            à ce compte, afin que nous sachions quel chemin mène réellement à une
-            inscription. Ces informations sont alors{" "}
-            <strong>supprimées avec votre compte</strong>, et vous disposez à
-            leur égard des droits décrits à l&apos;Article 9, notamment le droit
-            d&apos;opposition.
+            L&apos;application mobile utilise un identifiant de mesure de même
+            nature, tiré au hasard et conservé dans le stockage de
+            l&apos;application sur votre téléphone.
+          </p>
+          <p>
+            <strong>Rattachement à votre compte.</strong> Lorsque vous créez un
+            compte ou vous connectez, l&apos;identifiant de mesure de l&apos;appareil
+            est transmis avec votre demande, et votre parcours antérieur sur cet
+            appareil peut alors être rattaché à votre compte — y compris le fait
+            d&apos;avoir passé un diagnostic sans compte (sa date, son type et les
+            étapes franchies, jamais vos réponses). Nous savons ainsi quel chemin
+            mène réellement à une inscription ou à un achat. Ces informations
+            sont alors <strong>supprimées avec votre compte</strong>, et vous
+            disposez à leur égard des droits décrits à l&apos;Article 9, notamment
+            le droit d&apos;opposition.
           </p>
         </LegalSubsection>
 
@@ -541,8 +564,14 @@ export default function ConfidentialitePage() {
               traitement</strong> ni avec aucun fichier extérieur ;
             </li>
             <li>
-              l&apos;identifiant est <strong>renouvelé au bout de 13 mois</strong> et
-              les données de mesure ne sont pas conservées au-delà.
+              la <strong>durée de vie de l&apos;identifiant est limitée à 13
+              mois</strong> : c&apos;est la condition que la CNIL pose au traceur
+              lui-même, au-delà un nouveau numéro est tiré ;
+            </li>
+            <li>
+              nous avons en outre choisi de <strong>supprimer automatiquement les
+              données de mesure brutes au bout de 395 jours</strong> (13 mois),
+              par une purge quotidienne.
             </li>
           </ul>
           <p>

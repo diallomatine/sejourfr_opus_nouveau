@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -15,28 +14,14 @@ import java.util.Locale;
  * Seule couche autorisee a toucher {@link AnalyticsReadRepository}. Lecture
  * seule : l'audience s'observe, elle ne s'ecrit pas ici.
  *
- * <p>Le manager porte deux garde-fous que le SQL ne peut pas tenir :
- * <ul>
- *   <li>la liste d'exclusion n'est <b>jamais vide</b> — un {@code NOT IN ()} est
- *       une erreur de syntaxe Postgres, et un utilisateur qui viderait la
- *       configuration ferait planter l'ecran au lieu de simplement ne rien
- *       exclure ;</li>
- *   <li>les filtres facultatifs sont normalises une seule fois : une chaine
- *       vide vaut « pas de filtre », jamais « la valeur vide ».</li>
- * </ul>
+ * <p>Les filtres facultatifs sont normalises une seule fois : une chaine vide
+ * vaut « pas de filtre », jamais « la valeur vide ». Les comptes internes sont
+ * exclus EN SQL par {@code users.is_internal} (V074, seule autorite).
  */
 @Component
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AnalyticsReadManager {
-
-    /**
-     * Valeur sentinelle quand aucun compte n'est exclu. Aucune adresse ne peut
-     * valoir la chaine vide (contrainte d'unicite + validation d'e-mail), donc
-     * elle n'exclut rien tout en gardant le {@code NOT IN} syntaxiquement
-     * valide.
-     */
-    private static final List<String> AUCUNE_EXCLUSION = List.of("");
 
     private final AnalyticsReadRepository repository;
 
@@ -47,21 +32,20 @@ public class AnalyticsReadManager {
     }
 
     public List<AnalyticsReadRepository.UserCell> userCells(
-            Instant from, Instant to, AnalyticsGrain grain,
-            Collection<String> excluded, Filtres filtres) {
-        return repository.userCells(from, to, grain.getSqlUnit(), exclusions(excluded),
+            Instant from, Instant to, AnalyticsGrain grain, Filtres filtres) {
+        return repository.userCells(from, to, grain.getSqlUnit(),
                 filtres.source(), filtres.country(), filtres.device(), filtres.platform());
     }
 
     public List<AnalyticsReadRepository.DiagStepCell> diagnosticSteps(
-            Instant from, Instant to, Collection<String> excluded, Filtres filtres) {
-        return repository.diagnosticSteps(from, to, exclusions(excluded),
+            Instant from, Instant to, Filtres filtres) {
+        return repository.diagnosticSteps(from, to,
                 filtres.source(), filtres.country(), filtres.device(), filtres.platform());
     }
 
     public List<AnalyticsReadRepository.CtaCell> ctaCells(
-            Instant from, Instant to, Collection<String> excluded, Filtres filtres) {
-        return repository.ctaCells(from, to, exclusions(excluded),
+            Instant from, Instant to, Filtres filtres) {
+        return repository.ctaCells(from, to,
                 filtres.source(), filtres.country(), filtres.device(), filtres.platform());
     }
 
@@ -77,18 +61,8 @@ public class AnalyticsReadManager {
                 filtres.source(), filtres.country(), filtres.device(), filtres.platform());
     }
 
-    public long totalUsers(Collection<String> excluded) {
-        return repository.totalUsers(exclusions(excluded));
-    }
-
-    private static Collection<String> exclusions(Collection<String> excluded) {
-        if (excluded == null || excluded.isEmpty()) return AUCUNE_EXCLUSION;
-        List<String> normalises = excluded.stream()
-                .filter(mail -> mail != null && !mail.isBlank())
-                .map(mail -> mail.trim().toLowerCase(Locale.ROOT))
-                .distinct()
-                .toList();
-        return normalises.isEmpty() ? AUCUNE_EXCLUSION : normalises;
+    public long totalUsers() {
+        return repository.totalUsers();
     }
 
     /**

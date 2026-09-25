@@ -46,13 +46,13 @@ public interface AnalyticsVisitorRepository extends JpaRepository<AnalyticsVisit
             INSERT INTO analytics_visitor (
                 anonymous_id, first_seen_at, last_seen_at,
                 ft_source, ft_medium, ft_campaign, ft_content, ft_term,
-                ft_landing_path, ft_referrer_host,
+                ft_landing_path, ft_referrer_host, ft_source_raw,
                 lt_source, lt_medium, lt_campaign, lt_content, lt_term, lt_seen_at,
                 country_code, device_type, platform)
             VALUES (
                 :anonymousId, :seenAt, :seenAt,
                 :source, :medium, :campaign, :content, :term,
-                :landingPath, :referrerHost,
+                :landingPath, :referrerHost, :sourceRaw,
                 :source, :medium, :campaign, :content, :term, :seenAt,
                 :countryCode, :deviceType, :platform)
             ON CONFLICT (anonymous_id) DO UPDATE SET
@@ -79,8 +79,24 @@ public interface AnalyticsVisitorRepository extends JpaRepository<AnalyticsVisit
                @Param("term") String term,
                @Param("landingPath") String landingPath,
                @Param("referrerHost") String referrerHost,
+               @Param("sourceRaw") String sourceRaw,
                @Param("explicitSource") boolean explicitSource,
                @Param("countryCode") String countryCode,
                @Param("deviceType") String deviceType,
                @Param("platform") String platform);
+
+    /**
+     * Purge de retention : supprime au plus {@code limit} visiteurs inactifs
+     * depuis {@code cutoff} (derniere activite, jamais premiere vue — un
+     * visiteur actif n'est pas purge parce qu'il est ancien). La cascade emporte
+     * ses liens {@code analytics_identity} ; ses evenements sont deja partis
+     * (tous anterieurs a sa derniere activite).
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            DELETE FROM analytics_visitor
+             WHERE anonymous_id IN (
+                   SELECT anonymous_id FROM analytics_visitor WHERE last_seen_at < :cutoff LIMIT :limit)
+            """, nativeQuery = true)
+    int deleteInactiveSince(@Param("cutoff") Instant cutoff, @Param("limit") int limit);
 }

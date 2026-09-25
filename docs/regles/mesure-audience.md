@@ -228,7 +228,8 @@ des **cliqueurs uniques** (le volume brut de clics ne vit que dans la table CTA)
 la maquette ; `previous = 0` ⇒ delta **`null`** ; bucketing 1 j / 45 j → heure /
 jour / semaine ; séries **continues des deux côtés** ; **arrondi à somme conservée**
 (`util/RepartitionArrondie`) pour que la somme des lignes égale toujours le pied ;
-comptes de test exclus **en SQL** (`sejourfr.analytics.excluded-emails`) ;
+comptes internes exclus **en SQL** (`users.is_internal`, V074 — la liste YAML
+`sejourfr.analytics.excluded-emails` est supprimée) ;
 `direct ≠ inconnu`, et `inconnu` ne se cache jamais.
 
 ⚠️ **`pay` suit la COHORTE d'inscription**, pas « premier paiement dans la
@@ -262,7 +263,62 @@ hisserait en tête un réseau à 1 inscrit / 1 payant), `inconnu` toujours en de
 - **La série n'est pas additive** pour `v` et les cliqueurs (un visiteur actif deux
   jours compte dans deux barres) : aucune courbe d'uniques ne l'est. Les tableaux,
   eux, somment exactement au pied.
-- **Un job de purge à 13 mois reste à écrire** — ce n'est pas optionnel, c'est une
-  **condition de l'exemption CNIL** sur laquelle repose l'absence de bandeau.
-  L'index `idx_analytics_visitor_last_seen` est posé pour lui (il balaie par
-  dernière activité, pas par première vue).
+- ~~Un job de purge à 13 mois reste à écrire~~ → **écrit au lot 1b du chantier
+  Suivi** (`AnalyticsRetentionJob`, 395 j, cf. section ci-dessous).
+
+## Chantier « Suivi » — fondations (lot 1b, 2026-09-25)
+
+Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
+`docs/admin/decisions-suivi.md`. Ce lot pose le socle ; les écritures métier
+(`diagnostic_run`, claim, revenu) sont au lot 2, la lecture au lot 4.
+
+- **Schéma : une seule migration, `V074`** (`diagnostic_run`, `purchase_intent`,
+  `payment_refunds`, revenu et attribution sur `user_subscriptions`, colonnes
+  d'`analytics_event`, `users.signup_*` + `is_internal`,
+  `analytics_visitor.ft_source_raw`). 🛑 Toute colonne de mesure est **nullable et
+  jamais rattrapée** : `null` = inconnu (Q16).
+- **`users.is_internal` est la seule autorité de l'exclusion** (Q6). Initialisée par
+  V074 depuis l'ancienne liste YAML (3 comptes seed), puis `migration-dev/V901` pour
+  une base de dev neuve. Pas d'écran d'édition : `UPDATE users SET is_internal = true`.
+  `analytics_event.is_internal` est **résolu à l'ingestion** (compte JWT de l'appelant,
+  ou compte lié à son `anonymousId`) et jamais réécrit : une ligne d'avant le lien reste
+  `false`.
+- **En-têtes (Q4)** : `X-Sejourfr-Client` accepte `web | ios | android` (`mobile` reste
+  lu `MOBILE`, jamais réparti), plus `X-Sejourfr-Anonymous-Id` et
+  `X-Sejourfr-App-Version`. Autorité unique : `ClientContextResolver`. Un iOS/Android
+  déclaré fixe `device_type` sans lire le user-agent.
+- **Ingestion en lot (Q17)** : `POST /api/public/analytics/events/batch`, 202 + rapport,
+  rejet individuel, idempotence sur `event_id` tiré **à la création** de l'événement,
+  horodate future ramenée à la réception (> 10 min), trop ancienne rejetée (> 168 h),
+  rate-limit par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, hors
+  `RateLimitGuard`). L'unitaire reste le temps de la bascule. Validation partagée :
+  `AnalyticsEventNormalizer` (une seule allowlist pour les deux).
+- **Colonnes de contexte, pas des propriétés** : `diagnostic_run_id`, `diagnostic_type`,
+  `journey_id` (`plan_id` = `journey.id`, Q8) se **joignent**, donc vivent en colonnes,
+  bornées par événement (`AnalyticsEvent.Contexte`). La run citée doit exister et **son
+  type fait foi**.
+- **Événements** : `DIAGNOSTIC_REPORT_VIEWED` (étape 4) et `PLAN_OPENED` (étape 5) sont
+  **enrichis**, pas doublés ; `PLAN_UNLOCK_CLICKED` (étape 6) est nouveau
+  (`ctaLocation`, `planCode`, `displayedPriceCents`). 🛑 Pas de
+  `DIAGNOSTIC_SUBJECT_VIEWED` : l'étape 1 se lit sur `diagnostic_run` (Q3).
+- **Source déclarée brute** : `analytics_visitor.ft_source_raw` garde `ig`, que
+  `TrafficSource` range en « autre » ; le regroupement (`ig` → instagram) se fait à la
+  **lecture** par `utmSourceGroups` de la config (scénario 17).
+- **Rétention 395 j (Q5)** : `AnalyticsRetentionJob` (cron
+  `sejourfr.analytics.retention-cron`, 04:10 Paris) purge par lots les événements
+  plus vieux que `rawEventRetentionDays`, puis les visiteurs **inactifs** depuis (et
+  leurs liens `analytics_identity`). Les faits métier (`diagnostic_run`, `users`,
+  `user_subscriptions`) n'ont aucune FK vers le visiteur et ne perdent rien.
+  13 mois = durée de vie du **traceur** (condition CNIL) ; les 395 j de conservation des
+  données brutes sont notre choix, aligné. `/confidentialite` art. 5, 8.2-8.4 à jour.
+- **Configurations versionnées** : `analytics/analytics-config-v1.json` (cohorte 14 j,
+  claim 30 j, intention 24 h, rétention, ingestion, groupes de sources, **date de début
+  de mesure par indicateur** — `null` = pas encore mesuré, l'indicateur vaut alors
+  `null`) et `billing/revenue-rules-v1.json` (`FRANCHISE_293B`, TVA store 20 %,
+  commission `MULTIPLY` 0,15 Apple et Google **à confirmer**, Stripe 1,5 % + 25 c).
+  Loaders qui échouent au boot (`AnalyticsConfigLoader`, `RevenueRulesLoader`).
+- **Liaison identité à l'auth** : `anonymousId` du corps, sinon l'en-tête ;
+  `SignupAttribution` pose la provenance à la création (autorité unique, local et
+  social) ; `AnalyticsIdentityService.onAuthenticated(user, AuthKind, anonymousId)` est
+  le point d'extension du claim (lot 2).
+

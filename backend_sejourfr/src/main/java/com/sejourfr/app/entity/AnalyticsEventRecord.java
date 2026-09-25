@@ -1,6 +1,8 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.AnalyticsEvent;
+import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticRunType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -66,6 +68,36 @@ public class AnalyticsEventRecord {
     @Column(name = "dedup_key", length = 120)
     private String dedupKey;
 
+    /** Identifiant tire par le client (ingestion en lot). {@code null} = endpoint unitaire. */
+    @Column(name = "event_id", columnDefinition = "uuid")
+    private UUID eventId;
+
+    /** Horloge serveur. {@code null} = ligne anterieure a V074. */
+    @Column(name = "received_at")
+    private Instant receivedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "platform", length = 16)
+    private ClientPlatform platform;
+
+    @Column(name = "app_version", length = 32)
+    private String appVersion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "diagnostic_type", length = 16)
+    private DiagnosticRunType diagnosticType;
+
+    @Column(name = "diagnostic_run_id", columnDefinition = "uuid")
+    private UUID diagnosticRunId;
+
+    /** {@code plan_id} du brief = {@code journey.id} (Q8). */
+    @Column(name = "journey_id", columnDefinition = "uuid")
+    private UUID journeyId;
+
+    /** Resolu a l'ingestion. {@code null} = ligne anterieure a V074. */
+    @Column(name = "is_internal")
+    private Boolean internal;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -92,4 +124,13 @@ public class AnalyticsEventRecord {
 
     public String getDedupKey() { return dedupKey; }
     public void setDedupKey(String dedupKey) { this.dedupKey = dedupKey; }
+
+    public UUID getEventId() { return eventId; }
+    public Instant getReceivedAt() { return receivedAt; }
+    public ClientPlatform getPlatform() { return platform; }
+    public String getAppVersion() { return appVersion; }
+    public DiagnosticRunType getDiagnosticType() { return diagnosticType; }
+    public UUID getDiagnosticRunId() { return diagnosticRunId; }
+    public UUID getJourneyId() { return journeyId; }
+    public Boolean getInternal() { return internal; }
 }

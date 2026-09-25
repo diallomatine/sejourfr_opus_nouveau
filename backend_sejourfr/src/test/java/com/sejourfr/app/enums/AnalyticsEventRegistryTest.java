@@ -212,4 +212,49 @@ class AnalyticsEventRegistryTest {
         assertThat(AnalyticsProperty.byKey(null)).isNull();
         assertThat(AnalyticsProperty.byKey("ctaLocation")).isEqualTo(AnalyticsProperty.CTA_LOCATION);
     }
+
+    // ------------------------------------------------------------------------
+    // Chantier Suivi (lot 1b)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Etape 6 du tunnel. Distinct du clic Premium generique : c'est LE geste
+     * d'intention depuis le Plan, et il porte ce que le candidat avait sous les
+     * yeux — jamais ce qu'il a paye.
+     */
+    @Test
+    @DisplayName("PLAN_UNLOCK_CLICKED est un geste client distinct, qui porte le prix affiché")
+    void debloquerLePlan() {
+        assertThat(AnalyticsEvent.PLAN_UNLOCK_CLICKED.isEmisParLeClient()).isTrue();
+        assertThat(AnalyticsEvent.PLAN_UNLOCK_CLICKED).isNotEqualTo(AnalyticsEvent.PREMIUM_CTA_CLICKED);
+        assertThat(AnalyticsEvent.PLAN_UNLOCK_CLICKED.getAllowedProperties())
+                .containsExactlyInAnyOrder(AnalyticsProperty.CTA_LOCATION, AnalyticsProperty.PLAN_CODE,
+                        AnalyticsProperty.DISPLAYED_PRICE_CENTS);
+        assertThat(AnalyticsProperty.DISPLAYED_PRICE_CENTS.normalizeOrThrow("0999")).isEqualTo("999");
+        assertThatThrownBy(() -> AnalyticsProperty.DISPLAYED_PRICE_CENTS.normalizeOrThrow("9,99"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("displayedPriceCents");
+        assertThatThrownBy(() -> AnalyticsProperty.DISPLAYED_PRICE_CENTS.normalizeOrThrow("1234567"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * Les identifiants qui se JOIGNENT (run, parcours) sont bornes par
+     * evenement, comme les proprietes : l'etape 1 du tunnel se lit sur
+     * diagnostic_run et n'a pas d'evenement (Q3).
+     */
+    @Test
+    @DisplayName("Les contextes run / parcours sont bornés par événement, et l'étape 1 n'est pas un événement")
+    void contextesBornes() {
+        assertThat(AnalyticsEvent.DIAGNOSTIC_REPORT_VIEWED.getContexte().admetDiagnostic()).isTrue();
+        assertThat(AnalyticsEvent.DIAGNOSTIC_REPORT_VIEWED.getContexte().admetPlan()).isFalse();
+        assertThat(AnalyticsEvent.PLAN_OPENED.getContexte()).isEqualTo(AnalyticsEvent.Contexte.DIAGNOSTIC_ET_PLAN);
+        assertThat(AnalyticsEvent.PLAN_UNLOCK_CLICKED.getContexte())
+                .isEqualTo(AnalyticsEvent.Contexte.DIAGNOSTIC_ET_PLAN);
+        assertThat(AnalyticsEvent.PLAN_EXERCISE_STARTED.getContexte()).isEqualTo(AnalyticsEvent.Contexte.PLAN);
+        assertThat(AnalyticsEvent.LANDING_VIEWED.getContexte()).isEqualTo(AnalyticsEvent.Contexte.AUCUN);
+        assertThat(AnalyticsEvent.PREMIUM_CTA_CLICKED.getContexte()).isEqualTo(AnalyticsEvent.Contexte.AUCUN);
+        assertThat(Arrays.stream(AnalyticsEvent.values()).map(Enum::name))
+                .doesNotContain("DIAGNOSTIC_SUBJECT_VIEWED", "DIAGNOSTIC_PLAN_VIEWED");
+    }
 }

@@ -51,9 +51,13 @@ class UnsubscribeTokenServiceTest {
         UnsubscribeTokenService s = service(1, Map.of(1, "k1"));
         String token = s.create(userId);
         String[] parts = token.split("\\.");
-        char last = parts[2].charAt(parts[2].length() - 1);
+        // Le PREMIER caractere, pas le dernier : en base64url sans padding, le
+        // dernier caractere d'une signature de 32 octets ne porte que 4 bits
+        // utiles, et changer ses 2 bits de bourrage laisse les octets intacts
+        // (test intermittent, ~1 fois sur 16).
+        char first = parts[2].charAt(0);
         String altere = parts[0] + "." + parts[1] + "."
-                + parts[2].substring(0, parts[2].length() - 1) + (last == 'A' ? 'B' : 'A');
+                + (first == 'A' ? 'B' : 'A') + parts[2].substring(1);
 
         assertThat(s.verify(altere)).isEmpty();
     }

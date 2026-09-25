@@ -4,13 +4,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * Reglages de la mesure d'audience : taux de change figes a l'encaissement,
- * base geo-IP, et comptes exclus des statistiques.
+ * base geo-IP, et version de la configuration versionnee.
  *
  * <p><b>Les valeurs par defaut sont ici ET dans {@code application.yaml}, a
  * l'identique</b> — doctrine du depot : un POJO qui diverge de son YAML est une
@@ -41,12 +40,20 @@ public class AnalyticsProperties {
     private Map<String, BigDecimal> fxRates = defaultFxRates();
 
     /**
-     * Comptes exclus de toutes les statistiques — les comptes de demonstration
-     * et de test (brief §85). L'exclusion s'applique <b>en SQL</b>, jamais apres
-     * coup : soustraire a la lecture laisse les pourcentages faux.
+     * Version de {@code analytics/analytics-config-v{n}.json} (chantier Suivi) :
+     * retention, cohorte, ingestion en lot, groupes de sources, debuts de mesure.
+     * Une version inconnue echoue au demarrage.
+     *
+     * <p>Les comptes exclus des statistiques ne sont plus une liste d'adresses
+     * ici : c'est {@code users.is_internal} (V074, arbitrage Q6), seule autorite.
      */
-    private List<String> excludedEmails = List.of(
-            "admin@sejourfr.fr", "user@sejourfr.fr", "karim.test@sejourfr.fr");
+    private int configVersion = 1;
+
+    /**
+     * Cron de la purge de retention ({@code AnalyticsRetentionJob}), fuseau
+     * Europe/Paris. {@code "-"} l'eteint (profil de test).
+     */
+    private String retentionCron = "0 10 4 * * *";
 
     /** Base MaxMind GeoLite2-Country. */
     private Geoip geoip = new Geoip();
@@ -70,8 +77,11 @@ public class AnalyticsProperties {
     public Map<String, BigDecimal> getFxRates() { return fxRates; }
     public void setFxRates(Map<String, BigDecimal> fxRates) { this.fxRates = fxRates; }
 
-    public List<String> getExcludedEmails() { return excludedEmails; }
-    public void setExcludedEmails(List<String> excludedEmails) { this.excludedEmails = excludedEmails; }
+    public int getConfigVersion() { return configVersion; }
+    public void setConfigVersion(int configVersion) { this.configVersion = configVersion; }
+
+    public String getRetentionCron() { return retentionCron; }
+    public void setRetentionCron(String retentionCron) { this.retentionCron = retentionCron; }
 
     public Geoip getGeoip() { return geoip; }
     public void setGeoip(Geoip geoip) { this.geoip = geoip; }

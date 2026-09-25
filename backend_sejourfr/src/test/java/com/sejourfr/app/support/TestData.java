@@ -1312,7 +1312,7 @@ public class TestData {
         UUID anonymousId = UUID.randomUUID();
         analyticsVisitorManager.touch(anonymousId, seenAt,
                 new AnalyticsVisitorManager.Attribution(source, null, null, null, null,
-                        "/reussir", null),
+                        "/reussir", null, null),
                 true, country, device, platform);
         return anonymousId;
     }
@@ -1323,7 +1323,7 @@ public class TestData {
         UUID anonymousId = UUID.randomUUID();
         analyticsVisitorManager.touch(anonymousId, seenAt,
                 new AnalyticsVisitorManager.Attribution(source, "social", campaign, content,
-                        null, "/reussir", "tiktok.com"),
+                        null, "/reussir", "tiktok.com", null),
                 true, "FR", AnalyticsDeviceType.MOBILE_WEB, ClientPlatform.WEB);
         return anonymousId;
     }
@@ -1336,10 +1336,10 @@ public class TestData {
     /** Le meme, avec ses proprietes deja normalisees (JSON compact). */
     public void analyticsEvent(UUID anonymousId, AnalyticsEvent event, Instant occurredAt,
                                String propertiesJson) {
-        analyticsEventManager.record(event, occurredAt, anonymousId, UUID.randomUUID(),
-                null, "/reussir",
-                propertiesJson == null ? "{}" : propertiesJson,
-                null);
+        analyticsEventManager.record(new AnalyticsEventManager.Ligne(
+                event, occurredAt, anonymousId, UUID.randomUUID(), null, "/reussir",
+                propertiesJson == null ? "{}" : propertiesJson, null,
+                null, occurredAt, ClientPlatform.WEB, null, null, null, null, false));
     }
 
     /** Relie un parcours anonyme a un compte, comme le fait une connexion. */
@@ -1359,7 +1359,7 @@ public class TestData {
                 createdAt);
     }
 
-    /** Le meme, avec une adresse imposee (comptes de demonstration exclus). */
+    /** Le meme, avec une adresse imposee. */
     public User userCreatedAt(String email, String signupSource, ClientPlatform platform,
                               Instant createdAt) {
         User u = new User();

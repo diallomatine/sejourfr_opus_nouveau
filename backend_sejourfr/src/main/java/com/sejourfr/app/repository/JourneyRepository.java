@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -94,4 +95,8 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
     @Modifying
     @Query("DELETE FROM Journey j WHERE j.user.id = :userId")
     int deleteByUserId(@Param("userId") UUID userId);
+
+    /** Les identifiants de {@code ids} qui existent, en une requete. */
+    @Query("SELECT j.id FROM Journey j WHERE j.id IN :ids")
+    List<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
 }

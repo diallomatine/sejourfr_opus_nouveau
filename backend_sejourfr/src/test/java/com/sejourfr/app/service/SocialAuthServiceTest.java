@@ -42,6 +42,7 @@ class SocialAuthServiceTest {
     private GoogleTokenVerifier googleVerifier;
     private AppleTokenVerifier appleVerifier;
     private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private com.sejourfr.app.service.analytics.AnalyticsIdentityService identityService;
     private SocialAuthService service;
 
     @BeforeEach
@@ -54,10 +55,9 @@ class SocialAuthServiceTest {
         appleVerifier = mock(AppleTokenVerifier.class);
         eventPublisher = mock(org.springframework.context.ApplicationEventPublisher.class);
 
+        identityService = mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class);
         service = new SocialAuthService(userManager, jwtService, sessionService,
-                subscriptionService, googleVerifier, appleVerifier,
-                mock(com.sejourfr.app.service.analytics.AnalyticsIdentityService.class),
-                eventPublisher);
+                subscriptionService, googleVerifier, appleVerifier, identityService, eventPublisher);
 
         when(jwtService.accessTokenTtlSeconds()).thenReturn(3600L);
         when(subscriptionService.currentAccess(any()))
@@ -184,5 +184,47 @@ class SocialAuthServiceTest {
 
         assertThat(service.isGoogleConfigured()).isTrue();
         assertThat(service.isAppleConfigured()).isFalse();
+    }
+
+    // ------------------------------------------------------------------------
+    // Chantier Suivi (lot 1b) : identifiant de mesure et nature de l'auth
+    // ------------------------------------------------------------------------
+
+    /**
+     * Le sign-in social est un seul flux pour s'inscrire et se connecter : c'est
+     * la branche de CREATION qui dit SIGNUP (claim_kind du lot 2), et seule elle
+     * pose l'identifiant de mesure sur le compte.
+     */
+    @Test
+    void creationSociale_estUnSignup_etPoseLIdentifiantDeLEnTete() {
+        UUID anon = UUID.randomUUID();
+        ClientContext ctx = new ClientContext(ClientPlatform.IOS, "tiktok", anon, "2.4.1");
+        when(googleVerifier.verify("tok")).thenReturn(google("neuf@test.fr", "sub-9"));
+        when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-9")).thenReturn(Optional.empty());
+        when(userManager.findByEmail("neuf@test.fr")).thenReturn(Optional.empty());
+
+        service.loginWithGoogle(new GoogleSignInRequest("tok", null), "ua", "ip", ctx);
+
+        org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userManager).save(captor.capture());
+        assertThat(captor.getValue().getSignupPlatform()).isEqualTo(ClientPlatform.IOS);
+        assertThat(captor.getValue().getSignupAnonymousId()).isEqualTo(anon);
+        verify(identityService).onAuthenticated(any(), org.mockito.ArgumentMatchers.eq(
+                com.sejourfr.app.enums.AuthKind.SIGNUP), org.mockito.ArgumentMatchers.eq(anon));
+    }
+
+    @Test
+    void connexionSocialeExistante_estUnLogin_etNeReecritPasLIdentifiantDuCompte() {
+        UUID anon = UUID.randomUUID();
+        User local = existing("deja@test.fr", AuthProvider.LOCAL);
+        when(googleVerifier.verify("tok")).thenReturn(google("deja@test.fr", "sub-10"));
+        when(userManager.findByProvider(AuthProvider.GOOGLE, "sub-10")).thenReturn(Optional.empty());
+        when(userManager.findByEmail("deja@test.fr")).thenReturn(Optional.of(local));
+
+        service.loginWithGoogle(new GoogleSignInRequest("tok", anon.toString()), "ua", "ip", CTX);
+
+        assertThat(local.getSignupAnonymousId()).isNull();
+        verify(identityService).onAuthenticated(any(), org.mockito.ArgumentMatchers.eq(
+                com.sejourfr.app.enums.AuthKind.LOGIN), org.mockito.ArgumentMatchers.eq(anon));
     }
 }

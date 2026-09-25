@@ -17,8 +17,18 @@ public class BillingProperties {
 
     private BillingMode mode = BillingMode.ONE_TIME;
 
+    /**
+     * Version de {@code billing/revenue-rules-v{n}.json} appliquee aux achats A
+     * VENIR (TVA, frais, net). Chaque achat fige la sienne : changer cette
+     * valeur ne recalcule rien du passe. Une version inconnue echoue au boot.
+     */
+    private int revenueRulesVersion = 1;
+
     public BillingMode getMode() { return mode; }
     public void setMode(BillingMode mode) { this.mode = mode; }
+
+    public int getRevenueRulesVersion() { return revenueRulesVersion; }
+    public void setRevenueRulesVersion(int revenueRulesVersion) { this.revenueRulesVersion = revenueRulesVersion; }
 
     public boolean isOneTime() { return mode == BillingMode.ONE_TIME; }
     public boolean isSubscription() { return mode == BillingMode.SUBSCRIPTION; }

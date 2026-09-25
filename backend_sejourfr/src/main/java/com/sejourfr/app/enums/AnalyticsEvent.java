@@ -86,16 +86,16 @@ public enum AnalyticsEvent {
     // ------------------------------------------------------------------------
 
     /** Le visiteur entre dans le parcours (encore invite : aucune ligne en base). */
-    DIAGNOSTIC_STARTED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_STARTED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
 
-    DIAGNOSTIC_EE_STARTED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_EE_COMPLETED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_EO_STARTED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_EO_COMPLETED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_CO_STARTED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_CO_COMPLETED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_CE_STARTED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
-    DIAGNOSTIC_CE_COMPLETED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_EE_STARTED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_EE_COMPLETED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_EO_STARTED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_EO_COMPLETED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_CO_STARTED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_CO_COMPLETED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_CE_STARTED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_CE_COMPLETED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
 
     /**
      * Le compte est demandé : les deux productions sont faites, l'analyse
@@ -108,10 +108,16 @@ public enum AnalyticsEvent {
      * précède se passe hors base : sans cet événement, cette marche-là n'est
      * mesurée nulle part.
      */
-    DIAGNOSTIC_ACCOUNT_REQUIRED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    DIAGNOSTIC_ACCOUNT_REQUIRED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
 
-    /** Le rapport a ete affiche — l'ecran ou se decide l'abonnement. */
-    DIAGNOSTIC_REPORT_VIEWED(Origine.CLIENT, AnalyticsProperty.DIAGNOSTIC_TYPE),
+    /**
+     * Le rapport a ete affiche — l'ecran ou se decide l'abonnement.
+     *
+     * <p>Etape 4 du tunnel « Suivi » quand il porte {@code diagnosticRunId}
+     * (TCF rapide ET civique, web ET mobile). « Au moins une vue par run » :
+     * sept affichages comptent pour un (scenario 1).
+     */
+    DIAGNOSTIC_REPORT_VIEWED(Origine.CLIENT, Contexte.DIAGNOSTIC, AnalyticsProperty.DIAGNOSTIC_TYPE),
 
     // ------------------------------------------------------------------------
     // Plan personnalise
@@ -122,11 +128,18 @@ public enum AnalyticsEvent {
     // l'usage reel du Plan sans que personne s'en apercoive.
     // ------------------------------------------------------------------------
 
-    /** Le Plan personnalisé a été ouvert. */
-    PLAN_OPENED(Origine.CLIENT),
+    /**
+     * Le Plan personnalisé a été ouvert.
+     *
+     * <p>Etape 5 du tunnel « Suivi » (« plan vu ») quand il porte
+     * {@code diagnosticRunId} et {@code journeyId} ({@code plan_id} = journey,
+     * Q8). Enrichi plutot que double : un second evenement pour le meme ecran
+     * serait une seconde verite.
+     */
+    PLAN_OPENED(Origine.CLIENT, Contexte.DIAGNOSTIC_ET_PLAN),
 
     /** Un exercice recommandé par le Plan a été lancé. */
-    PLAN_EXERCISE_STARTED(Origine.CLIENT, AnalyticsProperty.EXERCISE_KIND),
+    PLAN_EXERCISE_STARTED(Origine.CLIENT, Contexte.PLAN, AnalyticsProperty.EXERCISE_KIND),
 
     // ------------------------------------------------------------------------
     // Le RIDEAU freemium — pose avant le deploiement, pas apres.
@@ -170,6 +183,19 @@ public enum AnalyticsEvent {
      */
     PLAN_PAYWALL_VIEWED(Origine.CLIENT, AnalyticsProperty.CTA_LOCATION),
 
+    /**
+     * Tap sur « Débloquer mon plan » — etape 6 du tunnel « Suivi ».
+     *
+     * <p>🛑 <b>Distinct de {@link #PREMIUM_CTA_CLICKED}</b> et de
+     * {@link #PLAN_PAYWALL_VIEWED} : c'est LE geste d'intention depuis le Plan,
+     * celui dont le tunnel mesure la conversion en achat. {@code planCode} et
+     * {@code displayedPriceCents} disent ce que le candidat avait sous les yeux,
+     * jamais ce qu'il a paye (le paiement se lit sur {@code user_subscriptions}).
+     */
+    PLAN_UNLOCK_CLICKED(Origine.CLIENT, Contexte.DIAGNOSTIC_ET_PLAN,
+            AnalyticsProperty.CTA_LOCATION, AnalyticsProperty.PLAN_CODE,
+            AnalyticsProperty.DISPLAYED_PRICE_CENTS),
+
     // ------------------------------------------------------------------------
     // Premium
     // ------------------------------------------------------------------------
@@ -193,11 +219,47 @@ public enum AnalyticsEvent {
         SERVEUR
     }
 
+    /**
+     * Les identifiants de contexte qu'un evenement peut porter <b>en colonne</b>
+     * ({@code analytics_event.diagnostic_run_id}, {@code diagnostic_type},
+     * {@code journey_id}) — et non en propriete jsonb, parce qu'ils se joignent.
+     *
+     * <p>Meme doctrine que les proprietes : un evenement qui n'a pas le droit de
+     * porter un contexte le voit <b>refuse</b>, jamais ignore en silence.
+     */
+    public enum Contexte {
+        /** Aucun identifiant de contexte. */
+        AUCUN(false, false),
+        /** {@code diagnosticRunId} et {@code diagnosticType}. */
+        DIAGNOSTIC(true, false),
+        /** {@code journeyId} seul. */
+        PLAN(false, true),
+        /** Les deux. */
+        DIAGNOSTIC_ET_PLAN(true, true);
+
+        private final boolean diagnostic;
+        private final boolean plan;
+
+        Contexte(boolean diagnostic, boolean plan) {
+            this.diagnostic = diagnostic;
+            this.plan = plan;
+        }
+
+        public boolean admetDiagnostic() { return diagnostic; }
+        public boolean admetPlan() { return plan; }
+    }
+
     private final Origine origine;
+    private final Contexte contexte;
     private final Set<AnalyticsProperty> allowed;
 
     AnalyticsEvent(Origine origine, AnalyticsProperty... allowed) {
+        this(origine, Contexte.AUCUN, allowed);
+    }
+
+    AnalyticsEvent(Origine origine, Contexte contexte, AnalyticsProperty... allowed) {
         this.origine = origine;
+        this.contexte = contexte;
         this.allowed = allowed.length == 0
                 ? Collections.unmodifiableSet(EnumSet.noneOf(AnalyticsProperty.class))
                 : Collections.unmodifiableSet(EnumSet.copyOf(Arrays.asList(allowed)));
@@ -205,6 +267,11 @@ public enum AnalyticsEvent {
 
     public Origine getOrigine() {
         return origine;
+    }
+
+    /** Identifiants de contexte admis en colonne. Jamais nul. */
+    public Contexte getContexte() {
+        return contexte;
     }
 
     /** Vrai si un front peut emettre cet evenement. */

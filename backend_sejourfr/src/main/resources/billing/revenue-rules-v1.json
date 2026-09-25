@@ -1,0 +1,22 @@
+{
+  "revenueRulesVersion": 1,
+  "currency": "EUR",
+  "rounding": "HALF_UP",
+  "seller": {
+    "vatRegime": "FRANCHISE_293B",
+    "vatRateIfLiable": 0.20
+  },
+  "stripe": {
+    "percentFee": 0.015,
+    "fixedFeeCents": 25,
+    "preferActualFee": true
+  },
+  "stores": {
+    "vatRate": 0.20,
+    "commissionMode": "MULTIPLY",
+    "commissionRates": {
+      "APPLE": 0.15,
+      "GOOGLE": 0.15
+    }
+  }
+}

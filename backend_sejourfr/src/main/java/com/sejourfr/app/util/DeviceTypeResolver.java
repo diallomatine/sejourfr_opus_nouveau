@@ -36,6 +36,9 @@ public class DeviceTypeResolver {
      * @param platform  plateforme declaree ({@code X-Sejourfr-Client})
      */
     public AnalyticsDeviceType resolve(String userAgent, ClientPlatform platform) {
+        // L'application qui DECLARE son systeme n'a pas besoin du user-agent.
+        if (platform == ClientPlatform.IOS) return AnalyticsDeviceType.IOS;
+        if (platform == ClientPlatform.ANDROID) return AnalyticsDeviceType.ANDROID;
         if (userAgent == null || userAgent.isBlank()) return AnalyticsDeviceType.UNKNOWN;
         String ua = userAgent.toLowerCase(Locale.ROOT);
 

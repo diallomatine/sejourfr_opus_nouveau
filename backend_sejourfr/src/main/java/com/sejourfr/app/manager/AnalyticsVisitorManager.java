@@ -30,7 +30,7 @@ public class AnalyticsVisitorManager {
         repository.upsert(anonymousId, seenAt,
                 attribution.source(), attribution.medium(), attribution.campaign(),
                 attribution.content(), attribution.term(),
-                attribution.landingPath(), attribution.referrerHost(),
+                attribution.landingPath(), attribution.referrerHost(), attribution.sourceRaw(),
                 explicitSource, countryCode,
                 deviceType.name(), platform.name());
     }
@@ -38,6 +38,12 @@ public class AnalyticsVisitorManager {
     @Transactional(readOnly = true)
     public Optional<AnalyticsVisitor> findById(UUID anonymousId) {
         return repository.findById(anonymousId);
+    }
+
+    /** Un lot de purge de retention : au plus {@code limit} visiteurs inactifs. */
+    @Transactional
+    public int deleteInactiveSince(Instant cutoff, int limit) {
+        return repository.deleteInactiveSince(cutoff, limit);
     }
 
     @Transactional(readOnly = true)
@@ -57,8 +63,12 @@ public class AnalyticsVisitorManager {
      * @param term         {@code utm_term}
      * @param landingPath  page d'arrivee
      * @param referrerHost hote du referrer, jamais l'URL complete
+     * @param sourceRaw    source declaree, minuscules et bornee, regroupee a la
+     *                     lecture par la config ({@code ig} ⇒ instagram).
+     *                     {@code null} si rien n'a ete declare
      */
     public record Attribution(String source, String medium, String campaign, String content,
-                              String term, String landingPath, String referrerHost) {
+                              String term, String landingPath, String referrerHost,
+                              String sourceRaw) {
     }
 }

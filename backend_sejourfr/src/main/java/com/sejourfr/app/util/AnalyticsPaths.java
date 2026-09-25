@@ -39,8 +39,11 @@ public final class AnalyticsPaths {
             // Diagnostic
             "/diagnostic",
             "/diagnostic/resultat",
+            "/diagnostic-civique",
+            "/diagnostic-civique/resultat",
             // Plan personnalise
             "/plan",
+            "/plan/debloquer",
             // Prix et paiement
             "/tarifs",
             "/paiement",

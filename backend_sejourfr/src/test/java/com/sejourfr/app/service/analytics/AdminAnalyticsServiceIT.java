@@ -183,12 +183,16 @@ class AdminAnalyticsServiceIT extends AbstractIntegrationTest {
         assertThat(reponse.total().revEurCents()).isEqualTo(2999);
     }
 
-    /** Brief §85 : l'exclusion s'applique en SQL, jamais soustraite apres coup. */
+    /**
+     * Brief §85 : l'exclusion s'applique en SQL, jamais soustraite apres coup.
+     * Depuis V074 (Q6), c'est {@code users.is_internal} qui fait foi — plus une
+     * liste d'adresses en configuration.
+     */
     @Test
-    @DisplayName("Les comptes de test sont exclus, en SQL")
-    void comptesDeTestExclus() {
-        data.userCreatedAt("admin@sejourfr.fr", "tiktok", ClientPlatform.WEB,
-                paris(2025, 3, 11, 10, 0));
+    @DisplayName("Les comptes internes sont exclus, en SQL, par users.is_internal")
+    void comptesInternesExclus() {
+        User interne = data.userCreatedAt("tiktok", ClientPlatform.WEB, paris(2025, 3, 11, 10, 0));
+        interne.setInternal(true);
         data.userCreatedAt("tiktok", ClientPlatform.WEB, paris(2025, 3, 12, 10, 0));
 
         AdminAnalyticsResponse reponse = service.compute(FENETRE, AnalyticsReadManager.Filtres.AUCUN);

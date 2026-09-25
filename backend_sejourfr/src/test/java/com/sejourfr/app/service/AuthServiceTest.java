@@ -250,7 +250,7 @@ class AuthServiceTest {
                 .thenThrow(new BadCredentialsException("nope"));
 
         assertThatThrownBy(() -> service.login(
-                new LoginRequest("x@test.fr", "bad", null), "ua", "ip"))
+                new LoginRequest("x@test.fr", "bad", null), "ua", "ip", null))
                 .isInstanceOf(BadCredentialsException.class)
                 .hasMessageContaining("Identifiants invalides");
     }
@@ -261,7 +261,7 @@ class AuthServiceTest {
         when(userManager.findByEmail("ghost@test.fr")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.login(
-                new LoginRequest("ghost@test.fr", "pw", null), "ua", "ip"))
+                new LoginRequest("ghost@test.fr", "pw", null), "ua", "ip", null))
                 .isInstanceOf(BadCredentialsException.class);
     }
 
@@ -272,7 +272,7 @@ class AuthServiceTest {
         when(userManager.findByEmail("ok@test.fr")).thenReturn(Optional.of(u));
         stubSessionFor(u);
 
-        TokenResponse resp = service.login(new LoginRequest("ok@test.fr", "pw", null), "ua", "ip");
+        TokenResponse resp = service.login(new LoginRequest("ok@test.fr", "pw", null), "ua", "ip", null);
 
         assertThat(u.getLastLoginAt()).isNotNull();
         assertThat(resp.tokenType()).isEqualTo("Bearer");

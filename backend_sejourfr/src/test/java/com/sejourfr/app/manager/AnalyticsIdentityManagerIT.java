@@ -34,7 +34,7 @@ class AnalyticsIdentityManagerIT extends AbstractIntegrationTest {
     private UUID visiteur() {
         UUID anonymousId = UUID.randomUUID();
         visitorManager.touch(anonymousId, Instant.now(),
-                new AnalyticsVisitorManager.Attribution("tiktok", null, null, null, null, "/reussir", null),
+                new AnalyticsVisitorManager.Attribution("tiktok", null, null, null, null, "/reussir", null, null),
                 true, "FR", AnalyticsDeviceType.MOBILE_WEB, ClientPlatform.WEB);
         return anonymousId;
     }

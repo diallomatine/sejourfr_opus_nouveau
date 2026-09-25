@@ -312,6 +312,13 @@ sejourfr:
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
 
+  # Mode commercial et regles de revenus (config/BillingProperties, memes
+  # valeurs par defaut). revenue-rules-version : version de
+  # billing/revenue-rules-v{n}.json appliquee aux achats A VENIR ; chaque achat
+  # fige la sienne, le passe ne bouge jamais.
+  billing:
+    revenue-rules-version: ${REVENUE_RULES_VERSION:1}
+
   # Mesure d'audience (analytics). Les valeurs par defaut vivent AUSSI dans le
   # POJO config/AnalyticsProperties, a l'identique : un POJO qui diverge de son
   # YAML ne se decouvre que le jour ou la cle disparait de la configuration.
@@ -329,10 +336,14 @@ sejourfr:
       GBP: 1.17
       CHF: 1.05
       CAD: 0.68
-    # Comptes de demonstration exclus de toutes les statistiques. L'exclusion
-    # s'applique EN SQL, jamais apres coup : soustraire a la lecture laisse les
-    # pourcentages faux.
-    excluded-emails: ${ANALYTICS_EXCLUDED_EMAILS:admin@sejourfr.fr,user@sejourfr.fr,karim.test@sejourfr.fr}
+    # Version de analytics/analytics-config-v{n}.json (retention 395 j, cohorte,
+    # ingestion en lot, groupes de sources, debuts de mesure). Les comptes exclus
+    # des statistiques sont desormais users.is_internal (V074), plus une liste
+    # d'adresses ici.
+    config-version: ${ANALYTICS_CONFIG_VERSION:1}
+    # Purge des evenements bruts et des visiteurs inactifs au-dela de la retention
+    # de la config (condition de l'exemption CNIL). Quotidienne, Europe/Paris.
+    retention-cron: "0 10 4 * * *"
     geoip:
       # Chemin du fichier GeoLite2-Country.mmdb. VIDE PAR DEFAUT : la base
       # exige un compte MaxMind et sa licence interdit de la versionner, donc

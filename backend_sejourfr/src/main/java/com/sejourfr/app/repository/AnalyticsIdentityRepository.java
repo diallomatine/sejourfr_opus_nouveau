@@ -49,4 +49,19 @@ public interface AnalyticsIdentityRepository
     int deleteByUserId(@Param("userId") UUID userId);
 
     long countByUserId(UUID userId);
+
+    /**
+     * Vrai si l'appelant est un compte interne : directement ({@code userId}),
+     * ou parce que son identifiant de mesure est deja lie a un compte interne.
+     * Une seule requete, resolue a l'ingestion (brief §4.1).
+     */
+    @Query(value = """
+            SELECT EXISTS (
+                SELECT 1 FROM users u
+                 WHERE u.is_internal
+                   AND (u.id = CAST(:userId AS uuid)
+                        OR u.id IN (SELECT i.user_id FROM analytics_identity i
+                                     WHERE i.anonymous_id = :anonymousId)))
+            """, nativeQuery = true)
+    boolean isInternal(@Param("anonymousId") UUID anonymousId, @Param("userId") UUID userId);
 }

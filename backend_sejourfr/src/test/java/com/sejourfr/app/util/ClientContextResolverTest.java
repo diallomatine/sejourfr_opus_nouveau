@@ -73,4 +73,65 @@ class ClientContextResolverTest {
         assertThat(ClientPlatform.readOrUnknown(null)).isEqualTo("UNKNOWN");
         assertThat(ClientPlatform.readOrUnknown("WEB")).isEqualTo("WEB");
     }
+
+    // ------------------------------------------------------------------------
+    // Chantier Suivi (Q4) : ios / android, identifiant de mesure, version
+    // ------------------------------------------------------------------------
+
+    @Test
+    void iosEtAndroidSontDistingues_etMobileResteLaValeurHistorique() {
+        assertThat(resolver.resolve(request("iOS", null)).platform()).isEqualTo(ClientPlatform.IOS);
+        assertThat(resolver.resolve(request("android", null)).platform()).isEqualTo(ClientPlatform.ANDROID);
+        // Un client d'avant la distinction garde sa valeur : on ne devine pas le systeme.
+        assertThat(resolver.resolve(request("mobile", null)).platform()).isEqualTo(ClientPlatform.MOBILE);
+        assertThat(ClientPlatform.MOBILE.isNativeApp()).isTrue();
+        assertThat(ClientPlatform.WEB.isNativeApp()).isFalse();
+    }
+
+    @Test
+    void lIdentifiantDeMesureEtLaVersionSontLus_etUnIllisibleVautNull() {
+        java.util.UUID anon = java.util.UUID.randomUUID();
+        MockHttpServletRequest req = request("ios", null);
+        req.addHeader(ClientContextResolver.HEADER_ANONYMOUS_ID, anon.toString());
+        req.addHeader(ClientContextResolver.HEADER_APP_VERSION, "2.4.1+57");
+
+        ClientContext ctx = resolver.resolve(req);
+        assertThat(ctx.anonymousId()).isEqualTo(anon);
+        assertThat(ctx.appVersion()).isEqualTo("2.4.1+57");
+
+        MockHttpServletRequest faux = request("ios", null);
+        faux.addHeader(ClientContextResolver.HEADER_ANONYMOUS_ID, "pas-un-uuid");
+        faux.addHeader(ClientContextResolver.HEADER_APP_VERSION, "2.4 <script>");
+        ClientContext illisible = resolver.resolve(faux);
+        assertThat(illisible.anonymousId()).isNull();
+        assertThat(illisible.appVersion()).isNull();
+        assertThat(ClientContextResolver.parseAppVersion("v".repeat(33))).isNull();
+    }
+
+    /** Un sendBeacon ne pose aucun en-tete : le corps comble l'absence, jamais plus. */
+    @Test
+    void leCorpsNeCombleQuUneAbsenceDEnTete() {
+        ClientContext sansEnTete = resolver.resolve(request(null, null), "android", "3.0.0");
+        assertThat(sansEnTete.platform()).isEqualTo(ClientPlatform.ANDROID);
+        assertThat(sansEnTete.appVersion()).isEqualTo("3.0.0");
+
+        MockHttpServletRequest avecEnTete = request("web", null);
+        avecEnTete.addHeader(ClientContextResolver.HEADER_APP_VERSION, "1.0.0");
+        ClientContext enTetePrime = resolver.resolve(avecEnTete, "android", "3.0.0");
+        assertThat(enTetePrime.platform()).isEqualTo(ClientPlatform.WEB);
+        assertThat(enTetePrime.appVersion()).isEqualTo("1.0.0");
+    }
+
+    /** Requetes d'auth : le champ historique du corps prime, l'en-tete le complete. */
+    @Test
+    void lIdentifiantDuCorpsPrimeSurCeluiDeLEnTete() {
+        java.util.UUID enTete = java.util.UUID.randomUUID();
+        java.util.UUID corps = java.util.UUID.randomUUID();
+        ClientContext ctx = new ClientContext(ClientPlatform.WEB, TrafficSource.DIRECT, enTete, null);
+
+        assertThat(ctx.anonymousIdPreferring(corps.toString())).isEqualTo(corps);
+        assertThat(ctx.anonymousIdPreferring(null)).isEqualTo(enTete);
+        assertThat(ctx.anonymousIdPreferring("illisible")).isEqualTo(enTete);
+        assertThat(ClientContext.unknown().anonymousIdPreferring(null)).isNull();
+    }
 }

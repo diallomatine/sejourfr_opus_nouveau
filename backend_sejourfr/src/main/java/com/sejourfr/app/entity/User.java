@@ -96,6 +96,23 @@ public class User {
     @Column(name = "signup_platform", length = 16)
     private ClientPlatform signupPlatform;
 
+    /**
+     * Identifiant de mesure recu a l'inscription (corps de la requete d'auth, ou
+     * en-tete {@code X-Sejourfr-Anonymous-Id}). Pose a la creation, jamais
+     * reecrit, efface a l'anonymisation. {@code null} = absent ou compte
+     * anterieur (V074).
+     */
+    @Column(name = "signup_anonymous_id", columnDefinition = "uuid")
+    private UUID signupAnonymousId;
+
+    /**
+     * Compte interne / de test, exclu des statistiques par defaut (V074, Q6).
+     * <b>Seule autorite</b> de l'exclusion : la liste YAML d'adresses n'existe
+     * plus.
+     */
+    @Column(name = "is_internal", nullable = false)
+    private boolean internal = false;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
@@ -123,6 +140,9 @@ public class User {
         // La date d'examen est une donnee personnelle comme une autre : elle
         // designe un evenement de la vie administrative du candidat.
         this.examDate = null;
+        // L'identifiant de mesure relie le compte a un parcours anonyme : il part
+        // avec le compte.
+        this.signupAnonymousId = null;
         this.active = false;
         this.deletedAt = Instant.now();
     }
@@ -177,4 +197,10 @@ public class User {
 
     public ClientPlatform getSignupPlatform() { return signupPlatform; }
     public void setSignupPlatform(ClientPlatform signupPlatform) { this.signupPlatform = signupPlatform; }
+
+    public UUID getSignupAnonymousId() { return signupAnonymousId; }
+    public void setSignupAnonymousId(UUID signupAnonymousId) { this.signupAnonymousId = signupAnonymousId; }
+
+    public boolean isInternal() { return internal; }
+    public void setInternal(boolean internal) { this.internal = internal; }
 }

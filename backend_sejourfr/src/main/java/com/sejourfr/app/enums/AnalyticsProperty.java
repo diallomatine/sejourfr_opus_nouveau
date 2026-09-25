@@ -76,7 +76,20 @@ public enum AnalyticsProperty {
     VISIBLE_COUNT("visibleCount", Kind.COUNT, null),
 
     /** Combien de lignes le rideau cache, verrouillees comprises. */
-    TOTAL_COUNT("totalCount", Kind.COUNT, null);
+    TOTAL_COUNT("totalCount", Kind.COUNT, null),
+
+    /**
+     * Prix <b>affiche</b> au moment du geste, en centimes (brief §5,
+     * {@code displayed_price}).
+     *
+     * <p>🛑 Ce n'est jamais un montant encaisse : le revenu se lit sur
+     * {@code user_subscriptions}, fige a l'ecriture. Entier positif borne a six
+     * chiffres — un prix de pass, pas un champ libre numerique.
+     */
+    DISPLAYED_PRICE_CENTS("displayedPriceCents", Kind.CENTS, null);
+
+    /** Montant affiche en centimes : entier positif, six chiffres au plus. */
+    private static final Pattern CENTS = Pattern.compile("^\\d{1,6}$");
 
     /** Compteur d'affichage : entier positif, quatre chiffres au plus. */
     private static final Pattern COUNT = Pattern.compile("^\\d{1,4}$");
@@ -91,7 +104,7 @@ public enum AnalyticsProperty {
     /** Code de plan : majuscules, chiffres, underscore ({@code INTEGRAL_PASS_2M}). */
     private static final Pattern CODE = Pattern.compile("^[A-Z0-9][A-Z0-9_]{0,63}$");
 
-    private enum Kind { ENUM, PATH, SLUG, CODE, COUNT }
+    private enum Kind { ENUM, PATH, SLUG, CODE, COUNT, CENTS }
 
     private final String key;
     private final Kind kind;
@@ -144,6 +157,12 @@ public enum AnalyticsProperty {
             case COUNT -> {
                 if (!COUNT.matcher(value).matches()) {
                     throw refus(raw, "un entier positif de 4 chiffres au plus");
+                }
+                yield String.valueOf(Integer.parseInt(value));
+            }
+            case CENTS -> {
+                if (!CENTS.matcher(value).matches()) {
+                    throw refus(raw, "un montant en centimes, entier positif de 6 chiffres au plus");
                 }
                 yield String.valueOf(Integer.parseInt(value));
             }

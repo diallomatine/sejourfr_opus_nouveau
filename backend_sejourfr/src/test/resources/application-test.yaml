@@ -61,6 +61,9 @@ sejourfr:
     maintenance:
       retry-cron: "-"
       retention-cron: "-"
+  # Purge de retention analytics : les tests appellent le service directement.
+  analytics:
+    retention-cron: "-"
 
 logging:
   level:

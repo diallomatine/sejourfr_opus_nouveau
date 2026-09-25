@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.AuthenticatedUser;
 import com.sejourfr.app.dto.GoogleSignInRequest;
 import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.manager.UserManager;
@@ -13,7 +14,9 @@ import com.sejourfr.app.security.JwtService;
 import com.sejourfr.app.service.social.AppleTokenVerifier;
 import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
+import com.sejourfr.app.service.analytics.AnalyticsIdentityService;
 import com.sejourfr.app.util.ClientContext;
+import com.sejourfr.app.util.SignupAttribution;
 import com.sejourfr.app.service.email.event.AccountCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -62,25 +65,26 @@ public class SocialAuthService {
     private final SubscriptionService subscriptionService;
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
-    private final com.sejourfr.app.service.analytics.AnalyticsIdentityService analyticsIdentityService;
+    private final AnalyticsIdentityService analyticsIdentityService;
     private final ApplicationEventPublisher eventPublisher;
 
     public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent,
                                          String ipAddress, ClientContext client) {
         SocialIdentity identity = googleVerifier.verify(req.idToken());
-        User user = findOrCreate(identity, null, null, client);
+        Resolution r = findOrCreate(identity, null, null, client, req.anonymousId());
         // Même geste qu'en connexion locale : le parcours anonyme de cet
         // appareil rejoint le compte. Idempotent et best-effort.
-        analyticsIdentityService.link(req.anonymousId(), user.getId());
-        return buildTokenResponse(user, userAgent, ipAddress);
+        onAuthenticated(r, client, req.anonymousId());
+        return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
     public TokenResponse loginWithApple(AppleSignInRequest req, String userAgent,
                                         String ipAddress, ClientContext client) {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
-        User user = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client);
-        analyticsIdentityService.link(req.anonymousId(), user.getId());
-        return buildTokenResponse(user, userAgent, ipAddress);
+        Resolution r = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client,
+                req.anonymousId());
+        onAuthenticated(r, client, req.anonymousId());
+        return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
     public boolean isGoogleConfigured() {
@@ -101,14 +105,26 @@ public class SocialAuthService {
      * la stamper sur les deux premières branches réécrirait la provenance de
      * l'acquisition à chaque reconnexion.
      */
-    private User findOrCreate(SocialIdentity identity, String firstNameOverride,
-                              String lastNameOverride, ClientContext client) {
+    /** Le compte retrouve ou cree, et lequel des deux : c'est la nature du claim (lot 2). */
+    private record Resolution(User user, boolean created) {
+    }
+
+    private void onAuthenticated(Resolution r, ClientContext client, String declaredAnonymousId) {
+        ClientContext ctx = client == null ? ClientContext.unknown() : client;
+        analyticsIdentityService.onAuthenticated(r.user().getId(),
+                r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN,
+                ctx.anonymousIdPreferring(declaredAnonymousId));
+    }
+
+    private Resolution findOrCreate(SocialIdentity identity, String firstNameOverride,
+                                    String lastNameOverride, ClientContext client,
+                                    String declaredAnonymousId) {
         // 1) lookup par (provider, sub) — match exact deja vu
         Optional<User> byProvider = userManager.findByProvider(identity.provider(), identity.providerUserId());
         if (byProvider.isPresent()) {
             User user = byProvider.get();
             user.setLastLoginAt(Instant.now());
-            return userManager.save(user);
+            return new Resolution(userManager.save(user), false);
         }
 
         // 2) Compte existant pour cet email (quel que soit son auth_provider)
@@ -124,7 +140,7 @@ public class SocialAuthService {
             existing.setLastLoginAt(Instant.now());
             log.info("Social sign-in sur compte existant : email={} (provider d'origine={}, via={})",
                     LogMask.email(identity.email()), existing.getAuthProvider(), identity.provider());
-            return userManager.save(existing);
+            return new Resolution(userManager.save(existing), false);
         }
 
         // 3) creation
@@ -139,13 +155,11 @@ public class SocialAuthService {
         user.setAuthProvider(identity.provider());
         user.setProviderUserId(identity.providerUserId());
         user.setLastLoginAt(Instant.now());
-        ClientContext ctx = client == null ? ClientContext.unknown() : client;
-        user.setSignupSource(ctx.source());
-        user.setSignupPlatform(ctx.platform());
+        SignupAttribution.stamp(user, client, declaredAnonymousId);
         log.info("Creation compte via {} : email={}", identity.provider(), LogMask.email(identity.email()));
         User saved = userManager.save(user);
         eventPublisher.publishEvent(new AccountCreatedEvent(saved.getId(), saved.getEmail()));
-        return saved;
+        return new Resolution(saved, true);
     }
 
     private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {

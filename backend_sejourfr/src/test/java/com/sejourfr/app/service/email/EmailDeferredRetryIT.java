@@ -54,6 +54,11 @@ class EmailDeferredRetryIT extends AbstractEmailIT {
         String key = echec(u, EmailType.PASSWORD_CHANGED, "PASSWORD_CHANGED:" + event, event, changedAt, changedAt);
 
         relance(T);
+        // L'envoi est asynchrone : l'executor peut sembler au repos avant que la
+        // ligne relancee ait quitte PENDING (test intermittent). On attend l'etat
+        // final, borne par le delai d'EmailTestSupport.await.
+        com.sejourfr.app.support.EmailTestSupport.await("relance hors PENDING", () ->
+                rows(key).stream().noneMatch(d -> d.getStatus() == EmailDeliveryStatus.PENDING));
 
         assertThat(rows(key)).extracting(EmailDelivery::getStatus)
                 .containsExactlyInAnyOrder(EmailDeliveryStatus.FAILED, EmailDeliveryStatus.SENT);

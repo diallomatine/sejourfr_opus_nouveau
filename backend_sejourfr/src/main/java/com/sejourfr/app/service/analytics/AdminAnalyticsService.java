@@ -2,7 +2,6 @@ package com.sejourfr.app.service.analytics;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.sejourfr.app.config.AnalyticsProperties;
 import com.sejourfr.app.dto.AdminAnalyticsResponse;
 import com.sejourfr.app.dto.AnalyticsAnnotationDto;
 import com.sejourfr.app.enums.AnalyticsCtaLocation;
@@ -60,8 +59,8 @@ import java.util.Map;
  *   <li><b>Arrondi a somme conservee</b> dans les ventilations en part
  *       ({@link RepartitionArrondie}) : la somme des lignes egale toujours le
  *       pied de table. Le front ne recalcule rien.</li>
- *   <li><b>Comptes de test exclus EN SQL</b> (brief §85), jamais soustraits
- *       apres coup.</li>
+ *   <li><b>Comptes internes exclus EN SQL</b> ({@code users.is_internal}, V074),
+ *       jamais soustraits apres coup.</li>
  *   <li><b>{@code direct} ≠ {@code inconnu}</b>, et {@code inconnu} ne se cache
  *       jamais : un gros volume d'inconnu est lui-meme l'information.</li>
  * </ul>
@@ -115,7 +114,6 @@ public class AdminAnalyticsService {
     private final AnalyticsReadManager manager;
     private final AnalyticsAnnotationService annotationService;
     private final AnalyticsInsightsBuilder insightsBuilder;
-    private final AnalyticsProperties properties;
 
     private final Cache<String, AdminAnalyticsResponse> cache = Caffeine.newBuilder()
             .expireAfterWrite(DUREE_CACHE)
@@ -166,10 +164,8 @@ public class AdminAnalyticsService {
         FenetreMesure precedente = new FenetreMesure(
                 fenetre.from().minusDays(jours), fenetre.from().minusDays(1));
 
-        List<String> exclus = properties.getExcludedEmails();
-
-        Map<Cle, Agg> courant = collecte(fenetre, grain, filtres, exclus);
-        Map<Cle, Agg> ancien = collecte(precedente, grain, filtres, exclus);
+        Map<Cle, Agg> courant = collecte(fenetre, grain, filtres);
+        Map<Cle, Agg> ancien = collecte(precedente, grain, filtres);
 
         AdminAnalyticsResponse.Metrics total = metrics(courant, "TOTAL", "ALL");
         AdminAnalyticsResponse.Metrics prev = metrics(ancien, "TOTAL", "ALL");
@@ -185,17 +181,17 @@ public class AdminAnalyticsService {
                 precedente.from().toString(), precedente.to().toString(),
                 !fenetre.to().isBefore(aujourdHui),
                 LocalTime.now(FenetreMesure.PARIS).getHour(),
-                manager.totalUsers(exclus),
+                manager.totalUsers(),
                 DEVISE,
                 total, prev,
                 sources, sources(ancien),
                 series(fenetre, grain, courant), series(precedente, grain, ancien),
                 funnel(total), funnel(prev),
                 countries(courant), devices(courant), campaigns(courant),
-                ctas(fenetre, filtres, exclus),
+                ctas(fenetre, filtres),
                 triggers(fenetre, filtres),
                 paths(fenetre, filtres),
-                diagTypes(fenetre, filtres, exclus),
+                diagTypes(fenetre, filtres),
                 abandon,
                 annotations(fenetre),
                 insightsBuilder.build(total, prev, sources, abandon));
@@ -206,7 +202,7 @@ public class AdminAnalyticsService {
     // ------------------------------------------------------------------------
 
     private Map<Cle, Agg> collecte(FenetreMesure fenetre, AnalyticsGrain grain,
-                                   AnalyticsReadManager.Filtres filtres, List<String> exclus) {
+                                   AnalyticsReadManager.Filtres filtres) {
         Instant from = fenetre.startInstant();
         Instant to = fenetre.endInstantExclusive();
         Map<Cle, Agg> aggs = new LinkedHashMap<>();
@@ -234,7 +230,7 @@ public class AdminAnalyticsService {
             }
         }
         for (AnalyticsReadRepository.UserCell cell
-                : manager.userCells(from, to, grain, exclus, filtres)) {
+                : manager.userCells(from, to, grain, filtres)) {
             Agg agg = slot(aggs, cell.getDim(), cell.getDimKey(), cell.getDimKey2());
             agg.sig = cell.getSig();
             agg.pay = cell.getPay();
@@ -504,11 +500,11 @@ public class AdminAnalyticsService {
     // ------------------------------------------------------------------------
 
     private List<AdminAnalyticsResponse.CtaRow> ctas(
-            FenetreMesure fenetre, AnalyticsReadManager.Filtres filtres, List<String> exclus) {
+            FenetreMesure fenetre, AnalyticsReadManager.Filtres filtres) {
 
         Map<String, long[]> parEmplacement = new LinkedHashMap<>();
         for (AnalyticsReadRepository.CtaCell cell : manager.ctaCells(
-                fenetre.startInstant(), fenetre.endInstantExclusive(), exclus, filtres)) {
+                fenetre.startInstant(), fenetre.endInstantExclusive(), filtres)) {
             long[] bucket = parEmplacement.computeIfAbsent(cell.getLoc(), k -> new long[4]);
             bucket[0] += cell.getPrem();
             bucket[1] += cell.getCk();
@@ -608,11 +604,11 @@ public class AdminAnalyticsService {
      * chaine de zeros.
      */
     private List<AdminAnalyticsResponse.DiagTypeRow> diagTypes(
-            FenetreMesure fenetre, AnalyticsReadManager.Filtres filtres, List<String> exclus) {
+            FenetreMesure fenetre, AnalyticsReadManager.Filtres filtres) {
 
         Map<String, Map<String, Long>> parType = new LinkedHashMap<>();
         for (AnalyticsReadRepository.DiagStepCell cell : manager.diagnosticSteps(
-                fenetre.startInstant(), fenetre.endInstantExclusive(), exclus, filtres)) {
+                fenetre.startInstant(), fenetre.endInstantExclusive(), filtres)) {
             parType.computeIfAbsent(cell.getDiagType(), k -> new LinkedHashMap<>())
                     .merge(cell.getStep(), cell.getN(), Long::sum);
         }

@@ -11,8 +11,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -78,6 +81,15 @@ public class JourneyManager {
      */
     public Journey saveEtFlush(Journey journey) {
         return repository.saveAndFlush(journey);
+    }
+
+    /**
+     * Les parcours de {@code ids} qui existent (ingestion d'analytics : un
+     * {@code journeyId} cite par un evenement doit exister). Une requete.
+     */
+    public Set<UUID> existingIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Set.of();
+        return new HashSet<>(repository.findExistingIds(ids));
     }
 
     public int deleteByUserId(UUID userId) {

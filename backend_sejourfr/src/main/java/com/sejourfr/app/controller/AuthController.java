@@ -46,7 +46,7 @@ public class AuthController {
     public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         String ip = clientIp(http);
         rateLimitGuard.checkLogin(ip, req.email());
-        TokenResponse tokens = authService.login(req, userAgent(http), ip);
+        TokenResponse tokens = authService.login(req, userAgent(http), ip, clientContextResolver.resolve(http));
         // Authentification réussie → on remet les compteurs à zéro. Le but du
         // garde-fou est de freiner le bourrage d'identifiants, pas l'utilisateur
         // qui se reconnecte plusieurs fois (sans ce reset, quelques logins

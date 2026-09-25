@@ -81,4 +81,13 @@ class DeviceTypeResolverTest {
         assertThat(resolver.resolve("python-requests/2.31", ClientPlatform.UNKNOWN))
                 .isEqualTo(AnalyticsDeviceType.UNKNOWN);
     }
+
+    /** Q4 : l'application qui DECLARE son systeme n'a pas besoin du user-agent. */
+    @Test
+    @DisplayName("iOS / Android déclarés en en-tête font foi, même sans user-agent")
+    void systemeDeclare() {
+        assertThat(resolver.resolve(null, ClientPlatform.IOS)).isEqualTo(AnalyticsDeviceType.IOS);
+        assertThat(resolver.resolve("okhttp/4.12.0", ClientPlatform.IOS)).isEqualTo(AnalyticsDeviceType.IOS);
+        assertThat(resolver.resolve("Dart/3.6", ClientPlatform.ANDROID)).isEqualTo(AnalyticsDeviceType.ANDROID);
+    }
 }

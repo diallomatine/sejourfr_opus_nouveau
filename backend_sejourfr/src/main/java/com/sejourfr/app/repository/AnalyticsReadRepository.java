@@ -6,7 +6,6 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -251,7 +250,7 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
                 ) av ON true
                 WHERE u.deleted_at IS NULL
                   AND u.created_at >= :from AND u.created_at < :to
-                  AND lower(u.email) NOT IN (:excluded)
+                  AND u.is_internal = false
                   AND (CAST(:source AS text) IS NULL
                        OR COALESCE(u.signup_source, 'inconnu') = CAST(:source AS text))
                   AND (CAST(:platform AS text) IS NULL
@@ -320,7 +319,6 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
     List<UserCell> userCells(@Param("from") Instant from,
                              @Param("to") Instant to,
                              @Param("grain") String grain,
-                             @Param("excluded") Collection<String> excludedEmails,
                              @Param("source") String source,
                              @Param("country") String country,
                              @Param("device") String device,
@@ -378,7 +376,7 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
                 JOIN analytics_identity i ON i.anonymous_id = t.anonymous_id
                 JOIN users u ON u.id = i.user_id
                     AND u.deleted_at IS NULL
-                    AND lower(u.email) NOT IN (:excluded)
+                    AND u.is_internal = false
                 JOIN user_subscriptions s ON s.user_id = u.id AND s.status <> 'PENDING'
                 GROUP BY 1
             )
@@ -388,7 +386,6 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
             """, nativeQuery = true)
     List<DiagStepCell> diagnosticSteps(@Param("from") Instant from,
                                        @Param("to") Instant to,
-                                       @Param("excluded") Collection<String> excludedEmails,
                                        @Param("source") String source,
                                        @Param("country") String country,
                                        @Param("device") String device,
@@ -434,14 +431,14 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
                 JOIN users u ON u.id = f.user_id
                 WHERE f.event = 'CHECKOUT_STARTED'
                   AND f.occurred_at >= :from AND f.occurred_at < :to
-                  AND u.deleted_at IS NULL AND lower(u.email) NOT IN (:excluded)
+                  AND u.deleted_at IS NULL AND u.is_internal = false
                 UNION ALL
                 SELECT s.user_id, s.starts_at, 'PAY', COALESCE(s.amount_eur_cents, 0)::bigint
                 FROM user_subscriptions s
                 JOIN users u ON u.id = s.user_id
                 WHERE s.status <> 'PENDING'
                   AND s.starts_at >= :from AND s.starts_at < :to
-                  AND u.deleted_at IS NULL AND lower(u.email) NOT IN (:excluded)
+                  AND u.deleted_at IS NULL AND u.is_internal = false
             ),
             attribue AS (
                 SELECT c.kind AS kind, c.rev AS rev, c.uid AS uid, l.loc AS loc
@@ -468,7 +465,6 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
             """, nativeQuery = true)
     List<CtaCell> ctaCells(@Param("from") Instant from,
                            @Param("to") Instant to,
-                           @Param("excluded") Collection<String> excludedEmails,
                            @Param("source") String source,
                            @Param("country") String country,
                            @Param("device") String device,
@@ -579,7 +575,7 @@ public interface AnalyticsReadRepository extends Repository<AnalyticsVisitor, UU
      */
     @Query(value = """
             SELECT count(*) FROM users u
-            WHERE u.deleted_at IS NULL AND lower(u.email) NOT IN (:excluded)
+            WHERE u.deleted_at IS NULL AND u.is_internal = false
             """, nativeQuery = true)
-    long totalUsers(@Param("excluded") Collection<String> excludedEmails);
+    long totalUsers();
 }

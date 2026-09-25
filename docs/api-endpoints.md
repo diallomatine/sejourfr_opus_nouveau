@@ -12,6 +12,53 @@ automatique** dans le client HTTP de chaque front.
 - `POST /api/auth/apple` (identityToken + firstName/lastName facultatifs)
   → find-or-create user via JWKS Google/Apple. 503 tant que
   `sejourfr.oauth.{google|apple}.audiences` est vide. Cf. `auth-social.md`.
+- **Identifiant de mesure à l'auth** (`login`, `register`, `google`, `apple`) : champ
+  facultatif `anonymousId` (UUID) dans le corps, **ou** en-tête
+  `X-Sejourfr-Anonymous-Id` ; le corps prime. Pose le lien `analytics_identity`
+  (best-effort, idempotent, un identifiant inconnu n'écrit rien) et, à la création du
+  compte, `users.signup_anonymous_id`. Client ancien : rien d'envoyé, rien d'écrit.
+  Le claim d'une `diagnostic_run` (`diagnosticRunId` + `claimToken`) s'ajoutera ici au
+  lot 2 du chantier Suivi.
+
+## En-têtes de contexte client (tous les appels)
+
+Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
+
+| En-tête | Valeurs | Absent / illisible |
+|---|---|---|
+| `X-Sejourfr-Client` | `web` \| `ios` \| `android` (`mobile` = client d'avant la distinction, lu `MOBILE`) | `UNKNOWN` |
+| `X-Sejourfr-Source` | réseau de provenance, normalisé par `TrafficSource` | `direct` |
+| `X-Sejourfr-Anonymous-Id` | UUID de mesure de l'appareil | `null` |
+| `X-Sejourfr-App-Version` | `[0-9A-Za-z][0-9A-Za-z.+_-]{0,31}` (ex. `2.4.1+57`) | `null` |
+
+## Analytics — ingestion (public)
+
+- `POST /api/public/analytics/events/batch` → **202** `AnalyticsBatchResponse
+  {received, accepted, duplicates, rejected:[{index, eventId, reason}]}`. Public,
+  rate-limité par IP **et** par `anonymousId` (seuils `ingestion.rateLimit` de
+  `analytics/analytics-config-v1.json`). Corps `AnalyticsBatchRequest` :
+  `{anonymousId, sessionId, client?, appVersion?, firstTouch?, events:[…]}` ;
+  `client`/`appVersion` ne servent que si les en-têtes manquent (`sendBeacon`).
+  Chaque événement : `{eventId (UUID tiré à la création, requis), event, occurredAt?
+  (ISO-8601), path?, properties?, dedupKey?, diagnosticRunId?, diagnosticType?
+  (QUICK_TCF|FULL_TCF|CIVIQUE), journeyId?}`.
+  - **Enveloppe invalide** (sans `anonymousId`/`sessionId`, plus de 50 événements,
+    attribution hors allowlist) → **400**, rien n'est écrit. Garde-fou → **429**.
+  - **Rejet individuel** : nom hors registre, événement serveur, propriété ou chemin
+    hors allowlist, `eventId` absent, `occurredAt` illisible ou de plus de 168 h, run
+    ou parcours inexistant, contexte non admis par l'événement. Les autres sont écrits.
+  - **Idempotent** sur `eventId` (et `dedupKey`) : `ON CONFLICT DO NOTHING`, un rejeu
+    compte en `duplicates`. Le client purge sa file de tout sauf 400/429/5xx.
+  - `occurredAt` dans le futur au-delà de 10 min → remplacé par l'heure de réception.
+  - `diagnosticRunId` : la run doit exister, **son type fait foi** (un
+    `diagnosticType` contradictoire est rejeté). `journeyId` (= `plan_id`, Q8) doit
+    exister. Admis seulement sur les événements dont `AnalyticsEvent.Contexte` le
+    permet (`DIAGNOSTIC_*` : run ; `PLAN_OPENED`, `PLAN_UNLOCK_CLICKED` : run + parcours ;
+    `PLAN_EXERCISE_STARTED` : parcours).
+  - `is_internal` résolu à l'ingestion (`users.is_internal` de l'appelant JWT ou d'un
+    compte lié à l'`anonymousId`).
+- `POST /api/public/analytics/events` (unitaire, **204**) : conservé pendant la
+  bascule des deux fronts vers le lot (arbitrage Q17), puis retiré. Même validation.
 
 ## Emails — désabonnement (public, sans compte)
 
