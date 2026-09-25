@@ -1,7 +1,6 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.PaymentRefund;
-import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.repository.PaymentRefundRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,19 +15,26 @@ public class PaymentRefundManager {
 
     private final PaymentRefundRepository repository;
 
-    public boolean exists(SubscriptionSource provider, String providerRefundId) {
-        return repository.existsByProviderAndProviderRefundId(provider, providerRefundId);
+    /**
+     * Ecrit la ligne, sauf si son identifiant provider existe deja. Ne leve
+     * jamais sur un doublon, meme concurrent.
+     *
+     * @return {@code true} si la ligne vient d'etre ecrite
+     */
+    public boolean insertIfAbsent(PaymentRefund refund) {
+        return repository.insertIfAbsent(refund.getId(), refund.getSubscriptionId(),
+                refund.getProvider().name(), refund.getProviderRefundId(),
+                refund.getRefundedAmountCents(), refund.getCurrency(), refund.getRefundedEurCents(),
+                refund.getNetExVatDeltaCents(), refund.getRevenueRulesVersion(),
+                refund.getRefundedAt(), refund.getCreatedAt()) > 0;
     }
 
-    public long sumRefundedAmount(UUID subscriptionId) {
-        return repository.sumRefundedAmount(subscriptionId);
+    /** Cumul enregistre sur un achat pour les identifiants qui commencent par {@code prefix}. */
+    public long sumRefundedAmountWithPrefix(UUID subscriptionId, String prefix) {
+        return repository.sumRefundedAmountWithPrefix(subscriptionId, prefix);
     }
 
     public List<PaymentRefund> findBySubscriptionId(UUID subscriptionId) {
         return repository.findBySubscriptionId(subscriptionId);
-    }
-
-    public PaymentRefund save(PaymentRefund refund) {
-        return repository.save(refund);
     }
 }

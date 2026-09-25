@@ -366,6 +366,11 @@ Schéma : V074 (colonnes de revenu et d'attribution de `user_subscriptions`,
   recalcule rien.
 - 🛑 **Pas de backfill.** Un achat antérieur, ou dont le brut en euros est inconnu (devise sans
   taux), garde ses six colonnes à `NULL` — inconnu, jamais zéro.
+- 🛑 **Un échec de calcul ne bloque jamais le crédit** (contrôle A) : `OneTimeAccessService`
+  entoure la décomposition (Java pur, aucun appel base) d'un `try/catch` — colonnes `NULL`,
+  log WARN, accès accordé. Un montant déclaré démesuré (`rawPrice`, NaN, infini) ou une
+  conversion qui déborde d'un `int` rend le montant inconnu (`MontantEncaisseResolver`),
+  jamais un 500.
 - `purchased_at` = date donnée par le canal (évènement Stripe signé, `purchaseDate` du JWS
   Apple, `purchaseTimeMillis` Play), sinon l'heure d'écriture. `payment_status = PAID` à la
   création (`PaymentStatus` : `PAID | PARTIALLY_REFUNDED | REFUNDED`, distinct du statut
@@ -408,6 +413,16 @@ la décomposition de l'achat est inconnue.
 - Remboursement **total** ⇒ `status = REFUNDED` (accès retiré), `payment_status = REFUNDED`.
   **Partiel** ⇒ accès conservé, `payment_status = PARTIALLY_REFUNDED` (bug Q11 : un partiel
   Stripe retirait l'accès).
+- 🛑 **Concurrence (contrôle A, 2026-09-25)** — ordre imposé dans les trois canaux :
+  (1) `UserSubscriptionManager.verrouiller` (`SELECT … FOR UPDATE`, l'entité est **rechargée**
+  sous verrou), (2) état d'accès posé et sauvegardé, (3) écriture comptable.
+  L'écriture est un `INSERT … ON CONFLICT (provider, provider_refund_id) DO NOTHING` exécuté
+  immédiatement : un doublon, même concurrent, rend 0 et ne lève jamais. Le calcul (euros,
+  delta) est du Java pur gardé : s'il lève, la ligne s'écrit avec euros et delta `NULL`.
+  Le cumul Stripe déjà enregistré se lit **par charge** (`<charge>:%`), sous le verrou : deux
+  cumuls traités en parallèle ne comptent plus deux fois la même somme. Pas de
+  `REQUIRES_NEW` (voir le rapport de contrôle : le verrou de ligne tenu par la transaction
+  principale bloquerait l'insertion d'une transaction imbriquée sur sa clé étrangère).
 - Scénario 13 : Stripe total ⇒ net de l'achat `959 − 999 = −40` ; store total ⇒ `0`.
 - Apple `REVOKE` (partage familial) retire l'accès sans ligne de remboursement ;
   `REFUND_REVERSED` reste ignoré en mode pass.

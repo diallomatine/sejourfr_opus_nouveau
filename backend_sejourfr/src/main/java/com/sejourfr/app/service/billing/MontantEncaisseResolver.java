@@ -54,14 +54,30 @@ public class MontantEncaisseResolver {
      * region et sa devise.
      */
     public MontantEncaisse duStore(Double rawPrice, String currencyCode) {
-        if (rawPrice == null || rawPrice <= 0) return MontantEncaisse.INCONNU;
+        // Contrôle A : un prix démesuré (ou NaN / infini) venu du client ne
+        // doit jamais faire tomber l'achat en 500 avant le crédit — il est
+        // inconnu, et le prix du catalogue prend le relais en aval.
+        if (rawPrice == null || rawPrice.isNaN() || rawPrice.isInfinite() || rawPrice <= 0) {
+            return MontantEncaisse.INCONNU;
+        }
         String devise = normaliseDevise(currencyCode);
         if (devise == null) return MontantEncaisse.INCONNU;
-        int cents = BigDecimal.valueOf(rawPrice)
-                .movePointRight(2)
-                .setScale(0, RoundingMode.HALF_UP)
-                .intValueExact();
+        Integer cents = centimesBornes(BigDecimal.valueOf(rawPrice).movePointRight(2));
+        if (cents == null || cents <= 0) {
+            log.warn("Prix store déclaré hors bornes ({} {}) : montant inconnu.", rawPrice, devise);
+            return MontantEncaisse.INCONNU;
+        }
         return construire(cents, devise);
+    }
+
+    /** Arrondi HALF_UP en centimes, ou {@code null} s'il ne tient pas dans un {@code int}. */
+    private static Integer centimesBornes(BigDecimal valeur) {
+        BigDecimal arrondi = valeur.setScale(0, RoundingMode.HALF_UP);
+        if (arrondi.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0
+                || arrondi.compareTo(BigDecimal.valueOf(Integer.MIN_VALUE)) < 0) {
+            return null;
+        }
+        return arrondi.intValue();
     }
 
     /**
@@ -137,7 +153,8 @@ public class MontantEncaisseResolver {
         if (plan == null || plan.getPrice() == null) return MontantEncaisse.INCONNU;
         BigDecimal price = plan.getPrice();
         if (price.signum() <= 0) return MontantEncaisse.INCONNU;
-        int cents = price.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact();
+        Integer cents = centimesBornes(price.movePointRight(2));
+        if (cents == null || cents <= 0) return MontantEncaisse.INCONNU;
         return construire(cents, EUR);
     }
 
@@ -164,10 +181,11 @@ public class MontantEncaisseResolver {
                     + "son equivalent en euros reste inconnu (jamais zero).", devise);
             return new MontantEncaisse(cents, devise, null, null);
         }
-        int eurCents = BigDecimal.valueOf(cents)
-                .multiply(taux)
-                .setScale(0, RoundingMode.HALF_UP)
-                .intValueExact();
+        Integer eurCents = centimesBornes(BigDecimal.valueOf(cents).multiply(taux));
+        if (eurCents == null) {
+            log.warn("Equivalent en euros hors bornes ({} {} au taux {}) : inconnu.", cents, devise, taux);
+            return new MontantEncaisse(cents, devise, null, null);
+        }
         return new MontantEncaisse(cents, devise, eurCents, taux);
     }
 

@@ -72,6 +72,32 @@ class MontantEncaisseResolverTest {
         assertThat(resolver.duStore(9.99, "EUROS").estConnu()).isFalse();
     }
 
+    /**
+     * Contrôle A : un prix falsifié démesuré levait {@code ArithmeticException}
+     * ({@code intValueExact}) et faisait tomber verify-receipt en 500 AVANT le
+     * crédit. Il est désormais inconnu — le catalogue prend le relais en aval.
+     */
+    @Test
+    @DisplayName("Un prix de store démesuré, NaN ou infini est inconnu, jamais une exception")
+    void prixDemesure_inconnuSansException() {
+        assertThat(resolver.duStore(1e300, "EUR").estConnu()).isFalse();
+        assertThat(resolver.duStore(21_474_836.48, "EUR").estConnu()).isFalse();
+        assertThat(resolver.duStore(Double.NaN, "EUR").estConnu()).isFalse();
+        assertThat(resolver.duStore(Double.POSITIVE_INFINITY, "EUR").estConnu()).isFalse();
+        assertThat(resolver.duStore(21_474_836.47, "EUR").amountCents()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    @DisplayName("Un équivalent en euros qui déborde reste inconnu, le montant d'origine est gardé")
+    void conversionQuiDeborde_euroInconnu() {
+        properties.setFxRates(Map.of("XXA", new BigDecimal("1000")));
+        MontantEncaisse montant = resolver.enUnitesMineures(10_000_000L, "XXA");
+        assertThat(montant.estConnu()).isTrue();
+        assertThat(montant.amountCents()).isEqualTo(10_000_000);
+        assertThat(montant.amountEurCents()).isNull();
+        assertThat(montant.fxRateToEur()).isNull();
+    }
+
     @Test
     @DisplayName("Stripe déclare en unités mineures : on les prend telles quelles")
     void unitesMineures() {

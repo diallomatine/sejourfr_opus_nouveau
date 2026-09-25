@@ -254,9 +254,9 @@ public class AppleSubscriptionService {
         if (billingProperties.isOneTime()) {
             if (type == NotificationTypeV2.REFUND || type == NotificationTypeV2.REVOKE) {
                 boolean total = type == NotificationTypeV2.REVOKE || remboursementTotal(tx);
-                if (type == NotificationTypeV2.REFUND) {
-                    enregistrerRemboursement(sub, tx);
-                }
+                // Contrôle A : verrou de ligne d'abord, état d'accès ensuite,
+                // écriture comptable en dernier (elle ne peut pas l'annuler).
+                userSubscriptionManager.verrouiller(sub);
                 EtatAbonnement avant = EtatAbonnement.de(sub);
                 if (total) {
                     EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
@@ -273,6 +273,9 @@ public class AppleSubscriptionService {
                     userSubscriptionManager.save(sub);
                     log.info("Apple one-time refund/revoke user={} type={} origTx={}",
                             sub.getUser().getId(), type, tx.getOriginalTransactionId());
+                }
+                if (type == NotificationTypeV2.REFUND) {
+                    enregistrerRemboursement(sub, tx);
                 }
             } else {
                 log.debug("Apple notification {} type={} ignorée (mode one-time).",

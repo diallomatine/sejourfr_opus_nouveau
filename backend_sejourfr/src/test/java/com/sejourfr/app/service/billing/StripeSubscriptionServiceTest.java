@@ -416,51 +416,70 @@ class StripeSubscriptionServiceTest {
     /**
      * Bug Q11 : un remboursement PARTIEL était traité comme total et retirait
      * l'accès. Désormais l'accès reste, l'encaissement est marqué partiel, et
-     * la ligne de remboursement porte le montant rendu.
+     * le cumul rendu part à l'écriture comptable (qui en tire la différence).
      */
     @Test
-    void chargeRefunded_partiel_gardeLAcces_etEnregistreLeMontant() {
+    void chargeRefunded_partiel_gardeLAcces_etEnregistreLeCumul() {
         UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
         existing.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PAID);
         when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
                 SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
-        when(paymentRefundService.dejaRembourse(existing)).thenReturn(0L);
 
         service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 300)));
 
         assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         assertThat(existing.getPaymentStatus())
                 .isEqualTo(com.sejourfr.app.enums.PaymentStatus.PARTIALLY_REFUNDED);
-        verify(paymentRefundService).enregistrer(eq(existing), eq("ch_1:300"), eq(300L), eq("eur"), any());
+        verify(paymentRefundService).enregistrerCumulStripe(eq(existing), eq("ch_1"), eq(300L), eq("eur"), any());
     }
 
-    /** Le complément rembourse le reste : seule la différence est écrite, l'accès tombe. */
+    /** Le complément rembourse le reste : l'accès tombe, le cumul total part à la comptabilité. */
     @Test
-    void chargeRefunded_complement_enregistreLaDifference_etRetireLAcces() {
+    void chargeRefunded_complement_retireLAcces_etEnregistreLeCumul() {
         UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
         existing.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PARTIALLY_REFUNDED);
         when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
                 SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
-        when(paymentRefundService.dejaRembourse(existing)).thenReturn(300L);
 
         service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 999)));
 
         assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
         assertThat(existing.getPaymentStatus()).isEqualTo(com.sejourfr.app.enums.PaymentStatus.REFUNDED);
-        verify(paymentRefundService).enregistrer(eq(existing), eq("ch_1:999"), eq(699L), eq("eur"), any());
+        verify(paymentRefundService).enregistrerCumulStripe(eq(existing), eq("ch_1"), eq(999L), eq("eur"), any());
     }
 
-    /** Un cumul déjà entièrement enregistré (rejeu) n'écrit rien. */
+    /**
+     * Contrôle A : la ligne d'achat est verrouillée AVANT tout, l'état d'accès
+     * est sauvegardé AVANT l'écriture comptable — celle-ci ne peut donc ni
+     * précéder ni conditionner le retrait d'accès.
+     */
     @Test
-    void chargeRefunded_cumulDejaEnregistre_nEcritPasDeLigne() {
-        UserSubscription existing = existingSub(SubscriptionStatus.REFUNDED);
+    void chargeRefunded_verrouPuisRetraitPuisComptabilite() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        existing.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PAID);
         when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
                 SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
-        when(paymentRefundService.dejaRembourse(existing)).thenReturn(999L);
 
         service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 999)));
 
-        verify(paymentRefundService, never()).enregistrer(any(), any(), org.mockito.ArgumentMatchers.anyLong(), any(), any());
+        org.mockito.InOrder ordre = org.mockito.Mockito.inOrder(userSubscriptionManager, paymentRefundService);
+        ordre.verify(userSubscriptionManager).verrouiller(existing);
+        ordre.verify(userSubscriptionManager).save(existing);
+        ordre.verify(paymentRefundService).enregistrerCumulStripe(any(), any(),
+                org.mockito.ArgumentMatchers.anyLong(), any(), any());
+    }
+
+    /** Aucun montant rendu lisible : aucune ligne n'est demandée. */
+    @Test
+    void chargeRefunded_sansCumul_nEcritPasDeLigne() {
+        UserSubscription existing = existingSub(SubscriptionStatus.REFUNDED);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
+
+        service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 0)));
+
+        verify(paymentRefundService, never()).enregistrerCumulStripe(any(), any(),
+                org.mockito.ArgumentMatchers.anyLong(), any(), any());
     }
 
     @Test

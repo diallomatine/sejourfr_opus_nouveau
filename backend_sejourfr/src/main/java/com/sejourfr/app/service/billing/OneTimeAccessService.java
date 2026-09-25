@@ -171,10 +171,7 @@ public class OneTimeAccessService {
         montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
         sub.setPurchasedAt(achat.purchasedAt() != null ? achat.purchasedAt() : now);
         sub.setPaymentStatus(PaymentStatus.PAID);
-        if (sub.getAmountEurCents() != null) {
-            revenueCalculator.decomposer(source, sub.getAmountEurCents(), achat.fraisReelEurCents())
-                    .appliquerA(sub);
-        }
+        decomposerSansJamaisBloquer(sub, source, achat.fraisReelEurCents());
         purchaseIntentService.consommer(userId, plan, achat.purchaseIntentId(), sub.getPurchasedAt())
                 .appliquerA(sub);
         userSubscriptionManager.save(sub);
@@ -190,5 +187,32 @@ public class OneTimeAccessService {
                 user.getId(), user.getEmail(), sub.getId(), extension));
 
         return sub;
+    }
+
+    /**
+     * Décomposition du revenu (contrôle A) : <b>un échec de calcul ne bloque
+     * jamais le crédit d'un achat payé</b>. Le calcul est du Java pur, sans
+     * appel base, donc un {@code try/catch} ici ne peut pas laisser la
+     * transaction dans un état inutilisable. En cas d'échec, les six colonnes
+     * restent {@code NULL} (inconnu, jamais zéro — le CHECK tout-ou-rien de V074
+     * tient) et l'accès est accordé.
+     */
+    private void decomposerSansJamaisBloquer(UserSubscription sub, SubscriptionSource source,
+                                             Integer fraisReelEurCents) {
+        if (sub.getAmountEurCents() == null) return;
+        try {
+            revenueCalculator.decomposer(source, sub.getAmountEurCents(), fraisReelEurCents)
+                    .appliquerA(sub);
+        } catch (RuntimeException e) {
+            sub.setVatCents(null);
+            sub.setProviderFeeCents(null);
+            sub.setNetAfterFeeCents(null);
+            sub.setNetExVatCents(null);
+            sub.setFeeSource(null);
+            sub.setRevenueRulesVersion(null);
+            log.warn("Décomposition du revenu en échec (source={} brut={} c€) : colonnes de revenu "
+                    + "laissées inconnues, accès accordé. Cause : {}", source, sub.getAmountEurCents(),
+                    e.toString());
+        }
     }
 }

@@ -476,8 +476,11 @@ public class GoogleSubscriptionService {
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, token)
                     .ifPresentOrElse(
                             sub -> {
-                                enregistrerRemboursement(sub, voided, token, publishTime);
+                                // Contrôle A : verrou, retrait d'accès, puis
+                                // écriture comptable (qui ne peut pas l'annuler).
+                                userSubscriptionManager.verrouiller(sub);
                                 appliquerRetraitAcces(sub, "one-time voided/refund", token);
+                                enregistrerRemboursement(sub, voided, token, publishTime);
                             },
                             () -> log.warn(
                                     "Google RTDN voided messageId={} token={} : aucune subscription locale.",

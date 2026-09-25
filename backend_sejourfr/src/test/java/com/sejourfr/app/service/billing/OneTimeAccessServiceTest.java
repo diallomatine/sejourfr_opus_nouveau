@@ -204,6 +204,41 @@ class OneTimeAccessServiceTest {
         assertThat(sub.getRealtimeEoSessionsRemaining()).isEqualTo(13);
     }
 
+    /**
+     * Contrôle A : une régression du calcul de revenu ne doit JAMAIS empêcher
+     * le crédit d'un achat payé. Le calcul lève : l'accès est accordé et
+     * sauvegardé, les six colonnes de revenu restent inconnues (null).
+     */
+    @Test
+    void calculDuRevenuQuiLeve_creditAccorde_decompositionInconnue() {
+        RevenueCalculator enPanne = mock(RevenueCalculator.class);
+        when(enPanne.decomposer(any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenThrow(new IllegalStateException("Invariant de revenu viole"));
+        PurchaseIntentService intentions = mock(PurchaseIntentService.class);
+        when(intentions.consommer(any(), any(), any(), any())).thenReturn(AttributionAchat.INCONNUE);
+        OneTimeAccessService avecCalculEnPanne = new OneTimeAccessService(
+                userManager, userSubscriptionManager, subscriptionService, mailService,
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()),
+                enPanne, intentions);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_calc")).thenReturn(Optional.empty());
+
+        UserSubscription sub = avecCalculEnPanne.grantOneTimeAccess(
+                userId, civiquePass, SubscriptionSource.STRIPE, "pi_calc", "cs_calc",
+                new MontantEncaisse(999, "EUR", 999, java.math.BigDecimal.ONE), ContexteAchat.AUCUN);
+
+        verify(userSubscriptionManager).save(sub);
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(sub.getAmountEurCents()).isEqualTo(999);
+        assertThat(sub.getPaymentStatus()).isEqualTo(com.sejourfr.app.enums.PaymentStatus.PAID);
+        assertThat(sub.getVatCents()).isNull();
+        assertThat(sub.getProviderFeeCents()).isNull();
+        assertThat(sub.getNetAfterFeeCents()).isNull();
+        assertThat(sub.getNetExVatCents()).isNull();
+        assertThat(sub.getFeeSource()).isNull();
+        assertThat(sub.getRevenueRulesVersion()).isNull();
+    }
+
     @Test
     void prolongation_finPassee_repartDeMaintenant_mailBienvenue() {
         // currentEndForAtLeast renvoie une date déjà passée → pas une extension.

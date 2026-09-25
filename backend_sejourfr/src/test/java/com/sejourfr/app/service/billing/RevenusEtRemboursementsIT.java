@@ -277,6 +277,31 @@ class RevenusEtRemboursementsIT extends AbstractIntegrationTest {
     }
 
     /**
+     * Contrôle A : un calcul qui lève (ici, une conversion en euros qui déborde
+     * d'un {@code int}) ne fait pas tomber l'écriture — la ligne existe, son
+     * effet en euros et sur le net est inconnu, et les CHECK de V074 tiennent.
+     */
+    @Test
+    @DisplayName("Remboursement dont la conversion déborde : ligne écrite, euros et delta NULL")
+    void remboursementCalculQuiDeborde_ligneEcriteEffetInconnu() {
+        UserSubscription achat = testData.userSubscription();
+        achat.setAmountCents(5000);
+        achat.setCurrency("XXA");
+        achat.setFxRateToEur(new java.math.BigDecimal("999999"));
+        userSubscriptionManager.save(achat);
+        em.flush();
+
+        assertThat(paymentRefundService.enregistrer(achat, "deborde-1", 5000, "XXA", Instant.now())).isTrue();
+        em.flush();
+
+        assertThat(jdbc.queryForObject(
+                "SELECT refunded_eur_cents IS NULL AND net_ex_vat_delta_cents IS NULL "
+                        + "AND revenue_rules_version IS NULL AND refunded_amount_cents = 5000 "
+                        + "FROM payment_refunds WHERE subscription_id = ?", Boolean.class, achat.getId()))
+                .isTrue();
+    }
+
+    /**
      * Un achat antérieur à la mesure n'a pas de décomposition : son
      * remboursement est enregistré (montant, date), mais son effet sur le net
      * reste inconnu — NULL, jamais un zéro inventé.

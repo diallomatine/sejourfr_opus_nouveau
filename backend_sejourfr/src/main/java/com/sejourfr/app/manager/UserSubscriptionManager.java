@@ -3,6 +3,8 @@ package com.sejourfr.app.manager;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class UserSubscriptionManager {
 
     private final UserSubscriptionRepository repository;
+    private final EntityManager entityManager;
 
     public List<UserSubscription> findByUserId(UUID userId) {
         return repository.findByUserId(userId);
@@ -45,6 +48,26 @@ public class UserSubscriptionManager {
     public Optional<UserSubscription> findBySourceAndOriginalTransactionId(
             SubscriptionSource source, String originalTransactionId) {
         return repository.findBySourceAndOriginalTransactionId(source, originalTransactionId);
+    }
+
+    /**
+     * Verrou de ligne ({@code SELECT … FOR UPDATE}) sur l'achat, pris AVANT de
+     * lire ce qui est deja rembourse et de poser un nouvel etat (controle A).
+     * Deux webhooks concurrents sur le meme achat s'executent alors l'un apres
+     * l'autre : le second relit l'etat et le cumul commites par le premier.
+     *
+     * <p>L'entite est RECHARGEE depuis la base sous verrou : un etat lu avant
+     * le verrou pourrait etre perime, et le sauvegarder ecraserait ce que la
+     * transaction concurrente vient d'ecrire. A appeler dans une transaction,
+     * avant toute modification de l'entite (un rechargement les effacerait).
+     */
+    public void verrouiller(UserSubscription subscription) {
+        if (subscription == null || subscription.getId() == null) return;
+        if (entityManager.contains(subscription)) {
+            entityManager.refresh(subscription, LockModeType.PESSIMISTIC_WRITE);
+        } else {
+            entityManager.find(UserSubscription.class, subscription.getId(), LockModeType.PESSIMISTIC_WRITE);
+        }
     }
 
     public UserSubscription save(UserSubscription subscription) {

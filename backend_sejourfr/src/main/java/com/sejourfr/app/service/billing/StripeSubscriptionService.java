@@ -367,26 +367,29 @@ public class StripeSubscriptionService {
      *
      * <p>{@code charge.amount_refunded} est le CUMUL rendu sur la charge. La
      * ligne {@code payment_refunds} porte la différence avec ce qui est déjà
-     * enregistré, sous l'identifiant {@code <charge>:<cumul>} : un même état
-     * rejoué (même event, ou {@code charge.refunded} + un autre event qui le
-     * redit) retombe sur le même identifiant et n'écrit rien. Sans montant
+     * enregistré pour cette charge, sous l'identifiant {@code <charge>:<cumul>}
+     * ({@link PaymentRefundService#enregistrerCumulStripe}). Sans montant
      * lisible, aucune ligne — inconnu, pas zéro.
+     *
+     * <p>Contrôle A : la ligne d'achat est <b>verrouillée</b> d'abord (deux
+     * cumuls traités en parallèle ne comptent plus deux fois la même somme),
+     * l'état d'accès est posé <b>avant</b> l'écriture comptable, et celle-ci ne
+     * peut pas faire échouer la transaction (insertion idempotente, calcul
+     * gardé) : un retrait d'accès n'est jamais annulé par la comptabilité.
      *
      * <p>Total ⇒ accès retiré ({@code REFUNDED}). Partiel ⇒ accès conservé,
      * {@code payment_status = PARTIALLY_REFUNDED}.
      */
     private void rembourserPass(UserSubscription sub, Charge charge, Event event, String paymentIntent) {
+        userSubscriptionManager.verrouiller(sub);
         Long montant = charge.getAmount();
         Long cumul = charge.getAmountRefunded();
         boolean total = montant == null || cumul == null || cumul >= montant;
-        if (cumul != null && cumul > 0) {
-            long nouveau = cumul - paymentRefundService.dejaRembourse(sub);
-            if (nouveau > 0) {
-                paymentRefundService.enregistrer(sub, charge.getId() + ":" + cumul, nouveau,
-                        charge.getCurrency(), toInstant(event.getCreated(), Instant.now()));
-            }
-        }
         appliquerRemboursement(sub, total ? "one-time" : "one-time partiel", paymentIntent, total);
+        if (cumul != null && cumul > 0) {
+            paymentRefundService.enregistrerCumulStripe(sub, charge.getId(), cumul,
+                    charge.getCurrency(), toInstant(event.getCreated(), Instant.now()));
+        }
     }
 
     /**
