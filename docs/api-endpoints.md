@@ -73,8 +73,9 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
     `PLAN_EXERCISE_STARTED` : parcours).
   - `is_internal` résolu à l'ingestion (`users.is_internal` de l'appelant JWT ou d'un
     compte lié à l'`anonymousId`).
-- `POST /api/public/analytics/events` (unitaire, **204**) : conservé pendant la
-  bascule des deux fronts vers le lot (arbitrage Q17), puis retiré. Même validation.
+- `POST /api/public/analytics/events` (unitaire) : **supprimé le 2026-09-25** à la fin de
+  la bascule (Q17) — web et mobile n'envoient que des lots. **404** verrouillé par
+  `PublicRoutesSecurityIT`.
 
 ## Diagnostic run — trace du tunnel (public, lot 2a)
 
@@ -865,7 +866,7 @@ d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes bil
 `POST /api/public/page-views`, `GET /api/admin/page-views`, `GET /api/admin/page-views/paths`
 et `GET /api/admin/audience/funnel` ont été **supprimés** au lot 1a du chantier « Suivi » :
 aucun front ne les appelait plus. La table `page_views` (V020) reste en base, plus jamais
-écrite ni lue. La mesure d'audience passe par `POST /api/public/analytics/events` et
+écrite ni lue. La mesure d'audience passe par `POST /api/public/analytics/events/batch` et
 `POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
 
 ## Admin

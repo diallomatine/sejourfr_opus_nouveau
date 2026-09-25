@@ -59,19 +59,6 @@ public class RateLimitProperties {
     private Limit skillAttemptBurst = new Limit(40, 600);
     /** Tentative sur un petit sujet : plafond journalier par utilisateur. */
     private Limit skillAttemptDaily = new Limit(400, 86400);
-    /**
-     * Ingestion d'evenements d'analytics : burst par IP.
-     *
-     * <p>Cette route est publique ET ecrit une ligne a chaque appel : sans
-     * garde-fou, un bot ferait enfler {@code analytics_event} indefiniment.
-     *
-     * <p>120 / 10 min : un vrai visiteur emet une poignee d'evenements par page.
-     * Il faut vingt pages en dix minutes pour approcher la limite — largement
-     * au-dessus d'un parcours normal, largement en dessous d'une boucle.
-     */
-    private Limit analyticsBurst = new Limit(120, 600);
-    /** Ingestion d'evenements d'analytics : plafond journalier par IP. */
-    private Limit analyticsDaily = new Limit(2000, 86400);
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -112,14 +99,10 @@ public class RateLimitProperties {
     public Limit getSkillAttemptDaily() { return skillAttemptDaily; }
     public void setSkillAttemptDaily(Limit skillAttemptDaily) { this.skillAttemptDaily = skillAttemptDaily; }
 
-    public Limit getAnalyticsBurst() { return analyticsBurst; }
-    public void setAnalyticsBurst(Limit analyticsBurst) { this.analyticsBurst = analyticsBurst; }
 
     public Limit getEmailUnsubscribe() { return emailUnsubscribe; }
     public void setEmailUnsubscribe(Limit emailUnsubscribe) { this.emailUnsubscribe = emailUnsubscribe; }
 
-    public Limit getAnalyticsDaily() { return analyticsDaily; }
-    public void setAnalyticsDaily(Limit analyticsDaily) { this.analyticsDaily = analyticsDaily; }
 
     /** Une limite = {@code max} requetes autorisees par fenetre de {@code windowSeconds}. */
     public static class Limit {

@@ -3879,7 +3879,7 @@ canonique vit côté backend.
   réponse du serveur). Purge après **202** (rejets individuels compris) ; réseau / 429 / 5xx ⇒
   même lot, mêmes `eventId`, backoff 5 s → 5 min ; lot refusé en bloc (400/4xx) ⇒ abandonné
   (renvoyé à l'identique, il échouerait toujours). 🛑 L'unitaire
-  `POST /api/public/analytics/events` n'est plus appelé.
+  `POST /api/public/analytics/events` est supprimé côté serveur (Q17) : le lot seul.
 - **Registre** (`analytics_events.dart`) aligné sur `AnalyticsEvent` serveur : +
   `CIVIQUE_CTA_CLICKED`, `PLAN_UNLOCK_CLICKED`, `displayedPriceCents`, et
   `kAnalyticsEventContext` (quels événements portent run / parcours — le reste est filtré).

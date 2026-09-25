@@ -5025,7 +5025,7 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   en-têtes : `client` et `appVersion` voyagent dans le corps). 202 ⇒ purge (rejets compris) ;
   400 ⇒ lot abandonné ; 429 / 5xx / réseau ⇒ le lot repart plus tard sous les mêmes
   `eventId`. Sans identifiant de mesure (stockage refusé), rien ne part : le serveur l'exige.
-  🛑 **L'endpoint unitaire n'est plus appelé par le web.**
+  🛑 **L'endpoint unitaire est supprimé côté serveur** (fin de la bascule, Q17) : le lot seul.
 - **Premier contact capté au PREMIER HIT** (`FirstTouchCapture`, layout racine →
   `captureFirstTouchOnLanding`) : source déclarée **brute** (`utm_source` / `src`, sinon hôte
   du referrer), UTM, écran d'arrivée (s'il est suivi), envoyé avec le premier lot et marqué

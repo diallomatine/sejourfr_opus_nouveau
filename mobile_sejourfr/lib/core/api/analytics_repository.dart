@@ -38,8 +38,8 @@ class AnalyticsBatchReport {
 
 /// Ingestion analytics **en lot** — `POST /api/public/analytics/events/batch`.
 ///
-/// 🛑 L'unitaire (`POST /api/public/analytics/events`) n'est plus appelé par
-/// l'app : tout passe par la file persistante (`AnalyticsQueue`).
+/// 🛑 L'unitaire (`POST /api/public/analytics/events`) est supprimé côté serveur :
+/// tout passe par la file persistante (`AnalyticsQueue`).
 ///
 /// **Public**, mais on laisse l'intercepteur poser le jeton quand il y en a
 /// un : le serveur rattache alors l'événement au compte. `skipRefresh` est

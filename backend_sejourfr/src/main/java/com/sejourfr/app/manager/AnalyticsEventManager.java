@@ -27,7 +27,7 @@ public class AnalyticsEventManager {
      *
      * @param occurredAt     date RETENUE (celle des KPI)
      * @param propertiesJson objet JSON deja serialise
-     * @param eventId        identifiant client (lot), {@code null} en unitaire
+     * @param eventId        identifiant client tire a la creation de l'evenement
      * @param receivedAt     horloge serveur
      * @param internal       resolu a l'ingestion
      */

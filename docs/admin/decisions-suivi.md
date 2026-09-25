@@ -810,6 +810,13 @@ retour (faible / moyenne / forte).
 - Fichiers : `web_sejoufr/public/.well-known/*`, `next.config.ts`.
 - Difficulté de retour : faible.
 
+**D88 — Retrait de l'ingestion unitaire : son rate-limit part avec elle, ses tests de règle restent** · Bascule Q17
+- Contexte : aucun front n'appelle plus `POST /api/public/analytics/events` (vérifié par grep sur web, mobile, admin). Q10 : supprimer le code sans appelant.
+- Options : supprimer le contrôleur seul ; supprimer tout ce qui ne servait qu'à lui.
+- Choix : supprimés `PublicAnalyticsController`, `AnalyticsIngestionService` (et sa borne ± 24 h), `AnalyticsEventRequest`, `RateLimitGuard.checkAnalytics` et `RateLimitProperties.analyticsBurst/analyticsDaily` (aucune clé YAML ne les surchargeait), `PublicAnalyticsControllerIT`, `AnalyticsIngestionServiceTest`. **Conservés** : `AnalyticsEventNormalizer`, `AnalyticsFirstTouchRequest`, `GeoIpCountryResolver`, `DeviceTypeResolver` (le lot s'en sert). Les cas de l'ancien test qui verrouillaient une **règle partagée** (événement serveur, allowlists de propriétés et de chemins, `dedupKey`, attribution, troncature, hôte du referrer) sont repris dans `AnalyticsEventNormalizerTest` ; ceux propres à l'unitaire (fenêtre ± 24 h, 204) disparaissent avec lui. 404 verrouillé dans `PublicRoutesSecurityIT`. Les lignes déjà écrites par l'unitaire (`event_id` nul) restent en base.
+- Fichiers : les classes citées, `AnalyticsEventRecord`, `AnalyticsEventManager` (Javadoc), `docs/api-endpoints.md`, `docs/regles/mesure-audience.md`, `CLAUDE.md` web et mobile.
+- Difficulté de retour : faible (git).
+
 ---
 
 ## 3. Récapitulatif final

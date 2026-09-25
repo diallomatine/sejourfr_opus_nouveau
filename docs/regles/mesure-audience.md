@@ -181,13 +181,18 @@ serveur par `BillingService`, qui n'a pas d'`anonymousId`) — c'est
 - ⚠️ `country_code` / `currency` sont en `varchar(2)`/`varchar(3)` et non `char` :
   Postgres rend `bpchar`, que Hibernate refuse sous `ddl-auto: validate`.
 
-### Ingestion — `POST /api/public/analytics/events`
+### Ingestion — `POST /api/public/analytics/events/batch`
 
-Public, **rate-limité** (`analytics:burst` 120 / 10 min, `analytics:daily` 2000 / j).
-L'ancien `POST /api/public/page-views`, public et jamais limité, a été **supprimé le
-2026-09-25** (la table `page_views` reste en base, plus écrite). Allowlists fermées :
-événement, propriétés **par événement**, chemins (`util/AnalyticsPaths`). Hors
-allowlist ⇒ **400 nommé**. Pays et device sont résolus **serveur** (le client les
+> ⚠️ L'endpoint **unitaire** `POST /api/public/analytics/events` (et son rate-limit
+> `analytics:burst` / `analytics:daily` de `RateLimitGuard`) est **supprimé le 2026-09-25**,
+> à la fin de la bascule vers le lot (Q17) : 404 verrouillé. Ce qui suit vaut pour le lot.
+
+Public, **rate-limité** par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, section
+« Ingestion en lot » plus bas). L'ancien `POST /api/public/page-views`, public et jamais
+limité, a été **supprimé le 2026-09-25** (la table `page_views` reste en base, plus
+écrite). Allowlists fermées : événement, propriétés **par événement**, chemins
+(`util/AnalyticsPaths`), toutes dans `AnalyticsEventNormalizer`. Hors allowlist ⇒
+**rejet individuel nommé**. Pays et device sont résolus **serveur** (le client les
 falsifierait) ; les UTM trop longues sont **tronquées, pas rejetées** (borne de
 stockage, pas règle métier) ; un referrer est ramené à son **hôte seul**.
 ⚠️ **Ajouter un écran suivi = une ligne dans `AnalyticsPaths.KNOWN`, dans la même
@@ -307,8 +312,9 @@ Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
   rejet individuel, idempotence sur `event_id` tiré **à la création** de l'événement,
   horodate future ramenée à la réception (> 10 min), trop ancienne rejetée (> 168 h),
   rate-limit par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, hors
-  `RateLimitGuard`). L'unitaire reste le temps de la bascule. Validation partagée :
-  `AnalyticsEventNormalizer` (une seule allowlist pour les deux).
+  `RateLimitGuard`). Seul canal d'ingestion depuis le retrait de l'unitaire (fin de la
+  bascule, 2026-09-25). Validation : `AnalyticsEventNormalizer` (allowlists, verrouillées
+  par `AnalyticsEventNormalizerTest`).
 - **Colonnes de contexte, pas des propriétés** : `diagnostic_run_id`, `diagnostic_type`,
   `journey_id` (`plan_id` = `journey.id`, Q8) se **joignent**, donc vivent en colonnes,
   bornées par événement (`AnalyticsEvent.Contexte`). La run citée doit exister et **son
