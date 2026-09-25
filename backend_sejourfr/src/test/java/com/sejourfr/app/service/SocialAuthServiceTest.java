@@ -244,7 +244,8 @@ class SocialAuthServiceTest {
         when(userManager.findByEmail("neuf2@test.fr")).thenReturn(Optional.empty());
         service.loginWithGoogle(new GoogleSignInRequest("tok", null, runId.toString(), "jeton", null), "ua", "ip", CTX);
         verify(claimService).onAuthenticated(any(), org.mockito.ArgumentMatchers.eq(
-                        com.sejourfr.app.enums.AuthKind.SIGNUP), org.mockito.ArgumentMatchers.eq(runId.toString()),
+                        com.sejourfr.app.enums.AuthKind.SIGNUP), org.mockito.ArgumentMatchers.eq(CTX),
+                org.mockito.ArgumentMatchers.eq(runId.toString()),
                 org.mockito.ArgumentMatchers.eq("jeton"), org.mockito.ArgumentMatchers.eq(
                         com.sejourfr.app.enums.DiagnosticRunClaimVia.SAME_DEVICE));
 
@@ -256,7 +257,8 @@ class SocialAuthServiceTest {
         service.loginWithApple(new AppleSignInRequest("idtok", null, null, null, runId.toString(), "jeton", "APP_LINK"),
                 "ua", "ip", CTX);
         verify(claimService).onAuthenticated(org.mockito.ArgumentMatchers.eq(local), org.mockito.ArgumentMatchers.eq(
-                        com.sejourfr.app.enums.AuthKind.LOGIN), org.mockito.ArgumentMatchers.eq(runId.toString()),
+                        com.sejourfr.app.enums.AuthKind.LOGIN), org.mockito.ArgumentMatchers.eq(CTX),
+                org.mockito.ArgumentMatchers.eq(runId.toString()),
                 org.mockito.ArgumentMatchers.eq("jeton"), org.mockito.ArgumentMatchers.eq(
                         com.sejourfr.app.enums.DiagnosticRunClaimVia.APP_LINK));
     }

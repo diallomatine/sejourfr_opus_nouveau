@@ -368,6 +368,15 @@ sejourfr:
   trusted-proxies:
     ranges: ${TRUSTED_PROXY_RANGES:}
 
+  # Configuration publique de l'app mobile (GET /api/public/app-config,
+  # controle G). Version minimale par systeme, MAJOR.MINOR.PATCH ; VIDE =
+  # aucune exigence, personne n'est bloque (valeur livree). Cf.
+  # config.AppConfigProperties.
+  app-config:
+    min-supported-version:
+      ios: ${APP_MIN_VERSION_IOS:}
+      android: ${APP_MIN_VERSION_ANDROID:}
+
   # Purge des attempts INVITES (user_id IS NULL) — cf. GuestAttemptPurgeJob.
   # LIVREE ETEINTE, comme production-evaluation.fluidite / seconde-passe :
   # a false, la passe sort immediatement, aucune ligne supprimee.

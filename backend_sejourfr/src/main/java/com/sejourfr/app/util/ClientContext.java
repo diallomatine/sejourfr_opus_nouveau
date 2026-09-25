@@ -36,6 +36,19 @@ public record ClientContext(ClientPlatform platform, String source, UUID anonymo
         return body != null ? body : anonymousId;
     }
 
+    /**
+     * <b>Client ancien</b> (controle G) : application d'avant iOS / Android
+     * ({@link ClientPlatform#MOBILE}), plateforme non declaree
+     * ({@link ClientPlatform#UNKNOWN}), ou web sans {@code X-Sejourfr-App-Version}
+     * (onglet charge avant le chantier Suivi). Un tel client ne sait pas
+     * transmettre une run de diagnostic : l'absence de run ne dit donc rien de
+     * son inscription. Autorite unique de la regle.
+     */
+    public boolean isLegacyClient() {
+        return platform == null || platform == ClientPlatform.MOBILE || platform == ClientPlatform.UNKNOWN
+                || (platform == ClientPlatform.WEB && appVersion == null);
+    }
+
     /** Contexte d'un appel qui n'a rien declare. */
     public static ClientContext unknown() {
         return new ClientContext(ClientPlatform.UNKNOWN, TrafficSource.DIRECT, null, null);

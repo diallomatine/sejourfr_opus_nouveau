@@ -45,6 +45,8 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/public/attempts/" + RANDOM_ID),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events"),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events/batch"),
+                // Version minimale de l'app (controle G, option a) : lue avant tout compte.
+                Arguments.of(HttpMethod.GET, "/api/public/app-config"),
                 // Cycle de vie de diagnostic_run (lot 2a) : avant le compte.
                 Arguments.of(HttpMethod.POST, "/api/public/diagnostic-runs"),
                 Arguments.of(HttpMethod.POST, "/api/public/diagnostic-runs/" + RANDOM_ID + "/submit"),

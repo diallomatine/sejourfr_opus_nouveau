@@ -27,7 +27,10 @@ automatique** dans le client HTTP de chaque front.
   qualifie `claimed_via`, il n'autorise rien — mêmes vérifications. À l'inscription,
   `users.signup_context` est posé au même instant : `AFTER_DIAGNOSTIC` (+
   `signup_diagnostic_type`, `signup_diagnostic_run_id`) si la run claimée est
-  **soumise**, `OUTSIDE_DIAGNOSTIC` sinon. Absents, illisibles, faux, expirés, déjà
+  **soumise**, `OUTSIDE_DIAGNOSTIC` sinon — sauf **client ancien** (contrôle G :
+  `X-Sejourfr-Client` `mobile`, absent ou inconnu, ou `web` sans
+  `X-Sejourfr-App-Version`) : `null`, inconnu, car un tel client ne transmet jamais de
+  run. Absents, illisibles, faux, expirés, déjà
   utilisés : **aucun claim, aucune erreur**. Aucune recherche par `anonymousId`.
 
 ## En-têtes de contexte client (tous les appels)
@@ -43,6 +46,13 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
 
 ## Analytics — ingestion (public)
 
+- `GET /api/public/app-config` → **200** `AppConfigResponse {minSupportedVersion: {ios,
+  android}}` (contrôle G, option a). Public, `Cache-Control: public, max-age=300`. Chaque
+  valeur vaut `"MAJOR.MINOR.PATCH"` ou `null` = aucune version minimale (valeur livrée :
+  `null` partout, personne n'est bloqué). Réglage serveur :
+  `sejourfr.app-config.min-supported-version.{ios,android}` (env `APP_MIN_VERSION_IOS`,
+  `APP_MIN_VERSION_ANDROID`), format vérifié au démarrage. L'app compare sa `version`
+  (sans `+build`) composant par composant ; erreur réseau ou `null` ⇒ ne jamais bloquer.
 - `POST /api/public/analytics/events/batch` → **202** `AnalyticsBatchResponse
   {received, accepted, duplicates, rejected:[{index, eventId, reason}]}`. Public,
   rate-limité par IP **et** par `anonymousId` (seuils `ingestion.rateLimit` de

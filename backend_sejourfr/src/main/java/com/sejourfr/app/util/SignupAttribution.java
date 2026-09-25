@@ -42,16 +42,27 @@ public final class SignupAttribution {
      * id ; {@code OUTSIDE_DIAGNOSTIC} sinon — y compris une run claimee mais
      * jamais soumise (le sujet vu ne fait pas un diagnostic).
      *
+     * <p>🛑 <b>Client ancien ⇒ {@code null}</b> (controle G, option b) : une
+     * application ou un onglet d'avant le chantier ne transmet aucune run, meme
+     * quand le diagnostic a eu lieu. Sans run soumise claimee, on ne sait donc
+     * pas : le contexte reste inconnu, jamais {@code OUTSIDE_DIAGNOSTIC}. Une run
+     * soumise claimee, elle, est un fait et pose {@code AFTER_DIAGNOSTIC}.
+     *
      * @param claimedRunId       run claimee par cette inscription, {@code null} si aucune
      * @param claimedType        son type
      * @param claimedSubmittedAt sa date de soumission, {@code null} si jamais soumise
+     * @param client             contexte de la requete d'inscription
      */
     public static void stampContext(User user, UUID claimedRunId, DiagnosticRunType claimedType,
-                                    Instant claimedSubmittedAt) {
+                                    Instant claimedSubmittedAt, ClientContext client) {
         if (claimedRunId != null && claimedType != null && claimedSubmittedAt != null) {
             user.setSignupContext(SignupContext.AFTER_DIAGNOSTIC);
             user.setSignupDiagnosticType(claimedType);
             user.setSignupDiagnosticRunId(claimedRunId);
+        } else if (client == null || client.isLegacyClient()) {
+            user.setSignupContext(null);
+            user.setSignupDiagnosticType(null);
+            user.setSignupDiagnosticRunId(null);
         } else {
             user.setSignupContext(SignupContext.OUTSIDE_DIAGNOSTIC);
             user.setSignupDiagnosticType(null);

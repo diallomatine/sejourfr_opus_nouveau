@@ -5,6 +5,7 @@ import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.manager.DiagnosticRunManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.util.ClientContext;
 import com.sejourfr.app.util.ClientContextResolver;
 import com.sejourfr.app.util.SignupAttribution;
 import lombok.RequiredArgsConstructor;
@@ -52,15 +53,18 @@ public class DiagnosticRunClaimService {
      * @param claimToken {@code claimToken} de la requete d'auth
      * @param via        canal declare par le client ({@code claimVia}) : meme
      *                   appareil, ou lien web → app (lot 3b) ; memes verifications
+     * @param client     contexte de la requete d'auth : un client ancien laisse
+     *                   le contexte d'inscription inconnu (controle G)
      * @return la run claimee (etat lu AVANT le claim), vide sinon
      */
-    public Optional<DiagnosticRunManager.State> onAuthenticated(User user, AuthKind kind, String runIdRaw,
-                                                                String claimToken, DiagnosticRunClaimVia via) {
+    public Optional<DiagnosticRunManager.State> onAuthenticated(User user, AuthKind kind, ClientContext client,
+                                                                String runIdRaw, String claimToken,
+                                                                DiagnosticRunClaimVia via) {
         Optional<DiagnosticRunManager.State> claimed = claim(user.getId(), kind, runIdRaw, claimToken, via);
         if (kind == AuthKind.SIGNUP) {
             SignupAttribution.stampContext(user, claimed.map(DiagnosticRunManager.State::id).orElse(null),
                     claimed.map(DiagnosticRunManager.State::type).orElse(null),
-                    claimed.map(DiagnosticRunManager.State::submittedAt).orElse(null));
+                    claimed.map(DiagnosticRunManager.State::submittedAt).orElse(null), client);
             userManager.save(user);
         }
         return claimed;

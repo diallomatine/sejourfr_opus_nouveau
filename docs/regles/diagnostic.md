@@ -435,7 +435,13 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
 - **Contexte d'inscription** (`users.signup_context`) posé au même instant que le claim,
   à l'inscription seulement : `AFTER_DIAGNOSTIC` si la run claimée est **soumise** (avec
   `signup_diagnostic_type`, `signup_diagnostic_run_id`), `OUTSIDE_DIAGNOSTIC` sinon — y
-  compris une run claimée jamais soumise. Autorité : `SignupAttribution.stampContext`.
+  compris une run claimée jamais soumise. 🛑 **Client ancien ⇒ `null`** (contrôle G,
+  2026-09-25) : une app d'avant iOS / Android (`mobile`), un client sans plateforme, ou
+  un onglet web sans `X-Sejourfr-App-Version` ne transmettent jamais de run ; sans run
+  soumise claimée, leur inscription est **inconnue** (comptée dans `contextUnknown`),
+  jamais `OUTSIDE_DIAGNOSTIC`. Règle : `ClientContext.isLegacyClient()`. Autorité :
+  `SignupAttribution.stampContext`. Version minimale de l'app servie par
+  `GET /api/public/app-config` (option a, sans effet tant qu'elle vaut `null`).
 - `GuestAttemptPurgeJob` **ne touche jamais** `diagnostic_run` : la purge d'un attempt
   civique invité passe la FK de session à `NULL`, la run et son « soumis » restent
   (scénario 19, `GuestAttemptPurgeJobIT`).

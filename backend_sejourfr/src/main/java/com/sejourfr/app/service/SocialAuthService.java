@@ -122,7 +122,7 @@ public class SocialAuthService {
                 ctx.anonymousIdPreferring(declaredAnonymousId));
         // Meme geste qu'en auth locale : claim dans cette transaction, contexte
         // d'inscription pose au meme instant sur la branche de creation.
-        diagnosticRunClaimService.onAuthenticated(r.user(), kind, diagnosticRunId, claimToken, via);
+        diagnosticRunClaimService.onAuthenticated(r.user(), kind, ctx, diagnosticRunId, claimToken, via);
     }
 
     private Resolution findOrCreate(SocialIdentity identity, String firstNameOverride,

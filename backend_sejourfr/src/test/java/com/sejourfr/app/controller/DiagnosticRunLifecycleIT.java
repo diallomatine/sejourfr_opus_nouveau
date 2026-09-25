@@ -534,6 +534,38 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
                 + "AND submitted_at IS NOT NULL AND user_id IS NULL", Long.class, c.id())).isEqualTo(1L);
     }
 
+    private void inscrireAvec(String email, String client, String version) throws Exception {
+        MockHttpServletRequestBuilder b = post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content(inscription(email, null, null));
+        if (client != null) b.header(ClientContextResolver.HEADER_CLIENT, client);
+        if (version != null) b.header(ClientContextResolver.HEADER_APP_VERSION, version);
+        mvc.perform(b).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Contrôle G — inscription depuis un client ancien (app « mobile », web sans version, rien) : contexte inconnu")
+    void clientAncienContexteInconnu() throws Exception {
+        inscrireAvec("ancienne-app@test.sejourfr", "mobile", null);
+        inscrireAvec("ancien-onglet@test.sejourfr", "web", null);
+        inscrireAvec("sans-entete@test.sejourfr", null, null);
+
+        for (String email : new String[]{"ancienne-app@test.sejourfr", "ancien-onglet@test.sejourfr",
+                "sans-entete@test.sejourfr"}) {
+            User user = relire(email);
+            assertThat(user.getSignupContext()).as(email).isNull();
+            assertThat(user.getSignupDiagnosticType()).as(email).isNull();
+        }
+    }
+
+    @Test
+    @DisplayName("Contrôle G — client récent (web versionné, iOS) sans run : OUTSIDE_DIAGNOSTIC posé normalement")
+    void clientRecentContextePose() throws Exception {
+        inscrireAvec("web-recent@test.sejourfr", "web", "0.1.0");
+        inscrireAvec("ios-recent@test.sejourfr", "ios", "2.4.1+57");
+        assertThat(relire("web-recent@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+        assertThat(relire("ios-recent@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+    }
+
     /** Scenario 20. */
     @Test
     @DisplayName("Scénario 20 — runId valide, jeton absent ou faux : pas de claim, l'inscription réussit")
