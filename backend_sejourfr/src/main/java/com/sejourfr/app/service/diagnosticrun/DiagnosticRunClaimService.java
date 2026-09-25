@@ -6,9 +6,11 @@ import com.sejourfr.app.enums.AuthKind;
 import com.sejourfr.app.enums.DiagnosticRunClaimVia;
 import com.sejourfr.app.manager.DiagnosticRunManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.service.analytics.AnalyticsConfig;
 import com.sejourfr.app.util.ClientContext;
 import com.sejourfr.app.util.ClientContextResolver;
 import com.sejourfr.app.util.SignupAttribution;
+import com.sejourfr.app.util.SoumisRetenu;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,6 +54,7 @@ public class DiagnosticRunClaimService {
 
     private final DiagnosticRunManager runManager;
     private final UserManager userManager;
+    private final AnalyticsConfig config;
 
     /** Runs claimees au plus par authentification (controle N3). */
     public static final int MAX_CLAIMS = 3;
@@ -101,7 +104,9 @@ public class DiagnosticRunClaimService {
      * n'empeche pas les autres. Le contexte d'inscription se lit sur la run
      * <b>soumise la plus recente</b> parmi celles claimees (le diagnostic le plus
      * proche de l'inscription) ; aucune soumise ⇒ {@code OUTSIDE_DIAGNOSTIC}, ou
-     * inconnu pour un client ancien.
+     * inconnu pour un client ancien. « Soumise » = soumis RETENU
+     * ({@link SoumisRetenu}, controle C) : une run civique sous le seuil de
+     * reponses, ou sans mesure, n'est pas une run soumise ici non plus.
      *
      * @param client contexte de la requete d'auth : un client ancien laisse le
      *               contexte d'inscription inconnu (controle G)
@@ -117,7 +122,9 @@ public class DiagnosticRunClaimService {
         }
         if (kind == AuthKind.SIGNUP) {
             Optional<DiagnosticRunManager.State> reference = claimed.stream()
-                    .filter(run -> run.submittedAt() != null)
+                    .filter(run -> SoumisRetenu.retenu(run.type(), run.submittedAt(),
+                            run.submittedAnsweredCount(), run.submittedQuestionCount(),
+                            config.civicSubmittedMinAnsweredRatio()))
                     .max(Comparator.comparing(DiagnosticRunManager.State::submittedAt)
                             .thenComparing(run -> run.id().toString()));
             SignupAttribution.stampContext(user, reference.map(DiagnosticRunManager.State::id).orElse(null),

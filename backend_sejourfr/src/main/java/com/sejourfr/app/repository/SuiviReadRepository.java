@@ -1,6 +1,7 @@
 package com.sejourfr.app.repository;
 
 import com.sejourfr.app.entity.DiagnosticRun;
+import com.sejourfr.app.util.SoumisRetenu;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -82,18 +83,12 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     String CLE_SOURCE_DU_COMPTE = " COALESCE(" + SOURCE_VU + ", vi.k, " + SOURCE_INSCRIPTION + ") ";
 
     /**
-     * <b>« Soumis » retenu</b> d'une run {@code r} (controle C, V076). TCF : le
-     * fait pose. Civique : le fait pose ET au moins {@code :civicMinRatio} des
-     * questions repondues, mesure figee a la soumission — une run civique sans
-     * mesure (anterieure a V076) est INCONNUE : jamais comptee soumise, jamais
-     * lue comme 0 reponse. Applique une fois, dans {@link #RUNS} : tunnel,
-     * ratios, activite et « jamais rattachees » lisent tous cette colonne.
+     * <b>« Soumis » retenu</b> d'une run {@code r} (controle C, V076) : la regle
+     * vit dans {@link SoumisRetenu}, partagee avec le contexte d'inscription.
+     * Appliquee une fois, dans {@link #RUNS} : tunnel, ratios, activite et
+     * « jamais rattachees » lisent tous cette colonne.
      */
-    String SOUMIS_RETENU = """
-            (r.diagnostic_type <> 'CIVIQUE'
-                  OR (r.submitted_question_count > 0
-                      AND r.submitted_answered_count
-                          >= CAST(:civicMinRatio AS float8) * r.submitted_question_count))""";
+    String SOUMIS_RETENU = SoumisRetenu.SQL;
 
     /**
      * Les runs du tunnel (rapide TCF et civique, Q2), personne et groupe de

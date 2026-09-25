@@ -24,7 +24,7 @@ class DiagnosticRunServiceTest {
 
     private static DiagnosticRunManager.State run(UUID userId, UUID anon, Instant expire) {
         return new DiagnosticRunManager.State(UUID.randomUUID(), DiagnosticRunType.QUICK_TCF, anon, userId, null,
-                JetonSecret.sha256Hex(JETON), expire, null);
+                JetonSecret.sha256Hex(JETON), expire, null, null, null);
     }
 
     @Test

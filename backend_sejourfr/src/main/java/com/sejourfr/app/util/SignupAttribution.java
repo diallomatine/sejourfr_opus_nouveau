@@ -40,7 +40,9 @@ public final class SignupAttribution {
      * Contexte d'inscription (brief §3.4) : {@code AFTER_DIAGNOSTIC} si
      * l'inscription vient de claimer une run <b>soumise</b>, avec son type et son
      * id ; {@code OUTSIDE_DIAGNOSTIC} sinon — y compris une run claimee mais
-     * jamais soumise (le sujet vu ne fait pas un diagnostic).
+     * jamais soumise (le sujet vu ne fait pas un diagnostic). « Soumise » est
+     * le soumis RETENU ({@link SoumisRetenu}) : l'appelant ne passe ici qu'une
+     * run qui le satisfait (un abandon civique sous le seuil n'en est pas une).
      *
      * <p>🛑 <b>Client ancien ⇒ {@code null}</b> (controle G, option b) : une
      * application ou un onglet d'avant le chantier ne transmet aucune run, meme

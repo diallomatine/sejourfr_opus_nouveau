@@ -34,7 +34,8 @@ automatique** dans le client HTTP de chaque front.
   qualifie `claimed_via`, il n'autorise rien — mêmes vérifications. À l'inscription,
   `users.signup_context` est posé au même instant : `AFTER_DIAGNOSTIC` (+
   `signup_diagnostic_type`, `signup_diagnostic_run_id`) si la run claimée est
-  **soumise**, `OUTSIDE_DIAGNOSTIC` sinon — sauf **client ancien** (contrôle G :
+  **soumise** (soumis retenu : civique ≥ 80 % de réponses, contrôle C),
+  `OUTSIDE_DIAGNOSTIC` sinon — sauf **client ancien** (contrôle G :
   `X-Sejourfr-Client` `mobile`, absent ou inconnu, ou `web` sans
   `X-Sejourfr-App-Version`) : `null`, inconnu, car un tel client ne transmet jamais de
   run. Absents, illisibles, faux, expirés, déjà

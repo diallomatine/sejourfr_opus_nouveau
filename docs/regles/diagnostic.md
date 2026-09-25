@@ -395,8 +395,11 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   résultat) ; la **règle** vit à la lecture (`civicSubmittedMinAnsweredRatio` de
   `analytics-config-v1.json`, 0,8), donc un changement de seuil ne demande aucune migration.
   Une run civique sans mesure (antérieure à V076) est **inconnue** : jamais comptée soumise,
-  jamais lue comme 0 réponse. Vaut pour le tunnel, les ratios, l'activité et « jamais
-  rattachées ». `submitted_at` reste posé : c'est le fait brut, pas le verdict.
+  jamais lue comme 0 réponse. Vaut pour le tunnel, les ratios, l'activité, « jamais
+  rattachées » **et le contexte d'inscription** (claim). `submitted_at` reste posé : c'est
+  le fait brut, pas le verdict. **Une autorité** : `util/SoumisRetenu` porte le prédicat SQL
+  (lu par `SuiviReadRepository.RUNS`) et son jumeau Java (lu par `DiagnosticRunClaimService`),
+  au seuil de la même config ; `SoumisRetenuIT` évalue les deux sur la même grille.
 - 🛑 **Une run n'est reprise par sa `clientKey` que si elle est récente et à
   l'appelant** (contrôle F2, 2026-09-25) : porteur nul ou égal à l'appelant, sujet vu
   depuis moins de `runReuseWindowHours` (24 h). Sinon run neuve, et la clé passe à la
@@ -438,7 +441,10 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
 - **Contexte d'inscription** (`users.signup_context`) posé au même instant que le claim,
   à l'inscription seulement : `AFTER_DIAGNOSTIC` si la run claimée est **soumise** (avec
   `signup_diagnostic_type`, `signup_diagnostic_run_id`), `OUTSIDE_DIAGNOSTIC` sinon — y
-  compris une run claimée jamais soumise. 🛑 **Client ancien ⇒ `null`** (contrôle G,
+  compris une run claimée jamais soumise. 🛑 **« Soumise » = soumis retenu** (contrôle C,
+  2026-09-25) : un abandon civique sous 80 % de réponses, ou sans mesure, claimé à
+  l'inscription est **rattaché** mais ne fait pas `AFTER_DIAGNOSTIC` ; parmi plusieurs runs
+  claimées, la référence est la soumise retenue la plus récente. 🛑 **Client ancien ⇒ `null`** (contrôle G,
   2026-09-25) : une app d'avant iOS / Android (`mobile`), un client sans plateforme, ou
   un onglet web sans `X-Sejourfr-App-Version` ne transmettent jamais de run ; sans run
   soumise claimée, leur inscription est **inconnue** (comptée dans `contextUnknown`),
@@ -455,7 +461,8 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   appartient au porteur du parcours. `JourneyDto.journeyId` sert `journey.id`. Un
   diagnostic sans run liée (client ancien) rend vide : inconnu, jamais deviné.
 
-Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 4, 5, 6, 7, 16 civique, 20),
+Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 4, 5, 6, 7, 16 civique, 20 ; contrôle C
+au claim : 50 %, 80 %, sans mesure), `SoumisRetenuIT` (SQL ⇄ Java),
 `DiagnosticRunQuickTcfHandoffIT`, `DiagnosticRunFoundingIT`, `GuestAttemptPurgeJobIT`.
 
 ---

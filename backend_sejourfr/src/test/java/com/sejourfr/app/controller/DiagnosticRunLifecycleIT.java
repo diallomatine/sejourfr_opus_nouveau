@@ -585,6 +585,7 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         UUID[] civique = civiqueInvite();
         Creee civ = creer(creation("CIVIQUE", UUID.randomUUID(), anon, civique[0]));
         finirInvite(civique[1]);
+        repondre(civ.id(), 1.0);
         // Le TCF soumis en premier, le civique ensuite : le civique est le plus recent.
         jdbc.update("UPDATE diagnostic_run SET submitted_at = now() - interval '1 hour' WHERE id = ?", tcf.id());
 
@@ -805,6 +806,89 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         mvc.perform(soumission(c.id(), c.token())).andExpect(status().isNoContent());
         assertThat(run(c.id()).get("submitted_answered_count")).isNull();
         assertThat(run(c.id()).get("submitted_question_count")).isNull();
+    }
+
+    /**
+     * Pose la mesure figee d'une run civique soumise : {@code part} des
+     * questions posees comptees repondues (le parcours reel a ete joue).
+     */
+    private void repondre(UUID runId, double part) {
+        jdbc.update("UPDATE diagnostic_run SET submitted_answered_count = CAST(ceil(submitted_question_count * ?)"
+                + " AS integer) WHERE id = ?", part, runId);
+    }
+
+    /** Civique invite soumis puis inscription (client recent, iOS) ; rend la run. */
+    private UUID civiqueSoumisPuisInscription(String email, Double part) throws Exception {
+        UUID anon = UUID.randomUUID();
+        UUID[] civique = civiqueInvite();
+        Creee c = creer(creation("CIVIQUE", UUID.randomUUID(), anon, civique[0]));
+        finirInvite(civique[1]);
+        if (part == null) {
+            jdbc.update("UPDATE diagnostic_run SET submitted_answered_count = NULL, submitted_question_count = NULL"
+                    + " WHERE id = ?", c.id());
+        } else {
+            repondre(c.id(), part);
+        }
+        inscrire(email, c.id(), c.token(), anon);
+        return c.id();
+    }
+
+    @Test
+    @DisplayName("Contrôle C — abandon civique à 50 % claimé à l'inscription : rattaché, mais OUTSIDE_DIAGNOSTIC")
+    void civiqueSousLeSeuilHorsDiagnostic() throws Exception {
+        UUID runId = civiqueSoumisPuisInscription("civique50@test.sejourfr", 0.5);
+
+        User user = relire("civique50@test.sejourfr");
+        assertThat(user.getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+        assertThat(user.getSignupDiagnosticType()).isNull();
+        assertThat(user.getSignupDiagnosticRunId()).isNull();
+        // Le claim, lui, a bien eu lieu : c'est le verdict « soumis » qui manque.
+        assertThat(run(runId).get("user_id")).isEqualTo(user.getId());
+        assertThat(run(runId).get("claim_kind")).isEqualTo("SIGNUP");
+        assertThat(run(runId).get("submitted_at")).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Contrôle C — civique à 80 % claimé à l'inscription : AFTER_DIAGNOSTIC, type et run posés")
+    void civiqueAuSeuilApresDiagnostic() throws Exception {
+        UUID runId = civiqueSoumisPuisInscription("civique80@test.sejourfr", 0.8);
+
+        User user = relire("civique80@test.sejourfr");
+        assertThat(user.getSignupContext()).hasToString("AFTER_DIAGNOSTIC");
+        assertThat(user.getSignupDiagnosticType()).hasToString("CIVIQUE");
+        assertThat(user.getSignupDiagnosticRunId()).isEqualTo(runId);
+    }
+
+    @Test
+    @DisplayName("Contrôle C — civique sans mesure (antérieur à V076) : jamais une run soumise, OUTSIDE_DIAGNOSTIC")
+    void civiqueSansMesureHorsDiagnostic() throws Exception {
+        civiqueSoumisPuisInscription("civiquenull@test.sejourfr", null);
+        assertThat(relire("civiquenull@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+    }
+
+    @Test
+    @DisplayName("Contrôle C — TCF soumis + civique abandonné plus récent : contexte = le TCF, seule run soumise retenue")
+    void civiqueAbandonneNeMasquePasLeTcf() throws Exception {
+        UUID anon = UUID.randomUUID();
+        Creee tcf = creerInvite("QUICK_TCF", anon);
+        mvc.perform(soumission(tcf.id(), tcf.token())).andExpect(status().isNoContent());
+        jdbc.update("UPDATE diagnostic_run SET submitted_at = now() - interval '1 hour' WHERE id = ?", tcf.id());
+        UUID[] civique = civiqueInvite();
+        Creee civ = creer(creation("CIVIQUE", UUID.randomUUID(), anon, civique[0]));
+        finirInvite(civique[1]);
+
+        String body = inscription("tcfetabandon@test.sejourfr", null, null)
+                .replaceFirst("}$", claims(tcf.id().toString(), tcf.token(), civ.id().toString(), civ.token()));
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .header(ClientContextResolver.HEADER_CLIENT, "web")
+                        .header(ClientContextResolver.HEADER_APP_VERSION, "0.1.0").content(body))
+                .andExpect(status().isOk());
+
+        User user = relire("tcfetabandon@test.sejourfr");
+        assertThat(user.getSignupContext()).hasToString("AFTER_DIAGNOSTIC");
+        assertThat(user.getSignupDiagnosticType()).hasToString("QUICK_TCF");
+        assertThat(user.getSignupDiagnosticRunId()).isEqualTo(tcf.id());
+        assertThat(run(civ.id()).get("user_id")).isEqualTo(user.getId());
     }
 
     /** Scenario 16, sur le civique (Q2 : le TCF rapide ne se refait pas). */

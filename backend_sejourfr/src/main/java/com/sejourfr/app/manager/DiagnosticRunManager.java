@@ -55,7 +55,8 @@ public class DiagnosticRunManager {
      * pas). C'est ce que lisent les verifications d'appartenance et le claim.
      */
     public record State(UUID id, DiagnosticRunType type, UUID anonymousId, UUID userId, Instant submittedAt,
-                        String claimTokenHash, Instant claimTokenExpiresAt, Instant claimedAt) {
+                        String claimTokenHash, Instant claimTokenExpiresAt, Instant claimedAt,
+                        Integer submittedAnsweredCount, Integer submittedQuestionCount) {
     }
 
     @Transactional(readOnly = true)
@@ -63,7 +64,8 @@ public class DiagnosticRunManager {
         if (id == null) return Optional.empty();
         return repository.findStateById(id).map(r -> new State(r.getId(), r.getDiagnosticType(),
                 r.getAnonymousId(), r.getUserId(), r.getSubmittedAt(), r.getClaimTokenHash(),
-                r.getClaimTokenExpiresAt(), r.getClaimedAt()));
+                r.getClaimTokenExpiresAt(), r.getClaimedAt(), r.getSubmittedAnsweredCount(),
+                r.getSubmittedQuestionCount()));
     }
 
     /** Donnees d'une run a creer ; l'une au plus des trois sessions est posee. */

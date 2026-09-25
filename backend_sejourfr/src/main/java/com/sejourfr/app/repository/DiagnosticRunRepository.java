@@ -44,7 +44,9 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
     @Query("""
             SELECT r.id AS id, r.diagnosticType AS diagnosticType, r.anonymousId AS anonymousId,
                    r.userId AS userId, r.submittedAt AS submittedAt, r.claimTokenHash AS claimTokenHash,
-                   r.claimTokenExpiresAt AS claimTokenExpiresAt, r.claimedAt AS claimedAt
+                   r.claimTokenExpiresAt AS claimTokenExpiresAt, r.claimedAt AS claimedAt,
+                   r.submittedAnsweredCount AS submittedAnsweredCount,
+                   r.submittedQuestionCount AS submittedQuestionCount
               FROM DiagnosticRun r WHERE r.id = :id
             """)
     Optional<StateRow> findStateById(@Param("id") UUID id);
@@ -65,6 +67,10 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
         Instant getClaimTokenExpiresAt();
 
         Instant getClaimedAt();
+
+        Integer getSubmittedAnsweredCount();
+
+        Integer getSubmittedQuestionCount();
     }
 
     // ------------------------------------------------------------------------
