@@ -207,26 +207,16 @@ public interface DiagnosticRunRepository extends JpaRepository<DiagnosticRun, UU
     // ------------------------------------------------------------------------
 
     /**
-     * La run <b>fondatrice</b> d'un parcours : celle du diagnostic le plus
-     * ancien journalise sur ce parcours ({@code journey_assessment_event}), a
-     * condition qu'elle appartienne au porteur du parcours. Le lien passe par
-     * les FK de session de la run — jamais par un identifiant recu d'un client.
-     *
-     * <p>Diagnostic rapide et civique : l'evenement porte l'id de la SESSION.
-     * Diagnostic complet : il porte l'id de la SECTION (attempt), dont
-     * {@code attempts.tcf_diagnostic_id} donne la session.
+     * La run <b>fondatrice</b> d'un parcours, lue dans la vue
+     * {@code v_journey_founding_run} (V075) — seule autorite de la regle, aussi
+     * lue en masse par {@code SuiviReadRepository}. La vue rend la run liee au
+     * diagnostic le plus ancien journalise sur le parcours, appartenant a son
+     * porteur ; on exige en plus que ce porteur soit {@code userId}.
      */
     @Query(value = """
-            SELECT r.* FROM journey j
-              JOIN journey_assessment_event e ON e.journey_id = j.id
-              LEFT JOIN attempts a ON e.assessment_kind = 'FULL_DIAGNOSTIC' AND a.id = e.source_assessment_id
-              JOIN diagnostic_run r ON r.user_id = j.user_id AND (
-                       (e.assessment_kind = 'QUICK_DIAGNOSTIC' AND r.diagnostic_session_id = e.source_assessment_id)
-                    OR (e.assessment_kind = 'CIVIC_DIAGNOSTIC' AND r.civic_diagnostic_session_id = e.source_assessment_id)
-                    OR (e.assessment_kind = 'FULL_DIAGNOSTIC' AND r.tcf_diagnostic_session_id = a.tcf_diagnostic_id))
-             WHERE j.id = :journeyId AND j.user_id = :userId
-             ORDER BY e.completed_at ASC, e.processed_at ASC, r.subject_viewed_at ASC, r.id ASC
-             LIMIT 1
+            SELECT r.* FROM v_journey_founding_run f
+              JOIN diagnostic_run r ON r.id = f.diagnostic_run_id
+             WHERE f.journey_id = :journeyId AND f.user_id = :userId
             """, nativeQuery = true)
     Optional<DiagnosticRun> findFoundingRun(@Param("journeyId") UUID journeyId, @Param("userId") UUID userId);
 

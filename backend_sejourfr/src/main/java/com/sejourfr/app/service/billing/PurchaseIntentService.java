@@ -2,11 +2,13 @@ package com.sejourfr.app.service.billing;
 
 import com.sejourfr.app.dto.PurchaseIntentRequest;
 import com.sejourfr.app.dto.PurchaseIntentResponse;
+import com.sejourfr.app.entity.DiagnosticRun;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.PurchaseIntent;
 import com.sejourfr.app.enums.AnalyticsCtaLocation;
 import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.PurchaseOrigin;
+import com.sejourfr.app.manager.DiagnosticRunManager;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.PurchaseIntentManager;
 import com.sejourfr.app.service.analytics.AnalyticsConfig;
@@ -49,6 +51,7 @@ public class PurchaseIntentService {
     static final Set<AnalyticsCtaLocation> CTA_DU_PLAN = EnumSet.of(AnalyticsCtaLocation.LOCKED_PLAN);
 
     private final PurchaseIntentManager purchaseIntentManager;
+    private final DiagnosticRunManager diagnosticRunManager;
     private final PlanManager planManager;
     private final AnalyticsConfig analyticsConfig;
     private final Clock clock;
@@ -112,10 +115,16 @@ public class PurchaseIntentService {
         }
         PurchaseIntent intent = purchaseIntentManager.findById(intentId).orElse(null);
         if (intent == null) return AttributionAchat.INCONNUE;
-        boolean tunnel = CTA_DU_PLAN.contains(intent.getCtaLocation()) && intent.getDiagnosticRunId() != null;
-        return new AttributionAchat(
-                tunnel ? PurchaseOrigin.DIAGNOSTIC_PLAN : PurchaseOrigin.OTHER_CTA,
-                intent.getId(), intent.getJourneyId(), tunnel ? intent.getDiagnosticRunId() : null);
+        if (CTA_DU_PLAN.contains(intent.getCtaLocation())) {
+            // Parti du Plan, mais sans run fondatrice resoluble (parcours absent,
+            // d'un autre compte, ou diagnostic sans run) : l'achat vient bien du
+            // Plan, donc OTHER_CTA serait faux — il est INCONNU.
+            PurchaseOrigin origin = intent.getDiagnosticRunId() != null
+                    ? PurchaseOrigin.DIAGNOSTIC_PLAN : PurchaseOrigin.UNKNOWN;
+            return new AttributionAchat(origin, intent.getId(), intent.getJourneyId(),
+                    intent.getDiagnosticRunId());
+        }
+        return new AttributionAchat(PurchaseOrigin.OTHER_CTA, intent.getId(), intent.getJourneyId(), null);
     }
 
     private PurchaseIntent enregistrer(UUID userId, Plan plan, AnalyticsCtaLocation cta,
@@ -129,7 +138,8 @@ public class PurchaseIntentService {
         intent.setProductId(plan.getCode());
         intent.setPlatform(platform);
         intent.setJourneyId(journeyId);
-        intent.setDiagnosticRunId(purchaseIntentManager.foundingRunOf(journeyId).orElse(null));
+        intent.setDiagnosticRunId(diagnosticRunManager.findFoundingRun(journeyId, userId)
+                .map(DiagnosticRun::getId).orElse(null));
         intent.setCreatedAt(now);
         intent.setExpiresAt(now.plus(analyticsConfig.purchaseIntentTtlHours(), ChronoUnit.HOURS));
         return purchaseIntentManager.save(intent);

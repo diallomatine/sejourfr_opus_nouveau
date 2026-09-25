@@ -221,6 +221,15 @@ plausible, et **on ne tranche pas sur l'intuition**.
 
 ### Lecture — `GET /api/admin/analytics`
 
+> ⚠️ **Supprimé le 2026-09-25** (chantier « Suivi », lot 4) : l'écran `/dashboard` est
+> remplacé par le dashboard « Suivi » (`GET /api/admin/analytics/suivi`, section « Lecture
+> du dashboard Suivi » en fin de fichier). `AdminAnalyticsController`/`Service`,
+> `AnalyticsReadRepository`/`Manager`, `AnalyticsInsightsBuilder`, `AnalyticsCalculs`,
+> `AnalyticsGrain`, `AnalyticsLibelles`, `RepartitionArrondie`, les annotations
+> (`AnalyticsAnnotation*`) et leurs tests n'existent plus ; les tables
+> (`analytics_annotation`, `user_funnel_events`…) restent en base (Q9, Q10). Description
+> conservée pour l'historique :
+
 **Un seul endpoint** et pas les cinq du brief : la maquette recalcule toutes ses
 sections depuis un même objet, cinq appels imposeraient cinq fenêtres de temps à
 tenir cohérentes. `FenetreMesure` **réutilisée telle quelle**, bornes appliquées
@@ -359,3 +368,72 @@ Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
   `OUTSIDE_DIAGNOSTIC`). **Le lot 3 pose la date de sa mise en production** ; la lecture
   (lot 4) ignore tout ce qui précède (D28).
 
+## Chantier « Suivi » — lecture du dashboard Suivi (lot 4, 2026-09-25)
+
+`GET /api/admin/analytics/suivi` (`AdminSuiviController` → `SuiviService` →
+`SuiviReadManager` → `SuiviReadRepository`, `SuiviMapper`), contrat `AdminSuiviResponse`.
+Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
+`SuiviScenariosIT` (scénarios §12), `AdminSuiviControllerIT`, `SuiviPerformanceIT`.
+
+### Règles communes
+
+- **Deux logiques, jamais mélangées.** Le **tunnel** (et « par type », et les ratios) est une
+  **cohorte** ; les KPI, revenus, inscriptions, sources et l'activité comptent ce qui s'est
+  passé **dans la période**. Bornes en jours Europe/Paris (`FenetreMesure`) ; période de
+  comparaison = même durée, juste avant.
+- 🛑 **`null` = inconnu ou pas encore mesuré, jamais 0** (Q16, D43). Chaque indicateur a une
+  date `measurementStart` (`analytics-config-v1.json`) ; `null` ou postérieure au début de la
+  période ⇒ l'indicateur vaut `null`. La date est servie (`measurementStart`) pour que
+  l'écran dise « mesuré depuis le … ». Une étape du tunnel non mesurée rend `null` **elle et
+  toutes les suivantes** (le tunnel est séquentiel). Un filtre `IOS`/`ANDROID` exige en plus
+  `SIGNUP_PLATFORM_DETAIL` pour les visiteurs, les sources et les inscriptions. Une somme
+  **mesurée** mais vide vaut 0.
+- **Personne** (`pk`) = `COALESCE(run.user_id, run.anonymous_id)` ; une run sans l'un ni
+  l'autre est sa propre personne. « Tous » compte des **personnes distinctes**.
+- **Type** : TCF = `QUICK_TCF` seulement (Q2) ; `FULL_TCF` n'entre dans aucun indicateur.
+  Un achat prend le type de sa run attribuée, sinon le module de son parcours, sinon
+  `CIVIQUE` pour un pass Civique seul ; un pass Intégral non attribué n'a pas de type
+  (compté sous « Tous » seulement). Le filtre type ne s'applique ni aux visiteurs, ni aux
+  sources, ni aux inscriptions (`signups.typeFilterApplied = false`), ni au bloc « par type ».
+- **Plateforme** : celle de l'étape 1 (la run de référence) pour le tunnel et les soumissions ;
+  celle de l'événement pour les visiteurs ; `signup_platform` pour les inscriptions ; le
+  canal pour les achats (Stripe = web, Apple = iOS, Google = Android). `MOBILE`/`UNKNOWN` ne
+  sont comptés que sous « Toutes ».
+- **Source** = groupe de `utmSourceGroups` (lecture, réversible) appliqué à la source
+  first-touch **déclarée** (`COALESCE(ft_source_raw, ft_source)`) : visiteur de la run,
+  sinon visiteur d'inscription du compte (`signup_anonymous_id`), sinon son plus ancien
+  visiteur lié (`analytics_identity`), sinon `users.signup_source`. Aucune ⇒ inconnue,
+  comptée sous « Toutes » seulement (jamais rangée dans « autre »).
+- **Interne** : `users.is_internal`, ou identifiant de mesure lié à un compte interne, ou
+  `analytics_event.is_internal` ; exclu sauf `includeInternal=true`.
+- **Achats** : `user_subscriptions` datés par `purchased_at`, statut ≠ `PENDING`, remboursés
+  **inclus** (le remboursement est compté à part).
+
+### Définitions
+
+| Indicateur | Définition |
+|---|---|
+| Visiteurs uniques | `anonymous_id` distincts ayant ≥ 1 événement dans la période |
+| Diagnostics soumis (KPI = `activity.submittedFirst`) | runs soumises dans la période, 1ʳᵉ tentative par personne et par type (« Tous » = personnes distinctes) ; `submittedRaw` = toutes |
+| « % des visiteurs » | soumis / visiteurs (période) |
+| Achats | achats de la période ; « % des diagnostics » = achats / soumis |
+| Net réel estimé | Σ `net_ex_vat_cents` des achats de la période + Σ `net_ex_vat_delta_cents` des remboursements **datés** dans la période |
+| Tunnel, étape 1 | 1ʳᵉ run de la personne pour ce type (toutes dates), sujet vu dans la période, plateforme et source de **cette** run dans les filtres |
+| Étapes 2 → 7 | atteintes avant `subject_viewed_at + cohortWindowDays` (14 j) **et** l'étape précédente atteinte : soumis ; rattaché (soumis connecté, ou claim) ; `DIAGNOSTIC_REPORT_VIEWED` sur la run ; `PLAN_OPENED` ; `PLAN_UNLOCK_CLICKED` ; achat attribué à la run (`origin = DIAGNOSTIC_PLAN`) |
+| Étapes 5 et 6 | l'événement se rattache à la run par son **parcours** (`v_journey_founding_run`, V075, même autorité que `DiagnosticRunManager.findFoundingRun`, Q8), sinon par la run qu'il cite |
+| Sous-lignes de l'étape 3 | déjà connecté (`submitted_authenticated`), inscrit après (`claim_kind = SIGNUP`), connecté après (`LOGIN`) ; sous « Tous », une personne n'entre que dans une sous-ligne, dans cet ordre de priorité : leur somme vaut l'étape 3 |
+| CA net cohorte | net HT des achats de l'étape 7, **tous** leurs remboursements déduits (quelle que soit leur date) ; un achat sans décomposition est compté à part (`cohortPurchasesWithoutBreakdown`), jamais à 0 |
+| « En cours » | la fenêtre d'une entrée de la période n'est pas écoulée (`fin + 14 j > maintenant`) |
+| Par type | colonnes TCF et Civique du tunnel (étapes 1, 2, 7) |
+| Revenus | brut, TVA, frais, net après frais, net HT des achats de la période (sommes des lignes **décomposées**, `purchasesWithoutBreakdown` à côté) ; remboursements datés dans la période (nombre, montant, delta de net) ; net après remboursements = KPI |
+| Inscriptions | comptes créés dans la période, non supprimés : après / hors diagnostic (`signup_context`), TCF / Civique (`signup_diagnostic_type`), `contextUnknown` (comptes antérieurs), plateformes ; `loggedInAfterDiagnostic` = comptes ayant claimé une run par connexion dans la période |
+| Sources | visiteurs de la période par groupe, dans l'ordre de la config, repli en dernier |
+| Ratios (§7.4) | sur la cohorte : 2/1 ; inscrits après / soumis anonymes (les « déjà connectés » exclus des deux termes) ; 4/3 ; 5/4 ; 6/5 ; 7/6 ; 7/2 ; CA net cohorte / étape 2 |
+| Soumis anonymes jamais rattachés | runs soumises anonymement dans la période sans claim dans les 14 j qui suivent la soumission ; `anonymousNeverAttachedOngoing` tant que J+14 n'est pas passé. La purge des invités n'y touche pas (scénario 19) |
+
+### Coût
+
+Six requêtes SQL natives, **constantes** (égalité verrouillée par `SuiviPerformanceIT`),
+calcul à la volée sans cache : ~160 ms par lecture sur un mois réaliste (3 000 comptes,
+40 000 événements, 6 000 runs, 900 achats). Vue matérialisée seulement si une lecture
+dépasse 1 s (brief §9).

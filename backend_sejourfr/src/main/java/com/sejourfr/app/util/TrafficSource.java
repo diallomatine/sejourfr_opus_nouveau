@@ -7,17 +7,15 @@ import java.util.Set;
  * Allowlist des reseaux de provenance et sa normalisation — <strong>autorite
  * unique</strong>.
  *
- * <p>Extraite a la deuxieme occurrence : la liste vivait dans
- * {@code PageViewService} (agregat anonyme des landings) et le funnel par
- * compte en avait besoin a l'identique. Deux copies auraient fini par
- * diverger, et « tiktok » aurait alors ete range dans deux dimensions
- * differentes selon la surface — exactement le defaut qui rend une mesure
- * inexploitable.
+ * <p>Deux copies de cette liste finiraient par diverger, et « tiktok » serait
+ * alors range dans deux dimensions differentes selon la surface — exactement
+ * le defaut qui rend une mesure inexploitable.
  *
  * <p>La liste est <strong>fermee</strong> : tout ce qui n'y figure pas devient
- * {@link #OTHER}. C'est ce qui borne la cardinalite de {@code page_views} face
- * a un endpoint d'ecriture public, et ce qui empeche un tiers de fabriquer des
- * dimensions a volonte.
+ * {@link #OTHER}. C'est ce qui borne la cardinalite des provenances face a un
+ * endpoint d'ecriture public, et ce qui empeche un tiers de fabriquer des
+ * dimensions a volonte. La source declaree brute, elle, est gardee a part
+ * ({@code analytics_visitor.ft_source_raw}) et regroupee a la lecture.
  */
 public final class TrafficSource {
 

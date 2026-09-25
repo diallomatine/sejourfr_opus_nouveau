@@ -78,8 +78,9 @@ public class AnalyticsBatchIngestionService {
      * @param principal adresse du compte appelant s'il est connecte (jeton JWT
      *                  valide), {@code null} sinon — un {@code sendBeacon} n'en
      *                  porte jamais
-     * @throws IllegalArgumentException enveloppe invalide (lot trop gros,
-     *         attribution hors allowlist) : tout le lot est refuse
+     * @throws IllegalArgumentException enveloppe invalide (lot trop gros) : tout
+     *         le lot est refuse. Une attribution illisible ne l'est jamais : ses
+     *         champs deviennent {@code null}.
      */
     @Transactional
     public AnalyticsBatchResponse ingest(AnalyticsBatchRequest request, ClientContext client,
@@ -107,11 +108,14 @@ public class AnalyticsBatchIngestionService {
 
         List<Candidat> valides = resoudreContextes(candidats, rejected);
         rejected.sort(Comparator.comparingInt(AnalyticsBatchResponse.Rejection::index));
+        // L'enveloppe valide suffit a enregistrer le visiteur et son first touch
+        // (jamais reecrit) : un lot dont tous les evenements sont rejetes ne doit
+        // pas faire perdre la provenance de la premiere visite.
+        toucherLeVisiteur(request, ctx, country, device, valides, receivedAt);
         if (valides.isEmpty()) {
             return new AnalyticsBatchResponse(events.size(), 0, 0, rejected);
         }
 
-        toucherLeVisiteur(request, ctx, country, device, valides);
         UUID userId = principal == null ? null
                 : userManager.findByEmail(principal).map(u -> u.getId()).orElse(null);
         boolean internal = identityManager.isInternal(request.anonymousId(), userId);
@@ -249,11 +253,14 @@ public class AnalyticsBatchIngestionService {
      * ecritures au plus : a la plus ancienne horodate (c'est elle qui fixe
      * {@code first_seen_at} d'un nouveau visiteur) puis a la plus recente
      * ({@code last_seen_at}). L'upsert tient deja {@code LEAST}/{@code GREATEST}.
+     * Sans evenement valide, le visiteur est touche a l'heure de reception.
      */
     private void toucherLeVisiteur(AnalyticsBatchRequest request, ClientContext ctx, String country,
-                                   AnalyticsDeviceType device, List<Candidat> valides) {
-        Instant premier = valides.stream().map(c -> c.occurredAt).min(Comparator.naturalOrder()).orElseThrow();
-        Instant dernier = valides.stream().map(c -> c.occurredAt).max(Comparator.naturalOrder()).orElseThrow();
+                                   AnalyticsDeviceType device, List<Candidat> valides, Instant receivedAt) {
+        Instant premier = valides.stream().map(c -> c.occurredAt).min(Comparator.naturalOrder())
+                .orElse(receivedAt);
+        Instant dernier = valides.stream().map(c -> c.occurredAt).max(Comparator.naturalOrder())
+                .orElse(receivedAt);
         String path = valides.stream().map(c -> c.path).filter(p -> p != null).findFirst().orElse(null);
 
         AnalyticsVisitorManager.Attribution attribution =

@@ -49,8 +49,14 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
   Chaque événement : `{eventId (UUID tiré à la création, requis), event, occurredAt?
   (ISO-8601), path?, properties?, dedupKey?, diagnosticRunId?, diagnosticType?
   (QUICK_TCF|FULL_TCF|CIVIQUE), journeyId?}`.
-  - **Enveloppe invalide** (sans `anonymousId`/`sessionId`, plus de 50 événements,
-    attribution hors allowlist) → **400**, rien n'est écrit. Garde-fou → **429**.
+  - **Enveloppe invalide** (sans `anonymousId`/`sessionId`, plus de 50 événements)
+    → **400**, rien n'est écrit. Garde-fou → **429**. `sessionId` reste requis :
+    `analytics_event.session_id` est `NOT NULL` et un id fabriqué serveur ferait
+    de chaque lot une « visite ».
+  - **L'attribution ne refuse jamais le lot** (lot 4) : `firstTouch.landingPath` hors
+    allowlist ou `referrerHost` illisible → `null` (inconnu), UTM trop longues tronquées.
+  - **Le visiteur et son first touch sont enregistrés dès que l'enveloppe est valide**,
+    même si tous les événements du lot sont rejetés (le first touch n'est jamais réécrit).
   - **Rejet individuel** : nom hors registre, événement serveur, propriété ou chemin
     hors allowlist, `eventId` absent, `occurredAt` illisible ou de plus de 168 h, run
     ou parcours inexistant, contexte non admis par l'événement. Les autres sont écrits.
@@ -825,6 +831,8 @@ d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes bil
   affiché, Q8). En mode pass, ils créent une `purchase_intent` serveur **avant** la Checkout
   Session, transportée par `metadata.intentId`. Absents ou illisibles : **aucune erreur**, pas
   d'intention, l'achat sera `origin = UNKNOWN`. Un `journeyId` d'un autre compte est ignoré.
+  🛑 `ctaLocation = LOCKED_PLAN` sans run fondatrice résoluble (pas de `journeyId`, parcours
+  d'un autre compte, diagnostic sans run) ⇒ `origin = UNKNOWN`, **jamais `OTHER_CTA`** (lot 4).
 - `POST /api/billing/purchase-intents` — authentifié, **nouveau**. Appelé par le mobile
   **avant** d'ouvrir la feuille Apple / Google.
   Corps `{productId, ctaLocation, journeyId?}` : `productId` = code du pass (`plans.code`) **ou**
@@ -873,6 +881,31 @@ aucun front ne les appelait plus. La table `page_views` (V020) reste en base, pl
   `ai_evaluations.rubrics_version` (V022). DTO propre à l'admin — ces versions
   ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
   le web et le mobile consomment aussi.
+
+### Admin — Suivi (`GET /api/admin/analytics/suivi`, chantier « Suivi » lot 4, 2026-09-25)
+
+Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancien écran
+`/dashboard`), **supprimés** (404) ; les tables `analytics_annotation`, `analytics_event`,
+`analytics_visitor` restent. `ROLE_ADMIN` (401 / 403 sinon).
+
+- Paramètres, tous facultatifs : `preset=TODAY|YESTERDAY|LAST_7_DAYS|MONTH` (défaut `TODAY`,
+  jours Europe/Paris, `MONTH` = du 1er à aujourd'hui) **ou** `from`/`to` (`yyyy-MM-dd`,
+  bornes incluses, les deux ou aucun, 365 j max) — `preset` avec `from`/`to` → **400** ;
+  `type=ALL|TCF|CIVIQUE` (TCF = `QUICK_TCF`) ; `platform=ALL|WEB|IOS|ANDROID` ;
+  `source=ALL|<groupe de la config>` (`instagram|tiktok|facebook|direct|autre`) ;
+  `includeInternal=false`. Valeur inconnue → **400** nommé.
+- Réponse `AdminSuiviResponse` : `window`, `filters` (+ `availableSources`),
+  `measurementStart` (toutes les clés `SuiviIndicator`), `kpis` (visiteurs, soumis, achats,
+  net réel estimé ; valeur, période précédente, variation, ligne secondaire), `funnel`
+  (7 étapes, % depuis la précédente et % de l'étape 1, 3 sous-lignes de « Compte rattaché »,
+  CA net cohorte, « en cours »), `revenue` (brut, TVA, frais, nets, remboursements, net
+  après remboursements, par canal), `byType`, `signups`, `sources`, `ratios` (§7.4),
+  `activity` (§7.3). Montants en centimes, % à une décimale.
+- 🛑 `null` = inconnu ou **pas encore mesuré** (date `measurementStart` absente ou postérieure
+  au début de la période, D43), jamais 0.
+- Définitions de chaque indicateur : `docs/regles/mesure-audience.md` § « Lecture du
+  dashboard Suivi ». Six requêtes SQL constantes, ~160 ms sur un mois réaliste
+  (`SuiviPerformanceIT`), sans cache.
 
 ### Admin — Abonnements (`/subscriptions`)
 

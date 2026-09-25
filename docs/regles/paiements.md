@@ -418,13 +418,18 @@ la décomposition de l'achat est inconnue.
   (paramètres `ctaLocation`, `journeyId`), transportée par `metadata.intentId` ; mobile =
   `POST /api/billing/purchase-intents`, puis `purchaseIntentId` dans `verify-receipt`.
   🛑 **Jamais** `appAccountToken` / `obfuscatedAccountId` / `obfuscatedProfileId`.
-- `diagnostic_run_id` résolu **serveur** depuis le parcours (`journey_assessment_event` du
-  premier diagnostic → `diagnostic_run` du même compte), jamais reçu. TTL 24 h, usage unique.
+- `diagnostic_run_id` résolu **serveur** depuis le parcours par
+  `DiagnosticRunManager.findFoundingRun` (vue `v_journey_founding_run`, V075 : premier
+  diagnostic journalisé → `diagnostic_run` du même compte), jamais reçu. Seule autorité,
+  partagée avec la lecture du dashboard Suivi (lot 4 ; la copie du lot 2b est supprimée).
+  TTL 24 h, usage unique.
 - Consommée dans la transaction qui écrit l'achat, par un `UPDATE` conditionnel : même compte,
   même produit (`plans.code`), non expirée **à l'instant de l'achat**, non consommée. Sinon
   `origin = UNKNOWN`, run nulle, l'intention reste intacte.
 - `origin = DIAGNOSTIC_PLAN` si CTA du Plan (`LOCKED_PLAN`) **et** run fondatrice connue ;
-  `OTHER_CTA` pour toute autre intention valide (run non posée, parcours conservé) ; `UNKNOWN`
-  sinon. 🛑 Aucune reconstruction heuristique (pas de « run la plus récente »).
+  🛑 CTA du Plan **sans** run fondatrice résoluble (pas de parcours, parcours d'un autre
+  compte, diagnostic sans run) ⇒ `UNKNOWN` — jamais `OTHER_CTA`, qui serait faux (lot 4) ;
+  `OTHER_CTA` pour une intention valide posée ailleurs que sur le Plan (run non posée,
+  parcours conservé) ; `UNKNOWN` sinon. 🛑 Aucune reconstruction heuristique (pas de « run la plus récente »).
 - Les chemins d'abonnement récurrent (dormants) ne décomposent ni n'attribuent : ils ne sont
   pas en service.

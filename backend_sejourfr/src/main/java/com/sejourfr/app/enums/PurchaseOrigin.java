@@ -14,9 +14,13 @@ public enum PurchaseOrigin {
     /** Intention posee depuis un CTA du Plan, et la run fondatrice du parcours est connue. */
     DIAGNOSTIC_PLAN,
 
-    /** Intention valide, mais posee ailleurs (tarifs, correction IA...) ou sans run fondatrice. */
+    /** Intention valide, posee ailleurs que sur le Plan (tarifs, correction IA...). */
     OTHER_CTA,
 
-    /** Intention absente, perdue, expiree, deja consommee ou d'un autre compte. */
+    /**
+     * Intention absente, perdue, expiree, deja consommee ou d'un autre compte ;
+     * ou intention du Plan sans run fondatrice resoluble (l'achat vient du Plan,
+     * mais on ne sait pas de quel diagnostic : inconnu, pas « autre CTA »).
+     */
     UNKNOWN
 }

@@ -32,10 +32,8 @@ import java.util.UUID;
  * dedoublonne repond 204 lui aussi : de son point de vue, rien ne s'est mal
  * passe.
  *
- * <p><b>Rate-limite par IP</b>, contrairement a {@code /api/public/page-views}
- * qui ne l'est pas — et c'est un trou connu, ecrit noir sur blanc dans le
- * CLAUDE.md racine. Ici la table n'est pas un agregat borne par construction :
- * chaque appel ecrit une ligne. On ne reproduit donc pas l'omission.
+ * <p><b>Rate-limite par IP</b> : la table n'est pas un agregat borne par
+ * construction, chaque appel ecrit une ligne.
  *
  * <p><b>Le pays et le type d'appareil sont resolus ici</b>, en bord d'entree,
  * et jamais recus du client : ils seraient falsifiables. 🛑 L'IP sert le temps

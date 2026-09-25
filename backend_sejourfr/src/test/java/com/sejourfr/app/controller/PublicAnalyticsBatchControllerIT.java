@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -208,13 +209,37 @@ class PublicAnalyticsBatchControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Un lot entièrement rejeté n'écrit rien, pas même le visiteur")
+    @DisplayName("Un lot entièrement rejeté n'écrit aucun événement, mais garde le visiteur et son first touch")
     void lotEntierementRejete() throws Exception {
         UUID anon = UUID.randomUUID();
-        envoyer(lot(anon, null, evt(id(), "INCONNU", null)), "web")
+        envoyer(lot(anon, "\"firstTouch\":{\"source\":\"tiktok\"}", evt(id(), "INCONNU", null)), "web")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.accepted").value(0));
-        assertThat(visitorManager.findById(anon)).isEmpty();
+        assertThat(eventManager.countForVisitor(anon)).isZero();
+        assertThat(visitorManager.findById(anon).orElseThrow().getFirstTouchSource()).isEqualTo("tiktok");
+
+        // Le lot suivant ne reecrit pas ce first touch.
+        envoyer(lot(anon, "\"firstTouch\":{\"source\":\"instagram\"}",
+                evt(id(), "LANDING_VIEWED", "\"path\":\"/reussir\"")), "web")
+                .andExpect(status().isAccepted());
+        assertThat(visitorManager.findById(anon).orElseThrow().getFirstTouchSource()).isEqualTo("tiktok");
+    }
+
+    @Test
+    @DisplayName("Une page d'arrivée hors allowlist devient inconnue (null) : le lot est accepté")
+    void landingPathInconnu() throws Exception {
+        UUID anon = UUID.randomUUID();
+        envoyer(lot(anon, "\"firstTouch\":{\"source\":\"tiktok\",\"landingPath\":\"/pas-suivie\","
+                        + "\"referrerHost\":\"%%%\"}",
+                evt(id(), "LANDING_VIEWED", "\"path\":\"/reussir\"")), "web")
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.accepted").value(1));
+        Map<String, Object> v = jdbc.queryForMap(
+                "SELECT ft_source, ft_landing_path, ft_referrer_host FROM analytics_visitor WHERE anonymous_id = ?",
+                anon);
+        assertThat(v.get("ft_source")).isEqualTo("tiktok");
+        assertThat(v.get("ft_landing_path")).isNull();
+        assertThat(v.get("ft_referrer_host")).isNull();
     }
 
     @Test

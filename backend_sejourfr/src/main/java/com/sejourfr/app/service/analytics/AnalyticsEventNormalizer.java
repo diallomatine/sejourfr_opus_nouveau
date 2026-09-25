@@ -153,9 +153,11 @@ public class AnalyticsEventNormalizer {
      * gardee a cote, brute mais bornee ({@code ft_source_raw}), pour que le
      * regroupement de la config ({@code ig} ⇒ instagram) se fasse a la lecture.
      *
-     * <p><b>Les UTM trop longues sont tronquees, pas rejetees</b> : ce sont des
-     * chaines redigees par un outil marketing ; les longueurs sont des bornes de
-     * <i>stockage</i>, pas des regles.
+     * <p><b>L'attribution ne fait jamais echouer une requete</b> : les UTM trop
+     * longues sont tronquees (bornes de <i>stockage</i>, pas des regles), un
+     * referrer illisible et une page d'arrivee hors allowlist deviennent
+     * {@code null} — inconnus, jamais un 400 qui ferait perdre le lot entier et
+     * le first touch avec lui (retour du lot 3 web, chantier Suivi lot 4).
      */
     public AnalyticsVisitorManager.Attribution attribution(
             AnalyticsFirstTouchRequest firstTouch, ClientContext ctx, String path) {
@@ -167,9 +169,11 @@ public class AnalyticsEventNormalizer {
         String source = firstTouch.source() != null && !firstTouch.source().isBlank()
                 ? TrafficSource.normalize(firstTouch.source())
                 : ctx.source();
-        String landing = firstTouch.landingPath() != null && !firstTouch.landingPath().isBlank()
-                ? AnalyticsPaths.normalizeOrThrow(firstTouch.landingPath())
-                : path;
+        String landing = firstTouch.landingPath() == null || firstTouch.landingPath().isBlank()
+                ? path
+                : AnalyticsPaths.isKnown(firstTouch.landingPath())
+                        ? AnalyticsPaths.normalizeOrThrow(firstTouch.landingPath())
+                        : null;
         return new AnalyticsVisitorManager.Attribution(
                 source,
                 tronque(firstTouch.medium(), 40),

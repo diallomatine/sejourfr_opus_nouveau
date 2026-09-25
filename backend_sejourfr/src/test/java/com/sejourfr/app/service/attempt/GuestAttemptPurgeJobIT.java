@@ -1,5 +1,13 @@
 package com.sejourfr.app.service.attempt;
 
+import com.sejourfr.app.enums.SuiviIndicator;
+import com.sejourfr.app.enums.SuiviPlatformFilter;
+import com.sejourfr.app.enums.SuiviTypeFilter;
+import com.sejourfr.app.service.analytics.SuiviQuery;
+import com.sejourfr.app.service.analytics.SuiviService;
+import com.sejourfr.app.util.FenetreMesure;
+import java.time.LocalDate;
+import java.util.EnumMap;
 import com.sejourfr.app.config.GuestAttemptPurgeProperties;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
@@ -51,6 +59,7 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
     @Autowired CivicDiagnosticService civicDiagnosticService;
     @Autowired DiagnosticRunManager runManager;
     @Autowired JdbcTemplate jdbc;
+    @Autowired SuiviService suiviService;
 
     /**
      * Le POJO est un singleton partagé par le contexte Spring mis en cache :
@@ -245,8 +254,11 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
         runManager.insertIfAbsent(new DiagnosticRunManager.NewRun(runId, DiagnosticRunType.CIVIQUE,
                 ClientPlatform.WEB, null, UUID.randomUUID(), null, UUID.randomUUID(), null, null,
                 null, null, session.getId()), Instant.now());
-        runManager.markSubmittedByCivicSession(session.getId(), null, Instant.now());
-        long jamaisRattachesAvant = jamaisRattaches();
+        Instant soumis = Instant.now();
+        FenetreMesure jour = new FenetreMesure(LocalDate.ofInstant(soumis, FenetreMesure.PARIS),
+                LocalDate.ofInstant(soumis, FenetreMesure.PARIS));
+        runManager.markSubmittedByCivicSession(session.getId(), null, soumis);
+        long jamaisRattachesAvant = jamaisRattaches(jour);
 
         purge();
 
@@ -255,11 +267,18 @@ class GuestAttemptPurgeJobIT extends AbstractIntegrationTest {
         assertThat(run.get("civic_diagnostic_session_id")).isNull();
         assertThat(run.get("submitted_at")).isNotNull();
         assertThat(run.get("user_id")).isNull();
-        assertThat(jamaisRattaches()).isEqualTo(jamaisRattachesAvant).isPositive();
+        assertThat(jamaisRattaches(jour)).isEqualTo(jamaisRattachesAvant).isPositive();
     }
 
-    private long jamaisRattaches() {
-        return jdbc.queryForObject(
-                "SELECT count(*) FROM diagnostic_run WHERE submitted_at IS NOT NULL AND user_id IS NULL", Long.class);
+    /**
+     * « Soumis anonymes jamais rattaches » tel que l'ecran Suivi le lit
+     * (service de lecture, lot 4), sur la journee de la soumission, tous
+     * indicateurs mesures.
+     */
+    private long jamaisRattaches(FenetreMesure jour) {
+        Map<SuiviIndicator, LocalDate> mesure = new EnumMap<>(SuiviIndicator.class);
+        for (SuiviIndicator indicator : SuiviIndicator.values()) mesure.put(indicator, LocalDate.of(2020, 1, 1));
+        return suiviService.compute(new SuiviQuery(null, jour, SuiviTypeFilter.ALL, SuiviPlatformFilter.ALL,
+                null, true), mesure).activity().anonymousSubmittedNeverAttached();
     }
 }

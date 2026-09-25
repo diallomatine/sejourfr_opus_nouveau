@@ -60,7 +60,6 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/conversations"),
                 Arguments.of(HttpMethod.GET, "/api/admin/conversations/unread-count"),
                 Arguments.of(HttpMethod.GET, "/api/admin/dashboard"),
-                // Ecran Analytics : un seul endpoint de lecture, plus ses reperes.
                 // L8 — le referentiel de notions civiques et son tagging.
                 // Il porte le programme civique : jamais ouvert hors ADMIN.
                 Arguments.of(HttpMethod.GET, "/api/admin/civic-notions"),
@@ -73,16 +72,12 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 // facturation : elle n'est jamais ouverte a un compte non ADMIN.
                 Arguments.of(HttpMethod.GET, "/api/admin/ai-costs"),
                 Arguments.of(HttpMethod.GET, "/api/admin/ai-costs?days=7"),
-                Arguments.of(HttpMethod.GET, "/api/admin/analytics"),
-                Arguments.of(HttpMethod.GET, "/api/admin/analytics?days=7"),
+                // Dashboard « Suivi » (lot 4) : un seul endpoint de lecture.
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/suivi"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/suivi?preset=LAST_7_DAYS&type=TCF"),
                 Arguments.of(HttpMethod.GET,
-                        "/api/admin/analytics?from=2026-08-18&to=2026-08-18"),
-                Arguments.of(HttpMethod.GET,
-                        "/api/admin/analytics?days=30&source=tiktok&country=FR"
-                        + "&device=MOBILE_WEB&platform=WEB"),
-                Arguments.of(HttpMethod.GET, "/api/admin/analytics/annotations"),
-                Arguments.of(HttpMethod.POST, "/api/admin/analytics/annotations"),
-                Arguments.of(HttpMethod.DELETE, "/api/admin/analytics/annotations/" + RANDOM_ID),
+                        "/api/admin/analytics/suivi?from=2026-08-18&to=2026-08-18&platform=IOS"
+                        + "&source=instagram&includeInternal=true"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/stats"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/submissions"),
                 Arguments.of(HttpMethod.GET,
@@ -156,13 +151,17 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
 
     /**
      * Lectures de l'ancienne route admin {@code /audience} et de l'agrégat
-     * {@code page_views}, supprimées le 2026-09-25 (aucun appelant).
+     * {@code page_views}, supprimées le 2026-09-25 (aucun appelant) ; lecture
+     * de l'ancien écran {@code /dashboard} et ses repères, remplacés par
+     * {@code /api/admin/analytics/suivi} (lot 4).
      */
     @ParameterizedTest(name = "ADMIN GET {0} -> 404 (route supprimée)")
     @ValueSource(strings = {
             "/api/admin/page-views",
             "/api/admin/page-views/paths",
-            "/api/admin/audience/funnel"})
+            "/api/admin/audience/funnel",
+            "/api/admin/analytics",
+            "/api/admin/analytics/annotations"})
     void anciennesRoutesAudienceSupprimees(String path) throws Exception {
         User admin = testData.admin();
         MvcResult result = mockMvc.perform(build(HttpMethod.GET, path)

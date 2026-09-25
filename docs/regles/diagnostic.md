@@ -408,7 +408,8 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   civique invité passe la FK de session à `NULL`, la run et son « soumis » restent
   (scénario 19, `GuestAttemptPurgeJobIT`).
 - **Plan ↔ run (Q8)** : `DiagnosticRunManager.findFoundingRun(journeyId, userId)` rend la
-  run du diagnostic **le plus ancien journalisé** sur le parcours
+  run du diagnostic **le plus ancien journalisé** sur le parcours (règle écrite une fois,
+  dans la vue `v_journey_founding_run`, V075, aussi lue par le dashboard Suivi)
   (`journey_assessment_event`), reliée par les FK de session, et seulement si elle
   appartient au porteur du parcours. `JourneyDto.journeyId` sert `journey.id`. Un
   diagnostic sans run liée (client ancien) rend vide : inconnu, jamais deviné.

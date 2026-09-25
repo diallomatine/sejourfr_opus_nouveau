@@ -135,13 +135,16 @@ class PurchaseIntentAttributionIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("CTA du Plan sans parcours → OTHER_CTA : pas de run, pas de tunnel")
-    void ctaDuPlanSansParcours_otherCta() {
+    @DisplayName("CTA du Plan sans parcours → UNKNOWN (jamais OTHER_CTA : il vient bien du Plan), pas de run")
+    void ctaDuPlanSansParcours_unknown() {
         User user = testData.user();
         Plan plan = testData.plan();
         UUID intent = intention(user, plan, "LOCKED_PLAN", null);
 
-        assertThat(acheter(user, plan, intent, null).getOrigin()).isEqualTo(PurchaseOrigin.OTHER_CTA);
+        UserSubscription sub = acheter(user, plan, intent, null);
+        assertThat(sub.getOrigin()).isEqualTo(PurchaseOrigin.UNKNOWN);
+        assertThat(sub.getDiagnosticRunId()).isNull();
+        assertThat(sub.getPurchaseIntentId()).isEqualTo(intent);
     }
 
     @Test
@@ -216,7 +219,7 @@ class PurchaseIntentAttributionIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Le parcours d'un autre compte est ignoré : ni parcours, ni run sur l'intention")
+    @DisplayName("Le parcours d'un autre compte est ignoré : ni parcours, ni run ; CTA du Plan → UNKNOWN")
     void parcoursDUnAutreCompte_ignore() {
         User user = testData.user();
         Plan plan = testData.plan();
@@ -225,7 +228,7 @@ class PurchaseIntentAttributionIT extends AbstractIntegrationTest {
 
         UserSubscription sub = acheter(user, plan, intent, null);
 
-        assertThat(sub.getOrigin()).isEqualTo(PurchaseOrigin.OTHER_CTA);
+        assertThat(sub.getOrigin()).isEqualTo(PurchaseOrigin.UNKNOWN);
         assertThat(sub.getJourneyId()).isNull();
         assertThat(sub.getDiagnosticRunId()).isNull();
     }

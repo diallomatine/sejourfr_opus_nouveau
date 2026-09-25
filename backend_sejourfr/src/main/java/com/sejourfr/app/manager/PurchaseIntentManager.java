@@ -34,16 +34,4 @@ public class PurchaseIntentManager {
         if (journeyId == null || userId == null) return Optional.empty();
         return repository.ownedJourney(journeyId, userId).stream().findFirst();
     }
-
-    /**
-     * Run fondatrice du parcours, par les cles etrangeres seulement.
-     *
-     * <p>⚠️ Lecture minimale du lot 2b : le lot 2a publie la resolution
-     * canonique journey → run fondatrice ; celle-ci s'y rabattra a la
-     * reconciliation (une regle = une autorite).
-     */
-    public Optional<UUID> foundingRunOf(UUID journeyId) {
-        if (journeyId == null) return Optional.empty();
-        return repository.foundingRunOf(journeyId).stream().findFirst();
-    }
 }

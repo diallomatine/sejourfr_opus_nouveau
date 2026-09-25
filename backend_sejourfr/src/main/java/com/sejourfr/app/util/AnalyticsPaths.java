@@ -14,9 +14,8 @@ import java.util.Set;
  * regroupement par page illisible. Pire, un chemin reel peut porter un
  * identifiant ({@code /diagnostic/3f2a-...}), donc de la donnee qui n'a rien a
  * faire dans une mesure d'audience. Meme parti pris que
- * {@code PageViewService.EVENTS_BY_PATH} et {@link TrafficSource#KNOWN} : on
- * borne, et ce qui n'est pas prevu est <b>refuse en 400 nomme</b> plutot que
- * range en silence dans un fourre-tout.
+ * {@link TrafficSource#KNOWN} : on borne, et ce qui n'est pas prevu est
+ * <b>refuse en 400 nomme</b> plutot que range en silence dans un fourre-tout.
  *
  * <p>Un chemin hors liste n'est donc jamais « autre » : c'est un front qui
  * instrumente un ecran qu'on n'a pas declare, et il doit l'apprendre tout de
