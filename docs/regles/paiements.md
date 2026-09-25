@@ -340,3 +340,91 @@ réactivés.
 **Règles pures, une fois par front** : `web_sejoufr/lib/paywall-context.ts` ⇄
 `mobile_sejourfr/lib/core/widgets/paywall_context.dart`, miroirs l'un de
 l'autre.
+
+---
+
+## Revenus nets, remboursements, intention d'achat (chantier « Suivi », lot 2b, 2026-09-25)
+
+Arbitrages opposables : `docs/admin/decisions-suivi.md` §1 (Q1, Q11, Q12, scénario 18).
+Schéma : V074 (colonnes de revenu et d'attribution de `user_subscriptions`,
+`purchase_intent`, `payment_refunds`).
+
+### Décomposition du revenu — figée à l'écriture
+
+- **Autorité unique** : `service/billing/RevenueCalculator` (pur), sur les règles versionnées
+  `billing/revenue-rules-v{n}.json`. Appelée par `OneTimeAccessService` à la **création** d'un
+  achat (jamais sur un rejeu), après `MontantEncaisse` — `amount_eur_cents` **est** le brut.
+- **Stripe** (`FRANCHISE_293B`) : `vat = 0`, `HT = gross`. Frais = `balance_transaction.fee`
+  réel (`StripeFeeClient`, `fee_source = ACTUAL`) ; sinon formule `gross × 1,5 % + 25 c`
+  (`ESTIMATED`). `net_after_fee = gross − fee`, `net_ex_vat = HT − fee`.
+  9,99 € → TVA 0, frais 0,40, net 9,59.
+- **Apple / Google** : TVA store 20 % retirée, `HT = round(gross / 1,2)` HALF_UP ; commission
+  **MULTIPLY** au taux **du store** (config, provisoire 0,15) ; `net_after_fee = net_ex_vat =
+  HT − fee` ; toujours `ESTIMATED`. 9,99 € → 7,08 (15 %) ; 5,83 (30 %).
+- 🛑 Invariant `amount_eur_cents = vat + fee + net_ex_vat` asserté par `RevenueBreakdown` **et**
+  par la base (CHECK V074). `revenue_rules_version` figée avec la ligne : changer de règle ne
+  recalcule rien.
+- 🛑 **Pas de backfill.** Un achat antérieur, ou dont le brut en euros est inconnu (devise sans
+  taux), garde ses six colonnes à `NULL` — inconnu, jamais zéro.
+- `purchased_at` = date donnée par le canal (évènement Stripe signé, `purchaseDate` du JWS
+  Apple, `purchaseTimeMillis` Play), sinon l'heure d'écriture. `payment_status = PAID` à la
+  création (`PaymentStatus` : `PAID | PARTIALLY_REFUNDED | REFUNDED`, distinct du statut
+  d'accès).
+
+### Prix des stores (bug Q11)
+
+- Le mobile envoie `amountCents` + `currency` ; le backend n'attendait que `rawPrice` (ignoré en
+  silence par Jackson). Les deux formes sont lues (`ReceiptVerificationService.montantDeclare`).
+- **Apple** : le prix se lit dans le **JWS signé** (`price` en millièmes → centièmes, HALF_UP,
+  `currency`) ; celui déclaré par l'app n'est plus lu. JWS sans prix ⇒ prix du plan.
+- **Google** : `purchases.products.get` ne rend aucun prix ; le montant déclaré n'est retenu que
+  si son équivalent en euros tient dans `plans.price × (1 ± sejourfr.billing.store-price-tolerance)`
+  (0,5), sinon le prix du catalogue. Devise sans taux ⇒ catalogue.
+
+### Stripe : encaissement et rejeu (bug Q11)
+
+- 🛑 `checkout.session.completed` n'accorde l'accès que si `payment_status = paid`. Un paiement
+  différé est accordé sur `checkout.session.async_payment_succeeded`.
+  ⚠️ **Action propriétaire** : abonner l'endpoint webhook Stripe à
+  `checkout.session.async_payment_succeeded` et `checkout.session.async_payment_failed`.
+- 🛑 **Plus aucune garde sur l'âge de l'évènement** : Stripe garde le `created` d'origine sur ses
+  relances (jusqu'à 3 jours), l'ancienne garde de 300 s rejetait définitivement un achat payé.
+  Le rejeu est tenu par la tolérance de la **signature** (`Webhook.constructEvent`, horodatage
+  régénéré à chaque livraison) et par `processed_external_events`.
+
+### Remboursements — `payment_refunds`
+
+Autorité unique : `PaymentRefundService`. Idempotence `(provider, provider_refund_id)` ;
+plusieurs partiels par achat possibles. Montant dans la devise de l'achat, converti au taux
+**figé sur l'achat**. `net_ex_vat_delta_cents` (≤ 0) figé avec la version des règles, `NULL` si
+la décomposition de l'achat est inconnue.
+
+| Canal | Déclencheur | `provider_refund_id` | Montant | Delta de net HT |
+|---|---|---|---|---|
+| Stripe | `charge.refunded` | `<charge>:<amount_refunded cumulé>` | cumul − déjà enregistré | `−HT` du rendu (Stripe garde ses frais) |
+| Apple | ASSN `REFUND` | `transactionId` | brut × `revocationPercentage` (absent ⇒ total) | `−net_ex_vat` au prorata |
+| Google | `voidedPurchaseNotification` | `orderId` (sinon `purchaseToken`) | brut entier | `−net_ex_vat` |
+
+- Remboursement **total** ⇒ `status = REFUNDED` (accès retiré), `payment_status = REFUNDED`.
+  **Partiel** ⇒ accès conservé, `payment_status = PARTIALLY_REFUNDED` (bug Q11 : un partiel
+  Stripe retirait l'accès).
+- Scénario 13 : Stripe total ⇒ net de l'achat `959 − 999 = −40` ; store total ⇒ `0`.
+- Apple `REVOKE` (partage familial) retire l'accès sans ligne de remboursement ;
+  `REFUND_REVERSED` reste ignoré en mode pass.
+
+### Intention d'achat — `purchase_intent` (Q12)
+
+- Créée côté serveur **avant chaque démarrage d'achat** : web = dans `GET /payment-link`
+  (paramètres `ctaLocation`, `journeyId`), transportée par `metadata.intentId` ; mobile =
+  `POST /api/billing/purchase-intents`, puis `purchaseIntentId` dans `verify-receipt`.
+  🛑 **Jamais** `appAccountToken` / `obfuscatedAccountId` / `obfuscatedProfileId`.
+- `diagnostic_run_id` résolu **serveur** depuis le parcours (`journey_assessment_event` du
+  premier diagnostic → `diagnostic_run` du même compte), jamais reçu. TTL 24 h, usage unique.
+- Consommée dans la transaction qui écrit l'achat, par un `UPDATE` conditionnel : même compte,
+  même produit (`plans.code`), non expirée **à l'instant de l'achat**, non consommée. Sinon
+  `origin = UNKNOWN`, run nulle, l'intention reste intacte.
+- `origin = DIAGNOSTIC_PLAN` si CTA du Plan (`LOCKED_PLAN`) **et** run fondatrice connue ;
+  `OTHER_CTA` pour toute autre intention valide (run non posée, parcours conservé) ; `UNKNOWN`
+  sinon. 🛑 Aucune reconstruction heuristique (pas de « run la plus récente »).
+- Les chemins d'abonnement récurrent (dormants) ne décomposent ni n'attribuent : ils ne sont
+  pas en service.

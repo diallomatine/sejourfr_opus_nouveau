@@ -39,22 +39,31 @@ public class ReceiptVerificationService {
     private final MontantEncaisseResolver montantEncaisseResolver;
 
     public SubscriptionStatusResponse verify(UUID userId, VerifyReceiptRequest request) {
-        // Prix réellement affiché à cet utilisateur, quand l'application le
-        // remonte. Facultatif : une version antérieure n'envoie rien, et le
-        // montant retombe alors sur le prix du plan (cf. OneTimeAccessService).
-        MontantEncaisse montant = montantEncaisseResolver.duStore(
-                request.rawPrice(), request.currencyCode());
         switch (request.source()) {
+            // Apple : le prix se lit dans le JWS signé, pas dans la requête.
             case APPLE -> appleSubscriptionService.activateFromReceipt(
-                    userId, request.productId(), request.receipt(), montant);
+                    userId, request.productId(), request.receipt(), request.purchaseIntentId());
             case GOOGLE -> googleSubscriptionService.activateFromReceipt(
-                    userId, request.productId(), request.receipt(), montant);
+                    userId, request.productId(), request.receipt(), montantDeclare(request),
+                    request.purchaseIntentId());
             case STRIPE -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Stripe ne passe pas par /verify-receipt — utiliser le webhook checkout.session.completed."
             );
         }
         return buildResponse(userId);
+    }
+
+    /**
+     * Prix affiché déclaré par l'application : {@code amountCents} +
+     * {@code currency} (ce que le mobile envoie), sinon l'ancienne forme
+     * {@code rawPrice} + {@code currencyCode}, sinon inconnu (bug Q11).
+     */
+    MontantEncaisse montantDeclare(VerifyReceiptRequest request) {
+        MontantEncaisse enCentimes = montantEncaisseResolver.enUnitesMineures(
+                request.amountCents(), request.currency());
+        if (enCentimes.estConnu()) return enCentimes;
+        return montantEncaisseResolver.duStore(request.rawPrice(), request.currencyCode());
     }
 
     private SubscriptionStatusResponse buildResponse(UUID userId) {

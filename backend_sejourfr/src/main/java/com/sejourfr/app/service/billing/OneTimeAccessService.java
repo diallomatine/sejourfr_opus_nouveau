@@ -3,6 +3,7 @@ package com.sejourfr.app.service.billing;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PaymentStatus;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.UserManager;
@@ -50,6 +51,8 @@ public class OneTimeAccessService {
     private final SubscriptionService subscriptionService;
     private final ApplicationEventPublisher eventPublisher;
     private final MontantEncaisseResolver montantEncaisseResolver;
+    private final RevenueCalculator revenueCalculator;
+    private final PurchaseIntentService purchaseIntentService;
 
     /**
      * Variante sans montant déclaré : le canal ne dit pas ce qu'il a prélevé,
@@ -81,6 +84,28 @@ public class OneTimeAccessService {
             UUID userId, Plan plan, SubscriptionSource source,
             String originalTransactionId, String externalTransactionId,
             MontantEncaisse montantConstate) {
+        return grantOneTimeAccess(userId, plan, source, originalTransactionId,
+                externalTransactionId, montantConstate, ContexteAchat.AUCUN);
+    }
+
+    /**
+     * Variante complète (chantier Suivi, lot 2b) : en plus du montant, le canal
+     * transmet ce qu'il sait de l'achat ({@link ContexteAchat}). À la création
+     * — jamais sur un rejeu — la ligne fige :
+     * <ul>
+     *   <li>{@code purchased_at} (date du canal, sinon l'heure d'écriture) ;</li>
+     *   <li>la décomposition du revenu ({@link RevenueCalculator}), quand le
+     *       brut en euros est connu — sinon les six colonnes restent NULL ;</li>
+     *   <li>{@code payment_status = PAID} ;</li>
+     *   <li>l'attribution lue sur l'intention d'achat, consommée ici, dans la
+     *       même transaction (Q12).</li>
+     * </ul>
+     */
+    public UserSubscription grantOneTimeAccess(
+            UUID userId, Plan plan, SubscriptionSource source,
+            String originalTransactionId, String externalTransactionId,
+            MontantEncaisse montantConstate, ContexteAchat contexte) {
+        ContexteAchat achat = contexte != null ? contexte : ContexteAchat.AUCUN;
 
         UserSubscription existing = userSubscriptionManager
                 .findBySourceAndOriginalTransactionId(source, originalTransactionId)
@@ -144,6 +169,14 @@ public class OneTimeAccessService {
         // montant inconnu n'ecrit rien : NULL se lit « on ne sait pas », un 0
         // se lirait « gratuit ».
         montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
+        sub.setPurchasedAt(achat.purchasedAt() != null ? achat.purchasedAt() : now);
+        sub.setPaymentStatus(PaymentStatus.PAID);
+        if (sub.getAmountEurCents() != null) {
+            revenueCalculator.decomposer(source, sub.getAmountEurCents(), achat.fraisReelEurCents())
+                    .appliquerA(sub);
+        }
+        purchaseIntentService.consommer(userId, plan, achat.purchaseIntentId(), sub.getPurchasedAt())
+                .appliquerA(sub);
         userSubscriptionManager.save(sub);
 
         log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",

@@ -812,6 +812,43 @@ pendant la requête de soumission, puis il disparaît. La transcription est donc
 de transcription rend **503** et rien n'est enregistré : le candidat renvoie. Cf.
 `notation-ia-eo-ee.md` §11 bis.
 
+## Paiements (`/api/billing`) — intention d'achat et reçus (lot 2b « Suivi », 2026-09-25)
+
+Règle complète : `docs/regles/paiements.md` § « Revenus nets, remboursements, intention
+d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes billing
+(`/plans`, `/subscription-status`, `/cancel`, webhooks) sont inchangées.
+
+- `GET /api/billing/payment-link?planCode=&retour=&ctaLocation=&journeyId=` — authentifié.
+  **Nouveaux paramètres facultatifs** `ctaLocation` (valeur de `AnalyticsCtaLocation` :
+  `DIAGNOSTIC_REPORT | LOCKED_PLAN | PRICING | AI_CORRECTION | MOCK_EXAM | HERO | MIDDLE |
+  STICKY | FOOTER | OTHER`, insensible à la casse) et `journeyId` (le `journey.id` du Plan
+  affiché, Q8). En mode pass, ils créent une `purchase_intent` serveur **avant** la Checkout
+  Session, transportée par `metadata.intentId`. Absents ou illisibles : **aucune erreur**, pas
+  d'intention, l'achat sera `origin = UNKNOWN`. Un `journeyId` d'un autre compte est ignoré.
+- `POST /api/billing/purchase-intents` — authentifié, **nouveau**. Appelé par le mobile
+  **avant** d'ouvrir la feuille Apple / Google.
+  Corps `{productId, ctaLocation, journeyId?}` : `productId` = code du pass (`plans.code`) **ou**
+  SKU store (`apple_product_id` / `google_product_id`) ; `ctaLocation` = même liste que
+  ci-dessus. Réponse **201** `{purchaseIntentId: uuid, expiresAt: instant}` (TTL 24 h,
+  `analytics-config purchaseIntentTtlHours`). **404** produit inconnu ou inactif, **400** CTA
+  hors liste. La plateforme est lue sur `X-Sejourfr-Client`. La run fondatrice est résolue
+  serveur depuis le parcours, jamais reçue.
+- `POST /api/billing/verify-receipt` — corps étendu, **tous les nouveaux champs facultatifs** :
+  `{source, receipt, productId, amountCents?, currency?, purchaseIntentId?, rawPrice?,
+  currencyCode?}`. `amountCents` + `currency` (unités mineures, ce que le mobile envoie) sont
+  enfin lus ; `rawPrice` + `currencyCode` restent acceptés (anciens clients), `amountCents`
+  gagne si les deux sont présents. 🛑 **Apple** : le montant déclaré est ignoré, le prix vient
+  du JWS signé. **Google** : le montant déclaré n'est retenu que s'il tient dans
+  `plans.price × (1 ± 0,5)`, sinon le prix du catalogue. `purchaseIntentId` : l'id rendu par
+  `POST /purchase-intents`, à renvoyer tel quel (y compris au rejeu d'un achat au lancement
+  suivant) ; absent, inconnu, expiré, consommé, d'un autre compte ou d'un autre produit ⇒
+  l'achat est crédité normalement, `origin = UNKNOWN`.
+- `POST /api/billing/webhook` (Stripe) — **plus de rejet sur l'âge de l'évènement** (une
+  relance Stripe > 5 min était refusée définitivement) ; idempotence par id d'évènement.
+  Nouveaux évènements traités : `checkout.session.async_payment_succeeded` (octroi d'un
+  paiement différé) et `checkout.session.async_payment_failed` (journalisé). Une session
+  `payment_status ≠ paid` n'ouvre plus d'accès. `charge.refunded` distingue partiel et total.
+
 ## Audience des landings — retirée (2026-09-25)
 
 `POST /api/public/page-views`, `GET /api/admin/page-views`, `GET /api/admin/page-views/paths`

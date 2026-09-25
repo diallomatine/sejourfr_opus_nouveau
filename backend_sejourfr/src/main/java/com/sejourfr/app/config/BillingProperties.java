@@ -24,11 +24,25 @@ public class BillingProperties {
      */
     private int revenueRulesVersion = 1;
 
+    /**
+     * Borne d'un montant declare par l'application pour un achat Google (bug
+     * Q11) : retenu seulement si son equivalent en euros tient dans
+     * {@code plans.price × (1 ± tolerance)}, sinon le prix du plan est ecrit.
+     * Large (50 %) parce que le store vend en devise locale, a un palier de prix
+     * qui n'est pas {@code plans.price}.
+     */
+    private java.math.BigDecimal storePriceTolerance = new java.math.BigDecimal("0.5");
+
     public BillingMode getMode() { return mode; }
     public void setMode(BillingMode mode) { this.mode = mode; }
 
     public int getRevenueRulesVersion() { return revenueRulesVersion; }
     public void setRevenueRulesVersion(int revenueRulesVersion) { this.revenueRulesVersion = revenueRulesVersion; }
+
+    public java.math.BigDecimal getStorePriceTolerance() { return storePriceTolerance; }
+    public void setStorePriceTolerance(java.math.BigDecimal storePriceTolerance) {
+        this.storePriceTolerance = storePriceTolerance;
+    }
 
     public boolean isOneTime() { return mode == BillingMode.ONE_TIME; }
     public boolean isSubscription() { return mode == BillingMode.SUBSCRIPTION; }

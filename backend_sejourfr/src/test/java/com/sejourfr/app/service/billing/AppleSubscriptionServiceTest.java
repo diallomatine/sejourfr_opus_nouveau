@@ -53,6 +53,8 @@ class AppleSubscriptionServiceTest {
     private ProcessedExternalEventManager processedEventManager;
     private ApplicationEventPublisher mailService;
     private BillingProperties billingProperties;
+    private OneTimeAccessService oneTimeAccessService;
+    private PaymentRefundService paymentRefundService;
     private AppleSubscriptionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -67,13 +69,15 @@ class AppleSubscriptionServiceTest {
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         processedEventManager = mock(ProcessedExternalEventManager.class);
         mailService = mock(ApplicationEventPublisher.class);
-        OneTimeAccessService oneTimeAccessService = mock(OneTimeAccessService.class);
+        oneTimeAccessService = mock(OneTimeAccessService.class);
+        paymentRefundService = mock(PaymentRefundService.class);
         billingProperties = mock(BillingProperties.class); // isOneTime() = false par défaut
         service = new AppleSubscriptionService(
                 appleStoreClient, planManager, userManager, userSubscriptionManager,
                 processedEventManager, new SubscriptionNotificationService(mailService),
                 oneTimeAccessService, billingProperties,
-                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()),
+                paymentRefundService);
 
         user = new User();
         user.setId(userId);
@@ -376,5 +380,117 @@ class AppleSubscriptionServiceTest {
         service.handleNotification("payload");
         assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
         verify(mailService, never()).publishEvent(org.mockito.ArgumentMatchers.<Object>argThat(e -> e instanceof com.sejourfr.app.service.email.event.PremiumSubscriptionCanceledEvent));
+    }
+
+    // ----- pass one-time : prix du JWS, intention, remboursements -------------
+
+    private JWSTransactionDecodedPayload passMock(String txId) {
+        JWSTransactionDecodedPayload tx = mock(JWSTransactionDecodedPayload.class);
+        when(tx.getProductId()).thenReturn("integral_pass_2m");
+        when(tx.getOriginalTransactionId()).thenReturn("orig_" + txId);
+        when(tx.getTransactionId()).thenReturn(txId);
+        when(tx.getType()).thenReturn(Type.CONSUMABLE);
+        when(tx.getPurchaseDate()).thenReturn(1_790_000_000_000L);
+        when(tx.getPrice()).thenReturn(9990L);
+        when(tx.getCurrency()).thenReturn("EUR");
+        return tx;
+    }
+
+    /**
+     * Bug Q11 : le prix d'un achat Apple se lit dans le JWS SIGNÉ. L'intention
+     * et la date d'achat voyagent jusqu'à l'octroi.
+     */
+    @Test
+    void passOneTime_prixDuJws_intentionEtDateTransmises() throws Exception {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        JWSTransactionDecodedPayload tx = passMock("tx_p1");
+        when(appleStoreClient.verifyTransaction("jws")).thenReturn(tx);
+        when(planManager.findByAppleProductId("integral_pass_2m")).thenReturn(Optional.of(plan));
+        when(oneTimeAccessService.grantOneTimeAccess(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(localSub(SubscriptionStatus.ACTIVE));
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "jws", "intent-1");
+
+        org.mockito.ArgumentCaptor<MontantEncaisse> montant =
+                org.mockito.ArgumentCaptor.forClass(MontantEncaisse.class);
+        org.mockito.ArgumentCaptor<ContexteAchat> contexte =
+                org.mockito.ArgumentCaptor.forClass(ContexteAchat.class);
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq(plan),
+                org.mockito.ArgumentMatchers.eq(SubscriptionSource.APPLE),
+                org.mockito.ArgumentMatchers.eq("tx_p1"), org.mockito.ArgumentMatchers.eq("tx_p1"),
+                montant.capture(), contexte.capture());
+        assertThat(montant.getValue().amountCents()).isEqualTo(999);
+        assertThat(montant.getValue().currency()).isEqualTo("EUR");
+        assertThat(contexte.getValue().purchaseIntentId()).isEqualTo("intent-1");
+        assertThat(contexte.getValue().purchasedAt()).isEqualTo(Instant.ofEpochMilli(1_790_000_000_000L));
+    }
+
+    private UserSubscription passEnBase(String txId) {
+        UserSubscription sub = localSub(SubscriptionStatus.ACTIVE);
+        sub.setOriginalTransactionId(txId);
+        sub.setAmountCents(999);
+        sub.setCurrency("EUR");
+        sub.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PAID);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(SubscriptionSource.APPLE, txId))
+                .thenReturn(Optional.of(sub));
+        return sub;
+    }
+
+    private void notificationOneTime(String uuid, NotificationTypeV2 type, JWSTransactionDecodedPayload tx)
+            throws Exception {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        ResponseBodyV2DecodedPayload notif = notifMock(uuid, type, null, dataMock("stx"));
+        when(appleStoreClient.verifyNotification("payload")).thenReturn(notif);
+        when(processedEventManager.tryMarkProcessed("apple", uuid)).thenReturn(true);
+        when(appleStoreClient.verifyTransaction("stx")).thenReturn(tx);
+    }
+
+    /** REFUND total : accès retiré, ligne de remboursement du montant entier. */
+    @Test
+    void passOneTime_refundTotal_retireLAcces_etEnregistreLeRemboursement() throws Exception {
+        JWSTransactionDecodedPayload tx = passMock("tx_r1");
+        when(tx.getRevocationDate()).thenReturn(1_790_000_100_000L);
+        notificationOneTime("uuid-r1", NotificationTypeV2.REFUND, tx);
+        UserSubscription sub = passEnBase("tx_r1");
+
+        service.handleNotification("payload");
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        assertThat(sub.getPaymentStatus()).isEqualTo(com.sejourfr.app.enums.PaymentStatus.REFUNDED);
+        verify(paymentRefundService).enregistrer(sub, "tx_r1", 999L, "EUR",
+                Instant.ofEpochMilli(1_790_000_100_000L));
+    }
+
+    /** REFUND partiel ({@code revocationPercentage}) : l'accès reste, le montant est au prorata. */
+    @Test
+    void passOneTime_refundPartiel_gardeLAcces() throws Exception {
+        JWSTransactionDecodedPayload tx = passMock("tx_r2");
+        when(tx.getRevocationPercentage()).thenReturn(50_000); // 50 %
+        notificationOneTime("uuid-r2", NotificationTypeV2.REFUND, tx);
+        UserSubscription sub = passEnBase("tx_r2");
+
+        service.handleNotification("payload");
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(sub.getPaymentStatus())
+                .isEqualTo(com.sejourfr.app.enums.PaymentStatus.PARTIALLY_REFUNDED);
+        verify(paymentRefundService).enregistrer(org.mockito.ArgumentMatchers.eq(sub),
+                org.mockito.ArgumentMatchers.eq("tx_r2"), org.mockito.ArgumentMatchers.eq(500L),
+                org.mockito.ArgumentMatchers.eq("EUR"), any());
+    }
+
+    /** REVOKE (partage familial) : accès retiré, mais ce n'est pas un remboursement d'argent. */
+    @Test
+    void passOneTime_revoke_retireLAcces_sansLigneDeRemboursement() throws Exception {
+        JWSTransactionDecodedPayload tx = passMock("tx_r3");
+        notificationOneTime("uuid-r3", NotificationTypeV2.REVOKE, tx);
+        UserSubscription sub = passEnBase("tx_r3");
+
+        service.handleNotification("payload");
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        verify(paymentRefundService, never()).enregistrer(any(), any(),
+                org.mockito.ArgumentMatchers.anyLong(), any(), any());
     }
 }

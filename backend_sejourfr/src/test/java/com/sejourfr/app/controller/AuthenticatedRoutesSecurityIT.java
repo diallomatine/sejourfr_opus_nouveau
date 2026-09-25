@@ -132,6 +132,7 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 // BillingController — endpoints authentifiés (hors /plans + /webhook publics)
                 Arguments.of(HttpMethod.GET, "/api/billing/subscription-status"),
                 Arguments.of(HttpMethod.GET, "/api/billing/payment-link"),
+                Arguments.of(HttpMethod.POST, "/api/billing/purchase-intents"),
                 // SkillController — module compétences (aucune route publique :
                 // toute la progression est nominative)
                 Arguments.of(HttpMethod.GET, "/api/skills/progress?section=EE"),

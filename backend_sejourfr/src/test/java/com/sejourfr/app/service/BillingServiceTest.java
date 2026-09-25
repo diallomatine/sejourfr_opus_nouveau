@@ -9,6 +9,7 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.PlanMapper;
+import com.sejourfr.app.service.billing.PurchaseIntentService;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -50,6 +51,7 @@ class BillingServiceTest {
     private PlanManager planManager;
     private ProcessedExternalEventManager processedEventManager;
     private StripeSubscriptionService stripeSubscriptionService;
+    private PurchaseIntentService purchaseIntentService;
     private BillingService service;
 
     private static final com.sejourfr.app.util.ClientContext CTX =
@@ -69,10 +71,11 @@ class BillingServiceTest {
         stripeSubscriptionService = mock(StripeSubscriptionService.class);
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
         FunnelEventService funnelEventService = mock(FunnelEventService.class);
+        purchaseIntentService = mock(PurchaseIntentService.class);
         service = new BillingService(
                 stripeProperties, billingProperties, userManager, planManager,
                 processedEventManager, planMapper, stripeSubscriptionService, subscriptionService,
-                funnelEventService);
+                funnelEventService, purchaseIntentService);
 
         User user = new User();
         user.setId(userId);
@@ -148,21 +151,106 @@ class BillingServiceTest {
         }
     }
 
+    /**
+     * Bug Q11 : Stripe garde le {@code created} d'origine sur ses relances (jusqu'à
+     * 3 jours). L'ancienne garde de 300 s rejetait définitivement toute relance
+     * légitime au-delà de 5 min — l'achat n'était jamais crédité. Un évènement
+     * signé, même vieux d'un jour, est traité ; seule l'idempotence sur son id
+     * écarte un rejeu.
+     */
     @Test
-    void handleWebhook_evenementTropAncien_renvoie400_antiReplay() {
+    void handleWebhook_relanceStripeVieilleDUnJour_estTraitee() {
         when(stripeProperties.getWebhookSecret()).thenReturn("whsec_x");
         Event event = mock(Event.class);
-        when(event.getCreated()).thenReturn(Instant.now().getEpochSecond() - 3600); // 1h
+        when(event.getCreated()).thenReturn(Instant.now().getEpochSecond() - 86_400);
         when(event.getId()).thenReturn("evt_old");
+        when(processedEventManager.tryMarkProcessed("stripe", "evt_old")).thenReturn(true);
         try (MockedStatic<Webhook> mocked = mockStatic(Webhook.class)) {
             mocked.when(() -> Webhook.constructEvent("p", "s", "whsec_x")).thenReturn(event);
 
-            assertThatThrownBy(() -> service.handleWebhook("p", "s"))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
-                    .isEqualTo(400);
-            verify(processedEventManager, never()).tryMarkProcessed(anyString(), anyString());
+            service.handleWebhook("p", "s");
+
+            verify(processedEventManager).tryMarkProcessed("stripe", "evt_old");
+            verify(stripeSubscriptionService).dispatch(event);
+        }
+    }
+
+    /** La même relance, déjà traitée : l'idempotence sur l'id l'écarte. */
+    @Test
+    void handleWebhook_relanceDejaTraitee_nEstPasRedispatchee() {
+        when(stripeProperties.getWebhookSecret()).thenReturn("whsec_x");
+        Event event = mock(Event.class);
+        when(event.getCreated()).thenReturn(Instant.now().getEpochSecond() - 86_400);
+        when(event.getId()).thenReturn("evt_old");
+        when(processedEventManager.tryMarkProcessed("stripe", "evt_old")).thenReturn(false);
+        try (MockedStatic<Webhook> mocked = mockStatic(Webhook.class)) {
+            mocked.when(() -> Webhook.constructEvent("p", "s", "whsec_x")).thenReturn(event);
+
+            service.handleWebhook("p", "s");
+
             verify(stripeSubscriptionService, never()).dispatch(any());
+        }
+    }
+
+    /**
+     * Q12 : le checkout Stripe crée l'intention AVANT la session et la
+     * transporte par {@code metadata.intentId}.
+     */
+    @Test
+    void getPaymentLink_avecCta_creeLIntentionEtLaPoseEnMetadata() {
+        when(stripeProperties.isConfigured()).thenReturn(true);
+        when(stripeProperties.getAppBaseUrl()).thenReturn("https://sejourfr.fr");
+        when(billingProperties.isOneTime()).thenReturn(true);
+        Plan pass = plan(ModuleAccess.CIVIQUE, null);
+        pass.setDurationDays(90);
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(pass));
+        UUID intentId = UUID.randomUUID();
+        when(purchaseIntentService.creerPourCheckout(userId, pass, "LOCKED_PLAN", "j-1", CTX))
+                .thenReturn(Optional.of(intentId));
+
+        try (MockedStatic<com.stripe.model.checkout.Session> sessions =
+                     mockStatic(com.stripe.model.checkout.Session.class)) {
+            com.stripe.model.checkout.Session created =
+                    mock(com.stripe.model.checkout.Session.class);
+            when(created.getUrl()).thenReturn("https://checkout.stripe.com/x");
+            ArgumentCaptor<com.stripe.param.checkout.SessionCreateParams> captor =
+                    ArgumentCaptor.forClass(com.stripe.param.checkout.SessionCreateParams.class);
+            sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
+                    .thenReturn(created);
+
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, "LOCKED_PLAN", "j-1", CTX);
+
+            assertThat(captor.getValue().getMetadata())
+                    .containsEntry("intentId", intentId.toString())
+                    .containsEntry("planCode", "CIVIQUE_3MOIS");
+        }
+    }
+
+    /** Sans CTA (client antérieur) : aucune intention, le paiement part quand même. */
+    @Test
+    void getPaymentLink_sansIntention_pasDeMetadataIntentId() {
+        when(stripeProperties.isConfigured()).thenReturn(true);
+        when(stripeProperties.getAppBaseUrl()).thenReturn("https://sejourfr.fr");
+        when(billingProperties.isOneTime()).thenReturn(true);
+        Plan pass = plan(ModuleAccess.CIVIQUE, null);
+        pass.setDurationDays(90);
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(pass));
+        when(purchaseIntentService.creerPourCheckout(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        try (MockedStatic<com.stripe.model.checkout.Session> sessions =
+                     mockStatic(com.stripe.model.checkout.Session.class)) {
+            com.stripe.model.checkout.Session created =
+                    mock(com.stripe.model.checkout.Session.class);
+            when(created.getUrl()).thenReturn("https://checkout.stripe.com/x");
+            ArgumentCaptor<com.stripe.param.checkout.SessionCreateParams> captor =
+                    ArgumentCaptor.forClass(com.stripe.param.checkout.SessionCreateParams.class);
+            sessions.when(() -> com.stripe.model.checkout.Session.create(captor.capture()))
+                    .thenReturn(created);
+
+            service.getPaymentLink(userId, "CIVIQUE_3MOIS", null, CTX);
+
+            assertThat(captor.getValue().getMetadata()).doesNotContainKey("intentId");
         }
     }
 

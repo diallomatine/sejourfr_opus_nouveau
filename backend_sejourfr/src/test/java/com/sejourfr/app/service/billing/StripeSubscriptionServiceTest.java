@@ -53,6 +53,8 @@ class StripeSubscriptionServiceTest {
     private ApplicationEventPublisher mailService;
     private OneTimeAccessService oneTimeAccessService;
     private BillingProperties billingProperties;
+    private StripeFeeClient stripeFeeClient;
+    private PaymentRefundService paymentRefundService;
     private StripeSubscriptionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -65,10 +67,13 @@ class StripeSubscriptionServiceTest {
         mailService = mock(ApplicationEventPublisher.class);
         oneTimeAccessService = mock(OneTimeAccessService.class);
         billingProperties = mock(BillingProperties.class);
+        stripeFeeClient = mock(StripeFeeClient.class);
+        paymentRefundService = mock(PaymentRefundService.class);
         service = new StripeSubscriptionService(
                 userManager, planManager, userSubscriptionManager,
                 new SubscriptionNotificationService(mailService), oneTimeAccessService, billingProperties,
-                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()),
+                stripeFeeClient, paymentRefundService);
         when(userSubscriptionManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -298,6 +303,7 @@ class StripeSubscriptionServiceTest {
         when(session.getClientReferenceId()).thenReturn(userId.toString());
         when(session.getMetadata()).thenReturn(Map.of("planCode", "CIVIQUE_3MOIS"));
         when(session.getPaymentIntent()).thenReturn("pi_1");
+        when(session.getPaymentStatus()).thenReturn("paid");
         when(session.getId()).thenReturn("cs_1");
         Plan plan = new Plan();
         plan.setCode("CIVIQUE_3MOIS");
@@ -308,7 +314,153 @@ class StripeSubscriptionServiceTest {
         // Le montant vient de Stripe lui-même (`amount_total` + `currency`) :
         // c'est le seul chiffre qui soit un fait, remises et proration comprises.
         verify(oneTimeAccessService).grantOneTimeAccess(
-                eq(userId), eq(plan), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"), any());
+                eq(userId), eq(plan), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"), any(), any());
+    }
+
+    private com.stripe.model.checkout.Session sessionPayee(String paymentStatus, Map<String, String> metadata) {
+        com.stripe.model.checkout.Session session = mock(com.stripe.model.checkout.Session.class);
+        when(session.getSubscription()).thenReturn(null);
+        when(session.getClientReferenceId()).thenReturn(userId.toString());
+        when(session.getMetadata()).thenReturn(metadata);
+        when(session.getPaymentIntent()).thenReturn("pi_1");
+        when(session.getPaymentStatus()).thenReturn(paymentStatus);
+        when(session.getAmountTotal()).thenReturn(999L);
+        when(session.getCurrency()).thenReturn("eur");
+        when(session.getId()).thenReturn("cs_1");
+        Plan plan = new Plan();
+        plan.setCode("CIVIQUE_3MOIS");
+        when(planManager.findByCode("CIVIQUE_3MOIS")).thenReturn(Optional.of(plan));
+        return session;
+    }
+
+    /**
+     * Bug Q11 : un moyen de paiement différé termine la session en
+     * {@code unpaid}. Rien n'est encaissé : rien n'est accordé.
+     */
+    @Test
+    void checkoutCompleted_paiementDiffereNonEncaisse_aucunAcces() {
+        when(billingProperties.isOneTime()).thenReturn(true);
+
+        service.dispatch(eventOf("checkout.session.completed",
+                sessionPayee("unpaid", Map.of("planCode", "CIVIQUE_3MOIS"))));
+
+        verify(oneTimeAccessService, never())
+                .grantOneTimeAccess(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    /** L'encaissement différé arrive : l'accès s'ouvre à ce moment-là. */
+    @Test
+    void asyncPaymentSucceeded_accordeLeAcces() {
+        when(billingProperties.isOneTime()).thenReturn(true);
+
+        service.dispatch(eventOf("checkout.session.async_payment_succeeded",
+                sessionPayee("paid", Map.of("planCode", "CIVIQUE_3MOIS"))));
+
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                eq(userId), any(), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"), any(), any());
+    }
+
+    /**
+     * Q12 + §6 : l'intention voyage par {@code metadata.intentId}, le frais réel
+     * par la balance_transaction, la date par l'évènement signé.
+     */
+    @Test
+    void checkoutCompleted_transmetIntentionFraisReelEtDate() {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        when(stripeFeeClient.fraisReelEurCents("pi_1")).thenReturn(Optional.of(39));
+        String intent = UUID.randomUUID().toString();
+        Event event = eventOf("checkout.session.completed",
+                sessionPayee("paid", Map.of("planCode", "CIVIQUE_3MOIS", "intentId", intent)));
+        when(event.getCreated()).thenReturn(1_790_000_000L);
+
+        service.dispatch(event);
+
+        org.mockito.ArgumentCaptor<ContexteAchat> contexte =
+                org.mockito.ArgumentCaptor.forClass(ContexteAchat.class);
+        org.mockito.ArgumentCaptor<MontantEncaisse> montant =
+                org.mockito.ArgumentCaptor.forClass(MontantEncaisse.class);
+        verify(oneTimeAccessService).grantOneTimeAccess(
+                eq(userId), any(), eq(SubscriptionSource.STRIPE), eq("pi_1"), eq("cs_1"),
+                montant.capture(), contexte.capture());
+        assertThat(montant.getValue().amountEurCents()).isEqualTo(999);
+        assertThat(contexte.getValue().purchaseIntentId()).isEqualTo(intent);
+        assertThat(contexte.getValue().fraisReelEurCents()).isEqualTo(39);
+        assertThat(contexte.getValue().purchasedAt())
+                .isEqualTo(java.time.Instant.ofEpochSecond(1_790_000_000L));
+    }
+
+    /** Un webhook rejoué sur un achat déjà en base ne rappelle pas Stripe. */
+    @Test
+    void checkoutCompleted_achatDejaEnBase_neRelitPasLeFrais() {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, "pi_1"))
+                .thenReturn(Optional.of(existingSub(SubscriptionStatus.ACTIVE)));
+
+        service.dispatch(eventOf("checkout.session.completed",
+                sessionPayee("paid", Map.of("planCode", "CIVIQUE_3MOIS"))));
+
+        verify(stripeFeeClient, never()).fraisReelEurCents(any());
+    }
+
+    private Charge chargeRemboursee(long montant, long cumul) {
+        Charge charge = mock(Charge.class);
+        when(charge.getId()).thenReturn("ch_1");
+        when(charge.getInvoice()).thenReturn(null);
+        when(charge.getPaymentIntent()).thenReturn("pi_99");
+        when(charge.getAmount()).thenReturn(montant);
+        when(charge.getAmountRefunded()).thenReturn(cumul);
+        when(charge.getCurrency()).thenReturn("eur");
+        return charge;
+    }
+
+    /**
+     * Bug Q11 : un remboursement PARTIEL était traité comme total et retirait
+     * l'accès. Désormais l'accès reste, l'encaissement est marqué partiel, et
+     * la ligne de remboursement porte le montant rendu.
+     */
+    @Test
+    void chargeRefunded_partiel_gardeLAcces_etEnregistreLeMontant() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        existing.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PAID);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
+        when(paymentRefundService.dejaRembourse(existing)).thenReturn(0L);
+
+        service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 300)));
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(existing.getPaymentStatus())
+                .isEqualTo(com.sejourfr.app.enums.PaymentStatus.PARTIALLY_REFUNDED);
+        verify(paymentRefundService).enregistrer(eq(existing), eq("ch_1:300"), eq(300L), eq("eur"), any());
+    }
+
+    /** Le complément rembourse le reste : seule la différence est écrite, l'accès tombe. */
+    @Test
+    void chargeRefunded_complement_enregistreLaDifference_etRetireLAcces() {
+        UserSubscription existing = existingSub(SubscriptionStatus.ACTIVE);
+        existing.setPaymentStatus(com.sejourfr.app.enums.PaymentStatus.PARTIALLY_REFUNDED);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
+        when(paymentRefundService.dejaRembourse(existing)).thenReturn(300L);
+
+        service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 999)));
+
+        assertThat(existing.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        assertThat(existing.getPaymentStatus()).isEqualTo(com.sejourfr.app.enums.PaymentStatus.REFUNDED);
+        verify(paymentRefundService).enregistrer(eq(existing), eq("ch_1:999"), eq(699L), eq("eur"), any());
+    }
+
+    /** Un cumul déjà entièrement enregistré (rejeu) n'écrit rien. */
+    @Test
+    void chargeRefunded_cumulDejaEnregistre_nEcritPasDeLigne() {
+        UserSubscription existing = existingSub(SubscriptionStatus.REFUNDED);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_99")).thenReturn(Optional.of(existing));
+        when(paymentRefundService.dejaRembourse(existing)).thenReturn(999L);
+
+        service.dispatch(eventOf("charge.refunded", chargeRemboursee(999, 999)));
+
+        verify(paymentRefundService, never()).enregistrer(any(), any(), org.mockito.ArgumentMatchers.anyLong(), any(), any());
     }
 
     @Test
@@ -323,7 +475,7 @@ class StripeSubscriptionServiceTest {
         service.dispatch(eventOf("checkout.session.completed", session));
 
         verify(oneTimeAccessService, never())
-                .grantOneTimeAccess(any(), any(), any(), any(), any(), any());
+                .grantOneTimeAccess(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -344,6 +496,6 @@ class StripeSubscriptionServiceTest {
         service.dispatch(eventOf("invoice.paid", mock(Subscription.class)));
         verify(userSubscriptionManager, never()).save(any());
         verify(oneTimeAccessService, never())
-                .grantOneTimeAccess(any(), any(), any(), any(), any(), any());
+                .grantOneTimeAccess(any(), any(), any(), any(), any(), any(), any());
     }
 }

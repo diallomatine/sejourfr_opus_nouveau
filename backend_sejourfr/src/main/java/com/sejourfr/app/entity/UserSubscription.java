@@ -1,5 +1,8 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.FeeSource;
+import com.sejourfr.app.enums.PaymentStatus;
+import com.sejourfr.app.enums.PurchaseOrigin;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import jakarta.persistence.*;
@@ -160,6 +163,53 @@ public class UserSubscription {
     @Column(name = "fx_rate_to_eur", precision = 12, scale = 6)
     private java.math.BigDecimal fxRateToEur;
 
+    // ------------------------------------------------------------------
+    // Chantier Suivi (V074, lot 2b) : decomposition du revenu, figee a
+    // l'ecriture par RevenueCalculator, et attribution par purchase_intent.
+    // Tout ou rien, et NULL = achat anterieur a la mesure (jamais zero).
+    // ------------------------------------------------------------------
+
+    /** Date reelle de l'achat (≠ {@code startsAt} quand un pass s'empile). */
+    @Column(name = "purchased_at")
+    private Instant purchasedAt;
+
+    @Column(name = "vat_cents")
+    private Integer vatCents;
+
+    @Column(name = "provider_fee_cents")
+    private Integer providerFeeCents;
+
+    @Column(name = "net_after_fee_cents")
+    private Integer netAfterFeeCents;
+
+    /** KPI principal : revenu HT apres frais. */
+    @Column(name = "net_ex_vat_cents")
+    private Integer netExVatCents;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fee_source", length = 16)
+    private FeeSource feeSource;
+
+    @Column(name = "revenue_rules_version")
+    private Integer revenueRulesVersion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origin", length = 16)
+    private PurchaseOrigin origin;
+
+    @Column(name = "diagnostic_run_id", columnDefinition = "uuid")
+    private UUID diagnosticRunId;
+
+    @Column(name = "journey_id", columnDefinition = "uuid")
+    private UUID journeyId;
+
+    @Column(name = "purchase_intent_id", columnDefinition = "uuid")
+    private UUID purchaseIntentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", length = 24)
+    private PaymentStatus paymentStatus;
+
     @PreUpdate
     public void touchUpdatedAt() {
         this.updatedAt = Instant.now();
@@ -225,4 +275,40 @@ public class UserSubscription {
 
     public java.math.BigDecimal getFxRateToEur() { return fxRateToEur; }
     public void setFxRateToEur(java.math.BigDecimal fxRateToEur) { this.fxRateToEur = fxRateToEur; }
+
+    public Instant getPurchasedAt() { return purchasedAt; }
+    public void setPurchasedAt(Instant purchasedAt) { this.purchasedAt = purchasedAt; }
+
+    public Integer getVatCents() { return vatCents; }
+    public void setVatCents(Integer vatCents) { this.vatCents = vatCents; }
+
+    public Integer getProviderFeeCents() { return providerFeeCents; }
+    public void setProviderFeeCents(Integer providerFeeCents) { this.providerFeeCents = providerFeeCents; }
+
+    public Integer getNetAfterFeeCents() { return netAfterFeeCents; }
+    public void setNetAfterFeeCents(Integer netAfterFeeCents) { this.netAfterFeeCents = netAfterFeeCents; }
+
+    public Integer getNetExVatCents() { return netExVatCents; }
+    public void setNetExVatCents(Integer netExVatCents) { this.netExVatCents = netExVatCents; }
+
+    public FeeSource getFeeSource() { return feeSource; }
+    public void setFeeSource(FeeSource feeSource) { this.feeSource = feeSource; }
+
+    public Integer getRevenueRulesVersion() { return revenueRulesVersion; }
+    public void setRevenueRulesVersion(Integer revenueRulesVersion) { this.revenueRulesVersion = revenueRulesVersion; }
+
+    public PurchaseOrigin getOrigin() { return origin; }
+    public void setOrigin(PurchaseOrigin origin) { this.origin = origin; }
+
+    public UUID getDiagnosticRunId() { return diagnosticRunId; }
+    public void setDiagnosticRunId(UUID diagnosticRunId) { this.diagnosticRunId = diagnosticRunId; }
+
+    public UUID getJourneyId() { return journeyId; }
+    public void setJourneyId(UUID journeyId) { this.journeyId = journeyId; }
+
+    public UUID getPurchaseIntentId() { return purchaseIntentId; }
+    public void setPurchaseIntentId(UUID purchaseIntentId) { this.purchaseIntentId = purchaseIntentId; }
+
+    public PaymentStatus getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
 }

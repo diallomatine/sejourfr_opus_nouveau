@@ -13,6 +13,7 @@ import com.apple.itunes.storekit.verification.VerificationException;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PaymentStatus;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
@@ -61,6 +62,7 @@ public class AppleSubscriptionService {
     private final OneTimeAccessService oneTimeAccessService;
     private final com.sejourfr.app.config.BillingProperties billingProperties;
     private final MontantEncaisseResolver montantEncaisseResolver;
+    private final PaymentRefundService paymentRefundService;
 
     // ------------------------------------------------------------------------
     // verify-receipt : flow client → backend après un achat sur l'app
@@ -86,21 +88,23 @@ public class AppleSubscriptionService {
      *         auto-renouvelable ; 409 si le reçu appartient à un autre user
      *         (anti-account-stealing).
      */
-    /**
-     * Variante sans montant déclaré par l'application (client antérieur au
-     * champ) : on retombera sur le prix affiché du plan.
-     */
+    /** Variante sans intention d'achat (client antérieur à Q12) : origine UNKNOWN. */
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String signedTransactionInfo) {
-        return activateFromReceipt(userId, expectedProductId, signedTransactionInfo,
-                MontantEncaisse.INCONNU);
+        return activateFromReceipt(userId, expectedProductId, signedTransactionInfo, null);
     }
 
+    /**
+     * 🛑 Le montant vient du JWS <b>signé</b> ({@code price} + {@code currency}),
+     * jamais de ce que l'application déclare (bug Q11) ; à défaut, le prix du
+     * plan. {@code purchaseIntentId} est l'intention créée par le mobile avant la
+     * feuille d'achat (Q12), validée et consommée à l'octroi.
+     */
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String signedTransactionInfo,
-            MontantEncaisse montantConstate) {
+            String purchaseIntentId) {
         log.info(
                 "Apple verify-receipt START user={} expectedProductId={}",
                 userId, expectedProductId
@@ -117,6 +121,8 @@ public class AppleSubscriptionService {
             }
 
             Plan plan = lookupPlanOrThrow(tx.getProductId());
+            MontantEncaisse montantConstate =
+                    montantEncaisseResolver.duJwsApple(tx.getPrice(), tx.getCurrency());
             User user = userManager.findById(userId)
                     .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
 
@@ -136,7 +142,9 @@ public class AppleSubscriptionService {
                 // achat conserve le même transactionId → reste idempotent.
                 UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                         userId, plan, SubscriptionSource.APPLE,
-                        tx.getTransactionId(), tx.getTransactionId(), montantConstate);
+                        tx.getTransactionId(), tx.getTransactionId(), montantConstate,
+                        new ContexteAchat(null, toInstant(tx.getPurchaseDate(), null),
+                                purchaseIntentId));
                 // type DOIT être CONSUMABLE pour qu'un pass soit ré-achetable
                 // (Apple ré-affiche la sheet à chaque achat). Un NON_CONSUMABLE
                 // est « déjà possédé » → Apple n'ouvre pas la sheet, il restaure
@@ -245,9 +253,19 @@ public class AppleSubscriptionService {
         // (retrait d'accès). On ne touche pas endsAt (posé par le backend).
         if (billingProperties.isOneTime()) {
             if (type == NotificationTypeV2.REFUND || type == NotificationTypeV2.REVOKE) {
+                boolean total = type == NotificationTypeV2.REVOKE || remboursementTotal(tx);
+                if (type == NotificationTypeV2.REFUND) {
+                    enregistrerRemboursement(sub, tx);
+                }
                 EtatAbonnement avant = EtatAbonnement.de(sub);
-                EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
-                EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+                if (total) {
+                    EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+                    EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+                }
+                if (type == NotificationTypeV2.REFUND) {
+                    EtatAbonnement.poser(total ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED,
+                            sub::getPaymentStatus, sub::setPaymentStatus);
+                }
                 if (avant.identiqueA(sub)) {
                     log.debug("Apple one-time refund/revoke déjà appliqué (origTx={}) — "
                             + "pas de sauvegarde.", tx.getOriginalTransactionId());
@@ -291,6 +309,39 @@ public class AppleSubscriptionService {
                 && sub.getStatus() == SubscriptionStatus.CANCELED) {
             subscriptionNotifier.sendCancellation(sub);
         }
+    }
+
+    /**
+     * Un remboursement Apple n'est partiel que si le JWS le dit
+     * ({@code revocationPercentage} strictement entre 0 et 100 000 milliemes de
+     * pourcent). Absent — le cas des achats consommables — ou incoherent : total.
+     */
+    private static boolean remboursementTotal(JWSTransactionDecodedPayload tx) {
+        Integer pct = tx.getRevocationPercentage();
+        return pct == null || pct <= 0 || pct >= REVOCATION_TOTALE;
+    }
+
+    /** {@code revocationPercentage} est en milliemes de pourcent : 100 000 = 100 %. */
+    private static final int REVOCATION_TOTALE = 100_000;
+
+    /**
+     * Ligne {@code payment_refunds} d'un {@code REFUND} Apple : un par
+     * transaction ({@code transactionId}), au prorata de
+     * {@code revocationPercentage}. {@code REVOKE} (partage familial) n'est pas
+     * un remboursement d'argent : pas de ligne.
+     */
+    private void enregistrerRemboursement(UserSubscription sub, JWSTransactionDecodedPayload tx) {
+        if (sub.getAmountCents() == null) return;
+        Integer pct = tx.getRevocationPercentage();
+        long montant = remboursementTotal(tx)
+                ? sub.getAmountCents()
+                : java.math.BigDecimal.valueOf(sub.getAmountCents())
+                        .multiply(java.math.BigDecimal.valueOf(pct))
+                        .divide(java.math.BigDecimal.valueOf(REVOCATION_TOTALE), 0,
+                                java.math.RoundingMode.HALF_UP)
+                        .longValueExact();
+        paymentRefundService.enregistrer(sub, tx.getTransactionId(), montant, sub.getCurrency(),
+                toInstant(tx.getRevocationDate(), Instant.now()));
     }
 
     // ------------------------------------------------------------------------
@@ -420,10 +471,8 @@ public class AppleSubscriptionService {
             // sinon le montant du premier achat, et « combien a rapporté cette
             // ligne » cesserait de vouloir dire quelque chose.
             //
-            // ⚠️ Le champ `price` du JWS Apple n'est PAS utilisé : il est
-            // exprimé en milliunités et son sens dépend de la version d'API.
-            // On préfère le prix que l'application a réellement affiché
-            // (verify-receipt), sinon le prix du plan. On ne devine pas.
+            // Montant lu dans le JWS signé (`price` en millièmes + `currency`),
+            // sinon le prix du plan — jamais celui que déclare l'application.
             montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
         }
         return userSubscriptionManager.save(sub);

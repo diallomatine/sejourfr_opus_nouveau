@@ -318,6 +318,10 @@ sejourfr:
   # fige la sienne, le passe ne bouge jamais.
   billing:
     revenue-rules-version: ${REVENUE_RULES_VERSION:1}
+    # Borne d'un prix Google declare par l'application (purchases.products.get
+    # ne rend aucun prix) : retenu s'il tient dans plans.price x (1 +/- 0,5) en
+    # euros, sinon le prix du plan. Meme valeur que BillingProperties.
+    store-price-tolerance: 0.5
 
   # Mesure d'audience (analytics). Les valeurs par defaut vivent AUSSI dans le
   # POJO config/AnalyticsProperties, a l'identique : un POJO qui diverge de son

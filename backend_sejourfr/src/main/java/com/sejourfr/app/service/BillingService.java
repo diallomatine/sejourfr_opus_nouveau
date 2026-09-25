@@ -14,6 +14,7 @@ import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.PlanMapper;
 import com.sejourfr.app.enums.FunnelEvent;
+import com.sejourfr.app.service.billing.PurchaseIntentService;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
 import com.sejourfr.app.util.ClientContext;
 import com.stripe.Stripe;
@@ -66,13 +67,6 @@ public class BillingService {
     /** Provider key utilisé dans {@code processed_external_events}. */
     private static final String STRIPE_PROVIDER = SubscriptionSource.STRIPE.providerKey();
 
-    /**
-     * Tolérance temporelle anti-replay : on rejette tout évènement dont la
-     * date de création serveur est plus vieille que cet écart. Stripe re-livre
-     * normalement sous quelques minutes max ; au-delà, c'est suspect.
-     */
-    private static final long REPLAY_TOLERANCE_SECONDS = 300L;
-
     /** Montant minimal facturable par Stripe (50 cts) — plancher d'un upgrade proraté. */
     private static final long MIN_CHARGE_CENTS = 50L;
 
@@ -85,6 +79,7 @@ public class BillingService {
     private final StripeSubscriptionService stripeSubscriptionService;
     private final SubscriptionService subscriptionService;
     private final FunnelEventService funnelEventService;
+    private final PurchaseIntentService purchaseIntentService;
 
     /**
      * Initialise la clé API Stripe globale au démarrage si elle est configurée.
@@ -136,6 +131,20 @@ public class BillingService {
      */
     public BillingCheckoutResponse getPaymentLink(UUID userId, String planCode,
                                                   String retour, ClientContext client) {
+        return getPaymentLink(userId, planCode, retour, null, null, client);
+    }
+
+    /**
+     * Variante attribuée (chantier Suivi, Q12) : {@code ctaLocation} (valeur de
+     * {@code AnalyticsCtaLocation}) et {@code journeyId} créent une
+     * {@code purchase_intent} serveur AVANT la session, transportée par
+     * {@code metadata.intentId}. Les deux sont facultatifs et ne bloquent
+     * jamais le paiement : sans CTA lisible, pas d'intention, et l'achat sera
+     * rangé {@code UNKNOWN}.
+     */
+    public BillingCheckoutResponse getPaymentLink(UUID userId, String planCode, String retour,
+                                                  String ctaLocation, String journeyId,
+                                                  ClientContext client) {
         if (!stripeProperties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -156,7 +165,11 @@ public class BillingService {
         // (price_data depuis plan.price) — pas besoin de Stripe Price. Proration
         // appliquée si upgrade Civique→Intégral.
         if (billingProperties.isOneTime()) {
-            return createOneTimeCheckout(user, plan, retour, client);
+            String intentId = purchaseIntentService
+                    .creerPourCheckout(userId, plan, ctaLocation, journeyId, client)
+                    .map(UUID::toString)
+                    .orElse(null);
+            return createOneTimeCheckout(user, plan, retour, client, intentId);
         }
 
         String priceId = plan.getStripePriceId();
@@ -312,12 +325,17 @@ public class BillingService {
      */
     private BillingCheckoutResponse createOneTimeCheckout(User user, Plan plan,
                                                           String retour,
-                                                          ClientContext client) {
+                                                          ClientContext client,
+                                                          String intentId) {
         long amountCents = computeOneTimeAmountCents(user.getId(), plan);
         String successUrl = checkoutSuccessUrl(plan.getCode(), retour);
         String cancelUrl = checkoutCancelUrl(plan.getCode());
 
-        SessionCreateParams params = SessionCreateParams.builder()
+        SessionCreateParams.Builder builder = SessionCreateParams.builder();
+        if (intentId != null) {
+            builder.putMetadata(StripeSubscriptionService.METADATA_INTENT_ID, intentId);
+        }
+        SessionCreateParams params = builder
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setClientReferenceId(user.getId().toString())
                 .setCustomerEmail(user.getEmail())
@@ -428,20 +446,13 @@ public class BillingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Signature webhook invalide");
         }
 
-        // Anti-replay temporel : Stripe doit re-livrer rapidement, un évènement
-        // de 1h n'est pas un retry normal. event.getCreated() est en secondes
-        // epoch — fourni par Stripe, donc fiable (la signature couvre tout le
-        // payload, l'horodatage compris).
-        Long createdSec = event.getCreated();
-        if (createdSec != null) {
-            long ageSeconds = Instant.now().getEpochSecond() - createdSec;
-            if (ageSeconds > REPLAY_TOLERANCE_SECONDS) {
-                log.warn("Stripe event trop ancien (age={}s, id={}) — rejeté.",
-                        ageSeconds, event.getId());
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Évènement trop ancien (possible replay).");
-            }
-        }
+        // 🛑 PAS de garde sur l'âge de l'évènement (bug Q11). Stripe conserve le
+        // `created` d'origine sur ses relances automatiques (jusqu'à 3 jours) :
+        // l'ancienne garde de 300 s rejetait définitivement toute relance
+        // légitime au-delà de 5 min, et l'achat n'était jamais crédité. Le
+        // rejeu est tenu par (1) `Webhook.constructEvent`, dont la tolérance de
+        // 300 s porte sur l'horodatage de la SIGNATURE, régénéré à chaque
+        // livraison, et (2) l'idempotence ci-dessous sur l'id d'évènement.
 
         // Idempotence : si on a déjà traité cet event.id, on skip silencieusement.
         // tryMarkProcessed insère (provider, event_id) — si conflit PK, return

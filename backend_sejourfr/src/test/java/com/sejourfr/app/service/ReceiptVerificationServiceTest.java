@@ -98,10 +98,73 @@ class ReceiptVerificationServiceTest {
                 org.mockito.ArgumentMatchers.eq(userId),
                 org.mockito.ArgumentMatchers.eq("civique_monthly"),
                 org.mockito.ArgumentMatchers.eq("purchase-token"),
-                org.mockito.ArgumentMatchers.any());
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.isNull());
         verifyNoInteractions(appleSubscriptionService);
         assertThat(res.isPremium()).isFalse();
         assertThat(res.moduleAccess()).isEqualTo(ModuleAccess.NONE);
+    }
+
+    /**
+     * Bug Q11 : le mobile envoie {@code amountCents} + {@code currency}
+     * ({@code billing_models.dart}) ; le backend n'attendait que
+     * {@code rawPrice}, et Jackson ignorait le champ en silence.
+     */
+    @Test
+    void montantDeclare_amountCentsDuMobile_estLu() {
+        VerifyReceiptRequest req = new VerifyReceiptRequest(
+                SubscriptionSource.GOOGLE, "tok", "p", null, null, 999L, "eur", null);
+
+        com.sejourfr.app.service.billing.MontantEncaisse m = service.montantDeclare(req);
+
+        assertThat(m.amountCents()).isEqualTo(999);
+        assertThat(m.currency()).isEqualTo("EUR");
+        assertThat(m.amountEurCents()).isEqualTo(999);
+    }
+
+    /** L'ancienne forme reste acceptée : un client antérieur ne casse pas. */
+    @Test
+    void montantDeclare_rawPriceHistorique_resteAccepte() {
+        VerifyReceiptRequest req = new VerifyReceiptRequest(
+                SubscriptionSource.GOOGLE, "tok", "p", 9.99, "EUR");
+
+        assertThat(service.montantDeclare(req).amountCents()).isEqualTo(999);
+    }
+
+    /** Les deux formes présentes : {@code amountCents}, la forme actuelle, gagne. */
+    @Test
+    void montantDeclare_lesDeux_amountCentsGagne() {
+        VerifyReceiptRequest req = new VerifyReceiptRequest(
+                SubscriptionSource.GOOGLE, "tok", "p", 1.00, "EUR", 1999L, "EUR", null);
+
+        assertThat(service.montantDeclare(req).amountCents()).isEqualTo(1999);
+    }
+
+    /** Aucun montant : inconnu, jamais zéro. */
+    @Test
+    void montantDeclare_absent_inconnu() {
+        VerifyReceiptRequest req = new VerifyReceiptRequest(
+                SubscriptionSource.GOOGLE, "tok", "p", null, null);
+
+        assertThat(service.montantDeclare(req).estConnu()).isFalse();
+    }
+
+    /** L'intention voyage jusqu'au service store, telle que reçue (validée à l'octroi). */
+    @Test
+    void intentionTransmiseAuxServicesStore() {
+        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
+        String intent = UUID.randomUUID().toString();
+
+        service.verify(userId, new VerifyReceiptRequest(
+                SubscriptionSource.APPLE, "jws", "sku", null, null, null, null, intent));
+        service.verify(userId, new VerifyReceiptRequest(
+                SubscriptionSource.GOOGLE, "tok", "sku", null, null, null, null, intent));
+
+        verify(appleSubscriptionService).activateFromReceipt(userId, "sku", "jws", intent);
+        verify(googleSubscriptionService).activateFromReceipt(
+                org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.eq("sku"),
+                org.mockito.ArgumentMatchers.eq("tok"), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(intent));
     }
 
     @Test

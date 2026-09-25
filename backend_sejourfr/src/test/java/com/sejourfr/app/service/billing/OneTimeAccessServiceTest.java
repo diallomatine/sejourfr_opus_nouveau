@@ -53,9 +53,13 @@ class OneTimeAccessServiceTest {
         userSubscriptionManager = mock(UserSubscriptionManager.class);
         subscriptionService = mock(SubscriptionService.class);
         mailService = mock(ApplicationEventPublisher.class);
+        PurchaseIntentService purchaseIntentService = mock(PurchaseIntentService.class);
+        when(purchaseIntentService.consommer(any(), any(), any(), any()))
+                .thenReturn(AttributionAchat.INCONNUE);
         service = new OneTimeAccessService(
                 userManager, userSubscriptionManager, subscriptionService, mailService,
-                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()),
+                new RevenueCalculator(RevenueRulesLoader.load(1)), purchaseIntentService);
 
         user = new User();
         user.setId(userId);

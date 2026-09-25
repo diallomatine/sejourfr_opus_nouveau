@@ -65,8 +65,9 @@ public class MontantEncaisseResolver {
     }
 
     /**
-     * Montant declare par un webhook en unites mineures (Stripe
-     * {@code amount_total}), ou {@link MontantEncaisse#INCONNU}.
+     * Montant declare en unites mineures, ou {@link MontantEncaisse#INCONNU} :
+     * Stripe {@code amount_total}, ou {@code amountCents} + {@code currency}
+     * envoyes par l'application mobile a verify-receipt.
      */
     public MontantEncaisse enUnitesMineures(Long amountMinor, String currencyCode) {
         if (amountMinor == null || amountMinor <= 0 || amountMinor > Integer.MAX_VALUE) {
@@ -75,6 +76,55 @@ public class MontantEncaisseResolver {
         String devise = normaliseDevise(currencyCode);
         if (devise == null) return MontantEncaisse.INCONNU;
         return construire(amountMinor.intValue(), devise);
+    }
+
+    /**
+     * Prix d'une transaction Apple lu dans le JWS <b>signe</b>
+     * ({@code JWSTransactionDecodedPayload.price} + {@code currency}), ou
+     * {@link MontantEncaisse#INCONNU}. Le champ est en <b>milliemes</b> d'unite
+     * (9,99 € = {@code 9990}) : ramene en centiemes, HALF_UP — la meme echelle
+     * que {@link #duStore} et que les taux de {@code fx-rates}.
+     *
+     * <p>C'est le seul prix Apple qui soit un fait : celui que l'application
+     * declare n'est plus lu (bug Q11).
+     */
+    public MontantEncaisse duJwsApple(Long priceMilliemes, String currencyCode) {
+        if (priceMilliemes == null || priceMilliemes <= 0) return MontantEncaisse.INCONNU;
+        String devise = normaliseDevise(currencyCode);
+        if (devise == null) return MontantEncaisse.INCONNU;
+        long cents = BigDecimal.valueOf(priceMilliemes)
+                .movePointLeft(1)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
+        if (cents <= 0 || cents > Integer.MAX_VALUE) return MontantEncaisse.INCONNU;
+        return construire((int) cents, devise);
+    }
+
+    /**
+     * Montant declare par le client, <b>borne par le catalogue</b> (bug Q11,
+     * Google : {@code purchases.products.get} ne rend aucun prix, seul le client
+     * le connait). Il n'est retenu que si son equivalent en euros est connu et
+     * tient dans {@code plans.price × (1 ± tolerance)} ; sinon, ou si le plan n'a
+     * pas de prix, c'est le prix du catalogue qui est ecrit. Un montant absurde
+     * ne peut donc plus entrer dans le chiffre d'affaires.
+     */
+    public MontantEncaisse borneParCatalogue(MontantEncaisse declare, Plan plan, BigDecimal tolerance) {
+        MontantEncaisse catalogue = duPlan(plan);
+        if (declare == null || !declare.estConnu() || declare.amountEurCents() == null
+                || !catalogue.estConnu() || tolerance == null) {
+            return catalogue;
+        }
+        BigDecimal reference = BigDecimal.valueOf(catalogue.amountEurCents());
+        BigDecimal min = reference.multiply(BigDecimal.ONE.subtract(tolerance));
+        BigDecimal max = reference.multiply(BigDecimal.ONE.add(tolerance));
+        BigDecimal eur = BigDecimal.valueOf(declare.amountEurCents());
+        if (eur.compareTo(min) < 0 || eur.compareTo(max) > 0) {
+            log.warn("Montant declare hors catalogue ({} {} ≈ {} c€, plan {} a {} c€) : prix du plan retenu.",
+                    declare.amountCents(), declare.currency(), declare.amountEurCents(),
+                    plan.getCode(), catalogue.amountEurCents());
+            return catalogue;
+        }
+        return declare;
     }
 
     /**

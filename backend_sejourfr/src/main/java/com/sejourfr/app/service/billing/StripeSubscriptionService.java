@@ -4,6 +4,7 @@ import com.sejourfr.app.config.BillingProperties;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PaymentStatus;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
@@ -52,6 +53,14 @@ public class StripeSubscriptionService {
     private static final String SUBSCRIPTION_UPDATED = "customer.subscription.updated";
     private static final String SUBSCRIPTION_DELETED = "customer.subscription.deleted";
     private static final String CHARGE_REFUNDED = "charge.refunded";
+    private static final String ASYNC_PAYMENT_SUCCEEDED = "checkout.session.async_payment_succeeded";
+    private static final String ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
+
+    /** Seule valeur de {@code Session.payment_status} qui vaille encaissement. */
+    private static final String PAYMENT_STATUS_PAID = "paid";
+
+    /** Cle de metadata qui transporte l'intention d'achat (Q12). */
+    public static final String METADATA_INTENT_ID = "intentId";
 
     private final UserManager userManager;
     private final PlanManager planManager;
@@ -60,6 +69,8 @@ public class StripeSubscriptionService {
     private final OneTimeAccessService oneTimeAccessService;
     private final BillingProperties billingProperties;
     private final MontantEncaisseResolver montantEncaisseResolver;
+    private final StripeFeeClient stripeFeeClient;
+    private final PaymentRefundService paymentRefundService;
 
     /**
      * Entrée unique appelée par {@code BillingService.handleWebhook}. L'event
@@ -68,7 +79,9 @@ public class StripeSubscriptionService {
     public void dispatch(Event event) {
         String type = event.getType();
         switch (type) {
-            case CHECKOUT_COMPLETED -> handleCheckoutCompleted(event);
+            case CHECKOUT_COMPLETED, ASYNC_PAYMENT_SUCCEEDED -> handleCheckoutCompleted(event);
+            case ASYNC_PAYMENT_FAILED -> log.info(
+                    "Stripe {} : paiement différé refusé, aucun accès accordé.", type);
             case SUBSCRIPTION_CREATED, SUBSCRIPTION_UPDATED ->
                     handleSubscriptionUpdate(event, type);
             case SUBSCRIPTION_DELETED -> handleSubscriptionDeleted(event);
@@ -127,7 +140,7 @@ public class StripeSubscriptionService {
             // Pas de subscription = Checkout mode=PAYMENT. En mode passes
             // one-time (lot 5), c'est le chemin nominal : on crédite le pass.
             if (billingProperties.isOneTime()) {
-                handleOneTimeCheckout(session);
+                handleOneTimeCheckout(session, event);
             } else {
                 log.warn(
                         "checkout.session.completed sans subscription (mode={}, session={}) — ignoré.",
@@ -172,10 +185,21 @@ public class StripeSubscriptionService {
      * posée à la création ; clé d'unicité = {@code payment_intent} (retrouvable
      * depuis un charge pour gérer le refund). L'e-mail d'activation est envoyé
      * par le service de grant (uniquement sur première création).
+     *
+     * <p>🛑 <b>{@code payment_status} est vérifié</b> (bug Q11) : un moyen de
+     * paiement différé (SEPA…) termine la session avec {@code unpaid} — rien
+     * n'est encore encaissé, rien n'est accordé. L'accès s'ouvre sur
+     * {@code checkout.session.async_payment_succeeded}, qui repasse ici avec
+     * {@code paid}.
      */
-    private void handleOneTimeCheckout(Session session) {
+    private void handleOneTimeCheckout(Session session, Event event) {
         UUID userId = parseUserIdOrLog(session.getClientReferenceId(), session.getId());
         if (userId == null) return;
+        if (!PAYMENT_STATUS_PAID.equals(session.getPaymentStatus())) {
+            log.info("Checkout one-time session={} payment_status={} : pas encore encaissé, "
+                    + "aucun accès accordé.", session.getId(), session.getPaymentStatus());
+            return;
+        }
 
         String planCode = session.getMetadata() != null ? session.getMetadata().get("planCode") : null;
         if (planCode == null || planCode.isBlank()) {
@@ -194,10 +218,20 @@ public class StripeSubscriptionService {
         // et `currency` l'accompagne. C'est le seul chiffre qui soit un fait —
         // il tient compte des remises, de la proration et de la devise réelle,
         // là où `plans.price` n'est que le tarif affiché.
+        //
+        // Le frais réel (balance_transaction) est lu seulement pour un achat
+        // qui n'est pas encore en base : un webhook rejoué ne rappelle pas Stripe.
+        boolean dejaAccorde = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, originalTxn)
+                .isPresent();
+        Integer fraisReel = dejaAccorde ? null
+                : stripeFeeClient.fraisReelEurCents(paymentIntent).orElse(null);
+        String intentId = session.getMetadata().get(METADATA_INTENT_ID);
         oneTimeAccessService.grantOneTimeAccess(
                 userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId(),
                 montantEncaisseResolver.enUnitesMineures(
-                        session.getAmountTotal(), session.getCurrency()));
+                        session.getAmountTotal(), session.getCurrency()),
+                new ContexteAchat(fraisReel, toInstant(event.getCreated(), null), intentId));
         log.info("Stripe one-time pass accordé user={} plan={} session={}",
                 userId, planCode, session.getId());
     }
@@ -301,7 +335,7 @@ public class StripeSubscriptionService {
             if (paymentIntent != null && !paymentIntent.isBlank()) {
                 userSubscriptionManager
                         .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
-                        .ifPresent(sub -> appliquerRemboursement(sub, "one-time", paymentIntent));
+                        .ifPresent(sub -> rembourserPass(sub, charge, event, paymentIntent));
             } else {
                 log.debug("charge.refunded sans invoice ni payment_intent (charge={}) — ignoré.",
                         charge.getId());
@@ -320,7 +354,7 @@ public class StripeSubscriptionService {
             userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(
                             SubscriptionSource.STRIPE, subscriptionId)
-                    .ifPresent(sub -> appliquerRemboursement(sub, "charge", subscriptionId));
+                    .ifPresent(sub -> appliquerRemboursement(sub, "charge", subscriptionId, true));
         } catch (StripeException e) {
             log.warn("Impossible de récupérer l'invoice {} pour refund : {}",
                     invoiceId, e.getMessage());
@@ -328,13 +362,49 @@ public class StripeSubscriptionService {
     }
 
     /**
-     * Retire l'accès Premium après un remboursement. Rejouable : un second
-     * {@code charge.refunded} sur une ligne déjà REFUNDED n'écrit rien.
+     * Remboursement d'un pass one-time, <b>partiel ou total</b> (bug Q11 : un
+     * partiel était traité comme total et retirait l'accès).
+     *
+     * <p>{@code charge.amount_refunded} est le CUMUL rendu sur la charge. La
+     * ligne {@code payment_refunds} porte la différence avec ce qui est déjà
+     * enregistré, sous l'identifiant {@code <charge>:<cumul>} : un même état
+     * rejoué (même event, ou {@code charge.refunded} + un autre event qui le
+     * redit) retombe sur le même identifiant et n'écrit rien. Sans montant
+     * lisible, aucune ligne — inconnu, pas zéro.
+     *
+     * <p>Total ⇒ accès retiré ({@code REFUNDED}). Partiel ⇒ accès conservé,
+     * {@code payment_status = PARTIALLY_REFUNDED}.
      */
-    private void appliquerRemboursement(UserSubscription sub, String contexte, String reference) {
+    private void rembourserPass(UserSubscription sub, Charge charge, Event event, String paymentIntent) {
+        Long montant = charge.getAmount();
+        Long cumul = charge.getAmountRefunded();
+        boolean total = montant == null || cumul == null || cumul >= montant;
+        if (cumul != null && cumul > 0) {
+            long nouveau = cumul - paymentRefundService.dejaRembourse(sub);
+            if (nouveau > 0) {
+                paymentRefundService.enregistrer(sub, charge.getId() + ":" + cumul, nouveau,
+                        charge.getCurrency(), toInstant(event.getCreated(), Instant.now()));
+            }
+        }
+        appliquerRemboursement(sub, total ? "one-time" : "one-time partiel", paymentIntent, total);
+    }
+
+    /**
+     * Retire l'accès Premium après un remboursement total ; marque seulement
+     * l'encaissement après un partiel. Rejouable : un second
+     * {@code charge.refunded} sur une ligne déjà dans cet état n'écrit rien.
+     */
+    private void appliquerRemboursement(UserSubscription sub, String contexte, String reference,
+                                        boolean total) {
         EtatAbonnement avant = EtatAbonnement.de(sub);
-        EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
-        EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+        if (total) {
+            EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+            EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+            EtatAbonnement.poser(PaymentStatus.REFUNDED, sub::getPaymentStatus, sub::setPaymentStatus);
+        } else if (sub.getPaymentStatus() != PaymentStatus.REFUNDED) {
+            EtatAbonnement.poser(PaymentStatus.PARTIALLY_REFUNDED,
+                    sub::getPaymentStatus, sub::setPaymentStatus);
+        }
         if (avant.identiqueA(sub)) {
             log.debug("Stripe refund {} ref={} déjà appliqué — pas de sauvegarde.",
                     contexte, reference);

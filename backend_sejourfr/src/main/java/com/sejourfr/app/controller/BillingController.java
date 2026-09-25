@@ -3,12 +3,15 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.CancelSubscriptionResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
+import com.sejourfr.app.dto.PurchaseIntentRequest;
+import com.sejourfr.app.dto.PurchaseIntentResponse;
 import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
 import com.sejourfr.app.service.ReceiptVerificationService;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.billing.PurchaseIntentService;
 import com.sejourfr.app.service.billing.SubscriptionCancellationService;
 import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import com.sejourfr.app.util.ClientContextResolver;
@@ -38,6 +41,7 @@ public class BillingController {
     private final ReceiptVerificationService receiptVerificationService;
     private final SubscriptionCancellationService subscriptionCancellationService;
     private final RealtimeQuotaService realtimeQuotaService;
+    private final PurchaseIntentService purchaseIntentService;
     private final ClientContextResolver clientContextResolver;
     private final CurrentUser currentUser;
 
@@ -68,13 +72,35 @@ public class BillingController {
      * s'il ne passe pas (le paiement, lui, doit rester possible). Le pourquoi
      * de l'exception est écrit à côté de {@code checkoutCancelUrl}, qui pose la
      * règle inverse.
+     *
+     * <p>{@code ctaLocation} / {@code journeyId} (facultatifs, Q12) : le bouton
+     * touché et le parcours affiché. Ils créent la {@code purchase_intent} qui
+     * attribuera l'achat ; absents ou illisibles, le paiement se fait quand même
+     * et l'achat est rangé {@code UNKNOWN}.
      */
     @GetMapping("/payment-link")
     public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode,
                                                   @RequestParam(value = "retour", required = false)
                                                   String retour,
+                                                  @RequestParam(value = "ctaLocation", required = false)
+                                                  String ctaLocation,
+                                                  @RequestParam(value = "journeyId", required = false)
+                                                  String journeyId,
                                                   HttpServletRequest http) {
         return billingService.getPaymentLink(currentUser.getId(), planCode, retour,
+                ctaLocation, journeyId, clientContextResolver.resolve(http));
+    }
+
+    /**
+     * Intention d'achat (Q12), appelée par le mobile AVANT d'ouvrir la feuille
+     * Apple / Google. Le mobile persiste l'id rendu (indexé par
+     * {@code productId}) et le renvoie dans {@code verify-receipt}.
+     */
+    @PostMapping("/purchase-intents")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PurchaseIntentResponse createPurchaseIntent(@Valid @RequestBody PurchaseIntentRequest request,
+                                                       HttpServletRequest http) {
+        return purchaseIntentService.creer(currentUser.getId(), request,
                 clientContextResolver.resolve(http));
     }
 

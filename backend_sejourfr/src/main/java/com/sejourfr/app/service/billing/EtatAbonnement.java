@@ -1,6 +1,9 @@
 package com.sejourfr.app.service.billing;
 
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.FeeSource;
+import com.sejourfr.app.enums.PaymentStatus;
+import com.sejourfr.app.enums.PurchaseOrigin;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 
@@ -60,7 +63,19 @@ record EtatAbonnement(
         Integer amountCents,
         String currency,
         Integer amountEurCents,
-        BigDecimal fxRateToEur) {
+        BigDecimal fxRateToEur,
+        Instant purchasedAt,
+        Integer vatCents,
+        Integer providerFeeCents,
+        Integer netAfterFeeCents,
+        Integer netExVatCents,
+        FeeSource feeSource,
+        Integer revenueRulesVersion,
+        PurchaseOrigin origin,
+        UUID diagnosticRunId,
+        UUID journeyId,
+        UUID purchaseIntentId,
+        PaymentStatus paymentStatus) {
 
     /** Le plan se compare par son identifiant : c'est lui qui est persisté. */
     static EtatAbonnement de(UserSubscription sub) {
@@ -81,7 +96,19 @@ record EtatAbonnement(
                 sub.getAmountCents(),
                 sub.getCurrency(),
                 sub.getAmountEurCents(),
-                sub.getFxRateToEur());
+                sub.getFxRateToEur(),
+                sub.getPurchasedAt(),
+                sub.getVatCents(),
+                sub.getProviderFeeCents(),
+                sub.getNetAfterFeeCents(),
+                sub.getNetExVatCents(),
+                sub.getFeeSource(),
+                sub.getRevenueRulesVersion(),
+                sub.getOrigin(),
+                sub.getDiagnosticRunId(),
+                sub.getJourneyId(),
+                sub.getPurchaseIntentId(),
+                sub.getPaymentStatus());
     }
 
     /** {@code true} si la souscription porte toujours exactement cet état. */

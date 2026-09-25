@@ -60,6 +60,7 @@ class GoogleSubscriptionServiceTest {
     private ApplicationEventPublisher mailService;
     private BillingProperties billingProperties;
     private OneTimeAccessService oneTimeAccessService;
+    private PaymentRefundService paymentRefundService;
     private GoogleSubscriptionService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -76,11 +77,13 @@ class GoogleSubscriptionServiceTest {
         mailService = mock(ApplicationEventPublisher.class);
         oneTimeAccessService = mock(OneTimeAccessService.class);
         billingProperties = mock(BillingProperties.class); // isOneTime() = false par défaut
+        paymentRefundService = mock(PaymentRefundService.class);
         service = new GoogleSubscriptionService(
                 googleStoreClient, planManager, userManager, userSubscriptionManager,
                 processedEventManager, new SubscriptionNotificationService(mailService),
                 oneTimeAccessService, billingProperties,
-                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()));
+                new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties()),
+                paymentRefundService);
 
         user = new User();
         user.setId(userId);
@@ -364,7 +367,7 @@ class GoogleSubscriptionServiceTest {
         when(googleStoreClient.getProduct("integral_pass_2m", "tok")).thenReturn(pp);
         when(planManager.findByGoogleProductId("integral_pass_2m")).thenReturn(Optional.of(plan));
         when(oneTimeAccessService.grantOneTimeAccess(
-                any(), any(), any(), anyString(), any(), any()))
+                any(), any(), any(), anyString(), any(), any(), any()))
                 .thenReturn(localSub(SubscriptionStatus.ACTIVE));
     }
 
@@ -382,7 +385,7 @@ class GoogleSubscriptionServiceTest {
         verify(googleStoreClient, never()).acknowledgeProduct(anyString(), anyString());
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any(), any());
     }
 
     @Test
@@ -414,7 +417,7 @@ class GoogleSubscriptionServiceTest {
 
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any(), any());
     }
 
     /** Un échec d'acquittement quelconque reste best-effort : l'accès payé passe. */
@@ -428,6 +431,63 @@ class GoogleSubscriptionServiceTest {
 
         verify(oneTimeAccessService).grantOneTimeAccess(
                 any(), any(), org.mockito.ArgumentMatchers.eq(SubscriptionSource.GOOGLE),
-                org.mockito.ArgumentMatchers.eq("tok"), any(), any());
+                org.mockito.ArgumentMatchers.eq("tok"), any(), any(), any());
+    }
+
+    // ----- bug Q11 (prix borné), Q12 (intention), remboursement one-time -----
+
+    /**
+     * Bug Q11 : {@code purchases.products.get} ne rend aucun prix. Le montant
+     * déclaré par l'application est borné par le catalogue : un montant absurde
+     * est remplacé par le prix du plan. L'intention et la date Play voyagent
+     * jusqu'à l'octroi.
+     */
+    @Test
+    void passOneTime_montantAbsurde_remplaceParLeCatalogue_intentionTransmise() throws Exception {
+        plan.setCode("INTEGRAL_PASS_2M");
+        plan.setPrice(new java.math.BigDecimal("29.99"));
+        when(billingProperties.getStorePriceTolerance()).thenReturn(new java.math.BigDecimal("0.5"));
+        modeOneTime(produitAchete().setPurchaseTimeMillis(1_790_000_000_000L));
+        MontantEncaisse absurde = new MontantEncaisseResolver(new com.sejourfr.app.config.AnalyticsProperties())
+                .enUnitesMineures(999_999L, "EUR");
+
+        service.activateFromReceipt(userId, "integral_pass_2m", "tok", absurde, "intent-g");
+
+        org.mockito.ArgumentCaptor<MontantEncaisse> montant =
+                org.mockito.ArgumentCaptor.forClass(MontantEncaisse.class);
+        org.mockito.ArgumentCaptor<ContexteAchat> contexte =
+                org.mockito.ArgumentCaptor.forClass(ContexteAchat.class);
+        verify(oneTimeAccessService).grantOneTimeAccess(any(), any(), any(), anyString(), any(),
+                montant.capture(), contexte.capture());
+        assertThat(montant.getValue().amountCents()).isEqualTo(2999);
+        assertThat(contexte.getValue().purchaseIntentId()).isEqualTo("intent-g");
+        assertThat(contexte.getValue().purchasedAt()).isEqualTo(Instant.ofEpochMilli(1_790_000_000_000L));
+    }
+
+    /**
+     * {@code voidedPurchaseNotification} : accès retiré, et une ligne de
+     * remboursement identifiée par l'{@code orderId}, datée par Pub/Sub.
+     */
+    @Test
+    void rtdnVoided_oneTime_enregistreLeRemboursement() {
+        when(billingProperties.isOneTime()).thenReturn(true);
+        when(processedEventManager.tryMarkProcessed("google", "msg-v")).thenReturn(true);
+        UserSubscription sub = localSub(SubscriptionStatus.ACTIVE);
+        sub.setAmountCents(999);
+        sub.setCurrency("EUR");
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, "tok-v"))
+                .thenReturn(Optional.of(sub));
+        String inner = "{\"voidedPurchaseNotification\":{\"purchaseToken\":\"tok-v\","
+                + "\"orderId\":\"GPA.1\",\"productType\":2,\"refundType\":1}}";
+        String payload = "{\"message\":{\"messageId\":\"msg-v\",\"publishTime\":\"2026-09-25T10:00:00Z\","
+                + "\"data\":\"" + Base64.getEncoder().encodeToString(inner.getBytes(StandardCharsets.UTF_8))
+                + "\"}}";
+
+        service.handleNotification("Bearer x", payload);
+
+        assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        assertThat(sub.getPaymentStatus()).isEqualTo(com.sejourfr.app.enums.PaymentStatus.REFUNDED);
+        verify(paymentRefundService).enregistrer(sub, "GPA.1", 999L, "EUR",
+                Instant.parse("2026-09-25T10:00:00Z"));
     }
 }

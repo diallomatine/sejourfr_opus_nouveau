@@ -148,4 +148,62 @@ class MontantEncaisseResolverTest {
         assertThat(hier.getAmountEurCents()).isEqualTo(eurHier);
         assertThat(aujourdhui.getAmountEurCents()).isNotEqualTo(eurHier);
     }
+
+    // ------------------------------------------------------------------------
+    // Bug Q11 : prix Apple lu dans le JWS, prix Google borne par le catalogue
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Apple : le prix du JWS (millièmes) devient des centimes exacts")
+    void prixDuJwsApple() {
+        MontantEncaisse eur = resolver.duJwsApple(9990L, "EUR");
+        assertThat(eur.amountCents()).isEqualTo(999);
+        assertThat(eur.amountEurCents()).isEqualTo(999);
+
+        MontantEncaisse usd = resolver.duJwsApple(34990L, "USD");
+        assertThat(usd.amountCents()).isEqualTo(3499);
+        assertThat(usd.amountEurCents()).isEqualTo(3219);
+
+        // 9,995 € en millièmes : arrondi HALF_UP au centime.
+        assertThat(resolver.duJwsApple(9995L, "EUR").amountCents()).isEqualTo(1000);
+    }
+
+    @Test
+    @DisplayName("Apple : un JWS sans prix ni devise lisible donne un montant inconnu")
+    void jwsSansPrix() {
+        assertThat(resolver.duJwsApple(null, "EUR").estConnu()).isFalse();
+        assertThat(resolver.duJwsApple(9990L, null).estConnu()).isFalse();
+        assertThat(resolver.duJwsApple(0L, "EUR").estConnu()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Google : un montant déclaré plausible est retenu")
+    void googleDansLeCatalogue() {
+        MontantEncaisse declare = resolver.enUnitesMineures(1099L, "USD"); // ≈ 10,11 €
+        assertThat(resolver.borneParCatalogue(declare, plan("9.99"), new BigDecimal("0.5")))
+                .isEqualTo(declare);
+    }
+
+    @Test
+    @DisplayName("Google : un montant absurde est remplacé par le prix du catalogue")
+    void googleHorsCatalogue() {
+        MontantEncaisse absurde = resolver.enUnitesMineures(999_999L, "EUR");
+        MontantEncaisse retenu = resolver.borneParCatalogue(absurde, plan("9.99"), new BigDecimal("0.5"));
+        assertThat(retenu.amountCents()).isEqualTo(999);
+        assertThat(retenu.currency()).isEqualTo("EUR");
+
+        MontantEncaisse derisoire = resolver.enUnitesMineures(1L, "EUR");
+        assertThat(resolver.borneParCatalogue(derisoire, plan("9.99"), new BigDecimal("0.5"))
+                .amountCents()).isEqualTo(999);
+    }
+
+    @Test
+    @DisplayName("Google : une devise sans taux ne peut pas être bornée, le catalogue fait foi")
+    void googleSansTaux() {
+        MontantEncaisse jpy = resolver.enUnitesMineures(150_000L, "JPY");
+        assertThat(resolver.borneParCatalogue(jpy, plan("9.99"), new BigDecimal("0.5")).currency())
+                .isEqualTo("EUR");
+        assertThat(resolver.borneParCatalogue(MontantEncaisse.INCONNU, plan("9.99"),
+                new BigDecimal("0.5")).amountCents()).isEqualTo(999);
+    }
 }

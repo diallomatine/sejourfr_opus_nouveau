@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.util.LogMask;
+import com.sejourfr.app.enums.PaymentStatus;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
@@ -68,6 +69,7 @@ public class GoogleSubscriptionService {
     private final OneTimeAccessService oneTimeAccessService;
     private final com.sejourfr.app.config.BillingProperties billingProperties;
     private final MontantEncaisseResolver montantEncaisseResolver;
+    private final PaymentRefundService paymentRefundService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ------------------------------------------------------------------------
@@ -100,6 +102,20 @@ public class GoogleSubscriptionService {
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String purchaseToken,
             MontantEncaisse montantConstate) {
+        return activateFromReceipt(userId, expectedProductId, purchaseToken, montantConstate, null);
+    }
+
+    /**
+     * 🛑 {@code purchases.products.get} ne rend aucun prix : le montant déclaré
+     * par l'application est le seul disponible, et il est <b>borné par le
+     * catalogue</b> (bug Q11, {@link MontantEncaisseResolver#borneParCatalogue}).
+     * {@code purchaseIntentId} est l'intention créée par le mobile avant la
+     * feuille d'achat (Q12), validée et consommée à l'octroi.
+     */
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate, String purchaseIntentId) {
         log.info(
                 "Google verify-receipt START user={} expectedProductId={} purchaseToken={}",
                 userId, expectedProductId, LogMask.token(purchaseToken)
@@ -109,7 +125,7 @@ public class GoogleSubscriptionService {
             // (et non subscriptionsv2). Grant commun, durée backend.
             if (billingProperties.isOneTime()) {
                 return activateOneTimeProduct(userId, expectedProductId, purchaseToken,
-                        montantConstate);
+                        montantConstate, purchaseIntentId);
             }
 
             SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
@@ -124,7 +140,9 @@ public class GoogleSubscriptionService {
             boolean isNew = userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
                     .isEmpty();
-            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken, montantConstate);
+            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken,
+                    montantEncaisseResolver.borneParCatalogue(
+                            montantConstate, plan, billingProperties.getStorePriceTolerance()));
             log.info(
                     "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={} new={}",
                     userId, lineItem.getProductId(), LogMask.token(purchaseToken), sub.getStatus(), sub.getEndsAt(), isNew
@@ -153,7 +171,7 @@ public class GoogleSubscriptionService {
      */
     private UserSubscription activateOneTimeProduct(
             UUID userId, String expectedProductId, String purchaseToken,
-            MontantEncaisse montantConstate) {
+            MontantEncaisse montantConstate, String purchaseIntentId) {
         ProductPurchase pp;
         try {
             pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
@@ -179,11 +197,13 @@ public class GoogleSubscriptionService {
         acquitter(expectedProductId, purchaseToken, pp);
 
         // ⚠️ `purchases.products.get` ne rend AUCUN prix : le seul montant
-        // disponible est celui que l'application a affiché (verify-receipt).
-        // À défaut, le prix du plan. On n'invente rien.
+        // disponible est celui que l'application a affiché (verify-receipt),
+        // retenu seulement s'il tient dans le catalogue. Sinon, le prix du plan.
         UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                 userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId(),
-                montantConstate);
+                montantEncaisseResolver.borneParCatalogue(
+                        montantConstate, plan, billingProperties.getStorePriceTolerance()),
+                new ContexteAchat(null, toInstantMillis(pp.getPurchaseTimeMillis()), purchaseIntentId));
         log.info("Google one-time pass user={} productId={} token={} endsAt={}",
                 userId, expectedProductId, LogMask.token(purchaseToken), sub.getEndsAt());
         return sub;
@@ -313,7 +333,7 @@ public class GoogleSubscriptionService {
         // (refund/chargeback → REFUNDED) et on logue oneTimeProductNotification
         // (l'octroi se fait via verify-receipt). Pas de subscriptionNotification.
         if (billingProperties.isOneTime()) {
-            handleOneTimeNotification(data, messageId);
+            handleOneTimeNotification(data, messageId, parsePublishTime(message));
             return;
         }
 
@@ -428,6 +448,7 @@ public class GoogleSubscriptionService {
         EtatAbonnement avant = EtatAbonnement.de(sub);
         EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
         EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(PaymentStatus.REFUNDED, sub::getPaymentStatus, sub::setPaymentStatus);
         if (avant.identiqueA(sub)) {
             log.debug("Google {} déjà appliqué (token={}) — pas de sauvegarde.",
                     contexte, LogMask.token(purchaseToken));
@@ -443,7 +464,7 @@ public class GoogleSubscriptionService {
      * (oneTimeProductNotification PURCHASED) est crédité via verify-receipt, on
      * se contente de loguer ici (pas de mapping userId sans ligne existante).
      */
-    private void handleOneTimeNotification(JsonNode data, String messageId) {
+    private void handleOneTimeNotification(JsonNode data, String messageId, Instant publishTime) {
         JsonNode voided = data.path("voidedPurchaseNotification");
         if (!voided.isMissingNode() && !voided.isNull()) {
             String token = voided.path("purchaseToken").asText("");
@@ -454,7 +475,10 @@ public class GoogleSubscriptionService {
             userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, token)
                     .ifPresentOrElse(
-                            sub -> appliquerRetraitAcces(sub, "one-time voided/refund", token),
+                            sub -> {
+                                enregistrerRemboursement(sub, voided, token, publishTime);
+                                appliquerRetraitAcces(sub, "one-time voided/refund", token);
+                            },
                             () -> log.warn(
                                     "Google RTDN voided messageId={} token={} : aucune subscription locale.",
                                     messageId, LogMask.token(token)));
@@ -474,6 +498,36 @@ public class GoogleSubscriptionService {
         }
         log.warn("Google RTDN one-time messageId={} sans notif exploitable — ignoré (payload={}).",
                 messageId, data);
+    }
+
+    /**
+     * Ligne {@code payment_refunds} d'un {@code voidedPurchaseNotification}.
+     * Une commande Play n'est annulée qu'une fois : identifiant = {@code orderId}
+     * (le {@code purchaseToken} à défaut). Montant = l'achat entier — nos pass
+     * sont vendus à l'unité, un {@code QUANTITY_BASED_PARTIAL_REFUND} n'y a pas
+     * de sens. Date = {@code publishTime} Pub/Sub (la notification n'en porte
+     * pas d'autre).
+     */
+    private void enregistrerRemboursement(UserSubscription sub, JsonNode voided, String token,
+                                          Instant publishTime) {
+        if (sub.getAmountCents() == null) return;
+        String orderId = voided.path("orderId").asText("");
+        paymentRefundService.enregistrer(sub, orderId.isBlank() ? token : orderId,
+                sub.getAmountCents(), sub.getCurrency(), publishTime);
+    }
+
+    private static Instant parsePublishTime(JsonNode message) {
+        String raw = message.path("publishTime").asText("");
+        if (raw.isBlank()) return Instant.now();
+        try {
+            return Instant.parse(raw);
+        } catch (DateTimeParseException e) {
+            return Instant.now();
+        }
+    }
+
+    private static Instant toInstantMillis(Long millis) {
+        return millis != null ? Instant.ofEpochMilli(millis) : null;
     }
 
     // ------------------------------------------------------------------------
