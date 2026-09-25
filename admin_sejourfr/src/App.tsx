@@ -6,7 +6,6 @@ import { ToastProvider } from "./components/ui/Toast";
 import { AudioDraftReviewPage } from "./features/audioQuestions/AudioDraftReviewPage";
 import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
 import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
-import { AnalyticsPage } from "./features/analytics/AnalyticsPage";
 import { AiCostsPage } from "./features/aiCosts/AiCostsPage";
 import { CivicNotionsPage } from "./features/civicNotions/CivicNotionsPage";
 import { CalibrationPage } from "./features/calibration/CalibrationPage";
@@ -22,6 +21,7 @@ import { SkillDetailPage } from "./features/skills/SkillDetailPage";
 import { SkillsPage } from "./features/skills/SkillsPage";
 import { SkillsStatsPage } from "./features/skills/SkillsStatsPage";
 import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
+import { SuiviPage } from "./features/suivi/SuiviPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
 import { LoginPage } from "./pages/LoginPage";
@@ -44,7 +44,7 @@ export function App() {
                 }
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<AnalyticsPage />} />
+                <Route path="/dashboard" element={<SuiviPage />} />
                 <Route
                   path="/questions"
                   element={<Navigate to="/questions/civique" replace />}

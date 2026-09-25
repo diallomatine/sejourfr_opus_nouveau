@@ -1089,264 +1089,217 @@ export interface NiveauCalibrationStatsDto {
   pourcentageDivergents: number;
 }
 
-// ============ ANALYTICS (GET /api/admin/analytics) ============
-// Miroir manuel du contrat Analytics. Un SEUL endpoint sert tout l'ecran :
-// cinq endpoints imposeraient cinq fenetres de temps a garder coherentes.
-// Toutes les valeurs sont deja calculees et arrondies a somme conservee cote
-// serveur — le front n'en recalcule aucune.
+// ============ SUIVI (GET /api/admin/analytics/suivi) ============
+// Miroir manuel de `AdminSuiviResponse` et des enums `Suivi*`. Montants en
+// centimes d'euro ; pourcentages en pourcent a une decimale (64.0 = 64 %).
+// 🛑 `null` = inconnu ou pas encore mesure, JAMAIS zero. Le front n'en
+// recalcule aucun : il affiche ce qui est servi.
 
-/** Pas de la serie temporelle, decide par le serveur selon l'amplitude. */
-export type AnalyticsGrain = "HOUR" | "DAY" | "WEEK";
+export type SuiviPeriodPreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "MONTH";
 
-/** Periode reellement appliquee, telle que le serveur l'a resolue. */
-export interface AnalyticsPeriod {
-  id: string;
-  label: string;
-  days: number;
-  grain: AnalyticsGrain;
-}
+export type SuiviTypeFilter = "ALL" | "TCF" | "CIVIQUE";
 
-/**
- * Le vecteur unique de mesure. Toutes les ventilations (source, pays, device,
- * campagne, serie) le reutilisent, ce qui garantit que deux blocs de l'ecran
- * ne peuvent pas repondre differemment a la meme question.
- *
- * `v` compte des VISITEURS DISTINCTS, jamais des vues ; `prem` compte des
- * CLIQUEURS UNIQUES ; `pay` ne compte que les comptes dont le PREMIER paiement
- * tombe dans la periode — un renouvellement n'est pas un nouvel abonne.
- */
-export interface AnalyticsMetrics {
-  /** Visiteurs uniques. */
-  v: number;
-  /** Clics « Faire mon diagnostic ». */
-  cta: number;
-  /** Diagnostics commences. */
-  start: number;
-  /** EE demarree. */
-  ee1: number;
-  /** EE terminee. */
-  ee2: number;
-  /** EO demarree. */
-  eo1: number;
-  /** EO terminee. */
-  eo2: number;
-  /** Rapport diagnostic affiche. */
-  rep: number;
-  /** Nouvelles inscriptions (table `users`). */
-  sig: number;
-  /** Clics « Debloquer mon plan », cliqueurs uniques. */
-  prem: number;
-  /** Checkouts commences. */
-  ck: number;
-  /** Paiements reussis (table `user_subscriptions`). */
-  pay: number;
-  /** Revenu reellement encaisse, en centimes d'euro. Jamais un prix reconstitue. */
-  revEurCents: number;
-}
+export type SuiviPlatformFilter = "ALL" | "WEB" | "IOS" | "ANDROID";
 
-/** Clef de mesure affichable dans un graphe ou un entonnoir. */
-export type AnalyticsMetricKey = keyof AnalyticsMetrics;
+/** Les 7 etapes du tunnel, dans l'ordre servi — jamais reordonnees. */
+export type SuiviFunnelStepCode =
+  | "SUBJECT_VIEWED"
+  | "SUBMITTED"
+  | "ACCOUNT_ATTACHED"
+  | "REPORT_VIEWED"
+  | "PLAN_VIEWED"
+  | "UNLOCK_CLICKED"
+  | "PURCHASED";
 
-export interface AnalyticsSourceStat {
-  id: string;
-  label: string;
-  m: AnalyticsMetrics;
-}
+/** Indicateurs porteurs d'une date de debut de mesure (aucun backfill). */
+export type SuiviIndicator =
+  | "VISITORS"
+  | "ACQUISITION_SOURCES"
+  | "DIAGNOSTIC_SUBJECT_VIEWED"
+  | "DIAGNOSTIC_SUBMITTED"
+  | "ACCOUNT_ATTACHED"
+  | "REPORT_VIEWED"
+  | "PLAN_VIEWED"
+  | "PLAN_UNLOCK_CLICKED"
+  | "PURCHASES"
+  | "PURCHASE_ORIGIN"
+  | "REVENUE_BREAKDOWN"
+  | "REFUNDS"
+  | "SIGNUP_CONTEXT"
+  | "SIGNUP_PLATFORM_DETAIL";
 
-/**
- * Un point de la serie. `empty` marque un intervalle non encore ecoule (heures
- * a venir de la journee en cours) : il se saute au trace au lieu de dessiner un
- * zero qu'on lirait comme une chute.
- */
-export interface AnalyticsSeriesPoint {
-  label: string;
-  short: string;
-  iso: string | null;
-  isoEnd: string | null;
-  m: AnalyticsMetrics;
-  empty: boolean;
-}
-
-export interface AnalyticsFunnelStep {
-  k: AnalyticsMetricKey;
-  label: string;
-  /** La question a laquelle l'etape repond, affichee en sous-titre. */
-  q: string;
-  value: number;
-  /** Conversion depuis l'etape precedente. `null` sur la premiere etape. */
-  conv: number | null;
-  lost: number;
-  lostShare: number;
-}
-
-/** `id` vaut `UNKNOWN` quand la geo-IP n'a rien pu conclure — jamais un pays invente. */
-export interface AnalyticsCountryStat {
-  id: string;
-  label: string;
-  v: number;
-  sig: number;
-  rep: number;
-  prem: number;
-  pay: number;
-  revEurCents: number;
-}
-
-export interface AnalyticsDeviceStat {
-  id: string;
-  label: string;
-  platform: string;
-  v: number;
-  sig: number;
-  rep: number;
-  prem: number;
-  pay: number;
-  revEurCents: number;
-}
-
-export interface AnalyticsCampaignStat {
-  id: string;
-  source: string;
-  sourceId: string;
-  name: string;
-  medium: string | null;
-  content: string | null;
-  v: number;
-  start: number;
-  rep: number;
-  sig: number;
-  prem: number;
-  pay: number;
-  revEurCents: number;
-}
-
-export interface AnalyticsCtaStat {
-  id: string;
-  label: string;
-  /** L'ecran d'ou part le clic. */
-  where: string;
-  prem: number;
-  ck: number;
-  pay: number;
-  revEurCents: number;
-}
-
-export interface AnalyticsTriggerStat {
-  id: string;
-  label: string;
-  hint: string;
-  sig: number;
-  share: number;
-}
-
-export interface AnalyticsPathStat {
-  chain: string[];
-  sig: number;
-  share: number;
-}
-
-/**
- * Un maillon de la chaine de progression d'un format de diagnostic. `value`
- * et `conv` (conversion depuis le maillon PRECEDENT, deja calculee cote
- * serveur) sont `null` quand l'evenement qui l'alimente n'existe pas encore
- * (CO/CE du format complet : les fronts n'emettent aujourd'hui que les
- * `_STARTED`) — jamais un zero invente a la place d'une mesure absente.
- */
-export interface AnalyticsDiagChainStep {
-  k: string;
-  label: string;
-  value: number | null;
-  conv: number | null;
-}
-
-export interface AnalyticsDiagTypeStat {
-  id: string;
-  label: string;
-  sub: string;
-  start: number;
-  done: number;
-  prem: number;
-  pay: number;
-  /** Nombre d'epreuves du format (2 en rapide, 4 en complet). */
-  steps: number;
-  /**
-   * Progression reelle du format, maillon par maillon (RAPID :
-   * start→ee2→eo2→rep ; COMPLETE : start→ee2→eo2→co2→ce2→rep). Vide quand
-   * rien n'est mesure sur la periode — jamais une chaine de zeros.
-   */
-  chain: AnalyticsDiagChainStep[];
-}
-
-/** `base` dit sur quel denominateur `v` se lit : `start` ou `rep`. */
-export interface AnalyticsAbandonStat {
-  id: string;
-  label: string;
-  sub: string;
-  v: number;
-  base: string;
-  worst: boolean;
-}
-
-export interface AnalyticsAnnotation {
-  iso: string;
-  label: string;
-  kind: string;
-}
-
-/**
- * Constat calcule cote serveur, sans LLM. `html` ne porte que de l'emphase
- * (`<b>`) : le front la nettoie avant affichage plutot que de faire confiance.
- */
-export interface AnalyticsInsight {
-  tone: "OK" | "WARN" | "BAD" | "NEUTRAL";
-  html: string;
-}
-
-export interface AnalyticsResponse {
-  period: AnalyticsPeriod;
-  /** Bornes APPLIQUEES (yyyy-MM-dd, Europe/Paris, incluses). Elles font foi. */
+export interface SuiviWindow {
+  /** `null` pour une periode personnalisee. */
+  preset: SuiviPeriodPreset | null;
+  /** Bornes APPLIQUEES (yyyy-MM-dd, Paris, incluses). Elles font foi. */
   from: string;
   to: string;
-  prevFrom: string | null;
-  prevTo: string | null;
-  /** Journee en cours : la periode n'est pas terminee. */
-  partial: boolean;
-  hourNow: number;
-  /** Cumul de comptes, hors periode. */
-  totalUsers: number;
-  currency: string;
-  total: AnalyticsMetrics;
-  prev: AnalyticsMetrics;
-  sources: AnalyticsSourceStat[];
-  prevSources: AnalyticsSourceStat[];
-  series: AnalyticsSeriesPoint[];
-  prevSeries: AnalyticsSeriesPoint[];
-  funnel: AnalyticsFunnelStep[];
-  prevFunnel: AnalyticsFunnelStep[];
-  countries: AnalyticsCountryStat[];
-  devices: AnalyticsDeviceStat[];
-  campaigns: AnalyticsCampaignStat[];
-  ctas: AnalyticsCtaStat[];
-  triggers: AnalyticsTriggerStat[];
-  paths: AnalyticsPathStat[];
-  diagTypes: AnalyticsDiagTypeStat[];
-  abandon: AnalyticsAbandonStat[];
-  annotations: AnalyticsAnnotation[];
-  insights: AnalyticsInsight[];
+  previousFrom: string;
+  previousTo: string;
+  timezone: string;
+  cohortWindowDays: number;
+  cohortOngoing: boolean;
+  generatedAt: string;
 }
 
-/**
- * Periode demandee. `from`/`to` (bornes incluses, Europe/Paris) l'emportent sur
- * `days` ; une seule borne, `from > to` ou plus de 365 jours sont refuses en
- * 400, d'ou l'union exclusive : on n'envoie jamais les deux formes.
- */
-export type AnalyticsRange = { days: number } | { from: string; to: string };
+export interface SuiviFiltersEcho {
+  type: SuiviTypeFilter;
+  platform: SuiviPlatformFilter;
+  source: string;
+  includeInternal: boolean;
+  /** Valeurs admises pour `source` (groupes de la config + repli). */
+  availableSources: string[];
+}
 
-/** Filtres facultatifs, tous appliques cote serveur. */
-export interface AnalyticsFilters {
-  source: string | null;
-  country: string | null;
-  device: string | null;
-  platform: string | null;
+export interface SuiviKpi {
+  value: number | null;
+  previous: number | null;
+  deltaPct: number | null;
+  /** submitted : % des visiteurs ; purchases : % des diagnostics ; sinon null. */
+  ratioPct: number | null;
+}
+
+export interface SuiviKpis {
+  visitors: SuiviKpi;
+  submitted: SuiviKpi;
+  purchases: SuiviKpi;
+  netExVatCents: SuiviKpi;
+}
+
+export interface SuiviFunnelStep {
+  code: SuiviFunnelStepCode;
+  count: number | null;
+  pctFromPrevious: number | null;
+  /** Largeur de barre. */
+  pctOfFirst: number | null;
+  indicator: SuiviIndicator;
+}
+
+export interface SuiviAttachedBreakdown {
+  alreadyAuthenticated: number | null;
+  signedUpAfter: number | null;
+  loggedInAfter: number | null;
+}
+
+export interface SuiviFunnel {
+  scope: SuiviTypeFilter;
+  steps: SuiviFunnelStep[];
+  attached: SuiviAttachedBreakdown;
+  cohortNetExVatCents: number | null;
+  cohortPurchasesWithoutBreakdown: number | null;
+  cohortWindowDays: number;
+  ongoing: boolean;
+}
+
+export interface SuiviProviderRow {
+  provider: SubscriptionSource;
+  purchases: number | null;
+  grossCents: number | null;
+  providerFeeCents: number | null;
+  netExVatCents: number | null;
+}
+
+export interface SuiviRefunds {
+  count: number | null;
+  amountCents: number | null;
+  /** Effet sur le net HT (≤ 0). */
+  netExVatDeltaCents: number | null;
+}
+
+export interface SuiviRevenue {
+  purchases: number | null;
+  grossCents: number | null;
+  vatCents: number | null;
+  providerFeeCents: number | null;
+  netAfterFeeCents: number | null;
+  netExVatCents: number | null;
+  refunds: SuiviRefunds;
+  /** « NET RÉEL ESTIMÉ » (= KPI). */
+  netExVatAfterRefundsCents: number | null;
+  purchasesWithoutBreakdown: number | null;
+  estimatedFeePurchases: number | null;
+  /** Toujours STRIPE, APPLE, GOOGLE, dans cet ordre. */
+  byProvider: SuiviProviderRow[];
+}
+
+export interface SuiviTypeRow {
+  type: SuiviTypeFilter;
+  subjectViewed: number | null;
+  submitted: number | null;
+  purchases: number | null;
+}
+
+export interface SuiviSignups {
+  total: number | null;
+  afterDiagnostic: { total: number | null; tcf: number | null; civique: number | null };
+  outsideDiagnostic: number | null;
+  contextUnknown: number | null;
+  loggedInAfterDiagnostic: number | null;
+  byPlatform: {
+    web: number | null;
+    ios: number | null;
+    android: number | null;
+    mobileUnspecified: number | null;
+    unknown: number | null;
+  };
+  typeFilterApplied: boolean;
+}
+
+export interface SuiviSourceRow {
+  group: string;
+  visitors: number | null;
+}
+
+export interface SuiviRatios {
+  subjectToSubmissionPct: number | null;
+  diagnosticToSignupPct: number | null;
+  reportViewedPct: number | null;
+  planViewedPct: number | null;
+  unlockIntentPct: number | null;
+  clickConversionPct: number | null;
+  globalConversionPct: number | null;
+  netPerSubmittedCents: number | null;
+}
+
+export interface SuiviActivity {
+  submittedFirst: number | null;
+  submittedRaw: number | null;
+  purchasesByOrigin: {
+    diagnosticPlan: number | null;
+    otherCta: number | null;
+    unknown: number | null;
+  };
+  anonymousSubmittedNeverAttached: number | null;
+  anonymousNeverAttachedOngoing: boolean;
+}
+
+export interface AdminSuiviResponse {
+  window: SuiviWindow;
+  filters: SuiviFiltersEcho;
+  measurementStart: Partial<Record<SuiviIndicator, string | null>>;
+  kpis: SuiviKpis;
+  funnel: SuiviFunnel;
+  revenue: SuiviRevenue;
+  /** Toujours TCF puis CIVIQUE ; ignore le filtre type. */
+  byType: SuiviTypeRow[];
+  signups: SuiviSignups;
+  sources: SuiviSourceRow[];
+  ratios: SuiviRatios;
+  activity: SuiviActivity;
+}
+
+/** Periode demandee : un preset OU une paire from/to, jamais les deux (400). */
+export type SuiviRange =
+  | { preset: SuiviPeriodPreset }
+  | { from: string; to: string };
+
+export interface SuiviQuery {
+  range: SuiviRange;
+  type: SuiviTypeFilter;
+  platform: SuiviPlatformFilter;
+  /** `ALL` ou un groupe de `filters.availableSources`. */
+  source: string;
+  includeInternal: boolean;
 }
 
 // ============ COMPÉTENCES TCF (EE/EO) — surface admin ============

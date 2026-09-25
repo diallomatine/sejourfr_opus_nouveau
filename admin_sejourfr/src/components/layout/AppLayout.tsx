@@ -58,7 +58,7 @@ export function AppLayout() {
         </div>
 
         <div className={styles.navSection}>Pilotage</div>
-        <NavItem to="/dashboard">↳ Analytics</NavItem>
+        <NavItem to="/dashboard">↳ Suivi</NavItem>
 
         <div className={styles.navSection}>Contenu</div>
         <NavItem

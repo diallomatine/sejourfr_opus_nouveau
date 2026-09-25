@@ -1,0 +1,638 @@
+/* ============================================================
+   Suivi — mise en page du template docs/admin/sejourfr-suivi-dashboard.html.
+
+   Le template fait foi pour la forme (grilles, densite, rayons, paliers
+   1050 / 640 px) ; couleurs, ombres et polices viennent des tokens de
+   styles/global.css. Aucune valeur chromatique ni nom de police ici.
+   ============================================================ */
+
+.root {
+  --radius: 18px;
+  --fill: linear-gradient(
+    90deg,
+    var(--blue),
+    color-mix(in srgb, var(--blue) 62%, var(--paper))
+  );
+  color: var(--ink);
+  font-family: var(--font-ui);
+  min-width: 0;
+}
+
+/* ---------- En-tete et filtres ---------- */
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.period {
+  margin: 6px 0 0;
+  color: var(--muted-2);
+  font-size: 12px;
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.filterRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented button {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: 9px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.segmented button:hover {
+  color: var(--ink);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--blue);
+  color: var(--blue-ink);
+}
+
+.select,
+.dateInput {
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: 9px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+}
+
+.select:focus,
+.dateInput:focus {
+  outline: 2px solid var(--blue-soft);
+  border-color: var(--blue);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.check input {
+  accent-color: var(--blue);
+}
+
+.dateLabel {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Cartes ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-width: 0;
+}
+
+.section {
+  padding: 22px;
+}
+
+.sectionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.sectionHead h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  margin: 0 0 5px;
+}
+
+.sectionHead p,
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.badge {
+  background: var(--blue-soft);
+  color: var(--blue);
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badgeOngoing {
+  background: var(--amber-soft);
+  color: color-mix(in srgb, var(--amber) 55%, var(--ink));
+}
+
+.footnote {
+  margin: 14px 0 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--rule-2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.footnote + .footnote {
+  margin-top: 6px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.unmeasured {
+  color: var(--muted-2);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.empty {
+  border: 1px dashed var(--rule);
+  border-radius: 12px;
+  padding: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- KPI ---------- */
+
+.gridKpi {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.kpi {
+  padding: 19px 20px;
+}
+
+.kpiLabel {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 9px;
+}
+
+.kpiValue {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.trendNeutral {
+  color: var(--muted);
+}
+
+/* ---------- Grilles de blocs ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(310px, 0.8fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+/* ---------- Tunnel ---------- */
+
+.funnel {
+  display: grid;
+  gap: 10px;
+}
+
+.funnelRow {
+  display: grid;
+  grid-template-columns: 155px minmax(0, 1fr) 72px;
+  gap: 12px;
+  align-items: center;
+}
+
+.funnelLabel {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bar {
+  height: 38px;
+  background: var(--paper-2);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.barUnmeasured {
+  background: transparent;
+  border: 1px dashed var(--rule);
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.barZero {
+  padding: 0 12px;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.fill {
+  height: 100%;
+  background: var(--fill);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--blue-ink);
+  font-weight: 800;
+  padding-right: 12px;
+  min-width: 52px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rate {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.subline {
+  margin: -3px 0 3px 167px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.ongoingMark {
+  color: color-mix(in srgb, var(--amber) 55%, var(--ink));
+  font-weight: 700;
+}
+
+/* ---------- Revenus ---------- */
+
+.money {
+  padding: 22px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.money .sectionHead {
+  margin-bottom: 0;
+}
+
+.moneyMain {
+  background: var(--green-soft);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.moneySmall {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--green);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.moneyBig {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  margin-top: 5px;
+  color: color-mix(in srgb, var(--green) 75%, var(--ink));
+  font-variant-numeric: tabular-nums;
+}
+
+.moneyRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--rule-2);
+}
+
+.moneyRow:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.moneyRow > span {
+  color: var(--muted);
+}
+
+.moneyRow strong {
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.money .footnote {
+  margin-top: 0;
+}
+
+/* ---------- Listes de stats ---------- */
+
+.statList {
+  display: grid;
+  gap: 13px;
+}
+
+.statItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule-2);
+}
+
+.statItem:last-child {
+  border-bottom: 0;
+}
+
+.statName {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.statMeta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.statNumber {
+  font-size: 16px;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.platformGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.platform {
+  border: 1px solid var(--rule-2);
+  border-radius: 13px;
+  padding: 14px;
+  text-align: center;
+  background: var(--paper);
+}
+
+.platform strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.platform span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ---------- Sources ---------- */
+
+.sourceBars {
+  display: grid;
+  gap: 13px;
+}
+
+.sourceRow {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) 50px;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.sourceRow strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sourceTrack {
+  height: 8px;
+  background: var(--paper-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sourceTrack span {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--blue) 45%, var(--muted-2));
+  border-radius: 999px;
+}
+
+/* ---------- Ratios (bloc secondaire) ---------- */
+
+.ratios {
+  padding: 18px 22px;
+  margin-bottom: 18px;
+}
+
+.ratios .sectionHead {
+  margin-bottom: 12px;
+}
+
+.ratioGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ratio {
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--paper);
+  min-width: 0;
+}
+
+.ratioLabel {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.ratioHint {
+  color: var(--muted-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.ratioValue {
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Etats ---------- */
+
+.error {
+  border: 1px solid var(--red-soft);
+  background: var(--red-soft);
+  color: var(--red-dark);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.stale {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+/* ---------- Responsive (paliers du template) ---------- */
+
+@media (max-width: 1050px) {
+  .gridKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .layout,
+  .twoCol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ratioGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    flex-direction: column;
+  }
+  .filters {
+    align-items: flex-start;
+  }
+  .filterRow {
+    justify-content: flex-start;
+  }
+  .gridKpi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .funnelRow {
+    grid-template-columns: 115px minmax(0, 1fr) 52px;
+  }
+  .subline {
+    margin-left: 127px;
+  }
+  .platformGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kpiValue {
+    font-size: 24px;
+  }
+  .section,
+  .money {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .funnelRow {
+    grid-template-columns: 92px minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+  .subline {
+    margin-left: 100px;
+  }
+  .kpi {
+    padding: 15px 14px;
+  }
+  .kpiValue {
+    font-size: 21px;
+  }
+}

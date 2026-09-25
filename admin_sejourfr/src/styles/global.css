@@ -20,9 +20,8 @@
   --font-ui: "Inter", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  /* Surfaces et tons doux. Ajoutes pour l'ecran Analytics, qui a besoin de
-     trois niveaux de fond et d'une variante adoucie de chaque couleur d'etat.
-     La maquette les exprimait en oklch() ; ici ce sont les tons SejourFR. */
+  /* Surfaces et tons doux : trois niveaux de fond et une variante adoucie de
+     chaque couleur d'etat (ecran Suivi, entre autres). Tons SejourFR. */
   --surface: #ffffff;
   --surface-3: #e9e7df;
   --blue-soft: #dde3f2;
