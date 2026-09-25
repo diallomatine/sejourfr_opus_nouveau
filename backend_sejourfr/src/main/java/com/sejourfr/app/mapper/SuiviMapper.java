@@ -185,7 +185,8 @@ public class SuiviMapper {
         boolean netMeasured = measured[6] && mesure.now(SuiviIndicator.REVENUE_BREAKDOWN, SuiviIndicator.REFUNDS);
         Long net = netMeasured ? (row == null || row.getCohortNet() == null ? 0L : row.getCohortNet()) : null;
         Long unknown = netMeasured ? (row == null ? 0L : row.getCohortUnknown()) : null;
-        return new Funnel(scope, steps, attached, net, unknown, windowDays, ongoing);
+        Long sansIdentifiant = measured[0] ? (row == null ? 0L : row.getNoIdentifier()) : null;
+        return new Funnel(scope, steps, attached, net, unknown, windowDays, ongoing, sansIdentifiant);
     }
 
     private TypeRow typeRow(SuiviTypeFilter type, FunnelRow row, Mesure mesure) {
@@ -229,7 +230,8 @@ public class SuiviMapper {
 
         Map<SubscriptionSource, long[]> byProvider = new EnumMap<>(SubscriptionSource.class);
         for (SubscriptionSource source : SubscriptionSource.values()) byProvider.put(source, new long[4]);
-        long n = 0, gross = 0, vat = 0, fee = 0, netAfterFee = 0, netExVat = 0, without = 0, estimated = 0;
+        long n = 0, gross = 0, vat = 0, fee = 0, netAfterFee = 0, netExVat = 0, without = 0, estimated = 0,
+                grossUnknown = 0;
         for (PurchaseCell c : cells) {
             if (!per.equals(c.getPer())) continue;
             long[] p = byProvider.get(SubscriptionSource.valueOf(c.getProvider()));
@@ -245,6 +247,7 @@ public class SuiviMapper {
             netExVat += zero(c.getNetExVat());
             without += c.getWithoutBreakdown();
             estimated += c.getEstimatedFee();
+            grossUnknown += c.getGrossUnknown();
         }
         long refundCount = 0, refundAmount = 0, refundDelta = 0;
         for (RefundCell r : refundCells) {
@@ -273,7 +276,8 @@ public class SuiviMapper {
                 breakdownMeasured && refundsMeasured ? netExVat + refundDelta : null,
                 breakdownMeasured ? without : null,
                 breakdownMeasured ? estimated : null,
-                providers);
+                providers,
+                purchasesMeasured ? grossUnknown : null);
     }
 
     private PurchasesByOrigin purchasesByOrigin(List<PurchaseCell> cells, Mesure mesure) {

@@ -118,10 +118,15 @@ public record AdminSuiviResponse(
      *                                      (quelle que soit leur date)
      * @param cohortPurchasesWithoutBreakdown achats de l'etape 7 dont le net est
      *                                      inconnu (non comptes dans le CA net)
+     * @param runsWithoutIdentifier         entrees de l'etape 1 sans compte ni
+     *                                      identifiant de mesure (controle D) : chacune
+     *                                      compte pour une personne, des doublons sont
+     *                                      possibles ; {@code null} si l'etape 1 n'est
+     *                                      pas mesuree
      */
     public record Funnel(SuiviTypeFilter scope, List<FunnelStep> steps, AttachedBreakdown attached,
                          Long cohortNetExVatCents, Long cohortPurchasesWithoutBreakdown,
-                         int cohortWindowDays, boolean ongoing) {
+                         int cohortWindowDays, boolean ongoing, Long runsWithoutIdentifier) {
     }
 
     /** Un canal de paiement : STRIPE (web), APPLE (iOS), GOOGLE (Android). Toujours les 3, dans cet ordre. */
@@ -149,11 +154,16 @@ public record AdminSuiviResponse(
      * @param purchasesWithoutBreakdown  achats dont TVA / frais / net sont inconnus
      *                                   (non comptes dans les sommes de decomposition)
      * @param estimatedFeePurchases      achats dont le frais est une estimation (formule)
+     * @param grossUnknownPurchases      achats dont le brut en euros est inconnu (controle
+     *                                   N5) : absents de {@code grossCents}, qui est alors
+     *                                   une somme PARTIELLE ; {@code null} si les achats ne
+     *                                   sont pas mesures
      */
     public record Revenue(Long purchases, Long grossCents, Long vatCents, Long providerFeeCents,
                           Long netAfterFeeCents, Long netExVatCents, Refunds refunds,
                           Long netExVatAfterRefundsCents, Long purchasesWithoutBreakdown,
-                          Long estimatedFeePurchases, List<ProviderRow> byProvider) {
+                          Long estimatedFeePurchases, List<ProviderRow> byProvider,
+                          Long grossUnknownPurchases) {
     }
 
     /** Colonnes TCF / Civique du tunnel (cohorte) : etapes 1, 2 et 7. */

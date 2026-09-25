@@ -1189,6 +1189,8 @@ export interface SuiviFunnel {
   cohortPurchasesWithoutBreakdown: number | null;
   cohortWindowDays: number;
   ongoing: boolean;
+  /** Entrées de l'étape 1 sans compte ni identifiant de mesure (contrôle D) : doublons possibles. */
+  runsWithoutIdentifier: number | null;
 }
 
 export interface SuiviProviderRow {
@@ -1220,6 +1222,8 @@ export interface SuiviRevenue {
   estimatedFeePurchases: number | null;
   /** Toujours STRIPE, APPLE, GOOGLE, dans cet ordre. */
   byProvider: SuiviProviderRow[];
+  /** Achats au brut inconnu (contrôle N5) : `grossCents` est alors une somme partielle. */
+  grossUnknownPurchases: number | null;
 }
 
 export interface SuiviTypeRow {

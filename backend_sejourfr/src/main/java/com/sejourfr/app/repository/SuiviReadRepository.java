@@ -109,6 +109,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                                CASE WHEN """ + SOUMIS_RETENU + """
              THEN r.submitted_authenticated END AS submitted_authenticated,
                                r.claimed_at, r.claim_kind,
+                               (r.user_id IS NULL AND r.anonymous_id IS NULL) AS no_id,
                                COALESCE(CAST(r.user_id AS text), CAST(r.anonymous_id AS text),
                                         CAST(r.id AS text)) AS pk,
                                COALESCE(""" + SOURCE_VR + ", " + CLE_SOURCE_DU_COMPTE + """
@@ -208,6 +209,13 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
 
         long getAnonSubmitted();
 
+        /**
+         * Entrees de la cohorte sans compte ni identifiant de mesure (controle D) :
+         * chacune est sa propre personne, faute de quoi la dedoublonner — des
+         * doublons possibles, jamais des pertes.
+         */
+        long getNoIdentifier();
+
         Long getCohortNet();
 
         long getCohortUnknown();
@@ -280,7 +288,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                        (ref.submitted_authenticated IS TRUE
                         OR (ref.claimed_at IS NOT NULL AND ref.claimed_at < ref.wend)) AS att,
                        COALESCE(ref.submitted_authenticated, false) AS already,
-                       ref.claim_kind,
+                       ref.claim_kind, ref.no_id,
                        (rep.at < ref.wend) IS TRUE AS rep_ok,
                        (po.at < ref.wend) IS TRUE AS plan_ok,
                        (pu.at < ref.wend) IS TRUE AS unlock_ok,
@@ -298,7 +306,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                          WHERE p.run_id = ref.id AND p.purchased_at < ref.wend) pa ON true
             ),
             flags AS (
-                SELECT pk, dtype, s2,
+                SELECT pk, dtype, s2, no_id,
                        (s2 AND att) AS s3,
                        (s2 AND att AND already) AS a_already,
                        (s2 AND att AND NOT already AND claim_kind = 'SIGNUP') AS a_signup,
@@ -316,7 +324,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                        bool_or(s2) AS s2, bool_or(s3) AS s3, bool_or(s4) AS s4, bool_or(s5) AS s5,
                        bool_or(s6) AS s6, bool_or(s7) AS s7,
                        bool_or(a_already) AS a_already, bool_or(a_signup) AS a_signup,
-                       bool_or(a_login) AS a_login, bool_or(anon) AS anon,
+                       bool_or(a_login) AS a_login, bool_or(anon) AS anon, bool_or(no_id) AS no_id,
                        sum(CASE WHEN s7 THEN pur_net END) AS net,
                        sum(CASE WHEN s7 THEN pur_unknown ELSE 0 END) AS unk
                   FROM (SELECT 'ALL' AS scope, f.* FROM flags f
@@ -336,6 +344,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                    count(*) FILTER (WHERE a_signup AND NOT a_already) AS attached_signup,
                    count(*) FILTER (WHERE a_login AND NOT a_already AND NOT a_signup) AS attached_login,
                    count(*) FILTER (WHERE anon) AS anon_submitted,
+                   count(*) FILTER (WHERE no_id) AS no_identifier,
                    CAST(sum(net) AS bigint) AS cohort_net,
                    CAST(COALESCE(sum(unk), 0) AS bigint) AS cohort_unknown
               FROM per_person

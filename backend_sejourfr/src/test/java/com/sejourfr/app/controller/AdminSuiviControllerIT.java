@@ -122,6 +122,9 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.kpis.submitted.value").value(nullValue()))
                 .andExpect(jsonPath("$.kpis.purchases.value").value(nullValue()))
                 .andExpect(jsonPath("$.kpis.netExVatCents.value").value(nullValue()))
+                // Controles D et N5 : servis, et inconnus tant que leur mesure n'a pas commence.
+                .andExpect(jsonPath("$.funnel.runsWithoutIdentifier").value(nullValue()))
+                .andExpect(jsonPath("$.revenue.grossUnknownPurchases").value(nullValue()))
                 .andExpect(jsonPath("$.funnel.steps", hasSize(7)))
                 .andExpect(jsonPath("$.funnel.steps[0].code").value("SUBJECT_VIEWED"))
                 .andExpect(jsonPath("$.funnel.steps[0].count").value(nullValue()))

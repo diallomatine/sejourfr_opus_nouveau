@@ -541,6 +541,39 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
         assertThat(direct.signups().total()).isZero();
     }
 
+    @Test
+    @DisplayName("Contrôle D — runs sans compte ni identifiant de mesure : comptées une par une, et signalées")
+    void runsSansIdentifiant() {
+        run("QUICK_TCF", null, null, "WEB", paris(D3, 9));
+        run("QUICK_TCF", null, null, "WEB", paris(D3, 10));
+        run("QUICK_TCF", visitor("direct", paris(D3, 9)), null, "WEB", paris(D3, 9));
+
+        AdminSuiviResponse r = lire(jour(D3), SuiviTypeFilter.ALL);
+
+        assertThat(step(r, 1).count()).isEqualTo(3L);
+        assertThat(r.funnel().runsWithoutIdentifier()).isEqualTo(2L);
+        assertThat(lire(jour(D3.plusDays(1)), SuiviTypeFilter.ALL).funnel().runsWithoutIdentifier()).isZero();
+    }
+
+    @Test
+    @DisplayName("Contrôle N5 — un achat au brut inconnu est servi à part : le brut affiché est partiel")
+    void brutInconnuServi() {
+        User user = data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 8));
+        purchase(user, data.plan(), "STRIPE", paris(D3, 10), 999, 959, null, "UNKNOWN");
+        UUID sansBrut = purchase(user, data.plan(), "STRIPE", paris(D3, 11), 999, 959, null, "UNKNOWN");
+        jdbc.update("""
+                UPDATE user_subscriptions SET amount_eur_cents = NULL, vat_cents = NULL, provider_fee_cents = NULL,
+                       net_after_fee_cents = NULL, net_ex_vat_cents = NULL, fee_source = NULL,
+                       revenue_rules_version = NULL
+                 WHERE id = ?""", sansBrut);
+
+        AdminSuiviResponse r = lire(jour(D3), SuiviTypeFilter.ALL);
+
+        assertThat(r.revenue().purchases()).isEqualTo(2L);
+        assertThat(r.revenue().grossCents()).isEqualTo(999L);
+        assertThat(r.revenue().grossUnknownPurchases()).isEqualTo(1L);
+    }
+
     // ------------------------------------------------------------------------
     // Semis
     // ------------------------------------------------------------------------

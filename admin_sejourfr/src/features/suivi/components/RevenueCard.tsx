@@ -73,6 +73,12 @@ export function RevenueCard({ data }: { data: AdminSuiviResponse }) {
         </div>
       ))}
 
+      {revenue.grossUnknownPurchases != null && revenue.grossUnknownPurchases > 0 && (
+        <p className={styles.footnote}>
+          Brut payé partiel : {count(revenue.grossUnknownPurchases, "achat", "achats")} au montant
+          inconnu, non compté.
+        </p>
+      )}
       {revenue.purchasesWithoutBreakdown != null && revenue.purchasesWithoutBreakdown > 0 && (
         <p className={styles.footnote}>
           {count(revenue.purchasesWithoutBreakdown, "achat", "achats")} sans décomposition

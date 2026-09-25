@@ -932,8 +932,11 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   `measurementStart` (toutes les clés `SuiviIndicator`), `kpis` (visiteurs, soumis, achats,
   net réel estimé ; valeur, période précédente, variation, ligne secondaire), `funnel`
   (7 étapes, % depuis la précédente et % de l'étape 1, 3 sous-lignes de « Compte rattaché »,
-  CA net cohorte, « en cours »), `revenue` (brut, TVA, frais, nets, remboursements, net
-  après remboursements, par canal), `byType`, `signups`, `sources`, `ratios` (§7.4),
+  CA net cohorte, « en cours », `runsWithoutIdentifier` = entrées de l'étape 1 sans
+  compte ni identifiant de mesure, doublons possibles — contrôle D), `revenue` (brut, TVA,
+  frais, nets, remboursements, net après remboursements, par canal,
+  `grossUnknownPurchases` = achats au brut inconnu, le brut est alors partiel — contrôle
+  N5), `byType`, `signups`, `sources`, `ratios` (§7.4),
   `activity` (§7.3). Montants en centimes, % à une décimale.
 - 🛑 `null` = inconnu ou **pas encore mesuré** (date `measurementStart` absente ou postérieure
   au début de la période, D43), jamais 0.

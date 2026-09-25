@@ -50,6 +50,14 @@ export function FunnelCard({ data }: { data: AdminSuiviResponse }) {
           ))}
         </div>
       )}
+      {funnel.runsWithoutIdentifier != null && funnel.runsWithoutIdentifier > 0 && (
+        <p className={styles.footnote}>
+          {int(funnel.runsWithoutIdentifier)}{" "}
+          {funnel.runsWithoutIdentifier > 1 ? "passages" : "passage"} sans identifiant de mesure
+          (stockage du navigateur bloqué) : chacun compte pour une personne, des doublons sont
+          possibles.
+        </p>
+      )}
     </Section>
   );
 }
