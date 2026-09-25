@@ -12,6 +12,7 @@ import '../../../core/widgets/eyebrow.dart';
 import '../../diagnostic_civique/civic_diagnostic_labels.dart';
 import '../diagnostic_intro_labels.dart';
 import 'diagnostic_common.dart';
+import 'diagnostic_outcomes.dart';
 
 /// Entrée du diagnostic pour un **visiteur** : il y choisit un EXAMEN, TCF IRN
 /// ou examen civique. Miroir texte pour texte de `DiagnosticChoice.tsx` (web).
@@ -131,29 +132,10 @@ class DiagnosticChoice extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        const AppCard(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Column(
-            children: [
-              _GainRow(
-                title: 'Votre niveau',
-                text: 'Une estimation simple à comprendre',
-              ),
-              _GainRow(
-                title: 'Vos priorités',
-                text: 'Ce qu’il faut travailler en premier',
-              ),
-              _GainRow(
-                title: 'Votre plan',
-                text: 'Un parcours adapté à votre résultat',
-                last: true,
-              ),
-            ],
-          ),
-        ),
+        const DiagnosticOutcomesCard(items: kDiagnosticOutcomes),
         const SizedBox(height: 16),
         Text(
-          'Estimation d’entraînement, non officielle.',
+          kDiagnosticDisclaimer,
           textAlign: TextAlign.center,
           style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
         ),
@@ -262,44 +244,6 @@ class _MetaPill extends StatelessWidget {
       child: Text(
         label,
         style: AppFonts.label(size: 12, color: AppColors.ink2),
-      ),
-    );
-  }
-}
-
-/// Une ligne du bandeau « ce que vous obtenez ».
-class _GainRow extends StatelessWidget {
-  const _GainRow({required this.title, required this.text, this.last = false});
-
-  final String title;
-  final String text;
-  final bool last;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      decoration: BoxDecoration(
-        border: last
-            ? null
-            : const Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
-        children: [
-          Text(title, style: AppFonts.ui(size: 13, weight: FontWeight.w700)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: TextAlign.right,
-              style: AppFonts.ui(
-                size: 12,
-                color: AppColors.inkSoft,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

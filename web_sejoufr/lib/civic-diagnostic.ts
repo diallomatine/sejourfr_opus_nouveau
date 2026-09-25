@@ -127,10 +127,12 @@ export const CIVIC_DIAGNOSTIC_GUEST_BADGE = "Sans compte";
 
 /** Le résultat est ce qu'on échange contre le compte — dit sans détour. */
 export const CIVIC_DIAGNOSTIC_GATE_EYEBROW = "Dernière étape";
-export const CIVIC_DIAGNOSTIC_GATE_TITLE = "Vos réponses sont enregistrées";
 export const CIVIC_DIAGNOSTIC_GATE_LEAD =
-    "Créez votre compte gratuit pour voir votre résultat et votre plan. "
-    + "Vos 40 réponses sont déjà en sécurité : elles vous suivent.";
+    "Créez votre compte gratuit pour voir votre résultat et votre plan.";
+/** 🛑 Vrai sans chiffre : un candidat peut n'avoir répondu qu'à une partie des
+ *  questions (« Vos 40 réponses », écrit ici jusqu'au 2026-09-26, ne l'était pas). */
+export const CIVIC_DIAGNOSTIC_GATE_SAFE =
+    "Vos réponses sont déjà enregistrées : elles vous suivent.";
 export const CIVIC_DIAGNOSTIC_RESUME_CTA = "Reprendre";
 export const CIVIC_DIAGNOSTIC_RESULT_CTA = "Voir mon résultat";
 export const CIVIC_DIAGNOSTIC_PLAN_CTA = "Découvrir mon plan";

@@ -2534,12 +2534,19 @@ détour par `/inscription`.
   soumission. On n'envoie alors rien, on affiche le résultat existant avec un
   bandeau honnête (`HandoffNotice`) et un bouton explicite pour supprimer les
   réponses gardées sur l'appareil. Jamais de suppression silencieuse.
-- **Écran de demande de compte** (`DiagnosticAccountGate.tsx`) : inscription
-  **et** connexion (+ Google), en modale de page — pas de navigation vers
-  `/inscription`, qui ferait perdre le contexte. Il montre un **exemple**
-  illustratif du bilan, badgé « Exemple — pas votre résultat » et légendé
-  « valeurs fictives » : aucun résultat réel n'est calculé avant le compte
-  (l'analyse coûte deux appels LLM payés).
+- **Écran de demande de compte** (`DiagnosticAccountGate.tsx`, 2026-09-26) :
+  **le même rendu et le même formulaire que `/inscription`** — `AuthShell`
+  (+ `header` = `DiagnosticSteps`) + `RegisterForm`, et « Se connecter » bascule
+  **sur place** vers `LoginForm` (pas de navigation vers `/inscription`, qui
+  ferait perdre le contexte). Propre au diagnostic : titre, récapitulatif de ce
+  qui est fait (`DiagnosticGateRecap`), date d'examen facultative
+  (`extraFields`, enregistrée best-effort APRÈS le compte) et panneau
+  `TCF_DIAGNOSTIC_PANEL`. 🛑 **Plus aucun exemple de bilan** : l'aperçu fictif
+  « B1 / A2 » est supprimé (il affichait un oral sur le diagnostic rapide qui
+  n'en a pas). Aucun résultat réel n'est calculé avant le compte ; le
+  rattachement et l'analyse partent de `runHandoff` à la bascule d'auth.
+  Même traitement pour `CivicDiagnosticGate` (panneau `CIVIC_DIAGNOSTIC_PANEL`,
+  démarche préremplie, sans `SIGNUP_STARTED` comme avant).
 - **Audience** : le funnel reste mesurable en invité (ingestion analytics
   publique ; `/api/public/page-views` est supprimé). Événement **`DIAGNOSTIC_ACCOUNT_REQUIRED`** (allowlist
   `lib/analytics.ts`, miroir backend) émis à l'affichage de l'écran de
@@ -5159,13 +5166,23 @@ Refondues dans le langage de l'accueil. `app/_components/auth/` :
   `landing/landing-copy.ts`. Ni témoignage, ni note, ni nombre d'inscrits, ni
   taux de réussite : l'ancien shell en affichait (« 94 % », « 8 200+ »,
   « 4,8/5 », citations signées), **tous inventés**. Ils ne reviennent pas.
+- **`RegisterForm` / `LoginForm` : LES deux formulaires**, montés tels quels
+  par `/inscription`, `/connexion` et les deux écrans de compte des diagnostics
+  invités (`DiagnosticAccountGate`, `CivicDiagnosticGate`). Validation, erreurs
+  serveur, Google, démarche : un seul code. Ce qui varie passe en props
+  (`submitLabel`, `initialMention`, `registrationContext` — absent ⇒ aucun
+  `SIGNUP_STARTED` —, `extraFields`, `onRegistered(form)`, `onGoogleSuccess`,
+  `onLoggedIn`). `AuthShell` prend un `header` facultatif, et un panneau peut
+  porter une `note`.
 - **`AuthField`** (libellé, icône lucide, champ 52 px, anneau de focus token,
   `aria-invalid` + `aria-describedby`, `requirement` coché en direct) monte
-  **`PasswordInput`**, seul bouton afficher/masquer de la famille (aussi
-  utilisé nu par `DiagnosticAccountGate` / `CivicDiagnosticGate`).
+  **`PasswordInput`**, seul bouton afficher/masquer de la famille.
   `AuthForm.tsx` : `AuthAlert`, `AuthSubmit` (spinner, `aria-busy`),
-  `focusFirstError`. ⚠️ `CompteField` (écrans du compte) reste distinct : dette
-  connue, à fusionner si un 3ᵉ formulaire en a besoin.
+  `focusFirstError`. ⚠️ `CompteField` (écrans du compte) reste distinct : champ
+  **contrôlé**, facultatif, avec `hint` — `AuthField` est non contrôlé et
+  toujours requis. Dette connue, à fusionner si un 3ᵉ formulaire en a besoin.
+- **Blanc = `--color-white`** (`:root` de `globals.css`, miroir `AppColors.white`) :
+  `auth.module.css` n'a plus aucune valeur hexadécimale.
 - **Validation** : `lib/auth-form.ts` ne double QUE `LoginRequest` /
   `RegisterRequest` (`@NotBlank`, `@Email`, mot de passe ≥ 8). Pas de jauge de
   robustesse : le serveur n'a aucune autre règle. Les `fieldErrors` serveur

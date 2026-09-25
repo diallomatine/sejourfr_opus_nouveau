@@ -623,10 +623,15 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
   local. Corollaire à ne pas casser : **toute sortie d'une méthode du contrôleur résout son
   `isLoading`/`isSubmitting`/`isSyncing`** — sinon le bouton tourne sans fin, `PopScope` refuse
   le retour et `ScreenHeader` masque sa flèche : le candidat est enfermé.
-- L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel** —
-  l'analyse coûte deux appels LLM. Il montre un **exemple** étiqueté comme tel (badge
-  « EXEMPLE » + phrase « ce ne sont pas vos réponses ») et ouvre l'inscription **ou** la
-  connexion avec `redirect=/diagnostic`.
+- L'écran de demande de compte (`DiagnosticAccountGate`) **n'affiche aucun résultat réel,
+  ni exemple chiffré** (l'ancien faux bilan « B1 / A2 » est supprimé le 2026-09-26). Titre,
+  phrase et argumentaire sont ceux du web (`DiagnosticAccountGate.tsx`), texte pour texte ;
+  `hasOral: false` (diagnostic rapide) ⇒ « Votre texte est enregistré », jamais « deux
+  réponses ». L'argumentaire (« Ce que l'analyse vous rendra ») et celui de l'écran de compte
+  civique vivent dans **`widgets/diagnostic_outcomes.dart`** (`DiagnosticOutcomesCard`), miroir
+  de `diagnostic-outcomes.ts` + `auth-panels.ts` ; `diagnostic_choice.dart` y lit aussi sa
+  carte « ce que vous obtenez ». Il ouvre l'inscription **ou** la connexion avec
+  `redirect=/diagnostic`.
 - **Écran de RÉSULTAT — la maquette de référence est `MDiag`, étape `result`**
   (`widgets/diagnostic_result.dart`, phrases dans `widgets/diagnostic_report_labels.dart`).
   🛑 **Ce n'est PAS `MRapportGratuit`**, qui est le rapport du **visiteur non connecté**. Une

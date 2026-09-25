@@ -11,13 +11,13 @@ interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
 }
 
 /**
- * Champ mot de passe avec bouton afficher/masquer — le seul de la famille auth
- * (`AuthField` le monte, les écrans de compte des diagnostics l'utilisent nu).
- * Sans `className`, il prend le style global `.field-input`.
+ * Champ mot de passe avec bouton afficher/masquer — le seul de la famille auth,
+ * monté par `AuthField` (donc par tous les formulaires d'auth, écrans de compte
+ * des diagnostics compris).
  */
 export function PasswordInput({
   id,
-  className = "field-input",
+  className,
   required = true,
   ...rest
 }: PasswordInputProps) {

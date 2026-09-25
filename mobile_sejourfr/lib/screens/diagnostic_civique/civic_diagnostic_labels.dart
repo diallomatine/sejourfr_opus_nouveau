@@ -74,8 +74,13 @@ const String kCivicDiagnosticGuestBadge = 'Sans compte';
 const String kCivicDiagnosticGateEyebrow = 'Dernière étape';
 const String kCivicDiagnosticGateTitle = 'Vos réponses sont enregistrées';
 const String kCivicDiagnosticGateLead =
-    'Créez votre compte gratuit pour voir votre résultat et votre plan. '
-    'Vos 40 réponses sont déjà en sécurité : elles vous suivent.';
+    'Créez votre compte gratuit pour voir votre résultat et votre plan.';
+
+/// Vrai sans chiffre : un candidat peut n'avoir répondu qu'à une partie des
+/// questions (« Vos 40 réponses » ne l'était pas). Miroir de
+/// `CIVIC_DIAGNOSTIC_GATE_SAFE` (web).
+const String kCivicDiagnosticGateSafe =
+    'Vos réponses sont déjà enregistrées : elles vous suivent.';
 const String kCivicDiagnosticResumeCta = 'Reprendre';
 const String kCivicDiagnosticResultCta = 'Voir mon résultat';
 const String kCivicDiagnosticPlanCta = 'Découvrir mon plan';

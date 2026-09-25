@@ -7,9 +7,12 @@ import { Check, Sparkles, Target, TrendingUp } from "lucide-react";
  * change sur l'accueil change partout.
  */
 
+/** Repris seul par les écrans de compte des diagnostics. */
+export const NO_CARD_REQUIRED = "Sans carte bancaire";
+
 /** Ce que le visiteur obtient sans payer — rangée de coches du hero. */
 export const HERO_TRUST: readonly string[] = [
-  "Sans carte bancaire",
+  NO_CARD_REQUIRED,
   "Niveau estimé",
   "Analyse IA utile",
 ];

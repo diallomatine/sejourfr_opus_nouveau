@@ -318,16 +318,15 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   }
 
   if (step === "account") {
+    // Le rendu de `/inscription` (AuthShell), pas le shell du diagnostic : le
+    // fil des étapes passe dans l'en-tête de l'écran de compte.
     return (
-      <DiagnosticShell guest>
-        <DiagnosticSteps current="account" guest complete={false} oral={subjects.oral !== null} />
-        <DiagnosticAccountGate
-          writtenWords={countEeWords(local?.writtenText ?? "")}
-          oralDurationSec={local?.oralDurationSec ?? null}
-          hasOral={subjects.oral !== null}
-          storedOnDevice={storedOnDevice}
-        />
-      </DiagnosticShell>
+      <DiagnosticAccountGate
+        writtenWords={countEeWords(local?.writtenText ?? "")}
+        oralDurationSec={local?.oralDurationSec ?? null}
+        hasOral={subjects.oral !== null}
+        storedOnDevice={storedOnDevice}
+      />
     );
   }
 

@@ -9,19 +9,26 @@ interface AuthShellProps {
   title: ReactNode;
   subtitle: ReactNode;
   panel: AuthPanel;
+  /** Au-dessus de la carte, à la largeur de la grille (ex. le fil du diagnostic). */
+  header?: ReactNode;
   /** Le formulaire et tout ce qui suit (submit, Google, lien de bascule). */
   children: ReactNode;
 }
 
 /**
- * Coquille des pages d'auth, dans le langage de l'accueil : carte formulaire +
+ * Coquille des écrans d'auth, dans le langage de l'accueil : carte formulaire +
  * panneau d'argumentaire (`auth-panels.ts`). ≥ 980 px, deux colonnes ; en
  * dessous, le panneau passe sous le formulaire en version résumée. La logique
- * du formulaire vit dans la page, passée en `children`.
+ * du formulaire vit dans `RegisterForm` / `LoginForm`, passés en `children`.
+ *
+ * Montée par `/inscription`, `/connexion`, les écrans de mot de passe ET les
+ * deux écrans de compte des diagnostics invités — un seul rendu pour un seul
+ * geste.
  */
-export function AuthShell({ kicker, title, subtitle, panel, children }: AuthShellProps) {
+export function AuthShell({ kicker, title, subtitle, panel, header, children }: AuthShellProps) {
   return (
     <div className={styles.page}>
+      {header ? <div className={styles.shellTop}>{header}</div> : null}
       <div className={styles.grid}>
         <section className={styles.card} aria-labelledby="auth-title">
           <span className={styles.kicker}>{kicker}</span>
@@ -83,6 +90,8 @@ function AuthPanelView({ panel }: { panel: AuthPanel }) {
             ))}
           </ul>
         ) : null}
+
+        {panel.note ? <p className={styles.panelNote}>{panel.note}</p> : null}
 
         {panel.link ? (
           <Link href={panel.link.href} className={styles.panelLink}>

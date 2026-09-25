@@ -537,6 +537,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       DiagnosticGuestStep.accountRequired ||
       DiagnosticGuestStep.oral =>
         DiagnosticAccountGate(
+          hasOral: subjects.oral != null,
           errorMessage: state.errorMessage,
           noticeMessage: state.noticeMessage,
           onRegister: _openRegister,

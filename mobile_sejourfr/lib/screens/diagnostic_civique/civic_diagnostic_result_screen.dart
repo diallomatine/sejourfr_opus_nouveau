@@ -15,6 +15,7 @@ import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../diagnostic/widgets/diagnostic_outcomes.dart';
 import 'civic_diagnostic_blocks.dart';
 import 'civic_diagnostic_guest_store.dart';
 import 'civic_diagnostic_labels.dart';
@@ -412,9 +413,19 @@ class _CivicDiagnosticResultScreenState
         const SizedBox(height: 14),
         Padding(
           padding: sfGutter,
-          child: SfTiny(
-            'Gratuit, sans carte bancaire. Vos réponses sont déjà enregistrées : '
-            'elles vous suivent.',
+          child: SfTiny('Gratuit, sans carte bancaire. $kCivicDiagnosticGateSafe'),
+        ),
+        const SizedBox(height: 22),
+        // Même argumentaire que le panneau du web (`CIVIC_DIAGNOSTIC_PANEL`).
+        Padding(
+          padding: sfGutter,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SfLabel(kCivicDiagnosticGatePanelTitle),
+              const SizedBox(height: 10),
+              DiagnosticOutcomesCard(items: kCivicDiagnosticGateOutcomes),
+            ],
           ),
         ),
       ],

@@ -7,6 +7,7 @@ import {
   diagnosticExpressionMinutes,
 } from "@/lib/diagnostic";
 import {CIVIC_DIAGNOSTIC_HUB_HREF, CIVIC_EXAM_QUESTIONS} from "@/lib/civic-diagnostic";
+import {DIAGNOSTIC_DISCLAIMER, DIAGNOSTIC_OUTCOMES} from "./diagnostic-outcomes";
 import styles from "./diagnostic-choice.module.css";
 
 /**
@@ -123,21 +124,15 @@ export function DiagnosticChoice({
       </p>
 
       <section className={styles.strip} aria-label="Ce que vous obtenez">
-        <div>
-          <strong>Votre niveau</strong>
-          <span>Une estimation simple à comprendre</span>
-        </div>
-        <div>
-          <strong>Vos priorités</strong>
-          <span>Ce qu’il faut travailler en premier</span>
-        </div>
-        <div>
-          <strong>Votre plan</strong>
-          <span>Un parcours adapté à votre résultat</span>
-        </div>
+        {DIAGNOSTIC_OUTCOMES.map((outcome) => (
+          <div key={outcome.title}>
+            <strong>{outcome.title}</strong>
+            <span>{outcome.text}</span>
+          </div>
+        ))}
       </section>
 
-      <p className={styles.disclaimer}>Estimation d’entraînement, non officielle.</p>
+      <p className={styles.disclaimer}>{DIAGNOSTIC_DISCLAIMER}</p>
     </main>
   );
 }
