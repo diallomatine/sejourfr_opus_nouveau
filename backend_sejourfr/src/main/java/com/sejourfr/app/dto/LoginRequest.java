@@ -18,6 +18,11 @@ import jakarta.validation.constraints.NotBlank;
  * l'authentification, et le jeton rendu a sa creation. Ensemble, ils la
  * rattachent au compte dans la transaction d'auth. Absents, faux, expires ou
  * deja utilises : rien n'est rattache et l'authentification reussit quand meme.
+ *
+ * <p><b>{@code claimVia} est FACULTATIF</b> (lot 3b) : {@code "APP_LINK"} quand
+ * la run et son jeton sont arrives par le lien web → app « Continuer sur
+ * l'application » ; toute autre valeur (ou rien) vaut {@code SAME_DEVICE}. Il
+ * qualifie le claim, il ne l'autorise pas : seul le jeton prouve la run.
  */
 public record LoginRequest(
         @Email(message = "Email invalide")
@@ -31,5 +36,7 @@ public record LoginRequest(
 
         String diagnosticRunId,
 
-        String claimToken
+        String claimToken,
+
+        String claimVia
 ) {}

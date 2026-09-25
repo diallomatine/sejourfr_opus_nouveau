@@ -23,6 +23,7 @@
 import {useState} from "react";
 import Link from "next/link";
 import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
+import {ContinueOnAppLink} from "@/app/_components/diagnostic/ContinueOnAppLink";
 import {PasswordInput} from "@/app/_components/auth/PasswordInput";
 import {ApiException} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
@@ -45,10 +46,13 @@ function messageErreur(cause: unknown, repli: string): string {
 }
 
 export function CivicDiagnosticGate({
+    sessionId,
     repondues,
     total,
     procedure,
 }: {
+    /** La session affichée : le lien vers l'app ne porte que SA run. */
+    sessionId: string;
     repondues: number;
     total: number;
     /** La démarche déclarée avant le tirage — elle préremplit le formulaire. */
@@ -210,6 +214,12 @@ export function CivicDiagnosticGate({
                 Gratuit, sans carte bancaire. Vos réponses sont déjà enregistrées : elles
                 vous suivent.
             </p>
+
+            <ContinueOnAppLink
+                diagnosticType="CIVIQUE"
+                sessionId={sessionId}
+                note="Votre résultat reste lié à ce navigateur : reconnectez-vous ici pour le voir."
+            />
 
             <Styles />
         </section>

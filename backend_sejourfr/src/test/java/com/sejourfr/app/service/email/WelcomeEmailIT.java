@@ -33,7 +33,7 @@ class WelcomeEmailIT extends AbstractEmailIT {
     @Autowired private PlatformTransactionManager txManager;
 
     private RegisterRequest inscription(String email) {
-        return new RegisterRequest(email, "password1", "Alice", "Martin", null, null, null, null);
+        return new RegisterRequest(email, "password1", "Alice", "Martin", null, null, null, null, null);
     }
 
     private User inscrire(String email) {

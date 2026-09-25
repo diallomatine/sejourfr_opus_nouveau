@@ -77,11 +77,17 @@ export type AuthProvider = "LOCAL" | "GOOGLE" | "APPLE";
  * (chantier « Suivi », Q3). Posé par `authApi` lui-même, jamais par un écran :
  * un écran d'auth de plus ne peut pas l'oublier.
  */
+/** Miroir de `DiagnosticRunClaimVia` : par où le jeton de la run est revenu. */
+export type DiagnosticRunClaimVia = "SAME_DEVICE" | "APP_LINK";
+
 export interface AuthAttributionFields {
     anonymousId?: string | null;
     diagnosticRunId?: string | null;
     /** 🛑 Secret : ne part que vers l'auth et le « soumis », jamais dans un événement. */
     claimToken?: string | null;
+    /** Le web n'envoie que `SAME_DEVICE` ; `APP_LINK` est le canal de l'app (lot 3b).
+     *  Absent ou inconnu = `SAME_DEVICE` côté serveur. */
+    claimVia?: DiagnosticRunClaimVia | null;
 }
 
 export interface LoginRequest extends AuthAttributionFields {

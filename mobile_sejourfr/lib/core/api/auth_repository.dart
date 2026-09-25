@@ -16,6 +16,7 @@ Map<String, Object?> _tunnelFields(AuthTunnel? tunnel) => {
       if (tunnel?.claim != null) ...{
         'diagnosticRunId': tunnel!.claim!.diagnosticRunId,
         'claimToken': tunnel.claim!.claimToken,
+        'claimVia': tunnel.claim!.via.wire,
       },
     };
 

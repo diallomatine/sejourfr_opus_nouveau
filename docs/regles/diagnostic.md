@@ -394,9 +394,20 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   lecture : compte, ou IP pour le civique invité).
 - **Claim** (`DiagnosticRunClaimService`) dans la **transaction d'auth** : jeton qui
   correspond au hash, non expiré (30 j), run jamais claimée et sans porteur. `claim_kind`
-  = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` (`APP_LINK` accepté par le service,
-  réservé au lot 3b, même jeton). 🛑 **Aucune recherche par `anonymous_id`** : sans jeton,
-  pas de claim.
+  = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` ou `APP_LINK` (champ `claimVia` de la
+  requête d'auth, déclaré par le client, **mêmes vérifications**). 🛑 **Aucune recherche par
+  `anonymous_id`** : sans jeton, pas de claim.
+- **Lien web → app** (lot 3b, scénario 4, D82 → D86) : sur l'écran de compte invité (TCF
+  rapide et civique), **sur téléphone** et pour une run d'invité au jeton valide, le web
+  propose « Continuer sur l'application » :
+  `https://<hôte>/continuer-sur-app#run=<id>&token=<jeton>` (🛑 jeton dans le **fragment**,
+  jamais en query string ni dans un événement). L'app installée l'intercepte (universal link
+  / App Link), garde la run à part des passages de l'appareil et la transmet à la
+  **prochaine** auth avec `claimVia = APP_LINK`. Sinon le navigateur ouvre la page
+  `/continuer-sur-app` (installer, revenir, toucher de nouveau). Deferred deep link **hors
+  MVP** : une inscription après installation reste `OUTSIDE_DIAGNOSTIC`, la run compte dans
+  « soumis anonymes jamais rattachés ». Les **réponses** ne suivent pas : la production du
+  TCF rapide invité reste sur le navigateur (V053), l'analyse s'y lance à la connexion.
 - 🛑 **Le claim ne dépend pas du quota.** Un compte qui a déjà son diagnostic claime quand
   même la run (le tunnel le compte « rattaché ») ; **le contenu reste refusé comme avant**
   (adoption civique en 422, productions du handoff TCF abandonnées).
@@ -414,7 +425,7 @@ rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
   appartient au porteur du parcours. `JourneyDto.journeyId` sert `journey.id`. Un
   diagnostic sans run liée (client ancien) rend vide : inconnu, jamais deviné.
 
-Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 5, 6, 7, 16 civique, 20),
+Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 4, 5, 6, 7, 16 civique, 20),
 `DiagnosticRunQuickTcfHandoffIT`, `DiagnosticRunFoundingIT`, `GuestAttemptPurgeJobIT`.
 
 ---

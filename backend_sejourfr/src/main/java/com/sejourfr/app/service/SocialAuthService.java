@@ -77,7 +77,8 @@ public class SocialAuthService {
         Resolution r = findOrCreate(identity, null, null, client, req.anonymousId());
         // Même geste qu'en connexion locale : le parcours anonyme de cet
         // appareil rejoint le compte. Idempotent et best-effort.
-        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken());
+        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken(),
+                DiagnosticRunClaimVia.fromClient(req.claimVia()));
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -86,7 +87,8 @@ public class SocialAuthService {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
         Resolution r = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()), client,
                 req.anonymousId());
-        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken());
+        onAuthenticated(r, client, req.anonymousId(), req.diagnosticRunId(), req.claimToken(),
+                DiagnosticRunClaimVia.fromClient(req.claimVia()));
         return buildTokenResponse(r.user(), userAgent, ipAddress);
     }
 
@@ -113,15 +115,14 @@ public class SocialAuthService {
     }
 
     private void onAuthenticated(Resolution r, ClientContext client, String declaredAnonymousId,
-                                 String diagnosticRunId, String claimToken) {
+                                 String diagnosticRunId, String claimToken, DiagnosticRunClaimVia via) {
         ClientContext ctx = client == null ? ClientContext.unknown() : client;
         AuthKind kind = r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN;
         analyticsIdentityService.onAuthenticated(r.user().getId(), kind,
                 ctx.anonymousIdPreferring(declaredAnonymousId));
         // Meme geste qu'en auth locale : claim dans cette transaction, contexte
         // d'inscription pose au meme instant sur la branche de creation.
-        diagnosticRunClaimService.onAuthenticated(r.user(), kind, diagnosticRunId, claimToken,
-                DiagnosticRunClaimVia.SAME_DEVICE);
+        diagnosticRunClaimService.onAuthenticated(r.user(), kind, diagnosticRunId, claimToken, via);
     }
 
     private Resolution findOrCreate(SocialIdentity identity, String firstNameOverride,

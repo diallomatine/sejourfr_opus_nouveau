@@ -264,9 +264,9 @@ class DiagnosticRunTracker {
   // ---------------------------------------------------------------------------
 
   /// La run à transmettre à `login` / `register` / `google` / `apple`, ou
-  /// `null`. Le serveur n'en rattache qu'une : on prend la run **d'invité la
-  /// plus récemment touchée** dont le jeton vaut encore (même règle que le
-  /// web).
+  /// `null`. Le serveur n'en rattache qu'une : on prend la plus récente entre
+  /// la run **d'invité** de l'appareil dont le jeton vaut encore (même règle
+  /// que le web) et celle reçue par le **lien web → app** ([receiveAppLink]).
   Future<DiagnosticRunClaim?> claimForAuth() async {
     try {
       final now = DateTime.now();
@@ -277,6 +277,11 @@ class DiagnosticRunTracker {
         if (best == null || entry.touchedAt.isAfter(best.touchedAt)) {
           best = entry;
         }
+      }
+      final link = await _readAppLink();
+      if (link != null &&
+          (best == null || link.receivedAt.isAfter(best.touchedAt))) {
+        return link.claim;
       }
       if (best == null) return null;
       return DiagnosticRunClaim(
@@ -295,6 +300,13 @@ class DiagnosticRunTracker {
   /// de ce compte côté serveur. Aucune vérité n'en dépend ici.
   Future<void> onAuthenticated(String userId, DiagnosticRunClaim? claim) async {
     if (claim == null) return;
+    if (claim.via == DiagnosticRunClaimVia.appLink) {
+      // Transmise une fois : rattachée ou refusée, le serveur a tranché. La
+      // run du web ne devient pas une run de l'appareil (son rapport n'est
+      // pas ici) : aucun événement ne la portera.
+      await _forgetAppLink();
+      return;
+    }
     try {
       for (final type in DiagnosticRunType.values) {
         final entry = await _read(type);
@@ -306,6 +318,71 @@ class DiagnosticRunTracker {
         if (entry.ownerUserId != null) continue;
         await _write(type, entry.copyWith(ownerUserId: userId));
       }
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lien web → app (lot 3b)
+  // ---------------------------------------------------------------------------
+
+  static const _appLinkKey = 'sejourfr.diagnosticRun.appLink';
+
+  /// Le lien « Continuer sur l'application » a ouvert l'app avec la run d'un
+  /// diagnostic passé sur le web : on la garde pour la **prochaine**
+  /// authentification, qui la transmet avec `claimVia = APP_LINK`.
+  ///
+  /// Rangée **à part** des passages de l'appareil : ce n'est pas un passage
+  /// d'ici (pas de clé, pas de rapport), et elle ne doit ni reprendre ni
+  /// masquer le prochain diagnostic fait dans l'app. Un nouveau lien remplace
+  /// l'ancien. Rien n'est vérifié ici : le serveur juge le jeton.
+  Future<void> receiveAppLink(DiagnosticRunClaim claim) async {
+    if (claim.via != DiagnosticRunClaimVia.appLink) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _appLinkKey,
+        jsonEncode({
+          'diagnosticRunId': claim.diagnosticRunId,
+          'claimToken': claim.claimToken,
+          'receivedAt': DateTime.now().toIso8601String(),
+        }),
+      );
+    } catch (_) {
+      // Best-effort : sans elle, l'inscription est simplement hors diagnostic.
+    }
+  }
+
+  Future<({DiagnosticRunClaim claim, DateTime receivedAt})?>
+      _readAppLink() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_appLinkKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final json = jsonDecode(raw);
+      if (json is! Map<String, dynamic>) return null;
+      final runId = json['diagnosticRunId'] as String?;
+      final token = json['claimToken'] as String?;
+      final receivedAt = DateTime.tryParse(json['receivedAt'] as String? ?? '');
+      if (runId == null || token == null || receivedAt == null) return null;
+      return (
+        claim: DiagnosticRunClaim(
+          diagnosticRunId: runId,
+          claimToken: token,
+          via: DiagnosticRunClaimVia.appLink,
+        ),
+        receivedAt: receivedAt,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _forgetAppLink() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_appLinkKey);
     } catch (_) {
       // Best-effort.
     }

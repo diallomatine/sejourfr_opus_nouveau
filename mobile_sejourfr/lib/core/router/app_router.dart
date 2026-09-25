@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,7 +75,9 @@ import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
+import '../analytics/diagnostic_run_tracker.dart';
 import '../auth/auth_controller.dart';
+import '../models/diagnostic_run_models.dart';
 import '../models/enums.dart';
 import '../models/skill_models.dart';
 
@@ -172,6 +176,11 @@ class AppRoutes {
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
+
+  /// **Le lien « Continuer sur l'application »** du diagnostic web (lot 3b) :
+  /// universal link iOS / App Link Android, `#run=…&token=…`. Jamais un
+  /// écran : le `redirect` le consomme ([AppLinkClaim]) et repart aussitôt.
+  static const continuerSurApp = AppLinkClaim.path;
 
   /// `/diagnostic?demarrer=1` — le diagnostic **part tout de suite**, sans
   /// écran de présentation.
@@ -403,6 +412,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       final auth = ref.read(authControllerProvider);
       final loc = state.matchedLocation;
 
+      // Lien web → app (lot 3b) : la run et son jeton sont gardés pour la
+      // prochaine authentification, puis on quitte l'adresse. 🛑 Avant la
+      // branche du boot : ce lien porte un secret, il ne doit jamais devenir
+      // une « destination après connexion ».
+      if (state.uri.path == AppRoutes.continuerSurApp) {
+        final claim = AppLinkClaim.fromUri(state.uri);
+        if (claim != null) {
+          unawaited(ref.read(diagnosticRunTrackerProvider).receiveAppLink(claim));
+        }
+        if (auth is AuthLoading) return AppRoutes.splash;
+        return auth is AuthAuthenticated ? AppRoutes.home : AppRoutes.register;
+      }
+
       // Pendant le boot, on reste sur le splash le temps d'avoir un verdict.
       if (auth is AuthLoading) {
         pendingDestination.remember(
@@ -490,6 +512,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.splash,
         builder: (_, __) => const SplashScreen(),
+      ),
+      // Déclarée pour que l'adresse soit reconnue ; le `redirect` la quitte
+      // toujours avant tout affichage.
+      GoRoute(
+        path: AppRoutes.continuerSurApp,
+        builder: (_, __) => const SizedBox.shrink(),
       ),
       GoRoute(
         path: AppRoutes.login,

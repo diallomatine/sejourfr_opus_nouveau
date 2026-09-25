@@ -55,7 +55,15 @@ const nextConfig: NextConfig = {
             process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.npm_package_version ?? "",
     },
     async headers() {
-        return [{source: "/:path*", headers: securityHeaders}];
+        return [
+            {source: "/:path*", headers: securityHeaders},
+            // Universal links iOS (lot 3b) : Apple lit ce fichier sans extension
+            // et l'attend en JSON. Servi par `public/.well-known/`.
+            {
+                source: "/.well-known/apple-app-site-association",
+                headers: [{key: "Content-Type", value: "application/json"}],
+            },
+        ];
     },
     // Les anciennes adresses de progression (supprimées le 2026-09-24, D14),
     // `/recommandations`, `/historique` (« Résultats ») et `/revision`

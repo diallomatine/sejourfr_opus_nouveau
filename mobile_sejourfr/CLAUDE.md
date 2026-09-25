@@ -3900,6 +3900,13 @@ canonique vit côté backend.
   récente dont le jeton vaut encore (`claimForAuth`) ; le jeton est **conservé** après l'auth
   (lot 3b). `onAuthenticated` marque la run au **premier** compte qui l'a transmise, **avant** le
   passage en connecté.
+- **Lien web → app** (lot 3b) : `https://{sejourfr.fr,app.sejourfr.fr}/continuer-sur-app#run=…&token=…`
+  (intent-filter `autoVerify` + `applinks:` dans `Runner.entitlements`). Le `redirect` de
+  `app_router.dart` le consomme **avant** la branche du boot (jamais une destination après
+  connexion) : `AppLinkClaim.fromUri` (fragment seulement) → `receiveAppLink`, rangé **à part**
+  des passages (`sejourfr.diagnosticRun.appLink`), puis `/register` (ou l'Accueil si connecté).
+  `claimForAuth` rend la plus récente entre run d'invité et lien, avec `claimVia` ; le lien est
+  oublié après l'auth qui l'a transmis et n'est jamais attaché à un événement.
 - **Plan** : `Journey.journeyId` (miroir de `JourneyDto.journeyId`) accompagne `PLAN_OPENED`
   (une fois par ouverture, quand le parcours affiché est connu), `PLAN_EXERCISE_STARTED` et
   `PLAN_UNLOCK_CLICKED` (bouton prix de `PlanUnlockScreen`, `planCode` + prix affiché du pass

@@ -32,7 +32,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Le cycle de vie d'une {@code diagnostic_run} de bout en bout (chantier Suivi,
  * lot 2a) : creation idempotente, « soumis » une seule fois, claim dans la
  * transaction d'auth, contexte d'inscription, et rattachement serveur aux
- * sessions. Scenarios du brief §12 : 3, 5, 6, 7, 16 (civique), 20.
+ * sessions. Scenarios du brief §12 : 3, 4 (lien web → app, lot 3b), 5, 6, 7,
+ * 16 (civique), 20.
  */
 class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
 
@@ -323,6 +324,103 @@ class DiagnosticRunLifecycleIT extends AbstractIntegrationTest {
         assertThat(row.get("claimed_at")).isNotNull();
         // Soumis AVANT le compte : il reste un soumis anonyme.
         assertThat(row.get("submitted_authenticated")).isEqualTo(false);
+    }
+
+    /**
+     * Inscription depuis l'app, avec la run et le jeton recus par le lien
+     * « Continuer sur l'application » : autre appareil, donc autre identifiant
+     * de mesure que celui de la run.
+     */
+    private void inscrireDepuisApp(String email, UUID runId, String token, String claimVia) throws Exception {
+        String body = inscription(email, runId, token).replace("}",
+                claimVia == null ? "}" : ",\"claimVia\":\"" + claimVia + "\"}");
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .header(ClientContextResolver.HEADER_CLIENT, "android")
+                        .header(ClientContextResolver.HEADER_ANONYMOUS_ID, UUID.randomUUID().toString())
+                        .content(body))
+                .andExpect(status().isOk());
+    }
+
+    /** Scenario 4 (lot 3b). */
+    @Test
+    @DisplayName("Scénario 4 — diagnostic anonyme web, inscription dans l'app via le lien : rattaché, claimed_via APP_LINK")
+    void scenario4LienWebVersApp() throws Exception {
+        Creee c = creerInvite("QUICK_TCF", UUID.randomUUID());
+        mvc.perform(soumission(c.id(), c.token())).andExpect(status().isNoContent());
+
+        String email = "scenario4@test.sejourfr";
+        inscrireDepuisApp(email, c.id(), c.token(), "APP_LINK");
+
+        User user = relire(email);
+        assertThat(user.getSignupContext()).hasToString("AFTER_DIAGNOSTIC");
+        assertThat(user.getSignupDiagnosticRunId()).isEqualTo(c.id());
+        assertThat(user.getSignupPlatform()).hasToString("ANDROID");
+        Map<String, Object> row = run(c.id());
+        assertThat(row.get("user_id")).isEqualTo(user.getId());
+        assertThat(row.get("claim_kind")).isEqualTo("SIGNUP");
+        assertThat(row.get("claimed_via")).isEqualTo("APP_LINK");
+    }
+
+    @Test
+    @DisplayName("Lien web → app puis connexion à un compte existant : claim LOGIN via APP_LINK")
+    void lienWebVersAppConnexion() throws Exception {
+        Creee c = creerInvite("CIVIQUE", UUID.randomUUID());
+        User existant = testData.user();
+        em.flush();
+        String body = "{\"email\":\"" + existant.getEmail() + "\",\"password\":\"" + TestData.DEFAULT_PASSWORD
+                + "\",\"diagnosticRunId\":\"" + c.id() + "\",\"claimToken\":\"" + c.token()
+                + "\",\"claimVia\":\"APP_LINK\"}";
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        Map<String, Object> row = run(c.id());
+        assertThat(row.get("user_id")).isEqualTo(existant.getId());
+        assertThat(row.get("claim_kind")).isEqualTo("LOGIN");
+        assertThat(row.get("claimed_via")).isEqualTo("APP_LINK");
+    }
+
+    @Test
+    @DisplayName("Lien web → app avec un jeton faux ou expiré : pas de claim, l'inscription réussit")
+    void lienWebVersAppJetonFauxOuExpire() throws Exception {
+        Creee c = creerInvite("QUICK_TCF", UUID.randomUUID());
+        mvc.perform(soumission(c.id(), c.token())).andExpect(status().isNoContent());
+
+        inscrireDepuisApp("lienfaux@test.sejourfr", c.id(), "faux-jeton", "APP_LINK");
+        assertThat(relire("lienfaux@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+        assertThat(run(c.id()).get("claimed_at")).isNull();
+
+        jdbc.update("UPDATE diagnostic_run SET claim_token_expires_at = now() - interval '1 minute' WHERE id = ?",
+                c.id());
+        inscrireDepuisApp("lienexpire@test.sejourfr", c.id(), c.token(), "APP_LINK");
+        assertThat(relire("lienexpire@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+        Map<String, Object> row = run(c.id());
+        assertThat(row.get("claimed_at")).isNull();
+        assertThat(row.get("user_id")).isNull();
+        assertThat(row.get("claimed_via")).isNull();
+    }
+
+    @Test
+    @DisplayName("Lien web → app sur une run déjà claimée : elle reste au premier compte, canal inchangé")
+    void lienWebVersAppRunDejaClaimee() throws Exception {
+        Creee c = creerInvite("QUICK_TCF", UUID.randomUUID());
+        mvc.perform(soumission(c.id(), c.token())).andExpect(status().isNoContent());
+        inscrire("premierweb@test.sejourfr", c.id(), c.token(), null);
+        User premier = relire("premierweb@test.sejourfr");
+
+        inscrireDepuisApp("secondapp@test.sejourfr", c.id(), c.token(), "APP_LINK");
+
+        assertThat(relire("secondapp@test.sejourfr").getSignupContext()).hasToString("OUTSIDE_DIAGNOSTIC");
+        Map<String, Object> row = run(c.id());
+        assertThat(row.get("user_id")).isEqualTo(premier.getId());
+        assertThat(row.get("claimed_via")).isEqualTo("SAME_DEVICE");
+    }
+
+    @Test
+    @DisplayName("Canal illisible : claim SAME_DEVICE, jamais un 400 d'auth")
+    void canalIllisible() throws Exception {
+        Creee c = creerInvite("QUICK_TCF", UUID.randomUUID());
+        inscrireDepuisApp("canal@test.sejourfr", c.id(), c.token(), "PIGEON");
+        assertThat(run(c.id()).get("claimed_via")).isEqualTo("SAME_DEVICE");
     }
 
     /** Scenario 5 : sans jeton, aucune recherche par anonymous_id. */

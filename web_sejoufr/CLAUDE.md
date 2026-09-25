@@ -5046,7 +5046,14 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   | Sujet vu (`ensureDiagnosticRun`) | TCF rapide : 1ʳᵉ question affichée (`DiagnosticView`, invité et connecté) · civique : runner `/sessions/[id]?civicDiagnosticId=` en `running` · complet : `lancerSection` du hub |
   | Soumis (`submitQuickTcfRun`) | TCF rapide seulement, au bouton final (« Valider mon diagnostic » / « Terminer et analyser ») ; serveur pour les deux autres |
   | Session liée | à la création (`sessionId`) ; rapide invité : `diagnosticApi.start(…, diagnosticRunId)` au handoff |
-  | Rattaché | `authApi.login/register/google` ajoutent `anonymousId` + la run d'invité la plus récente (`diagnosticRunToClaim`) et son jeton |
+  | Rattaché | `authApi.login/register/google` ajoutent `anonymousId` + la run d'invité la plus récente (`diagnosticRunToClaim`) et son jeton (`claimVia: SAME_DEVICE`) |
+- **Lien « Continuer sur l'application »** (lot 3b) : `ContinueOnAppLink` sur les deux écrans de
+  compte invité (`DiagnosticAccountGate`, `CivicDiagnosticGate`), **téléphone seulement**, run
+  d'invité au jeton valide (civique : celle de la session affichée). Forme du lien :
+  `lib/app-link.ts` (🛑 jeton dans le **fragment**) ; hôte `NEXT_PUBLIC_APP_LINK_BASE_URL`, sinon
+  `SITE.url` (iOS n'ouvre pas l'app vers le même domaine). Repli `/continuer-sur-app` (efface le
+  fragment, badges des stores). `public/.well-known/apple-app-site-association` (servi en JSON par
+  `next.config.ts`) et `assetlinks.json`.
 - **Événements du tunnel** : `DIAGNOSTIC_REPORT_VIEWED` (`trackDiagnosticReportViewed`, rapport
   affiché **avec ses données**, run de **cette** session seulement), `PLAN_OPENED` (Plan TCF et
   civique affichés, `journeyId`), `PLAN_UNLOCK_CLICKED` (bouton « Débloquer mon plan » de

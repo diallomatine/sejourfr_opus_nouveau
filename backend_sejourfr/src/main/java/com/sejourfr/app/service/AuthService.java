@@ -91,8 +91,10 @@ public class AuthService {
         // Claim de la run de diagnostic passée sur cet appareil, DANS cette
         // transaction ; à l'inscription, le contexte d'inscription est posé au
         // même instant. Jeton absent ou faux : rien, et la connexion réussit.
+        // Le canal (même appareil ou lien web → app) est déclaré par le client
+        // et ne fait que qualifier un claim que le jeton seul autorise.
         diagnosticRunClaimService.onAuthenticated(u, kind, req.diagnosticRunId(), req.claimToken(),
-                DiagnosticRunClaimVia.SAME_DEVICE);
+                DiagnosticRunClaimVia.fromClient(req.claimVia()));
         return buildTokenResponse(u, userAgent, ipAddress);
     }
 
@@ -170,7 +172,7 @@ public class AuthService {
         // ci-dessous, marquée SIGNUP : un seul point d'écriture, donc aucun
         // risque qu'inscription et connexion divergent.
         return authenticate(new LoginRequest(email, req.password(), req.anonymousId(),
-                        req.diagnosticRunId(), req.claimToken()),
+                        req.diagnosticRunId(), req.claimToken(), req.claimVia()),
                 userAgent, ipAddress, client, AuthKind.SIGNUP);
     }
 

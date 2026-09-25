@@ -496,6 +496,7 @@ async function withAttribution<T extends AuthAttributionFields>(body: T): Promis
         anonymousId: anonymousId(),
         diagnosticRunId: run?.diagnosticRunId ?? null,
         claimToken: run?.claimToken ?? null,
+        claimVia: run ? "SAME_DEVICE" : null,
     };
 }
 

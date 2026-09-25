@@ -6,6 +6,7 @@ import {
   Smartphone,
   Sparkles,
 } from "lucide-react";
+import {STORE_LINKS} from "@/lib/site";
 
 const FEATURES = [
   {
@@ -535,15 +536,11 @@ function BackScreen() {
 // Store badges
 // ============================================================================
 
-const APP_STORE_URL = "https://apps.apple.com/fr/app/sejourfr/id6771509569";
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr";
-
 export function StoreBadge({ variant }: { variant: "ios" | "android" }) {
   const isIos = variant === "ios";
   return (
     <a
-      href={isIos ? APP_STORE_URL : PLAY_STORE_URL}
+      href={isIos ? STORE_LINKS.ios : STORE_LINKS.android}
       target="_blank"
       rel="noopener noreferrer"
       className="sb"

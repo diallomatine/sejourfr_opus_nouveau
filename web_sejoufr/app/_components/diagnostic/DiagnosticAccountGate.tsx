@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useState} from "react";
 import {ArrowRight, Check, FilePenLine, Lock, Mic, ShieldCheck, Sparkles, Zap} from "lucide-react";
 import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
+import {ContinueOnAppLink} from "@/app/_components/diagnostic/ContinueOnAppLink";
 import {PasswordInput} from "@/app/_components/auth/PasswordInput";
 import {track} from "@/lib/analytics";
 import {ApiException} from "@/lib/api";
@@ -358,6 +359,11 @@ export function DiagnosticAccountGate({
         <p className={styles.gateNoCard}>
           <Lock size={13} aria-hidden /> Compte gratuit, sans carte bancaire.
         </p>
+
+        <ContinueOnAppLink
+          diagnosticType="QUICK_TCF"
+          note="Vos réponses restent sur ce navigateur : reconnectez-vous ici pour lancer leur analyse."
+        />
       </section>
 
       <SampleResultAside />

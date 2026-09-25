@@ -768,6 +768,48 @@ retour (faible / moyenne / forte).
 - Fichiers : `SuiviService`.
 - Difficulté de retour : faible.
 
+**D82 — Le jeton voyage dans le fragment du lien, jamais en query string** · Lot 3b
+- Contexte : le lien porte `diagnosticRunId` + `claimToken` ; D24 a déjà écarté le jeton des query strings (journaux d'accès). Quand l'app n'est pas installée, le navigateur charge l'adresse sur notre serveur.
+- Options : query string ; chemin ; fragment.
+- Choix : `https://<hôte>/continuer-sur-app#run=<id>&token=<jeton>`. Un fragment n'est envoyé à aucun serveur ni dans le `Referer` ; iOS et Android le transmettent à l'app, go_router le garde dans `state.uri`. La page de repli l'efface de la barre d'adresse dès l'arrivée et ne le lit pas. Forme écrite une fois par front : `lib/app-link.ts` (écrit) ⇄ `AppLinkClaim.fromUri` (lit, UUID + base64url bornés, sinon rien).
+- Fichiers : `web_sejoufr/lib/app-link.ts`, `app/continuer-sur-app/*`, `mobile_sejourfr/lib/core/models/diagnostic_run_models.dart`.
+- Difficulté de retour : moyenne une fois des liens en circulation (30 j de validité du jeton).
+
+**D83 — Hôte du lien configurable, `sejourfr.fr` par défaut, `app.sejourfr.fr` prévu** · Lot 3b
+- Contexte : iOS n'ouvre **pas** l'app quand l'utilisateur touche, dans Safari, un universal link du **même domaine** que la page affichée : un lien `sejourfr.fr` posé sur une page `sejourfr.fr` reste dans Safari. Aucun sous-domaine n'est configuré aujourd'hui.
+- Options : `sejourfr.fr` seul (iOS inopérant) ; `app.sejourfr.fr` en dur (lien mort tant que le DNS n'existe pas) ; hôte configurable.
+- Choix : `NEXT_PUBLIC_APP_LINK_BASE_URL`, sinon `SITE.url`. L'app déclare **les deux hôtes** (`applinks:` et intent-filter), pour que la bascule vers `app.sejourfr.fr` ne demande aucune nouvelle version de l'app. ⚠️ Tant que l'hôte dédié n'est pas servi : sur iPhone le lien retombe sur la page web ; avant Android 12, la vérification est « tout ou rien » sur les hôtes déclarés (lien ouvert par le sélecteur d'app, ou le navigateur).
+- Fichiers : `lib/app-link.ts`, `Runner.entitlements`, `AndroidManifest.xml`.
+- Difficulté de retour : faible (variable d'environnement).
+
+**D84 — Le lien n'est proposé que sur téléphone, à un invité dont la run est rattachable** · Lot 3b
+- Contexte : « page résultat web » ; pour un invité, TCF rapide et civique, c'est l'écran de compte (le résultat n'est rendu qu'après le compte).
+- Options : partout ; téléphone seulement.
+- Choix : `ContinueOnAppLink` sur `DiagnosticAccountGate` et `CivicDiagnosticGate`, rendu seulement sur iOS / Android (user-agent, iPadOS compris), pour une run **créée invitée**, jeton non expiré, et pour le civique la run de **la session affichée**. Sur ordinateur, l'app ne peut pas s'ouvrir : le lien ne rattacherait rien. Une note dit ce qui ne suit pas : les **réponses** restent sur le navigateur (V053 pour le TCF rapide ; le résultat civique invité reste lié au navigateur), l'analyse s'y lance à la reconnexion. Aucun événement nouveau.
+- Fichiers : `app/_components/diagnostic/ContinueOnAppLink.tsx`, les deux gates, `CivicDiagnosticResult.tsx`.
+- Difficulté de retour : faible.
+
+**D85 — `claimVia` : champ texte facultatif de la requête d'auth** · Lot 3b
+- Contexte : D25 réservait un champ de DTO au lot 3b ; le claim doit garder exactement les vérifications du même appareil.
+- Options : endpoint dédié de claim ; champ de requête.
+- Choix : `claimVia` sur `Login/Register/GoogleSignIn/AppleSignInRequest`, lu par `DiagnosticRunClaimVia.fromClient` : `"APP_LINK"` ⇒ `APP_LINK`, toute autre valeur ou rien ⇒ `SAME_DEVICE` (jamais un 400 d'auth). Déclaratif : il **qualifie** un claim que le jeton seul autorise (hash, expiration, jamais claimée, sans porteur, inchangés). Aucune vérification d'`anonymous_id` au claim (l'app a le sien, différent de celui du web). Le web envoie `SAME_DEVICE` quand il transmet une run ; le mobile envoie le canal de la run choisie. Tests : `DiagnosticRunLifecycleIT` (scénario 4 inscription et connexion, jeton faux, expiré, run déjà claimée, canal illisible), `SocialAuthServiceTest` (Apple en `APP_LINK`).
+- Fichiers : 4 DTO, `DiagnosticRunClaimVia`, `AuthService`, `SocialAuthService`, `web_sejoufr/lib/{types,api}.ts`, `mobile_sejourfr/lib/core/api/auth_repository.dart`.
+- Difficulté de retour : faible.
+
+**D86 — Mobile : la run reçue par lien est rangée à part des passages** · Lot 3b
+- Contexte : `DiagnosticRunTracker` garde un passage par type ; y écrire la run du web ferait reprendre sa clé au prochain diagnostic fait dans l'app, et la run du web partirait dans les événements de l'app.
+- Options : entrée du type ; clé dédiée.
+- Choix : clé `sejourfr.diagnosticRun.appLink` (run, jeton, date de réception), un nouveau lien remplace l'ancien. `claimForAuth` rend la plus récente entre la run d'invité de l'appareil et celle du lien ; l'auth qui l'a transmise l'**oublie** (claimée ou refusée, le serveur a tranché) ; elle n'est jamais attachée à un événement (`runIdFor` l'ignore). Le lien est consommé dans le `redirect` go_router **avant** la branche du boot (sinon il deviendrait une « destination après connexion » portant un secret), puis `/register` (le parcours d'onboarding s'intercale sur une installation neuve), ou l'Accueil si déjà connecté — le jeton attend alors la prochaine auth : aucun claim à chaud pour un compte déjà connecté (pas d'endpoint, hors périmètre).
+- Fichiers : `diagnostic_run_tracker.dart`, `app_router.dart`, `diagnostic_run_models.dart`.
+- Difficulté de retour : faible.
+
+**D87 — Identifiants des fichiers d'association** · Lot 3b
+- Contexte : AASA et `assetlinks.json` exigent Team ID + bundle, package + empreinte SHA-256 du certificat.
+- Options : placeholders partout ; valeurs lues dans la config.
+- Choix : Team ID **`7739P8BMP2`** (lu dans `project.pbxproj`). Bundle : **`com.sejourfr.app`** (`docs/paiements-iap-setup.md`, `APPLE_BUNDLE_ID`) ⚠️ alors que `project.pbxproj` déclare `com.example.sejourfrMobile` — les deux figurent dans l'AASA (le second pour les builds locaux), au propriétaire de confirmer. Package Android `com.sejourfr.app` (`build.gradle.kts`). Empreinte : **placeholder** `A_REMPLACER_SHA256_CLE_DE_SIGNATURE_PLAY_APP_SIGNING` (clé de signature d'app de la Play Console ; la clé d'upload ne suffit pas pour une app installée depuis le Play Store). Servis par le web : `public/.well-known/`, AASA en `application/json` via `next.config.ts`.
+- Fichiers : `web_sejoufr/public/.well-known/*`, `next.config.ts`.
+- Difficulté de retour : faible.
+
 ---
 
 ## 3. Récapitulatif final

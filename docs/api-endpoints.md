@@ -21,7 +21,10 @@ automatique** dans le client HTTP de chaque front.
   `apple`) : champs facultatifs `diagnosticRunId` (texte UUID) + `claimToken` (texte)
   dans le corps. Dans la **transaction d'auth** : la run passe au compte si le jeton
   correspond à son hash, n'est pas expiré, et si la run n'a jamais été claimée ni portée
-  (`claim_kind = SIGNUP | LOGIN`, `claimed_via = SAME_DEVICE`). À l'inscription,
+  (`claim_kind = SIGNUP | LOGIN`). Champ facultatif `claimVia` (lot 3b) : `"APP_LINK"`
+  quand la run et son jeton sont arrivés par le lien web → app « Continuer sur
+  l'application », toute autre valeur ou rien ⇒ `SAME_DEVICE` (jamais un 400) ; il
+  qualifie `claimed_via`, il n'autorise rien — mêmes vérifications. À l'inscription,
   `users.signup_context` est posé au même instant : `AFTER_DIAGNOSTIC` (+
   `signup_diagnostic_type`, `signup_diagnostic_run_id`) si la run claimée est
   **soumise**, `OUTSIDE_DIAGNOSTIC` sinon. Absents, illisibles, faux, expirés, déjà

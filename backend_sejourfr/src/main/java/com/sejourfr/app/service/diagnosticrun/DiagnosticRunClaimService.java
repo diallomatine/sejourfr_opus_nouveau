@@ -50,8 +50,8 @@ public class DiagnosticRunClaimService {
      * @param runIdRaw   {@code diagnosticRunId} de la requete d'auth (texte : un
      *                   identifiant illisible ne doit pas faire un 400 d'auth)
      * @param claimToken {@code claimToken} de la requete d'auth
-     * @param via        {@link DiagnosticRunClaimVia#SAME_DEVICE} aujourd'hui ;
-     *                   {@link DiagnosticRunClaimVia#APP_LINK} au lot 3b, meme jeton
+     * @param via        canal declare par le client ({@code claimVia}) : meme
+     *                   appareil, ou lien web → app (lot 3b) ; memes verifications
      * @return la run claimee (etat lu AVANT le claim), vide sinon
      */
     public Optional<DiagnosticRunManager.State> onAuthenticated(User user, AuthKind kind, String runIdRaw,

@@ -6,5 +6,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:sejourfr.fr</string>
+		<string>applinks:app.sejourfr.fr</string>
+	</array>
 </dict>
 </plist>

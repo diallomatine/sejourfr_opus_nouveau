@@ -137,6 +137,7 @@ export function CivicDiagnosticResult({sessionId}: {sessionId: string}) {
     if (etat.kind === "compte") {
         return (
             <CivicDiagnosticGate
+                sessionId={sessionId}
                 repondues={etat.repondues}
                 total={etat.total}
                 procedure={etat.procedure}

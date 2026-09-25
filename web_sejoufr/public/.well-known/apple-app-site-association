@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "7739P8BMP2.com.sejourfr.app",
+          "7739P8BMP2.com.example.sejourfrMobile"
+        ],
+        "components": [
+          {
+            "/": "/continuer-sur-app",
+            "comment": "Lien « Continuer sur l'application » du diagnostic web (lot 3b). Le jeton voyage dans le fragment."
+          }
+        ]
+      },
+      {
+        "appID": "7739P8BMP2.com.sejourfr.app",
+        "paths": ["/continuer-sur-app"]
+      }
+    ]
+  }
+}
