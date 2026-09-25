@@ -122,7 +122,9 @@ Le checkout web utilise un montant dynamique construit à partir de `plans.price
 migration est passée.
 
 À vérifier une fois : le webhook `https://api.sejourfr.fr/api/billing/webhook`
-écoute bien `checkout.session.completed` et `charge.refunded`.
+écoute bien les cinq events listés dans `docs/setup-paiement-one-time.md` §1
+(`checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`checkout.session.async_payment_failed`, `charge.refunded`, `charge.dispute.closed`).
 
 ---
 

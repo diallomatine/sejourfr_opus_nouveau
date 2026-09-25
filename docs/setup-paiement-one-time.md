@@ -60,7 +60,7 @@ existante soit en place :
    côté backend.
 2. **Dashboard Stripe → Developers → Webhooks → ton endpoint**
    (`https://api.sejourfr.fr/api/billing/webhook`) → bouton **« … » → Update
-   details → Select events** : s'assurer que **ces quatre events** sont cochés :
+   details → Select events** : s'assurer que **ces cinq events** sont cochés :
     - `checkout.session.completed`
     - `checkout.session.async_payment_succeeded` — accorde l'accès d'un paiement
       différé une fois encaissé. **Obligatoire** : sans lui, un client prélevé
@@ -68,6 +68,8 @@ existante soit en place :
     - `checkout.session.async_payment_failed` — trace l'échec d'un paiement
       différé (aucun accès accordé).
     - `charge.refunded`
+    - `charge.dispute.closed` — un litige (chargeback) **perdu** retire l'accès
+      et s'enregistre comme un remboursement ; un litige gagné ne change rien.
       (Les `customer.subscription.*` peuvent rester cochés, ils ne se déclenchent
       pas en mode one-time.) Copier le **Signing secret** dans `STRIPE_WEBHOOK_SECRET`.
 

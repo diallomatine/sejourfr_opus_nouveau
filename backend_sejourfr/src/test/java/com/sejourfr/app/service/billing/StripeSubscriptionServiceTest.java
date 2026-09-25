@@ -469,6 +469,53 @@ class StripeSubscriptionServiceTest {
                 org.mockito.ArgumentMatchers.anyLong(), any(), any());
     }
 
+    private static com.stripe.model.BalanceTransaction mouvement(Long frais, String devise) {
+        com.stripe.model.BalanceTransaction bt = mock(com.stripe.model.BalanceTransaction.class);
+        when(bt.getFee()).thenReturn(frais);
+        when(bt.getCurrency()).thenReturn(devise);
+        return bt;
+    }
+
+    /** N6 : les frais de litige se lisent sur les mouvements ; illisibles ⇒ inconnus, jamais zéro. */
+    @Test
+    void fraisDeLitige_lusSurLesMouvements_inconnusSinon() {
+        // Mocks construits AVANT le `when` englobant (sinon UnfinishedStubbing).
+        var preleve = mouvement(1500L, "eur");
+        var restitue = mouvement(-1500L, "eur");
+        var enDollars = mouvement(1500L, "usd");
+        var illisible = mouvement(null, "eur");
+        com.stripe.model.Dispute d = mock(com.stripe.model.Dispute.class);
+        when(d.getBalanceTransactions()).thenReturn(java.util.List.of(preleve));
+        assertThat(StripeSubscriptionService.fraisDeLitigeEurCents(d)).isEqualTo(1500);
+
+        when(d.getBalanceTransactions()).thenReturn(java.util.List.of(preleve, restitue));
+        assertThat(StripeSubscriptionService.fraisDeLitigeEurCents(d)).isZero();
+
+        when(d.getBalanceTransactions()).thenReturn(java.util.List.of(enDollars));
+        assertThat(StripeSubscriptionService.fraisDeLitigeEurCents(d)).isNull();
+
+        when(d.getBalanceTransactions()).thenReturn(java.util.List.of(illisible));
+        assertThat(StripeSubscriptionService.fraisDeLitigeEurCents(d)).isNull();
+
+        when(d.getBalanceTransactions()).thenReturn(java.util.List.of());
+        assertThat(StripeSubscriptionService.fraisDeLitigeEurCents(d)).isNull();
+    }
+
+    /** N6 : un litige perdu sans payment_intent ne retrouve aucun achat et n'écrit rien. */
+    @Test
+    void litigePerdu_sansPaymentIntent_ignore() {
+        com.stripe.model.Dispute d = mock(com.stripe.model.Dispute.class);
+        when(d.getId()).thenReturn("du_1");
+        when(d.getStatus()).thenReturn("lost");
+        when(d.getPaymentIntent()).thenReturn(null);
+
+        service.dispatch(eventOf("charge.dispute.closed", d));
+
+        verify(userSubscriptionManager, never()).findBySourceAndOriginalTransactionId(any(), any());
+        verify(paymentRefundService, never()).enregistrerLitigePerdu(any(), any(),
+                org.mockito.ArgumentMatchers.anyLong(), any(), any(), any());
+    }
+
     /** Aucun montant rendu lisible : aucune ligne n'est demandée. */
     @Test
     void chargeRefunded_sansCumul_nEcritPasDeLigne() {

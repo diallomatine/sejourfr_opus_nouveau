@@ -890,6 +890,10 @@ d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes bil
   Nouveaux évènements traités : `checkout.session.async_payment_succeeded` (octroi d'un
   paiement différé) et `checkout.session.async_payment_failed` (journalisé). Une session
   `payment_status ≠ paid` n'ouvre plus d'accès. `charge.refunded` distingue partiel et total.
+  Contrôles de la passe Suivi : `charge.dispute.closed` statut `lost` retire l'accès et écrit
+  une ligne `payment_refunds` (N6) ; les remboursements concurrents n'écrivent qu'une ligne
+  (A). `GET /api/billing/payment-link` crée une session Checkout **carte seule** et
+  l'intention d'achat se juge à la création de la session (B).
 
 ## Audience des landings — retirée (2026-09-25)
 

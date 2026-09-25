@@ -433,6 +433,19 @@ la décomposition de l'achat est inconnue.
   `REQUIRES_NEW` (voir le rapport de contrôle : le verrou de ligne tenu par la transaction
   principale bloquerait l'insertion d'une transaction imbriquée sur sa clé étrangère).
 - Scénario 13 : Stripe total ⇒ net de l'achat `959 − 999 = −40` ; store total ⇒ `0`.
+- **Litige Stripe** (contrôle N6, 2026-09-25) — `charge.dispute.closed` :
+  - statut `lost` ⇒ traité comme un remboursement **total** : accès retiré (`REFUNDED`),
+    `payment_status = REFUNDED`, ligne `payment_refunds` d'identifiant `dispute:<du_…>`, du
+    **montant contesté**. Achat retrouvé par `payment_intent` (pass one-time seulement) ;
+  - le delta de net = `−HT` du contesté **moins les frais de litige** réellement prélevés
+    (somme des `fee` des `balance_transactions` du litige, en EUR). Frais illisibles (liste
+    absente, devise ≠ EUR) ⇒ delta `NULL` — inconnu plutôt que faux. 9,99 € perdu avec 15 €
+    de frais ⇒ net de l'achat `959 − 999 − 1500 = −1540` ;
+  - `won`, `warning_closed` et tout autre statut : aucun effet. Idempotent (id d'évènement,
+    identifiant de ligne, état déjà posé) ;
+  - la ligne de litige n'entre **pas** dans le cumul `amount_refunded` d'une charge (lu par
+    préfixe `<charge>:`), si bien qu'un `charge.refunded` livré après le litige reste juste.
+  ⚠️ **Action propriétaire** : abonner l'endpoint webhook Stripe à `charge.dispute.closed`.
 - Apple `REVOKE` (partage familial) retire l'accès sans ligne de remboursement ;
   `REFUND_REVERSED` reste ignoré en mode pass.
 

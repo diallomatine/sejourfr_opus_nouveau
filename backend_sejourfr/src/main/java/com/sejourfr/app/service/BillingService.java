@@ -440,6 +440,10 @@ public class BillingService {
      *       annulations programmées, changements de status.</li>
      *   <li>{@code customer.subscription.deleted} — expiration immédiate.</li>
      *   <li>{@code charge.refunded} — remboursement → status REFUNDED.</li>
+     *   <li>{@code checkout.session.async_payment_succeeded} / {@code _failed} —
+     *       paiement différé encaissé / refusé.</li>
+     *   <li>{@code charge.dispute.closed} — litige perdu → accès retiré
+     *       (contrôle N6).</li>
      * </ul>
      */
     @Transactional

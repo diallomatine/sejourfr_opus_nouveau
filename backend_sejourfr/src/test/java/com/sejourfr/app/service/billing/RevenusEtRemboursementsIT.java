@@ -13,7 +13,9 @@ import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import com.sejourfr.app.util.ClientContext;
+import com.stripe.model.BalanceTransaction;
 import com.stripe.model.Charge;
+import com.stripe.model.Dispute;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
@@ -336,6 +338,105 @@ class RevenusEtRemboursementsIT extends AbstractIntegrationTest {
 
         assertThat(lignesDeRemboursement(sub)).isEqualTo(1);
         assertThat(sub.getNetExVatCents() + sommeDesDeltas(sub)).isZero();
+    }
+
+    // ------------------------------------------------------------------------
+    // Contrôle N6 — litiges Stripe
+    // ------------------------------------------------------------------------
+
+    private static Dispute litige(String paymentIntent, String statut, Long fraisEurCents) {
+        Dispute dispute = mock(Dispute.class);
+        when(dispute.getId()).thenReturn("du_" + paymentIntent);
+        when(dispute.getStatus()).thenReturn(statut);
+        when(dispute.getPaymentIntent()).thenReturn(paymentIntent);
+        when(dispute.getCharge()).thenReturn("ch_" + paymentIntent);
+        when(dispute.getAmount()).thenReturn(999L);
+        when(dispute.getCurrency()).thenReturn("eur");
+        if (fraisEurCents != null) {
+            BalanceTransaction retrait = mock(BalanceTransaction.class);
+            when(retrait.getFee()).thenReturn(fraisEurCents);
+            when(retrait.getCurrency()).thenReturn("eur");
+            when(dispute.getBalanceTransactions()).thenReturn(java.util.List.of(retrait));
+        }
+        return dispute;
+    }
+
+    @Test
+    @DisplayName("N6 — litige perdu : accès retiré, ligne du montant contesté, frais de litige dans le delta ; rejoué : rien de plus")
+    void litigePerdu_retireLAcces_etEcritUneLigne() {
+        String pi = "pi_" + UUID.randomUUID();
+        UserSubscription sub = achatStripe(pi);
+
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", litige(pi, "lost", 1500L)));
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", litige(pi, "lost", 1500L)));
+
+        assertThat(lignesDeRemboursement(sub)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT provider_refund_id FROM payment_refunds WHERE subscription_id = ?",
+                String.class, sub.getId())).isEqualTo("dispute:du_" + pi);
+        // Net de l'achat : 959 − 999 (contesté) − 1500 (frais de litige) = −1540.
+        assertThat(sub.getNetExVatCents() + sommeDesDeltas(sub)).isEqualTo(-1540);
+        UserSubscription relu = userSubscriptionManager.findById(sub.getId()).orElseThrow();
+        assertThat(relu.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        assertThat(relu.getPaymentStatus()).isEqualTo(PaymentStatus.REFUNDED);
+    }
+
+    @Test
+    @DisplayName("N6 — litige gagné (ou autre statut) : rien ne change")
+    void litigeGagne_rienNeChange() {
+        String pi = "pi_" + UUID.randomUUID();
+        UserSubscription sub = achatStripe(pi);
+
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", litige(pi, "won", 1500L)));
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", litige(pi, "warning_closed", null)));
+
+        assertThat(lignesDeRemboursement(sub)).isZero();
+        UserSubscription relu = userSubscriptionManager.findById(sub.getId()).orElseThrow();
+        assertThat(relu.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(relu.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+    }
+
+    @Test
+    @DisplayName("N6 — litige perdu sans frais lisibles : ligne écrite, effet sur le net inconnu (NULL)")
+    void litigePerdu_fraisIllisibles_deltaInconnu() {
+        String pi = "pi_" + UUID.randomUUID();
+        UserSubscription sub = achatStripe(pi);
+
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", litige(pi, "lost", null)));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT refunded_eur_cents = 999 AND net_ex_vat_delta_cents IS NULL "
+                        + "AND revenue_rules_version IS NULL FROM payment_refunds WHERE subscription_id = ?",
+                Boolean.class, sub.getId())).isTrue();
+        assertThat(userSubscriptionManager.findById(sub.getId()).orElseThrow().getStatus())
+                .isEqualTo(SubscriptionStatus.REFUNDED);
+    }
+
+    /**
+     * Une ligne de litige n'entre pas dans le cumul {@code amount_refunded}
+     * d'une charge. Cas réel d'ordre de livraison : 3 € rendus, litige perdu
+     * sur le reste (6,99 €), mais le {@code charge.refunded} arrive APRÈS le
+     * litige. Retrancher la ligne de litige du cumul aurait fait disparaître
+     * le remboursement.
+     */
+    @Test
+    @DisplayName("N6 — la ligne de litige ne fausse pas le cumul des remboursements de la charge")
+    void litigeHorsCumulDeLaCharge() {
+        String pi = "pi_" + UUID.randomUUID();
+        UserSubscription sub = achatStripe(pi);
+        Dispute surLeReste = litige(pi, "lost", 1500L);
+        when(surLeReste.getAmount()).thenReturn(699L);
+
+        stripeSubscriptionService.dispatch(event("charge.dispute.closed", surLeReste));
+        stripeSubscriptionService.dispatch(event("charge.refunded", charge(pi, 300)));
+        stripeSubscriptionService.dispatch(event("charge.refunded", charge(pi, 300)));
+
+        assertThat(lignesDeRemboursement(sub)).isEqualTo(2);
+        assertThat(jdbc.queryForObject(
+                "SELECT SUM(refunded_amount_cents) FROM payment_refunds WHERE subscription_id = ?",
+                Integer.class, sub.getId())).isEqualTo(999);
+        assertThat(userSubscriptionManager.findById(sub.getId()).orElseThrow().getStatus())
+                .isEqualTo(SubscriptionStatus.REFUNDED);
     }
 
     /**

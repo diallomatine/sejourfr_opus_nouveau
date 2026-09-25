@@ -12,7 +12,9 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.StripeException;
+import com.stripe.model.BalanceTransaction;
 import com.stripe.model.Charge;
+import com.stripe.model.Dispute;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.StripeObject;
@@ -55,6 +57,11 @@ public class StripeSubscriptionService {
     private static final String CHARGE_REFUNDED = "charge.refunded";
     private static final String ASYNC_PAYMENT_SUCCEEDED = "checkout.session.async_payment_succeeded";
     private static final String ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
+    private static final String DISPUTE_CLOSED = "charge.dispute.closed";
+
+    /** Seul statut de litige clos qui retire l'accès (contrôle N6). */
+    private static final String DISPUTE_LOST = "lost";
+    private static final String EUR = "eur";
 
     /** Seule valeur de {@code Session.payment_status} qui vaille encaissement. */
     private static final String PAYMENT_STATUS_PAID = "paid";
@@ -86,6 +93,7 @@ public class StripeSubscriptionService {
                     handleSubscriptionUpdate(event, type);
             case SUBSCRIPTION_DELETED -> handleSubscriptionDeleted(event);
             case CHARGE_REFUNDED -> handleChargeRefunded(event);
+            case DISPUTE_CLOSED -> handleDisputeClosed(event);
             default -> log.debug("Stripe event ignoré : {}", type);
         }
     }
@@ -398,6 +406,72 @@ public class StripeSubscriptionService {
             paymentRefundService.enregistrerCumulStripe(sub, charge.getId(), cumul,
                     charge.getCurrency(), toInstant(event.getCreated(), Instant.now()));
         }
+    }
+
+    // ------------------------------------------------------------------------
+    // charge.dispute.closed — litige (contrôle N6)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Litige clos. Seul {@code lost} change quelque chose : l'argent contesté
+     * est reparti chez le client, l'accès est retiré comme pour un
+     * remboursement total et une ligne {@code payment_refunds}
+     * ({@code dispute:<id>}) porte le montant contesté. {@code won},
+     * {@code warning_closed} et tout autre statut ne touchent à rien.
+     *
+     * <p>Idempotent : id d'évènement ({@code processed_external_events}),
+     * identifiant de ligne unique, état d'accès déjà posé ⇒ aucune écriture.
+     * Seuls les pass one-time sont retrouvés (clé = {@code payment_intent}) ;
+     * les abonnements récurrents, dormants, ne sont pas traités.
+     */
+    private void handleDisputeClosed(Event event) {
+        Dispute dispute = deserialize(event, Dispute.class);
+        if (!DISPUTE_LOST.equals(dispute.getStatus())) {
+            log.info("Stripe litige {} clos statut={} : aucun effet.", dispute.getId(), dispute.getStatus());
+            return;
+        }
+        String paymentIntent = dispute.getPaymentIntent();
+        if (paymentIntent == null || paymentIntent.isBlank()) {
+            log.warn("Stripe litige perdu {} sans payment_intent (charge={}) — ignoré.",
+                    dispute.getId(), dispute.getCharge());
+            return;
+        }
+        userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
+                .ifPresentOrElse(
+                        sub -> appliquerLitigePerdu(sub, dispute, event),
+                        () -> log.warn("Stripe litige perdu {} : aucun achat local pour payment_intent={}.",
+                                dispute.getId(), paymentIntent));
+    }
+
+    /** Même ordre que {@link #rembourserPass} : verrou, retrait d'accès, écriture comptable. */
+    private void appliquerLitigePerdu(UserSubscription sub, Dispute dispute, Event event) {
+        userSubscriptionManager.verrouiller(sub);
+        appliquerRemboursement(sub, "litige perdu", dispute.getId(), true);
+        Long montant = dispute.getAmount();
+        if (montant != null && montant > 0) {
+            paymentRefundService.enregistrerLitigePerdu(sub, dispute.getId(), montant,
+                    dispute.getCurrency(), toInstant(event.getCreated(), Instant.now()),
+                    fraisDeLitigeEurCents(dispute));
+        }
+    }
+
+    /**
+     * Frais de litige réellement prélevés par Stripe : somme des {@code fee}
+     * des balance transactions du litige (le retrait initial les porte ; une
+     * éventuelle restitution les compenserait). {@code null} = inconnu — liste
+     * absente ou vide, frais illisible, devise autre que l'euro, ou somme
+     * négative : on n'invente pas un frais.
+     */
+    static Integer fraisDeLitigeEurCents(Dispute dispute) {
+        List<BalanceTransaction> mouvements = dispute.getBalanceTransactions();
+        if (mouvements == null || mouvements.isEmpty()) return null;
+        long total = 0;
+        for (BalanceTransaction bt : mouvements) {
+            if (bt == null || bt.getFee() == null || !EUR.equalsIgnoreCase(bt.getCurrency())) return null;
+            total += bt.getFee();
+        }
+        return total < 0 || total > Integer.MAX_VALUE ? null : (int) total;
     }
 
     /**
