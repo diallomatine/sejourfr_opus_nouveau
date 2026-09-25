@@ -818,6 +818,7 @@ retour (faible / moyenne / forte).
 - Choix : supprimés `PublicAnalyticsController`, `AnalyticsIngestionService` (et sa borne ± 24 h), `AnalyticsEventRequest`, `RateLimitGuard.checkAnalytics` et `RateLimitProperties.analyticsBurst/analyticsDaily` (aucune clé YAML ne les surchargeait), `PublicAnalyticsControllerIT`, `AnalyticsIngestionServiceTest`. **Conservés** : `AnalyticsEventNormalizer`, `AnalyticsFirstTouchRequest`, `GeoIpCountryResolver`, `DeviceTypeResolver` (le lot s'en sert). Les cas de l'ancien test qui verrouillaient une **règle partagée** (événement serveur, allowlists de propriétés et de chemins, `dedupKey`, attribution, troncature, hôte du referrer) sont repris dans `AnalyticsEventNormalizerTest` ; ceux propres à l'unitaire (fenêtre ± 24 h, 204) disparaissent avec lui. 404 verrouillé dans `PublicRoutesSecurityIT`. Les lignes déjà écrites par l'unitaire (`event_id` nul) restent en base.
 - Fichiers : les classes citées, `AnalyticsEventRecord`, `AnalyticsEventManager` (Javadoc), `docs/api-endpoints.md`, `docs/regles/mesure-audience.md`, `CLAUDE.md` web et mobile.
 - Difficulté de retour : faible (git).
+- ⚠️ **Correction du 2026-09-25 (contrôle, point N1)** : retrait prématuré — l'app publiée utilise encore l'unitaire. Rétablie par D100, avec une condition de retrait mesurée.
 
 **D89 — Mesure préalable du seuil civique** · Contrôle (orchestrateur)
 - Contexte : le propriétaire fixe « soumis » civique à ≥ 80 % de questions répondues, sauf si les données montrent un problème évident ; la requête de mesure doit tourner d'abord.
@@ -826,6 +827,167 @@ retour (faible / moyenne / forte).
 - Choix : **80 % conservé**. La même requête est à relancer en production après quelques semaines (checklist de déploiement) ; changer le seuil = changer la config, sans migration.
 - Requête : voir `docs/admin/deploiement-suivi.md` (§ vérifications après déploiement).
 - Difficulté de retour : faible.
+
+**D90 — « Soumis » civique = mesure figée à l'écriture, règle appliquée à la lecture** · Contrôle C
+- Contexte : « Quitter » et « Terminer » clôturent l'attempt de la même façon : un abandon à 0/40 était compté soumis.
+- Options : stocker un verdict ; figer les compteurs et juger à la lecture.
+- Choix : V076 ajoute `submitted_answered_count` / `submitted_question_count`, gelés à la fin de l'attempt civique (« répondue » = une réponse existe, même règle que l'écran de résultat) ; la lecture exige ≥ `civicSubmittedMinAnsweredRatio` = **0,8** (config versionnée, arbitrage propriétaire). `submitted_at` brut conservé ; compteurs `NULL` = inconnu, jamais soumis. Règle appliquée une fois dans la requête partagée des runs ; contrainte de cohérence sur les deux colonnes. Remplace D23.
+- Fichiers : V076, `DiagnosticRunRepository`, `DiagnosticRunService`, `SuiviReadRepository`, config.
+- Difficulté de retour : faible (valeur de config).
+
+**D91 — Jeton de 2 j ancré ; la clé idempotente migre vers la run neuve** · Contrôle E+F2
+- Contexte : E : jeton ancré sur `subject_viewed_at`, plus de prolongation au rejeu (arbitrage). F2 : une run neuve ne peut pas reprendre le couple `(anonymous_id, clientKey)` (index unique).
+- Options : run neuve sans clé (une run par rejeu) ; déplacer la clé.
+- Choix : `claimTokenTtlDays` = 2, `expiresAt = subject_viewed_at + 2 j`, un rejeu rend la même échéance. Une run n'est réutilisée que si son porteur est nul ou l'appelant **et** qu'elle a moins de `runReuseWindowHours` = 24 ; sinon `releaseClientKey` puis insertion : les rejeux tombent sur la run neuve, l'ancienne garde ses faits et perd seulement son idempotence.
+- Fichiers : `DiagnosticRunService`, manager, repository, config.
+- Difficulté de retour : faible.
+
+**D92 — CTA obligatoire et origine inconnue explicite** · Contrôle F (web)
+- Contexte : le défaut `ctaLocation="OTHER"` de `PaywallSheet` rangeait des achats du Plan en `OTHER_CTA` ; `/paiement` retombe sur `PRICING` sans CTA dans l'adresse.
+- Options : garder un défaut ; prop requise acceptant `null`.
+- Choix : prop requise `AnalyticsCtaLocation | null` (idem `SkillLockedCard.origin`). `null` voyage en `?cta=inconnu` pour que `/paiement` ne retombe pas sur `PRICING` ; `getPaymentLink` n'envoie alors ni `ctaLocation` ni `journeyId` → pas d'intention → `UNKNOWN`. Corrige D70.
+- Fichiers : `PaywallSheet.tsx`, `SkillLayout.tsx`, `purchase-origin.ts`, `api.ts`, `analytics.ts`, tous les appels.
+- Difficulté de retour : faible.
+
+**D93 — La provenance « Plan » se lit sur le marqueur de route** · Contrôle F (web)
+- Contexte : plusieurs écrans sont atteignables depuis le Plan ou d'ailleurs ; un parcours en cache ne prouve pas l'origine.
+- Options : parcours en cache ; marqueur `?etape=1`.
+- Choix : hook partagé `usePlanStepPurchaseOrigin(fromPlan, horsPlan)`, qui ne lit le parcours que si l'on vient du Plan ; `recommendedExerciseHref` pose aussi le marqueur sur une re-vérification du Plan. Quatre pages passées sous `Suspense` pour lire le marqueur.
+- Fichiers : `use-plan-journey-id.ts`, `lib/diagnostic.ts`, écrans Compétences et production TCF.
+- Difficulté de retour : faible.
+
+**D94 — Accueil et Réviser (web et mobile)** · Contrôle F
+- Contexte : arbitrage propriétaire sur l'Accueil ; la carte « Reprendre » de Réviser lance l'action du Plan.
+- Options : tout l'Accueil = Plan ; seulement « À faire maintenant ».
+- Choix : Accueil : seule « À faire maintenant » compte comme le Plan (`LOCKED_PLAN` + `journeyId`) ; les cartes d'épreuve « Où vous en êtes » passent en `MOCK_EXAM`. **Arbitrage orchestrateur** : « Reprendre » de Réviser = exercice du Plan → `LOCKED_PLAN` + `journeyId`, TCF **et civique** (le mobile envoyait `OTHER` pour le civique, aligné).
+- Fichiers : web `dashboard/page.tsx`, `ReviserScreen.tsx` ; mobile `home_screen.dart`, `reviser_screen.dart`.
+- Difficulté de retour : faible.
+
+**D95 — CTA requis et origine déclarée par les lanceurs du Plan** · Contrôle F (mobile)
+- Contexte : les lanceurs du Plan imposaient `LOCKED_PLAN` alors que l'Accueil et Réviser les appellent aussi.
+- Options : booléen « depuis le Plan » ; `journeyId` en cache (interdit) ; énumération.
+- Choix : `PlanOrigine { plan, relais, horsPlan }` (`screens/plan/plan_cta.dart`) : `plan` → toujours `LOCKED_PLAN` ; `relais` → `LOCKED_PLAN` seulement si le parcours est connu ; `horsPlan` → CTA de l'écran d'arrivée. `ctaLocation` requis sur `showPaywallSheet`, `showPaywallOrError` et les lanceurs qui ouvrent une offre pour un écran ; `origine` requise sur les lanceurs du Plan. `openPlanSeanceItem`, sans appelant, supprimé.
+- Fichiers : `plan_cta.dart`, `plan_actions.dart`, lanceurs du Plan, écrans concernés.
+- Difficulté de retour : faible.
+
+**D96 — Marqueur `?etape=1` étendu (sujets, cadenas avant démarrage, écrans `/plan/*`)** · Contrôle F (mobile)
+- Contexte : le repli d'une re-vérification ouvrait la liste des sujets sans marqueur ; les cadenas avant démarrage envoyaient `OTHER` même depuis le Plan.
+- Options : corriger le 403 seul ; corriger aussi les cadenas.
+- Choix : `productionTaskPath(planStep:)` pose `?etape=1` jusqu'à `ProductionSubjectsView` ; les cadenas de `competence_prompt_screen`, `competence_detail_screen` et `production_subjects_view` suivent le marqueur (même règle que le web) ; tout geste fait sur un écran `/plan/*` est un geste du Plan (`startTargetedSeries` → `LOCKED_PLAN` + `journeyId`).
+- Fichiers : `production_nav.dart`, `app_router.dart`, `production_task_screen.dart`, écrans cités.
+- Difficulté de retour : faible.
+
+**D97 — Nouveau passage : date de création de la run gardée à part** · Contrôle F2 (mobile)
+- Contexte : il faut l'âge de la run pour ouvrir un nouveau passage ; le serveur ne sert pas `subject_viewed_at`.
+- Options : recalculer depuis `claimTokenExpiresAt` (interdit) ; dater localement.
+- Choix : champ `runCreatedAt`, posé à la première réception, jamais rajeuni (repli `touchedAt` pour les anciennes entrées) ; règle `DiagnosticRunEntry.reusableBy`, fenêtre 24 h en miroir de `runReuseWindowHours` — le serveur reste l'autorité (il refuse la réutilisation de son côté). Effet : un invité TCF rapide qui soumet plus de 24 h après le sujet crée une run neuve au « soumis ».
+- Fichiers : `diagnostic_run_tracker.dart`.
+- Difficulté de retour : faible.
+
+**D98 — `signup_context` inconnu pour un client ancien, sauf fait avéré** · Contrôle G
+- Contexte : un client ancien ne peut pas envoyer de run : « pas de run » y veut dire « on ne sait pas ».
+- Options : —
+- Choix : run soumise claimée ⇒ `AFTER_DIAGNOSTIC` quel que soit le client (c'est un fait) ; sinon client ancien (plateforme `MOBILE` / `UNKNOWN` / absente, ou `WEB` sans `X-Sejourfr-App-Version`) ⇒ `null` ; client récent ⇒ `OUTSIDE_DIAGNOSTIC`. iOS / Android sans version restent récents. Règle unique `ClientContext.isLegacyClient()`. Le web lit désormais sa version dans `package.json` (elle était vide hors `npm run`).
+- Fichiers : `ClientContext`, `SignupAttribution`, auth ; web `next.config.ts`.
+- Difficulté de retour : faible.
+
+**D99 — Version minimale servie, `null` = aucune exigence** · Contrôle G(a)
+- Contexte : le propriétaire veut pouvoir imposer une version plus tard, sans effet au départ.
+- Options : bloquer au démarrage en attendant la réponse ; lire en arrière-plan.
+- Choix : `GET /api/public/app-config` (`sejourfr.app-config.min-supported-version.{ios,android}`, env `APP_MIN_VERSION_*`, vides par défaut, format vérifié au démarrage, cache 5 min). Mobile : lecture en arrière-plan, écran `UpdateRequiredScreen` (kit, tokens) seulement si version courante < minimale ; chargement / erreur / `null` / illisible ⇒ l'app s'ouvre ; seul le store de la plateforme est affiché (liens `.env`).
+- Fichiers : `AppConfigService`, `PublicAppConfigController` ; mobile `min_version.dart`, `update_required_screen.dart`, `app.dart`.
+- Difficulté de retour : faible.
+
+**D100 — Ingestion unitaire rétablie, condition de retrait mesurée** · Contrôle N1
+- Contexte : l'app publiée poste encore sur l'unitaire (supprimé trop tôt par D88).
+- Options : —
+- Choix : rétablie à l'identique (contrôleur, service, DTO, rate-limit, tests), le 404 retiré. Retrait quand les événements `MOBILE` passent sous **5 %** des événements **de l'app** (`MOBILE` + `IOS` + `ANDROID`, le web noierait le ratio) sur 7 jours ; requête exacte dans `docs/regles/mesure-audience.md` et `docs/admin/deploiement-suivi.md` § 7. Corrige D88.
+- Fichiers : ingestion unitaire, docs.
+- Difficulté de retour : faible.
+
+**D101 — Balise web en `text/plain`, lue par un convertisseur limité** · Contrôle N7
+- Contexte : `sendBeacon` cross-origin en `application/json` déclenche une pré-vérification CORS qu'il ne sait pas faire ; le lot ne lisait que du JSON (415).
+- Options : second handler lisant une String ; convertisseur.
+- Choix : `AnalyticsBatchTextPlainConverter`, limité à `AnalyticsBatchRequest` (`@Valid`, rate-limit et CORS inchangés) ; le web n'est marqué « premier contact envoyé » que si l'envoi est parti (balise acceptée, ou réponse `fetch` avec au moins un événement retenu), puis bascule sa balise en `text/plain` (commit `77dcbcb3`).
+- Fichiers : backend ingestion ; web `lib/analytics.ts`.
+- Difficulté de retour : faible.
+
+**D102 — Source d'un client natif sans provenance = `NULL`, pas `direct`** · Contrôle N2
+- Contexte : le mobile n'envoie pas de provenance ; le serveur écrivait le repli `direct` (colonne NOT NULL).
+- Options : valeur `unknown` ; relâcher le NOT NULL.
+- Choix : `NULL` (V076 rend `ft_source` nullable) : l'allowlist est une dimension d'affichage, sans fausse valeur. Écriture : règle unique `ClientContext.attributedSource()`, pour le visiteur et `users.signup_source`. Lecture : natif sans source brute, ou compte natif en `direct`, n'a pas de source (compté sous « Toutes » seulement). Pas de rattrapage.
+- Fichiers : V076, `ClientContext`, `AnalyticsEventNormalizer`, `SuiviReadRepository`.
+- Difficulté de retour : moyenne (migration appliquée).
+
+**D103 — Plusieurs runs claimées par authentification** · Contrôle N3
+- Contexte : un invité TCF rapide **et** civique ne rattachait que la plus récente (personne scindée, étapes 5–7 perdues pour l'autre type).
+- Options : —
+- Choix : champ `diagnosticRunClaims: [{diagnosticRunId, claimToken, claimVia?}]` sur les 4 requêtes d'auth, champs uniques conservés ; fusion, dédoublonnage par run, ids illisibles écartés, 3 au plus, jamais de 400. `signup_context` = la run **soumise** claimée la plus récente. Web et mobile envoient toutes leurs runs invitées au `claimTokenExpiresAt` servi encore valide (+ la run du lien en `APP_LINK` côté mobile).
+- Fichiers : 4 DTO d'auth, `DiagnosticRunClaimService` ; web `diagnostic-run-store.ts`, `api.ts` ; mobile `diagnostic_run_tracker.dart`, `auth_controller.dart`.
+- Difficulté de retour : moyenne (contrat client).
+
+**D104 — Runs sans identifiant et brut inconnu servis** · Contrôle D+N5
+- Contexte : « inconnu plutôt que faux » : rendre visibles les doublons possibles et les sommes partielles.
+- Options : —
+- Choix : `funnel.runsWithoutIdentifier` et `revenue.grossUnknownPurchases` (`null` tant que non mesurés), notes discrètes dans l'admin quand > 0.
+- Fichiers : `AdminSuiviResponse`, `SuiviReadRepository`, `SuiviMapper`, admin `types/api.ts` + cartes Suivi.
+- Difficulté de retour : faible.
+
+**D105 — IP résolue par Tomcat (`native`)** · Contrôle N8
+- Contexte : avec `framework`, Spring prenait la 1ʳᵉ valeur de `X-Forwarded-For` quel que soit l'émetteur (test : un appelant direct qui envoie `1.2.3.4` était vu `1.2.3.4`).
+- Options : —
+- Choix : `forward-headers-strategy: native` : l'en-tête n'est lu que pour une connexion venant du loopback ou d'une plage privée ; un proxy à adresse publique passe par `TOMCAT_TRUSTED_PROXIES` (vide par défaut). Vérifications serveur : `deploiement-suivi.md` § 5.
+- Fichiers : `application-prod.yaml`, `ForwardedHeadersStrategyTest`.
+- Difficulté de retour : faible (config).
+
+**D106 — Suppression de compte : runs sans identifiants** · Contrôle N9
+- Contexte : l'anonymisation laissait `anonymous_id` sur les runs jusqu'à 395 j.
+- Options : —
+- Choix : `anonymous_id` et `client_key` à `NULL` sur les runs du compte ; la run, ses faits et son porteur (ligne anonymisée) restent.
+- Fichiers : `AccountDeletionService`, repository.
+- Difficulté de retour : faible.
+
+**D107 — Remboursements : verrou de ligne, ordre strict, insertion qui ne peut pas échouer** · Contrôle A
+- Contexte : un remboursement ne doit ni être compté deux fois en concurrence, ni annuler le retrait d'accès.
+- Options : ligne comptable en `REQUIRES_NEW` ; une seule transaction ordonnée.
+- Choix : une transaction : `UserSubscriptionManager.verrouiller` (`SELECT … FOR UPDATE`) → accès modifié → ligne `INSERT … ON CONFLICT (provider, provider_refund_id) DO NOTHING` exécutée immédiatement, même ordre pour Stripe, Apple, Google. Calcul euro / net gardé en Java (échec ⇒ `NULL` + WARN). `REQUIRES_NEW` rejeté : l'insertion interne attendrait le verrou tenu par la transaction externe (auto-interblocage). Le cumul Stripe ne compte que les lignes `<charge>:` (un litige n'entre pas dans le cumul des remboursements).
+- Fichiers : `PaymentRefund*`, `UserSubscriptionManager`, services Stripe / Apple / Google.
+- Difficulté de retour : faible.
+
+**D108 — Montants bornés et calcul gardé au crédit** · Contrôle A
+- Contexte : aucun filet n'existait : une régression du calcul aurait annulé le crédit.
+- Options : —
+- Choix : `try/catch` autour de la décomposition dans `OneTimeAccessService` (Java pur) : échec ⇒ 6 colonnes `NULL`, WARN, accès accordé. `MontantEncaisseResolver` : prix énorme, NaN, infini ou conversion qui déborde ⇒ montant inconnu, jamais d'`ArithmeticException`.
+- Fichiers : `OneTimeAccessService`, `MontantEncaisseResolver`.
+- Difficulté de retour : faible.
+
+**D109 — Carte seule, Link non ajouté** · Contrôle B
+- Contexte : SEPA possible via le Dashboard, accès jamais ouvert sans `async_*`.
+- Options : carte seule ; carte + Link.
+- Choix : `payment_method_types = [card]` (Apple Pay / Google Pay passent par la carte). Link écarté : il peut s'appuyer sur un compte bancaire, donc un paiement non immédiat. Bancontact, iDEAL, Klarna ne sont plus proposés.
+- Fichiers : `BillingService.createOneTimeCheckout`.
+- Difficulté de retour : faible (une ligne).
+
+**D110 — Intention jugée à la création de la session** · Contrôle B
+- Contexte : un paiement différé réussit plusieurs jours après ; l'intention (24 h) expirait.
+- Options : —
+- Choix : `ContexteAchat.intentionJugeeA` = `session.getCreated()` pour Stripe (repli : date d'achat). `purchased_at` reste la date d'encaissement. Apple / Google inchangés.
+- Fichiers : `ContexteAchat`, `OneTimeAccessService`, `StripeSubscriptionService`.
+- Difficulté de retour : faible.
+
+**D111 — Litige perdu : retrait d'accès, frais de litige inclus, inconnu si illisibles** · Contrôle N6
+- Contexte : litiges non traités : accès conservé, net surestimé.
+- Options : ignorer les frais ; les inclure quand lisibles.
+- Choix : seul `charge.dispute.closed` en `lost` agit : accès retiré comme un remboursement total, ligne `dispute:<du_…>` (montant contesté) ; delta net = − HT contesté − frais du litige (somme des `fee` des `balance_transactions`, EUR). Liste vide, frais nul, autre devise ou total négatif ⇒ delta `NULL`. Litige sans `payment_intent` ignoré (WARN). Webhook à abonner à `charge.dispute.closed`.
+- Fichiers : `StripeSubscriptionService.handleDisputeClosed`, `PaymentRefundService.enregistrerLitigePerdu`.
+- Difficulté de retour : moyenne (format des lignes écrites).
+
+**D112 — Une seule autorité pour le « soumis » retenu (lecture Suivi et contexte d'inscription)** · Contrôle C
+- Contexte : le seuil de 80 % ne s'appliquait qu'à la lecture Suivi ; à l'inscription, la claim retenait toute run datée « soumise » — un abandon civique donnait encore `AFTER_DIAGNOSTIC`.
+- Options : formule Java propre au service de claim ; verdict « retenu » persisté (donnée dérivée, seuil figé par migration) ; une classe portant la condition SQL et son jumeau Java.
+- Choix : `util/SoumisRetenu` (condition SQL + jumeau Java, même clé `civicSubmittedMinAnsweredRatio`), lue par `SuiviReadRepository` et par `DiagnosticRunClaimService` ; `SoumisRetenuIT` vérifie que SQL et Java rendent le même verdict sur une grille de cas. Run civique sans compteurs = inconnue, jamais `AFTER_DIAGNOSTIC` ; plusieurs runs claimées ⇒ la plus récente parmi les retenues.
+- Fichiers : `SoumisRetenu`, `SuiviReadRepository`, `DiagnosticRunRepository`, `DiagnosticRunManager`, `DiagnosticRunClaimService`, tests.
+- Difficulté de retour : faible (les `signup_context` déjà posés ne sont jamais réécrits).
 
 ---
 
@@ -898,3 +1060,90 @@ Migrations : **V074** (schéma), **V075** (vue `v_journey_founding_run`). Aucun 
 8. **Déploiement** : web (avec `public/.well-known/`, vérifier que l'AASA est servi en `application/json`), backend (V074, V075), nouvelle version de l'app sur les deux stores.
 9. **RGPD** : relire `/confidentialite` (§8.2 et §8.4 : « aucun recoupement » est à confronter au rattachement du parcours anonyme au compte) ; ta vérification du rattachement visiteur → compte (Q5).
 10. **Tests sur appareil** : lien web → app (installée / non installée, iOS / Android), achat store avec intention, file d'événements hors ligne.
+
+---
+
+## 4. Passe de contrôle et correctifs (2026-09-25)
+
+Rapport : `docs/admin/controle-suivi.md`. Arbitrages du propriétaire appliqués : jeton de
+rattachement **2 j** ancré sur `subject_viewed_at` ; « soumis » civique **≥ 80 %** (D89) ;
+Accueil = Plan pour la seule carte « À faire maintenant » ; **carte seule** en code ; G (a) + (b).
+
+### 4.1 Ce qui est corrigé
+
+| Point | Correctif | Commit(s) | Décision |
+|---|---|---|---|
+| A | remboursements verrouillés, ordonnés, `ON CONFLICT` ; calcul et montants gardés, le crédit passe toujours | `dad7ac82` | D107, D108 |
+| B | Checkout carte seule ; intention jugée à la création de la session | `62075411` | D109, D110 |
+| C | V076 : compteurs de réponses civiques ; « soumis » ≥ 80 % en lecture **et** pour `signup_context` | `3ac01c08`, `60c41590` | D90, D112 |
+| D | runs sans identifiant servies et signalées dans l'admin | `d23d59ed` | D104 |
+| E | jeton 2 j ancré, plus de prolongation au rejeu | `1c32de6a` | D91 |
+| F | CTA obligatoire web et mobile, marqueur de route, Accueil / Réviser alignés | `5572cdaf`, `e320c4ab` | D92–D96 |
+| F2 | vieille run d'invité non réutilisée (serveur + nouveau passage mobile) | `1c32de6a`, `227bf64c` | D91, D97 |
+| G | `signup_context` inconnu pour un client ancien ; version minimale servie + écran mobile ; version web jamais vide | `6bb532dd`, `0e1bd945`, `e4b8c266` | D98, D99 |
+| N1 | ingestion unitaire rétablie, condition de retrait mesurée | `17911437` | D100 |
+| N2 | source native sans provenance = `NULL`, pas `direct` | `0f330835` | D102 |
+| N3 | plusieurs runs claimées par authentification (web + mobile) | `ae87ba0b`, `e4b8c266`, `0e1bd945` | D103 |
+| N5 | brut inconnu servi et signalé | `d23d59ed` | D104 |
+| N6 | litiges Stripe perdus traités | `e24ed563` | D111 |
+| N7 | premier contact marqué seulement s'il est parti ; balise en `text/plain` | `05a43bff`, `17911437`, `77dcbcb3` | D101 |
+| N8 | IP résolue par Tomcat (`native`) — faille confirmée par test | `1330e294` | D105 |
+| N9 | suppression de compte : runs sans identifiants | `1330e294` | D106 |
+| N10 | checklist de déploiement | `docs/admin/deploiement-suivi.md` | — |
+
+Notes datées ajoutées sur **D23** (pas d'échéance civique), **D70** (la parité web n'existait
+pas) et **D88** (retrait prématuré de l'unitaire).
+
+**Vérification finale sur la branche assemblée** : `./mvnw verify` **3 241 tests unitaires +
+1 659 d'intégration, 0 échec** ; web `tsc` + build + 275 tests ; admin `tsc` + build ; mobile
+`flutter analyze` propre + 303 tests. Aucun nouveau test front ; aucun appel LLM payant.
+Tests backend demandés, tous présents : C (seuil, et `signup_context`), E (claim hors délai),
+F2 (vieille run / autre porteur), G (`signup_context` null pour client ancien), N3 (deux runs
+claimées), N6 (litige perdu).
+
+Incident : un agent a fait un `git stash` / `stash pop` sur le dépôt partagé ; les agents
+concernés ont vérifié leurs fichiers, rien n'a été perdu.
+
+### 4.2 Ce qui reste ouvert
+
+1. **Dates de début de mesure** (D43) : toujours `null` sauf visiteurs et sources — à poser au
+   lendemain du dernier déploiement (`deploiement-suivi.md` § 6).
+2. **Seuil civique 80 %** : validé sur 6 sessions locales seulement (D89) ; requête de
+   contrôle à relancer en production.
+3. **Ingestion unitaire** : à retirer quand `MOBILE` < 5 % des événements de l'app sur 7 j.
+4. **Lien web → app** : à valider sur appareil ; iPhone nécessite `app.sejourfr.fr` ;
+   deferred deep link hors MVP ; seul le rattachement suit sur l'app.
+5. **`ProcessedExternalEventManager.tryMarkProcessed`** (préexistant) : même motif « vérifier
+   puis enregistrer, attraper l'erreur » que A — deux copies simultanées d'un même événement
+   donnent un 5xx sur la seconde, que Stripe relance. Effet limité, non traité.
+6. **`FunnelEventService`** écrit encore le repli `direct` pour le natif dans l'ancienne table
+   `user_funnel_events` (non lue par Suivi).
+7. Un type de contenu non supporté sur l'endpoint en lot rend 500 au lieu de 415
+   (comportement du gestionnaire d'erreurs global).
+8. `GeoIpCountryResolver` écrit un pays que plus rien ne lit (D79).
+9. Utilisation du plan (Q7), rapprochement des rapports stores, abonnements dormants (D42) :
+   inchangé.
+10. **Hors périmètre, consigné sans traitement** : `entrainement/{tcf,civique}/…/page.tsx:115,206`
+    pose un cadenas d'après le rang (`lot.numero > 1`), ce que `docs/regles/freemium.md`
+    interdit ; `web_sejoufr/…/TcfPaywallCard.tsx` n'est importé nulle part (code mort).
+
+### 4.3 Actions du propriétaire (mises à jour)
+
+La liste complète, dans l'ordre de déploiement, est dans **`docs/admin/deploiement-suivi.md`**.
+Changements par rapport au § 3.4 :
+
+- **Stripe** : abonner le webhook à **5 événements** — `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+  `charge.refunded`, `charge.dispute.closed`. Bancontact, iDEAL et Klarna ne sont plus proposés
+  (carte seule, D109).
+- **Taux Apple / Google** : 0,15 conservé ; le confirmer **avant** de poser la date
+  `REVENUE_BREAKDOWN` (taux figé achat par achat).
+- **Serveur (N8)** : relever l'adresse du reverse proxy vue par le backend (`TOMCAT_TRUSTED_PROXIES`
+  si publique), port 8080 fermé, `TRUSTED_PROXY_RANGES` vide, test avec un `X-Forwarded-For` forgé.
+- **Version minimale** : `APP_MIN_VERSION_IOS` / `APP_MIN_VERSION_ANDROID` vides au départ ;
+  les poser quand la nouvelle app est adoptée.
+- **App mobile** : fournir `IOS_APP_STORE_URL` (identifiant App Store numérique) et
+  `ANDROID_PLAY_STORE_URL` pour l'écran de mise à jour.
+- **Ordre** : backend → web → app ; dates de mesure au lendemain du dernier déploiement.
+- Inchangés : SHA-256 Android, bundle ID iOS, Associated Domains, hôte `app.sejourfr.fr`,
+  comptes internes en prod, relecture RGPD de `/confidentialite`, tests sur appareil.
