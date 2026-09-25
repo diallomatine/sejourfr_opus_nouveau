@@ -46,7 +46,9 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
 - `POST /api/public/analytics/events/batch` → **202** `AnalyticsBatchResponse
   {received, accepted, duplicates, rejected:[{index, eventId, reason}]}`. Public,
   rate-limité par IP **et** par `anonymousId` (seuils `ingestion.rateLimit` de
-  `analytics/analytics-config-v1.json`). Corps `AnalyticsBatchRequest` :
+  `analytics/analytics-config-v1.json`). `Content-Type` : `application/json` **ou
+  `text/plain`** (contrôle N7, `sendBeacon` sans pré-vérification CORS ; même corps JSON,
+  mêmes validations). Corps `AnalyticsBatchRequest` :
   `{anonymousId, sessionId, client?, appVersion?, firstTouch?, events:[…]}` ;
   `client`/`appVersion` ne servent que si les en-têtes manquent (`sendBeacon`).
   Chaque événement : `{eventId (UUID tiré à la création, requis), event, occurredAt?
@@ -73,9 +75,12 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
     `PLAN_EXERCISE_STARTED` : parcours).
   - `is_internal` résolu à l'ingestion (`users.is_internal` de l'appelant JWT ou d'un
     compte lié à l'`anonymousId`).
-- `POST /api/public/analytics/events` (unitaire) : **supprimé le 2026-09-25** à la fin de
-  la bascule (Q17) — web et mobile n'envoient que des lots. **404** verrouillé par
-  `PublicRoutesSecurityIT`.
+- `POST /api/public/analytics/events` (unitaire, **204**) : supprimé le 2026-09-25 puis
+  **rétabli le même jour** (contrôle N1) — l'application **publiée** poste encore ici,
+  la bascule mobile n'a pas eu lieu. Même validation (`AnalyticsEventNormalizer`),
+  rate-limit par IP `analytics:burst` 120 / 10 min et `analytics:daily` 2000 / j. Retrait
+  quand les événements `MOBILE` passent sous 5 % des événements de l'application sur
+  7 jours (requête : `docs/regles/mesure-audience.md`).
 
 ## Diagnostic run — trace du tunnel (public, lot 2a)
 

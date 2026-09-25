@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,7 +50,12 @@ public class PublicAnalyticsBatchController {
     private final GeoIpCountryResolver geoIpCountryResolver;
     private final DeviceTypeResolver deviceTypeResolver;
 
-    @PostMapping("/events/batch")
+    /**
+     * JSON, ou {@code text/plain} pour le {@code sendBeacon} du web (controle
+     * N7 : pas de pre-verification CORS) — meme corps, lu par
+     * {@code AnalyticsBatchTextPlainConverter}, memes validations.
+     */
+    @PostMapping(value = "/events/batch", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.TEXT_PLAIN_VALUE})
     @ResponseStatus(HttpStatus.ACCEPTED)
     public AnalyticsBatchResponse ingest(@Valid @RequestBody AnalyticsBatchRequest request,
                                          HttpServletRequest http) {

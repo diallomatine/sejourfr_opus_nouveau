@@ -18,9 +18,9 @@ import java.util.regex.Pattern;
 
 /**
  * <b>Autorite unique</b> de la validation d'un evenement d'analytics et de
- * l'attribution de son visiteur, appelee par l'ingestion en lot
- * ({@link AnalyticsBatchIngestionService} ; l'endpoint unitaire est retire
- * depuis la fin de la bascule, Q17).
+ * l'attribution de son visiteur, partagee par l'ingestion unitaire et
+ * l'ingestion en lot. Deux copies de ces allowlists auraient fini par accepter
+ * d'un cote ce que l'autre refuse.
  *
  * <p><b>Tout ce qui est refusable l'est ICI et par une allowlist</b>, parce que
  * l'endpoint est public : le registre d'evenements, les cles de proprietes, les
@@ -30,8 +30,8 @@ import java.util.regex.Pattern;
  * table qu'un tiers peut alimenter.
  *
  * <p>Chaque refus est une {@link IllegalArgumentException} au message nomme
- * (champ, valeur recue, valeurs admises) : rejet individuel de l'evenement
- * dans le lot.
+ * (champ, valeur recue, valeurs admises) : 400 en unitaire, rejet individuel
+ * en lot.
  */
 @Component
 public class AnalyticsEventNormalizer {

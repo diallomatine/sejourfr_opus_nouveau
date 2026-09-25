@@ -183,9 +183,32 @@ serveur par `BillingService`, qui n'a pas d'`anonymousId`) — c'est
 
 ### Ingestion — `POST /api/public/analytics/events/batch`
 
-> ⚠️ L'endpoint **unitaire** `POST /api/public/analytics/events` (et son rate-limit
-> `analytics:burst` / `analytics:daily` de `RateLimitGuard`) est **supprimé le 2026-09-25**,
-> à la fin de la bascule vers le lot (Q17) : 404 verrouillé. Ce qui suit vaut pour le lot.
+> ⚠️ L'endpoint **unitaire** `POST /api/public/analytics/events` (204, rate-limit
+> `analytics:burst` 120 / 10 min et `analytics:daily` 2000 / j de `RateLimitGuard`) a été
+> supprimé le 2026-09-25 (D88) puis **rétabli le même jour** (contrôle N1) : l'application
+> **publiée** l'utilise encore (`X-Sejourfr-Client: mobile`, sans version), et sa
+> suppression aurait produit une fausse chute des visiteurs et des sources dès le
+> déploiement du backend. Même validation que le lot (`AnalyticsEventNormalizer`) ;
+> `event_id` reste `NULL` sur ses lignes.
+>
+> 🛑 **Condition de retrait** : les événements de plateforme `MOBILE` (l'app d'avant
+> iOS / Android) passent **sous 5 % des événements de l'application** (`MOBILE` + `IOS` +
+> `ANDROID`) sur les **7 derniers jours**. Vérification, en production :
+>
+> ```sql
+> SELECT count(*) FILTER (WHERE platform = 'MOBILE')                   AS evenements_mobile,
+>        count(*) FILTER (WHERE platform IN ('MOBILE', 'IOS', 'ANDROID')) AS evenements_app,
+>        round(100.0 * count(*) FILTER (WHERE platform = 'MOBILE')
+>              / NULLIF(count(*) FILTER (WHERE platform IN ('MOBILE', 'IOS', 'ANDROID')), 0), 2)
+>                                                                     AS pct_mobile,
+>        count(*) FILTER (WHERE event_id IS NULL)                        AS recus_par_l_unitaire
+>   FROM analytics_event
+>  WHERE received_at >= now() - interval '7 days';
+> ```
+>
+> Retirer quand `pct_mobile < 5` (et `recus_par_l_unitaire` marginal) : contrôleur,
+> service, DTO, rate-limit et tests de l'unitaire, comme au commit `2988a6dd`.
+> Ce qui suit vaut pour le lot.
 
 Public, **rate-limité** par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, section
 « Ingestion en lot » plus bas). L'ancien `POST /api/public/page-views`, public et jamais
@@ -312,9 +335,12 @@ Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
   rejet individuel, idempotence sur `event_id` tiré **à la création** de l'événement,
   horodate future ramenée à la réception (> 10 min), trop ancienne rejetée (> 168 h),
   rate-limit par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, hors
-  `RateLimitGuard`). Seul canal d'ingestion depuis le retrait de l'unitaire (fin de la
-  bascule, 2026-09-25). Validation : `AnalyticsEventNormalizer` (allowlists, verrouillées
-  par `AnalyticsEventNormalizerTest`).
+  `RateLimitGuard`). L'unitaire reste tant que l'application publiée l'utilise
+  (contrôle N1, condition de retrait ci-dessus). Validation partagée :
+  `AnalyticsEventNormalizer` (allowlists, verrouillées par `AnalyticsEventNormalizerTest`).
+  Corps accepté en `application/json` **et en `text/plain`** (contrôle N7 : le
+  `sendBeacon` du web évite ainsi la pré-vérification CORS cross-origin) ;
+  `AnalyticsBatchTextPlainConverter`, borné à ce seul DTO, mêmes validations.
 - **Colonnes de contexte, pas des propriétés** : `diagnostic_run_id`, `diagnostic_type`,
   `journey_id` (`plan_id` = `journey.id`, Q8) se **joignent**, donc vivent en colonnes,
   bornées par événement (`AnalyticsEvent.Contexte`). La run citée doit exister et **son

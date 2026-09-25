@@ -43,6 +43,7 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/public/lots"),
                 Arguments.of(HttpMethod.POST, "/api/public/attempts/demo"),
                 Arguments.of(HttpMethod.GET, "/api/public/attempts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/public/analytics/events"),
                 Arguments.of(HttpMethod.POST, "/api/public/analytics/events/batch"),
                 // Cycle de vie de diagnostic_run (lot 2a) : avant le compte.
                 Arguments.of(HttpMethod.POST, "/api/public/diagnostic-runs"),
@@ -94,18 +95,6 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
     @Test
     void ancienneRoutePageViewsSupprimee() throws Exception {
         MvcResult result = mockMvc.perform(build(HttpMethod.POST, "/api/public/page-views"))
-                .andReturn();
-        assertEquals(404, result.getResponse().getStatus());
-    }
-
-    /**
-     * L'ingestion analytics UNITAIRE est retiree depuis la fin de la bascule vers
-     * le lot (Q17, 2026-09-25) : web et mobile n'envoient plus que des lots. Elle
-     * ne doit pas renaitre a cote de {@code /events/batch}.
-     */
-    @Test
-    void ingestionAnalyticsUnitaireSupprimee() throws Exception {
-        MvcResult result = mockMvc.perform(build(HttpMethod.POST, "/api/public/analytics/events"))
                 .andReturn();
         assertEquals(404, result.getResponse().getStatus());
     }

@@ -108,6 +108,21 @@ public class RateLimitGuard {
     }
 
     /**
+     * Ingestion d'un evenement d'analytics : double garde-fou par IP.
+     *
+     * <p>C'est le seul frein a l'inflation d'{@code analytics_event}, route
+     * publique qui ecrit une ligne par appel.
+     *
+     * <p>Volontairement genereux : on coupe la boucle automatisee, on ne gene
+     * pas un visiteur qui parcourt le site.
+     */
+    public void checkAnalytics(String ip) {
+        if (!props.isEnabled()) return;
+        limiter.check("analytics:burst", ip, props.getAnalyticsBurst());
+        limiter.check("analytics:daily", ip, props.getAnalyticsDaily());
+    }
+
+    /**
      * Pages et POST de desabonnement email (routes publiques a jeton signe) :
      * borne par IP, contre une boucle qui essaierait des jetons.
      */

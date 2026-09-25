@@ -68,8 +68,7 @@ public class AnalyticsEventRecord {
     @Column(name = "dedup_key", length = 120)
     private String dedupKey;
 
-    /** Identifiant tire par le client (ingestion en lot). {@code null} = ligne ecrite par
-     *  l'ancien endpoint unitaire, retire (Q17). */
+    /** Identifiant tire par le client (ingestion en lot). {@code null} = endpoint unitaire. */
     @Column(name = "event_id", columnDefinition = "uuid")
     private UUID eventId;
 

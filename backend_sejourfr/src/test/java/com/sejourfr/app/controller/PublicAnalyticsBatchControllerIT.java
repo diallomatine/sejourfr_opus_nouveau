@@ -108,6 +108,33 @@ class PublicAnalyticsBatchControllerIT extends AbstractIntegrationTest {
     // ------------------------------------------------------------------------
 
     @Test
+    @DisplayName("Contrôle N7 — le même lot en text/plain (sendBeacon) répond 202 et s'écrit pareil")
+    void lotEnTextPlain() throws Exception {
+        UUID anon = UUID.randomUUID();
+        String e1 = id();
+        mockMvc.perform(post(URL).contentType(MediaType.TEXT_PLAIN)
+                        .content(lot(anon, "\"client\":\"web\",\"appVersion\":\"0.1.0\"",
+                                evt(e1, "LANDING_VIEWED", "\"path\":\"/reussir\""))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.accepted").value(1));
+
+        AnalyticsEventRecord ligne = ligne(e1);
+        assertThat(ligne.getAnonymousId()).isEqualTo(anon);
+        assertThat(ligne.getPlatform()).isEqualTo(ClientPlatform.WEB);
+    }
+
+    @Test
+    @DisplayName("Contrôle N7 — text/plain illisible ou enveloppe invalide : 400, comme en JSON")
+    void lotEnTextPlainInvalide() throws Exception {
+        mockMvc.perform(post(URL).contentType(MediaType.TEXT_PLAIN).content("pas du json"))
+                .andExpect(status().isBadRequest());
+        // Enveloppe sans evenements : la meme validation @Valid qu'en JSON.
+        mockMvc.perform(post(URL).contentType(MediaType.TEXT_PLAIN)
+                        .content("{\"anonymousId\":\"" + UUID.randomUUID() + "\",\"events\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Un lot valide répond 202, écrit chaque événement avec les colonnes V074")
     void lotNominal() throws Exception {
         UUID anon = UUID.randomUUID();
