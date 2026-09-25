@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {usePathname} from "next/navigation";
-import {ArrowRight, Heart} from "lucide-react";
 import {Cocarde, Wordmark} from "./Brand";
 import {useAuth} from "@/lib/auth-context";
 import {shouldHideGlobalChrome} from "@/lib/chrome-routes";
@@ -10,11 +9,7 @@ import styles from "./Footer.module.css";
 
 /**
  * Pied de page public (maquette « accueil v3 », 2026-09-26) : marque + trois
- * colonnes de liens, ligne de non-affiliation, puis copyright et langue.
- * Masqué exactement comme l'en-tête (`shouldHideGlobalChrome`).
- *
- * « EN · bientôt » n'est pas un contrôle : aucune version anglaise n'existe,
- * il n'y a rien à cliquer.
+ * colonnes de liens. Masqué exactement comme l'en-tête (`shouldHideGlobalChrome`).
  */
 const COLUMNS: {title: string; links: {href: string; label: string}[]}[] = [
     {
@@ -77,33 +72,6 @@ export function Footer() {
                             ))}
                         </div>
                     ))}
-                </div>
-
-                <div className={styles.disclaimer}>
-                    <p>
-                        SejourFR est un outil d&apos;entraînement indépendant, non affilié au gouvernement
-                        français, à l&apos;OFII, au ministère de l&apos;Intérieur ni à France Éducation
-                        International.
-                    </p>
-                    <Link href="/a-propos" className={styles.disclaimerLink}>
-                        En savoir plus
-                        <ArrowRight size={13} aria-hidden/>
-                    </Link>
-                </div>
-
-                <div className={styles.bottom}>
-                    <div className={styles.bottomLeft}>
-                        <span>© {new Date().getFullYear()} SejourFR. Tous droits réservés.</span>
-                        <span className={styles.made}>
-                            Made with
-                            <Heart size={13} className={styles.heart} aria-hidden/>
-                            in France
-                        </span>
-                    </div>
-                    <div className={styles.lang}>
-                        <span className={styles.langActive} lang="fr">FR</span>
-                        <span className={styles.langSoon}>EN · bientôt</span>
-                    </div>
                 </div>
             </div>
         </footer>

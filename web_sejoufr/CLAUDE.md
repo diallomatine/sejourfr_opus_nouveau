@@ -5138,9 +5138,10 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   ≤ 760 px. Compte : menu avatar et tiroir `AppSidebar` inchangés. Le tiroir
   s'ouvre **à gauche** (visiteur comme compte, demande du propriétaire 2026-09-26). Règles de masquage inchangées (`lib/chrome-routes.ts`).
 - **`Footer`** (+ `Footer.module.css`) : fond clair, marque + Produit /
-  Ressources / Légal (liens relatifs, Cookies → `/confidentialite#article-8`),
-  non-affiliation, « Made with ♥ in France », « FR / EN · bientôt » **non
-  interactif**. ⚠️ La newsletter du pied de page est **supprimée**
+  Ressources / Légal (liens relatifs, Cookies → `/confidentialite#article-8`).
+  La bande basse (non-affiliation, copyright, « Made with ♥ in France »,
+  « FR / EN · bientôt ») est **retirée** (demande du propriétaire 2026-09-26) ;
+  la non-affiliation reste portée par `/a-propos`. ⚠️ La newsletter du pied de page est **supprimée**
   (`newsletterApi` reste : `components/blog/NewsletterCTA.tsx`), ainsi que les
   pastilles de stores du pied de page.
 
