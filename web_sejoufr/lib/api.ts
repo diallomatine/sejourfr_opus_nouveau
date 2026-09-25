@@ -71,7 +71,7 @@ import type {
     JourneyStepDetailDto,
 } from "./types";
 import {anonymousId, clientContextHeaders} from "./client-context";
-import {diagnosticRunToClaim} from "./diagnostic-run-store";
+import {diagnosticRunsToClaim} from "./diagnostic-run-store";
 import type {AnalyticsCtaLocation} from "./analytics";
 import {withRetour} from "./retour";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
@@ -490,13 +490,19 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
  * plus tard est couvert sans rien déclarer.
  */
 async function withAttribution<T extends AuthAttributionFields>(body: T): Promise<T> {
-    const run = await diagnosticRunToClaim().catch(() => null);
+    const runs = await diagnosticRunsToClaim().catch(() => []);
+    // Les champs uniques portent la plus récente : un serveur qui ne lit pas
+    // encore la liste rattache au moins celle-là (le serveur dédoublonne).
+    const latest = runs[0] ?? null;
     return {
         ...body,
         anonymousId: anonymousId(),
-        diagnosticRunId: run?.diagnosticRunId ?? null,
-        claimToken: run?.claimToken ?? null,
-        claimVia: run ? "SAME_DEVICE" : null,
+        diagnosticRunId: latest?.diagnosticRunId ?? null,
+        claimToken: latest?.claimToken ?? null,
+        claimVia: latest ? "SAME_DEVICE" : null,
+        diagnosticRunClaims: runs.length > 0
+            ? runs.map((run) => ({...run, claimVia: "SAME_DEVICE" as const}))
+            : null,
     };
 }
 

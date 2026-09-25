@@ -102,15 +102,21 @@ export function isDiagnosticRunUsable(
 }
 
 /**
- * **Ce qu'une authentification transmet pour rattacher le diagnostic** : la
- * run d'invité la plus récente de cet appareil, jeton encore valable.
+ * **Ce qu'une authentification transmet pour rattacher le diagnostic** :
+ * **toutes** les runs d'invité de cet appareil (une par type) dont le jeton est
+ * encore valable, la plus récente en tête (contrôle N3, 2026-09-25). N'en
+ * envoyer qu'une laissait l'autre « jamais rattachée » et comptait la personne
+ * deux fois sous « Tous ».
+ *
+ * 🛑 La validité se lit sur `claimTokenExpiresAt` **servi** (borné par le
+ * serveur à 2 j après le sujet vu, point E), jamais recalculée ici.
  *
  * Aucune heuristique côté serveur (Q3) : sans jeton, pas de claim. Une run
  * déjà claimée, ou d'un autre compte, est ignorée par le serveur sans erreur —
- * la renvoyer ne coûte rien. `null` quand l'appareil n'a rien à rattacher.
+ * la renvoyer ne coûte rien. Liste vide quand l'appareil n'a rien à rattacher.
  */
-export async function diagnosticRunToClaim(): Promise<
-  {diagnosticRunId: string; claimToken: string} | null
+export async function diagnosticRunsToClaim(): Promise<
+  {diagnosticRunId: string; claimToken: string}[]
 > {
   const types: DiagnosticRunType[] = ["QUICK_TCF", "CIVIQUE"];
   const candidates: (DiagnosticRunRecord & {diagnosticRunId: string; claimToken: string})[] = [];
@@ -118,8 +124,7 @@ export async function diagnosticRunToClaim(): Promise<
     const record = await readDiagnosticRun(type).catch(() => null);
     if (record?.createdAsGuest && isDiagnosticRunUsable(record)) candidates.push(record);
   }
-  const latest = candidates.sort((a, b) => b.touchedAt - a.touchedAt)[0];
-  return latest
-    ? {diagnosticRunId: latest.diagnosticRunId, claimToken: latest.claimToken}
-    : null;
+  return candidates
+    .sort((a, b) => b.touchedAt - a.touchedAt)
+    .map((r) => ({diagnosticRunId: r.diagnosticRunId, claimToken: r.claimToken}));
 }

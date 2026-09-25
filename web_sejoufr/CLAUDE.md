@@ -5016,7 +5016,7 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
 - **`lib/client-context.ts` — autorité unique du contexte client** : identifiant de mesure
   (`sejourfr.aid`, 13 mois), visite (`sejourfr.sid`, 30 min) et les en-têtes
   `X-Sejourfr-Client: web`, `X-Sejourfr-Anonymous-Id`, `X-Sejourfr-App-Version`
-  (`NEXT_PUBLIC_APP_VERSION`, sinon la version de `package.json`, posée par `next.config.ts`),
+  (`NEXT_PUBLIC_APP_VERSION`, sinon la version lue dans `package.json` par `next.config.ts` — 🛑 jamais vide : sans version, le serveur range une inscription web en client ancien, G-b),
   `X-Sejourfr-Source`. `lib/api.ts` les pose sur **toutes** les requêtes. N'importe ni `api`
   ni `analytics` (cycle).
 - **`lib/analytics.ts` — ingestion EN LOT** (`POST /api/public/analytics/events/batch`) :
@@ -5049,7 +5049,7 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   | Sujet vu (`ensureDiagnosticRun`) | TCF rapide : 1ʳᵉ question affichée (`DiagnosticView`, invité et connecté) · civique : runner `/sessions/[id]?civicDiagnosticId=` en `running` · complet : `lancerSection` du hub |
   | Soumis (`submitQuickTcfRun`) | TCF rapide seulement, au bouton final (« Valider mon diagnostic » / « Terminer et analyser ») ; serveur pour les deux autres |
   | Session liée | à la création (`sessionId`) ; rapide invité : `diagnosticApi.start(…, diagnosticRunId)` au handoff |
-  | Rattaché | `authApi.login/register/google` ajoutent `anonymousId` + la run d'invité la plus récente (`diagnosticRunToClaim`) et son jeton (`claimVia: SAME_DEVICE`) |
+  | Rattaché | `authApi.login/register/google` ajoutent `anonymousId` + **toutes** les runs d'invité au jeton encore valide (`claimTokenExpiresAt` servi) dans `diagnosticRunClaims`, plus la plus récente dans les champs uniques (compat) — `diagnosticRunsToClaim`, contrôle N3 |
 - **Lien « Continuer sur l'application »** (lot 3b) : `ContinueOnAppLink` sur les deux écrans de
   compte invité (`DiagnosticAccountGate`, `CivicDiagnosticGate`), **téléphone seulement**, run
   d'invité au jeton valide (civique : celle de la session affichée). Forme du lien :

@@ -88,6 +88,17 @@ export interface AuthAttributionFields {
     /** Le web n'envoie que `SAME_DEVICE` ; `APP_LINK` est le canal de l'app (lot 3b).
      *  Absent ou inconnu = `SAME_DEVICE` côté serveur. */
     claimVia?: DiagnosticRunClaimVia | null;
+    /** Toutes les runs d'invité rattachables de l'appareil (contrôle N3), la plus
+     *  récente en tête. Le serveur fusionne avec les champs uniques ci-dessus
+     *  (gardés pour un serveur plus ancien), dédoublonne et en garde 3. */
+    diagnosticRunClaims?: DiagnosticRunClaim[] | null;
+}
+
+/** Un couple (run, jeton) de `diagnosticRunClaims`. 🛑 `claimToken` est un secret. */
+export interface DiagnosticRunClaim {
+    diagnosticRunId: string;
+    claimToken: string;
+    claimVia?: DiagnosticRunClaimVia | null;
 }
 
 export interface LoginRequest extends AuthAttributionFields {

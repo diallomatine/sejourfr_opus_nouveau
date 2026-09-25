@@ -1,4 +1,18 @@
+import {readFileSync} from "node:fs";
+import {join} from "node:path";
 import type {NextConfig} from "next";
+
+/** Version du `package.json`, lue directement : `npm_package_version` n'existe
+ *  que sous `npm run`, et un `next build` lancé autrement partirait sans version
+ *  — le serveur classerait alors le web en client ancien (contrôle G-b). */
+function packageVersion(): string {
+    try {
+        const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {version?: unknown};
+        return typeof pkg.version === "string" ? pkg.version : "";
+    } catch {
+        return "";
+    }
+}
 
 // En-têtes de sécurité appliqués à toutes les routes. Volontairement sans CSP
 // `script-src`/`style-src` stricte : le site utilise styled-jsx (styles inline)
@@ -52,7 +66,7 @@ const nextConfig: NextConfig = {
     // `package.json`, exposée par npm à ses scripts.
     env: {
         NEXT_PUBLIC_APP_VERSION:
-            process.env.NEXT_PUBLIC_APP_VERSION ?? process.env.npm_package_version ?? "",
+            process.env.NEXT_PUBLIC_APP_VERSION || packageVersion(),
     },
     async headers() {
         return [
