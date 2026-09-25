@@ -908,6 +908,10 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
   `DIAGNOSTIC_ACCOUNT_REQUIRED` (émis une fois, à l'affichage de l'écran de demande de compte)
   est la mesure de conversion du parcours.
 
+- **Visiteur : écran de choix TCF / civique (2026-09-26)** — `widgets/diagnostic_choice.dart`,
+  miroir de `web_sejoufr/app/_components/diagnostic/DiagnosticChoice.tsx` ; durée dérivée
+  par `diagnosticExpressionMinutes` (`diagnostic_intro_labels.dart`). `DiagnosticIntro`
+  ci-dessous est **réservé aux comptes**.
 - **Écran de présentation (2026-08-14) — « 5 minutes », pas un examen.**
   `DiagnosticIntro` annonce le budget **en tête** (pilule dans le hero, avant le titre)
   puis les **deux exercices séparément**, chacun avec sa mesure — « Écrit · 100 à 120

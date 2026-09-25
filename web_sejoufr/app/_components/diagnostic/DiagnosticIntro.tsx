@@ -1,16 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import {useEffect, useState} from "react";
 import {ArrowRight, BookOpen, Check, Clock3, FilePenLine, Headphones, Mic} from "lucide-react";
 import {diagnosticApi} from "@/lib/api";
 import {
   type DiagnosticExerciseContent,
   type DiagnosticExerciseMeasure,
+  diagnosticExpressionMinutes,
   diagnosticOralMeasureLabel,
-  diagnosticOralMinutes,
   diagnosticWrittenMeasureLabel,
-  diagnosticWrittenMinutes,
 } from "@/lib/diagnostic";
 import type {PublicDiagnosticResponse} from "@/lib/types";
 import styles from "./diagnostic.module.css";
@@ -35,17 +33,6 @@ import styles from "./diagnostic.module.css";
  * `RAPIDE` : sans conséquence, le rapport propose de toute façon de compléter
  * le profil à partir de `domainesAEvaluer`.
  */
-/**
- * Le format du diagnostic civique, tel que cet écran l'annonce.
- *
- * 🛑 **40, comme l'épreuve** : c'est ce qui rend le résultat directement
- * comparable au seuil, sans projection. Recopié ici parce que l'écran est rendu
- * avant tout appel civique — mais il ne doit jamais diverger de la
- * configuration serveur (`sejourfr.civic-diagnostic`).
- */
-const CIVIQUE_DIAGNOSTIC_QUESTIONS = 40;
-const CIVIQUE_DIAGNOSTIC_HREF = "/diagnostic-civique";
-
 /**
  * Ce que la présentation dit des deux épreuves de COMPRÉHENSION, qui ne sont
  * pas dans le diagnostic rapide.
@@ -103,66 +90,35 @@ function useIntroMeasures(
   };
 }
 
-/** Le temps des deux productions, dérivé des sujets servis. `null` quand la
- *  base ne porte aucune borne : on n'invente pas une durée. */
-function expressionMinutes(
-  written: DiagnosticExerciseMeasure | null,
-  oral: DiagnosticExerciseMeasure | null,
-): number | null {
-  const total = (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
-  return total > 0 ? total : null;
-}
-
 function minutesLabel(minutes: number | null): string | null {
   return minutes == null ? null : `≈ ${minutes} min`;
 }
 
 /**
- * Écran d'entrée du diagnostic, **identique pour un visiteur et pour un
- * compte** : c'est le même parcours, seul le moment où l'on demande le compte
- * change.
+ * Présentation du diagnostic TCF pour un **compte connecté**.
  *
- * Deux cartes, comme la maquette. Elles ne mènent pas à deux tunnels : elles
- * annoncent deux ambitions, et c'est l'après-rapport qui diffère.
- */
-/**
- * Écran d'entrée du diagnostic, **identique pour un visiteur et pour un
- * compte** : c'est le même parcours, seul le moment où l'on demande le compte
- * change.
- *
- * 🛑 **On choisit un EXAMEN, pas une profondeur de diagnostic.** Cet écran a
- * longtemps proposé « rapide » et « complet » — deux ambitions du seul TCF,
- * alors que le candidat prépare **deux examens obligatoires** et sait lequel il
- * passe. La profondeur du parcours TCF (rapide puis complet) se découvre
- * ensuite, sur le rapport, quand elle a un sens.
- *
- * 🛑 **Les deux se passent SANS COMPTE** (`V053`, arbitrage du propriétaire du
- * 2026-09-10) : « l'utilisateur doit pouvoir passer le diagnostic avant de créer
- * son compte, il saisit le texte ou répond au QCM et seulement après on lui
- * demande de créer son compte pour voir le résultat. » La mécanique diffère —
- * le TCF garde ses productions sur l'appareil (`50_` §3.1), le civique joue un
- * attempt invité (user NULL + IP, comme la démo) qu'une inscription *adopte* —
- * mais **la promesse faite ici est la même des deux côtés**, et les deux cartes
- * la portent.
+ * 🛑 **Le visiteur ne passe plus par ici** (2026-09-26) : son entrée est le
+ * choix d'examen TCF ⇄ civique, `DiagnosticChoice`. Un compte connecté a déjà
+ * choisi son parcours — il arrive depuis le Plan TCF ou l'Accueil TCF (souvent
+ * avec `?demarrer=1`, qui saute cet écran) : on ne lui rouvre pas le choix, et
+ * le diagnostic civique garde ses propres portes (`planIndisponible`, Accueil
+ * et Plan civiques). Miroir mobile : `DiagnosticIntro` / `DiagnosticChoice`.
  */
 export function DiagnosticIntro({
   error,
   submitting,
-  guest = false,
   written,
   oral,
   onStart,
 }: {
   error: string | null;
   submitting: boolean;
-  guest?: boolean;
   written?: DiagnosticExerciseContent | null;
   oral?: DiagnosticExerciseContent | null;
-  /** Lance le diagnostic **TCF**. Le civique, lui, est un lien. */
   onStart: () => void;
 }) {
   const measures = useIntroMeasures(written, oral);
-  const express = expressionMinutes(measures.written, measures.oral);
+  const express = diagnosticExpressionMinutes(measures.written, measures.oral);
 
   return (
     <section className={styles.intro}>
@@ -220,58 +176,6 @@ export function DiagnosticIntro({
           </button>
         </article>
 
-        {/* 🛑 **La carte « Examen civique » n'existe QUE pour un visiteur**
-            (correctif du 2026-09-12, demande du propriétaire). Un compte
-            connecté a déjà choisi son parcours — il arrive ici depuis le Plan
-            TCF ou l'Accueil TCF, et « Faire mon diagnostic » doit lancer le
-            sien, pas rouvrir un choix qu'il vient de faire. Le diagnostic
-            civique garde ses propres portes (`planIndisponible`, Accueil et
-            Plan civiques).
-
-            ⚠️ Elle reste pour le **visiteur** : sans compte ni parcours
-            déclaré, `/diagnostic` est sa seule entrée, et les deux diagnostics
-            s'y valent. Miroir mobile : `isGuest` dans `diagnostic_intro.dart`. */}
-        {guest && (
-          <article className={styles.choiceCard}>
-            <div className={styles.choiceHead}>
-              <h2>
-                <span aria-hidden>🏛️</span> Examen civique
-              </h2>
-              {/* 🛑 « Sans compte » des DEUX côtés depuis V053. Le badge sur la
-                  seule carte TCF laissait croire que le civique se paie d'une
-                  inscription à l'entrée — ce n'est plus vrai. */}
-              <span className={styles.choiceBadge}>Sans compte</span>
-            </div>
-            <p className={styles.choiceMeta}>
-              <span>{CIVIQUE_DIAGNOSTIC_QUESTIONS} questions, le format de l&apos;examen</span>
-            </p>
-            <ul className={styles.choiceList}>
-              <li>
-                <Check size={15} strokeWidth={2.8} aria-hidden /> Les thèmes et notions
-                à renforcer avant l&apos;examen
-              </li>
-              <li>
-                <Check size={15} strokeWidth={2.8} aria-hidden /> Un résultat qui se lit
-                directement sur l&apos;échelle de l&apos;épreuve
-              </li>
-            </ul>
-            {/* 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053, arbitrage du
-                propriétaire du 2026-09-10) — même promesse que le TCF, et on la
-                dit avant le clic. ⚠️ Cette carte a annoncé l'inverse (« Ce
-                diagnostic demande un compte ») et envoyait sur
-                `/inscription?next=…` : le motif invoqué — un QCM est rattaché à
-                un attempt, donc à un utilisateur — était faux, l'attempt invité
-                existant déjà pour la démo. Ne pas remettre le détour. */}
-            <p className={styles.choiceNote}>
-              Vous répondez tout de suite&nbsp;; le compte n&apos;arrive qu&apos;au
-              moment de voir votre résultat.
-            </p>
-            <Link className={styles.secondaryButton} href={CIVIQUE_DIAGNOSTIC_HREF}>
-              Commencer le diagnostic civique
-              <ArrowRight size={17} aria-hidden />
-            </Link>
-          </article>
-        )}
       </div>
 
       <p className={styles.introBandTitle}>Ce que contient le diagnostic TCF</p>
@@ -340,9 +244,7 @@ export function DiagnosticIntro({
         d&apos;estimer votre niveau et de construire votre plan.
       </p>
       <p className={styles.disclaimer}>
-        {guest
-          ? `${FOOT_NOTE} Le compte ne vous sera demandé qu'au moment de l'analyse. Estimation d'entraînement, non officielle.`
-          : `${FOOT_NOTE} Estimation d'entraînement, non officielle.`}
+        {FOOT_NOTE} Estimation d&apos;entraînement, non officielle.
       </p>
     </section>
   );

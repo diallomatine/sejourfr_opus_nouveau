@@ -277,21 +277,7 @@
   color: var(--color-blue);
 }
 
-/* Le rappel « la compréhension se joue après le compte » : une contrainte de
-   parcours, pas un avertissement — ton neutre, sans pastille d'alerte. */
-.choiceNote {
-  margin: 0;
-  padding: 11px 13px;
-  border: 1px dashed var(--color-line);
-  border-radius: 13px;
-  background: color-mix(in srgb, var(--color-paper-2) 60%, white);
-  color: var(--color-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.choiceCard .primaryButton,
-.choiceCard .secondaryButton {
+.choiceCard .primaryButton {
   width: 100%;
   margin-top: auto;
 }

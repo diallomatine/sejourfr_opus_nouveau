@@ -22,6 +22,7 @@ import '../tcf_production/audio_recorder_service.dart';
 import 'diagnostic_controller.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
+import 'widgets/diagnostic_choice.dart';
 import 'widgets/diagnostic_common.dart';
 import 'widgets/diagnostic_intro.dart';
 import 'widgets/diagnostic_oral.dart';
@@ -367,9 +368,13 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                 // maquette : l'écran a cessé d'être un parcours, il est devenu
                 // un document. C'est ce qui permet au corps de commencer
                 // directement par la carte hero.
+                // Le visiteur y choisit encore son examen : « TCF » serait faux.
                 title: _showsReport(state)
                     ? kDiagnosticReportTitle
-                    : 'Diagnostic TCF',
+                    : state.isGuest &&
+                            state.guestStep == DiagnosticGuestStep.presentation
+                        ? 'Diagnostic'
+                        : 'Diagnostic TCF',
                 sub: _headerSub(state),
                 onBack:
                     state.isSubmitting || state.isSyncing ? null : _confirmBack,
@@ -493,13 +498,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       );
     }
     return switch (state.guestStep) {
-      DiagnosticGuestStep.presentation => DiagnosticIntro(
-          isStarting: false,
+      DiagnosticGuestStep.presentation => DiagnosticChoice(
           errorMessage: state.errorMessage,
           written: subjects.written,
           oral: subjects.oral,
-          isGuest: true,
-          onStart: _startGuest,
+          onStartTcf: _startGuest,
         ),
       DiagnosticGuestStep.written => DiagnosticWrittenStep(
           exercise: subjects.written,

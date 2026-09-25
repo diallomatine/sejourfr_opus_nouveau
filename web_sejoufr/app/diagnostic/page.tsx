@@ -4,7 +4,7 @@ import {DiagnosticView} from "@/app/_components/diagnostic/DiagnosticView";
 export const metadata: Metadata = {
   title: "Diagnostic TCF personnalisé — SejourFR",
   description:
-    "Un exercice écrit et un oral enregistré pour identifier vos priorités de travail au TCF.",
+    "Diagnostic gratuit, sans compte, pour le TCF IRN ou l'examen civique : votre niveau, vos priorités et votre plan.",
 };
 
 export default function DiagnosticPage() {

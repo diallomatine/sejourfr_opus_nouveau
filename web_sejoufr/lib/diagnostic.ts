@@ -179,10 +179,21 @@ function diagnosticFormatMinutes(format: DiagnosticFormatDto | null): number | n
         durationMinSeconds: format.oralDurationMinSeconds,
         durationMaxSeconds: format.oralDurationMaxSeconds,
     };
-    const ecrit = diagnosticWrittenMinutes(mesure);
-    const oral = diagnosticOralMinutes(mesure);
-    const total = (ecrit ?? 0) + (oral ?? 0);
-    return total <= 0 ? null : total;
+    return diagnosticExpressionMinutes(mesure, mesure);
+}
+
+/**
+ * Le temps annoncé pour les productions du diagnostic : l'écrit, plus l'oral
+ * s'il existe. `null` quand aucune borne n'est servie — on n'invente pas une
+ * durée. Seule règle du web pour ce total (présentation, choix d'examen,
+ * Accueil). Miroir : `diagnosticExpressionMinutes` côté mobile.
+ */
+export function diagnosticExpressionMinutes(
+    written: DiagnosticExerciseMeasure | null | undefined,
+    oral: DiagnosticExerciseMeasure | null | undefined,
+): number | null {
+    const total = (diagnosticWrittenMinutes(written) ?? 0) + (diagnosticOralMinutes(oral) ?? 0);
+    return total > 0 ? total : null;
 }
 
 /**

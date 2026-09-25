@@ -50,6 +50,7 @@ import type {
   PublicDiagnosticResponse,
 } from "@/lib/types";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
+import {DiagnosticChoice} from "./DiagnosticChoice";
 import {demarrageDirectDemande} from "@/lib/preparation";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
@@ -375,21 +376,20 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     );
   }
 
+  // Le choix d'examen porte sa propre page (retour « Accueil » compris) : la
+  // barre de `DiagnosticShell` dit « Vos réponses restent sur cet appareil »,
+  // ce qui n'a de sens qu'une fois le TCF commencé.
   return (
-    <DiagnosticShell guest>
-      <DiagnosticIntro
-        error={error}
-        submitting={false}
-        guest
-        written={subjects.written}
-        oral={subjects.oral}
-        onStart={() => {
-          onStartTcf();
-          setStarted(true);
-          trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
-        }}
-      />
-    </DiagnosticShell>
+    <DiagnosticChoice
+      error={error}
+      written={subjects.written}
+      oral={subjects.oral}
+      onStartTcf={() => {
+        onStartTcf();
+        setStarted(true);
+        trackDiagnostic("DIAGNOSTIC_STARTED", {once: true});
+      }}
+    />
   );
 }
 

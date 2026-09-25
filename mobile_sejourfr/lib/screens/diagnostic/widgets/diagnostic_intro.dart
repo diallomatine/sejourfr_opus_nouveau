@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -13,21 +11,14 @@ import '../../../core/widgets/fixed_action_bar.dart';
 import '../diagnostic_intro_labels.dart';
 import 'diagnostic_common.dart';
 
-/// L'entrée du diagnostic — **on y choisit un EXAMEN**, pas une profondeur.
+/// Présentation du diagnostic TCF pour un **compte connecté**.
 ///
-/// 🛑 **Arbitrage du propriétaire, 2026-09-10.** Cet écran a longtemps proposé
-/// « rapide » et « complet » : deux ambitions du seul TCF, alors que le
-/// candidat prépare **deux examens obligatoires** et sait lequel il passe. La
-/// profondeur du parcours TCF se découvre ensuite, sur le rapport, quand elle a
-/// un sens. `DiagnosticVariant` est **supprimé** — ne pas le réintroduire.
-///
-/// 🛑 **Les deux se passent SANS COMPTE** (`V053`) : « l'utilisateur doit
-/// pouvoir passer le diagnostic avant de créer son compte, il saisit le texte
-/// ou répond au QCM et seulement après on lui demande de créer son compte pour
-/// voir le résultat. » La mécanique diffère — le TCF garde ses productions sur
-/// l'appareil, le civique joue un attempt invité qu'une inscription *adopte* —
-/// mais **la promesse est la même des deux côtés**, et les deux cartes la
-/// portent.
+/// 🛑 **Le visiteur ne passe plus par ici** (2026-09-26) : son entrée est le
+/// choix d'examen TCF ⇄ civique, `DiagnosticChoice`. Un compte connecté a déjà
+/// choisi son parcours — il arrive depuis le Plan TCF ou l'Accueil TCF (souvent
+/// avec `?demarrer=1`, qui saute cet écran) : on ne lui rouvre pas le choix, et
+/// le diagnostic civique garde ses propres portes. Miroir web :
+/// `DiagnosticIntro.tsx` / `DiagnosticChoice.tsx`.
 class DiagnosticIntro extends StatelessWidget {
   const DiagnosticIntro({
     super.key,
@@ -35,13 +26,11 @@ class DiagnosticIntro extends StatelessWidget {
     required this.onStart,
     this.written,
     this.oral,
-    this.isGuest = false,
     this.errorMessage,
   });
 
   final bool isStarting;
 
-  /// Lance le diagnostic **TCF**. Le civique, lui, est une navigation.
   final VoidCallback onStart;
 
   /// Les deux sujets servis, quand ils existent : c'est d'eux que sortent les
@@ -50,30 +39,12 @@ class DiagnosticIntro extends StatelessWidget {
   final DiagnosticExerciseView? written;
   final DiagnosticExerciseView? oral;
 
-  /// Un visiteur peut produire avant de créer son compte : on le lui dit.
-  final bool isGuest;
-
   final String? errorMessage;
-
-  /// Le format du diagnostic civique, tel que cet écran l'annonce.
-  ///
-  /// 🛑 **40, comme l'épreuve** : c'est ce qui rend le résultat directement
-  /// comparable au seuil, sans projection. Recopié ici parce que l'écran est
-  /// rendu avant tout appel civique — mais il ne doit jamais diverger de la
-  /// configuration serveur (`sejourfr.civic-diagnostic`).
-  static const int _civiqueQuestions = 40;
-
-  /// Le temps des deux productions, dérivé des sujets servis. `null` quand la
-  /// base ne porte aucune borne : on n'invente pas une durée.
-  String? get _tcfDuration {
-    final minutes = (diagnosticWrittenMinutes(written) ?? 0) +
-        (diagnosticOralMinutes(oral) ?? 0);
-    return minutes > 0 ? '≈ $minutes min' : null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final duree = _tcfDuration;
+    final minutes = diagnosticExpressionMinutes(written, oral);
+    final duree = minutes == null ? null : '≈ $minutes min';
     return Column(
       children: [
         Expanded(
@@ -116,41 +87,6 @@ class DiagnosticIntro extends StatelessWidget {
                 ],
                 highlighted: true,
               ),
-              // 🛑 **La carte « Examen civique » n'existe QUE pour un visiteur**
-              // (correctif du 2026-09-12, demande du propriétaire). Un compte
-              // connecté a déjà choisi son parcours — il arrive ici depuis le
-              // Plan TCF ou l'Accueil TCF, et « Faire mon diagnostic » doit
-              // lancer le sien, pas rouvrir un choix qu'il vient de faire. Le
-              // diagnostic civique garde ses propres portes, sur l'Accueil
-              // civique et le Plan civique (`planIndisponible`).
-              //
-              // ⚠️ Elle reste pour le **visiteur** : sans compte ni parcours
-              // déclaré, `/diagnostic` est sa seule entrée, et les deux
-              // diagnostics s'y valent.
-              if (isGuest) ...[
-                const SizedBox(height: 12),
-                _ExamCard(
-                  emoji: '🏛️',
-                  title: 'Examen civique',
-                  meta: '$_civiqueQuestions questions, le format de l\u2019examen',
-                  highlights: const [
-                    'Les thèmes et notions à renforcer avant l\u2019examen',
-                    'Un résultat qui se lit directement sur l\u2019échelle de '
-                        'l\u2019épreuve',
-                  ],
-                  // 🛑 Le compte n'arrive qu'AU RÉSULTAT (V053) — même promesse
-                  // que le TCF, et on la dit avant le tap.
-                  note: 'Vous répondez tout de suite ; le compte n\u2019arrive '
-                      'qu\u2019au moment de voir votre résultat.',
-                  action: AppButton(
-                    label: 'Commencer le diagnostic civique',
-                    variant: AppButtonVariant.outline,
-                    iconRight: LucideIcons.arrowRight,
-                    onPressed: () => context.push(AppRoutes.civicDiagnostic),
-                  ),
-                ),
-              ],
-
               const SizedBox(height: 24),
               // 🛑 On n'annonce que ce qui existe (L3) : sans étape orale, dire
               // « les deux premiers exercices » puis n'en montrer qu'un fausse
@@ -199,11 +135,7 @@ class DiagnosticIntro extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                isGuest
-                    ? 'Commencez sans compte. Il ne vous sera demandé qu’au '
-                        'moment de l’analyse. Estimation d’entraînement, non '
-                        'officielle.'
-                    : 'Estimation d’entraînement, non officielle.',
+                'Estimation d’entraînement, non officielle.',
                 textAlign: TextAlign.center,
                 style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
               ),
@@ -223,8 +155,8 @@ class DiagnosticIntro extends StatelessWidget {
   }
 }
 
-/// Une des deux cartes d'examen. La carte du TCF n'a **pas** de bouton : son
-/// action est la barre fixe du bas, qui reste atteignable quel que soit le
+/// La carte d'examen TCF. Elle n'a **pas** de bouton : son action est la barre
+/// fixe du bas, qui reste atteignable quel que soit le
 /// défilement.
 class _ExamCard extends StatelessWidget {
   const _ExamCard({
@@ -233,8 +165,6 @@ class _ExamCard extends StatelessWidget {
     required this.meta,
     required this.highlights,
     this.duration,
-    this.note,
-    this.action,
     this.highlighted = false,
   });
 
@@ -243,8 +173,6 @@ class _ExamCard extends StatelessWidget {
   final String meta;
   final List<String> highlights;
   final String? duration;
-  final String? note;
-  final Widget? action;
   final bool highlighted;
 
   @override
@@ -325,21 +253,6 @@ class _ExamCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-          ],
-          if (note != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              note!,
-              style: AppFonts.ui(
-                size: 12.5,
-                color: AppColors.inkFaint,
-                height: 1.45,
-              ),
-            ),
-          ],
-          if (action != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(width: double.infinity, child: action!),
           ],
         ],
       ),
