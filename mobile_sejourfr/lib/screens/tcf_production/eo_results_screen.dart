@@ -58,7 +58,8 @@ class EoResultsScreen extends ConsumerStatefulWidget {
   final int taskIndex;
 
   /// True quand on consulte les resultats depuis l'historique : on cache les
-  /// CTAs "Passer a la tache N+1" / "Voir mon bilan" au profit d'un simple "Retour".
+  /// CTAs "Passer a la tache N+1" / "Voir mon bilan" : la fleche de la barre
+  /// d'app est alors la seule sortie.
   final bool isHistory;
 
   @override
@@ -238,14 +239,20 @@ class _Body extends ConsumerWidget {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+            // Sans barre basse (historique), la liste porte elle-même la
+            // marge de l'indicateur d'accueil.
+            padding: EdgeInsets.fromLTRB(
+              18,
+              8,
+              18,
+              20 + (isHistory ? MediaQuery.paddingOf(context).bottom : 0),
+            ),
             children: [
               EvaluationReport(
                 evaluation: eval,
                 isOral: true,
                 eyebrow: 'Expression orale · Tâche ${taskIndex + 1}',
                 targetLevel: ref.watch(userTargetLevelProvider),
-                planChange: submission.planChange,
                 actionPlanPending: actionPlanPending,
               ),
               if (submission.transcription != null &&
@@ -262,48 +269,41 @@ class _Body extends ConsumerWidget {
             ],
           ),
         ),
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: AppColors.line2, width: 1)),
+        // Consultation depuis l'historique : la flèche de la barre d'app est
+        // la seule sortie, aucune barre basse.
+        if (!isHistory)
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              border: Border(top: BorderSide(color: AppColors.line2, width: 1)),
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            child: SafeArea(
+              top: false,
+              child: _isSingleTask
+                  ? AppButton(
+                      label: 'Retour à l\'entraînement',
+                      icon: LucideIcons.layoutGrid,
+                      onPressed: () {
+                        // Retour à l'écran d'entraînement Expression orale
+                        // (onglet Entraînement, carrousel de situations).
+                        ref.read(eoSessionProvider.notifier).reset();
+                        context.go(AppRoutes.tcfEoEntry);
+                      },
+                    )
+                  : AppButton(
+                      // Atteint uniquement en mode examen blanc complet
+                      // après la 3ème tâche (cf. `_navigateToBilan` qui
+                      // détecte `fullExamId` et retourne au progress).
+                      // En session 3-tâches autonome, on n'arrive plus
+                      // jamais sur ce screen — le bilan détaillé est
+                      // poussé directement par `eo_finished_screen`.
+                      label: _bilanCtaLabel,
+                      icon: LucideIcons.chartColumn,
+                      onPressed: () => _navigateToBilan(context, ref),
+                    ),
+            ),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          child: SafeArea(
-            top: false,
-            child: isHistory
-                ? AppButton(
-                    label: 'Retour',
-                    icon: LucideIcons.arrowLeft,
-                    onPressed: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  )
-                : _isSingleTask
-                    ? AppButton(
-                        label: 'Retour à l\'entraînement',
-                        icon: LucideIcons.layoutGrid,
-                        onPressed: () {
-                          // Retour à l'écran d'entraînement Expression orale
-                          // (onglet Entraînement, carrousel de situations).
-                          ref.read(eoSessionProvider.notifier).reset();
-                          context.go(AppRoutes.tcfEoEntry);
-                        },
-                      )
-                    : AppButton(
-                        // Atteint uniquement en mode examen blanc complet
-                        // après la 3ème tâche (cf. `_navigateToBilan` qui
-                        // détecte `fullExamId` et retourne au progress).
-                        // En session 3-tâches autonome, on n'arrive plus
-                        // jamais sur ce screen — le bilan détaillé est
-                        // poussé directement par `eo_finished_screen`.
-                        label: _bilanCtaLabel,
-                        icon: LucideIcons.chartColumn,
-                        onPressed: () => _navigateToBilan(context, ref),
-                      ),
-          ),
-        ),
       ],
     );
   }
@@ -336,8 +336,7 @@ class _FailedBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.circleAlert,
-              size: 40, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
             "L'évaluation n'a pas abouti",

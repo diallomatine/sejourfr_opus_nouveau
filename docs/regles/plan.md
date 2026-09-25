@@ -405,6 +405,9 @@
   (`ProductionPipelineAsyncRunner`) — rien n'est figé à l'écriture, donc
   l'absence du bloc est un **état normal** et la lecture suivante le rend, sans
   erreur ni rejeu (même sursis côté fronts que le plan d'action).
+  ⚠️ **Plus affiché par aucun front depuis le 2026-09-25** (demande du
+  propriétaire : la carte « X confirmée · Voir » est retirée du rapport web et
+  mobile) ; le champ reste servi.
   **Aucun libellé serveur** : le bloc expose des faits, la phrase appartient aux
   fronts — et un transfert manqué ne se dit **jamais** « vous avez perdu votre
   progression », mais « réussi en exercice ciblé, pas encore automatique en

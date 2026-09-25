@@ -2371,15 +2371,12 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
   `fullTcfExamApi.start(slotNumber)` → `/examens-blancs/tcf/{id}` (celui de
   `TcfFullExamBriefingSheet`), 403 → `handleStartFailure` → `PaywallSheet`.
   `locked` : cadenas + `SKILL_PREMIUM_HREF`, **sans rien masquer**.
-- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
-  `ProductionSubmissionDto.planChange` → `PlanChangeLine`, **une ligne** en fin
-  de rapport (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers
-  `/plan`), les deux moitiés indépendamment nullables. **`planChange === null`
-  est un cas NORMAL** (rien n'a bougé, ou observations pas encore écrites) :
-  rien ne s'affiche, aucun spinner. Les observations arrivant **après** le plan
-  d'action, `ProductionResults` étend la **même** boucle de polling dans le
-  **même** sursis (`ACTION_PLAN_GRACE_MS`, même `graceStartedAt`) — pas de
-  seconde boucle, pas une seconde de plus, et **aucun indicateur d'attente**.
+- **« Ce que ça change dans le Plan » n'est PLUS affiché sur le rapport d'une tâche**
+  (retiré le 2026-09-25, demande du propriétaire) : `PlanChangeLine` et ses styles
+  `.planChange*` sont supprimés, et le polling de `ProductionResults` n'attend plus
+  `planChange` (le champ reste sur `ProductionSubmissionDto`, miroir du DTO). Même
+  passe : le bouton bas « Retour » / « Retour aux tâches » est retiré — le retour de
+  `SkillShell` (`backHref`) est la seule sortie. **Ne pas réintroduire.**
 - **`priority.explanation` n'est affiché sur AUCUNE carte d'action** — ni
   « À faire maintenant » (`TodayCard`), ni les étapes du parcours, ni la carte
   « Votre priorité du jour » du tableau de bord. C'est le constat d'une

@@ -40,7 +40,8 @@ class EeResultsScreen extends ConsumerStatefulWidget {
   final int taskIndex;
 
   /// True quand on consulte les résultats depuis l'historique : on cache les
-  /// CTAs "Passer a la tache N+1" / "Voir mon bilan" au profit d'un simple "Retour".
+  /// CTAs "Passer a la tache N+1" / "Voir mon bilan" : la fleche de la barre
+  /// d'app est alors la seule sortie.
   final bool isHistory;
 
   @override
@@ -220,7 +221,14 @@ class _ResultsBody extends ConsumerWidget {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+            // Sans barre basse (historique), la liste porte elle-même la
+            // marge de l'indicateur d'accueil.
+            padding: EdgeInsets.fromLTRB(
+              18,
+              8,
+              18,
+              20 + (isHistory ? MediaQuery.paddingOf(context).bottom : 0),
+            ),
             children: [
               EvaluationReport(
                 evaluation: eval,
@@ -228,52 +236,44 @@ class _ResultsBody extends ConsumerWidget {
                 eyebrow: 'Expression écrite · Tâche ${taskIndex + 1}',
                 productionText: submission.texteSoumis,
                 targetLevel: ref.watch(userTargetLevelProvider),
-                planChange: submission.planChange,
                 actionPlanPending: actionPlanPending,
               ),
             ],
           ),
         ),
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(top: BorderSide(color: AppColors.line2, width: 1)),
+        // Consultation depuis l'historique : la flèche de la barre d'app est
+        // la seule sortie, aucune barre basse.
+        if (!isHistory)
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              border: Border(top: BorderSide(color: AppColors.line2, width: 1)),
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            child: SafeArea(
+              top: false,
+              child: _isSingleTask
+                  ? AppButton(
+                      label: 'Retour à l\'entraînement',
+                      icon: LucideIcons.layoutGrid,
+                      onPressed: () {
+                        // Retour à l'écran d'entraînement Expression écrite
+                        // (onglet Entraînement, carrousel de situations).
+                        ref.read(eeSessionProvider.notifier).reset();
+                        context.go(AppRoutes.tcfEeEntry);
+                      },
+                    )
+                  : AppButton(
+                      // Atteint uniquement en mode examen blanc complet
+                      // (fullExamId != null) ; en session 3-tâches autonome,
+                      // `ee_briefing_writing_screen` push directement le
+                      // bilan détaillé après T3.
+                      label: _bilanCtaLabel,
+                      icon: LucideIcons.chartColumn,
+                      onPressed: () => _navigateToBilan(context, ref),
+                    ),
+            ),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          child: SafeArea(
-            top: false,
-            child: isHistory
-                ? AppButton(
-                    label: 'Retour',
-                    icon: LucideIcons.arrowLeft,
-                    onPressed: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  )
-                : _isSingleTask
-                    ? AppButton(
-                        label: 'Retour à l\'entraînement',
-                        icon: LucideIcons.layoutGrid,
-                        onPressed: () {
-                          // Retour à l'écran d'entraînement Expression écrite
-                          // (onglet Entraînement, carrousel de situations).
-                          ref.read(eeSessionProvider.notifier).reset();
-                          context.go(AppRoutes.tcfEeEntry);
-                        },
-                      )
-                    : AppButton(
-                        // Atteint uniquement en mode examen blanc complet
-                        // (fullExamId != null) ; en session 3-tâches autonome,
-                        // `ee_briefing_writing_screen` push directement le
-                        // bilan détaillé après T3.
-                        label: _bilanCtaLabel,
-                        icon: LucideIcons.chartColumn,
-                        onPressed: () => _navigateToBilan(context, ref),
-                      ),
-          ),
-        ),
       ],
     );
   }
@@ -306,8 +306,7 @@ class _FailedBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.circleAlert,
-              size: 40, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
             "L'évaluation n'a pas abouti",

@@ -861,15 +861,14 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
   `FullTcfExamRepository.start(slotNumber:)` puis `AppRoutes.tcfFullExamProgress`
   (celui de `TcfFullExamsView`), 403 → `showPaywallOrError`. `locked` :
   `PremiumLockTag` + `showTcfLockPaywall`, **sans rien masquer**.
-- **« Ce que ça change dans le Plan » sur le rapport d'une tâche** :
-  `ProductionSubmissionDto.planChange` → `PlanChangeLine`
-  (`tcf_production/widgets/`), **une ligne** en fin de `EvaluationReport`
-  (« X confirmée » / « Nouvelle priorité : Y. » + « Voir » vers `/plan`), les deux
-  moitiés indépendamment nullables. **`null` est un cas NORMAL** : rien ne s'affiche,
-  aucun indicateur. Les observations arrivant **après** le plan d'action,
-  `ProductionResultPollGuard` prolonge la **même** boucle dans le **même** sursis
-  (`kActionPlanGrace`, même échéance) — pas de seconde boucle, et `awaitsActionPlan`
-  reste réservé au plan d'action.
+- **« Ce que ça change dans le Plan » n'est PLUS affiché sur le rapport d'une tâche**
+  (retiré le 2026-09-25, demande du propriétaire) : `PlanChangeLine` (« X confirmée » +
+  « Voir ») est supprimé, et `ProductionResultPollGuard` n'attend plus
+  `planChange`. Le champ reste sur `ProductionSubmissionDto` (miroir du DTO). Même
+  passe : le rapport rouvert depuis l'historique (`isHistory`) n'a plus de barre basse
+  « Retour » — la flèche de `ProductionAppHeader` est la seule sortie, la liste porte
+  la marge de l'indicateur d'accueil. Les CTA du flux live (« Retour à
+  l'entraînement », « Continuer l'examen blanc ») restent. **Ne pas réintroduire.**
 - **Le Plan reste visible en entier même verrouillé** (freemium Compétences, cf. § dédié) :
   `locked` sur `LearningPlanPriority` / `LearningPlanSkill` / `PlanRecommendedExercise`
   n'ôte **aucune** information — ni une priorité, ni une compétence observée, ni un
