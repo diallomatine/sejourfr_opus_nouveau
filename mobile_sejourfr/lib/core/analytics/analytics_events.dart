@@ -211,9 +211,12 @@ const Map<AnalyticsEvent, AnalyticsContext> kAnalyticsEventContext = {
   AnalyticsEvent.diagnosticCeCompleted: AnalyticsContext.diagnostic,
   AnalyticsEvent.diagnosticAccountRequired: AnalyticsContext.diagnostic,
   AnalyticsEvent.diagnosticReportViewed: AnalyticsContext.diagnostic,
-  AnalyticsEvent.planOpened: AnalyticsContext.diagnosticAndPlan,
+  // 🛑 Le serveur ADMET la run sur ces deux-là, mais le client n'envoie que le
+  // parcours : c'est le serveur qui résout journey → run fondatrice (Q8), sans
+  // croire un runId venu du client. Même choix que le web.
+  AnalyticsEvent.planOpened: AnalyticsContext.plan,
   AnalyticsEvent.planExerciseStarted: AnalyticsContext.plan,
-  AnalyticsEvent.planUnlockClicked: AnalyticsContext.diagnosticAndPlan,
+  AnalyticsEvent.planUnlockClicked: AnalyticsContext.plan,
 };
 
 /// Chemins admis par le serveur. Le mobile n'a pas d'URL, mais ses écrans ont

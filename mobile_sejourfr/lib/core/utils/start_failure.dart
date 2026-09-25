@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
 import '../theme/app_theme.dart';
+import '../analytics/analytics_events.dart';
 import '../widgets/paywall_sheet.dart';
 
 /// Réaction attendue à l'échec du démarrage d'un attempt (série, examen blanc
@@ -28,14 +29,20 @@ StartFailure classifyStartFailure(Object error) =>
 /// affiche le message du backend en SnackBar. [onForbidden] est exécuté juste
 /// avant l'ouverture du paywall (ex. fermer le briefing pour ne pas empiler
 /// deux feuilles). Retourne `true` si le paywall a été ouvert.
+///
+/// [ctaLocation] / [journeyId] : l'origine de l'achat qui pourrait partir de
+/// l'offre ouverte (Q12) — `LOCKED_PLAN` + le parcours quand le geste part du
+/// Plan. Absents : l'intention part en `OTHER`.
 bool showPaywallOrError(
   BuildContext context,
   Object error, {
   VoidCallback? onForbidden,
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) {
   if (classifyStartFailure(error) == StartFailure.paywall) {
     onForbidden?.call();
-    showPaywallSheet(context);
+    showPaywallSheet(context, ctaLocation: ctaLocation, journeyId: journeyId);
     return true;
   }
   ScaffoldMessenger.of(context).showSnackBar(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
@@ -10,6 +11,7 @@ import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
 import '../tcf_production/production_exam_launcher.dart';
+import 'learning_plan_provider.dart' show planJourneyId;
 
 /// Démarre le **jalon** du Plan — extrait de `PlanMilestoneCard` quand la
 /// séance a eu besoin de lancer le même examen depuis une ligne de liste.
@@ -34,6 +36,8 @@ Future<void> startPlanMilestone(
       ref,
       epreuve: milestone.epreuve,
       slotNumber: milestone.slotNumber,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      journeyId: planJourneyId(ref),
     );
     return;
   }
@@ -50,6 +54,11 @@ Future<void> startPlanMilestone(
     );
   } catch (error) {
     if (!context.mounted) return;
-    showPaywallOrError(context, error);
+    showPaywallOrError(
+      context,
+      error,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      journeyId: planJourneyId(ref),
+    );
   }
 }

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
+import 'learning_plan_provider.dart' show planJourneyId;
 
 /// Démarre une **série ciblée de compréhension** (CO / CE) — le seul endroit
 /// qui le fasse.
@@ -45,6 +47,13 @@ Future<void> startTargetedSeries(
     if (!context.mounted) return;
     // 403 = verrou freemium appliqué par le backend ; le reste est un message.
     // La règle vit dans `start_failure.dart`, jamais recopiée ici.
-    showPaywallOrError(context, error);
+    // Une série ciblée part toujours du Plan : l'offre ouverte est un CTA du
+    // Plan (`LOCKED_PLAN` + le parcours).
+    showPaywallOrError(
+      context,
+      error,
+      ctaLocation: AnalyticsCtaLocation.lockedPlan,
+      journeyId: planJourneyId(ref),
+    );
   }
 }

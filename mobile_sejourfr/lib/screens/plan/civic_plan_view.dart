@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/enums.dart';
@@ -375,7 +376,13 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     switch (source) {
       case CivicNowUnite(code: final code):
         setState(() => _enCours = code);
-        await startCivicUniteSerie(context, ref, code);
+        await startCivicUniteSerie(
+          context,
+          ref,
+          code,
+          ctaLocation: AnalyticsCtaLocation.lockedPlan,
+          journeyId: planJourneyId(ref, civique: true),
+        );
       case CivicNowCible(cible: final cible):
         setState(() => _enCours = cible.id);
         await startCivicSerie(
@@ -383,6 +390,8 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
           ref,
           cible,
           onVerrou: () => unawaited(_ouvrirOffre()),
+          ctaLocation: AnalyticsCtaLocation.lockedPlan,
+          journeyId: planJourneyId(ref, civique: true),
         );
     }
     if (!mounted) return;

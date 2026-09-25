@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/router/app_router.dart';
@@ -28,13 +29,15 @@ Future<void> startCivicSerie(
   WidgetRef ref,
   CivicPlanCible cible, {
   VoidCallback? onVerrou,
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) async {
   if (cible.locked) {
     if (onVerrou != null) {
       onVerrou();
       return;
     }
-    await openCivicOffer(context);
+    await openCivicOffer(context, ctaLocation: ctaLocation, journeyId: journeyId);
     return;
   }
   try {
@@ -47,7 +50,12 @@ Future<void> startCivicSerie(
     context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
   } catch (e) {
     if (!context.mounted) return;
-    showPaywallOrError(context, e);
+    showPaywallOrError(
+      context,
+      e,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
   }
 }
 
@@ -65,8 +73,10 @@ Future<void> startCivicSerie(
 Future<void> startCivicUniteSerie(
   BuildContext context,
   WidgetRef ref,
-  String uniteCode,
-) async {
+  String uniteCode, {
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
+}) async {
   try {
     final attempt =
         await ref.read(civicPlanRepositoryProvider).serieSurUnite(uniteCode);
@@ -77,11 +87,23 @@ Future<void> startCivicUniteSerie(
     context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
   } catch (e) {
     if (!context.mounted) return;
-    showPaywallOrError(context, e);
+    showPaywallOrError(
+      context,
+      e,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
   }
 }
 
 /// **La seule porte d'achat du civique** : l'écran d'offre, qui porte les vrais
 /// passes et leurs prix du store.
-Future<void> openCivicOffer(BuildContext context) =>
-    showPaywallSheet(context);
+///
+/// [ctaLocation] / [journeyId] : `LOCKED_PLAN` + le parcours quand le geste
+/// part du Plan civique (Q12) ; absents depuis « Réviser ».
+Future<void> openCivicOffer(
+  BuildContext context, {
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
+}) =>
+    showPaywallSheet(context, ctaLocation: ctaLocation, journeyId: journeyId);

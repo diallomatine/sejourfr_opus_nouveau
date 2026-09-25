@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/repositories.dart';
 import '../../../core/models/attempt_models.dart';
 import '../../../core/models/diagnostic_models.dart';
@@ -562,7 +563,11 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       // rester expliqué à l'écran. On garde donc sa CLASSIFICATION, qui est
       // l'autorité (`classifyStartFailure`), et on pose la phrase soi-même.
       if (classifyStartFailure(error) == StartFailure.paywall) {
-        unawaited(showPaywallSheet(context));
+        unawaited(showPaywallSheet(
+          context,
+          ctaLocation: AnalyticsCtaLocation.lockedPlan,
+          journeyId: widget.journey?.journeyId,
+        ));
       } else {
         setState(() => _erreur = kJourneyNextStepError);
       }

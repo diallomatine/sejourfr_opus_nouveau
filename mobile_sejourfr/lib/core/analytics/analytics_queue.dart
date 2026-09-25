@@ -28,7 +28,6 @@ class QueuedAnalyticsEvent {
     this.diagnosticType,
     this.journeyId,
     this.firstTouch,
-    this.refusals = 0,
   });
 
   final String eventId;
@@ -48,23 +47,6 @@ class QueuedAnalyticsEvent {
   /// La première touche du visiteur, portée par l'événement qui l'a réclamée.
   final Map<String, String>? firstTouch;
 
-  /// Nombre de lots refusés en bloc (400) qui contenaient cet événement.
-  final int refusals;
-
-  QueuedAnalyticsEvent withRefusal() => QueuedAnalyticsEvent(
-        eventId: eventId,
-        event: event,
-        occurredAt: occurredAt,
-        anonymousId: anonymousId,
-        sessionId: sessionId,
-        path: path,
-        properties: properties,
-        diagnosticRunId: diagnosticRunId,
-        diagnosticType: diagnosticType,
-        journeyId: journeyId,
-        firstTouch: firstTouch,
-        refusals: refusals + 1,
-      );
 
   /// La forme d'un événement dans le lot.
   Map<String, Object?> toWire() => {
@@ -91,7 +73,6 @@ class QueuedAnalyticsEvent {
         'diagnosticType': diagnosticType,
         'journeyId': journeyId,
         'firstTouch': firstTouch,
-        'refusals': refusals,
       };
 
   static QueuedAnalyticsEvent? fromJson(Object? json) {
@@ -126,7 +107,6 @@ class QueuedAnalyticsEvent {
       diagnosticType: json['diagnosticType'] as String?,
       journeyId: json['journeyId'] as String?,
       firstTouch: strings(json['firstTouch']),
-      refusals: (json['refusals'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -142,10 +122,11 @@ class QueuedAnalyticsEvent {
 /// - **Envoyée** au retour réseau (toute réponse du serveur, `onReachable`), à
 ///   la reprise de l'app, périodiquement, et peu après chaque ajout ; par lots
 ///   de [batchSize] au plus, regroupés par `(anonymousId, sessionId)`.
-/// - **Purgée seulement après un 202**, rejets individuels compris (renvoyés,
-///   ils seraient refusés encore). Réseau, 429, 5xx : on garde et on réessaie
-///   avec un délai croissant. Un lot refusé en bloc (400) est réessayé
-///   [maxRefusals] fois, puis abandonné : ce refus-là ne se répare pas seul.
+/// - **Purgée après un 202**, rejets individuels compris (renvoyés, ils
+///   seraient refusés encore). Réseau, 429, 5xx : on garde et on réessaie avec
+///   les **mêmes** `eventId` et un délai croissant. Un lot refusé en bloc
+///   (400, ou tout autre 4xx) est **abandonné** : renvoyé à l'identique, il
+///   échouerait toujours.
 ///
 /// Best-effort de bout en bout : rien ici ne lève vers un écran.
 class AnalyticsQueue {
@@ -157,7 +138,6 @@ class AnalyticsQueue {
   static const String _key = 'sejourfr.analytics.queue';
   static const int maxEvents = 200;
   static const int batchSize = 50;
-  static const int maxRefusals = 3;
 
   /// Marge sous les 168 h du serveur : un événement plus vieux serait rejeté.
   static const Duration maxAge = Duration(hours: 160);
@@ -290,11 +270,11 @@ class AnalyticsQueue {
         _failed(network: status == 0 || status < 0);
         return false;
       }
-      // Lot refusé en bloc : ce n'est pas une panne, rejouer à l'infini ne
-      // réparerait rien. Quelques essais, puis on abandonne ces événements.
-      await _refuse(sent);
-      _failed(network: false);
-      return false;
+      // Lot refusé en bloc : ce n'est pas une panne, et le renvoyer à
+      // l'identique échouerait toujours. On l'abandonne et on continue.
+      if (kDebugMode) debugPrint('Analytics : lot refusé ($status), abandonné.');
+      await _remove(sent);
+      return true;
     }
   }
 
@@ -319,15 +299,6 @@ class AnalyticsQueue {
   Future<void> _remove(Set<String> ids) async {
     final events = await _load();
     events.removeWhere((e) => ids.contains(e.eventId));
-    await _persist(events);
-  }
-
-  Future<void> _refuse(Set<String> ids) async {
-    final events = await _load();
-    for (var i = 0; i < events.length; i++) {
-      if (ids.contains(events[i].eventId)) events[i] = events[i].withRefusal();
-    }
-    events.removeWhere((e) => e.refusals >= maxRefusals);
     await _persist(events);
   }
 

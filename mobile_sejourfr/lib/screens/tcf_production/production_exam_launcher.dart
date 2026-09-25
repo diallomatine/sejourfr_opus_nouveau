@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/models/enums.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
@@ -36,6 +37,8 @@ Future<void> startProductionExam(
   WidgetRef ref, {
   required EpreuveType epreuve,
   required int slotNumber,
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) async {
   final module = epreuve == EpreuveType.tcfEo
       ? TcfProductionModule.eo
@@ -51,6 +54,11 @@ Future<void> startProductionExam(
     context.push(productionSessionPath(module));
   } catch (error) {
     if (!context.mounted) return;
-    showPaywallOrError(context, error);
+    showPaywallOrError(
+      context,
+      error,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
   }
 }

@@ -11,7 +11,6 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/models/civic_diagnostic_models.dart';
-import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/tcf_diagnostic_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -299,8 +298,6 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
       planCode: pass?.code,
       displayedPriceCents: pass == null ? null : (pass.price * 100).round(),
       journeyId: _journeyId,
-      diagnosticRun:
-          _civique ? DiagnosticRunType.civique : DiagnosticRunType.quickTcf,
     );
     unawaited(_ouvrirOffre());
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
@@ -55,6 +56,8 @@ Future<void> openRecommendedExercise(
   PlanRecommendedExercise exercise, {
   SkillMasteryState? masteryBefore,
   VoidCallback? onVerrou,
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) async {
   // Garde de dernier recours : le serveur décide du verrou, l'app ne le devine
   // pas. Les cartes ouvrent déjà le paywall d'elles-mêmes.
@@ -63,7 +66,11 @@ Future<void> openRecommendedExercise(
       onVerrou();
       return;
     }
-    await showTcfLockPaywall(context);
+    await showTcfLockPaywall(
+      context,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
     return;
   }
   // La compréhension n'a ni sujet de production ni petit sujet : elle se
@@ -85,7 +92,14 @@ Future<void> openRecommendedExercise(
       : TcfProductionModule.ee;
 
   if (exercise.kind == PlanExerciseKind.reassessment) {
-    await _openReassessment(context, ref, exercise, module);
+    await _openReassessment(
+      context,
+      ref,
+      exercise,
+      module,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    );
     return;
   }
 
@@ -108,8 +122,10 @@ Future<void> _openReassessment(
   BuildContext context,
   WidgetRef ref,
   PlanRecommendedExercise exercise,
-  TcfProductionModule module,
-) async {
+  TcfProductionModule module, {
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
+}) async {
   final taskId = exercise.productionTaskId;
   // Vérification sans sujet : on ouvre la liste des sujets de sa tâche plutôt
   // que de démarrer une session vide.
@@ -136,7 +152,7 @@ Future<void> _openReassessment(
     if (!context.mounted) return;
     final err = ApiClient.toApiException(error);
     if (err.isForbidden) {
-      showPaywallSheet(context);
+      showPaywallSheet(context, ctaLocation: ctaLocation, journeyId: journeyId);
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(

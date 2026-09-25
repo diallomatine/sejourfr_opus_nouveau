@@ -250,12 +250,10 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
   Future<void> _ouvrirOffre() => showPaywallSheet(
         context,
         ctaLocation: AnalyticsCtaLocation.lockedPlan,
-        journeyId: ref
-            .read((ref.read(parcoursCiviqueProvider) ?? false)
-                ? journeyCiviqueProvider
-                : journeyProvider)
-            .valueOrNull
-            ?.journeyId,
+        journeyId: planJourneyId(
+          ref,
+          civique: ref.read(parcoursCiviqueProvider) ?? false,
+        ),
       );
 
   Future<void> _lancer(int index) async {
@@ -280,7 +278,7 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
       // l'autorité, et on pose la phrase soi-même (même choix que la fin de
       // cycle, `plan_cycle_section.dart`).
       if (classifyStartFailure(error) == StartFailure.paywall) {
-        unawaited(showPaywallSheet(context));
+        unawaited(_ouvrirOffre());
       } else {
         setState(() => _erreur = kJourneyEtapeStartError);
       }

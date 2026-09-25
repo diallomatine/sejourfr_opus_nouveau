@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
@@ -38,9 +39,16 @@ class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
     this.onStart,
     this.eyebrow,
     this.durationLabel,
+    this.ctaLocation,
+    this.journeyId,
   });
 
   final TcfQcmModule module;
+
+  /// L'origine d'un achat qui partirait de ce sas (Q12) : `LOCKED_PLAN` + le
+  /// parcours quand il est ouvert depuis le Plan. Absents : `OTHER`.
+  final AnalyticsCtaLocation? ctaLocation;
+  final String? journeyId;
 
   /// Slot d'examen visé dans la grille (1..10). Propagé au backend pour que
   /// refaire l'examen N préserve la position du slot N. Cf. V110.
@@ -93,7 +101,11 @@ class _ModuleExamBriefingSheetState
       // On ferme le briefing avant de montrer le paywall pour éviter
       // l'empilement de deux sheets.
       Navigator.of(context).pop();
-      showPaywallSheet(context);
+      showPaywallSheet(
+        context,
+        ctaLocation: widget.ctaLocation,
+        journeyId: widget.journeyId,
+      );
       return;
     }
 
@@ -120,8 +132,13 @@ class _ModuleExamBriefingSheetState
     } catch (e) {
       if (!mounted) return;
       // On ferme le briefing avant le paywall pour éviter deux feuilles empilées.
-      showPaywallOrError(context, e,
-          onForbidden: () => Navigator.of(context).pop());
+      showPaywallOrError(
+        context,
+        e,
+        onForbidden: () => Navigator.of(context).pop(),
+        ctaLocation: widget.ctaLocation,
+        journeyId: widget.journeyId,
+      );
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -227,6 +244,8 @@ void showModuleExamBriefingSheet(
   VoidCallback? onStart,
   String? eyebrow,
   String? durationLabel,
+  AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -238,6 +257,8 @@ void showModuleExamBriefingSheet(
       onStart: onStart,
       eyebrow: eyebrow,
       durationLabel: durationLabel,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
     ),
   );
 }

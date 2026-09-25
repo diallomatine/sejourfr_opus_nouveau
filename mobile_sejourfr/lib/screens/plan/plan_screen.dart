@@ -9,7 +9,6 @@ import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
-import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/preparation_models.dart';
@@ -70,8 +69,8 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
   bool _planOuvertTrace = false;
 
   /// Étape 5 du tunnel « Suivi » (« plan vu ») : l'ouverture du Plan, avec le
-  /// `journeyId` servi du parcours affiché (`plan_id`, Q8) et la run du
-  /// diagnostic de ce module que l'appareil connaît pour ce compte. Parcours
+  /// `journeyId` servi du parcours affiché (`plan_id`, Q8) — **et rien
+  /// d'autre** : le serveur résout lui-même la run fondatrice. Parcours
   /// injoignable ⇒ l'événement part quand même, sans contexte : on ne perd pas
   /// la mesure d'usage que l'ancien `page_views` portait déjà.
   void _tracerPlanOuvert(bool civique) {
@@ -92,8 +91,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
             AnalyticsEvent.planOpened,
             path: AnalyticsPath.plan,
             journeyId: journeyId,
-            diagnosticRun:
-                civique ? DiagnosticRunType.civique : DiagnosticRunType.quickTcf,
           );
     }());
   }

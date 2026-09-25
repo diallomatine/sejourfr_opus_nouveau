@@ -173,3 +173,11 @@ final journeyStepProvider =
   ref.watch(accesRevisionProvider);
   return ref.watch(learningPlanRepositoryProvider).stepDetail(stepId);
 });
+
+/// **Le parcours affiché, pour l'origine d'un achat parti du Plan** (Q12, D32) :
+/// avec `LOCKED_PLAN`, c'est ce qui rattache l'achat au tunnel. Lu dans le
+/// cache — jamais un appel de plus ; `null` s'il n'est pas chargé.
+String? planJourneyId(WidgetRef ref, {bool civique = false}) => ref
+    .read(civique ? journeyCiviqueProvider : journeyProvider)
+    .valueOrNull
+    ?.journeyId;

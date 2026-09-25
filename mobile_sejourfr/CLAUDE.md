@@ -3877,11 +3877,15 @@ canonique vit côté backend.
   `(anonymousId, sessionId)` : au lancement, à la reprise, en passant en arrière-plan, toutes
   les 60 s, 2 s après un ajout, et au **retour réseau** (`ApiClient.onReachable` — toute
   réponse du serveur). Purge après **202** (rejets individuels compris) ; réseau / 429 / 5xx ⇒
-  backoff 5 s → 5 min ; lot refusé en bloc ⇒ 3 essais puis abandon. 🛑 L'unitaire
+  même lot, mêmes `eventId`, backoff 5 s → 5 min ; lot refusé en bloc (400/4xx) ⇒ abandonné
+  (renvoyé à l'identique, il échouerait toujours). 🛑 L'unitaire
   `POST /api/public/analytics/events` n'est plus appelé.
 - **Registre** (`analytics_events.dart`) aligné sur `AnalyticsEvent` serveur : +
   `CIVIQUE_CTA_CLICKED`, `PLAN_UNLOCK_CLICKED`, `displayedPriceCents`, et
   `kAnalyticsEventContext` (quels événements portent run / parcours — le reste est filtré).
+  🛑 Les événements du Plan (`PLAN_OPENED`, `PLAN_UNLOCK_CLICKED`, `PLAN_EXERCISE_STARTED`)
+  portent le **`journeyId` seul**, jamais la run : le serveur résout journey → run
+  fondatrice (Q8).
   🛑 Pas de `DIAGNOSTIC_SUBJECT_VIEWED` : l'étape 1 se lit sur la run.
 - **La run du diagnostic** : `DiagnosticRunTracker` (`core/analytics/diagnostic_run_tracker.dart`)
   est l'**unique** stockage run + `claimToken` (un enregistrement par type, `SharedPreferences`,
@@ -3892,13 +3896,15 @@ canonique vit côté backend.
   le brouillon est effacé (la run reste connue pour les événements).
   🛑 **Le `claimToken` ne sort du tracker que vers `submit` et l'auth** ; les événements ne
   reçoivent que `runIdFor(type)`, et seulement si la run est celle du compte connecté.
-- **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + la run d'invité la plus
-  récente dont le jeton vaut encore (`claimForAuth`), puis `onAuthenticated` la marque au compte
-  **avant** le passage en connecté.
+- **Auth** (`login`, `register`, `google`, `apple`) : `anonymousId` + la run **d'invité** la plus
+  récente dont le jeton vaut encore (`claimForAuth`) ; le jeton est **conservé** après l'auth
+  (lot 3b). `onAuthenticated` marque la run au **premier** compte qui l'a transmise, **avant** le
+  passage en connecté.
 - **Plan** : `Journey.journeyId` (miroir de `JourneyDto.journeyId`) accompagne `PLAN_OPENED`
   (une fois par ouverture, quand le parcours affiché est connu), `PLAN_EXERCISE_STARTED` et
-  `PLAN_UNLOCK_CLICKED` (bouton de `PlanUnlockScreen`, avec `planCode` + prix affiché du pass
-  d'entrée, `passFromPlan`). `DIAGNOSTIC_REPORT_VIEWED` porte la run (TCF rapide, civique).
+  `PLAN_UNLOCK_CLICKED` (bouton prix de `PlanUnlockScreen`, `planCode` + prix affiché du pass
+  d'entrée via `passFromPlan` ; rien si le catalogue est injoignable).
+  `DIAGNOSTIC_REPORT_VIEWED` porte la run (TCF rapide, civique).
 
 ## In-App Purchase (lot 4d) — Apple StoreKit + Google Play Billing
 
@@ -3970,8 +3976,11 @@ d'ouvrir la feuille ; `verify-receipt` le renvoie (`purchaseIntentId`, avec `amo
 vérification réussie d'un achat `purchased`. 🛑 Un échec de création **ne bloque jamais**
 l'achat (origine `UNKNOWN`), et `appAccountToken` / `obfuscatedAccountId` /
 `obfuscatedProfileId` ne sont **jamais** détournés. Le CTA suit `showPaywallSheet(ctaLocation:,
-journeyId:)` jusqu'à `PaywallScreen` ; sans CTA connu ⇒ `OTHER`. Les « Débloquer » du Plan
-(`PlanUnlockScreen`, lignes verrouillées, étape de séries) passent `LOCKED_PLAN` + le parcours.
+journeyId:)` jusqu'à `PaywallScreen` ; sans CTA connu ⇒ `OTHER`. 🛑 **Toute** offre ouverte
+depuis le Plan passe `LOCKED_PLAN` + le parcours (`planJourneyId`, `learning_plan_provider.dart`) :
+écran de déblocage (et donc les cartes de l'Accueil, la reco d'épreuve), lignes verrouillées,
+jalon, série ciblée, mesure d'un domaine (sas CO/CE et EE/EO), fin de cycle, écran d'étape,
+séries civiques du Plan — y compris via `showPaywallOrError(ctaLocation:, journeyId:)` sur 403.
 
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
 sous les cartes du paywall).

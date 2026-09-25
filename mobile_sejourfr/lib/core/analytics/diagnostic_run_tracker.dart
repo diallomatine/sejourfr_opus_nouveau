@@ -25,6 +25,7 @@ class DiagnosticRunEntry {
     this.claimToken,
     this.claimTokenExpiresAt,
     this.ownerUserId,
+    this.createdAsGuest = false,
     this.submitted = false,
     this.closed = false,
   });
@@ -49,6 +50,11 @@ class DiagnosticRunEntry {
   /// le jeton. Sert à ne jamais attacher la run d'un autre à un événement.
   final String? ownerUserId;
 
+  /// Passage commencé **sans compte** : seul ce cas se rattache par jeton à
+  /// l'authentification. Une run créée connectée est déjà portée par son
+  /// compte (D25).
+  final bool createdAsGuest;
+
   /// « Soumis » déjà envoyé (TCF rapide) : on ne le rejoue pas.
   final bool submitted;
 
@@ -58,10 +64,13 @@ class DiagnosticRunEntry {
 
   final DateTime touchedAt;
 
+  /// Transmissible à l'auth : run d'invité, jeton encore valable. 🛑 Le jeton
+  /// est **conservé** après l'auth (lien web → app du lot 3b) : une run déjà
+  /// claimée peut être renvoyée, le serveur l'ignore sans erreur.
   bool claimUsable(DateTime now) =>
+      createdAsGuest &&
       diagnosticRunId != null &&
       claimToken != null &&
-      ownerUserId == null &&
       (claimTokenExpiresAt == null || claimTokenExpiresAt!.isAfter(now));
 
   DiagnosticRunEntry copyWith({
@@ -80,6 +89,7 @@ class DiagnosticRunEntry {
         claimToken: claimToken ?? this.claimToken,
         claimTokenExpiresAt: claimTokenExpiresAt ?? this.claimTokenExpiresAt,
         ownerUserId: ownerUserId ?? this.ownerUserId,
+        createdAsGuest: createdAsGuest,
         submitted: submitted ?? this.submitted,
         closed: closed ?? this.closed,
         touchedAt: touchedAt ?? this.touchedAt,
@@ -92,6 +102,7 @@ class DiagnosticRunEntry {
         'claimToken': claimToken,
         'claimTokenExpiresAt': claimTokenExpiresAt?.toIso8601String(),
         'ownerUserId': ownerUserId,
+        'createdAsGuest': createdAsGuest,
         'submitted': submitted,
         'closed': closed,
         'touchedAt': touchedAt.toIso8601String(),
@@ -109,6 +120,7 @@ class DiagnosticRunEntry {
       claimTokenExpiresAt:
           DateTime.tryParse(json['claimTokenExpiresAt'] as String? ?? ''),
       ownerUserId: json['ownerUserId'] as String?,
+      createdAsGuest: json['createdAsGuest'] as bool? ?? false,
       submitted: json['submitted'] as bool? ?? false,
       closed: json['closed'] as bool? ?? false,
       touchedAt: DateTime.tryParse(json['touchedAt'] as String? ?? '') ??
@@ -183,10 +195,12 @@ class DiagnosticRunTracker {
             sessionId == null ||
             current.sessionId == sessionId);
     if (current != null && !current.closed && sameSession) return current;
+    final owner = _currentUserId();
     final fresh = DiagnosticRunEntry(
       clientKey: SubmissionKeys.newKey(),
       sessionId: sessionId,
-      ownerUserId: _currentUserId(),
+      ownerUserId: owner,
+      createdAsGuest: owner == null,
       touchedAt: now,
     );
     await _write(type, fresh);
@@ -250,8 +264,9 @@ class DiagnosticRunTracker {
   // ---------------------------------------------------------------------------
 
   /// La run à transmettre à `login` / `register` / `google` / `apple`, ou
-  /// `null`. Le serveur n'en rattache qu'une : on prend le passage **le plus
-  /// récemment touché** dont le jeton vaut encore et qu'aucun compte ne porte.
+  /// `null`. Le serveur n'en rattache qu'une : on prend la run **d'invité la
+  /// plus récemment touchée** dont le jeton vaut encore (même règle que le
+  /// web).
   Future<DiagnosticRunClaim?> claimForAuth() async {
     try {
       final now = DateTime.now();
@@ -286,6 +301,9 @@ class DiagnosticRunTracker {
         if (entry == null || entry.diagnosticRunId != claim.diagnosticRunId) {
           continue;
         }
+        // 🛑 Premier compte seulement : une run déjà claimée, renvoyée par un
+        // autre compte, ne change pas de porteur (le serveur l'a refusée).
+        if (entry.ownerUserId != null) continue;
         await _write(type, entry.copyWith(ownerUserId: userId));
       }
     } catch (_) {

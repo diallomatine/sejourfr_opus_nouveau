@@ -17,7 +17,7 @@ import '../tcf_production/competences/competences_nav.dart';
 import '../tcf_production/production_exam_launcher.dart';
 import '../tcf_production/recommended_exercise_launcher.dart';
 import '../tcf_production/tcf_production_module.dart';
-import 'learning_plan_provider.dart' show journeyProvider;
+import 'learning_plan_provider.dart' show journeyProvider, planJourneyId;
 import 'plan_labels.dart';
 import 'plan_milestone_launcher.dart';
 import 'plan_seance_state.dart';
@@ -72,6 +72,8 @@ Future<void> openPlanExercise(
     ref,
     exercise,
     masteryBefore: masteryBefore,
+    ctaLocation: AnalyticsCtaLocation.lockedPlan,
+    journeyId: planJourneyId(ref),
   );
 }
 
@@ -264,6 +266,8 @@ void openPlanAssessment(
         context,
         module,
         slotNumber: assessment.slotNumber,
+        ctaLocation: AnalyticsCtaLocation.lockedPlan,
+        journeyId: planJourneyId(ref),
       );
     case PlanDomainAssessmentKind.productionMockExam:
       final module = assessment.epreuve == EpreuveType.tcfEo
@@ -278,6 +282,8 @@ void openPlanAssessment(
           ref,
           epreuve: assessment.epreuve,
           slotNumber: assessment.slotNumber ?? 1,
+          ctaLocation: AnalyticsCtaLocation.lockedPlan,
+          journeyId: planJourneyId(ref),
         ),
       );
   }
