@@ -34,6 +34,7 @@ import {
     journeyEtapeValidation,
 } from "@/lib/journey-etape";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {usePlanJourneyId} from "./use-plan-journey-id";
 import {
     Card,
     InfoNote,
@@ -100,6 +101,7 @@ function PlanEtapeScoped() {
        sert qu'à savoir où le retour remonte et quel pass l'offre présente. */
     /* ⚠️ Pas `module` : Next interdit d'affecter cette variable. */
     const parcours: ParcoursModule = moduleDeLUrl(useSearchParams()) ?? "TCF";
+    const journeyId = usePlanJourneyId(parcours);
 
     const query = useCachedData<JourneyStepDetailDto>(
         status === "authenticated" && stepId ? journeyApi.stepCacheKeyFor(stepId) : null,
@@ -280,6 +282,7 @@ function PlanEtapeScoped() {
                 /* 🛑 **Le pass suit le parcours** (A108) : une étape civique
                    s'ouvre avec le pass Civique, jamais l'Intégral. */
                 module={parcours === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"}
+                journeyId={journeyId}
                 open={paywall}
                 onClose={() => {
                     setPaywall(false);

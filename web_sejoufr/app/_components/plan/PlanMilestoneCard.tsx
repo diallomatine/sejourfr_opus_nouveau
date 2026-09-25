@@ -34,7 +34,11 @@ import {usePlanExercise} from "./use-plan-exercise";
  * qu'il est prêt pour un examen blanc, et c'est l'information la plus haute du
  * parcours.
  */
-export function PlanMilestoneCard({milestone}: {milestone: PlanMilestoneExerciseDto}) {
+export function PlanMilestoneCard({milestone, journeyId}: {
+  milestone: PlanMilestoneExerciseDto;
+  /** Le parcours servi affiché (Q8), pour l'intention d'achat de la feuille. */
+  journeyId: string | null;
+}) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
 
   const full = milestone.kind === "FULL_TCF_MOCK_EXAM";
@@ -80,6 +84,7 @@ export function PlanMilestoneCard({milestone}: {milestone: PlanMilestoneExercise
       </Pad>
       <PaywallSheet
         ctaLocation="LOCKED_PLAN"
+        journeyId={journeyId}
         screen="plan_jalon"
         module="INTEGRAL"
         open={paywallOpen}

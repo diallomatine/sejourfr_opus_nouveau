@@ -34,6 +34,7 @@ import {planUnlockHref} from "@/lib/plan-unlock";
 import {PlanRecoCard} from "./PlanRecoCard";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {usePlanJourneyId} from "./use-plan-journey-id";
 
 /**
  * **L'étape du cycle pour cette épreuve**, lue en cache.
@@ -70,6 +71,8 @@ export function PlanEpreuveReco({
     tone?: "primary" | "blue";
 }) {
     const carte = usePlanEpreuveCarte(blocCode);
+    // Même clé de cache que la carte : aucun appel de plus.
+    const journeyId = usePlanJourneyId("TCF");
     const exercise = usePlanExercise();
     const assessment = usePlanAssessment();
     const router = useRouter();
@@ -124,6 +127,7 @@ export function PlanEpreuveReco({
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module="INTEGRAL"
+                journeyId={journeyId}
                 open={exercise.paywallOpen || assessment.paywallOpen}
                 onClose={() => {
                     exercise.closePaywall();

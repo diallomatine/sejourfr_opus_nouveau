@@ -429,7 +429,7 @@ function DashboardRoot() {
                 `deskPair` au-dessus : quatre cartes dans une demi-colonne de
                 1080 px se replieraient en une file illisible, et la maquette la
                 montre pleine largeur. */}
-            <OuVousEnEtes progres={progres} civique={civique}/>
+            <OuVousEnEtes progres={progres} civique={civique} journeyId={journey?.journeyId ?? null}/>
 
             <style>{homeStyles}</style>
         </SejourApp>
@@ -755,17 +755,19 @@ function ActionCivique({gate, plan, journey, free}: {
  *
  * 🛑 **Miroir de `_ouVousEnEtes` côté mobile**, bloc pour bloc.
  */
-function OuVousEnEtes({progres, civique}: {
+function OuVousEnEtes({progres, civique, journeyId}: {
     progres: ProgressDto | null;
     civique: boolean;
+    /** Parcours TCF servi, pour l'intention d'achat de la feuille (Q8). */
+    journeyId: string | null;
 }) {
     if (!progres) return null;
     return civique
         ? <SituationCivique progres={progres}/>
-        : <SituationTcf progres={progres}/>;
+        : <SituationTcf progres={progres} journeyId={journeyId}/>;
 }
 
-function SituationTcf({progres}: {progres: ProgressDto}) {
+function SituationTcf({progres, journeyId}: {progres: ProgressDto; journeyId: string | null}) {
     /* 🛑 **Le lanceur du Plan, jamais un second** : une épreuve jamais mesurée
        porte le descripteur `evaluation` servi, et c'est `usePlanAssessment` —
        celui de « Compléter mon profil » et de la ligne `A_EVALUER` de la
@@ -871,6 +873,7 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
                 module="INTEGRAL"
+                journeyId={journeyId}
                 open={assessments.paywallOpen}
                 onClose={assessments.closePaywall}
             />

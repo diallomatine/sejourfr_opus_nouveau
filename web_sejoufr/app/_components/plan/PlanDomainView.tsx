@@ -33,6 +33,7 @@ import {
   type PlanDomainLevelDto,
 } from "@/lib/types";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {usePlanJourneyId} from "./use-plan-journey-id";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
   RowChevron,
@@ -142,6 +143,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
   const assessment = findAssessment(plan, domain.epreuve);
   const {start: startAssessment, starting, error: assessmentError, paywallOpen, closePaywall} =
     usePlanAssessment();
+  const journeyId = usePlanJourneyId("TCF");
   const objectif = plan.cycle.objectiveLevel;
   const priorities = planActivePriorities(plan).filter(
     (priority) => priority.section === PLAN_DOMAIN_SECTION[domain.epreuve],
@@ -267,7 +269,7 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
           )}
         </div>
 
-        <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+        <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" journeyId={journeyId} open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
       </div>
     </PlanShell>
   );
@@ -338,6 +340,7 @@ function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
  */
 function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
   const {startSeries, starting, error, paywallOpen, closePaywall} = usePlanExercise();
+  const journeyId = usePlanJourneyId("TCF");
 
   return (
     <li>
@@ -369,7 +372,7 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
         <ChevronRight size={16} aria-hidden />
       </button>
       {error && <p className={styles.milestoneError} role="alert">{error}</p>}
-      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
+      <PaywallSheet ctaLocation="LOCKED_PLAN" screen="plan_domaine" journeyId={journeyId} open={paywallOpen} onClose={closePaywall} module="INTEGRAL" />
     </li>
   );
 }

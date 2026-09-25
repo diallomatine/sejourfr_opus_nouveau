@@ -414,6 +414,7 @@ function CycleBody({journey, plan, module}: {
                 <NextStep
                     examenCompletPossible={journey.nextStep.examenCompletPossible}
                     module={module}
+                    journeyId={journey.journeyId}
                 />
             )}
 
@@ -522,9 +523,10 @@ function BlocBody({
  *
  * 🛑 **Un échec réseau se DIT** : le bouton ne reste jamais muet.
  */
-function NextStep({examenCompletPossible, module}: {
+function NextStep({examenCompletPossible, module, journeyId}: {
     examenCompletPossible: boolean;
     module: ParcoursModule;
+    journeyId: string | null;
 }) {
     const router = useRouter();
     const [busy, setBusy] = useState(false);
@@ -642,6 +644,7 @@ function NextStep({examenCompletPossible, module}: {
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
                 module={module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"}
+                journeyId={journeyId}
                 open={paywallOpen}
                 onClose={() => setPaywallOpen(false)}
             />

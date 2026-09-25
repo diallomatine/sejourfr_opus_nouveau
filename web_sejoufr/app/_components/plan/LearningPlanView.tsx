@@ -260,7 +260,9 @@ function TcfPlanPremium({plan, journey}: {
 
       {/* ⚠️ Bloc conservé hors maquette : il porte une information qu'elle ne
           couvre pas — un examen blanc mérité. */}
-      {plan.milestone && <PlanMilestoneCard milestone={plan.milestone} />}
+      {plan.milestone && (
+        <PlanMilestoneCard milestone={plan.milestone} journeyId={journey?.journeyId ?? null} />
+      )}
 
       <AllerPlusLoin />
 

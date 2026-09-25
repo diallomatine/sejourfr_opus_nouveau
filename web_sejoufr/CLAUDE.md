@@ -5056,6 +5056,8 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
 - **Intention d'achat** : `lib/purchase-origin.ts` fait voyager `?cta=` et `?journey=` (validés à
   l'arrivée) jusqu'à `billingApi.getPaymentLink(planCode, retour, origin)`, **obligatoire**.
   `/plan/debloquer` pose `LOCKED_PLAN` + son `journeyId` ; `PaywallSheet` pose son
-  `ctaLocation` (et `journeyId` sur le Plan) ; sans rien, `/paiement` et le récapitulatif
+  `ctaLocation`, et **toute** feuille `LOCKED_PLAN` passe le `journeyId` SERVI
+  (`JourneyDto.journeyId` déjà en main, sinon `usePlanJourneyId(module)`, même clé de cache
+  que le Plan) ; sans rien, `/paiement` et le récapitulatif
   valent `PRICING`.
 
