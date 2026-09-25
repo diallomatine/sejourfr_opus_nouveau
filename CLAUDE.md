@@ -317,7 +317,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | un score QCM, un niveau CECRL dérivé, l'ordre des propositions, une explication qui cite des lettres | `docs/regles/qcm.md` |
 | un chrono, une échéance, `DureeEpreuve`, `deadlineAt`, quitter/suspendre un examen | `docs/regles/examens-temps.md` |
 | une soumission orale, Whisper, R2, `AudioEphemere`, la réécoute d'une production | `docs/regles/audio-productions.md` |
-| l'analytics, le funnel, un rate-limit par IP, `/confidentialite`, une provenance | `docs/regles/mesure-audience.md` |
+| l'analytics, le funnel, le dashboard admin « Suivi », `diagnostic_run`, un rate-limit par IP, `/confidentialite`, une provenance | `docs/regles/mesure-audience.md` |
 | `user_subscriptions`, un webhook store, un plan, un pass, une résiliation | `docs/regles/paiements.md` |
 | un email (envoi, gabarit, préférence, désabonnement, scheduler d'engagement, `email_deliveries`), l'activité d'entraînement | `docs/regles/emails.md` |
 | le **cycle borné** du Plan, son cycle en attente, la fin de cycle, l'historique des cycles | `docs/regles/plan.md` § « Le CYCLE BORNÉ » |
@@ -341,6 +341,7 @@ on est tenté de modifier un seuil, un contrat, une consigne ou une règle produ
 | `docs/decisions/mesure-audience.md` | L'ancien système `page_views`, legacy, conservé comme archive. |
 | `docs/decisions-autonomes-chantier-tcf-irn.md` | Le chantier **taxonomie V3** mené en autonomie (2026-09-13) : D01 à D05, sources, arbitrages et niveaux de confiance. |
 | `docs/decisions-autonomes-parcours-tcf.md` | Les décisions prises **en autonomie** sur le parcours TCF puis le cycle civique : **A1 → A54**, chacune avec son motif et ce qu'il faudrait changer si l'arbitrage était autre. |
+| `docs/admin/decisions-suivi.md` | Le chantier **dashboard admin « Suivi »** (2026-09-25) : arbitrages STOP 0 du propriétaire, décisions **D1 → D88**, état des 20 scénarios, points ouverts et actions du propriétaire (taux stores, dates de début de mesure, liens app). Brief, template et audit dans `docs/admin/`. |
 
 ## Documentation de référence (inchangée)
 

@@ -819,7 +819,72 @@ retour (faible / moyenne / forte).
 
 ---
 
-## 3. Récapitulatif final
+## 3. Récapitulatif final (2026-09-25)
 
-_(rempli en fin de chantier : lots livrés, état des 20 scénarios, points ouverts, actions du
-propriétaire)_
+### 3.1 Lots livrés (branche `feature/refonte-l1-socle`, non poussée)
+
+| Lot | Contenu | Commit(s) | Vérification |
+|---|---|---|---|
+| Docs | brief, template, audit, arbitrages STOP 0 | `38400e1b` | — |
+| 1a | suppression du backend orphelin `/audience` + `page-views` (20 fichiers), 404 verrouillés | `d54401c4` | `mvnw verify` vert |
+| 1b | V074, configs `analytics-config-v1.json` / `revenue-rules-v1.json`, en-têtes `X-Sejourfr-*`, ingestion en lot, purge 395 j, liaison identité à l'auth, `users.is_internal` (liste YAML supprimée), `/confidentialite` | `a7c5e006` | `mvnw verify` vert ; web tsc + build |
+| 2a | `diagnostic_run` (création publique idempotente, « soumis », claim `SIGNUP`/`LOGIN` dans la transaction d'auth, `signup_context`), run fondatrice d'un parcours | `cb5bca01` | `mvnw verify` vert |
+| 2b | `RevenueCalculator` (franchise 293B, MULTIPLY par store), remboursements 3 providers, `purchase_intent` + `origin`, bugs paiement Q11 | `93c1ac3f` | `mvnw verify` vert |
+| 3 web | contexte client, SDK en lot + `sendBeacon`, runs + claim, événements rapport / Plan / déblocage, `ctaLocation` + `journeyId` sur chaque achat | `4caa85d1`, `ade03b35` | tsc + build + 275 tests existants |
+| 3 mobile | idem + file SharedPreferences bornée, `package_info_plus`, intentions d'achat store | `f4eb8573`, `f0031a2c`, `126271f9` | `flutter analyze` propre + 303 tests existants |
+| 4 admin | écran Suivi sur `/dashboard`, suppression de `features/analytics/` (32 fichiers) | `14fec6b3` | tsc + build + lint |
+| 4 backend | `GET /api/admin/analytics/suivi` (6 requêtes, ≈ 160 ms), V075 (vue run fondatrice), suppression de l'ancien backend de lecture | `e708af0f` | `mvnw verify` vert |
+| 3b | lien « Continuer sur l'application », claim `APP_LINK`, universal links / App Links | `8e74a970` | tout vert |
+| Q17 | suppression de l'ingestion unitaire | `2988a6dd` | `mvnw verify` : 4 848 tests, 0 échec |
+
+Migrations : **V074** (schéma), **V075** (vue `v_journey_founding_run`). Aucun nouveau test front ; aucun appel LLM payant.
+
+### 3.2 Les 20 scénarios
+
+| # | Scénario | Test | État |
+|---|---|---|---|
+| 1 | rapport ouvert 7 fois → 1 | `SuiviScenariosIT` | ✅ |
+| 2 | TCF + Civique → Tous = 1 | `SuiviScenariosIT` | ✅ |
+| 3 | diagnostic anonyme puis inscription même navigateur | `DiagnosticRunLifecycleIT` + `SuiviScenariosIT` | ✅ |
+| 4 | web → app avec jeton → `APP_LINK` | `DiagnosticRunLifecycleIT` (+ `SocialAuthServiceTest`) | ✅ serveur ; **à valider sur appareil** |
+| 5 | sans jeton → non rattaché, `OUTSIDE_DIAGNOSTIC`, jamais rattachés | `DiagnosticRunLifecycleIT` + `SuiviScenariosIT` | ✅ |
+| 6 | déjà connecté → hors ratio diagnostic → inscription | `DiagnosticRunLifecycleIT` + `SuiviScenariosIT` | ✅ |
+| 7 | compte existant, connexion après diagnostic | `DiagnosticRunLifecycleIT` + `SuiviScenariosIT` | ✅ |
+| 8 | achat J+4 → cohorte du jour du diagnostic + activité du jour d'achat | `SuiviScenariosIT` | ✅ |
+| 9 | achat J+15 → hors tunnel, dans l'activité | `SuiviScenariosIT` | ✅ |
+| 10 | lot rejoué → aucun doublon | `PublicAnalyticsBatchControllerIT.lotRejoue` | ✅ |
+| 11 | webhook reçu 2 fois → 1 achat | `RevenusEtRemboursementsIT` | ✅ |
+| 12 | montants au centime + invariant | `RevenueCalculatorTest`, `RevenusEtRemboursementsIT`, `SuiviScenariosIT` | ✅ (exemples recalculés en franchise 293B) |
+| 13 | remboursement Stripe → −0,40 € ; store → 0 | `RevenusEtRemboursementsIT`, `SuiviScenariosIT` | ✅ |
+| 14 | 23h30 UTC en heure d'été → jour suivant | `SuiviScenariosIT` | ✅ |
+| 15 | `is_internal` exclu, visible avec le toggle | `SuiviScenariosIT`, `PublicAnalyticsBatchControllerIT` | ✅ |
+| 16 | diagnostic refait 3 fois → 1 personne, 3 brut | `SuiviScenariosIT` + `DiagnosticRunLifecycleIT` (sur le **civique**, Q2) | ✅ |
+| 17 | `utm_source=IG` puis achat → instagram | `SuiviScenariosIT` | ✅ |
+| 18 | intention absente / autre CTA / invalide | `PurchaseIntentAttributionIT`, `SuiviScenariosIT` | ✅ |
+| 19 | purge des invités → runs et compteur intacts | `GuestAttemptPurgeJobIT` | ✅ |
+| 20 | runId valide, jeton absent ou faux → pas de claim | `DiagnosticRunLifecycleIT` | ✅ |
+
+### 3.3 Points laissés ouverts
+
+1. **Dates de début de mesure** (D43) : tous les indicateurs sauf visiteurs et sources sont à `null` ; l'écran affiche « non mesuré » tant qu'elles ne sont pas posées.
+2. **Offres ouvertes sur un 403 serveur, sans CTA** (7 écrans mobiles, D70) : pas d'intention → achat `UNKNOWN`. À brancher si ces ouvertures pèsent dans les achats ; même revue à faire côté web.
+3. **Mesure mobile** : rien n'est mesuré sur mobile avant la publication d'une nouvelle version de l'app.
+4. **Lien web → app** : n'ouvre réellement l'app qu'après les actions 5 à 8 ci-dessous ; sur iPhone, il faut l'hôte `app.sejourfr.fr` (D83). Deferred deep link hors MVP. Seul le **rattachement** suit sur l'app ; les réponses d'invité restent sur le navigateur.
+5. **`GeoIpCountryResolver`** : l'ingestion écrit toujours le pays, que plus rien ne lit (D79). À supprimer ou à réafficher dans un prochain brief.
+6. **Utilisation du plan** (Q7) : reportée au brief suivant ; nécessite de persister la recommandation au lancement d'un exercice.
+7. **Abonnements récurrents dormants** : hors décomposition et hors attribution (D42) ; à reprendre s'ils sont réactivés.
+8. **Rapprochement avec les rapports des stores** : hors MVP ; les frais Apple/Google restent `ESTIMATED`.
+9. **Sous « Tous »**, les 3 sous-lignes de « Compte rattaché » se comptent par priorité (D77) : une personne déjà connectée en TCF et inscrite après un diagnostic civique compte comme « déjà connecté ».
+
+### 3.4 Actions du propriétaire
+
+1. **Taux de commission Apple et Google** : confirmer 0,15 (Small Business Program / palier 15 %) ou 0,30, puis corriger `billing/revenue-rules-v1.json`. Tant que ce n'est pas fait, le net store est calculé à 15 %.
+2. **Dates de début de mesure** : au déploiement du backend **et** des fronts, poser dans `analytics/analytics-config-v1.json` la date de mise en production de chaque indicateur (`DIAGNOSTIC_*`, `ACCOUNT_ATTACHED`, `REPORT_VIEWED`, `PLAN_*`, `PURCHASES`, `PURCHASE_ORIGIN`, `REVENUE_BREAKDOWN`, `REFUNDS`, `SIGNUP_*`). Vérifier aussi `VISITORS` / `ACQUISITION_SOURCES` = 2026-08-21 contre la vraie date de mise en production.
+3. **Comptes internes en production** : si `ANALYTICS_EXCLUDED_EMAILS` était surchargée en prod, faire un `UPDATE users SET is_internal = true WHERE email IN (…)` : la variable n'est plus lue.
+4. **Stripe** : abonner le webhook à `checkout.session.async_payment_succeeded` et `checkout.session.async_payment_failed`, sinon un paiement différé (SEPA…) n'est jamais crédité.
+5. **Android** : remplacer `A_REMPLACER_SHA256_CLE_DE_SIGNATURE_PLAY_APP_SIGNING` dans `web_sejoufr/public/.well-known/assetlinks.json` par l'empreinte de la clé **App Signing** de la Play Console.
+6. **iOS** : confirmer le bundle ID réel (`project.pbxproj` dit `com.example.sejourfrMobile`, la doc de paiement `com.sejourfr.app`), le garder seul dans l'AASA et corriger le projet Xcode ; activer « Associated Domains » sur l'App ID et régénérer les profils.
+7. **Hôte `app.sejourfr.fr`** : DNS + vhost servis par le web Next (`/.well-known/*` en accès direct, sans redirection), puis `NEXT_PUBLIC_APP_LINK_BASE_URL=https://app.sejourfr.fr`.
+8. **Déploiement** : web (avec `public/.well-known/`, vérifier que l'AASA est servi en `application/json`), backend (V074, V075), nouvelle version de l'app sur les deux stores.
+9. **RGPD** : relire `/confidentialite` (§8.2 et §8.4 : « aucun recoupement » est à confronter au rattachement du parcours anonyme au compte) ; ta vérification du rattachement visiteur → compte (Q5).
+10. **Tests sur appareil** : lien web → app (installée / non installée, iOS / Android), achat store avec intention, file d'événements hors ligne.
