@@ -29,8 +29,8 @@ export function EoTranscriptNotice({voice = "vouvoiement"}: {voice?: ProductionV
         ne sont pas évaluées ici — elles compteront le jour de l&apos;examen,
         face à un examinateur.{" "}
         <strong>
-          {voice === "tutoiement" ? "Ton enregistrement" : "Votre enregistrement"} n&apos;est pas
-          conservé
+          {voice === "tutoiement" ? "Ton enregistrement" : "Votre enregistrement"}
+          {" n'est pas conservé"}
         </strong>{" "}
         : il sert à produire la transcription, puis il est supprimé.
       </span>
