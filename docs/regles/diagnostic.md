@@ -459,6 +459,17 @@ Les invariants qui tiennent ce tunnel :
   qui choisit les questions. Absente ⇒ **CSP**, le périmètre le plus étroit.
   Mesurer un candidat naturalisation sur le programme d'une carte de séjour
   produirait un diagnostic flatteur et un plan incomplet.
+  Preuve : `CivicDiagnosticComposer.composer(mention)` filtre `q.difficulty =
+  :mention` (égalité stricte) et les trois pools CSP / CR / NAT sont disjoints
+  (3 énoncés communs seulement au 2026-09-26). Le Plan civique relit, lui,
+  `users.target_procedure`. Supprimer le choix invité sans décision produit
+  tirerait tout visiteur sur **CSP**, puis l'adoption garderait cette mention
+  même pour un compte NAT.
+- **Compte qui porte déjà sa démarche** (arbitrage du propriétaire,
+  2026-09-26) : l'écran d'entrée ne la **rappelle plus** (« Vous préparez : … »)
+  et ne propose plus « Modifier ma démarche » ; elle reste modifiable dans
+  `/parcours` (web) / `TargetPathScreen` (mobile). Le tirage côté compte lit
+  toujours `users.target_procedure`.
 - 🛑 **L'adoption ne rejoue rien** : mêmes questions, mêmes réponses déjà
   corrigées ; le serveur pose seulement le porteur. Un second tirage rendrait au
   candidat un résultat qui n'est pas celui qu'il vient de passer.

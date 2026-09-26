@@ -401,8 +401,9 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
       // candidat naturalisation mesuré sur le programme d'une carte de séjour
       // repart avec un diagnostic flatteur et un plan incomplet.
       //
-      // 🛑 Mais on ne la REDEMANDE pas à qui l'a déjà donnée : un compte qui la
-      // porte la voit rappelée, pas remise en question.
+      // 🛑 Mais on ne la REDEMANDE pas, ni ne la RAPPELLE, à qui l'a déjà
+      // donnée (arbitrage du propriétaire, 2026-09-26) : elle est collectée à
+      // l'inscription et modifiable dans `TargetPathScreen`.
       if (demarcheDuCompte == null)
         SfSection(
           flush: true,
@@ -425,11 +426,6 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
         child: SfStack(
           pad: false,
           children: [
-            // La démarche reste LISIBLE : c'est elle qui choisit les questions,
-            // le candidat doit pouvoir vérifier sur quel programme il va être
-            // mesuré.
-            if (demarcheDuCompte != null)
-              SfTiny(civicProcedureLine(demarcheDuCompte.wire)),
             SfButton(
               label: kCivicDiagnosticStartCta,
               variant: SfButtonVariant.blue,
@@ -437,16 +433,6 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
               // 🛑 Inerte tant qu'aucune démarche n'est cochée.
               onPressed: _busy || _procedure == null ? null : _ouvrir,
             ),
-            // Aucun écran neuf : `TargetPathScreen` est déjà l'autorité de la
-            // démarche, et il revient ici après enregistrement.
-            if (demarcheDuCompte != null)
-              SfButton(
-                label: kCivicDiagnosticProcedureChangeCta,
-                variant: SfButtonVariant.line,
-                onPressed: _busy
-                    ? null
-                    : () => context.push(kCivicProcedureChangePath),
-              ),
           ],
         ),
       ),
