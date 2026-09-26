@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sejourfr_mobile/core/models/diagnostic_models.dart';
 import 'package:sejourfr_mobile/core/models/enums.dart';
 import 'package:sejourfr_mobile/core/widgets/app_button.dart';
+import 'package:sejourfr_mobile/screens/diagnostic/widgets/diagnostic_common.dart';
 import 'package:sejourfr_mobile/screens/diagnostic/widgets/diagnostic_written.dart';
 
 /// ⚠️ Héritage. Le dépôt **n'écrit plus de test front** (cf. `CLAUDE.md` racine,
@@ -35,6 +36,8 @@ void main() {
                 onChanged: (_) {},
                 onSubmit: () {},
                 hasOral: false,
+                submitLabel:
+                    diagnosticWrittenSubmitLabel(guest: true, hasOral: false),
               ),
             ),
           ),
@@ -55,7 +58,7 @@ void main() {
 }
 
 AppButton _submitButton(WidgetTester tester) => tester.widget<AppButton>(
-      find.widgetWithText(AppButton, 'Valider mon écrit'),
+      find.widgetWithText(AppButton, 'Valider mon texte'),
     );
 
 const _writtenExercise = DiagnosticExercise(

@@ -33,7 +33,18 @@ class WritingZone extends StatefulWidget {
     this.hint = 'Écrivez votre rédaction ici…',
     this.readingWpm = 200, // mots par minute pour estimation
     this.accent = AppColors.blue,
+    this.rangeLabel,
+    this.showStats = true,
   });
+
+  /// Fourchette de mots **déjà mise en mots** par l'appelant (« 80 à 300
+  /// mots »), posée en tête à côté du titre. Absente par défaut : les
+  /// appelants historiques gardent leur rendu au pixel près.
+  final String? rangeLabel;
+
+  /// Statistiques secondaires (caractères, phrases, temps de lecture). Le
+  /// diagnostic les retire : seul le compte de mots y compte.
+  final bool showStats;
 
   /// Accent du module appelant (rouge en EO). Bleu par défaut : les appelants
   /// historiques (briefing EE) gardent leur rendu au pixel près.
@@ -316,6 +327,21 @@ class _WritingZoneState extends State<WritingZone>
                   ),
                 ),
               ),
+              if (widget.rangeLabel != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.blueSoft,
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                  child: Text(
+                    widget.rangeLabel!,
+                    style: AppFonts.label(size: 11, color: AppColors.blue),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -417,7 +443,8 @@ class _WritingZoneState extends State<WritingZone>
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: focused ? widget.accent.withValues(alpha: 0.05) : AppColors.white,
+        color:
+            focused ? widget.accent.withValues(alpha: 0.05) : AppColors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _overMax
@@ -484,33 +511,37 @@ class _WritingZoneState extends State<WritingZone>
       child: Row(
         children: [
           // Stats compactes
-          Expanded(
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                _StatChip(
-                  icon: LucideIcons.type,
-                  label: '${widget.wordCount} ${widget.wordCount > 1 ? "mots" : "mot"}',
-                ),
-                _StatChip(
-                  icon: LucideIcons.text,
-                  label: '$_charCount car.',
-                ),
-                if (_sentenceCount > 0)
+          if (!widget.showStats)
+            const Spacer()
+          else
+            Expanded(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
                   _StatChip(
-                    icon: LucideIcons.quote,
+                    icon: LucideIcons.type,
                     label:
-                        '$_sentenceCount ${_sentenceCount > 1 ? "phrases" : "phrase"}',
+                        '${widget.wordCount} ${widget.wordCount > 1 ? "mots" : "mot"}',
                   ),
-                if (_readingTimeSec > 0)
                   _StatChip(
-                    icon: LucideIcons.clock,
-                    label: _readingTimeLabel,
+                    icon: LucideIcons.text,
+                    label: '$_charCount car.',
                   ),
-              ],
+                  if (_sentenceCount > 0)
+                    _StatChip(
+                      icon: LucideIcons.quote,
+                      label:
+                          '$_sentenceCount ${_sentenceCount > 1 ? "phrases" : "phrase"}',
+                    ),
+                  if (_readingTimeSec > 0)
+                    _StatChip(
+                      icon: LucideIcons.clock,
+                      label: _readingTimeLabel,
+                    ),
+                ],
+              ),
             ),
-          ),
           const SizedBox(width: 8),
           // Status badge
           AnimatedContainer(

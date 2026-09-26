@@ -107,6 +107,54 @@ et les deux l'ont écrit à la main.
 - Verrou : `DiagnosticRapideIT.leFormatEstServiAvantToutParcours`.
 
 
+## L'écrit du diagnostic rapide : UNE fourchette, 80 à 300 mots (V758, 2026-09-26)
+
+🔴 **Constaté à l'écran par le propriétaire** : trois longueurs contradictoires sur
+le même écran — la consigne réclamait « entre 150 et 220 mots », une pastille de la
+carte du sujet disait « 100–300 mots », l'éditeur « 100–300 mots ». Et le
+sous-titre annonçait « Premier exercice sur deux » sur un diagnostic qui n'en a
+qu'un.
+
+- **Bornes fixes 80 à 300 mots**, portées par la donnée du sujet
+  (`production_tasks.mots_min / mots_max` du sujet `QUICK_TCF` v1). C'est la
+  **même** donnée qui accepte ou refuse la copie (`ProductionTextBounds` via
+  `validateTextWordCount`, soumission connectée **et** reprise d'un invité, qui
+  passe par la même route) : aucune constante 100/300 n'existe ailleurs. Le
+  plafond 300 coïncide avec le garde-fou absolu `max-text-words: 300`.
+- **La consigne ne parle plus de longueur** : V758 retire « Écrivez entre 150 et
+  220 mots. » sans toucher un autre caractère (l'allowlist s'appuie sur ses trois
+  mouvements).
+- 🛑 **Correction EN PLACE de la version 1, pas une version 2** (même voie que
+  V756). Une v2 rouvrirait le diagnostic aux comptes qui l'ont terminé (unicité
+  `(user, code, version)`, version active = la plus haute), invaliderait les
+  brouillons invités rangés sous `code/vN` (« sujets d'une autre version ») et
+  changerait l'UUID clé des sessions. « On versionne, on ne réécrit jamais » vaut
+  pour les **contrats** (rubrique, tool-schema, prompt), pas pour l'énoncé d'un
+  sujet, contenu éditorial.
+- ⚠️ **Effet sur l'analyse IA, signalé** : `DiagnosticAnalysisPromptBuilder`
+  passe la consigne au correcteur (`instruction`) — il ne lit donc plus aucune
+  longueur demandée. Ni `diagnostic-analysis-rubrics-v1` ni son tool-schema ne
+  parlent de longueur (inchangés). Si le propriétaire veut que l'IA connaisse la
+  fourchette, la voie propre est d'injecter les bornes servies dans l'entrée
+  (comme `EvaluationPromptBuilder` le fait en « LONGUEUR ATTENDUE »), ce qui
+  change l'entrée d'un contrat mesuré : à décider, et à mesurer, par lui.
+- **Écran (web ⇄ mobile)** : la fourchette s'affiche **une seule fois**, en tête de
+  la zone de saisie, à côté du compteur live (vert dans les bornes, ambre hors
+  bornes) — `diagnosticWordRangeLabel` ⇄ même nom (`diagnostic_intro_labels.dart`),
+  seule mise en mots de la fourchette, que lit aussi la présentation. Plus de
+  pastille sur la carte du sujet, et l'aide de longueur ne la répète pas.
+- **Rang de l'exercice lu sur la forme servie** : `diagnosticExerciseSub(kind,
+  hasOral)` ⇄ `diagnosticExerciseSub` → « Un seul exercice · aucune note sur 20. »
+  quand l'oral est `null`. Bouton : `diagnosticWrittenSubmitLabel({guest, hasOral})`.
+- **Consigne mise en forme, jamais réécrite** : `diagnosticConsigneBlocks` (les
+  deux fronts) découpe paragraphes et listes (« - », « • », « * », « 1. »), la
+  ligne qui précède les puces devient leur amorce.
+- Verrous : `DiagnosticRapideIT.laFourchetteEstUniqueEtServie`,
+  `…entre80Et100MotsLaProductionEstRecue`, `…auDelaDu300MotsAucunAppelLlm`,
+  `…sousLeSeuilDeRecevabiliteAucunAppelLlm` (« au moins 80 mots »),
+  `PublicDiagnosticControllerIT`.
+
+
 ## Diagnostic initial TCF et Plan personnalisé
 
 Le diagnostic est un **parcours distinct** des examens blancs et de la notation

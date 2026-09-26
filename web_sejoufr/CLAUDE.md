@@ -2443,6 +2443,21 @@ l'impression d'un examen complet.
   d'entraînement, non officielle. » partout, et la mention « aucune note sur 20 »
   vit toujours sur `ExerciseHeader`.
 
+### L'écran de l'ÉCRIT du diagnostic — une seule fourchette (2026-09-26)
+
+`DiagnosticView.tsx` : `ExerciseHeader` (kicker mono `DIAGNOSTIC_EXERCISE_KICKER`, titre
+Fraunces à `<em>` rouge `DIAGNOSTIC_EXERCISE_TITLE`, rang **lu sur la forme servie**
+`diagnosticExerciseSub(kind, hasOral)` — « Un seul exercice » quand l'oral est `null`),
+`ExercisePrompt` (liseré tricolore, « Votre sujet », titre, consigne mise en forme par
+`diagnosticConsigneBlocks` — paragraphes et puces, **jamais réécrite** —, `helperText` servi en
+une ligne discrète) et `WrittenExercise` (les **trois** écrits : invité, invité rouvert depuis
+le compte avec `initialText`, connecté). 🛑 **La fourchette de mots s'affiche UNE fois** : en
+tête de la carte de saisie (`AnswerCard.range` d'`EeWritingForm`, texte de
+`diagnosticWordRangeLabel`), à côté du compteur live ; présente, elle fait passer le compteur à
+« N mots » et retire la répétition de l'aide de longueur. Plus de pastille sur la carte du
+sujet. Le champ grandit toujours avec le texte (`.writing textarea` ne pose qu'un
+`min-height`). Libellés miroirs de `diagnostic_common.dart`. → `docs/regles/diagnostic.md`
+
 ### Diagnostic en INVITÉ — produire d'abord, créer le compte ensuite (2026-08-10)
 
 Le mur d'inscription est passé **après** les deux productions : un visiteur

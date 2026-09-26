@@ -208,7 +208,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   /// départ d'une modification, et ce qu'on retrouve en l'annulant.
   void _resetWritingToDraft() {
     _autosave?.cancel();
-    final text = ref.read(diagnosticControllerProvider).draft?.writtenText ?? '';
+    final text =
+        ref.read(diagnosticControllerProvider).draft?.writtenText ?? '';
     _writingController.text = text;
     setState(() => _wordCount = _countWords(text));
   }
@@ -462,8 +463,8 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
 
     // La forme du passage vient de la production locale : elle a été
     // enregistrée avec son exigence d'oral.
-    final syncHasOral =
-        state.draft != null && (state.draft!.oralRequired || state.draft!.hasOral);
+    final syncHasOral = state.draft != null &&
+        (state.draft!.oralRequired || state.draft!.hasOral);
     if (state.isSyncing) {
       return DiagnosticSendingView(
         stage: state.syncStage,
@@ -528,6 +529,10 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           onChanged: (text) => _onWritingChanged(text, isGuest: false),
           onSubmit: () => unawaited(_submitWritten(isGuest: false)),
           hasOral: journey.oral != null,
+          submitLabel: diagnosticWrittenSubmitLabel(
+            guest: false,
+            hasOral: journey.oral != null,
+          ),
         ),
       DiagnosticStep.oral when journey.oral != null => DiagnosticOralStep(
           exercise: journey.oral!,
@@ -588,7 +593,10 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           // retour sans modification et un bouton qui ramène au compte.
           submitLabel: state.isEditingWritten
               ? kDiagnosticEditSubmit
-              : 'Valider mon écrit',
+              : diagnosticWrittenSubmitLabel(
+                  guest: true,
+                  hasOral: subjects.oral != null,
+                ),
           onCancelEdit: state.isEditingWritten ? _cancelWrittenEdit : null,
           editNote: state.isEditingWritten
               ? diagnosticEditNote(hasOral: subjects.oral != null)
@@ -597,8 +605,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       // 🛑 L'étape orale ne se rend que si ce diagnostic en porte une (L3).
       // Sans sujet, le contrôleur a déjà envoyé le visiteur au compte : ce cas
       // n'est donc pas atteignable, et le repli le dit sans planter.
-      DiagnosticGuestStep.oral when subjects.oral != null =>
-        DiagnosticOralStep(
+      DiagnosticGuestStep.oral when subjects.oral != null => DiagnosticOralStep(
           exercise: subjects.oral!,
           recording: recording,
           isSubmitting: state.isSubmitting,

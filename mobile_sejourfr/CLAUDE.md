@@ -673,6 +673,14 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   modification : le brouillon y est la production validée. Aucun événement de
   plus (`DIAGNOSTIC_EE_COMPLETED` / `EE_STARTED` / « sujet vu » sautés en
   modification). Libellés : `kDiagnosticEdit*` (`widgets/diagnostic_common.dart`).
+- **L'écran de l'écrit — une seule fourchette (2026-09-26, miroir du web)** :
+  `DiagnosticExerciseHeader` (kicker, titre à mot rouge, rang **lu sur la forme servie** —
+  « Un seul exercice » quand l'oral est `null`), `DiagnosticExerciseCard` (liseré tricolore,
+  « Votre sujet », consigne mise en forme par `diagnosticConsigneBlocks`, jamais réécrite,
+  `helperText` en ligne discrète) et `WritingZone(rangeLabel:, showStats: false)` :
+  🛑 la fourchette (`diagnosticWordRangeLabel`) s'affiche **une seule fois**, en tête de la zone
+  de saisie à côté du compteur ; aucune borne inventée (`?? 100 / ?? 130` supprimés, une borne
+  absente ne bloque rien). Bouton : `diagnosticWrittenSubmitLabel`. → `docs/regles/diagnostic.md`
 - Les réponses utilisent le pipeline de production existant : EE en JSON et EO en multipart via
   `ProductionRepository`. La zone écrite réutilise `WritingZone` avec les bornes du DTO ; l'oral
   réutilise `AudioRecorderService`, `RecordingWaveform` et `SejourAudioPlayer`. Les permissions

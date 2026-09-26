@@ -48,6 +48,11 @@ export interface AnswerCard {
   /** Rappel du geste souvent oublié, en pied de carte. Absent = seul le
    *  compteur s'affiche, sans trou visuel. */
   tip?: string | null;
+  /** Fourchette de mots **déjà mise en mots** par l'appelant (« 80 à 300
+   *  mots »), posée en tête de carte à côté du titre. Présente, elle est le
+   *  SEUL endroit qui la dit : le compteur passe à « N mots » et l'aide de
+   *  longueur ne la répète pas. Absente = compteur « N / max mots ». */
+  range?: string | null;
 }
 
 /**
@@ -169,6 +174,9 @@ export function EeWritingForm({
   const submittable = words > 0 && (lengthAdvisory || inRange);
   const rangeLabel =
     min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
+  // La fourchette posée en tête de carte est la seule à l'écran : rien d'autre
+  // ne la répète (compteur, aide de longueur).
+  const rangeShown = Boolean(answerCard?.range);
   // Hors bornes, on AVERTIT toujours ; on ne bloque que quand les bornes sont
   // strictes. Un avertissement muet laisserait croire que la longueur n'a
   // aucune importance, un blocage contredirait la règle 15 de la spec.
@@ -180,10 +188,12 @@ export function EeWritingForm({
           ? `Longueur conseillée : ${rangeLabel}. Ta réponse en compte ${words} — tu peux valider quand même.`
           : `Longueur conseillée : ${rangeLabel}. Votre réponse en compte ${words} — vous pouvez valider quand même.`
         : min != null && words < min
-          ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre (${min} minimum).`
+          ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre${
+              rangeShown ? "" : ` (${min} minimum)`
+            }.`
           : `Texte trop long de ${words - (max ?? words)} mot${
               words - (max ?? words) > 1 ? "s" : ""
-            } : raccourcissez-le pour pouvoir soumettre (${max} mots attendus).`;
+            } : raccourcissez-le pour pouvoir soumettre${rangeShown ? "" : ` (${max} mots attendus)`}.`;
 
   // Auto-soumission examen (chrono à 0:00). Les bornes TCF IRN sont strictes.
   const lastSignalRef = useRef(0);
@@ -209,7 +219,7 @@ export function EeWritingForm({
   // En carte, le compteur annonce la cible (« 12 / 35 mots ») : le candidat
   // vise une longueur, il ne compte pas dans le vide.
   const counterText =
-    answerCard && max != null
+    answerCard && max != null && !rangeShown
       ? `${words} / ${max} mots`
       : `${words} mot${words > 1 ? "s" : ""}`;
 
@@ -270,6 +280,7 @@ export function EeWritingForm({
               </span>
             )}
             <h2 className={s.answerTitle}>{answerCard.title}</h2>
+            {answerCard.range && <span className={s.answerRange}>{answerCard.range}</span>}
           </div>
           <textarea
             ref={textareaRef}

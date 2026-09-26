@@ -961,6 +961,21 @@
   color: var(--color-ink);
 }
 
+/* Fourchette de mots en tête de carte (diagnostic) : l'unique endroit qui la
+   dit, poussé à droite du titre. */
+.answerRange {
+  margin-left: auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Amorce à l'oral : une suggestion de démarrage, pas un texte à réciter. */
 .starter {
   margin: 0 0 10px;

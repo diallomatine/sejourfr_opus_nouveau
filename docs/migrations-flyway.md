@@ -248,7 +248,7 @@ postérieures alimentent se numérote APRÈS elles.**
   | `300_tcf/ce_comprehension_ecrite/`      | V483       | V484-V499 (16), + les trous entre paliers |
   | `300_tcf/co_comprehension_orale/`       | V590 (backfill `audio_mode`) | V501-V529, V531-V559, V561-V589, V591-V599 |
   | `300_tcf/structure_langue/`             | V686       | V687-V699 (13)      |
-  | `300_tcf/production/`                   | V757, + **V878** (allowlist taxonomie V3) | V758-V759, et ee/eo jusqu'à V724 / V753 |
+  | `300_tcf/production/`                   | V758 (bornes 80-300 du diagnostic rapide), + **V878** (allowlist taxonomie V3) | V759, et ee/eo jusqu'à V724 / V753 |
   | `300_tcf/expression/`                   | V762       | V763-V799           |
   | `300_tcf/…/audio_drafts/` a2 / b1 / b2  | V814 / V845 / V877 | ⚠️ **b2 s'arrête à V877** : V878 est pris par `production/` |
 - **Nouveau lot de compétences** → ne pas ajouter un `V3xx` à la main : ajouter la tâche au

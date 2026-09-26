@@ -56,7 +56,12 @@ class DiagnosticOralStep extends StatelessWidget {
                 completedSteps: 1,
                 totalSteps: 2,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
+              const DiagnosticExerciseHeader(
+                kind: DiagnosticExerciseKind.oral,
+                hasOral: true,
+              ),
+              const SizedBox(height: 18),
               DiagnosticExerciseCard(exercise: exercise),
               if (exercise.instructionAudioUrl != null) ...[
                 const SizedBox(height: 14),

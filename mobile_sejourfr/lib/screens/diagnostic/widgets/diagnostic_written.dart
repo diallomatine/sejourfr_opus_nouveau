@@ -6,7 +6,13 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/fixed_action_bar.dart';
 import '../../tcf_production/widgets/writing_zone.dart';
+import '../diagnostic_intro_labels.dart';
 import 'diagnostic_common.dart';
+
+/// Plafond d'affichage quand le sujet ne sert aucune borne haute : la zone de
+/// saisie exige un entier, mais rien ne bloque ni ne s'affiche sur cette
+/// valeur (`rangeLabel` reste `null`, `valid` ignore la borne absente).
+const kDiagnosticUnboundedWords = 1 << 20;
 
 class DiagnosticWrittenStep extends StatelessWidget {
   const DiagnosticWrittenStep({
@@ -18,8 +24,8 @@ class DiagnosticWrittenStep extends StatelessWidget {
     required this.onChanged,
     required this.onSubmit,
     required this.hasOral,
+    required this.submitLabel,
     this.errorMessage,
-    this.submitLabel = 'Valider mon écrit',
     this.onCancelEdit,
     this.editNote,
   });
@@ -47,9 +53,13 @@ class DiagnosticWrittenStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final minimum = exercise.wordsMin ?? 100;
-    final maximum = exercise.wordsMax ?? 130;
-    final valid = wordCount >= minimum && wordCount <= maximum;
+    // Les bornes sont celles du sujet servi — celles que le serveur applique.
+    // Une borne absente ne bloque rien de son côté (jamais un chiffre inventé).
+    final minimum = exercise.wordsMin;
+    final maximum = exercise.wordsMax;
+    final valid = wordCount > 0 &&
+        (minimum == null || wordCount >= minimum) &&
+        (maximum == null || wordCount <= maximum);
     return Column(
       children: [
         Expanded(
@@ -69,7 +79,12 @@ class DiagnosticWrittenStep extends StatelessWidget {
                 completedSteps: 0,
                 totalSteps: diagnosticExpressionSteps(hasOral: hasOral),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
+              DiagnosticExerciseHeader(
+                kind: DiagnosticExerciseKind.written,
+                hasOral: hasOral,
+              ),
+              const SizedBox(height: 18),
               if (editNote != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -90,13 +105,18 @@ class DiagnosticWrittenStep extends StatelessWidget {
               ],
               DiagnosticExerciseCard(exercise: exercise),
               const SizedBox(height: 18),
+              // 🛑 La fourchette s'affiche ICI et nulle part ailleurs : à côté
+              // du compteur qui la mesure. Ni la carte ni la consigne ne la
+              // répètent (miroir de `WrittenExercise`, web).
               WritingZone(
                 controller: controller,
                 wordCount: wordCount,
-                minWords: minimum,
-                maxWords: maximum,
+                minWords: minimum ?? 0,
+                maxWords: maximum ?? kDiagnosticUnboundedWords,
                 minLines: 12,
-                title: 'Votre diagnostic écrit',
+                title: kDiagnosticWrittenEditorTitle,
+                rangeLabel: diagnosticWordRangeLabel(exercise),
+                showStats: false,
                 hint: 'Rédigez votre réponse ici…',
                 onChanged: onChanged,
                 onClear: controller.text.isEmpty

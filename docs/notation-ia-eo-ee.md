@@ -23,6 +23,20 @@ plus un **second appel séparé** en **v1 / v1** ; tout est décrit au §11 bis.
 Le diagnostic initial et l'observateur du Plan utilisent une **troisième voie**, elle aussi
 sans note sur 20, avec leurs propres consignes et format **v1 / v1** décrits juste dessous.
 
+> 🆕 **26 septembre 2026 — l'écrit du diagnostic rapide : 80 à 300 mots, et la consigne ne
+> réclame plus de longueur.** L'écran affichait trois longueurs qui se contredisaient (la
+> consigne demandait « entre 150 et 220 mots », l'éditeur annonçait 100 à 300). Il n'en reste
+> qu'une : **de 80 à 300 mots**, la fourchette même qui accepte ou refuse votre texte. En
+> dessous de 80 mots, rien n'est envoyé à l'IA — aucune dépense, et un message vous invite à
+> compléter. La phrase « Écrivez entre 150 et 220 mots » a été retirée de la consigne ; le
+> reste du sujet est inchangé.
+>
+> **Ce que cela change pour l'IA.** Elle lit la consigne du sujet : elle n'y voit donc plus
+> aucune longueur demandée. Ses consignes de jugement et son format de réponse (**v1 / v1**)
+> ne parlaient pas de longueur et **ne bougent pas**. Aucune mesure n'a été lancée : le
+> propriétaire décidera s'il faut donner la fourchette à l'IA, ce qui changerait ce qu'elle
+> reçoit et mériterait d'être mesuré.
+
 > 🆕 **11 août 2026 — le rapport maigrit : plus de « suggestions » ni d'« exemples corrigés ».**
 > Explication complète au **§5.7 bis**.
 >

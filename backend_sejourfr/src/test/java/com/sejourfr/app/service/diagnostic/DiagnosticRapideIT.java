@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,8 +48,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       sinon le candidat rédige sur un énoncé et se fait corriger sur un
  *       autre ;</li>
  *   <li><b>un seul</b> attempt est créé : pas d'attempt oral orphelin ;</li>
- *   <li>sous 100 mots, <b>aucun appel au pipeline</b> — la recevabilité de
- *       {@code 10_} §3.3 doit couper AVANT la dépense, pas après.</li>
+ *   <li>sous 80 mots, <b>aucun appel au pipeline</b> — la recevabilité doit
+ *       couper AVANT la dépense, pas après ;</li>
+ *   <li>la fourchette est <b>80 à 300 mots</b> (V758), servie par la donnée du
+ *       sujet et appliquée par la même donnée à la soumission — et la consigne
+ *       ne réclame plus une autre longueur (« 150 à 220 mots ») que celle de
+ *       l'écran.</li>
  * </ul>
  */
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -129,7 +134,7 @@ class DiagnosticRapideIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 Sous 100 mots : refus AVANT toute dépense, et le message ne parle pas de « tâche »")
+    @DisplayName("🛑 Sous 80 mots : refus AVANT toute dépense, et le message ne parle pas de « tâche »")
     void sousLeSeuilDeRecevabiliteAucunAppelLlm() throws Exception {
         User user = data.user();
         String bearer = auth.bearer(user);
@@ -148,10 +153,89 @@ class DiagnosticRapideIT extends AbstractIntegrationTest {
                     .andExpect(status().isUnprocessableEntity())
                     .andExpect(jsonPath("$.message",
                             is("Nous n'avons pas assez d'éléments pour estimer votre niveau. "
-                                    + "Complétez votre texte : il faut au moins 100 mots.")));
+                                    + "Complétez votre texte : il faut au moins 80 mots.")));
 
             // 🛑 L'ASSERTION QUI COMPTE : pas un seul appel payant. La garde de
             // recevabilité doit couper avant le pipeline, jamais après.
+            verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+            assertThat(countSubmissions(user.getId())).isZero();
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    /**
+     * 🔴 <b>Une seule fourchette, et c'est la donnée du sujet</b> (V758).
+     *
+     * <p>Constaté à l'écran le 2026-09-26 : la consigne réclamait « entre 150
+     * et 220 mots » pendant que l'éditeur annonçait 100–300. Les bornes servies
+     * (sujet public, format, session) sont celles que la soumission applique ;
+     * la consigne n'en énonce plus aucune autre, et son contenu est intact.
+     */
+    @Test
+    @DisplayName("🔴 Le sujet sert 80 à 300 mots, partout, et sa consigne ne réclame plus 150-220")
+    void laFourchetteEstUniqueEtServie() throws Exception {
+        JsonNode written = publicCurrent().path("written");
+        assertThat(written.path("wordsMin").asInt()).isEqualTo(80);
+        assertThat(written.path("wordsMax").asInt()).isEqualTo(300);
+        String consigne = written.path("instruction").asText();
+        assertThat(consigne).doesNotContain("150").doesNotContain("220").doesNotContain("Écrivez entre");
+        // Le reste de l'énoncé ne bouge pas : l'allowlist s'appuie sur ses trois mouvements.
+        assertThat(consigne)
+                .startsWith("Parlez-nous un peu de vous et de votre quotidien.")
+                .contains("- décrivez votre lieu de vie ;")
+                .contains("- racontez une expérience récente qui vous a marqué ;")
+                .endsWith("- expliquez quelque chose que vous aimeriez changer dans votre quotidien, et pourquoi.");
+
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            mockMvc.perform(get("/api/diagnostics/current").header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.format.writtenWordsMin", is(80)))
+                    .andExpect(jsonPath("$.format.writtenWordsMax", is(300)));
+
+            JsonNode session = startSession(bearer, null);
+            assertThat(session.path("written").path("wordsMin").asInt()).isEqualTo(80);
+            assertThat(session.path("written").path("wordsMax").asInt()).isEqualTo(300);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    /**
+     * La borne basse lue par la soumission est la DONNÉE (80), pas l'ancienne
+     * valeur : 85 mots, refusés avant V758, sont reçus.
+     */
+    @Test
+    @DisplayName("85 mots : recevable depuis V758, le pipeline part une fois")
+    void entre80Et100MotsLaProductionEstRecue() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            submitWritten(bearer, session, 85)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.statut", is("SUBMITTED")));
+
+            assertThat(countSubmissions(user.getId())).isEqualTo(1);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    @Test
+    @DisplayName("🛑 Au-delà de 300 mots : refus AVANT toute dépense")
+    void auDelaDu300MotsAucunAppelLlm() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            submitWritten(bearer, session, 301)
+                    .andExpect(status().isUnprocessableEntity());
+
             verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
             assertThat(countSubmissions(user.getId())).isZero();
         } finally {
@@ -186,6 +270,19 @@ class DiagnosticRapideIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
+
+    private ResultActions submitWritten(
+            String bearer, JsonNode session, int mots) throws Exception {
+        return mockMvc.perform(post("/api/production-submissions")
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.writeValueAsString(Map.of(
+                        "productionTaskId",
+                        session.path("written").path("productionTaskId").asText(),
+                        "attemptId",
+                        session.path("written").path("attemptId").asText(),
+                        "texte", copieDe(mots)))));
+    }
 
     private JsonNode publicCurrent() throws Exception {
         return JSON.readTree(mockMvc.perform(get("/api/public/diagnostics/current"))

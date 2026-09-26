@@ -204,20 +204,30 @@ export function diagnosticExpressionMinutes(
 export function diagnosticWrittenMeasureLabel(
   exercise: DiagnosticExerciseMeasure | null | undefined,
 ): string | null {
-  const min = exercise?.wordsMin ?? null;
-  const max = exercise?.wordsMax ?? null;
-  const words =
-    min != null && max != null
-      ? `${min} à ${max} mots`
-      : min != null
-        ? `${min} mots minimum`
-        : max != null
-          ? `${max} mots maximum`
-          : null;
+  const words = diagnosticWordRangeLabel(exercise);
   const minutes = diagnosticWrittenMinutes(exercise);
   const time = minutes == null ? null : `environ ${minutes} min`;
   const parts = [words, time].filter((part): part is string => part != null);
   return parts.length === 0 ? null : parts.join(" · ");
+}
+
+/**
+ * « 80 à 300 mots » — la fourchette de l'écrit, **telle que le sujet la sert**
+ * (`wordsMin` / `wordsMax`, les bornes mêmes qui acceptent ou refusent la copie
+ * côté serveur). Seule mise en mots de la fourchette du diagnostic : la
+ * présentation et l'éditeur de l'écrit la lisent ici. `null` sans borne — on
+ * n'invente pas un chiffre. Miroir : `diagnosticWordRangeLabel` (mobile,
+ * `diagnostic_intro_labels.dart`).
+ */
+export function diagnosticWordRangeLabel(
+  exercise: Pick<DiagnosticExerciseMeasure, "wordsMin" | "wordsMax"> | null | undefined,
+): string | null {
+  const min = exercise?.wordsMin ?? null;
+  const max = exercise?.wordsMax ?? null;
+  if (min != null && max != null) return `${min} à ${max} mots`;
+  if (min != null) return `${min} mots minimum`;
+  if (max != null) return `${max} mots maximum`;
+  return null;
 }
 
 /** La mesure de l'oral : son temps de parole, en clair. */
@@ -496,4 +506,97 @@ export function diagnosticEditNote(hasOral: boolean): string {
   return hasOral
     ? "Votre texte et votre enregistrement restent conservés tant que vous n'enregistrez pas vos modifications."
     : "Votre texte reste conservé tant que vous n'enregistrez pas vos modifications.";
+}
+
+// ---------------------------------------------------------------------------
+// L'écran d'un exercice du diagnostic (écrit, oral)
+// ---------------------------------------------------------------------------
+// Miroir mot pour mot de `mobile_sejourfr/lib/screens/diagnostic/widgets/
+// diagnostic_common.dart` (`kDiagnosticExercise*`, `diagnosticExerciseSub`,
+// `diagnosticWrittenSubmitLabel`, `diagnosticConsigneBlocks`).
+
+export type DiagnosticExerciseKind = "written" | "oral";
+
+/** Sur-titre mono de l'écran d'exercice. */
+export const DIAGNOSTIC_EXERCISE_KICKER: Record<DiagnosticExerciseKind, string> = {
+  written: "Diagnostic TCF · Expression écrite",
+  oral: "Diagnostic TCF · Expression orale",
+};
+
+/** Titre Fraunces : `lead` puis `em` (rouge), puis `tail` collé. */
+export const DIAGNOSTIC_EXERCISE_TITLE: Record<
+  DiagnosticExerciseKind,
+  {lead: string; em: string; tail: string}
+> = {
+  written: {lead: "Votre texte,", em: "votre niveau", tail: "."},
+  oral: {lead: "Votre voix,", em: "votre niveau", tail: "."},
+};
+
+/**
+ * La ligne sous le titre. 🛑 **Le rang se lit sur la FORME servie** (oral
+ * `null` ⇒ exercice unique) : le diagnostic rapide n'a qu'un écrit, l'écran
+ * annonçait « Premier exercice sur deux ».
+ */
+export function diagnosticExerciseSub(kind: DiagnosticExerciseKind, hasOral: boolean): string {
+  const rang =
+    kind === "oral"
+      ? "Deuxième et dernier exercice"
+      : hasOral
+        ? "Premier exercice sur deux"
+        : "Un seul exercice";
+  return `${rang} · aucune note sur 20.`;
+}
+
+/** Tête de la zone de saisie de l'écrit. */
+export const DIAGNOSTIC_WRITTEN_EDITOR_TITLE = "Votre texte";
+/** Sur-titre de la carte du sujet. */
+export const DIAGNOSTIC_SUBJECT_TAG = "Votre sujet";
+
+/**
+ * Le bouton de l'écrit : il dit ce qui se passe **ensuite**, selon la forme
+ * servie et le régime. Avec un oral, on continue ; sans, un visiteur valide
+ * son texte (le compte vient après), un compte lance l'analyse.
+ */
+export function diagnosticWrittenSubmitLabel(options: {guest: boolean; hasOral: boolean}): string {
+  if (options.hasOral) return "Continuer vers l'oral";
+  return options.guest ? "Valider mon texte" : "Lancer mon analyse";
+}
+
+/** Un bloc de consigne : un paragraphe, ou une liste précédée de son amorce. */
+export type DiagnosticConsigneBlock =
+  | {kind: "paragraph"; text: string}
+  | {kind: "list"; lead: string | null; ordered: boolean; items: string[]};
+
+const BULLET = /^\s*(?:[-•*]|\d+[.)])\s+/;
+const NUMBERED = /^\s*\d+[.)]\s+/;
+
+/**
+ * **Met en forme** la consigne servie, sans en réécrire un mot : les
+ * paragraphes sont séparés par une ligne vide ; un paragraphe dont les lignes
+ * suivantes commencent par « - », « • », « * » ou « 1. » devient une liste,
+ * sa première ligne (« Dans un seul texte : ») en devient l'amorce. Une liste
+ * numérotée le reste (`ordered`). Le texte des puces est rendu tel quel,
+ * ponctuation comprise.
+ */
+export function diagnosticConsigneBlocks(text: string): DiagnosticConsigneBlock[] {
+  return text
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0)
+    .map((paragraph): DiagnosticConsigneBlock => {
+      const lines = paragraph.split("\n").map((line) => line.trim()).filter(Boolean);
+      const firstBullet = lines.findIndex((line) => BULLET.test(line));
+      const bulletsOnly = firstBullet >= 0 && lines.slice(firstBullet).every((line) => BULLET.test(line));
+      if (!bulletsOnly || firstBullet > 1 || lines.length - firstBullet < 2) {
+        return {kind: "paragraph", text: paragraph};
+      }
+      return {
+        kind: "list",
+        lead: firstBullet === 1 ? lines[0] : null,
+        ordered: lines.slice(firstBullet).every((line) => NUMBERED.test(line)),
+        items: lines.slice(firstBullet).map((line) => line.replace(BULLET, "")),
+      };
+    });
 }

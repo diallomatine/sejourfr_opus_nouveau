@@ -38,9 +38,10 @@ class PublicDiagnosticControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.written.title", notNullValue()))
                 .andExpect(jsonPath("$.written.instruction", notNullValue()))
                 .andExpect(jsonPath("$.written.helperText", notNullValue()))
-                // 🛑 Bornes de RECEVABILITÉ, pas la demande : la consigne réclame
-                // 150-220 mots, le serveur accepte à partir de 100 (`10_` §3.3).
-                .andExpect(jsonPath("$.written.wordsMin", is(100)))
+                // 🛑 UNE seule fourchette (V758) : celle que l'écran affiche est
+                // celle que la soumission applique. La consigne n'en énonce plus
+                // d'autre (elle réclamait 150-220 mots).
+                .andExpect(jsonPath("$.written.wordsMin", is(80)))
                 .andExpect(jsonPath("$.written.wordsMax", is(300)))
                 // 🛑 Pas d'étape orale, et ce n'est pas une panne.
                 .andExpect(jsonPath("$.oral").doesNotExist());

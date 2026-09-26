@@ -8,9 +8,9 @@ import {
   ArrowLeft,
   Check,
   Clock3,
-  FilePenLine,
   Headphones,
   Info,
+  PenLine,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
@@ -36,9 +36,18 @@ import {
 import {
   DIAGNOSTIC_EDIT_CANCEL,
   DIAGNOSTIC_EDIT_SUBMIT,
+  DIAGNOSTIC_EXERCISE_KICKER,
+  DIAGNOSTIC_EXERCISE_TITLE,
+  DIAGNOSTIC_SUBJECT_TAG,
+  DIAGNOSTIC_WRITTEN_EDITOR_TITLE,
   type DiagnosticExerciseContent,
+  type DiagnosticExerciseKind,
+  diagnosticConsigneBlocks,
   diagnosticEditNote,
   diagnosticExerciseAsProductionTask,
+  diagnosticExerciseSub,
+  diagnosticWordRangeLabel,
+  diagnosticWrittenSubmitLabel,
 } from "@/lib/diagnostic";
 import {
   clearLocalDiagnostic,
@@ -391,16 +400,18 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticShell guest compact back={{label: DIAGNOSTIC_EDIT_CANCEL, onClick: closeWrittenEditor}}>
         <DiagnosticSteps current="written" guest oral={subjects.oral !== null} />
-        <ExerciseHeader kind="written" note={diagnosticEditNote(subjects.oral !== null)} />
-        <EeWritingForm
+        <ExerciseHeader
+          kind="written"
+          hasOral={subjects.oral !== null}
+          note={diagnosticEditNote(subjects.oral !== null)}
+        />
+        <WrittenExercise
           key="edit-written"
-          task={diagnosticExerciseAsProductionTask(subjects.written)}
+          exercise={subjects.written}
           initialText={local?.writtenText ?? ""}
           submitting={saving}
           error={error}
           submitLabel={DIAGNOSTIC_EDIT_SUBMIT}
-          promptSlot={<ExercisePrompt exercise={subjects.written} kind="written" />}
-          criteriaSlot={null}
           onSubmit={(text) => void saveEditedWritten(text)}
         />
       </DiagnosticShell>
@@ -428,6 +439,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         <DiagnosticSteps current="oral" guest />
         <ExerciseHeader
           kind="oral"
+          hasOral
           note={
             storedOnDevice
               ? "Votre écrit est conservé sur cet appareil."
@@ -453,14 +465,12 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticShell guest compact back={{label: "Retour", onClick: () => setStarted(false)}}>
         <DiagnosticSteps current="written" guest oral={subjects.oral !== null} />
-        <ExerciseHeader kind="written" />
-        <EeWritingForm
-          task={diagnosticExerciseAsProductionTask(subjects.written)}
+        <ExerciseHeader kind="written" hasOral={subjects.oral !== null} />
+        <WrittenExercise
+          exercise={subjects.written}
           submitting={saving}
           error={error}
-          submitLabel={subjects.oral ? "Continuer vers l'oral" : "Valider mon diagnostic"}
-          promptSlot={<ExercisePrompt exercise={subjects.written} kind="written" />}
-          criteriaSlot={null}
+          submitLabel={diagnosticWrittenSubmitLabel({guest: true, hasOral: subjects.oral !== null})}
           onSubmit={(text) => void keepWritten(text)}
         />
       </DiagnosticShell>
@@ -1193,14 +1203,12 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticShell compact>
         <DiagnosticSteps current="written" guest={false} oral={diagnostic.oral != null} />
-        <ExerciseHeader kind="written" />
-        <EeWritingForm
-          task={diagnosticExerciseAsProductionTask(exercise)}
+        <ExerciseHeader kind="written" hasOral={diagnostic.oral != null} />
+        <WrittenExercise
+          exercise={exercise}
           submitting={submitting}
           error={error}
-          submitLabel={diagnostic.oral ? "Continuer vers l'oral" : "Lancer mon analyse"}
-          promptSlot={<ExercisePrompt exercise={exercise} kind="written" />}
-          criteriaSlot={null}
+          submitLabel={diagnosticWrittenSubmitLabel({guest: false, hasOral: diagnostic.oral != null})}
           onSubmit={(text) => void submitWritten(exercise, text)}
         />
       </DiagnosticShell>
@@ -1212,7 +1220,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticShell compact>
         <DiagnosticSteps current="oral" guest={false} />
-        <ExerciseHeader kind="oral" />
+        <ExerciseHeader kind="oral" hasOral />
         <EoRecordingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
           submitting={submitting}
@@ -1285,17 +1293,107 @@ function DiagnosticShell({
   );
 }
 
-function ExerciseHeader({kind, note}: {kind: "written" | "oral"; note?: string}) {
+/**
+ * En-tête d'un exercice : sur-titre mono, titre Fraunces à `<em>` rouge, puis
+ * le rang de l'exercice **lu sur la forme servie** (`hasOral`) et la mention
+ * « aucune note sur 20 ». Miroir : `DiagnosticExerciseHeader`
+ * (`diagnostic_common.dart`).
+ */
+function ExerciseHeader({
+  kind,
+  hasOral,
+  note,
+}: {
+  kind: DiagnosticExerciseKind;
+  hasOral: boolean;
+  note?: string;
+}) {
+  const title = DIAGNOSTIC_EXERCISE_TITLE[kind];
   return (
     <header className={styles.exerciseHeader}>
-      <p className={styles.eyebrow}>Diagnostic TCF SejourFR</p>
-      <h1>{kind === "written" ? "Votre exercice écrit" : "Votre exercice oral"}</h1>
-      <p className={styles.exerciseSub}>
-        {kind === "written" ? "Premier exercice sur deux" : "Deuxième et dernier exercice"} ·
-        aucune note sur 20.
-      </p>
+      <p className={styles.eyebrow}>{DIAGNOSTIC_EXERCISE_KICKER[kind]}</p>
+      <h1 className={styles.exerciseTitle}>
+        {title.lead} <em>{title.em}</em>
+        {title.tail}
+      </h1>
+      <p className={styles.exerciseSub}>{diagnosticExerciseSub(kind, hasOral)}</p>
       {note && <p className={styles.exerciseNote}>{note}</p>}
     </header>
+  );
+}
+
+/**
+ * L'écrit du diagnostic : carte du sujet, puis la zone de saisie en carte.
+ * 🛑 **La fourchette de mots s'affiche une seule fois**, en tête de la zone de
+ * saisie, à côté du compteur qui la mesure — lue sur les bornes servies
+ * (`wordsMin` / `wordsMax`), les mêmes que celles que le serveur applique. Ni
+ * la carte du sujet ni la consigne ne la répètent. Le champ grandit avec le
+ * texte (`EeWritingForm`) ; `initialText` rouvre une production enregistrée.
+ */
+function WrittenExercise({
+  exercise,
+  initialText,
+  submitting,
+  error,
+  submitLabel,
+  onSubmit,
+}: {
+  exercise: DiagnosticExerciseContent;
+  initialText?: string;
+  submitting: boolean;
+  error: string | null;
+  submitLabel: string;
+  onSubmit: (text: string) => void;
+}) {
+  return (
+    <div className={styles.writing}>
+      <EeWritingForm
+        task={diagnosticExerciseAsProductionTask(exercise)}
+        initialText={initialText}
+        submitting={submitting}
+        error={error}
+        submitLabel={submitLabel}
+        promptSlot={<ExercisePrompt exercise={exercise} kind="written" />}
+        criteriaSlot={null}
+        answerCard={{
+          title: DIAGNOSTIC_WRITTEN_EDITOR_TITLE,
+          icon: <PenLine size={16} strokeWidth={2.2} />,
+          range: diagnosticWordRangeLabel(exercise),
+        }}
+        onSubmit={onSubmit}
+      />
+    </div>
+  );
+}
+
+/** La consigne servie, mise en forme sans être réécrite : paragraphes, et
+ *  listes à puces précédées de leur amorce. */
+function Consigne({text}: {text: string}) {
+  return (
+    <div className={styles.instruction}>
+      {diagnosticConsigneBlocks(text).map((block, index) =>
+        block.kind === "paragraph" ? (
+          <p key={index}>{block.text}</p>
+        ) : (
+          <div key={index} className={styles.instructionList}>
+            {block.lead && <p className={styles.instructionLead}>{block.lead}</p>}
+            {block.ordered ? (
+              <ol>
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{item}</li>
+                ))}
+              </ol>
+            ) : (
+              <ul>
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{item}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -1304,22 +1402,18 @@ function ExercisePrompt({
   kind,
 }: {
   exercise: DiagnosticExerciseContent;
-  kind: "written" | "oral";
+  kind: DiagnosticExerciseKind;
 }) {
   return (
     <section className={styles.prompt} aria-labelledby={`${kind}-prompt-title`}>
-      <span className={styles.promptTag}>{kind === "written" ? "Expression écrite" : "Expression orale"}</span>
-      <h2 id={`${kind}-prompt-title`}>{exercise.title}</h2>
-      <p className={styles.instruction}>{exercise.instruction}</p>
-      {exercise.helperText && <p className={styles.helper}>{exercise.helperText}</p>}
-      <div className={styles.constraints}>
-        {kind === "written" && exercise.wordsMin != null && exercise.wordsMax != null && (
-          <span><FilePenLine size={14} aria-hidden /> {exercise.wordsMin}–{exercise.wordsMax} mots</span>
-        )}
-        {kind === "oral" && exercise.durationMaxSeconds != null && (
+      <p className={styles.promptTag}>{DIAGNOSTIC_SUBJECT_TAG}</p>
+      <h2 id={`${kind}-prompt-title`} className={styles.promptTitle}>{exercise.title}</h2>
+      <Consigne text={exercise.instruction} />
+      {kind === "oral" && exercise.durationMaxSeconds != null && (
+        <div className={styles.constraints}>
           <span><Clock3 size={14} aria-hidden /> Jusqu&apos;à {Math.ceil(exercise.durationMaxSeconds / 60)} min</span>
-        )}
-      </div>
+        </div>
+      )}
       {kind === "oral" && exercise.instructionAudioUrl && (
         <div className={styles.audioInstruction}>
           <span><Headphones size={18} aria-hidden /> Écouter la consigne</span>
@@ -1327,6 +1421,11 @@ function ExercisePrompt({
             Votre navigateur ne peut pas lire cette consigne audio.
           </audio>
         </div>
+      )}
+      {exercise.helperText && (
+        <p className={styles.helper}>
+          <Info size={14} aria-hidden /> {exercise.helperText}
+        </p>
       )}
     </section>
   );
