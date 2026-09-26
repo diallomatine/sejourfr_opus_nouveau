@@ -68,7 +68,6 @@ import '../../screens/tcf_full_exam/tcf_full_exam_progress_screen.dart';
 import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
 import '../../screens/tcf_production/ee_results_screen.dart';
 import '../../screens/tcf_production/eo_briefing_screen.dart';
-import '../../screens/tcf_production/eo_finished_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
@@ -969,8 +968,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       //   /tcf/expression-orale                          -> [supprimé] redirige vers le détail EO
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan détaillé d'une session
       //                                                    (mode `?live=1` après T3 = polling actif)
-      //   /tcf/expression-orale/t/:idx                   -> briefing + enregistrement (sur place)
-      //   /tcf/expression-orale/t/:idx/termine           -> ecoute + soumission
+      //   /tcf/expression-orale/t/:idx                   -> consigne + enregistrement + revue
+      //                                                    (réécoute locale, recommencer, envoi)
       //   /tcf/expression-orale/resultats/:id?taskIndex=N&history=1  -> resultats (live ou history)
       //
       // L'ancien hub `ProductionHubScreen` a été supprimé : la sélection
@@ -1022,17 +1021,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                   int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
               return EoBriefingScreen(taskIndex: idx);
             },
-            routes: [
-              GoRoute(
-                path: 'termine',
-                builder: (_, state) {
-                  final idx =
-                      int.tryParse(state.pathParameters['taskIndex'] ?? '0') ??
-                          0;
-                  return EoFinishedScreen(taskIndex: idx);
-                },
-              ),
-            ],
           ),
           GoRoute(
             path: 'resultats/:submissionId',
@@ -1052,8 +1040,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // TCF Expression ecrite — mêmes sous-routes qu'EO sans /enregistrement
-      // /termine (le briefing + zone d'écriture sont combinés). Le path
+      // TCF Expression ecrite — mêmes sous-routes qu'EO (le briefing + zone
+      // d'écriture sont combinés). Le path
       // parent redirige vers le détail EE comme pour l'orale (cf. supra).
       GoRoute(
         path: AppRoutes.tcfExpressionEcrite,

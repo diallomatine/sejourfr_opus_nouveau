@@ -255,11 +255,12 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
                 ? askMode
                 : undefined
             }
-            onSubmit={(audio) =>
+            // Une clé par PRISE : « Refaire » est une autre production.
+            onSubmit={(audio, _duration, take) =>
               finalize((attemptId) =>
                 productionApi.submitAudio(
                   task.id, attemptId, audio, undefined,
-                  submissionKey(`${attemptId}:${task.id}`),
+                  submissionKey(`${attemptId}:${task.id}:${take}`),
                 ),
               )
             }

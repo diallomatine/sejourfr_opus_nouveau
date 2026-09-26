@@ -17,6 +17,7 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import {EvaluationLoadingView} from "./EvaluationLoadingView";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
@@ -150,7 +151,6 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
   const tacheNum = submission?.tacheNumero ?? 0;
   const pending = submission ? isSubmissionPending(submission) : true;
   const failed = submission?.statut === "FAILED";
-  const transcribing = submission?.statut === "TRANSCRIBING";
 
   return (
     <DualChromeShell>
@@ -184,17 +184,9 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
             </div>
           </section>
         ) : pending ? (
-          <div className={s.pending}>
-            <div className={s.spinner} />
-            <p className={s.resultHeading}>
-              {transcribing ? "Transcription en cours…" : "Évaluation en cours…"}
-            </p>
-            <p className={s.pendingText}>
-              {transcribing
-                ? "Votre enregistrement est transcrit avant l'analyse. Encore quelques secondes…"
-                : "L'IA analyse votre production (cohérence, lexique, grammaire…). Cela prend généralement une quinzaine de secondes."}
-            </p>
-          </div>
+          // Même attente que le mobile (`EvaluationLoadingView`) et que la fin
+          // d'un examen blanc : une seule primitive pour « l'IA analyse ».
+          <EvaluationLoadingView includeTranscription={config.mode === "audio"} />
         ) : submission.evaluation ? (
           <>
             <ProductionFeedbackView

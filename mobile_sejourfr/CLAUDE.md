@@ -2909,7 +2909,7 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
   `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
 - La correction IA réutilise le pipeline existant (Whisper + correcteur configuré).
 
-**Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
+⚠️ **Révoqué le 2026-09-27** (revue inline, `eo_finished_screen` supprimé — cf. § « Examen blanc EE/EO — feuille d'information et runner »). **Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
 suivent le « studio » du template `SejourFR_Mobile_Autonome.html` : **consigne épinglée en haut,
 action en bas, UI épurée** (cf. `clicktcf-web/src/features/speaking`). ⚠️ **Briefing et
 enregistrement sont fusionnés sur un seul écran** (`eo_briefing_screen.dart`) : on n'ouvre plus de
@@ -3000,7 +3000,7 @@ d'un examen complet (attempt fabriqué côté client, sans `timeLimitSeconds` �
 tenu par le `_GlobalTimer` du hub). En plus de ce chrono global, `_TimerBig` passe en **décompte**
 (`countdown:true`, `dureeMaxSec` → 0) pendant l'enregistrement en mode examen.
 
-**EO en examen** : au stop (manuel OU auto-stop), pas d'écran `eo_finished_screen` entre les tâches —
+⚠️ **Révoqué le 2026-09-27** (revue inline, `eo_finished_screen` supprimé — cf. § « Examen blanc EE/EO — feuille d'information et runner »). **EO en examen** : au stop (manuel OU auto-stop), pas d'écran `eo_finished_screen` entre les tâches —
 le briefing soumet immédiatement (`_submitExamAndAdvance`) et enchaîne la tâche suivante (ou le bilan
 après T3). L'entraînement libre garde le flux réécoute + soumission manuelle.
 
@@ -4688,4 +4688,20 @@ vide. Encart ouvert à l'arrivée : le premier qui a des lignes. Mots : `plan_un
   « Temps de parole : 3 min », `productionExamConstraintLine`) — plus de pastille, plus de
   « Tâche i/N » dans la carte (le bandeau le porte) ; l'EO gagne « Tâche N sur 3 · titre » et
   le bouton ⓘ ; « Prenez le temps de lire la consigne » (tutoyait).
+- 🛑 **EO : l'arrêt ouvre une REVUE, il n'envoie plus rien** (2026-09-27, miroir du web).
+  `eo_briefing_screen` porte toute la tâche : consigne → enregistrement → **revue** (`_ReviewView`
+  + `_ReviewActions` : réécoute du fichier LOCAL par `SejourAudioPlayer`, « Recommencer » qui
+  efface la prise, bouton principal « Tâche suivante » / « Terminer l'examen » / « Terminer
+  l'épreuve » avec « Envoi de votre réponse… » pendant l'envoi) → tâche suivante. Vaut aussi
+  pour l'**entraînement** (« Soumettre à l'évaluation » / « Refaire », mots du web) : 🛑
+  **`eo_finished_screen.dart` et la route `/t/:idx/termine` sont SUPPRIMÉS**. Le plein écran
+  de chargement ne sert plus qu'au temps réel. Auto-stop à `dureeMaxSec` ⇒ revue (« temps
+  écoulé »). « Recommencer » permis en examen : nouvelle prise, décompte remis en entier.
+- 🛑 **Clé par PRISE** : `EoSessionNotifier.beginTake(taskIndex)` à chaque démarrage, clé
+  `'$attemptId:$taskId:$take'`. Échec d'envoi ⇒ `syncTaskIfRendered` (tâche rendue malgré la
+  coupure ⇒ on avance), sinon message + « Réessayer » (même prise, même clé). Le fichier local
+  est effacé une fois l'écran quitté après un envoi réussi.
+- **Fin d'examen** : le bilan (`HistorySessionScreen ?live=1`, EE comme EO) s'ouvre derrière
+  **`EvaluationLoadingView`** jusqu'à ce que tout soit évalué (≤ 2 min), puis bascule seul ;
+  la clôture de l'attempt part en parallèle. Mots de la vue : `production_exam_copy.dart`.
 

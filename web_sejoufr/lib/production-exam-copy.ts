@@ -142,6 +142,77 @@ export function productionExamAdvisedTimeLine(advisedLabel: string): string {
     return `${advisedLabel} sur cette tâche — un repère, pas une limite : le chrono affiché couvre les 3 tâches.`;
 }
 
+/* ------------------------------------ oral : revue d'un enregistrement */
+
+/*
+ * La tâche orale d'un examen blanc se déroule en quatre temps : consigne (sans
+ * chrono) → enregistrement (décompte de la tâche) → **revue** → envoi. La revue
+ * existe parce que l'arrêt n'envoyait rien de visible : l'écran se figeait le
+ * temps de la transcription, puis la tâche suivante tombait d'un coup.
+ *
+ * 🛑 La réécoute lit l'enregistrement **resté sur l'appareil** : rien n'est
+ * envoyé pour la permettre, rien n'est conservé après l'envoi
+ * (`docs/regles/audio-productions.md`).
+ */
+
+export const PRODUCTION_EXAM_REVIEW_TITLE = "Enregistrement terminé";
+
+/** Sous le titre de la revue. `timeUp` : l'arrêt est venu du décompte. */
+export function productionExamReviewHint(timeUp: boolean): string {
+    const lead = timeUp
+        ? "Le temps de parole est écoulé, l'enregistrement s'est arrêté. "
+        : "";
+    return `${lead}Réécoutez votre réponse, recommencez-la si besoin, puis envoyez-la.`;
+}
+
+export const PRODUCTION_EXAM_REDO = "Recommencer";
+
+/** Ce que coûte « Recommencer », dit avant le geste. */
+export const PRODUCTION_EXAM_REDO_NOTE =
+    "Recommencer efface cet enregistrement ; le temps de parole de la tâche repart en entier.";
+
+/** Le bouton principal de la revue, qui envoie la réponse. */
+export function productionExamNextLabel(isLast: boolean, inFullExam: boolean): string {
+    if (!isLast) return "Tâche suivante";
+    return inFullExam ? "Terminer l'épreuve" : "Terminer l'examen";
+}
+
+export const PRODUCTION_EXAM_SENDING = "Envoi de votre réponse…";
+
+export const PRODUCTION_EXAM_SEND_ERROR =
+    "L'envoi n'a pas abouti. Votre enregistrement est toujours sur cet appareil : réessayez.";
+
+export const PRODUCTION_EXAM_RETRY = "Réessayer";
+
+/* --------------------------------------------- attente de l'évaluation */
+
+/*
+ * L'écran d'attente de l'analyse IA (cocarde, « Analyse en cours », étapes).
+ * Mêmes mots que le mobile (`EvaluationLoadingView`). Les étapes avancent au
+ * rythme indicatif ci-dessous, pas au rythme réel du serveur : elles disent ce
+ * qui se passe, elles ne le mesurent pas.
+ */
+
+export const EVALUATION_LOADING_TITLE = "Analyse en cours";
+export const EVALUATION_LOADING_LEAD = "Votre évaluation arrive juste après.";
+export const EVALUATION_LOADING_LAST = "Encore quelques secondes…";
+
+export type EvaluationLoadingStepKey = "upload" | "transcription" | "analysis" | "report";
+
+/** Les étapes et leur durée indicative (secondes), transcription à l'oral. */
+export function evaluationLoadingSteps(
+    includeTranscription: boolean,
+): readonly {key: EvaluationLoadingStepKey; label: string; seconds: number}[] {
+    return [
+        {key: "upload", label: "Envoi de votre production", seconds: 2},
+        ...(includeTranscription
+            ? [{key: "transcription" as const, label: "Transcription audio", seconds: 6}]
+            : []),
+        {key: "analysis", label: "Analyse pédagogique", seconds: 6},
+        {key: "report", label: "Préparation de votre bilan", seconds: 4},
+    ];
+}
+
 /* ------------------------------------------------------ feuille « ⓘ » */
 
 export const PRODUCTION_INFO_TITLE = "Comment votre production est évaluée";

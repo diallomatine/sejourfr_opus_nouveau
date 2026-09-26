@@ -50,7 +50,11 @@ import {
   ExamRunnerHead,
   ProductionInfoSheet,
 } from "./ProductionExamRunner";
-import { productionExamAdvisedTimeLine } from "@/lib/production-exam-copy";
+import {
+  productionExamAdvisedTimeLine,
+  productionExamNextLabel,
+} from "@/lib/production-exam-copy";
+import { EvaluationLoadingView } from "./EvaluationLoadingView";
 import { RealtimeLaunchSheet } from "./RealtimeLaunchSheet";
 import { RealtimeEoRunner } from "./RealtimeEoRunner";
 import { REALTIME_UNAVAILABLE_MESSAGE, useRealtimeEo } from "./useRealtimeEo";
@@ -80,8 +84,10 @@ function fmtChrono(sec: number): string {
  * `startedAt + timeLimitSeconds`. Il court même pendant une absence ; à 0:00,
  * auto-soumission recevable + finish + bilan.
  * EO : **aucun chrono d'épreuve** — chaque tâche est chronométrée à part, et
- * son décompte ne part qu'au moment où le candidat lance la tâche (recorder :
- * auto-stop + soumission immédiate).
+ * son décompte ne part qu'au moment où le candidat lance la tâche. À l'arrêt
+ * (ou à 0:00), **revue** : réécoute locale, « Recommencer » ou envoi explicite
+ * (« Tâche suivante » / « Terminer l'examen »). Après la dernière tâche,
+ * `EvaluationLoadingView` attend l'analyse puis cède la place au bilan.
  */
 export function ProductionSession({ config }: { config: ProductionConfig }) {
   const params = useParams<{ attemptId: string }>();
@@ -106,6 +112,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const submissionKey = useSubmissionKey();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Échec d'envoi d'une prise orale : dit DANS la revue, à côté de
+   *  « Réessayer », pas en tête de page. */
+  const [sendError, setSendError] = useState<string | null>(null);
+  /** Dernière tâche rendue pendant cette visite : le bilan attend l'analyse
+   *  IA derrière l'écran « Analyse en cours », puis bascule tout seul. */
+  const [awaitingAnalysis, setAwaitingAnalysis] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   /** Confirmation de sortie d'une épreuve d'examen complet (elle sera close). */
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
@@ -131,6 +143,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const enterTask = useCallback(
     (n: number) => {
       setCurrentTache(n);
+      setSendError(null);
       setActiveDescriptor(null);
       setRtError(null);
       setRtRefused(false);
@@ -188,9 +201,14 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         if (!allDone && pollsRef.current < MAX_POLLS) {
           pollsRef.current += 1;
           timerRef.current = setTimeout(tick, POLL_MS);
+        } else {
+          // Tout est évalué, ou l'attente a assez duré : le bilan prend le
+          // relais (ses tâches encore en cours y restent signalées).
+          setAwaitingAnalysis(false);
         }
       } catch {
         // garde l'état courant ; on réessaiera au prochain montage
+        if (!cancelledRef.current) setAwaitingAnalysis(false);
       }
     };
     void tick();
@@ -312,19 +330,29 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
 
   const currentTask = tasks.find((t) => t.tacheNumero === currentTache) ?? null;
 
+  // Une nouvelle tâche s'ouvre en haut de page, sur son en-tête « Tâche N sur
+  // 3 » — pas au niveau du bouton qui vient d'envoyer la précédente.
+  useEffect(() => {
+    if (typeof window !== "undefined") window.scrollTo({top: 0});
+  }, [currentTache]);
+
   /** Bascule en bilan après la 3ᵉ tâche (ou auto-finish), avec finish préalable. */
   const goToBilan = useCallback(async () => {
     finishedRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
+    // L'attente se montre TOUT DE SUITE : la clôture de l'attempt et la
+    // première lecture du bilan se font derrière elle, pas sur un écran figé.
+    setAwaitingAnalysis(true);
+    setPhase("bilan");
     await attemptApi.finish(attemptId).catch(() => undefined);
     if (cancelledRef.current) return;
-    setPhase("bilan");
     startBilanPolling();
   }, [attemptId, startBilanPolling]);
 
   async function send(go: (attemptId: string) => Promise<ProductionSubmissionDto>) {
     if (submitting || !currentTask) return;
     setError(null);
+    setSendError(null);
     setSubmitting(true);
     try {
       // Attend uniquement la persistance backend (~500 ms, retourne SUBMITTED).
@@ -353,11 +381,43 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         enterTask(nextTodo);
       }
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
-      else setError(e instanceof ApiException ? e.message : "Impossible d'envoyer votre réponse.");
+      if (e instanceof ApiException && e.status === 403) {
+        setPaywallOpen(true);
+      } else if (await taskRenderedAfterAll()) {
+        // L'envoi avait abouti côté serveur (réponse perdue en route) : la
+        // tâche est rendue, on avance comme après un succès.
+        return;
+      } else {
+        const message =
+          e instanceof ApiException ? e.message : "Impossible d'envoyer votre réponse.";
+        if (config.mode === "audio") setSendError(message);
+        else setError(message);
+      }
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /**
+   * Après un échec d'envoi, relit les soumissions : une coupure APRÈS la
+   * réception serveur laisse la tâche rendue alors que le client croit à un
+   * échec. Si c'est le cas, on enchaîne ; sinon l'enregistrement reste là.
+   */
+  async function taskRenderedAfterAll(): Promise<boolean> {
+    const fresh = await fetchSubs().catch(() => null);
+    if (!fresh || !fresh.has(currentTache)) return false;
+    setSubsByTache(fresh);
+    const nextTodo = TACHES.find((n) => !fresh.has(n));
+    if (nextTodo !== undefined) {
+      enterTask(nextTodo);
+    } else if (fullExamId) {
+      finishedRef.current = true;
+      await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
+      router.push(`/examens-blancs/tcf/${fullExamId}`);
+    } else {
+      await goToBilan();
+    }
+    return true;
   }
 
   /** Lance la session temps réel pour la tâche courante. */
@@ -457,6 +517,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     } else {
       await attemptApi.finish(attemptId).catch(() => undefined);
       if (cancelledRef.current) return;
+      setAwaitingAnalysis(true);
       setPhase("bilan");
       startBilanPolling();
     }
@@ -497,19 +558,19 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       }
       await finalizeExam();
     },
-    [submitting, currentTask, attemptId, finalizeExam],
+    [submitting, currentTask, attemptId, finalizeExam, submissionKey],
   );
 
   /** Idem côté oral : la capture coupée à 0:00 part quand même en évaluation
    *  (le backend tolère 60 s de grâce), puis l'épreuve est finalisée. */
   const onEoTimeout = useCallback(
-    async (audio: Blob | null) => {
+    async (audio: Blob | null, take: number) => {
       if (audio && audio.size > 0 && currentTask && !submitting) {
         setSubmitting(true);
         try {
           await productionApi.submitAudio(
             currentTask.id, attemptId, audio, undefined,
-            submissionKey(`${attemptId}:${currentTask.id}`),
+            submissionKey(`${attemptId}:${currentTask.id}:${take}`),
           );
         } catch {
           // best-effort : les tâches non rendues sont comptées 0 par le bilan
@@ -519,7 +580,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       }
       await finalizeExam();
     },
-    [submitting, currentTask, attemptId, finalizeExam],
+    [submitting, currentTask, attemptId, finalizeExam, submissionKey],
   );
 
   // Expiration pendant un échange avec l'examinateur temps réel : le runner ne
@@ -534,11 +595,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
 
 
   const submitLabel =
-    currentTache < 3
-      ? "Valider et continuer"
-      : fullExamId
-        ? "Valider et passer à l'épreuve suivante"
-        : "Valider et terminer";
+    config.mode === "audio"
+      ? productionExamNextLabel(currentTache >= TACHES.length, fullExamId != null)
+      : currentTache < 3
+        ? "Valider et continuer"
+        : fullExamId
+          ? "Valider et passer à l'épreuve suivante"
+          : "Valider et terminer";
 
   const chronoActive = deadline != null && phase === "writing";
   const chronoSec = remaining ?? 0;
@@ -559,12 +622,16 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             ? () => setExitConfirmOpen(true)
             : undefined
         }
-        title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
+        title={phase === "bilan" && !awaitingAnalysis ? "Bilan de la session" : "Examen blanc"}
         subtitle={config.label}
       >
         {/* En-tête compact de l'app : « Tâche N sur 3 · intitulé », le chrono
             d'épreuve dans le même bloc (écrit seulement — l'oral se compte
             tâche par tâche, dans l'enregistreur), ⓘ et la barre. */}
+        {/* Une tâche d'examen entre en fondu + glissement court (clé = la
+            tâche) : la suivante n'apparaît plus « d'un coup » après l'envoi.
+            `prefers-reduced-motion` coupe l'animation (`.taskEnter`). */}
+        <div key={phase === "writing" && currentTask ? currentTask.id : phase} className={phase === "writing" ? prod.taskEnter : undefined}>
         {phase === "writing" && currentTask && (
           <ExamRunnerHead
             epreuve={config.epreuve}
@@ -599,6 +666,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   task={currentTask}
                   submitting={submitting}
                   error={rtError}
+                  sendError={sendError}
                   submitLabel={submitLabel}
                   promptSlot={<ExamConsigneCard task={currentTask} epreuve={config.epreuve} />}
                   criteriaSlot={null}
@@ -613,11 +681,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                       ? askMode
                       : undefined
                   }
-                  onSubmit={(audio) =>
+                  // Une clé par PRISE : « Recommencer » est une nouvelle
+                  // production (nouvelle clé), « Réessayer » renvoie la même.
+                  onSubmit={(audio, _duration, take) =>
                     send((aid) =>
                       productionApi.submitAudio(
                         currentTask.id, aid, audio, undefined,
-                        submissionKey(`${aid}:${currentTask.id}`),
+                        submissionKey(`${aid}:${currentTask.id}:${take}`),
                       ),
                     )
                   }
@@ -658,6 +728,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           ) : (
             <p className={detail.empty}>Sujets indisponibles pour l&apos;instant.</p>
           )
+        ) : awaitingAnalysis ? (
+          <EvaluationLoadingView includeTranscription={config.mode === "audio"} />
         ) : (
           <BilanView
             config={config}
@@ -674,6 +746,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             }}
           />
         )}
+        </div>
 
         {phase === "writing" && currentTask && config.mode === "audio" && (
           <RealtimeLaunchSheet

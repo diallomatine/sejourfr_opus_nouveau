@@ -1,10 +1,18 @@
 "use client";
 
 import {useEffect, useMemo, useRef, useState, type ReactNode} from "react";
-import {Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
+import {ArrowRight, Check, Clock, Lightbulb, Mic, RotateCcw, Square, Target} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {useScreenWakeLock} from "@/lib/use-screen-wake-lock";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
+import {
+  PRODUCTION_EXAM_REDO,
+  PRODUCTION_EXAM_REDO_NOTE,
+  PRODUCTION_EXAM_RETRY,
+  PRODUCTION_EXAM_REVIEW_TITLE,
+  PRODUCTION_EXAM_SENDING,
+  productionExamReviewHint,
+} from "@/lib/production-exam-copy";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
@@ -159,6 +167,7 @@ export function EoRecordingForm({
   task,
   submitting,
   error,
+  sendError = null,
   submitLabel = "Soumettre à l'évaluation",
   consigneLabel,
   exerciseTitle,
@@ -180,6 +189,9 @@ export function EoRecordingForm({
   task: ProductionTaskDto;
   submitting: boolean;
   error?: string | null;
+  /** Échec de l'ENVOI de la prise (examen) : le bouton principal devient
+   *  « Réessayer » et renvoie la même prise, restée sur l'appareil. */
+  sendError?: string | null;
   submitLabel?: string;
   /** Remplace « Tâche N » sur le badge de contrainte (micro-exercices :
    *  « Petit sujet · 2/5 »). */
@@ -228,8 +240,10 @@ export function EoRecordingForm({
   /** Voix du chrome de l'enregistreur. Vouvoiement par défaut ; le module
    *  « Compétences » tutoie. Ne touche jamais au texte du sujet. */
   voice?: ProductionVoice;
-  /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
-   *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
+  /** En examen blanc : décompte par tâche (dureeMaxSec) lancé par « Je suis
+   *  prêt », auto-stop à 0, puis **revue** : réécoute locale, « Recommencer »
+   *  (nouvelle prise, décompte remis en entier) ou envoi par le bouton
+   *  principal. Rien ne part tant que le candidat n'a pas appuyé dessus. */
   examMode?: boolean;
   /** Consigne à gauche, enregistreur à droite au palier desktop
    *  (`ProductionSplit`). Une colonne en dessous, comme l'app. */
@@ -237,15 +251,19 @@ export function EoRecordingForm({
   /** Incrémenté par le parent quand le chrono de l'épreuve tombe à 0:00 :
    *  coupe la capture en cours et remonte l'audio via `onTimeout`. */
   timeoutSignal?: number;
-  /** Reçoit l'audio capturé jusqu'à l'expiration (null si rien n'était en
-   *  cours). Au parent de le soumettre en best-effort puis de finaliser. */
-  onTimeout?: (audio: Blob | null) => void;
+  /** Reçoit l'audio capturé jusqu'à l'expiration (null si rien n'était
+   *  enregistré) et le numéro de sa prise. Au parent de le soumettre en
+   *  best-effort puis de finaliser. */
+  onTimeout?: (audio: Blob | null, take: number) => void;
   /** EO T1/T2 : appelé au 1ᵉʳ tap « démarrer » (une fois le sujet lu) pour
    *  choisir le mode — examinateur temps réel vs enregistrement seul. « classic »
    *  → on enregistre ici ; « realtime »/« cancel » → le parent prend la main
    *  (navigation vers l'échange, ou retour). Absent = enregistrement direct. */
   onModeChoice?: () => Promise<"classic" | "realtime" | "cancel">;
-  onSubmit: (audio: Blob, durationSec: number) => void;
+  /** `take` numérote la prise (1, 2… à chaque « Recommencer ») : c'est ce qui
+   *  distingue deux PRODUCTIONS d'une même tâche, donc leur clé d'idempotence.
+   *  Renvoyer la même prise après un échec rend le même numéro. */
+  onSubmit: (audio: Blob, durationSec: number, take: number) => void;
 }) {
   const [phase, setPhase] = useState<"idle" | "recording" | "recorded">("idle");
   // Une fois « seul » choisi, les taps suivants (réenregistrer) démarrent
@@ -273,10 +291,13 @@ export function EoRecordingForm({
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // En examen, on soumet directement au stop : ce ref retient la durée réelle
-  // au moment de l'arrêt (l'`onstop` du MediaRecorder est asynchrone).
-  const submitOnStopRef = useRef(false);
-  const stopElapsedRef = useRef(0);
+  // Numéro de la prise en cours : +1 à chaque démarrage. Une prise = une
+  // production = une clé d'idempotence côté parent.
+  const takeRef = useRef(0);
+  // Garde d'un arrêt déjà demandé (bouton ET décompte peuvent tomber ensemble).
+  const stoppingRef = useRef(false);
+  // En examen, l'arrêt venu du décompte (et non du candidat) se dit à la revue.
+  const [timeUp, setTimeUp] = useState(false);
   // Expiration du chrono d'épreuve : l'audio remonte à `onTimeout`, pas à
   // `onSubmit` (le parent finalise l'épreuve au lieu d'enchaîner la tâche).
   const timeoutOnStopRef = useRef(false);
@@ -357,7 +378,9 @@ export function EoRecordingForm({
     if (timeoutSignal <= 0 || timeoutSignal === lastTimeoutSignalRef.current) return;
     lastTimeoutSignalRef.current = timeoutSignal;
     if (phase !== "recording") {
-      onTimeout?.(null);
+      // En revue, la prise enregistrée part quand même : le temps a expiré
+      // pendant que le candidat la réécoutait.
+      onTimeout?.(phase === "recorded" ? blobRef.current : null, takeRef.current);
       return;
     }
     if (timerRef.current) clearInterval(timerRef.current);
@@ -403,19 +426,15 @@ export function EoRecordingForm({
         // Libère l'`AudioContext` du compteur de niveau : sans ça on en fuirait
         // un par enregistrement.
         setMicStream(null);
+        stoppingRef.current = false;
         if (timeoutOnStopRef.current) {
           timeoutOnStopRef.current = false;
           setPhase("recorded");
-          onTimeout?.(blob);
+          onTimeout?.(blob, takeRef.current);
           return;
         }
-        if (submitOnStopRef.current) {
-          // Examen : soumission immédiate (manuel ou auto-stop), pas de réécoute.
-          submitOnStopRef.current = false;
-          setPhase("recorded");
-          onSubmit(blob, stopElapsedRef.current);
-          return;
-        }
+        // Examen comme entraînement : l'arrêt ouvre la REVUE. La réécoute lit
+        // le Blob resté en mémoire (URL locale), rien n'est envoyé pour elle.
         setAudioUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return URL.createObjectURL(blob);
@@ -424,6 +443,9 @@ export function EoRecordingForm({
       };
       recorderRef.current = rec;
       rec.start();
+      takeRef.current += 1;
+      stoppingRef.current = false;
+      setTimeUp(false);
       setElapsed(0);
       // Le lecteur de réécoute est démonté par le passage en « recording » :
       // son `onPause` ne partira pas, on remet le drapeau à plat nous-mêmes.
@@ -435,7 +457,8 @@ export function EoRecordingForm({
             const next = e + 1;
             // Examen : auto-stop quand la durée max est atteinte.
             if (examMode && task.dureeMaxSec != null && next >= task.dureeMaxSec) {
-              stopExam(next);
+              setTimeUp(true);
+              stopCapture();
             } else if (hardCapSec != null && next >= hardCapSec) {
               // Hors examen : plafond dur du serveur. On coupe la capture au
               // lieu d'envoyer un fichier qui sera refusé — le candidat garde
@@ -458,12 +481,19 @@ export function EoRecordingForm({
   }
 
   function stop() {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (examMode) {
-      stopExam(elapsed);
-      return;
+    stopCapture();
+  }
+
+  /** Arrête la capture une seule fois : `onstop` ouvre ensuite la revue. */
+  function stopCapture() {
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-    recorderRef.current?.stop();
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+    else stoppingRef.current = false;
   }
 
   /** Arrête la capture au plafond dur (hors examen) : chemin d'arrêt normal —
@@ -476,15 +506,6 @@ export function EoRecordingForm({
     if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }
 
-  /** Arrête l'enregistrement en mode examen → soumission immédiate dans `onstop`. */
-  function stopExam(durationSec: number) {
-    if (submitOnStopRef.current) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    submitOnStopRef.current = true;
-    stopElapsedRef.current = durationSec;
-    recorderRef.current?.stop();
-  }
-
   function redo() {
     setAudioUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -493,6 +514,7 @@ export function EoRecordingForm({
     blobRef.current = null;
     setElapsed(0);
     setReplaying(false);
+    setTimeUp(false);
     setPhase("idle");
   }
 
@@ -506,6 +528,9 @@ export function EoRecordingForm({
    *  chronométré — c'est le « Je suis prêt » qui met le temps en marche, comme
    *  au vrai TCF. */
   const examIdle = examMode && phase === "idle";
+  /** Revue d'une prise d'examen : ni micro ni décompte, la prise se réécoute,
+   *  se recommence ou part par le bouton principal. */
+  const examReview = examMode && phase === "recorded";
   const shownSec = examCountdown ? Math.max(0, max - elapsed) : elapsed;
   const examUrgent = examCountdown && phase === "recording" && shownSec <= 15;
   const timerClass = examCountdown
@@ -566,7 +591,15 @@ export function EoRecordingForm({
       {/* En examen, la consigne se lit SANS aucun décompte : le chrono de la
           tâche n'existe pas encore, il naît du « Je suis prêt ». Afficher
           « 3:00 » figé donnait déjà l'impression d'être chronométré. */}
-      {!examIdle &&
+      {examReview ? (
+        <div className={styles.reviewHead}>
+          <span className={styles.reviewCheck} aria-hidden>
+            <Check size={26} strokeWidth={2.6} />
+          </span>
+          <p className={styles.reviewTitle}>{PRODUCTION_EXAM_REVIEW_TITLE}</p>
+          <p className={styles.reviewDuration}>Durée enregistrée · {fmtTimer(elapsed)}</p>
+        </div>
+      ) : !examIdle &&
         (phase === "recording" ? (
           /* Ce qu'un candidat stressé doit pouvoir constater d'un coup d'œil :
              un MICRO — il avait disparu de l'écran le jour où le bouton est
@@ -604,7 +637,7 @@ export function EoRecordingForm({
         >
           <Square size={28} strokeWidth={2.2} fill="currentColor" />
         </button>
-      ) : examIdle ? (
+      ) : examReview ? null : examIdle ? (
         <button
           type="button"
           className={styles.readyBtn}
@@ -619,7 +652,7 @@ export function EoRecordingForm({
           type="button"
           className={styles.recordCircle}
           onClick={handleStartClick}
-          disabled={submitting || blocked || (examMode && phase === "recorded")}
+          disabled={submitting || blocked}
           aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
         >
           <Mic size={32} strokeWidth={2} />
@@ -634,25 +667,23 @@ export function EoRecordingForm({
       <p className={styles.recordHint}>
         {phase === "recording"
           ? examCountdown
-            ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
+            ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour arrêter."
             : hardCapSec != null
               ? copy.recordingCapped(fmtTimer(hardCapSec))
               : copy.recording
           : phase === "recorded"
             ? examMode
-              ? error
-                ? "L'envoi n'a pas abouti. Votre enregistrement est encore là : renvoyez-le."
-                : "Réponse envoyée à l'évaluation…"
+              ? productionExamReviewHint(timeUp)
               : copy.recorded
             : examCountdown
-              ? `Prenez le temps de lire la consigne : rien n'est chronométré tant que vous n'avez pas commencé. Le temps de parole (${formatDurationSec(max ?? 0)}) démarre quand vous lancez la tâche, et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+              ? `Prenez le temps de lire la consigne : rien n'est chronométré tant que vous n'avez pas commencé. Le temps de parole (${formatDurationSec(max ?? 0)}) démarre quand vous lancez la tâche. À l'arrêt, vous pourrez réécouter votre réponse avant de l'envoyer. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
               : copy.idle(
                   rangeLabel ? ` (durée conseillée ${rangeLabel})` : "",
                   hardCapSec != null ? `, ${formatDurationSec(hardCapSec)} maximum` : "",
                 )}
       </p>
 
-      {!examMode && phase === "recorded" && audioUrl && (
+      {phase === "recorded" && audioUrl && (
         <div className={styles.player}>
           <audio
             src={audioUrl}
@@ -759,8 +790,10 @@ export function EoRecordingForm({
 
         {answerCard && <EoTranscriptNotice voice={voice} />}
 
-        {(blockMsg || permError || error) && (
-          <div className={s.error}>{blockMsg ?? permError ?? error}</div>
+        {(blockMsg || permError || sendError || error) && (
+          <div className={s.error} role="alert">
+            {blockMsg ?? permError ?? sendError ?? error}
+          </div>
         )}
 
         {/* Ce que porte ce pied — auto-évaluation, option d'analyse IA, rappel
@@ -768,25 +801,41 @@ export function EoRecordingForm({
           peut être rendu dès l'ouverture de l'écran. */}
         {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
 
-        {/* EN EXAMEN, un envoi qui échoue laissait le candidat SANS ISSUE : le
-          micro est verrouillé et aucun bouton n'est rendu. Depuis que la
-          transcription se fait pendant l'envoi, un échec est un cas réel — on
-          rend LE MÊME enregistrement renvoyable. Ni réenregistrement, ni
-          réécoute : les règles d'examen ne bougent pas. */}
-        {examMode && phase === "recorded" && error && (
-          <div className={s.actionRow}>
-            <button
-              type="button"
-              className={s.primary}
-              disabled={submitting}
-              onClick={() =>
-                blobRef.current &&
-                onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
-              }
-            >
-              {submitting ? "Envoi en cours…" : "Renvoyer ma réponse"}
-            </button>
-          </div>
+        {/* EN EXAMEN, la revue : le bouton principal ENVOIE (et dit l'envoi en
+          cours — c'est le silence de cet instant qui figeait l'écran),
+          « Recommencer » jette la prise locale. Après un échec, la MÊME prise
+          se renvoie (même numéro, donc même clé d'idempotence). */}
+        {examReview && (
+          <>
+            <div className={s.actionRow}>
+              <button
+                type="button"
+                className={s.primary}
+                disabled={submitting}
+                aria-busy={submitting}
+                onClick={() =>
+                  blobRef.current && onSubmit(blobRef.current, elapsed, takeRef.current)
+                }
+              >
+                {submitting ? (
+                  <>
+                    <span className={styles.btnSpinner} aria-hidden />
+                    {PRODUCTION_EXAM_SENDING}
+                  </>
+                ) : (
+                  <>
+                    {sendError ? PRODUCTION_EXAM_RETRY : submitLabel}
+                    <ArrowRight size={16} strokeWidth={2.4} style={{marginLeft: 6}} aria-hidden />
+                  </>
+                )}
+              </button>
+              <button type="button" className={s.secondary} disabled={submitting} onClick={redo}>
+                <RotateCcw size={15} strokeWidth={2.2} style={{marginRight: 6}} aria-hidden />
+                {PRODUCTION_EXAM_REDO}
+              </button>
+            </div>
+            <p className={styles.reviewNote}>{PRODUCTION_EXAM_REDO_NOTE}</p>
+          </>
         )}
 
         {!examMode && phase === "recorded" && (
@@ -797,7 +846,7 @@ export function EoRecordingForm({
               disabled={submitting}
               onClick={() =>
                 blobRef.current &&
-                onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+                onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed), takeRef.current)
               }
             >
               {submitting ? "Envoi en cours…" : submitLabel}

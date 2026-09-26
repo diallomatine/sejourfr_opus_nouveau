@@ -3235,7 +3235,8 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       immédiate au stop (pas de réécoute). **Une tâche rendue ne se refait pas
       en session d'examen** (règle backend `ProductionAccessService`) : la
       tâche courante est toujours `TACHES.find(n => !subs.has(n))`, le bouton
-      micro est désactivé après le stop et « Refaire » n'existe qu'hors examen ;
+      micro est désactivé après le stop et « Refaire » n'existe qu'hors examen ⚠️ **révoqué le
+      2026-09-27 : revue + « Recommencer » avant envoi, cf. § « Examen blanc EE/EO — feuille »** ;
       relancer l'évaluation IA d'une soumission (`retrySubmission`) reste
       légitime. Fin normale (T3) et abandon (navigation sortante) →
       `attemptApi.finish`. `ProductionBilanResponse` gagne `slotNumber` +
@@ -5349,4 +5350,26 @@ Mots : `lib/plan-unlock.ts` (`PLAN_UNLOCK_NON_EVALUE*`, `planUnlockGroupeMeta`, 
   (`advisedTimeLabel` supprimé), `EoRecordingForm` gagne `split` : **≥ 1024 px, deux colonnes**
   (consigne collante à gauche, production à droite, `exam.module.css`), une colonne en dessous.
   Auto-soumission, clé d'idempotence, sortie d'épreuve et zone auto-extensible inchangées.
+- 🛑 **EO : l'arrêt ouvre une REVUE, il n'envoie plus rien** (2026-09-27, retour du propriétaire :
+  « l'écran se fige puis la tâche suivante apparaît d'un coup »). Cause : l'arrêt déclenchait
+  directement l'envoi (upload + transcription synchrone, plusieurs secondes) sans aucun état
+  visible. Machine d'états de `EoRecordingForm` en `examMode` : consigne (« Je suis prêt ») →
+  enregistrement (décompte `dureeMaxSec`) → **revue** (réécoute du Blob EN MÉMOIRE via URL
+  locale, « Recommencer », bouton principal « Tâche suivante » / « Terminer l'examen » /
+  « Terminer l'épreuve ») → envoi (bouton en chargement « Envoi de votre réponse… ») → tâche
+  suivante en fondu court (`.taskEnter`, clé = la tâche, coupé par `prefers-reduced-motion`,
+  retour en haut de page). Auto-stop à 0:00 ⇒ revue aussi (phrase « temps écoulé ») ;
+  expiration d'un chrono d'épreuve pendant la revue ⇒ la prise part (`onTimeout`).
+  « Recommencer » est permis en examen blanc : nouvelle prise, **décompte remis en entier**
+  (l'oral n'a pas de chrono d'épreuve ; garde-fou serveur de 2 h inchangé).
+- 🛑 **Clé d'idempotence par PRISE** : `onSubmit(audio, durée, take)`, `take` +1 à chaque
+  enregistrement ; clé `${attemptId}:${taskId}:${take}` (examen, entraînement
+  `ProductionInputPage`, timeout). « Réessayer » renvoie la même prise ⇒ même clé. Un échec
+  d'envoi relit les soumissions (`taskRenderedAfterAll`) : tâche rendue malgré tout ⇒ on
+  avance ; sinon `sendError` dans la revue + « Réessayer », enregistrement intact.
+- **Fin d'examen module** : `goToBilan` montre tout de suite **`EvaluationLoadingView`**
+  (`production/EvaluationLoadingView.tsx`, miroir du widget mobile du même nom — cocarde,
+  « Analyse en cours », étapes ; mots dans `production-exam-copy.ts`), qui cède la place au
+  bilan quand le polling voit tout évalué ou au bout de 40 × 3 s. Même vue pendant l'attente
+  de `ProductionResults` (l'ancien spinner est supprimé). Examen complet : retour au hub, inchangé.
 

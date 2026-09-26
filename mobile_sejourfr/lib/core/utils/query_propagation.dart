@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 
 /// Concatène les query params courants de la route active à `path`. Utilisé
 /// dans le flow EE/EO pour propager `fullExamId` + `subAttemptId` à travers
-/// les écrans (briefing → enregistrement → termine → résultats) quand
+/// les écrans (consigne → enregistrement → revue → résultats) quand
 /// l'utilisateur est dans un examen blanc TCF complet.
 String withCurrentQuery(BuildContext context, String path) {
   final qp = GoRouterState.of(context).uri.queryParameters;

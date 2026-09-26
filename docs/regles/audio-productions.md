@@ -65,6 +65,11 @@ d'une production orale, c'est **son texte**.
   `calibration/ProductionView` — les seuls qui le faisaient). ✅ **La réécoute
   LOCALE, avant validation, reste** : le fichier est encore sur l'appareil, rien
   n'est stocké, et elle protège le candidat d'envoyer une prise ratée.
+  Depuis le 2026-09-27 elle vaut **aussi en examen blanc EO** (revue après l'arrêt :
+  réécouter, recommencer, puis envoyer) : web = Blob en mémoire lu par une URL locale
+  (révoquée au démontage), mobile = fichier local effacé après l'envoi ou au
+  « Recommencer ». Rien n'est envoyé pour la réécoute ; l'audio ne part qu'à l'envoi,
+  pour la transcription.
 - Contraintes desserrées par **V033** : `chk_prod_sub_audio_or_text` (une
   soumission orale n'a plus ni média ni texte, sa production vit dans
   `transcriptions`, comme le temps réel depuis V017) et

@@ -16,6 +16,7 @@ import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'production_result_labels.dart';
 import 'widgets/bilan_hero.dart';
+import 'widgets/evaluation_loading_view.dart';
 import 'widgets/feedback_block.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/tache_bilan_row.dart';
@@ -67,6 +68,13 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   Timer? _pollTimer;
   bool _pollExhausted = false;
 
+  /// Arrivée juste après la dernière tâche (`live=1`) : l'écran « Analyse en
+  /// cours » masque le bilan tant que l'IA travaille, puis bascule tout seul.
+  /// Au-delà de [_awaitMaxDuration], le bilan prend le relais (ses tâches
+  /// encore en cours y restent signalées) — miroir du web (40 × 3 s).
+  bool _awaitingAnalysis = false;
+  static const Duration _awaitMaxDuration = Duration(minutes: 2);
+
   static const Duration _pollIntervalFast = Duration(seconds: 3);
   static const Duration _pollIntervalSlow = Duration(seconds: 8);
   static const Duration _pollSlowdownAt = Duration(seconds: 30);
@@ -94,7 +102,10 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
       // FAILED. Côté historique, la query est absente → pas de polling.
       final live = GoRouterState.of(context).uri.queryParameters['live'] == '1';
       _liveMode = live;
-      if (live) _schedulePollTick(_pollIntervalFast);
+      if (live) {
+        setState(() => _awaitingAnalysis = true);
+        _schedulePollTick(_pollIntervalFast);
+      }
     });
   }
 
@@ -106,8 +117,17 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   Future<void> _pollTick() async {
     if (!mounted) return;
     if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
-      if (mounted) setState(() => _pollExhausted = true);
+      if (mounted) {
+        setState(() {
+          _pollExhausted = true;
+          _awaitingAnalysis = false;
+        });
+      }
       return;
+    }
+    if (_awaitingAnalysis &&
+        DateTime.now().difference(_pollStartedAt) > _awaitMaxDuration) {
+      setState(() => _awaitingAnalysis = false);
     }
     ref.invalidate(_historyForBilanProvider(widget.epreuve));
     ref.invalidate(_bilanProvider(widget.attemptId));
@@ -124,6 +144,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
           session.isNotEmpty && session.every((s) => s.statut.isFinal);
       final levelSettled = bilan.finished && bilan.niveauGlobal != null;
       if (submissionsSettled && (levelSettled || !bilan.exam)) {
+        if (_awaitingAnalysis) setState(() => _awaitingAnalysis = false);
         return; // plus rien à attendre.
       }
     } catch (_) {
@@ -183,7 +204,11 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
         fallbackRoute: fallbackRoute,
         rightAction: const ProductionAppHeaderInfo(),
       ),
-      body: history.when(
+      body: _awaitingAnalysis
+          ? EvaluationLoadingView(
+              includeTranscription: widget.epreuve == EpreuveType.tcfEo,
+            )
+          : history.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,

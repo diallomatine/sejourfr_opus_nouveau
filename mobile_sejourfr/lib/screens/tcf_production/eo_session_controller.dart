@@ -74,10 +74,21 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
 
   final ProductionRepository _repo;
 
-  /// Une cle par (session, tache) : renvoyer le meme enregistrement apres une
-  /// coupure ne doit ni repayer Whisper puis le correcteur, ni consommer deux
-  /// fois le quota.
+  /// Une cle par PRISE (session, tache, numero de prise) : renvoyer le meme
+  /// enregistrement apres une coupure ne doit ni repayer Whisper puis le
+  /// correcteur, ni consommer deux fois le quota — mais « Recommencer » est une
+  /// AUTRE production, donc une autre cle.
   final SubmissionKeys _keys = SubmissionKeys();
+
+  /// Numero de la prise en cours, par index de tache : +1 a chaque demarrage
+  /// d'enregistrement ([beginTake]).
+  final Map<int, int> _takes = <int, int>{};
+
+  /// Une nouvelle prise commence sur la tache [taskIndex] : la prochaine
+  /// soumission de cette tache portera une nouvelle cle.
+  void beginTake(int taskIndex) {
+    _takes[taskIndex] = (_takes[taskIndex] ?? 0) + 1;
+  }
   final AttemptsRepository _attempts;
   final void Function() _onPlanChanged;
 
@@ -216,12 +227,37 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
       attemptId: attemptId,
       audioFile: audioFile,
       mimeType: mimeType,
-      clientSubmissionId: _keys.keyFor('$attemptId:${task.id}'),
+      clientSubmissionId:
+          _keys.keyFor('$attemptId:${task.id}:${_takes[taskIndex] ?? 0}'),
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));
     _onPlanChanged();
     return submission;
+  }
+
+  /// Après un échec d'envoi : relit les soumissions de la session. Une coupure
+  /// APRÈS la réception serveur laisse la tâche rendue alors que l'écran croit
+  /// à un échec — dans ce cas on l'inscrit et on rend la soumission, sinon
+  /// `null` (l'enregistrement reste sur l'appareil, le candidat réessaie).
+  Future<ProductionSubmissionDto?> syncTaskIfRendered(int taskIndex) async {
+    final current = state.value;
+    final attemptId = current?.attempt?.id;
+    final task = current?.taskAt(taskIndex);
+    if (current == null || attemptId == null || task == null) return null;
+    try {
+      final toutes = await _repo.listMine(limit: 60);
+      final rendue = toutes
+          .where((s) => s.attemptId == attemptId && s.productionTaskId == task.id)
+          .firstOrNull;
+      if (rendue == null) return null;
+      final updated = {...current.submissions, taskIndex: rendue};
+      state = AsyncData(current.copyWith(submissions: updated));
+      _onPlanChanged();
+      return rendue;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Re-fetch la submission de la tâche `taskIndex` depuis le backend et la
@@ -257,6 +293,7 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
   }
 
   void reset() {
+    _takes.clear();
     state = const AsyncData(EoSessionState.empty());
   }
 }

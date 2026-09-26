@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/sejourfr_logo.dart';
+import '../production_exam_copy.dart';
 
 /// Vue "Analyse en cours" affichee pendant qu'on attend la reponse du backend
 /// (10-20 s en synchrone). Anime 4 etapes textuelles independamment de l'avance
@@ -38,21 +39,23 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
       vsync: this,
       duration: const Duration(seconds: 6),
     )..repeat();
+    // Mots et cadences indicatives déclarés une fois, miroirs du web
+    // (`production_exam_copy.dart` ⇄ `lib/production-exam-copy.ts`).
+    final steps =
+        evaluationLoadingSteps(includeTranscription: widget.includeTranscription);
     _steps = [
-      const _Step(label: 'Envoi de votre production', icon: LucideIcons.cloudUpload),
-      if (widget.includeTranscription)
-        const _Step(label: 'Transcription audio', icon: LucideIcons.audioLines),
-      const _Step(label: 'Analyse pédagogique', icon: LucideIcons.brain),
-      const _Step(label: 'Préparation de votre bilan', icon: LucideIcons.clipboardCheck),
+      for (final step in steps) _Step(label: step.label, icon: _iconOf(step.key)),
     ];
-    // Cadences indicatives (en secondes), recalibrees selon la vitesse reelle
-    // si jamais on bascule en async un jour. Total ~18 s avec transcription,
-    // ~12 s sans.
-    _durations = widget.includeTranscription
-        ? const [2, 6, 6, 4]
-        : const [2, 6, 4];
+    _durations = [for (final step in steps) step.seconds];
     _startTicker();
   }
+
+  static IconData _iconOf(EvaluationLoadingStepKey key) => switch (key) {
+        EvaluationLoadingStepKey.upload => LucideIcons.cloudUpload,
+        EvaluationLoadingStepKey.transcription => LucideIcons.audioLines,
+        EvaluationLoadingStepKey.analysis => LucideIcons.brain,
+        EvaluationLoadingStepKey.report => LucideIcons.clipboardCheck,
+      };
 
   void _startTicker() {
     int elapsed = 0;
@@ -84,20 +87,25 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              RotationTransition(
-                turns: _cocardeAnim,
-                child: const Cocarde(size: 96),
-              ),
+              // Mouvement réduit : la cocarde reste immobile, les étapes
+              // continuent de dire où en est l'analyse.
+              if (MediaQuery.disableAnimationsOf(context))
+                const Cocarde(size: 96)
+              else
+                RotationTransition(
+                  turns: _cocardeAnim,
+                  child: const Cocarde(size: 96),
+                ),
               const SizedBox(height: 28),
               Text(
-                'Analyse en cours',
+                kEvaluationLoadingTitle,
                 style: AppFonts.display(size: 22, weight: FontWeight.w700, color: AppColors.ink),
               ),
               const SizedBox(height: 6),
               Text(
                 _stepIndex == _steps.length - 1
-                    ? 'Encore quelques secondes…'
-                    : 'Votre évaluation arrive juste après.',
+                    ? kEvaluationLoadingLast
+                    : kEvaluationLoadingLead,
                 style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
               const SizedBox(height: 28),

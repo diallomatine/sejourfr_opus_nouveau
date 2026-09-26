@@ -122,6 +122,85 @@ String? productionExamConstraintLine(ProductionTaskDto task) {
 String productionExamAdvisedTimeLine(String advisedLabel) =>
     '$advisedLabel sur cette tâche — un repère, pas une limite : le chrono affiché couvre les 3 tâches.';
 
+/* ------------------------------------ oral : revue d'un enregistrement */
+
+// La tâche orale se déroule en quatre temps : consigne (sans chrono) →
+// enregistrement (décompte de la tâche en examen) → **revue** → envoi. La revue
+// existe parce que l'arrêt n'envoyait rien de visible : l'écran se figeait le
+// temps de la transcription, puis la tâche suivante tombait d'un coup.
+//
+// 🛑 La réécoute lit l'enregistrement **resté sur l'appareil** : rien n'est
+// envoyé pour la permettre, rien n'est conservé après l'envoi
+// (`docs/regles/audio-productions.md`).
+
+const String kProductionExamReviewTitle = 'Enregistrement terminé';
+
+/// Sous le titre de la revue. [timeUp] : l'arrêt est venu du décompte.
+String productionExamReviewHint({required bool timeUp}) {
+  final lead = timeUp
+      ? "Le temps de parole est écoulé, l'enregistrement s'est arrêté. "
+      : '';
+  return '${lead}Réécoutez votre réponse, recommencez-la si besoin, puis envoyez-la.';
+}
+
+const String kProductionExamRedo = 'Recommencer';
+
+/// Ce que coûte « Recommencer », dit avant le geste.
+const String kProductionExamRedoNote =
+    'Recommencer efface cet enregistrement ; le temps de parole de la tâche repart en entier.';
+
+/// Le bouton principal de la revue, qui envoie la réponse.
+String productionExamNextLabel({required bool isLast, required bool inFullExam}) {
+  if (!isLast) return 'Tâche suivante';
+  return inFullExam ? "Terminer l'épreuve" : "Terminer l'examen";
+}
+
+const String kProductionExamSending = 'Envoi de votre réponse…';
+
+const String kProductionExamSendError =
+    "L'envoi n'a pas abouti. Votre enregistrement est toujours sur cet appareil : réessayez.";
+
+const String kProductionExamRetry = 'Réessayer';
+
+/* --------------------------------------------- attente de l'évaluation */
+
+// L'écran d'attente de l'analyse IA (cocarde, « Analyse en cours », étapes),
+// `EvaluationLoadingView`. Les étapes avancent au rythme indicatif ci-dessous,
+// pas au rythme réel du serveur : elles disent ce qui se passe, elles ne le
+// mesurent pas.
+
+const String kEvaluationLoadingTitle = 'Analyse en cours';
+const String kEvaluationLoadingLead = 'Votre évaluation arrive juste après.';
+const String kEvaluationLoadingLast = 'Encore quelques secondes…';
+
+enum EvaluationLoadingStepKey { upload, transcription, analysis, report }
+
+/// Les étapes et leur durée indicative (secondes), transcription à l'oral.
+List<({EvaluationLoadingStepKey key, String label, int seconds})>
+    evaluationLoadingSteps({required bool includeTranscription}) => [
+          (
+            key: EvaluationLoadingStepKey.upload,
+            label: 'Envoi de votre production',
+            seconds: 2,
+          ),
+          if (includeTranscription)
+            (
+              key: EvaluationLoadingStepKey.transcription,
+              label: 'Transcription audio',
+              seconds: 6,
+            ),
+          (
+            key: EvaluationLoadingStepKey.analysis,
+            label: 'Analyse pédagogique',
+            seconds: 6,
+          ),
+          (
+            key: EvaluationLoadingStepKey.report,
+            label: 'Préparation de votre bilan',
+            seconds: 4,
+          ),
+        ];
+
 /* ------------------------------------------------------ feuille « ⓘ » */
 
 const String kProductionInfoTitle = 'Comment votre production est évaluée';
