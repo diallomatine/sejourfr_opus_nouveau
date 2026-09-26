@@ -5,7 +5,8 @@
 ///
 /// 🛑 **Rien n'est classé ici.** Chaque fonction ne fait que poser une phrase
 /// sur des **faits servis** — le compteur de séries (`seriesDone` /
-/// `seriesTotal`), la couverture d'une tâche (`taches[]`), le **niveau actuel
+/// `seriesTotal`), celui des sujets d'expression (`subjectsDone` /
+/// `subjectsTotal`), la tâche courante (`taches[]`), le **niveau actuel
 /// d'une épreuve** (`tcfDomainProfile`, l'autorité d'affichage), l'état d'un
 /// thème, la cible en cours. Aucune ne dérive un état pédagogique ni un niveau
 /// CECRL d'un pourcentage.
@@ -234,12 +235,16 @@ PlanDomainTask? currentTache(PlanDomain? domain) {
   return null;
 }
 
-/// « 2/10 séries » · « 3/8 compétences ». `null` quand il n'y a rien à compter.
-String? epreuveMeta(DashboardCategoryStat stat, PlanDomain? domain) {
+/// « 2/10 séries » · « 3/40 sujets ». `null` quand il n'y a rien à compter.
+///
+/// Une épreuve d'expression compte ses **sujets servis** (`subjectsDone` /
+/// `subjectsTotal`, ses 3 tâches confondues) — jamais un décompte refait ici.
+/// Le pluriel suit le total : « 1/40 sujets ». Miroir mot pour mot du web
+/// (`epreuveMeta`, `lib/reviser.ts`).
+String? epreuveMeta(DashboardCategoryStat stat) {
   if (isProductionCode(stat.code)) {
-    final tache = currentTache(domain);
-    if (tache == null || tache.totalSkills <= 0) return null;
-    return '${tache.observedSkills}/${tache.totalSkills} compétences';
+    if (stat.subjectsTotal <= 0) return null;
+    return '${stat.subjectsDone}/${stat.subjectsTotal} sujets';
   }
   if (stat.seriesTotal <= 0) return null;
   return '${stat.seriesDone}/${stat.seriesTotal} séries';
@@ -288,13 +293,12 @@ String epreuveStatus(
 /// La part remplie de l'anneau, entre 0 et 1.
 ///
 /// 🛑 **Ce n'est pas une note.** C'est une couverture — des séries parcourues,
-/// des compétences observées —, et un anneau vide veut dire « pas encore
+/// des sujets produits —, et un anneau vide veut dire « pas encore
 /// commencé », jamais « mauvais ».
-double epreuveRatio(DashboardCategoryStat stat, PlanDomain? domain) {
+double epreuveRatio(DashboardCategoryStat stat) {
   if (isProductionCode(stat.code)) {
-    final tache = currentTache(domain);
-    if (tache == null || tache.totalSkills <= 0) return 0;
-    return _clamp01(tache.observedSkills / tache.totalSkills);
+    if (stat.subjectsTotal <= 0) return 0;
+    return _clamp01(stat.subjectsDone / stat.subjectsTotal);
   }
   if (stat.seriesTotal <= 0) return 0;
   return _clamp01(stat.seriesDone / stat.seriesTotal);

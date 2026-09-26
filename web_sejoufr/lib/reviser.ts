@@ -10,7 +10,8 @@
  *
  * 🛑 **Rien n'est classé ici.** Chaque fonction ne fait que poser une phrase sur
  * des **faits servis** — le compteur de séries (`seriesDone` / `seriesTotal`),
- * la couverture d'une tâche (`taches[]`), le **niveau actuel d'une épreuve**
+ * celui des sujets d'expression (`subjectsDone` / `subjectsTotal`), la tâche
+ * courante (`taches[]`), le **niveau actuel d'une épreuve**
  * (`tcfDomainProfile`, l'autorité d'affichage), l'état d'un thème, la cible en
  * cours. Aucune ne dérive un état pédagogique ni un niveau CECRL d'un
  * pourcentage.
@@ -259,12 +260,19 @@ export function currentTache(domain: PlanDomainDto | null): PlanDomainTaskDto | 
     return domain.taches.find((t) => t.tacheNumero === domain.tacheCourante) ?? null;
 }
 
-/** « 2/10 séries » · « 3/8 compétences ». `null` quand il n'y a rien à compter. */
-export function epreuveMeta(stat: DashboardCategoryStat, domain: PlanDomainDto | null): string | null {
+/**
+ * « 2/10 séries » · « 3/40 sujets ». `null` quand il n'y a rien à compter.
+ *
+ * Une épreuve d'expression compte ses **sujets servis** (`subjectsDone` /
+ * `subjectsTotal`, ses 3 tâches confondues) — jamais un décompte refait ici.
+ * Le pluriel suit le total : « 1/40 sujets ». Miroir mot pour mot du mobile
+ * (`epreuveMeta`, `reviser_labels.dart`).
+ */
+export function epreuveMeta(stat: DashboardCategoryStat): string | null {
     if (isProductionCode(stat.code)) {
-        const tache = currentTache(domain);
-        if (!tache || tache.totalSkills <= 0) return null;
-        return `${tache.observedSkills}/${tache.totalSkills} compétences`;
+        const total = stat.subjectsTotal ?? 0;
+        if (total <= 0) return null;
+        return `${stat.subjectsDone ?? 0}/${total} sujets`;
     }
     if (stat.seriesTotal <= 0) return null;
     return `${stat.seriesDone}/${stat.seriesTotal} séries`;
@@ -314,14 +322,14 @@ export function epreuveStatus(
  * La part remplie de l'anneau, entre 0 et 1.
  *
  * 🛑 **Ce n'est pas une note.** C'est une couverture — des séries parcourues,
- * des compétences observées —, et un anneau vide veut dire « pas encore
+ * des sujets produits —, et un anneau vide veut dire « pas encore
  * commencé », jamais « mauvais ».
  */
-export function epreuveRatio(stat: DashboardCategoryStat, domain: PlanDomainDto | null): number {
+export function epreuveRatio(stat: DashboardCategoryStat): number {
     if (isProductionCode(stat.code)) {
-        const tache = currentTache(domain);
-        if (!tache || tache.totalSkills <= 0) return 0;
-        return clamp01(tache.observedSkills / tache.totalSkills);
+        const total = stat.subjectsTotal ?? 0;
+        if (total <= 0) return 0;
+        return clamp01((stat.subjectsDone ?? 0) / total);
     }
     if (stat.seriesTotal <= 0) return 0;
     return clamp01(stat.seriesDone / stat.seriesTotal);

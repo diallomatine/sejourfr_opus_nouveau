@@ -722,14 +722,29 @@ tous « à évaluer ».
 - 🛑 **Le repli `stat.level` est SUPPRIMÉ de cette phrase**, et depuis la
   **quatrième passe du même jour le champ n'existe plus** (voir ci-dessous).
 - **Épreuve non mesurée ⇒ aucun palier inventé** : la ligne retombe sur ce que
-  Réviser sait **compter** (séries terminées, compétences observées), et à
+  Réviser sait **compter** (séries terminées, compétences acquises), et à
   défaut sur son propre « **Pas encore travaillé** » — le vocabulaire du
   catalogue, pas le « À évaluer » d'un constat. `null` = inconnu, jamais un
   plancher.
+- 🛑 **Le compteur des cartes EE / EO est en SUJETS, servi** (2026-09-26,
+  demande du propriétaire) : « 3/40 sujets » et l'anneau lisent
+  `CategoryStat.subjectsDone` / `subjectsTotal` de `GET /api/me/dashboard`
+  (`UserDashboardService.productionCategory`). **Total** = sujets publiés
+  (actifs, hors diagnostic) de l'épreuve, **ses 3 tâches confondues**
+  (`ProductionTaskManager.countActive`) ; **fait** = sujets publiés
+  **distincts** ayant au moins une soumission du candidat, **quels que soient
+  son statut et sa session** (entraînement, examen blanc, examen complet)
+  (`ProductionSubmissionManager.countDistinctPublishedTasksByUserAndEpreuve`).
+  C'est la règle de « Sujets traités » de l'écran Examens blancs. Révoque
+  « X/8 compétences » de la tâche courante. La ligne d'état « Prochaine étape :
+  Tâche N » reste. `0 / 0` hors EE/EO. ⚠️ Les écrans Examens blancs EE/EO
+  (`epreuveSubjectProgress` web, `buildHubData` mobile) recomptent encore la
+  même règle **côté front** à partir des listes chargées — seconde copie à
+  résorber.
 - **La dérivation n'est PAS partagée avec l'Accueil** (`accueilEpreuveEtat`),
   et c'est voulu : celle-ci rend un **état pédagogique servi** (statut +
   evolution → ton, jauge, CTA), Réviser rend une **ligne de catalogue** (étape en
-  cours, compétences acquises, séries faites). Seule la **source du niveau** leur
+  cours, compétences acquises, séries faites, sujets produits). Seule la **source du niveau** leur
   est commune, et c'est elle qu'on a unifiée.
 - ⚠️ **La fiche de domaine du Plan (`/plan/domaine/[x]`) n'est PAS concernée** :
   elle affiche la lecture du Plan parce qu'elle *est* le Plan. → journal :

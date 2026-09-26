@@ -1691,8 +1691,15 @@ vous êtes arrêté »** → **« Les 5 épreuves »** / **« Les 5 thèmes »**
   visiteurs. Il n'a **aucun pendant mobile** (l'app n'a pas de mode invité).
 - **Libellés purs** : `lib/reviser.ts`, **miroir mot pour mot** de
   `reviser_labels.dart`. Rien n'y classe un nombre : chaque fonction pose une
-  phrase sur un **fait servi** (`seriesDone` / `seriesTotal`, `taches[]`,
-  `tcfDomainProfile`, `themes[]`).
+  phrase sur un **fait servi** (`seriesDone` / `seriesTotal`, `subjectsDone` /
+  `subjectsTotal`, `taches[]`, `tcfDomainProfile`, `themes[]`).
+- 🛑 **Cartes EE / EO : « N/M sujets », plus « X/8 compétences »** (demande du
+  propriétaire, 2026-09-26). Méta et anneau lisent `DashboardCategoryStat.subjectsDone`
+  / `subjectsTotal`, **servis** par `/api/me/dashboard` : total = sujets publiés de
+  l'épreuve, **3 tâches confondues** ; fait = sujets distincts ayant au moins une
+  soumission (tout statut, toute session) — la règle de « Sujets traités » des
+  examens blancs. Pluriel sur le total (« 1/40 sujets »). La ligne d'état
+  « Prochaine étape : Tâche N » (tâche courante servie par le Plan) est conservée.
 - 🛑 **« Niveau estimé : X » lit l'AUTORITÉ D'AFFICHAGE** (2026-09-16), la même
   que l'Accueil et le Profil : `summary.tcfDomainProfile`, publication de
   `TcfProfileService.levelProfileAccueil` (moyenne des ≤ 3 derniers examens

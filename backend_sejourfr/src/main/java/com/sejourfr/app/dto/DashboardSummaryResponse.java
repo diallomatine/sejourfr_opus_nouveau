@@ -98,6 +98,13 @@ public record DashboardSummaryResponse(
      *       EE/EO, qui n'ont pas de séries : l'écran y montre des compétences.
      *       🛑 Dérivé serveur ({@code LotService}) — un front ne recompte
      *       jamais des lots, il en lit le décompte.</li>
+     *   <li>{@code subjectsDone} / {@code subjectsTotal} : EE/EO seulement —
+     *       le « 3/40 sujets » de l'écran Réviser. Total = sujets publiés
+     *       (actifs, hors diagnostic) de l'épreuve, <b>ses 3 tâches
+     *       confondues</b> ; fait = sujets publiés <b>distincts</b> ayant au
+     *       moins une soumission du candidat, quels que soient son statut et sa
+     *       session. Même règle que « Sujets traités » des examens blancs.
+     *       {@code 0 / 0} pour les autres catégories. 🛑 Dérivé serveur.</li>
      * </ul>
      */
     public record CategoryStat(
@@ -110,7 +117,9 @@ public record DashboardSummaryResponse(
             int mockExams,
             Integer bestMockScore,
             int seriesDone,
-            int seriesTotal
+            int seriesTotal,
+            int subjectsDone,
+            int subjectsTotal
     ) {
     }
 }

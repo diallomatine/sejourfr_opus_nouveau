@@ -13,6 +13,8 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.ThemeManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +52,8 @@ class UserDashboardServiceTest {
     private AiEvaluationManager aiEvaluationManager;
     private TcfProfileService tcfProfileService;
     private LotService lotService;
+    private ProductionTaskManager productionTaskManager;
+    private ProductionSubmissionManager productionSubmissionManager;
     private UserDashboardService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -79,8 +83,11 @@ class UserDashboardServiceTest {
         lotService = mock(LotService.class);
         when(lotService.seriesCount(any(), any())).thenReturn(LotService.SeriesCount.ZERO);
         when(lotService.seriesCountCivique(any(), any())).thenReturn(LotService.SeriesCount.ZERO);
+        productionTaskManager = mock(ProductionTaskManager.class);
+        productionSubmissionManager = mock(ProductionSubmissionManager.class);
         service = new UserDashboardService(attemptManager, answerManager, questionManager,
-                themeManager, aiEvaluationManager, tcfProfileService, lotService);
+                themeManager, aiEvaluationManager, tcfProfileService, lotService,
+                productionTaskManager, productionSubmissionManager);
     }
 
     private static Theme theme(UUID id, Module module, String code) {
@@ -380,5 +387,55 @@ class UserDashboardServiceTest {
                     assertThat(c.seriesDone()).isZero();
                     assertThat(c.seriesTotal()).isZero();
                 });
+    }
+
+    // ------------------------------------------------------------------ sujets EE/EO
+
+    /**
+     * « 3/40 sujets » de Réviser : total = sujets publiés de l'épreuve (3 tâches
+     * confondues, compté par le manager), fait = sujets distincts produits. La
+     * requête elle-même est verrouillée par les *ManagerIT ; ici, le branchement
+     * par épreuve et l'absence de sujets hors EE/EO.
+     */
+    @Test
+    void summary_sujets_eeEo_luSurLesManagers_parEpreuve() {
+        UUID tcfTheme = UUID.randomUUID();
+        when(themeManager.findByModuleOrderedByDisplayOrder(Module.TCF))
+                .thenReturn(List.of(theme(tcfTheme, Module.TCF, "TCF_CO")));
+        when(productionTaskManager.countActive(EpreuveType.TCF_EE)).thenReturn(40L);
+        when(productionTaskManager.countActive(EpreuveType.TCF_EO)).thenReturn(36L);
+        when(productionSubmissionManager.countDistinctPublishedTasksByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(3L);
+        when(productionSubmissionManager.countDistinctPublishedTasksByUserAndEpreuve(userId, EpreuveType.TCF_EO))
+                .thenReturn(0L);
+
+        DashboardSummaryResponse resp = service.summary(userId);
+
+        DashboardSummaryResponse.CategoryStat ee = byCode(resp, "TCF_EE");
+        assertThat(ee.subjectsDone()).isEqualTo(3);
+        assertThat(ee.subjectsTotal()).isEqualTo(40);
+        DashboardSummaryResponse.CategoryStat eo = byCode(resp, "TCF_EO");
+        assertThat(eo.subjectsDone()).isZero();
+        assertThat(eo.subjectsTotal()).isEqualTo(36);
+        DashboardSummaryResponse.CategoryStat co = byCode(resp, "TCF_CO");
+        assertThat(co.subjectsDone()).isZero();
+        assertThat(co.subjectsTotal()).isZero();
+    }
+
+    /** Un compteur incohérent ne produit jamais « 41/40 » à l'écran. */
+    @Test
+    void summary_sujets_faitsBornesAuTotal() {
+        when(productionTaskManager.countActive(EpreuveType.TCF_EE)).thenReturn(2L);
+        when(productionSubmissionManager.countDistinctPublishedTasksByUserAndEpreuve(userId, EpreuveType.TCF_EE))
+                .thenReturn(5L);
+
+        DashboardSummaryResponse.CategoryStat ee = byCode(service.summary(userId), "TCF_EE");
+
+        assertThat(ee.subjectsDone()).isEqualTo(2);
+        assertThat(ee.subjectsTotal()).isEqualTo(2);
+    }
+
+    private static DashboardSummaryResponse.CategoryStat byCode(DashboardSummaryResponse resp, String code) {
+        return resp.tcf().stream().filter(c -> c.code().equals(code)).findFirst().orElseThrow();
     }
 }

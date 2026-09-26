@@ -180,6 +180,23 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
     long countDistinctTachesByAttemptAndEpreuve(@Param("attemptId") UUID attemptId,
                                                 @Param("epreuve") EpreuveType epreuve);
 
+    /**
+     * Sujets DISTINCTS deja produits par ce candidat sur une epreuve : au moins
+     * une soumission, quel que soit son statut ou sa session (entrainement,
+     * examen blanc, examen complet). Seuls comptent les sujets encore publies
+     * (actifs, hors diagnostic) : un sujet retire du catalogue ne gonfle pas le
+     * numerateur sans gonfler le denominateur.
+     */
+    @Query("""
+            SELECT COUNT(DISTINCT s.productionTask.id) FROM ProductionSubmission s
+            WHERE s.user.id = :userId
+              AND s.productionTask.epreuve = :epreuve
+              AND s.productionTask.active = true
+              AND s.productionTask.diagnosticCode IS NULL
+            """)
+    long countDistinctPublishedTasksByUserAndEpreuve(@Param("userId") UUID userId,
+                                                     @Param("epreuve") EpreuveType epreuve);
+
     /** Historique filtre par epreuve (jointure sur la task). */
     @Query("""
             SELECT s FROM ProductionSubmission s

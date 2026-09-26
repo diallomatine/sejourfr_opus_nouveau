@@ -1814,7 +1814,14 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
 - **Libellés purs** : `screens/reviser/reviser_labels.dart`, **miroir mot pour
   mot** de `web_sejoufr/lib/reviser.ts`. Rien n'y classe un nombre : chaque
   fonction pose une phrase sur un **fait servi** (`seriesDone` / `seriesTotal`,
-  `taches[]`, `tcfDomainProfile`, `themes[]`).
+  `subjectsDone` / `subjectsTotal`, `taches[]`, `tcfDomainProfile`, `themes[]`).
+- 🛑 **Cartes EE / EO : « N/M sujets », plus « X/8 compétences »** (demande du
+  propriétaire, 2026-09-26). Méta et anneau lisent `DashboardCategoryStat.subjectsDone`
+  / `subjectsTotal`, **servis** par `/api/me/dashboard` : total = sujets publiés de
+  l'épreuve, **3 tâches confondues** ; fait = sujets distincts ayant au moins une
+  soumission (tout statut, toute session) — la règle de « Sujets traités » des
+  examens blancs. Pluriel sur le total (« 1/40 sujets »). La ligne d'état
+  « Prochaine étape : Tâche N » (tâche courante servie par le Plan) est conservée.
 - 🛑 **« Niveau estimé : X » lit l'AUTORITÉ D'AFFICHAGE** (2026-09-16), la même
   que l'Accueil et le Profil : `DashboardSummary.tcfDomainProfile`, publication
   de `TcfProfileService.levelProfileAccueil` (moyenne des ≤ 3 derniers examens

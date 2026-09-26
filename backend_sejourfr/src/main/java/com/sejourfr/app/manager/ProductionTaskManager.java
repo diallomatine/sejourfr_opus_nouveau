@@ -65,6 +65,11 @@ public class ProductionTaskManager {
         return repository.findByEpreuveAndActiveTrueAndDiagnosticCodeIsNullOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
     }
 
+    /** Nombre de sujets publies d'une epreuve, ses 3 taches confondues. */
+    public long countActive(EpreuveType epreuve) {
+        return repository.countByEpreuveAndActiveTrueAndDiagnosticCodeIsNull(epreuve);
+    }
+
     /** Toutes les taches actives (toutes epreuves/niveaux) — validation des rubriques au boot. */
     public List<ProductionTask> findAllActive() {
         return repository.findByActiveTrueAndDiagnosticCodeIsNull();

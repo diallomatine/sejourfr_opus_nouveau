@@ -34,6 +34,12 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTask, 
     List<ProductionTask> findByEpreuveAndActiveTrueAndDiagnosticCodeIsNullOrderByNiveauCibleAscTacheNumeroAsc(
             EpreuveType epreuve);
 
+    /**
+     * Nombre de sujets publies d'une epreuve (actifs, hors diagnostic) : le
+     * denominateur « N/M sujets » de l'ecran Reviser, toutes taches confondues.
+     */
+    long countByEpreuveAndActiveTrueAndDiagnosticCodeIsNull(EpreuveType epreuve);
+
     /** Inclut les inactives : reserve a l'admin. */
     List<ProductionTask> findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(EpreuveType epreuve);
 

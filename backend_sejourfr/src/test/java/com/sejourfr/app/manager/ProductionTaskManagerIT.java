@@ -321,4 +321,30 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
         e.setAudioUrl(audioUrl);
         return manager.saveExample(e);
     }
+
+    /**
+     * Dénominateur de « N/M sujets » (Réviser) : les sujets publiés de l'épreuve,
+     * ses 3 tâches confondues ; inactifs, diagnostic et autre épreuve exclus.
+     * Seed-tolérant : on mesure l'écart au baseline.
+     */
+    @Test
+    void countActive_sommeLesTroisTaches_horsInactifsDiagnosticEtAutreEpreuve() {
+        long baseEe = manager.countActive(EpreuveType.TCF_EE);
+        long baseEo = manager.countActive(EpreuveType.TCF_EO);
+
+        task(EpreuveType.TCF_EE, NIVEAU, (short) 1, true, 0);
+        task(EpreuveType.TCF_EE, NIVEAU, (short) 2, true, 0);
+        task(EpreuveType.TCF_EE, "A2", (short) 3, true, 0);
+        task(EpreuveType.TCF_EE, NIVEAU, (short) 1, false, 0);
+        ProductionTask diagnostic = task(EpreuveType.TCF_EE, NIVEAU, (short) 1, true, 0);
+        diagnostic.setDiagnosticCode("IT_DIAG_" + UUID.randomUUID());
+        diagnostic.setDiagnosticVersion(1);
+        diagnostic.setMotsMin(100);
+        diagnostic.setMotsMax(130);
+        taskRepository.saveAndFlush(diagnostic);
+        task(EpreuveType.TCF_EO, NIVEAU, (short) 2, true, 0);
+
+        assertThat(manager.countActive(EpreuveType.TCF_EE)).isEqualTo(baseEe + 3);
+        assertThat(manager.countActive(EpreuveType.TCF_EO)).isEqualTo(baseEo + 1);
+    }
 }

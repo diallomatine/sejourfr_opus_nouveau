@@ -270,8 +270,8 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
       icon: dashboardCategoryIcon(stat.code),
       title: stat.label,
       status: epreuveStatus(stat, domain, profil),
-      meta: epreuveMeta(stat, domain),
-      ratio: epreuveRatio(stat, domain),
+      meta: epreuveMeta(stat),
+      ratio: epreuveRatio(stat),
       onTap: () => context.push(dashboardCategoryRoute(stat)),
     );
   }

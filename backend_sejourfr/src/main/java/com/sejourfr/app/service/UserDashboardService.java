@@ -14,6 +14,8 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.manager.ThemeManager;
 import lombok.RequiredArgsConstructor;
@@ -79,6 +81,8 @@ public class UserDashboardService {
     private final AiEvaluationManager aiEvaluationManager;
     private final TcfProfileService tcfProfileService;
     private final LotService lotService;
+    private final ProductionTaskManager productionTaskManager;
+    private final ProductionSubmissionManager productionSubmissionManager;
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse summary(UUID userId) {
@@ -252,7 +256,9 @@ public class UserDashboardService {
                     agg == null ? 0 : agg.count,
                     agg == null ? null : agg.best,
                     series.done(),
-                    series.total()));
+                    series.total(),
+                    0,
+                    0));
         }
         return out;
     }
@@ -317,11 +323,14 @@ public class UserDashboardService {
                     Math.min(1.0, (double) notes.size() / PRODUCTION_CONFIDENCE_SAMPLE);
             percent = (int) Math.round(avg * 5 * confiance);
         }
-        // 0 / 0 séries : une épreuve de production n'en porte pas, et l'écran
-        // Réviser y montre des compétences à la place. Zéro, pas null : il n'y
-        // a rien d'inconnu ici, il n'y a rien du tout.
+        // 0 / 0 séries : une épreuve de production n'en porte pas. Réviser y
+        // compte des SUJETS : publiés (3 tâches confondues) et distincts déjà
+        // produits — la règle de « Sujets traités » des examens blancs.
+        final int subjectsTotal = (int) productionTaskManager.countActive(epreuve);
+        final int subjectsDone = (int) Math.min(subjectsTotal,
+                productionSubmissionManager.countDistinctPublishedTasksByUserAndEpreuve(userId, epreuve));
         return new DashboardSummaryResponse.CategoryStat(
-                null, code, label, percent, 0, 0, 0, null, 0, 0);
+                null, code, label, percent, 0, 0, 0, null, 0, 0, subjectsDone, subjectsTotal);
     }
 
     // ------------------------------------------------------------------------

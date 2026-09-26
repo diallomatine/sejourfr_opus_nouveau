@@ -357,4 +357,47 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
         assertThatThrownBy(() -> submissionRepository.saveAndFlush(s))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
+
+    /**
+     * Numérateur de « N/M sujets » (Réviser) : sujets publiés DISTINCTS ayant au
+     * moins une soumission du candidat, quels que soient statut et session.
+     */
+    @Test
+    void countDistinctPublishedTasks_distinctParSujet_publiesSeuls_candidatIsole() {
+        User user = testData.user();
+        User autre = testData.user();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        ProductionTask ee1 = task(EpreuveType.TCF_EE, (short) 1);
+        ProductionTask ee2 = task(EpreuveType.TCF_EE, (short) 2);
+        ProductionTask ee3JamaisJoue = task(EpreuveType.TCF_EE, (short) 3);
+        ProductionTask retire = task(EpreuveType.TCF_EE, (short) 1);
+        ProductionTask eo = task(EpreuveType.TCF_EO, (short) 1);
+        ProductionTask diagnostic = task(EpreuveType.TCF_EE, (short) 1);
+        diagnostic.setDiagnosticCode("IT_DIAG_" + UUID.randomUUID());
+        diagnostic.setDiagnosticVersion(1);
+        diagnostic.setMotsMin(100);
+        diagnostic.setMotsMax(130);
+        taskRepository.saveAndFlush(diagnostic);
+
+        // Le même sujet repris en entraînement puis en examen blanc : un seul.
+        submission(testData.attempt(user), ee1, user, now, SubmissionStatut.EVALUATED);
+        submission(examAttempt(user), ee1, user, now, SubmissionStatut.SUBMITTED);
+        // Une soumission dont l'évaluation a échoué compte : le sujet a été produit.
+        submission(fullExamChild(user), ee2, user, now, SubmissionStatut.FAILED);
+        submission(testData.attempt(user), retire, user, now, SubmissionStatut.EVALUATED);
+        retire.setActive(false);
+        taskRepository.saveAndFlush(retire);
+        submission(testData.attempt(user), diagnostic, user, now, SubmissionStatut.EVALUATED);
+        submission(testData.attempt(user), eo, user, now, SubmissionStatut.EVALUATED);
+        submission(testData.attempt(autre), ee3JamaisJoue, autre, now, SubmissionStatut.EVALUATED);
+
+        assertThat(manager.countDistinctPublishedTasksByUserAndEpreuve(user.getId(), EpreuveType.TCF_EE))
+                .isEqualTo(2);
+        assertThat(manager.countDistinctPublishedTasksByUserAndEpreuve(user.getId(), EpreuveType.TCF_EO))
+                .isEqualTo(1);
+        assertThat(manager.countDistinctPublishedTasksByUserAndEpreuve(autre.getId(), EpreuveType.TCF_EE))
+                .isEqualTo(1);
+        assertThat(manager.countDistinctPublishedTasksByUserAndEpreuve(UUID.randomUUID(), EpreuveType.TCF_EE))
+                .isZero();
+    }
 }

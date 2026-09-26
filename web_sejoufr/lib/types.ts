@@ -3686,12 +3686,22 @@ export interface DashboardCategoryStat {
      * terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran
      * Réviser). Côté TCF, **tous paliers confondus** (A2 + B1 + B2) ; côté
      * civique, sur le thème. `0 / 0` pour EE/EO, qui n'ont pas de séries —
-     * l'écran y montre des compétences.
+     * l'écran y compte des sujets.
      *
      * 🛑 **Dérivé serveur** : un front ne recompte jamais des lots.
      */
     seriesDone: number;
     seriesTotal: number;
+    /**
+     * Les **sujets** d'une épreuve d'expression (« 3/40 sujets » de l'écran
+     * Réviser) : total = sujets publiés, **ses 3 tâches confondues** ; fait =
+     * sujets distincts déjà produits (au moins une soumission, tout statut,
+     * toute session). `0 / 0` hors EE/EO.
+     *
+     * 🛑 **Dérivé serveur** : un front ne recompte jamais des soumissions.
+     */
+    subjectsDone: number;
+    subjectsTotal: number;
     /*
      * 🛑 **Aucun niveau CECRL ici** (2026-09-16). Le champ `level` — « dernier
      * niveau évalué, entraînements compris » — a été **retiré du DTO** : c'était

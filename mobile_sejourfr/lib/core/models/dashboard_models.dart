@@ -194,6 +194,8 @@ class DashboardCategoryStat {
     required this.bestMockScore,
     required this.seriesDone,
     required this.seriesTotal,
+    required this.subjectsDone,
+    required this.subjectsTotal,
   });
 
   final String? themeId;
@@ -216,12 +218,21 @@ class DashboardCategoryStat {
   /// Les **séries** d'entraînement de la catégorie : combien le candidat en a
   /// terminé, sur combien elle en porte (« 2 / 10 séries » de l'écran Réviser).
   /// Côté TCF, **tous paliers confondus** (A2 + B1 + B2) ; côté civique, sur le
-  /// thème. `0 / 0` pour EE/EO, qui n'ont pas de séries — l'écran y montre des
-  /// compétences.
+  /// thème. `0 / 0` pour EE/EO, qui n'ont pas de séries — l'écran y compte des
+  /// sujets.
   ///
   /// 🛑 **Dérivé serveur** : une app ne recompte jamais des lots.
   final int seriesDone;
   final int seriesTotal;
+
+  /// Les **sujets** d'une épreuve d'expression (« 3/40 sujets » de l'écran
+  /// Réviser) : total = sujets publiés, **ses 3 tâches confondues** ; fait =
+  /// sujets distincts déjà produits (au moins une soumission, tout statut,
+  /// toute session). `0 / 0` hors EE/EO.
+  ///
+  /// 🛑 **Dérivé serveur** : une app ne recompte jamais des soumissions.
+  final int subjectsDone;
+  final int subjectsTotal;
 
   bool get isProduction => code == 'TCF_EE' || code == 'TCF_EO';
 
@@ -237,6 +248,8 @@ class DashboardCategoryStat {
         bestMockScore: (json['bestMockScore'] as num?)?.toInt(),
         seriesDone: (json['seriesDone'] as num? ?? 0).toInt(),
         seriesTotal: (json['seriesTotal'] as num? ?? 0).toInt(),
+        subjectsDone: (json['subjectsDone'] as num? ?? 0).toInt(),
+        subjectsTotal: (json['subjectsTotal'] as num? ?? 0).toInt(),
       );
 }
 

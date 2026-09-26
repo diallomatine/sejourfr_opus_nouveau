@@ -343,7 +343,9 @@ Cf. `exams-tcf.md`.
   module, sous-attempts TCF_COMPLET exclus), taux de réussite global, niveau
   TCF estimé (dernier examen TCF porteur d'un niveau CECRL), stats par
   catégorie pour les deux modules (tous les thèmes, avec `mockExams` scopé +
-  entrées synthétiques `TCF_EE`/`TCF_EO` depuis les évals IA).
+  entrées synthétiques `TCF_EE`/`TCF_EO` depuis les évals IA, qui portent
+  `subjectsDone`/`subjectsTotal` : sujets publiés distincts produits / sujets
+  publiés de l'épreuve, 3 tâches confondues — le « 3/40 sujets » de Réviser).
   Cf. `UserDashboardService`.
 - `POST|DELETE /api/me/questions/{id}/favorite`
 - `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE`

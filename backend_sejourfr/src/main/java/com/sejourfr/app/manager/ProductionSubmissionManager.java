@@ -129,6 +129,11 @@ public class ProductionSubmissionManager {
         return repository.countByUserAndEpreuve(userId, epreuve);
     }
 
+    /** Sujets publies distincts deja produits sur l'epreuve (« 3/40 sujets »). */
+    public long countDistinctPublishedTasksByUserAndEpreuve(UUID userId, EpreuveType epreuve) {
+        return repository.countDistinctPublishedTasksByUserAndEpreuve(userId, epreuve);
+    }
+
     /** Soumissions d'entrainement seules (hors sessions d'examen blanc). */
     public long countTrainingByUserAndEpreuve(UUID userId, EpreuveType epreuve) {
         return repository.countTrainingByUserAndEpreuve(userId, epreuve);

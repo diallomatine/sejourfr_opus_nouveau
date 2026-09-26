@@ -386,8 +386,8 @@ function TcfBody({
                   icon={iconFor(stat.code)}
                   title={stat.label}
                   status={epreuveStatus(stat, domain, profil)}
-                  meta={epreuveMeta(stat, domain)}
-                  ratio={epreuveRatio(stat, domain)}
+                  meta={epreuveMeta(stat)}
+                  ratio={epreuveRatio(stat)}
                   href={hrefFor(stat)}
                 />
               );
@@ -402,8 +402,8 @@ function TcfBody({
               icon={iconFor(complementaire.code)}
               title={complementaire.label}
               status={epreuveStatus(complementaire, null, profil)}
-              meta={epreuveMeta(complementaire, null)}
-              ratio={epreuveRatio(complementaire, null)}
+              meta={epreuveMeta(complementaire)}
+              ratio={epreuveRatio(complementaire)}
               href={hrefFor(complementaire)}
             />
             <NoteCard
@@ -445,6 +445,8 @@ function orderedTcf(
         level: null,
         seriesDone: 0,
         seriesTotal: 0,
+        subjectsDone: 0,
+        subjectsTotal: 0,
       },
   );
 }
@@ -470,6 +472,8 @@ function statComplementaire(
       bestMockScore: null,
       seriesDone: 0,
       seriesTotal: 0,
+      subjectsDone: 0,
+      subjectsTotal: 0,
     }
   );
 }
@@ -539,6 +543,8 @@ function CiviqueBody({
         level: null,
         seriesDone: 0,
         seriesTotal: 0,
+        subjectsDone: 0,
+        subjectsTotal: 0,
       }));
   }, [summary, guestThemes]);
 
