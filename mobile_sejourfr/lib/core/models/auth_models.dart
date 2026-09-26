@@ -15,6 +15,8 @@ class AuthUser {
     this.hasTcf = false,
     this.premiumEndsAt,
     this.authProvider = AuthProvider.local,
+    this.profileIncomplete = false,
+    this.missingProfileFields = const [],
   });
 
   final String id;
@@ -55,11 +57,16 @@ class AuthUser {
   /// Moyen par lequel le compte a ete cree (mot de passe local vs social).
   final AuthProvider authProvider;
 
-  /// L'utilisateur a-t-il choisi son parcours administratif ?
-  /// Les comptes ADMIN n'ont pas besoin de cette étape : on les considère
-  /// toujours comme onboardés.
-  bool get hasCompletedOnboarding =>
-      role == UserRole.admin || targetProcedure != null;
+  /// **Servi** (`ProfilObligatoire` côté backend) : un champ obligatoire de
+  /// l'inscription manque encore — compte né d'une connexion Google/Apple, ou
+  /// compte sans démarche. Vrai ⇒ le `redirect` du router ouvre `/target-path`
+  /// avant l'application. 🛑 Jamais déduit ici d'un `null` : le serveur dit ce
+  /// qui manque (un ADMIN n'a jamais rien à compléter). Miroir web :
+  /// `ProfileCompletionGuard`.
+  final bool profileIncomplete;
+
+  /// Les champs à demander, dans l'ordre du formulaire d'inscription.
+  final List<ProfileField> missingProfileFields;
 
   /// L'utilisateur a-t-il accès complet au module donné ?
   /// - CIVIQUE : nécessite plan Civique 3 mois OU Intégral 3 mois.
@@ -90,6 +97,8 @@ class AuthUser {
     bool? hasTcf,
     DateTime? premiumEndsAt,
     AuthProvider? authProvider,
+    bool? profileIncomplete,
+    List<ProfileField>? missingProfileFields,
   }) =>
       AuthUser(
         id: id,
@@ -105,6 +114,8 @@ class AuthUser {
         hasTcf: hasTcf ?? this.hasTcf,
         premiumEndsAt: premiumEndsAt ?? this.premiumEndsAt,
         authProvider: authProvider ?? this.authProvider,
+        profileIncomplete: profileIncomplete ?? this.profileIncomplete,
+        missingProfileFields: missingProfileFields ?? this.missingProfileFields,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -132,6 +143,12 @@ class AuthUser {
         authProvider: json['authProvider'] == null
             ? AuthProvider.local
             : AuthProvider.fromWire(json['authProvider'] as String),
+        profileIncomplete: json['profileIncomplete'] as bool? ?? false,
+        missingProfileFields: [
+          for (final raw
+              in (json['missingProfileFields'] as List<dynamic>? ?? const []))
+            if (ProfileField.fromWireNullable(raw as String?) case final f?) f,
+        ],
       );
 
   Map<String, dynamic> toJson() => {
@@ -150,6 +167,8 @@ class AuthUser {
         if (premiumEndsAt != null)
           'premiumEndsAt': premiumEndsAt!.toIso8601String(),
         'authProvider': authProvider.wire,
+        'profileIncomplete': profileIncomplete,
+        'missingProfileFields': [for (final f in missingProfileFields) f.wire],
       };
 
   static String _wireDate(DateTime d) =>

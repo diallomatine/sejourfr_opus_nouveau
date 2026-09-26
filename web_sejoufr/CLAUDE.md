@@ -5180,6 +5180,21 @@ Refondues dans le langage de l'accueil. `app/_components/auth/` :
   vont sous leur champ (`splitServerErrors`), le reste dans le bandeau. La case
   CGU est désormais **réellement** exigée (le `required` était neutralisé par
   `noValidate`).
+- 🛑 **Démarche jamais pré-cochée** (2026-09-26) : `DemarcheField`
+  (`app/_components/auth/`) est LA question « Votre démarche », montée par
+  `RegisterForm` et par `/completer-profil` ; `validateRegister` l'exige
+  (`TARGET_PROCEDURE_REQUIRED`). `initialMention` ne préremplit qu'une réponse
+  déjà donnée (démarche déclarée avant le diagnostic civique).
+- **`/completer-profil`** (hors groupe `(app)`, `AuthShell` + `ProfileCompletionForm`) :
+  les questions de l'inscription qu'un compte n'a pas reçues (Google, compte
+  ancien sans démarche). Ouvert par **`ProfileCompletionGuard`** (layout racine)
+  sur le fait **servi** `user.profileIncomplete` — jamais sur un `null` lu ici —
+  pour les routes de `requiresCompleteProfile` (`lib/profile-completion.ts` :
+  groupe `(app)` + routes duales, **moins** `/diagnostic`, `/diagnostic-civique`,
+  `/aide`, pour que l'adoption de la session invitée et l'analyse partent de leur
+  écran). Écrit par `PATCH /api/me/profile` (si nom manquant) puis
+  `PUT /api/me/target-path`, relit `/api/auth/me`, rend `?next=`.
+  Miroir mobile : `/target-path` via le `redirect` du router.
 - Supprimé : la case « Rester connecté » (décorative : ni envoyée, ni lue — le
   refresh token dure 30 j dans tous les cas) et la mention « Conforme RGPD ·
   Aucun partage avec des tiers » (Stripe et les fournisseurs d'IA reçoivent des

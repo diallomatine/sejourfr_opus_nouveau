@@ -1394,6 +1394,17 @@ appuyé sur un bouton qui dit ce qu'il va se passer.
 
 ### L'onboarding du parcours : deux questions, deux écrans (2026-09-12)
 
+🛑 **Le `redirect` y conduit sur un fait SERVI** (2026-09-26) : `AuthUser.profileIncomplete`
+(+ `missingProfileFields`), dérivé côté backend par `util/ProfilObligatoire`. L'ancien getter
+`hasCompletedOnboarding` (qui déduisait l'incomplétude de `targetProcedure == null`) est
+supprimé. Concerne l'inscription mobile (compte créé avant la question), la première
+connexion Google/Apple et tout compte existant sans démarche. En complétion : pas de sortie
+à l'étape 1 (ni flèche ni geste retour, seulement « Se déconnecter »), prénom/nom demandés
+à l'étape 1 quand le serveur les déclare manquants (mêmes champs `AuthFormField` que
+l'inscription), destination conservée en `from` (celle de l'écran d'auth, sinon la page
+demandée). Pages légales (`/help/page`, `/about`) ouvertes. Miroir web :
+`ProfileCompletionGuard` → `/completer-profil`.
+
 `screens/target_path/target_path_screen.dart` — **étape 1 la démarche**
 (CSP / CR / NAT), **étape 2 la date d'examen**. Les deux vivaient sur une seule
 page à faire défiler, au moment précis où on demande au candidat de se décider.

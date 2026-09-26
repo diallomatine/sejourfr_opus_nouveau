@@ -285,6 +285,13 @@
 .mentions legend {
   margin-bottom: 8px;
 }
+.mentions .fieldError {
+  margin-top: 8px;
+}
+/* Question restée sans réponse : les trois options passent au rouge. */
+.mentionsInvalid .mentionOpt {
+  border-color: var(--color-red);
+}
 .mentionGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

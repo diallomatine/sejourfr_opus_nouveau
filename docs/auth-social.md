@@ -23,6 +23,26 @@ SejourFR (création automatique du compte s'il n'existe pas) :
   configurées — le bouton mobile/web est aussi masqué quand la config locale est absente,
   donc ce 503 ne devrait apparaître que si un client est mal aligné avec le backend.
 
+## Premier accès : le profil obligatoire (2026-09-26)
+
+Un compte créé par la branche « création » naît **sans démarche** (et, chez Apple, parfois
+sans nom) : le serveur ne devine rien. `AuthenticatedUser.profileIncomplete` +
+`missingProfileFields` (`util/ProfilObligatoire`, dérivé à la lecture) le disent dès la
+réponse de `/api/auth/{google,apple}`, et les fronts posent **les mêmes questions que
+l'inscription** avant l'application :
+
+- **Web** : `ProfileCompletionGuard` (layout racine) → `/completer-profil?next=…`
+  (`AuthShell` + `ProfileCompletionForm`, qui monte `AuthField` et `DemarcheField`, les
+  briques de `RegisterForm`). Les routes de diagnostic restent ouvertes pour que le
+  rattachement de la session invitée et l'analyse partent de leur écran ; la complétion
+  s'intercale au pas suivant.
+- **Mobile** : le `redirect` global ouvre `/target-path?from=…` (étape 1 : prénom/nom si
+  manquants, puis la démarche ; étape 2 : la date, facultative).
+
+Même règle pour un compte **existant** au profil incomplet (compte local d'avant le champ,
+inscription mobile abandonnée sur `/target-path`) : il est invité à sa prochaine ouverture.
+Aucune migration ne remplit une démarche.
+
 ## Schema
 
 Migration `V093__users_auth_provider.sql` ajoute `auth_provider VARCHAR(16) NOT NULL

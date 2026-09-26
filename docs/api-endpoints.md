@@ -7,7 +7,17 @@ automatique** dans le client HTTP de chaque front.
 ## Auth
 
 - `POST /api/auth/{login,register,refresh,forgot-password,reset-password}`
-- `GET /api/auth/me`
+- `GET /api/auth/me` — `AuthenticatedUser`. Depuis le 2026-09-26, il porte aussi
+  `profileIncomplete` (bool) et `missingProfileFields` (`FIRST_NAME` / `LAST_NAME` /
+  `TARGET_PROCEDURE`, dans l'ordre du formulaire) : **dérivés serveur**
+  (`util/ProfilObligatoire`), jamais persistés, toujours vides pour un ADMIN. Même
+  DTO dans la réponse de `login` / `register` / `google` / `apple`. Les fronts lisent
+  ce fait pour poser les questions de l'inscription avant l'app (web
+  `/completer-profil`, mobile `/target-path`) ; la complétion passe par les routes de
+  profil existantes, `PATCH /api/me/profile` puis `PUT /api/me/target-path`.
+  `RegisterRequest.targetProcedure` reste **facultatif** côté serveur (le mobile crée
+  le compte avant de poser la question ; les builds installés n'envoient rien) — le
+  web l'exige dans son formulaire.
 - `POST /api/auth/google` (idToken)
 - `POST /api/auth/apple` (identityToken + firstName/lastName facultatifs)
   → find-or-create user via JWKS Google/Apple. 503 tant que

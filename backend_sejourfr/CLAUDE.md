@@ -107,6 +107,14 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   d'attraper un N+1. Corollaire : un chargement doit être **inconditionnel** là où on veut
   vérifier le coût, et un **retour anticipé** là où l'appel est massif.
 
+## Profil obligatoire
+
+`util/ProfilObligatoire` est l'**autorité unique** de « ce profil est-il complet ? »
+(prénom, nom, démarche ; ADMIN exempté), servie par `AuthenticatedUser.profileIncomplete`
+/ `missingProfileFields`. Les fronts ne le recalculent pas. `RegisterRequest.targetProcedure`
+reste facultatif (clients mobiles installés) : l'exigence passe par ce fait, jamais par une
+valeur par défaut. → `docs/auth-social.md`, `docs/api-endpoints.md`
+
 ## Migrations Flyway
 
 - Convention de numérotation et arbo `db/migration/` : `docs/migrations-flyway.md`.

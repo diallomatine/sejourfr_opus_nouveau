@@ -29,6 +29,10 @@
   lieu d'écrire les colonnes — le champ était absent du DTO serveur, donc jeté en silence, et
   les comptes créés en fin de diagnostic sortaient sans démarche ni palier. Une démarche
   inconnue est refusée en **400 nommé** (champ, valeur reçue, valeurs acceptées).
+  🛑 **Aucune démarche pré-cochée** (2026-09-26) : le formulaire web l'exige sans valeur par
+  défaut (elle valait CSP). Un compte **sans** démarche (Google/Apple, mobile, ancien compte)
+  est servi `profileIncomplete` (`util/ProfilObligatoire`) et les fronts la lui demandent
+  avant l'app — on ne la remplit jamais à sa place.
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`
 - **AttemptType** : `TRAINING` (correction immédiate) / `MOCK_EXAM` (examen blanc, chrono,
   pas de correction live) / `REVIEW`

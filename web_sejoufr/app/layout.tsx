@@ -6,6 +6,7 @@ import { SiteHeader } from "./_components/SiteHeader";
 import { Footer } from "./_components/Footer";
 import { NavHistoryTracker } from "./_components/NavHistoryTracker";
 import { FirstTouchCapture } from "./_components/FirstTouchCapture";
+import { ProfileCompletionGuard } from "./_components/auth/ProfileCompletionGuard";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -83,6 +84,7 @@ export default function RootLayout({
         <FirstTouchCapture />
         <NavHistoryTracker />
         <AuthProvider>
+          <ProfileCompletionGuard />
           <SiteHeader />
           {children}
           <Footer />

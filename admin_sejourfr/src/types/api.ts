@@ -47,6 +47,10 @@ export interface AuthenticatedUser {
   firstName: string | null;
   lastName: string | null;
   role: Role;
+  /** Servi par le backend (`ProfilObligatoire`) ; toujours `false` pour un
+   *  ADMIN — la console ne le lit pas, il est là pour la parité du DTO. */
+  profileIncomplete?: boolean;
+  missingProfileFields?: ("FIRST_NAME" | "LAST_NAME" | "TARGET_PROCEDURE")[];
 }
 
 export interface TokenResponse {

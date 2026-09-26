@@ -10,12 +10,18 @@ import java.util.List;
 /**
  * Création de compte ({@code POST /api/auth/register}).
  *
- * <p><b>{@code targetProcedure} est FACULTATIF</b>, et c'est volontaire : le web
- * fait choisir la démarche sur l'écran de compte qui clôt le diagnostic (le
- * candidat vient de produire, on lui demande son objectif au même endroit),
- * alors que le mobile a son écran de parcours dédié ({@code /target-path}) et
- * n'envoie donc rien ici. Une inscription sans démarche reste parfaitement
- * valide — on ne devine jamais une démarche à la place du candidat.
+ * <p><b>{@code targetProcedure} est FACULTATIF ici, et c'est volontaire</b>
+ * (réexaminé le 2026-09-26) : le web l'exige dans son formulaire (aucune
+ * démarche pré-cochée, validation bloquante), mais le mobile crée d'abord le
+ * compte puis pose la question sur son écran dédié ({@code /target-path}) — et
+ * les versions déjà installées continueraient de n'envoyer aucune démarche.
+ * Rendre le champ requis ici empêcherait ces clients de créer un compte.
+ * <b>L'exigence est portée ailleurs, à un seul endroit</b> :
+ * {@code AuthenticatedUser.profileIncomplete} (cf.
+ * {@link com.sejourfr.app.util.ProfilObligatoire}), que les fronts lisent pour
+ * demander la démarche avant d'ouvrir l'application — exactement comme pour un
+ * compte créé par Google ou Apple. On ne devine jamais une démarche à la place
+ * du candidat.
  *
  * <p><b>Le palier de français n'est PAS dans ce payload</b> et ne le sera
  * jamais : il est posé par le serveur depuis la démarche

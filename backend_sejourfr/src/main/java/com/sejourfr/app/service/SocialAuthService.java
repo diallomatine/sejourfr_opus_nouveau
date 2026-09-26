@@ -152,7 +152,10 @@ public class SocialAuthService {
             return new Resolution(userManager.save(existing), false);
         }
 
-        // 3) creation
+        // 3) creation. Le compte naît SANS démarche (et, chez Apple, parfois sans
+        // nom) : rien n'est deviné ici. Il sort avec `profileIncomplete` et les
+        // fronts lui posent les questions de l'inscription avant l'application
+        // (ProfilObligatoire).
         User user = new User();
         user.setEmail(identity.email());
         user.setPasswordHash(null); // pas de mot de passe pour les comptes sociaux

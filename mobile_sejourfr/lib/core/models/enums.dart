@@ -28,6 +28,25 @@ enum AuthProvider {
       );
 }
 
+/// Miroir de l'enum Java `ProfileField` : un champ obligatoire du profil que
+/// le serveur déclare manquant (`AuthUser.missingProfileFields`). Une valeur
+/// inconnue (serveur plus récent) est ignorée, jamais une exception.
+enum ProfileField {
+  firstName('FIRST_NAME'),
+  lastName('LAST_NAME'),
+  targetProcedure('TARGET_PROCEDURE');
+
+  const ProfileField(this.wire);
+  final String wire;
+
+  static ProfileField? fromWireNullable(String? value) {
+    for (final f in ProfileField.values) {
+      if (f.wire == value) return f;
+    }
+    return null;
+  }
+}
+
 enum Difficulty {
   csp('CSP'),
   cr('CR'),

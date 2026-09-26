@@ -3,11 +3,14 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.ProfileField;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.util.ProfilObligatoire;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -20,6 +23,12 @@ import java.util.UUID;
  * ({@code NAT} + {@code B1}, produite avant que le serveur ne pose lui-même le
  * palier) sort donc corrigée, sans migration — et aucun front ne peut afficher
  * un couple contradictoire.
+ *
+ * <p><b>{@code profileIncomplete} / {@code missingProfileFields} sont DÉRIVÉS</b>
+ * ({@link ProfilObligatoire}) : ce que l'inscription exige et que le compte ne
+ * porte pas encore — typiquement un compte né d'une connexion Google/Apple, sans
+ * démarche. Les fronts lisent ce fait pour afficher l'écran de complétion avant
+ * l'application ; aucun ne le recalcule depuis un {@code null}.
  */
 public record AuthenticatedUser(
         UUID id,
@@ -41,9 +50,14 @@ public record AuthenticatedUser(
         boolean hasCivique,
         boolean hasTcf,
         Instant premiumEndsAt,
-        AuthProvider authProvider
+        AuthProvider authProvider,
+        /** Vrai tant qu'un champ obligatoire manque : l'app n'est pas encore ouverte. */
+        boolean profileIncomplete,
+        /** Les champs obligatoires à demander, dans l'ordre du formulaire. Vide si complet. */
+        List<ProfileField> missingProfileFields
 ) {
     public static AuthenticatedUser from(User u, ModuleAccess access, Instant premiumEndsAt) {
+        List<ProfileField> manquants = ProfilObligatoire.champsManquants(u);
         return new AuthenticatedUser(
                 u.getId(),
                 u.getEmail(),
@@ -57,7 +71,9 @@ public record AuthenticatedUser(
                 access.hasCivique(),
                 access.hasTcf(),
                 premiumEndsAt,
-                u.getAuthProvider()
+                u.getAuthProvider(),
+                !manquants.isEmpty(),
+                manquants
         );
     }
 }

@@ -2171,6 +2171,12 @@ ordre. Le verrou, lui, ne les sépare pas : l'exemption déverrouille l'étape q
 
 ### Sans objectif déclaré, on INVITE — on ne ferme rien
 
+⚠️ **Depuis le 2026-09-26 (demande du propriétaire), la démarche est exigée à l'ENTRÉE de
+l'app** : un compte sans elle est servi `profileIncomplete` et passe par l'écran de
+complétion (web `/completer-profil`, mobile `/target-path`) avant tout écran. Le moteur,
+lui, ne change pas : D-3 / D-10 restent vrais, et la carte « Choisir mon objectif » reste
+en place pour le cas où la démarche serait un jour effacée.
+
 Un candidat sans démarche déclarée n'a **pas** de parcours (D-3) mais a bien un **Plan**
 (D-10). La carte « Choisir mon objectif » se lit donc sur les **six** surfaces qui portent une
 carte « À faire maintenant », et **s'ajoute** à ce que l'écran affichait déjà. ⚠️ Elle ne

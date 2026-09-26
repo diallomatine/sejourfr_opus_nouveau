@@ -181,7 +181,17 @@ export interface AuthenticatedUser {
     premiumEndsAt?: string | null;
     /** Moyen par lequel le compte a ete cree (mot de passe local vs social). */
     authProvider?: AuthProvider;
+    /** **Servi** (`ProfilObligatoire`) : un champ obligatoire de l'inscription
+     *  manque encore — typiquement un compte né d'une connexion Google, sans
+     *  démarche. Vrai ⇒ l'écran `/completer-profil` passe avant l'application
+     *  (`ProfileCompletionGuard`). Aucun front ne le déduit d'un `null`. */
+    profileIncomplete?: boolean;
+    /** Les champs à demander, dans l'ordre du formulaire d'inscription. */
+    missingProfileFields?: ProfileField[];
 }
+
+/** Miroir de l'enum Java `ProfileField` — un champ obligatoire du profil. */
+export type ProfileField = "FIRST_NAME" | "LAST_NAME" | "TARGET_PROCEDURE";
 
 // ============ THEME ============
 export interface ThemeUserResponse {

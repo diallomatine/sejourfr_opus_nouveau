@@ -21,6 +21,8 @@ interface AuthFieldProps {
   labelAside?: ReactNode;
   autoFocus?: boolean;
   disabled?: boolean;
+  /** Valeur de départ (le champ reste non contrôlé) — ex. un prénom déjà connu. */
+  defaultValue?: string;
   onChange?: (value: string) => void;
 }
 
@@ -42,6 +44,7 @@ export function AuthField({
   labelAside,
   autoFocus,
   disabled,
+  defaultValue,
   onChange,
 }: AuthFieldProps) {
   const reqId = requirement ? `${id}-req` : undefined;
@@ -56,6 +59,7 @@ export function AuthField({
     placeholder,
     autoFocus,
     disabled,
+    defaultValue,
     required: true,
     className: inputClass,
     "aria-invalid": error ? true : undefined,

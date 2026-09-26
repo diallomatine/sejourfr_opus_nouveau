@@ -14,27 +14,25 @@ import {
   type AuthFieldErrors,
 } from "@/lib/auth-form";
 import { useAuth } from "@/lib/auth-context";
-import { TCF_LEVEL_BY_PROCEDURE, type TargetProcedure } from "@/lib/types";
+import type { TargetProcedure } from "@/lib/types";
 import { AuthField } from "./AuthField";
 import { AuthAlert, AuthSubmit, focusFirstError } from "./AuthForm";
+import { DemarcheField } from "./DemarcheField";
 import styles from "./auth.module.css";
 
-/** Le palier exigé vient du référentiel partagé, jamais recopié ici :
- *  `TCF_LEVEL_BY_PROCEDURE` est le miroir gelé de l'enum `TargetProcedure`
- *  côté backend (cf. `lib/types.test.ts`). */
-const MENTIONS: { v: TargetProcedure; code: string; name: string }[] = [
-  { v: "CSP", code: "CSP", name: "Carte de séjour" },
-  { v: "CR", code: "CR", name: "Carte de résident" },
-  { v: "NAT", code: "NAT", name: "Naturalisation" },
-];
-
-const FIELD_ORDER = ["firstName", "lastName", "email", "password", "consent"] as const;
+const FIELD_ORDER = ["firstName", "lastName", "email", "password", "targetProcedure", "consent"] as const;
 
 /**
  * LE formulaire d'inscription — `/inscription` et les deux écrans de compte
  * des diagnostics invités le montent tel quel. Ce qui change d'un écran à
  * l'autre passe en props : le libellé du bouton, la démarche préremplie, un
  * champ de plus, et ce qui se passe APRÈS la création du compte.
+ *
+ * 🛑 **La démarche n'est jamais pré-cochée** (2026-09-26, demande du
+ * propriétaire) : elle valait CSP par défaut, donc un candidat pressé
+ * s'inscrivait « Carte de séjour » sans l'avoir choisi. Seul `initialMention`
+ * la préremplit, et uniquement avec une réponse que le candidat a déjà donnée
+ * (la démarche déclarée avant le diagnostic civique).
  *
  * 🛑 Le rattachement d'une session invitée et le lancement d'une analyse ne se
  * font PAS ici : ils partent de l'écran qui observe la bascule
@@ -43,7 +41,7 @@ const FIELD_ORDER = ["firstName", "lastName", "email", "password", "consent"] as
  */
 export function RegisterForm({
   registrationContext,
-  initialMention = "CSP",
+  initialMention,
   submitLabel = "Créer mon compte gratuit",
   extraFields,
   onRegistered,
@@ -51,6 +49,7 @@ export function RegisterForm({
 }: {
   /** `SIGNUP_STARTED` à la première frappe ; absent ⇒ aucun événement. */
   registrationContext?: AnalyticsRegistrationContext;
+  /** Une démarche DÉJÀ déclarée par le candidat — jamais un défaut. */
   initialMention?: TargetProcedure;
   submitLabel?: string;
   /** Rendu entre la démarche et le consentement. */
@@ -63,7 +62,7 @@ export function RegisterForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
-  const [mention, setMention] = useState<TargetProcedure>(initialMention);
+  const [mention, setMention] = useState<TargetProcedure | null>(initialMention ?? null);
   const [passwordLength, setPasswordLength] = useState(0);
 
   // Une inscription **commencée**, c'est la première frappe — pas l'ouverture
@@ -85,19 +84,22 @@ export function RegisterForm({
       lastName: String(fd.get("lastName") ?? ""),
       email: String(fd.get("email") ?? ""),
       password: String(fd.get("password") ?? ""),
-      targetProcedure: mention,
     };
 
-    const invalid = validateRegister({ ...payload, consent: fd.get("consent") === "on" });
+    const invalid = validateRegister({
+      ...payload,
+      targetProcedure: mention,
+      consent: fd.get("consent") === "on",
+    });
     setFieldErrors(invalid);
-    if (Object.keys(invalid).length > 0) {
+    if (Object.keys(invalid).length > 0 || !mention) {
       focusFirstError(FIELD_ORDER, invalid);
       return;
     }
 
     setSubmitting(true);
     try {
-      await register(payload);
+      await register({ ...payload, targetProcedure: mention });
     } catch (err) {
       if (err instanceof ApiException) {
         const { fields, global } = splitServerErrors(err);
@@ -178,33 +180,15 @@ export function RegisterForm({
           }}
         />
 
-        <fieldset className={styles.mentions} disabled={submitting}>
-          <legend className={styles.label}>Votre démarche</legend>
-          <div className={styles.mentionGrid}>
-            {MENTIONS.map((opt) => {
-              const active = mention === opt.v;
-              return (
-                <label
-                  key={opt.v}
-                  className={`${styles.mentionOpt} ${active ? styles.mentionActive : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="mention"
-                    value={opt.v}
-                    checked={active}
-                    onChange={() => setMention(opt.v)}
-                  />
-                  <span className={styles.mentionCode}>{opt.code}</span>
-                  <span className={styles.mentionName}>{opt.name}</span>
-                  <span className={styles.mentionTcf}>
-                    TCF <strong>{TCF_LEVEL_BY_PROCEDURE[opt.v]}</strong>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
+        <DemarcheField
+          value={mention}
+          disabled={submitting}
+          error={fieldErrors.targetProcedure}
+          onChange={(v) => {
+            setMention(v);
+            clearField("targetProcedure");
+          }}
+        />
 
         {extraFields}
 

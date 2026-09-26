@@ -14,6 +14,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/paywall_context.dart';
+import '../auth/login_screen.dart' show AuthFormField;
 
 /// Onboarding (ou édition depuis le profil) du parcours administratif.
 ///
@@ -32,6 +33,17 @@ import '../../core/widgets/paywall_context.dart';
 /// jour de la procédure l'effacerait à chaque changement de celle-ci. Et son
 /// échec est **best-effort** — il ne fait pas échouer le choix de démarche, qui
 /// est le vrai objet de cet écran.
+///
+/// ## Écran de complétion du profil (2026-09-26)
+///
+/// Le `redirect` global y conduit tout compte dont le serveur dit le profil
+/// incomplet (`AuthUser.profileIncomplete`) : inscription mobile (le compte est
+/// créé avant la question), première connexion Google/Apple, compte ancien sans
+/// démarche. Dans ce mode, **on ne sort pas** (ni flèche ni geste de retour à
+/// l'étape 1, seulement « Se déconnecter »), et le prénom / nom sont demandés à
+/// l'étape 1 quand le serveur les déclare manquants (Apple sans nom) — mêmes
+/// champs et mêmes libellés que l'inscription (`AuthFormField`). 🛑 Rien n'est
+/// pré-coché : la démarche est celle du compte, ou aucune.
 class TargetPathScreen extends ConsumerStatefulWidget {
   const TargetPathScreen({super.key});
 
@@ -55,6 +67,13 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
   bool _saving = false;
   String? _error;
 
+  /// Ce que le serveur déclare manquant, lu une fois à l'ouverture.
+  bool _completion = false;
+  bool _askNames = false;
+  final _namesKey = GlobalKey<FormState>();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+
   /// Route d'origine, lue dans le query param `?from=...`. Vide si l'écran
   /// est ouvert en mode onboarding (juste après création de compte).
   String? _fromRoute;
@@ -64,9 +83,27 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
     super.initState();
     final auth = ref.read(authControllerProvider);
     if (auth is AuthAuthenticated) {
-      _selected = auth.user.targetProcedure;
-      _examDate = auth.user.examDate;
+      final user = auth.user;
+      _selected = user.targetProcedure;
+      _examDate = user.examDate;
+      _completion = user.profileIncomplete;
+      _askNames = user.missingProfileFields.contains(ProfileField.firstName) ||
+          user.missingProfileFields.contains(ProfileField.lastName);
+      _firstName.text = user.firstName ?? '';
+      _lastName.text = user.lastName ?? '';
     }
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    super.dispose();
+  }
+
+  void _continuer() {
+    if (_askNames && !(_namesKey.currentState?.validate() ?? false)) return;
+    setState(() => _etape = 1);
   }
 
   Future<void> _submit() async {
@@ -78,6 +115,12 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
       _saving = true;
     });
     try {
+      if (_askNames) {
+        await ref.read(profileRepositoryProvider).updateProfile(
+              firstName: _firstName.text.trim(),
+              lastName: _lastName.text.trim(),
+            );
+      }
       final repository = ref.read(userContentRepositoryProvider);
       await repository.updateTargetPath(choice);
       // Best-effort et à part : un échec sur la date ne doit pas faire échouer
@@ -113,11 +156,12 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
     _fromRoute ??= safePostLoginDestination(
       GoRouterState.of(context).uri.queryParameters['from'],
     );
-    final peutRevenir = _fromRoute != null || _etape > 0;
+    // En complétion, l'étape 1 n'a pas de sortie : l'app attend ces réponses.
+    final peutRevenir = _etape > 0 || (!_completion && _fromRoute != null);
 
     return PopScope(
       // Le geste de retour système suit la flèche : il recule d'une étape.
-      canPop: _etape == 0 && _fromRoute == null,
+      canPop: _etape == 0 && _fromRoute == null && !_completion,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _etape > 0) setState(() => _etape = 0);
       },
@@ -156,6 +200,32 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
           style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.5),
         ),
         const SizedBox(height: 24),
+        if (_askNames) ...[
+          Form(
+            key: _namesKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthFormField.field(
+                  label: 'Prénom',
+                  controller: _firstName,
+                  prefixIcon: LucideIcons.userRound,
+                  validator: (v) =>
+                      (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 14),
+                AuthFormField.field(
+                  label: 'Nom',
+                  controller: _lastName,
+                  prefixIcon: LucideIcons.idCard,
+                  validator: (v) =>
+                      (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
         for (final p in TargetProcedure.values) ...[
           _PathCard(
             procedure: p,
@@ -167,9 +237,26 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
         const SizedBox(height: 12),
         AppButton(
           label: 'Continuer',
-          onPressed:
-              _selected == null ? null : () => setState(() => _etape = 1),
+          onPressed: _selected == null ? null : _continuer,
         ),
+        if (_completion) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton(
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).logout(),
+              child: Text(
+                'Se déconnecter',
+                style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+          ),
+        ],
       ];
 
   /* ---------------------------------------------------------- 2. la date --- */

@@ -460,11 +460,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isAuth) {
         final user = auth.user;
 
-        // Onboarding parcours obligatoire (sauf pour les comptes ADMIN).
-        if (!user.hasCompletedOnboarding && !isOnTargetPath) {
-          return targetPathLocation(
-            consumeDestination(state.uri.queryParameters['redirect']),
-          );
+        // Profil obligatoire incomplet — fait SERVI (`profileIncomplete`) :
+        // compte né d'une connexion Google/Apple, ou compte sans démarche. Il
+        // répond aux questions de l'inscription (`/target-path`) avant l'app.
+        // Seules les pages légales restent ouvertes. La destination survit :
+        // celle de l'écran d'auth (`redirect`), sinon la page demandée.
+        // Miroir web : `ProfileCompletionGuard`.
+        final isOnLegalPage =
+            loc == AppRoutes.helpWebview || loc == AppRoutes.about;
+        if (user.profileIncomplete && !isOnTargetPath && !isOnLegalPage) {
+          final demandee = isOnAuthFlow || isOnOnboarding || isOnSplash
+              ? state.uri.queryParameters['redirect'] ??
+                  state.uri.queryParameters['from']
+              : state.uri.toString();
+          return targetPathLocation(consumeDestination(demandee));
         }
 
         if (isOnAuthFlow || isOnOnboarding || isOnSplash) {

@@ -2,6 +2,8 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.ProfileField;
+import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import org.junit.jupiter.api.Test;
@@ -62,5 +64,29 @@ class AuthenticatedUserTest {
     @Test
     void sansDemarche_leNiveauDeclareEstServiTelQuel() {
         assertThat(dto(null, TargetLevel.B1).targetLevel()).isEqualTo(TargetLevel.B1);
+    }
+
+    /** Le fait « profil incomplet » est servi, dérivé du compte — jamais d'un défaut. */
+    @Test
+    void sansDemarche_leProfilEstServiIncomplet_sansDemarcheInventee() {
+        User u = user(null, null);
+        u.setRole(Role.USER);
+        u.setFirstName("Awa");
+        u.setLastName("Diallo");
+        AuthenticatedUser dto = AuthenticatedUser.from(u, ModuleAccess.NONE, null);
+        assertThat(dto.profileIncomplete()).isTrue();
+        assertThat(dto.missingProfileFields()).containsExactly(ProfileField.TARGET_PROCEDURE);
+        assertThat(dto.targetProcedure()).isNull();
+    }
+
+    @Test
+    void profilComplet_rienNEstDemande() {
+        User u = user(TargetProcedure.NAT, null);
+        u.setRole(Role.USER);
+        u.setFirstName("Awa");
+        u.setLastName("Diallo");
+        AuthenticatedUser dto = AuthenticatedUser.from(u, ModuleAccess.NONE, null);
+        assertThat(dto.profileIncomplete()).isFalse();
+        assertThat(dto.missingProfileFields()).isEmpty();
     }
 }
