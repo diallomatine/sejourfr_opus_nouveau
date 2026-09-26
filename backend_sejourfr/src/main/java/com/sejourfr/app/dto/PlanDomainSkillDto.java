@@ -71,6 +71,18 @@ import java.util.UUID;
  *                           en publie moins ; <b>0</b> en comprehension, qui n'a
  *                           aucun petit sujet)
  * @param stepAttemptedCount sujets de l'etape deja traites
+ * @param priorityRank <b>la place de cette competence dans le classement COMPLET
+ *                     du Plan</b> ({@code PlanActionRanker}, 1 = la premiere
+ *                     action du pool), ou {@code null} exactement quand
+ *                     {@link #nature()} l'est — le Plan ne demande rien dessus.
+ *                     🛑 C'est le rang dans le <b>pool entier</b>, jamais dans
+ *                     les priorites affichees ({@code currentPriority} +
+ *                     {@code nextPriorities} sont bornees par un plafond
+ *                     d'ecran). Il sert a un front qui montre les actions
+ *                     <b>d'une epreuve</b> dans l'ordre du Plan (l'ecran « Debloquer
+ *                     mon plan ») : sans lui, cet ordre n'existait que dans une
+ *                     liste deja tronquee. Les rangs d'une epreuve ne se suivent
+ *                     pas forcement — ils sont partages entre les quatre.
  */
 public record PlanDomainSkillDto(
         UUID skillId,
@@ -87,5 +99,6 @@ public record PlanDomainSkillDto(
         boolean locked,
         PlanSkillStepState stepState,
         int stepPromptCount,
-        int stepAttemptedCount
+        int stepAttemptedCount,
+        Integer priorityRank
 ) {}

@@ -7,14 +7,14 @@
  * mesure pas se mesurent par l'**examen blanc** que propose le Plan. Ne pas
  * recréer ces écrans.
  *
- * Ne subsiste ici que ce que lisent encore des écrans vivants :
- * - la piste de niveau (`levelTrackPosition`), partagée avec le rapport du
- *   diagnostic rapide ;
- * - les libellés de priorité de l'écran de déblocage du Plan
- *   (`PlanUnlockScreen`), qui relit un résultat de complet **déjà obtenu**.
+ * Ne subsiste ici que la piste de niveau (`levelTrackPosition`), partagée
+ * entre le rapport du diagnostic rapide et le héros de l'écran de déblocage
+ * du Plan (qui relit un résultat de complet **déjà obtenu**).
  *
- * Miroir : `mobile_sejourfr/lib/screens/diagnostic_tcf/tcf_diagnostic_labels.dart`.
- * Aucun état pédagogique n'est dérivé ici : les paliers arrivent servis.
+ * ⚠️ `prioriteLibelle` / `prioritePastille` sont SUPPRIMÉES (2026-09-26) avec
+ * leur dernier lecteur : l'écran de déblocage range désormais ses priorités
+ * par épreuve, lues sur le Plan. Leur miroir Dart est supprimé dans la même
+ * passe. Aucun état pédagogique n'est dérivé ici : les paliers arrivent servis.
  */
 import type {NiveauCecrl} from "./types";
 
@@ -55,24 +55,4 @@ export function levelTrackPosition(
     const goalIndex = NIVEAU_TRACK.indexOf(cible);
     if (goalIndex < 0) return null;
     return {levels: NIVEAU_TRACK, currentIndex: NIVEAU_TRACK.indexOf(current), goalIndex};
-}
-
-/** « Expression orale — Tâche 3 ». La tâche est nommée, jamais la compétence. */
-export function prioriteLibelle(epreuveLabel: string, taskCode: string | null): string {
-    return taskCode ? `${epreuveLabel} — Tâche ${taskCode.slice(-1)}` : epreuveLabel;
-}
-
-/** Le ton d'une mention. `hot` = ce qui bloque le plus. */
-export type EpreuveMentionTone = "ok" | "warn" | "hot";
-
-export interface EpreuveMention {
-    label: string;
-    tone: EpreuveMentionTone;
-}
-
-/** La pastille d'une ligne du mini-plan : le rang 1 est le seul « Prioritaire ». */
-export function prioritePastille(rang: number): EpreuveMention {
-    return rang === 1
-        ? {label: "Prioritaire", tone: "hot"}
-        : {label: "À renforcer", tone: "warn"};
 }

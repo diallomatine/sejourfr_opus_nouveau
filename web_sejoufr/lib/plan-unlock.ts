@@ -8,7 +8,8 @@
  *
  * 🛑 **UN SEUL écran pour les deux modules**, paramétré par [PlanUnlockModule].
  * Les deux maquettes du propriétaire partagent l'anatomie — œil-de-bœuf, héros
- * bleu, titre, sous-titre, trois lignes numérotées, un bloc propre au module,
+ * bleu, titre, sous-titre, les priorités en encarts par épreuve (ou par thème),
+ * un bloc propre au module,
  * le prix, le bouton rouge, le lien discret — et ne diffèrent que par leur
  * **matière**. Deux écrans divergeraient au premier correctif : c'est ce que
  * D-50 / A86 ont refusé pour `PlanCycleSection`, et la raison est la même.
@@ -25,7 +26,7 @@
  * `mobile_sejourfr/lib/screens/plan/plan_unlock_labels.dart` : un libellé qui
  * bouge, ce sont deux fichiers dans la même passe.
  */
-import type {Module} from "./types";
+import type {Module, PlanDomainPriority} from "./types";
 import type {PassModule} from "./passes";
 import {formatPassPrice} from "./passes";
 
@@ -83,10 +84,12 @@ export const PLAN_UNLOCK_TITLE: Record<PlanUnlockModule, string> = {
 };
 
 /**
- * Le sous-titre annonce **le nombre réellement servi**, jamais « 3 ».
+ * Le sous-titre annonce **le TOTAL servi**, jamais le nombre affiché.
  *
- * 🛑 Le serveur plafonne déjà les priorités ; les compter ici sur la liste
- * servie évite d'annoncer trois compétences quand il en reste deux.
+ * 🛑 TCF : c'est le nombre d'actions du Plan sur les épreuves mesurées, lu sur
+ * les listes **complètes** des domaines — pas sur les cinq lignes que chaque
+ * encart montre au plus. Civique : le nombre de thématiques que le diagnostic
+ * classe.
  */
 export function planUnlockLead(module: PlanUnlockModule, priorites: number): string {
   if (module === "CIVIQUE") {
@@ -97,7 +100,7 @@ export function planUnlockLead(module: PlanUnlockModule, priorites: number): str
       + `${priorites > 1 ? "s" : ""} à travailler en priorité.`;
 }
 
-/** Le sur-titre de la liste numérotée. */
+/** Le sur-titre des encarts d'épreuve (TCF) ou de thème (civique). */
 export const PLAN_UNLOCK_LIST_TITLE: Record<PlanUnlockModule, string> = {
   TCF: "Vos priorités",
   CIVIQUE: "On commence par",
@@ -123,8 +126,8 @@ export function planUnlockSeuilPill(seuil: number, format: number): string {
 }
 
 /**
- * **Le ton d'une priorité du Plan** sur cet écran, pour le repli qui lit le
- * Plan au lieu du diagnostic 4 épreuves.
+ * **Le ton d'une priorité du Plan** sur cet écran (une ligne d'un encart
+ * d'épreuve TCF).
  *
  * 🛑 **Aucun ton ne se dérive d'un compteur ni d'un rang** : il suit la
  * `nature` **servie**, et il suit la doctrine du Plan — le rouge de fragilité
@@ -140,6 +143,79 @@ export const PLAN_UNLOCK_NATURE_TONE = {
   A_RENFORCER: "hot",
   A_VERIFIER: "ok",
 } as const;
+
+/* ------------------------------------------- les encarts par épreuve ---- */
+
+/**
+ * 🛑 **Au plus cinq lignes par encart — un plafond d'AFFICHAGE, jamais un
+ * budget.** Le serveur sert toutes les actions vraies de chaque épreuve ; seul
+ * l'écran coupe, et il dit ce qu'il a coupé (`planUnlockAutres`). Le total du
+ * sous-titre, lui, porte sur tout ce qui est servi. Miroir mobile :
+ * `kPlanUnlockMaxParGroupe`.
+ */
+export const PLAN_UNLOCK_MAX_PAR_GROUPE = 5;
+
+/**
+ * L'état d'un encart que rien n'a mesuré. 🛑 *null = inconnu, jamais mauvais* :
+ * une épreuve (ou un thème) non évalué(e) n'est ni faible ni prioritaire, il
+ * n'a simplement pas de liste. L'accord suit le mot : **une** épreuve, **un**
+ * thème.
+ */
+export const PLAN_UNLOCK_NON_EVALUE: Record<PlanUnlockModule, string> = {
+  TCF: "Non évaluée",
+  CIVIQUE: "Non évalué",
+};
+
+/** La ligne sous le nom d'un encart non évalué — lisible aussi sous 366 px,
+ *  où la pastille d'état est masquée par le kit. */
+export const PLAN_UNLOCK_NON_EVALUE_META: Record<PlanUnlockModule, string> = {
+  TCF: "Pas encore mesurée",
+  CIVIQUE: "Pas encore mesuré",
+};
+
+/** Le corps d'un encart non évalué, une fois déplié. */
+export const PLAN_UNLOCK_NON_EVALUE_NOTE: Record<PlanUnlockModule, string> = {
+  TCF: "Cette épreuve n'a pas encore été mesurée : aucune priorité n'en est tirée.",
+  CIVIQUE: "Ce thème n'a pas encore été mesuré : aucune priorité n'en est tirée.",
+};
+
+/** Un encart mesuré sans aucune action servie. */
+export const PLAN_UNLOCK_GROUPE_VIDE = "Aucune priorité pour l'instant";
+
+/** Le mot d'une ligne : une **compétence** TCF, une **unité** officielle
+ *  civique (le grain de chaque module, D-50). */
+function motLigne(module: PlanUnlockModule, n: number): string {
+  const mot = module === "CIVIQUE" ? "unité" : "compétence";
+  return n > 1 ? `${mot}s` : mot;
+}
+
+/** « 3 compétences à travailler » — le compte **servi** de l'encart, pas le
+ *  nombre de lignes montrées. */
+export function planUnlockGroupeMeta(module: PlanUnlockModule, n: number): string {
+  if (n === 0) return PLAN_UNLOCK_GROUPE_VIDE;
+  return `${n} ${motLigne(module, n)} à travailler`;
+}
+
+/** « + 2 autres compétences » sous un encart plafonné. `null` quand rien n'est
+ *  coupé. */
+export function planUnlockAutres(module: PlanUnlockModule, n: number): string | null {
+  if (n <= 0) return null;
+  return `+ ${n} ${n > 1 ? "autres" : "autre"} ${motLigne(module, n)}`;
+}
+
+/**
+ * **Le ton de l'urgence d'une épreuve** dans l'en-tête de son encart. Le
+ * libellé est `PLAN_DOMAIN_PRIORITY_LABEL`, **servi** (`PlanDomainDto.priority`) ;
+ * seule la teinte se choisit ici, et le rouge reste à la seule urgence forte.
+ * Miroir mobile : `planUnlockDomainTone`.
+ */
+export const PLAN_UNLOCK_DOMAIN_TONE: Record<PlanDomainPriority, "ok" | "warn" | "hot" | "muted"> = {
+  FORTE: "hot",
+  A_TRAVAILLER: "warn",
+  ENTRETIEN: "ok",
+  PAS_ENCORE_PRIORITAIRE: "muted",
+  A_EVALUER: "muted",
+};
 
 /* ----------------------------------------------- ce que le pass ouvre ---- */
 

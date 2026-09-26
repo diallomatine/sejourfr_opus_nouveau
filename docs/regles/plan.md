@@ -2476,3 +2476,40 @@ filet, jamais une migration.
 plan civique (`CivicPlanDto.Cible.questionsSerie`, toujours `min(20, stock)`) et sa durée
 annoncée, qui s'en dérive (**12 min** au lieu de 6). Les deux sont **servies** : aucun écran n'a
 à être touché.
+
+## L'écran « Débloquer mon plan » — les priorités rangées COMME LE PLAN (2026-09-26)
+
+L'écran de transition ouvert par « Débloquer mon plan » (`/plan/debloquer`, `PlanUnlockScreen.tsx`
+⇄ `plan_unlock_screen.dart`, mots dans `lib/plan-unlock.ts` ⇄ `plan_unlock_labels.dart`) ne montre
+plus une liste plate : « Vos priorités » est un **encart rétractable par épreuve** (TCF) ou **par
+thème** (civique), sur la brique du cycle (`BlocAccordion` ⇄ `SfBlocAccordion`). Demande du
+propriétaire.
+
+- **TCF — lu sur `plan.domaines`** (les 4 épreuves du Plan, jamais `TCF_STRUCTURE`, ordre
+  d'urgence **servi**). 🛑 **Jamais sur `currentPriority` + `nextPriorities`** : vue bornée à
+  cinq lignes pour tout le Plan, et une carte d'épreuve ne dérive jamais d'une liste tronquée.
+  Lignes = les compétences dont `nature` est servie (le pool **complet**), pastille = la nature
+  servie ; en-tête = `PlanDomainPriority` servie ; « Non évaluée » = `evaluated: false` servi.
+- 🆕 **`PlanDomainSkillDto.priorityRank`** : la place de la compétence dans le classement
+  **complet** du Plan (`PlanActionRanker`, 1 = première action), `null` exactement quand `nature`
+  l'est. Posé par `PlanDomainSkillResolver` depuis l'ordre d'itération de `natures`
+  (`LinkedHashMap` bâtie dans l'ordre de `composed` — c'est une règle, pas un hasard). C'est lui
+  qui ordonne les lignes d'une épreuve : sans lui, l'ordre du Plan n'existait que dans une liste
+  déjà tronquée. Les rangs d'une épreuve ne se suivent pas (partagés entre les quatre).
+- **Civique — encarts = les 5 thèmes du diagnostic** (`themes`, `etat` servi, `NON_EVALUE` ⇒
+  « Non évalué », accordé au thème) ; lignes = les unités que le **cycle civique** garde ouvertes
+  dans ce thème (`JourneyBlocDto.steps` `UPCOMING`/`CURRENT`, non bornées). 🛑 Aucune pastille
+  par unité : l'état servi du diagnostic civique est au grain du thème, il est dans l'en-tête.
+  Parcours illisible ⇒ encarts sans lignes, et rien d'affirmé.
+- 🛑 **Au plus 5 lignes par encart — plafond d'AFFICHAGE** (`PLAN_UNLOCK_MAX_PAR_GROUPE` ⇄
+  `kPlanUnlockMaxParGroupe`), avec « + N autres … » sous la liste. Le serveur sert tout. Le
+  sous-titre (« Vos réponses font ressortir N compétences… ») et « ces N priorités » comptent le
+  **total servi** des épreuves mesurées ; le sous-titre civique reste le nombre de thématiques
+  classées par le diagnostic.
+- **Encart ouvert à l'arrivée** : le premier, dans l'ordre servi, qui a des lignes à montrer (en
+  TCF, l'épreuve la plus urgente qui a du travail). Le cycle du Plan ouvre son premier bloc ;
+  ici le premier peut être une épreuve non évaluée, sans liste.
+- Le **héros** reste lu sur un ancien diagnostic 4 épreuves s'il existe, sinon sur le Plan. Sans
+  aucune action servie (TCF) ou sans diagnostic civique clos, l'écran s'efface vers l'offre.
+- ⚠️ `prioriteLibelle` / `prioritePastille` (web) et `tcf_diagnostic_labels.dart` (mobile) sont
+  **supprimés** avec leur dernier lecteur.

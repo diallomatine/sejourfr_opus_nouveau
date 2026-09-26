@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -88,7 +89,11 @@ class LearningPlanControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.observedSkills[0].skillCode").value(skill.getCode()))
                 .andExpect(jsonPath("$.observedSkills[0].promptCount").value(3))
                 .andExpect(jsonPath("$.observedSkills[0].attemptedCount").value(2))
-                .andExpect(jsonPath("$.observedSkills[0].validatedCount").value(1));
+                .andExpect(jsonPath("$.observedSkills[0].validatedCount").value(1))
+                // La priorite n°1 porte le rang 1 sur sa carte d'epreuve : le
+                // rang se lit dans le classement complet du Plan.
+                .andExpect(jsonPath("$.domaines[*].skills[?(@.skillCode == '"
+                        + skill.getCode() + "')].priorityRank").value(contains(1)));
     }
 
     /**

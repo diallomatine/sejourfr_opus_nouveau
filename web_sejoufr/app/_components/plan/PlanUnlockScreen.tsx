@@ -8,16 +8,21 @@
  * l'anatomie et ne diffèrent que par leur matière : deux écrans divergeraient au
  * premier correctif (D-50 / A86).
  *
- * 🛑 **Tout vient du DIAGNOSTIC** (demande du propriétaire : « et ces priorités
- * viennent du diagnostic »). Le héros, la liste et les pastilles se lisent sur
- * le **résultat du diagnostic** du module — jamais sur le Plan, jamais sur le
- * parcours : l'écran dit ce que les réponses ont montré, pas où en est le plan
- * aujourd'hui. Deux sources sur le même écran finiraient par se contredire.
+ * 🛑 **Le héros dit ce que les réponses ont montré** : un ancien résultat de
+ * diagnostic 4 épreuves s'il existe, sinon le Plan (le cas ordinaire).
+ *
+ * 🛑 **« Vos priorités » est rangé COMME LE PLAN** (demande du propriétaire,
+ * 2026-09-26) : un encart rétractable par épreuve TCF (`plan.domaines`) ou par
+ * thème civique (le regroupement du cycle civique), avec au plus
+ * `PLAN_UNLOCK_MAX_PAR_GROUPE` lignes chacun — un plafond d'**affichage** ;
+ * le sous-titre annonce le total **servi**. Une épreuve ou un thème **non
+ * évalué** (fait servi : `evaluated`, `NON_EVALUE`) garde son encart, sans
+ * liste : *null = inconnu, jamais mauvais*.
  *
  * 🛑 **Aucun état n'est dérivé d'un nombre.** Côté civique la pastille est
- * l'`etat` SERVI du thème (`CivicThemeState`) ; côté TCF c'est
- * `prioritePastille`, l'autorité que le rapport de diagnostic emploie déjà
- * pour la même liste. Aucun front ne classe ici un score ni un palier.
+ * l'`etat` SERVI du thème (`CivicThemeState`) ; côté TCF c'est la `nature`
+ * servie de chaque action et l'urgence servie de chaque épreuve
+ * (`PlanDomainPriority`). Aucun front ne classe ici un score ni un palier.
  *
  * 🛑 **Aucun prix écrit.** Le montant est le **minimum servi** des pass du
  * module (`passFromPrice`). Catalogue injoignable ⇒ pas de ligne de prix.
@@ -48,6 +53,11 @@ import {canAccessModule} from "@/lib/types";
 import {
     PLAN_UNLOCK_CHECKS_CIVIQUE,
     PLAN_UNLOCK_CTA,
+    PLAN_UNLOCK_DOMAIN_TONE,
+    PLAN_UNLOCK_MAX_PAR_GROUPE,
+    PLAN_UNLOCK_NON_EVALUE,
+    PLAN_UNLOCK_NON_EVALUE_META,
+    PLAN_UNLOCK_NON_EVALUE_NOTE,
     PLAN_UNLOCK_EYEBROW,
     PLAN_UNLOCK_HERO_LABEL,
     PLAN_UNLOCK_LEVEL_UNKNOWN,
@@ -61,6 +71,8 @@ import {
     planUnlockGoalPill,
     planUnlockLead,
     planUnlockAccessModule,
+    planUnlockAutres,
+    planUnlockGroupeMeta,
     planUnlockPassModule,
     planUnlockPaywallHref,
     planUnlockPriceLine,
@@ -75,13 +87,11 @@ import {
     civicSituationsTitre,
     kitTone,
 } from "@/lib/civic-diagnostic";
+import {levelTrackPosition} from "@/lib/tcf-diagnostic";
+import {planDomainLabel, planDomainShort} from "@/lib/plan-domain";
+import {journeyStepTitle} from "@/lib/journey";
 import {
-    levelTrackPosition,
-    prioriteLibelle,
-    prioritePastille,
-} from "@/lib/tcf-diagnostic";
-import {EPREUVE_PRESENTATION} from "@/lib/exam-durations";
-import {
+    BlocAccordion,
     Card,
     CheckList,
     Cta,
@@ -98,17 +108,42 @@ import {
     sejourStyles as s,
     type Tone,
 } from "@/app/_components/sejour/SejourKit";
-import {CIVIC_THEME_STATE_LABEL, PLAN_ACTION_NATURE_LABEL} from "@/lib/types";
+import {
+    CIVIC_THEME_STATE_LABEL,
+    PLAN_ACTION_NATURE_LABEL,
+    PLAN_DOMAIN_PRIORITY_LABEL,
+} from "@/lib/types";
 import type {
     CivicDiagnosticResultDto,
+    JourneyDto,
     LearningPlanDto,
-    LearningPlanPriorityDto,
+    PlanDomainSkillDto,
     PlanPublicResponse,
     TcfDiagnosticResultDto,
 } from "@/lib/types";
 
-/** Une ligne de la liste numérotée, déjà composée : libellé + pastille servie. */
-type LignePriorite = {label: string; pill: string; tone: Tone};
+/** Une ligne numérotée, déjà composée : libellé + pastille servie (ou aucune). */
+type LignePriorite = {label: string; pill?: string; tone?: Tone};
+
+/**
+ * **Un encart** : une épreuve du TCF, ou un thème civique — le même
+ * regroupement que le cycle du Plan.
+ *
+ * 🛑 `evalue` est **servi** (`PlanDomainDto.evaluated`, `CivicThemeState`),
+ * jamais déduit d'une liste vide. `lignes: null` = on ne sait pas ce que le
+ * Plan y demande (parcours civique illisible) : on n'affirme alors rien.
+ */
+type Groupe = {
+    key: string;
+    mark: string;
+    title: string;
+    meta: string;
+    status: {label: string; tone: Tone};
+    evalue: boolean;
+    lignes: LignePriorite[] | null;
+    /** Ce que le plafond d'affichage a coupé, déjà mis en mots. */
+    autres: string | null;
+};
 
 /** Ce que l'écran a besoin de savoir, quel que soit le module. */
 type Matiere = {
@@ -116,26 +151,27 @@ type Matiere = {
     heroPill: string | null;
     heroRatio: number | null;
     heroMeta: string | null;
-    lignes: LignePriorite[];
+    groupes: Groupe[];
+    /** Le TOTAL servi que le sous-titre annonce — jamais le nombre affiché. */
+    total: number;
     /** L'encart propre au module. `null` ⇒ aucun encart. */
     encart: {titre: string; note: string | null} | null;
     checks: string[];
 };
 
-function epreuveLabel(epreuve: string): string {
-    return (
-        EPREUVE_PRESENTATION[epreuve as keyof typeof EPREUVE_PRESENTATION]?.label ?? epreuve
-    );
-}
+/** Le héros : palier de départ face à l'objectif, sur le rail du kit. */
+type Heros = Pick<Matiere, "heroValue" | "heroPill" | "heroRatio" | "heroMeta">;
 
 /**
- * La matière TCF, lue **sur le résultat du diagnostic 4 épreuves**.
+ * Le héros TCF, lu **sur le résultat du diagnostic 4 épreuves** quand un
+ * ancien résultat existe (le parcours est retiré des fronts depuis le
+ * 2026-09-26, ses résultats restent lus).
  *
  * 🛑 Le rail est celui du kit (`levelTrackPosition`, A2 · B1 · B2) : c'est la
  * seule échelle affichée du dépôt, et en inventer une seconde ici ferait deux
  * positions différentes pour le même palier.
  */
-function matiereTcf(r: TcfDiagnosticResultDto): Matiere {
+function herosDuDiagnostic(r: TcfDiagnosticResultDto): Heros {
     const position = levelTrackPosition(r.niveauGlobal, r.cible);
     return {
         heroValue: r.niveauGlobal ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
@@ -145,39 +181,14 @@ function matiereTcf(r: TcfDiagnosticResultDto): Matiere {
                 ? position.currentIndex / (position.levels.length - 1)
                 : null,
         heroMeta: position ? position.levels.join(" · ") : null,
-        lignes: r.priorites.map((p) => {
-            const pastille = prioritePastille(p.rang);
-            return {
-                /* « Expression orale — Tâche 3 » : la TÂCHE officielle est
-                   nommée, jamais la personne. Même composition que la carte de
-                   priorité du rapport de diagnostic. */
-                label: prioriteLibelle(epreuveLabel(p.epreuve), p.taskCode),
-                pill: pastille.label,
-                tone: pastille.tone as Tone,
-            };
-        }),
-        encart: null,
-        checks: planUnlockChecksTcf(r.priorites.length),
     };
 }
 
 /**
- * La matière TCF **lue sur le PLAN** — le repli quand le diagnostic 4 épreuves
- * n'existe pas.
- *
- * 🛑 **C'est le cas NORMAL, pas un cas limite.** Le Plan existe dès que le
- * diagnostic **rapide** est clos (`prep.planDisponible`) ; le diagnostic
- * 4 épreuves, lui, est un geste distinct que la plupart des candidats n'ont
- * pas fait. Sans ce repli, l'écran n'avait rien à raconter et se retirait
- * aussitôt — le candidat retombait sur le paywall direct, exactement ce que
- * cet écran existe pour éviter (A145).
- *
- * Ce qu'on montre ne change pas : le palier de départ face à l'objectif, et
- * les priorités. Seule la **source** change — et c'est celle que le Plan
- * affiche déjà, donc l'écran de vente ne peut pas nommer autre chose que le
- * Plan qu'on vend.
+ * Le héros TCF **lu sur le PLAN** — le cas ordinaire : le Plan existe dès que
+ * le diagnostic **rapide** est clos (`prep.planDisponible`, A145).
  */
-function matiereTcfDuPlan(plan: LearningPlanDto): Matiere {
+function herosDuPlan(plan: LearningPlanDto): Heros {
     /* 🛑 **L'objectif DÉCLARÉ, jamais le palier en construction.**
        `targetLevel` est le palier que le cycle bâtit ; l'annoncer « Objectif
        B2 » à un candidat qui n'a pas déclaré sa démarche lui promettrait une
@@ -185,9 +196,6 @@ function matiereTcfDuPlan(plan: LearningPlanDto): Matiere {
        de départ se lit quand même. */
     const cible = plan.cycle.objectiveLevel;
     const position = levelTrackPosition(plan.cycle.startingLevel, cible);
-    const priorites = [plan.currentPriority, ...plan.nextPriorities].filter(
-        (p): p is LearningPlanPriorityDto => p !== null,
-    );
     return {
         heroValue: plan.cycle.startingLevel ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
         heroPill: planUnlockGoalPill(cible),
@@ -196,36 +204,158 @@ function matiereTcfDuPlan(plan: LearningPlanDto): Matiere {
                 ? position.currentIndex / (position.levels.length - 1)
                 : null,
         heroMeta: position ? position.levels.join(" · ") : null,
-        /* 🛑 La pastille dit la **nature servie** de l'action, jamais un rang :
-           une compétence *à acquérir* n'a rien d'observé et ne peut pas se
-           lire « à renforcer ». */
-        lignes: priorites.map((p) => ({
-            label: p.title,
-            pill: PLAN_ACTION_NATURE_LABEL[p.nature],
-            tone: PLAN_UNLOCK_NATURE_TONE[p.nature] as Tone,
-        })),
-        encart: null,
-        checks: planUnlockChecksTcf(priorites.length),
     };
 }
 
+/**
+ * **Les priorités TCF, épreuve par épreuve** — lues sur `plan.domaines`, les
+ * quatre épreuves du Plan (jamais `TCF_STRUCTURE`), dans l'ordre d'urgence
+ * **servi**.
+ *
+ * 🛑 **Jamais sur `currentPriority` + `nextPriorities`** : ces deux champs sont
+ * une vue bornée à cinq lignes pour tout le Plan, et une carte d'épreuve ne
+ * dérive jamais d'une liste déjà tronquée. `domaines[].skills` porte, lui,
+ * **toutes** les actions du pool (`nature` non nulle), et `priorityRank` leur
+ * place dans le classement complet : l'encart les montre dans l'ordre du Plan.
+ *
+ * 🛑 La pastille d'une ligne dit la **nature servie** : une compétence *à
+ * acquérir* n'a rien d'observé et ne se lit jamais « à renforcer ».
+ */
+function groupesTcf(plan: LearningPlanDto): {groupes: Groupe[]; total: number} {
+    let total = 0;
+    const groupes = plan.domaines.map((d): Groupe => {
+        const base = {
+            key: d.epreuve,
+            mark: planDomainShort(d.epreuve),
+            title: planDomainLabel(d.epreuve),
+            evalue: d.evaluated,
+        };
+        if (!d.evaluated) {
+            return {
+                ...base,
+                meta: PLAN_UNLOCK_NON_EVALUE_META.TCF,
+                status: {label: PLAN_UNLOCK_NON_EVALUE.TCF, tone: "muted"},
+                lignes: [],
+                autres: null,
+            };
+        }
+        /* L'ordre du classement servi ; un backend antérieur au rang garde
+           l'ordre du référentiel (tri stable). */
+        const actions = (d.skills ?? [])
+            .filter((sk): sk is PlanDomainSkillDto & {nature: NonNullable<PlanDomainSkillDto["nature"]>} =>
+                sk.nature !== null)
+            .sort((a, b) =>
+                (a.priorityRank ?? Number.MAX_SAFE_INTEGER) - (b.priorityRank ?? Number.MAX_SAFE_INTEGER));
+        total += actions.length;
+        const montrees = actions.slice(0, PLAN_UNLOCK_MAX_PAR_GROUPE);
+        return {
+            ...base,
+            meta: planUnlockGroupeMeta("TCF", actions.length),
+            status: {
+                label: PLAN_DOMAIN_PRIORITY_LABEL[d.priority],
+                tone: PLAN_UNLOCK_DOMAIN_TONE[d.priority],
+            },
+            lignes: montrees.map((sk) => ({
+                label: sk.title,
+                pill: PLAN_ACTION_NATURE_LABEL[sk.nature],
+                tone: PLAN_UNLOCK_NATURE_TONE[sk.nature] as Tone,
+            })),
+            autres: planUnlockAutres("TCF", actions.length - montrees.length),
+        };
+    });
+    return {groupes, total};
+}
+
+/** La matière TCF : le héros d'une source, les encarts du Plan. */
+function matiereTcf(heros: Heros, plan: LearningPlanDto): Matiere {
+    const {groupes, total} = groupesTcf(plan);
+    return {
+        ...heros,
+        groupes,
+        total,
+        encart: null,
+        checks: planUnlockChecksTcf(total),
+    };
+}
+
+/**
+ * **Les thèmes civiques**, le regroupement du cycle civique du Plan.
+ *
+ * - l'encart et son **état** viennent du diagnostic (`themes`, les cinq,
+ *   `etat` servi — `NON_EVALUE` compris) ;
+ * - ses **lignes** sont les unités officielles que le cycle civique garde
+ *   ouvertes dans ce thème (`JourneyBlocDto.steps`, non bornées), dans
+ *   l'ordre de la file.
+ *
+ * 🛑 **Aucune pastille par unité** : l'état servi du diagnostic civique est au
+ * grain du THÈME (`20_` §3.4). Il est dans l'en-tête ; en fabriquer un par
+ * unité serait l'inventer.
+ */
+function groupesCivique(r: CivicDiagnosticResultDto, journey: JourneyDto | null): Groupe[] {
+    return r.themes.map((t): Groupe => {
+        const status = {label: CIVIC_THEME_STATE_LABEL[t.etat], tone: kitTone(t.etat)};
+        if (t.etat === "NON_EVALUE") {
+            return {
+                key: t.code,
+                mark: "",
+                title: t.label,
+                meta: PLAN_UNLOCK_NON_EVALUE_META.CIVIQUE,
+                /* `CIVIC_THEME_STATE_LABEL.NON_EVALUE` vaut déjà « Non évalué ». */
+                status,
+                evalue: false,
+                lignes: [],
+                autres: null,
+            };
+        }
+        const bloc = journey?.blocs.find((b) => b.bloc.code === t.code) ?? null;
+        const ouvertes = bloc
+            ? bloc.steps.filter((st) => st.status === "UPCOMING" || st.status === "CURRENT")
+            : null;
+        const montrees = ouvertes?.slice(0, PLAN_UNLOCK_MAX_PAR_GROUPE) ?? null;
+        return {
+            key: t.code,
+            mark: "",
+            title: t.label,
+            meta: ouvertes ? planUnlockGroupeMeta("CIVIQUE", ouvertes.length) : "",
+            status,
+            evalue: true,
+            lignes: montrees?.map((st) => ({label: journeyStepTitle(st)})) ?? null,
+            autres: ouvertes && montrees
+                ? planUnlockAutres("CIVIQUE", ouvertes.length - montrees.length)
+                : null,
+        };
+    });
+}
+
 /** La matière civique, lue **sur le résultat du diagnostic civique**. */
-function matiereCivique(r: CivicDiagnosticResultDto): Matiere {
+function matiereCivique(r: CivicDiagnosticResultDto, journey: JourneyDto | null): Matiere {
     const titre = civicSituationsTitre(r);
     return {
         heroValue: civicScoreLabel(r) ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
         heroPill: planUnlockSeuilPill(r.seuilReussite, r.formatQuestions),
         heroRatio: civicScoreRatio(r),
         heroMeta: civicEcartLine(r),
-        lignes: r.priorites.map((p) => ({
-            label: p.label,
-            /* 🛑 L'état est SERVI (`CivicThemeState`), pas déduit du rang. */
-            pill: CIVIC_THEME_STATE_LABEL[p.etat],
-            tone: kitTone(p.etat),
-        })),
+        groupes: groupesCivique(r, journey),
+        /* Le sous-titre civique compte les thématiques que le diagnostic
+           classe — inchangé. */
+        total: r.priorites.length,
         encart: titre ? {titre, note: civicSituationsNote(r)} : null,
         checks: PLAN_UNLOCK_CHECKS_CIVIQUE,
     };
+}
+
+/**
+ * **L'encart ouvert à l'arrivée** : le premier, dans l'ordre servi, qui a des
+ * priorités à montrer.
+ *
+ * Le cycle du Plan déplie son premier bloc ; ici le premier peut être une
+ * épreuve non évaluée — sans liste —, et l'ouvrir montrerait un encart vide
+ * au moment où l'écran doit dire ce que le plan contient. L'ordre TCF est
+ * déjà celui de l'urgence (`domaines`), donc c'est l'épreuve la plus urgente
+ * qui a du travail. Aucun ⇒ tout reste replié.
+ */
+function groupeOuvertParDefaut(groupes: Groupe[]): string | null {
+    return groupes.find((g) => g.lignes !== null && g.lignes.length > 0)?.key ?? null;
 }
 
 type Etat =
@@ -238,6 +368,7 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     const router = useRouter();
     const {user} = useAuth();
     const [etat, setEtat] = useState<Etat>({kind: "chargement"});
+    const [choix, setChoix] = useState<{key: string | null} | null>(null);
     const [plans, setPlans] = useState<PlanPublicResponse[] | null>(null);
     /** Le parcours affiché (`plan_id`, Q8) : il suit l'achat jusqu'à
      *  l'intention, et le serveur en déduit la run fondatrice. `null` =
@@ -291,32 +422,30 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
                     /* 🛑 `readResult` (GET) et non `result` (POST) : cet écran
                        LIT un diagnostic déjà clos, il n'en clôture aucun. */
                     const r = await civicDiagnosticApi.readResult(session.sessionId);
-                    if (!annule) setEtat({kind: "pret", matiere: matiereCivique(r)});
+                    /* Le cycle civique donne les lignes de chaque thème. Il est
+                       déjà en cache (le Plan l'a lu) ; illisible, les encarts
+                       restent — sans lignes, et sans rien affirmer. */
+                    const journey = await journeyApi.getCached("CIVIQUE").catch(() => null);
+                    if (!annule) setEtat({kind: "pret", matiere: matiereCivique(r, journey)});
                     return;
                 }
-                /* Le diagnostic 4 épreuves d'abord — c'est la matière la
-                   plus riche (un palier par épreuve, la tâche officielle
-                   nommée). Il est **rarement là** : c'est un geste à part. */
-                const session = await tcfDiagnosticApi.current();
-                if (session && session.status === "COMPLETED") {
-                    const r = await tcfDiagnosticApi.readResult(session.sessionId);
-                    /* Un diagnostic clos sans aucune priorité n'a pas de liste
-                       à montrer : on retombe sur le Plan plutôt que de
-                       fabriquer un écran vide. */
-                    if (r.priorites.length > 0) {
-                        if (!annule) setEtat({kind: "pret", matiere: matiereTcf(r)});
-                        return;
-                    }
-                }
-                /* 🛑 **Le repli est le chemin ORDINAIRE.** Lecture en cache :
-                   le Plan est déjà chargé par l'écran qui a poussé celui-ci. */
+                /* 🛑 **Les encarts viennent TOUJOURS du Plan** — c'est le Plan
+                   qu'on vend, et ses domaines portent toutes les actions de
+                   chaque épreuve. Lecture en cache : le Plan est déjà chargé
+                   par l'écran qui a poussé celui-ci. */
                 const plan = await learningPlanApi.getCached();
-                const aDesPriorites =
-                    plan.currentPriority !== null || plan.nextPriorities.length > 0;
+                /* Le héros : un ancien diagnostic 4 épreuves s'il existe (un
+                   palier global mesuré sur les quatre), sinon le Plan. */
+                const session = await tcfDiagnosticApi.current().catch(() => null);
+                const heros = session && session.status === "COMPLETED"
+                    ? herosDuDiagnostic(await tcfDiagnosticApi.readResult(session.sessionId))
+                    : herosDuPlan(plan);
+                const matiere = matiereTcf(heros, plan);
+                /* Aucune action servie nulle part : rien à raconter. */
                 if (!annule) {
                     setEtat(
-                        aDesPriorites
-                            ? {kind: "pret", matiere: matiereTcfDuPlan(plan)}
+                        matiere.total > 0
+                            ? {kind: "pret", matiere}
                             : {kind: "sansDiagnostic"},
                     );
                 }
@@ -389,6 +518,10 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
     }
 
     const m = etat.matiere;
+    /* `null` = le candidat n'a rien touché : on suit l'encart par défaut. Une
+       fois un en-tête touché, c'est **son** choix qui vaut — « tout replié »
+       compris. Même geste que le cycle du Plan. */
+    const groupeOuvert = choix ? choix.key : groupeOuvertParDefaut(m.groupes);
 
     return (
         <SejourApp sticky>
@@ -411,15 +544,37 @@ export function PlanUnlockScreen({module}: {module: PlanUnlockModule}) {
                 <PanelHead
                     lead
                     title={PLAN_UNLOCK_TITLE[module]}
-                    sub={planUnlockLead(module, m.lignes.length)}
+                    sub={planUnlockLead(module, m.total)}
                 />
             </Section>
 
-            {/* 3 — la liste numérotée, dans l'ordre SERVI. */}
+            {/* 3 — les priorités, épreuve par épreuve (ou thème par thème) :
+                le regroupement du cycle du Plan, dans l'ordre SERVI. */}
             <Section title={PLAN_UNLOCK_LIST_TITLE[module]} flush>
-                <Card padding="tight">
-                    <MiniPlan rows={m.lignes} />
-                </Card>
+                <Stack>
+                    {m.groupes.map((g) => (
+                        <BlocAccordion
+                            key={g.key}
+                            mark={g.mark}
+                            title={g.title}
+                            meta={g.meta}
+                            status={g.status}
+                            open={groupeOuvert === g.key}
+                            onToggle={() => setChoix({key: groupeOuvert === g.key ? null : g.key})}
+                        >
+                            {!g.evalue ? (
+                                <p className={s.tiny}>{PLAN_UNLOCK_NON_EVALUE_NOTE[module]}</p>
+                            ) : g.lignes && g.lignes.length > 0 ? (
+                                <>
+                                    <MiniPlan rows={g.lignes} />
+                                    {g.autres && <p className={s.tiny}>{g.autres}</p>}
+                                </>
+                            ) : g.lignes ? (
+                                <p className={s.tiny}>{g.meta}</p>
+                            ) : null}
+                        </BlocAccordion>
+                    ))}
+                </Stack>
             </Section>
 
             {/* 4 — le bloc propre au module : l'encart des mises en situation

@@ -1634,6 +1634,7 @@ class PlanDomainSkill {
     this.stepState = PlanSkillStepState.aVenir,
     this.stepPromptCount = 0,
     this.stepAttemptedCount = 0,
+    this.priorityRank,
   });
 
   final String skillId;
@@ -1677,6 +1678,16 @@ class PlanDomainSkill {
   /// Sujets de l'étape déjà traités.
   final int stepAttemptedCount;
 
+  /// **La place de cette compétence dans le classement COMPLET du Plan**
+  /// (1 = première action du pool), `null` exactement quand [nature] l'est.
+  ///
+  /// 🛑 Rang du **pool entier**, jamais des priorités affichées
+  /// (`currentPriority` + `nextPriorities`, bornées par un plafond d'écran).
+  /// C'est lui qui ordonne les actions **d'une épreuve** sur l'écran
+  /// « Débloquer mon plan ». Les rangs d'une épreuve ne se suivent pas : ils
+  /// sont partagés entre les quatre. Miroir web : `priorityRank`.
+  final int? priorityRank;
+
   factory PlanDomainSkill.fromJson(Map<String, dynamic> json) =>
       PlanDomainSkill(
         skillId: json['skillId'] as String? ?? '',
@@ -1698,6 +1709,7 @@ class PlanDomainSkill {
         stepState: PlanSkillStepState.fromWire(json['stepState'] as String?),
         stepPromptCount: (json['stepPromptCount'] as num? ?? 0).toInt(),
         stepAttemptedCount: (json['stepAttemptedCount'] as num? ?? 0).toInt(),
+        priorityRank: (json['priorityRank'] as num?)?.toInt(),
       );
 }
 

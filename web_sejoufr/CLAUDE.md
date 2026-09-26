@@ -2087,8 +2087,8 @@ parcours.
 - **Redirection** : `next.config.ts` → `/diagnostic-tcf` et `/diagnostic-tcf/:path*` vers
   `/plan?module=TCF` (307), pour les favoris et anciens liens.
 - **Conservé (lecture d'un résultat existant)** : `tcfDiagnosticApi.current()` /
-  `readResult()` (`lib/api.ts`), lus par `PlanUnlockScreen` ; `lib/tcf-diagnostic.ts` réduit à
-  `levelTrackPosition` (rapport rapide), `prioriteLibelle` et `prioritePastille`. Les types
+  `readResult()` (`lib/api.ts`), lus par `PlanUnlockScreen` (son héros) ; `lib/tcf-diagnostic.ts`
+  réduit à `levelTrackPosition` (`prioriteLibelle` / `prioritePastille` supprimées le 2026-09-26). Les types
   `TcfDiagnostic*Dto` de `lib/types.ts` restent (miroirs du backend, inchangé).
 - **Complet commencé avant le retrait** : `tcfAction` / `planIndisponible` ne lisent plus son
   avancement ; `planDisponible` vrai ⇒ « Continuer mon plan », sinon la porte est le **rapide**.
@@ -5218,4 +5218,18 @@ Refondues dans le langage de l'accueil. `app/_components/auth/` :
   refresh token dure 30 j dans tous les cas) et la mention « Conforme RGPD ·
   Aucun partage avec des tiers » (Stripe et les fournisseurs d'IA reçoivent des
   données) → « Hébergement en France · Aucune donnée vendue · Confidentialité ».
+
+## « Débloquer mon plan » — les priorités par épreuve (2026-09-26)
+
+> Règle : `docs/regles/plan.md` § « L'écran Débloquer mon plan ». Miroir mobile dans la même passe.
+
+`PlanUnlockScreen` range « Vos priorités » en **`BlocAccordion`** (la brique du cycle) : une épreuve
+TCF par encart, lue sur `plan.domaines` (ordre servi, `evaluated`, `PlanDomainPriority`, et les
+compétences à `nature` servie triées par **`priorityRank`** servi), ou un thème civique par encart
+(`themes` du diagnostic + unités ouvertes du cycle civique, `journeyApi.getCached("CIVIQUE")`).
+🛑 Au plus `PLAN_UNLOCK_MAX_PAR_GROUPE` (5) lignes par encart — plafond d'**affichage** ; le
+sous-titre annonce le total servi. « Non évaluée » / « Non évalué » (accord épreuve / thème) vient
+d'un fait servi, jamais d'une liste vide. Encart ouvert à l'arrivée : le premier qui a des lignes.
+Mots : `lib/plan-unlock.ts` (`PLAN_UNLOCK_NON_EVALUE*`, `planUnlockGroupeMeta`, `planUnlockAutres`,
+`PLAN_UNLOCK_DOMAIN_TONE`).
 

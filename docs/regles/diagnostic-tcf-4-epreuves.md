@@ -10,7 +10,7 @@
 >   `docs/decisions/plan-parcours-tcf.md`, entrée du 2026-09-26).
 > - **Résultats existants TOUJOURS LUS** : observations du Plan, profil TCF (`bestQcm`), DTO et
 >   miroirs front inchangés ; relecture front limitée à `current` + `readResult`
->   (`PlanUnlockScreen`).
+>   (`PlanUnlockScreen`, héros seulement — ses priorités se lisent sur le Plan).
 > - Tout le reste de ce fichier décrit le **backend** et l'historique des écrans : ne pas s'en
 >   servir pour recréer le parcours. Détail côté fronts : `docs/regles/diagnostic.md`, section
 >   « Le diagnostic COMPLET est RETIRÉ des fronts ».

@@ -1857,6 +1857,18 @@ export interface PlanDomainSkillDto {
     stepPromptCount: number;
     /** Sujets de l'étape déjà traités. */
     stepAttemptedCount: number;
+    /**
+     * **La place de cette compétence dans le classement COMPLET du Plan**
+     * (1 = première action du pool), `null` exactement quand `nature` l'est.
+     *
+     * 🛑 Rang du **pool entier**, jamais des priorités affichées
+     * (`currentPriority` + `nextPriorities`, bornées par un plafond d'écran).
+     * C'est lui qui ordonne les actions **d'une épreuve** sur l'écran
+     * « Débloquer mon plan » — dans l'ordre du Plan, sans lire une liste
+     * tronquée. Les rangs d'une épreuve ne se suivent pas : ils sont partagés
+     * entre les quatre. Absent sur un backend antérieur au champ ⇒ `undefined`.
+     */
+    priorityRank?: number | null;
 }
 
 /* ------------------------------------------------------------------- cycle */

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +120,43 @@ class PlanDomainSkillResolverTest {
 
         assertThat(skills.getFirst().nature()).isEqualTo(PlanActionNature.A_ACQUERIR);
         assertThat(skills.get(1).nature()).isNull();
+    }
+
+    /**
+     * 🛑 Le rang est celui du <b>pool entier</b>, dans l'ordre ou le Plan l'a
+     * classe — jamais l'ordre du referentiel, jamais un rang propre a l'epreuve.
+     * C'est ce qui permet a l'ecran « Debloquer mon plan » de montrer les
+     * actions d'une epreuve dans l'ordre du Plan sans lire une liste tronquee.
+     */
+    @Test
+    @DisplayName("Le rang suit le classement complet du Plan ; sans nature, aucun rang")
+    void leRangSuitLeClassementComplet() {
+        Skill premiere = expression("EE1-C1", SkillTaskCode.EE1, "A2", 1);
+        Skill muette = expression("EE1-C2", SkillTaskCode.EE1, "A2", 2);
+        Skill troisieme = expression("EE1-C3", SkillTaskCode.EE1, "A2", 3);
+        Skill orale = expression("EO1-C1", SkillTaskCode.EO1, "A2", 1);
+
+        // Ordre du classement : EE1-C3, puis une competence d'une AUTRE
+        // epreuve, puis EE1-C1 — l'inverse de l'ordre du referentiel.
+        Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
+        natures.put(troisieme.getId(), PlanActionNature.A_RENFORCER);
+        natures.put(orale.getId(), PlanActionNature.A_ACQUERIR);
+        natures.put(premiere.getId(), PlanActionNature.A_ACQUERIR);
+
+        List<PlanDomainDto> domaines = resolver.attach(
+                List.of(domaine(EpreuveType.TCF_EE), domaine(EpreuveType.TCF_EO)),
+                List.of(premiere, muette, troisieme, orale),
+                Map.of(), Map.of(), natures,
+                Map.of(), SkillAccessService.SkillAccess.UNLIMITED,
+                Map.of(), null);
+        List<PlanDomainSkillDto> ecrit = domaines.getFirst().skills();
+
+        // La liste garde l'ordre du referentiel : seul le rang porte le classement.
+        assertThat(ecrit).extracting(PlanDomainSkillDto::skillCode)
+                .containsExactly("EE1-C1", "EE1-C2", "EE1-C3");
+        assertThat(ecrit).extracting(PlanDomainSkillDto::priorityRank)
+                .containsExactly(3, null, 1);
+        assertThat(domaines.get(1).skills().getFirst().priorityRank()).isEqualTo(2);
     }
 
     @Test

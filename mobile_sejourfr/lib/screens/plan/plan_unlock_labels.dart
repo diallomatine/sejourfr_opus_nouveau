@@ -12,7 +12,8 @@ import '../../core/widgets/sejour/sejour_kit.dart';
 ///
 /// 🛑 **UN SEUL écran pour les deux modules**, paramétré par [PlanUnlockModule].
 /// Les deux maquettes du propriétaire partagent l'anatomie — œil-de-bœuf, héros
-/// bleu, titre, sous-titre, trois lignes numérotées, un bloc propre au module,
+/// bleu, titre, sous-titre, les priorités en encarts par épreuve (ou par
+/// thème), un bloc propre au module,
 /// le prix, le bouton rouge, le lien discret — et ne diffèrent que par leur
 /// **matière**. Deux écrans divergeraient au premier correctif : c'est ce que
 /// D-50 / A86 ont refusé pour `PlanCycleSection`, et la raison est la même.
@@ -54,10 +55,12 @@ String planUnlockTitle(PlanUnlockModule module) =>
         ? 'Votre plan de révision est prêt'
         : 'Votre plan de progression est prêt';
 
-/// Le sous-titre annonce **le nombre réellement servi**, jamais « 3 ».
+/// Le sous-titre annonce **le TOTAL servi**, jamais le nombre affiché.
 ///
-/// 🛑 Le serveur plafonne déjà les priorités ; les compter ici sur la liste
-/// servie évite d'annoncer trois compétences quand il en reste deux.
+/// 🛑 TCF : c'est le nombre d'actions du Plan sur les épreuves mesurées, lu sur
+/// les listes **complètes** des domaines — pas sur les cinq lignes que chaque
+/// encart montre au plus. Civique : le nombre de thématiques que le diagnostic
+/// classe.
 String planUnlockLead(PlanUnlockModule module, int priorites) {
   final s = priorites > 1 ? 's' : '';
   if (module == PlanUnlockModule.civique) {
@@ -68,7 +71,7 @@ String planUnlockLead(PlanUnlockModule module, int priorites) {
       'à travailler en priorité.';
 }
 
-/// Le sur-titre de la liste numérotée.
+/// Le sur-titre des encarts d'épreuve (TCF) ou de thème (civique).
 String planUnlockListTitle(PlanUnlockModule module) =>
     module == PlanUnlockModule.civique ? 'On commence par' : 'Vos priorités';
 
@@ -88,10 +91,74 @@ String planUnlockSeuilPill(int seuil, int format) => 'Seuil $seuil / $format';
 
 /* ----------------------------------------------- ce que le pass ouvre ---- */
 
-/// Les trois puces du TCF. La première nomme **le nombre servi** de priorités —
-/// « ces 3 priorités » sur une liste qui en montre deux serait faux.
-/// **Le ton d'une priorité du Plan** sur cet écran, pour le repli qui lit le
-/// Plan au lieu du diagnostic 4 épreuves.
+/* ------------------------------------------- les encarts par épreuve ---- */
+
+/// 🛑 **Au plus cinq lignes par encart — un plafond d'AFFICHAGE, jamais un
+/// budget.** Le serveur sert toutes les actions vraies de chaque épreuve ; seul
+/// l'écran coupe, et il dit ce qu'il a coupé ([planUnlockAutres]). Le total du
+/// sous-titre, lui, porte sur tout ce qui est servi. Miroir web :
+/// `PLAN_UNLOCK_MAX_PAR_GROUPE`.
+const int kPlanUnlockMaxParGroupe = 5;
+
+/// L'état d'un encart que rien n'a mesuré. 🛑 *null = inconnu, jamais
+/// mauvais* : une épreuve (ou un thème) non évalué(e) n'est ni faible ni
+/// prioritaire, il n'a simplement pas de liste. L'accord suit le mot : **une**
+/// épreuve, **un** thème.
+String planUnlockNonEvalue(PlanUnlockModule module) =>
+    module == PlanUnlockModule.civique ? 'Non évalué' : 'Non évaluée';
+
+/// La ligne sous le nom d'un encart non évalué — lisible aussi sous 366 px, où
+/// la pastille d'état est masquée par le kit.
+String planUnlockNonEvalueMeta(PlanUnlockModule module) =>
+    module == PlanUnlockModule.civique
+        ? 'Pas encore mesuré'
+        : 'Pas encore mesurée';
+
+/// Le corps d'un encart non évalué, une fois déplié.
+String planUnlockNonEvalueNote(PlanUnlockModule module) =>
+    module == PlanUnlockModule.civique
+        ? "Ce thème n'a pas encore été mesuré : aucune priorité n'en est tirée."
+        : "Cette épreuve n'a pas encore été mesurée : aucune priorité n'en est "
+            'tirée.';
+
+/// Un encart mesuré sans aucune action servie.
+const String kPlanUnlockGroupeVide = "Aucune priorité pour l'instant";
+
+/// Le mot d'une ligne : une **compétence** TCF, une **unité** officielle
+/// civique (le grain de chaque module, D-50).
+String _motLigne(PlanUnlockModule module, int n) {
+  final mot = module == PlanUnlockModule.civique ? 'unité' : 'compétence';
+  return n > 1 ? '${mot}s' : mot;
+}
+
+/// « 3 compétences à travailler » — le compte **servi** de l'encart, pas le
+/// nombre de lignes montrées.
+String planUnlockGroupeMeta(PlanUnlockModule module, int n) {
+  if (n == 0) return kPlanUnlockGroupeVide;
+  return '$n ${_motLigne(module, n)} à travailler';
+}
+
+/// « + 2 autres compétences » sous un encart plafonné. `null` quand rien n'est
+/// coupé.
+String? planUnlockAutres(PlanUnlockModule module, int n) {
+  if (n <= 0) return null;
+  return '+ $n ${n > 1 ? 'autres' : 'autre'} ${_motLigne(module, n)}';
+}
+
+/// **Le ton de l'urgence d'une épreuve** dans l'en-tête de son encart. Le
+/// libellé est [PlanDomainPriority.label], **servi** ; seule la teinte se
+/// choisit ici, et le rouge reste à la seule urgence forte. Miroir web :
+/// `PLAN_UNLOCK_DOMAIN_TONE`.
+SfTone planUnlockDomainTone(PlanDomainPriority priority) => switch (priority) {
+      PlanDomainPriority.forte => SfTone.hot,
+      PlanDomainPriority.aTravailler => SfTone.warn,
+      PlanDomainPriority.entretien => SfTone.ok,
+      PlanDomainPriority.pasEncorePrioritaire => SfTone.muted,
+      PlanDomainPriority.aEvaluer => SfTone.muted,
+    };
+
+/// **Le ton d'une priorité du Plan** sur cet écran (une ligne d'un encart
+/// d'épreuve TCF).
 ///
 /// 🛑 **Aucun ton ne se dérive d'un compteur ni d'un rang** : il suit la
 /// `nature` **servie**, et il suit la doctrine du Plan — le rouge de fragilité
@@ -108,6 +175,8 @@ SfTone planUnlockNatureTone(PlanActionNature nature) => switch (nature) {
       PlanActionNature.aVerifier => SfTone.ok,
     };
 
+/// Les trois puces du TCF. La première nomme **le nombre servi** de priorités —
+/// « ces 3 priorités » sur une liste qui en montre deux serait faux.
 List<String> planUnlockChecksTcf(int priorites) => <String>[
       'Des entraînements ciblés sur ces $priorites '
           'priorité${priorites > 1 ? 's' : ''}',

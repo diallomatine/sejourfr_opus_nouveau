@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -87,6 +88,10 @@ public class PlanDomainSkillResolver {
      *                    apparaitre « rien a travailler » sur une epreuve qui
      *                    avait seize competences a apprendre : la carte lisait
      *                    une liste deja tronquee par un plafond d'ecran.
+     *                    🛑 <b>Son ordre d'iteration EST le classement du Plan</b>
+     *                    (l'appelant la bâtit dans l'ordre de
+     *                    {@code PlanActionRanker}) : c'est lui qui donne
+     *                    {@link PlanDomainSkillDto#priorityRank()}.
      * @param paliers     le palier que chaque domaine construit
      *                    ({@code PlanDomainTargetLevelResolver}, autorite
      *                    unique) — recopie tel quel sur le domaine pour que les
@@ -110,6 +115,12 @@ public class PlanDomainSkillResolver {
             UUID courante) {
 
         Map<SkillSection, List<Skill>> parSection = parSection(referentiel);
+        // LE RANG vient de l'ordre du pool, lu une fois : il n'est ni recalcule
+        // ni deduit d'une liste affichee.
+        Map<UUID, Integer> rangs = new HashMap<>();
+        for (UUID skillId : natures.keySet()) {
+            rangs.put(skillId, rangs.size() + 1);
+        }
         List<PlanDomainDto> enrichis = new ArrayList<>(domaines.size());
         for (PlanDomainDto domaine : domaines) {
             List<Skill> competences =
@@ -155,7 +166,8 @@ public class PlanDomainSkillResolver {
                         observation == null ? null : observation.getObservedAt(),
                         access.isSkillLocked(skill.getId()),
                         stepState, counts.step().promptCount(),
-                        counts.step().attemptedCount()));
+                        counts.step().attemptedCount(),
+                        rangs.get(skill.getId())));
             }
             enrichis.add(domaine.withSkills(List.copyOf(skills), fragiles, solides, nonObservees,
                     paliers == null ? null

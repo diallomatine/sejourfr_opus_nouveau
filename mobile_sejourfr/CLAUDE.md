@@ -539,8 +539,8 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   `/diagnostic-tcf/:sessionId/resultat`) **redirige vers `/plan`** — un lien profond déjà émis
   aboutit.
 - **Conservé (lecture d'un résultat existant)** : `TcfDiagnosticRepository.current()` /
-  `readResult()` (lecture seule), lus par `plan_unlock_screen.dart` ;
-  `tcf_diagnostic_labels.dart` réduit à `prioriteIntitule` / `prioritePastille` ;
+  `readResult()` (lecture seule), lus par `plan_unlock_screen.dart` (son héros) ;
+  `tcf_diagnostic_labels.dart` **supprimé** le 2026-09-26 avec son dernier lecteur ;
   `core/models/tcf_diagnostic_models.dart` inchangé (miroir DTO, et `TcfDiagnosticStatus` sert
   aussi au civique).
 - **Complet commencé avant le retrait** : `tcfAction` / `planIndisponible` ne lisent plus son
@@ -4617,4 +4617,16 @@ achat ne fait pas. Le signal « l'accès a changé » existe désormais, jumeau 
 - ⚠️ **Restent déduits d'un rang, hors examens blancs** : les séries (`lot.numero > 1`,
   `tcf_level_lots_screen`, `civique_theme_detail_screen`) et les sujets de production
   (`production_subjects_view`) — aucun `locked` n'est servi pour eux.
+
+## « Débloquer mon plan » — les priorités par épreuve (2026-09-26)
+
+> Règle : `docs/regles/plan.md` § « L'écran Débloquer mon plan ». Miroir web dans la même passe.
+
+`PlanUnlockScreen` range « Vos priorités » en **`SfBlocAccordion`** (la brique du cycle) : une
+épreuve TCF par encart, lue sur `plan.domaines` (ordre servi, `evaluated`, `PlanDomainPriority`, et
+les compétences à `nature` servie triées par **`PlanDomainSkill.priorityRank`** servi), ou un thème
+civique par encart (`themes` du diagnostic + unités ouvertes de `journeyCiviqueProvider`).
+🛑 Au plus `kPlanUnlockMaxParGroupe` (5) lignes par encart — plafond d'**affichage** ; le sous-titre
+annonce le total servi. « Non évaluée » / « Non évalué » vient d'un fait servi, jamais d'une liste
+vide. Encart ouvert à l'arrivée : le premier qui a des lignes. Mots : `plan_unlock_labels.dart`.
 

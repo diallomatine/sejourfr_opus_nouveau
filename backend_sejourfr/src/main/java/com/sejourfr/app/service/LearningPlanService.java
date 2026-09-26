@@ -561,6 +561,8 @@ public class LearningPlanService {
         // renforcer » la. Une competence absente de cette table n'a aucune
         // nature : le Plan ne demande rien dessus, et on ne fabrique pas une
         // action pour remplir une colonne.
+        // 🛑 LinkedHashMap, et c'est une regle : son ordre d'insertion est celui
+        // du classement COMPLET, et c'est lui qui sert `priorityRank`.
         Map<UUID, PlanActionNature> natures = new LinkedHashMap<>();
         composed.forEach(action -> natures.put(action.skillId(), action.nature()));
         List<PlanDomainDto> domaines = domainSkillResolver.attach(

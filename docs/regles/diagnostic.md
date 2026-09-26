@@ -28,7 +28,8 @@ qu'on identifie les compétences à travailler (`PlanDomainAssessmentDto`, natur
    (`JourneyAssessmentKind.FULL_DIAGNOSTIC`), le profil TCF, les DTO et leurs miroirs front sont
    inchangés. Côté front, seule la relecture subsiste : `tcfDiagnosticApi.current/readResult`
    ⇄ `TcfDiagnosticRepository.current/readResult`, lus par l'écran de déblocage du Plan
-   (`PlanUnlockScreen.tsx` ⇄ `plan_unlock_screen.dart`).
+   (`PlanUnlockScreen.tsx` ⇄ `plan_unlock_screen.dart`) **pour son héros seulement** — ses
+   priorités se lisent sur le Plan depuis le 2026-09-26 (`docs/regles/plan.md`).
 
 **Ce qui a disparu des deux fronts** : le hub `/diagnostic-tcf` et le résultat
 `/diagnostic-tcf/{id}/resultat` (web `app/(app)/diagnostic-tcf/`, `_components/diagnostic-tcf/` ⇄
