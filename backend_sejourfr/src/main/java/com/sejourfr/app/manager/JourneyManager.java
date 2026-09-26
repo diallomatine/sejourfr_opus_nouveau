@@ -110,6 +110,14 @@ public class JourneyManager {
         return score == null ? null : score.shortValue();
     }
 
+    /**
+     * Ce cycle a-t-il ete amorce par le diagnostic rapide ? — cf.
+     * {@code JourneyAssessmentEventRepository.amorceParLeDiagnosticRapide}.
+     */
+    public boolean amorceParLeDiagnosticRapide(UUID journeyId) {
+        return eventRepository.amorceParLeDiagnosticRapide(journeyId);
+    }
+
     public boolean dejaTraitee(UUID userId, Module module, UUID sourceAssessmentId) {
         return eventRepository.dejaTraiteeParUnCycle(userId, module, sourceAssessmentId);
     }

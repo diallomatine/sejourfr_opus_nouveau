@@ -57,6 +57,24 @@ enum StatutObjectif {
   }
 }
 
+/// D'où vient le palier affiché d'une épreuve. Miroir de `NiveauProvenance`.
+enum NiveauProvenance {
+  examenBlanc('EXAMEN_BLANC'),
+  diagnostic('DIAGNOSTIC');
+
+  const NiveauProvenance(this.wire);
+
+  final String wire;
+
+  static NiveauProvenance? fromWire(String? value) {
+    if (value == null) return null;
+    for (final provenance in NiveauProvenance.values) {
+      if (provenance.wire == value) return provenance;
+    }
+    return null;
+  }
+}
+
 /// Une épreuve, son palier d'aujourd'hui, et ce qui a bougé.
 class ProgressEpreuve {
   const ProgressEpreuve({
@@ -65,6 +83,7 @@ class ProgressEpreuve {
     this.niveau,
     this.niveauInitial,
     this.status,
+    this.provenance,
     this.evaluation,
   });
 
@@ -78,9 +97,14 @@ class ProgressEpreuve {
   /// 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer.
   final StatutObjectif? status;
 
-  /// **Par quoi mesurer cette épreuve**, quand elle ne l'a **jamais** été
-  /// ([niveau] `null`). `null` dès qu'un palier existe : il n'y a plus rien à
-  /// lancer.
+  /// **D'où vient [niveau]** : un examen blanc, ou le seul diagnostic rapide
+  /// (2026-09-27). `null` exactement quand [niveau] l'est. 🛑 Servi par le
+  /// calcul même du palier — le front ne devine jamais la provenance.
+  final NiveauProvenance? provenance;
+
+  /// **Par quoi mesurer cette épreuve**, tant qu'**aucun examen blanc** ne l'a
+  /// mesurée : jamais évaluée, ou palier issu du seul diagnostic. `null` dès
+  /// qu'un examen blanc a mesuré l'épreuve : il n'y a plus rien à lancer.
   ///
   /// 🛑 **Même descripteur que « Compléter mon profil » et que la ligne
   /// `A_EVALUER` de la séance**, donc **même lanceur** — `openPlanAssessment`,
@@ -100,6 +124,7 @@ class ProgressEpreuve {
         evolution:
             NiveauEvolution.fromWire(json['evolution'] as String? ?? 'INCONNUE'),
         status: StatutObjectif.fromWire(json['status'] as String?),
+        provenance: NiveauProvenance.fromWire(json['provenance'] as String?),
         evaluation: json['evaluation'] == null
             ? null
             : PlanDomainAssessment.fromJson(

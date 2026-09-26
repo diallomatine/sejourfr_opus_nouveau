@@ -480,6 +480,7 @@ class JourneyCycle {
     required this.etapesTotal,
     required this.complete,
     required this.cycleDeMesure,
+    required this.cycleDAffinage,
   });
 
   /// Le rang de ce cycle : nombre de cycles historisés + 1. Le premier vaut 1.
@@ -489,14 +490,23 @@ class JourneyCycle {
   final int etapesTerminees;
 
   /// Étapes du cycle, obsolètes exclues — le dénominateur de la barre.
+  /// ⚠️ En cycle d'affinage : les étapes obligatoires, plus les compétences
+  /// facultatives déjà faites.
   final int etapesTotal;
 
-  /// Plus **aucune** étape ouverte : les quatre blocs sont terminés. C'est la
-  /// condition — et la seule — qui ouvre « Prochaine étape ».
+  /// Plus **aucune** étape **obligatoire** ouverte (hors affinage : plus aucune
+  /// étape ouverte du tout). C'est ce qui ouvre « Prochaine étape ».
   final bool complete;
 
   /// Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls.
   final bool cycleDeMesure;
+
+  /// **Premier cycle, issu du diagnostic rapide** (2026-09-27, D-64) : il sert
+  /// à affiner la mesure. Ses examens sont ouverts d'emblée, ses compétences
+  /// sont facultatives, et il s'actualise dès que ses examens sont passés.
+  /// 🛑 Servi (`JourneyCycleAffinage`) : le front n'en tire que ses phrases —
+  /// le verrou arrive déjà servi sur chaque étape (`lockReason`).
+  final bool cycleDAffinage;
 
   factory JourneyCycle.fromJson(Map<String, dynamic> json) => JourneyCycle(
         numero: (json['numero'] as num?)?.toInt() ?? 1,
@@ -504,6 +514,7 @@ class JourneyCycle {
         etapesTotal: (json['etapesTotal'] as num?)?.toInt() ?? 0,
         complete: json['complete'] as bool? ?? false,
         cycleDeMesure: json['cycleDeMesure'] as bool? ?? false,
+        cycleDAffinage: json['cycleDAffinage'] as bool? ?? false,
       );
 }
 

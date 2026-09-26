@@ -21,8 +21,9 @@ package com.sejourfr.app.dto;
  *                        feliciterait pour du travail qu'il n'a pas fait.
  * @param etapesTotal     etapes du cycle, obsoletes exclues — le denominateur
  *                        de la barre.
- * @param complete        plus <b>aucune</b> etape ouverte : les quatre blocs
- *                        sont termines. C'est le fait dont l'ecran tire
+ * @param complete        plus <b>aucune</b> etape <b>obligatoire</b> ouverte
+ *                        ({@code JourneyCycleAffinage.termine}) : hors
+ *                        affinage, plus aucune etape ouverte du tout. C'est le fait dont l'ecran tire
  *                        « <b>Cycle entierement travaille</b> ».
  *                        <p>⚠️ <b>Ce n'est plus la seule condition qui ouvre
  *                        l'ecran « Prochaine étape »</b> (2026-09-20) :
@@ -35,11 +36,25 @@ package com.sejourfr.app.dto;
  *                        colonne</b> : a la fin d'un tel cycle, proposer un
  *                        second examen complet enchaine n'aurait aucun sens, et
  *                        la seule issue offerte est l'actualisation.
+ * @param cycleDAffinage  ce cycle est le <b>premier</b>, amorce par le
+ *                        diagnostic rapide (2026-09-27, D-64) : il sert a
+ *                        AFFINER la mesure. Ses examens d'epreuve sont ouverts
+ *                        d'emblee (aucun verrou {@code PROGRESSION}), ses
+ *                        competences sont <b>facultatives</b>, et il est
+ *                        {@code complete} — donc actualisable — des que ses
+ *                        examens sont passes. 🛑 Autorite :
+ *                        {@code JourneyCycleAffinage} ; les fronts n'en
+ *                        tirent que leurs phrases, jamais un verrou.
+ *                        <p>⚠️ En affinage, {@code etapesTotal} compte les
+ *                        etapes <b>obligatoires</b> plus les facultatives deja
+ *                        faites : une competence non travaillee ne retient pas
+ *                        la barre sous 100 %.</p>
  */
 public record JourneyCycleDto(
         int numero,
         int etapesTerminees,
         int etapesTotal,
         boolean complete,
-        boolean cycleDeMesure
+        boolean cycleDeMesure,
+        boolean cycleDAffinage
 ) {}

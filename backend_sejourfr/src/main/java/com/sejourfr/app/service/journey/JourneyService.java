@@ -120,6 +120,7 @@ public class JourneyService {
     private final JourneyObservationSources observationSources;
     private final JourneyLotBuilder lotBuilder;
     private final JourneyReadService readService;
+    private final JourneyCycleAffinage cycleAffinage;
     private final LearningPlanObservationManager observationManager;
     private final SkillMasteryResolver masteryResolver;
     private final TcfProfileService profileService;
@@ -182,13 +183,22 @@ public class JourneyService {
      */
     private boolean rattraperLesEvaluationsInitiales(Journey journey, List<JourneyStep> etapes) {
         if (journey.getModule() != Module.TCF) return false;
+        // Paresseux : la question ne coute une requete que si un bloc a encore
+        // des competences dues, et la lecture ordinaire n'en paie aucune.
+        Boolean affinage = null;
         boolean cloture = false;
         Instant maintenant = Instant.now();
         for (JourneyStep step : etapes) {
             if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
             if (step.getPurpose() != JourneyStepPurpose.INITIAL_ASSESSMENT) continue;
             EpreuveType epreuve = step.getExamType();
-            if (epreuve == null || competencesDues(etapes, epreuve)) continue;
+            if (epreuve == null) continue;
+            // 🛑 D-15 ne vaut pas en cycle d'affinage (D-64) : meme garde que
+            // l'ecriture, `cloreLExamenDuBloc`.
+            if (competencesDues(etapes, epreuve)) {
+                if (affinage == null) affinage = cycleAffinage.pour(journey);
+                if (!affinage) continue;
+            }
             NiveauActuelEpreuveResolver.Mesure mesure =
                     mesureResolver.mesure(journey.getUser().getId(), epreuve);
             if (!mesure.mesuree()) continue;
@@ -894,13 +904,17 @@ public class JourneyService {
         // amorce ». La lire apres aurait envoye en attente les priorites du
         // diagnostic qui vient d'ouvrir le parcours.
         boolean amorce = attendSonAmorce(etapes);
+        // 🛑 LU AVANT TOUTE ECRITURE, lui aussi : un cycle qui attend son amorce
+        // n'a pas encore de lot, donc n'est pas (encore) d'affinage — et c'est
+        // juste, il n'a rien a deverrouiller ni a mettre en attente.
+        boolean affinage = cycleAffinage.pour(journey);
 
         cloreLEtapeDiagnostic(journey, etapes, evaluation);
 
         boolean tropAncienne = false;
         if (evaluation.mesureUneEpreuve()) {
             tropAncienne = estTropAncienne(journey, evaluation);
-            if (!tropAncienne) cloreLExamenDuBloc(journey, etapes, evaluation);
+            if (!tropAncienne) cloreLExamenDuBloc(journey, etapes, evaluation, affinage);
         }
 
         if (!tropAncienne) {
@@ -921,7 +935,7 @@ public class JourneyService {
             if (amorce) {
                 creerLots(journey, filtrerLeDiagnostic(journey, lots, evaluation));
             } else {
-                mettreEnAttente(journey, etapes, lots, evaluations, evaluation, sources);
+                mettreEnAttente(journey, etapes, lots, evaluations, evaluation, sources, affinage);
             }
         }
 
@@ -1011,10 +1025,11 @@ public class JourneyService {
             List<JourneyLotBuilder.Lot> lots,
             List<LearningPlanObservation> evaluations,
             JourneyEvaluation evaluation,
-            JourneyObservationSources.Sources sources) {
+            JourneyObservationSources.Sources sources,
+            boolean affinage) {
         List<JourneyLotBuilder.Lot> nouveautes = nouveautes(
                 lots, etapesDuCycleEnCours,
-                prioritairesDe(evaluations, sources));
+                prioritairesDe(evaluations, sources), affinage);
         if (nouveautes.isEmpty()) return;
 
         Journey attente = cycleEnAttente(enCours);
@@ -1077,7 +1092,8 @@ public class JourneyService {
     private static List<JourneyLotBuilder.Lot> nouveautes(
             List<JourneyLotBuilder.Lot> lots,
             List<JourneyStep> etapesDuCycleEnCours,
-            Set<UUID> prioritaires) {
+            Set<UUID> prioritaires,
+            boolean affinage) {
         Map<UUID, JourneyStep> dejaDansLeCycle = new LinkedHashMap<>();
         for (JourneyStep step : etapesDuCycleEnCours) {
             if (step.getType() != JourneyStepType.TRAIN_SKILL || step.getSkill() == null) continue;
@@ -1088,7 +1104,7 @@ public class JourneyService {
             List<JourneyLotBuilder.Priorite> priorites = new ArrayList<>();
             for (JourneyLotBuilder.Priorite priorite : lot.priorites()) {
                 if (aRefaire(dejaDansLeCycle.get(priorite.skill().getId()),
-                        prioritaires.contains(priorite.skill().getId()))) {
+                        prioritaires.contains(priorite.skill().getId()), affinage)) {
                     priorites.add(new JourneyLotBuilder.Priorite(
                             priorite.skill(), priorites.size()));
                 }
@@ -1101,10 +1117,16 @@ public class JourneyService {
         return List.copyOf(retenus);
     }
 
-    private static boolean aRefaire(JourneyStep dansLeCycle, boolean regressionMesuree) {
+    private static boolean aRefaire(
+            JourneyStep dansLeCycle, boolean regressionMesuree, boolean affinage) {
         if (dansLeCycle == null) return true;
         // Encore due dans le cycle en cours : rien a remettre en attente.
-        if (dansLeCycle.estOuverte()) return false;
+        // 🛑 SAUF EN CYCLE D'AFFINAGE (D-64) : elle n'y est pas DUE, elle y est
+        // FACULTATIVE, et l'actualisation l'historisera telle quelle. L'examen
+        // qui la redetecte doit donc la porter au cycle suivant — sinon le
+        // candidat qui n'a fait « que les examens » perdrait precisement les
+        // priorites que ces examens viennent de confirmer.
+        if (dansLeCycle.estOuverte()) return affinage;
         // Rendue caduque par la file, jamais travaillee : elle peut revenir.
         if (dansLeCycle.getResolution() == JourneyStepResolution.SUPERSEDED) return true;
         return regressionMesuree;
@@ -1218,9 +1240,14 @@ public class JourneyService {
      * evaluation plus recente ({@link #remplacerLesLotsEnAttente}).
      */
     private void cloreLExamenDuBloc(
-            Journey journey, List<JourneyStep> etapes, JourneyEvaluation evaluation) {
+            Journey journey, List<JourneyStep> etapes, JourneyEvaluation evaluation,
+            boolean affinage) {
         EpreuveType epreuve = evaluation.examType();
-        if (competencesDues(etapes, epreuve)) {
+        boolean dues = competencesDues(etapes, epreuve);
+        // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : D-15 ne s'y applique pas —
+        // l'examen du bloc etait ouvert a l'ecran, il se clot donc ici. La
+        // lecture et l'ecriture posent toujours la MEME question.
+        if (dues && !affinage) {
             log.info("Parcours {} : examen {} passe hors du plan, mais le bloc {} a encore des "
                             + "competences dues — rien n'est valide (R1, D-15)",
                     journey.getId(), evaluation.sourceAssessmentId(), epreuve);
@@ -1234,6 +1261,10 @@ public class JourneyService {
                 stepManager.save(step);
             }
         }
+        // En affinage, des competences facultatives restent travaillables : le
+        // lot n'a pas fini son office, il reste ouvert (son examen, lui, est
+        // clos). Il sera historise avec le cycle.
+        if (dues) return;
         // Le lot a rempli son office : ses entrainements etaient faits, et son
         // point d'etape vient d'etre satisfait par une mesure. Il se ferme
         // CLOSED — jamais SUPERSEDED : rien n'a ete saute.

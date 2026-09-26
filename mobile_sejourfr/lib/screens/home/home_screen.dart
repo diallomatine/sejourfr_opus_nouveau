@@ -577,6 +577,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 // une épreuve jamais évaluée. Relire un résultat reste un lien.
                 ctaPrimary: epreuve.niveau == null,
                 onTap: () => _ouvrirEpreuve(context, epreuve),
+                // 🛑 **Un palier du DIAGNOSTIC n'est pas une mesure par examen
+                // blanc** (2026-09-27) : la carte garde « Voir mes résultats »
+                // ET propose « Évaluer mon niveau ». La provenance est servie,
+                // le lanceur est celui de l'épreuve jamais évaluée.
+                evaluateLabel: accueilEpreuveMesureEnPlus(epreuve) == null
+                    ? null
+                    : kAccueilEvaluerCta,
+                onEvaluate: _evaluerEnPlus(context, epreuve),
               ),
           ],
         ),
@@ -689,6 +697,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   ///    seule cette issue a changé de destination).
   ///
   /// Le choix se lit sur l'état **servi**, jamais sur un texte de bouton.
+  /// Le lanceur de la mesure proposée **en plus** d'un palier de diagnostic,
+  /// ou `null` quand la carte n'en porte pas. Le même que celui d'une épreuve
+  /// jamais évaluée : `openPlanAssessment`, hors Plan (contrôle F).
+  VoidCallback? _evaluerEnPlus(BuildContext context, ProgressEpreuve epreuve) {
+    final mesure = accueilEpreuveMesureEnPlus(epreuve);
+    if (mesure == null) return null;
+    return () =>
+        openPlanAssessment(context, ref, mesure, origine: PlanOrigine.horsPlan);
+  }
+
   void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
     final mesure = epreuve.niveau == null ? epreuve.evaluation : null;
     if (mesure != null) {

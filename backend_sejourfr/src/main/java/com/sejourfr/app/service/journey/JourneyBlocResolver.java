@@ -84,6 +84,12 @@ public class JourneyBlocResolver {
      *                       pour les blocs qui peuvent etre {@code A_EVALUER} :
      *                       la question coute des requetes, et un bloc qui porte
      *                       du travail n'en a pas besoin.
+     * @param affinage       ce cycle est-il un cycle d'<b>affinage</b>
+     *                       ({@link JourneyCycleAffinage}) ? Il change trois
+     *                       lectures, et trois seulement : le badge suit la
+     *                       carte quand elle nomme un examen, un bloc est
+     *                       termine quand son examen l'est, et le cycle quand
+     *                       ses etapes obligatoires le sont.
      */
     public Vue lire(
             int numeroDuCycle,
@@ -91,26 +97,34 @@ public class JourneyBlocResolver {
             List<JourneyStep> affichables,
             JourneyStep courante,
             Function<JourneyStep, JourneyStepDto> dto,
-            Predicate<JourneyBlocRefDto> jamaisMesure) {
+            Predicate<JourneyBlocRefDto> jamaisMesure,
+            boolean affinage) {
 
         Map<String, List<JourneyStep>> parBloc = grouper(axe, affichables);
 
         // 🛑 LE MENEUR SE DESIGNE ICI, UNE FOIS, parce que c'est ICI que
         // l'ordre servi est connu. `bloc(...)` ne voit qu'un bloc : il ne
         // saurait pas dire s'il est le premier.
-        String meneur = meneur(axe, parBloc, courante);
+        String meneur = meneur(axe, parBloc, courante, affinage);
 
         List<JourneyBlocDto> blocs = new ArrayList<>(axe.size());
         for (JourneyBlocRefDto ref : axe) {
             blocs.add(bloc(ref, parBloc.get(ref.code()), ref.code().equals(meneur),
-                    dto, jamaisMesure));
+                    dto, jamaisMesure, affinage));
         }
 
         int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
-        boolean complete = affichables.stream().allMatch(step -> !step.estOuverte());
+        // 🛑 EN AFFINAGE, UNE COMPETENCE NON TRAVAILLEE NE COMPTE PAS AU
+        // DENOMINATEUR : elle est facultative. Une competence FAITE, elle,
+        // compte des deux cotes — la barre ne recule donc jamais.
+        int total = (int) affichables.stream()
+                .filter(step -> !step.estOuverte()
+                        || JourneyCycleAffinage.obligatoire(step, affinage))
+                .count();
+        boolean complete = JourneyCycleAffinage.termine(affichables, affinage);
         return new Vue(List.copyOf(blocs), new JourneyCycleDto(
-                numeroDuCycle, terminees, affichables.size(), complete,
-                cycleDeMesure(affichables)));
+                numeroDuCycle, terminees, total, complete,
+                cycleDeMesure(affichables), affinage));
     }
 
     /**
@@ -172,7 +186,18 @@ public class JourneyBlocResolver {
     private static String meneur(
             List<JourneyBlocRefDto> axe,
             Map<String, List<JourneyStep>> parBloc,
-            JourneyStep courante) {
+            JourneyStep courante,
+            boolean affinage) {
+
+        // 🛑 CYCLE D'AFFINAGE (2026-09-27) : la carte nomme d'abord un EXAMEN
+        // (`JourneyReadService.elireUnExamen`), et le badge la suit — l'invariant
+        // de D-57 « le bloc de CURRENT est celui marque EN_COURS » tient. Le
+        // travail ne mene que lorsque plus aucun examen n'est a faire.
+        if (affinage && courante != null
+                && courante.getType() == JourneyStepType.SECTION_EXAM) {
+            String porteur = porteurDe(axe, parBloc, courante);
+            if (porteur != null) return porteur;
+        }
 
         // 🛑 LA DESIGNATION PAR LE TRAVAIL EST EXTRAITE, et c'est ce qui CASSE
         // LA BOUCLE (D-57, seconde moitie) : `elire` en a besoin AVANT qu'une
@@ -182,6 +207,13 @@ public class JourneyBlocResolver {
         String parLeTravail = meneurParLeTravail(axe, parBloc);
         if (parLeTravail != null) return parLeTravail;
         if (courante == null) return null;
+        return porteurDe(axe, parBloc, courante);
+    }
+
+    private static String porteurDe(
+            List<JourneyBlocRefDto> axe,
+            Map<String, List<JourneyStep>> parBloc,
+            JourneyStep courante) {
         for (JourneyBlocRefDto ref : axe) {
             boolean porteLaMain = parBloc.get(ref.code()).stream()
                     .anyMatch(step -> step.getId().equals(courante.getId()));
@@ -318,7 +350,8 @@ public class JourneyBlocResolver {
             List<JourneyStep> etapes,
             boolean meneur,
             Function<JourneyStep, JourneyStepDto> dto,
-            Predicate<JourneyBlocRefDto> jamaisMesure) {
+            Predicate<JourneyBlocRefDto> jamaisMesure,
+            boolean affinage) {
 
         int restantes = (int) etapes.stream()
                 .filter(JourneyStep::estOuverte)
@@ -326,7 +359,9 @@ public class JourneyBlocResolver {
                 .count();
         boolean sansCompetence = etapes.stream()
                 .noneMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL);
-        boolean toutesCloses = etapes.stream().allMatch(step -> !step.estOuverte());
+        // 🛑 EN AFFINAGE, un bloc est termine quand son EXAMEN l'est : ses
+        // competences sont facultatives (JourneyCycleAffinage).
+        boolean toutesCloses = JourneyCycleAffinage.termine(etapes, affinage);
 
         JourneyBlocStatus status;
         if (meneur) {
@@ -354,7 +389,8 @@ public class JourneyBlocResolver {
                 // 🛑 LA PHRASE EST SERVIE (D-50 §4) : le mot depend du grain du
                 // module, et un front qui le choisirait le choisirait seul.
                 JourneyBlocMeta.pour(ref, status, restantes, !steps.isEmpty(),
-                        examenServi != null && !examenServi.locked()),
+                        examenServi != null && !examenServi.locked(),
+                        affinage, examen != null && !examen.estOuverte()),
                 steps, examenServi);
     }
 

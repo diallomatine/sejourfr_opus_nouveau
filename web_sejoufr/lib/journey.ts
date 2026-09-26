@@ -377,6 +377,14 @@ export function journeyCycleBadge(cycle: JourneyCycleDto): string | undefined {
 
 /** La phrase sous la barre. */
 export function journeyCycleHint(cycle: JourneyCycleDto): string {
+    /* 🛑 **Cycle d'affinage** (D-64) : lu sur le fait SERVI `cycleDAffinage`,
+       jamais déduit du numéro du cycle. Ses compétences sont facultatives —
+       « toutes les compétences sont terminées » y serait faux. */
+    if (cycle.cycleDAffinage) {
+        return cycle.complete
+            ? "Les examens blancs de toutes les épreuves sont faits. Actualisez votre plan pour recevoir les priorités qu'ils ont identifiées."
+            : "Premier cycle : passez l'examen blanc de chaque épreuve pour affiner votre plan. Les compétences détectées par le diagnostic restent disponibles.";
+    }
     if (cycle.complete) {
         return "Toutes les compétences et tous les examens d'épreuve prévus dans ce cycle sont terminés.";
     }
@@ -535,10 +543,20 @@ export const JOURNEY_STEP_UNLOCK_LINK = "Débloquer mon plan →";
  */
 export const JOURNEY_LOCKED_BADGE = "Verrouillé";
 
-/** La note de pied du cycle — la liberté d'ordre, et sa seule exception. */
-export const JOURNEY_CYCLE_NOTE =
-    "Vous pouvez travailler les compétences dans l'ordre que vous voulez. " +
-    "Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.";
+/**
+ * La note de pied du cycle — la liberté d'ordre, et sa seule exception.
+ *
+ * 🛑 **Conditionnelle au fait servi `cycleDAffinage`** (D-64) : au premier
+ * cycle, les examens sont ouverts d'emblée — dire qu'ils attendent les étapes
+ * serait faux. Miroir de `journeyCycleNote` (`journey_labels.dart`).
+ */
+export function journeyCycleNote(cycle: JourneyCycleDto): string {
+    return cycle.cycleDAffinage
+        ? "Dans ce premier cycle, les examens blancs sont ouverts d'emblée. " +
+              "Travailler les compétences détectées par le diagnostic est facultatif."
+        : "Vous pouvez travailler les compétences dans l'ordre que vous voulez. " +
+              "Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.";
+}
 
 /* ---------------------------------------------------- fin de cycle (spec §6) */
 

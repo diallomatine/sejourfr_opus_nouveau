@@ -78,6 +78,9 @@ public class JourneyCycleService {
     // 🛑 La MEME autorite que `nextStep.examenCompletPossible` : le bouton servi
     // et ce refus serveur ne peuvent pas dire deux choses differentes.
     private final TcfJourneyConfig config;
+    // 🛑 La MEME autorite que `cycle.complete` et `nextStep` servis : le bouton
+    // « Actualiser » et le 409 ne peuvent pas dire deux choses differentes.
+    private final JourneyCycleAffinage cycleAffinage;
 
     /**
      * <b>Actualiser mon plan</b> (spec §6).
@@ -135,6 +138,13 @@ public class JourneyCycleService {
     public JourneyDto creerCycleDeMesure(UUID userId, Module module) {
         Journey enCours = cycleOuvertALExamenDeFinDeCycle(userId, module);
         if (module == Module.CIVIQUE) return creerLeCycleDeMesureCivique(userId, enCours);
+        // 🛑 CYCLE D'AFFINAGE (D-64) : il vient de mesurer les epreuves une a
+        // une ; `nextStep.examenCompletPossible` y est toujours faux, et ce
+        // refus en est la jumelle serveur.
+        if (cycleAffinage.pour(enCours)) {
+            throw new IllegalStateException(
+                    "Ce premier cycle se termine par l'actualisation de votre plan.");
+        }
         if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
             // Enchainer deux examens complets sans travail entre eux ne mesure
             // rien de nouveau — c'est le « cas particulier » de la spec §6.
@@ -284,9 +294,14 @@ public class JourneyCycleService {
      */
     private Journey cycleTermine(UUID userId, Module module) {
         Journey enCours = verrouille(userId, module);
-        boolean ouvertes = stepManager.findAll(enCours.getId()).stream()
-                .anyMatch(JourneyStep::estOuverte);
-        if (ouvertes) {
+        // 🛑 « Termine » a UNE autorite, `JourneyCycleAffinage.termine` : hors
+        // affinage, plus rien d'ouvert ; en affinage (D-64), plus aucun examen
+        // ouvert — les competences facultatives restantes sont historisees
+        // telles quelles, et les priorites que les examens ont confirmees
+        // attendent deja dans le cycle suivant.
+        boolean termine = JourneyCycleAffinage.termine(
+                stepManager.findAll(enCours.getId()), cycleAffinage.pour(enCours));
+        if (!termine) {
             throw new IllegalStateException(
                     "Votre parcours n'est pas termine : il reste des etapes a faire.");
         }

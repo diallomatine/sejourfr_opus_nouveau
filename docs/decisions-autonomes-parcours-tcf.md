@@ -3015,3 +3015,68 @@ ramènerait le candidat sur un écran encore verrouillé, c'est-à-dire sur ce q
 d'acheter. `replace` et non `push` : la page de succès n'a rien à faire dans l'historique.
 
 **Aucune migration.** Le paramètre ne se persiste nulle part : il ne vit que dans l'URL.
+
+# 2026-09-27 — Le cycle d'affinage et la provenance du palier (A158 → A164)
+
+> Arbitrage du propriétaire : `docs/decisions/plan-parcours-tcf.md` **D-64** et **D-64 bis**.
+> Ce qui suit est ce que la passe a tranché seule.
+
+### A158 — « Premier cycle » = rang 1 **et** amorcé par le diagnostic rapide
+
+Le rang seul (`JourneyCycleRank = 1`) aurait suffi pour le cas nominal, mais pas pour
+l'**amorce B** : un premier cycle amorcé par un **examen** porte un lot fermé par un examen
+`REASSESS` de l'épreuve qu'on vient de passer. En affinage, cet examen deviendrait obligatoire
+**et** la carte principale — le candidat repasserait tout de suite l'examen qu'il vient de
+finir. La troisième condition se lit sur des faits persistés : un lot du cycle dont la source
+est un événement `QUICK_DIAGNOSTIC` du même cycle (`JourneyAssessmentEventRepository
+.amorceParLeDiagnosticRapide`). Les **lots**, pas le journal seul : le bootstrap R19 journalise
+tout l'historique, diagnostic compris, même quand un examen a amorcé le cycle. Requête posée
+**seulement** sur un premier cycle TCF. Le civique n'est pas concerné (pas de lanceur d'examen
+depuis le cycle, A86). **Si l'arbitrage était autre** : `JourneyCycleAffinage.pour(journey,
+rang)` se réduit à `rang == 1`.
+
+### A159 — L'examen principal : le premier EXÉCUTABLE dans l'ordre SERVI des blocs
+
+Pas l'ordre de la file (`position`), qui n'est pas ce que le candidat voit. L'axe servi met les
+blocs porteurs de travail devant (A101) : c'est donc l'examen blanc **EE** qui passe en
+premier après le diagnostic — celui dont les priorités sont à affiner —, puis CO, CE, EO. Un
+examen fermé par l'**accès** est sauté (compte gratuit dont l'examen EE offert est consommé ⇒
+la carte passe à la CO). Le badge `EN_COURS` suit la carte quand elle nomme un examen
+(`JourneyBlocResolver.meneur`, paramètre `affinage`). **Si l'arbitrage était autre** (examens
+« jamais mesurés » d'abord) : trier `elireUnExamen` par `purpose`.
+
+### A160 — Une compétence facultative non faite ne compte pas au dénominateur
+
+`etapesTotal` = étapes obligatoires + compétences facultatives **déjà faites**. Sinon un cycle
+`complete` afficherait « 5 étapes sur 8 » avec « Cycle terminé ». Faire une compétence ajoute
+1 aux deux termes : la barre ne recule jamais.
+
+### A161 — Les compétences confirmées par un examen partent au cycle suivant, même ouvertes
+
+`aRefaire` renvoyait `false` pour une compétence encore ouverte (« elle est déjà due »). En
+affinage elle n'est pas due, elle est facultative, et l'actualisation l'historise telle
+quelle. Conséquence assumée : un candidat qui la travaille **après** l'examen la retrouvera au
+cycle 2 — l'examen, plus récent que le diagnostic, fait autorité.
+
+### A162 — Le lot reste OUVERT quand son examen se clôt avant ses compétences
+
+L'étape d'examen se clôt (`SATISFIED_BY_ASSESSMENT`), mais le lot n'a pas fini son office :
+ses compétences facultatives restent travaillables. Il est historisé avec le cycle. Aucun
+lecteur ne s'en sert sur un cycle déjà amorcé (R11 ne relit les lots ouverts que du cycle qui
+attend son amorce).
+
+### A163 — Fin d'un cycle d'affinage : l'actualisation seule
+
+Enchaîner un examen blanc complet juste après quatre examens d'épreuve ne mesure rien de
+nouveau — le même argument que le cycle de mesure. `nextStep.examenCompletPossible = false`,
+et `measurement-cycle` répond 409 (la jumelle serveur). La carte finale réutilise le texte du
+cycle de mesure (« Vos quatre épreuves viennent d'être mesurées… »), exact ici aussi.
+
+### A164 — La provenance du palier : `EXAMEN_BLANC` inclut l'ancien diagnostic COMPLET
+
+Une sous-épreuve de l'ancien diagnostic complet (retiré le 2026-09-26) est, ligne pour ligne,
+la même épreuve qu'un examen blanc (`AttemptRepository.findQcmEpreuvesPassees`) : son palier
+est servi `EXAMEN_BLANC`, et la carte ne propose pas de refaire la mesure. `DIAGNOSTIC` ne
+désigne que le repli sur la baseline du diagnostic **rapide** (EE/EO). **Si l'arbitrage était
+autre** : exclure `tcfDiagnostic` des examens retenus par `NiveauActuelEpreuveResolver` dans le
+calcul de provenance.

@@ -220,7 +220,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
 
               SfInfoNote(
                 child: Text(
-                  kJourneyCycleNote,
+                  journeyCycleNote(cycle),
                   style: AppFonts.ui(
                       size: 12, color: AppColors.muted, height: 1.45),
                 ),

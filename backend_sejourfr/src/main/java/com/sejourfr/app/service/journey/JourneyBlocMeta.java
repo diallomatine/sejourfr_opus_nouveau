@@ -29,13 +29,25 @@ final class JourneyBlocMeta {
 
     static String pour(
             JourneyBlocRefDto bloc, JourneyBlocStatus status,
-            int restantes, boolean porteDesEtapes, boolean examenOuvert) {
+            int restantes, boolean porteDesEtapes, boolean examenOuvert,
+            boolean affinage, boolean examenClos) {
 
         boolean thematique = bloc.kind() == JourneyBlocKind.THEMATIQUE;
         // « examen blanc » cote TCF ; cote civique l'examen d'un bloc est
         // l'examen du THEME, et l'appeler « blanc » le confondrait avec
         // l'examen complet de 40 questions.
         String examen = thematique ? "examen" : "examen blanc";
+
+        // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : les competences ne precedent
+        // plus l'examen, elles sont FACULTATIVES. « 3 competences · puis
+        // examen » y serait faux — l'examen est ouvert d'emblee.
+        if (affinage && restantes > 0) {
+            String facultatives = restantes + " " + nom(thematique, restantes)
+                    + " facultative" + (restantes == 1 ? "" : "s");
+            if (examenClos) return "Examen blanc terminé · " + facultatives;
+            if (examenOuvert) return "Examen à passer · " + facultatives;
+            return facultatives;
+        }
 
         if (status == JourneyBlocStatus.TERMINE) {
             return porteDesEtapes

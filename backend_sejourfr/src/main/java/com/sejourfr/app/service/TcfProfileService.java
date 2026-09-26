@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.NiveauProvenance;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
@@ -145,7 +146,7 @@ public class TcfProfileService {
      */
     @Transactional(readOnly = true)
     public TcfLevelProfile levelProfile(UUID userId) {
-        return profil(userId, this::bestQcm, this::bestProduction);
+        return profil(userId, this::bestQcm, this::bestProduction).profil();
     }
 
     /**
@@ -188,9 +189,39 @@ public class TcfProfileService {
      */
     @Transactional(readOnly = true)
     public TcfLevelProfile levelProfileAccueil(UUID userId) {
+        return levelProfileAccueilDetaille(userId).profil();
+    }
+
+    /**
+     * <b>La lecture d'affichage, ET la provenance de chaque palier</b>
+     * (2026-09-27) : examen blanc, ou repli sur le diagnostic rapide.
+     *
+     * <p>🛑 <b>Le même calcul</b> que {@link #levelProfileAccueil}, qui n'en
+     * est que la projection : la provenance est notée <b>au moment même</b> où
+     * le palier est choisi, jamais recalculée à côté — deux lectures du même
+     * fait finissent toujours par diverger. Lu par l'Accueil
+     * ({@code ProgressService}), qui en tire le bouton « Évaluer mon niveau ».
+     */
+    @Transactional(readOnly = true)
+    public ProfilAccueil levelProfileAccueilDetaille(UUID userId) {
         return profil(userId,
                 (u, e) -> niveauActuelResolver.qcm(u, e, SCAN_LIMIT),
                 (u, e) -> niveauActuelResolver.production(u, e, SCAN_LIMIT));
+    }
+
+    /**
+     * Le profil d'affichage et la provenance de chaque palier.
+     *
+     * @param provenances une entrée par épreuve <b>qui a un palier</b> ; une
+     *                    épreuve sans palier n'y figure pas ({@code null} =
+     *                    inconnu, jamais une provenance inventée).
+     */
+    public record ProfilAccueil(
+            TcfLevelProfile profil, Map<EpreuveType, NiveauProvenance> provenances) {
+
+        public NiveauProvenance provenance(EpreuveType epreuve) {
+            return provenances.get(epreuve);
+        }
     }
 
     /**
@@ -199,7 +230,7 @@ public class TcfProfileService {
      * et pour le Plan — seule la façon de valoriser une épreuve change, et
      * c'est le paramètre.
      */
-    private TcfLevelProfile profil(
+    private ProfilAccueil profil(
             UUID userId,
             BiFunction<UUID, EpreuveType, NiveauCecrl> comprehension,
             BiFunction<UUID, EpreuveType, NiveauCecrl> production) {
@@ -209,19 +240,31 @@ public class TcfProfileService {
         NiveauCecrl ee = production.apply(userId, EpreuveType.TCF_EE);
         NiveauCecrl eo = production.apply(userId, EpreuveType.TCF_EO);
 
+        final Map<EpreuveType, NiveauProvenance> provenances = new EnumMap<>(EpreuveType.class);
+        if (co != null) provenances.put(EpreuveType.TCF_CO, NiveauProvenance.EXAMEN_BLANC);
+        if (ce != null) provenances.put(EpreuveType.TCF_CE, NiveauProvenance.EXAMEN_BLANC);
+        if (ee != null) provenances.put(EpreuveType.TCF_EE, NiveauProvenance.EXAMEN_BLANC);
+        if (eo != null) provenances.put(EpreuveType.TCF_EO, NiveauProvenance.EXAMEN_BLANC);
+
         // Repli baseline : une seule requête, et seulement si au moins un des
         // deux domaines de production est vide — un candidat qui travaille
         // vraiment ne la paie jamais.
         if (ee == null || eo == null) {
             final Map<EpreuveType, NiveauCecrl> baseline = diagnosticLevels(userId);
-            if (ee == null) ee = baseline.get(EpreuveType.TCF_EE);
-            if (eo == null) eo = baseline.get(EpreuveType.TCF_EO);
+            if (ee == null) {
+                ee = baseline.get(EpreuveType.TCF_EE);
+                if (ee != null) provenances.put(EpreuveType.TCF_EE, NiveauProvenance.DIAGNOSTIC);
+            }
+            if (eo == null) {
+                eo = baseline.get(EpreuveType.TCF_EO);
+                if (eo != null) provenances.put(EpreuveType.TCF_EO, NiveauProvenance.DIAGNOSTIC);
+            }
         }
 
         // Arrays.asList (et non List.of) : une épreuve non passée vaut null, et
         // c'est précisément ce que le plancher doit ignorer.
-        return new TcfLevelProfile(co, ce, ee, eo,
-                levelEstimator.floor(Arrays.asList(co, ce, ee, eo)));
+        return new ProfilAccueil(new TcfLevelProfile(co, ce, ee, eo,
+                levelEstimator.floor(Arrays.asList(co, ce, ee, eo))), Map.copyOf(provenances));
     }
 
     /**

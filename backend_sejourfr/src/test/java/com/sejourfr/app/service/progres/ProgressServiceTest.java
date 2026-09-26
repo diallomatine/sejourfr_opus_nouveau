@@ -12,6 +12,7 @@ import com.sejourfr.app.enums.CivicThemeState;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.NiveauProvenance;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.StatutObjectif;
@@ -107,7 +108,7 @@ class ProgressServiceTest {
         // et EO n'existent que par une EPREUVE COMPLETE. Que ce soit un stub
         // different est justement ce qui rend visible, ici, que l'ecran ne lit
         // pas la meme chose que le Plan.
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
+        profilAccueil(
                 new TcfLevelProfile(null, null, null, null, null));
     }
 
@@ -118,7 +119,7 @@ class ProgressServiceTest {
         // cran en dessous, EO jamais evaluee.
         diagnosticClos(NiveauCecrl.A2, NiveauCecrl.A2, NiveauCecrl.A2, null);
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B2));
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
+        profilAccueil(new TcfLevelProfile(
                 NiveauCecrl.B2, NiveauCecrl.B2, NiveauCecrl.B1, null, NiveauCecrl.B1));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = service.progres(userId).tcf()
@@ -150,7 +151,7 @@ class ProgressServiceTest {
     void sansObjectifAucunStatut() {
         diagnosticClos(NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1);
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.empty());
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
+        profilAccueil(new TcfLevelProfile(
                 NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1, NiveauCecrl.B1,
                 NiveauCecrl.B1));
 
@@ -171,11 +172,11 @@ class ProgressServiceTest {
      * {@code ProgressServiceIT.lEntrainementRenseigneLePlanPasLAccueil}.
      */
     @Test
-    @DisplayName("🛑 L'Accueil lit levelProfileAccueil, jamais la lecture du Plan")
+    @DisplayName("🛑 L'Accueil lit la lecture d'affichage, jamais la lecture du Plan")
     void lAccueilNeLitQueSaPropreLecture() {
         service.progres(userId);
 
-        verify(tcfProfileService).levelProfileAccueil(userId);
+        verify(tcfProfileService).levelProfileAccueilDetaille(userId);
         verify(tcfProfileService, never()).levelProfile(userId);
     }
 
@@ -196,7 +197,7 @@ class ProgressServiceTest {
         // Aucun diagnostic TCF clos, mais une CO et une CE deja mesurees.
         when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
+        profilAccueil(new TcfLevelProfile(
                 NiveauCecrl.B1, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
 
         ProgressDto.Tcf tcf = service.progres(userId).tcf();
@@ -224,7 +225,7 @@ class ProgressServiceTest {
     void uneEpreuveJamaisEvalueePorteSaMesure() {
         when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(
+        profilAccueil(
                 new TcfLevelProfile(null, null, null, null, null));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
@@ -263,7 +264,7 @@ class ProgressServiceTest {
     void diagnosticTermineRenvoieVersLExamenBlanc() {
         diagnosticClos(NiveauCecrl.A2, NiveauCecrl.A2, null, null);
         when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B1));
-        when(tcfProfileService.levelProfileAccueil(userId)).thenReturn(new TcfLevelProfile(
+        profilAccueil(new TcfLevelProfile(
                 NiveauCecrl.A2, NiveauCecrl.A2, null, null, NiveauCecrl.A2));
 
         Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
@@ -376,5 +377,54 @@ class ProgressServiceTest {
         return new CivicPlanDto.ThemeLigne(
                 UUID.randomUUID(), code, label, etat,
                 CivicPlanGrain.THEME, 5, 1, 3, null);
+    }
+
+    // ------------------------------------------------------------------------
+    // Provenance du palier — « Évaluer mon niveau » a cote de « Voir mes
+    // resultats » (2026-09-27)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Palier EE issu du DIAGNOSTIC : provenance servie, et la mesure par examen "
+            + "blanc reste proposee")
+    void unPalierDuDiagnosticGardeSaMesure() {
+        when(tcfSessionManager.findAllByUser(userId)).thenReturn(List.of());
+        when(tcfDiagnosticService.cible(user)).thenReturn(Optional.of(NiveauCecrl.B2));
+        when(tcfProfileService.levelProfileAccueilDetaille(userId)).thenReturn(
+                new TcfProfileService.ProfilAccueil(
+                        new TcfLevelProfile(NiveauCecrl.B1, null, NiveauCecrl.A2, null,
+                                NiveauCecrl.A2),
+                        Map.of(EpreuveType.TCF_CO, NiveauProvenance.EXAMEN_BLANC,
+                                EpreuveType.TCF_EE, NiveauProvenance.DIAGNOSTIC)));
+
+        Map<EpreuveType, ProgressDto.Epreuve> parEpreuve = parEpreuve(service.progres(userId).tcf());
+
+        // EE : un palier ET de quoi le mesurer par un examen blanc.
+        ProgressDto.Epreuve ee = parEpreuve.get(EpreuveType.TCF_EE);
+        assertThat(ee.niveau()).isEqualTo(NiveauCecrl.A2);
+        assertThat(ee.provenance()).isEqualTo(NiveauProvenance.DIAGNOSTIC);
+        assertThat(ee.evaluation()).isNotNull();
+        assertThat(ee.evaluation().kind()).isEqualTo(PlanDomainAssessmentKind.PRODUCTION_MOCK_EXAM);
+        // CO : mesuree par un examen blanc, plus rien a lancer.
+        assertThat(parEpreuve.get(EpreuveType.TCF_CO).provenance())
+                .isEqualTo(NiveauProvenance.EXAMEN_BLANC);
+        assertThat(parEpreuve.get(EpreuveType.TCF_CO).evaluation()).isNull();
+        // 🛑 Sans palier, pas de provenance : null = inconnu.
+        assertThat(parEpreuve.get(EpreuveType.TCF_CE).provenance()).isNull();
+        assertThat(parEpreuve.get(EpreuveType.TCF_CE).evaluation()).isNotNull();
+    }
+
+    /**
+     * Stub de la lecture d'affichage : tout palier present vient d'un examen
+     * blanc, sauf mention contraire — c'etait le seul cas avant le 2026-09-27.
+     */
+    private void profilAccueil(TcfLevelProfile profil) {
+        Map<EpreuveType, NiveauProvenance> provenances = new java.util.EnumMap<>(EpreuveType.class);
+        if (profil.co() != null) provenances.put(EpreuveType.TCF_CO, NiveauProvenance.EXAMEN_BLANC);
+        if (profil.ce() != null) provenances.put(EpreuveType.TCF_CE, NiveauProvenance.EXAMEN_BLANC);
+        if (profil.ee() != null) provenances.put(EpreuveType.TCF_EE, NiveauProvenance.EXAMEN_BLANC);
+        if (profil.eo() != null) provenances.put(EpreuveType.TCF_EO, NiveauProvenance.EXAMEN_BLANC);
+        when(tcfProfileService.levelProfileAccueilDetaille(userId)).thenReturn(
+                new TcfProfileService.ProfilAccueil(profil, provenances));
     }
 }

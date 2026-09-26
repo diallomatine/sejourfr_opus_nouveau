@@ -1531,6 +1531,11 @@ résultats → » épinglé en bas. Toujours 2 colonnes (portrait), cartes d'une
 5ᵉ thème civique prend toute la largeur.
 Civique : pas de valeur en gros (aucun score par thème servi), pas de libellés
 sous l'échelle. `SfLevelRow`, `SfLevelList`, `SfLadderLegend` sont **supprimées**.
+⚠️ **2026-09-27 — deux actions** : un palier issu du **diagnostic** (provenance servie
+`DIAGNOSTIC`) garde « Voir mes résultats » **et** reçoit le bouton plein « Évaluer mon
+niveau » (`accueilEpreuveMesureEnPlus`, `progres_labels.dart` ; kit `SfLevelCard.onEvaluate`
+⇄ `LevelCard.evaluate`, actions **empilées** au pied, lanceur `openPlanAssessment`).
+→ `docs/regles/progression.md`.
 Ce qui suit décrit l'état antérieur, conservé pour mémoire.
 
 ✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
@@ -4333,6 +4338,9 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   l'examen (« Examen blanc » / « Évaluez vos progrès » + bouton « Commencer » à droite,
   2026-09-26 ; état lu sur `status`, `locked` et `lockReason` servis), `SfNextStepCard` et ses deux actions sur `JourneyState.cycleCompleted`
   (`refresh()` / `measurementCycle()` de `learning_plan_repository.dart`).
+  ⚠️ **Cycle d'affinage** (2026-09-27, D-64) : la note de pied et la phrase sous la barre se
+  lisent sur `cycle.cycleDAffinage` (`journeyCycleNote` / `journeyCycleHint`) — jamais sur
+  `numero`. Le verrou et l'étape courante arrivent servis. → `docs/regles/plan.md`.
 - 🛑 **`_journeySection` et `plan_groups.dart` sont SUPPRIMÉS** (la file plate et le bloc
   « Vos priorités », qui redisait les blocs en moins précis — arbitrage du propriétaire),
   ainsi que `steps` / `hiddenUpcomingCount` du modèle. L'aperçu de l'Accueil lit

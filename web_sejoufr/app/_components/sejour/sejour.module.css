@@ -2220,6 +2220,57 @@
   background: var(--color-red-dark);
 }
 
+/* ---------- Deux actions : un lien ET la mesure qui manque (2026-09-27) ----------
+   La carte n'est plus un seul lien : chaque action l'est. Empilées, jamais
+   côte à côte — deux boutons ne tiennent pas dans une demi-carte de 360 px. */
+.levelCard.isStatic {
+  cursor: default;
+}
+
+.levelCard.isStatic:hover {
+  box-shadow: var(--sf-shadow-border);
+}
+
+.levelCardFoot.isDouble {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.isDouble .levelCardCta {
+  width: 100%;
+  margin: 0;
+  padding: 12px 0 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.isDouble .levelCardCta.isPrimary {
+  padding: 9px 12px;
+  background: var(--color-red);
+  text-align: center;
+}
+
+.isDouble .levelCardCta.isPrimary:hover {
+  background: var(--color-red-dark);
+}
+
+.isDouble .levelCardCta:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.isDouble .levelCardCta:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
 .toneOk { color: var(--color-green); }
 .toneNow { color: var(--color-blue); }
 .toneWarn { color: var(--color-amber-dark); }

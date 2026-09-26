@@ -153,6 +153,9 @@ public class JourneyReadService {
     // 🛑 L'AUTORITE UNIQUE DE « CETTE SERIE EST REUSSIE » : la meme que celle
     // que l'ecran d'etape sert et que la cloture lit.
     private final JourneySerieVerdict verdict;
+    // 🛑 L'AUTORITE UNIQUE DU CYCLE D'AFFINAGE (2026-09-27, D-64) : la meme que
+    // celle que l'ecriture (JourneyService) et l'actualisation lisent.
+    private final JourneyCycleAffinage cycleAffinage;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, JourneyLockReason lockReason,
@@ -203,6 +206,10 @@ public class JourneyReadService {
         Set<EpreuveType> examensDeProductionVerrouilles =
                 examensDeProductionVerrouilles(userId, ouvertes);
         Set<String> blocsAvecTravailOuvert = blocsAvecTravailOuvert(ouvertes);
+        // 🛑 LE RANG EST COMPTE UNE FOIS : il sert l'en-tete du cycle ET la
+        // question de l'affinage, qui ne coute une requete que sur un 1er cycle.
+        int rang = numeroDuCycle(journey);
+        boolean affinage = cycleAffinage.pour(journey, rang);
 
         // 🛑 **D-33 : travailler une unite depuis le Plan civique est PREMIUM**,
         // et `CivicPlanService.demarrerSerieSurUnite` l'oppose deja en 403. Le
@@ -228,7 +235,7 @@ public class JourneyReadService {
         for (JourneyStep step : toutesLesEtapes) {
             JourneyLockReason lockReason = raisonDuVerrou(step, access, progressionExpression,
                     examensDeProductionVerrouilles, blocsAvecTravailOuvert,
-                    journey.getModule() == Module.CIVIQUE, accesCivique);
+                    journey.getModule() == Module.CIVIQUE, accesCivique, affinage);
             etats.put(step.getId(), new Etat(step,
                     statutHorsPromotion(step, toutesLesEtapes), lockReason,
                     progression(step, progressionExpression, seriesParEtape)));
@@ -257,7 +264,14 @@ public class JourneyReadService {
         // `courante` est l'etape que la carte doit NOMMER, verrouillee ou non.
         // Sur un compte sans acces, la premiere est nulle et la seconde ne
         // l'est pas : le Plan reste inexecutable, et il cesse d'etre muet.
-        JourneyStep executable = elire(ouvertes, etats, progressionExpression, meneur);
+        // 🛑 CYCLE D'AFFINAGE (D-64) : L'EXAMEN BLANC EST L'ACTION PRINCIPALE.
+        // La carte nomme le premier examen EXECUTABLE dans l'ordre servi des
+        // blocs ; quand il n'en reste aucun, l'election ordinaire reprend (le
+        // travail facultatif du bloc meneur). Hors affinage : inchange.
+        JourneyStep executable = affinage ? elireUnExamen(axeServi, ouvertes, etats) : null;
+        if (executable == null) {
+            executable = elire(ouvertes, etats, progressionExpression, meneur);
+        }
         JourneyStep courante = executable != null
                 ? executable
                 : premiereAnnoncable(ouvertes, progressionExpression, meneur);
@@ -268,17 +282,18 @@ public class JourneyReadService {
         }
 
         JourneyBlocResolver.Vue vue = blocResolver.lire(
-                numeroDuCycle(journey), axeServi,
+                rang, axeServi,
                 affichables, courante,
                 step -> dto(etats.get(step.getId()), exercices),
-                jamaisMesure(userId, journey.getModule()));
+                jamaisMesure(userId, journey.getModule()),
+                affinage);
 
         // 🛑 L'ETAT SE LIT SUR L'EXECUTABLE, JAMAIS SUR LA CARTE (D-18, D-60) :
         // servir une etape verrouillee dans `current` ne rend rien executable.
         // Brancher `etat` sur `courante` aurait fait passer tout compte sans
         // acces de LOCKED a IN_PROGRESS — « le Plan d'un compte gratuit est
         // lisible et INEXECUTABLE » est l'effet voulu, pas un dommage.
-        JourneyState state = etat(affichables, ouvertes, executable);
+        JourneyState state = etat(affichables, ouvertes, executable, vue.cycle().complete());
         return new JourneyDto(
                 journey.objectifRef(),
                 state,
@@ -445,7 +460,11 @@ public class JourneyReadService {
         // La part exigee vit en configuration versionnee (0,80 en v3) parce que
         // le proprietaire a annonce la regle comme NON FIGEE. v1 et v2 ne la
         // portent pas : elles disent « le cycle entier », l'ancienne regle.
-        boolean examen = config.examenDeFinDeCycleOuvert(
+        // 🛑 CYCLE D'AFFINAGE (D-64) : il vient de MESURER les epreuves une a
+        // une. Enchainer un examen blanc complet ne mesurerait rien de nouveau
+        // — exactement l'argument du cycle de mesure. Sa seule issue est
+        // l'actualisation, offerte des que ses examens sont passes.
+        boolean examen = !cycle.cycleDAffinage() && config.examenDeFinDeCycleOuvert(
                 cycle.etapesTerminees(), cycle.etapesTotal(), cycle.complete());
         if (!examen && !cycle.complete()) return null;
         // 🛑 SEUL L'EXAMEN SE DEBLOQUE TOT. « Actualiser mon plan » historise le
@@ -522,7 +541,9 @@ public class JourneyReadService {
                 examensDeProductionVerrouilles(userId, ouvertes),
                 blocsAvecTravailOuvert(ouvertes),
                 civique,
-                civique && subscriptionService.hasCivique(userId)) != null;
+                civique && subscriptionService.hasCivique(userId),
+                step.getType() == JourneyStepType.SECTION_EXAM
+                        && cycleAffinage.pour(step.getJourney())) != null;
     }
 
     private JourneyLockReason raisonDuVerrou(
@@ -532,7 +553,8 @@ public class JourneyReadService {
             Set<EpreuveType> examensDeProductionVerrouilles,
             Set<String> blocsAvecTravailOuvert,
             boolean moduleCivique,
-            boolean accesCivique) {
+            boolean accesCivique,
+            boolean affinage) {
         return switch (step.getType()) {
             case DIAGNOSTIC -> null;
             // 🛑 LA CLE EST LE BLOC, PAS L'EPREUVE (D-47). Un examen de theme
@@ -543,8 +565,13 @@ public class JourneyReadService {
             // 🛑 LE VERROU PEDAGOGIQUE L'EMPORTE quand les deux se cumulent : c'est
             // la condition a remplir d'abord, et les etapes du bloc portent deja
             // leur propre verrou d'acces.
+            //
+            // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : D-15 NE S'Y APPLIQUE PAS.
+            // Le premier cycle sert a affiner la mesure du diagnostic : ses
+            // competences sont facultatives, et l'examen de chaque bloc est
+            // ouvert d'emblee. Le verrou d'ACCES, lui, reste entier.
             case SECTION_EXAM -> {
-                if (blocsAvecTravailOuvert.contains(step.blocCode())) {
+                if (!affinage && blocsAvecTravailOuvert.contains(step.blocCode())) {
                     yield JourneyLockReason.PROGRESSION;
                 }
                 yield step.getExamType() != null
@@ -717,6 +744,36 @@ public class JourneyReadService {
             if (etats.get(step.getId()).locked()) continue;
             if (sansContenu(step, progressionExpression)) continue;
             return step;
+        }
+        return null;
+    }
+
+    /**
+     * <b>Cycle d'affinage : le premier examen EXECUTABLE, dans l'ordre servi
+     * des blocs</b> (2026-09-27, D-64).
+     *
+     * <p>« Dans le 1er cycle, l'examen blanc est l'action PRINCIPALE » (le
+     * proprietaire). L'ordre est celui que le candidat voit —
+     * {@link #axeAffiche} —, jamais celui de la file : le bloc du haut porte
+     * donc la carte et le badge, et c'est le bloc dont le diagnostic a
+     * detecte les priorites, que l'examen vient preciser.
+     *
+     * <p>🛑 <b>« Executable »</b> garde son sens de D-1 : un examen verrouille
+     * par l'<b>acces</b> (gratuite d'examen de production consommee) est
+     * saute. {@code null} quand aucun examen n'est a faire : l'election
+     * ordinaire reprend alors la main.
+     */
+    private static JourneyStep elireUnExamen(
+            List<JourneyBlocRefDto> axeServi,
+            List<JourneyStep> ouvertes,
+            Map<UUID, Etat> etats) {
+        for (JourneyBlocRefDto ref : axeServi) {
+            for (JourneyStep step : ouvertes) {
+                if (step.getType() != JourneyStepType.SECTION_EXAM) continue;
+                if (!ref.code().equals(step.blocCode())) continue;
+                if (etats.get(step.getId()).locked()) continue;
+                return step;
+            }
         }
         return null;
     }
@@ -1045,12 +1102,18 @@ public class JourneyReadService {
      * </ul>
      */
     private static JourneyState etat(
-            List<JourneyStep> affichables, List<JourneyStep> ouvertes, JourneyStep executable) {
+            List<JourneyStep> affichables, List<JourneyStep> ouvertes, JourneyStep executable,
+            boolean complete) {
         if (ouvertes.isEmpty()) {
             return affichables.isEmpty()
                     ? JourneyState.UP_TO_DATE
                     : JourneyState.CYCLE_COMPLETED;
         }
+        // 🛑 CYCLE D'AFFINAGE (D-64) : ses examens passes, il est TERMINE meme
+        // si des competences facultatives restent ouvertes — c'est ce qui sert
+        // « Prochaine étape » et son actualisation. Hors affinage, `complete`
+        // equivaut a « plus rien d'ouvert », deja traite juste au-dessus.
+        if (complete) return JourneyState.CYCLE_COMPLETED;
         // 🛑 LE PARAMETRE EST L'ETAPE **EXECUTABLE**, PAS CELLE QUE LA CARTE
         // NOMME (D-60) : depuis le 2026-09-20, `current` porte une etape
         // verrouillee quand le bloc meneur n'offre rien d'executable. Lire

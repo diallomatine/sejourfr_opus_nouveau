@@ -1518,6 +1518,12 @@ export function LevelLadder({
  * ⚠️ **Remplace `LevelRow`, `LevelList` et `LadderLegend`** (liste verticale
  * dans une seule carte, maquette v2) — refonte = suppression de l'ancien.
  *
+ * ⚠️ **Deux actions** (2026-09-27) : quand `evaluate` est passé — un palier
+ * existe, mais il ne vient pas d'un examen blanc —, la carte cesse d'être un
+ * seul lien. Elle porte au pied le lien de `cta` **et** le bouton plein de la
+ * mesure, empilés : deux boutons côte à côte ne tiennent pas dans une
+ * demi-carte de 360 px.
+ *
  * Miroir Flutter : `SfLevelCard`.
  */
 export function LevelCard({
@@ -1534,6 +1540,7 @@ export function LevelCard({
   href,
   onClick,
   busy,
+  evaluate,
 }: {
   /** Repère court (« CO », ou le rang servi d'un thème). */
   mark: string;
@@ -1565,8 +1572,14 @@ export function LevelCard({
   href: string | null;
   onClick?: () => void;
   busy?: boolean;
+  /**
+   * **La mesure qui manque encore**, à côté de `cta` : le palier affiché ne
+   * vient pas d'un examen blanc (fait servi, jamais deviné). Absent, la carte
+   * reste un seul lien.
+   */
+  evaluate?: { label: string; onClick: () => void; busy?: boolean };
 }) {
-  const body = (
+  const head = (
     <>
       <span className={styles.levelCardTop}>
         <span className={styles.levelCardMark}>{mark}</span>
@@ -1580,6 +1593,46 @@ export function LevelCard({
         <span className={cx(styles.levelCardStatus, statusToneClass[tone])}>{status}</span>
       ) : null}
       {scale ? <span className={styles.levelCardScale}>{scale}</span> : null}
+    </>
+  );
+  const cls = cx(styles.levelCard, !measured && styles.isTodo);
+  if (evaluate) {
+    const lien = (
+      <>
+        <span>{cta}</span>
+        <ArrowRight size={18} strokeWidth={2.2} aria-hidden />
+      </>
+    );
+    return (
+      <li className={styles.levelCardItem}>
+        <div className={cx(cls, styles.isStatic)}>
+          {head}
+          <span className={cx(styles.levelCardFoot, styles.isDouble)}>
+            {href ? (
+              <Link href={href} className={styles.levelCardCta}>
+                {lien}
+              </Link>
+            ) : (
+              <button type="button" className={styles.levelCardCta} onClick={onClick} disabled={busy}>
+                {lien}
+              </button>
+            )}
+            <button
+              type="button"
+              className={cx(styles.levelCardCta, styles.isPrimary)}
+              onClick={evaluate.onClick}
+              disabled={evaluate.busy}
+            >
+              {evaluate.label}
+            </button>
+          </span>
+        </div>
+      </li>
+    );
+  }
+  const body = (
+    <>
+      {head}
       <span className={styles.levelCardFoot}>
         <span className={cx(styles.levelCardCta, ctaPrimary && styles.isPrimary)}>
           <span>{cta}</span>
@@ -1588,7 +1641,6 @@ export function LevelCard({
       </span>
     </>
   );
-  const cls = cx(styles.levelCard, !measured && styles.isTodo);
   return (
     <li className={styles.levelCardItem}>
       {href ? (

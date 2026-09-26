@@ -8,7 +8,6 @@ import {planHref, type ParcoursModule} from "@/lib/module-switch";
 import {planSkillTargetLevelDeCode, planStepAction, planStepActionLocked} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
-    JOURNEY_CYCLE_NOTE,
     journeyLockedCaption,
     JOURNEY_NEEDS_OBJECTIVE_CTA,
     JOURNEY_NEEDS_OBJECTIVE_TEXT,
@@ -37,6 +36,7 @@ import {
     journeyBlocTitle,
     journeyCycleBadge,
     journeyCycleHint,
+    journeyCycleNote,
     journeyCycleLabel,
     JOURNEY_EXAM_DONE,
     JOURNEY_EXAM_START,
@@ -393,7 +393,7 @@ function CycleBody({journey, plan, module}: {
                             </BlocAccordion>
                         ))}
 
-                        <InfoNote>{JOURNEY_CYCLE_NOTE}</InfoNote>
+                        <InfoNote>{journeyCycleNote(cycle)}</InfoNote>
 
                         {/* 🛑 Des étapes restent, mais **aucune n'est
                             exécutable** : on le dit, au lieu de laisser un cycle

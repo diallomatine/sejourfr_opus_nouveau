@@ -2993,6 +2993,9 @@ class SfLevelCard extends StatelessWidget {
     this.scale,
     this.ctaPrimary = false,
     this.busy = false,
+    this.evaluateLabel,
+    this.onEvaluate,
+    this.evaluateBusy = false,
   });
 
   /// Repère court (« CO », ou le rang servi d'un thème).
@@ -3030,11 +3033,24 @@ class SfLevelCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool busy;
 
+  /// **La mesure qui manque encore**, à côté de [cta] (2026-09-27) : le palier
+  /// affiché ne vient pas d'un examen blanc (fait servi, jamais deviné). Quand
+  /// [onEvaluate] est passé, la carte cesse d'être un seul geste : le lien de
+  /// [cta] et le bouton plein de la mesure s'empilent au pied — deux boutons
+  /// côte à côte ne tiennent pas dans une demi-carte de 360 px. Miroir web :
+  /// `LevelCard.evaluate`.
+  final String? evaluateLabel;
+  final VoidCallback? onEvaluate;
+  final bool evaluateBusy;
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadii.lg);
     final statut = status;
     final palier = level;
+    final evaluer = onEvaluate;
+    final libelle = evaluateLabel;
+    final deuxActions = evaluer != null && libelle != null;
     return Material(
       // Une épreuve **jamais mesurée** se détache : c'est la seule carte qui
       // demande un geste pour exister. 🛑 Le fait est passé (`measured`), et il
@@ -3047,7 +3063,8 @@ class SfLevelCard extends StatelessWidget {
           boxShadow: AppShadows.card,
         ),
         child: InkWell(
-          onTap: busy ? null : onTap,
+          // 🛑 Deux actions : la carte n'est plus un geste, chaque action l'est.
+          onTap: deuxActions || busy ? null : onTap,
           borderRadius: radius,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
@@ -3126,7 +3143,22 @@ class SfLevelCard extends StatelessWidget {
                 // alignés quelle que soit la longueur des noms.
                 const Spacer(),
                 const SizedBox(height: 12),
-                _SfLevelCardCta(cta: cta, primary: ctaPrimary),
+                if (evaluer != null && libelle != null) ...[
+                  InkWell(
+                    onTap: busy ? null : onTap,
+                    child: _SfLevelCardCta(cta: cta, primary: false),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: evaluateBusy ? null : evaluer,
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                    child: Opacity(
+                      opacity: evaluateBusy ? 0.65 : 1,
+                      child: _SfLevelCardCta(cta: libelle, primary: true),
+                    ),
+                  ),
+                ] else
+                  _SfLevelCardCta(cta: cta, primary: ctaPrimary),
               ],
             ),
           ),

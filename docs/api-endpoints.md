@@ -266,13 +266,17 @@ Cf. `exams-tcf.md`.
   retrouver dans `domainesAEvaluer`**, qui ne liste que les épreuves **jamais mesurées** alors
   qu'un point d'étape porte toujours sur une épreuve déjà mesurée.
   **Le cycle borné (D-12)** se superpose à la même file : `cycle` (avancement, `numero`,
-  `complete`, `cycleDeMesure`), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
+  `complete`, `cycleDeMesure`, `cycleDAffinage`), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
   `CO, CE, EO, EE` (`TcfDomainProfileDto.ORDRE`, non configurable) avec leur `status` dérivé
   (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR`), leurs `steps` et leur `exam` — et
   `nextStep`, **`null` sauf cycle terminé**. `state` gagne `CYCLE_COMPLETED` (cycle terminé,
   écran « Prochaine étape ») ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
   🛑 **L'examen d'un bloc est `locked` tant qu'une compétence du même bloc reste ouverte**
-  (D-15) — un bloc sans compétence a son examen ouvert immédiatement. ⚠️ `steps` et
+  (D-15) — un bloc sans compétence a son examen ouvert immédiatement. ⚠️ **Sauf au cycle
+  d'affinage** (`cycle.cycleDAffinage`, 2026-09-27, D-64 : premier cycle issu du diagnostic
+  rapide) : aucun verrou `PROGRESSION`, compétences facultatives, `complete` dès que les
+  examens sont passés, `current` = premier examen exécutable, `nextStep.examenCompletPossible`
+  toujours `false`. ⚠️ `steps` et
   `hiddenUpcomingCount` sont **servis pour la transition et disparaîtront en P6**, dans la
   même passe que la bascule des fronts sur `blocs` : un nouveau lecteur se branche sur `blocs`,
   qui porte **toutes** les étapes non obsolètes, sans plafond d'affichage.
@@ -306,7 +310,8 @@ Cf. `exams-tcf.md`.
   chez `TcfProfileService.levelProfile` ; `null` si rien n'a été mesuré, **jamais 0**), le cycle
   **en attente** devient le cycle courant (son `entry_level` = l'`exit_level` du précédent), et
   le prochain cycle en attente reste **paresseux**. 🛑 **Aucun paramètre** : le serveur sait
-  quel est le cycle en cours du candidat. **409** si le cycle n'est pas terminé — ce geste
+  quel est le cycle en cours du candidat. **409** si le cycle n'est pas terminé (au cycle
+  d'affinage : tant qu'un examen reste à passer — ses compétences sont facultatives) — ce geste
   historise, il ne doit jamais jeter un plan en cours ; **422** sans démarche déclarée.
 - `POST /api/me/plan/journey/measurement-cycle` → `JourneyDto` — **« Passer l'examen blanc
   complet »** (spec §6). Crée le **cycle de mesure** : quatre blocs, chacun ne portant que son
@@ -316,7 +321,8 @@ Cf. `exams-tcf.md`.
   (`finDeCycleExamenRatio`, configuration versionnée v3), et non plus au cycle entier — c'est
   la **même autorité** que `nextStep.examenCompletPossible`. **409** en dessous de cette part,
   **et** si le cycle courant est déjà un cycle de mesure — enchaîner deux examens complets sans
-  travail entre eux ne mesure rien de nouveau. 🛑 « Actualiser mon plan » garde sa règle (le
+  travail entre eux ne mesure rien de nouveau — **et** sur un cycle d'affinage (D-64). 🛑
+  « Actualiser mon plan » garde sa règle (le
   cycle entier) : ce geste-là historise.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
@@ -647,8 +653,10 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
   des écrans de progression ci-dessous. Il ne reste que ce que l'Accueil lit.
   🛑 Les 4 épreuves sont **toujours** servies ; `evolution` vaut `INCONNUE` dès
   qu'un côté n'est pas évalué (**`INCONNUE` n'est pas `STABLE`**, `BAISSE` se
-  sert) ; `epreuve.evaluation` (`PlanDomainAssessmentDto`) est servi **quand et
-  seulement quand `niveau == null`**. `civique.historique` porte les diagnostics
+  sert) ; `epreuve.provenance` (`EXAMEN_BLANC` / `DIAGNOSTIC`, `null` sans palier,
+  2026-09-27) dit d'où vient le palier ; `epreuve.evaluation` (`PlanDomainAssessmentDto`) est
+  servi **tant qu'aucun examen blanc n'a mesuré l'épreuve** (`niveau == null` **ou**
+  `provenance == DIAGNOSTIC`) — c'est ce qui donne « Évaluer mon niveau » sur la carte. `civique.historique` porte les diagnostics
   clos (l'Accueil en affiche le dernier score), `civique.themes` les lignes du
   moteur du plan civique (`CivicPlanService.themesAccueil`).
 - ~~`GET /api/me/progress/tcf/{epreuve}/historique`~~ — **supprimé le

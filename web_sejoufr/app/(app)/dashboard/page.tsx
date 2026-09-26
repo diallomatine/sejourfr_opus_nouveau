@@ -38,6 +38,7 @@ import {progressionEpreuveHref, progressionThemeHref} from "@/lib/progression";
 import {situationIcon} from "@/lib/situation-icons";
 import {
     ACCUEIL_EVALUEES_CAPTION,
+    ACCUEIL_EVALUER_CTA,
     ACCUEIL_EVALUES_CAPTION_CIVIQUE,
     NON_MESURE_LABEL,
     accueilEchelleLabel,
@@ -46,6 +47,7 @@ import {
     accueilEchelonsCivique,
     accueilEpreuveBadge,
     accueilEpreuveCta,
+    accueilEpreuveMesureEnPlus,
     accueilEpreuveOuvreLExercice,
     accueilEpreuveStatut,
     accueilEpreuveTon,
@@ -826,6 +828,12 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                         const domaine = e.epreuve as Parameters<
                             typeof planDomainLabel>[0];
                         const mesuree = Boolean(e.niveau);
+                        /* 🛑 **Un palier du DIAGNOSTIC n'est pas une mesure
+                           par examen blanc** (2026-09-27) : la carte garde
+                           « Voir mes résultats » ET propose « Évaluer mon
+                           niveau ». La provenance est servie, le lanceur est
+                           le même que celui de l'épreuve jamais évaluée. */
+                        const enPlus = accueilEpreuveMesureEnPlus(e);
                         return (
                             <LevelCard
                                 key={e.epreuve}
@@ -852,6 +860,13 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
                                 href={mesure ? null : href}
                                 onClick={mesure
                                     ? () => void assessments.start(mesure)
+                                    : undefined}
+                                evaluate={enPlus
+                                    ? {
+                                        label: ACCUEIL_EVALUER_CTA,
+                                        onClick: () => void assessments.start(enPlus),
+                                        busy: assessments.starting === e.epreuve,
+                                    }
                                     : undefined}
                             />
                         );

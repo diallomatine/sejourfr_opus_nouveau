@@ -1379,6 +1379,11 @@ résultats → » épinglé en bas. Grille pilotée par sa **propre largeur** (c
 query) : 2 colonnes < 820 px, puis 4 en ligne (TCF) / 3 + 2 (civique, 5 thèmes).
 Civique : pas de valeur en gros (aucun score par thème servi), pas de libellés
 sous l'échelle. `LevelRow`, `LevelList`, `LadderLegend` sont **supprimées**.
+⚠️ **2026-09-27 — deux actions** : un palier issu du **diagnostic** (provenance servie
+`DIAGNOSTIC`) garde « Voir mes résultats » **et** reçoit le bouton plein « Évaluer mon
+niveau » (`accueilEpreuveMesureEnPlus`, `lib/progres.ts` ; kit `LevelCard.evaluate` ⇄
+`SfLevelCard.onEvaluate`, actions **empilées** au pied, lanceur `usePlanAssessment`).
+→ `docs/regles/progression.md`.
 Ce qui suit décrit l'état antérieur, conservé pour mémoire.
 
 ✅ **« Où vous en êtes » ajouté le 2026-09-16**, puis **refait deux fois le même
@@ -4694,6 +4699,9 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   « Évaluez vos progrès » + bouton « Commencer » à droite, 2026-09-26 ; état lu sur `status`,
   `locked` et `lockReason` servis), puis `NextStepCard` et
   ses deux actions quand `state === "CYCLE_COMPLETED"`.
+  ⚠️ **Cycle d'affinage** (2026-09-27, D-64) : la note de pied et la phrase sous la barre se
+  lisent sur `cycle.cycleDAffinage` (`journeyCycleNote` / `journeyCycleHint`) — jamais sur
+  `numero`. Le verrou et l'étape courante arrivent servis. → `docs/regles/plan.md`.
 - 🛑 **La file plate est SUPPRIMÉE** : `JourneySection`, le « + N étapes », et les champs
   `journey.steps` / `hiddenUpcomingCount` avec elle. L'aperçu de l'Accueil lit
   `journeyEtapes(journey)` (`lib/journey.ts`), l'aplatissement des blocs.

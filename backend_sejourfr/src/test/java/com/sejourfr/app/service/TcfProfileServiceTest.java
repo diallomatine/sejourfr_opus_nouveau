@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.NiveauProvenance;
 import com.sejourfr.app.enums.ProductionEvaluabilite;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
@@ -672,6 +673,33 @@ class TcfProfileServiceTest {
         stubAffichage(EpreuveType.TCF_EE, null);
 
         assertThat(service.levelProfileAccueil(userId).ee()).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * 🛑 <b>La provenance est notee par le calcul du palier lui-meme</b>
+     * (2026-09-27) : l'Accueil propose « Évaluer mon niveau » tant que le
+     * palier ne vient pas d'un examen blanc. Un palier de repli est
+     * {@code DIAGNOSTIC} ; un palier d'examen, {@code EXAMEN_BLANC} ; aucun
+     * palier, aucune provenance.
+     */
+    @Test
+    void affichage_laProvenanceDitDOuVientChaquePalier() {
+        stubDiagnostic(diag(EpreuveType.TCF_EE, NiveauCecrl.A2),
+                diag(EpreuveType.TCF_EO, NiveauCecrl.A2));
+        stubAffichage(EpreuveType.TCF_EE, null);
+        stubAffichage(EpreuveType.TCF_EO, NiveauCecrl.B1);
+        stubAffichage(EpreuveType.TCF_CO, NiveauCecrl.B1);
+
+        TcfProfileService.ProfilAccueil detail = service.levelProfileAccueilDetaille(userId);
+
+        assertThat(detail.profil().ee()).isEqualTo(NiveauCecrl.A2);
+        assertThat(detail.provenance(EpreuveType.TCF_EE)).isEqualTo(NiveauProvenance.DIAGNOSTIC);
+        // L'examen l'emporte sur la baseline, et la provenance le dit.
+        assertThat(detail.profil().eo()).isEqualTo(NiveauCecrl.B1);
+        assertThat(detail.provenance(EpreuveType.TCF_EO)).isEqualTo(NiveauProvenance.EXAMEN_BLANC);
+        assertThat(detail.provenance(EpreuveType.TCF_CO)).isEqualTo(NiveauProvenance.EXAMEN_BLANC);
+        assertThat(detail.profil().ce()).isNull();
+        assertThat(detail.provenance(EpreuveType.TCF_CE)).isNull();
     }
 
     /**

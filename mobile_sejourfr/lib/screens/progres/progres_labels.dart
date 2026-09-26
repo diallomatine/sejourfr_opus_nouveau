@@ -1,6 +1,7 @@
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
+import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -143,6 +144,26 @@ String? accueilEpreuveStatut(ProgressEpreuve epreuve) =>
 String accueilEpreuveBadge(ProgressEpreuve epreuve) =>
     epreuve.niveau?.shortName ?? kNonMesureLabel;
 
+/// Le bouton qui lance la mesure d'une épreuve. Miroir de `ACCUEIL_EVALUER_CTA`.
+const String kAccueilEvaluerCta = 'Évaluer mon niveau';
+
+/// **La mesure à proposer EN PLUS de « Voir mes résultats »** (2026-09-27) : un
+/// palier est affiché, mais il ne vient **pas** d'un examen blanc — c'est celui
+/// du diagnostic rapide.
+///
+/// 🛑 **La provenance est SERVIE** (`provenance`, calculée avec le palier) et
+/// le descripteur de lancement aussi (`evaluation`) : rien n'est deviné ici.
+/// Une épreuve jamais évaluée n'est pas concernée — sa carte n'a qu'une action,
+/// la mesure elle-même. Miroir de `accueilEpreuveMesureEnPlus`
+/// (`web_sejoufr/lib/progres.ts`).
+PlanDomainAssessment? accueilEpreuveMesureEnPlus(ProgressEpreuve epreuve) {
+  if (epreuve.niveau == null ||
+      epreuve.provenance == NiveauProvenance.examenBlanc) {
+    return null;
+  }
+  return epreuve.evaluation;
+}
+
 /// Ce que la carte propose de faire.
 ///
 /// 🛑 **Dérivé de l'état, jamais un texte fixe** : une épreuve jamais mesurée
@@ -150,7 +171,7 @@ String accueilEpreuveBadge(ProgressEpreuve epreuve) =>
 /// qui monte propose de continuer plutôt que de relire.
 String accueilEpreuveCta(ProgressEpreuve epreuve) =>
     switch (accueilEpreuveEtat(epreuve)) {
-      AccueilEpreuveEtat.aEvaluer => 'Évaluer mon niveau',
+      AccueilEpreuveEtat.aEvaluer => kAccueilEvaluerCta,
       AccueilEpreuveEtat.enProgression => 'Continuer',
       _ => 'Voir mes résultats',
     };

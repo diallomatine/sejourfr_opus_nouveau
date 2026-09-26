@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.NiveauEvolution;
+import com.sejourfr.app.enums.NiveauProvenance;
 import com.sejourfr.app.enums.StatutObjectif;
 
 import java.time.Instant;
@@ -64,11 +65,21 @@ public record ProgressDto(
      *                      l'épreuve <b>jamais mesurée</b> : c'est
      *                      {@code niveau == null} qui distingue les deux, et un
      *                      écran doit lire les deux
-     * @param evaluation    <b>par quoi mesurer cette épreuve</b>, quand elle ne
-     *                      l'a <b>jamais</b> été ({@code niveau == null}).
-     *                      {@code null} dès qu'un palier existe : il n'y a plus
-     *                      rien à lancer, et proposer une mesure qui existe
-     *                      déjà serait faux.
+     * @param provenance    <b>d'où vient {@code niveau}</b> : un examen blanc,
+     *                      ou le repli sur le diagnostic rapide (2026-09-27).
+     *                      {@code null} exactement quand {@code niveau} l'est.
+     *                      🛑 Servi par le même calcul que le palier
+     *                      ({@code TcfProfileService.levelProfileAccueilDetaille}) :
+     *                      aucun front ne la devine.
+     * @param evaluation    <b>par quoi mesurer cette épreuve</b>, tant
+     *                      qu'<b>aucun examen blanc</b> ne l'a mesurée :
+     *                      jamais évaluée, <b>ou</b> palier issu du seul
+     *                      diagnostic ({@code provenance = DIAGNOSTIC},
+     *                      2026-09-27 — la carte propose alors « Évaluer mon
+     *                      niveau » <b>à côté</b> de « Voir mes résultats »).
+     *                      {@code null} dès qu'un examen blanc a mesuré
+     *                      l'épreuve : proposer une mesure qui existe déjà
+     *                      serait faux.
      *                      <p>🛑 <b>Même descripteur que « Compléter mon
      *                      profil » et que la ligne {@code A_EVALUER} de la
      *                      séance</b> — {@code PlanDomainAssessmentResolver} en
@@ -83,6 +94,7 @@ public record ProgressDto(
             NiveauCecrl niveauInitial,
             NiveauEvolution evolution,
             StatutObjectif status,
+            NiveauProvenance provenance,
             PlanDomainAssessmentDto evaluation
     ) {
     }

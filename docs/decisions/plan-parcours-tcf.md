@@ -3110,3 +3110,65 @@ et tableau des états : `docs/regles/diagnostic.md`, « Le diagnostic COMPLET es
 
 **Si l'arbitrage changeait** (rétablir le complet) : le code supprimé est dans l'historique git au
 commit parent de cette passe (`12476674`) ; le backend n'a pas bougé.
+
+## D-64 — Le premier cycle est un cycle d'AFFINAGE (2026-09-27)
+
+**Décision du propriétaire, verbatim (résumé fidèle).** « Premier cycle du Plan (celui créé
+juste après le diagnostic rapide) : son objectif est d'AFFINER l'évaluation. EE continue
+d'afficher les priorités trouvées par le diagnostic, mais les valider n'est PLUS obligatoire :
+l'étape Examen blanc d'EE n'est pas verrouillée par la progression dans le 1er cycle. Le
+candidat peut ne faire QUE les examens blancs de toutes les épreuves puis actualiser le Plan
+pour obtenir le 2e cycle, construit avec les priorités détectées lors des examens. Il peut
+quand même travailler ses priorités EE s'il a un pass (le verrou d'accès reste inchangé).
+Dans le 1er cycle, l'examen blanc est l'action PRINCIPALE. À partir du 2e cycle : règle
+actuelle inchangée (compétences puis examen). »
+
+**Ce qui est révoqué, et où.** **D-15 ne s'applique plus au cycle d'affinage** — ni en lecture
+(`lockReason = PROGRESSION`), ni en écriture (un examen passé alors que des compétences restent
+ouvertes **clôt** l'étape d'examen du bloc). D-15 reste **intact à partir du 2ᵉ cycle** et pour
+tout cycle qui n'est pas d'affinage. Le verrou d'accès (D-17 bis, D-18) n'est pas touché.
+
+**Définition retenue (autonomie, cf. A158)** : un cycle d'affinage est un cycle **TCF**, de
+**rang 1** (aucun cycle historisé du module) **et amorcé par le diagnostic rapide** (au moins
+un de ses lots a pour source le `QUICK_DIAGNOSTIC` que ce cycle a journalisé). Autorité unique :
+`JourneyCycleAffinage` ; servi dans `JourneyCycleDto.cycleDAffinage`.
+
+**Conséquences, toutes dérivées à la lecture (rien de persisté)** :
+
+1. **Verrou** : l'examen de chaque bloc est ouvert d'emblée ; seul `ACCESS` peut le fermer.
+2. **Action principale** : `current` = le premier examen **exécutable** dans l'ordre servi des
+   blocs ; le badge `EN_COURS` le suit (l'invariant de D-57 tient). Plus aucun examen à faire
+   ⇒ l'élection ordinaire reprend (travail facultatif du bloc meneur).
+3. **Compétences facultatives** : le cycle est `complete` — donc `CYCLE_COMPLETED` et
+   actualisable — dès que ses étapes **obligatoires** (examens, diagnostic) sont closes. Une
+   compétence non faite ne compte pas au dénominateur « N étapes sur M » ; faite, elle compte
+   des deux côtés (la barre ne recule jamais).
+4. **Priorités confirmées par un examen** : une compétence encore ouverte dans le cycle
+   d'affinage **part quand même** dans le cycle en attente si l'examen la redétecte — sinon le
+   candidat qui n'a fait « que les examens » perdrait exactement ces priorités à
+   l'actualisation.
+5. **Fin de cycle** : seule l'actualisation est offerte (`examenCompletPossible = false`) ;
+   `measurement-cycle` répond 409 sur un cycle d'affinage.
+6. **Textes** : la note « Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont
+   terminées » et la phrase sous la barre deviennent conditionnelles au fait servi
+   `cycleDAffinage` (`journeyCycleNote` / `journeyCycleHint`, web ⇄ mobile). La phrase de bloc
+   servie devient « Examen à passer · N compétences facultatives » / « Examen blanc terminé · N
+   compétences facultatives ».
+
+**Si l'arbitrage changeait** (rendre les compétences obligatoires au 1er cycle) :
+`JourneyCycleAffinage.pour` → `false`, et tout revient à D-15 ; aucune donnée à migrer.
+Verrouillé par `CycleDAffinageIT` (4 scénarios) et par les tests existants de D-15, qui
+tournent désormais sur un cycle non d'affinage.
+
+### D-64 bis — L'Accueil propose « Évaluer mon niveau » tant que le palier ne vient pas d'un examen blanc (2026-09-27)
+
+**Décision du propriétaire.** Sur les cartes par épreuve de l'Accueil, même quand EE affiche un
+niveau issu du **diagnostic**, la carte porte aussi « Évaluer mon niveau ». Règle : le bouton
+est présent dès que le niveau affiché **ne provient pas** d'un examen blanc (diagnostic, ou
+aucun niveau).
+
+**Contrat** : `ProgressDto.Epreuve.provenance` (`NiveauProvenance` : `EXAMEN_BLANC` /
+`DIAGNOSTIC`, `null` sans palier), noté par le calcul même du palier
+(`TcfProfileService.levelProfileAccueilDetaille`). `evaluation` est désormais servi **tant
+qu'aucun examen blanc n'a mesuré l'épreuve** (et non plus « seulement si `niveau == null` »).
+Le lanceur est inchangé : `usePlanAssessment` ⇄ `openPlanAssessment`.

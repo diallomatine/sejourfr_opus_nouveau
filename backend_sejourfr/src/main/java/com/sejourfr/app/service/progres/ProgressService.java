@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.TcfDiagnosticSession;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.NiveauProvenance;
 import com.sejourfr.app.enums.TcfDiagnosticStatus;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.CivicDiagnosticSessionManager;
@@ -105,18 +106,25 @@ public class ProgressService {
         // 🛑 Le palier ACTUEL d'une épreuve ne vient PAS du diagnostic : il vient
         // de la lecture d'Accueil du profil TCF (moyenne des 3 derniers examens
         // qualifiants). Les 4 épreuves sont toujours servies.
-        TcfLevelProfile profil = tcfProfileService.levelProfileAccueil(user.getId());
+        TcfProfileService.ProfilAccueil detail =
+                tcfProfileService.levelProfileAccueilDetaille(user.getId());
+        TcfLevelProfile profil = detail.profil();
         List<ProgressDto.Epreuve> epreuves = new ArrayList<>(EPREUVES.size());
         for (EpreuveType epreuve : EPREUVES) {
             NiveauCecrl actuel = actuel(profil, epreuve);
             NiveauCecrl initial = auPremier.get(epreuve);
+            // 🛑 LA PROVENANCE VIENT DU MEME CALCUL QUE LE PALIER : `null`
+            // exactement quand il n'y a pas de palier.
+            NiveauProvenance provenance = actuel == null ? null : detail.provenance(epreuve);
             epreuves.add(new ProgressDto.Epreuve(
                     epreuve, actuel, initial,
                     TcfDiagnosticProgressionResolver.evolution(initial, actuel),
                     statutObjectifResolver.resoudre(actuel, objectif),
-                    // « Par quoi mesurer » n'a de sens que tant qu'aucun palier
-                    // n'existe : au-delà, il n'y a plus rien à lancer.
-                    actuel == null
+                    provenance,
+                    // « Par quoi mesurer » a un sens tant qu'AUCUN EXAMEN BLANC
+                    // n'a mesure l'epreuve (2026-09-27) : jamais evaluee, ou
+                    // palier du seul diagnostic. Au-dela, plus rien a lancer.
+                    provenance != NiveauProvenance.EXAMEN_BLANC
                             ? assessmentResolver.pour(epreuve)
                             : null));
         }

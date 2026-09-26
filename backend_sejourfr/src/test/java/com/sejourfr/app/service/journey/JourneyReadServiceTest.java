@@ -118,7 +118,11 @@ class JourneyReadServiceTest {
                 mesureResolver, new PlanDomainAssessmentResolver(),
                 new JourneyBlocResolver(), journeyManager, exerciseSelector, themeManager,
                 subscriptionService, stepSeriesManager,
-                new JourneySerieVerdict(new LearningPlanProperties(), new CivicPlanProperties()));
+                new JourneySerieVerdict(new LearningPlanProperties(), new CivicPlanProperties()),
+                // 🛑 Le VRAI, pas un mock : « premier cycle amorce par le
+                // diagnostic » se lit sur deux faits du manager, et chaque test
+                // les fixe. Par defaut (mocks a 0 / false) : PAS d'affinage.
+                new JourneyCycleAffinage(journeyManager));
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))

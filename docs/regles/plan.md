@@ -2108,7 +2108,7 @@ veut dire **finissable**, pas « déverrouillée » :
 |---|---|---|
 | `TRAIN_SKILL` expression | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` + `LearningPlanStep` |
 | `TRAIN_SKILL` compréhension | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` |
-| `SECTION_EXAM`, toute épreuve | une compétence du **même bloc** reste ouverte (D-15) | le cycle lui-même |
+| `SECTION_EXAM`, toute épreuve | une compétence du **même bloc** reste ouverte (D-15) — **jamais au cycle d'affinage** (D-64) | le cycle lui-même |
 | `SECTION_EXAM` CO / CE | **rien d'autre** — slot 1 offert et rejouable | `AttemptService.enforceMockExamSlotAccess` |
 | `SECTION_EXAM` EE / EO | la gratuité d'examen blanc **de cette épreuve** est consommée (D-17 bis : **par épreuve**, jamais un verrou global) | `ProductionAccessService` |
 
@@ -2228,6 +2228,9 @@ compte neuf. Un test le verrouille (`JourneyServiceIT` §18-32 et §18-33, lus *
 
 ### L'examen d'un bloc est verrouillé par SON bloc (D-15)
 
+⚠️ **Sauf au cycle d'AFFINAGE** (2026-09-27, D-64) — le premier cycle, issu du diagnostic
+rapide : § « Le cycle d'AFFINAGE » juste en dessous. Ce qui suit vaut pour tous les autres.
+
 `SECTION_EXAM` est verrouillé tant qu'une `TRAIN_SKILL` du **même** bloc est ouverte ; ce
 verrou **s'ajoute** aux trois autorités déjà lues (`SkillAccessService`,
 `ProductionAccessService`, slots). Un bloc sans compétence a son examen ouvert d'emblée.
@@ -2236,13 +2239,47 @@ plus les étapes restantes en `SUPERSEDED` — **il ne valide rien** et compte c
 entraînement. Le travail prévu reste dû. `SUPERSEDED` garde ses autres emplois (un lot **en
 attente**, jamais montré, remplacé par une évaluation plus récente).
 
+### Le cycle d'AFFINAGE — le premier cycle sert à affiner la mesure (2026-09-27, D-64)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-64** · autonomie : **A158 → A163**
+> Autorité : `JourneyCycleAffinage` · verrouillé par `CycleDAffinageIT`
+
+**Définition (dérivée, jamais persistée)** : un cycle **TCF**, de **rang 1** (aucun cycle
+historisé du module, `JourneyCycleRank`), **amorcé par le diagnostic rapide** (un de ses lots a
+pour source le `QUICK_DIAGNOSTIC` qu'il a journalisé). Un premier cycle amorcé par un examen
+n'en est pas un (A158). Servi : `JourneyCycleDto.cycleDAffinage`.
+
+| Règle | Cycle d'affinage | Tout autre cycle |
+|---|---|---|
+| Verrou de l'examen d'un bloc | **aucun verrou `PROGRESSION`** ; `ACCESS` inchangé | D-15 : `PROGRESSION` tant qu'une compétence du bloc est ouverte |
+| Examen passé, compétences ouvertes | l'étape d'examen **se clôt** ; le lot reste ouvert (A162) | rien n'est validé (D-15) |
+| `current` (« À faire maintenant ») | le premier **examen exécutable** dans l'ordre servi des blocs (EE d'abord après le diagnostic), puis l'élection ordinaire (A159) | élection ordinaire (D-1, D-57) |
+| Compétences `TRAIN_SKILL` | **facultatives** (travaillables avec un pass, D-18 intact) | obligatoires |
+| `cycle.complete` / `CYCLE_COMPLETED` | dès que les étapes **obligatoires** (examens, diagnostic) sont closes | plus aucune étape ouverte |
+| « N étapes sur M » | M = obligatoires + facultatives **déjà faites** (A160) | toutes les étapes non obsolètes |
+| Compétence ouverte redétectée par un examen | **part** au cycle en attente (A161) | reste due, pas remise en attente |
+| Issues de fin de cycle | **actualisation seule** ; `measurement-cycle` → 409 (A163) | actualisation + examen complet (80 %) |
+| Phrase de bloc servie | « Examen à passer · N compétences facultatives » / « Examen blanc terminé · N compétences facultatives » | « N compétences restantes · puis examen » |
+
+🛑 **Une seule autorité de « terminé »** : `JourneyCycleAffinage.termine`, lue par la lecture
+(`complete`, `CYCLE_COMPLETED`, statut `TERMINE` d'un bloc) **et** par le refus 409 de
+`refresh` — le bouton servi et le refus ne peuvent pas diverger. Les étapes facultatives
+restantes sont historisées telles quelles ; les priorités que les examens ont confirmées
+attendent déjà dans le cycle en attente.
+
+🛑 **Les fronts ne décident rien** : le verrou arrive servi (`lockReason`), l'étape courante
+aussi. Ils lisent `cycleDAffinage` **pour leurs phrases seulement** — la note de pied
+(`journeyCycleNote`, qui disait à tort « les examens s'ouvrent seulement quand ses étapes sont
+terminées ») et la phrase sous la barre (`journeyCycleHint`), web ⇄ mobile mot pour mot.
+
 ### L'achèvement de l'étape d'examen d'un bloc : d'où qu'on lance l'examen (2026-09-26)
 
 🛑 **Aucun lien étape ⇄ session n'existe, et aucun n'est nécessaire.** L'étape
 `SECTION_EXAM` de l'épreuve X se clôt (`SATISFIED_BY_ASSESSMENT`, `resolved_by` = l'attempt)
 sur **tout examen blanc terminé de X** — lancé du Plan, de l'Accueil, de Réviser, de la liste
 Examens blancs, ou **sous-épreuve d'un examen blanc complet** (`parent_attempt_id`, nature
-`MOCK_EXAM`). Passé, pas réussi (R1) ; seulement si le bloc n'a plus de compétence due (D-15).
+`MOCK_EXAM`). Passé, pas réussi (R1) ; seulement si le bloc n'a plus de compétence due (D-15) — **ou
+si le cycle est d'affinage** (D-64).
 Un examen **commencé mais pas terminé** ne clôt rien. Un examen **antérieur au cycle** ne
 clôt rien non plus (R19 ne fabrique aucune étape « déjà faite ») : l'épreuve étant mesurée,
 le cycle ne lui pose simplement pas d'« Évaluer mon niveau » (R12).
@@ -2275,7 +2312,7 @@ Kit : `ExamStepAction` ⇄ `SfExamStepAction` ; libellés `JOURNEY_EXAM_*` ⇄ `
 |---|---|
 | `status` `COMPLETED` / `SKIPPED` | pastille « ✓ FAIT », aucun bouton |
 | ouvert, action résolue | « Commencer » actif — même lanceur que la carte « À faire maintenant » |
-| `lockReason = PROGRESSION` | « 🔒 Commencer » inactif + « Terminez d'abord les étapes ci-dessus. » |
+| `lockReason = PROGRESSION` | « 🔒 Commencer » inactif + « Terminez d'abord les étapes ci-dessus. » — ⚠️ **jamais servi au cycle d'affinage** (D-64) |
 | `lockReason = ACCESS` | « 🔒 Commencer » inactif + « Réservé à l'offre complète. » + « Débloquer mon plan → » |
 
 🛑 **`JourneyStepDto.lockReason`** (`PROGRESSION` / `ACCESS`, `null` ⇔ `locked` faux) est
@@ -2302,6 +2339,9 @@ déjà clôturée dans le cycle en cours n'y est pas recréée, **sauf** si la n
 est `PRIORITY` — c'est la régression mesurée, et un `TO_REINFORCE` ne rouvre rien.
 
 ### Fin de cycle : deux issues, et une seule pour un cycle de mesure
+
+⚠️ **Et une seule pour un cycle d'AFFINAGE** (D-64) : l'actualisation, offerte dès que ses
+examens sont passés, compétences facultatives ou non.
 
 `refresh` historise le cycle courant (`historise_at`, `exit_level`) et promeut le cycle en
 attente. `measurement-cycle` historise et ouvre un cycle de **mesure** : quatre blocs,

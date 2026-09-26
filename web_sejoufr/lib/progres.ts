@@ -24,6 +24,7 @@ import type {
     CivicPlanThemeLigneDto,
     CivicThemeState,
     NiveauCecrl,
+    PlanDomainAssessmentDto,
     ProgressCiviqueDto,
     ProgressEpreuveDto,
     StatutObjectif,
@@ -168,6 +169,27 @@ export function accueilEpreuveBadge(epreuve: ProgressEpreuveDto): string {
     return epreuve.niveau ? niveauCecrlShort(epreuve.niveau) : NON_MESURE_LABEL;
 }
 
+/** Le bouton qui lance la mesure d'une épreuve. Miroir de `kAccueilEvaluerCta`. */
+export const ACCUEIL_EVALUER_CTA = "Évaluer mon niveau";
+
+/**
+ * **La mesure à proposer EN PLUS de « Voir mes résultats »** (2026-09-27) : un
+ * palier est affiché, mais il ne vient **pas** d'un examen blanc — c'est celui
+ * du diagnostic rapide.
+ *
+ * 🛑 **La provenance est SERVIE** (`provenance`, calculée avec le palier) et le
+ * descripteur de lancement aussi (`evaluation`) : rien n'est deviné ici. Une
+ * épreuve jamais évaluée n'est pas concernée — sa carte n'a qu'une action, la
+ * mesure elle-même. Miroir de `accueilEpreuveMesureEnPlus`
+ * (`progres_labels.dart`).
+ */
+export function accueilEpreuveMesureEnPlus(
+    epreuve: ProgressEpreuveDto,
+): PlanDomainAssessmentDto | null {
+    if (!epreuve.niveau || epreuve.provenance === "EXAMEN_BLANC") return null;
+    return epreuve.evaluation;
+}
+
 /**
  * Ce que la carte propose de faire.
  *
@@ -177,7 +199,7 @@ export function accueilEpreuveBadge(epreuve: ProgressEpreuveDto): string {
  */
 export function accueilEpreuveCta(epreuve: ProgressEpreuveDto): string {
     const etat = accueilEpreuveEtat(epreuve);
-    if (etat === "A_EVALUER") return "Évaluer mon niveau";
+    if (etat === "A_EVALUER") return ACCUEIL_EVALUER_CTA;
     if (etat === "EN_PROGRESSION") return "Continuer";
     return "Voir mes résultats";
 }

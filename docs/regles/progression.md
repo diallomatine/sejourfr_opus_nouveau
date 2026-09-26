@@ -1098,13 +1098,29 @@ avec la réévaluation payante espacée (`TcfReassessmentService`) une fois le
 diagnostic `COMPLETED`.
 
 **Contrat servi** : `ProgressDto.Epreuve.evaluation`, un `PlanDomainAssessmentDto`
-— renseigné **quand et seulement quand** `niveau == null`, `null` dès qu'un
-palier existe (rien à mesurer, on ne propose pas de refaire une mesure qui
+— renseigné **quand et seulement quand** `niveau == null` *(⚠️ amendé le
+2026-09-27 : tant qu'aucun examen blanc n'a mesuré l'épreuve, cf. plus bas)*,
+`null` dès qu'un palier existe (rien à mesurer, on ne propose pas de refaire une mesure qui
 existe). `slotNumber` vaut **1** sur les quatre épreuves (le slot offert et
 rejouable : mesurer un domaine ne bute jamais sur le paywall), et c'est **lui**
 qui pilote le lancement — aucun front n'écrit `1` en dur.
 `estimatedMinutes` suit `DureeEpreuve` : 20 (CO), 35 (CE), 30 (EE) et **`null`
 en EO**, qui se chronomètre tâche par tâche — on n'annonce alors aucune minute.
+
+⚠️ **Amendé le 2026-09-27** (D-64 bis, `docs/decisions/plan-parcours-tcf.md`) :
+`evaluation` est servi **tant qu'aucun examen blanc n'a mesuré l'épreuve** —
+jamais évaluée, **ou** palier issu du seul diagnostic rapide. La **provenance**
+du palier est servie à côté : `ProgressDto.Epreuve.provenance`
+(`NiveauProvenance` : `EXAMEN_BLANC` / `DIAGNOSTIC`, `null` sans palier), notée
+par le calcul même du palier (`TcfProfileService.levelProfileAccueilDetaille`,
+dont `levelProfileAccueil` n'est que la projection). Un palier `DIAGNOSTIC`
+garde sa carte (« Voir mes résultats » / « Continuer ») **et** reçoit le bouton
+plein « Évaluer mon niveau » : `accueilEpreuveMesureEnPlus` (`lib/progres.ts`
+⇄ `progres_labels.dart`) lit `provenance` + `evaluation`, rien d'autre. Kit :
+`LevelCard.evaluate` ⇄ `SfLevelCard.onEvaluate` — les deux actions **s'empilent**
+au pied de la carte (deux boutons ne tiennent pas côte à côte dans une
+demi-carte de 360 px). Une sous-épreuve de l'ancien diagnostic complet compte
+`EXAMEN_BLANC` (A164).
 
 🛑 **Le lanceur est celui du Plan, jamais un second** : `usePlanAssessment`
 (web) ⇄ `openPlanAssessment` (mobile). Les fronts passent le descripteur reçu et

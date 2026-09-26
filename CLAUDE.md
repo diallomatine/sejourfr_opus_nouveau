@@ -160,6 +160,11 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   prioritaire. Peu de priorités toutes vraies est le bon résultat. Le backend du complet est
   conservé, non appelé, et un résultat de complet déjà obtenu reste lu. Ne jamais recréer
   `/diagnostic-tcf`. → `docs/regles/plan.md` · `docs/regles/diagnostic.md`
+- 🛑 **Le 1ᵉʳ cycle (issu du diagnostic rapide) est un cycle d'AFFINAGE** (2026-09-27, D-64) :
+  les examens blancs n'y sont pas verrouillés par la progression, ils sont l'action mise en
+  avant, et les compétences EE y sont facultatives (le cycle se clôt quand les 4 examens sont
+  passés). Fait servi : `cycle.cycleDAffinage` (`JourneyCycleAffinage`, seule autorité) — jamais
+  déduit d'un rang côté front. → `docs/regles/plan.md`
 - 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
   sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
   acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne

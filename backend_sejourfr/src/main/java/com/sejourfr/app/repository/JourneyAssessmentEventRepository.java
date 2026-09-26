@@ -44,6 +44,27 @@ public interface JourneyAssessmentEventRepository
             @Param("sourceAssessmentId") UUID sourceAssessmentId);
 
     /**
+     * <b>Ce cycle a-t-il ete AMORCE par le diagnostic RAPIDE ?</b> — au moins un
+     * de ses lots a pour source une evaluation {@code QUICK_DIAGNOSTIC} que ce
+     * meme cycle a journalisee.
+     *
+     * <p>🛑 <b>Les LOTS, pas le seul journal</b> : le bootstrap (R19) journalise
+     * tout l'historique du candidat dans le cycle qu'il cree, diagnostic
+     * compris, meme quand c'est un examen qui l'a amorce. Seul un lot dit
+     * « ces priorites viennent du diagnostic ». Lu par
+     * {@code JourneyCycleAffinage}, l'autorite du cycle d'affinage (2026-09-27).
+     */
+    @Query("""
+            SELECT COUNT(e) > 0 FROM JourneyAssessmentEvent e
+            WHERE e.journey.id = :journeyId
+              AND e.assessmentKind = com.sejourfr.app.enums.JourneyAssessmentKind.QUICK_DIAGNOSTIC
+              AND EXISTS (SELECT 1 FROM JourneyLot l
+                          WHERE l.journey.id = :journeyId
+                            AND l.sourceAssessmentId = e.sourceAssessmentId)
+            """)
+    boolean amorceParLeDiagnosticRapide(@Param("journeyId") UUID journeyId);
+
+    /**
      * <b>Le score du dernier examen civique COMPLET</b> journalise par ce cycle.
      *
      * <p>🛑 Le journal porte l'identite de l'evaluation ; le SCORE vit sur

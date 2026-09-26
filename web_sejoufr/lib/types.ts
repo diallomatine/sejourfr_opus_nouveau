@@ -4134,6 +4134,9 @@ export const CIVIC_THEME_STATE_LABEL: Record<CivicThemeState, string> = {
  */
 export type StatutObjectif = "TARGET_REACHED" | "CLOSE_TO_TARGET" | "TO_REINFORCE";
 
+/** D'où vient le palier affiché d'une épreuve. Miroir de `NiveauProvenance`. */
+export type NiveauProvenance = "EXAMEN_BLANC" | "DIAGNOSTIC";
+
 /** Une épreuve, son palier d'aujourd'hui, et ce qui a bougé. */
 export interface ProgressEpreuveDto {
     epreuve: EpreuveType;
@@ -4144,9 +4147,15 @@ export interface ProgressEpreuveDto {
     /** 🛑 `null` quand aucune démarche n'est déclarée : rien à comparer. */
     status: StatutObjectif | null;
     /**
-     * **Par quoi mesurer cette épreuve**, quand elle ne l'a **jamais** été
-     * (`niveau === null`). `null` dès qu'un palier existe : il n'y a plus rien
-     * à lancer.
+     * **D'où vient `niveau`** : un examen blanc, ou le seul diagnostic rapide
+     * (2026-09-27). `null` exactement quand `niveau` l'est. 🛑 Servi par le
+     * calcul même du palier — le front ne devine jamais la provenance.
+     */
+    provenance: NiveauProvenance | null;
+    /**
+     * **Par quoi mesurer cette épreuve**, tant qu'**aucun examen blanc** ne l'a
+     * mesurée : jamais évaluée, ou palier issu du seul diagnostic. `null` dès
+     * qu'un examen blanc a mesuré l'épreuve : il n'y a plus rien à lancer.
      *
      * 🛑 **Même descripteur que « Compléter mon profil » et que la ligne
      * `A_EVALUER` de la séance**, donc **même lanceur côté front** —
@@ -4982,13 +4991,23 @@ export interface JourneyCycleDto {
     numero: number;
     /** Étapes clôturées, **obsolètes exclues**. */
     etapesTerminees: number;
-    /** Étapes du cycle, obsolètes exclues — le dénominateur de la barre. */
+    /** Étapes du cycle, obsolètes exclues — le dénominateur de la barre.
+     *  ⚠️ En cycle d'affinage : les étapes obligatoires, plus les compétences
+     *  facultatives déjà faites. */
     etapesTotal: number;
-    /** Plus **aucune** étape ouverte : les quatre blocs sont terminés. C'est la
-     *  condition — et la seule — qui ouvre « Prochaine étape ». */
+    /** Plus **aucune** étape **obligatoire** ouverte (hors affinage : plus
+     *  aucune étape ouverte du tout). C'est ce qui ouvre « Prochaine étape ». */
     complete: boolean;
     /** Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls. */
     cycleDeMesure: boolean;
+    /**
+     * **Premier cycle, issu du diagnostic rapide** (2026-09-27, D-64) : il sert
+     * à affiner la mesure. Ses examens sont ouverts d'emblée, ses compétences
+     * sont facultatives, et il s'actualise dès que ses examens sont passés.
+     * 🛑 Servi (`JourneyCycleAffinage`) : le front n'en tire que ses phrases —
+     * le verrou, lui, arrive déjà servi sur chaque étape (`lockReason`).
+     */
+    cycleDAffinage: boolean;
 }
 
 /** La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`. */
