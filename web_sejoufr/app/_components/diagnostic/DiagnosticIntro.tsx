@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect, useState} from "react";
-import {ArrowRight, BookOpen, Check, Clock3, FilePenLine, Headphones, Mic} from "lucide-react";
+import {ArrowRight, Check, Clock3, FilePenLine, Mic} from "lucide-react";
 import {diagnosticApi} from "@/lib/api";
 import {
   type DiagnosticExerciseContent,
@@ -14,42 +14,13 @@ import type {PublicDiagnosticResponse} from "@/lib/types";
 import styles from "./diagnostic.module.css";
 
 /**
- * Le parcours choisi à l'entrée du diagnostic.
- *
- * 🛑 **Il n'est PERSISTÉ NULLE PART** — ni en base, ni sur l'appareil, ni dans
- * l'URL. Le backend a tranché : le profil réel se lit sur les **domaines
- * mesurés** (`LearningPlanDto.cycle` + `domainesAEvaluer`), jamais sur une
- * intention ; et au moment du choix le candidat est encore invité, il n'existe
- * aucune ligne pour la porter.
- *
- * Concrètement, `RAPIDE` et `COMPLET` sont **le même parcours d'écrans** :
- * expression écrite, puis expression orale, puis le compte, puis l'analyse. La
- * variante ne décide que de **ce que le front enchaîne après le rapport** —
- * proposer immédiatement de mesurer CO puis CE, ou renvoyer au Plan.
- *
- * Elle vit donc en mémoire, portée par `DiagnosticView` (au-dessus de la
- * bascule invité ⇄ connecté, pour survivre à l'inscription en place et au
- * sign-in Google, qui s'ouvre en popup). Un rechargement de page la ramène à
- * `RAPIDE` : sans conséquence, le rapport propose de toute façon de compléter
- * le profil à partir de `domainesAEvaluer`.
+ * 🛑 **Aucune promesse de « diagnostic complet »** : ce parcours est retiré des
+ * fronts depuis le 2026-09-26. Les épreuves que ce diagnostic ne mesure pas se
+ * mesurent ensuite par l'examen blanc que propose le Plan. Miroir mot pour mot
+ * du pied de `diagnostic_intro.dart`.
  */
-/**
- * Ce que la présentation dit des deux épreuves de COMPRÉHENSION, qui ne sont
- * pas dans le diagnostic rapide.
- *
- * 🛑 **Jamais « un examen blanc »** — c'était le mot employé ici, et
- * `docs/regles/diagnostic-tcf-4-epreuves.md` l'interdit (`10_SEJOURFR_TCF.md`
- * §4.1 : « Nommage imposé : *Diagnostic TCF — 4 épreuves*. Interdit d'appeler
- * cela un examen blanc »). Les deux objets ne se ressemblent même pas : le
- * diagnostic réduit CO et CE à 15 items pour situer le candidat, l'examen blanc
- * intégral les joue au format réel. Le nommer correctement est aussi ce qui
- * rend la promesse tenable : ce qui suit le rapport, c'est le diagnostic
- * complet.
- */
-const DIAGNOSTIC_LATER_NOTE = "Dans le diagnostic complet, après votre compte.";
-
 const FOOT_NOTE =
-  "Votre diagnostic reste accessible ensuite : vous pouvez compléter les épreuves manquantes quand vous voulez.";
+  "Votre plan vous proposera ensuite un examen blanc pour mesurer les autres épreuves.";
 
 /**
  * Les deux sujets vus par l'écran de présentation. Un compte qui n'a pas encore
@@ -213,30 +184,6 @@ export function DiagnosticIntro({
             </div>
           </li>
         )}
-        <li className={styles.introListLater}>
-          <span className={styles.introIcon} aria-hidden>
-            <Headphones size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Compréhension orale</b>
-              <span>parcours complet</span>
-            </p>
-            <p className={styles.introNote}>{DIAGNOSTIC_LATER_NOTE}</p>
-          </div>
-        </li>
-        <li className={styles.introListLater}>
-          <span className={styles.introIcon} aria-hidden>
-            <BookOpen size={18} />
-          </span>
-          <div>
-            <p className={styles.introHead}>
-              <b>Compréhension écrite</b>
-              <span>parcours complet</span>
-            </p>
-            <p className={styles.introNote}>{DIAGNOSTIC_LATER_NOTE}</p>
-          </div>
-        </li>
       </ul>
 
       <p className={styles.introReassurance}>

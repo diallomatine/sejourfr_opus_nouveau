@@ -81,23 +81,49 @@ class DiagnosticBackLink extends StatelessWidget {
   }
 }
 
+/// Combien d'exercices d'expression compte ce diagnostic : un écrit, plus un
+/// oral **seulement s'il est servi** (L3 — le rapide n'en a pas).
+int diagnosticExpressionSteps({required bool hasOral}) => hasOral ? 2 : 1;
+
+/// Le sous-titre d'en-tête d'une étape d'expression — « Étape 1 sur 2 · Écrit »,
+/// ou « Écrit » tout court quand l'écrit est le seul exercice : « 1 sur 1 »
+/// n'apprend rien au candidat.
+String diagnosticStepHeader({
+  required int step,
+  required bool hasOral,
+  required String label,
+}) {
+  final total = diagnosticExpressionSteps(hasOral: hasOral);
+  return total == 1 ? label : 'Étape $step sur $total · $label';
+}
+
+/// La barre des exercices d'expression du diagnostic, un segment par exercice.
+///
+/// 🛑 **Le nombre de segments suit la FORME servie** ([diagnosticExpressionSteps]) :
+/// le diagnostic rapide n'a qu'un écrit (oral `null`), et une barre à deux
+/// segments y ferait croire qu'une étape reste à venir. Miroir de
+/// `diagnosticSteps({oral})` (`web_sejoufr/app/_components/diagnostic/DiagnosticSteps.tsx`).
 class DiagnosticProgress extends StatelessWidget {
   const DiagnosticProgress({
     super.key,
     required this.activeStep,
     required this.completedSteps,
+    required this.totalSteps,
   });
 
   final int activeStep;
   final int completedSteps;
+  final int totalSteps;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Étape $activeStep sur 2, $completedSteps exercice terminé',
+      label: 'Étape $activeStep sur $totalSteps, $completedSteps exercice'
+          '${completedSteps > 1 ? 's' : ''} terminé'
+          '${completedSteps > 1 ? 's' : ''}',
       child: Row(
         children: [
-          for (var index = 1; index <= 2; index++) ...[
+          for (var index = 1; index <= totalSteps; index++) ...[
             Expanded(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
@@ -110,7 +136,7 @@ class DiagnosticProgress extends StatelessWidget {
                 ),
               ),
             ),
-            if (index != 2) const SizedBox(width: 8),
+            if (index != totalSteps) const SizedBox(width: 8),
           ],
         ],
       ),

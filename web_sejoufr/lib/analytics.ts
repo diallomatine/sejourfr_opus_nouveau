@@ -626,8 +626,8 @@ export function trackDiagnostic(
 // ============================================================================
 
 /**
- * Les deux domaines de compréhension du diagnostic complet se mesurent par une
- * **série d'examen blanc de module** : ils n'ont pas d'écran à eux, et le
+ * Les deux domaines de compréhension, que le diagnostic rapide ne mesure pas,
+ * se mesurent par une **série d'examen blanc de module** : ils n'ont pas d'écran à eux, et le
  * runner QCM ne sait pas pourquoi il a été ouvert.
  *
  * On note donc, **le temps d'un onglet**, quelle tentative a été lancée pour

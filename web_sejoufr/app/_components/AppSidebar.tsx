@@ -75,8 +75,7 @@ function AppSidebarInner() {
 
   const isTcfActive =
     (isOnEntrainement && moduleDemande === "TCF") ||
-    pathname?.startsWith("/entrainement/tcf") ||
-    pathname?.startsWith("/diagnostic-tcf");
+    pathname?.startsWith("/entrainement/tcf");
   const isCiviqueActive =
     (isOnEntrainement && moduleDemande !== "TCF") ||
     pathname?.startsWith("/entrainement/civique") ||

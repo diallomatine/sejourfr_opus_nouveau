@@ -40,7 +40,6 @@ import type {
   PreparationDto,
   CivicDiagnosticResultDto,
   TcfDiagnosticResultDto,
-  TcfReassessmentEligibilityDto,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
@@ -1246,33 +1245,21 @@ export const journeyApi = {
 };
 
 /**
- * Le diagnostic TCF **4 épreuves** (L4).
+ * Le diagnostic TCF **4 épreuves** (L4) — **en LECTURE seule** côté web.
  *
- * 🛑 Distinct de `diagnosticApi`, qui porte le diagnostic **initial** (une
- * production écrite + une orale). Deux objets produit différents.
+ * 🛑 Le parcours (ouvrir, lancer / clore une section, calculer le résultat) est
+ * **retiré des fronts le 2026-09-26** (décision du propriétaire) : les épreuves
+ * que le diagnostic rapide ne mesure pas se mesurent par l'examen blanc que
+ * propose le Plan. Les endpoints backend restent en place, non appelés. Seule
+ * la relecture d'un résultat DÉJÀ obtenu subsiste, parce qu'il est toujours lu
+ * (`PlanUnlockScreen`).
  *
- * La **passation** n'est pas ici : les sections QCM répondent par `attemptApi`
- * et les productions par `productionApi`, exactement comme l'examen complet.
+ * 🛑 Distinct de `diagnosticApi`, qui porte le diagnostic **rapide**.
  */
 export const tcfDiagnosticApi = {
     /**
-     * Ouvre le diagnostic, ou rend celui en cours. **Idempotent** côté serveur :
-     * un double appui ne crée pas deux diagnostics — ce qui compte, le premier
-     * étant le seul gratuit.
-     */
-    open(): Promise<TcfDiagnosticDto> {
-        return apiFetch<TcfDiagnosticDto>("/api/tcf-diagnostics", {
-            method: "POST",
-            auth: true,
-        });
-    },
-
-    /**
      * Le diagnostic courant, ou `null` si le candidat n'en a jamais ouvert
-     * (**204** côté serveur).
-     *
-     * 🛑 Une lecture n'ouvre jamais de diagnostic par effet de bord : ne pas
-     * remplacer cet appel par `open()` pour « simplifier » un écran.
+     * (**204** côté serveur). Une lecture n'ouvre jamais de diagnostic.
      */
     async current(): Promise<TcfDiagnosticDto | null> {
         const res = await apiFetch<TcfDiagnosticDto | null>(
@@ -1281,70 +1268,10 @@ export const tcfDiagnosticApi = {
         return res ?? null;
     },
 
-    get(sessionId: string): Promise<TcfDiagnosticDto> {
-        return apiFetch<TcfDiagnosticDto>(`/api/tcf-diagnostics/${sessionId}`, {auth: true});
-    },
-
-    /**
-     * Pose l'ancre du chrono d'une section. À appeler **avant** d'ouvrir le
-     * runner : sans elle la section n'a aucune échéance. Idempotent — rappelée,
-     * elle rend le temps réellement restant.
-     */
-    startSection(sessionId: string, epreuve: EpreuveType): Promise<TcfDiagnosticDto> {
-        return apiFetch<TcfDiagnosticDto>(
-            `/api/tcf-diagnostics/${sessionId}/sections/${epreuve}/start`,
-            {method: "POST", auth: true},
-        );
-    },
-
-    /**
-     * **Quitter une section, c'est la terminer** — la règle de suspension d'un
-     * examen blanc, appliquée au diagnostic.
-     *
-     * 🛑 Une section **jamais commencée** n'est jamais fermée par cet appel, et
-     * l'**expression orale** ne l'emprunte pas : son chrono est par tâche,
-     * quitter n'y termine que la tâche en cours. Idempotent.
-     */
-    closeSection(sessionId: string, epreuve: EpreuveType): Promise<TcfDiagnosticDto> {
-        // Clôturer une section pose son niveau : l'épreuve est mesurée.
-        return apiFetch<TcfDiagnosticDto>(
-            `/api/tcf-diagnostics/${sessionId}/sections/${epreuve}/close`,
-            {method: "POST", auth: true},
-        ).then(afterMeasureWrite);
-    },
-
-    /** Calcule le résultat et clôture. N'exige pas les 4 sections. */
-    result(sessionId: string): Promise<TcfDiagnosticResultDto> {
-        // 🛑 **C'est ici que QUATRE niveaux sont posés d'un coup.**
-        // `civicDiagnosticApi.result` purgeait déjà ; son pendant TCF, non —
-        // l'asymétrie laissait l'Accueil sur « À évaluer » après le diagnostic
-        // le plus structurant du parcours.
-        return apiFetch<TcfDiagnosticResultDto>(
-            `/api/tcf-diagnostics/${sessionId}/result`,
-            {method: "POST", auth: true},
-        ).then(afterMeasureWrite);
-    },
-
     /** Relit un résultat sans rien reclôturer. */
     readResult(sessionId: string): Promise<TcfDiagnosticResultDto> {
         return apiFetch<TcfDiagnosticResultDto>(
             `/api/tcf-diagnostics/${sessionId}/result`, {auth: true},
-        );
-    },
-
-    /**
-     * **Peut-il relancer, et sinon pourquoi ?** (L7)
-     *
-     * 🛑 C'est la seule façon correcte de le savoir. Ne jamais le déduire d'un
-     * `completedAt` ni recompter les 14 jours ici : la règle a une seule
-     * autorité, et elle est serveur.
-     *
-     * Jamais 204 — un candidat sans aucun diagnostic reçoit
-     * `{first: true, canStart: true}`.
-     */
-    eligibility(): Promise<TcfReassessmentEligibilityDto> {
-        return apiFetch<TcfReassessmentEligibilityDto>(
-            "/api/tcf-diagnostics/eligibility", {auth: true},
         );
     },
 };

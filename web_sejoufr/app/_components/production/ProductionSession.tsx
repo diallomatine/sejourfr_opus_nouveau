@@ -4,12 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, Lightbulb, Timer } from "lucide-react";
-import { ApiException, attemptApi, fullTcfExamApi, productionApi, tcfDiagnosticApi } from "@/lib/api";
-import {
-  TCF_DIAGNOSTIC_HUB_HREF,
-  TCF_DIAGNOSTIC_EO_QUIT_MESSAGE,
-  TCF_DIAGNOSTIC_PARAM,
-} from "@/lib/tcf-diagnostic";
+import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
 import {
@@ -90,10 +85,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   /** Présent quand cette session est une épreuve d'un examen blanc TCF complet :
    *  on saute le bilan individuel et on retourne au hub de progression. */
   const fullExamId = searchParams.get("fullExamId");
-  // Section EE/EO d'un diagnostic TCF : même règle de retour qu'une épreuve
-  // d'examen complet — la fin de l'épreuve ramène aux 4 sections, jamais au
-  // bilan individuel. Le candidat doit voir ce qu'il lui reste à passer.
-  const tcfDiagnosticId = searchParams.get(TCF_DIAGNOSTIC_PARAM);
   /** URL de retour quand on CONSULTE le bilan de l'épreuve (depuis le bilan de
    *  l'examen complet) — distinct de fullExamId qui pilote une épreuve ACTIVE. */
   const backTo = searchParams.get("backTo");
@@ -251,10 +242,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
-          if (tcfDiagnosticId && allSubmitted) {
-            router.replace(TCF_DIAGNOSTIC_HUB_HREF);
-            return;
-          }
           finishedRef.current = true;
           setPhase("bilan");
           startBilanPolling();
@@ -351,11 +338,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
           }
           router.push(`/examens-blancs/tcf/${fullExamId}`);
-        } else if (tcfDiagnosticId) {
-          // Le diagnostic n'a pas de `markSubDone` : le backend pose
-          // `finishedAt` dès la 3ᵉ soumission, comme pour l'examen complet.
-          finishedRef.current = true;
-          router.push(TCF_DIAGNOSTIC_HUB_HREF);
         } else {
           await goToBilan();
         }
@@ -477,15 +459,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
    * avec ce qui a déjà été rendu, et ne se reprendra jamais. Les épreuves
    * suivantes, elles, restent intactes — et l'examen n'est ni finalisé ni mené
    * au bilan.
-   *
-   * ⚠️ **Le DIAGNOSTIC suit la même règle depuis le 2026-09-13** (arbitrage du
-   * propriétaire : « pour les épreuves, c'est toute l'épreuve qui est
-   * chronométrée ; l'abandonner, c'est fini, si elle est déjà commencée »).
-   *
-   * 🛑 **Sauf l'expression ORALE**, et c'est la seule exception : son chrono est
-   * **par tâche**, donc quitter n'y termine que la tâche en cours — le candidat
-   * rouvre l'épreuve et **reprend à la suivante**. La clore ici lui ferait
-   * perdre les tâches qu'il n'a pas encore rendues.
    */
   const exitEpreuve = useCallback(async () => {
     finishedRef.current = true;
@@ -493,17 +466,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     if (fullExamId) {
       await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
       router.push(`/examens-blancs/tcf/${fullExamId}`);
-      return;
     }
-    if (tcfDiagnosticId) {
-      if (config.epreuve !== "TCF_EO") {
-        await tcfDiagnosticApi
-          .closeSection(tcfDiagnosticId, config.epreuve)
-          .catch(() => undefined);
-      }
-      router.push(TCF_DIAGNOSTIC_HUB_HREF);
-    }
-  }, [fullExamId, tcfDiagnosticId, config.epreuve, router]);
+  }, [fullExamId, config.epreuve, router]);
 
   const onEeTimeout = useCallback(
     async (texte: string, recevable: boolean) => {
@@ -582,7 +546,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         // Épreuve d'examen complet en cours : sortir la clôture, donc on demande
         // avant. En consultation de bilan (`backTo`) il n'y a plus rien à clore.
         onBack={
-          (fullExamId || tcfDiagnosticId) && phase !== "bilan"
+          fullExamId && phase !== "bilan"
             ? () => setExitConfirmOpen(true)
             : undefined
         }
@@ -650,28 +614,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                  /* ⚠️ Plus aucune exception de « conditions » depuis le
-                     2026-09-13 : le diagnostic se joue comme un examen, EO
-                     comprise — chaque tâche a son chrono, une fois commencée on
-                     ne l'arrête pas, et l'arrêter l'envoie. */
                   examMode
                   maxDurationSec={null}
                   timeoutSignal={autoSubmitSignal}
                   onTimeout={onEoTimeout}
-                  /* 🛑 **JAMAIS d'examinateur vocal dans le DIAGNOSTIC**
-                     (arbitrage du propriétaire, 2026-09-13) : « en freemium le
-                     diagnostic est offert et l'IA analyse, par contre c'est
-                     juste en enregistrement normal, pas avec l'examinateur en
-                     temps réel ». C'est ce qui le garde totalement gratuit — le
-                     temps réel a son propre quota payant.
-
-                     ⚠️ Le discriminant est le MARQUEUR DE SECTION, plus
-                     `conditionsReelles` : ce champ a été supprimé avec la règle
-                     EO1/EO2 qu'il portait, et le détourner ici aurait fait
-                     dépendre le quota d'une règle de chrono. */
                   onModeChoice={
                     !rtRefused &&
-                    !tcfDiagnosticId &&
                     (currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2)
                       ? askMode
                       : undefined
@@ -775,11 +723,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           tone="warning"
           title={EPREUVE_EXIT_TITLE}
           message={
-            tcfDiagnosticId && config.epreuve === "TCF_EO"
-              ? TCF_DIAGNOSTIC_EO_QUIT_MESSAGE
-              : epreuveExitMessage(config.epreuve, {
-                  perteEnregistrement: config.mode === "audio",
-                })
+            epreuveExitMessage(config.epreuve, {
+              perteEnregistrement: config.mode === "audio",
+            })
           }
           confirmLabel={EPREUVE_EXIT_CONFIRM}
           cancelLabel={EPREUVE_EXIT_CANCEL}

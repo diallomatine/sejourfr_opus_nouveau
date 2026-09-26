@@ -527,6 +527,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           errorMessage: state.errorMessage,
           onChanged: (text) => _onWritingChanged(text, isGuest: false),
           onSubmit: () => unawaited(_submitWritten(isGuest: false)),
+          hasOral: journey.oral != null,
         ),
       DiagnosticStep.oral when journey.oral != null => DiagnosticOralStep(
           exercise: journey.oral!,
@@ -582,6 +583,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           errorMessage: state.errorMessage ?? state.noticeMessage,
           onChanged: (text) => _onWritingChanged(text, isGuest: true),
           onSubmit: () => unawaited(_submitWritten(isGuest: true)),
+          hasOral: subjects.oral != null,
           // L'écrit rouvert depuis l'écran de compte : pré-rempli, avec un
           // retour sans modification et un bouton qui ramène au compte.
           submitLabel: state.isEditingWritten
@@ -694,11 +696,17 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     // 🛑 La présentation ne porte plus de sous-titre : elle fait choisir un
     // EXAMEN, et un chiffre de budget au-dessus du titre ne vaudrait que pour
     // l'une des deux cartes. Chaque carte annonce le sien.
+    //
+    // 🛑 Le compte d'étapes suit la FORME servie : oral `null` ⇒ un seul
+    // exercice, jamais « Étape 1 sur 2 » (miroir du fil d'étapes du web).
     if (state.isGuest) {
+      final hasOral = state.subjects?.oral != null;
       return switch (state.guestStep) {
         DiagnosticGuestStep.presentation => '',
-        DiagnosticGuestStep.written => 'Étape 1 sur 2 · Écrit',
-        DiagnosticGuestStep.oral => 'Étape 2 sur 2 · Oral',
+        DiagnosticGuestStep.written =>
+          diagnosticStepHeader(step: 1, hasOral: hasOral, label: 'Écrit'),
+        DiagnosticGuestStep.oral =>
+          diagnosticStepHeader(step: 2, hasOral: true, label: 'Oral'),
         DiagnosticGuestStep.accountRequired => 'Analyser mes réponses',
       };
     }
@@ -706,7 +714,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     if (journey == null || journey.nextStep == DiagnosticStep.presentation) {
       return '';
     }
-    return _stepLabel(journey.nextStep);
+    return _stepLabel(journey.nextStep, hasOral: journey.oral != null);
   }
 
   static int _countWords(String text) {
@@ -718,9 +726,12 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         .length;
   }
 
-  static String _stepLabel(DiagnosticStep step) => switch (step) {
-        DiagnosticStep.written => 'Étape 1 sur 2 · Écrit',
-        DiagnosticStep.oral => 'Étape 2 sur 2 · Oral',
+  static String _stepLabel(DiagnosticStep step, {required bool hasOral}) =>
+      switch (step) {
+        DiagnosticStep.written =>
+          diagnosticStepHeader(step: 1, hasOral: hasOral, label: 'Écrit'),
+        DiagnosticStep.oral =>
+          diagnosticStepHeader(step: 2, hasOral: true, label: 'Oral'),
         DiagnosticStep.analysis => 'Analyse personnalisée',
         // Le rapport passe par `_headerSub` ; cette entrée n'est qu'un repli.
         DiagnosticStep.result => kDiagnosticReportKicker,

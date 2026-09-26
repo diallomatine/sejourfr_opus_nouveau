@@ -25,8 +25,8 @@ import 'diagnostic_report_labels.dart';
 /// 1. la carte hero — niveau estimé, objectif, rail, paragraphe d'analyse ;
 /// 2. « Ce que nous avons observé » — les positives, puis les à améliorer ;
 /// 3. « Ce n'est qu'une première estimation » — la mise au point ;
-/// 4. « Découvrez où vous en êtes vraiment au TCF » — les 4 épreuves, puis
-///    « Voir mon plan ».
+/// 4. « Découvrez où vous en êtes vraiment au TCF » — les 4 épreuves, ce que
+///    l'examen blanc proposé par le Plan mesurera, puis « Voir mon plan ».
 ///
 /// 🛑 **Aucun verrou, aucun paywall ici** : c'est le Plan qui s'en charge.
 ///
@@ -36,7 +36,7 @@ import 'diagnostic_report_labels.dart';
 ///
 /// 🛑 **Deux emplacements, UN SEUL écran.** Il est le résultat de
 /// [DiagnosticScreen], et il est **encastré** dans la porte d'entrée du Plan
-/// TCF tant que le diagnostic complet manque — c'est le même rapport que le
+/// TCF tant que le Plan n'est pas servi — c'est le même rapport que le
 /// candidat doit retrouver, pas un résumé maison qui finirait par dire autre
 /// chose. Miroir de la prop `embedded` du web : là-bas elle retire la chrome de
 /// page, ici l'écran n'en a jamais eu — il est **la liste défilante**, et
@@ -45,11 +45,9 @@ import 'diagnostic_report_labels.dart';
 ///
 /// 🛑 **Un seul geste de fin à l'écran.** L'hôte peut porter le sien
 /// ([closingCta] à `false`) : la porte du Plan le fait, parce que sa phrase
-/// dépend de l'étape servie — « Faire le diagnostic complet » tant que rien
-/// n'est commencé, « Continuer le diagnostic » une fois le complet entamé, cas
-/// où le bouton de fin du rapport serait un contresens. La section
-/// « Découvrez où vous en êtes vraiment au TCF » reste, elle informe ; c'est le
-/// bouton seul qui s'efface.
+/// dépend de l'étape servie (`planIndisponible`). La section « Découvrez où
+/// vous en êtes vraiment au TCF » reste, elle informe ; c'est le bouton seul
+/// qui s'efface.
 class DiagnosticResultView extends ConsumerWidget {
   const DiagnosticResultView({
     super.key,
@@ -122,10 +120,10 @@ class DiagnosticResultView extends ConsumerWidget {
           ),
         ),
         SfSection(
-          title: kDiagnosticCompletTitle,
+          title: kDiagnosticSuiteTitle,
           child: SfStack(
             children: [
-              for (final e in kDiagnosticCompletEpreuves)
+              for (final e in kDiagnosticSuiteEpreuves)
                 SfExamRow(icon: e.icon, title: e.label),
               const _PromiseCard(),
               if (closingCta)
@@ -234,7 +232,7 @@ class _TransitionNote extends StatelessWidget {
   }
 }
 
-/// Ce que le diagnostic complet apporte, en trois coches.
+/// Ce que l'examen blanc proposé par le Plan mesurera, en trois coches.
 class _PromiseCard extends StatelessWidget {
   const _PromiseCard();
 
@@ -244,9 +242,9 @@ class _PromiseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SfLabel(kDiagnosticCompletPromise),
+          const SfLabel(kDiagnosticSuitePromise),
           const SizedBox(height: 6),
-          for (final b in kDiagnosticCompletBenefits) SfCheckRow(label: b),
+          for (final b in kDiagnosticSuiteBenefits) SfCheckRow(label: b),
         ],
       ),
     );

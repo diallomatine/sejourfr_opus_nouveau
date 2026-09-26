@@ -141,22 +141,29 @@ const String kDiagnosticTransitionText =
 const String kDiagnosticTransitionEmphasis =
     'Votre niveau peut donc être différent selon les épreuves.';
 
-/* ------------------------------------------------- le diagnostic complet */
+/* ------------------------------------------- la suite : le Plan, puis l'examen blanc
+ *
+ * 🛑 **Plus aucune promesse de « diagnostic complet »** : ce parcours est retiré
+ * des fronts depuis le 2026-09-26 (décision du propriétaire). Le rapide ouvre
+ * le Plan, et c'est le Plan qui propose un EXAMEN BLANC pour chaque épreuve que
+ * le rapide n'a pas mesurée. Le bloc le dit, sans rien promettre d'autre. */
 
-const String kDiagnosticCompletTitle =
+const String kDiagnosticSuiteTitle =
     'Découvrez où vous en êtes vraiment au TCF';
 
-/// Les quatre épreuves du diagnostic complet, dans l'ordre de la maquette.
-/// Aucun niveau n'y figure : elles ne sont pas encore mesurées.
-const List<({IconData icon, String label})> kDiagnosticCompletEpreuves = [
+/// Les quatre épreuves du TCF IRN, dans l'ordre de la maquette.
+/// Aucun niveau n'y figure : le bloc dit comment elles se mesurent.
+const List<({IconData icon, String label})> kDiagnosticSuiteEpreuves = [
   (icon: LucideIcons.headphones, label: 'Compréhension orale'),
   (icon: LucideIcons.bookOpen, label: 'Compréhension écrite'),
   (icon: LucideIcons.penLine, label: 'Expression écrite'),
   (icon: LucideIcons.mic, label: 'Expression orale'),
 ];
 
-const String kDiagnosticCompletPromise = 'À la fin, vous connaîtrez :';
-const List<String> kDiagnosticCompletBenefits = [
+const String kDiagnosticSuitePromise =
+    'Votre plan vous propose un examen blanc pour chaque épreuve à mesurer. '
+    'Vous connaîtrez :';
+const List<String> kDiagnosticSuiteBenefits = [
   'votre niveau par épreuve',
   'les tâches qui vous limitent actuellement',
   'vos priorités pour atteindre votre objectif',

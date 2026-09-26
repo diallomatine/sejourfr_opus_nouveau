@@ -86,8 +86,16 @@ const nextConfig: NextConfig = {
     // servent plus d'écran : elles REDIRIGENT vers leurs équivalents, pour
     // qu'un lien déjà partagé aboutisse. Temporaires (307) : ce ne sont pas des
     // adresses à indexer.
+    //
+    // `/diagnostic-tcf` (hub et résultat du diagnostic COMPLET 4 épreuves) :
+    // parcours retiré des fronts le 2026-09-26 (décision du propriétaire) — les
+    // épreuves non mesurées par le diagnostic rapide se mesurent désormais par
+    // l'examen blanc que propose le Plan. Un favori ou un ancien lien d'email
+    // aboutit au Plan TCF.
     async redirects() {
         return [
+            {source: "/diagnostic-tcf", destination: "/plan?module=TCF", permanent: false},
+            {source: "/diagnostic-tcf/:path*", destination: "/plan?module=TCF", permanent: false},
             {source: "/progression", destination: "/progression/tcf", permanent: false},
             {source: "/statistiques", destination: "/progression/tcf", permanent: false},
             {source: "/recommandations", destination: "/dashboard", permanent: false},

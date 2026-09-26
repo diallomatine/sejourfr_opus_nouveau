@@ -265,8 +265,8 @@ export function usePlanAssessment() {
                     moduleExamQuestionType: assessment.moduleExamQuestionType ?? undefined,
                     slotNumber: assessment.slotNumber ?? 1,
                 });
-                // Les deux domaines de compréhension du diagnostic complet se
-                // mesurent par cette série : c'est le seul instant où le
+                // Les deux domaines de compréhension, que le diagnostic rapide
+                // ne mesure pas, se mesurent par cette série : c'est le seul instant où le
                 // navigateur sait POURQUOI l'examen blanc s'ouvre. Le runner,
                 // lui, ne le saura jamais — d'où la marque posée ici, que
                 // l'écran de résultat consomme (`lib/analytics.ts`).

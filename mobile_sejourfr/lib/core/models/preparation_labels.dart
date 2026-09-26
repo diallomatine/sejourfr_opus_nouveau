@@ -4,8 +4,8 @@ import 'preparation_models.dart';
 /// Les phrases de « Ma préparation » — **pures**, déclarées une fois pour tout
 /// le mobile.
 ///
-/// 🛑 **Le serveur sert l'ÉTAPE, ce fichier sert la PHRASE.** « Faire le
-/// diagnostic complet » est une formulation, pas une donnée.
+/// 🛑 **Le serveur sert l'ÉTAPE, ce fichier sert la PHRASE.** « Faire mon
+/// diagnostic » est une formulation, pas une donnée.
 ///
 /// 🛑 **Trois portes, un seul état.** L'Accueil, le Plan et les Examens
 /// appellent tous les trois `preparation()` et passent par ces fonctions.
@@ -42,31 +42,26 @@ String? niveauLine(ModulePreparation m) {
       : '${niveau.wire} → objectif ${cible.wire}';
 }
 
-/// **TCF** — deux diagnostics, deux objectifs.
+/// **TCF** — le diagnostic rapide ouvre le Plan.
 ///
 /// 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
-/// propriétaire, 2026-09-12). Le diagnostic complet n'est plus une porte à
-/// franchir : il affine. Envoyer ici vers `/diagnostic-tcf` remettrait une
-/// étape obligatoire devant un plan déjà utilisable.
+/// propriétaire, 2026-09-12) — y compris quand un diagnostic complet commencé
+/// avant son retrait (2026-09-26) reste ouvert côté serveur.
+///
+/// 🛑 Seul le RAPIDE se reprend. Un `diagnosticEnCours` qui porte un
+/// avancement (`fait != null`) est un complet commencé sans rapide : ce
+/// parcours n'existe plus, et il ne fonde pas de Plan tant qu'il n'est pas
+/// clos. La porte qui ouvre le Plan est le rapide — on y envoie.
 PreparationAction tcfAction(ModulePreparation m) {
   if (m.planDisponible) {
     return (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/plan');
   }
-  // Sans base close, deux diagnostics inachevés peuvent rester : le complet
-  // commencé sans rapide (`fait != null`) et le rapide lui-même.
-  if (m.etape == PreparationEtape.diagnosticEnCours) {
-    final fait = m.fait;
-    return fait != null
-        ? (
-            statut: 'Diagnostic complet : $fait / ${m.total} épreuves',
-            cta: kDiagnosticCompletCtaResume,
-            route: kDiagnosticCompletRoute,
-          )
-        : (
-            statut: 'Diagnostic en cours',
-            cta: 'Reprendre',
-            route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
-          );
+  if (m.etape == PreparationEtape.diagnosticEnCours && m.fait == null) {
+    return (
+      statut: 'Diagnostic en cours',
+      cta: 'Reprendre',
+      route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
+    );
   }
   return (
     statut: 'Diagnostic non réalisé',
@@ -77,20 +72,11 @@ PreparationAction tcfAction(ModulePreparation m) {
 
 /// Ce qu'on sait du candidat quand son Plan existe.
 ///
-/// 🛑 **Jamais « 0 / 4 »** : un compteur à zéro se lit comme un échec alors que
-/// le candidat vient de terminer son estimation. Le palier mesuré prime dès
-/// qu'il existe — c'est le complet qui le sert, et `null` veut dire « pas
-/// encore mesuré », jamais A1.
-String _tcfStatut(ModulePreparation m) {
-  final niveau = niveauLine(m);
-  if (niveau != null) return niveau;
-  final fait = m.fait;
-  final total = m.total;
-  if (fait != null && total != null && fait > 0) {
-    return 'Diagnostic complet : $fait / $total épreuves';
-  }
-  return 'Première estimation terminée';
-}
+/// 🛑 **Aucun compteur « N / 4 »** : il décrivait l'avancement du diagnostic
+/// complet, parcours retiré le 2026-09-26. Le palier mesuré prime dès qu'il est
+/// servi, et `null` veut dire « pas encore mesuré », jamais A1.
+String _tcfStatut(ModulePreparation m) =>
+    niveauLine(m) ?? 'Première estimation terminée';
 
 /// **CIVIQUE** — un seul diagnostic.
 PreparationAction civiqueAction(ModulePreparation m) {
@@ -160,26 +146,28 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
   // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
   // Redemander « Faire mon diagnostic » à quelqu'un qui vient d'en répondre la
   // moitié lui fait croire que son travail est perdu.
-  if (m.etape == PreparationEtape.diagnosticEnCours) {
+  //
+  // 🛑 Côté TCF, seul le **rapide** se reprend (`fait == null`). Un complet
+  // commencé sans rapide (`fait != null`) ne se reprend plus — parcours retiré
+  // le 2026-09-26 — et ne fonde pas de Plan tant qu'il n'est pas clos : la
+  // porte est le rapide, comme pour un candidat qui n'a rien commencé.
+  if (civique && m.etape == PreparationEtape.diagnosticEnCours) {
     return (
-      titre: civique
-          ? 'Votre diagnostic civique est commencé'
-          : 'Votre diagnostic TCF est commencé',
+      titre: 'Votre diagnostic civique est commencé',
       texte: _avancement(m) ??
           'Terminez-le pour que votre plan se construise.',
-      // Côté TCF, deux diagnostics inachevés peuvent fermer la porte, et ils
-      // ne se reprennent pas au même endroit : le **rapide** (`fait == null`,
-      // aucun complet ouvert), et le **complet commencé par quelqu'un qui n'a
-      // pas fait le rapide** (`fait != null`) — 🛑 même à 3 / 4, il ne fonde
-      // pas de Plan tant qu'il n'est pas clos (arbitrage du 2026-09-12).
-      cta: !civique && m.fait != null
-          ? kDiagnosticCompletCtaResume
-          : 'Reprendre mon diagnostic',
-      route: civique
-          ? '/diagnostic-civique'
-          : (m.fait != null
-              ? kDiagnosticCompletRoute
-              : kDiagnosticDemarrageDirect.chemin('/diagnostic')),
+      cta: 'Reprendre mon diagnostic',
+      route: '/diagnostic-civique',
+    );
+  }
+  if (!civique &&
+      m.etape == PreparationEtape.diagnosticEnCours &&
+      m.fait == null) {
+    return (
+      titre: 'Votre diagnostic TCF est commencé',
+      texte: 'Terminez-le pour que votre plan se construise.',
+      cta: 'Reprendre mon diagnostic',
+      route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
     );
   }
 
@@ -195,14 +183,15 @@ PlanIndisponible? planIndisponible(ModulePreparation m, {required bool civique})
 
   return (
     titre: 'Votre plan TCF commence par un diagnostic',
-    texte: 'Une première estimation écrite, puis les quatre épreuves : c\'est ce '
-        'qui permet de savoir quoi travailler en premier.',
+    texte: 'Une première estimation écrite ouvre votre plan. Les autres '
+        'épreuves se mesurent ensuite par un examen blanc, depuis votre plan.',
     cta: 'Faire mon diagnostic',
     route: kDiagnosticDemarrageDirect.chemin('/diagnostic'),
   );
 }
 
-/// « Vous avez répondu à 14 questions sur 40. »
+/// « Vous avez répondu à 14 questions sur 40. » — l'avancement du diagnostic
+/// CIVIQUE, seul lecteur depuis le retrait du complet TCF (2026-09-26).
 ///
 /// 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un
 /// compteur pour remplir une phrase.
@@ -210,9 +199,7 @@ String? _avancement(ModulePreparation m) {
   final fait = m.fait;
   final total = m.total;
   if (fait == null || total == null) return null;
-  return total > 4
-      ? 'Vous avez répondu à $fait question${fait > 1 ? 's' : ''} sur $total.'
-      : 'Vous avez terminé $fait épreuve${fait > 1 ? 's' : ''} sur $total.';
+  return 'Vous avez répondu à $fait question${fait > 1 ? 's' : ''} sur $total.';
 }
 
 /// Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire.
@@ -225,43 +212,21 @@ bool moduleCiviqueParDefaut(PreparationDto prep) =>
     prep.civique.etape != PreparationEtape.diagnosticAFaire;
 
 // ---------------------------------------------------------------------------
-// AFFINER le Plan — le diagnostic complet devient une action SECONDAIRE
+// Le diagnostic COMPLET — RETIRÉ des fronts le 2026-09-26
 // ---------------------------------------------------------------------------
-
-/// Où le candidat reprend son diagnostic complet.
-///
-/// 🛑 **Le hub, jamais un lancement direct.** C'est lui qui « reprend où on
-/// s'est arrêté » : une épreuve terminée n'y porte plus aucun bouton, et une
-/// épreuve qui démarre le fait après son avertissement (« une fois commencée,
-/// elle se termine d'une traite »). Un lien profond qui lancerait la prochaine
-/// épreuve sauterait cet avertissement et déclencherait un chrono par surprise.
-const String kDiagnosticCompletRoute = '/diagnostic-tcf';
-
-/// 🛑 **LES DEUX SEULS LIBELLÉS du diagnostic complet**, et ils sont décidés par
-/// son avancement — arbitrage du propriétaire, 2026-09-12 :
-///
-/// | avancement | CTA |
-/// |---|---|
-/// | jamais commencé | « Faire le diagnostic complet » |
-/// | `1/4` · `2/4` · `3/4` | « Continuer le diagnostic » |
-/// | terminé | **aucun CTA de diagnostic** |
-///
-/// La variante « Faire mon diagnostic complet » est **supprimée** : elle
-/// cohabitait avec « Faire mon diagnostic TCF complet » et « Faire le
-/// diagnostic complet », trois phrases pour un seul geste. Tout le mobile les
-/// lit ici. Miroir de `web_sejoufr/lib/preparation.ts`.
-const String kDiagnosticCompletCtaStart = 'Faire le diagnostic complet';
-const String kDiagnosticCompletCtaResume = 'Continuer le diagnostic';
-
-// 🛑 **`affinerPlan()` et son type `AffinerPlan` sont SUPPRIMÉS** le
-// 2026-09-19 : la carte « Continuez votre diagnostic complet »
-// (`AffinerPlanCard`) a quitté le Plan puis l'Accueil dans la même journée
-// (arbitrage du propriétaire), et plus rien ne les lisait. Ne pas les recréer —
-// le diagnostic complet garde sa porte, [kDiagnosticCompletRoute], appelée par
-// [tcfAction] et [planIndisponible].
 //
-// ⚠️ Conséquence à connaître : `ModulePreparation.prochaineEpreuve` n'a plus de
-// lecteur front. Le champ **reste servi** — on ne touche pas au backend.
+// 🛑 Décision du propriétaire : le diagnostic complet (4 épreuves) n'est plus
+// un parcours proposé. `kDiagnosticCompletRoute` et ses deux CTA (« Faire le
+// diagnostic complet » / « Continuer le diagnostic ») sont supprimés, avec les
+// écrans `/diagnostic-tcf` (la route redirige vers le Plan). Le rapide ouvre le
+// Plan ; les épreuves qu'il ne mesure pas se mesurent par l'examen blanc que le
+// Plan propose. `affinerPlan()` / `AffinerPlanCard` l'étaient déjà depuis le
+// 2026-09-19. Ne pas les recréer.
+//
+// ⚠️ Le serveur sert ENCORE l'avancement d'un complet commencé avant le retrait
+// (`etape: diagnosticEnCours`, `fait`/`total` sur 4, `prochaineEpreuve`) : ces
+// écrans ne l'affichent plus et n'y renvoient plus (voir [tcfAction] et
+// [planIndisponible]). Nettoyage backend à suivre.
 
 /// **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
 ///

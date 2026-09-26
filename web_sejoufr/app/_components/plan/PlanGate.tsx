@@ -24,18 +24,15 @@ import type {DiagnosticResultDto, ModulePreparation} from "@/lib/types";
  * prêt, cette porte affiche SON RAPPORT** (arbitrage du propriétaire). Le
  * déclencheur n'est pas une étape mais un **fait servi** :
  * `prep.estimationSessionId`, l'identifiant de la session rapide close, servi à
- * **toutes** les étapes. Il couvre donc aussi bien « rapide fait, complet pas
- * commencé » que « complet entamé, 0 à 3 épreuves sur 4 » — c'est le second cas
- * qui manquait, parce que l'étape y bascule sur `DIAGNOSTIC_EN_COURS` et que
- * `sessionId` y désigne le **complet**. Le seul état sans rapport est celui où
+ * **toutes** les étapes — y compris quand un diagnostic complet commencé avant
+ * son retrait (2026-09-26) fait basculer l'étape sur `DIAGNOSTIC_EN_COURS` et
+ * que `sessionId` y désigne ce complet. Le seul état sans rapport est celui où
  * aucun rapide n'a été clos : il n'y a rien à montrer.
  *
  * 🛑 **Le rapport est le COMPOSANT DE `/diagnostic`, encastré** — pas un résumé
  * écrit ici : deux lectures du même diagnostic auraient fini par en dire deux
  * choses. Et **la porte garde le geste de fin** (`closingCta={false}`) : sa
- * phrase dépend de l'étape servie, alors que le bouton du rapport dit toujours
- * « Faire le diagnostic complet » — un contresens une fois le complet entamé,
- * où l'étape sert « Continuer le diagnostic ».
+ * phrase dépend de l'étape servie (`planIndisponible`), pas celle du rapport.
  */
 export function PlanGate({
   gate,

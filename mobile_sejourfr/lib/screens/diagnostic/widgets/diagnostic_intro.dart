@@ -125,8 +125,10 @@ class DiagnosticIntro extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Votre diagnostic reste accessible ensuite : vous pouvez '
-                'compléter les épreuves manquantes quand vous voulez.',
+                // Miroir mot pour mot de `FOOT_NOTE` (`DiagnosticIntro.tsx`) :
+                // plus de diagnostic complet depuis le 2026-09-26.
+                'Votre plan vous proposera ensuite un examen blanc pour '
+                'mesurer les autres épreuves.',
                 style: AppFonts.ui(
                   size: 12,
                   color: AppColors.inkFaint,

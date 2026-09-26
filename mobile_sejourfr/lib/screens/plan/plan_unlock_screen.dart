@@ -90,10 +90,7 @@ _Matiere _matiereTcf(TcfDiagnosticResultDto r) {
           // « Expression orale — Tâche 3 » : la TÂCHE officielle est nommée,
           // jamais la personne. Même composition que la carte de priorité du
           // rapport de diagnostic.
-          label: prioriteIntitule(
-            epreuvePresentation(p.epreuve).label,
-            p.taskCode,
-          ),
+          label: prioriteIntitule(p.epreuve.displayLabel, p.taskCode),
           pill: prioritePastille(p.rang).label,
           tone: switch (prioritePastille(p.rang).tone) {
             EpreuveMentionTone.ok => SfTone.ok,

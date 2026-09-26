@@ -25,7 +25,6 @@ import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import { ensureDiagnosticRun } from "@/lib/diagnostic-run";
 import {retourOuRepli} from "@/lib/retour";
 import {sessionAppBarInfo} from "@/lib/app-bar";
-import {TCF_DIAGNOSTIC_HUB_HREF, TCF_DIAGNOSTIC_PARAM} from "@/lib/tcf-diagnostic";
 import {
   CIVIC_DIAGNOSTIC_PARAM,
   civicDiagnosticResultHref,
@@ -208,13 +207,10 @@ function SessionRunnerInner({ params }: PageProps) {
   /** Présent quand Cette session (CO/CE) fait partie d'un examen blanc TCF
    *  complet : pas de rapport individuel, on retourne au hub de progression. */
   const fullExamId = searchParams.get("fullExamId");
-  // Section d'un diagnostic TCF : même règle de retour qu'une épreuve
-  // d'examen complet — on ramène au hub, jamais au rapport individuel.
-  const tcfDiagnosticId = searchParams.get(TCF_DIAGNOSTIC_PARAM);
   /**
-   * Diagnostic CIVIQUE : même mécanisme, une seule différence — il n'a qu'une
-   * session, donc la fin mène droit au **résultat** plutôt qu'à un accueil qui
-   * redemanderait un clic.
+   * Diagnostic CIVIQUE : même mécanisme que l'examen complet, une seule
+   * différence — il n'a qu'une session, donc la fin mène droit au **résultat**
+   * plutôt qu'à un accueil qui redemanderait un clic.
    */
   const civicDiagnosticId = searchParams.get(CIVIC_DIAGNOSTIC_PARAM);
 
@@ -346,10 +342,6 @@ function SessionRunnerInner({ params }: PageProps) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
-          if (tcfDiagnosticId) {
-            router.replace(TCF_DIAGNOSTIC_HUB_HREF);
-            return;
-          }
           if (civicDiagnosticId) {
             router.replace(civicDiagnosticResultHref(civicDiagnosticId));
             return;
@@ -384,14 +376,14 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status, fullExamId, tcfDiagnosticId, civicDiagnosticId, router]);
+  }, [attemptId, status, fullExamId, civicDiagnosticId, router]);
 
   useAppBarTitle(
     attempt && (phase === "running" || phase === "result")
       ? sessionAppBarInfo({
           phase,
           isExam: attempt.type === "MOCK_EXAM",
-          isDiagnostic: Boolean(civicDiagnosticId || tcfDiagnosticId),
+          isDiagnostic: Boolean(civicDiagnosticId),
           isSerie:
             sessionMode !== "guest" &&
             (lotNumero != null || resultMode === "tcfLot"),
@@ -652,13 +644,11 @@ function SessionRunnerInner({ params }: PageProps) {
         quitHref={
           fullExamId
             ? `/examens-blancs/tcf/${fullExamId}`
-            : tcfDiagnosticId
-              ? TCF_DIAGNOSTIC_HUB_HREF
-              : civicDiagnosticId
-                ? civicDiagnosticResultHref(civicDiagnosticId)
-                : isExam
-              ? examReturnPath(attempt)
-              : (lotQuitHref ?? "/entrainement")
+            : civicDiagnosticId
+              ? civicDiagnosticResultHref(civicDiagnosticId)
+              : isExam
+                ? examReturnPath(attempt)
+                : (lotQuitHref ?? "/entrainement")
         }
         // Une épreuve COMMENCÉE ne se reprend jamais : quitter la clôture, ici
         // comme sur le hub. En examen complet, `onCompleted` ramène au hub sans
@@ -691,10 +681,6 @@ function SessionRunnerInner({ params }: PageProps) {
           // suivante) au lieu d'afficher le rapport individuel.
           if (fullExamId) {
             router.push(`/examens-blancs/tcf/${fullExamId}`);
-            return;
-          }
-          if (tcfDiagnosticId) {
-            router.push(TCF_DIAGNOSTIC_HUB_HREF);
             return;
           }
           // 🛑 Le diagnostic civique mène DROIT au résultat : sans ce renvoi,

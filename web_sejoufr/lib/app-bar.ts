@@ -53,7 +53,6 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
   ["/progression/civique", {title: "Progression", subtitle: CIVIQUE}],
 
   ["/diagnostic", {title: "Diagnostic"}],
-  ["/diagnostic-tcf", {title: "Diagnostic", subtitle: TCF}],
   ["/diagnostic-civique", {title: "Diagnostic", subtitle: CIVIQUE}],
 
   ["/entrainement/tcf", {title: TCF}],

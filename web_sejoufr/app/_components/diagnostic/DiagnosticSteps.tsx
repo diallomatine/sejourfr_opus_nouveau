@@ -11,23 +11,23 @@ import styles from "./diagnostic.module.css";
  * présente ou non, session serveur, statut d'analyse) : cette barre ne calcule
  * rien et ne peut donc jamais contredire l'écran affiché.
  *
- * La marche **Compréhension** n'existe que dans le parcours complet, et elle
- * arrive volontairement **après** le compte : un attempt sans compte n'a
- * personne à qui attribuer un progrès (cf. `DiagnosticIntro`).
+ * ⚠️ La marche « Compréhension » du parcours complet est **supprimée** avec ce
+ * parcours (retiré des fronts le 2026-09-26).
+ *
+ * Miroir : `DiagnosticProgress` / `diagnosticExpressionSteps`
+ * (`mobile_sejourfr/lib/screens/diagnostic/widgets/diagnostic_common.dart`).
  */
-export type DiagnosticStepKey = "written" | "oral" | "account" | "report" | "comprehension";
+export type DiagnosticStepKey = "written" | "oral" | "account" | "report";
 
 const LABELS: Record<DiagnosticStepKey, string> = {
   written: "Écrit",
   oral: "Oral",
   account: "Compte",
   report: "Rapport",
-  comprehension: "Compréhension",
 };
 
 export function diagnosticSteps(options: {
   guest: boolean;
-  complete: boolean;
   /**
    * Ce diagnostic comporte-t-il une étape orale ? (L3)
    *
@@ -44,22 +44,19 @@ export function diagnosticSteps(options: {
   // ferait compter une étape que le candidat ne verra jamais.
   if (options.guest) steps.push("account");
   steps.push("report");
-  if (options.complete) steps.push("comprehension");
   return steps;
 }
 
 export function DiagnosticSteps({
   current,
   guest,
-  complete,
   oral,
 }: {
   current: DiagnosticStepKey;
   guest: boolean;
-  complete: boolean;
   oral?: boolean;
 }) {
-  const steps = diagnosticSteps({guest, complete, oral});
+  const steps = diagnosticSteps({guest, oral});
   const index = Math.max(0, steps.indexOf(current));
   return (
     <ol className={styles.steps} aria-label="Étapes du diagnostic">

@@ -1,5 +1,20 @@
 # Diagnostic TCF — 4 épreuves (lot L4)
 
+> 🛑 **PARCOURS RETIRÉ DES FRONTS LE 2026-09-26** (décision du propriétaire). Le candidat fait
+> le diagnostic **rapide**, le Plan est créé (EE renseignée), et **le Plan demande un examen
+> blanc** pour chaque autre épreuve. Web et mobile n'ont plus ni hub, ni section, ni résultat
+> (`/diagnostic-tcf` redirige vers le Plan TCF).
+>
+> - **Backend CONSERVÉ**, non appelé : endpoints `/api/tcf-diagnostics/**`, calcul de niveau,
+>   priorités, éligibilité, `PreparationService`. Nettoyage à planifier (liste :
+>   `docs/decisions/plan-parcours-tcf.md`, entrée du 2026-09-26).
+> - **Résultats existants TOUJOURS LUS** : observations du Plan, profil TCF (`bestQcm`), DTO et
+>   miroirs front inchangés ; relecture front limitée à `current` + `readResult`
+>   (`PlanUnlockScreen`).
+> - Tout le reste de ce fichier décrit le **backend** et l'historique des écrans : ne pas s'en
+>   servir pour recréer le parcours. Détail côté fronts : `docs/regles/diagnostic.md`, section
+>   « Le diagnostic COMPLET est RETIRÉ des fronts ».
+
 > Règle du sous-système, lue **à la demande**. Spec d'origine :
 > `docs/review_all/10_SEJOURFR_TCF.md` §4 et `30_SEJOURFR_ECRANS.md` §5,
 > corrigées par `50_SEJOURFR_CORRECTIFS.md`.

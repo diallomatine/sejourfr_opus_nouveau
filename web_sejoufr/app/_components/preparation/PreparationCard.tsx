@@ -32,9 +32,8 @@ import type {PreparationDto} from "@/lib/types";
 import type {ParcoursModule} from "@/lib/module-switch";
 
 /**
- * 🛑 **L'état est reçu, plus rechargé ici.** L'Accueil le lit une fois et le
- * partage avec la carte « Continuez votre diagnostic complet » : deux appels à
- * `preparation()` sur le même écran auraient pu répondre deux états différents,
+ * 🛑 **L'état est reçu, plus rechargé ici.** L'Accueil le lit une fois : deux
+ * appels à `preparation()` sur le même écran auraient pu répondre deux états différents,
  * et donc proposer deux prochaines actions. `null` = pas encore chargé ou échec
  * best-effort : la carte est simplement absente, jamais une erreur.
  */

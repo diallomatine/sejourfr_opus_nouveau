@@ -19,7 +19,7 @@
  *
  * 🛑 **Deux emplacements, UN SEUL composant.** Il est la page `/diagnostic`
  * quand la session est close, et il est **encastré** dans la porte d'entrée du
- * Plan TCF tant que le diagnostic complet manque (`embedded`) — c'est le même
+ * Plan TCF tant que le Plan n'est pas servi (`embedded`) — c'est le même
  * rapport que le candidat doit retrouver, pas un résumé maison qui finirait par
  * dire autre chose. `embedded` ne retire **que la chrome de page** (le shell et
  * l'en-tête, que l'écran d'accueil porte déjà) : les quatre blocs, leur ordre et
@@ -46,10 +46,6 @@ import {
 import {planHref} from "@/lib/module-switch";
 import {levelTrackPosition} from "@/lib/tcf-diagnostic";
 import {
-  DIAGNOSTIC_COMPLET_BENEFITS,
-  DIAGNOSTIC_COMPLET_EPREUVES,
-  DIAGNOSTIC_COMPLET_PROMISE,
-  DIAGNOSTIC_COMPLET_TITLE,
   DIAGNOSTIC_GOAL_PREFIX,
   DIAGNOSTIC_INCOMPLETE_TEXT,
   DIAGNOSTIC_LEVEL_EYEBROW,
@@ -58,6 +54,10 @@ import {
   DIAGNOSTIC_OBSERVE_TITLE,
   DIAGNOSTIC_REPORT_KICKER,
   DIAGNOSTIC_REPORT_PLAN_CTA,
+  DIAGNOSTIC_SUITE_BENEFITS,
+  DIAGNOSTIC_SUITE_EPREUVES,
+  DIAGNOSTIC_SUITE_PROMISE,
+  DIAGNOSTIC_SUITE_TITLE,
   DIAGNOSTIC_REPORT_TITLE,
   DIAGNOSTIC_TRANSITION_EMPHASIS,
   DIAGNOSTIC_TRANSITION_TEXT,
@@ -168,8 +168,8 @@ export function DiagnosticReport({
         </Pad>
       </Section>
 
-      {/* 4 — le diagnostic complet, seule suite proposée par cet écran. */}
-      <Section title={DIAGNOSTIC_COMPLET_TITLE}>
+      {/* 4 — la suite : le Plan, qui mesure les autres épreuves par examen blanc. */}
+      <Section title={DIAGNOSTIC_SUITE_TITLE}>
         <Pad>
           <Stack>
             {/* `sf-exam-grid` de la maquette (`diagnostic-rapide.tsx` l. 86) :
@@ -178,13 +178,13 @@ export function DiagnosticReport({
                 D'où le `Stack` imbriqué : sous 960 px les deux niveaux ont le
                 même écart de 10 px, le rendu mobile est celui d'avant. */}
             <Stack className={styles.deskGrid2}>
-              {DIAGNOSTIC_COMPLET_EPREUVES.map((epreuve) => (
+              {DIAGNOSTIC_SUITE_EPREUVES.map((epreuve) => (
                 <ExamRow key={epreuve.label} icon={epreuve.icon} title={epreuve.label} />
               ))}
             </Stack>
             <Card>
-              <p className={styles.label}>{DIAGNOSTIC_COMPLET_PROMISE}</p>
-              <CheckList items={DIAGNOSTIC_COMPLET_BENEFITS} />
+              <p className={styles.label}>{DIAGNOSTIC_SUITE_PROMISE}</p>
+              <CheckList items={DIAGNOSTIC_SUITE_BENEFITS} />
             </Card>
             {closingCta && (
               /* Le Plan : il existe dès que le rapide est clos. La route Plan

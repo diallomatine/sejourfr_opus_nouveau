@@ -524,62 +524,33 @@ Profil, gelée en miroir du web par `test/estimated_tcf_level_test.dart`. Elle
 **constate un périmètre**, elle ne reproche pas un inachèvement, et ne porte aucun
 chiffre de barème. 4/4 ⇒ rien ; 0/4 ⇒ le niveau vaut déjà « — », donc rien non plus.
 
-## Diagnostic TCF — 4 épreuves (L4, `screens/diagnostic_tcf/`)
+## Diagnostic TCF — 4 épreuves (L4) — 🛑 PARCOURS RETIRÉ (2026-09-26)
 
-🛑 **À ne pas confondre avec `/diagnostic`**, le diagnostic *initial* (une production
-écrite + une orale). Deux objets produit différents, que `10_` §4.1 interdit de confondre
-— comme il interdit d'appeler celui-ci un **examen blanc**.
+🛑 **Décision du propriétaire : le diagnostic complet n'est plus un parcours proposé.** Le
+rapide ouvre le Plan (EE renseignée) ; CO, CE et EO se mesurent par l'**examen blanc** que le
+Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
 
-- **Routes** : `AppRoutes.tcfDiagnostic` (`/diagnostic-tcf`, T06) et
-  `AppRoutes.tcfDiagnosticResult` (`/diagnostic-tcf/:sessionId/resultat`, T12).
-  **Authentifiées** — contrairement à `/diagnostic`, il n'y a rien à faire ici sans compte.
-- **Modèles** `core/models/tcf_diagnostic_models.dart` · **réseau**
-  `core/api/tcf_diagnostic_repository.dart` (`tcfDiagnosticRepositoryProvider`).
-- 🛑 **L'état de l'écran vit dans `tcfDiagnosticCurrentProvider`**
-  (`diagnostic_tcf/tcf_diagnostic_current_provider.dart`, 2026-09-16), pas dans
-  un `setState` alimenté une fois par `initState` : sans provider il n'y avait
-  **aucun point de fraîcheur**, et les deux chemins de retour rendaient un écran
-  périmé. Ses deux points, **tous deux nécessaires** : `didPopNext`
-  (`RouteAware` + `appRouteObserver`) pour le retour par `pop`, et
-  `allerEnRafraichissantLeDiagnostic(context, ref, route)` — le seul `go` vers
-  cet écran — pour les fins de section (`runner_screen`, `eo_briefing_screen`,
-  `ee_briefing_writing_screen`), qui **réutilisent le `State` existant**.
-  ⚠️ **Pas de trou équivalent côté web** : `tcfDiagnosticApi.current()` n'est pas
-  mis en cache et le hub refetch au montage — ne rien y « corriger ».
-- **Libellés purs** dans `tcf_diagnostic_labels.dart`, **miroir mot pour mot** de
-  `web_sejoufr/lib/tcf-diagnostic.ts` : un libellé qui bouge, ce sont deux fichiers dans la
-  même passe.
-
-🛑 **Aucun écran de passation n'est créé** : `_ouvrirPassation` route les sections QCM vers
-le runner existant et les productions vers la session EE/EO existante.
-
-🛑 **Le chrono se pose AVANT d'ouvrir l'écran de passation** (`startSection`) : sans cette
-ancre, la section n'a aucune échéance. Idempotent — reprendre ne rend pas de temps.
-
-🛑 **Aucun niveau ne transite par l'accueil** : `TcfDiagnosticDto` n'en porte pas (`10_`
-§4.2 interdit tout résultat partiel entre les sections). Ne pas l'enrichir.
-
-🛑 **Une épreuve MESURÉE est une section FAITE (2026-09-16).** Arbitrage du
-propriétaire : si un examen blanc de l'épreuve a été passé ailleurs, le
-diagnostic de cette épreuve **est fait**. Le serveur sert la section `terminee`,
-avec le niveau du produit (le **même** que l'Accueil et le Profil) et un
-**`rapportAttemptId`** neuf sur `TcfDiagnosticSectionDto`.
-- 🛑 **`_ouvrirRapport` lit `rapportAttemptId`, jamais `attemptId`** : sur une
-  épreuve mesurée par un examen blanc, c'est cet examen-là qui porte le rapport —
-  le sous-attempt du diagnostic est vide. `null` ⇒ **pas de bouton**, on n'ouvre
-  jamais un rapport vide (⚠️ change le cas « section close à zéro réponse »).
-- 🛑 **Aucun vocabulaire « mesurée ailleurs »** (refus explicite du propriétaire).
-- `sectionIndisponible` et `resultatDisponible` (`tcf_diagnostic_labels.dart`)
-  acceptent une section sans `attemptId` mais avec un `rapportAttemptId`.
-- Miroir web dans la même passe. → `docs/regles/diagnostic-tcf-4-epreuves.md`
-
-🛑 **`niveauGlobal` et le `niveau` d'une épreuve sont NULLABLES** : c'est « non évaluée »,
-jamais A1. L'écran de résultat les **nomme** ; il n'invente aucun palier.
-
-🛑 **Aucun `locked` sur le résultat** : le paywall porte sur le plan, pas sur le constat.
-
-`current()` rend `null` sur un **204** — une lecture n'ouvre jamais un diagnostic par effet
-de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
+- **Supprimés** : `tcf_diagnostic_screen.dart`, `tcf_diagnostic_result_screen.dart`,
+  `tcf_diagnostic_current_provider.dart` (et `allerEnRafraichissantLeDiagnostic`), le marqueur
+  `kTcfDiagnosticParam` dans `runner_screen`, `eo_briefing_screen` et
+  `ee_briefing_writing_screen`, `kDiagnosticCompletRoute` / `kDiagnosticCompletCtaStart` /
+  `…Resume` (`preparation_labels.dart`).
+- **Route** : `AppRoutes.tcfDiagnosticRetire` (`/diagnostic-tcf` et
+  `/diagnostic-tcf/:sessionId/resultat`) **redirige vers `/plan`** — un lien profond déjà émis
+  aboutit.
+- **Conservé (lecture d'un résultat existant)** : `TcfDiagnosticRepository.current()` /
+  `readResult()` (lecture seule), lus par `plan_unlock_screen.dart` ;
+  `tcf_diagnostic_labels.dart` réduit à `prioriteIntitule` / `prioritePastille` ;
+  `core/models/tcf_diagnostic_models.dart` inchangé (miroir DTO, et `TcfDiagnosticStatus` sert
+  aussi au civique).
+- **Complet commencé avant le retrait** : `tcfAction` / `planIndisponible` ne lisent plus son
+  avancement ; `planDisponible` vrai ⇒ « Continuer mon plan », sinon la porte est le **rapide**.
+  Tableau : `docs/regles/diagnostic.md`, « Le diagnostic COMPLET est RETIRÉ des fronts ».
+- **Fil d'étapes du rapide** (même passe) : `DiagnosticProgress(totalSteps:)` et
+  `diagnosticStepHeader` (`widgets/diagnostic_common.dart`) suivent la forme servie — oral
+  `null` ⇒ une barre à un segment et l'en-tête « Écrit », jamais « Étape 1 sur 2 ». Miroir de
+  `diagnosticSteps({oral})` côté web.
+- Backend inchangé, nettoyage à venir : `docs/decisions/plan-parcours-tcf.md` (D-63).
 
 ## Diagnostic TCF initial et Plan personnalisé
 
@@ -1314,7 +1285,7 @@ ambre : le front désignait comme fragile quelque chose que le serveur n'a jamai
 côté web.
 
 **Écrans refaits** : `diagnostic/widgets/diagnostic_result.dart` (1959 → ~220 l.),
-`diagnostic_tcf/tcf_diagnostic_result_screen.dart`,
+`diagnostic_tcf/tcf_diagnostic_result_screen.dart` (supprimé le 2026-09-26),
 `diagnostic_civique/{civic_diagnostic_screen,civic_diagnostic_result_screen}.dart`,
 `plan/plan_screen.dart` + `plan/widgets/plan_tcf_view.dart` +
 `plan/civic_plan_view.dart`.
@@ -1683,9 +1654,7 @@ donc aucun paramètre de route n'est inventé.
   d'une session QCM (`runner_screen._navigateToResult`, **une seule émission,
   avant tout aiguillage** — tout le pipeline QCM était muet, d'où un examen
   blanc de CO qui rendait B1 pendant que « Où vous en êtes » affichait encore
-  « À évaluer »), la clôture du **diagnostic 4 épreuves**
-  (`tcf_diagnostic_screen._voirResultat`), la clôture d'une section EE par
-  abandon, la clôture d'une épreuve EE/EO d'examen complet par abandon, la
+  « À évaluer »), la clôture d'une épreuve EE/EO d'examen complet par abandon, la
   **suspension** d'un examen complet et sa **finalisation**.
   ⚠️ **Une émission par MESURE, jamais une par requête** : les chemins qui
   soumettent une production émettent déjà par leur contrôleur

@@ -55,7 +55,11 @@ class DiagnosticAccountGate extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              const DiagnosticProgress(activeStep: 2, completedSteps: 2),
+              DiagnosticProgress(
+                activeStep: diagnosticExpressionSteps(hasOral: hasOral),
+                completedSteps: diagnosticExpressionSteps(hasOral: hasOral),
+                totalSteps: diagnosticExpressionSteps(hasOral: hasOral),
+              ),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),

@@ -73,8 +73,8 @@ final diagnosticRepositoryProvider = Provider<DiagnosticRepository>(
   (ref) => DiagnosticRepository(ref.watch(apiClientProvider)),
 );
 
-/// Le diagnostic TCF 4 epreuves (L4). Distinct de [diagnosticRepositoryProvider],
-/// qui porte le diagnostic INITIAL : deux objets produit differents.
+/// Le diagnostic TCF 4 epreuves (L4), en LECTURE seule : son parcours est
+/// retire des fronts depuis le 2026-09-26, seul un resultat deja obtenu se relit.
 final tcfDiagnosticRepositoryProvider = Provider<TcfDiagnosticRepository>(
   (ref) => TcfDiagnosticRepository(ref.watch(apiClientProvider)),
 );

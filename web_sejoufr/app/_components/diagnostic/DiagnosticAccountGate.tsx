@@ -106,7 +106,7 @@ export function DiagnosticAccountGate({
               <ArrowLeft size={16} aria-hidden /> {DIAGNOSTIC_EDIT_WRITTEN_CTA}
             </button>
           )}
-          <DiagnosticSteps current="account" guest complete={false} oral={hasOral} />
+          <DiagnosticSteps current="account" guest oral={hasOral} />
         </>
       }
       kicker="Dernière étape · compte gratuit"

@@ -136,9 +136,9 @@ export function DiagnosticView() {
   /**
    * 🛑 **On ne choisit plus une PROFONDEUR de diagnostic ici.** L'écran d'entrée
    * fait choisir un EXAMEN (TCF ou civique) ; ce composant ne porte que le
-   * tunnel TCF, et ce tunnel est le diagnostic **rapide**. La profondeur —
-   * enchaîner le diagnostic complet — se propose sur le rapport, quand elle a
-   * un sens.
+   * tunnel TCF, et ce tunnel est le diagnostic **rapide** — le seul depuis le
+   * retrait du diagnostic complet (2026-09-26). Les autres épreuves se mesurent
+   * par l'examen blanc que propose le Plan.
    *
    * La mesure enregistre donc `RAPID` au démarrage, ce qui est simplement la
    * vérité : c'est le diagnostic rapide qui commence.
@@ -390,7 +390,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     // gardé tel quel et l'on revient directement au compte.
     return (
       <DiagnosticShell guest compact back={{label: DIAGNOSTIC_EDIT_CANCEL, onClick: closeWrittenEditor}}>
-        <DiagnosticSteps current="written" guest complete={false} oral={subjects.oral !== null} />
+        <DiagnosticSteps current="written" guest oral={subjects.oral !== null} />
         <ExerciseHeader kind="written" note={diagnosticEditNote(subjects.oral !== null)} />
         <EeWritingForm
           key="edit-written"
@@ -425,7 +425,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     const oral = subjects.oral;
     return (
       <DiagnosticShell guest compact>
-        <DiagnosticSteps current="oral" guest complete={false} />
+        <DiagnosticSteps current="oral" guest />
         <ExerciseHeader
           kind="oral"
           note={
@@ -452,7 +452,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     // L'écran précédent de l'écrit est le choix d'examen, sur la même URL.
     return (
       <DiagnosticShell guest compact back={{label: "Retour", onClick: () => setStarted(false)}}>
-        <DiagnosticSteps current="written" guest complete={false} oral={subjects.oral !== null} />
+        <DiagnosticSteps current="written" guest oral={subjects.oral !== null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(subjects.written)}
@@ -1192,7 +1192,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     const exercise = diagnostic.written;
     return (
       <DiagnosticShell compact>
-        <DiagnosticSteps current="written" guest={false} complete={false} oral={diagnostic.oral != null} />
+        <DiagnosticSteps current="written" guest={false} oral={diagnostic.oral != null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -1211,7 +1211,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     const exercise = diagnostic.oral;
     return (
       <DiagnosticShell compact>
-        <DiagnosticSteps current="oral" guest={false} complete={false} />
+        <DiagnosticSteps current="oral" guest={false} />
         <ExerciseHeader kind="oral" />
         <EoRecordingForm
           task={diagnosticExerciseAsProductionTask(exercise)}

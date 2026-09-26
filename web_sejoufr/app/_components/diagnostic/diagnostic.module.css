@@ -327,12 +327,6 @@
   text-transform: uppercase;
 }
 
-/* Les deux épreuves de compréhension : présentes dans la liste, mais montrées
-   pour ce qu'elles sont — une suite possible, pas une étape de cet écran. */
-.introListLater {
-  opacity: 0.72;
-}
-
 @media (max-width: 780px) {
   .choice {
     grid-template-columns: 1fr;

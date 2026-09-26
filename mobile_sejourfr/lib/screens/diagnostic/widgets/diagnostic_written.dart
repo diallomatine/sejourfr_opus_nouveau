@@ -17,6 +17,7 @@ class DiagnosticWrittenStep extends StatelessWidget {
     required this.isSubmitting,
     required this.onChanged,
     required this.onSubmit,
+    required this.hasOral,
     this.errorMessage,
     this.submitLabel = 'Valider mon écrit',
     this.onCancelEdit,
@@ -29,6 +30,10 @@ class DiagnosticWrittenStep extends StatelessWidget {
   final bool isSubmitting;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
+
+  /// La forme servie comporte-t-elle un oral ? Décide du nombre d'étapes
+  /// affichées — jamais « 1 sur 2 » sur un diagnostic à un seul exercice.
+  final bool hasOral;
   final String? errorMessage;
   final String submitLabel;
 
@@ -59,7 +64,11 @@ class DiagnosticWrittenStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
               ],
-              const DiagnosticProgress(activeStep: 1, completedSteps: 0),
+              DiagnosticProgress(
+                activeStep: 1,
+                completedSteps: 0,
+                totalSteps: diagnosticExpressionSteps(hasOral: hasOral),
+              ),
               const SizedBox(height: 14),
               if (editNote != null) ...[
                 Container(

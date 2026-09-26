@@ -120,8 +120,8 @@ import {civicNowCard} from "@/lib/civic-plan";
  * (`AffinerPlanCard`, supprimée avec son autorité `affinerPlan`) et les deux
  * lignes de « Vos parcours » — la bascule ci-dessus fait déjà ce travail.
  * **Ne pas les réintroduire** : le Plan se lit sur `/plan`, les résultats sur
- * les écrans de progression (`/progression/*`), et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser,
- * le Plan et le rapport de diagnostic. Même passe côté mobile.
+ * les écrans de progression (`/progression/*`) ; le parcours du diagnostic
+ * complet est retiré des fronts depuis le 2026-09-26. Même passe côté mobile.
  *
  * 🛑 **Sans objectif déclaré, on INVITE — on ne ferme rien** (arbitrage du
  * 2026-09-17) : la carte « Choisir mon objectif » reste, elle **s'ajoute** à la
@@ -266,9 +266,8 @@ function DashboardRoot() {
                 progressApi.get().catch((): ProgressDto | null => null),
                 diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
                 learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
-                // 🛑 Un SEUL appel pour tout l'écran : « Ma préparation » et la
-                // carte « Continuez votre diagnostic complet » lisent le même
-                // état. Deux appels auraient pu proposer deux prochaines actions.
+                // 🛑 Un SEUL appel pour tout l'écran : deux appels auraient pu
+                // proposer deux prochaines actions.
                 userContentApi.preparation().catch((): PreparationDto | null => null),
                 // Le pendant civique : l'action du jour, ses priorités et ce qui
                 // a bougé. Best-effort — son échec laisse l'écran entier.

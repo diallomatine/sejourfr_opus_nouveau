@@ -1138,6 +1138,17 @@ interdiction de juger la prononciation depuis une transcription). La bonne réf�
 
 ### Le diagnostic COMPLET n'est pas un prérequis d'accès au Plan (2026-09-12)
 
+> 🛑 **Mise à jour du 2026-09-26 — le diagnostic complet n'AFFINE plus le Plan côté produit :
+> son parcours est retiré des fronts.** Le rapide ouvre le Plan (EE renseignée) ; **CO, CE et EO
+> se mesurent par l'EXAMEN BLANC que le Plan propose** (`PlanDomainAssessmentDto`,
+> `MODULE_MOCK_EXAM` / `PRODUCTION_MOCK_EXAM`). Ce qui reste vrai ci-dessous : `planDisponible`
+> est le fait à lire, `PlanFoundationResolver` l'autorité, un Plan provisoire ne s'appuie que sur
+> ce qui a été mesuré, et un complet **déjà clos** continue de fonder / nourrir le Plan (ses
+> résultats restent lus). Ce qui est **historique** : la carte « Affiner », les CTA « Faire le
+> diagnostic complet » / « Continuer le diagnostic » et le lien vers `/diagnostic-tcf` (redirigé
+> vers le Plan TCF). Détail : `docs/regles/diagnostic.md`, section « Le diagnostic COMPLET est
+> RETIRÉ des fronts ».
+
 🛑 **Le fait à lire est `prep.planDisponible`, jamais `etape`.** Il rend **mot pour mot** la
 condition du moteur (`LearningPlanService.get()` bascule en `ACTIVE` sur
 `findLatestCompleted`, c'est-à-dire le **rapide**). Deux lectures de « le Plan existe-t-il ? »
@@ -1212,6 +1223,9 @@ le candidat retrouve son rapport plutôt qu'un écran muet.
 ---
 
 ## Compléter son profil n'a plus qu'une porte (2026-09-13)
+
+> ⚠️ **Historique depuis le 2026-09-26** : cette porte unique était le diagnostic complet, retiré
+> des fronts. La mesure d'un domaine non observé passe par l'**examen blanc** proposé par le Plan.
 
 🛑 **Arbitrage du propriétaire**, verbatim : « Ici l'écran plan, supprime la partie compléter
 mon profil, en y mettant le bouton faire le diagnostic complet. Bouton plus visible. »

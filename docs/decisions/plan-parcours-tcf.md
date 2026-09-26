@@ -3058,3 +3058,55 @@ consommable, donc un **4ᵉ mécanisme** au sens de DETTE-F1.
 
 ⚠️ **Le signal de D-33 reste valable** : l'usage réel de ces gratuités QCM rejouables doit être
 **mesuré** avant d'en rouvrir le périmètre.
+
+---
+
+## D-63 — Le diagnostic COMPLET n'est plus un parcours proposé (2026-09-26)
+
+**Décision du propriétaire.** Le diagnostic complet 4 épreuves (CO/CE/EE/EO) est retiré. Nouveau
+parcours : diagnostic **RAPIDE** → le Plan est créé, **EE** renseignée avec les priorités
+détectées ; pour **CO, CE et EO**, le Plan demande de faire un **EXAMEN BLANC** — c'est là
+qu'on identifie les compétences à travailler (natures `MODULE_MOCK_EXAM` /
+`PRODUCTION_MOCK_EXAM` de `PlanDomainAssessmentDto`, servies depuis le 2026-09-16 : rien à
+changer côté serveur pour cette invitation).
+
+**Arbitrages :**
+
+- **(a) Suppression FRONTS SEULEMENT** (web + mobile, même passe). Le backend (endpoints
+  `/api/tcf-diagnostics/**`, calcul 4 épreuves, éligibilité, `PreparationService`) reste en place,
+  non appelé. Nettoyage plus tard.
+- **(b) Les résultats déjà existants d'un complet RESTENT lus** par le Plan et le moteur : aucune
+  lecture touchée (observations `FULL_DIAGNOSTIC`, `bestQcm`, `PlanFoundationResolver`), aucun DTO
+  ni miroir front modifié. Côté front, la relecture se réduit à `current` + `readResult`
+  (écran de déblocage du Plan).
+
+**Ce qui a été fait côté fronts** : écrans hub + résultat supprimés, route `/diagnostic-tcf`
+redirigée vers le Plan TCF (web `next.config.ts`, mobile `AppRoutes.tcfDiagnosticRetire`),
+marqueur `tcfDiagnosticId` retiré du runner et des sessions EE/EO, CTA et libellés du complet
+supprimés, rapport du rapide et présentation réécrits (« votre plan vous propose un examen
+blanc… »), un complet commencé sans rapide renvoie vers le rapide (seule porte du Plan). Détail
+et tableau des états : `docs/regles/diagnostic.md`, « Le diagnostic COMPLET est RETIRÉ des fronts ».
+
+**Reste à nettoyer côté backend** (non fait, volontairement) :
+
+1. `PreparationService.tcf()` (`backend_sejourfr/src/main/java/com/sejourfr/app/service/PreparationService.java`
+   l. 105-138) : un complet **ouvert** décide encore de l'étape — `DIAGNOSTIC_EN_COURS` avec
+   `fait`/`total` sur 4 et `prochaineEpreuve`. Les fronts ne l'affichent plus ; à supprimer. Effet
+   de bord à corriger en même temps : cette branche **masque un rapide en cours** (elle répond
+   avant la recherche de la session rapide, l. 160-170).
+2. `PreparationService.tcf()` l. 146-153 : `ESTIMATION_FAITE` sert encore `fait: 0` /
+   `total: 4` (« zéro épreuve sur quatre » du complet) — plus aucun lecteur.
+3. `ModulePreparation.prochaineEpreuve` : champ sans lecteur front depuis le 2026-09-19, sans
+   objet désormais.
+4. Endpoints d'écriture du complet sans appelant : `POST /api/tcf-diagnostics`,
+   `GET /api/tcf-diagnostics/{id}`, `POST …/sections/{epreuve}/start|close`,
+   `POST …/{id}/result`, `GET /api/tcf-diagnostics/eligibility`. **Garder** `GET …/current` et
+   `GET …/{id}/result` tant qu'un résultat existant est relu.
+5. `DiagnosticRunService` l. 103 (message « Le diagnostic complet se passe avec un compte. ») et
+   le type analytics `FULL_TCF` / `COMPLETE` : plus aucun parcours ne les émet.
+6. Les règles « complet commencé 1/4 → 3/4 sans rapide ⇒ pas de Plan » (`PlanFoundationResolver`,
+   `PreparationServiceIT.completPartielSansRapideNeFondeAucunPlan`) restent vraies mais
+   deviennent un cas d'héritage : à revoir au nettoyage.
+
+**Si l'arbitrage changeait** (rétablir le complet) : le code supprimé est dans l'historique git au
+commit parent de cette passe (`12476674`) ; le backend n'a pas bougé.

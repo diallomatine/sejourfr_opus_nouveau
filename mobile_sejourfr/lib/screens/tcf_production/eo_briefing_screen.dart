@@ -24,10 +24,7 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/recording_waveform.dart';
-import '../diagnostic_tcf/tcf_diagnostic_current_provider.dart';
-import '../diagnostic_tcf/tcf_diagnostic_labels.dart';
 import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
-import '../../core/router/app_router.dart';
 
 /// Écran unique EO « consigne + enregistrement » : la consigne s'affiche
 /// **sans aucun décompte**, le tap sur « Je suis prêt » lance la capture **sur
@@ -84,11 +81,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       final goState = GoRouterState.of(context);
       final fullExamId = goState.uri.queryParameters['fullExamId'];
       final subAttemptId = goState.uri.queryParameters['subAttemptId'];
-      final tcfDiagnosticId = goState.uri.queryParameters[kTcfDiagnosticParam];
-      if ((fullExamId != null || tcfDiagnosticId != null) &&
-          subAttemptId != null) {
-        // Diagnostic comme examen complet : le sous-attempt existe deja, on le
-        // REPREND. Le serveur y compose 3 taches au niveau cible du candidat.
+      if (fullExamId != null && subAttemptId != null) {
         ref
             .read(eoSessionProvider.notifier)
             .startInFullExam(subAttemptId: subAttemptId)
@@ -123,8 +116,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         .firstOrNull;
     _navigated = true;
     if (suivante == null) {
-      allerEnRafraichissantLeDiagnostic(
-          context, ref, _fallbackRouteFor(context));
+      context.go(_fallbackRouteFor(context));
       return;
     }
     context.pushReplacement(
@@ -161,9 +153,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     // mais on ne s'y fie pas — ce timer garantit l'auto-soumission « dès que le
     // temps d'enregistrement finit ». Idempotent (one-shot + garde `_navigated`).
     _examAutoStop?.cancel();
-    // ⚠️ Plus aucune exception de « conditions » depuis le 2026-09-13 : le
-    // diagnostic se joue comme un examen, EO comprise — chaque tâche a son
-    // chrono, une fois commencée on ne l'arrête pas, et l'arrêter l'envoie.
     if (session?.isExam ?? false) {
       _examAutoStop = Timer(Duration(seconds: maxSec), () {
         if (mounted) _forceExamSubmit();
@@ -200,8 +189,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (_navigated || !mounted) return;
     _examAutoStop?.cancel();
     final session = ref.read(eoSessionProvider).value;
-    // Examen — diagnostic compris depuis le 2026-09-13 : on soumet au premier
-    // arrêt et on enchaîne. Plus aucune tâche d'examen ne repasse par l'écran
+    // Examen : on soumet au premier arrêt et on enchaîne. Plus aucune tâche d'examen ne repasse par l'écran
     // de réécoute.
     if (session != null && session.isExam) {
       _navigated = true;
@@ -226,18 +214,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     final session = ref.read(eoSessionProvider).value;
     final task = session?.taskAt(widget.taskIndex);
     final t = task?.tacheNumero;
-    // 🛑 **JAMAIS d'examinateur vocal dans le DIAGNOSTIC** (arbitrage du
-    // propriétaire, 2026-09-13) : « en freemium le diagnostic est offert et
-    // l'IA analyse, par contre c'est juste en enregistrement normal, pas avec
-    // l'examinateur en temps réel ». C'est ce qui garde le diagnostic
-    // totalement gratuit — le temps réel a son propre quota payant.
-    //
-    // ⚠️ Le discriminant est le MARQUEUR DE SECTION, plus `conditionsReelles` :
-    // ce champ a été supprimé avec la règle EO1/EO2 qu'il portait, et le
-    // détourner ici aurait fait dépendre le quota d'une règle de chrono.
-    final diagnostic =
-        GoRouterState.of(context).uri.queryParameters[kTcfDiagnosticParam] != null;
-    if (session != null && task != null && !diagnostic && (t == 1 || t == 2)) {
+    if (session != null && task != null && (t == 1 || t == 2)) {
       final handled = await _negotiateRealtime(session, task);
       if (handled) return;
     }
@@ -372,19 +349,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       return;
     }
     // Dernière tâche EO.
-    // 🛑 Section d'un DIAGNOSTIC : pas de markSubDone (le backend pose
-    // `finishedAt` des la 3e soumission) et retour aux 4 sections, jamais au
-    // bilan individuel — le candidat doit voir ce qu'il lui reste.
-    if (GoRouterState.of(context).uri.queryParameters[kTcfDiagnosticParam] !=
-        null) {
-      ref.read(eoSessionProvider.notifier).reset();
-      if (!mounted) return;
-      // 🛑 Pas de `signalerMesureEcrite` ici : `eoSessionProvider` vient de
-      // l'émettre pour la soumission qui précède (`onPlanChanged`). Une seule
-      // émission par mesure écrite.
-      allerEnRafraichissantLeDiagnostic(context, ref, AppRoutes.tcfDiagnostic);
-      return;
-    }
     if (fullExamId != null) {
       try {
         await ref.read(fullTcfExamRepositoryProvider).markSubDone(
@@ -411,8 +375,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     final params = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = params['fullExamId'];
     if (fullExamId != null) return '/tcf/examen-blanc/$fullExamId';
-    // Quitter une section de diagnostic ramene aux 4 sections.
-    if (params[kTcfDiagnosticParam] != null) return AppRoutes.tcfDiagnostic;
     return '/tcf/eo';
   }
 
@@ -450,37 +412,27 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      allerEnRafraichissantLeDiagnostic(
-          context, ref, _fallbackRouteFor(context));
+      context.go(_fallbackRouteFor(context));
     }
   }
 
   /// Sortie confirmée d'une session d'examen EO. En **examen blanc complet**,
   /// une épreuve commencée ne se reprend jamais : quitter la **clôture**. En
   /// session d'examen module, on finalise l'attempt comme avant.
-  ///
-  /// 🛑 **Le DIAGNOSTIC est la seule exception, et elle tient à l'oral**
-  /// (arbitrage du propriétaire, 2026-09-13) : l'EO se chronomètre **par
-  /// tâche**, donc quitter n'y termine que la tâche en cours — le candidat
-  /// rouvre l'épreuve et **reprend à la suivante**. Clôturer la section ici
-  /// lui ferait perdre les tâches qu'il n'a pas encore rendues.
   Future<void> _quitExam(BuildContext context, String fallbackRoute) async {
     final params = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = params['fullExamId'];
-    final diagnostic = params[kTcfDiagnosticParam] != null;
     final isFullExam = fullExamId != null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFullExam || diagnostic ? kEpreuveExitTitle : 'Quitter l\'examen ?',
+          isFullExam ? kEpreuveExitTitle : 'Quitter l\'examen ?',
         ),
         content: Text(
           isFullExam
               ? epreuveExitMessage(EpreuveType.tcfEo, perteEnregistrement: true)
-              : diagnostic
-                  ? kTcfDiagnosticEoQuitMessage
-                  : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+              : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
         ),
         actions: [
           TextButton(
@@ -518,7 +470,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         // session à zéro et naviguer.
         if (context.mounted) signalerMesureEcrite(ref);
       } catch (_) {/* hook auto backend fallback */}
-    } else if (!diagnostic) {
+    } else {
       await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
     }
     ref.read(eoSessionProvider.notifier).reset();
@@ -526,10 +478,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (fullExamId != null) {
       ref.invalidate(fullTcfExamProvider(fullExamId));
     }
-    // 🛑 Quitter l'EO d'un diagnostic ne clôt PAS la section (chrono par
-    // tâche) : rien n'est mesuré ici, donc aucun signal — mais l'écran des 4
-    // sections doit relire, la tâche en cours ayant bougé.
-    allerEnRafraichissantLeDiagnostic(context, ref, fallbackRoute);
+    context.go(fallbackRoute);
   }
 
   void _showPermissionDeniedSheet(

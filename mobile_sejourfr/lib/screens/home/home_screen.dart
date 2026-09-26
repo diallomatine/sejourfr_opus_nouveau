@@ -56,8 +56,8 @@ import 'widgets/home_blocks.dart';
 /// la bascule juste au-dessus fait déjà ce travail. **Ne pas les
 /// réintroduire** : le Plan se lit sur `/plan`, la progression sur les écrans
 /// de progression (`screens/progression/`, ouverts par « Voir mes résultats »
-/// et depuis le Profil), et le diagnostic complet garde sa porte (`/diagnostic-tcf`) depuis Réviser, le
-/// Plan et le rapport de diagnostic. Même passe côté web.
+/// et depuis le Profil) ; le parcours du diagnostic complet est retiré des
+/// fronts depuis le 2026-09-26. Même passe côté web.
 ///
 /// 🛑 **[_IndependenceNote] ne se touche pas** : c'est une exigence de
 /// conformité store (Misleading Claims).
@@ -85,8 +85,7 @@ import 'widgets/home_blocks.dart';
 ///
 /// 🛑 Elle est une référence de **mise en page**, jamais une source de données.
 /// Une seule action dominante — « À faire maintenant » —, un en-tête sans CTA,
-/// une priorité TCF verrouillée qui n'est **pas nommée**, et le diagnostic
-/// complet qui reste secondaire.
+/// et une priorité TCF verrouillée qui n'est **pas nommée**.
 ///
 /// ⚠️ **Deux écarts assumés, et leurs raisons** :
 /// - les **raccourcis du bas** (Réviser · Examens blancs · Mes résultats) sont
@@ -190,8 +189,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.watch(civicPlanProvider);
     ref.watch(diagnosticCourantProvider);
     // 🛑 **La préparation est observée ICI depuis le 2026-09-19** : elle était
-    // lue par `_blocs` pour la carte « Continuez votre diagnostic complet »,
-    // supprimée. Seule `_actionCivique` la lit encore, donc en TCF plus rien ne
+    // lue par `_blocs` pour une carte d'Accueil supprimée. Seule `_actionCivique` la lit encore, donc en TCF plus rien ne
     // l'observait — et `_poserDefaut` compte sur elle.
     ref.watch(preparationProvider);
 

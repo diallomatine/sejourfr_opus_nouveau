@@ -10,6 +10,67 @@
 
 ---
 
+## 🛑 Le diagnostic COMPLET (4 épreuves) est RETIRÉ des fronts (2026-09-26)
+
+**Décision du propriétaire.** Le diagnostic complet n'est plus un parcours proposé. La règle
+devient : on fait le diagnostic **RAPIDE** → le Plan est créé, **EE** remplie avec les priorités
+détectées ; pour les autres épreuves (CO, CE, EO), **le Plan demande un EXAMEN BLANC** — c'est là
+qu'on identifie les compétences à travailler (`PlanDomainAssessmentDto`, natures
+`MODULE_MOCK_EXAM` / `PRODUCTION_MOCK_EXAM`, déjà servies depuis le 2026-09-16).
+
+**Deux arbitrages :**
+
+1. **Suppression FRONTS SEULEMENT** (web + mobile). Le backend — endpoints
+   `/api/tcf-diagnostics/**`, calcul 4 épreuves, `PreparationService` — reste en place, **non
+   appelé** par un parcours. Nettoyage plus tard (liste dans `docs/decisions/plan-parcours-tcf.md`,
+   entrée du 2026-09-26).
+2. **Les résultats d'un complet DÉJÀ obtenus restent lus** : le moteur du Plan, les observations
+   (`JourneyAssessmentKind.FULL_DIAGNOSTIC`), le profil TCF, les DTO et leurs miroirs front sont
+   inchangés. Côté front, seule la relecture subsiste : `tcfDiagnosticApi.current/readResult`
+   ⇄ `TcfDiagnosticRepository.current/readResult`, lus par l'écran de déblocage du Plan
+   (`PlanUnlockScreen.tsx` ⇄ `plan_unlock_screen.dart`).
+
+**Ce qui a disparu des deux fronts** : le hub `/diagnostic-tcf` et le résultat
+`/diagnostic-tcf/{id}/resultat` (web `app/(app)/diagnostic-tcf/`, `_components/diagnostic-tcf/` ⇄
+mobile `tcf_diagnostic_screen.dart`, `tcf_diagnostic_result_screen.dart`,
+`tcf_diagnostic_current_provider.dart`), le marqueur de retour `tcfDiagnosticId`
+(`TCF_DIAGNOSTIC_PARAM` ⇄ `kTcfDiagnosticParam`) dans le runner QCM et les sessions EE/EO,
+`DIAGNOSTIC_COMPLET_HREF` / `_CTA_START` / `_CTA_RESUME` ⇄ `kDiagnosticCompletRoute` /
+`kDiagnosticCompletCtaStart` / `…Resume`, la marche « Compréhension » de `DiagnosticSteps`, et
+les promesses « dans le diagnostic complet » de la présentation et du rapport rapide.
+
+**Redirections** : web `next.config.ts` → `/diagnostic-tcf` et `/diagnostic-tcf/:path*` vers
+`/plan?module=TCF` (307) ; mobile `AppRoutes.tcfDiagnosticRetire` → `/plan` (route et sous-route
+`:sessionId/resultat`).
+
+**Complet COMMENCÉ avant le retrait** (le serveur sert toujours `etape: DIAGNOSTIC_EN_COURS`,
+`fait`/`total` sur 4, `prochaineEpreuve`) :
+
+| Situation servie | Accueil (`tcfAction`) | Plan (`planIndisponible`) |
+|---|---|---|
+| `planDisponible: true` (rapide clos), complet ouvert | « Continuer mon plan » ; statut = palier servi ou « Première estimation terminée » — **plus de « Diagnostic complet : N / 4 »** | vrai Plan |
+| `planDisponible: false`, `DIAGNOSTIC_EN_COURS` avec `fait != null` (complet sans rapide) | « Faire mon diagnostic » → rapide | « Votre plan TCF commence par un diagnostic » → rapide |
+| `DIAGNOSTIC_EN_COURS` avec `fait == null` (rapide en cours) | « Reprendre » → rapide | « Reprendre mon diagnostic » → rapide |
+
+Aucun état n'est recalculé : les fronts lisent `planDisponible`, `etape` et la présence d'un
+avancement servi, comme avant ; seule la destination change.
+
+**Le rapport du rapide** garde son bloc « Découvrez où vous en êtes vraiment au TCF » (les 4
+épreuves), mais il dit désormais que **le Plan propose un examen blanc par épreuve à mesurer**
+(`DIAGNOSTIC_SUITE_*` ⇄ `kDiagnosticSuite*`), puis « Voir mon plan ».
+
+**Fil d'étapes** : dérivé de la forme servie des deux côtés — oral `null` ⇒ **une seule** étape
+d'expression. Web `diagnosticSteps({guest, oral})` ; mobile `diagnosticExpressionSteps` /
+`diagnosticStepHeader` (`diagnostic_common.dart`) : barre à un segment et en-tête « Écrit » au
+lieu de « Étape 1 sur 2 · Écrit ».
+
+⚠️ **Tout ce qui suit sur le diagnostic complet (sections du 2026-09-12 : « n'est plus un
+prérequis », CTA « Faire le diagnostic complet / Continuer le diagnostic », carte « Affiner ») est
+HISTORIQUE** côté fronts : conservé pour la trace et parce que la règle d'accès au Plan
+(`PlanFoundationResolver`) reste vraie côté serveur.
+
+---
+
 ## Le format du diagnostic est SERVI, jamais écrit par un front
 
 🔴 **Correctif du 2026-09-14, constaté à l'écran.** L'Accueil annonçait
@@ -497,6 +558,10 @@ Lecteur : la porte d'entrée du Plan TCF → `docs/regles/plan.md`.
 
 ## 🛑 Le diagnostic complet n'est plus un prérequis d'accès au Plan (2026-09-12)
 
+> ⚠️ **Historique côté fronts depuis le 2026-09-26** : le parcours complet est retiré (voir
+> « Le diagnostic COMPLET est RETIRÉ des fronts » en tête de fichier). Les CTA et la carte décrits
+> ci-dessous n'existent plus ; la condition serveur d'accès au Plan reste vraie.
+
 **Arbitrage du propriétaire.** *« Dès que le diagnostic rapide est terminé, le serveur doit
 constituer un premier Plan à partir des données disponibles dans ce diagnostic rapide. Ce Plan
 est provisoire mais réel et utilisable. […] Le diagnostic complet ne doit plus être un
@@ -634,6 +699,8 @@ Gelé par `PreparationServiceIT` : `completClosSansRapideRendLePlanDisponible` (
 `completPartielSansRapideNeFondeAucunPlan` (1/4 puis 3/4), `leRapideResteLeCheminCourt`.
 
 ### Complément du 2026-09-12 — les deux seuls libellés du diagnostic complet
+
+> ⚠️ **Supprimés le 2026-09-26** avec le parcours complet (constantes retirées des deux fronts).
 
 | Avancement | CTA |
 |---|---|

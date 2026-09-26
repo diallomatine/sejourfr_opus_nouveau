@@ -12,8 +12,6 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_full_exams_screen.dart';
 import '../../screens/diagnostic/diagnostic_screen.dart';
-import '../../screens/diagnostic_tcf/tcf_diagnostic_result_screen.dart';
-import '../../screens/diagnostic_tcf/tcf_diagnostic_screen.dart';
 import '../../screens/examens/examens_screen.dart';
 import '../../screens/reviser/reviser_screen.dart';
 import '../../screens/home/home_screen.dart';
@@ -186,22 +184,20 @@ class AppRoutes {
   /// écran de présentation.
   static const diagnosticDemarrer = '/diagnostic?demarrer=1';
 
-  /// Le diagnostic TCF **4 epreuves** (L4). 🛑 Distinct de [diagnostic], qui
-  /// porte le diagnostic INITIAL (une production ecrite + une orale) : deux
-  /// objets produit differents, que 10_ §4.1 interdit de confondre.
-  static const tcfDiagnostic = '/diagnostic-tcf';
+  /// L'ancienne adresse du diagnostic TCF **4 épreuves** (L4) — parcours
+  /// **retiré des fronts le 2026-09-26** (décision du propriétaire). Elle ne
+  /// porte plus d'écran : elle **redirige vers le Plan**, pour qu'un lien
+  /// profond déjà émis aboutisse. Les épreuves que le diagnostic rapide ne
+  /// mesure pas se mesurent par l'examen blanc que propose le Plan.
+  static const tcfDiagnosticRetire = '/diagnostic-tcf';
 
-  /// Le diagnostic CIVIQUE (L9). 🛑 Un seul cote civique, contrairement au TCF
-  /// qui en a deux : arbitrage du 2026-09-10.
+  /// Le diagnostic CIVIQUE (L9). 🛑 Un seul, comme le TCF depuis le retrait de
+  /// son diagnostic complet (2026-09-26).
   static const civicDiagnostic = '/diagnostic-civique';
   static const civicDiagnosticResult = '/diagnostic-civique/:sessionId/resultat';
 
   static String civicDiagnosticResultPath(String sessionId) =>
       '/diagnostic-civique/$sessionId/resultat';
-  static const tcfDiagnosticResult = '/diagnostic-tcf/:sessionId/resultat';
-
-  static String tcfDiagnosticResultPath(String sessionId) =>
-      '/diagnostic-tcf/$sessionId/resultat';
   static const plan = '/plan';
 
   /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
@@ -637,9 +633,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.diagnostic,
         builder: (_, __) => const DiagnosticScreen(),
       ),
+      // Diagnostic complet retiré (2026-09-26) : l'ancienne adresse et ses
+      // sous-routes (`/diagnostic-tcf/{id}/resultat`) mènent au Plan.
       GoRoute(
-        path: AppRoutes.tcfDiagnostic,
-        builder: (_, __) => const TcfDiagnosticScreen(),
+        path: AppRoutes.tcfDiagnosticRetire,
+        redirect: (_, __) => AppRoutes.plan,
+        routes: [
+          GoRoute(
+            path: ':sessionId/resultat',
+            redirect: (_, __) => AppRoutes.plan,
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.civicDiagnostic,
@@ -648,12 +652,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.civicDiagnosticResult,
         builder: (_, state) => CivicDiagnosticResultScreen(
-          sessionId: state.pathParameters['sessionId']!,
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.tcfDiagnosticResult,
-        builder: (_, state) => TcfDiagnosticResultScreen(
           sessionId: state.pathParameters['sessionId']!,
         ),
       ),

@@ -274,8 +274,7 @@ export function autresPrioritesLine(total: number): string | null {
  * Le paramètre que le runner reçoit quand la série appartient à un diagnostic
  * civique.
  *
- * 🛑 **Sa seule fonction est le RETOUR** — exactement comme
- * `TCF_DIAGNOSTIC_PARAM`. Sans lui, le candidat termine ses 40 questions et
+ * 🛑 **Sa seule fonction est le RETOUR**. Sans lui, le candidat termine ses 40 questions et
  * atterrit sur le bilan de série générique, très loin de son diagnostic : c'est
  * précisément ce qui a été constaté à l'usage. Il ne change **rien d'autre** :
  * ni la passation, ni la correction, ni le décompte.

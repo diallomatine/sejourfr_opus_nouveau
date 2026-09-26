@@ -197,8 +197,9 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   /* 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
      propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours » a été
      supprimée du Plan, puis de l'Accueil le même jour — `affinerPlan` et
-     `AffinerPlanCard` avec elle. Le complet garde sa porte, `/diagnostic-tcf`
-     (Réviser, `planIndisponible`). Ne pas la réintroduire sur cet écran. */
+     `AffinerPlanCard` avec elle ; le parcours complet lui-même est retiré des
+     fronts depuis le 2026-09-26. Les épreuves non mesurées se mesurent par
+     l'examen blanc que propose le cycle. Ne pas la réintroduire. */
   const abonne = canAccessModule(user, "TCF");
 
   return abonne

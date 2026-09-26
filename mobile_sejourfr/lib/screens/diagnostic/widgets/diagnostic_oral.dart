@@ -51,7 +51,11 @@ class DiagnosticOralStep extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              const DiagnosticProgress(activeStep: 2, completedSteps: 1),
+              const DiagnosticProgress(
+                activeStep: 2,
+                completedSteps: 1,
+                totalSteps: 2,
+              ),
               const SizedBox(height: 14),
               DiagnosticExerciseCard(exercise: exercise),
               if (exercise.instructionAudioUrl != null) ...[

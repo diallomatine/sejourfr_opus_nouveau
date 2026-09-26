@@ -153,12 +153,13 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
   action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
   d'épreuve ne dérive jamais d'une liste déjà tronquée.
-- 🛑 **Le diagnostic COMPLET n'ouvre pas le Plan, il l'affine.** Dès que le diagnostic
-  **rapide** est clos, le Plan existe : provisoire mais réel. Le fait à lire est
-  **`prep.planDisponible`**, jamais `etape` — il rend mot pour mot la condition du moteur.
-  Corollaire : un Plan provisoire ne s'appuie **que sur ce qui a été mesuré**, une compétence
-  non observée est *inconnue*, ni faible ni prioritaire. Peu de priorités toutes vraies est le
-  bon résultat. → `docs/regles/plan.md`
+- 🛑 **Le diagnostic RAPIDE ouvre le Plan ; le COMPLET est retiré des fronts (2026-09-26).**
+  Dès que le rapide est clos, le Plan existe : provisoire mais réel, EE renseignée. Le fait à
+  lire est **`prep.planDisponible`**, jamais `etape`. CO, CE et EO se mesurent par l'**examen
+  blanc** que le Plan propose ; une compétence non observée est *inconnue*, ni faible ni
+  prioritaire. Peu de priorités toutes vraies est le bon résultat. Le backend du complet est
+  conservé, non appelé, et un résultat de complet déjà obtenu reste lu. Ne jamais recréer
+  `/diagnostic-tcf`. → `docs/regles/plan.md` · `docs/regles/diagnostic.md`
 - 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
   sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
   acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne
@@ -311,7 +312,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | le Plan, une priorité, la séance, un jalon, une étape, le moteur de maîtrise, un domaine | `docs/regles/plan.md` |
 | le moteur de progression V4.2, une preuve, un palier CO/CE, un état pédagogique servi, `visibleProgress`, les écrans `/progression` (global + épreuve/thème, `/api/me/progression`) | `docs/regles/progression.md` |
 | le diagnostic initial, le parcours invité→compte→analyse, l'écran de résultat du diagnostic | `docs/regles/diagnostic.md` |
-| le diagnostic TCF **4 épreuves**, ses sections, son calcul de niveau et ses priorités | `docs/regles/diagnostic-tcf-4-epreuves.md` |
+| le diagnostic TCF **4 épreuves** (parcours **retiré des fronts** le 2026-09-26 ; backend et lecture des résultats existants conservés) | `docs/regles/diagnostic-tcf-4-epreuves.md` |
 | une rubrique, un tool-schema, un filet/purge serveur, un coût LLM, le banc, l'examinateur vocal | `docs/regles/notation-ia.md` |
 | le module Compétences (micro-entraînement EE/EO), un petit sujet, une référence | `docs/regles/competences.md` |
 | un score QCM, un niveau CECRL dérivé, l'ordre des propositions, une explication qui cite des lettres | `docs/regles/qcm.md` |

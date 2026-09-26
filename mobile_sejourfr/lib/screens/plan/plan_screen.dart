@@ -236,8 +236,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         // 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
         // propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours »
         // a été supprimée du Plan, comme le lien « Revoir mon diagnostic
-        // rapide ». Le complet reste appelé depuis l'Accueil, qui garde son
-        // `affinerPlan`. Ne pas les réintroduire sur cet écran.
+        // rapide » ; le parcours complet lui-même est retiré des fronts depuis
+        // le 2026-09-26. Les épreuves non mesurées se mesurent par l'examen
+        // blanc que propose le cycle. Ne pas les réintroduire.
         LearningPlanState.active => PlanTcfView(
             plan: value,
             // 🛑 Le parcours est **observé**, jamais attendu : son absence ne
@@ -378,20 +379,17 @@ class _PlanError extends StatelessWidget {
 /// prêt, cette porte affiche SON RAPPORT** (arbitrage du propriétaire). Le
 /// déclencheur n'est pas une étape mais un **fait servi** :
 /// [ModulePreparation.estimationSessionId], l'identifiant de la session rapide
-/// close, servi à **toutes** les étapes. Il couvre donc aussi bien « rapide
-/// fait, complet pas commencé » que « complet entamé, 0 à 3 épreuves sur 4 » —
-/// c'est le second cas qui manquait, parce que l'étape y bascule sur
-/// `DIAGNOSTIC_EN_COURS` et que [ModulePreparation.sessionId] y désigne le
-/// **complet**. Le seul état sans rapport est celui où aucun rapide n'a été
-/// clos : il n'y a rien à montrer.
+/// close, servi à **toutes** les étapes — y compris quand un diagnostic
+/// complet commencé avant son retrait (2026-09-26) fait basculer l'étape sur
+/// `DIAGNOSTIC_EN_COURS` et que [ModulePreparation.sessionId] y désigne ce
+/// complet. Le seul état sans rapport est celui où aucun rapide n'a été clos :
+/// il n'y a rien à montrer.
 ///
 /// 🛑 **Le rapport est l'ÉCRAN DE `/diagnostic`, encastré**
 /// ([DiagnosticResultView] et ses slots) — pas un résumé écrit ici : deux
 /// lectures du même diagnostic auraient fini par en dire deux choses. Et **la
 /// porte garde le geste de fin** (`closingCta: false`) : sa phrase dépend de
-/// l'étape servie, alors que le bouton du rapport dit toujours « Faire le
-/// diagnostic complet » — un contresens une fois le complet entamé, où l'étape
-/// sert « Continuer le diagnostic ».
+/// l'étape servie (`planIndisponible`), pas celle du rapport.
 class _PlanIndisponible extends ConsumerStatefulWidget {
   const _PlanIndisponible({required this.info, this.prep});
 

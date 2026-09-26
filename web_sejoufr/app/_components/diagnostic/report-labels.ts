@@ -6,8 +6,8 @@
  * mise en perspective vivent ici.
  *
  * 🛑 **Elles ne sont plus la propriété de l'écran de rapport.** La porte
- * d'entrée du Plan rappelle la même estimation quand le diagnostic complet
- * manque encore : deux écrans, une seule formulation. Recopier « Niveau estimé
+ * d'entrée du Plan rappelle la même estimation quand le Plan n'est pas encore
+ * servi : deux écrans, une seule formulation. Recopier « Niveau estimé
  * sur cet exercice » dans le second aurait fait exactement ce que le dépôt
  * paie le plus cher — deux copies d'une même règle d'affichage.
  *
@@ -123,21 +123,27 @@ export const DIAGNOSTIC_TRANSITION_TEXT =
 export const DIAGNOSTIC_TRANSITION_EMPHASIS =
   "Votre niveau peut donc être différent selon les épreuves.";
 
-/* ------------------------------------------------- le diagnostic complet */
+/* ------------------------------------------- la suite : le Plan, puis l'examen blanc
+ *
+ * 🛑 **Plus aucune promesse de « diagnostic complet »** : ce parcours est retiré
+ * des fronts depuis le 2026-09-26 (décision du propriétaire). Le rapide ouvre
+ * le Plan, et c'est le Plan qui propose un EXAMEN BLANC pour chaque épreuve que
+ * le rapide n'a pas mesurée. Le bloc le dit, sans rien promettre d'autre. */
 
-export const DIAGNOSTIC_COMPLET_TITLE = "Découvrez où vous en êtes vraiment au TCF";
+export const DIAGNOSTIC_SUITE_TITLE = "Découvrez où vous en êtes vraiment au TCF";
 
-/** Les quatre épreuves du diagnostic complet, dans l'ordre de la maquette.
- *  Aucun niveau n'y figure : elles ne sont pas encore mesurées. */
-export const DIAGNOSTIC_COMPLET_EPREUVES: ReadonlyArray<{icon: LucideIcon; label: string}> = [
+/** Les quatre épreuves du TCF IRN, dans l'ordre de la maquette.
+ *  Aucun niveau n'y figure : le bloc dit comment elles se mesurent. */
+export const DIAGNOSTIC_SUITE_EPREUVES: ReadonlyArray<{icon: LucideIcon; label: string}> = [
   {icon: Headphones, label: "Compréhension orale"},
   {icon: BookOpen, label: "Compréhension écrite"},
   {icon: PenLine, label: "Expression écrite"},
   {icon: Mic, label: "Expression orale"},
 ];
 
-export const DIAGNOSTIC_COMPLET_PROMISE = "À la fin, vous connaîtrez :";
-export const DIAGNOSTIC_COMPLET_BENEFITS = [
+export const DIAGNOSTIC_SUITE_PROMISE =
+  "Votre plan vous propose un examen blanc pour chaque épreuve à mesurer. Vous connaîtrez :";
+export const DIAGNOSTIC_SUITE_BENEFITS = [
   "votre niveau par épreuve",
   "les tâches qui vous limitent actuellement",
   "vos priorités pour atteindre votre objectif",

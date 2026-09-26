@@ -15,17 +15,15 @@ export const DUAL_CHROME_PREFIXES = [
  *  chromes : le shell applicatif (`app/(app)/layout.tsx` → `AppSidebar` +
  *  `AppTopBar`) ET le chrome public, dont le `SiteHeader` garde son
  *  propre bouton de menu — d'où deux burgers empilés sous 900 px. C'est ce qui
- *  est arrivé à `/diagnostic-tcf` et `/diagnostic-civique`, ajoutés au groupe
+ *  est arrivé à `/diagnostic-civique`, ajouté au groupe
  *  sans passer par ici. Ajouter un dossier dans `app/(app)/` ⇒ ajouter son
  *  préfixe ici, dans la même passe.
  *
- *  ⚠️ Le test est un **préfixe** : `/paiement` couvre `/paiement/succes` et
- *  `/diagnostic-tcf` couvre `/diagnostic-tcf/{id}/resultat`. */
+ *  ⚠️ Le test est un **préfixe** : `/paiement` couvre `/paiement/succes`. */
 export const APP_GROUP_PREFIXES = [
   "/aide",
   "/dashboard",
   "/diagnostic-civique",
-  "/diagnostic-tcf",
   "/favoris",
   "/paiement",
   "/parcours",
