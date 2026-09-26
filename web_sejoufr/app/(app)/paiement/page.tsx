@@ -173,7 +173,9 @@ function PaiementInner() {
     const {user, status} = useAuth();
     const router = useRouter();
     // ≤ 900 px : la flèche de la barre du haut remplace « Retour » (même geste).
-    const backInBar = useAppBarBack({fallbackHref: "/dashboard"});
+    // Écran d'arrivée (Plan, paywall, Profil) : la barre porte le menu, pas
+    // une flèche ; le « Retour » de la page reste pour revenir en arrière.
+    const backInBar = useAppBarBack(null);
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const currentPlan = deriveCurrentPlan(user);
