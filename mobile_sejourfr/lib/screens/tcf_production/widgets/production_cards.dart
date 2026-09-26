@@ -8,6 +8,7 @@ import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/pressable_card.dart';
 import '../production_result_labels.dart';
+import '../production_task_labels.dart';
 import 'production_blocks.dart';
 import 'production_common.dart';
 
@@ -173,14 +174,18 @@ class ProductionSubjectCard extends StatelessWidget {
       );
     }
     if (last != null) {
-      return const AppTag(
-        label: kTacheTraiteeLabel,
+      // Rendu mais rien à observer : « Non analysée », comme la feuille du
+      // sujet et la carte web — deux surfaces, un seul mot.
+      return AppTag(
+        label: last!.evaluation?.estNonEvaluable ?? false
+            ? kTacheNonEvaluableLabel
+            : kTacheTraiteeLabel,
         tone: TagTone.success,
         icon: LucideIcons.check,
         compact: true,
       );
     }
-    return const AppTag(label: 'À faire', tone: TagTone.neutral, compact: true);
+    return const AppTag(label: kSubjectTodo, tone: TagTone.neutral, compact: true);
   }
 }
 

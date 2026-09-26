@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../production_catalog.dart';
+import '../production_task_labels.dart';
 import '../tcf_production_module.dart';
 import 'production_common.dart';
 
@@ -124,7 +125,7 @@ class TaskBanner extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'CONSIGNE',
+                  kTaskBriefLabel.toUpperCase(),
                   style: AppFonts.label(size: 10.5, color: AppColors.blue),
                 ),
                 // La contrainte est la PREMIÈRE chose lue de la consigne :

@@ -10,6 +10,7 @@ import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
+import 'production_task_labels.dart';
 import 'task_training_data.dart';
 import 'tcf_production_module.dart';
 import 'widgets/production_blocks.dart';
@@ -48,8 +49,8 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
         child: Column(
           children: [
             ScreenHeader(
-              title: 'Exemples corrigés',
-              sub: 'Tâche $tache · ${meta.title}',
+              title: kExamplesTitle,
+              sub: examplesMeta(tache, meta.title),
               onBack: () => _back(context),
             ),
             Expanded(
@@ -85,19 +86,13 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
 
     return [
       ProductionSectionHead(
-        title: 'Des modèles à imiter',
-        description: module.isEo
-            ? 'Écoute comment un candidat traite le sujet, puis reprends la structure sur tes propres réponses.'
-            : 'Lis comment un candidat traite le sujet, puis reprends la structure sur tes propres réponses.',
+        title: kExamplesSectionTitle,
+        description: examplesHint(isOral: module.isEo),
         accent: module.accent,
       ),
       const SizedBox(height: 11),
       if (examples.isEmpty)
-        MutedHint(
-          text: module.isEo
-              ? 'Les exemples audio arriveront bientôt pour cette tâche.'
-              : 'Les exemples rédigés arriveront bientôt pour cette tâche.',
-        )
+        MutedHint(text: examplesEmpty(isOral: module.isEo))
       else
         for (int i = 0; i < examples.length; i++)
           FeaturedExampleCard(
@@ -114,10 +109,9 @@ class TcfTaskExamplesScreen extends ConsumerWidget {
         onTap: () => _openPlan(context),
       ),
       const SizedBox(height: 15),
-      ProductionNotice(
-        title: 'À quoi servent ces modèles',
-        body:
-            "Ils montrent une façon de faire, pas la seule bonne réponse. Repère la structure et les formules, puis écris ou parle avec tes propres mots.",
+      const ProductionNotice(
+        title: kExamplesNoticeTitle,
+        body: kExamplesNoticeBody,
       ),
     ];
   }

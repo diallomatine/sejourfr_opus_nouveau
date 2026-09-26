@@ -21,6 +21,7 @@ import 'production_catalog.dart';
 import 'production_nav.dart';
 import 'production_quota_info.dart';
 import 'production_result_labels.dart';
+import 'production_task_labels.dart';
 import 'task_training_data.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
@@ -263,7 +264,7 @@ class _ProductionSubjectsViewState
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        'Dernière évaluation : $etat',
+                        lastEvaluationLabel(etat),
                         style: AppFonts.ui(
                           size: 12.5,
                           color: AppColors.green,
@@ -275,7 +276,7 @@ class _ProductionSubjectsViewState
                 ),
                 const SizedBox(height: 16),
                 AppButton(
-                  label: 'Voir le détail',
+                  label: kSubjectDetailCta,
                   icon: LucideIcons.fileText,
                   variant: AppButtonVariant.ghost,
                   height: 46,
@@ -286,7 +287,7 @@ class _ProductionSubjectsViewState
                 ),
                 const SizedBox(height: 8),
                 AppButton(
-                  label: 'Refaire',
+                  label: kSubjectRedoCta,
                   icon: LucideIcons.refreshCw,
                   variant: widget.module.isEo
                       ? AppButtonVariant.accent
@@ -327,13 +328,7 @@ class _ProductionSubjectsViewState
             ),
           ],
           data: (data) => data.subjects.isEmpty
-              ? const [
-                  ProductionEmptyView(
-                    description:
-                        'Les sujets de cette tâche ne sont pas encore prêts. '
-                        'Reviens vite !',
-                  ),
-                ]
+              ? const [ProductionEmptyView(description: kSubjectsEmpty)]
               : _subjects(mod, data),
         );
 
@@ -366,7 +361,8 @@ class _ProductionSubjectsViewState
       return true;
     }).toList();
 
-    final visible = _showAll ? filtered : filtered.take(6).toList();
+    final visible =
+        _showAll ? filtered : filtered.take(kSubjectsPageSize).toList();
     final remaining = filtered.length - visible.length;
 
     return [
@@ -374,9 +370,9 @@ class _ProductionSubjectsViewState
         active: _filter,
         accent: mod.accent,
         labels: [
-          'Tous · ${indexed.length}',
-          'À faire · $todoCount',
-          'Traités · $doneCount',
+          subjectFilterLabel(kSubjectFilterAll, indexed.length),
+          subjectFilterLabel(kSubjectFilterTodo, todoCount),
+          subjectFilterLabel(kSubjectFilterDone, doneCount),
         ],
         onChanged: (i) => setState(() {
           _filter = i;
@@ -385,16 +381,12 @@ class _ProductionSubjectsViewState
       ),
       const SizedBox(height: 14),
       ProductionSectionHead(
-        title: "Sujets d'entraînement",
-        description: mod.isEo
-            ? 'Choisis un sujet, enregistre ta réponse, reçois ta correction.'
-            : 'Choisis un sujet, rédige ta réponse, reçois ta correction.',
+        title: kSubjectsTitle,
+        description: subjectsHint(isOral: mod.isEo),
         accent: mod.accent,
         trailing: ProductionSideLink(
           icon: mod.isEo ? LucideIcons.headphones : LucideIcons.bookOpen,
-          label: data.examples.isEmpty
-              ? 'Exemples corrigés'
-              : '${data.examples.length} exemples corrigés',
+          label: examplesLinkLabel(data.examples.length),
           accent: mod.accent,
           onTap: _openExamples,
         ),
@@ -402,9 +394,7 @@ class _ProductionSubjectsViewState
       const SizedBox(height: 12),
       if (filtered.isEmpty)
         MutedHint(
-          text: _filter == 2
-              ? "Aucun sujet traité pour l'instant."
-              : 'Tous les sujets sont traités. Bravo !',
+          text: _filter == 2 ? kSubjectsNoneDone : kSubjectsAllDone,
         )
       else
         for (final (origIndex, task) in visible)
@@ -434,7 +424,7 @@ class _ProductionSubjectsViewState
           ),
       if (remaining > 0)
         ShowMoreButton(
-          label: 'Voir les $remaining autres',
+          label: showMoreLabel(remaining),
           accent: mod.accent,
           onTap: () => setState(() => _showAll = true),
         ),

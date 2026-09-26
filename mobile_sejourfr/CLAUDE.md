@@ -2521,6 +2521,15 @@ causes, corrigées ensemble.
      tient par construction : les deux providers sont portés par l'épreuve et
      `keepAlive`.
 
+**Textes du détail d'une tâche et des exemples** (2026-09-26) : une seule
+autorité, `production_task_labels.dart`, **miroir mot pour mot** de
+`web_sejoufr/lib/production-task-labels.ts`, **au vouvoiement** (l'écran
+tutoyait : « Choisis un sujet… », « Tu te présentes… »). `productionTaskMeta`
+y lit `productionTaskIntro`. La carte de sujet dit aussi « Non analysée » (comme
+la feuille et le web), et une carte d'exemple **oral** qui porte des
+explications ou un plan affiche « Voir le corrigé » sous le lecteur — le
+corrigé n'avait aucun chemin à l'oral.
+
 **« Exemples » n'est pas un onglet** (la barre n'en a que deux) : c'est une
 ressource d'appoint, atteinte par le `ProductionSideLink` posé en tête de la
 liste des sujets d'examen, qui pousse `TcfTaskExamplesScreen`. Ne pas le

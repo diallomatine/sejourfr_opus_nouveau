@@ -72,6 +72,7 @@ export function SkillShell({
   meta,
   level,
   wide = false,
+  hideBack = false,
   children,
 }: {
   backHref: string;
@@ -98,6 +99,12 @@ export function SkillShell({
    * 1120 px se lit comme une page inachevée.
    */
   wide?: boolean;
+  /**
+   * L'écran porte son retour lui-même — la tête de tâche (`TaskChrome`) le
+   * pose dans sa carte, comme `TaskBanner` côté mobile. Sans effet quand
+   * `title` est renseigné (l'en-tête de parcours a déjà sa flèche).
+   */
+  hideBack?: boolean;
   children: ReactNode;
 }) {
   const titleInBar = useAppBarTitle(title ? {title, subtitle: meta ?? eyebrow} : null);
@@ -120,7 +127,7 @@ export function SkillShell({
             </span>
           )}
         </header>
-      ) : (
+      ) : hideBack ? null : (
         <Link href={backHref} className={s.back}>
           <ArrowLeft size={16} aria-hidden />
           {backLabel}

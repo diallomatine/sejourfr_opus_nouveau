@@ -3667,7 +3667,7 @@ diffèrent). La route sert désormais un **vrai écran**, `ProductionTasks`.
 
 Le détail d'une tâche n'a que deux onglets. Les réponses-modèles sont une
 **ressource d'appoint** : lien discret en tête de la liste des sujets d'examen
-(« Exemples corrigés → ») → page dédiée
+(« 🎧 N exemples corrigés », `examplesLinkLabel`) → page dédiée
 `…/tache/[n]/exemples` (`ProductionExamples`). En faire un onglet mettait sur le
 même plan « je produis » et « je lis un modèle ». L'appel
 `productionApi.listExamples` est inchangé — c'est le point d'entrée qui bouge.
@@ -3675,6 +3675,34 @@ même plan « je produis » et « je lis un modèle ». L'appel
 ⚠️ La maquette 2026-08-21 propose en plus un « Voir un exemple » **déplié sous
 chaque sujet d'examen** : le propriétaire l'a explicitement **écarté**. Ne pas
 l'implémenter — la page dédiée reste le seul accès aux modèles.
+
+### Détail d'une tâche et exemples : miroirs du mobile (2026-09-26)
+
+`ProductionSubjects` et `ProductionExamples` reproduisent **brique pour
+brique** `ProductionTaskScreen`/`ProductionSubjectsView` et
+`TcfTaskExamplesScreen` (mobile). Textes : **une autorité par front**,
+`lib/production-task-labels.ts` ⇄
+`mobile_sejourfr/lib/screens/tcf_production/production_task_labels.dart`, mot
+pour mot, **au vouvoiement** (le mobile tutoyait ; `productionTaskSubtitle` et
+ses deux variantes EE/EO, devenus orphelins, sont supprimés de `lib/types.ts`).
+- **Tête** : `TaskChrome` porte son **retour rond** (props `backHref`/`backLabel`,
+  `SkillShell hideBack`), le kicker, l'intitulé, l'encart « Consigne » avec la
+  contrainte **servie** en grand puis `productionTaskIntro`. Bandeau (tête |
+  consigne) au-delà de 760 px de **conteneur**. Même tête sur `CompetencesList`.
+- **Liste** : filtres « Tous · N / À faire · N / Traités · N », intertitre +
+  lien exemples, cartes compactes (`task.module.css` : numéro `01`, titre 1
+  ligne, extrait 2 lignes, pastille d'état, bouton rond play / refaire /
+  cadenas), 6 puis « Voir les N autres ». **Aucune pastille tâche/durée par
+  carte** : la tête les dit une fois. Grille `auto-fit` (min 380 px) : une
+  colonne à 768, deux sur desktop. Sujet traité → `ExamDoneSheet` « Voir le
+  détail » (`…/resultats/{id}?back=`) / « Refaire ».
+- **« Traité »** = au moins une production (`latestSubmissionByTask`), la règle
+  du « N/M sujets » servi par le dashboard et de `lastByTaskId` mobile.
+- **Exemples** : cartes « EXEMPLE CORRIGÉ » (lecteur intégré à l'oral, « Voir
+  le corrigé » → feuille : résumé, écoute, texte du modèle à l'écrit seulement,
+  « Ce qui fait la différence », « Plan rapide »), carte « Méthode &
+  formules-clés » → feuille `productionPreparationPoints` (miroir de
+  `preparation_points.dart`), encart « À quoi servent ces modèles ».
 
 ### Écrans repris et invariants conservés
 

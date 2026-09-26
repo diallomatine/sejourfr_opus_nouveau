@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../production_task_labels.dart';
 
 /// Points de préparation « Pour réussir, pensez à » par épreuve / tâche.
 /// Source unique, partagée par le briefing EO/EE, le plan de méthode, etc.
+/// 🛑 Miroir mot pour mot de `productionPreparationPoints`
+/// (`web_sejoufr/lib/production-task-labels.ts`), qui la lit pour la fiche de
+/// méthode des exemples corrigés.
 List<(String, String)> productionPreparationPoints({
   required bool isEo,
   required int tache,
@@ -79,7 +83,7 @@ class PreparationPoints extends StatelessWidget {
     super.key,
     required this.isEo,
     required this.tache,
-    this.label = 'POUR RÉUSSIR, PENSEZ À',
+    this.label = kPreparationLabel,
   });
 
   final bool isEo;

@@ -1,0 +1,727 @@
+/* ============================================================================
+   Détail d'une tâche EE/EO (sujets d'entraînement) et ses exemples corrigés.
+
+   Miroirs Flutter : `ProductionSubjectCard` (`widgets/production_cards.dart`),
+   `FeaturedExampleCard` / `StrategyCard` / `ExampleDetailSheet` / `PlanSheet`
+   (`widgets/production_examples.dart`), `PreparationPoints`.
+
+   Rendu DANS `.wrap` de `skill.module.css` : l'accent (`--skill-accent`) et les
+   ombres (`--skill-shadow*`) en descendent. Couleurs = tokens uniquement.
+
+   Mobile-first : à 360 px, c'est l'écran Flutter. Les grilles s'ouvrent sur
+   la largeur du CONTENEUR (la barre latérale du shell connecté mange une
+   largeur que le viewport ne dit pas).
+   ============================================================================ */
+
+.body {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ sujets */
+
+/* Colonnes « si ça respire » : une carte de sujet ne descend pas sous 380 px
+   (titre sur une ligne + colonne d'état), un modèle sous 340 px. D'où une
+   colonne à 768 px pour les sujets, deux pour les modèles, et deux partout
+   au-delà de ~1100 px de fenêtre (barre latérale comprise). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 11px;
+}
+
+.gridExamples {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+@container (min-width: 700px) {
+  .grid {
+    gap: 14px;
+  }
+}
+
+.subject {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  width: 100%;
+  padding: 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 23px;
+  background: var(--color-white);
+  box-shadow: var(--skill-shadow);
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.subject:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--skill-shadow-lg);
+  border-color: color-mix(in srgb, var(--skill-accent) 28%, var(--color-line));
+}
+
+.subject:active {
+  transform: scale(0.985);
+}
+
+.subject:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+/* Liseré de statut : seulement sur un sujet traité, teinté par son palier. */
+.subjectDone::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 17px;
+  bottom: 17px;
+  width: 3px;
+  border-radius: 0 5px 5px 0;
+  background: var(--subject-tone);
+}
+
+.subjectDone {
+  border-color: color-mix(in srgb, var(--subject-tone) 35%, var(--color-line));
+}
+
+.toneGreen {
+  --subject-tone: var(--color-green);
+}
+
+.toneBlue {
+  --subject-tone: var(--color-blue);
+}
+
+.toneAmber {
+  --subject-tone: var(--color-amber);
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.tileDone {
+  background: color-mix(in srgb, var(--subject-tone) 12%, transparent);
+  color: var(--subject-tone);
+}
+
+.tileLocked {
+  background: var(--color-paper-2);
+  color: var(--color-muted-2);
+}
+
+.subjectBody {
+  min-width: 0;
+}
+
+.subjectTitle {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.subjectText {
+  display: -webkit-box;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.38;
+  color: var(--color-muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.subjectSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--skill-accent);
+  color: var(--color-white);
+}
+
+.dotLocked {
+  background: var(--color-paper-2);
+  color: var(--color-muted-2);
+}
+
+.hint {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-paper);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  margin: 12px auto 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--skill-accent);
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--color-blue-soft);
+}
+
+.sideLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--skill-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sideLink:hover {
+  text-decoration: underline;
+}
+
+.sideLink:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+/* ----------------------------------------------------------- exemples */
+
+.exCard {
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 23px;
+  background: var(--color-white);
+  box-shadow: var(--skill-shadow);
+}
+
+.exEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--skill-accent);
+}
+
+.exTitle {
+  margin: 8px 0 11px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--color-ink);
+}
+
+/* Les actions se calent en pied de carte : dans une grille à deux colonnes,
+   deux cartes de hauteurs différentes gardent leurs lecteurs alignés. */
+.exActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 17px;
+  background: var(--color-paper-2);
+}
+
+.playBtn {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--skill-accent);
+  color: var(--color-white);
+  cursor: pointer;
+}
+
+.playBtn:disabled {
+  background: var(--color-muted-2);
+  cursor: default;
+}
+
+.playBtn:focus-visible {
+  outline: 2px solid var(--skill-accent);
+  outline-offset: 2px;
+}
+
+.track {
+  flex: 1;
+  min-width: 0;
+}
+
+.bar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+.barFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--skill-accent);
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.outlineBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-white);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.outlineBtn:hover {
+  border-color: var(--skill-accent);
+}
+
+.lockedBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--color-paper-2);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lockedIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--color-line);
+  color: var(--color-muted-2);
+}
+
+.lockedText {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.chev {
+  flex: none;
+  color: var(--color-muted-2);
+}
+
+.bottom {
+  display: grid;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+@container (min-width: 700px) {
+  .bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 14px;
+  }
+}
+
+/* `SkillNotice` porte une marge haute pensée pour un flux vertical. */
+.bottom > aside {
+  margin-top: 0;
+}
+
+.strategy {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--skill-accent) 25%, transparent);
+  border-radius: 23px;
+  background: var(--color-white);
+  box-shadow: var(--skill-shadow);
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.strategy:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--skill-shadow-lg);
+}
+
+.strategyIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--skill-accent) 10%, transparent);
+  color: var(--skill-accent);
+}
+
+.strategyTitle {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.strategyText {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.38;
+  color: var(--color-muted);
+}
+
+/* --------------------------------------------------------- feuilles */
+
+.sheetRoot {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-ink) 45%, transparent);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 8px 18px calc(24px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
+  background: var(--color-white);
+  --skill-accent: var(--color-blue);
+}
+
+.sheetMuted {
+  background: var(--color-paper);
+}
+
+@media (min-width: 640px) {
+  .sheetRoot {
+    align-items: center;
+    padding: 18px;
+  }
+
+  .sheet {
+    border-radius: 22px;
+    padding-bottom: 24px;
+  }
+}
+
+.sheetTop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 30px;
+}
+
+.handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-strong);
+}
+
+.sheetClose {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.sheetClose:hover {
+  color: var(--color-ink);
+}
+
+.sheetTitle {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.sheetResume {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.listen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--skill-accent);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--color-white);
+  cursor: pointer;
+}
+
+.listen:disabled {
+  background: var(--color-muted-2);
+  cursor: default;
+}
+
+.blockLabel {
+  display: block;
+  margin: 18px 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+}
+
+.modelText {
+  margin: 0;
+  padding: 14px;
+  border-left: 4px solid var(--skill-accent);
+  border-radius: 17px;
+  background: var(--color-paper);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-2);
+  white-space: pre-wrap;
+}
+
+.why {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-white);
+}
+
+.whyIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--color-amber-light);
+  color: var(--color-amber);
+}
+
+.whyTitle {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.whyText {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  white-space: pre-wrap;
+}
+
+.planTitle {
+  margin: 18px 0 11px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.planList {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planRow {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-ink-2);
+}
+
+.planCheck {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 16%, transparent);
+  color: var(--color-green);
+}
+
+.prepLabel {
+  display: block;
+  margin: 14px 0 10px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--color-muted);
+}
+
+.prepList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prepItem {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--color-paper);
+}
+
+.prepNum {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--color-red-light);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-red);
+}
+
+.prepTitle {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.prepAide {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subject,
+  .strategy {
+    transition: none;
+  }
+
+  .subject:hover,
+  .subject:active,
+  .strategy:hover {
+    transform: none;
+  }
+}

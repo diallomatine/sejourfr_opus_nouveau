@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../expression_labels.dart';
+import '../production_task_labels.dart';
 import '../tcf_production_module.dart';
 
 /// Petites briques partagées par le hub d'épreuve et l'écran d'une tâche,
@@ -19,7 +20,8 @@ import '../tcf_production_module.dart';
 /// dans le briefing d'examen et sur le web, pour la même tâche.
 ///
 /// **Écrit et oral disent la même chose** : mêmes tâches, mêmes intentions,
-/// seule la façon de produire change (rédiger ou parler).
+/// seule la façon de produire change (rédiger ou parler). La phrase vit dans
+/// `production_task_labels.dart` ([productionTaskIntro]), miroir du web.
 ///
 /// ⚠️ Aucune **borne** ici (longueur de copie, durée de parole) : elles vivent
 /// dans `production_tasks.mots_min/mots_max` / `duree_max_sec` et se lisent par
@@ -30,23 +32,7 @@ import '../tcf_production_module.dart';
   TcfProductionModule module,
   int tache,
 ) {
-  final intro = module.isEo
-      ? switch (tache) {
-          1 =>
-            "Tu te présentes et tu réponds aux questions de l'examinateur : ton parcours, tes goûts, tes projets.",
-          2 =>
-            'Tu joues une situation de la vie courante et tu poses les questions qu\'il faut pour obtenir ce que tu veux.',
-          _ =>
-            'Tu donnes ton point de vue sur un sujet et tu le défends avec des arguments et des exemples.',
-        }
-      : switch (tache) {
-          1 =>
-            'Tu réponds à un message court — invitation, demande, annonce — en traitant chaque point demandé.',
-          2 =>
-            'Tu racontes une expérience personnelle au passé, dans l\'ordre, avec ce que tu en as retenu.',
-          _ =>
-            'Tu donnes ton avis sur une question et tu l\'argumentes, en tenant compte de l\'avis opposé.',
-        };
+  final intro = productionTaskIntro(isOral: module.isEo, tache: tache);
   return (title: productionTaskTitle(module.epreuve, tache), intro: intro);
 }
 

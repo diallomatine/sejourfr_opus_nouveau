@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/pressable_card.dart';
+import '../production_task_labels.dart';
 import '../tcf_production_module.dart';
 import 'production_blocks.dart';
 import 'production_common.dart';
@@ -118,7 +119,7 @@ class _FeaturedExampleCardState extends State<FeaturedExampleCard> {
                 Icon(LucideIcons.sparkles, size: 14, color: widget.accent),
                 const SizedBox(width: 6),
                 Text(
-                  'EXEMPLE CORRIGÉ',
+                  kExampleEyebrow,
                   style: AppFonts.label(size: 10, color: widget.accent),
                 ),
               ],
@@ -131,14 +132,19 @@ class _FeaturedExampleCardState extends State<FeaturedExampleCard> {
             const SizedBox(height: 11),
             if (widget.locked)
               _LockedExampleBar(isOral: example.hasAudio, onTap: widget.onOpen)
-            else if (example.hasAudio)
-              _buildPlayer()
-            else
-              _OutlineButton(
-                icon: LucideIcons.fileText,
-                label: 'Voir le corrigé',
-                onTap: widget.onOpen,
-              ),
+            else ...[
+              if (example.hasAudio) _buildPlayer(),
+              // À l'oral, le corrigé (explications, plan rapide) n'avait aucun
+              // chemin : le lecteur prenait toute la carte. Le web le montrait.
+              if (!example.hasAudio || _hasCorrige(example)) ...[
+                if (example.hasAudio) const SizedBox(height: 8),
+                _OutlineButton(
+                  icon: LucideIcons.fileText,
+                  label: kExampleOpenCta,
+                  onTap: widget.onOpen,
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -230,6 +236,10 @@ class _FeaturedExampleCardState extends State<FeaturedExampleCard> {
   }
 }
 
+/// Le modèle a-t-il quelque chose à montrer au-delà de l'écoute ?
+bool _hasCorrige(ProductionExampleDto ex) =>
+    (ex.explications?.trim().isNotEmpty ?? false) || ex.planPoints.isNotEmpty;
+
 String _formatClock(Duration d) {
   final m = d.inMinutes;
   final s = d.inSeconds % 60;
@@ -311,9 +321,7 @@ class _LockedExampleBar extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                isOral
-                    ? "Écoute incluse dans le pass Intégral"
-                    : "Corrigé inclus dans le pass Intégral",
+                exampleLockedLabel(isOral: isOral),
                 style: AppFonts.ui(
                   size: 12,
                   weight: FontWeight.w700,
@@ -363,12 +371,12 @@ class StrategyCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Méthode & formules-clés',
+                    kMethodTitle,
                     style: AppFonts.ui(size: 15, weight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Le plan en 3 points, à réutiliser sur tous les sujets.',
+                    kMethodText,
                     style: AppFonts.ui(
                       size: 12,
                       color: AppColors.inkSoft,
@@ -415,7 +423,7 @@ class PlanSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
                   Text(
-                    'Méthode & formules-clés',
+                    kMethodTitle,
                     style: AppFonts.display(size: 20),
                   ),
                   const SizedBox(height: 14),
@@ -545,7 +553,7 @@ class _ExampleDetailSheetState extends State<ExampleDetailSheet> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              playing ? 'Pause' : 'Écouter le modèle',
+                              playing ? kExamplePause : kExampleListen,
                               style: AppFonts.ui(
                                 size: 14,
                                 weight: FontWeight.w900,
@@ -573,7 +581,7 @@ class _ExampleDetailSheetState extends State<ExampleDetailSheet> {
                   if (!widget.module.isEo) ...[
                     const SizedBox(height: 18),
                     Text(
-                      'TEXTE DU MODÈLE',
+                      kExampleTextLabel,
                       style: AppFonts.label(size: 10, color: AppColors.inkSoft),
                     ),
                     const SizedBox(height: 8),
@@ -600,14 +608,14 @@ class _ExampleDetailSheetState extends State<ExampleDetailSheet> {
                       ex.explications!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     ProductionNotice(
-                      title: 'Ce qui fait la différence',
+                      title: kExampleWhyTitle,
                       body: ex.explications!,
                       icon: LucideIcons.lightbulb,
                     ),
                   ],
                   if (ex.planPoints.isNotEmpty) ...[
                     const SizedBox(height: 18),
-                    Text('Plan rapide', style: AppFonts.display(size: 18)),
+                    Text(kExamplePlanTitle, style: AppFonts.display(size: 18)),
                     const SizedBox(height: 11),
                     for (final p in ex.planPoints) _PlanRow(text: p),
                   ],

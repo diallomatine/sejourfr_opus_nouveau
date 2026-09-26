@@ -3,18 +3,21 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Check, Lock } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Headphones, Lock, Play, RefreshCw } from "lucide-react";
 import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   latestSubmissionByTask,
   loadEpreuveTasks,
+  loadExamples,
   loadMySubmissions,
+  productionExamplesKey,
   productionMineKey,
   productionTasksKey,
   tasksOfTache,
 } from "@/lib/production-catalog";
 import {
+  TACHE_EVALUEE_LABEL,
   TACHE_NON_EVALUABLE_LABEL,
   TACHE_TRAITEE_LABEL,
   productionNonEvaluable,
@@ -22,6 +25,24 @@ import {
   tacheNiveauLabel,
   tacheNiveauTone,
 } from "@/lib/production-feedback";
+import {
+  SUBJECTS_ALL_DONE,
+  SUBJECTS_EMPTY,
+  SUBJECTS_NONE_DONE,
+  SUBJECTS_PAGE_SIZE,
+  SUBJECTS_TITLE,
+  SUBJECT_DETAIL_CTA,
+  SUBJECT_FILTER_ALL,
+  SUBJECT_FILTER_DONE,
+  SUBJECT_FILTER_TODO,
+  SUBJECT_REDO_CTA,
+  SUBJECT_TODO,
+  examplesLinkLabel,
+  lastEvaluationLabel,
+  showMoreLabel,
+  subjectFilterLabel,
+  subjectsHint,
+} from "@/lib/production-task-labels";
 import { prodQuotaInfoKey, shouldAnnounceFreeTrial } from "@/lib/production-quota-info";
 import { useCachedData } from "@/lib/use-cached-data";
 import { isPlanStep } from "@/lib/plan-step";
@@ -29,10 +50,12 @@ import { usePlanStepPurchaseOrigin } from "@/app/_components/plan/use-plan-journ
 import {
   canAccessModule,
   productionSubjectTitle,
-  productionTaskConstraint,
+  type ProductionSubmissionDto,
+  type ProductionTaskDto,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
+import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import {
@@ -40,47 +63,70 @@ import {
   SkillBadge,
   type SkillBadgeTone,
   SkillFilterRow,
-  SkillNotice,
-  type SkillRowMark,
-  SkillRowCard,
+  SkillLockBadge,
   SkillShell,
 } from "@/app/_components/skill-ui/SkillLayout";
 import {TaskChrome} from "./TaskChrome";
 import s from "@/app/_components/skill-ui/skill.module.css";
+import t from "./task.module.css";
 import { type ProductionConfig } from "./config";
 
 type SubjectFilter = "all" | "todo" | "done";
 
+type NiveauTone = ReturnType<typeof tacheNiveauTone>;
+
 /** Un sujet fait se lit par son PALIER TCF (cf. `tacheNiveauTone`), jamais par
  *  une note : une tâche isolée n'en a pas au TCF, et aucun palier ne se peint en
- *  rouge. `neutral` = fait mais pas encore évalué → simplement « traité ». */
-const TONE_BADGE: Record<ReturnType<typeof tacheNiveauTone>, SkillBadgeTone> = {
-  neutral: "treated",
+ *  rouge. `neutral` = fait mais sans niveau affichable → vert « terminé », comme
+ *  `ProductionSubjectCard` côté mobile. */
+const TONE_BADGE: Record<NiveauTone, SkillBadgeTone> = {
+  neutral: "validated",
   amber: "reinforce",
   blue: "treated",
   green: "validated",
 };
 
-const TONE_MARK: Record<ReturnType<typeof tacheNiveauTone>, SkillRowMark> = {
-  neutral: "done",
-  amber: "reinforce",
-  blue: "done",
-  green: "validated",
+const TONE_CLASS: Record<NiveauTone, string> = {
+  neutral: t.toneGreen,
+  amber: t.toneAmber,
+  blue: t.toneBlue,
+  green: t.toneGreen,
 };
 
+/** L'état d'un sujet traité, en toutes lettres — trois états sans niveau,
+ *  jamais confondus : rien de rendu au correcteur (« Traité »), rendu mais rien
+ *  à observer (« Non analysée »), corrigé sans niveau affichable (« Évaluée »).
+ *  Miroir de la feuille `_openDoneSheet` (mobile). */
+function doneStateLabel(sub: ProductionSubmissionDto): string {
+  const niveau = tacheNiveau(sub.evaluation);
+  if (niveau) return tacheNiveauLabel(niveau);
+  if (!sub.evaluation) return TACHE_TRAITEE_LABEL;
+  return productionNonEvaluable(sub.evaluation) ? TACHE_NON_EVALUABLE_LABEL : TACHE_EVALUEE_LABEL;
+}
+
 /**
- * Sujets d'examen d'une tâche productive — le **seul contenu du détail d'une
- * tâche** depuis que les compétences ne se travaillent plus que via le Plan
- * (2026-09-20), sous la carte de consigne partagée (`TaskChrome`) : filtres
- * avec compteurs, puis les cartes de sujet.
+ * Sujets d'entraînement d'une tâche productive — le **seul contenu du détail
+ * d'une tâche** depuis que les compétences ne se travaillent plus que via le
+ * Plan (2026-09-20). Miroir de `ProductionTaskScreen` +
+ * `ProductionSubjectsView` (mobile), brique pour brique : tête de tâche avec
+ * son retour et sa consigne (`TaskChrome`), filtres Tous / À faire / Traités
+ * avec compteurs, intertitre et lien discret vers les exemples corrigés, puis
+ * des cartes compactes (numéro, titre sur une ligne, extrait de consigne sur
+ * deux, pastille d'état, bouton rond). La tâche et sa durée sont dites UNE fois
+ * par la tête : aucune carte ne les répète.
  *
- * Les **exemples** ne sont pas un espace de la tâche : c'est une ressource
- * d'appoint, atteinte par un lien discret en tête de la liste et rendue sur sa
- * propre page (`ProductionExamples`). En faire un onglet mettait sur le même
- * plan « je produis » et « je lis un modèle ».
+ * **« Traité »** = au moins une production du candidat sur ce sujet, quels que
+ * soient son statut et sa session (`latestSubmissionByTask`) — la règle du
+ * « N/M sujets » servi par `/api/me/dashboard` et celle du mobile
+ * (`ProductionCatalog.lastByTaskId`). Rien n'est recompté autrement ici.
  *
- * L'écran est strictement le même en expression écrite et en expression orale :
- * seuls l'accent (`--skill-accent`) et la zone de production changent.
+ * Sujet non fait → l'entraînement démarre ; sujet fait → feuille « Voir le
+ * détail / Refaire » ; sujet verrouillé → paywall. Le verrou suit **l'index
+ * d'origine**, jamais l'index filtré (aucun `locked` n'est servi pour les
+ * sujets de production, cf. `docs/regles/freemium.md`).
+ *
+ * Grand écran : la tête passe en bandeau (tête | consigne), les cartes en
+ * grille de deux colonnes dès 700 px de conteneur.
  */
 export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const params = useParams<{ n: string }>();
@@ -90,16 +136,21 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
      dit la provenance, et le verrou est alors le CTA du Plan (contrôle F). */
   const origin = usePlanStepPurchaseOrigin(isPlanStep(useSearchParams()), "OTHER");
 
-  // Les sujets des 3 tâches arrivent en un seul appel, mémorisé pour la
-  // session : passer d'un onglet à l'autre, ou d'une tâche à l'autre, ne
-  // redemande rien. La tâche vient de l'URL, et d'elle seule — chaque tâche est
-  // une adresse partageable.
+  // La tâche vient de l'URL, et d'elle seule — chaque tâche est une adresse
+  // partageable.
   const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
+  const isOral = config.mode === "audio";
 
   const [filter, setFilter] = useState<SubjectFilter>("all");
+  const [showAll, setShowAll] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
+  const [doneRow, setDoneRow] = useState<{
+    task: ProductionTaskDto;
+    sub: ProductionSubmissionDto;
+    order: number;
+  } | null>(null);
 
   const ready = status === "authenticated" && valid;
 
@@ -121,21 +172,26 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   );
   const doneByTask = latestSubmissionByTask(minesQuery.data);
 
+  // Les modèles : seul le compteur du lien en dépend, il ne retient jamais la
+  // liste. Même entrée que la page des exemples, qui s'ouvre donc sans appel.
+  const examplesQuery = useCachedData(
+    ready ? productionExamplesKey(config.epreuve, n) : null,
+    () => loadExamples(productionApi, config.epreuve, n),
+  );
+  const examplesCount = examplesQuery.data?.length ?? 0;
+
   // EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral.
   // Non-abonné : seul le 1er sujet est ouvert, le reste est cadenassé (parité
   // avec les séries CO/CE/Structure et l'app mobile).
   const isPremium = user ? canAccessModule(user, "TCF") : false;
 
-  // Info one-time pour les comptes gratuits : 1 essai d'entraînement offert par
-  // épreuve (EE et EO), évalué par l'IA, + 1 examen blanc de production offert
-  // (`ProductionAccessService.enforceQuota` / `AttemptService`).
+  // Info one-time pour les comptes gratuits : 1 examen blanc de production
+  // offert par épreuve (`ProductionAccessService.enforceQuota`).
   //
   // Elle vit ICI, sur la liste des sujets TCF complets, et nulle part ailleurs :
   // c'est le seul écran de l'épreuve où cette règle s'applique, et il précède
-  // l'écran de production qui consomme l'essai — on annonce avant, pas après un
-  // 403. Surtout PAS sur l'écran d'entrée (mode « Compétences ») : les
-  // micro-exercices ne verrouillent aucun sujet et ont leur propre quota
-  // (3 analyses IA offertes), l'y afficher annoncerait une règle fausse.
+  // l'écran de production — on annonce avant, pas après un 403. Surtout PAS
+  // sur la liste des compétences, qui a ses propres règles.
   const quotaInfoKey = prodQuotaInfoKey(config.epreuve);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -159,8 +215,10 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
     }
   }
 
+  const taskHref = `${config.base}/tache/${n}`;
+
   if (status === "loading") return <div className={ds.gate} />;
-  if (!user) return <ModuleDetailGate next={`${config.base}/tache/${n}`} />;
+  if (!user) return <ModuleDetailGate next={taskHref} />;
   if (!valid) {
     return (
       <DualChromeShell>
@@ -171,138 +229,125 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
     );
   }
 
-  const rows = tasks.map((t, i) => ({ task: t, index: i, sub: doneByTask[t.id] }));
+  function practice(task: ProductionTaskDto) {
+    router.push(`${config.base}/${config.inputSegment}/${task.id}`);
+  }
+
+  const rows = tasks.map((task, i) => ({ task, index: i, sub: doneByTask[task.id] }));
   const doneCount = rows.filter((r) => r.sub).length;
   const todoCount = rows.length - doneCount;
-  const shown = rows.filter((r) =>
+  const filtered = rows.filter((r) =>
     filter === "all" ? true : filter === "done" ? !!r.sub : !r.sub,
   );
+  const visible = showAll ? filtered : filtered.slice(0, SUBJECTS_PAGE_SIZE);
+  const remaining = filtered.length - visible.length;
 
   return (
     <DualChromeShell>
-      <SkillShell backHref={config.base} backLabel={config.label}>
-        <TaskChrome config={config} taskNumero={n} />
+      <SkillShell backHref={config.base} backLabel={config.label} wide hideBack>
+        <TaskChrome
+          config={config}
+          taskNumero={n}
+          backHref={config.base}
+          backLabel={config.label}
+        />
 
-        {error && <div className={s.error}>{error}</div>}
+        <div className={t.body}>
+          {error && <div className={s.error}>{error}</div>}
 
-        {loading ? (
-          <p className={s.empty}>Chargement des sujets…</p>
-        ) : rows.length === 0 ? (
-          <p className={s.empty}>Aucun sujet disponible pour cette tâche.</p>
-        ) : (
-          <>
-            <SkillFilterRow
-              label="Filtrer les sujets"
-              active={filter}
-              onPick={setFilter}
-              filters={[
-                { key: "all", label: "Tous", count: rows.length },
-                { key: "todo", label: "À faire", count: todoCount },
-                { key: "done", label: "Traités", count: doneCount },
-              ]}
-            />
+          {loading ? (
+            <p className={s.empty}>Chargement des sujets…</p>
+          ) : rows.length === 0 ? (
+            <p className={t.hint}>{SUBJECTS_EMPTY}</p>
+          ) : (
+            <>
+              <SkillFilterRow
+                label="Filtrer les sujets"
+                active={filter}
+                onPick={(key) => {
+                  setFilter(key);
+                  setShowAll(false);
+                }}
+                filters={[
+                  { key: "all", label: subjectFilterLabel(SUBJECT_FILTER_ALL, rows.length) },
+                  { key: "todo", label: subjectFilterLabel(SUBJECT_FILTER_TODO, todoCount) },
+                  { key: "done", label: subjectFilterLabel(SUBJECT_FILTER_DONE, doneCount) },
+                ]}
+              />
 
-            <SectionHead
-              title="Sujets d'entraînement"
-              text={
-                config.mode === "audio"
-                  ? "Choisissez un sujet, enregistrez votre réponse, recevez votre correction."
-                  : "Choisissez un sujet, rédigez votre réponse, recevez votre correction."
-              }
-              action={
-                <Link href={`${config.base}/tache/${n}/exemples`} className={s.headLink}>
-                  Exemples corrigés →
-                </Link>
-              }
-            />
+              <SectionHead
+                title={SUBJECTS_TITLE}
+                text={subjectsHint(isOral)}
+                action={
+                  <Link href={`${taskHref}/exemples`} className={t.sideLink}>
+                    {isOral ? (
+                      <Headphones size={14} aria-hidden />
+                    ) : (
+                      <BookOpen size={14} aria-hidden />
+                    )}
+                    {examplesLinkLabel(examplesCount)}
+                  </Link>
+                }
+              />
 
-            {shown.length === 0 ? (
-              <p className={s.empty}>
-                {filter === "done"
-                  ? "Aucun sujet traité pour l'instant."
-                  : "Tous les sujets sont traités. Bravo !"}
-              </p>
-            ) : (
-              <div className={s.list}>
-                {shown.map(({ task: t, index: i, sub }) => {
-                  const locked = !isPremium && i > 0;
-                  const done = !!sub;
-                  const niveau = tacheNiveau(sub?.evaluation);
-                  const tone = tacheNiveauTone(niveau);
-                  const constraint = productionTaskConstraint(t, config.mode === "audio");
-                  return (
-                    <SkillRowCard
-                      key={t.id}
-                      tile={
-                        locked ? (
-                          <Lock size={20} aria-hidden />
-                        ) : done ? (
-                          <Check size={22} strokeWidth={2.8} aria-hidden />
-                        ) : (
-                          i + 1
-                        )
-                      }
-                      tileDone={done && !locked}
-                      mark={done && !locked ? TONE_MARK[tone] : "none"}
-                      /* Intitulé éditorial du sujet quand la base en porte un,
-                         « Sujet N » sinon : la consigne reste dessous dans les
-                         deux cas, donc aucun repli ne laisse la carte muette. */
-                      title={productionSubjectTitle(t.titre, i + 1)}
-                      text={t.consigne}
-                      meta={
-                        <>
-                          {done ? (
-                            <SkillBadge
-                              tone={TONE_BADGE[tone]}
-                              icon={<Check size={11} strokeWidth={2.6} aria-hidden />}
-                            >
-                              {/* Trois états sans niveau, jamais confondus :
-                                  rien de rendu au correcteur (« Traité »),
-                                  rendu mais rien à observer (« Non analysée »),
-                                  corrigé sans niveau affichable — ce dernier
-                                  retombe aussi sur « Traité » ici, la carte
-                                  d'un sujet ne distinguant pas les deux. */}
-                              {niveau
-                                ? tacheNiveauLabel(niveau)
-                                : productionNonEvaluable(sub?.evaluation)
-                                  ? TACHE_NON_EVALUABLE_LABEL
-                                  : TACHE_TRAITEE_LABEL}
-                            </SkillBadge>
-                          ) : locked ? (
-                            <SkillBadge tone="todo" icon={<Lock size={10} aria-hidden />}>
-                              Premium
-                            </SkillBadge>
-                          ) : (
-                            <SkillBadge tone="todo">À faire</SkillBadge>
-                          )}
-                          {/* Contrainte réelle du sujet puis sa tâche — le
-                              palier, lui, est annoncé une fois pour toutes par
-                              le badge « NIVEAU VISÉ » de l'en-tête : le répéter
-                              sur chaque carte noyait la seule information qui
-                              change d'un sujet à l'autre. */}
-                          {constraint && <SkillBadge tone="todo">{constraint}</SkillBadge>}
-                          <SkillBadge tone="todo">Tâche {t.tacheNumero}</SkillBadge>
-                        </>
-                      }
-                      onClick={
-                        locked
-                          ? () => setPaywallOpen(true)
-                          : () =>
-                              router.push(`${config.base}/${config.inputSegment}/${t.id}`)
-                      }
+              {filtered.length === 0 ? (
+                <p className={t.hint}>
+                  {filter === "done" ? SUBJECTS_NONE_DONE : SUBJECTS_ALL_DONE}
+                </p>
+              ) : (
+                <div className={t.grid}>
+                  {visible.map(({ task, index: i, sub }) => (
+                    <SubjectCard
+                      key={task.id}
+                      task={task}
+                      order={i + 1}
+                      sub={sub}
+                      locked={!isPremium && i > 0}
+                      onOpen={() => {
+                        if (!isPremium && i > 0) {
+                          setPaywallOpen(true);
+                        } else if (sub) {
+                          setDoneRow({ task, sub, order: i + 1 });
+                        } else {
+                          practice(task);
+                        }
+                      }}
                     />
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+                  ))}
+                </div>
+              )}
 
-        <SkillNotice title="Comment ces sujets sont évalués">
-          Chaque sujet est une production complète : l&apos;IA la situe sur les paliers du
-          TCF et vous rend un niveau, puis détaille ce qui est réussi et vos deux
-          priorités.
-        </SkillNotice>
+              {remaining > 0 && (
+                <button type="button" className={t.more} onClick={() => setShowAll(true)}>
+                  {showMoreLabel(remaining)}
+                  <ChevronDown size={18} aria-hidden />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        <ExamDoneSheet
+          open={doneRow !== null}
+          title={doneRow ? productionSubjectTitle(doneRow.task.titre, doneRow.order) : ""}
+          subtitle={doneRow ? lastEvaluationLabel(doneStateLabel(doneRow.sub)) : null}
+          detailLabel={SUBJECT_DETAIL_CTA}
+          resumeLabel={SUBJECT_REDO_CTA}
+          resumeTone="blue"
+          onViewDetail={() => {
+            if (!doneRow) return;
+            const href = `${config.base}/resultats/${doneRow.sub.id}?back=${encodeURIComponent(taskHref)}`;
+            setDoneRow(null);
+            router.push(href);
+          }}
+          onResume={() => {
+            if (!doneRow) return;
+            const task = doneRow.task;
+            setDoneRow(null);
+            practice(task);
+          }}
+          onClose={() => setDoneRow(null)}
+        />
 
         <PaywallSheet
           ctaLocation={origin.ctaLocation}
@@ -323,5 +368,79 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
         />
       </SkillShell>
     </DualChromeShell>
+  );
+}
+
+/**
+ * Carte compacte d'un sujet — miroir de `ProductionSubjectCard` (mobile) :
+ * numéro sur deux chiffres (✓ une fois traité), titre sur une ligne, extrait
+ * de consigne sur deux, puis la colonne d'état (pastille au-dessus, bouton rond
+ * dessous). Le liseré n'existe que sur un sujet traité.
+ */
+function SubjectCard({
+  task,
+  order,
+  sub,
+  locked,
+  onOpen,
+}: {
+  task: ProductionTaskDto;
+  order: number;
+  sub: ProductionSubmissionDto | undefined;
+  locked: boolean;
+  onOpen: () => void;
+}) {
+  const done = !!sub;
+  const niveau = tacheNiveau(sub?.evaluation);
+  const tone = tacheNiveauTone(niveau);
+  const title = productionSubjectTitle(task.titre, order);
+  const toneClass = done ? `${TONE_CLASS[tone]} ${t.subjectDone}` : "";
+
+  return (
+    <button type="button" className={`${t.subject} ${toneClass}`} onClick={onOpen}>
+      <span
+        className={`${t.tile} ${locked ? t.tileLocked : done ? t.tileDone : ""}`}
+        aria-hidden
+      >
+        {done ? (
+          <Check size={22} strokeWidth={2.6} />
+        ) : (
+          String(order).padStart(2, "0")
+        )}
+      </span>
+      <span className={t.subjectBody}>
+        <span className={t.subjectTitle} title={title}>
+          {title}
+        </span>
+        <span className={t.subjectText}>{task.consigne}</span>
+      </span>
+      <span className={t.subjectSide}>
+        {locked ? (
+          <SkillLockBadge />
+        ) : sub ? (
+          <SkillBadge
+            tone={TONE_BADGE[tone]}
+            icon={niveau ? undefined : <Check size={11} strokeWidth={2.6} aria-hidden />}
+          >
+            {niveau
+              ? tacheNiveauLabel(niveau)
+              : productionNonEvaluable(sub.evaluation)
+                ? TACHE_NON_EVALUABLE_LABEL
+                : TACHE_TRAITEE_LABEL}
+          </SkillBadge>
+        ) : (
+          <SkillBadge tone="todo">{SUBJECT_TODO}</SkillBadge>
+        )}
+        <span className={`${t.dot} ${locked ? t.dotLocked : ""}`} aria-hidden>
+          {locked ? (
+            <Lock size={16} />
+          ) : done ? (
+            <RefreshCw size={16} />
+          ) : (
+            <Play size={16} />
+          )}
+        </span>
+      </span>
+    </button>
   );
 }

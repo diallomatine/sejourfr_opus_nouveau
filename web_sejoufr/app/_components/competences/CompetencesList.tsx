@@ -99,8 +99,8 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <SkillShell backHref={backHref} backLabel={backLabel}>
-        <TaskChrome config={config} taskNumero={n} />
+      <SkillShell backHref={backHref} backLabel={backLabel} hideBack>
+        <TaskChrome config={config} taskNumero={n} backHref={backHref} backLabel={backLabel} />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}

@@ -2898,20 +2898,6 @@ export function eeTaskTitle(tacheNumero: number): string {
     }
 }
 
-/** Sous-titre d'une tâche EE. */
-export function eeTaskSubtitle(tacheNumero: number): string {
-    switch (tacheNumero) {
-        case 1:
-            return "Rédiger un message court et cohérent";
-        case 2:
-            return "Raconter une expérience avec clarté";
-        case 3:
-            return "Justifier une opinion avec des arguments";
-        default:
-            return "";
-    }
-}
-
 /** Titre éditorial d'une tâche EO (parité `displayTitle` mobile).
  *  L'ordre suit les tâches réellement servies par le backend
  *  (`production-rubrics` EO_T2 = conduite de l'échange, EO_T3 = point de vue). */
@@ -2925,20 +2911,6 @@ export function eoTaskTitle(tacheNumero: number): string {
             return "Point de vue";
         default:
             return `Tâche ${tacheNumero}`;
-    }
-}
-
-/** Sous-titre d'une tâche EO. */
-export function eoTaskSubtitle(tacheNumero: number): string {
-    switch (tacheNumero) {
-        case 1:
-            return "Se présenter et répondre à des questions";
-        case 2:
-            return "Interagir et obtenir des informations";
-        case 3:
-            return "Donner et défendre son opinion";
-        default:
-            return "";
     }
 }
 
@@ -2960,11 +2932,6 @@ export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): 
  */
 export function productionTaskLabeledTitle(epreuve: EpreuveType, tacheNumero: number): string {
     return `Tâche ${tacheNumero} : ${productionTaskTitle(epreuve, tacheNumero)}`;
-}
-
-/** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */
-export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number): string {
-    return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);
 }
 
 /**

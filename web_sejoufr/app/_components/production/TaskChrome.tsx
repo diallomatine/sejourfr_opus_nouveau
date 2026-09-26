@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import type {ReactNode} from "react";
-import {productionApi, skillApi} from "@/lib/api";
+import {ArrowLeft} from "lucide-react";
+import {productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
-import {loadTaskProgress, skillsProgressKey} from "@/lib/skill-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
-import {productionTaskSubtitle, productionTaskTitle, skillSectionOf, skillTaskCodeOf} from "@/lib/types";
+import {productionTaskIntro, TASK_BRIEF_LABEL} from "@/lib/production-task-labels";
+import {productionTaskTitle} from "@/lib/types";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionConfig} from "./config";
 import {constraintOf} from "./parcours";
@@ -40,6 +42,14 @@ export function taskToneClass(tacheNumero: number): string {
  * (`CompetencesList`) garde cette même tête, elle n'est plus qu'atteinte
  * autrement.
  *
+ * **Le retour vit dans la carte** (bouton rond), miroir de `TaskBanner` : les
+ * écrans qui la montent passent `hideBack` à `SkillShell`. Au-delà de 760 px
+ * de conteneur, la tête et la consigne se posent côte à côte (bandeau).
+ *
+ * La phrase sous la contrainte est la **consigne générale** de la tâche
+ * (`productionTaskIntro`, `lib/production-task-labels.ts`), mot pour mot celle
+ * du mobile.
+ *
  * ⚠️ **Plus de pastille de niveau** (demande du propriétaire, 2026-09-20) :
  * `SkillTaskCode.targetLevel` est notre palier PÉDAGOGIQUE interne — le vrai
  * TCF ne rattache aucun niveau CECRL à une tâche, et aucun moteur du produit
@@ -48,13 +58,16 @@ export function taskToneClass(tacheNumero: number): string {
 export function TaskChrome({
   config,
   taskNumero,
+  backHref,
+  backLabel,
 }: {
   config: ProductionConfig;
   taskNumero: number;
+  backHref: string;
+  backLabel: string;
 }): ReactNode {
   const {status} = useAuth();
   const ready = status === "authenticated";
-  const section = skillSectionOf(config.epreuve);
 
   const tasksQuery = useCachedData(ready ? productionTasksKey(config.epreuve) : null, () =>
     loadEpreuveTasks(productionApi, config.epreuve),
@@ -63,25 +76,30 @@ export function TaskChrome({
 
   return (
     <section className={s.taskBanner}>
-      <div className={s.taskBannerHead}>
-        <div className={s.taskBannerBody}>
-          <p className={s.taskBannerRank}>
-            Tâche {taskNumero} · {config.label}
-          </p>
-          <h1 className={s.taskBannerTitle}>
-            {productionTaskTitle(config.epreuve, taskNumero)}
-          </h1>
+      <div className={s.taskBannerGrid}>
+        <div className={s.taskBannerHead}>
+          <Link href={backHref} className={s.taskBannerBack} aria-label={backLabel}>
+            <ArrowLeft size={19} aria-hidden />
+          </Link>
+          <div className={s.taskBannerBody}>
+            <p className={s.taskBannerRank}>
+              Tâche {taskNumero} · {config.label}
+            </p>
+            <h1 className={s.taskBannerTitle}>
+              {productionTaskTitle(config.epreuve, taskNumero)}
+            </h1>
+          </div>
         </div>
-      </div>
-      <div className={s.taskBannerBrief}>
-        <span className={s.taskBannerLabel}>Consigne</span>
-        {/* La contrainte est la PREMIÈRE chose lue de la consigne : c'est elle
-            qui cadre la production. Servie par `production_tasks` — jamais un
-            nombre écrit ici. */}
-        {constraint && <strong className={s.taskBannerRange}>{constraint}</strong>}
-        <p className={s.taskBannerText}>
-          {productionTaskSubtitle(config.epreuve, taskNumero)}
-        </p>
+        <div className={s.taskBannerBrief}>
+          <span className={s.taskBannerLabel}>{TASK_BRIEF_LABEL}</span>
+          {/* La contrainte est la PREMIÈRE chose lue de la consigne : c'est elle
+              qui cadre la production. Servie par `production_tasks` — jamais un
+              nombre écrit ici. */}
+          {constraint && <strong className={s.taskBannerRange}>{constraint}</strong>}
+          <p className={s.taskBannerText}>
+            {productionTaskIntro(config.mode === "audio", taskNumero)}
+          </p>
+        </div>
       </div>
     </section>
   );
