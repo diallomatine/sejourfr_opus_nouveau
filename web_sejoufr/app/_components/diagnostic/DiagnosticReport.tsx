@@ -4,10 +4,10 @@
  * **Le résultat du diagnostic RAPIDE TCF.**
  *
  * Une seule production écrite a été observée : l'écran annonce une
- * *estimation*, dit ce qu'il a vu, dit **ce qu'il n'a pas vu**, et conduit au
- * diagnostic complet. Il ne pousse aucun abonnement — le candidat n'a pas
- * encore ses quatre niveaux sous les yeux, et un plan vendu sur un seul écrit
- * serait vendu à l'aveugle.
+ * *estimation*, dit ce qu'il a vu, dit **ce qu'il n'a pas vu**, puis mène au
+ * **Plan** — qui existe dès que le rapide est clos, provisoire mais réel
+ * (`prep.planDisponible`). Il ne pousse aucun abonnement : c'est le Plan qui
+ * s'en charge.
  *
  * 🛑 **Aucun style local.** Tout l'habillage vient du kit partagé
  * `app/_components/sejour/` (miroir du kit Flutter). Un motif qui manque
@@ -43,12 +43,11 @@ import {
   Top,
   sejourStyles as styles,
 } from "@/app/_components/sejour/SejourKit";
-import {TCF_DIAGNOSTIC_HUB_HREF, levelTrackPosition} from "@/lib/tcf-diagnostic";
+import {planHref} from "@/lib/module-switch";
+import {levelTrackPosition} from "@/lib/tcf-diagnostic";
 import {
   DIAGNOSTIC_COMPLET_BENEFITS,
-  DIAGNOSTIC_COMPLET_CTA,
   DIAGNOSTIC_COMPLET_EPREUVES,
-  DIAGNOSTIC_COMPLET_NOTE,
   DIAGNOSTIC_COMPLET_PROMISE,
   DIAGNOSTIC_COMPLET_TITLE,
   DIAGNOSTIC_GOAL_PREFIX,
@@ -57,8 +56,8 @@ import {
   DIAGNOSTIC_LEVEL_UNKNOWN,
   DIAGNOSTIC_OBJECTIVE_UNKNOWN,
   DIAGNOSTIC_OBSERVE_TITLE,
-  DIAGNOSTIC_REPORT_BACK_HREF,
   DIAGNOSTIC_REPORT_KICKER,
+  DIAGNOSTIC_REPORT_PLAN_CTA,
   DIAGNOSTIC_REPORT_TITLE,
   DIAGNOSTIC_TRANSITION_EMPHASIS,
   DIAGNOSTIC_TRANSITION_TEXT,
@@ -75,6 +74,7 @@ export function DiagnosticReport({
   notice,
   embedded = false,
   closingCta = true,
+  backTo = null,
 }: {
   diagnostic: {result: DiagnosticResultDto | null};
   /** Palier visé, servi par `/api/auth/me`. `null` = démarche non déclarée. */
@@ -92,6 +92,13 @@ export function DiagnosticReport({
    * sien. Jamais deux boutons pour le même parcours dans deux formulations.
    */
   closingCta?: boolean;
+  /**
+   * Le retour de l'en-tête. `null` ⇒ aucun : le rapport est alors un écran
+   * racine, la barre du haut garde son menu. L'hôte ne le pose que si le
+   * rapport a été ouvert depuis un autre écran de l'app — jamais au sortir du
+   * tunnel invité, où « retour » ramènerait à l'écran de compte.
+   */
+  backTo?: string | null;
 }) {
   const result = diagnostic.result;
   const written = result?.written ?? null;
@@ -180,9 +187,11 @@ export function DiagnosticReport({
               <CheckList items={DIAGNOSTIC_COMPLET_BENEFITS} />
             </Card>
             {closingCta && (
-              <Cta href={TCF_DIAGNOSTIC_HUB_HREF} caption={DIAGNOSTIC_COMPLET_NOTE}>
-                {DIAGNOSTIC_COMPLET_CTA}
-              </Cta>
+              /* Le Plan : il existe dès que le rapide est clos. La route Plan
+                 lit elle-même `planDisponible`. 🛑 Jamais l'entrée du
+                 diagnostic complet (arbitrage du 2026-09-26 : il n'est plus un
+                 parcours proposé). */
+              <Cta href={planHref("TCF")}>{DIAGNOSTIC_REPORT_PLAN_CTA}</Cta>
             )}
           </Stack>
         </Pad>
@@ -199,7 +208,7 @@ export function DiagnosticReport({
     <SejourApp report>
       {notice}
       <Top
-        backTo={DIAGNOSTIC_REPORT_BACK_HREF}
+        backTo={backTo ?? undefined}
         kicker={DIAGNOSTIC_REPORT_KICKER}
         title={DIAGNOSTIC_REPORT_TITLE}
       />

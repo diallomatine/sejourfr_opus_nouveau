@@ -12,6 +12,7 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/diagnostic_run_models.dart';
 import '../plan/learning_plan_provider.dart';
 import 'diagnostic_draft_service.dart';
+import 'widgets/diagnostic_analysis_labels.dart';
 import '../../core/utils/submission_key.dart';
 
 typedef SubmitDiagnosticText = Future<void> Function({
@@ -180,21 +181,9 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
       'faire n’ont donc pas été envoyées — elles restent sur votre téléphone '
       'tant que vous ne les supprimez pas.';
 
-  /// La route de relance est rate-limitée serveur (`RateLimitGuard
-  /// .checkProductionSubmission`). Son message brut — « Trop de tentatives.
-  /// Reessayez dans 573s. » — est sans accents et compté en secondes : on ne le
-  /// sert pas tel quel à un candidat. Miroir mot pour mot du web.
-  static const retryRateLimitedMessage =
-      'Trop de relances en peu de temps. Patientez quelques minutes, puis '
-      'réessayez : vos deux réponses restent conservées.';
-
   static const retryFailedMessage =
       'La relance n’a pas pu être lancée. Vérifiez votre connexion, puis '
       'réessayez.';
-
-  static const _partialSyncWarning =
-      'Le serveur n’a pas confirmé la réception de vos deux réponses. Elles '
-      'sont conservées sur votre téléphone, vous pouvez réessayer.';
 
   final DiagnosticGateway _diagnosticRepository;
   final SubmitDiagnosticText _submitText;
@@ -589,7 +578,7 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
           journey: journey,
           isSyncing: false,
           canRetrySync: true,
-          errorMessage: _partialSyncWarning,
+          errorMessage: diagnosticSendUnconfirmed(journey.oral != null),
         );
         return false;
       }
@@ -793,7 +782,11 @@ class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
 
   String _retryErrorMessage(Object error) {
     final api = ApiClient.toApiException(error);
-    if (api.statusCode == 429) return retryRateLimitedMessage;
+    // La route de relance est rate-limitée serveur : son message brut
+    // (« Reessayez dans 573s. ») n'est pas écrit pour un candidat.
+    if (api.statusCode == 429) {
+      return diagnosticRetryRateLimited(state.journey?.oral != null);
+    }
     return api.message.trim().isEmpty ? retryFailedMessage : api.message;
   }
 

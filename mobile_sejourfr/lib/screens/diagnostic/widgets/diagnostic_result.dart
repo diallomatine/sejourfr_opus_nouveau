@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/cecrl_track.dart';
+import '../../../core/utils/parcours_affiche.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import 'diagnostic_report_labels.dart';
@@ -14,17 +16,19 @@ import 'diagnostic_report_labels.dart';
 /// **Résultat du diagnostic rapide TCF.**
 ///
 /// Une seule production écrite a été observée : l'écran annonce l'estimation
-/// qu'elle permet, dit ce qu'elle vaut, et ouvre sur le diagnostic complet.
+/// qu'elle permet, dit ce qu'elle vaut, et mène au **Plan** — qui existe dès
+/// que le rapide est clos, provisoire mais réel (`prep.planDisponible`).
+/// 🛑 Jamais vers l'entrée du diagnostic complet, qui n'est plus un parcours
+/// proposé (arbitrage du 2026-09-26).
 ///
 /// Ordre figé par la maquette :
 /// 1. la carte hero — niveau estimé, objectif, rail, paragraphe d'analyse ;
 /// 2. « Ce que nous avons observé » — les positives, puis les à améliorer ;
 /// 3. « Ce n'est qu'une première estimation » — la mise au point ;
-/// 4. « Découvrez où vous en êtes vraiment au TCF » — les 4 épreuves et le CTA.
+/// 4. « Découvrez où vous en êtes vraiment au TCF » — les 4 épreuves, puis
+///    « Voir mon plan ».
 ///
-/// 🛑 **Aucun verrou, aucun paywall ici.** Le rapport rapide mène au diagnostic
-/// complet ; c'est le rapport du complet qui met l'abonnement en avant, quand
-/// le candidat a ses quatre niveaux sous les yeux.
+/// 🛑 **Aucun verrou, aucun paywall ici** : c'est le Plan qui s'en charge.
 ///
 /// 🛑 **Un niveau non estimé est NOMMÉ, jamais rabattu sur A1.** Une production
 /// inexploitable rend `levelEstimate == null` : la carte hero affiche l'état,
@@ -46,7 +50,7 @@ import 'diagnostic_report_labels.dart';
 /// où le bouton de fin du rapport serait un contresens. La section
 /// « Découvrez où vous en êtes vraiment au TCF » reste, elle informe ; c'est le
 /// bouton seul qui s'efface.
-class DiagnosticResultView extends StatelessWidget {
+class DiagnosticResultView extends ConsumerWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
@@ -76,7 +80,7 @@ class DiagnosticResultView extends StatelessWidget {
   final TargetLevel? objective;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final written = result.written;
     final niveau = written?.levelEstimate;
     final observations = diagnosticObservations(result);
@@ -126,9 +130,14 @@ class DiagnosticResultView extends StatelessWidget {
               const _PromiseCard(),
               if (closingCta)
                 SfButton(
-                  label: kDiagnosticCompletCta,
-                  caption: kDiagnosticCompletNote,
-                  onPressed: () => context.push(AppRoutes.tcfDiagnostic),
+                  label: kDiagnosticReportPlanCta,
+                  // Le Plan **TCF**, par la même bascule que « Voir mon Plan »
+                  // de l'Accueil : l'onglet Plan lit ce provider. La route
+                  // Plan lit elle-même `planDisponible`.
+                  onPressed: () {
+                    ref.read(parcoursCiviqueProvider.notifier).state = false;
+                    context.go(AppRoutes.plan);
+                  },
                 ),
             ],
           ),

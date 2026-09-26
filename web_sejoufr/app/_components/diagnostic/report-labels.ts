@@ -16,10 +16,15 @@
  */
 import {BookOpen, Headphones, Mic, PenLine, type LucideIcon} from "lucide-react";
 import type {DiagnosticResultDto} from "@/lib/types";
-import {DIAGNOSTIC_COMPLET_CTA_START} from "@/lib/preparation";
 
 /* ------------------------------------------------------------- l'en-tête */
 
+/**
+ * Le retour de l'en-tête — posé **seulement** quand le rapport a été ouvert
+ * depuis un autre écran de l'app (le Plan, l'Accueil). Au sortir du tunnel
+ * (production → compte → analyse), le rapport est un écran racine de fait :
+ * pas de flèche, la barre garde son menu.
+ */
 export const DIAGNOSTIC_REPORT_BACK_HREF = "/dashboard";
 export const DIAGNOSTIC_REPORT_KICKER = "Diagnostic rapide terminé";
 /** 🛑 « Votre estimation », pas « Votre niveau TCF ». */
@@ -137,19 +142,12 @@ export const DIAGNOSTIC_COMPLET_BENEFITS = [
   "les tâches qui vous limitent actuellement",
   "vos priorités pour atteindre votre objectif",
 ];
+
 /**
- * 🛑 **Réexport, pas une seconde déclaration** (2026-09-12). Le libellé du
- * diagnostic complet vit dans `lib/preparation.ts`, autorité unique du web :
- * le Plan, l'Accueil et ce rapport disaient trois phrases différentes pour un
- * seul geste. La variante « Faire mon diagnostic complet » est supprimée.
+ * **La suite principale du rapport : le Plan.** Dès que le diagnostic rapide
+ * est clos, le Plan existe, provisoire mais réel (`docs/regles/plan.md`, « Le
+ * diagnostic COMPLET n'est pas un prérequis d'accès au Plan ») : le rapport y
+ * mène. 🛑 Jamais vers l'entrée du diagnostic complet, qui n'est plus un
+ * parcours proposé (arbitrage du 2026-09-26).
  */
-export const DIAGNOSTIC_COMPLET_CTA = DIAGNOSTIC_COMPLET_CTA_START;
-/**
- * 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
- * ⚠️ Et **jamais le mot « examen blanc »** : `docs/regles/diagnostic-tcf-4-epreuves.md`
- * l'interdit (`10_SEJOURFR_TCF.md` §4.1, « Nommage imposé : *Diagnostic TCF —
- * 4 épreuves*. Interdit d'appeler cela un examen blanc »). Le diagnostic réduit
- * la compréhension à 15 items ; l'examen blanc intégral est un autre objet.
- */
-export const DIAGNOSTIC_COMPLET_NOTE =
-  "4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois";
+export const DIAGNOSTIC_REPORT_PLAN_CTA = "Voir mon plan";

@@ -609,12 +609,20 @@ de bord, l'ouverture est un geste et elle consomme l'unique gratuit.
   soumission (statut non `IN_PROGRESS`, ou deux `submissionId` déjà posés) : on le dit
   (`noticeMessage`, `DiagnosticAlreadyDoneView`) au lieu de boucler sur une erreur, et la copie
   locale n'est effacée que sur confirmation explicite.
-- **Aucune attente n'est un rond gris muet** (`widgets/diagnostic_wait.dart`, partagé transfert
-  ⇄ analyse) : étapes franchies + compteur de temps écoulé (`Stopwatch`, jamais `DateTime.now()`)
-  + réassurance qui bascule sur « c'est plus long que d'habitude » à 2 min **sans annoncer
-  d'échec** (l'échec, c'est `FAILED`, qui a son propre écran). `DiagnosticSyncStage` n'existe que
-  pour nommer l'étape d'envoi en cours. `_content` fait passer `isSyncing`/`canRetrySync`
-  **avant** le loader générique : un transfert ne doit jamais se rendre en spinner anonyme.
+- **Aucune attente n'est un rond gris muet** (`widgets/diagnostic_wait.dart` →
+  `DiagnosticWaitCard`, partagée envoi ⇄ analyse, miroir de `WaitCard` web, refondue le
+  2026-09-26) : sur-titre, titre à mot rouge, une phrase, étapes **réelles**, « Temps écoulé ·
+  mm:ss » discret (`Stopwatch`, jamais `DateTime.now()`), réassurance qui bascule sur « c'est
+  plus long que d'habitude » à 2 min **sans annoncer d'échec** (l'échec, c'est `FAILED`), panneau
+  « Ce que contiendra votre rapport » (`kTcfDiagnosticGateOutcomes`) et « Revenir à l'accueil ».
+  🛑 **La forme est LUE** (`journey.oral != null`, `draft.oralRequired`) : une ligne par
+  production que la session comporte, jamais un « Oral reçu » sur le diagnostic rapide. Textes
+  d'attente, d'envoi et d'échec : `widgets/diagnostic_analysis_labels.dart`, **miroir mot pour
+  mot** de `web_sejoufr/app/_components/diagnostic/analysis-labels.ts`. « Actualiser » n'apparaît
+  que quand le polling s'est arrêté (`isPolling == false`, 10 min) — le web, lui, poll sans fin.
+  `DiagnosticSyncStage` n'existe que pour nommer l'étape d'envoi en cours. `_content` fait passer
+  `isSyncing`/`canRetrySync` **avant** le loader générique : un transfert ne doit jamais se rendre
+  en spinner anonyme.
 - **Le marqueur « déjà démarré » vit dans l'état du contrôleur, jamais dans un drapeau qui
   survit au démontage** — c'est ce qui distingue le mobile du bug web de blocage éternel. Le
   provider est `autoDispose` : tout chemin d'abandon (`if (!mounted) return`) emporte le

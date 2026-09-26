@@ -2521,14 +2521,21 @@ détour par `/inscription`.
   inatteignables. Un `LOADING_WATCHDOG_MS` (20 s) rend la main avec la carte
   d'erreur si le chargement n'aboutit jamais : un squelette est un état de
   chargement, pas un état d'échec.
-- **Attente de l'analyse IA** (`AnalysisWaiting`) : pendant `ANALYZING` /
-  `nextStep === "ANALYSIS"`, l'écran nomme l'analyse, liste les étapes
-  franchies (`role="status"`) et fait tourner un compteur mm:ss démarré à
-  l'entrée dans l'écran (`aria-live="off"` sur le chiffre). La réassurance
-  bascule au-delà de 2 min sur « c'est plus long que d'habitude » — on ne
-  promet pas un délai qu'on ne tient pas. Un aléa réseau du polling s'affiche en
-  gris (`waitTransient`), jamais en rouge : seul `status === "FAILED"` est un
-  échec.
+- **Attente de l'analyse IA** (`AnalysisWaiting`, refondue le 2026-09-26) : pendant
+  `ANALYZING` / `nextStep === "ANALYSIS"`, une `WaitCard` (partagée avec l'envoi des
+  productions d'invité, `handoff.running`) : kicker mono, titre Fraunces à `<em>` rouge,
+  une phrase, les étapes **réelles** (`role="status"` : une ligne par production que la
+  session comporte → « Analyse en cours » → « Votre rapport »), « Temps écoulé · mm:ss »
+  discret (`aria-live="off"`), réassurance, le panneau « Ce que contiendra votre rapport »
+  (items de `TCF_DIAGNOSTIC_PANEL`) et « Revenir à l'accueil ». 🛑 **La forme est LUE**
+  (`diagnostic.oral != null`, `local.oralRequired`) : le diagnostic rapide n'a qu'un écrit,
+  l'écran annonçait « vos deux productions » et une « Réponse orale en attente ». Tous les
+  textes d'attente, d'envoi et d'échec vivent dans `analysis-labels.ts`, **miroir mot pour
+  mot** de `diagnostic_analysis_labels.dart`. « Moins de deux minutes » est **mesuré** (base
+  locale, 2026-09-26 : max 23 s sur 20 sessions) et cesse d'être annoncé au-delà de 2 min.
+  Pas de `DiagnosticSteps` sur cet écran (la carte porte ses étapes). Un aléa réseau du
+  polling s'affiche en gris (`waitTransient`), jamais en rouge : seul `status === "FAILED"`
+  est un échec.
 - **Compte qui a déjà un diagnostic** : `POST /api/diagnostics` est idempotent
   et peut renvoyer une session `COMPLETED` — une tâche n'accepte qu'une
   soumission. On n'envoie alors rien, on affiche le résultat existant avec un

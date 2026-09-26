@@ -59,7 +59,35 @@ import {DiagnosticChoice} from "./DiagnosticChoice";
 import {demarrageDirectDemande} from "@/lib/preparation";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
+import {DIAGNOSTIC_REPORT_BACK_HREF} from "./report-labels";
+import {hasInAppHistory} from "@/lib/nav-history";
 import {DiagnosticSteps} from "./DiagnosticSteps";
+import {
+  DIAGNOSTIC_ANALYSIS_FAILED_TITLE,
+  DIAGNOSTIC_ANALYSIS_HOME_CTA,
+  DIAGNOSTIC_ANALYSIS_KICKER,
+  DIAGNOSTIC_ANALYSIS_LEAD,
+  DIAGNOSTIC_ANALYSIS_USUAL,
+  DIAGNOSTIC_ANALYSIS_USUAL_MS,
+  DIAGNOSTIC_ELAPSED_LABEL,
+  DIAGNOSTIC_OUTCOMES_TITLE,
+  DIAGNOSTIC_SEND_RETRY_CTA,
+  type DiagnosticSendingStage,
+  type DiagnosticWaitStep,
+  diagnosticAnalysisFailedText,
+  diagnosticAnalysisRetryExhausted,
+  diagnosticAnalysisSlow,
+  diagnosticAnalysisSteps,
+  diagnosticAnalysisTitle,
+  diagnosticRetryRateLimited,
+  diagnosticSendFailedText,
+  diagnosticSendFailedTitle,
+  diagnosticSendingSteps,
+  diagnosticSendingText,
+  diagnosticSendingTitle,
+  diagnosticSendUnconfirmed,
+} from "./analysis-labels";
+import {TCF_DIAGNOSTIC_PANEL} from "../auth/auth-panels";
 import styles from "./diagnostic.module.css";
 
 const POLL_MS = 2_500;
@@ -71,24 +99,6 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiException ? error.message : fallback;
 }
 
-/**
- * Textes de l'écran d'échec d'analyse. Miroir mot pour mot du mobile
- * (`widgets/diagnostic_analysis.dart` + `diagnostic_controller.dart`) : ces
- * chaînes ne transitent pas par le réseau, chaque front en tient sa copie.
- */
-const ANALYSIS_FAILED_TITLE = "L'analyse n'a pas pu aboutir";
-const ANALYSIS_FAILED_TEXT =
-  "Vos deux réponses sont conservées. Vous n'avez rien à refaire.";
-const ANALYSIS_RETRY_EXHAUSTED =
-  "Le nombre de relances automatiques est épuisé. Vos deux productions restent enregistrées : vous n'avez rien à refaire. L'analyse a échoué de notre côté, et votre plan reste accessible en attendant.";
-/**
- * La route de relance est rate-limitée serveur (`RateLimitGuard
- * .checkProductionSubmission`). Son message brut — « Trop de tentatives.
- * Reessayez dans 573s. » — est sans accents et compté en secondes : on ne le
- * sert pas tel quel à un candidat.
- */
-const ANALYSIS_RETRY_RATE_LIMITED =
-  "Trop de relances en peu de temps. Patientez quelques minutes, puis réessayez : vos deux réponses restent conservées.";
 const ANALYSIS_RETRY_FAILED =
   "La relance n'a pas pu être lancée. Vérifiez votre connexion, puis réessayez.";
 
@@ -96,9 +106,11 @@ const ANALYSIS_RETRY_FAILED =
  * L'échec de la relance qu'on VIENT de tenter — à ne jamais confondre avec
  * `diagnostic.errorMessage`, qui dit pourquoi l'analyse elle-même a échoué.
  */
-function retryErrorMessage(cause: unknown): string {
+function retryErrorMessage(cause: unknown, hasOral: boolean): string {
+  // La route de relance est rate-limitée serveur : son message brut
+  // (« Reessayez dans 573s. ») n'est pas écrit pour un candidat.
   if (cause instanceof ApiException && cause.status === 429) {
-    return ANALYSIS_RETRY_RATE_LIMITED;
+    return diagnosticRetryRateLimited(hasOral);
   }
   return errorMessage(cause, ANALYSIS_RETRY_FAILED);
 }
@@ -485,7 +497,7 @@ function GuestDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
  */
 type Handoff =
   | {kind: "idle"}
-  | {kind: "running"; label: string}
+  | {kind: "running"; stage: DiagnosticSendingStage; hasOral: boolean}
   | {kind: "error"; message: string}
   /** Le compte porte déjà un diagnostic terminé : rien n'est envoyé. */
   | {kind: "already-completed"}
@@ -506,6 +518,14 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
   const [pendingLocal, setPendingLocal] = useState<LocalDiagnosticProductions | null>(null);
+  /**
+   * Le rapport a-t-il un écran PRÉCÉDENT où revenir ? Vrai seulement s'il a été
+   * ouvert d'emblée (déjà rendu au montage) depuis un autre écran de l'app — le
+   * Plan, l'Accueil. Au sortir du tunnel (production → compte → analyse), il
+   * reste `false` : le rapport est un écran racine, la barre garde son menu,
+   * et aucun « retour » ne ramène à l'écran de compte.
+   */
+  const [rapportAvecRetour, setRapportAvecRetour] = useState(false);
 
   const loadCurrent = useCallback(async () => {
     setError(null);
@@ -558,7 +578,8 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const runHandoff = useCallback(
     async (local: LocalDiagnosticProductions) => {
       setPendingLocal(local);
-      setHandoff({kind: "running", label: "Création de votre diagnostic…"});
+      const hasOral = local.oralRequired || local.oralAudio != null;
+      setHandoff({kind: "running", stage: "session", hasOral});
       try {
         // 🛑 Le sujet REELLEMENT rédigé est renvoyé au serveur : depuis L3 le
         // sujet écrit peut être tiré, et sans cet identifiant la session
@@ -599,7 +620,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
 
         if (session.written) {
           if (session.written.submissionId == null && local.writtenText) {
-            setHandoff({kind: "running", label: "Envoi de votre réponse écrite…"});
+            setHandoff({kind: "running", stage: "written", hasOral});
             await productionApi.submitText({
               productionTaskId: session.written.productionTaskId,
               attemptId: session.written.attemptId,
@@ -616,7 +637,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
 
         if (session.oral) {
           if (session.oral.submissionId == null && local.oralAudio) {
-            setHandoff({kind: "running", label: "Envoi de votre enregistrement…"});
+            setHandoff({kind: "running", stage: "oral", hasOral});
             await productionApi.submitAudio(
               session.oral.productionTaskId,
               session.oral.attemptId,
@@ -630,6 +651,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
           }
         }
 
+        setHandoff({kind: "running", stage: "confirming", hasOral});
         // 🛑 On attend un accusé pour CHAQUE production que ce diagnostic
         // comporte — une seule sur le diagnostic rapide (L3). Exiger un oral
         // que le serveur n'a pas ouvert ferait échouer un parcours réussi et
@@ -640,9 +662,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         if (!allReceived) {
           setHandoff({
             kind: "error",
-            message: session.oral
-              ? "Le serveur n'a pas confirmé la réception de vos deux réponses."
-              : "Le serveur n'a pas confirmé la réception de votre réponse.",
+            message: diagnosticSendUnconfirmed(session.oral != null),
           });
           return;
         }
@@ -657,10 +677,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       } catch (cause) {
         setHandoff({
           kind: "error",
-          message: errorMessage(
-            cause,
-            "Vos réponses n'ont pas pu être envoyées. Elles sont toujours sur cet appareil.",
-          ),
+          message: errorMessage(cause, "L’envoi n’a pas abouti."),
         });
       } finally {
         setLoading(false);
@@ -699,6 +716,10 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       try {
         const current = await diagnosticApi.current();
         setDiagnostic(current);
+        setRapportAvecRetour(
+          (current.status === "COMPLETED" || current.nextStep === "RESULT") &&
+            hasInAppHistory(),
+        );
         setError(null);
       } catch (cause) {
         setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
@@ -917,7 +938,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     try {
       setDiagnostic(await diagnosticApi.retryAnalysis(diagnostic.sessionId));
     } catch (cause) {
-      setError(retryErrorMessage(cause));
+      setError(retryErrorMessage(cause, diagnostic.oral != null));
     } finally {
       setSubmitting(false);
     }
@@ -939,23 +960,24 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   if (handoff.kind === "running") {
     return (
       <DiagnosticShell>
-        <StateCard
-          icon={<Sparkles size={26} />}
-          title="Nous enregistrons votre travail"
-          text={`${handoff.label} Elles restent sur cet appareil tant que le serveur ne les a pas confirmées.`}
-          busy
+        <WaitCard
+          kicker={null}
+          title={<>{diagnosticSendingTitle(handoff.hasOral)}</>}
+          lead={diagnosticSendingText(handoff.hasOral)}
+          steps={diagnosticSendingSteps(handoff.hasOral, handoff.stage)}
         />
       </DiagnosticShell>
     );
   }
 
   if (handoff.kind === "error") {
+    const hasOral = pendingLocal != null && (pendingLocal.oralRequired || pendingLocal.oralAudio != null);
     return (
       <DiagnosticShell>
         <StateCard
           icon={<RotateCcw size={26} />}
-          title="Vos réponses n'ont pas été envoyées"
-          text={`${handoff.message} Rien n'est perdu : elles sont toujours conservées sur cet appareil.`}
+          title={diagnosticSendFailedTitle(hasOral)}
+          text={`${handoff.message} ${diagnosticSendFailedText(hasOral)}`}
           role="alert"
         >
           <button
@@ -965,7 +987,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
               if (pendingLocal) void runHandoff(pendingLocal);
             }}
           >
-            Réessayer l&apos;envoi
+            {DIAGNOSTIC_SEND_RETRY_CTA}
           </button>
         </StateCard>
       </DiagnosticShell>
@@ -1047,12 +1069,12 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       <DiagnosticShell>
         <StateCard
           icon={<RotateCcw size={26} />}
-          title={ANALYSIS_FAILED_TITLE}
+          title={DIAGNOSTIC_ANALYSIS_FAILED_TITLE}
           // La carte dit d'abord, en langage clair, ce que le candidat doit
           // savoir. Le message brut du serveur (« Sortie diagnostic invalide
           // après réparation : EO2-C3 … ») n'est pas écrit pour lui : il passe
           // en second plan, sans jamais disparaître — le support s'en sert.
-          text={ANALYSIS_FAILED_TEXT}
+          text={diagnosticAnalysisFailedText(diagnostic.oral != null)}
           role="alert"
           busy={submitting}
           extra={
@@ -1065,7 +1087,9 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
                 </p>
               )}
               {!diagnostic.canRetry && (
-                <p className={styles.stateNote}>{ANALYSIS_RETRY_EXHAUSTED}</p>
+                <p className={styles.stateNote}>
+                  {diagnosticAnalysisRetryExhausted(diagnostic.oral != null)}
+                </p>
               )}
             </>
           }
@@ -1116,6 +1140,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         diagnostic={diagnostic}
         targetLevel={user.targetLevel ?? null}
         notice={notice}
+        backTo={rapportAvecRetour ? DIAGNOSTIC_REPORT_BACK_HREF : null}
       />
     );
   }
@@ -1133,10 +1158,8 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticShell>
         {notice}
-        {/* Dernière marche du fil : le rapport est en cours de production. Le
-            parcours complet y voit encore « Compréhension » en attente, ce qui
-            annonce la suite avant même que le rapport ne la propose. */}
-        <DiagnosticSteps current="report" guest={false} complete={false} />
+        {/* Pas de fil de parcours ici : la carte porte ses propres étapes
+            (reçu → analyse → rapport), un second fil les répéterait. */}
         <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
       </DiagnosticShell>
     );
@@ -1169,7 +1192,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     const exercise = diagnostic.written;
     return (
       <DiagnosticShell compact>
-        <DiagnosticSteps current="written" guest={false} complete={false} />
+        <DiagnosticSteps current="written" guest={false} complete={false} oral={diagnostic.oral != null} />
         <ExerciseHeader kind="written" />
         <EeWritingForm
           task={diagnosticExerciseAsProductionTask(exercise)}
@@ -1210,7 +1233,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   return (
     <DiagnosticShell>
       {notice}
-      <DiagnosticSteps current="report" guest={false} complete={false} />
       <AnalysisWaiting diagnostic={diagnostic} transientMessage={error} />
     </DiagnosticShell>
   );
@@ -1371,9 +1393,6 @@ function StateCard({
   );
 }
 
-/** Au-delà, on cesse d'annoncer « moins de deux minutes » : ce serait faux. */
-const SLOW_ANALYSIS_MS = 120_000;
-
 function formatElapsed(elapsedMs: number): string {
   const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -1381,17 +1400,77 @@ function formatElapsed(elapsedMs: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+/** Temps écoulé depuis l'ENTRÉE dans l'écran d'attente, pas depuis le montage
+ *  de la page : c'est le composant qui l'appelle qui le porte. */
+function useElapsedMs(): number {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000);
+    return () => clearInterval(timer);
+  }, []);
+  return elapsedMs;
+}
+
+/**
+ * Carte d'attente partagée par l'envoi des productions et par l'analyse :
+ * kicker, titre, une phrase, les étapes RÉELLES, le temps écoulé en discret.
+ * Miroir de `DiagnosticWaitCard` (`widgets/diagnostic_wait.dart`).
+ */
+function WaitCard({
+  kicker,
+  title,
+  lead,
+  steps,
+  children,
+}: {
+  kicker: string | null;
+  title: ReactNode;
+  lead: string;
+  steps: DiagnosticWaitStep[];
+  /** Rendu sous le temps écoulé : réassurance, panneau, actions. */
+  children?: (elapsedMs: number) => ReactNode;
+}) {
+  const elapsedMs = useElapsedMs();
+  return (
+    <section className={styles.waitCard} aria-busy="true">
+      {kicker && <p className={styles.waitKicker}>{kicker}</p>}
+      <h1 className={styles.waitTitle}>{title}</h1>
+      <p className={styles.waitLead}>{lead}</p>
+
+      <ol className={styles.waitSteps} role="status">
+        {steps.map((step) => (
+          <li key={step.key} data-state={step.state}>
+            <span aria-hidden>
+              {step.state === "done" && <Check size={12} strokeWidth={3.2} />}
+            </span>
+            {step.label}
+          </li>
+        ))}
+      </ol>
+
+      <p className={styles.waitTimer}>
+        {DIAGNOSTIC_ELAPSED_LABEL} ·{" "}
+        {/* Pas de région live sur le chiffre : un lecteur d'écran ne doit pas
+            énoncer une nouvelle valeur chaque seconde. */}
+        <b aria-live="off">{formatElapsed(elapsedMs)}</b>
+      </p>
+
+      {children?.(elapsedMs)}
+    </section>
+  );
+}
+
 /**
  * Attente de l'analyse IA — le seul écran où le candidat n'a plus rien à faire
  * et où le rapport n'est pas encore là.
  *
- * Il a été muet pendant des mois : une carte discrète, aucune mention de l'IA,
- * aucun repère de temps. Un candidat venu des réseaux voyait un écran gris et
- * partait. On nomme donc ce qui tourne, on montre les étapes franchies et on
- * fait tourner un compteur — une attente chiffrée est une attente supportable.
- *
- * Le compteur démarre à l'ENTRÉE dans cet écran, pas au montage de la page :
- * c'est le composant lui-même qui le porte.
+ * 🛑 **La forme est lue sur la session servie** (2026-09-26) : une ligne par
+ * production que la session comporte (`diagnostic.written` / `.oral`), jamais
+ * une « réponse orale en attente » sur le diagnostic rapide qui n'en a pas.
+ * Pendant l'attente, on montre ce que le rapport contiendra (les items du
+ * panneau de l'écran de compte, `TCF_DIAGNOSTIC_PANEL`) : une information vraie
+ * plutôt qu'un rond qui tourne.
  */
 function AnalysisWaiting({
   diagnostic,
@@ -1400,78 +1479,60 @@ function AnalysisWaiting({
   diagnostic: DiagnosticResponse;
   transientMessage: string | null;
 }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
-
-  useEffect(() => {
-    const startedAt = Date.now();
-    const timer = setInterval(() => setElapsedMs(Date.now() - startedAt), 1_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const writtenReceived = diagnostic.written?.submissionId != null;
-  const oralReceived = diagnostic.oral?.submissionId != null;
-  const slow = elapsedMs >= SLOW_ANALYSIS_MS;
-
-  const steps: Array<{key: string; done: boolean; label: string}> = [
-    {
-      key: "written",
-      done: writtenReceived,
-      label: writtenReceived ? "Réponse écrite reçue" : "Réponse écrite en attente",
-    },
-    {
-      key: "oral",
-      done: oralReceived,
-      label: oralReceived ? "Réponse orale reçue" : "Réponse orale en attente",
-    },
-    {key: "analysis", done: false, label: "Analyse IA en cours"},
-  ];
+  const hasOral = diagnostic.oral != null;
+  const title = diagnosticAnalysisTitle(hasOral);
+  const steps = diagnosticAnalysisSteps({
+    writtenReceived: diagnostic.written ? diagnostic.written.submissionId != null : null,
+    oralReceived: diagnostic.oral ? diagnostic.oral.submissionId != null : null,
+  });
 
   return (
-    <section className={styles.stateCard} aria-busy="true">
-      <span className={`${styles.stateIcon} ${styles.stateIconBusy}`} aria-hidden>
-        <Sparkles size={26} />
-      </span>
-      <h1>Analyse IA de vos deux productions en cours</h1>
-      <p>
-        Votre écrit et votre oral sont analysés ensemble pour repérer les compétences
-        réellement observables. Votre rapport s&apos;affichera ici tout seul.
-      </p>
+    <WaitCard
+      kicker={DIAGNOSTIC_ANALYSIS_KICKER}
+      title={
+        <>
+          {title.lead} <em>{title.em}</em> {title.tail}
+        </>
+      }
+      lead={DIAGNOSTIC_ANALYSIS_LEAD}
+      steps={steps}
+    >
+      {(elapsedMs) => (
+        <>
+          <p className={styles.waitReassurance}>
+            {elapsedMs >= DIAGNOSTIC_ANALYSIS_USUAL_MS
+              ? diagnosticAnalysisSlow(hasOral)
+              : DIAGNOSTIC_ANALYSIS_USUAL}
+          </p>
 
-      <div className={styles.waitPanel}>
-        <ol className={styles.waitSteps} role="status">
-          {steps.map((step) => (
-            <li key={step.key} data-state={step.done ? "done" : "running"}>
-              <span aria-hidden>
-                {step.done ? <Check size={13} strokeWidth={3.2} /> : <Sparkles size={13} />}
-              </span>
-              {step.label}
-            </li>
-          ))}
-        </ol>
-        <p className={styles.waitTimer}>
-          <Clock3 size={14} aria-hidden />
-          <span>Temps écoulé</span>
-          {/* Pas de région live sur le chiffre : un lecteur d'écran ne doit pas
-              énoncer une nouvelle valeur chaque seconde. */}
-          <b aria-live="off">{formatElapsed(elapsedMs)}</b>
-        </p>
-      </div>
+          {transientMessage && <p className={styles.waitTransient}>{transientMessage}</p>}
 
-      <p className={styles.waitReassurance}>
-        {slow
-          ? "C'est plus long que d'habitude. L'analyse continue côté serveur : rien n'est perdu. Vous pouvez fermer cet écran et revenir plus tard, votre rapport vous attendra."
-          : "L'analyse prend généralement moins de deux minutes. Vous pouvez quitter cet écran et revenir plus tard : elle continue côté serveur et rien n'est perdu."}
-      </p>
+          <div className={styles.waitOutcomes}>
+            <p className={styles.waitOutcomesTitle}>{DIAGNOSTIC_OUTCOMES_TITLE}</p>
+            <ul>
+              {TCF_DIAGNOSTIC_PANEL.items.map(({Icon, title: itemTitle, text}) => (
+                <li key={itemTitle}>
+                  <span aria-hidden>{Icon && <Icon size={16} />}</span>
+                  <div>
+                    <b>{itemTitle}</b>
+                    {text && <small>{text}</small>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {TCF_DIAGNOSTIC_PANEL.note && (
+              <p className={styles.waitOutcomesNote}>{TCF_DIAGNOSTIC_PANEL.note}</p>
+            )}
+          </div>
 
-      {transientMessage && <p className={styles.waitTransient}>{transientMessage}</p>}
-
-      <div className={styles.actions}>
-        <Link className={styles.secondaryButton} href="/dashboard">
-          Revenir au tableau de bord
-        </Link>
-      </div>
-      <span className={styles.loadingBar} aria-hidden />
-    </section>
+          <div className={styles.actions}>
+            <Link className={styles.secondaryButton} href="/dashboard">
+              {DIAGNOSTIC_ANALYSIS_HOME_CTA}
+            </Link>
+          </div>
+        </>
+      )}
+    </WaitCard>
   );
 }
 

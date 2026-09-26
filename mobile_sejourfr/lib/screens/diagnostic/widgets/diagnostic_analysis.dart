@@ -5,52 +5,42 @@ import '../../../core/models/diagnostic_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import 'diagnostic_analysis_labels.dart';
 import 'diagnostic_common.dart';
+import 'diagnostic_outcomes.dart';
 import 'diagnostic_wait.dart';
-
-/// Au-delà de ce délai, l'attente est annoncée comme inhabituelle. Ce n'est
-/// **pas** un échec : l'échec, c'est `FAILED`, qui a son propre écran.
-const _kAnalyseHabituelle = Duration(minutes: 2);
-
-/// Textes de l'écran d'échec d'analyse. Miroir mot pour mot du web
-/// (`DiagnosticView.tsx`) : ces chaînes ne transitent pas par le réseau, chaque
-/// front en tient sa copie.
-const kAnalysisFailedTitle = 'L’analyse n’a pas pu aboutir';
-const kAnalysisFailedText =
-    'Vos deux réponses sont conservées. Vous n’avez rien à refaire.';
-const kAnalysisRetryExhausted =
-    'Le nombre de relances automatiques est épuisé. Vos deux productions '
-    'restent enregistrées : vous n’avez rien à refaire. L’analyse a échoué de '
-    'notre côté, et votre plan reste accessible en attendant.';
 
 class DiagnosticAnalysisView extends StatelessWidget {
   const DiagnosticAnalysisView({
     super.key,
     required this.journey,
     required this.isBusy,
+    required this.isPolling,
     required this.onRefresh,
     required this.onRetry,
     required this.onOpenPlan,
+    required this.onOpenHome,
     this.errorMessage,
   });
 
   final DiagnosticJourney journey;
   final bool isBusy;
+
+  /// Le contrôleur relit encore la session. Il s'arrête au bout de 10 min
+  /// (`maxPolls`) : c'est alors seulement qu'« Actualiser » apparaît.
+  final bool isPolling;
   final VoidCallback onRefresh;
   final VoidCallback onRetry;
   final VoidCallback onOpenPlan;
+  final VoidCallback onOpenHome;
 
   /// Échec de l'action qu'on vient de tenter (typiquement la relance). À ne pas
   /// confondre avec [DiagnosticJourney.errorMessage], qui dit pourquoi
   /// l'analyse elle-même a échoué.
   final String? errorMessage;
 
-  /// Le serveur n'expose pas de drapeau « reçue » une fois l'analyse lancée :
-  /// à partir d'ANALYZING, les deux productions sont forcément en sa
-  /// possession.
-  bool get _received =>
-      journey.status == DiagnosticJourneyStatus.analyzing ||
-      journey.status == DiagnosticJourneyStatus.completed;
+  /// La forme de CETTE session : un oral seulement s'il a été servi.
+  bool get _hasOral => journey.oral != null;
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +48,6 @@ class DiagnosticAnalysisView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
       children: [
-        const DiagnosticProgress(activeStep: 2, completedSteps: 2),
-        const SizedBox(height: 28),
         if (failed) _failedCard() else _waitingCard(),
         if (errorMessage != null) ...[
           const SizedBox(height: 14),
@@ -93,13 +81,13 @@ class DiagnosticAnalysisView extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              kAnalysisFailedTitle,
+              kDiagnosticAnalysisFailedTitle,
               textAlign: TextAlign.center,
               style: AppFonts.display(size: 23),
             ),
             const SizedBox(height: 8),
             Text(
-              kAnalysisFailedText,
+              diagnosticAnalysisFailedText(_hasOral),
               textAlign: TextAlign.center,
               style: AppFonts.ui(
                 size: 13.5,
@@ -110,7 +98,7 @@ class DiagnosticAnalysisView extends StatelessWidget {
             if (!journey.canRetry) ...[
               const SizedBox(height: 12),
               Text(
-                kAnalysisRetryExhausted,
+                diagnosticAnalysisRetryExhausted(_hasOral),
                 textAlign: TextAlign.center,
                 style: AppFonts.ui(
                   size: 13,
@@ -149,96 +137,129 @@ class DiagnosticAnalysisView extends StatelessWidget {
         ),
       );
 
-  Widget _waitingCard() => AppCard(
-        borderRadius: AppRadii.xl,
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
-        child: DiagnosticElapsed(
-          builder: (context, elapsed) {
-            final long = elapsed >= _kAnalyseHabituelle;
-            return Column(
+  /// L'attente de l'analyse. Miroir de `AnalysisWaiting` (web) : une ligne
+  /// par production que la session comporte, jamais un oral « en attente »
+  /// sur le diagnostic rapide qui n'en a pas.
+  Widget _waitingCard() {
+    final title = diagnosticAnalysisTitle(_hasOral);
+    return DiagnosticWaitCard(
+      kicker: kDiagnosticAnalysisKicker,
+      title: diagnosticWaitTitle(title.lead, title.em, title.tail),
+      lead: kDiagnosticAnalysisLead,
+      steps: diagnosticAnalysisSteps(
+        writtenReceived: journey.written == null
+            ? null
+            : journey.written!.submissionId != null,
+        oralReceived:
+            journey.oral == null ? null : journey.oral!.submissionId != null,
+      ),
+      footer: (elapsed) => [
+        const SizedBox(height: 10),
+        Text(
+          elapsed >= kDiagnosticAnalysisUsual
+              ? diagnosticAnalysisSlow(_hasOral)
+              : kDiagnosticAnalysisUsualText,
+          style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.5),
+        ),
+        const SizedBox(height: 22),
+        const _OutcomesPanel(),
+        const SizedBox(height: 22),
+        if (!isPolling) ...[
+          AppButton(
+            label: 'Actualiser',
+            isLoading: isBusy,
+            onPressed: isBusy ? null : onRefresh,
+          ),
+          const SizedBox(height: 10),
+        ],
+        AppButton(
+          label: kDiagnosticAnalysisHomeCta,
+          variant: AppButtonVariant.soft,
+          onPressed: onOpenHome,
+        ),
+      ],
+    );
+  }
+}
+
+/// Ce que contiendra le rapport : les items de l'écran de compte
+/// (`kTcfDiagnosticGateOutcomes`), une information vraie pendant l'attente.
+/// Icônes miroirs de `TCF_DIAGNOSTIC_PANEL` (web).
+class _OutcomesPanel extends StatelessWidget {
+  const _OutcomesPanel();
+
+  static const _icons = [
+    LucideIcons.gauge,
+    LucideIcons.target,
+    LucideIcons.route,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            kDiagnosticOutcomesTitle.toUpperCase(),
+            style: AppFonts.label(size: 11, color: AppColors.muted),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < kTcfDiagnosticGateOutcomes.length; i++) ...[
+            if (i != 0) const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 70,
-                  height: 70,
-                  decoration: const BoxDecoration(
-                    color: AppColors.blueLight,
-                    shape: BoxShape.circle,
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: AppColors.blue,
-                    ),
+                  child: Icon(
+                    _icons[i % _icons.length],
+                    size: 16,
+                    color: AppColors.blue,
                   ),
                 ),
-                const SizedBox(height: 18),
-                Text(
-                  'Analyse IA de vos deux productions',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.display(size: 23),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Votre texte et votre enregistrement sont analysés '
-                  'séparément, puis réunis en trois priorités au maximum.',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 13.5,
-                    color: AppColors.inkSoft,
-                    height: 1.45,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kTcfDiagnosticGateOutcomes[i].title,
+                        style: AppFonts.ui(size: 14, weight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        kTcfDiagnosticGateOutcomes[i].text,
+                        style: AppFonts.ui(
+                          size: 13,
+                          color: AppColors.muted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 18),
-                DiagnosticElapsedPill(elapsed: elapsed),
-                const SizedBox(height: 18),
-                DiagnosticWaitSteps(
-                  steps: [
-                    DiagnosticWaitStep(
-                      'Écrit reçu',
-                      _received
-                          ? DiagnosticWaitState.done
-                          : DiagnosticWaitState.pending,
-                    ),
-                    DiagnosticWaitStep(
-                      'Oral reçu',
-                      _received
-                          ? DiagnosticWaitState.done
-                          : DiagnosticWaitState.pending,
-                    ),
-                    const DiagnosticWaitStep(
-                      'Analyse IA en cours',
-                      DiagnosticWaitState.active,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  long
-                      ? 'C’est plus long que d’habitude. L’analyse se poursuit '
-                          'sur nos serveurs : rien n’est perdu. Vous pouvez '
-                          'quitter cet écran et revenir plus tard pour voir '
-                          'votre résultat.'
-                      : 'L’analyse prend généralement moins de deux minutes. '
-                          'Rien n’est perdu : vous pouvez quitter cet écran, '
-                          'elle se poursuit sur nos serveurs.',
-                  textAlign: TextAlign.center,
-                  style: AppFonts.ui(
-                    size: 12.5,
-                    color: AppColors.inkFaint,
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                AppButton(
-                  label: 'Actualiser',
-                  variant: AppButtonVariant.soft,
-                  isLoading: isBusy,
-                  onPressed: isBusy ? null : onRefresh,
                 ),
               ],
-            );
-          },
-        ),
-      );
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            kDiagnosticDisclaimer,
+            style: AppFonts.ui(size: 12, color: AppColors.muted2),
+          ),
+        ],
+      ),
+    );
+  }
 }

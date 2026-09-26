@@ -222,17 +222,41 @@ class AuthController extends StateNotifier<AuthState> {
       .read(diagnosticRunTrackerProvider)
       .onAuthenticated(user.id, tunnel.claims);
 
-  Future<void> login({required String email, required String password}) async {
-    final tunnel = await _tunnel();
-    final tokens =
-        await _repo.login(email: email, password: password, tunnel: tunnel);
+  /// **Ouvre la session** après une connexion ou une inscription — le même
+  /// chemin que le démarrage de l'app.
+  ///
+  /// 🛑 **Le profil se relit (`/me`, puis `/subscription-status`)** au lieu de
+  /// garder le `user` joint aux jetons : c'est ce que fait l'amorçage
+  /// ([_resolveBootState]), et c'est ce que fait le web (`register` → `refreshUser`).
+  /// Deux chemins d'ouverture qui ne lisent pas la même source finissent par
+  /// montrer deux comptes différents — un Profil incomplet jusqu'au
+  /// redémarrage. En cas d'échec réseau, on garde le `user` des jetons : la
+  /// session s'ouvre quand même.
+  Future<void> _ouvrirSession(TokenResponse tokens, AuthTunnel tunnel) async {
     await _storage.save(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: tokens.user,
     );
-    await _afterAuth(tokens.user, tunnel);
-    state = AuthAuthenticated(tokens.user);
+    var user = tokens.user;
+    try {
+      user = await _repo.me();
+      try {
+        user = _applyStatus(user, await _billing.getSubscriptionStatus());
+      } catch (_) {/* tolérant, comme au démarrage */}
+      await _storage.saveUser(user);
+    } catch (_) {
+      user = tokens.user;
+    }
+    await _afterAuth(user, tunnel);
+    state = AuthAuthenticated(user);
+  }
+
+  Future<void> login({required String email, required String password}) async {
+    final tunnel = await _tunnel();
+    final tokens =
+        await _repo.login(email: email, password: password, tunnel: tunnel);
+    await _ouvrirSession(tokens, tunnel);
   }
 
   Future<void> register({
@@ -249,13 +273,7 @@ class AuthController extends StateNotifier<AuthState> {
       lastName: lastName,
       tunnel: tunnel,
     );
-    await _storage.save(
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: tokens.user,
-    );
-    await _afterAuth(tokens.user, tunnel);
-    state = AuthAuthenticated(tokens.user);
+    await _ouvrirSession(tokens, tunnel);
   }
 
   /// Sign-in via Google. Levee `SocialSignInException` si l'utilisateur
@@ -266,13 +284,7 @@ class AuthController extends StateNotifier<AuthState> {
     final tunnel = await _tunnel();
     final tokens =
         await _repo.loginWithGoogle(idToken: result.idToken, tunnel: tunnel);
-    await _storage.save(
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: tokens.user,
-    );
-    await _afterAuth(tokens.user, tunnel);
-    state = AuthAuthenticated(tokens.user);
+    await _ouvrirSession(tokens, tunnel);
   }
 
   /// Sign-in via Apple (iOS uniquement). Idem Google cote levees.
@@ -285,13 +297,7 @@ class AuthController extends StateNotifier<AuthState> {
       lastName: result.lastName,
       tunnel: tunnel,
     );
-    await _storage.save(
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: tokens.user,
-    );
-    await _afterAuth(tokens.user, tunnel);
-    state = AuthAuthenticated(tokens.user);
+    await _ouvrirSession(tokens, tunnel);
   }
 
   Future<void> logout() async {

@@ -17,7 +17,6 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
-import '../../../core/models/preparation_labels.dart';
 
 /* ------------------------------------------------------------- l'en-tête */
 
@@ -162,15 +161,8 @@ const List<String> kDiagnosticCompletBenefits = [
   'les tâches qui vous limitent actuellement',
   'vos priorités pour atteindre votre objectif',
 ];
-/// 🛑 **Réexport, pas une seconde déclaration** (2026-09-12). Le libellé du
-/// diagnostic complet vit dans `core/models/preparation_labels.dart`, autorité
-/// unique du mobile : le Plan, l'Accueil et ce rapport disaient trois phrases
-/// différentes pour un seul geste. La variante « Faire mon diagnostic
-/// complet » est supprimée.
-const String kDiagnosticCompletCta = kDiagnosticCompletCtaStart;
-
-/// 🛑 « en plusieurs fois » est la moitié qui fait accepter les 75 minutes.
-/// ⚠️ Et jamais le mot « examen blanc » de la maquette : le diagnostic TCF
-/// n'en est pas un.
-const String kDiagnosticCompletNote =
-    '4 épreuves · environ 75 min · vous pouvez le faire en plusieurs fois';
+/// **La suite principale du rapport : le Plan.** Dès que le diagnostic rapide
+/// est clos, le Plan existe, provisoire mais réel (`docs/regles/plan.md`).
+/// 🛑 Jamais vers l'entrée du diagnostic complet, qui n'est plus un parcours
+/// proposé (arbitrage du 2026-09-26). Miroir : `DIAGNOSTIC_REPORT_PLAN_CTA`.
+const String kDiagnosticReportPlanCta = 'Voir mon plan';

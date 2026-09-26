@@ -9,6 +9,7 @@ import {TCF_DIAGNOSTIC_PANEL} from "@/app/_components/auth/auth-panels";
 import authStyles from "@/app/_components/auth/auth.module.css";
 import {ContinueOnAppLink} from "@/app/_components/diagnostic/ContinueOnAppLink";
 import {userContentApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
 import {DIAGNOSTIC_EDIT_WRITTEN_CTA} from "@/lib/diagnostic";
 import {DiagnosticGateRecap, type DiagnosticGateRecapItem} from "./DiagnosticGateRecap";
 import {DiagnosticSteps} from "./DiagnosticSteps";
@@ -70,6 +71,7 @@ export function DiagnosticAccountGate({
   onEditWritten?: () => void;
 }) {
   const [mode, setMode] = useState<"register" | "login">("register");
+  const {refreshUser} = useAuth();
 
   const duration = formatDuration(oralDurationSec);
   const recap: DiagnosticGateRecapItem[] = [
@@ -131,7 +133,7 @@ export function DiagnosticAccountGate({
           registrationContext="DURING_DIAGNOSTIC"
           submitLabel="Créer mon compte et analyser"
           extraFields={<ExamDateField />}
-          onRegistered={saveExamDate}
+          onRegistered={(form) => saveExamDate(form, refreshUser)}
         />
       ) : (
         <LoginForm submitLabel="Me connecter et analyser" />
@@ -191,8 +193,17 @@ function ExamDateField() {
  * requête d'inscription : `50_` §3.1 interdit d'y mélanger du métier. Un échec
  * ici ne doit surtout pas faire échouer un compte déjà créé — le candidat
  * pourra toujours la saisir dans son profil.
+ *
+ * 🛑 **Le profil se relit APRÈS l'écriture** : l'inscription a déjà relu
+ * `/api/auth/me` avant que la date parte, et le compte ouvert gardait
+ * `examDate: null` jusqu'au rechargement de la page.
  */
-async function saveExamDate(form: FormData): Promise<void> {
+async function saveExamDate(form: FormData, refreshUser: () => Promise<void>): Promise<void> {
   const examDate = String(form.get("examDate") ?? "");
-  if (examDate) await userContentApi.updateExamDate(examDate).catch(() => undefined);
+  if (!examDate) return;
+  const saved = await userContentApi.updateExamDate(examDate).then(
+    () => true,
+    () => false,
+  );
+  if (saved) await refreshUser();
 }

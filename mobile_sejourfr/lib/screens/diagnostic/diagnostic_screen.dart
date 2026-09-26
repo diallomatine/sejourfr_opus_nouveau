@@ -422,7 +422,14 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                         ? 'Diagnostic'
                         : 'Diagnostic TCF',
                 sub: _headerSub(state),
-                onBack: state.isSubmitting || state.isSyncing
+                // 🛑 Le rapport atteint au sortir du tunnel (compte créé puis
+                // `go` vers le diagnostic) n'a rien en dessous : il est un
+                // écran racine, sans flèche — « retour » ne ramène jamais à
+                // l'écran de compte. Ouvert depuis le Plan (`push`), il garde
+                // sa flèche. Miroir du `backTo` conditionnel du web.
+                onBack: state.isSubmitting ||
+                        state.isSyncing ||
+                        (_showsReport(state) && !context.canPop())
                     ? null
                     : editingWritten
                         ? _cancelWrittenEdit
@@ -453,9 +460,19 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       return _guestContent(state: state, recording: recording);
     }
 
-    if (state.isSyncing) return DiagnosticSendingView(stage: state.syncStage);
+    // La forme du passage vient de la production locale : elle a été
+    // enregistrée avec son exigence d'oral.
+    final syncHasOral =
+        state.draft != null && (state.draft!.oralRequired || state.draft!.hasOral);
+    if (state.isSyncing) {
+      return DiagnosticSendingView(
+        stage: state.syncStage,
+        hasOral: syncHasOral,
+      );
+    }
     if (state.canRetrySync) {
       return DiagnosticSyncFailedView(
+        hasOral: syncHasOral,
         isBusy: state.isSyncing,
         errorMessage: state.errorMessage,
         onRetry: () => unawaited(_controller.syncLocalProductions()),
@@ -483,10 +500,12 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       return DiagnosticAnalysisView(
         journey: journey,
         isBusy: state.isSubmitting || state.isLoading,
+        isPolling: state.isPolling,
         errorMessage: state.errorMessage,
         onRefresh: () => unawaited(_controller.refreshDetail()),
         onRetry: () => unawaited(_controller.retryAnalysis()),
         onOpenPlan: () => context.go(AppRoutes.plan),
+        onOpenHome: () => context.go(AppRoutes.home),
       );
     }
     return switch (journey.nextStep) {

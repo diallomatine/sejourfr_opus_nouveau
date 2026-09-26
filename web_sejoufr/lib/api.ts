@@ -111,6 +111,7 @@ export const PROGRESS_CACHE_PREFIX = "progress:";
  *  qu'on vient de lire), c'est **ici** que se joue leur fraîcheur. Une écriture
  *  qui oublierait d'appeler ce helper afficherait une progression périmée. */
 function invalidateDiagnosticAndPlan(): void {
+    oublierDashboard();
     invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
     invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
     invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
@@ -300,6 +301,7 @@ export const tokenStorage = {
            silencieuse coûte quelques requêtes, servir les données d'un autre
            compte est un incident. */
         clearDataCache();
+        oublierDashboard();
         oublierAccesServi();
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
@@ -318,6 +320,7 @@ export const tokenStorage = {
         // candidat (sujets traités, notes, quotas). Le laisser en place le
         // servirait au compte suivant ouvert dans le même onglet.
         clearDataCache();
+        oublierDashboard();
         oublierAccesServi();
     },
 };
@@ -997,6 +1000,18 @@ function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
 // agrégat — un seul appel réseau quand les deux montent en même temps.
 let dashboardMemo: {at: number; promise: Promise<DashboardSummaryResponse>} | null = null;
 
+/**
+ * 🛑 **Ce mémo vit HORS de `data-cache`**, donc hors de `clearDataCache()` et
+ * d'`invalidateDiagnosticAndPlan()` : il doit être oublié aux mêmes instants.
+ * Sans ça, la barre latérale le remplissait à l'inscription faite pendant le
+ * diagnostic — avant la fin de l'analyse — et le Profil affichait ensuite
+ * « — » pour le niveau estimé jusqu'au rechargement (ou le streak d'un autre
+ * compte, après un changement de session de moins de 30 s).
+ */
+function oublierDashboard(): void {
+    dashboardMemo = null;
+}
+
 export const dashboardApi = {
     summary: fetchDashboardSummary,
     summaryCached(): Promise<DashboardSummaryResponse> {
@@ -1397,12 +1412,14 @@ export const civicDiagnosticApi = {
      */
     adopt(sessionId: string): Promise<CivicDiagnosticDto> {
         // Le diagnostic change de porteur : tout ce qui décrit l'avancement du
-        // compte est à relire.
-        invalidateDiagnosticAndPlan();
+        // compte est à relire. 🛑 Purge **après** la réponse (`afterMeasureWrite`) :
+        // les écrans montés à l'inscription (barre latérale, Accueil) relisent
+        // pendant l'adoption, et une purge faite avant l'appel les laissait
+        // repeupler le cache avec l'état d'avant.
         return apiFetch<CivicDiagnosticDto>(
             `/api/civic-diagnostics/${sessionId}/adopt`,
             {method: "POST", auth: true},
-        );
+        ).then(afterMeasureWrite);
     },
 };
 
