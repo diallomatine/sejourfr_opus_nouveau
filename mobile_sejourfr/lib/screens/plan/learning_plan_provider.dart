@@ -5,6 +5,10 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
+import '../../core/providers/preparation_provider.dart';
+import '../../core/providers/progress_provider.dart';
+import '../diagnostic/diagnostic_courant_provider.dart';
+import 'civic_plan_provider.dart';
 
 /// **Le signal « l'avancement du candidat a changé »** : une production
 /// évaluée, un micro-exercice, une mutation d'un diagnostic (TCF ou civique),
@@ -32,16 +36,45 @@ final learningPlanRevisionProvider = StateProvider<int>((ref) => 0);
 ///
 /// 🛑 **Une émission par MESURE, jamais une par requête.** Le signal recharge
 /// cinq sources gardées en vie ; l'émettre deux fois pour un même geste les
-/// rechargerait deux fois pour rien. Les parcours de production émettent déjà
-/// par leur contrôleur (`onPlanChanged` sur `ee/eoSessionProvider`,
-/// `skillSubmissionProvider`, `diagnosticControllerProvider`) : ne pas
-/// ré-émettre sur la clôture qui suit immédiatement une soumission.
+/// rechargerait deux fois pour rien.
+///
+/// ⚠️ **Mais la CLÔTURE d'un examen est une mesure à part entière**, même quand
+/// elle suit une soumission : la relecture déclenchée par la soumission part
+/// AVANT le `finish` / `sub-done`, donc elle rend le Plan d'avant la clôture —
+/// c'est ce qui laissait le Plan TCF périmé au retour d'un examen blanc. Les
+/// clôtures émettent donc à leur tour : `RunnerController.finish`,
+/// `finishAttemptIfExam` (EE/EO), [cloreEpreuveDuComplet], la fin de polling
+/// du bilan d'examen complet. Pendant web : `afterMeasureWrite` (`lib/api.ts`).
 ///
 /// C'est le pendant mobile d'`invalidateDiagnosticAndPlan()`
 /// (`web_sejoufr/lib/api.ts`) — à ceci près que le web **purge** un cache là où
 /// le mobile **relance** les lectures vivantes, d'où la règle ci-dessus.
 void signalerMesureEcrite(WidgetRef ref) {
   ref.read(learningPlanRevisionProvider.notifier).state++;
+}
+
+/// **Relire le serveur, pas un cache** — le tiré-pour-rafraîchir de l'Accueil
+/// et du Plan, et le retour sur le Plan (`didPopNext`).
+///
+/// 🛑 **Le même signal que les écritures**, pas une liste d'`invalidate` par
+/// écran : chaque liste recopiée oubliait une source (le tiré du Plan ne
+/// relisait que `learningPlanProvider`, laissant le parcours — donc la carte
+/// « À faire maintenant » et le cycle — sur son instantané d'avant). Toute
+/// source qui écoute [learningPlanRevisionProvider] est relancée ; on attend
+/// ensuite celles des deux écrans, erreurs avalées (l'écran affiche la sienne).
+Future<void> relireSourcesDuCompte(WidgetRef ref) async {
+  ref.read(learningPlanRevisionProvider.notifier).state++;
+  Future<void> lue<T>(ProviderListenable<Future<T>> source) =>
+      ref.read(source).then((_) {}, onError: (Object _) {});
+  await Future.wait<void>([
+    lue(learningPlanProvider.future),
+    lue(journeyProvider.future),
+    lue(civicPlanProvider.future),
+    lue(journeyCiviqueProvider.future),
+    lue(preparationProvider.future),
+    lue(progressProvider.future),
+    lue(diagnosticCourantProvider.future),
+  ]);
 }
 
 /// Le Plan TCF, **gardé en vie pour la session**.

@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -24,7 +23,6 @@ import 'widgets/production_app_header.dart';
 import 'widgets/production_info_sheet.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
-import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
 /// le mockup `EE · 01` de sejourfr_mobile_v3.html.
@@ -176,14 +174,11 @@ class _EeBriefingWritingScreenState
         // Dernière tâche EE : marquer le sous-attempt EE comme terminé
         // côté backend (les 3 submissions sont persistées, mais leurs
         // évaluations IA tournent encore en async). Le hub débloque EO.
-        try {
-          await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-                parentAttemptId: fullExamId,
-                epreuveWire: 'TCF_EE',
-              );
-        } catch (_) {
-          /* fallback : hook auto backend finira par poser finishedAt */
-        }
+        await cloreEpreuveDuComplet(
+          ref,
+          fullExamId: fullExamId,
+          epreuve: EpreuveType.tcfEe,
+        );
         if (!mounted) return;
         ref.read(eeSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));
@@ -273,12 +268,11 @@ class _EeBriefingWritingScreenState
     if (!mounted) return;
 
     if (fullExamId != null) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: 'TCF_EE',
-            );
-      } catch (_) {/* hook auto backend fallback */}
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEe,
+      );
       if (!mounted) return;
       final id = ref.read(eeSessionProvider).value?.attempt?.id;
       ref.read(eeSessionProvider.notifier).reset();
@@ -343,17 +337,12 @@ class _EeBriefingWritingScreenState
     // pas. Les épreuves **jamais ouvertes**, elles, ne sont toujours touchées
     // par aucun geste de sortie — ni ici, ni depuis le hub.
     if (fullExamId != null) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: EpreuveType.tcfEe.wire,
-            );
-        // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
-        // Aucune soumission dans ce geste — c'est la seule émission.
-        // ⚠️ Un garde, jamais un `return` : la sortie doit toujours remettre la
-        // session à zéro et naviguer.
-        if (mounted) signalerMesureEcrite(ref);
-      } catch (_) {/* hook auto backend fallback */}
+      // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEe,
+      );
     } else {
       await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
     }

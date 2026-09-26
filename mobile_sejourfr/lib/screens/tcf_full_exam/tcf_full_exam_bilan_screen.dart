@@ -143,6 +143,10 @@ class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen>
       final exam = await ref.read(fullTcfExamProvider(widget.parentAttemptId).future);
       if (!mounted) return;
       if (exam.status == FullTcfExamStatus.completed) {
+        // 🛑 Les évaluations EE/EO viennent d'aboutir : le niveau final est
+        // posé APRÈS le `finish` de `_bootstrap`, dont le signal a donc relu un
+        // Plan d'avant. Une émission, à la transition — le polling s'arrête.
+        signalerMesureEcrite(ref);
         return; // plus de polling : le widget rebuild affichera le niveau.
       }
       if (_examIsStale(exam)) {

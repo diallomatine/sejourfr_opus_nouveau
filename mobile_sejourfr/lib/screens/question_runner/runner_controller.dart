@@ -9,6 +9,7 @@ import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
+import '../plan/learning_plan_provider.dart';
 
 /// Taille d'un batch en entraînement infini.
 const _kTrainingBatchSize = 30;
@@ -156,6 +157,9 @@ final runnerControllerProvider = StateNotifierProvider.family
   (ref, attemptId) {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthAuthenticated ? auth.user : null;
+    // Lu à la construction : le runner est `autoDispose`, et son `ref` ne se
+    // lit plus une fois l'écran quitté — le signal, lui, vit toute la session.
+    final revision = ref.read(learningPlanRevisionProvider.notifier);
     return RunnerController(
       ref.watch(attemptsRepositoryProvider),
       ref.watch(userContentRepositoryProvider),
@@ -171,6 +175,7 @@ final runnerControllerProvider = StateNotifierProvider.family
       // Sans elle, le runner appelait les routes authentifiées et un visiteur
       // recevait un 401 sur sa première réponse.
       guest: auth is! AuthAuthenticated,
+      onMesureEcrite: () => revision.state++,
     );
   },
 );
@@ -182,8 +187,10 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     this._attemptId, {
     required bool Function(AppModule module) accesModule,
     required bool guest,
+    void Function()? onMesureEcrite,
   })  : _accesModule = accesModule,
         _guest = guest,
+        _onMesureEcrite = onMesureEcrite ?? _noop,
         super(const AsyncValue.loading()) {
     _load();
   }
@@ -196,6 +203,15 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   /// La session est jouée **sans compte** : passation par `/api/public/attempts`,
   /// et aucun appel à `/api/me/*` (l'API publique n'expose pas les favoris).
   final bool _guest;
+
+  /// **Une session finalisée est une MESURE ÉCRITE** : examen blanc de module
+  /// (CO/CE/Structure), examen civique, sous-épreuve d'un examen complet,
+  /// section de diagnostic, lot, série ciblée ou entraînement. Émis ici, au
+  /// seul point par où passent TOUTES les finalisations du runner — les
+  /// aiguillages de l'écran (résultat, retour au hub d'un examen complet,
+  /// sortie d'un entraînement infini) n'ont plus à s'en souvenir. Pendant web :
+  /// `attemptApi.finish` → `afterMeasureWrite`.
+  final void Function() _onMesureEcrite;
 
   /// Filtres déduits du premier batch, pour pouvoir étendre la session
   /// d'entraînement avec les mêmes critères.
@@ -507,6 +523,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         activeAttempt: finished,
         submitting: false,
       ));
+      if (!_guest) _onMesureEcrite();
       return finished;
     } catch (e) {
       state = AsyncValue.data(cur.copyWith(
@@ -517,3 +534,5 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     }
   }
 }
+
+void _noop() {}

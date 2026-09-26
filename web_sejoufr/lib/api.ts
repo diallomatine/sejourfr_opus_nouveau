@@ -231,6 +231,17 @@ function afterMeasureWrite<T>(res: T): T {
     return res;
 }
 
+/** **Lecture d'un examen blanc COMPLET** : le niveau final n'est posé qu'à
+ *  la fin des évaluations EE/EO, en arrière-plan, bien APRÈS le `finish` (dont
+ *  la purge a donc laissé le Plan se relire sur l'état d'avant). Le bilan
+ *  poll jusqu'à `COMPLETED` : c'est là que le Plan, le parcours et l'Accueil
+ *  redeviennent faux. Même idiome qu'`afterDiagnosticRead`. Pendant mobile :
+ *  la fin du polling de `tcf_full_exam_bilan_screen.dart`. */
+function afterFullExamRead(exam: FullTcfExamResponse): FullTcfExamResponse {
+    if (exam.status === "COMPLETED") invalidateDiagnosticAndPlan();
+    return exam;
+}
+
 /** Après une écriture de production : l'historique et les bilans sont périmés. */
 function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissionDto {
     invalidateProductionProgress();
@@ -2090,14 +2101,22 @@ export const realtimeApi = {
         );
     },
 
-    /** Clôture la session : crée la submission + lance la notation côté backend. */
+    /** Clôture la session : crée la submission + lance la notation côté backend.
+     *  🛑 Une production vient d'être créée : même purge qu'une soumission EO
+     *  (pendant mobile : `onPlanChanged` de `RealtimeEoController`). */
     finishSession(
         sessionId: string,
     ): Promise<import("./types").RealtimeSessionStateResponse> {
         return apiFetch<import("./types").RealtimeSessionStateResponse>(
             `/api/realtime/eo/sessions/${sessionId}/finish`,
             {method: "POST", auth: true},
-        );
+        ).then((state) => {
+            if (state.evaluated) {
+                invalidateProductionProgress();
+                invalidateDiagnosticAndPlan();
+            }
+            return state;
+        });
     },
 };
 
@@ -2121,7 +2140,9 @@ export const fullTcfExamApi = {
 
     /** État courant (polling du bilan / refresh du hub de progression). */
     get(id: string): Promise<FullTcfExamResponse> {
-        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}`, {auth: true});
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}`, {auth: true}).then(
+            afterFullExamRead,
+        );
     },
 
     /** Historique des examens complets de l'utilisateur (grille de slots). */

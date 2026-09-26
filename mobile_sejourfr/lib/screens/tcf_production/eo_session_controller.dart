@@ -248,6 +248,9 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     if (current == null || !current.isExam || attemptId == null) return;
     try {
       await _repo.finishAttempt(attemptId);
+      // 🛑 La clôture est une mesure : la relecture émise à la dernière
+      // soumission partait AVANT elle, et rendait le Plan d'avant l'examen.
+      _onPlanChanged();
     } catch (_) {
       /* déjà fini / réseau : le bilan lira l'état réel */
     }

@@ -9,6 +9,7 @@ import '../../../core/api/repositories.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/realtime/gemini_live_client.dart';
+import '../../plan/learning_plan_provider.dart';
 import 'realtime_finish.dart';
 
 /// Arguments d'une session realtime. Sert aussi de clé de family Riverpod :
@@ -121,14 +122,19 @@ class RealtimeEoState {
 /// transcript dialogué au backend (batché), tient le minuteur, et clôture
 /// (le backend crée la submission + lance la notation à la clôture).
 class RealtimeEoController extends StateNotifier<RealtimeEoState> {
-  RealtimeEoController(this._repo, this._args)
-      : super(RealtimeEoState(
+  RealtimeEoController(this._repo, this._args, {void Function()? onPlanChanged})
+      : _onPlanChanged = onPlanChanged ?? _noop,
+        super(RealtimeEoState(
           phase: RealtimePhase.connecting,
           targetSec: _args.descriptor.targetDurationSec ?? _defaultTargetSec,
         ));
 
   final RealtimeRepository _repo;
   final RealtimeRunnerArgs _args;
+
+  /// La clôture crée la soumission côté serveur : le Plan et l'Accueil sont à
+  /// relire. Pendant web : `realtimeApi.finishSession`.
+  final void Function() _onPlanChanged;
 
   GeminiLiveClient? _client;
   Timer? _ticker;
@@ -574,6 +580,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         serverEvaluated = res.evaluated;
         _sessionsRemaining = res.sessionsRemaining;
         finishOk = true;
+        if (serverEvaluated) _onPlanChanged();
       } catch (_) {
         // Rejoué une fois ; l'issue dira la vérité si ça ne passe toujours pas.
       }
@@ -606,8 +613,16 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
 
 final realtimeEoControllerProvider = StateNotifierProvider.autoDispose
     .family<RealtimeEoController, RealtimeEoState, RealtimeRunnerArgs>(
-  (ref, args) => RealtimeEoController(
-    ref.read(realtimeRepositoryProvider),
-    args,
-  )..start(),
+  (ref, args) {
+    // Lu à la construction : le contrôleur est `autoDispose`, son `ref` ne se
+    // lit plus une fois l'écran quitté.
+    final revision = ref.read(learningPlanRevisionProvider.notifier);
+    return RealtimeEoController(
+      ref.read(realtimeRepositoryProvider),
+      args,
+      onPlanChanged: () => revision.state++,
+    )..start();
+  },
 );
+
+void _noop() {}

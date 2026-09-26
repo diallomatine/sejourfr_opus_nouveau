@@ -104,6 +104,8 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
       // l'état réel plutôt que d'afficher un score périmé.
       await ctrl.retry();
       if (!mounted) return;
+      // Clôturée côté serveur, pas par `finish` : son signal n'est pas parti.
+      signalerMesureEcrite(ref);
       attempt = ref.read(runnerControllerProvider(attemptId)).valueOrNull
           ?.activeAttempt;
     }
@@ -801,22 +803,8 @@ class _BottomBar extends ConsumerWidget {
 }
 
 void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
-  // 🛑 **Une session finalisée est une MESURE ÉCRITE**, quelle que soit sa
-  // nature : examen blanc de module (CO/CE/Structure), examen civique,
-  // sous-épreuve d'un examen complet, section de diagnostic, lot, série ciblée
-  // ou entraînement. Le serveur vient de poser un score, donc « Où vous en
-  // êtes », le Plan, la préparation et les progrès sont périmés.
-  //
-  // ⚠️ **C'est le trou qui produisait le bug signalé** : un examen blanc de
-  // compréhension orale rendait B1 et la carte « Où vous en êtes » continuait
-  // d'afficher « À évaluer » jusqu'à ce que l'app soit tuée et rouverte — tout
-  // le pipeline QCM était muet.
-  //
-  // 🛑 **Émis UNE seule fois, avant tout aiguillage** : les branches qui suivent
-  // rendent la main par `return`, le poser dans l'une d'elles laisserait les
-  // autres muettes. Aucun autre point de ce parcours n'émet le signal — les
-  // invalidations d'historiques plus bas portent sur d'autres providers.
-  signalerMesureEcrite(ref);
+  // Le signal « mesure écrite » part de `RunnerController.finish`, le seul
+  // point par où passent toutes les finalisations — pas d'ici.
 
   // Contexte examen blanc complet TCF (CO ou CE en sous-attempt) — le runner
   // doit revenir au hub de progression pour que l'utilisateur enchaîne la

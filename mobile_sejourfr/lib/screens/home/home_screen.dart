@@ -127,20 +127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// ses quatre sources sont gardées en vie pour la session, donc revenir sur
   /// l'onglet ne redemande plus rien. Ici on vide tout, puis on attend la plus
   /// lente pour que l'indicateur de rafraîchissement dure le temps du travail.
-  Future<void> _refresh() async {
-    ref.invalidate(preparationProvider);
-    ref.invalidate(progressProvider);
-    ref.invalidate(civicPlanProvider);
-    ref.invalidate(learningPlanProvider);
-    ref.invalidate(diagnosticCourantProvider);
-    await Future.wait<void>([
-      ref.read(progressProvider.future).then((_) {}).catchError((_) {}),
-      ref
-          .read(diagnosticCourantProvider.future)
-          .then((_) {})
-          .catchError((_) {}),
-    ]);
-  }
+  /// Le MÊME point que le tiré du Plan : les deux écrans relisent les mêmes
+  /// sources — les cycles compris, qu'on oubliait ici.
+  Future<void> _refresh() => relireSourcesDuCompte(ref);
 
   @override
   Widget build(BuildContext context) {

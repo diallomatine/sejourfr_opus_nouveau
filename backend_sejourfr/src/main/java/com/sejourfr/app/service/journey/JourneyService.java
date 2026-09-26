@@ -151,7 +151,65 @@ public class JourneyService {
         Optional<Journey> journey = getOrCreate(userId, module);
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
-        return readService.lire(courant, stepManager.findAll(courant.getId()));
+        List<JourneyStep> etapes = stepManager.findAll(courant.getId());
+        if (rattraperLesEvaluationsInitiales(courant, etapes)) {
+            etapes = stepManager.findAll(courant.getId());
+        }
+        return readService.lire(courant, etapes);
+    }
+
+    /**
+     * <b>Le filet de lecture de R12</b> : une etape « Évaluer mon niveau »
+     * ({@code INITIAL_ASSESSMENT}) encore ouverte sur une epreuve <b>desormais
+     * mesuree</b> est satisfaite par cette mesure.
+     *
+     * <p>🛑 <b>Sa premisse est fausse, donc elle n'a plus d'objet</b> : R12 ne
+     * la pose que parce que l'epreuve « n'a jamais ete mesuree », et « mesuree »
+     * a une seule autorite ({@code NiveauActuelEpreuveResolver.mesure}). Le
+     * chemin normal la ferme deja a la fin de l'examen (R1,
+     * {@link #cloreLExamenDuBloc}) ; ce filet rattrape ce que ce chemin a rate —
+     * un signal best-effort perdu, ou l'etape recreee a tort avant le correctif
+     * {@code ApresCommit} du 2026-09-26 (l'examen CO etait passe, le Plan
+     * affichait encore « Examen a passer »). « La lecture suivante rattrape » :
+     * c'est la promesse de ce service, elle est tenue ici.
+     *
+     * <p>Les memes gardes que l'ecriture, et aucune autre : pas d'etape d'un
+     * bloc qui a encore des competences dues (D-15), pas d'examen de reevaluation
+     * ({@code REASSESS}) — celui-la mesure un progres <b>posterieur</b> au
+     * travail du bloc, et une mesure plus ancienne ne peut pas le satisfaire.
+     *
+     * @return {@code true} si une etape a ete close
+     */
+    private boolean rattraperLesEvaluationsInitiales(Journey journey, List<JourneyStep> etapes) {
+        if (journey.getModule() != Module.TCF) return false;
+        boolean cloture = false;
+        Instant maintenant = Instant.now();
+        for (JourneyStep step : etapes) {
+            if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
+            if (step.getPurpose() != JourneyStepPurpose.INITIAL_ASSESSMENT) continue;
+            EpreuveType epreuve = step.getExamType();
+            if (epreuve == null || competencesDues(etapes, epreuve)) continue;
+            NiveauActuelEpreuveResolver.Mesure mesure =
+                    mesureResolver.mesure(journey.getUser().getId(), epreuve);
+            if (!mesure.mesuree()) continue;
+            if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
+                    mesure.attemptId(), maintenant)) {
+                stepManager.save(step);
+                cloture = true;
+            }
+        }
+        return cloture;
+    }
+
+    /**
+     * « Ce bloc a-t-il encore des competences dues ? » — le verrou D-15, pose
+     * une fois pour l'ecriture (R1) et pour le filet de lecture.
+     */
+    private static boolean competencesDues(List<JourneyStep> etapes, EpreuveType epreuve) {
+        return etapes.stream()
+                .filter(JourneyStep::estOuverte)
+                .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
+                        && step.getExamType() == epreuve);
     }
 
     // =====================================================================
@@ -1162,11 +1220,7 @@ public class JourneyService {
     private void cloreLExamenDuBloc(
             Journey journey, List<JourneyStep> etapes, JourneyEvaluation evaluation) {
         EpreuveType epreuve = evaluation.examType();
-        boolean competencesDues = etapes.stream()
-                .filter(JourneyStep::estOuverte)
-                .anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL
-                        && step.getExamType() == epreuve);
-        if (competencesDues) {
+        if (competencesDues(etapes, epreuve)) {
             log.info("Parcours {} : examen {} passe hors du plan, mais le bloc {} a encore des "
                             + "competences dues — rien n'est valide (R1, D-15)",
                     journey.getId(), evaluation.sourceAssessmentId(), epreuve);

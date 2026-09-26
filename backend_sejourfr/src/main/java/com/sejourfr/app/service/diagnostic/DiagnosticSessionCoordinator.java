@@ -17,6 +17,7 @@ import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
+import com.sejourfr.app.util.ApresCommit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -179,10 +180,12 @@ public class DiagnosticSessionCoordinator {
     private void porterAuParcours(DiagnosticSession session) {
         if (session.getUser() == null) return;
         try {
-            journeyService.onAssessmentCompleted(
-                    session.getUser().getId(),
-                    JourneyEvaluation.diagnosticRapide(
-                            session.getId(), session.getCompletedAt()));
+            UUID userId = session.getUser().getId();
+            JourneyEvaluation evaluation = JourneyEvaluation.diagnosticRapide(
+                    session.getId(), session.getCompletedAt());
+            // 🛑 Apres le commit de la cloture : `ApresCommit`.
+            ApresCommit.executer("Parcours TCF, diagnostic " + session.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour pour le diagnostic {} : {}",
                     session.getId(), echec.toString());

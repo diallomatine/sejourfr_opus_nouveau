@@ -112,27 +112,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
-    ref.invalidate(learningPlanProvider);
-    await ref.read(learningPlanProvider.future);
-  }
+  /// 🛑 Relit le serveur pour TOUT l'écran — Plan, parcours, préparation, et
+  /// l'autre parcours avec eux. Ne relire que le Plan laissait la carte « À
+  /// faire maintenant » et le cycle sur l'instantané d'avant l'examen.
+  Future<void> _refresh() => relireSourcesDuCompte(ref);
 
   @override
   void didPopNext() {
     // Un diagnostic, une production, une série ou un examen joué au-dessus de
     // cette page peut avoir changé l'un ou l'autre plan. Le retour est le
-    // moment fiable pour récupérer le calcul final.
-    //
-    // 🛑 **La préparation aussi** : c'est elle qui porte la PORTE du Plan
-    // (« Faire mon diagnostic »), et elle est gardée en vie.
-    ref.invalidate(learningPlanProvider);
-    ref.invalidate(civicPlanProvider);
-    ref.invalidate(preparationProvider);
-    // 🛑 **Les DEUX cycles avec eux** : le Plan et son cycle se rafraîchissent
-    // ensemble, jamais l'un sans l'autre — c'est la contradiction que le
-    // 2026-09-16 a corrigée sur « À faire maintenant ».
-    ref.invalidate(journeyProvider);
-    ref.invalidate(journeyCiviqueProvider);
+    // moment fiable pour récupérer le calcul final — par le même point que le
+    // tiré-pour-rafraîchir, pour que les deux relisent exactement les mêmes
+    // sources (Plan, les DEUX cycles, préparation, Accueil).
+    unawaited(relireSourcesDuCompte(ref));
   }
 
   /// ⚠️ **Plus de copie locale de la préparation.** Elle vivait dans un

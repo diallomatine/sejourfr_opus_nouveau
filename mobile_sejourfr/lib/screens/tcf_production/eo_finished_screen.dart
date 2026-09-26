@@ -7,7 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/api/repositories.dart';
+import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
@@ -79,14 +79,11 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
           ),
         );
       } else {
-        try {
-          await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-                parentAttemptId: fullExamId,
-                epreuveWire: 'TCF_EO',
-              );
-        } catch (_) {
-          /* hook auto backend fallback */
-        }
+        await cloreEpreuveDuComplet(
+          ref,
+          fullExamId: fullExamId,
+          epreuve: EpreuveType.tcfEo,
+        );
         if (!context.mounted) return;
         ref.read(eoSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));

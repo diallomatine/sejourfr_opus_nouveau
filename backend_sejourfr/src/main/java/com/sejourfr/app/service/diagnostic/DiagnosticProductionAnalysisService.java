@@ -33,6 +33,7 @@ import com.sejourfr.app.service.AiEvaluationService;
 import com.sejourfr.app.service.EvaluationProductionSegments;
 import com.sejourfr.app.service.LearningPlanObservationService;
 import com.sejourfr.app.service.ProductionValidityService;
+import com.sejourfr.app.util.ApresCommit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -169,11 +170,12 @@ public class DiagnosticProductionAnalysisService {
                     submissionManager.findByAttemptId(attempt.getId()));
             if (parTache.size() < ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) return;
             Instant fin = attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now();
-            journeyService.onAssessmentCompleted(
-                    submission.getUser().getId(),
-                    new JourneyEvaluation(attempt.getId(),
-                            JourneyProductionBridge.natureDeLEvaluation(attempt),
-                            epreuve, fin));
+            UUID userId = submission.getUser().getId();
+            JourneyEvaluation evaluation = new JourneyEvaluation(attempt.getId(),
+                    JourneyProductionBridge.natureDeLEvaluation(attempt), epreuve, fin);
+            // 🛑 Apres le commit de l'analyse : `ApresCommit`.
+            ApresCommit.executer("Parcours TCF, epreuve " + attempt.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour pour l'epreuve {} de la session {} : {}",
                     epreuve, attempt.getId(), echec.toString());

@@ -2236,6 +2236,33 @@ plus les étapes restantes en `SUPERSEDED` — **il ne valide rien** et compte c
 entraînement. Le travail prévu reste dû. `SUPERSEDED` garde ses autres emplois (un lot **en
 attente**, jamais montré, remplacé par une évaluation plus récente).
 
+### L'achèvement de l'étape d'examen d'un bloc : d'où qu'on lance l'examen (2026-09-26)
+
+🛑 **Aucun lien étape ⇄ session n'existe, et aucun n'est nécessaire.** L'étape
+`SECTION_EXAM` de l'épreuve X se clôt (`SATISFIED_BY_ASSESSMENT`, `resolved_by` = l'attempt)
+sur **tout examen blanc terminé de X** — lancé du Plan, de l'Accueil, de Réviser, de la liste
+Examens blancs, ou **sous-épreuve d'un examen blanc complet** (`parent_attempt_id`, nature
+`MOCK_EXAM`). Passé, pas réussi (R1) ; seulement si le bloc n'a plus de compétence due (D-15).
+Un examen **commencé mais pas terminé** ne clôt rien. Un examen **antérieur au cycle** ne
+clôt rien non plus (R19 ne fabrique aucune étape « déjà faite ») : l'épreuve étant mesurée,
+le cycle ne lui pose simplement pas d'« Évaluer mon niveau » (R12).
+
+- **Point unique d'écriture** : `JourneyService.onAssessmentCompleted`, atteint par
+  `AttemptInteractionService.doFinish` (QCM, sous-épreuves comprises), `JourneyProductionBridge`
+  (EE/EO, examen complet) et les diagnostics. 🛑 **Tous l'appellent APRÈS le commit** de la
+  clôture (`util/ApresCommit`). Motif mesuré le 2026-09-26 : appelé en `REQUIRES_NEW` depuis la
+  transaction de clôture, le parcours lisait l'attempt encore `EN_COURS` ; il fermait bien
+  l'examen CO, puis R12 jugeait la CO « jamais mesurée » et **recréait** aussitôt une étape
+  « Examen à passer » CO. Le Plan semblait n'avoir rien vu, l'Accueil (lu après le commit)
+  était juste — et le journal idempotent empêchait tout rattrapage.
+- **Filet de lecture** (`JourneyService.lire`) : une étape `INITIAL_ASSESSMENT` encore ouverte
+  sur une épreuve **désormais mesurée** (`NiveauActuelEpreuveResolver.mesure`, l'unique
+  autorité) est close par cette mesure — sa prémisse « jamais mesurée » est fausse. Mêmes
+  gardes que l'écriture (D-15) ; **jamais** une étape `REASSESS`, qu'une mesure plus ancienne
+  ne peut pas satisfaire. C'est ce qui répare, à la lecture suivante, les comptes touchés avant
+  le correctif.
+- Verrouillé par `ExamenBlancHorsPlanIT`.
+
 ### L'étape d'examen d'un bloc : un rendu, et la RAISON du verrou servie (2026-09-26)
 
 Demande du propriétaire, web et mobile : l'étape d'examen de **chaque** bloc se lit
@@ -2258,7 +2285,8 @@ et un front disait « terminez vos compétences » à un candidat qui n'en avait
 cumulés ⇒ `PROGRESSION` (la condition à remplir d'abord). Une étape d'entraînement
 verrouillée est toujours `ACCESS`. Un front ne classe **jamais** le verrou d'après
 `etapesRestantes`. ⚠️ **« En cours / Reprendre » n'existe pas** : aucun champ ne sert une
-tentative d'examen en cours sur l'étape. ⚠️ **Le cycle CIVIQUE** reçoit le même rendu, **sans**
+tentative d'examen en cours sur l'étape. L'achèvement de cette étape : § « L'achèvement de
+l'étape d'examen d'un bloc » plus haut. ⚠️ **Le cycle CIVIQUE** reçoit le même rendu, **sans**
 bouton : il n'a aucun lanceur d'examen de thème depuis le cycle (A86), seul le verrou est dit.
 
 ### Trois statuts de cycle, et un seul est persisté

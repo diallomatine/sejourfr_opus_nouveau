@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionBilanService;
+import com.sejourfr.app.util.ApresCommit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * <b>Ce qu'une epreuve de production apprend au parcours a sa CLOTURE</b> —
@@ -119,10 +121,12 @@ public class JourneyProductionBridge {
             Instant fin = attempt.getFinishedAt() != null
                     ? attempt.getFinishedAt()
                     : Instant.now();
-            journeyService.onAssessmentCompleted(
-                    attempt.getUser().getId(),
-                    new JourneyEvaluation(attempt.getId(), natureDeLEvaluation(attempt),
-                            epreuve, fin));
+            UUID userId = attempt.getUser().getId();
+            JourneyEvaluation evaluation = new JourneyEvaluation(
+                    attempt.getId(), natureDeLEvaluation(attempt), epreuve, fin);
+            // 🛑 Apres le commit de la cloture : `ApresCommit`.
+            ApresCommit.executer("Parcours TCF, epreuve " + attempt.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour a la cloture de l'epreuve {} : {}",
                     attempt.getId(), echec.toString());
@@ -174,10 +178,11 @@ public class JourneyProductionBridge {
     /** Best-effort : l'agregation de l'examen complet ne depend pas du parcours. */
     private void signalerLaComprehension(Attempt sous) {
         try {
-            journeyService.onAssessmentCompleted(
-                    sous.getUser().getId(),
-                    new JourneyEvaluation(sous.getId(), natureDeLEvaluation(sous),
-                            sous.getEpreuve(), sous.getFinishedAt()));
+            UUID userId = sous.getUser().getId();
+            JourneyEvaluation evaluation = new JourneyEvaluation(sous.getId(),
+                    natureDeLEvaluation(sous), sous.getEpreuve(), sous.getFinishedAt());
+            ApresCommit.executer("Parcours TCF, sous-epreuve " + sous.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour pour la sous-epreuve {} : {}",
                     sous.getId(), echec.toString());

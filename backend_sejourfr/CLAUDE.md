@@ -98,6 +98,9 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
   LLM, funnel, analytics) tourne **hors transaction**, avale ses exceptions, et **ne dégrade
   jamais** l'opération principale. Ne pas ajouter de transaction englobante autour d'un runner
   async : une exception d'un service `REQUIRED` la marquerait rollback-only.
+  🛑 **Un crochet `REQUIRES_NEW` qui doit LIRE ce que l'appelant vient d'écrire part après le
+  commit** (`util/ApresCommit`) : lancé avant, il lit la base d'avant (cas du parcours qui
+  recréait « Examen à passer » juste après l'examen, 2026-09-26, `docs/regles/plan.md`).
 - **Le temps du sous-système email se lit sur un `Clock` injecté** (`config/ClockConfig`) :
   fenêtres, plafond du jour, épisodes. Les `Instant.now()` historiques ailleurs ne sont pas
   migrés. En IT, `MutableClock` (@Primary, `TestSupportConfig`) se fige par test ; les tests

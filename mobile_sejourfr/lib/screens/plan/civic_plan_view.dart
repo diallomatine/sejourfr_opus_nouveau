@@ -88,15 +88,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   String? _enCours;
   /// Le tiré-pour-rafraîchir, seul point qui redemande le plan — avec le retour
   /// d'un entraînement joué au-dessus (`PlanScreen.didPopNext`).
-  Future<void> _load() async {
-    ref.invalidate(civicPlanProvider);
-    try {
-      await ref.read(civicPlanProvider.future);
-    } catch (_) {
-      // Best-effort : l'onglet reste sobre. Le constat existe déjà côté
-      // diagnostic, on ne remplace pas un plan par une erreur.
-    }
-  }
+  /// Même relecture que le tiré du Plan TCF : le plan civique ET son cycle
+  /// ensemble. Best-effort — les erreurs sont avalées, l'onglet reste sobre.
+  Future<void> _load() => relireSourcesDuCompte(ref);
 
   /// **La seule porte d'achat** : l'écran d'offre, qui porte les vrais passes
   /// et leurs prix du store. La durée choisie ici n'est qu'une préférence

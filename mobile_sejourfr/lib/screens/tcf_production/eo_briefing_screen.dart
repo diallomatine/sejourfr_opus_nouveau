@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/api/api_client.dart';
-import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -26,7 +25,6 @@ import 'widgets/production_app_header.dart';
 import 'widgets/production_info_sheet.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/recording_waveform.dart';
-import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 
 /// Écran unique EO « consigne + enregistrement » : la consigne s'affiche
 /// **sans aucun décompte**, le tap sur « Je suis prêt » lance la capture **sur
@@ -352,12 +350,11 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     }
     // Dernière tâche EO.
     if (fullExamId != null) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: 'TCF_EO',
-            );
-      } catch (_) {/* hook auto backend fallback */}
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEo,
+      );
       if (!mounted) return;
       final id = session?.attempt?.id;
       ref.read(eoSessionProvider.notifier).reset();
@@ -461,17 +458,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     // pas. Les épreuves **jamais ouvertes**, elles, ne sont toujours touchées
     // par aucun geste de sortie — ni ici, ni depuis le hub.
     if (isFullExam) {
-      try {
-        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
-              parentAttemptId: fullExamId,
-              epreuveWire: EpreuveType.tcfEo.wire,
-            );
-        // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
-        // Aucune soumission dans ce geste — c'est la seule émission.
-        // ⚠️ Un garde, jamais un `return` : la sortie doit toujours remettre la
-        // session à zéro et naviguer.
-        if (context.mounted) signalerMesureEcrite(ref);
-      } catch (_) {/* hook auto backend fallback */}
+      // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEo,
+      );
     } else {
       await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
     }

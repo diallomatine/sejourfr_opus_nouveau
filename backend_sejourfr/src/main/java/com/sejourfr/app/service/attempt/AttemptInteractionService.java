@@ -34,6 +34,7 @@ import com.sejourfr.app.progression.service.ReceptiveEvidenceAdapter.ReponseQcm;
 import com.sejourfr.app.service.journey.JourneyEvaluation;
 import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
 import com.sejourfr.app.service.journey.JourneyProductionBridge;
+import com.sejourfr.app.util.ApresCommit;
 import com.sejourfr.app.util.TcfDomaine;
 import com.sejourfr.app.service.journey.JourneyService;
 import com.sejourfr.app.service.ComprehensionObservationService;
@@ -571,10 +572,14 @@ public class AttemptInteractionService {
             Set<UUID> unites = civicObservationService.record(
                     userId, attempt.getId(), source, attempt.getFinishedAt(), reponses);
 
+            // 🛑 APRES COMMIT : le cycle doit lire la session CLOSE (ApresCommit).
             if (source == LearningPlanSourceType.CIVIQUE_SERIE) {
-                journeyService.onTrainingProgressCivique(userId, unites);
+                ApresCommit.executer("Cycle civique, serie " + attempt.getId(),
+                        () -> journeyService.onTrainingProgressCivique(userId, unites));
             } else {
-                journeyService.onAssessmentCompleted(userId, evaluationCivique(attempt));
+                JourneyEvaluation evaluation = evaluationCivique(attempt);
+                ApresCommit.executer("Cycle civique, examen " + attempt.getId(),
+                        () -> journeyService.onAssessmentCompleted(userId, evaluation));
             }
         } catch (RuntimeException echec) {
             log.warn("Observations civiques non enregistrees pour la session {} : {}",
@@ -661,6 +666,11 @@ public class AttemptInteractionService {
      */
     private void porterAuParcours(Attempt attempt, Set<UUID> competences) {
         UUID userId = attempt.getUser().getId();
+        // 🛑 LE PARCOURS LIT APRES LE COMMIT DE CETTE SESSION (2026-09-26). En
+        // REQUIRES_NEW depuis cette transaction, il voyait l'attempt encore
+        // EN_COURS : R12 jugeait l'epreuve « jamais mesuree » et recreait une
+        // etape « Examen a passer » juste apres avoir clos la precedente.
+        // Motif complet et mesure : `ApresCommit`.
         try {
             // 🛑 SEULES LES QUATRE EPREUVES DU TCF IRN SONT DES EVALUATIONS.
             // `TCF_STRUCTURE` est un module d'entrainement complementaire — pas
@@ -673,12 +683,15 @@ public class AttemptInteractionService {
             // liste recopiee.
             boolean epreuveDuTcfIrn = TcfDomaine.section(attempt.getEpreuve()) != null;
             if (attempt.getType() == AttemptType.MOCK_EXAM && epreuveDuTcfIrn) {
-                journeyService.onAssessmentCompleted(userId, new JourneyEvaluation(
+                JourneyEvaluation evaluation = new JourneyEvaluation(
                         attempt.getId(),
                         JourneyProductionBridge.natureDeLEvaluation(attempt),
-                        attempt.getEpreuve(), attempt.getFinishedAt()));
+                        attempt.getEpreuve(), attempt.getFinishedAt());
+                ApresCommit.executer("Parcours TCF, examen " + attempt.getId(),
+                        () -> journeyService.onAssessmentCompleted(userId, evaluation));
             } else if (!competences.isEmpty()) {
-                journeyService.onTrainingProgress(userId, competences);
+                ApresCommit.executer("Parcours TCF, entrainement " + attempt.getId(),
+                        () -> journeyService.onTrainingProgress(userId, competences));
             }
         } catch (RuntimeException echec) {
             log.warn("Parcours TCF non mis a jour pour la session {} : {}",
