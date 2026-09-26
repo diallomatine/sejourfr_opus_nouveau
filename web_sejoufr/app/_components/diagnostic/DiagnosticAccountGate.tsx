@@ -1,7 +1,7 @@
 "use client";
 
 import {useState} from "react";
-import {ArrowLeft, FilePenLine, Mic} from "lucide-react";
+import {ArrowLeft, CalendarDays, FilePenLine, Mic} from "lucide-react";
 import {AuthShell} from "@/app/_components/auth/AuthShell";
 import {LoginForm} from "@/app/_components/auth/LoginForm";
 import {RegisterForm} from "@/app/_components/auth/RegisterForm";
@@ -169,20 +169,38 @@ export function DiagnosticAccountGate({
  * rend possibles le compte à rebours et le pass recommandé du paywall (L5).
  */
 function ExamDateField() {
+  const [value, setValue] = useState("");
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <div className={authStyles.field}>
       <label htmlFor="examDate" className={authStyles.label}>
         Votre date d&apos;examen <span className={authStyles.optional}>(facultatif)</span>
       </label>
-      <input
-        id="examDate"
-        name="examDate"
-        type="date"
-        className={authStyles.input}
-        aria-describedby="examDate-hint"
-      />
+      <div className={authStyles.control}>
+        <span className={authStyles.inputIcon} aria-hidden>
+          <CalendarDays size={18} />
+        </span>
+        {/* iOS n'affiche aucun gabarit dans un champ date vide : on le pose. */}
+        {!value && (
+          <span className={authStyles.datePlaceholder} aria-hidden>
+            jj / mm / aaaa
+          </span>
+        )}
+        <input
+          id="examDate"
+          name="examDate"
+          type="date"
+          min={today}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className={`${authStyles.input} ${authStyles.inputWithIcon} ${authStyles.dateInput} ${value ? "" : authStyles.dateEmpty}`}
+          aria-describedby="examDate-hint"
+        />
+      </div>
       <p id="examDate-hint" className={authStyles.hint}>
-        Si vous la connaissez, votre plan s&apos;organisera autour d&apos;elle. Sinon, laissez vide.
+        Touchez le champ pour choisir le jour dans le calendrier. Si vous ne la connaissez pas
+        encore, laissez vide : votre plan s&apos;organisera autour d&apos;elle dès que vous
+        l&apos;ajouterez.
       </p>
     </div>
   );

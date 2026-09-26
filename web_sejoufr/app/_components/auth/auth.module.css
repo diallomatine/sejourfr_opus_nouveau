@@ -827,6 +827,42 @@
   font-weight: 500;
   color: var(--color-muted);
 }
+/* Champ date : iOS le rend centré, sans gabarit, et plus large que son
+   conteneur ; on l'aligne à gauche, on le borne et on pose un gabarit. */
+.dateInput {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.dateInput::-webkit-date-and-time-value {
+  text-align: left;
+}
+.dateInput::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+.dateEmpty:not(:focus) {
+  color: transparent;
+}
+.control:focus-within .datePlaceholder {
+  display: none;
+}
+.datePlaceholder {
+  position: absolute;
+  left: 46px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--color-muted-2);
+  pointer-events: none;
+  z-index: 1;
+}
 .hint {
   margin: 0;
   font-size: 13px;
