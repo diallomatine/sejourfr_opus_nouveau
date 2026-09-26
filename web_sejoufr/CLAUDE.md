@@ -4715,10 +4715,11 @@ devient **scopé**.
   civique. 🛑 Le TCF garde l'adresse nue — un lien déjà partagé aboutit exactement où il aboutissait.
   `PlanHistoryView` lit `moduleDeLUrl` derrière un `<Suspense>`, et son retour vise `planHref(module)`.
   ⚠️ La variable s'appelle **`parcours`**, pas `module` : Next interdit d'affecter cette dernière.
-- **Point d'entrée identique** : `CivicPlanPanel` gagne la **même** section « Aller plus loin » que
-  `LearningPlanView`, avec la ligne « Ma progression » → `journeyHistoryHref("CIVIQUE")`.
-  ⚠️ **Une seule ligne, là où le TCF en a deux** (sa seconde mène au diagnostic) — écart **remonté**,
-  pas arbitré (**A94**).
+- **Point d'entrée identique** : TCF et civique montent le **même** `PlanLinks`
+  (`app/_components/plan/PlanLinks.tsx`, 2026-09-26) — deux lignes icône + titre + sous-titre +
+  chevron (`CompteRow`), « Mes cycles » et « Mon diagnostic », miroir du `ListGroup` mobile.
+  Sous-titres : `journeyHistorySub(module)` ⇄ `journeyHistorySub`, `PLAN_DIAGNOSTIC_SUB` ⇄
+  `kPlanDiagnosticSub`. Plus de titre de section « Aller plus loin » (le mobile n'en a pas).
 - **Ce qui change avec le parcours, et rien d'autre** : le **mot** de l'unité travaillée
   (`uniteMot` — compétence ⇄ **unité officielle**) et la **mesure** du cycle. Les briques, l'ordre et
   les états sont les mêmes.

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import {ChevronRight, Landmark, ListChecks} from "lucide-react";
+import {Landmark, ListChecks} from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
@@ -46,7 +45,7 @@ import {
 import {PlanGate} from "./PlanGate";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
-import {JOURNEY_HISTORY_TITLE, journeyHistoryHref} from "@/lib/journey";
+import {PlanLinks} from "./PlanLinks";
 import {CIVIC_DIAGNOSTIC_HUB_HREF, civicDiagnosticHref} from "@/lib/civic-diagnostic";
 import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "@/lib/civique-examen";
 import {PlanPaywall} from "./PlanPaywallCard";
@@ -388,25 +387,5 @@ function AllerPlusLoin() {
     return () => { annule = true; };
   }, []);
 
-  const rows: Array<{href: string; label: string}> = [
-    {href: journeyHistoryHref("CIVIQUE"), label: JOURNEY_HISTORY_TITLE},
-    /* 🛑 Le diagnostic **civique** a sa propre porte — le TCF pointe sur
-       `/diagnostic`, qui ne raconte rien du civique. */
-    {href, label: "Mon diagnostic"},
-  ];
-  return (
-    <Section title="Aller plus loin">
-      <Pad>
-        <Card padding="rows">
-          <Stack className={sejourStyles.deskGrid}>
-            {rows.map((row) => (
-              <Link key={row.href} className={sejourStyles.link} href={row.href}>
-                {row.label} <ChevronRight size={15} aria-hidden />
-              </Link>
-            ))}
-          </Stack>
-        </Card>
-      </Pad>
-    </Section>
-  );
+  return <PlanLinks module="CIVIQUE" diagnosticHref={href}/>;
 }

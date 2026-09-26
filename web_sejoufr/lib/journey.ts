@@ -652,6 +652,17 @@ function uniteMot(module: ParcoursModule, n: number): string {
 /** Le titre de l'écran, et le libellé du lien qui l'ouvre. */
 export const JOURNEY_HISTORY_TITLE = "Mes cycles";
 
+/** Le sous-titre du lien, sur le Plan : ce que l'écran **contient**.
+ *  Miroir de `journeyHistorySub` (`journey_labels.dart`). */
+export function journeyHistorySub(module: ParcoursModule = "TCF"): string {
+    return `Vos cycles terminés et les ${uniteMot(module, 2)} travaillées`;
+}
+
+/** Le lien « Mon diagnostic » du Plan. Miroir de `kPlanDiagnosticTitle` /
+ *  `kPlanDiagnosticSub` (`plan_labels.dart`). */
+export const PLAN_DIAGNOSTIC_TITLE = "Mon diagnostic";
+export const PLAN_DIAGNOSTIC_SUB = "Résultat de départ et priorités initiales";
+
 export const JOURNEY_HISTORY_EYEBROW = "Votre parcours";
 export const JOURNEY_HISTORY_HEADLINE = "Tout ce que vous avez déjà travaillé";
 export const JOURNEY_HISTORY_LEAD =

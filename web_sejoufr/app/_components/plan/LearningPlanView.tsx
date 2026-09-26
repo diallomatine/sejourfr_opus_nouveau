@@ -17,7 +17,8 @@ import {
   PLAN_STARTING,
   planNowCard,
 } from "@/lib/plan-domain";
-import {JOURNEY_HISTORY_TITLE, journeyHistoryHref, journeyTargetPathHref} from "@/lib/journey";
+import {journeyTargetPathHref} from "@/lib/journey";
+import {PlanLinks} from "./PlanLinks";
 import {planHref} from "@/lib/module-switch";
 import {planIndisponibleDepuisEtat} from "@/lib/preparation";
 import {
@@ -503,23 +504,5 @@ function ActionMaintenant({plan, journey, free}: {
  *  Les deux accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
 function AllerPlusLoin() {
-  const rows: Array<{href: string; label: string}> = [
-    {href: journeyHistoryHref("TCF"), label: JOURNEY_HISTORY_TITLE},
-    {href: "/diagnostic", label: "Mon diagnostic"},
-  ];
-  return (
-    <Section title="Aller plus loin">
-      <Pad>
-        <Card padding="rows">
-          <Stack className={sejourStyles.deskGrid}>
-            {rows.map((row) => (
-              <Link key={row.href} className={sejourStyles.link} href={row.href}>
-                {row.label} <ChevronRight size={15} aria-hidden />
-              </Link>
-            ))}
-          </Stack>
-        </Card>
-      </Pad>
-    </Section>
-  );
+  return <PlanLinks module="TCF" diagnosticHref="/diagnostic"/>;
 }
