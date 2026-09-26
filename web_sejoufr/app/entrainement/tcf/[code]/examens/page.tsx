@@ -1,17 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, GraduationCap, Trophy } from "lucide-react";
-import { attemptApi, publicAttemptApi } from "@/lib/api";
-import { handleStartFailure } from "@/lib/start-failure";
+import { attemptApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
   type EpreuveType,
   niveauCecrlLabel,
-  type QuestionType,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -23,8 +21,7 @@ import {
   DetailStatCard,
   ExamsGrid,
 } from "@/app/_components/hub/DetailParts";
-import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
-import { comprehensionExamIntro } from "@/lib/exam-intro";
+import { useMockExamLauncher } from "@/app/_components/hub/MockExamLauncher";
 import { examSlotGrid } from "@/lib/exam-slots";
 import { useExamSlotLocks } from "@/lib/use-exam-slot-locks";
 import { plannedEpreuveLabel } from "@/lib/exam-durations";
@@ -37,19 +34,19 @@ const SLOTS = 20;
 // complet — c'est exactement là que la CE avait divergé (30 vs 35 min).
 const TCF_QCM = {
   co: {
-    questionType: "CO" as QuestionType,
+    questionType: "CO" as const,
     epreuve: "TCF_CO" as EpreuveType,
     title: "Compréhension orale",
     duration: plannedEpreuveLabel("TCF_CO"),
   },
   ce: {
-    questionType: "CE" as QuestionType,
+    questionType: "CE" as const,
     epreuve: "TCF_CE" as EpreuveType,
     title: "Compréhension écrite",
     duration: plannedEpreuveLabel("TCF_CE"),
   },
   structure: {
-    questionType: "STRUCTURE" as QuestionType,
+    questionType: "STRUCTURE" as const,
     epreuve: "TCF_STRUCTURE" as EpreuveType,
     title: "Structure de la langue",
     // Épreuve absente de l'examen complet : aucune donnée serveur avant le
@@ -75,17 +72,13 @@ export default function TcfModuleExamsPage() {
   const params = useParams<{ code: string }>();
   const code = (params?.code ?? "").toLowerCase() as TcfCode;
   const config = TCF_QCM[code];
-  const router = useRouter();
+  const launchExam = useMockExamLauncher();
   const { status } = useAuth();
   const isGuest = status === "guest";
 
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [guestGateOpen, setGuestGateOpen] = useState(false);
-  const [introOpen, setIntroOpen] = useState(false);
-  const [pendingSlot, setPendingSlot] = useState(1);
 
   const questionType = config?.questionType;
 
@@ -111,42 +104,20 @@ export default function TcfModuleExamsPage() {
   // ou l'inscription (visiteur) via `onLocked`.
   const slotLocks = useExamSlotLocks(config?.epreuve ?? null);
 
+  /** 🛑 Le lancement partagé par tous les points d'entrée (Plan, Accueil,
+   *  Réviser…) : feuille d'information, puis démarrage au clic — le chrono
+   *  ne part qu'à ce moment-là. Visiteur : voie publique (attempt anonyme). */
   function requestStart(slot: number) {
-    if (starting) return;
-    setError(null);
-    setPendingSlot(slot);
-    setIntroOpen(true);
-  }
-
-  async function launch() {
-    if (starting || !questionType) return;
-    setError(null);
-    setStarting(true);
-    try {
-      const body = {
-        type: "MOCK_EXAM" as const,
-        module: "TCF" as const,
-        moduleExamQuestionType: questionType,
-        slotNumber: pendingSlot,
-      };
-      // Visiteur : voie publique (attempt anonyme), jamais l'API authentifiée
-      // — même montage que la série 1 de /entrainement/tcf/[code]/[level].
-      const a = isGuest
-        ? await publicAttemptApi.startDemo(body)
-        : await attemptApi.start(body);
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      handleStartFailure(e, {
-        onPaywall: () => {
-          setIntroOpen(false);
-          if (isGuest) setGuestGateOpen(true);
-          else setPaywallOpen(true);
-        },
-        onMessage: setError,
-        fallbackMessage: "Impossible de démarrer l'examen.",
-      });
-      setStarting(false);
-    }
+    if (!config) return;
+    launchExam({
+      kind: "COMPREHENSION",
+      questionType: config.questionType,
+      title: config.title,
+      durationLabel: config.duration,
+      slotNumber: slot,
+      guest: isGuest,
+      onPaywall: () => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true)),
+    });
   }
 
   const done = Math.min(doneCount, SLOTS);
@@ -166,15 +137,6 @@ export default function TcfModuleExamsPage() {
       bestLevel: bestExam?.cecrlLevel ?? null,
     };
   }, [latest]);
-
-  // 🛑 La copie du sas vit dans `lib/exam-intro.ts` depuis le 2026-09-13 : le
-  // diagnostic TCF annonce ses sections avec EXACTEMENT la même, une section
-  // etant un examen blanc de son épreuve.
-  const intro = config
-    ? comprehensionExamIntro(code === "co" ? "CO" : "CE", "25", config.duration)
-    : null;
-  const introFacts: ExamFact[] = intro?.facts ?? [];
-  const introTips = intro?.tips ?? [];
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!config) {
@@ -223,34 +185,20 @@ export default function TcfModuleExamsPage() {
           />
         </div>
 
-        {error && <div className={detail.error}>{error}</div>}
-
         <ExamsGrid
           count={SLOTS}
           exams={bySlot}
           slotLocks={slotLocks}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
-          starting={starting}
+          starting={false}
           onStart={requestStart}
           onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
-        />
-        <ExamIntroSheet
-          open={introOpen}
-          eyebrow={`Examen blanc · ${config.title}`}
-          title={`${config.title} en conditions réelles`}
-          subtitle="Avant de commencer, voici comment se déroule l'épreuve."
-          facts={introFacts}
-          tips={introTips}
-          loading={starting}
-          error={error}
-          onConfirm={() => void launch()}
-          onClose={() => setIntroOpen(false)}
         />
         <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_tcf" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="Le premier examen blanc de chaque épreuve est offert sans compte. Pour passer les suivants et retrouver vos scores, créez un compte gratuit."
+          message="Le 1ᵉʳ examen blanc de chaque épreuve est offert sans compte. Les suivants font partie du pass Intégral : créez d'abord votre compte gratuit, qui garde vos scores."
         />
       </DetailShell>
     </DualChromeShell>

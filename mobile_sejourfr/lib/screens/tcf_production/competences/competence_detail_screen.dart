@@ -532,7 +532,7 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   String _emptyMessage({required int filter, required int lockedTodo}) {
     if (filter == 2) return 'Aucun sujet traité pour le moment.';
     if (filter == 1 && lockedTodo > 0) {
-      return 'Les sujets restants sont réservés à l\'abonnement Intégral.';
+      return 'Les sujets restants font partie du pass Intégral.';
     }
     return 'Tous les sujets de cette compétence ont été traités.';
   }
@@ -576,7 +576,7 @@ class _NextPromptCard extends StatelessWidget {
     final prompt = next.prompt;
 
     final title = Text(
-      prompt?.title ?? 'Les sujets suivants sont réservés à l\'abonnement',
+      prompt?.title ?? 'Les sujets suivants font partie du pass Intégral',
       style: AppFonts.display(size: 18, height: 1.2),
     );
     final reason = prompt == null

@@ -178,7 +178,7 @@ export function competenceCta(
 export const EXPRESSION_CTA_START = "Commencer la séance";
 export const EXPRESSION_CTA_CONTINUE = "Continuer la séance";
 export const EXPRESSION_CTA_REDO = "Retravailler cette compétence";
-export const EXPRESSION_CTA_LOCKED = "Voir l'abonnement Intégral";
+export const EXPRESSION_CTA_LOCKED = "Voir le pass Intégral";
 
 /** « 0 restants » / « 3 restants » — ce qu'il reste à faire dans le périmètre. */
 export function restantsLabel(prompts: readonly SkillPromptSummaryDto[]): string {

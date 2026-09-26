@@ -281,7 +281,7 @@ export function journeyTargetPathHref(from: string): string {
  */
 export function journeyLockedCaption(module: ParcoursModule): string {
     const pass = module === "CIVIQUE" ? "Civique" : "Intégral";
-    return `Cette étape fait partie de l'abonnement ${pass}. Votre parcours, lui, reste entier.`;
+    return `Cette étape fait partie du pass ${pass}. Votre parcours, lui, reste entier.`;
 }
 
 /**

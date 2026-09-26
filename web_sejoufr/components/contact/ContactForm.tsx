@@ -9,7 +9,7 @@ import { ContactSuccessState } from "./ContactSuccessState";
 const SUBJECT_OPTIONS = [
   "Question sur l'examen civique",
   "Question sur la naturalisation",
-  "Question sur mon abonnement",
+  "Question sur mon pass",
   "Problème technique",
   "Suggestion ou retour",
   "Partenariat ou presse",

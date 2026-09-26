@@ -15,8 +15,8 @@ const COLUMNS: {title: string; links: {href: string; label: string}[]}[] = [
     {
         title: "Produit",
         links: [
-            {href: "/entrainement?module=CIVIQUE", label: "Module civique"},
-            {href: "/entrainement?module=TCF", label: "Module TCF"},
+            {href: "/entrainement?module=TCF", label: "TCF IRN"},
+            {href: "/entrainement?module=CIVIQUE", label: "Examen civique"},
             {href: "/tarifs", label: "Tarifs"},
         ],
     },

@@ -82,7 +82,7 @@ export const CIVIC_PLAN_NOW_WHY = "Pourquoi maintenant";
 export const CIVIC_PLAN_LOCKED_CTA = "Débloquer cette série";
 
 export const CIVIC_PLAN_LOCKED_NOTE =
-    "Les séries ciblées font partie de l'abonnement. Votre plan, lui, reste entier.";
+    "Les séries ciblées font partie du pass Civique. Votre plan, lui, reste entier.";
 
 export const CIVIC_PLAN_WORK_CTA = "Travailler";
 

@@ -336,7 +336,7 @@ function StepCard({
         <span className={s.stepIcon}>{meta.icon}</span>
         <span className={s.stepBody}>
           <span className={s.stepLabel}>{meta.label}</span>
-          <span className={s.stepMeta}>Réservé à l&apos;abonnement Intégral</span>
+          <span className={s.stepMeta}>Inclus dans le pass Intégral</span>
         </span>
         <Lock size={16} style={{ color: "var(--color-muted-2)", flexShrink: 0 }} />
       </div>

@@ -780,7 +780,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                           const SizedBox(height: 2),
                           Text(
                             lockedProd
-                                ? 'Réservé à l\'abonnement Intégral'
+                                ? 'Inclus dans le pass Intégral'
                                 : _subtitle(sub, pending),
                             style: AppFonts.ui(
                               size: 12,

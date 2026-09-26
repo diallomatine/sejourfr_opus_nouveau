@@ -25,7 +25,7 @@ const String kPremiumLockTagLabel = 'Premium';
 /// L'appel à l'action d'une zone de production verrouillée. Miroir du
 /// `ctaLabel` par défaut de `SkillLockedCard` côté web. Wording neutre exigé
 /// par les guidelines Apple 3.1.1 : ni prix, ni verbe d'achat.
-const String kPremiumLockCta = 'Voir l\'abonnement Intégral';
+const String kPremiumLockCta = 'Voir le pass Intégral';
 
 /// Ouvre le parcours d'abonnement — **le seul**, celui de `showPaywallSheet`.
 /// Le contenu verrouillé est toujours du TCF, donc l'offre Intégral.
@@ -45,7 +45,7 @@ Future<void> showTcfLockPaywall(
       journeyId: journeyId,
     );
 
-/// Pilule « Abonnement » à poser à côté d'un titre ou d'un statut.
+/// Pilule « Premium » à poser à côté d'un titre ou d'un statut.
 class PremiumLockTag extends StatelessWidget {
   const PremiumLockTag({super.key});
 

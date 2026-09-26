@@ -400,8 +400,8 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
               <span className={`${s.badge} ${s.levelPill}`}>{prompt.skillTargetLevel}</span>
             </div>
             <SkillLockedCard
-              title="Ce sujet demande l'abonnement Intégral"
-              text="L'abonnement ouvre tous les petits sujets de chaque compétence et l'analyse IA sans limite. Ton plan personnalisé et tes résultats déjà obtenus, eux, restent visibles."
+              title="Ce sujet fait partie du pass Intégral"
+              text="Le pass ouvre tous les petits sujets de chaque compétence et leur analyse IA. Ton plan personnalisé et tes résultats déjà obtenus, eux, restent visibles."
               origin={lockOrigin}
             />
           </>
@@ -536,8 +536,7 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title="Analyses IA illimitées"
-          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire et lire les trois références restent gratuits."
+          reason="L'analyse IA des petits sujets fait partie du pass Intégral."
         />
       </SkillShell>
     </DualChromeShell>

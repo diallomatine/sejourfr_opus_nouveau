@@ -794,7 +794,7 @@ const CIVIQUE_FEATURES = [
   "Révision des 5 thèmes",
   "Entraînement aux questions de l'examen",
   "Révision ciblée par thème",
-  "Examens blancs civiques illimités",
+  "Tous les examens blancs civiques, complets et par thème",
   "Statistiques et explications",
 ];
 

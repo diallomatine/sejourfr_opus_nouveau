@@ -91,8 +91,6 @@ app/
 │   ├── ModuleSwitch.tsx          # segmented Civique/TCF avec icônes
 │   ├── ThemeCard.tsx             # tile d'un thème en radio + état lock
 │   ├── TargetPathBanner.tsx      # bandeau parcours visé (CSP/CR/NAT ou A2/B1/B2)
-│   ├── TcfPaywallCard.tsx        # carte legacy si user.hasTcf === false — non utilisée
-│   │                              #   depuis hotfix démo TCF, conservée pour future cas d'usage
 │   ├── PaywallSheet.tsx          # modal paywall (bottom sheet mobile, dialog desktop)
 │   ├── TrainingResultCard.tsx    # carte de résultat fin de session training (à chaud)
 │   └── TcfScoreCard.tsx          # carte compacte points + niveau CECRL (détail TCF)
@@ -557,8 +555,19 @@ Intégral × mensuel / trimestriel / annuel.
   (Free/Civique/Intégral), servi à `/tarifs` seulement (la variante `compact`
   de l'ancienne landing est supprimée). L'accueil et `/reussir` montent
   `components/pricing/PassCard.tsx` (cf. § « L'accueil public »).
-- `app/_components/PaywallSheet.tsx` — bottom sheet d'incitation à l'achat,
-  prop `module: "CIVIQUE" | "INTEGRAL"` (plus de `plan`).
+- `app/_components/PaywallSheet.tsx` — feuille d'offre, prop `module` **requise**
+  (`PassModule`) + `reason?` (une phrase propre à l'écran). 🛑 **Titre, phrase par défaut,
+  puces, note « paiement unique » et boutons viennent de `lib/passes.ts`**
+  (`PASS_OFFER_TITLE` / `PASS_OFFER_TEXT` / `PASS_FEATURES` / `PASS_ONE_TIME_NOTE` /
+  `PASS_OFFER_CTA` « Voir les pass » / `PASS_OFFER_LATER`) ; plus de `title` ni de
+  `message` surchargeables. CTA → `/paiement?plan=` du pass mis en avant du module
+  (`PASS_OFFER_PLAN`). **Aucun prix** (il faudrait un appel catalogue à l'ouverture).
+  Refondu le 2026-09-26 : « Continuez en illimité », « mode démo 20 questions »,
+  « Voir les abonnements », « 1 200 questions », « Favoris » étaient faux.
+  `TrainingResultCard` (fin de série offerte) dit la même offre via
+  `passSeriesDoneText` ; miroir mobile : le dialogue de fin de série du runner.
+  Vocabulaire : un contenu verrouillé « fait partie du / est inclus dans le pass X »,
+  jamais « réservé aux abonnés » ni « illimité ».
 - `app/(app)/paiement/page.tsx` — page de checkout authentifiée ; cf. § « `/paiement` —
   choisir un pass (refonte 2026-09-26) ».
 
@@ -3147,10 +3156,12 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
           (`app/_components/hub/ExamIntroSheet.tsx`, bottom-sheet façon
           ConfirmSheet) qui rappelle déroulé + seuil avant le lancement réel ;
           son « Démarrer » POST l'attempt. Branchée sur les 3 surfaces
-          d'examens ciblés (TCF QCM `[code]/examens`, civique `[theme]/examens`,
-          EE/EO `ProductionExams`). Pour la CO, l'écran d'écoute du runner reste
-          une 2ᵉ confirmation après ; côté EE/EO l'avertissement « refaire
-          l'examen 1 » s'enchaîne ensuite si compte gratuit.
+          d'examens ciblés (TCF QCM `[code]/examens`, civique `[theme]/examens`).
+          Pour la CO, l'écran d'écoute du runner reste une 2ᵉ confirmation
+          après. ⚠️ **Depuis le 2026-09-26, TCF QCM et EE/EO passent par
+          `useMockExamLauncher`** (cf. § « Examen blanc EE/EO — feuille
+          d'information et runner ») ; EE/EO a sa propre feuille, et
+          l'avertissement « repasser l'examen 1 » vient AVANT elle.
           **Grille indexée par slot (parité mobile, migration V110)** : TCF QCM
           et civique passent `slotNumber` au start (`StartAttemptRequest`) et
           rangent les attempts via `examSlotGrid` (`lib/exam-slots.ts`) — case N
@@ -5258,4 +5269,41 @@ sous-titre annonce le total servi. « Non évaluée » / « Non évalué » (acc
 d'un fait servi, jamais d'une liste vide. Encart ouvert à l'arrivée : le premier qui a des lignes.
 Mots : `lib/plan-unlock.ts` (`PLAN_UNLOCK_NON_EVALUE*`, `planUnlockGroupeMeta`, `planUnlockAutres`,
 `PLAN_UNLOCK_DOMAIN_TONE`).
+
+
+## Examen blanc EE/EO — feuille d'information et runner (2026-09-26)
+
+> Parité avec l'app (`launchProductionExam`, `ProductionExamBriefingSheet`, écrans
+> `ee_briefing_writing_screen` / `eo_briefing_screen`). Copie : `lib/production-exam-copy.ts`
+> ⇄ `mobile_sejourfr/lib/screens/tcf_production/production_exam_copy.dart`, **mot pour mot**.
+
+- 🛑 **UN lanceur : `useMockExamLauncher`** (`app/_components/hub/MockExamLauncher.tsx`,
+  `MockExamLauncherProvider` monté **une fois** dans `app/layout.tsx`). Deux natures :
+  `PRODUCTION` (EE/EO → `ProductionExamBriefingSheet`) et `COMPREHENSION` (CO/CE/Structure →
+  `ExamIntroSheet` + `comprehensionExamIntro`). Points d'entrée : grille EE/EO
+  (`ProductionExams`), grille CO/CE (`entrainement/tcf/[code]/examens`), `usePlanExercise`
+  (`EPREUVE_MOCK_EXAM` — jalon, séance) et `usePlanAssessment` (étape « Examen blanc » du cycle,
+  Accueil, Réviser, fiche d'un domaine / d'une compétence). **Aucun ne démarre plus sans
+  feuille** : `startProductionMockExam` est supprimé, et la mesure CO/CE du Plan, qui démarrait
+  directement, passe par la même feuille que la grille (miroir de `showModuleExamBriefingSheet`).
+  Chaque appelant garde **sa** porte d'offre (`onPaywall`) : ctaLocation et analytics inchangés
+  (`trackDiagnosticAssessmentStarted` passe par `onStarted`).
+- 🛑 **Le chrono ne part qu'au clic « Commencer maintenant »** : l'attempt (donc `startedAt`,
+  ancre de `startedAt + timeLimitSeconds`) n'est créé qu'à ce moment. Reprise : la route
+  `…/session/{id}` s'ouvre directement, sans feuille.
+- **Contenus** : durée par `plannedEpreuveLabel` ; contraintes de chaque tâche **lues sur les
+  sujets servis** (`productionExamTaskConstraint`, même cache que la grille) — `null` ⇒ ligne
+  sans contrainte, jamais un chiffre. `productionExamIntro` (`lib/exam-intro.ts`) et
+  `ProductionConfig.examIntro` / `examTiming.factLabel|factValue` sont **supprimés** ;
+  `EE_CONFIG.epreuveMeta` lit la table des durées.
+- **Runner** (`ProductionSession` + `ProductionExamRunner.tsx`) : `ExamRunnerHead`
+  (« Tâche N sur 3 · titre », chrono EE dans le même bloc, bouton ⓘ, barre de progression) à la
+  place de la carte « Temps restant » et des pastilles 1-2-3 (`.stepper`, `.chrono*`
+  supprimés) ; `ExamConsigneCard` (la contrainte **une seule fois**, « Longueur attendue : X à Y
+  mots » / « Temps de parole : 3 min ») + repère « ≈ 7 min conseillées… » (`ExamAdvisedTime`) ;
+  « Vous serez évalué sur » quitte la page pour `ProductionInfoSheet` (critères — une autorité,
+  `PRODUCTION_CRITERIA` — + confidentialité). `EeWritingForm` gagne `rangeInPrompt` / `split`
+  (`advisedTimeLabel` supprimé), `EoRecordingForm` gagne `split` : **≥ 1024 px, deux colonnes**
+  (consigne collante à gauche, production à droite, `exam.module.css`), une colonne en dessous.
+  Auto-soumission, clé d'idempotence, sortie d'épreuve et zone auto-extensible inchangées.
 

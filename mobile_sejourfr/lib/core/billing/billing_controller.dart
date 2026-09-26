@@ -183,7 +183,7 @@ class BillingController extends StateNotifier<BillingState> {
     switch (api.statusCode) {
       case 409:
         return (
-          message: 'Votre compte $_storeName est déjà associé à un abonnement '
+          message: 'Votre compte $_storeName est déjà associé à un accès '
               'SejourFR actif sur un autre compte. Connectez-vous à ce compte '
               'pour y accéder, ou utilisez un autre compte $_storeName.',
           blocking: true,
@@ -191,7 +191,7 @@ class BillingController extends StateNotifier<BillingState> {
       case 400:
       case 422:
         return (
-          message: 'Cet abonnement n\'est pas disponible à l\'achat pour le '
+          message: 'Cet accès n\'est pas disponible à l\'achat pour le '
               'moment. Réessayez plus tard.',
           blocking: true,
         );
@@ -295,7 +295,7 @@ class BillingController extends StateNotifier<BillingState> {
       );
     } catch (e) {
       final d = _describeError(e,
-          fallback: 'Impossible de charger les abonnements pour le moment. '
+          fallback: 'Impossible de charger les pass pour le moment. '
               'Réessayez plus tard.');
       state = state.copyWith(
         isLoading: false,

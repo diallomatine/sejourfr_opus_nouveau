@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import type {AttemptResponse} from "@/lib/types";
+import {Check} from "lucide-react";
+import {
+    PASS_FEATURES,
+    PASS_OFFER_CTA,
+    PASS_OFFER_PLAN,
+    PASS_OFFER_TITLE,
+    PASS_ONE_TIME_NOTE,
+    PASS_SERIES_DONE_TITLE,
+    passModuleOfExam,
+    passSeriesDoneText,
+} from "@/lib/passes";
 
 /**
  * Carte de résultat affichée après finalisation d'une session d'entraînement.
- * Adapte le ton selon premium/démo et succès/échec.
+ * Adapte le ton selon l'accès au module (pass ou non) et succès/échec.
  *
  * Utilisée par :
  *   - /entrainement (après finalisation interne — pas utilisé directement, on
@@ -29,6 +40,7 @@ export function TrainingResultCard({
     const total = attempt.totalQuestions;
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
     const passed = pct >= 70;
+    const passModule = passModuleOfExam(attempt.module);
 
     const tag = variant === "resume"
         ? "Session déjà terminée"
@@ -36,7 +48,7 @@ export function TrainingResultCard({
             ? passed
                 ? "Belle session"
                 : "Continuez à pratiquer"
-            : "Démo terminée";
+            : PASS_SERIES_DONE_TITLE;
     const tagClass = variant === "resume"
         ? "neutral"
         : passed
@@ -54,10 +66,20 @@ export function TrainingResultCard({
 
                 {!isPremium && variant === "primary" && (
                     <div className="trc-paywall">
-                        Vous avez terminé les <strong>{total} questions</strong>{" "}
-                        de la démo.
-                        L&apos;abonnement débloque l&apos;entraînement illimité et le choix du
-                        thème.
+                        <p className="trc-offer-title">
+                            {PASS_OFFER_TITLE[passModule].lead}
+                            <em>{PASS_OFFER_TITLE[passModule].em}</em>
+                        </p>
+                        <p className="trc-offer-text">{passSeriesDoneText(passModule, total)}</p>
+                        <ul className="trc-offer-feats">
+                            {PASS_FEATURES[passModule].map((f) => (
+                                <li key={f}>
+                                    <Check size={14} strokeWidth={2.4} aria-hidden/>
+                                    <span>{f}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="trc-offer-note">{PASS_ONE_TIME_NOTE}</p>
                     </div>
                 )}
 
@@ -81,8 +103,11 @@ export function TrainingResultCard({
                                     Accueil →
                                 </Link>
                             ) : (
-                                <Link href="/paiement" className="btn btn-red">
-                                    Voir l&apos;abonnement →
+                                <Link
+                                    href={`/paiement?plan=${PASS_OFFER_PLAN[passModule]}`}
+                                    className="btn btn-red"
+                                >
+                                    {PASS_OFFER_CTA} →
                                 </Link>
                             )}
                         </>
@@ -133,7 +158,28 @@ export function TrainingResultCard({
           border-left: 3px solid var(--color-red);
           text-align: left;
         }
-        .trc-paywall strong { color: var(--color-ink); font-weight: 600; }
+        .trc-offer-title {
+          margin: 0 0 6px;
+          font-family: var(--font-display);
+          font-size: 19px; font-weight: 500;
+          letter-spacing: -0.01em;
+          color: var(--color-ink);
+        }
+        .trc-offer-title em { font-style: italic; color: var(--color-red); }
+        .trc-offer-text { margin: 0 0 10px; }
+        .trc-offer-feats {
+          list-style: none; margin: 0 0 10px; padding: 0;
+          display: flex; flex-direction: column; gap: 6px;
+          color: var(--color-ink-2);
+        }
+        .trc-offer-feats li { display: flex; align-items: flex-start; gap: 8px; }
+        .trc-offer-feats svg { flex: none; margin-top: 3px; color: var(--color-green); }
+        .trc-offer-note {
+          margin: 0;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--color-muted);
+        }
         .trc-cta {
           display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
         }

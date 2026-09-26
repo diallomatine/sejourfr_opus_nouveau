@@ -10,6 +10,7 @@ import '../../core/analytics/analytics_events.dart';
 import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/billing_models.dart';
 import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
@@ -961,6 +962,9 @@ void _showTrainingResultDialog(
   final total = attempt.totalQuestions;
   final score = attempt.score ?? 0;
   final percent = total == 0 ? 0 : ((score / total) * 100).round();
+  // Le pass qui ouvre la suite : tout le TCF est dans l'Intégral. Le texte de
+  // l'offre est celui de `TrainingResultCard` côté web, mot pour mot.
+  final pass = passModuleOfExam(attempt.module);
 
   showDialog(
     context: context,
@@ -968,7 +972,7 @@ void _showTrainingResultDialog(
     builder: (ctx) => Dialog(
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -979,21 +983,17 @@ void _showTrainingResultDialog(
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isPremium
-                    ? AppColors.blueLight
-                    : AppColors.amber.withValues(alpha: 0.16),
+                color: AppColors.blueLight,
               ),
               child: Icon(
-                isPremium
-                    ? LucideIcons.circleCheck
-                    : LucideIcons.crown,
-                size: 36,
-                color: isPremium ? AppColors.blue : AppColors.amber,
+                isPremium ? LucideIcons.circleCheck : LucideIcons.ticket,
+                size: 34,
+                color: AppColors.blue,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              isPremium ? 'Session terminée' : 'Démo terminée',
+              isPremium ? 'Session terminée' : kPassSeriesDoneTitle,
               style: AppFonts.display(size: 22, weight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
@@ -1007,20 +1007,82 @@ void _showTrainingResultDialog(
               textAlign: TextAlign.center,
             ),
             if (!isPremium) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 18),
+              Text.rich(
+                TextSpan(
+                  text: pass.offerTitleLead,
+                  children: [
+                    TextSpan(
+                      text: pass.offerTitleEm,
+                      style: const TextStyle(color: AppColors.red),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+                style: AppFonts.display(size: 19, weight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               Text(
-                'Pour continuer en illimité et accéder à tous les thèmes, activez l’accès complet sur le web.',
+                passSeriesDoneText(pass, total),
                 textAlign: TextAlign.center,
                 style: AppFonts.ui(
-                  size: 12.5,
+                  size: 13,
                   color: AppColors.muted,
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final f in pass.passFeatures)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                LucideIcons.check,
+                                size: 14,
+                                color: AppColors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                f,
+                                style: AppFonts.ui(
+                                  size: 13,
+                                  color: AppColors.inkSoft,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                kPassOneTimeNote,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 11.5, color: AppColors.muted),
+              ),
+              const SizedBox(height: 16),
               AppButton(
-                label: 'Gérer mon accès sur le site',
-                icon: LucideIcons.externalLink,
+                label: kPassOfferCta,
+                icon: LucideIcons.arrowRight,
                 variant: AppButtonVariant.primary,
                 onPressed: () {
                   Navigator.of(ctx).pop();
@@ -1040,7 +1102,7 @@ void _showTrainingResultDialog(
                   GoRouter.of(context).pop();
                 },
                 child: Text(
-                  'Plus tard',
+                  kPassOfferLater,
                   style: AppFonts.ui(
                     size: 13,
                     color: AppColors.muted,
@@ -1050,7 +1112,7 @@ void _showTrainingResultDialog(
             ] else ...[
               const SizedBox(height: 24),
               AppButton(
-                label: 'Retour à l\'accueil Diaall',
+                label: 'Terminer',
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   GoRouter.of(context).pop();

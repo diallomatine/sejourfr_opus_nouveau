@@ -247,9 +247,9 @@ export function planAssessmentMeta(assessment: PlanDomainAssessmentDto): string 
    liste les mêmes priorités que le Plan et doit les fermer de la même façon. */
 
 export const PLAN_LOCKED_SEANCE_LABEL =
-    "Entraînement réservé à l'abonnement. Ouvrir l'offre pour le débloquer.";
+    "Entraînement inclus dans le pass. Ouvrir l'offre pour le débloquer.";
 export const PLAN_LOCKED_PRIORITY_LABEL =
-    "Priorité réservée à l'abonnement. Ouvrir l'offre pour la débloquer.";
+    "Priorité incluse dans le pass. Ouvrir l'offre pour la débloquer.";
 
 /* ------------------------------------------------------------------ séance */
 

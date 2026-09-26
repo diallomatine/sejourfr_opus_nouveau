@@ -532,8 +532,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title="Analyses IA illimitées"
-          message="Tes analyses offertes ont été utilisées. L'abonnement Intégral ouvre l'analyse ciblée sur tous les petits sujets. Produire et lire les trois références restent gratuits."
+          reason="L'analyse IA des petits sujets fait partie du pass Intégral."
         />
       </SkillShell>
     </DualChromeShell>

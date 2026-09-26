@@ -364,7 +364,7 @@ class _PremiumLockedChip extends StatelessWidget {
           const SizedBox(width: 7),
           Expanded(
             child: Text(
-              'Réservé à l\'abonnement Intégral — touchez pour vous abonner',
+              'Inclus dans le pass Intégral — touchez pour voir les pass',
               style: AppFonts.label(color: AppColors.redDark, size: 11),
             ),
           ),

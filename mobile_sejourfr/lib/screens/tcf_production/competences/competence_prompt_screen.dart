@@ -234,7 +234,7 @@ class _LockedAnswerCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Ce sujet demande l\'abonnement Intégral',
+                  'Ce sujet fait partie du pass Intégral',
                   style: AppFonts.ui(
                     size: 14.5,
                     weight: FontWeight.w800,
@@ -246,9 +246,9 @@ class _LockedAnswerCard extends StatelessWidget {
           ),
           const SizedBox(height: 11),
           Text(
-            'L\'abonnement ouvre tous les petits sujets de chaque compétence et '
-            'l\'analyse IA sans limite. Ton plan personnalisé et tes résultats '
-            'déjà obtenus, eux, restent visibles.',
+            'Le pass ouvre tous les petits sujets de chaque compétence et leur '
+            'analyse IA. Ton plan personnalisé et tes résultats déjà obtenus, '
+            'eux, restent visibles.',
             style: AppFonts.ui(
               size: 12.5,
               height: 1.45,

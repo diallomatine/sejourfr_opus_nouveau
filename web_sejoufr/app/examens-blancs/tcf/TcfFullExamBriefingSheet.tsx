@@ -60,7 +60,7 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
             onNeedsPremium();
             handedToPaywall = true;
           } else {
-            setError("Cet examen blanc est réservé aux abonnés Intégral.");
+            setError("Cet examen blanc fait partie du pass Intégral.");
           }
         },
         onMessage: setError,
@@ -114,7 +114,7 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
             l&apos;expression écrite et orale (EE + EO),
             évaluées par l&apos;IA, vous sont offertes <strong>une seule fois</strong>. Vous
             pourrez ensuite refaire cet examen en compréhension (CO + CE) ; l&apos;EE et l&apos;EO
-            passeront en abonnement Intégral.
+            feront alors partie du pass Intégral.
           </div>
         )}
 

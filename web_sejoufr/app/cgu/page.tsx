@@ -222,7 +222,7 @@ export default function CguPage() {
                             L'intégralité du catalogue de questions, organisées par thématique ;
                         </li>
                         <li>
-                            Les examens blancs chronométrés en nombre illimité, en conditions
+                            Tous les examens blancs chronométrés du module, en conditions
                             simulées ;
                         </li>
                         <li>

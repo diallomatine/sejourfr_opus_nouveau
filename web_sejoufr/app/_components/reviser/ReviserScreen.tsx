@@ -143,6 +143,7 @@ import {
   journeyTargetPathHref,
 } from "@/lib/journey";
 import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
+import {PASS_MODULE_NAME, PASS_OFFER_PLAN, PASS_PITCH, passModuleOfExam} from "@/lib/passes";
 import styles from "./reviser.module.css";
 import { PlanRecoCard } from "@/app/_components/plan/PlanRecoCard";
 
@@ -651,19 +652,23 @@ function DemoLink({
 }) {
   if (isPremium) return null;
   const quoi = module === "TCF" ? "épreuve et niveau" : "thème";
+  const passModule = passModuleOfExam(module);
   return (
     <Pad className={styles.demoWrap}>
-      <Link href={isGuest ? "/connexion" : "/paiement"} className={styles.demo}>
+      <Link
+        href={isGuest ? "/connexion" : `/paiement?plan=${PASS_OFFER_PLAN[passModule]}`}
+        className={styles.demo}
+      >
         <span className={styles.demoBody}>
           <b>
             {isGuest
               ? `Découverte gratuite · 1 série offerte par ${quoi}`
-              : "Débloquez l'entraînement illimité"}
+              : `Toutes les séries avec le pass ${PASS_MODULE_NAME[passModule]}`}
           </b>
           <span>
             {isGuest
-              ? "Et un examen blanc complet offert. Créez un compte gratuit pour continuer et sauvegarder vos résultats."
-              : "L'abonnement Intégral débloque tout le TCF, le civique et les examens blancs."}
+              ? "Et le 1ᵉʳ examen blanc offert. Créez un compte gratuit pour sauvegarder vos résultats."
+              : PASS_PITCH[passModule]}
           </span>
         </span>
         <span className={styles.demoArrow} aria-hidden>

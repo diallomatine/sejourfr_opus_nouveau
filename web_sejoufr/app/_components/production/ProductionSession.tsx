@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Lightbulb, Timer } from "lucide-react";
+import { Check, ChevronRight, Lightbulb } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
@@ -44,13 +44,19 @@ import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/mo
 import { DetailShell } from "@/app/_components/hub/DetailParts";
 import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
 import { EoRecordingForm } from "./EoRecordingForm";
+import {
+  ExamAdvisedTime,
+  ExamConsigneCard,
+  ExamRunnerHead,
+  ProductionInfoSheet,
+} from "./ProductionExamRunner";
+import { productionExamAdvisedTimeLine } from "@/lib/production-exam-copy";
 import { RealtimeLaunchSheet } from "./RealtimeLaunchSheet";
 import { RealtimeEoRunner } from "./RealtimeEoRunner";
 import { REALTIME_UNAVAILABLE_MESSAGE, useRealtimeEo } from "./useRealtimeEo";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
-import skill from "@/app/_components/skill-ui/skill.module.css";
 
 const TACHES = [1, 2, 3] as const;
 const POLL_MS = 3000;
@@ -103,6 +109,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [paywallOpen, setPaywallOpen] = useState(false);
   /** Confirmation de sortie d'une épreuve d'examen complet (elle sera close). */
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  /** Feuille « ⓘ » : critères de la grille + confidentialité. */
+  const [infoOpen, setInfoOpen] = useState(false);
 
   // Temps réel (EO Tâches 1 & 2). `taskMode` pilote l'UI de la tâche courante :
   // "classic" = enregistrement (montre le sujet + le bouton micro) ; "choosing" =
@@ -535,6 +543,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const chronoActive = deadline != null && phase === "writing";
   const chronoSec = remaining ?? 0;
   const chronoUrgent = chronoActive && chronoSec <= 300;
+  const advisedLabel = currentTask ? eeAdvisedMinutesLabel(currentTask.tacheNumero) : null;
 
   return (
     <DualChromeShell>
@@ -553,39 +562,17 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
         subtitle={config.label}
       >
-        {/* Chrono de l'épreuve — écrit seulement. L'oral n'en a pas : son temps
-            se compte tâche par tâche, dans l'enregistreur. */}
-        {chronoActive && (
-          <div className={`${skill.chrono} ${chronoUrgent ? skill.chronoUrgent : ""}`}>
-            <span className={skill.chronoLabel}>
-              <Timer size={15} strokeWidth={2} aria-hidden />
-              Temps restant
-            </span>
-            <span className={skill.chronoTime}>{fmtChrono(chronoSec)}</span>
-          </div>
-        )}
-
-        {/* Stepper T1 → T2 → T3 (pendant la saisie uniquement) */}
-        {phase !== "bilan" && (
-          <ol className={prod.stepper} aria-label="Progression des tâches">
-            {TACHES.map((n) => {
-              const done = subsByTache.has(n);
-              const current = phase === "writing" && n === currentTache;
-              return (
-                <li
-                  key={n}
-                  className={`${prod.stepperItem} ${
-                    done ? prod.stepperDone : current ? prod.stepperCurrent : ""
-                  }`}
-                >
-                  <span className={prod.stepperDot} aria-hidden>
-                    {done ? <Check size={13} strokeWidth={3} /> : n}
-                  </span>
-                  <span className={prod.stepperLabel}>Tâche {n}</span>
-                </li>
-              );
-            })}
-          </ol>
+        {/* En-tête compact de l'app : « Tâche N sur 3 · intitulé », le chrono
+            d'épreuve dans le même bloc (écrit seulement — l'oral se compte
+            tâche par tâche, dans l'enregistreur), ⓘ et la barre. */}
+        {phase === "writing" && currentTask && (
+          <ExamRunnerHead
+            epreuve={config.epreuve}
+            tacheNumero={currentTask.tacheNumero}
+            total={TACHES.length}
+            chrono={chronoActive ? {label: fmtChrono(chronoSec), urgent: chronoUrgent} : null}
+            onInfo={() => setInfoOpen(true)}
+          />
         )}
 
         {error && <div className={detail.error}>{error}</div>}
@@ -613,7 +600,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   submitting={submitting}
                   error={rtError}
                   submitLabel={submitLabel}
-                  exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
+                  promptSlot={<ExamConsigneCard task={currentTask} epreuve={config.epreuve} />}
+                  criteriaSlot={null}
+                  split
                   examMode
                   maxDurationSec={null}
                   timeoutSignal={autoSubmitSignal}
@@ -640,11 +629,18 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 task={currentTask}
                 submitting={submitting}
                 submitLabel={submitLabel}
-                exerciseTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                // Aide au rythme, jamais bloquante : le seul chrono réel est
-                // celui de l'épreuve, affiché plus haut, et il porte sur les
-                // 3 tâches ensemble.
-                advisedTimeLabel={eeAdvisedMinutesLabel(currentTask.tacheNumero)}
+                promptSlot={
+                  <ExamConsigneCard task={currentTask} epreuve={config.epreuve}>
+                    {/* Aide au rythme, jamais bloquante : le seul chrono réel
+                        est celui de l'épreuve, et il porte sur les 3 tâches. */}
+                    {advisedLabel && (
+                      <ExamAdvisedTime line={productionExamAdvisedTimeLine(advisedLabel)} />
+                    )}
+                  </ExamConsigneCard>
+                }
+                criteriaSlot={null}
+                rangeInPrompt
+                split
                 autoSubmitSignal={autoSubmitSignal}
                 onAutoSubmit={onEeTimeout}
                 onSubmit={(texte) =>
@@ -710,12 +706,16 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           />
         )}
 
+        <ProductionInfoSheet
+          open={infoOpen}
+          epreuve={config.epreuve}
+          onClose={() => setInfoOpen(false)}
+        />
+
         <PaywallSheet ctaLocation="AI_CORRECTION" screen="production_session"
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title={`Débloquez l'examen blanc ${config.shortLabel}`}
-          message="L'examen blanc complet est réservé aux abonnés Intégral."
         />
 
         <ConfirmSheet

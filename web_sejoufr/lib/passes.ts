@@ -276,10 +276,13 @@ export function passFrom(
  *    (« 1 découverte de l'évaluation IA en EE/EO », « T1 d'EE/EO 1 fois ») :
  *    la gratuité n'est ni une tâche isolée ni un aperçu, c'est l'examen entier.
  */
+const FREE_EXPRESSION_EXAMS =
+  "1 examen blanc d'expression écrite et 1 d'expression orale, corrigés par l'IA";
+
 export const FREE_OFFER_FEATURES: readonly string[] = [
   "La 1ʳᵉ série d'entraînement de chaque thème et de chaque niveau",
   "Le 1ᵉʳ examen blanc de chaque épreuve et de chaque thème, rejouable",
-  "1 examen blanc d'expression écrite et 1 d'expression orale, corrigés par l'IA",
+  FREE_EXPRESSION_EXAMS,
   "Accès sans limite de durée",
 ];
 
@@ -332,3 +335,84 @@ export const PASS_PITCH: Record<PassModule, string> = {
   INTEGRAL: "L'examen civique et le TCF IRN : toute la préparation de votre démarche.",
   CIVIQUE: "Toute la préparation à l'examen civique, sans le TCF IRN.",
 };
+
+// ---------------------------------------------------------------------------
+// La feuille d'offre (paywall) — ce qu'elle dit, déclaré une fois
+// ---------------------------------------------------------------------------
+
+/**
+ * 🛑 **LE TEXTE DE LA FEUILLE D'OFFRE** (`app/_components/PaywallSheet.tsx`),
+ * contextuel au module touché. Miroir mot pour mot :
+ * `PlanModuleTargetX.offerTitleLead` / `offerTitleEm` / `offerText`
+ * (`mobile_sejourfr/lib/core/models/billing_models.dart`).
+ *
+ * Il remplace, le 2026-09-26, un texte entièrement périmé : « Continuez en
+ * illimité », « Le mode démo offre 20 questions de découverte », « Activez
+ * l'abonnement », « Plus de 1 200 questions », « Tous les thèmes, sans limite »,
+ * « Favoris » et « Voir les abonnements ». Un pass est un **achat unique**, sans
+ * renouvellement ; les grilles ont des créneaux comptés ; les favoris sont
+ * ouverts à tout compte. Les puces viennent de `PASS_FEATURES`, jamais d'ici.
+ *
+ * Le titre se coupe en deux parce que la fin passe en `<em>` (rouge, Fraunces).
+ */
+export const PASS_OFFER_TITLE: Record<PassModule, { lead: string; em: string }> = {
+  INTEGRAL: { lead: "Continuez avec le pass ", em: "Intégral" },
+  CIVIQUE: { lead: "Continuez avec le pass ", em: "Civique" },
+};
+
+/** La phrase sous le titre, quand l'écran n'en donne pas de plus précise. */
+export const PASS_OFFER_TEXT: Record<PassModule, string> = {
+  INTEGRAL:
+    "Ce contenu fait partie du pass Intégral : le TCF IRN et l'examen civique, pour la durée de votre choix.",
+  CIVIQUE:
+    "Ce contenu fait partie du pass Civique, et de l'Intégral qui y ajoute le TCF IRN.",
+};
+
+/** La promesse commerciale d'un pass, en une ligne. Miroir : `kPassOneTimeNote`. */
+export const PASS_ONE_TIME_NOTE = "Paiement unique, sans abonnement ni renouvellement automatique.";
+
+/** Le bouton de la feuille, qui mène à `/paiement`. Miroir : `kPassOfferCta`. */
+export const PASS_OFFER_CTA = "Voir les pass";
+
+/** Le refus poli. Miroir : `kPassOfferLater`. */
+export const PASS_OFFER_LATER = "Plus tard";
+
+/**
+ * **Le pass que la feuille désigne sur `/paiement`** (`?plan=`, qui surligne la
+ * ligne et y fait défiler). Le pass mis en avant du module : on n'invente pas
+ * un « pass adapté ». Un code absent du catalogue actif reste inerte.
+ */
+export const PASS_OFFER_PLAN: Record<PassModule, string> = {
+  INTEGRAL: POPULAR_PASS_CODE,
+  CIVIQUE: POPULAR_CIVIQUE_PASS_CODE,
+};
+
+/**
+ * **Ce qu'un compte gratuit ajoute à la visite sans compte** — les puces de la
+ * feuille d'inscription (`GuestGateSheet`). Web seul : le mobile n'a aucun mode
+ * invité. Chaque ligne est vraie pour un compte gratuit (`docs/regles/freemium.md`) :
+ * les séries 2+ ne s'y trouvent PAS, elles restent dans les pass.
+ */
+export const FREE_ACCOUNT_EXTRAS: readonly string[] = [
+  FREE_EXPRESSION_EXAMS,
+  "Vos scores, votre progression et la reprise de vos sessions",
+  "Vos favoris, pour retrouver vos questions",
+];
+
+/** Le pass qui ouvre un module d'examen : tout le TCF est dans l'Intégral. */
+export function passModuleOfExam(module: "CIVIQUE" | "TCF"): PassModule {
+  return module === "TCF" ? "INTEGRAL" : "CIVIQUE";
+}
+
+/**
+ * La fin d'une série offerte, pour un compte sans le pass du module
+ * (`TrainingResultCard`). Miroir mot pour mot : `passSeriesDoneText`
+ * (`mobile_sejourfr/lib/core/models/billing_models.dart`), lu par le dialogue
+ * de fin de série du runner. Remplace « Démo terminée … l'abonnement débloque
+ * l'entraînement illimité » (2026-09-26).
+ */
+export const PASS_SERIES_DONE_TITLE = "Série terminée";
+
+export function passSeriesDoneText(module: PassModule, total: number): string {
+  return `Vous avez terminé cette série de ${total} questions. Les séries suivantes font partie du pass ${PASS_MODULE_NAME[module]}.`;
+}

@@ -154,7 +154,7 @@ String? sujetsMeta(List<SkillPromptSummary> prompts) {
 const String kExpressionCtaStart = 'Commencer la séance';
 const String kExpressionCtaContinue = 'Continuer la séance';
 const String kExpressionCtaRedo = 'Retravailler cette compétence';
-const String kExpressionCtaLocked = 'Voir l\'abonnement Intégral';
+const String kExpressionCtaLocked = 'Voir le pass Intégral';
 
 /// Le CTA de la fiche d'une compétence — **il dit ce qui va réellement se
 /// passer**.

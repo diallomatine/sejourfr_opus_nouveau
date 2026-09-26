@@ -628,7 +628,7 @@ function skillPremiumHref(origin: PurchaseOrigin): string {
 /** Le libellé du bouton qui ouvre l'offre depuis le module. Wording neutre
  *  (guidelines Apple 3.1.1), **miroir mot pour mot** de `kPremiumLockCta`
  *  (`mobile_sejourfr/lib/core/widgets/premium_lock.dart`). */
-export const SKILL_PREMIUM_CTA = "Voir l'abonnement Intégral";
+export const SKILL_PREMIUM_CTA = "Voir le pass Intégral";
 
 /**
  * Les deux actions proposées sur un petit sujet **déjà traité** : relire son

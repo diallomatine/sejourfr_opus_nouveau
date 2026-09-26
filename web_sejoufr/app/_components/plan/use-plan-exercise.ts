@@ -3,7 +3,7 @@
 import {useRouter} from "next/navigation";
 import {useCallback, useState} from "react";
 import {track, trackDiagnosticAssessmentStarted} from "@/lib/analytics";
-import {attemptApi, fullTcfExamApi, productionApi} from "@/lib/api";
+import {attemptApi, fullTcfExamApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
 import {handleStartFailure} from "@/lib/start-failure";
 import {planSkillHref} from "@/lib/plan-domain";
@@ -12,35 +12,8 @@ import type {
     PlanRecommendedExerciseDto,
     PlanSeanceExerciseItemDto,
 } from "@/lib/types";
-import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
-
-/**
- * **Démarrer un examen blanc de production** (les 3 tâches EE ou EO enchaînées)
- * et rendre l'adresse de sa session.
- *
- * ⚠️ **Rien n'est décidé ici** : l'épreuve et le slot viennent de l'appelant,
- * qui les tient d'un descripteur **servi** — `PlanMilestoneExerciseDto` pour le
- * jalon, `PlanDomainAssessmentDto` pour une mesure de domaine. On n'apporte que
- * le chemin de démarrage, celui de `ProductionExams`, réutilisé tel quel :
- * aucune route n'est créée, aucun appel n'est réinventé.
- *
- * Extrait à la **2ᵉ occurrence** (2026-09-16), quand « Évaluer mon niveau » a
- * cessé d'ouvrir l'ancien diagnostic pour lancer le même examen que le jalon.
- * Deux copies auraient fini par ouvrir deux sessions différentes.
- */
-async function startProductionMockExam(
-    epreuve: "TCF_EE" | "TCF_EO",
-    slotNumber: number,
-): Promise<string> {
-    const config = epreuve === "TCF_EO" ? EO_CONFIG : EE_CONFIG;
-    const attempt = await productionApi.startAttempt({
-        module: "TCF",
-        epreuve: config.epreuve,
-        exam: true,
-        slotNumber,
-    });
-    return `${config.base}/session/${attempt.id}`;
-}
+import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
+import {EPREUVE_PRESENTATION, plannedEpreuveLabel} from "@/lib/exam-durations";
 
 /**
  * **Le seul endroit du web qui lance une action du Plan.**
@@ -56,7 +29,7 @@ async function startProductionMockExam(
  * ⚠️ Depuis une ligne de **séance**, ces deux natures ouvrent la **fiche de la
  * compétence** et non le sujet : cf. `startItem` plus bas.
  * | `TARGETED_QCM_SERIES` | on **démarre** un `TRAINING` (`skillId` seul) puis le runner QCM existant |
- * | `EPREUVE_MOCK_EXAM` | on **démarre** la session de production d'examen (chemin de `ProductionExams`) |
+ * | `EPREUVE_MOCK_EXAM` | on **ouvre** la feuille d'information de l'examen blanc EE/EO (`useMockExamLauncher`, le lanceur de la grille) |
  * | `FULL_TCF_MOCK_EXAM` | on **démarre** l'examen complet (chemin de `TcfFullExamBriefingSheet`) |
  *
  * 🛑 **Aucun runner concurrent n'est créé.** Une série ciblée est un attempt
@@ -70,6 +43,7 @@ async function startProductionMockExam(
  */
 export function usePlanExercise() {
     const router = useRouter();
+    const launchExam = useMockExamLauncher();
     const [starting, setStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [paywallOpen, setPaywallOpen] = useState(false);
@@ -123,10 +97,13 @@ export function usePlanExercise() {
                         break;
                     }
                     case "EPREUVE_MOCK_EXAM": {
-                        router.push(await startProductionMockExam(
-                            exercise.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
-                            exercise.slotNumber,
-                        ));
+                        launchExam({
+                            kind: "PRODUCTION",
+                            epreuve: exercise.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
+                            slotNumber: exercise.slotNumber,
+                            onPaywall: () => setPaywallOpen(true),
+                        });
+                        setStarting(false);
                         break;
                     }
                     default:
@@ -143,7 +120,7 @@ export function usePlanExercise() {
                 setStarting(false);
             }
         },
-        [router],
+        [router, launchExam],
     );
 
     /**
@@ -230,63 +207,70 @@ export function usePlanExercise() {
  *
  * 🛑 **Les quatre épreuves lancent un EXAMEN BLANC** (arbitrage du
  * propriétaire, 2026-09-16) : examen de module en CO/CE, examen de production
- * (les 3 tâches) en EE/EO — le même que le jalon du Plan, par la **même**
- * fonction (`startProductionMockExam`). L'expression partait auparavant vers
- * `/diagnostic` ou vers la liste des 3 tâches en entraînement libre : aucun des
- * deux ne lançait un examen blanc.
+ * (les 3 tâches) en EE/EO — le même que le jalon du Plan, par le **même**
+ * lanceur (`useMockExamLauncher` : feuille d'information, puis
+ * démarrage). L'expression partait auparavant vers `/diagnostic` ou vers la
+ * liste des 3 tâches en entraînement libre : aucun des deux ne lançait un
+ * examen blanc.
  *
  * 🛑 **`slotNumber` est SERVI** : c'est lui qui pilote le démarrage, jamais un
  * `1` décidé ici (le repli ne couvre qu'un client servi par un backend qui ne
  * le publierait pas).
  */
 export function usePlanAssessment() {
-    const router = useRouter();
+    const launchExam = useMockExamLauncher();
     const [starting, setStarting] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [paywallOpen, setPaywallOpen] = useState(false);
 
+    /* 🛑 **Les deux natures passent par le lanceur partagé** (feuille
+       d'information, puis démarrage au clic) — exactement ce que fait la grille
+       d'examens de l'épreuve, et ce que fait l'app (`openPlanAssessment`). Le
+       démarrage, ses erreurs et son 403 vivent là-bas ; l'offre reste celle
+       de l'appelant. */
     const start = useCallback(
-        async (assessment: PlanDomainAssessmentDto) => {
+        (assessment: PlanDomainAssessmentDto) => {
             setError(null);
-            setStarting(assessment.epreuve);
-            try {
-                if (assessment.kind === "PRODUCTION_MOCK_EXAM") {
-                    router.push(await startProductionMockExam(
-                        assessment.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
-                        assessment.slotNumber ?? 1,
-                    ));
-                    return;
-                }
-                const attempt = await attemptApi.start({
-                    type: "MOCK_EXAM",
-                    module: "TCF",
-                    // `moduleExamQuestionType` et `slotNumber` viennent du serveur :
-                    // on les repasse tels quels, on ne les choisit pas.
-                    moduleExamQuestionType: assessment.moduleExamQuestionType ?? undefined,
+            setStarting(null);
+            const onPaywall = () => setPaywallOpen(true);
+            if (assessment.kind === "PRODUCTION_MOCK_EXAM") {
+                launchExam({
+                    kind: "PRODUCTION",
+                    epreuve: assessment.epreuve === "TCF_EO" ? "TCF_EO" : "TCF_EE",
                     slotNumber: assessment.slotNumber ?? 1,
+                    onPaywall,
                 });
-                // Les deux domaines de compréhension, que le diagnostic rapide
-                // ne mesure pas, se mesurent par cette série : c'est le seul instant où le
-                // navigateur sait POURQUOI l'examen blanc s'ouvre. Le runner,
-                // lui, ne le saura jamais — d'où la marque posée ici, que
-                // l'écran de résultat consomme (`lib/analytics.ts`).
-                if (assessment.epreuve === "TCF_CO" || assessment.epreuve === "TCF_CE") {
-                    trackDiagnosticAssessmentStarted(
-                        attempt.id,
-                        assessment.epreuve === "TCF_CO" ? "CO" : "CE",
-                    );
-                }
-                router.push(`/sessions/${attempt.id}`);
-            } catch (cause) {
-                handleStartFailure(cause, {
-                    onPaywall: () => setPaywallOpen(true),
-                    onMessage: setError,
-                    fallbackMessage: "Impossible de démarrer cette épreuve.",
-                });
-                setStarting(null);
+                return;
             }
+            // `moduleExamQuestionType` et `slotNumber` viennent du serveur : on
+            // les repasse tels quels. Le repli sur CO vaut pour un type absent
+            // (miroir de `openPlanAssessment`) ; la Structure, hors des quatre
+            // épreuves, n'est jamais mesurée par le Plan.
+            const epreuve = assessment.moduleExamQuestionType === "CE" ? "TCF_CE" : "TCF_CO";
+            launchExam({
+                kind: "COMPREHENSION",
+                questionType: epreuve === "TCF_CE" ? "CE" : "CO",
+                title: EPREUVE_PRESENTATION[epreuve].label,
+                durationLabel: plannedEpreuveLabel(epreuve),
+                slotNumber: assessment.slotNumber ?? 1,
+                onPaywall,
+                // Les deux domaines de compréhension, que le diagnostic rapide
+                // ne mesure pas, se mesurent par cette série : c'est le seul
+                // instant où le navigateur sait POURQUOI l'examen blanc
+                // s'ouvre. Le runner, lui, ne le saura jamais — d'où la marque
+                // posée ici, que l'écran de résultat consomme
+                // (`lib/analytics.ts`).
+                onStarted: (attemptId) => {
+                    if (assessment.epreuve === "TCF_CO" || assessment.epreuve === "TCF_CE") {
+                        trackDiagnosticAssessmentStarted(
+                            attemptId,
+                            assessment.epreuve === "TCF_CO" ? "CO" : "CE",
+                        );
+                    }
+                },
+            });
         },
-        [router],
+        [launchExam],
     );
 
     const closePaywall = useCallback(() => {

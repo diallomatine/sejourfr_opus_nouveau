@@ -18,8 +18,10 @@ import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
+import 'production_exam_copy.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
+import 'widgets/production_info_sheet.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
 import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
@@ -378,18 +380,6 @@ class _EeBriefingWritingScreenState
     setState(() {});
   }
 
-  Future<void> _showConfidentialitySheet(BuildContext context) {
-    FocusScope.of(context).unfocus();
-    return showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _ConfidentialitySheet(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Pendant le submit on garde l'écran visible avec un loading inline sur le
@@ -435,7 +425,8 @@ class _EeBriefingWritingScreenState
           fallbackRoute: fallbackRoute,
           onBack: isExam ? () => _quitExam(fallbackRoute) : null,
           rightAction: ProductionAppHeaderInfo(
-            onPressed: () => _showConfidentialitySheet(context),
+            onPressed: () =>
+                showProductionInfoSheet(context, EpreuveType.tcfEe),
           ),
         ),
         body: sessionAsync.when(
@@ -565,18 +556,10 @@ class _Content extends StatelessWidget {
                 key: const ValueKey('ee-consigne'),
                 consigne: task.consigne,
                 subTitleHero: task.displayTitle,
-                subtitle:
-                    'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
+                // 🛑 La fourchette est dite UNE fois, ici — ni pastille, ni
+                // rang « Tâche i/N » (le bandeau du haut le porte déjà).
+                subtitle: productionExamConstraintLine(task),
                 contexte: task.contexte,
-                // Repère de progression : uniquement en session à plusieurs
-                // tâches. En entraînement libre il n'y a pas de rang à annoncer.
-                step: session.totalTasks <= 1
-                    ? null
-                    : 'Tâche ${taskIndex + 1}/${session.totalTasks}',
-                requirements: [
-                  if (task.motsMin != null && task.motsMax != null)
-                    '${task.motsMin}-${task.motsMax} mots',
-                ],
               ),
               // Repère de rythme, **indicatif et jamais bloquant** : le seul
               // chrono opposable porte sur les 3 tâches ensemble. Rien ne se
@@ -658,8 +641,7 @@ class _TempsConseille extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$label sur cette tâche — un repère, pas une limite : '
-              'le chrono affiché couvre les 3 tâches.',
+              productionExamAdvisedTimeLine(label),
               style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.muted,
@@ -741,83 +723,6 @@ class _ErrorBox extends StatelessWidget {
             icon: LucideIcons.refreshCw,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ConfidentialitySheet extends StatelessWidget {
-  const _ConfidentialitySheet();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.line,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: AppColors.blueLight,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    LucideIcons.lock,
-                    size: 18,
-                    color: AppColors.blue,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Confidentialité de votre rédaction',
-                    style: AppFonts.display(
-                      size: 18,
-                      weight: FontWeight.w600,
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              "Votre rédaction est confidentielle et sera analysée par notre IA "
-              "pour vous fournir un feedback détaillé. Le contenu n'est pas "
-              "partagé avec des tiers, n'est pas utilisé pour entraîner nos "
-              "modèles, et reste accessible uniquement depuis votre compte.",
-              style: AppFonts.ui(
-                size: 13.5,
-                color: AppColors.muted,
-                height: 1.55,
-              ),
-            ),
-            const SizedBox(height: 18),
-            AppButton(
-              label: 'J\'ai compris',
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -527,7 +527,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                   <h2 className={s.recoTitle}>{target.title}</h2>
                   <p className={s.recoText}>
                     {targetLocked
-                      ? "Ce sujet fait partie de l'abonnement Intégral. Il reste celui que ton plan a désigné."
+                      ? "Ce sujet fait partie du pass Intégral. Il reste celui que ton plan a désigné."
                       : target.status === "TODO"
                         ? "Nouveau sujet sur cette compétence."
                         : NEXT_PROMPT_REINFORCE_REASON}
@@ -674,8 +674,7 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
                 assessment.closePaywall();
               }}
               module="INTEGRAL"
-              title="Tous les petits sujets"
-              message="Ce sujet est réservé à l'abonnement Intégral. Il ouvre tous les petits sujets de chaque compétence, les 8 compétences de chaque tâche et l'analyse IA sans limite. Ton plan personnalisé, lui, reste entier."
+              reason="Ce sujet fait partie du pass Intégral, avec tous les petits sujets de chaque compétence, les 8 compétences de chaque tâche et leur analyse IA. Ton plan personnalisé, lui, reste entier."
             />
 
             <ConfirmSheet

@@ -231,7 +231,7 @@ export function subAttemptView(
             tone: "neutral",
             failedSubmissionIds: [],
             showSpinner: false,
-            subtitle: "Réservé à l'abonnement Intégral",
+            subtitle: "Inclus dans le pass Intégral",
         };
     }
 

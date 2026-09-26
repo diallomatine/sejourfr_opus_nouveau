@@ -253,7 +253,7 @@ const String kJourneyNeedsObjectiveCta = 'Choisir ma démarche';
 /// une phrase commerciale, pas un fait du référentiel — il reste au front (A58).
 String journeyLockedCaption(AppModule module) {
   final pass = module == AppModule.civique ? 'Civique' : 'Intégral';
-  return "Cette étape fait partie de l'abonnement $pass. Votre parcours, lui, "
+  return "Cette étape fait partie du pass $pass. Votre parcours, lui, "
       'reste entier.';
 }
 

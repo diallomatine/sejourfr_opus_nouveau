@@ -123,14 +123,13 @@ class _ProductionSubjectsViewState
       icon: LucideIcons.gift,
       iconBg: widget.module.accent.withValues(alpha: 0.12),
       iconColor: widget.module.accentDark,
-      title: 'Un essai gratuit par épreuve',
+      title: 'Un examen blanc offert par épreuve',
       children: [
         Text(
-          "Vous disposez d'un essai d'entraînement gratuit en "
-          '${widget.module.title.toLowerCase()}, évalué par l\'IA '
-          '(votre niveau sur les paliers du TCF), ainsi qu\'un examen blanc '
-          'complet offert. Pour vous entraîner sans limite, passez à '
-          'l\'abonnement Intégral.',
+          'Votre compte gratuit comprend un examen blanc complet en '
+          '${widget.module.title.toLowerCase()}, corrigé par l\'IA (votre '
+          'niveau sur les paliers du TCF). S\'entraîner sur les sujets fait '
+          'partie du pass Intégral.',
           style: AppFonts.ui(size: 13.5, color: AppColors.inkSoft, height: 1.55),
         ),
         const SizedBox(height: 6),

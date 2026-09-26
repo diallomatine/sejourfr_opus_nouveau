@@ -321,7 +321,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
           ? 'Dernier score : ${attempt.score}/${attempt.totalQuestions}'
           : 'Terminé';
     } else if (lockedEmpty) {
-      subtitle = 'Réservé à l\'abonnement';
+      subtitle = 'Inclus dans le pass Civique';
     } else if (number == 1) {
       subtitle = 'Offert · 40 questions, 45 min';
     } else {

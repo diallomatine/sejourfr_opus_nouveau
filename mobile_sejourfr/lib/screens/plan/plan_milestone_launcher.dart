@@ -32,11 +32,10 @@ Future<void> startPlanMilestone(
 }) async {
   final cta = planCta(ref, origine, horsPlan: AnalyticsCtaLocation.mockExam);
   if (!milestone.isFullExam) {
-    // ⚠️ Le démarrage d'un examen de production vit dans `startProductionExam`,
-    // partagé avec la mesure d'un domaine d'expression et avec la grille
-    // d'examens de l'épreuve : il pose déjà le module actif, ouvre la session
-    // avant de pousser l'écran, et route le 403 vers l'offre.
-    await startProductionExam(
+    // 🛑 Le lanceur unique des examens blancs EE/EO, partagé avec la mesure
+    // d'un domaine d'expression et la grille de l'épreuve : feuille
+    // d'information d'abord, démarrage au tap — le chrono ne part qu'alors.
+    await launchProductionExam(
       context,
       ref,
       epreuve: milestone.epreuve,

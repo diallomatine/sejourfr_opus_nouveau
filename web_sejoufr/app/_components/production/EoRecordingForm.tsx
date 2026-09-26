@@ -9,6 +9,7 @@ import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
+import {ProductionSplit} from "./ProductionExamRunner";
 import {RecordingLevelMeter} from "./RecordingLevelMeter";
 import styles from "./production.module.css";
 
@@ -170,6 +171,7 @@ export function EoRecordingForm({
   maxDurationSec,
   voice = "vouvoiement",
   examMode = false,
+  split = false,
   timeoutSignal = 0,
   onTimeout,
   onModeChoice,
@@ -229,6 +231,9 @@ export function EoRecordingForm({
   /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
    *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
   examMode?: boolean;
+  /** Consigne à gauche, enregistreur à droite au palier desktop
+   *  (`ProductionSplit`). Une colonne en dessous, comme l'app. */
+  split?: boolean;
   /** Incrémenté par le parent quand le chrono de l'épreuve tombe à 0:00 :
    *  coupe la capture en cours et remonte l'audio via `onTimeout`. */
   timeoutSignal?: number;
@@ -670,133 +675,140 @@ export function EoRecordingForm({
 
   return (
     <SkillAccent>
-      {headerSlot}
+      <ProductionSplit
+        split={split}
+        aside={
+          <>
+            {headerSlot}
 
-      {/* Même carte d'exercice qu'à l'écrit : le parcours est identique en EE
-          et en EO, seules la zone de production et la couleur d'accent
-          changent. */}
-      {promptSlot === undefined ? (
-        <section className={s.exercise}>
-          <div className={s.exerciseTop}>
-            <span className={s.criterionTag}>
-              <Target size={12} strokeWidth={2.4} aria-hidden />
-              {consigneLabel ?? `Tâche ${task.tacheNumero}`}
-            </span>
-          </div>
+            {/* Même carte d'exercice qu'à l'écrit : le parcours est identique en EE
+                et en EO, seules la zone de production et la couleur d'accent
+                changent. */}
+            {promptSlot === undefined ? (
+              <section className={s.exercise}>
+                <div className={s.exerciseTop}>
+                  <span className={s.criterionTag}>
+                    <Target size={12} strokeWidth={2.4} aria-hidden />
+                    {consigneLabel ?? `Tâche ${task.tacheNumero}`}
+                  </span>
+                </div>
 
-          {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
-          <p className={s.exerciseIntro}>{task.consigne}</p>
+                {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+                <p className={s.exerciseIntro}>{task.consigne}</p>
 
-          {task.contexte && (
-            <div className={s.context}>
-              <span className={s.contextLabel}>Situation</span>
-              {task.contexte}
-            </div>
-          )}
+                {task.contexte && (
+                  <div className={s.context}>
+                    <span className={s.contextLabel}>Situation</span>
+                    {task.contexte}
+                  </div>
+                )}
 
-          {rangeLabel && (
-            <div className={s.requirements}>
-              <span className={s.requirement}>
-                <Clock size={11} strokeWidth={2.4} aria-hidden />
-                {rangeLabel}
-              </span>
-            </div>
-          )}
-        </section>
-      ) : (
-        promptSlot
-      )}
-
-      {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
-
-      {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
-          ne repousse plus le micro sous la ligne de flottaison. */}
-      {!answerCard && <EoTranscriptNotice voice={voice} />}
-
-      {answerCard ? (
-        <section className={s.answerCard}>
-          <div className={s.answerHead}>
-            {answerCard.icon && (
-              <span className={s.answerIcon} aria-hidden>
-                {answerCard.icon}
-              </span>
-            )}
-            <h2 className={s.answerTitle}>{answerCard.title}</h2>
-          </div>
-          {answerCard.starter && (
-            <p className={s.starter}>Pour démarrer : « {answerCard.starter} »</p>
-          )}
-          {recorder}
-          <div className={s.answerFoot}>
-            {answerCard.tip ? (
-              <span className={s.answerTip}>
-                <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
-                Astuce : {answerCard.tip}
-              </span>
+                {rangeLabel && (
+                  <div className={s.requirements}>
+                    <span className={s.requirement}>
+                      <Clock size={11} strokeWidth={2.4} aria-hidden />
+                      {rangeLabel}
+                    </span>
+                  </div>
+                )}
+              </section>
             ) : (
-              <span />
+              promptSlot
             )}
-            {/* Purement visuel : branché en `aria-live`, ce compteur se faisait
+          </>
+        }
+      >
+        {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
+
+        {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
+          ne repousse plus le micro sous la ligne de flottaison. */}
+        {!answerCard && <EoTranscriptNotice voice={voice} />}
+
+        {answerCard ? (
+          <section className={s.answerCard}>
+            <div className={s.answerHead}>
+              {answerCard.icon && (
+                <span className={s.answerIcon} aria-hidden>
+                  {answerCard.icon}
+                </span>
+              )}
+              <h2 className={s.answerTitle}>{answerCard.title}</h2>
+            </div>
+            {answerCard.starter && (
+              <p className={s.starter}>Pour démarrer : « {answerCard.starter} »</p>
+            )}
+            {recorder}
+            <div className={s.answerFoot}>
+              {answerCard.tip ? (
+                <span className={s.answerTip}>
+                  <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                  Astuce : {answerCard.tip}
+                </span>
+              ) : (
+                <span />
+              )}
+              {/* Purement visuel : branché en `aria-live`, ce compteur se faisait
                 relire À CHAQUE SECONDE pendant que le candidat parlait. L'état
                 de la capture est annoncé une seule fois, dans l'enregistreur. */}
-            <span className={`${s.answerCount} ${durationClass}`}>{durationText}</span>
-          </div>
-        </section>
-      ) : (
-        <div className={`${s.card} ${s.panel}`}>{recorder}</div>
-      )}
+              <span className={`${s.answerCount} ${durationClass}`}>{durationText}</span>
+            </div>
+          </section>
+        ) : (
+          <div className={`${s.card} ${s.panel}`}>{recorder}</div>
+        )}
 
-      {answerCard && <EoTranscriptNotice voice={voice} />}
+        {answerCard && <EoTranscriptNotice voice={voice} />}
 
-      {(blockMsg || permError || error) && (
-        <div className={s.error}>{blockMsg ?? permError ?? error}</div>
-      )}
+        {(blockMsg || permError || error) && (
+          <div className={s.error}>{blockMsg ?? permError ?? error}</div>
+        )}
 
-      {/* Ce que porte ce pied — auto-évaluation, option d'analyse IA, rappel
+        {/* Ce que porte ce pied — auto-évaluation, option d'analyse IA, rappel
           sur les références — se décide AVANT de parler : c'est pour ça qu'il
           peut être rendu dès l'ouverture de l'écran. */}
-      {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
+        {!examMode && (footerAlwaysVisible || phase === "recorded") && footerSlot}
 
-      {/* EN EXAMEN, un envoi qui échoue laissait le candidat SANS ISSUE : le
+        {/* EN EXAMEN, un envoi qui échoue laissait le candidat SANS ISSUE : le
           micro est verrouillé et aucun bouton n'est rendu. Depuis que la
           transcription se fait pendant l'envoi, un échec est un cas réel — on
           rend LE MÊME enregistrement renvoyable. Ni réenregistrement, ni
           réécoute : les règles d'examen ne bougent pas. */}
-      {examMode && phase === "recorded" && error && (
-        <div className={s.actionRow}>
-          <button
-            type="button"
-            className={s.primary}
-            disabled={submitting}
-            onClick={() =>
-              blobRef.current &&
-              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
-            }
-          >
-            {submitting ? "Envoi en cours…" : "Renvoyer ma réponse"}
-          </button>
-        </div>
-      )}
+        {examMode && phase === "recorded" && error && (
+          <div className={s.actionRow}>
+            <button
+              type="button"
+              className={s.primary}
+              disabled={submitting}
+              onClick={() =>
+                blobRef.current &&
+                onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+              }
+            >
+              {submitting ? "Envoi en cours…" : "Renvoyer ma réponse"}
+            </button>
+          </div>
+        )}
 
-      {!examMode && phase === "recorded" && (
-        <div className={s.actionRow}>
-          <button
-            type="button"
-            className={s.primary}
-            disabled={submitting}
-            onClick={() =>
-              blobRef.current &&
-              onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
-            }
-          >
-            {submitting ? "Envoi en cours…" : submitLabel}
-          </button>
-          <button type="button" className={s.secondary} disabled={submitting} onClick={redo}>
-            <RotateCcw size={15} strokeWidth={2.2} style={{marginRight: 6}} aria-hidden />
-            Refaire
-          </button>
-        </div>
-      )}
+        {!examMode && phase === "recorded" && (
+          <div className={s.actionRow}>
+            <button
+              type="button"
+              className={s.primary}
+              disabled={submitting}
+              onClick={() =>
+                blobRef.current &&
+                onSubmit(blobRef.current, Math.min(elapsed, hardCapSec ?? elapsed))
+              }
+            >
+              {submitting ? "Envoi en cours…" : submitLabel}
+            </button>
+            <button type="button" className={s.secondary} disabled={submitting} onClick={redo}>
+              <RotateCcw size={15} strokeWidth={2.2} style={{marginRight: 6}} aria-hidden />
+              Refaire
+            </button>
+          </div>
+        )}
+      </ProductionSplit>
     </SkillAccent>
   );
 }

@@ -311,14 +311,14 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          message="Le 1er sujet est offert pour découvrir l'épreuve. Passez à l'abonnement Intégral pour débloquer tous les sujets et leurs corrigés."
+          reason="Les sujets d'entraînement et leur correction par l'IA font partie du pass Intégral."
         />
 
         <ConfirmSheet
           open={quotaInfoOpen}
           tone="info"
-          title="Un essai gratuit par épreuve"
-          message={`Vous disposez d'un essai d'entraînement gratuit en ${config.label.toLowerCase()}, évalué par l'IA (votre niveau sur les paliers du TCF), ainsi qu'un examen blanc complet offert. Pour vous entraîner sans limite, passez à l'abonnement Intégral.`}
+          title="Un examen blanc offert par épreuve"
+          message={`Votre compte gratuit comprend un examen blanc complet en ${config.label.toLowerCase()}, corrigé par l'IA (votre niveau sur les paliers du TCF). S'entraîner sur les sujets fait partie du pass Intégral.`}
           onClose={dismissQuotaInfo}
         />
       </SkillShell>

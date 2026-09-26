@@ -24,6 +24,7 @@ import {
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import { ensureDiagnosticRun } from "@/lib/diagnostic-run";
 import {retourOuRepli} from "@/lib/retour";
+import {passModuleOfExam} from "@/lib/passes";
 import {sessionAppBarInfo} from "@/lib/app-bar";
 import {
   CIVIC_DIAGNOSTIC_PARAM,
@@ -515,7 +516,7 @@ function SessionRunnerInner({ params }: PageProps) {
           screen="session_relance"
           open={retryPaywallOpen}
           onClose={() => setRetryPaywallOpen(false)}
-          module={attempt.module === "TCF" ? "INTEGRAL" : "CIVIQUE"}
+          module={passModuleOfExam(attempt.module)}
         />
         <style>{`
           .sess { background: var(--color-paper); min-height: calc(100vh - 110px); }
@@ -705,14 +706,14 @@ function GuestResultCta() {
   return (
     <section className="sess-guest-cta">
       <div className="sess-guest-cta-inner">
-        <div className="sess-guest-cta-eyebrow">DÉMO TERMINÉE</div>
+        <div className="sess-guest-cta-eyebrow">SÉRIE TERMINÉE</div>
         <h2>
           Sauvegardez vos résultats et continuez à progresser.
         </h2>
         <p>
           Vos réponses ne sont pas conservées tant que vous n&apos;avez pas de
-          compte. Créez-en un gratuitement pour suivre vos statistiques par
-          thème et lancer un entraînement illimité.
+          compte. Créez-en un gratuitement pour garder vos scores et suivre
+          votre progression par thème.
         </p>
         <div className="sess-guest-cta-actions">
           <Link href="/inscription" className="btn btn-red btn-lg">

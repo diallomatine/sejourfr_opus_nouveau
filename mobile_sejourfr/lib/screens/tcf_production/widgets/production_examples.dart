@@ -312,8 +312,8 @@ class _LockedExampleBar extends StatelessWidget {
             Expanded(
               child: Text(
                 isOral
-                    ? "Écoute réservée à l'abonnement Intégral"
-                    : "Corrigé réservé à l'abonnement Intégral",
+                    ? "Écoute incluse dans le pass Intégral"
+                    : "Corrigé inclus dans le pass Intégral",
                 style: AppFonts.ui(
                   size: 12,
                   weight: FontWeight.w700,

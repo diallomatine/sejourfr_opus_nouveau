@@ -1,13 +1,14 @@
 "use client";
 
 import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
-import {Clock, FileText, Lightbulb, Target} from "lucide-react";
+import {FileText, Lightbulb, Target} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
 import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
 import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
 import s from "@/app/_components/skill-ui/skill.module.css";
 import {type ProductionVoice} from "./config";
 import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
+import {ProductionSplit} from "./ProductionExamRunner";
 
 const DRAFT_PREFIX = "sejourfr.ee.draft.";
 
@@ -76,7 +77,8 @@ export function EeWritingForm({
   lengthAdvisory = false,
   clearLabel,
   voice = "vouvoiement",
-  advisedTimeLabel,
+  rangeInPrompt = false,
+  split = false,
   autoSubmitSignal = 0,
   onAutoSubmit,
   initialText,
@@ -123,11 +125,13 @@ export function EeWritingForm({
    *  longueur). Vouvoiement par défaut ; le module « Compétences » tutoie. Ne
    *  touche jamais au texte du sujet, ni à l'amorce fournie par la base. */
   voice?: ProductionVoice;
-  /** Temps **conseillé** pour cette tâche (« ≈ 7 min conseillées »), affiché à
-   *  côté de la fourchette de mots. 🛑 Purement indicatif : rien ne se ferme
-   *  dessus, aucune tâche n'est coupée — le seul chrono réel est celui de
-   *  l'épreuve, porté par le parent. Absent = rien ne s'affiche. */
-  advisedTimeLabel?: string | null;
+  /** La fourchette de mots est déjà dite par `promptSlot` (runner d'examen
+   *  blanc : « Longueur attendue : 30 à 60 mots ») : l'en-tête de la zone de
+   *  saisie et l'aide de longueur ne la répètent pas. */
+  rangeInPrompt?: boolean;
+  /** Consigne à gauche, production à droite au palier desktop
+   *  (`ProductionSplit`). Une colonne en dessous, comme l'app. */
+  split?: boolean;
   /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
    *  auto-soumission du texte courant si recevable. */
   autoSubmitSignal?: number;
@@ -176,7 +180,7 @@ export function EeWritingForm({
     min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
   // La fourchette posée en tête de carte est la seule à l'écran : rien d'autre
   // ne la répète (compteur, aide de longueur).
-  const rangeShown = Boolean(answerCard?.range);
+  const rangeShown = Boolean(answerCard?.range) || rangeInPrompt;
   // Hors bornes, on AVERTIT toujours ; on ne bloque que quand les bornes sont
   // strictes. Un avertissement muet laisserait croire que la longueur n'a
   // aucune importance, un blocage contredirait la règle 15 de la spec.
@@ -225,144 +229,145 @@ export function EeWritingForm({
 
   return (
     <SkillAccent>
-      {headerSlot}
+      <ProductionSplit
+        split={split}
+        aside={
+          <>
+            {headerSlot}
 
-      {/* Carte d'exercice de la maquette : badge de contrainte + repère de
-          position, titre d'intention, consigne, contexte, chips de format. */}
-      {promptSlot === undefined ? (
-        <section className={s.exercise}>
-          <div className={s.exerciseTop}>
-            <span className={s.criterionTag}>
-              <Target size={12} strokeWidth={2.4} aria-hidden />
-              {consigneLabel ?? `Tâche ${task.tacheNumero}`}
-            </span>
-          </div>
+            {/* Carte d'exercice de la maquette : badge de contrainte + repère de
+                position, titre d'intention, consigne, contexte, chips de format. */}
+            {promptSlot === undefined ? (
+              <section className={s.exercise}>
+                <div className={s.exerciseTop}>
+                  <span className={s.criterionTag}>
+                    <Target size={12} strokeWidth={2.4} aria-hidden />
+                    {consigneLabel ?? `Tâche ${task.tacheNumero}`}
+                  </span>
+                </div>
 
-          {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
-          <p className={s.exerciseIntro}>{task.consigne}</p>
+                {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+                <p className={s.exerciseIntro}>{task.consigne}</p>
 
-          {task.contexte && (
-            <div className={s.context}>
-              <span className={s.contextLabel}>Contexte</span>
-              {task.contexte}
-            </div>
-          )}
+                {task.contexte && (
+                  <div className={s.context}>
+                    <span className={s.contextLabel}>Contexte</span>
+                    {task.contexte}
+                  </div>
+                )}
 
-          {(rangeLabel || advisedTimeLabel) && (
-            <div className={s.requirements}>
-              {rangeLabel && (
-                <span className={s.requirement}>
-                  <FileText size={11} strokeWidth={2.4} aria-hidden />
-                  {rangeLabel}
-                </span>
-              )}
-              {advisedTimeLabel && (
-                <span className={s.requirement}>
-                  <Clock size={11} strokeWidth={2.4} aria-hidden />
-                  {advisedTimeLabel}
-                </span>
-              )}
-            </div>
-          )}
-        </section>
-      ) : (
-        promptSlot
-      )}
-
-      {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
-
-      {answerCard ? (
-        <section className={s.answerCard}>
-          <div className={s.answerHead}>
-            {answerCard.icon && (
-              <span className={s.answerIcon} aria-hidden>
-                {answerCard.icon}
-              </span>
-            )}
-            <h2 className={s.answerTitle}>{answerCard.title}</h2>
-            {answerCard.range && <span className={s.answerRange}>{answerCard.range}</span>}
-          </div>
-          <textarea
-            ref={textareaRef}
-            className={`${s.textarea} ${s.textareaBare}`}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER[voice]}
-            disabled={submitting}
-            spellCheck
-          />
-          <div className={s.answerFoot}>
-            {answerCard.tip ? (
-              <span className={s.answerTip}>
-                <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
-                Astuce : {answerCard.tip}
-              </span>
+                {rangeLabel && (
+                  <div className={s.requirements}>
+                    <span className={s.requirement}>
+                      <FileText size={11} strokeWidth={2.4} aria-hidden />
+                      {rangeLabel}
+                    </span>
+                  </div>
+                )}
+              </section>
             ) : (
-              <span />
+              promptSlot
             )}
-            <span className={`${s.answerCount} ${counterClass}`} aria-live="polite">
-              {counterText}
-            </span>
-          </div>
-        </section>
-      ) : (
-        <div>
-          <div className={s.editorHead}>
-            <p className={s.editorHeadTitle}>Votre rédaction</p>
-            {rangeLabel && <span className={s.editorHeadHint}>{rangeLabel}</span>}
-          </div>
-          <div className={s.editor}>
+          </>
+        }
+      >
+        {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
+
+        {answerCard ? (
+          <section className={s.answerCard}>
+            <div className={s.answerHead}>
+              {answerCard.icon && (
+                <span className={s.answerIcon} aria-hidden>
+                  {answerCard.icon}
+                </span>
+              )}
+              <h2 className={s.answerTitle}>{answerCard.title}</h2>
+              {answerCard.range && <span className={s.answerRange}>{answerCard.range}</span>}
+            </div>
             <textarea
               ref={textareaRef}
-              className={s.textarea}
+              className={`${s.textarea} ${s.textareaBare}`}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={DEFAULT_PLACEHOLDER[voice]}
+              placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER[voice]}
               disabled={submitting}
               spellCheck
             />
-            <span className={`${s.counter} ${counterClass}`} aria-live="polite">
-              {counterText}
-            </span>
+            <div className={s.answerFoot}>
+              {answerCard.tip ? (
+                <span className={s.answerTip}>
+                  <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                  Astuce : {answerCard.tip}
+                </span>
+              ) : (
+                <span />
+              )}
+              <span className={`${s.answerCount} ${counterClass}`} aria-live="polite">
+                {counterText}
+              </span>
+            </div>
+          </section>
+        ) : (
+          <div>
+            <div className={s.editorHead}>
+              <p className={s.editorHeadTitle}>Votre rédaction</p>
+              {rangeLabel && !rangeInPrompt && (
+                <span className={s.editorHeadHint}>{rangeLabel}</span>
+              )}
+            </div>
+            <div className={s.editor}>
+              <textarea
+                ref={textareaRef}
+                className={s.textarea}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={DEFAULT_PLACEHOLDER[voice]}
+                disabled={submitting}
+                spellCheck
+              />
+              <span className={`${s.counter} ${counterClass}`} aria-live="polite">
+                {counterText}
+              </span>
+            </div>
+            <p className={s.liveStats}>Brouillon enregistré automatiquement sur cet appareil.</p>
           </div>
-          <p className={s.liveStats}>Brouillon enregistré automatiquement sur cet appareil.</p>
-        </div>
-      )}
+        )}
 
-      {lengthHint && (
-        <p className={s.tipline}>
-          <b>Longueur :</b>
-          <span>{lengthHint}</span>
-        </p>
-      )}
+        {lengthHint && (
+          <p className={s.tipline}>
+            <b>Longueur :</b>
+            <span>{lengthHint}</span>
+          </p>
+        )}
 
-      {error && <div className={s.error}>{error}</div>}
+        {error && <div className={s.error}>{error}</div>}
 
-      {footerSlot}
+        {footerSlot}
 
-      <div className={s.actionRow}>
-        <button
-          type="button"
-          className={s.primary}
-          disabled={!canSubmit}
-          onClick={() => onSubmit(text.trim())}
-        >
-          {submitting ? "Envoi en cours…" : submitLabel}
-        </button>
-        {clearLabel && (
+        <div className={s.actionRow}>
           <button
             type="button"
-            className={s.secondary}
-            disabled={submitting || words === 0}
-            onClick={() => {
-              setText("");
-              if (typeof window !== "undefined") localStorage.removeItem(draftKey);
-            }}
+            className={s.primary}
+            disabled={!canSubmit}
+            onClick={() => onSubmit(text.trim())}
           >
-            {clearLabel}
+            {submitting ? "Envoi en cours…" : submitLabel}
           </button>
-        )}
-      </div>
+          {clearLabel && (
+            <button
+              type="button"
+              className={s.secondary}
+              disabled={submitting || words === 0}
+              onClick={() => {
+                setText("");
+                if (typeof window !== "undefined") localStorage.removeItem(draftKey);
+              }}
+            >
+              {clearLabel}
+            </button>
+          )}
+        </div>
+      </ProductionSplit>
     </SkillAccent>
   );
 }

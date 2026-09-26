@@ -232,7 +232,45 @@ extension PlanModuleTargetX on PlanModuleTarget {
         PlanModuleTarget.civique =>
           "Toute la préparation à l'examen civique, sans le TCF IRN.",
       };
+
+  /// 🛑 **Le titre de l'offre**, coupé en deux parce que la fin passe en
+  /// rouge. Miroir mot pour mot de `PASS_OFFER_TITLE` (`lib/passes.ts`), où
+  /// vit la liste des libellés périmés qu'il remplace (« Continuez en
+  /// illimité », « mode démo », « Voir les abonnements »…).
+  String get offerTitleLead => 'Continuez avec le pass ';
+  ///
+  /// ⚠️ Le mobile n'a pas de feuille intermédiaire (le verrou pousse
+  /// directement `PaywallScreen`) : l'offre s'y lit dans le dialogue de fin de
+  /// série du runner, dont la phrase est [passSeriesDoneText]. `PASS_OFFER_TEXT`
+  /// (la phrase par défaut de la feuille web) n'a donc pas de miroir ici.
+  String get offerTitleEm => label;
 }
+
+/// Le pass qui ouvre un module d'examen : tout le TCF est dans l'Intégral.
+/// Miroir de `passModuleOfExam`.
+PlanModuleTarget passModuleOfExam(AppModule module) => switch (module) {
+      AppModule.tcf => PlanModuleTarget.integral,
+      AppModule.civique => PlanModuleTarget.civique,
+    };
+
+/// La promesse commerciale d'un pass, en une ligne. Miroir de `PASS_ONE_TIME_NOTE`.
+const String kPassOneTimeNote =
+    'Paiement unique, sans abonnement ni renouvellement automatique.';
+
+/// Le bouton qui mène aux pass. Miroir de `PASS_OFFER_CTA`.
+const String kPassOfferCta = 'Voir les pass';
+
+/// Le refus poli. Miroir de `PASS_OFFER_LATER`.
+const String kPassOfferLater = 'Plus tard';
+
+/// La fin d'une série offerte, pour un compte sans le pass du module (dialogue
+/// de fin de série du runner). Miroir de `PASS_SERIES_DONE_TITLE` /
+/// `passSeriesDoneText`, lus par `TrainingResultCard` côté web.
+const String kPassSeriesDoneTitle = 'Série terminée';
+
+String passSeriesDoneText(PlanModuleTarget module, int total) =>
+    'Vous avez terminé cette série de $total questions. Les séries suivantes '
+    'font partie du pass ${module.label}.';
 
 /// 🛑 **L'ORDRE DES MODULES DANS UNE GRILLE DE PASS — décidé ICI, et nulle part
 /// ailleurs.** L'**Intégral passe toujours devant** le Civique (demande du

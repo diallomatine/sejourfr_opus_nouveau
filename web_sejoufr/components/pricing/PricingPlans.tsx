@@ -13,6 +13,7 @@ import {
   formatPassPrice,
   isOneTimeCatalog,
   oneTimePassesOf,
+  PASS_FEATURES,
   PASS_MODULE_CARD_TITLE,
   PASS_MODULES_IN_ORDER,
   passCheckoutHref,
@@ -55,24 +56,14 @@ const PRESENTATIONS: { CIVIQUE: Preset; INTEGRAL: Preset; FREE: Preset } = {
   },
   CIVIQUE: {
     description: "Pour réussir l'examen civique : CSP, CR ou naturalisation.",
-    features: [
-      { label: "Banque complète civique (CSP/CR/NAT)", strong: true },
-      { label: "Examens blancs civiques illimités" },
-      { label: "Statistiques par thématique + révision ciblée" },
-      { label: "Explications pédagogiques après chaque question" },
-    ],
+    features: PASS_FEATURES.CIVIQUE.map((label) => ({ label })),
     badge: { label: "Le plus populaire", tone: "blue" },
     featured: true,
     cta: { label: "Choisir Civique", variant: "primary" },
   },
   INTEGRAL: {
     description: "Civique + TCF IRN avec EE/EO évalués par IA. Le plus complet.",
-    features: [
-      { label: "Tout le Civique inclus", strong: true },
-      { label: "Module TCF complet (CO + CE + Structure)", strong: true },
-      { label: "Expression écrite + orale évaluée par IA" },
-      { label: "Diagnostic CECRL (A2 / B1 / B2)" },
-    ],
+    features: PASS_FEATURES.INTEGRAL.map((label) => ({ label })),
     badge: { label: "Intégral", tone: "red" },
     cta: { label: "Passer Intégral", variant: "red" },
   },
@@ -162,7 +153,13 @@ export function PricingPlans({
 
   // Mode passes one-time (lot 5) : une carte par module, chaque durée étant une
   // ligne cliquable qui emmène droit au récapitulatif du pass choisi.
-  if (isOneTimeCatalog(plans)) {
+  // ⚠️ La grille d'abonnement plus bas est DORMANTE, pas morte : elle ne sert
+  // que si `BILLING_MODE=SUBSCRIPTION` réactive les plans récurrents
+  // (réversibilité, `docs/regles/paiements.md`). Catalogue injoignable ⇒ la
+  // branche passes, qui rend la carte Gratuit seule, jamais un sélecteur de
+  // périodicité vide.
+  const hasPayable = plans.some((p) => p.moduleAccess !== "NONE" && p.price > 0);
+  if (isOneTimeCatalog(plans) || !hasPayable) {
     // `loading` → null : on vise le récapitulatif et le middleware tranche.
     const authenticated = status === "loading" ? null : status === "authenticated";
     return (

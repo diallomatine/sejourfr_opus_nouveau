@@ -14,7 +14,7 @@
  * déjà composée. Un chiffre en dur ici mentirait sur l'une des deux surfaces.
  */
 import type {ExamFact} from "@/app/_components/hub/ExamIntroSheet";
-import type {EpreuveType, QuestionType} from "./types";
+import type {QuestionType} from "./types";
 
 export interface ExamIntroCopy {
     facts: ExamFact[];
@@ -56,34 +56,6 @@ export function comprehensionExamIntro(
     };
 }
 
-/**
- * Le sas d'une épreuve de **production** (EE ou EO), ses 3 tâches enchaînées.
- *
- * @param timingLabel / `timingValue` le couple déjà servi par la config
- *                    d'épreuve (« en conditions réelles · 30 min » à l'écrit,
- *                    « chrono par tâche » à l'oral).
- */
-export function productionExamIntro(
-    epreuve: EpreuveType | "TCF_EE" | "TCF_EO",
-    timingLabel: string,
-    timingValue: string,
-): ExamIntroCopy {
-    const oral = epreuve === "TCF_EO";
-    return {
-        facts: [
-            {label: "tâches enchaînées", value: "3"},
-            {label: timingLabel, value: timingValue},
-            {label: "note + niveau CECRL", value: "/20"},
-        ],
-        tips: [
-            oral
-                ? "Autorisez le micro : chaque tâche s'enregistre, comme le jour J."
-                : "Vous rédigez directement les 3 productions, un brouillon est sauvegardé.",
-            oral
-                ? "Lisez la consigne sans pression : le chrono d'une tâche ne part que lorsque vous la lancez."
-                : "Le chrono porte sur les 3 tâches ensemble ; le temps conseillé par tâche n'est qu'un repère.",
-            "Les 3 tâches sont évaluées par l'IA après l'examen.",
-            "Le niveau final est le plancher de vos 3 tâches.",
-        ],
-    };
-}
+/* ⚠️ Le sas d'une épreuve de PRODUCTION (EE/EO) n'est plus ici : il a sa
+   feuille, miroir de l'app — `lib/production-exam-copy.ts` +
+   `production/ProductionExamBriefingSheet.tsx`. */

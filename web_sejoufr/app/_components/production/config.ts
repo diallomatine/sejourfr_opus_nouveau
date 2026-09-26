@@ -1,3 +1,4 @@
+import {plannedEpreuveLabel} from "@/lib/exam-durations";
 import {PRODUCTION_INPUT_SEGMENT} from "@/lib/production-catalog";
 import type {EpreuveType} from "@/lib/types";
 
@@ -78,15 +79,12 @@ export interface ProductionConfig {
    *  Déclaré dans `lib/production-catalog.ts` — le Plan y route sa vérification
    *  en situation, les deux doivent viser la même adresse. */
   inputSegment: string;
-  /** Ce qui borne le temps en examen blanc, tel qu'appliqué par le backend :
-   *  un chrono d'épreuve à l'écrit (30 min sur les 3 tâches), **rien** à l'oral
-   *  — l'EO se chronomètre tâche par tâche, et le décompte ne part qu'au
-   *  lancement de la tâche. Jamais une durée d'épreuve inventée pour l'oral.
-   *  `short` complète « 3 tâches · … », `factLabel`/`factValue` alimentent la
-   *  fiche de lancement. */
-  examTiming: { short: string; factLabel: string; factValue: string };
-  /** Phrase de présentation du format de l'examen blanc. */
-  examIntro: string;
+  /** Ce qui borne le temps en examen blanc, tel qu'appliqué par le backend,
+   *  pour compléter « 3 tâches · … » sur la grille : la durée d'épreuve à
+   *  l'écrit (lue dans `lib/exam-durations.ts`, jamais écrite ici), **rien** à
+   *  l'oral — l'EO se chronomètre tâche par tâche. La feuille d'information
+   *  avant démarrage, elle, lit `lib/production-exam-copy.ts`. */
+  examTiming: { short: string };
 }
 
 export const EE_CONFIG: ProductionConfig = {
@@ -95,12 +93,10 @@ export const EE_CONFIG: ProductionConfig = {
   label: "Expression écrite",
   shortLabel: "Écrit",
   mode: "text",
-  epreuveMeta: "TCF IRN · 3 tâches · 30 min",
+  epreuveMeta: `TCF IRN · 3 tâches · ${plannedEpreuveLabel("TCF_EE")}`,
   actionVerb: "Rédiger",
   inputSegment: PRODUCTION_INPUT_SEGMENT.EE,
-  examTiming: { short: "30 min", factLabel: "sur les 3 tâches", factValue: "30 min" },
-  examIntro:
-    "Vous rédigez les 3 productions écrites (description, récit, opinion). Le chrono de 30 minutes porte sur les 3 tâches ensemble ; un temps conseillé s'affiche sur chacune, à titre indicatif. À la fin, l'IA évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
+  examTiming: { short: plannedEpreuveLabel("TCF_EE") },
 };
 
 export const EO_CONFIG: ProductionConfig = {
@@ -112,11 +108,5 @@ export const EO_CONFIG: ProductionConfig = {
   epreuveMeta: "TCF IRN · 3 tâches · chronométrées par tâche",
   actionVerb: "Enregistrer",
   inputSegment: PRODUCTION_INPUT_SEGMENT.EO,
-  examTiming: {
-    short: "chronométrées une par une",
-    factLabel: "chronométrée à part",
-    factValue: "chaque tâche",
-  },
-  examIntro:
-    "Vous enregistrez les 3 tâches orales (entretien dirigé, jeu de rôle, point de vue). Chaque tâche est chronométrée à part : la consigne s'affiche sans décompte, et le temps ne part qu'au moment où vous lancez la tâche. À la fin, l'IA transcrit puis évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
+  examTiming: { short: "chronométrées une par une" },
 };

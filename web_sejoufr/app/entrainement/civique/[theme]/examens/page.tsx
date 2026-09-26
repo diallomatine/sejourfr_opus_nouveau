@@ -230,7 +230,7 @@ export default function CiviqueThemeExamsPage() {
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="Le premier examen blanc de chaque thème est offert sans compte. Pour passer les suivants et retrouver vos scores, créez un compte gratuit."
+          message="Le 1ᵉʳ examen blanc de chaque thème est offert sans compte. Les suivants font partie des pass Civique et Intégral : créez d'abord votre compte gratuit, qui garde vos scores."
         />
       </DetailShell>
     </DualChromeShell>

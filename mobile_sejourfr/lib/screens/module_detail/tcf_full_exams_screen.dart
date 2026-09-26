@@ -495,7 +495,7 @@ class _ExamSlotCard extends StatelessWidget {
             : 'Terminé',
       };
     }
-    if (lockedEmpty) return 'Réservé à l\'abonnement Intégral';
+    if (lockedEmpty) return 'Inclus dans le pass Intégral';
     if (slot == 1) {
       return 'Offert · 4 épreuves, ≈ '
           '${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}';

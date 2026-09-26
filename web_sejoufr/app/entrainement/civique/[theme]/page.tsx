@@ -240,7 +240,7 @@ export default function CiviqueThemeSeriesPage() {
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="La série 1 est offerte pour découvrir ce thème. Créez un compte gratuit pour continuer les séries et suivre votre progression."
+          message="La série 1 est offerte pour découvrir ce thème. Les séries suivantes font partie des pass Civique et Intégral : créez d'abord votre compte gratuit, qui suit votre progression."
         />
         <ExamsActionBar href={civicThemeExamsHref(slug)} />
       </DetailShell>

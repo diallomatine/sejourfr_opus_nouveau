@@ -7,6 +7,7 @@ import { Footer } from "./_components/Footer";
 import { NavHistoryTracker } from "./_components/NavHistoryTracker";
 import { FirstTouchCapture } from "./_components/FirstTouchCapture";
 import { ProfileCompletionGuard } from "./_components/auth/ProfileCompletionGuard";
+import { MockExamLauncherProvider } from "./_components/hub/MockExamLauncher";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -85,9 +86,11 @@ export default function RootLayout({
         <NavHistoryTracker />
         <AuthProvider>
           <ProfileCompletionGuard />
-          <SiteHeader />
-          {children}
-          <Footer />
+          <MockExamLauncherProvider>
+            <SiteHeader />
+            {children}
+            <Footer />
+          </MockExamLauncherProvider>
         </AuthProvider>
       </body>
     </html>

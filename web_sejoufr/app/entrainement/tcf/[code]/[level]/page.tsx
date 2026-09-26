@@ -243,7 +243,7 @@ export default function TcfLevelSeriesPage() {
         <GuestGateSheet
           open={guestGateOpen}
           onClose={() => setGuestGateOpen(false)}
-          message="La série 1 est offerte pour découvrir l'épreuve. Créez un compte gratuit pour continuer les séries et suivre votre progression."
+          message="La série 1 est offerte pour découvrir l'épreuve. Les séries suivantes font partie du pass Intégral : créez d'abord votre compte gratuit, qui suit votre progression."
         />
       </DetailShell>
     </DualChromeShell>

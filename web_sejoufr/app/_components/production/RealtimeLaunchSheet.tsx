@@ -68,7 +68,7 @@ export function RealtimeLaunchSheet({
     if (!open) return null;
 
     const remainingLabel = locked
-        ? "Réservé à l'abonnement Intégral — touchez pour vous abonner"
+        ? "Inclus dans le pass Intégral — touchez pour voir les pass"
         : exhausted
           ? "Plus de session temps réel sur votre pass"
           : sessionsRemaining == null

@@ -207,8 +207,8 @@ export default function ConfidentialitePage() {
               Plateforme) et le <strong>type d&apos;appareil</strong> utilisé (site
               web ou application mobile). Pour un compte connecté, nous
               enregistrons également le <strong>premier</strong> affichage de
-              l&apos;écran d&apos;abonnement et le <strong>premier</strong> clic sur un
-              bouton d&apos;abonnement. Ces informations sont rattachées à votre
+              l&apos;écran des pass et le <strong>premier</strong> clic sur un
+              bouton d&apos;achat d&apos;un pass. Ces informations sont rattachées à votre
               compte et <strong>supprimées avec lui</strong>.
             </li>
             <li>
@@ -216,7 +216,7 @@ export default function ConfidentialitePage() {
               combien de personnes visitent la Plateforme et où elles
               s&apos;arrêtent, nous enregistrons des <strong>étapes de parcours</strong>{" "}
               (page consultée, diagnostic commencé, exercice terminé, écran
-              d&apos;abonnement affiché…), rattachées à un{" "}
+              des pass affiché…), rattachées à un{" "}
               <strong>identifiant de mesure</strong> déposé sur votre terminal
               et décrit à l&apos;Article 8. Nous y ajoutons le{" "}
               <strong>pays</strong>, déduit de votre adresse IP{" "}
@@ -273,7 +273,7 @@ export default function ConfidentialitePage() {
             ],
             ["Envoi de newsletters et actualités", "Consentement (art. 6.1.a)"],
             [
-              "Mesure de l'efficacité de nos campagnes et amélioration de la Plateforme (provenance à l'inscription, type d'appareil, premières étapes du parcours d'abonnement)",
+              "Mesure de l'efficacité de nos campagnes et amélioration de la Plateforme (provenance à l'inscription, type d'appareil, premières étapes du parcours d'achat)",
               "Intérêt légitime (art. 6.1.f)",
             ],
             [
@@ -335,7 +335,7 @@ export default function ConfidentialitePage() {
               "10 ans (obligation comptable et fiscale)",
             ],
             [
-              "Données d'acquisition et de parcours (provenance, type d'appareil, étapes du parcours d'abonnement)",
+              "Données d'acquisition et de parcours (provenance, type d'appareil, étapes du parcours d'achat)",
               "Durée de vie du compte : supprimées avec lui",
             ],
             [
@@ -498,8 +498,8 @@ export default function ConfidentialitePage() {
           <p>
             <strong>Ce que nous enregistrons</strong> : l&apos;identifiant de mesure
             décrit ci-dessus, la page consultée, les étapes franchies (diagnostic
-            commencé, exercice terminé, écran d&apos;abonnement affiché, bouton
-            d&apos;abonnement cliqué…), la date et l&apos;heure, le lien ou la campagne par
+            commencé, exercice terminé, écran des pass affiché, bouton
+            d&apos;achat cliqué…), la date et l&apos;heure, le lien ou la campagne par
             lesquels vous êtes arrivé, votre <strong>pays</strong> et votre{" "}
             <strong>type d&apos;appareil</strong>.
           </p>

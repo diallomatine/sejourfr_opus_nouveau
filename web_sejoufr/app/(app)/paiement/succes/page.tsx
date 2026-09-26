@@ -105,7 +105,7 @@ function SuccesInner() {
             <main className="succes">
                 <div className="succes-gate">
                     <h1>Votre paiement a été reçu.</h1>
-                    <p>Connectez-vous pour finaliser l&apos;activation de votre abonnement.</p>
+                    <p>Connectez-vous pour finaliser l&apos;activation de votre pass.</p>
                     <Link href="/connexion?next=/paiement/succes" className="btn-primary">
                         Se connecter →
                     </Link>
@@ -124,7 +124,7 @@ function SuccesInner() {
                 <div className="breadcrumb">
                     ACCUEIL <span className="sep">/</span>{" "}
                     <Link href="/paiement" className="breadcrumb-link">
-                        ABONNEMENT
+                        PASS
                     </Link>{" "}
                     <span className="sep">/</span> SUCCÈS
                 </div>
@@ -190,10 +190,10 @@ function SuccesInner() {
                         ? "Stripe nous notifie l'activation, ça prend quelques secondes. Ne fermez pas cette page."
                         : syncState === "timeout"
                             ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
-                            : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
+                            : `${user.firstName ? `${user.firstName}, votre` : "Votre"} pass est actif. Vous avez maintenant accès à ${
                                 user.hasTcf
-                                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités"
-                                    : "tout le contenu civique : la banque complète, examens blancs illimités"
+                                    ? "l'examen civique et aux 4 épreuves du TCF IRN : toutes les séries et tous les examens blancs"
+                                    : "toute la préparation civique : toutes les séries et tous les examens blancs"
                             }.`}
                 </p>
 
@@ -218,7 +218,7 @@ function SuccesInner() {
                             num="01"
                             tone="blue"
                             title="Lancer un entraînement complet"
-                            body="L'entraînement par thème est désormais illimité. Travaillez vos points faibles à votre rythme."
+                            body="Toutes les séries d'entraînement sont ouvertes. Travaillez vos points faibles à votre rythme."
                             href="/entrainement"
                             ctaLabel="S'entraîner"
                         />

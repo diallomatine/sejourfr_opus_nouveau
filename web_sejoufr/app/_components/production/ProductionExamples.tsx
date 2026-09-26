@@ -94,8 +94,8 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
                       title={ex.titre}
                       text={
                         config.mode === "audio"
-                          ? "Écoute réservée à l'abonnement Intégral"
-                          : "Corrigé réservé à l'abonnement Intégral"
+                          ? "Écoute incluse dans le pass Intégral"
+                          : "Corrigé inclus dans le pass Intégral"
                       }
                       onClick={() => setPaywallOpen(true)}
                     />
@@ -123,7 +123,7 @@ export function ProductionExamples({ config }: { config: ProductionConfig }) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          message="Le 1er exemple est offert. Passez à l'abonnement Intégral pour débloquer toutes les réponses-modèles et leurs explications."
+          reason="Le 1ᵉʳ exemple est offert ; les autres réponses-modèles et leurs explications font partie du pass Intégral."
         />
       </SkillShell>
     </DualChromeShell>

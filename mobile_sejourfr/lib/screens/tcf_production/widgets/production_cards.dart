@@ -5,6 +5,7 @@ import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/pressable_card.dart';
 import '../production_result_labels.dart';
 import 'production_blocks.dart';
@@ -163,14 +164,7 @@ class ProductionSubjectCard extends StatelessWidget {
   }
 
   Widget _statusBadge(NiveauCecrl? niveau) {
-    if (locked) {
-      return const AppTag(
-        label: 'Abonnement',
-        tone: TagTone.neutral,
-        icon: LucideIcons.lock,
-        compact: true,
-      );
-    }
+    if (locked) return const PremiumLockTag();
     if (niveau != null) {
       return AppTag(
         label: tacheNiveauLabel(niveau),

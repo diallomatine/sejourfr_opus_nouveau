@@ -1,0 +1,491 @@
+/* =========================================================================
+   Examen blanc EE/EO — feuille d'information, feuille « ⓘ », en-tête du
+   runner et mise en page à deux colonnes au palier desktop.
+   Miroirs Flutter : `ProductionExamBriefingSheet`, `ProductionInfoSheet`,
+   `ProductionProgressStrip`, écrans `ee_briefing_writing_screen` /
+   `eo_briefing_screen`. Aucune couleur hors tokens.
+   ========================================================================= */
+
+/* ------------------------------------------------------ feuilles modales */
+
+/* Bas d'écran sur téléphone (comme la feuille de l'app), centrée à largeur
+   contenue dès qu'il y a la place. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-ink) 45%, transparent);
+  animation: fade 0.15s ease;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 22px 22px 0 0;
+  padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px -20px color-mix(in srgb, var(--color-ink) 30%, transparent);
+  animation: up 0.2s ease;
+}
+
+.handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line);
+  margin: 0 auto 16px;
+}
+
+@media (min-width: 640px) {
+  .overlay {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .sheet {
+    border-radius: 22px;
+    padding: 26px 28px 28px;
+  }
+
+  .handle {
+    display: none;
+  }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes up {
+  from { transform: translateY(16px); }
+  to { transform: translateY(0); }
+}
+
+.kickerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kicker {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.durationBadge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.hero {
+  padding: 22px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--color-blue), var(--color-blue-dark));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-blue) 22%, transparent);
+  color: white;
+}
+
+.heroIcon {
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: color-mix(in srgb, white 18%, transparent);
+}
+
+.heroTitle {
+  margin: 16px 0 6px;
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.heroText {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, white 92%, transparent);
+}
+
+.tasksCard {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--color-line);
+  background: white;
+}
+
+.sectionLabel {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.taskRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--color-blue-soft);
+}
+
+.taskNum {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--color-blue);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.taskBody {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.taskTitle {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.taskDetail {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.conseil {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--color-amber-light);
+  border: 1px solid color-mix(in srgb, var(--color-amber) 20%, transparent);
+}
+
+.conseilLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-amber-dark);
+}
+
+.conseilText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+.error {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--color-red);
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Démarrer un examen blanc est un CTA critique : rouge France. */
+.btnStart {
+  background: var(--color-red);
+  color: white;
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--color-ink-2);
+}
+
+.btnPrimary {
+  background: var(--color-blue);
+  color: white;
+}
+
+/* Feuille « ⓘ » */
+.infoHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.infoIcon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.infoTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
+.infoText {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.infoBlock + .infoBlock {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line-2);
+}
+
+/* ------------------------------------------------------- en-tête runner */
+
+/* « Tâche 1 sur 3 · Message simple » + chrono dans le même bloc, puis la
+   barre de progression. Remplace la carte « Temps restant » et les pastilles
+   1-2-3. */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headLabel {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.headSub {
+  font-weight: 500;
+  color: var(--color-muted-2);
+}
+
+.timer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Il ne se colore qu'à l'approche de la fin : un décompte rouge pendant
+   25 minutes n'informe plus, il stresse. */
+.timerUrgent {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.infoBtn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: white;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.infoBtn:hover {
+  color: var(--color-blue);
+  border-color: color-mix(in srgb, var(--color-blue) 35%, transparent);
+}
+
+.bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--color-blue);
+  transition: width 0.3s ease;
+}
+
+/* -------------------------------------------------- carte de consigne */
+
+.consigne {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 28px;
+  padding: 18px;
+  box-shadow: var(--skill-shadow-lg);
+}
+
+.consigneTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.26;
+  color: var(--color-ink);
+}
+
+.consigneConstraint {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.48;
+  color: var(--color-muted);
+}
+
+.consigneText {
+  margin: 11px 0 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.advised {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.advised svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-muted-2);
+}
+
+/* --------------------------------------- deux colonnes au palier desktop */
+
+/* Téléphone et tablette : une colonne, comme l'app. Grand écran : la consigne
+   (et ses repères) reste sous les yeux à gauche, la production occupe la
+   droite. */
+.split {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.splitAside,
+.splitMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .splitAside {
+    position: sticky;
+    top: 24px;
+  }
+}

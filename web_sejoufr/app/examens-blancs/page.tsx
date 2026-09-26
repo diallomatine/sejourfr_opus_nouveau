@@ -799,7 +799,7 @@ function ExamsGuestHome() {
             <GuestGateSheet
                 open={guestGateOpen}
                 onClose={() => setGuestGateOpen(false)}
-                message="Le premier examen blanc de chaque parcours est offert. Créez un compte gratuit pour passer les suivants et conserver vos résultats."
+                message="Le 1ᵉʳ examen blanc de chaque parcours est offert. Les suivants font partie des pass : créez d'abord votre compte gratuit, qui conserve vos résultats."
             />
 
             <style>{styles}</style>

@@ -320,8 +320,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title={`Débloquez l'${config.label.toLowerCase()}`}
-          message={`Vous avez utilisé votre essai gratuit d'${config.label.toLowerCase()}. L'abonnement Intégral débloque l'entraînement et les examens blancs EE/EO illimités, plus tout le TCF et le civique.`}
+          reason={`S'entraîner en ${config.label.toLowerCase()}, avec la correction de l'IA, fait partie du pass Intégral.`}
         />
       </SkillShell>
     </DualChromeShell>

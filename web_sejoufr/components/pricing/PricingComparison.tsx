@@ -34,7 +34,7 @@ const ROWS: Row[] = [
   },
   {
     feature: "TCF IRN — expression écrite et orale",
-    free: "1 essai par épreuve",
+    free: "1 examen blanc EE + 1 EO",
     civique: false,
     integral: true,
   },
@@ -46,9 +46,9 @@ const ROWS: Row[] = [
   },
   {
     feature: "Correction IA des productions",
-    free: "Limitée",
+    free: "Sur ces 2 examens blancs",
     civique: false,
-    integral: "Illimitée",
+    integral: true,
   },
   {
     feature: "Simulations orales en direct",
@@ -60,7 +60,7 @@ const ROWS: Row[] = [
   { feature: "Suivi de progression et statistiques", free: true, civique: true, integral: true },
   {
     feature: "Durée d'accès",
-    free: "Illimité",
+    free: "Sans limite de durée",
     civique: "3 mois ou 1 an",
     integral: "7 jours, 1 mois ou 2 mois",
   },

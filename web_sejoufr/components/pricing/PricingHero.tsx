@@ -8,12 +8,12 @@ export function PricingHero() {
         Tarifs simples, sans engagement
       </span>
       <h1 className="pricing-hero-title editorial">
-        Choisissez la formule qui colle{" "}
+        Choisissez le pass qui colle{" "}
         <em>à votre planning</em>.
       </h1>
       <p className="pricing-hero-sub">
         Paiement unique, pas de renouvellement automatique. Vous payez une
-        fois, vous accédez à tout pendant la durée du plan.
+        fois, et le pass reste ouvert pendant toute la durée choisie.
       </p>
 
       <style>{`

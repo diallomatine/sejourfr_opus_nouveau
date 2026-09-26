@@ -18,10 +18,12 @@ import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
+import 'production_exam_copy.dart';
 import 'realtime/realtime_eo_controller.dart';
 import 'realtime/realtime_launch.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
+import 'widgets/production_info_sheet.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/recording_waveform.dart';
 import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
@@ -560,6 +562,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
           onBack: isExam
               ? () => _quitExam(context, fallbackRoute)
               : (isRecording ? () => _quitRecording(context) : null),
+          rightAction: ProductionAppHeaderInfo(
+            onPressed: () =>
+                showProductionInfoSheet(context, EpreuveType.tcfEo),
+          ),
         ),
         body: sessionAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -604,6 +610,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                   ProductionProgressStrip(
                     current: widget.taskIndex + 1,
                     total: session.totalTasks,
+                    subtitle:
+                        session.totalTasks <= 1 ? null : task.displayTitle,
                   ),
                   if (isRecording)
                     Expanded(
@@ -658,17 +666,6 @@ String _durationChip(int sec) {
   return remain == 0 ? '$mins min' : '$mins min $remain';
 }
 
-/// Temps de parole de la tâche. C'est un **plafond avec auto-stop**, pas une
-/// « durée attendue » : le libellé le dit, et le chrono ne part qu'au
-/// « Je suis prêt ».
-String _durationLabel(int? sec) {
-  if (sec == null || sec <= 0) return 'Durée libre';
-  final mins = sec ~/ 60;
-  final remain = sec % 60;
-  if (remain == 0) return 'Temps de parole : $mins minutes';
-  return 'Temps de parole : $mins min $remain s';
-}
-
 /// Phase « idle » : consigne complète + invite à parler. Le gros micro vit dans
 /// le panneau bas (`_MicStartButton`).
 class _IdleView extends StatelessWidget {
@@ -688,13 +685,11 @@ class _IdleView extends StatelessWidget {
         ConsigneCard(
           consigne: task.consigne,
           subTitleHero: task.displayTitle,
-          subtitle: _durationLabel(task.dureeMaxSec),
+          // 🛑 Le temps de parole est dit UNE fois, ici — pas de pastille.
+          subtitle: productionExamConstraintLine(task),
           accent: AppColors.blue,
           soft: AppColors.blueLight,
           contexte: task.contexte,
-          requirements: [
-            if (task.dureeMaxSec != null) _durationChip(task.dureeMaxSec!),
-          ],
         ),
       ],
     );
@@ -850,10 +845,10 @@ class _MicStartButton extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           countdownSeconds == null
-              ? 'Le chrono ne part qu\'à cet instant. Prends le temps de lire '
+              ? 'Le chrono ne part qu\'à cet instant. Prenez le temps de lire '
                   'la consigne.'
               : 'Le chrono de ${_durationChip(countdownSeconds!)} ne part qu\'à '
-                  'cet instant. Prends le temps de lire la consigne.',
+                  'cet instant. Prenez le temps de lire la consigne.',
           textAlign: TextAlign.center,
           style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.4),
         ),

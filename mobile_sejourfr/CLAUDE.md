@@ -950,7 +950,15 @@ et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** ve
 - Les cartes de slot d'examen partagées (`tcf_production/widgets/exam_slot/`) sont au
   style maquette : numéro Bricolage, pill « Fait » teinté accent, boutons pill.
 
-`core/widgets/paywall_sheet.dart` porte le bottom sheet `PaywallSheet` réutilisable.
+`core/widgets/paywall_sheet.dart` porte `showPaywallSheet`, qui pousse **directement**
+`PaywallScreen` (pas de feuille intermédiaire, contrairement au web). L'offre intermédiaire
+du mobile est le **dialogue de fin de série** du runner (`_showTrainingResultDialog`,
+compte sans le pass du module) : titre `offerTitleLead` / `offerTitleEm`, phrase
+`passSeriesDoneText`, puces `passFeatures`, `kPassOneTimeNote`, `kPassOfferCta`
+« Voir les pass », `kPassOfferLater` — tous dans `core/models/billing_models.dart`,
+miroirs mot pour mot de `PASS_OFFER_*` / `passSeriesDoneText` (`web_sejoufr/lib/passes.ts`).
+Vocabulaire : « fait partie du / inclus dans le pass X », jamais « abonnement » ni
+« illimité » hors de la branche abonnement dormante de `PaywallScreen`.
 ⚠️ Les deux constantes de taille de série (`kDemoBatchSize` / `kInitialBatchSize`) y ont
 été **supprimées le 2026-08-21** : plus aucun écran ne les lisait — la taille d'une série
 est décidée par le serveur (lots, séries ciblées du Plan). Ne pas les recréer côté front.
@@ -1884,8 +1892,9 @@ Ce qui change **ici** :
   son bouton qui démarre. 🛑 Aucun briefing propre au diagnostic : on réutilise
   `ModuleExamBriefingSheet` (qui a gagné un `onStart` optionnel) et
   `ProductionExamBriefingSheet`. Une section **déjà commencée** saute le sas —
-  son chrono court. ⚠️ `ProductionExamBriefingSheet` **se referme elle-même**
-  avant d'appeler `onStart` ; y ajouter un `pop` dépilerait l'écran derrière.
+  son chrono court. ⚠️ `ProductionExamBriefingSheet` ne s'ouvre plus que par
+  `launchProductionExam` (2026-09-26), qui la **ferme lui-même** une fois le
+  démarrage tranché — cf. § « Examen blanc EE/EO — feuille et runner ».
   - 🛑 **Le sas dit « DIAGNOSTIC », jamais « EXAMEN »** (`sasEyebrow`) : `10_`
     §4.1 l'interdit, même quand le diagnostic en a exactement la forme.
   - 🛑 **La durée annoncée vient du DTO servi**, pas de la table de référence :
@@ -2926,8 +2935,9 @@ feedback). Brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`
   officielle Flutter 3.10+). **Ne pas** wrapper le body dans un `GestureDetector(onTap: unfocus)` : ça
   rentre en compétition avec le tap de focus du TextField → "il faut 2 taps pour ouvrir le clavier".
 - Bordure bleue 1.5px + fond `blueSoft` + ombre douce au focus, `AnimatedContainer` 150ms.
-- Info button (`ProductionAppHeaderInfo`) du header ouvre une `showModalBottomSheet` avec le texte de
-  confidentialité (cf. `_ConfidentialitySheet` privé dans le screen).
+- Info button (`ProductionAppHeaderInfo`) du header ouvre `showProductionInfoSheet`
+  (`widgets/production_info_sheet.dart`) : critères de la grille + confidentialité, **la même
+  feuille à l'oral** (2026-09-26, cf. § « Examen blanc EE/EO — feuille et runner »).
 
 **Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent
 les tasks (1 en single-task, 3 en session examens) + l'attempt parent + la map des submissions + un
@@ -4017,7 +4027,7 @@ depuis le Plan passe `LOCKED_PLAN` + le parcours (`planJourneyId`, `learning_pla
 EE/EO), fin de cycle, écran d'étape, séries civiques du Plan — y compris sur 403.
 🛑 **Contrôle F (2026-09-25) — `ctaLocation` REQUIS** sur `showPaywallSheet`,
 `showPaywallOrError`, `showTcfLockPaywall`, `openCivicOffer`, `startCivic*Serie`,
-`startProductionExam`, `showModuleExamBriefingSheet`, `startTargetedSeries` : chaque appel
+`launchProductionExam`, `showModuleExamBriefingSheet`, `startTargetedSeries` : chaque appel
 choisit, `null` explicite = inconnu. Sur un **403**, un écran passe le CTA de **son** cadenas
 avant démarrage (`MOCK_EXAM` / `OTHER`) ; un écran que le Plan ouvre avec le marqueur
 `?etape=1` (fiche et sujet de compétence, liste des sujets d'une tâche via `productionTaskPath(
@@ -4629,4 +4639,30 @@ civique par encart (`themes` du diagnostic + unités ouvertes de `journeyCivique
 🛑 Au plus `kPlanUnlockMaxParGroupe` (5) lignes par encart — plafond d'**affichage** ; le sous-titre
 annonce le total servi. « Non évaluée » / « Non évalué » vient d'un fait servi, jamais d'une liste
 vide. Encart ouvert à l'arrivée : le premier qui a des lignes. Mots : `plan_unlock_labels.dart`.
+
+
+## Examen blanc EE/EO — feuille d'information et runner (2026-09-26)
+
+> Miroir web posé dans la même passe (`useMockExamLauncher`, `ProductionExamBriefingSheet`,
+> `ProductionExamRunner.tsx`). Copie : `tcf_production/production_exam_copy.dart` ⇄
+> `web_sejoufr/lib/production-exam-copy.ts`, **mot pour mot**.
+
+- 🛑 **UN lanceur : `launchProductionExam`** (`tcf_production/production_exam_launcher.dart`).
+  Grille « Examens blancs », jalon du Plan (`startPlanMilestone`, qui démarrait **sans**
+  feuille), mesure d'un domaine (`openPlanAssessment` : étape « Examen blanc » du cycle,
+  Accueil, Réviser, fiche d'un domaine) : **tous** ouvrent la feuille, puis démarrent au tap.
+  `startProductionExam` et `showProductionExamBriefingSheet` sont **supprimés** (le paramètre
+  `eyebrow` du diagnostic avec eux).
+- 🛑 **Le chrono ne part qu'au tap « Commencer maintenant »** : la session (et son
+  `startedAt`, ancre du chrono EE) n'est créée qu'à ce moment. La feuille reste ouverte, bouton
+  en attente, jusqu'au démarrage ; le lanceur la ferme puis pousse la tâche 1 (ou l'offre sur un
+  403). Reprise : aucune feuille (le bilan / la session s'ouvrent par leur route).
+- **Contenu** : phrases **vouvoyées** (la feuille tutoyait) ; contraintes de chaque tâche **lues
+  sur les sujets servis** (`productionExamTaskConstraint`, catalogue de l'épreuve — `null` si
+  absent ou discordant, jamais un chiffre de repli) ; durée par `durationLabel`
+  (`epreuve_duration.dart`).
+- **Runner** : la fourchette n'est dite **qu'une fois** (« Longueur attendue : X à Y mots » /
+  « Temps de parole : 3 min », `productionExamConstraintLine`) — plus de pastille, plus de
+  « Tâche i/N » dans la carte (le bandeau le porte) ; l'EO gagne « Tâche N sur 3 · titre » et
+  le bouton ⓘ ; « Prenez le temps de lire la consigne » (tutoyait).
 

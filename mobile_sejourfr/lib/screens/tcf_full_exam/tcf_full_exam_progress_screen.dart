@@ -761,7 +761,7 @@ class _StepCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   lockedProd
-                      ? 'Réservé à l\'abonnement Intégral'
+                      ? 'Inclus dans le pass Intégral'
                       : _subtitle(meta, sub, state),
                   style: AppFonts.ui(
                     size: 12,

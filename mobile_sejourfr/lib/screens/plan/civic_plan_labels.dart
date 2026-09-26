@@ -45,7 +45,7 @@ const String kCivicPlanNowTitle = 'À faire maintenant';
 /// série. Même raison que `kPlanNowLockedCta` côté TCF (A114).
 const String kCivicPlanLockedCta = 'Débloquer cette série';
 const String kCivicPlanLockedNote =
-    'Les séries ciblées font partie de l\'abonnement. Votre plan, lui, reste entier.';
+    'Les séries ciblées font partie du pass Civique. Votre plan, lui, reste entier.';
 
 /// Le geste d'une cible ou d'une unité, hors carte d'action. Miroir de
 /// `CIVIC_PLAN_WORK_CTA` (`web_sejoufr/lib/civic-plan.ts`).

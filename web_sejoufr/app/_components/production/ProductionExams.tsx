@@ -13,7 +13,6 @@ import {
   productionMineKey,
   productionTasksKey,
 } from "@/lib/production-catalog";
-import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { useCachedData } from "@/lib/use-cached-data";
 import { useExamSlotLocks } from "@/lib/use-exam-slot-locks";
@@ -28,8 +27,7 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
-import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
-import { productionExamIntro } from "@/lib/exam-intro";
+import { useMockExamLauncher } from "@/app/_components/hub/MockExamLauncher";
 import {
   ExamTrail,
   ParcoursHero,
@@ -88,20 +86,12 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const isPremium = user ? canAccessModule(user, "TCF") : false;
   const slotLocks = useExamSlotLocks(config.epreuve);
 
+  const launchExam = useMockExamLauncher();
+
   const [past, setPast] = useState<PastSession[]>([]);
   const [bestLevel, setBestLevel] = useState<NiveauCecrl | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [retakeWarningOpen, setRetakeWarningOpen] = useState(false);
-  const [introOpen, setIntroOpen] = useState(false);
-  // 🛑 La copie du sas vit dans `lib/exam-intro.ts` depuis le 2026-09-13 : le
-  // diagnostic TCF annonce ses sections avec EXACTEMENT la même.
-  const introCopy = productionExamIntro(
-    config.epreuve,
-    config.examTiming.factLabel,
-    config.examTiming.factValue,
-  );
 
   // Historique de l'épreuve : même entrée de cache que l'écran des sujets — un
   // seul appel sert les deux — et invalidée à chaque soumission (`lib/api.ts`).
@@ -155,46 +145,27 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const [pendingSlot, setPendingSlot] = useState(1);
 
   function requestStart(slot: number) {
-    if (starting) return;
-    setError(null);
     setPendingSlot(slot);
-    setIntroOpen(true);
-  }
-
-  function start() {
-    if (starting) return;
-    setIntroOpen(false);
-    // Gratuit : examen 1 offert. Le refaire est possible mais consomme les
-    // essais d'entraînement EE/EO restants → avertissement avant. Le backend
-    // tranche (403 au-delà de 2 sessions) ; `past` ne voit que les sessions
-    // soumises, le compteur autoritaire vit côté serveur.
+    // Gratuit : examen 1 offert. Le repasser se signale AVANT la feuille
+    // d'information — le backend tranche (403) ; `past` ne voit que les
+    // sessions soumises, le compteur autoritaire vit côté serveur.
     if (!isPremium && past.length >= 1) {
       setRetakeWarningOpen(true);
       return;
     }
-    void launch();
+    launch(slot);
   }
 
-  async function launch() {
+  /** 🛑 Le lancement partagé par tous les points d'entrée : feuille
+   *  d'information, puis démarrage au clic « Commencer maintenant ». */
+  function launch(slot: number) {
     setRetakeWarningOpen(false);
-    setError(null);
-    setStarting(true);
-    try {
-      const attempt = await productionApi.startAttempt({
-        module: "TCF",
-        epreuve: config.epreuve,
-        exam: true,
-        slotNumber: pendingSlot,
-      });
-      router.push(`${config.base}/session/${attempt.id}`);
-    } catch (e) {
-      handleStartFailure(e, {
-        onPaywall: () => setPaywallOpen(true),
-        onMessage: setError,
-        fallbackMessage: "Impossible de démarrer l'examen.",
-      });
-      setStarting(false);
-    }
+    launchExam({
+      kind: "PRODUCTION",
+      epreuve: config.epreuve,
+      slotNumber: slot,
+      onPaywall: () => setPaywallOpen(true),
+    });
   }
 
   // Grille indexée par slot : case i = examen du slot i+1. On range chaque
@@ -256,8 +227,6 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
 
         <SectionHead title="Choisissez un examen" />
 
-        {error && <div className={s.error}>{error}</div>}
-
         <div className={s.packGrid}>
           {Array.from({ length: SLOTS }, (_, i) => i + 1).map((slot) => {
             const sess = bySlot.get(slot);
@@ -308,7 +277,6 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
                   <button
                     type="button"
                     className={`${s.packBtn} ${locked ? "" : s.packBtnStart}`}
-                    disabled={starting}
                     onClick={() => (locked ? setPaywallOpen(true) : requestStart(slot))}
                   >
                     {locked ? "Premium" : sess ? "Refaire" : "Démarrer"}
@@ -325,27 +293,14 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           B1. Il faut tenir le palier partout, pas seulement sur la tâche la plus facile.
         </SkillNotice>
 
-        <ExamIntroSheet
-          open={introOpen}
-          eyebrow={`Examen blanc ${pendingSlot} · ${config.label}`}
-          title={`${config.label} en conditions réelles`}
-          subtitle="Avant de commencer, voici comment se déroule l'examen."
-          facts={introCopy.facts}
-          tips={introCopy.tips}
-          loading={starting}
-          error={error}
-          onConfirm={start}
-          onClose={() => setIntroOpen(false)}
-        />
-
         <ConfirmSheet
           open={retakeWarningOpen}
           tone="warning"
-          title="Refaire l'examen 1 ?"
-          message="Refaire cet examen blanc utilisera vos essais gratuits d'entraînement EE et EO : après cette session, les tâches d'entraînement seront réservées aux abonnés Intégral."
-          confirmLabel="Refaire l'examen"
+          title="Repasser l'examen 1 ?"
+          message="Votre examen blanc offert a déjà été corrigé. Vous pouvez le repasser, mais la correction d'un nouveau passage par l'IA fait partie du pass Intégral."
+          confirmLabel="Repasser l'examen"
           cancelLabel="Annuler"
-          onConfirm={() => void launch()}
+          onConfirm={() => launch(pendingSlot)}
           onClose={() => setRetakeWarningOpen(false)}
         />
 
@@ -353,8 +308,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title={`Débloquez les examens blancs ${config.shortLabel}`}
-          message="Le premier examen blanc (3 tâches + évaluation IA) est offert. Les suivants sont réservés aux abonnés Intégral, qui débloque aussi tout le TCF, le civique et les examens blancs illimités."
+          reason="Le 1ᵉʳ examen blanc corrigé par l'IA est offert ; les suivants font partie du pass Intégral."
         />
       </SkillShell>
     </DualChromeShell>

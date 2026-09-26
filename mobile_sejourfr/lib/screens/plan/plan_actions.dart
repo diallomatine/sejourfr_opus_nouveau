@@ -10,7 +10,6 @@ import '../../core/models/enums.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/premium_lock.dart';
-import '../module_detail/production_exam_briefing_sheet.dart';
 import '../module_detail/tcf_module_exam_briefing_screen.dart';
 import '../module_detail/tcf_qcm_detail_screen.dart' show TcfQcmModule;
 import '../tcf_production/competences/competences_nav.dart';
@@ -196,9 +195,9 @@ void openPlanDomain(BuildContext context, EpreuveType epreuve) {
 /// la même chose selon l'épreuve.
 ///
 /// ⚠️ **Le sas est celui de l'épreuve, dans les deux cas** : CO/CE ouvrent
-/// `ModuleExamBriefingSheet`, EE/EO `ProductionExamBriefingSheet`. Le lancement
-/// réel vit dans `startProductionExam`, **partagé avec le jalon du Plan** — on
-/// ne recopie pas son corps ici.
+/// `ModuleExamBriefingSheet`, EE/EO `ProductionExamBriefingSheet` — ouverte par
+/// `launchProductionExam`, **le lanceur partagé avec le jalon du Plan et la
+/// grille** : on ne recopie pas son corps ici.
 ///
 /// 🛑 **`slotNumber` est SERVI** : c'est lui qui pilote le démarrage, jamais un
 /// `1` décidé ici (le repli ne couvre qu'un client servi par un backend qui ne
@@ -239,18 +238,13 @@ void openPlanAssessment(
       final module = assessment.epreuve == EpreuveType.tcfEo
           ? TcfProductionModule.eo
           : TcfProductionModule.ee;
-      showProductionExamBriefingSheet(
+      launchProductionExam(
         context,
-        module: module,
-        starting: false,
-        onStart: () => startProductionExam(
-          context,
-          ref,
-          epreuve: assessment.epreuve,
-          slotNumber: assessment.slotNumber ?? 1,
-          ctaLocation: cta.ctaLocation,
-          journeyId: cta.journeyId,
-        ),
+        ref,
+        epreuve: module.epreuve,
+        slotNumber: assessment.slotNumber ?? 1,
+        ctaLocation: cta.ctaLocation,
+        journeyId: cta.journeyId,
       );
   }
 }

@@ -2077,56 +2077,6 @@
   color: var(--skill-accent);
 }
 
-/* ------------------------------------------------- bandeau de progression */
-
-/* Chrono d'examen, épinglé au-dessus de la tâche courante. Il ne se colore
-   qu'à l'approche de la fin : un décompte rouge pendant 25 minutes n'informe
-   plus, il stresse. */
-.chrono {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 20px;
-  border: 1px solid var(--color-line);
-  background: white;
-  box-shadow: var(--skill-shadow);
-}
-
-.chronoLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.chronoTime {
-  flex: none;
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--color-ink);
-  font-variant-numeric: tabular-nums;
-}
-
-.chronoUrgent {
-  border-color: color-mix(in srgb, var(--color-red) 40%, transparent);
-  background: var(--color-red-light);
-}
-
-.chronoUrgent .chronoTime,
-.chronoUrgent .chronoLabel {
-  color: var(--color-red-dark);
-}
-
 /* ------------------------------------------------------ pack d'examen blanc */
 
 .packGrid {

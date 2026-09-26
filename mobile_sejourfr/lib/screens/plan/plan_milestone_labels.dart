@@ -22,7 +22,7 @@ const String kPlanMilestonePill = 'Jalon';
 const String kPlanMilestoneCta = 'Passer l\'examen blanc';
 const String kPlanMilestoneLockedCta = 'Débloquer cet examen blanc';
 const String kPlanMilestoneLockNote =
-    'Cet examen blanc fait partie de l\'abonnement Intégral. Votre plan, lui, '
+    'Cet examen blanc fait partie du pass Intégral. Votre plan, lui, '
     'reste entier.';
 const String kPlanMilestoneFullTitle = 'Examen blanc TCF complet';
 const String kPlanMilestoneFullText =

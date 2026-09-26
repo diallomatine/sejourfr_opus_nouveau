@@ -145,8 +145,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title="Toutes les compétences"
-          message="Cette compétence est réservée à l'abonnement Intégral. Il ouvre les 8 compétences de chaque tâche, tous leurs petits sujets et l'analyse IA sans limite. Ton plan personnalisé, lui, reste entier."
+          reason="Cette compétence fait partie du pass Intégral, avec les 8 compétences de chaque tâche, tous leurs petits sujets et leur analyse IA. Ton plan personnalisé, lui, reste entier."
         />
       </SkillShell>
     </DualChromeShell>

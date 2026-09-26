@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { FREE_ACCOUNT_EXTRAS } from "@/lib/passes";
 
 interface GuestGateSheetProps {
   open: boolean;
@@ -21,7 +22,7 @@ export function GuestGateSheet({
   open,
   onClose,
   title = "Créez votre compte gratuit",
-  message = "Vous avez utilisé le contenu découverte. Un compte gratuit débloque plus de séries, vos statistiques et la reprise de vos sessions.",
+  message = "Gratuit et sans engagement : votre compte garde vos résultats et vous ouvre l'expression écrite et orale corrigées par l'IA.",
 }: GuestGateSheetProps) {
   const pathname = usePathname();
 
@@ -74,21 +75,13 @@ export function GuestGateSheet({
         <h2 id="guest-gate-title" className="ggs-title">{title}</h2>
         <p className="ggs-text">{message}</p>
 
-        <div className="ggs-features">
-          <div className="ggs-feature">
-            <span className="ggs-check">✓</span> Suivi de progression et statistiques
-          </div>
-          <div className="ggs-feature">
-            <span className="ggs-check">✓</span> Une série gratuite par thème et niveau
-          </div>
-          <div className="ggs-feature">
-            <span className="ggs-check">✓</span>{" "}
-            Expression écrite et orale évaluées par l&apos;IA
-          </div>
-          <div className="ggs-feature">
-            <span className="ggs-check">✓</span> Favoris pour retrouver vos questions
-          </div>
-        </div>
+        <ul className="ggs-features">
+          {FREE_ACCOUNT_EXTRAS.map((f) => (
+            <li key={f} className="ggs-feature">
+              <span className="ggs-check">✓</span> {f}
+            </li>
+          ))}
+        </ul>
 
         <Link
           href={`/inscription?next=${next}`}
@@ -170,7 +163,8 @@ export function GuestGateSheet({
           background: var(--color-paper);
           border-radius: 12px;
           padding: 14px 16px;
-          margin-bottom: 18px;
+          margin: 0 0 18px;
+          list-style: none;
           display: flex; flex-direction: column; gap: 8px;
         }
         .ggs-feature {

@@ -153,7 +153,7 @@ function ExamBriefingInner({
           <div className="brf-head">
             <span className={`brf-tag ${isTcf ? "tcf" : "civique"}`}>
               {isTcf ? "TCF IRN" : "Examen civique"}
-              {exam.free ? " · Offert" : " · Abonnés"}
+              {exam.free ? " · Offert" : " · Pass"}
             </span>
             <h1>{exam.name}</h1>
             {exam.subtitle && <p className="brf-subtitle">{exam.subtitle}</p>}
@@ -423,12 +423,12 @@ function ExamBriefingInner({
               <div className="brf-paywall">
                 <div>
                   <div className="brf-paywall-title">
-                    Cet examen est réservé aux comptes abonnés
+                    Cet examen fait partie des pass
                   </div>
                   <div className="brf-paywall-body">
-                    En démo gratuite, vous pouvez passer un examen marqué{" "}
-                    <strong>Offert</strong>. Créez un compte pour accéder à
-                    tous les examens (CSP, CR, naturalisation, A2/B1/B2).
+                    Sans compte, vous pouvez passer les examens marqués{" "}
+                    <strong>Offert</strong>. Les autres font partie des pass
+                    Civique et Intégral : commencez par créer votre compte gratuit.
                   </div>
                 </div>
                 <Link href="/inscription" className="btn btn-red">
@@ -438,11 +438,15 @@ function ExamBriefingInner({
             ) : !accessGranted ? (
               <div className="brf-paywall">
                 <div>
-                  <div className="brf-paywall-title">Cet examen est réservé aux abonnés</div>
+                  <div className="brf-paywall-title">
+                    {isTcf
+                      ? "Cet examen fait partie du pass Intégral"
+                      : "Cet examen fait partie du pass Civique"}
+                  </div>
                   <div className="brf-paywall-body">
                     {isTcf
-                      ? "L'abonnement Intégral débloque tous les examens TCF + Civique illimité."
-                      : "L'abonnement débloque tous les examens civiques + l'entraînement illimité."}
+                      ? "Le pass Intégral ouvre tous les examens blancs du TCF IRN et de l'examen civique."
+                      : "Le pass Civique ouvre tous les examens blancs civiques, complets et par thème. L'Intégral aussi."}
                   </div>
                 </div>
                 <button
@@ -450,7 +454,7 @@ function ExamBriefingInner({
                   className="btn btn-red"
                   onClick={() => setShowPaywall(true)}
                 >
-                  Voir l&apos;abonnement →
+                  Voir les pass →
                 </button>
               </div>
             ) : (
@@ -481,15 +485,10 @@ function ExamBriefingInner({
       <PaywallSheet ctaLocation="MOCK_EXAM" screen="briefing_examen"
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
-        title={
+        reason={
           isTcf
-            ? "Débloquez tous les examens TCF"
-            : "Débloquez tous les examens civiques"
-        }
-        message={
-          isTcf
-            ? "1 examen TCF offert pour découvrir. L'abonnement Intégral débloque le reste + tout le civique."
-            : "1 examen civique offert. L'abonnement débloque CSP, CR, Naturalisation et l'entraînement illimité."
+            ? "Le 1ᵉʳ examen blanc est offert ; les suivants font partie du pass Intégral."
+            : "Le 1ᵉʳ examen blanc est offert ; les suivants font partie du pass Civique, et de l'Intégral."
         }
         module={isTcf ? "INTEGRAL" : "CIVIQUE"}
       />

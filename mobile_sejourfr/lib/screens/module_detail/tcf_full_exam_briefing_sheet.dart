@@ -175,8 +175,8 @@ class _FreeNoteCard extends StatelessWidget {
                   ),
                   const TextSpan(
                     text: '. Tu pourras ensuite refaire cet examen en '
-                        'compréhension (CO + CE) ; l\'EE et l\'EO passeront en '
-                        'abonnement Intégral.',
+                        'compréhension (CO + CE) ; l\'EE et l\'EO feront alors '
+                        'partie du pass Intégral.',
                   ),
                 ],
               ),

@@ -2,22 +2,38 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { CalendarOff, Check, Ticket } from "lucide-react";
 import { track, type AnalyticsCtaLocation } from "@/lib/analytics";
 import { trackPaywallViewed } from "@/lib/funnel-events";
 import { useTrafficSourceHref } from "@/lib/use-traffic-source";
 import { withPurchaseOrigin } from "@/lib/purchase-origin";
+import {
+  PASS_FEATURES,
+  PASS_OFFER_CTA,
+  PASS_OFFER_LATER,
+  PASS_OFFER_PLAN,
+  PASS_OFFER_TEXT,
+  PASS_OFFER_TITLE,
+  PASS_ONE_TIME_NOTE,
+  type PassModule,
+} from "@/lib/passes";
 
 interface PaywallSheetProps {
   open: boolean;
   onClose: () => void;
-  title?: string;
-  message?: string;
   /**
-   * Module pré-sélectionné quand on arrive sur /paiement. L'utilisateur
-   * choisit ensuite la périodicité (mensuel / trimestriel / annuel) sur
-   * la page de paiement.
+   * Le pass qui ouvre le contenu touché : `INTEGRAL` pour tout le TCF,
+   * `CIVIQUE` pour le civique (que l'Intégral ouvre aussi). Il choisit le
+   * titre, la phrase, les puces (`PASS_FEATURES`) et le pass désigné sur
+   * `/paiement` (`?plan=`).
    */
-  module?: "CIVIQUE" | "INTEGRAL";
+  module: PassModule;
+  /**
+   * Une phrase propre à l'écran (« Le 1ᵉʳ sujet est offert ; les suivants
+   * sont dans le pass Intégral. »). Absente ⇒ `PASS_OFFER_TEXT`. Le titre,
+   * lui, ne se surcharge pas : il est le même partout, web et mobile.
+   */
+  reason?: string;
   /**
    * D'où le verrou a été rencontré — **obligatoire, sans défaut** (contrôle F,
    * 2026-09-25) : l'ancien défaut `OTHER` rangeait en `OTHER_CTA` des achats
@@ -34,16 +50,19 @@ interface PaywallSheetProps {
 }
 
 /**
- * Modal (bottom sheet sur mobile, dialog centré sur desktop) qui pousse à
- * l'abonnement. Utilisée quand un utilisateur en mode démo tente de cliquer
- * sur une fonctionnalité premium (thème spécifique, illimité, etc.).
+ * La feuille d'offre (bottom sheet sur mobile, dialog centré sur desktop) :
+ * un compte sans le pass du module touche un contenu verrouillé.
+ *
+ * 🛑 **Tout son texte vient de `lib/passes.ts`** (`PASS_OFFER_*`,
+ * `PASS_FEATURES`), miroir mot pour mot de `PlanModuleTargetX` côté mobile.
+ * Aucun prix : il faudrait un appel au catalogue à l'ouverture, et la règle
+ * du paywall est « aucun appel réseau de plus » (`docs/regles/paiements.md`).
  */
 export function PaywallSheet({
   open,
   onClose,
-  title = "Continuez en illimité",
-  message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, et l'entraînement illimité.",
-  module = "CIVIQUE",
+  module,
+  reason,
   ctaLocation,
   screen,
   journeyId = null,
@@ -58,7 +77,7 @@ export function PaywallSheet({
   // La provenance suit le visiteur jusqu'à la page d'achat.
   // Le CTA de la feuille voyage aussi : c'est lui qui fonde l'intention d'achat.
   const paymentHref = useTrafficSourceHref(
-    withPurchaseOrigin(`/paiement?module=${module}`, {ctaLocation, journeyId}),
+    withPurchaseOrigin(`/paiement?plan=${PASS_OFFER_PLAN[module]}`, {ctaLocation, journeyId}),
   );
 
   // Fermeture par ESC
@@ -78,6 +97,8 @@ export function PaywallSheet({
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const title = PASS_OFFER_TITLE[module];
 
   /* 🛑 **Aucun bandeau de contexte** (demande du propriétaire, 2026-09-20).
      L'en-tête personnalisé était déjà parti ; les deux derniers bandeaux —
@@ -108,28 +129,27 @@ export function PaywallSheet({
         </button>
 
         <div className="pws-icon" aria-hidden>
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-          </svg>
+          <Ticket size={26} strokeWidth={1.8} />
         </div>
 
-        <h2 id="paywall-title" className="pws-title">{title}</h2>
-        <p className="pws-text">{message}</p>
+        <h2 id="paywall-title" className="pws-title">
+          {title.lead}<em>{title.em}</em>
+        </h2>
+        <p className="pws-text">{reason ?? PASS_OFFER_TEXT[module]}</p>
 
-        <div className="pws-features">
-          <div className="pws-feature">
-            <span className="pws-check">✓</span> Plus de 1 200 questions à jour
-          </div>
-          <div className="pws-feature">
-            <span className="pws-check">✓</span> Tous les thèmes, sans limite
-          </div>
-          <div className="pws-feature">
-            <span className="pws-check">✓</span> Examens blancs en conditions
-          </div>
-          <div className="pws-feature">
-            <span className="pws-check">✓</span> Favoris pour retrouver vos questions
-          </div>
-        </div>
+        <ul className="pws-features">
+          {PASS_FEATURES[module].map((f) => (
+            <li key={f} className="pws-feature">
+              <Check className="pws-check" size={15} strokeWidth={2.4} aria-hidden />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="pws-note">
+          <CalendarOff size={13} aria-hidden />
+          {PASS_ONE_TIME_NOTE}
+        </p>
 
         <Link
           href={paymentHref}
@@ -139,10 +159,10 @@ export function PaywallSheet({
             onClose();
           }}
         >
-          Voir les abonnements →
+          {PASS_OFFER_CTA} →
         </Link>
         <button type="button" className="pws-later" onClick={onClose}>
-          Plus tard
+          {PASS_OFFER_LATER}
         </button>
       </div>
 
@@ -154,7 +174,7 @@ export function PaywallSheet({
         }
         .pws-backdrop {
           position: absolute; inset: 0;
-          background: rgba(15, 24, 57, 0.45);
+          background: color-mix(in srgb, var(--color-ink) 45%, transparent);
           animation: pws-fade-in 0.18s ease-out;
         }
         @keyframes pws-fade-in {
@@ -167,12 +187,12 @@ export function PaywallSheet({
         }
         .pws-sheet {
           position: relative;
-          background: #fff;
+          background: var(--color-white);
           border-radius: 22px 22px 0 0;
           padding: 28px 24px 24px;
           width: 100%;
           max-width: 480px;
-          box-shadow: 0 -10px 50px -10px rgba(15, 24, 57, 0.25);
+          box-shadow: 0 -10px 50px -10px color-mix(in srgb, var(--color-ink) 25%, transparent);
           animation: pws-slide-up 0.22s ease-out;
           max-height: 90vh;
           overflow-y: auto;
@@ -190,11 +210,10 @@ export function PaywallSheet({
         .pws-icon {
           width: 56px; height: 56px;
           margin: 0 auto 14px;
-          background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-          color: #fff;
-          border-radius: 50%;
+          background: var(--color-blue-light);
+          color: var(--color-blue);
+          border-radius: 16px;
           display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 8px 24px -8px rgba(30, 58, 140, 0.4);
         }
         .pws-title {
           font-family: var(--font-display);
@@ -204,6 +223,7 @@ export function PaywallSheet({
           margin: 0 0 8px;
           color: var(--color-ink);
         }
+        .pws-title em { font-style: italic; color: var(--color-red); }
         .pws-text {
           font-size: 13.5px; line-height: 1.55;
           color: var(--color-muted);
@@ -214,16 +234,27 @@ export function PaywallSheet({
           background: var(--color-paper);
           border-radius: 12px;
           padding: 14px 16px;
-          margin-bottom: 18px;
-          display: flex; flex-direction: column; gap: 8px;
+          margin: 0 0 12px;
+          list-style: none;
+          display: flex; flex-direction: column; gap: 9px;
         }
         .pws-feature {
-          font-size: 13.5px; color: var(--color-ink-2);
-          display: flex; align-items: center; gap: 10px;
+          font-size: 13.5px; line-height: 1.45; color: var(--color-ink-2);
+          display: flex; align-items: flex-start; gap: 10px;
         }
         .pws-check {
+          flex: none;
+          margin-top: 2px;
           color: var(--color-green);
-          font-weight: 700;
+        }
+        .pws-note {
+          display: flex; align-items: center; justify-content: center; gap: 6px;
+          margin: 0 0 16px;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: 0.02em;
+          color: var(--color-muted);
+          text-align: center;
         }
         .pws-cta {
           width: 100%;

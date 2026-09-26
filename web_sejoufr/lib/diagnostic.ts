@@ -373,7 +373,7 @@ export const PLAN_MILESTONE_PILL = "Jalon";
 export const PLAN_MILESTONE_CTA = "Passer l'examen blanc";
 export const PLAN_MILESTONE_LOCKED_CTA = "Débloquer cet examen blanc";
 export const PLAN_MILESTONE_LOCK_NOTE =
-  "Cet examen blanc fait partie de l'abonnement Intégral. Votre plan, lui, reste entier.";
+  "Cet examen blanc fait partie du pass Intégral. Votre plan, lui, reste entier.";
 export const PLAN_MILESTONE_FULL_TITLE = "Examen blanc TCF complet";
 export const PLAN_MILESTONE_FULL_TEXT =
   "L'écrit et l'oral ont chacun franchi leur jalon. Il reste à les tenir ensemble, sur les 4 épreuves du TCF.";

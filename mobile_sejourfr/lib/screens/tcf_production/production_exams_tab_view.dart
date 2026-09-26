@@ -12,7 +12,6 @@ import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../module_detail/exam_slots_data.dart';
-import '../module_detail/production_exam_briefing_sheet.dart';
 import 'expression_hub_data.dart';
 import 'production_catalog.dart';
 import 'production_exam_launcher.dart';
@@ -171,14 +170,10 @@ class ProductionExamsTabView extends ConsumerStatefulWidget {
 
 class _ProductionExamsTabViewState
     extends ConsumerState<ProductionExamsTabView> {
-  bool _starting = false;
   int _filter = 0;
   bool _showAll = false;
 
-  void _setStarting(bool value) {
-    setState(() => _starting = value);
-    widget.onBusy(value);
-  }
+  void _setStarting(bool value) => widget.onBusy(value);
 
   /// 🛑 **Le verrou est SERVI** créneau par créneau ([examSlotsProvider],
   /// `ProductionAccessService.isProductionExamSlotLocked` côté serveur, la
@@ -216,6 +211,8 @@ class _ProductionExamsTabViewState
     _openBriefing(slot);
   }
 
+  /// 🛑 Le lancement partagé par tous les points d'entrée
+  /// ([launchProductionExam]) : feuille d'information, puis démarrage au tap.
   void _openBriefing(int slot) {
     if (_isLocked(slot)) {
       showPaywallSheet(
@@ -225,32 +222,17 @@ class _ProductionExamsTabViewState
       );
       return;
     }
-    showProductionExamBriefingSheet(
+    launchProductionExam(
       context,
-      module: widget.module,
-      starting: _starting,
-      onStart: () => _startExam(slot),
+      ref,
+      epreuve: widget.module.epreuve,
+      slotNumber: slot,
+      // Contrôle F : le CTA du cadenas de cette grille.
+      ctaLocation: AnalyticsCtaLocation.mockExam,
+      onBusy: (busy) {
+        if (mounted) _setStarting(busy);
+      },
     );
-  }
-
-  /// ⚠️ **Le démarrage ne vit plus ici** : `startProductionExam` est l'autorité
-  /// partagée avec le jalon du Plan et la mesure d'un domaine d'expression. Cet
-  /// écran ne garde que son voile d'attente.
-  Future<void> _startExam(int slotNumber) async {
-    if (_starting) return;
-    _setStarting(true);
-    try {
-      await startProductionExam(
-        context,
-        ref,
-        epreuve: widget.module.epreuve,
-        slotNumber: slotNumber,
-        // Contrôle F : le CTA du cadenas de cette grille.
-        ctaLocation: AnalyticsCtaLocation.mockExam,
-      );
-    } finally {
-      if (mounted) _setStarting(false);
-    }
   }
 
   void _openSession(ExamSession exam) {
