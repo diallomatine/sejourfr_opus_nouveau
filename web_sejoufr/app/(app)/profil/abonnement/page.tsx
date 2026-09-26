@@ -7,6 +7,7 @@ import {withPurchaseOrigin} from "@/lib/purchase-origin";
 import {useAuth} from "@/lib/auth-context";
 import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {ApiException, billingApi} from "@/lib/api";
+import {PASS_FEATURES} from "@/lib/passes";
 import type {
     PlanPublicResponse,
     SubscriptionSource,
@@ -128,26 +129,6 @@ export default function MonPassPage() {
 // Vue premium : carte pass + détails + inclusions + actions
 // ============================================================================
 
-const CIVIQUE_FEATURES = [
-    "Les 5 catégories civiques",
-    "Séries d'entraînement illimitées",
-    "Examens blancs par thème",
-    "Examens blancs complets",
-    "Suivi, rapports & recommandations",
-];
-
-const INTEGRAL_FEATURES = [
-    "Tout le Pass Civique inclus",
-    // 🛑 Le TCF IRN comporte QUATRE épreuves (CO, CE, EE, EO). « Structure de
-    // la langue » est notre module complémentaire, pas une cinquième épreuve —
-    // et cette ligne contredisait /reussir, qui disait déjà « 4 ».
-    "Les 4 épreuves du TCF IRN + entraînement complémentaire en grammaire",
-    "Compréhension orale & écrite",
-    "Expression écrite & orale + analyse IA",
-    "Examens blancs complets des deux parcours",
-    "Niveau CECRL estimé & plan de révision",
-];
-
 function PremiumView({
                          status,
                          plan,
@@ -157,7 +138,7 @@ function PremiumView({
 }) {
     const isIntegral = status.moduleAccess === "INTEGRAL";
     const name = isIntegral ? "Pass Intégral" : "Pass Civique";
-    const features = isIntegral ? INTEGRAL_FEATURES : CIVIQUE_FEATURES;
+    const features = PASS_FEATURES[isIntegral ? "INTEGRAL" : "CIVIQUE"];
     // `plans` ne contient que les plans actifs : un accès payé sur un plan
     // retiré du catalogue (plan récurrent dormant, offre arrêtée) n'y est plus.
     // `moduleAccess` reste la donnée autoritaire du backend — on ne laisse

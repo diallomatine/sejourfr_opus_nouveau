@@ -559,9 +559,8 @@ Intégral × mensuel / trimestriel / annuel.
   `components/pricing/PassCard.tsx` (cf. § « L'accueil public »).
 - `app/_components/PaywallSheet.tsx` — bottom sheet d'incitation à l'achat,
   prop `module: "CIVIQUE" | "INTEGRAL"` (plus de `plan`).
-- `app/(app)/paiement/page.tsx` — page de checkout authentifiée, toggle
-    + 2 cards, gestion du status courant (CurrentSubscriptionCard) et cas
-      upgrade (CIVIQUE → INTEGRAL).
+- `app/(app)/paiement/page.tsx` — page de checkout authentifiée ; cf. § « `/paiement` —
+  choisir un pass (refonte 2026-09-26) ».
 
 **Helpers `lib/api.ts`** :
 
@@ -619,6 +618,33 @@ Trois clics, un seul parcours, valable pour `/tarifs` **et** `/reussir` :
   récapitulatif**, le middleware renvoyant un visiteur sur `/connexion?next=…`.
   Jamais l'inverse — envoyer un compte connecté sur `/inscription` serait un
   cul-de-sac.
+
+### `/paiement` — choisir un pass (refonte 2026-09-26)
+
+`app/(app)/paiement/page.tsx` (logique : chargement, `handleSubscribe`, mesure — inchangés)
++ `app/_components/paiement/` (`PaiementParts.tsx` : en-tête, bandeaux, mode abonnement
+dormant ; `PassOffers.tsx` : grille de passes ; `paiement-access.ts` : `deriveCurrentPlan`,
+`deriveIntent` ; `paiement.module.css`).
+
+- **Structure** : « Retour » discret (`retourOuRepli`) → kicker mono + `h1` Fraunces (`<em>`
+  rouge, prénom servi) + une phrase → **réassurance UNE fois** (Stripe · paiement unique ·
+  durées cumulables) → bandeaux (paiement annulé, pass en cours) → une carte par module
+  (`PASS_MODULES_IN_ORDER`, 2 colonnes > 860 px) → erreur → contact. Plus de fil d'Ariane.
+- **Cartes = `PriceCard`** (`components/pricing/PassCard`, partagée avec `/` et `/reussir`) en
+  `layout="featuresFirst"` : puces → **lignes de durée sélectionnables** (`role="radio"` :
+  durée + prix sur une ligne, `passMonthlyLabel` sous le prix, `passSessionsLabel` en
+  dessous) → **un** CTA pleine largeur qui paie la durée choisie (`billingApi.getPaymentLink`,
+  direct Stripe comme avant). Pré-sélection : `?plan=` sinon `popularPassCodeOf` ; badge
+  « Populaire » sur `POPULAR_PASS_CODE` seul.
+- **Intention** (`deriveIntent`) : `current` → ruban vert « Votre pass », « Prolonger · X € » ;
+  `upgrade` → « Passer à l'Intégral » **sans prix** + note (montant proraté, affiché par
+  Stripe) ; `included` (Intégral en cours, carte Civique) → note « Déjà inclus ».
+- 🛑 **Puces, phrase et périmètre : `PASS_FEATURES` / `PASS_PITCH` / `PASS_EXCLUDED`
+  (`lib/passes.ts`)**, lus aussi par l'accueil, le récapitulatif et `/profil/abonnement`
+  (miroir mobile `PlanModuleTargetX.passFeatures`). Le « non inclus » du Civique est **une
+  ligne** + lien « Voir l'Intégral », plus trois lignes barrées rouges.
+- ⚠️ La page ne nomme **pas** Apple Pay / Google Pay : ils dépendent de l'activation dans le
+  Dashboard Stripe (`docs/admin/deploiement-suivi.md`, case non cochée).
 
 ### `/paiement/recapitulatif` — deux pièges qui portent sur de l'argent
 
@@ -883,7 +909,7 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   réciproquement au lien « Créer un compte gratuit » : un visiteur venu de
   `/reussir` retombe donc toujours sur `/diagnostic`. Sans le paramètre, le
   comportement historique (`/dashboard`) est inchangé.
-- **`/paiement?plan=<code>`** : met en évidence le pass ciblé (`.otp-pass.is-targeted`)
+- **`/paiement?plan=<code>`** : pré-sélectionne le pass ciblé dans sa carte
   et scrolle dessus au montage. Le gate non-connecté de `/paiement` conserve
   désormais l'URL complète (module + plan) dans son `?next=`, et propose
   inscription **et** connexion. ⚠️ Plus **aucun** écran n'émet ce `?plan=`
@@ -1019,7 +1045,7 @@ infos de la page ».
   retour vide masquée, marge d'un en-tête réduit au titre effacé retirée),
   `detail .wrap`, `skill .wrap`, `production .wrap`, `ModuleDetail .root`,
   `diagnostic .page`, `plan .page`, `tcfFullExam .page`, `.tcfd`, `.ebh`,
-  `.brf`, `.sess-back-row`, `.pr`, `.ab`, `.pc`, `.pay`, `.rcp`, `.succes` ;
+  `.brf`, `.sess-back-row`, `.pr`, `.ab`, `.pc`, `paiement.module.css .page`, `.rcp`, `.succes` ;
   Accueil : bannière de parcours et squelette en marge. Un nouveau conteneur
   d'écran connecté fait de même — jamais de valeur en dur.
 - **Pas de doublon juste sous la barre** : `CompteShell` (compte, aide,

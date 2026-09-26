@@ -199,6 +199,39 @@ extension PlanModuleTargetX on PlanModuleTarget {
         PlanModuleTarget.civique => 'Examen civique uniquement',
         PlanModuleTarget.integral => 'Intégral',
       };
+
+  /// 🛑 **CE QU'UN PASS OUVRE, en puces** — déclaré une seule fois pour tout le
+  /// mobile (paywall, « Mon pass »). Miroir mot pour mot de `PASS_FEATURES`
+  /// (`web_sejoufr/lib/passes.ts`), où vit la liste des libellés retirés le
+  /// 2026-09-26 (diagnostic gratuit, « CO + CE + Structure », « illimités »,
+  /// favoris et statistiques ouverts à tout compte).
+  List<String> get passFeatures => switch (this) {
+        PlanModuleTarget.integral => const [
+            'Tout le pass Civique',
+            'Les 4 épreuves du TCF IRN : toutes les séries et tous les examens blancs',
+            "Expression écrite et orale corrigées par l'IA",
+            'Votre plan TCF personnalisé, étape par étape',
+          ],
+        PlanModuleTarget.civique => const [
+            "Toutes les séries d'entraînement des 5 thèmes",
+            'Tous les examens blancs civiques, complets et par thème',
+            'Votre plan civique personnalisé',
+          ],
+      };
+
+  /// Ce que le pass n'ouvre PAS, ou `null`. Miroir de `PASS_EXCLUDED`.
+  String? get passExcluded => switch (this) {
+        PlanModuleTarget.integral => null,
+        PlanModuleTarget.civique => 'Le TCF IRN (4 épreuves, correction IA)',
+      };
+
+  /// La phrase de périmètre d'une carte de pass. Miroir de `PASS_PITCH`.
+  String get passPitch => switch (this) {
+        PlanModuleTarget.integral =>
+          "L'examen civique et le TCF IRN : toute la préparation de votre démarche.",
+        PlanModuleTarget.civique =>
+          "Toute la préparation à l'examen civique, sans le TCF IRN.",
+      };
 }
 
 /// 🛑 **L'ORDRE DES MODULES DANS UNE GRILLE DE PASS — décidé ICI, et nulle part

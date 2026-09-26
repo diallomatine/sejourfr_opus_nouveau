@@ -10,7 +10,9 @@ import {
   oneTimePassesOf,
   PASS_MODULE_CARD_TITLE,
   PASS_MODULE_NAME,
+  PASS_FEATURES,
   PASS_MODULES_IN_ORDER,
+  PASS_PITCH,
   type PassModule,
 } from "@/lib/passes";
 import { withTrafficSource } from "@/lib/traffic-source";
@@ -26,33 +28,10 @@ import styles from "./landing.module.css";
  * Catalogue injoignable ⇒ seule la carte Gratuit reste, jamais un prix de repli.
  */
 
-const PASS_COPY: Record<
-  PassModule,
-  { kicker: string; description: string; features: readonly string[]; featured: boolean }
-> = {
-  INTEGRAL: {
-    kicker: "TCF IRN + Examen civique",
-    description: "Tout SejourFR : Civique, TCF IRN, diagnostic, analyse IA et préparation complète.",
-    features: [
-      "Tout le Civique inclus",
-      "Module TCF complet",
-      "Expression écrite et orale évaluée par IA",
-      "Simulations d’entretien en temps réel, selon la durée choisie",
-    ],
-    featured: true,
-  },
-  CIVIQUE: {
-    kicker: "Pass Civique",
-    description:
-      "Pour préparer l’examen civique avec toute la banque de questions, les révisions et les examens blancs.",
-    features: [
-      "Banque complète Civique",
-      "Examens blancs civiques illimités",
-      "Statistiques par thème et révision ciblée",
-      "Explications après chaque question",
-    ],
-    featured: false,
-  },
+/** Ce qui est propre à la vitrine. Pitch et puces : `PASS_PITCH` / `PASS_FEATURES`. */
+const PASS_COPY: Record<PassModule, { kicker: string; featured: boolean }> = {
+  INTEGRAL: { kicker: "TCF IRN + Examen civique", featured: true },
+  CIVIQUE: { kicker: "Pass Civique", featured: false },
 };
 
 export function LandingPricing({ plans }: { plans: PlanPublicResponse[] }) {
@@ -101,8 +80,8 @@ export function LandingPricing({ plans }: { plans: PlanPublicResponse[] }) {
                 screen="accueil_offres"
                 kicker={copy.kicker}
                 title={PASS_MODULE_CARD_TITLE[module]}
-                description={copy.description}
-                features={copy.features}
+                description={PASS_PITCH[module]}
+                features={PASS_FEATURES[module]}
                 featured={copy.featured}
                 ribbon={copy.featured ? "Le plus complet" : null}
                 showFromPrice

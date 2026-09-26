@@ -136,26 +136,6 @@ class _PremiumView extends StatelessWidget {
   /// carte ni la vider — `moduleAccess` reste la donnée autoritaire.
   String get _formulaLabel => plan?.name ?? _passName;
 
-  static const _civiqueFeatures = [
-    'Les 5 catégories civiques',
-    "Séries d'entraînement illimitées",
-    'Examens blancs par thème',
-    'Examens blancs complets',
-    'Suivi, rapports & recommandations',
-  ];
-
-  static const _integralFeatures = [
-    'Tout le Pass Civique inclus',
-    // 🛑 Le TCF IRN comporte QUATRE épreuves (CO, CE, EE, EO). « Structure de
-    // la langue » est notre module complémentaire, pas une cinquième épreuve.
-    // Miroir web : app/(app)/profil/abonnement/page.tsx.
-    'Les 4 épreuves du TCF IRN + entraînement complémentaire en grammaire',
-    'Compréhension orale & écrite',
-    'Expression écrite & orale + analyse IA',
-    'Examens blancs complets des deux parcours',
-    'Niveau CECRL estimé & plan de révision',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final ends = status.expiresAt;
@@ -232,8 +212,9 @@ class _PremiumView extends StatelessWidget {
           child: Column(
             children: [
               for (final (i, feature) in (_isIntegral
-                      ? _integralFeatures
-                      : _civiqueFeatures)
+                          ? PlanModuleTarget.integral
+                          : PlanModuleTarget.civique)
+                      .passFeatures
                   .indexed) ...[
                 if (i > 0) const SizedBox(height: 10),
                 Row(

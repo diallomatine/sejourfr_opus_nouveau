@@ -47,6 +47,8 @@ import {
   PASS_MODULE_NAME,
   passModuleOf,
   passMonthlyLabel,
+  PASS_FEATURES,
+  PASS_PITCH,
   passSessionsLabel,
   type PassModule,
 } from "@/lib/passes";
@@ -57,27 +59,10 @@ import { useAppBarBack } from "@/app/_components/AppBarTitle";
 // PRÉSENTATION (miroir de /paiement — ce que le module ouvre)
 // ============================================================================
 
-const SCOPE: Record<PassModule, { tag: string; pitch: string; features: string[] }> = {
-  CIVIQUE: {
-    tag: "POUR CSP · CR · NAT",
-    pitch: "L'accès complet au module civique pour préparer votre démarche.",
-    features: [
-      "Banque complète civique (CSP / CR / NAT)",
-      "Examens blancs civiques illimités",
-      "Entraînement par thème",
-      "Statistiques par thématique",
-    ],
-  },
-  INTEGRAL: {
-    tag: "CIVIQUE + TCF IRN",
-    pitch: "Civique + TCF IRN avec expression écrite et orale évaluées par IA.",
-    features: [
-      "Tout le module civique inclus",
-      "TCF IRN complet (CO + CE + Structure)",
-      "Expression écrite et orale évaluées par IA",
-      "Examens blancs TCF illimités",
-    ],
-  },
+/** Le kicker du récapitulatif ; pitch et puces viennent de `lib/passes.ts`. */
+const SCOPE_TAG: Record<PassModule, string> = {
+  CIVIQUE: "POUR CSP · CR · NAT",
+  INTEGRAL: "CIVIQUE + TCF IRN",
 };
 
 // ============================================================================
@@ -270,7 +255,11 @@ function RecapInner() {
     );
   }
 
-  const scope = SCOPE[passModule];
+  const scope = {
+    tag: SCOPE_TAG[passModule],
+    pitch: PASS_PITCH[passModule],
+    features: PASS_FEATURES[passModule],
+  };
   const sessions = passSessionsLabel(plan);
   const monthly = passMonthlyLabel(plan);
   const duration = passDurationLabel(plan.durationDays);

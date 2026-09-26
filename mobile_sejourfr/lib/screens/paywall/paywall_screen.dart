@@ -468,9 +468,7 @@ class _PlanCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            module == PlanModuleTarget.civique
-                ? 'Accès complet au module civique pour préparer votre démarche.'
-                : 'Civique + TCF IRN avec EE/EO évalués par IA.',
+            module.passPitch,
             style: AppFonts.ui(
               size: 13,
               color: AppColors.muted,
@@ -571,9 +569,7 @@ class _OneTimeModuleCard extends StatelessWidget {
               style: AppFonts.display(size: 24, weight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(
-            module == PlanModuleTarget.civique
-                ? 'Accès complet au module civique pour préparer votre démarche.'
-                : 'Civique + TCF IRN avec EE/EO évalués par IA.',
+            module.passPitch,
             style:
                 AppFonts.ui(size: 13, color: AppColors.muted, height: 1.5),
           ),
@@ -818,29 +814,11 @@ class _FeatureList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final features = module == PlanModuleTarget.civique
-        ? const [
-            'Banque complète civique',
-            'Examens blancs civiques illimités',
-            'Entraînement par thème',
-            'Favoris pour retrouver vos questions',
-          ]
-        : const [
-            'Tout le Civique inclus',
-            'Module TCF complet (CO + CE + Structure)',
-            'Expression écrite + orale évaluée par IA',
-            'Diagnostic CECRL (A2 / B1 / B2)',
-          ];
-    // Pour Civique, on montre explicitement ce qui n'est PAS couvert (le TCF
-    // IRN) afin de lever toute ambiguïté avec l'offre Intégral. Vide pour
-    // Intégral, qui couvre tout.
-    final excluded = module == PlanModuleTarget.civique
-        ? const [
-            'Module TCF IRN (CO, CE, Structure)',
-            'Expression écrite + orale évaluée par IA',
-            'Diagnostic CECRL (A2 / B1 / B2)',
-          ]
-        : const <String>[];
+    final features = module.passFeatures;
+    // Pour Civique, on montre ce qui n'est PAS couvert (le TCF IRN) afin de
+    // lever toute ambiguïté avec l'offre Intégral. Vide pour Intégral.
+    final excludedLine = module.passExcluded;
+    final excluded = [if (excludedLine != null) excludedLine];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -282,3 +282,53 @@ export const FREE_OFFER_FEATURES: readonly string[] = [
   "1 examen blanc d'expression écrite et 1 d'expression orale, corrigés par l'IA",
   "Accès sans limite de durée",
 ];
+
+/**
+ * 🛑 **CE QU'UN PASS OUVRE, en puces** — déclaré une seule fois pour tout le
+ * web : accueil `/`, `/paiement`, `/paiement/recapitulatif`, `/profil/abonnement`.
+ * Miroir mot pour mot : `PlanModuleTargetX.passFeatures` (mobile,
+ * `core/models/billing_models.dart`).
+ *
+ * Chaque ligne est un droit que le serveur ouvre au module (`hasCivique` /
+ * `hasTcf`, `docs/regles/freemium.md`), jamais une promesse éditoriale. Ont été
+ * retirés le 2026-09-26, parce que faux ou non propres au pass :
+ *  · « Diagnostic CECRL (A2 / B1 / B2) » — le diagnostic rapide est GRATUIT pour
+ *    tous, et le diagnostic complet n'est plus proposé ;
+ *  · « Module TCF complet (CO + CE + Structure) » — le TCF IRN a QUATRE épreuves
+ *    (CO, CE, EE, EO) ; Structure est un entraînement complémentaire ;
+ *  · « Examens blancs … illimités » — les grilles ont 20 créneaux (10 en EE/EO) ;
+ *  · « Favoris », « Statistiques par thématique », « Explications après chaque
+ *    question » — ouverts à tout compte, gratuit compris.
+ *
+ * Le nombre de simulations orales en direct n'est PAS ici : il varie d'un pass à
+ * l'autre et se lit sur chaque ligne de durée (`passSessionsLabel`).
+ */
+export const PASS_FEATURES: Record<PassModule, readonly string[]> = {
+  INTEGRAL: [
+    "Tout le pass Civique",
+    "Les 4 épreuves du TCF IRN : toutes les séries et tous les examens blancs",
+    "Expression écrite et orale corrigées par l'IA",
+    "Votre plan TCF personnalisé, étape par étape",
+  ],
+  CIVIQUE: [
+    "Toutes les séries d'entraînement des 5 thèmes",
+    "Tous les examens blancs civiques, complets et par thème",
+    "Votre plan civique personnalisé",
+  ],
+};
+
+/**
+ * **Ce qu'un pass n'ouvre PAS** — une ligne, pas une liste barrée. Le Pass
+ * Civique ne débloque pas le TCF IRN (demande du propriétaire, 2026-09-20) ;
+ * l'Intégral couvre tout, d'où `null`. Miroir : `PlanModuleTargetX.passExcluded`.
+ */
+export const PASS_EXCLUDED: Record<PassModule, string | null> = {
+  INTEGRAL: null,
+  CIVIQUE: "Le TCF IRN (4 épreuves, correction IA)",
+};
+
+/** Une phrase de périmètre, sous le titre d'une carte de pass. */
+export const PASS_PITCH: Record<PassModule, string> = {
+  INTEGRAL: "L'examen civique et le TCF IRN : toute la préparation de votre démarche.",
+  CIVIQUE: "Toute la préparation à l'examen civique, sans le TCF IRN.",
+};
