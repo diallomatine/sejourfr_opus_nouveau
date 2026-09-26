@@ -592,6 +592,8 @@ function CiviqueBody({
                   themeLigneFor(civicPlan.data?.themes, stat.themeId),
                   stat,
                 )}
+                meta={epreuveMeta(stat)}
+                ratio={epreuveRatio(stat)}
                 href={hrefFor(stat)}
               />
             ))}

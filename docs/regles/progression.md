@@ -741,6 +741,15 @@ tous « à évaluer ».
   (`epreuveSubjectProgress` web, `buildHubData` mobile) recomptent encore la
   même règle **côté front** à partir des listes chargées — seconde copie à
   résorber.
+- 🛑 **Les 5 cartes de thème CIVIQUE prennent le rendu des épreuves TCF**
+  (2026-09-26, demande du propriétaire) : icône, titre, ligne d'état **inchangée**
+  (`themeStatus`, lue sur `CivicPlanDto.themes`), méta « N/M séries » et
+  **anneau** à droite à la place de la flèche. Méta et anneau passent par
+  `epreuveMeta` / `epreuveRatio`, les **mêmes** fonctions que CO/CE, sur
+  `CategoryStat.seriesDone` / `seriesTotal` — **déjà servis par thème** depuis le
+  2026-09-12 (`LotService.seriesCountCivique`, testé par `UserDashboardServiceTest`).
+  Même règle que le TCF : total = séries (lots) du thème, fait = séries **tentées
+  au moins une fois** (`lastAttemptedAt != null`). Aucun champ backend ajouté.
 - **La dérivation n'est PAS partagée avec l'Accueil** (`accueilEpreuveEtat`),
   et c'est voulu : celle-ci rend un **état pédagogique servi** (statut +
   evolution → ton, jauge, CTA), Réviser rend une **ligne de catalogue** (étape en

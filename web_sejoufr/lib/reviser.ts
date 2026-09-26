@@ -263,6 +263,10 @@ export function currentTache(domain: PlanDomainDto | null): PlanDomainTaskDto | 
 /**
  * « 2/10 séries » · « 3/40 sujets ». `null` quand il n'y a rien à compter.
  *
+ * 🛑 **Sert aussi les 5 thèmes civiques** (demande du propriétaire,
+ * 2026-09-26) : même carte, même « N/M séries », même anneau que CO/CE — le
+ * décompte `seriesDone` / `seriesTotal` du thème, servi par `/api/me/dashboard`.
+ *
  * Une épreuve d'expression compte ses **sujets servis** (`subjectsDone` /
  * `subjectsTotal`, ses 3 tâches confondues) — jamais un décompte refait ici.
  * Le pluriel suit le total : « 1/40 sujets ». Miroir mot pour mot du mobile

@@ -1822,6 +1822,13 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
   soumission (tout statut, toute session) — la règle de « Sujets traités » des
   examens blancs. Pluriel sur le total (« 1/40 sujets »). La ligne d'état
   « Prochaine étape : Tâche N » (tâche courante servie par le Plan) est conservée.
+- 🛑 **Cartes de thème CIVIQUE = cartes d'épreuve TCF** (demande du propriétaire,
+  2026-09-26) : même `SfEpreuveRow`, ligne d'état `themeStatus` inchangée, plus méta
+  « N/M séries » et **anneau** via `epreuveMeta` / `epreuveRatio` (les fonctions de
+  CO/CE, une autorité) sur `seriesDone` / `seriesTotal` du thème, **déjà servis**
+  par `/api/me/dashboard` (`LotService.seriesCountCivique` : séries tentées au moins
+  une fois / séries du thème). Visiteur (web) : `seriesTotal = 0` ⇒ pas de méta,
+  anneau vide — comme une épreuve TCF.
 - 🛑 **« Niveau estimé : X » lit l'AUTORITÉ D'AFFICHAGE** (2026-09-16), la même
   que l'Accueil et le Profil : `DashboardSummary.tcfDomainProfile`, publication
   de `TcfProfileService.levelProfileAccueil` (moyenne des ≤ 3 derniers examens
