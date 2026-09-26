@@ -134,6 +134,11 @@ export function SiteHeader() {
     const isAuth = status === "authenticated" && user !== null;
     if (shouldHideGlobalChrome(pathname, isAuth)) return null;
 
+    /** Dans le parcours du diagnostic (TCF ou civique), l'invitation à le
+     *  commencer n'a plus lieu d'être : elle détourne du geste en cours. */
+    const inDiagnostic = pathname === "/diagnostic" || pathname.startsWith("/diagnostic/")
+        || pathname === "/diagnostic-civique" || pathname.startsWith("/diagnostic-civique/");
+
     /** Sur les routes qui montent déjà `AppTopBar` (tiroir dédié), on cache
      *  notre propre bouton de menu pour ne pas en empiler deux. */
     const hideMobileBurger =
@@ -236,13 +241,15 @@ export function SiteHeader() {
                                 >
                                     Connexion
                                 </Link>
-                                <Link
-                                    href={DIAGNOSTIC_RAPIDE_HREF}
-                                    className={`${styles.btn} ${styles.btnRed}`}
-                                    onClick={() => trackDiagnosticCta("HERO")}
-                                >
-                                    Tester mon niveau
-                                </Link>
+                                {!inDiagnostic && (
+                                    <Link
+                                        href={DIAGNOSTIC_RAPIDE_HREF}
+                                        className={`${styles.btn} ${styles.btnRed}`}
+                                        onClick={() => trackDiagnosticCta("HERO")}
+                                    >
+                                        Tester mon niveau
+                                    </Link>
+                                )}
                             </>
                         )}
 
@@ -314,16 +321,18 @@ export function SiteHeader() {
                                 >
                                     Connexion
                                 </Link>
-                                <Link
-                                    href={DIAGNOSTIC_RAPIDE_HREF}
-                                    className={`${styles.btn} ${styles.btnRed} ${styles.btnFull}`}
-                                    onClick={() => {
-                                        trackDiagnosticCta("STICKY");
-                                        setMobileNavOpen(false);
-                                    }}
-                                >
-                                    Tester mon niveau
-                                </Link>
+                                {!inDiagnostic && (
+                                    <Link
+                                        href={DIAGNOSTIC_RAPIDE_HREF}
+                                        className={`${styles.btn} ${styles.btnRed} ${styles.btnFull}`}
+                                        onClick={() => {
+                                            trackDiagnosticCta("STICKY");
+                                            setMobileNavOpen(false);
+                                        }}
+                                    >
+                                        Tester mon niveau
+                                    </Link>
+                                )}
                             </div>
                         </aside>
                     )}

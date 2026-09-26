@@ -5132,6 +5132,7 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
 - **`SiteHeader`** (+ `SiteHeader.module.css`) : logo, Accueil (`/`) · TCF IRN · Examen civique · Examens blancs · Tarifs ;
   visiteur « Connexion » (`LOGIN_CLICKED`) + « Tester mon niveau » rouge →
   `/diagnostic` (`DIAGNOSTIC_CTA_CLICKED`, `HERO` ; `STICKY` dans le tiroir).
+  Masqué (barre et tiroir) sur `/diagnostic*` et `/diagnostic-civique*` : on y est déjà.
   Liens masqués et bouton de menu **à gauche du logo** ≤ 1020 px, « Connexion » masqué
   ≤ 760 px. Compte : menu avatar et tiroir `AppSidebar` inchangés. Le tiroir
   s'ouvre **à gauche** (visiteur comme compte, demande du propriétaire 2026-09-26). Règles de masquage inchangées (`lib/chrome-routes.ts`).
