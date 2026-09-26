@@ -393,16 +393,13 @@ function SessionRunnerInner({ params }: PageProps) {
       : null,
   );
 
-  // Rapport : la flèche de la barre du haut (≤ 900 px) remplace « Retour ».
-  // Même geste, même repli que le bouton de la page (`goBack` plus bas).
+  // Rapport d'une série : la flèche de la barre du haut (≤ 900 px) remplace
+  // « Retour » (même geste, même repli que `goBack` plus bas). Rapport d'un
+  // EXAMEN BLANC : écran d'arrivée, la barre porte le menu ; le « Retour » de
+  // la page reste visible.
   const backInBar = useAppBarBack(
-    attempt && phase === "result"
-      ? {
-          fallbackHref:
-            attempt.type === "MOCK_EXAM"
-              ? examReturnPath(attempt)
-              : (lotReturnPath(attempt) ?? "/entrainement"),
-        }
+    attempt && phase === "result" && attempt.type !== "MOCK_EXAM"
+      ? {fallbackHref: lotReturnPath(attempt) ?? "/entrainement"}
       : null,
   );
 
