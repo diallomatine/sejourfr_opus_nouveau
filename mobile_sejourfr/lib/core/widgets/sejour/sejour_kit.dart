@@ -4556,6 +4556,205 @@ class SfExamStepBox extends StatelessWidget {
   }
 }
 
+/// Ce que l'étape d'examen porte **à droite** : un bouton de lancement
+/// ([SfExamStepStart]), ou le constat qu'elle est passée ([SfExamStepDone]).
+///
+/// Miroir de `ExamStepTrailing` (`web .../sejour/SejourKit.tsx`).
+sealed class SfExamStepTrailing {
+  const SfExamStepTrailing();
+}
+
+/// Le bouton. **Inactif sans [onTap]** ; [locked] ajoute le cadenas. Le kit ne
+/// décide ni de l'un ni de l'autre.
+class SfExamStepStart extends SfExamStepTrailing {
+  const SfExamStepStart({
+    required this.label,
+    required this.locked,
+    this.onTap,
+  });
+
+  final String label;
+  final bool locked;
+  final VoidCallback? onTap;
+}
+
+/// Une pastille cochée, sans geste.
+class SfExamStepDone extends SfExamStepTrailing {
+  const SfExamStepDone({required this.label});
+
+  final String label;
+}
+
+/// **L'étape d'examen d'un bloc de cycle** : titre et sous-titre à gauche, le
+/// bouton à droite (demande du propriétaire, 2026-09-26).
+///
+/// 🛑 **Aucune phrase n'est écrite ici**, et aucun état n'est classé : le titre,
+/// le sous-titre, le libellé du bouton, la phrase de pied et son lien arrivent
+/// tous en paramètres. Un bouton inactif se lit avec son cadenas **et** sa
+/// phrase de pied — jamais un bouton muet sans raison.
+///
+/// Miroir web : `ExamStepAction`. La brique voisine [SfExamStepBox] reste
+/// celle de l'historique des cycles.
+class SfExamStepAction extends StatelessWidget {
+  const SfExamStepAction({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.note,
+    this.noteAction,
+  });
+
+  final String title;
+  final String subtitle;
+  final SfExamStepTrailing? trailing;
+
+  /// Pourquoi le bouton est inactif, en une phrase courte.
+  final String? note;
+
+  /// Le geste qui lève le verrou, sous la phrase de pied.
+  final ({String label, VoidCallback onTap})? noteAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final droite = switch (trailing) {
+      SfExamStepDone(:final label) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.check, size: 13, color: AppColors.green),
+            const SizedBox(width: 4),
+            Text(
+              label.toUpperCase(),
+              style: AppFonts.label(size: 10, color: AppColors.green)
+                  .copyWith(fontWeight: FontWeight.w900),
+            ),
+          ],
+        ),
+      final SfExamStepStart start => _SfExamStepButton(start),
+      null => null,
+    };
+    final pied = note != null || noteAction != null;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.line),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppFonts.ui(
+                        size: 12.5,
+                        weight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppFonts.ui(
+                          size: 11, color: AppColors.muted, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+              if (droite != null) ...[
+                const SizedBox(width: 10),
+                droite,
+              ],
+            ],
+          ),
+          if (pied) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (note != null)
+                  Text(
+                    note!,
+                    style: AppFonts.ui(
+                        size: 10.5, color: AppColors.muted, height: 1.4),
+                  ),
+                if (noteAction != null)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: noteAction!.onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        noteAction!.label,
+                        style: AppFonts.ui(size: 10.5, color: AppColors.blue)
+                            .copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Le bouton « Commencer » de [SfExamStepAction] : bleu et actif, ou grisé et
+/// inactif, avec son cadenas quand l'étape est verrouillée.
+class _SfExamStepButton extends StatelessWidget {
+  const _SfExamStepButton(this.start);
+
+  final SfExamStepStart start;
+
+  @override
+  Widget build(BuildContext context) {
+    final actif = start.onTap != null;
+    final encre = actif ? AppColors.white : AppColors.muted;
+    final radius = BorderRadius.circular(999);
+    return Semantics(
+      button: true,
+      enabled: actif,
+      child: Material(
+        color: actif ? AppColors.blue : AppColors.line,
+        borderRadius: radius,
+        child: InkWell(
+          onTap: start.onTap,
+          borderRadius: radius,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 32),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (start.locked) ...[
+                    Icon(LucideIcons.lock, size: 12, color: encre),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(
+                    start.label,
+                    style: AppFonts.ui(size: 11.5, color: encre)
+                        .copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme.
 typedef SfNextStepFact = ({String value, String label});
 

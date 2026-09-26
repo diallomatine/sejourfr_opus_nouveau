@@ -384,56 +384,45 @@ String journeyHistoryBlocTitle(JourneyHistoryBloc bloc) => bloc.bloc.label;
       JourneyBlocStatus.aVenir => (label: 'À VENIR', tone: SfTone.muted),
     };
 
-/// Le titre de l'encart d'examen d'un bloc.
-///
-/// 🛑 **Deux intentions, un seul objet** : `initialAssessment` tant que
-/// l'épreuve n'a jamais été mesurée, l'examen blanc ensuite. C'est `purpose`
-/// qui tranche, jamais une déduction de l'état du bloc.
-String journeyExamTitle(JourneyStep exam) {
-  // 🛑 Servi (D-47) : vaut pour une épreuve TCF comme pour une thématique.
-  final nom = exam.bloc?.label ?? 'cette épreuve';
-  return exam.purpose == JourneyStepPurpose.initialAssessment
-      ? 'Évaluer mon niveau en ${nom.toLowerCase()}'
-      : 'Examen blanc · $nom';
-}
+/* ----------------------------------------- l'étape d'examen d'un bloc --- */
+// 🛑 **Un seul rendu pour toutes les épreuves** (demande du propriétaire,
+// 2026-09-26) : « Examen blanc », « Évaluez vos progrès », et le bouton à
+// droite. Le nom de l'épreuve n'y est plus — l'en-tête du bloc le porte déjà —,
+// et `purpose` ne change plus le titre.
+//
+// ⚠️ **Registre : le vouvoiement**, celui de tout le Plan. Le propriétaire avait
+// écrit « Évalue tes progrès ».
+//
+// Miroir mot pour mot de `JOURNEY_EXAM_*` (`web_sejoufr/lib/journey.ts`).
 
-/// L'état de l'encart d'examen. Le verrou est **servi** (`locked`).
-({String label, SfBarTone tone}) journeyExamState(JourneyStep exam) {
-  if (exam.status == JourneyStepStatus.completed ||
-      exam.status == JourneyStepStatus.skipped) {
-    return (label: 'TERMINÉ', tone: SfBarTone.ok);
-  }
-  return exam.locked
-      ? (label: 'VERROUILLÉ', tone: SfBarTone.muted)
-      : (label: 'DISPONIBLE', tone: SfBarTone.now);
-}
+const String kJourneyExamTitle = 'Examen blanc';
+const String kJourneyExamSubtitle = 'Évaluez vos progrès';
+const String kJourneyExamStart = 'Commencer';
+const String kJourneyExamDone = 'Fait';
 
-/// La phrase de condition de l'encart d'examen.
-String journeyExamNote(JourneyBloc bloc, JourneyStep exam) {
-  if (exam.status == JourneyStepStatus.completed ||
-      exam.status == JourneyStepStatus.skipped) {
-    return 'Cet examen est passé : son résultat a servi à construire vos '
-        'priorités.';
-  }
-  if (exam.locked) {
-    final reste = bloc.etapesRestantes;
-    // 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
-    // 1 competence … est terminee » se lisait comme une panne de gabarit.
-    if (reste == 1) {
-      return 'Disponible dès que la compétence de cette épreuve est terminée.';
-    }
-    if (reste > 1) {
-      return 'Disponible dès que les $reste compétences de cette épreuve '
-          'sont terminées.';
-    }
-    return 'Disponible dès que les compétences de cette épreuve sont '
-        'terminées.';
-  }
-  return bloc.etapesRestantes == 0 && bloc.steps.isEmpty
-      ? 'Aucune compétence à travailler avant : l\'examen est la prochaine '
-          'action de cette épreuve.'
-      : 'Les compétences de cette épreuve sont terminées : l\'examen est la '
-          'prochaine action.';
+/// Verrou `progression` (D-15) — le compte restant est déjà dans l'en-tête du
+/// bloc.
+const String kJourneyExamNoteProgression =
+    'Terminez d\'abord les étapes ci-dessus.';
+
+/// Verrou `access` — suivi du lien « Débloquer mon plan → ».
+const String kJourneyExamNoteAccess = 'Réservé à l\'offre complète.';
+
+/// L'examen est-il passé ? Lu sur le statut **servi**.
+bool journeyExamDone(JourneyStep exam) =>
+    exam.status == JourneyStepStatus.completed ||
+    exam.status == JourneyStepStatus.skipped;
+
+/// La phrase sous un bouton **inactif**. 🛑 Elle se lit sur `lockReason`
+/// **servi**, jamais sur un nombre de compétences restantes : c'est le serveur
+/// qui sait pourquoi l'examen est fermé. `null` quand il n'y a rien à dire.
+String? journeyExamNote(JourneyStep exam) {
+  if (journeyExamDone(exam) || !exam.locked) return null;
+  return switch (exam.lockReason) {
+    JourneyLockReason.progression => kJourneyExamNoteProgression,
+    JourneyLockReason.access => kJourneyExamNoteAccess,
+    null => null,
+  };
 }
 
 /// Le lien d'action d'une ligne d'étape, dans le corps déplié d'un bloc.

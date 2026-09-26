@@ -18,6 +18,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
+import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyStepResolution;
@@ -179,6 +180,9 @@ class JourneyReadServiceTest {
         JourneyBlocDto ee = bloc(vue, EpreuveType.TCF_EE);
         assertThat(ee.steps()).hasSize(2);
         assertThat(ee.steps()).allSatisfy(step -> assertThat(step.locked()).isTrue());
+        // Sur une etape d'entrainement, le verrou est toujours commercial.
+        assertThat(ee.steps()).allSatisfy(step ->
+                assertThat(step.lockReason()).isEqualTo(JourneyLockReason.ACCESS));
         assertThat(ee.steps()).extracting(JourneyStepDto::skillCode)
                 .containsExactly(premiere.getCode(), seconde.getCode());
         // Et le cycle aussi : son avancement n'est pas masque.
@@ -1084,12 +1088,52 @@ class JourneyReadServiceTest {
         // prevu avant de te remesurer ». Le compte est abonne — aucun verrou
         // commercial n'intervient ici.
         assertThat(bloc(vue, EpreuveType.TCF_EE).exam().locked()).isTrue();
+        // 🛑 La RAISON est servie avec le verrou : le front ne la devine pas.
+        assertThat(bloc(vue, EpreuveType.TCF_EE).exam().lockReason())
+                .isEqualTo(JourneyLockReason.PROGRESSION);
         // Le bloc voisin, lui, n'a aucune competence due : son examen reste
         // ouvert. Un verrou global aurait ferme les quatre.
         assertThat(bloc(vue, EpreuveType.TCF_CO).exam().locked()).isFalse();
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().lockReason()).isNull();
         // Et un examen verrouille ne prend jamais la main (D-1).
         assertThat(vue.current()).isNotNull();
         assertThat(vue.current().skillCode()).isEqualTo(competence.getCode());
+    }
+
+    @Test
+    @DisplayName("2026-09-26 — l'examen de production dont la gratuite est consommee est "
+            + "verrouille pour l'ACCES, pas pour la progression")
+    void lExamenDeProductionSansGratuiteEstVerrouillePourLAcces() {
+        JourneyStep examenEe = examStep(EpreuveType.TCF_EE, 1);
+        JourneyStep examenCo = examStep(EpreuveType.TCF_CO, 2);
+        when(productionAccessService.isProductionExamLocked(user.getId(), EpreuveType.TCF_EE))
+                .thenReturn(true);
+
+        JourneyDto vue = service.lire(journey, List.of(examenEe, examenCo));
+
+        // Aucune competence due dans le bloc EE : le seul verrou est commercial.
+        // C'est le cas ou « terminez vos competences » aurait ete faux.
+        JourneyStepDto ee = bloc(vue, EpreuveType.TCF_EE).exam();
+        assertThat(ee.locked()).isTrue();
+        assertThat(ee.lockReason()).isEqualTo(JourneyLockReason.ACCESS);
+        assertThat(bloc(vue, EpreuveType.TCF_CO).exam().lockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("2026-09-26 — quand les deux verrous se cumulent sur un examen, la "
+            + "PROGRESSION l'emporte")
+    void lesDeuxVerrousCumulesServentLaProgression() {
+        Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
+        JourneyStep entrainement = trainStep(competence, 1);
+        JourneyStep examenEe = examStep(EpreuveType.TCF_EE, 2);
+        abonneAvecSujets(competence);
+        when(productionAccessService.isProductionExamLocked(user.getId(), EpreuveType.TCF_EE))
+                .thenReturn(true);
+
+        JourneyDto vue = service.lire(journey, List.of(entrainement, examenEe));
+
+        assertThat(bloc(vue, EpreuveType.TCF_EE).exam().lockReason())
+                .isEqualTo(JourneyLockReason.PROGRESSION);
     }
 
     @Test

@@ -4610,7 +4610,9 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   est hors périmètre** : ses suppressions prévues par la spec sont annulées.
 - `app/_components/plan/PlanCycleSection.tsx` porte la zone : `CycleProgress`, un
   `BlocAccordion` par entrée de `blocs` (**un seul déplié**, le courant par défaut),
-  `JourneyRow` pour les étapes, `ExamStepBox` pour l'examen du bloc, puis `NextStepCard` et
+  `JourneyRow` pour les étapes, `ExamStepAction` pour l'examen du bloc (« Examen blanc » /
+  « Évaluez vos progrès » + bouton « Commencer » à droite, 2026-09-26 ; état lu sur `status`,
+  `locked` et `lockReason` servis), puis `NextStepCard` et
   ses deux actions quand `state === "CYCLE_COMPLETED"`.
 - 🛑 **La file plate est SUPPRIMÉE** : `JourneySection`, le « + N étapes », et les champs
   `journey.steps` / `hiddenUpcomingCount` avec elle. L'aperçu de l'Accueil lit
@@ -4624,7 +4626,8 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   (`HeroBanner` + `StatGrid` + un `BlocAccordion` par cycle terminé). ⚠️ **`/plan/evolution`
   et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs liens.
 - **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) : `CycleProgress`,
-  `BlocAccordion`, `ExamStepBox`, `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`.
+  `BlocAccordion`, `ExamStepBox` (historique), `ExamStepAction` (examen du cycle en cours),
+  `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`.
 
 
 ### Le plan civique passe sur le CYCLE (P8.7, D-50, 2026-09-20)

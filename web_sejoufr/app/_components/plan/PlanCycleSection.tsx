@@ -38,9 +38,12 @@ import {
     journeyCycleBadge,
     journeyCycleHint,
     journeyCycleLabel,
+    JOURNEY_EXAM_DONE,
+    JOURNEY_EXAM_START,
+    JOURNEY_EXAM_SUBTITLE,
+    JOURNEY_EXAM_TITLE,
+    journeyExamDone,
     journeyExamNote,
-    journeyExamState,
-    journeyExamTitle,
     journeyKind,
     journeyKitState,
     journeyCycleStepSubtitle,
@@ -61,7 +64,7 @@ import {
     Card,
     CycleProgress,
     Cta,
-    ExamStepBox,
+    ExamStepAction,
     InfoNote,
     JourneyList,
     JourneyRow,
@@ -84,7 +87,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  * 2. les **blocs d'épreuve** (`BlocAccordion`), un par entrée de `blocs`, **dans
  *    l'ordre servi**, le premier seul déplié ;
  * 3. dans chaque bloc : les **lignes d'étape** (`JourneyRow`) puis l'**encart
- *    d'examen** (`ExamStepBox`) ;
+ *    d'examen** (`ExamStepAction`) ;
  * 4. la **note** de liberté d'ordre (`InfoNote`) ;
  * 5. sur un cycle terminé : « Prochaine étape » et la **carte à deux actions**
  *    (`NextStepCard`).
@@ -382,6 +385,7 @@ function CycleBody({journey, plan, module}: {
                             >
                                 <BlocBody
                                     bloc={bloc}
+                                    examenLancable={module !== "CIVIQUE"}
                                     actionDe={actionDe}
                                     gesteDe={gesteDe}
                                     niveauDe={niveauDe}
@@ -441,11 +445,16 @@ function CycleBody({journey, plan, module}: {
  */
 function BlocBody({
     bloc,
+    examenLancable,
     actionDe,
     gesteDe,
     niveauDe,
 }: {
     bloc: JourneyBlocDto;
+    /** ⚠️ **Le cycle civique n'a pas de lanceur d'examen de thème** (A86) : son
+     *  étape d'examen ne porte donc pas de bouton « Commencer », qui serait
+     *  inactif sans raison. Le verrou, lui, reste dit. */
+    examenLancable: boolean;
     /** Le lancement d'une étape **ouverte** — c'est tout ce dont l'encart
      *  d'examen a besoin : verrouillé, il reste inerte et sa phrase servie dit
      *  ce qui l'ouvrira. */
@@ -469,12 +478,11 @@ function BlocBody({
                (`bloc.exam`), l'écran ne fait que le ranger. */
             exam={
                 bloc.exam && (
-                    <ExamStepBox
-                        title={journeyExamTitle(bloc.exam)}
-                        state={journeyExamState(bloc.exam)}
-                        note={journeyExamNote(bloc, bloc.exam)}
-                        locked={bloc.exam.locked}
-                        onClick={actionDe(bloc.exam)}
+                    <ExamStep
+                        exam={bloc.exam}
+                        lancable={examenLancable}
+                        actionDe={actionDe}
+                        gesteDe={gesteDe}
                     />
                 )
             }
@@ -504,6 +512,51 @@ function BlocBody({
                 );
             })}
         </JourneyList>
+    );
+}
+
+/**
+ * **L'étape d'examen d'un bloc** — « Examen blanc », « Évaluez vos progrès », et
+ * le bouton « Commencer » à droite (demande du propriétaire, 2026-09-26).
+ *
+ * 🛑 **Tout l'état est lu, rien n'est classé ici** : passé ⇐ `status` servi ;
+ * verrouillé ⇐ `locked` servi, et sa raison ⇐ `lockReason` servi. Le bouton est
+ * inactif dès que `actionDe` ne résout rien — verrou, action fermée ou
+ * lancement en cours.
+ *
+ * 🛑 **Le geste d'achat n'apparaît que sur un verrou d'ACCÈS** : un verrou de
+ * progression (D-15) ne se lève pas avec un pass, lui proposer l'offre serait
+ * mentir sur ce qui l'ouvrira.
+ */
+function ExamStep({exam, lancable, actionDe, gesteDe}: {
+    exam: JourneyStepDto;
+    lancable: boolean;
+    actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
+    gesteDe: (etape: JourneyStepDto) => {label: string; onClick: () => void} | undefined;
+}) {
+    if (journeyExamDone(exam)) {
+        return (
+            <ExamStepAction
+                title={JOURNEY_EXAM_TITLE}
+                subtitle={JOURNEY_EXAM_SUBTITLE}
+                trailing={{kind: "done", label: JOURNEY_EXAM_DONE}}
+            />
+        );
+    }
+    const action = lancable ? actionDe(exam) : undefined;
+    const achat = !action && (exam.locked ? exam.lockReason === "ACCESS" : lancable)
+        ? gesteDe(exam)
+        : undefined;
+    return (
+        <ExamStepAction
+            title={JOURNEY_EXAM_TITLE}
+            subtitle={JOURNEY_EXAM_SUBTITLE}
+            trailing={lancable
+                ? {kind: "start", label: JOURNEY_EXAM_START, locked: exam.locked, onClick: action}
+                : undefined}
+            note={journeyExamNote(exam)}
+            noteAction={achat}
+        />
     );
 }
 

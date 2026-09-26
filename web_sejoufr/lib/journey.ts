@@ -1,6 +1,5 @@
 import type {
     JourneyBlocRefDto,
-    JourneyBlocDto,
     JourneyBlocStatus,
     JourneyCycleDto,
     JourneyDto,
@@ -453,50 +452,46 @@ export function journeyBlocStatus(status: JourneyBlocStatus): {label: string; to
     }
 }
 
-/**
- * Le titre de l'encart d'examen d'un bloc.
+/* ------------------------------------------ l'étape d'examen d'un bloc ---
+ * 🛑 **Un seul rendu pour toutes les épreuves** (demande du propriétaire,
+ * 2026-09-26) : « Examen blanc », « Évaluez vos progrès », et le bouton à
+ * droite. Le nom de l'épreuve n'y est plus — l'en-tête du bloc le porte déjà —,
+ * et `purpose` (`INITIAL_ASSESSMENT` / `REASSESS`) ne change plus le titre.
  *
- * 🛑 **Deux intentions, un seul objet** : `INITIAL_ASSESSMENT` tant que
- * l'épreuve n'a jamais été mesurée, l'examen blanc ensuite. C'est `purpose` qui
- * tranche, jamais une déduction de l'état du bloc.
+ * ⚠️ **Registre : le vouvoiement**, celui de tout le Plan. Le propriétaire avait
+ * écrit « Évalue tes progrès ».
+ *
+ * Miroir mot pour mot de `kJourneyExam*` (`mobile .../screens/plan/journey_labels.dart`).
  */
-export function journeyExamTitle(exam: JourneyStepDto): string {
-    /* 🛑 LE NOM DU BLOC EST SERVI (D-47) : il vient de `bloc.label`, et il vaut
-       aussi bien « Compréhension orale » qu'une thématique civique. Il se lisait
-       dans `epreuveNom()`, qui ne connaît que les quatre épreuves du TCF. */
-    const nom = exam.bloc ? exam.bloc.label : "cette épreuve";
-    return exam.purpose === "INITIAL_ASSESSMENT"
-        ? `Évaluer mon niveau en ${nom.toLowerCase()}`
-        : `Examen blanc · ${nom}`;
+export const JOURNEY_EXAM_TITLE = "Examen blanc";
+export const JOURNEY_EXAM_SUBTITLE = "Évaluez vos progrès";
+export const JOURNEY_EXAM_START = "Commencer";
+export const JOURNEY_EXAM_DONE = "Fait";
+/** Verrou `PROGRESSION` (D-15) — le compte restant est déjà dans l'en-tête du bloc. */
+export const JOURNEY_EXAM_NOTE_PROGRESSION = "Terminez d'abord les étapes ci-dessus.";
+/** Verrou `ACCESS` — suivi du lien « Débloquer mon plan → ». */
+export const JOURNEY_EXAM_NOTE_ACCESS = "Réservé à l'offre complète.";
+
+/** L'examen est-il passé ? Lu sur le statut **servi**. */
+export function journeyExamDone(exam: JourneyStepDto): boolean {
+    return exam.status === "COMPLETED" || exam.status === "SKIPPED";
 }
 
-/** L'état de l'encart d'examen. Le verrou est **servi** (`locked`). */
-export function journeyExamState(exam: JourneyStepDto): {label: string; tone: BarTone} {
-    if (exam.status === "COMPLETED" || exam.status === "SKIPPED") {
-        return {label: "TERMINÉ", tone: "ok"};
+/**
+ * La phrase sous un bouton **inactif**. 🛑 Elle se lit sur `lockReason`
+ * **servi**, jamais sur un nombre de compétences restantes : c'est le serveur
+ * qui sait pourquoi l'examen est fermé. `undefined` quand il n'y a rien à dire.
+ */
+export function journeyExamNote(exam: JourneyStepDto): string | undefined {
+    if (journeyExamDone(exam) || !exam.locked) return undefined;
+    switch (exam.lockReason) {
+        case "PROGRESSION":
+            return JOURNEY_EXAM_NOTE_PROGRESSION;
+        case "ACCESS":
+            return JOURNEY_EXAM_NOTE_ACCESS;
+        default:
+            return undefined;
     }
-    return exam.locked
-        ? {label: "VERROUILLÉ", tone: "muted"}
-        : {label: "DISPONIBLE", tone: "now"};
-}
-
-/** La phrase de condition de l'encart d'examen. */
-export function journeyExamNote(bloc: JourneyBlocDto, exam: JourneyStepDto): string {
-    if (exam.status === "COMPLETED" || exam.status === "SKIPPED") {
-        return "Cet examen est passé : son résultat a servi à construire vos priorités.";
-    }
-    if (exam.locked) {
-        const reste = bloc.etapesRestantes;
-        /* 🛑 L'accord se fait sur TOUTE la phrase, article compris : « les
-           1 compétence … est terminée » se lisait comme une panne de gabarit. */
-        if (reste === 1) return "Disponible dès que la compétence de cette épreuve est terminée.";
-        return reste > 1
-            ? `Disponible dès que les ${reste} compétences de cette épreuve sont terminées.`
-            : "Disponible dès que les compétences de cette épreuve sont terminées.";
-    }
-    return bloc.etapesRestantes === 0 && bloc.steps.length === 0
-        ? "Aucune compétence à travailler avant : l'examen est la prochaine action de cette épreuve."
-        : "Les compétences de cette épreuve sont terminées : l'examen est la prochaine action.";
 }
 
 /**

@@ -2015,6 +2015,86 @@ export function ExamStepBox({
   );
 }
 
+/**
+ * Ce que l'étape d'examen porte **à droite** : un bouton de lancement, ou le
+ * constat qu'elle est passée.
+ *
+ * - `start` — le bouton. **Inactif sans `onClick`** ; `locked` ajoute le
+ *   cadenas. Le kit ne décide ni de l'un ni de l'autre.
+ * - `done` — une pastille cochée, sans geste.
+ */
+export type ExamStepTrailing =
+  | { kind: "start"; label: string; locked: boolean; onClick?: () => void }
+  | { kind: "done"; label: string };
+
+/**
+ * **L'étape d'examen d'un bloc de cycle** : titre et sous-titre à gauche, le
+ * bouton à droite (demande du propriétaire, 2026-09-26).
+ *
+ * 🛑 **Aucune phrase n'est écrite ici**, et aucun état n'est classé : le titre,
+ * le sous-titre, le libellé du bouton, la phrase de pied et son lien arrivent
+ * tous en props. Un bouton inactif se lit avec son cadenas **et** sa phrase de
+ * pied — jamais un bouton muet sans raison.
+ *
+ * ⚠️ Le bouton passe **sous** le texte quand la ligne ne tient plus (360 px) :
+ * `flex-wrap`, jamais une troncature.
+ *
+ * Miroir Flutter : `SfExamStepAction`. La brique voisine {@link ExamStepBox}
+ * reste celle de l'historique des cycles.
+ */
+export function ExamStepAction({
+  title,
+  subtitle,
+  trailing,
+  note,
+  noteAction,
+}: {
+  title: string;
+  subtitle: string;
+  trailing?: ExamStepTrailing;
+  /** Pourquoi le bouton est inactif, en une phrase courte. */
+  note?: string;
+  /** Le geste qui lève le verrou, sous la phrase de pied. */
+  noteAction?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className={cx(styles.examBox, styles.examAction)}>
+      <span className={styles.examActionRow}>
+        <span className={styles.examActionText}>
+          <b>{title}</b>
+          <span className={styles.examActionSub}>{subtitle}</span>
+        </span>
+        {trailing?.kind === "done" ? (
+          <span className={cx(styles.examActionDone, statusToneClass.ok)}>
+            <Check size={13} strokeWidth={2.6} aria-hidden />
+            {trailing.label}
+          </span>
+        ) : trailing ? (
+          <button
+            type="button"
+            className={styles.examActionBtn}
+            onClick={trailing.onClick}
+            disabled={!trailing.onClick}
+          >
+            {trailing.locked ? <Lock size={12} strokeWidth={2.4} aria-hidden /> : null}
+            {trailing.label}
+          </button>
+        ) : null}
+      </span>
+      {note || noteAction ? (
+        <span className={styles.examActionFoot}>
+          {note ? <span>{note}</span> : null}
+          {noteAction ? (
+            <button type="button" className={styles.jLink} onClick={noteAction.onClick}>
+              {noteAction.label}
+            </button>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 /** Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme. */
 export type NextStepFact = { value: string; label: string };
 

@@ -4296,8 +4296,9 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
 - **Le Plan change à PARTIR de cette section** (D-22) : `SfTop`, la bascule de parcours, le
   bloc objectif et « À faire maintenant » sont intacts, et **l'Accueil n'est pas touché**.
 - `screens/plan/widgets/plan_cycle_section.dart` : `SfCycleProgress`, un `SfBlocAccordion`
-  par bloc (**un seul déplié**), `SfJourneyRow` pour les étapes, `SfExamStepBox` pour
-  l'examen, `SfNextStepCard` et ses deux actions sur `JourneyState.cycleCompleted`
+  par bloc (**un seul déplié**), `SfJourneyRow` pour les étapes, `SfExamStepAction` pour
+  l'examen (« Examen blanc » / « Évaluez vos progrès » + bouton « Commencer » à droite,
+  2026-09-26 ; état lu sur `status`, `locked` et `lockReason` servis), `SfNextStepCard` et ses deux actions sur `JourneyState.cycleCompleted`
   (`refresh()` / `measurementCycle()` de `learning_plan_repository.dart`).
 - 🛑 **`_journeySection` et `plan_groups.dart` sont SUPPRIMÉS** (la file plate et le bloc
   « Vos priorités », qui redisait les blocs en moins précis — arbitrage du propriétaire),
@@ -4311,8 +4312,8 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   (`SfHeroBanner` + `SfStatGrid` + un `SfBlocAccordion` par cycle terminé, `mark` = le
   numéro). ⚠️ **`plan_progress_screen.dart`, `plan_evolution_screen.dart` et
   `AppRoutes.planEvolution` sont supprimés.**
-- **Primitives reçues par le kit** : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox`,
-  `SfNextStepCard`, `SfHeroBanner`, et `AppColors.blueMid` (miroir de `--color-blue-mid`,
+- **Primitives reçues par le kit** : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox`
+  (historique des cycles), `SfExamStepAction` (examen du cycle en cours), `SfNextStepCard`, `SfHeroBanner`, et `AppColors.blueMid` (miroir de `--color-blue-mid`,
   pour que le dégradé ait le même nombre d'arrêts des deux côtés).
 - 🛑 `lot`, `step`, `journey` ne s'affichent **jamais** (D-21) ; « cycle » vient des
   maquettes du propriétaire et reste.

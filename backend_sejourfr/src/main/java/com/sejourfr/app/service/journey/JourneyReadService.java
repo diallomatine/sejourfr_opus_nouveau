@@ -12,6 +12,7 @@ import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyBlocKind;
@@ -154,8 +155,12 @@ public class JourneyReadService {
     private final JourneySerieVerdict verdict;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
-    private record Etat(JourneyStep step, JourneyStepStatus status, boolean locked,
-                        JourneyStepDto.JourneyProgressDto progress) {}
+    private record Etat(JourneyStep step, JourneyStepStatus status, JourneyLockReason lockReason,
+                        JourneyStepDto.JourneyProgressDto progress) {
+        boolean locked() {
+            return lockReason != null;
+        }
+    }
 
     /**
      * Le parcours d'un candidat qui n'a <b>pas declare d'objectif</b> (arbitrage
@@ -221,11 +226,11 @@ public class JourneyReadService {
 
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
-            boolean locked = estVerrouillee(step, access, progressionExpression,
+            JourneyLockReason lockReason = raisonDuVerrou(step, access, progressionExpression,
                     examensDeProductionVerrouilles, blocsAvecTravailOuvert,
                     journey.getModule() == Module.CIVIQUE, accesCivique);
             etats.put(step.getId(), new Etat(step,
-                    statutHorsPromotion(step, toutesLesEtapes), locked,
+                    statutHorsPromotion(step, toutesLesEtapes), lockReason,
                     progression(step, progressionExpression, seriesParEtape)));
         }
 
@@ -259,7 +264,7 @@ public class JourneyReadService {
         if (courante != null) {
             Etat etat = etats.get(courante.getId());
             etats.put(courante.getId(), new Etat(etat.step(), JourneyStepStatus.CURRENT,
-                    etat.locked(), etat.progress()));
+                    etat.lockReason(), etat.progress()));
         }
 
         JourneyBlocResolver.Vue vue = blocResolver.lire(
@@ -510,17 +515,17 @@ public class JourneyReadService {
                 .filter(JourneyStep::estOuverte)
                 .toList();
         boolean civique = module == Module.CIVIQUE;
-        return estVerrouillee(
+        return raisonDuVerrou(
                 step,
                 accessService.resolve(userId),
                 progressionDesCompetencesDExpression(userId, ouvertes),
                 examensDeProductionVerrouilles(userId, ouvertes),
                 blocsAvecTravailOuvert(ouvertes),
                 civique,
-                civique && subscriptionService.hasCivique(userId));
+                civique && subscriptionService.hasCivique(userId)) != null;
     }
 
-    private boolean estVerrouillee(
+    private JourneyLockReason raisonDuVerrou(
             JourneyStep step,
             SkillAccessService.SkillAccess access,
             Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
@@ -529,50 +534,73 @@ public class JourneyReadService {
             boolean moduleCivique,
             boolean accesCivique) {
         return switch (step.getType()) {
-            case DIAGNOSTIC -> false;
+            case DIAGNOSTIC -> null;
             // 🛑 LA CLE EST LE BLOC, PAS L'EPREUVE (D-47). Un examen de theme
             // civique n'a pas d'`exam_type` : `Set.contains(null)` LEVE sur un
             // Set.of() immuable — un NullPointerException dans le chemin de
             // LECTURE du Plan, decouvert par le premier test civique.
-            case SECTION_EXAM -> blocsAvecTravailOuvert.contains(step.blocCode())
-                    || (step.getExamType() != null
-                            && examensDeProductionVerrouilles.contains(step.getExamType()));
-            case TRAIN_SKILL -> {
-                // 🛑 **UNE ETAPE CIVIQUE NE PORTE PAS DE COMPETENCE** : elle
-                // porte une UNITE officielle, et `poserUnite(...)` annule
-                // `skill` (exclusivite verrouillee en base par
-                // `chk_journey_step_train_skill`). Le `skill == null` juste en
-                // dessous la faisait donc sortir en `false` : le verrou
-                // existait cote serveur (D-33, le 403 de
-                // `demarrerSerieSurUnite`) mais n'etait **pas servi**.
-                //
-                // 🛑 **Le dispatch se fait sur le MODULE, pas sur la nullite de
-                // `skill`** : tester `skill == null` marcherait aujourd'hui,
-                // mais dirait « je ne sais pas de quoi je parle » -- et une
-                // etape TCF sans competence (cas impossible, mais que rien
-                // n'interdit d'ecrire demain) sortirait verrouillee par
-                // accident.
-                if (moduleCivique) yield !accesCivique;
-                Skill skill = step.getSkill();
-                if (skill == null) yield false;
-                if (access.isSkillLocked(skill.getId())) yield true;
-                if (skill.getSection() != null && skill.getSection().isComprehension()) {
-                    // Une serie ciblee n'a pas de plafond interne : competence
-                    // ouverte ⇒ etape finissable.
-                    yield false;
+            //
+            // 🛑 LE VERROU PEDAGOGIQUE L'EMPORTE quand les deux se cumulent : c'est
+            // la condition a remplir d'abord, et les etapes du bloc portent deja
+            // leur propre verrou d'acces.
+            case SECTION_EXAM -> {
+                if (blocsAvecTravailOuvert.contains(step.blocCode())) {
+                    yield JourneyLockReason.PROGRESSION;
                 }
-                // 🛑 Expression : l'etape n'est finissable que si le candidat a
-                // acces a TOUS ses sujets. Un compte gratuit plafonne a 2 sur 5
-                // et ne la clot donc jamais — c'est un arbitrage produit, pas un
-                // bug, et D-1 en tire la consequence : elle reste affichee,
-                // cadenassee, et ne prend pas la main.
-                SkillProgressCounter.SkillProgress progress = progressionExpression.get(skill.getId());
-                if (progress == null) yield false;
-                List<UUID> sujets = progress.step().promptIds();
-                if (sujets.isEmpty()) yield false;
-                yield sujets.stream().anyMatch(access::isPromptLocked);
+                yield step.getExamType() != null
+                        && examensDeProductionVerrouilles.contains(step.getExamType())
+                        ? JourneyLockReason.ACCESS
+                        : null;
             }
+            // Sur une etape d'entrainement, le verrou est TOUJOURS commercial.
+            case TRAIN_SKILL -> acces(verrouDAcces(step, access, progressionExpression,
+                    moduleCivique, accesCivique));
         };
+    }
+
+    private static JourneyLockReason acces(boolean verrouille) {
+        return verrouille ? JourneyLockReason.ACCESS : null;
+    }
+
+    private static boolean verrouDAcces(
+            JourneyStep step,
+            SkillAccessService.SkillAccess access,
+            Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression,
+            boolean moduleCivique,
+            boolean accesCivique) {
+        // 🛑 **UNE ETAPE CIVIQUE NE PORTE PAS DE COMPETENCE** : elle
+        // porte une UNITE officielle, et `poserUnite(...)` annule
+        // `skill` (exclusivite verrouillee en base par
+        // `chk_journey_step_train_skill`). Le `skill == null` juste en
+        // dessous la faisait donc sortir en `false` : le verrou
+        // existait cote serveur (D-33, le 403 de
+        // `demarrerSerieSurUnite`) mais n'etait **pas servi**.
+        //
+        // 🛑 **Le dispatch se fait sur le MODULE, pas sur la nullite de
+        // `skill`** : tester `skill == null` marcherait aujourd'hui,
+        // mais dirait « je ne sais pas de quoi je parle » -- et une
+        // etape TCF sans competence (cas impossible, mais que rien
+        // n'interdit d'ecrire demain) sortirait verrouillee par
+        // accident.
+        if (moduleCivique) return !accesCivique;
+        Skill skill = step.getSkill();
+        if (skill == null) return false;
+        if (access.isSkillLocked(skill.getId())) return true;
+        if (skill.getSection() != null && skill.getSection().isComprehension()) {
+            // Une serie ciblee n'a pas de plafond interne : competence
+            // ouverte ⇒ etape finissable.
+            return false;
+        }
+        // 🛑 Expression : l'etape n'est finissable que si le candidat a
+        // acces a TOUS ses sujets. Un compte gratuit plafonne a 2 sur 5
+        // et ne la clot donc jamais — c'est un arbitrage produit, pas un
+        // bug, et D-1 en tire la consequence : elle reste affichee,
+        // cadenassee, et ne prend pas la main.
+        SkillProgressCounter.SkillProgress progress = progressionExpression.get(skill.getId());
+        if (progress == null) return false;
+        List<UUID> sujets = progress.step().promptIds();
+        if (sujets.isEmpty()) return false;
+        return sujets.stream().anyMatch(access::isPromptLocked);
     }
 
     /**
@@ -1100,6 +1128,7 @@ public class JourneyReadService {
                 step.getPosition(),
                 etat.progress(),
                 etat.locked(),
+                etat.lockReason(),
                 mesureDe(step),
                 exerciceDe(step, exercices));
     }

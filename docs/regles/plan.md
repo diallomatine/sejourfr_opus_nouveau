@@ -2236,6 +2236,31 @@ plus les étapes restantes en `SUPERSEDED` — **il ne valide rien** et compte c
 entraînement. Le travail prévu reste dû. `SUPERSEDED` garde ses autres emplois (un lot **en
 attente**, jamais montré, remplacé par une évaluation plus récente).
 
+### L'étape d'examen d'un bloc : un rendu, et la RAISON du verrou servie (2026-09-26)
+
+Demande du propriétaire, web et mobile : l'étape d'examen de **chaque** bloc se lit
+« **Examen blanc** » / « **Évaluez vos progrès** » (vouvoiement du Plan ; le propriétaire
+avait écrit « évalue tes progrès »), avec un bouton « **Commencer** » à droite. Le nom de
+l'épreuve n'y figure plus (l'en-tête du bloc le porte) et `purpose` ne change plus le titre.
+Kit : `ExamStepAction` ⇄ `SfExamStepAction` ; libellés `JOURNEY_EXAM_*` ⇄ `kJourneyExam*`.
+
+| État servi | Rendu |
+|---|---|
+| `status` `COMPLETED` / `SKIPPED` | pastille « ✓ FAIT », aucun bouton |
+| ouvert, action résolue | « Commencer » actif — même lanceur que la carte « À faire maintenant » |
+| `lockReason = PROGRESSION` | « 🔒 Commencer » inactif + « Terminez d'abord les étapes ci-dessus. » |
+| `lockReason = ACCESS` | « 🔒 Commencer » inactif + « Réservé à l'offre complète. » + « Débloquer mon plan → » |
+
+🛑 **`JourneyStepDto.lockReason`** (`PROGRESSION` / `ACCESS`, `null` ⇔ `locked` faux) est
+calculé **au même endroit** que `locked` (`JourneyReadService.raisonDuVerrou`). Avant lui,
+l'examen de bloc cumulait sous un seul booléen le verrou D-15 et le verrou d'accès D-17 bis,
+et un front disait « terminez vos compétences » à un candidat qui n'en avait plus. Les deux
+cumulés ⇒ `PROGRESSION` (la condition à remplir d'abord). Une étape d'entraînement
+verrouillée est toujours `ACCESS`. Un front ne classe **jamais** le verrou d'après
+`etapesRestantes`. ⚠️ **« En cours / Reprendre » n'existe pas** : aucun champ ne sert une
+tentative d'examen en cours sur l'étape. ⚠️ **Le cycle CIVIQUE** reçoit le même rendu, **sans**
+bouton : il n'a aucun lanceur d'examen de thème depuis le cycle (A86), seul le verrou est dit.
+
 ### Trois statuts de cycle, et un seul est persisté
 
 `journey.status` ∈ `EN_COURS` / `EN_ATTENTE` / `HISTORISE`, **un seul de chaque par

@@ -4820,6 +4820,13 @@ export type JourneyStepStatus =
      *  figure pas dans `steps`. */
     | "OBSOLETE";
 
+/** Pourquoi une étape est verrouillée. Miroir de `JourneyLockReason` (Java). */
+export type JourneyLockReason =
+    /** Une étape du **même bloc** reste à faire (D-15). Un pass ne la lève pas. */
+    | "PROGRESSION"
+    /** L'accès du candidat ne permet pas de la mener à son terme. */
+    | "ACCESS";
+
 /** En quoi se compte l'avancement d'une étape d'entraînement. **Servi.** */
 export type JourneyProgressUnit =
     /** Les petits sujets de l'étape — expression. */
@@ -4928,6 +4935,16 @@ export interface JourneyStepDto {
      * `free || locked`, jamais sur le statut.
      */
     locked: boolean;
+    /**
+     * **Pourquoi** l'étape est verrouillée — `null` si et seulement si
+     * `locked` est faux. Miroir de `JourneyLockReason` (Java).
+     *
+     * 🛑 **Servi, jamais deviné** (2026-09-26) : l'examen d'un bloc cumule le
+     * verrou pédagogique (D-15) et le verrou d'accès (D-17 bis). Absent sur un
+     * backend antérieur au champ : l'écran retombe alors sur un bouton inactif
+     * sans phrase.
+     */
+    lockReason?: JourneyLockReason | null;
     /**
      * **Par quoi mesurer cette épreuve** — l'action que la carte lance, non
      * `null` pour les seules étapes `SECTION_EXAM`.

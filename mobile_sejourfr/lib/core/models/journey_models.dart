@@ -120,6 +120,28 @@ enum JourneyProgressUnit {
   }
 }
 
+/// **Pourquoi** une étape est verrouillée. Miroir de `JourneyLockReason` (Java)
+/// et de `JourneyLockReason` (`web_sejoufr/lib/types.ts`).
+enum JourneyLockReason {
+  /// Une étape du **même bloc** reste à faire (D-15). Un pass ne la lève pas.
+  progression('PROGRESSION'),
+
+  /// L'accès du candidat ne permet pas de la mener à son terme.
+  access('ACCESS');
+
+  const JourneyLockReason(this.wire);
+
+  final String wire;
+
+  static JourneyLockReason? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final reason in JourneyLockReason.values) {
+      if (reason.wire == value) return reason;
+    }
+    return null;
+  }
+}
+
 /// L'état d'ensemble du parcours. Le front le **lit** pour choisir quelle carte
 /// montrer ; il ne le déduit ni du nombre d'étapes, ni de la nullité de
 /// [Journey.current].
@@ -305,6 +327,7 @@ class JourneyStep {
     required this.status,
     required this.position,
     required this.locked,
+    this.lockReason,
     this.purpose,
     this.bloc,
     this.unite,
@@ -371,6 +394,15 @@ class JourneyStep {
   /// `free || locked`, jamais sur le statut.
   final bool locked;
 
+  /// **Pourquoi** l'étape est verrouillée — `null` si et seulement si [locked]
+  /// est faux.
+  ///
+  /// 🛑 **Servi, jamais deviné** (2026-09-26) : l'examen d'un bloc cumule le
+  /// verrou pédagogique (D-15) et le verrou d'accès (D-17 bis). Absent sur un
+  /// backend antérieur au champ : l'écran retombe alors sur un bouton inactif
+  /// sans phrase.
+  final JourneyLockReason? lockReason;
+
   /// **Par quoi mesurer cette épreuve** — l'action que la carte lance, non
   /// `null` pour les seules étapes [JourneyStepType.sectionExam].
   ///
@@ -424,6 +456,8 @@ class JourneyStep {
             ? null
             : JourneyProgress.fromJson(json['progress'] as Map<String, dynamic>),
         locked: json['locked'] as bool? ?? false,
+        lockReason:
+            JourneyLockReason.fromWireNullable(json['lockReason'] as String?),
         assessment: json['assessment'] == null
             ? null
             : PlanDomainAssessment.fromJson(

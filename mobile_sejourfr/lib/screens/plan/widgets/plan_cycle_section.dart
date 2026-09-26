@@ -44,7 +44,7 @@ import '../plan_now_card.dart';
 /// 2. les **blocs d'épreuve** ([SfBlocAccordion]), un par entrée de `blocs`,
 ///    **dans l'ordre servi**, le premier seul déplié ;
 /// 3. dans chaque bloc : les **lignes d'étape** ([SfJourneyRow]) puis l'**encart
-///    d'examen** ([SfExamStepBox]) ;
+///    d'examen** ([SfExamStepAction]) ;
 /// 4. la **note** de liberté d'ordre ([SfInfoNote]) ;
 /// 5. sur un cycle terminé : « Prochaine étape » et la **carte à deux actions**
 ///    ([SfNextStepCard]).
@@ -258,16 +258,53 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       // 🛑 L'examen est la DERNIERE etape de la file, sur le rail et avec sa
       // pastille « ◎ » : c'est la maquette. Il reste servi a part
       // (`bloc.exam`), l'ecran ne fait que le ranger.
-      exam: exam == null
-          ? null
-          : SfExamStepBox(
-              title: journeyExamTitle(exam),
-              state: journeyExamState(exam),
-              note: journeyExamNote(bloc, exam),
-              locked: exam.locked,
-              onTap: _actionDe(exam),
-            ),
+      exam: exam == null ? null : _examen(exam),
       children: [for (final step in bloc.steps) _ligne(step)],
+    );
+  }
+
+  /// **L'étape d'examen d'un bloc** — « Examen blanc », « Évaluez vos
+  /// progrès », et le bouton « Commencer » à droite (demande du propriétaire,
+  /// 2026-09-26).
+  ///
+  /// 🛑 **Tout l'état est lu, rien n'est classé ici** : passé ⇐ `status`
+  /// servi ; verrouillé ⇐ `locked` servi, et sa raison ⇐ `lockReason` servi. Le
+  /// bouton est inactif dès que [_actionDe] ne résout rien.
+  ///
+  /// 🛑 **Le geste d'achat n'apparaît que sur un verrou d'ACCÈS** : un verrou de
+  /// progression (D-15) ne se lève pas avec un pass.
+  ///
+  /// ⚠️ **Le cycle civique n'a pas de lanceur d'examen de thème** (A86) : son
+  /// étape d'examen ne porte donc pas de bouton, qui serait inactif sans
+  /// raison. Le verrou, lui, reste dit.
+  Widget _examen(JourneyStep exam) {
+    if (journeyExamDone(exam)) {
+      return const SfExamStepAction(
+        title: kJourneyExamTitle,
+        subtitle: kJourneyExamSubtitle,
+        trailing: SfExamStepDone(label: kJourneyExamDone),
+      );
+    }
+    final lancable = widget.module != AppModule.civique;
+    final action = lancable ? _actionDe(exam) : null;
+    final achat = action == null &&
+            (exam.locked
+                ? exam.lockReason == JourneyLockReason.access
+                : lancable)
+        ? _gesteDe(exam)
+        : null;
+    return SfExamStepAction(
+      title: kJourneyExamTitle,
+      subtitle: kJourneyExamSubtitle,
+      trailing: lancable
+          ? SfExamStepStart(
+              label: kJourneyExamStart,
+              locked: exam.locked,
+              onTap: action,
+            )
+          : null,
+      note: journeyExamNote(exam),
+      noteAction: achat,
     );
   }
 
@@ -302,9 +339,9 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// 🛑 **Sur une étape d'entraînement, `locked` est TOUJOURS commercial** —
   /// `JourneyReadService` §5 bis le pose depuis `SkillAccessService`, et
   /// `JourneyBloc.steps` ne porte que des étapes d'entraînement (l'examen est
-  /// servi à part, dans `bloc.exam`). Le seul verrou **pédagogique** du cycle
-  /// est celui d'un examen de bloc, et il garde son encart muet : sa phrase
-  /// servie dit déjà ce qui l'ouvrira, et ce n'est pas un pass.
+  /// servi à part, dans `bloc.exam`). L'examen de bloc, lui, cumule un verrou
+  /// **pédagogique** et un verrou d'accès : c'est `lockReason` servi qui les
+  /// sépare, et seul le second porte le geste d'achat (cf. [_examen]).
   /// La porte unique vers l'offre, depuis le cycle — quel que soit le module.
   void _versEcranDeDeblocage(BuildContext context) => context.push(
         AppRoutes.planUnlockPath(civique: widget.module == AppModule.civique),

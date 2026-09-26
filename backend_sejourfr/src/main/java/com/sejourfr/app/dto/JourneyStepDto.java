@@ -1,6 +1,7 @@
 package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepStatus;
@@ -89,6 +90,16 @@ public record JourneyStepDto(
          * {@code LOCKED} — ce champ, et lui seul, dit qu'on ne lance rien.
          */
         boolean locked,
+        /**
+         * <b>Pourquoi</b> l'etape est verrouillee : {@code PROGRESSION} (D-15,
+         * une etape du meme bloc reste a faire) ou {@code ACCESS} (l'acces du
+         * candidat). {@code null} si et seulement si {@link #locked()} est faux.
+         *
+         * <p>🛑 Quand les deux s'appliquent a un examen de bloc,
+         * {@code PROGRESSION} l'emporte : c'est la condition a remplir d'abord,
+         * et les etapes du bloc portent deja leur propre verrou d'acces.
+         */
+        JourneyLockReason lockReason,
         /**
          * <b>Par quoi mesurer cette epreuve</b> — l'action que la carte lance,
          * non {@code null} pour les seules etapes {@code SECTION_EXAM}.
