@@ -155,6 +155,7 @@ function PlanEtapeScoped() {
         <SejourApp>
             <Top
                 backTo={planHref(parcours)}
+                keepMenu
                 title={journeyEtapeTitle(detail)}
                 lead={detail ? journeyEtapeObjectif(detail.objectif) ?? undefined : undefined}
             />
