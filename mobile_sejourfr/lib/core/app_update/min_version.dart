@@ -75,12 +75,12 @@ class StoreLinks {
 
   static String get appStore => Env.read(
         'IOS_APP_STORE_URL',
-        fallback: 'https://apps.apple.com/fr/search?term=SejourFR',
+        fallback: 'https://apps.apple.com/us/app/sejourfr/id6771509569?l=fr-FR',
       );
 
   static String get playStore => Env.read(
         'ANDROID_PLAY_STORE_URL',
         fallback:
-            'https://play.google.com/store/apps/details?id=com.sejourfr.app',
+            'https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr',
       );
 }
