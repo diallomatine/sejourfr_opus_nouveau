@@ -68,4 +68,18 @@ public interface UserSubscriptionRepository
             WHERE s.id = :id AND s.realtimeEoSessionsRemaining > 0
             """)
     int decrementRealtimeSessions(@Param("id") UUID id);
+
+    /**
+     * Ajustement admin du solde EO temps réel. UPDATE en masse, comme le débit :
+     * il ne passe pas par le {@code @PreUpdate} de l'entité, donc {@code updated_at}
+     * (colonne « Maj » de la console) n'avance pas — offrir des sessions n'est pas
+     * un changement de l'abonnement. Renvoie le nombre de lignes affectées.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            UPDATE UserSubscription s
+            SET s.realtimeEoSessionsRemaining = :remaining
+            WHERE s.id = :id
+            """)
+    int setRealtimeSessions(@Param("id") UUID id, @Param("remaining") int remaining);
 }

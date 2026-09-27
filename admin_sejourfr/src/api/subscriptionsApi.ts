@@ -14,6 +14,7 @@ export const subscriptionsApi = {
         status: filters.status,
         moduleAccess: filters.moduleAccess,
         search: filters.search,
+        purchasedMonth: filters.purchasedMonth,
         page: filters.page,
         size: filters.size,
       },

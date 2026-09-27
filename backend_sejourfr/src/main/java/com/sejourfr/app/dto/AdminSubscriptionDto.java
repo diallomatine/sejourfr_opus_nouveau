@@ -29,6 +29,7 @@ public record AdminSubscriptionDto(
         Instant startsAt,
         Instant endsAt,
         Instant updatedAt,
+        Instant purchasedAt,
         UUID planId,
         String planCode,
         String planName,

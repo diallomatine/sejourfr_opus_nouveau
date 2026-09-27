@@ -94,6 +94,50 @@ function formatDateTime(iso: string | null | undefined): string {
   });
 }
 
+const PARIS = "Europe/Paris";
+
+/** Date d'achat lue en heure de Paris : le filtre mensuel du serveur découpe les mois ainsi. */
+function formatPurchase(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("fr-FR", {
+    timeZone: PARIS,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const MONTH_OPTIONS_COUNT = 24;
+
+/**
+ * Les 24 derniers mois civils (Paris), le plus récent en tête, au format du
+ * paramètre serveur `yyyy-MM`. Un mois plus ancien arrivé par l'URL reste
+ * sélectionné : il est ajouté en fin de liste plutôt qu'ignoré.
+ */
+function monthOptions(selected: string | undefined): { value: string; label: string }[] {
+  const [y, m] = new Intl.DateTimeFormat("en-CA", { timeZone: PARIS, year: "numeric", month: "2-digit" })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+  const values: string[] = [];
+  for (let i = 0; i < MONTH_OPTIONS_COUNT; i++) {
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    values.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  if (selected && !values.includes(selected)) values.push(selected);
+  return values.map((value) => {
+    const [vy, vm] = value.split("-").map(Number);
+    const label = new Date(Date.UTC(vy, vm - 1, 1)).toLocaleDateString("fr-FR", {
+      timeZone: "UTC",
+      month: "long",
+      year: "numeric",
+    });
+    return { value, label };
+  });
+}
+
 function formatPrice(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return new Intl.NumberFormat("fr-FR", {
@@ -214,6 +258,24 @@ export function SubscriptionsPage() {
             </Select>
           </div>
 
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel} htmlFor="sub-filter-month">
+              Achats du mois
+            </label>
+            <Select
+              id="sub-filter-month"
+              value={filters.purchasedMonth ?? ""}
+              onChange={(e) => setFilter("purchasedMonth", e.target.value || undefined)}
+            >
+              <option value="">Tous les mois</option>
+              {monthOptions(filters.purchasedMonth).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
           <div className={`${styles.filterGroup} ${styles.searchGroup}`}>
             <label className={styles.filterLabel} htmlFor="sub-filter-search">
               Recherche (email ou nom)
@@ -300,6 +362,7 @@ export function SubscriptionsPage() {
                     <th>Plan</th>
                     <th>Source</th>
                     <th>Statut</th>
+                    <th>Achat</th>
                     <th>Échéance</th>
                     <th>Maj</th>
                     <th></th>
@@ -340,6 +403,9 @@ export function SubscriptionsPage() {
                             <div className={styles.cancelHint}>auto-renew off</div>
                           )}
                         </div>
+                      </td>
+                      <td data-label="Achat" className={styles.dateCell}>
+                        {formatPurchase(sub.purchasedAt)}
                       </td>
                       <td data-label="Échéance">{formatDate(sub.endsAt)}</td>
                       <td data-label="Maj" className={styles.dateCell}>
@@ -556,6 +622,13 @@ function SubscriptionDetailModal({
           <span className={styles.detailSub}>
             {sub.autoRenew ? "Auto-renouvellement actif" : "Pas de renouvellement"}
           </span>
+        </DetailRow>
+
+        <DetailRow label="Date d'achat (Paris)">
+          {formatPurchase(sub.purchasedAt)}
+          {!sub.purchasedAt && (
+            <span className={styles.detailSub}>Achat antérieur à la mesure : date inconnue</span>
+          )}
         </DetailRow>
 
         <DetailRow label="Début">

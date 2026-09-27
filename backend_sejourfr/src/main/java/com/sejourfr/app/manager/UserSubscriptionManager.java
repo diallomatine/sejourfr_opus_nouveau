@@ -83,6 +83,14 @@ public class UserSubscriptionManager {
     }
 
     /**
+     * Pose le solde EO temps réel sans faire avancer {@code updated_at} (cf.
+     * repository). Renvoie {@code false} si la souscription n'existe pas.
+     */
+    public boolean setRealtimeSessions(UUID subscriptionId, int remaining) {
+        return repository.setRealtimeSessions(subscriptionId, remaining) > 0;
+    }
+
+    /**
      * Recherche paginée par {@link Specification} — utilisée par l'admin pour
      * combiner filtres source/status/module/search.
      */

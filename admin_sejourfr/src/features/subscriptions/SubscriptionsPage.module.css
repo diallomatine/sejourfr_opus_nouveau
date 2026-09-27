@@ -9,15 +9,26 @@
 
 .filtersBar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 2fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) 2fr;
   gap: 16px;
   padding: 16px 20px;
   align-items: end;
 }
 
+@media (max-width: 1200px) {
+  .filtersBar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .filtersBar .searchGroup {
+    grid-column: span 2;
+  }
+}
 @media (max-width: 900px) {
   .filtersBar {
     grid-template-columns: 1fr 1fr;
+  }
+  .filtersBar .searchGroup {
+    grid-column: 1 / -1;
   }
 }
 @media (max-width: 560px) {

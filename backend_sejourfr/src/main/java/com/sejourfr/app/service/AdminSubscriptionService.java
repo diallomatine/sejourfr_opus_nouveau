@@ -11,6 +11,7 @@ import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.mapper.UserSubscriptionMapper;
 import com.sejourfr.app.specification.UserSubscriptionSpecifications;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,11 +19,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.YearMonth;
 import java.util.UUID;
 
 /**
  * Service admin pour la liste paginée des UserSubscription. Pagination, filtres
- * (source / status / moduleAccess) et recherche (email, prénom, nom) sont tous
+ * (source / status / moduleAccess / mois d'achat) et recherche (email, prénom, nom) sont tous
  * appliqués dans la requête SQL. Tri : plus récentes en tête (updatedAt desc),
  * départagées par l'id — sans ce second critère, deux lignes au même
  * {@code updated_at} (import, backfill) pouvaient apparaître sur deux pages ou
@@ -32,6 +34,7 @@ import java.util.UUID;
  * ({@code @EntityGraph} du repository) : une page coûte deux requêtes (contenu +
  * total), quel que soit le nombre de lignes.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -49,6 +52,7 @@ public class AdminSubscriptionService {
             SubscriptionStatus status,
             ModuleAccess moduleAccess,
             String search,
+            YearMonth purchasedMonth,
             int page,
             int size) {
 
@@ -59,7 +63,8 @@ public class AdminSubscriptionService {
                 .where(UserSubscriptionSpecifications.hasSource(source))
                 .and(UserSubscriptionSpecifications.hasStatus(status))
                 .and(UserSubscriptionSpecifications.hasModuleAccess(moduleAccess))
-                .and(UserSubscriptionSpecifications.userSearch(search));
+                .and(UserSubscriptionSpecifications.userSearch(search))
+                .and(UserSubscriptionSpecifications.purchasedIn(purchasedMonth));
 
         Page<UserSubscription> result = userSubscriptionManager.findAll(
                 spec, PageRequest.of(safePage, safeSize, ORDER));
@@ -70,14 +75,21 @@ public class AdminSubscriptionService {
     /**
      * Pose le solde de sessions EO temps réel d'une souscription (support :
      * offrir / corriger des sessions). Renvoie la souscription mise à jour.
+     * Écriture ciblée : {@code updated_at} (« Maj ») ne bouge pas, ce n'est pas
+     * un changement de l'abonnement. Aucun journal d'audit admin n'existe : la
+     * trace est la ligne de log.
      */
     @Transactional
     public AdminSubscriptionDto setRealtimeSessions(UUID subscriptionId, int remaining) {
+        int solde = Math.max(0, remaining);
+        if (!userSubscriptionManager.setRealtimeSessions(subscriptionId, solde)) {
+            throw new NotFoundException("Souscription introuvable : " + subscriptionId);
+        }
+        log.info("Solde EO temps réel ajusté par un admin : subscription={} solde={}",
+                subscriptionId, solde);
         UserSubscription sub = userSubscriptionManager.findById(subscriptionId)
                 .orElseThrow(() -> new NotFoundException(
                         "Souscription introuvable : " + subscriptionId));
-        sub.setRealtimeEoSessionsRemaining(Math.max(0, remaining));
-        userSubscriptionManager.save(sub);
         return userSubscriptionMapper.toAdminDto(sub);
     }
 }

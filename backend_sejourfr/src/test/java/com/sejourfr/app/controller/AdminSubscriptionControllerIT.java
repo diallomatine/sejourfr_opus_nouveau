@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
@@ -30,6 +31,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -225,10 +227,104 @@ class AdminSubscriptionControllerIT extends AbstractIntegrationTest {
         statistics.setStatisticsEnabled(true);
         statistics.clear();
 
-        var page = service.list(null, null, null, null, 0, 5);
+        var page = service.list(null, null, null, null, null, 0, 5);
 
         assertThat(page.content()).hasSize(5);
         assertThat(new HashSet<>(page.content().stream().map(d -> d.userEmail()).toList())).hasSize(5);
         assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+    }
+
+    private void poserAchat(UserSubscription s, Instant purchasedAt) {
+        entityManager.createNativeQuery("UPDATE user_subscriptions SET purchased_at = :t WHERE id = :id")
+                .setParameter("t", purchasedAt)
+                .setParameter("id", s.getId())
+                .executeUpdate();
+    }
+
+    /**
+     * Mois de mars 2026 en heure de Paris : [2026-02-28T23:00Z, 2026-03-31T22:00Z[
+     * (passage à l'heure d'été le 29). Chaque borne est testée des deux côtés ; un
+     * filtre en UTC classerait la première ligne en février et la dernière en mars.
+     * Une ligne sans {@code purchased_at} n'appartient à aucun mois.
+     */
+    @Test
+    void filtreParMoisDAchat_bornesEnHeureDeParis() throws Exception {
+        Instant t = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        UserSubscription premierInstant = sub(SubscriptionSource.STRIPE, t);
+        UserSubscription veille = sub(SubscriptionSource.STRIPE, t.minusSeconds(1));
+        UserSubscription dernierInstant = sub(SubscriptionSource.STRIPE, t.minusSeconds(2));
+        UserSubscription lendemain = sub(SubscriptionSource.STRIPE, t.minusSeconds(3));
+        sub(SubscriptionSource.STRIPE, t.minusSeconds(4));
+        poserAchat(premierInstant, Instant.parse("2026-02-28T23:00:00Z"));
+        poserAchat(veille, Instant.parse("2026-02-28T22:59:59Z"));
+        poserAchat(dernierInstant, Instant.parse("2026-03-31T21:59:59Z"));
+        poserAchat(lendemain, Instant.parse("2026-03-31T22:00:00Z"));
+
+        JsonNode mars = list("purchasedMonth", "2026-03", "size", "10");
+        JsonNode fevrier = list("purchasedMonth", "2026-02", "size", "10");
+        JsonNode tous = list("size", "10");
+
+        assertThat(ids(mars)).containsExactly(
+                premierInstant.getId().toString(), dernierInstant.getId().toString());
+        assertThat(mars.get("totalElements").asLong()).isEqualTo(2);
+        assertThat(mars.get("content").get(0).get("purchasedAt").asString())
+                .isEqualTo("2026-02-28T23:00:00Z");
+        assertThat(ids(fevrier)).containsExactly(veille.getId().toString());
+        assertThat(tous.get("totalElements").asLong()).isEqualTo(5);
+    }
+
+    @Test
+    void filtreParMois_paginationRespectee() throws Exception {
+        Instant t = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        for (int i = 0; i < 3; i++) {
+            poserAchat(sub(SubscriptionSource.STRIPE, t.minusSeconds(i)), Instant.parse("2026-05-10T10:00:00Z"));
+        }
+        poserAchat(sub(SubscriptionSource.STRIPE, t), Instant.parse("2026-06-10T10:00:00Z"));
+
+        JsonNode page = list("purchasedMonth", "2026-05", "page", "1", "size", "2");
+
+        assertThat(page.get("totalElements").asLong()).isEqualTo(3);
+        assertThat(page.get("totalPages").asInt()).isEqualTo(2);
+        assertThat(page.get("content")).hasSize(1);
+    }
+
+    @Test
+    void moisIllisible_400() throws Exception {
+        mockMvc.perform(get(URL).param("purchasedMonth", "2026-13")
+                        .header(HttpHeaders.AUTHORIZATION, bearer))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * Offrir ou corriger des sessions EO n'est pas un changement de l'abonnement :
+     * la colonne « Maj » (updated_at) ne bouge pas, le solde, lui, change.
+     */
+    @Test
+    void ajustementAdminDuSoldeEo_neFaitPasAvancerUpdatedAt() throws Exception {
+        Instant repere = Instant.parse("2026-01-15T08:00:00Z");
+        UserSubscription s = sub(SubscriptionSource.STRIPE, repere);
+
+        mockMvc.perform(patch(URL + "/" + s.getId() + "/realtime-sessions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"remaining\": 7}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.realtimeEoSessionsRemaining").value(7))
+                .andExpect(jsonPath("$.updatedAt").value("2026-01-15T08:00:00Z"));
+        entityManager.flush();
+        entityManager.clear();
+
+        UserSubscription relu = repository.findById(s.getId()).orElseThrow();
+        assertThat(relu.getRealtimeEoSessionsRemaining()).isEqualTo(7);
+        assertThat(relu.getUpdatedAt()).isEqualTo(repere);
+    }
+
+    @Test
+    void ajustementAdminDuSoldeEo_souscriptionInconnue_404() throws Exception {
+        mockMvc.perform(patch(URL + "/" + java.util.UUID.randomUUID() + "/realtime-sessions")
+                        .header(HttpHeaders.AUTHORIZATION, bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"remaining\": 3}"))
+                .andExpect(status().isNotFound());
     }
 }

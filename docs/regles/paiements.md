@@ -276,10 +276,20 @@ réellement émis.
   2026-09-25, remplacé par les scénarios `PREMIUM_ENDING_*` du système d'emails). Les lignes
   qu'il a touchées avant cette date gardent un `updated_at` ≈ `expiry_reminded_at` (09:00) :
   historique, pas réécrit.
-- Le débit d'une simulation orale (`decrementRealtimeSessions`) est un `UPDATE` en masse qui
-  ne passe pas par le `@PreUpdate` : il ne fait pas avancer `updated_at`
-  (`UserSubscriptionManagerIT`). ⚠️ L'**ajustement admin** du solde
-  (`PATCH …/realtime-sessions`), lui, le fait avancer : c'est une sauvegarde d'entité.
+- Le solde de sessions EO temps réel n'est **pas** un changement de l'abonnement. Ses deux
+  écritures sont des `UPDATE` en masse ciblés, qui ne passent pas par le `@PreUpdate` et ne
+  font donc pas avancer `updated_at` : le débit d'une simulation orale
+  (`decrementRealtimeSessions`, `UserSubscriptionManagerIT`) et, depuis le 2026-09-27,
+  l'**ajustement admin** (`PATCH …/realtime-sessions` → `setRealtimeSessions`,
+  `AdminSubscriptionControllerIT`). ⚠️ Ne jamais repasser l'ajustement admin par un
+  `save()` d'entité. Aucun journal d'audit admin n'existe : sa seule trace est un
+  `log.info` (id de souscription + solde posé).
+- « Maj » avance donc seulement sur achat/prolongation, renouvellement, annulation,
+  remboursement, expiration.
+- Console `/subscriptions` : colonne **Achat** (`purchased_at`, affichée en heure de Paris)
+  et filtre **« Achats du mois »** (`purchasedMonth=yyyy-MM`, serveur, mois civil de Paris,
+  début inclus / fin exclue). `purchased_at` `null` = achat antérieur à la mesure : la ligne
+  n'appartient à aucun mois (inconnu, jamais rattaché par défaut).
 - Dev : `R__seed_dev_suivi.sql`, rejoué à chaque boot, pose `updated_at` = date d'achat (puis de
   remboursement). Avant le 2026-09-27, le `DEFAULT now()` datait ses 14 lignes de l'heure du
   boot — c'est ce qui faisait « bouger » la colonne Maj en local.

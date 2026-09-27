@@ -27,6 +27,7 @@ public class UserSubscriptionMapper {
                 sub.getStartsAt(),
                 sub.getEndsAt(),
                 sub.getUpdatedAt(),
+                sub.getPurchasedAt(),
                 plan != null ? plan.getId() : null,
                 plan != null ? plan.getCode() : null,
                 plan != null ? plan.getName() : null,

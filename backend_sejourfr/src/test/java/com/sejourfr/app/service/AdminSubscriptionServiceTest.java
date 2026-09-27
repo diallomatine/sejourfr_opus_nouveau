@@ -45,7 +45,7 @@ class AdminSubscriptionServiceTest {
     private Pageable captureListCall(Page<UserSubscription> page, int reqPage, int reqSize) {
         when(userSubscriptionManager.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(page);
-        service.list(null, null, null, null, reqPage, reqSize);
+        service.list(null, null, null, null, null, reqPage, reqSize);
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         org.mockito.Mockito.verify(userSubscriptionManager)
                 .findAll(any(Specification.class), captor.capture());
@@ -91,7 +91,7 @@ class AdminSubscriptionServiceTest {
                 .thenReturn(page);
         when(userSubscriptionMapper.toAdminDto(any())).thenReturn(null);
 
-        PageResponse<AdminSubscriptionDto> res = service.list(null, null, null, null, 2, 10);
+        PageResponse<AdminSubscriptionDto> res = service.list(null, null, null, null, null, 2, 10);
 
         assertThat(res.totalElements()).isEqualTo(42L);
         assertThat(res.totalPages()).isEqualTo(5);

@@ -998,7 +998,7 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 
 ### Admin — Abonnements (`/subscriptions`)
 
-- `GET /api/admin/subscriptions?source=&status=&moduleAccess=&search=&page=&size=` →
+- `GET /api/admin/subscriptions?source=&status=&moduleAccess=&search=&purchasedMonth=&page=&size=` →
   `PageResponse<AdminSubscriptionDto>` (`content`, `page`, `size`, `totalElements`,
   `totalPages`, `first`, `last`). ⚠️ Remplace l'ancienne enveloppe
   `AdminSubscriptionListResponse {items, total, page, size}`, supprimée le 2026-09-25.
@@ -1009,6 +1009,13 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
     `status` (`SubscriptionStatus`), `moduleAccess` (`CIVIQUE|INTEGRAL`, via le plan) et
     `search` — « contient », sans casse, sur l'email, le prénom, le nom ou « prénom nom » ;
     `%` et `_` saisis sont échappés (un `_` d'email n'est pas un joker).
+  - `purchasedMonth=yyyy-MM` : achats de ce **mois civil en heure de Paris** —
+    `purchased_at` dans `[1er du mois 00:00 Paris, 1er du mois suivant 00:00 Paris[`
+    (début inclus, fin exclue ; changements d'heure compris). Une ligne sans
+    `purchased_at` (antérieure à la mesure, V074) n'appartient à aucun mois. Valeur
+    illisible (`2026-13`) ⇒ 400.
+  - `AdminSubscriptionDto.purchasedAt` (`Instant` ou `null`) : date réelle de l'achat
+    (≠ `startsAt` pour un pass empilé).
   - **Tri imposé et stable** : `updatedAt` DESC puis `id` DESC. Le second critère empêche
     une ligne d'apparaître sur deux pages (ou sur aucune) quand plusieurs partagent le
     même `updated_at`. Pas de paramètre `sort` exposé.
@@ -1018,6 +1025,7 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 - `POST /api/admin/subscriptions/{id}/cancel` → `CancelSubscriptionResponse`
   (`DONE` Stripe / `REDIRECT` Apple-Google).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` → `AdminSubscriptionDto`.
+  Écriture ciblée (UPDATE en masse) : **ne fait pas avancer `updatedAt`**. Inconnue ⇒ 404.
 
 ### Admin — Moteur de progression V4.2
 

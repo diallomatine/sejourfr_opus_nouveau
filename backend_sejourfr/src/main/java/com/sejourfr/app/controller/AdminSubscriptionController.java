@@ -11,6 +11,7 @@ import com.sejourfr.app.service.AdminSubscriptionService;
 import com.sejourfr.app.service.billing.SubscriptionCancellationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,10 +21,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.YearMonth;
 import java.util.UUID;
 
 /**
  * Console admin : liste paginée des UserSubscription avec filtres.
+ * {@code purchasedMonth=yyyy-MM} restreint aux achats de ce mois (heure de Paris).
  *
  * <p>Sécurité : {@code /api/admin/**} → ROLE_ADMIN (cf. SecurityConfig).
  */
@@ -41,9 +44,11 @@ public class AdminSubscriptionController {
             @RequestParam(required = false) SubscriptionStatus status,
             @RequestParam(required = false) ModuleAccess moduleAccess,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth purchasedMonth,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
-        return adminSubscriptionService.list(source, status, moduleAccess, search, page, size);
+        return adminSubscriptionService.list(
+                source, status, moduleAccess, search, purchasedMonth, page, size);
     }
 
     /**

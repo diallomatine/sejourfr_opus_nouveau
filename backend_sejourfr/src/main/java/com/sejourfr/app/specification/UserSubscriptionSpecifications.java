@@ -9,6 +9,10 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import org.springframework.data.jpa.domain.Specification;
 
+import com.sejourfr.app.util.FenetreMesure;
+
+import java.time.Instant;
+import java.time.YearMonth;
 import java.util.Locale;
 
 public final class UserSubscriptionSpecifications {
@@ -50,6 +54,22 @@ public final class UserSubscriptionSpecifications {
                     cb.like(cb.lower(user.get("firstName")), like, LIKE_ESCAPE),
                     cb.like(cb.lower(user.get("lastName")), like, LIKE_ESCAPE),
                     cb.like(cb.lower(fullName), like, LIKE_ESCAPE));
+        };
+    }
+
+    /**
+     * Achats d'un mois civil, en heure de Paris : {@code purchased_at} dans
+     * [1er du mois 00:00, 1er du mois suivant 00:00[. Une ligne sans
+     * {@code purchased_at} (antérieure à la mesure, V074) n'appartient à aucun
+     * mois : inconnu, jamais rattaché par défaut.
+     */
+    public static Specification<UserSubscription> purchasedIn(YearMonth month) {
+        return (root, q, cb) -> {
+            if (month == null) return null;
+            Instant debut = month.atDay(1).atStartOfDay(FenetreMesure.PARIS).toInstant();
+            Instant fin = month.plusMonths(1).atDay(1).atStartOfDay(FenetreMesure.PARIS).toInstant();
+            Path<Instant> purchasedAt = root.get("purchasedAt");
+            return cb.and(cb.greaterThanOrEqualTo(purchasedAt, debut), cb.lessThan(purchasedAt, fin));
         };
     }
 

@@ -22,15 +22,22 @@ const STATUSES: readonly SubscriptionStatus[] = [
 ];
 const MODULES: readonly ModuleAccess[] = ["CIVIQUE", "INTEGRAL"];
 
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 function oneOf<T extends string>(raw: string | null, allowed: readonly T[]): T | undefined {
   return allowed.find((v) => v === raw);
 }
 
-export type SubscriptionFilterKey = "source" | "status" | "moduleAccess" | "search";
+export type SubscriptionFilterKey =
+  | "source"
+  | "status"
+  | "moduleAccess"
+  | "search"
+  | "purchasedMonth";
 
 /**
  * L'état de la liste vit dans l'URL : `?source=…&status=…&moduleAccess=…&search=…
- * &page=…&size=…`. Le lien se partage, le bouton retour rejoue la page précédente.
+ * &purchasedMonth=yyyy-MM&page=…&size=…`. Le lien se partage, le bouton retour rejoue la page précédente.
  * `page` est compté à partir de 1 dans l'URL (lisible), à partir de 0 vers l'API.
  * Une valeur illisible est ignorée, jamais propagée au serveur ; une valeur par
  * défaut n'est pas écrite, pour garder des liens courts.
@@ -43,11 +50,13 @@ export function useSubscriptionListParams() {
     const rawPage = Number.parseInt(params.get("page") ?? "", 10);
     const rawSize = Number.parseInt(params.get("size") ?? "", 10);
     const search = params.get("search")?.trim();
+    const month = params.get("purchasedMonth");
     return {
       source: oneOf(params.get("source"), SOURCES),
       status: oneOf(params.get("status"), STATUSES),
       moduleAccess: oneOf(params.get("moduleAccess"), MODULES),
       search: search ? search : undefined,
+      purchasedMonth: month && MONTH_PATTERN.test(month) ? month : undefined,
       page: Number.isFinite(rawPage) && rawPage > 1 ? rawPage - 1 : 0,
       size: PAGE_SIZE_OPTIONS.find((s) => s === rawSize) ?? DEFAULT_PAGE_SIZE,
     };
@@ -108,7 +117,11 @@ export function useSubscriptionListParams() {
   }, [setParams]);
 
   const hasActiveFilter = Boolean(
-    filters.source || filters.status || filters.moduleAccess || filters.search,
+    filters.source ||
+      filters.status ||
+      filters.moduleAccess ||
+      filters.search ||
+      filters.purchasedMonth,
   );
 
   return { filters, hasActiveFilter, setFilter, setPage, setSize, resetFilters };

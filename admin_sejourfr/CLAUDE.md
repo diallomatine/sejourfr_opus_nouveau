@@ -100,12 +100,16 @@ Endpoints utilisés actuellement :
   — inspection/génération explicite de la consigne EO fixe (seed-only ; pas de
   CRUD des sujets diagnostiques)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
-- `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…`
-  → `PageResponse<AdminSubscriptionDto>` (contrat complet : `docs/api-endpoints.md`)
+- `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&purchasedMonth=yyyy-MM&page=…&size=…`
+  → `PageResponse<AdminSubscriptionDto>` (contrat complet : `docs/api-endpoints.md`).
+  « Achats du mois » = filtre **serveur** sur `purchasedAt`, mois civil de Paris ; la
+  liste des 24 derniers mois est un simple libellé côté admin. Colonne « Achat »
+  affichée en heure de Paris (même découpe que le filtre).
 - `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
+  Ne fait **pas** avancer « Maj » (`updatedAt`).
 - `GET|POST|PUT|PATCH|DELETE /api/admin/questions[…]` — la liste accepte
   `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
   refiltrer la page courante côté navigateur, le compteur et la pagination

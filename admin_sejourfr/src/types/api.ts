@@ -666,6 +666,8 @@ export interface AdminSubscriptionDto {
   startsAt: string;
   endsAt: string | null;
   updatedAt: string;
+  /** Date réelle de l'achat (≠ startsAt pour un pass empilé). null = ligne antérieure à la mesure (V074). */
+  purchasedAt: string | null;
   planId: string | null;
   planCode: string | null;
   planName: string | null;
@@ -680,6 +682,8 @@ export interface AdminSubscriptionFilters {
   status?: SubscriptionStatus;
   moduleAccess?: ModuleAccess;
   search?: string;
+  /** `yyyy-MM` : achats de ce mois civil, heure de Paris (filtre serveur). */
+  purchasedMonth?: string;
   page?: number;
   size?: number;
 }
