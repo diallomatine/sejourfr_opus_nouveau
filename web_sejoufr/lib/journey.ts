@@ -130,7 +130,7 @@ export function journeyCycleStepSubtitle(step: JourneyStepDto): string | undefin
 /**
  * La pastille de fin de ligne. **Servie au kit**, qui ne compose aucune phrase.
  *
- * 🛑 « Déjà maîtrisée » ⇄ « Déjà travaillée » se décide sur la **résolution
+ * 🛑 « Déjà maîtrisée » ⇄ « Fait » (ex-« Déjà travaillée », 2026-09-27) se décide sur la **résolution
  * servie**, pas sur un compteur : `SKIPPED` dit seulement qu'elle a été close
  * hors de son tour, et c'est le serveur qui sait pourquoi.
  */
@@ -139,7 +139,7 @@ export function journeyBadge(step: JourneyStepDto): string | undefined {
     /* Un cycle CLOS (« Mes cycles ») : l'étape est restée ouverte, et elle ne
        se fera plus. Servi `NON_FAITE`, jamais déduit d'un `closedAt` nul. */
     if (step.status === "NON_FAITE") return JOURNEY_ARCHIVE_STEP_NOT_DONE;
-    if (step.status === "SKIPPED") return "Déjà travaillée";
+    if (step.status === "SKIPPED") return "Fait";
     if (step.status === "UPCOMING" && step.type === "SECTION_EXAM") return "Examen";
     return undefined;
 }

@@ -122,7 +122,7 @@ String? journeyBadge(JourneyStep step) {
   if (step.status == JourneyStepStatus.nonFaite) {
     return kJourneyArchiveStepNotDone;
   }
-  if (step.status == JourneyStepStatus.skipped) return 'Déjà travaillée';
+  if (step.status == JourneyStepStatus.skipped) return 'Fait';
   if (step.status == JourneyStepStatus.upcoming &&
       step.type == JourneyStepType.sectionExam) {
     return 'Examen';
