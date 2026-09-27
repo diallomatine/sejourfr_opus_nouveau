@@ -19,7 +19,7 @@ export const SITE = {
 };
 
 export const STORE_LINKS = {
-    ios: "https://apps.apple.com/fr/app/sejourfr/id6771509569",
+    ios: "https://apps.apple.com/us/app/sejourfr/id6771509569?l=fr-FR",
     android: "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr",
 };
 
