@@ -22,10 +22,10 @@ import { useAppBarBackOverride, useAppBarOverride } from "./AppBarTitle";
  * 🛑 Titre : `appBarInfo` (`lib/app-bar.ts`), l'autorité par défaut — sauf
  * quand la page pose le sien (titre dynamique, `useAppBarTitle` dans
  * `AppBarTitle.tsx`, ex. le Plan : « Mon plan du jour » + son objectif).
- * 🛑 Gauche : **burger** sur les écrans de premier niveau, **flèche de retour**
- * sur un sous-écran qui la pose (`useAppBarBack`) — miroir de l'`AppBar`
- * Flutter d'un écran poussé, qui n'a pas de menu. La flèche remonte à l'écran
- * précédent, sinon à l'adresse parente de la page (`retourOuRepli`).
+ * 🛑 Gauche : le **burger est TOUJOURS là** (demande du propriétaire,
+ * 2026-09-27) ; un sous-écran qui pose `useAppBarBack` y **ajoute** une flèche
+ * de retour, à côté. La flèche remonte à l'écran précédent, sinon à l'adresse
+ * parente de la page (`retourOuRepli`).
  * 🛑 Montée par `app/(app)/layout.tsx` et `DualChromeShell` **uniquement**,
  * sous la garde de `isAppShellMounted` : un seul burger par écran.
  *
@@ -93,29 +93,16 @@ export function AppTopBar() {
   return (
     <>
       <header className={`atb${scrolled ? " is-scrolled" : ""}`}>
-        {back && !back.withMenu ? (
-          <button
-            type="button"
-            className="atb-burger"
-            aria-label="Retour"
-            onClick={() =>
-              back.onBack ? back.onBack() : retourOuRepli(router, back.fallbackHref)
-            }
-          >
-            <ArrowLeft size={20} aria-hidden />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="atb-burger"
-            aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-          >
-            <Menu size={20} aria-hidden />
-          </button>
-        )}
-        {back?.withMenu ? (
+        <button
+          type="button"
+          className="atb-burger"
+          aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <Menu size={20} aria-hidden />
+        </button>
+        {back ? (
           <button
             type="button"
             className="atb-burger"

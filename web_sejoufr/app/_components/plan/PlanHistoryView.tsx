@@ -88,9 +88,7 @@ import type {JourneyHistoryDto} from "@/lib/types";
  * d'étapes et ses blocs dépliables imbriqués dans une carte de liste perdaient
  * la largeur qui rend le Plan lisible.
  *
- * 🛑 **Barre du haut : le MENU et la flèche** (`Top keepMenu`, demande du
- * propriétaire, 2026-09-27) — « Mes cycles » se consulte comme un écran de
- * premier niveau, et la flèche remonte au Plan.
+ * Barre du haut : le menu (toujours là) et la flèche, qui remonte au Plan.
  */
 export function PlanHistoryView() {
     /* `useSearchParams` impose une frontière de Suspense : elle est posée ici,
@@ -120,7 +118,7 @@ function PlanHistoryScoped() {
 
     return (
         <SejourApp>
-            <Top title={JOURNEY_HISTORY_TITLE} backTo={planHref(parcours)} keepMenu />
+            <Top title={JOURNEY_HISTORY_TITLE} backTo={planHref(parcours)} />
             <Pad>
                 <Stack>
                     {/* 🛑 Le bandeau et ses compteurs restent dans TOUS les

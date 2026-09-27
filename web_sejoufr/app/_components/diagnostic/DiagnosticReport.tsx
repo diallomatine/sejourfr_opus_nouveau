@@ -209,7 +209,6 @@ export function DiagnosticReport({
       {notice}
       <Top
         backTo={backTo ?? undefined}
-        keepMenu
         kicker={DIAGNOSTIC_REPORT_KICKER}
         title={DIAGNOSTIC_REPORT_TITLE}
       />

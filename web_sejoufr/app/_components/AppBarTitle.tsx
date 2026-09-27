@@ -21,7 +21,7 @@ import type { AppBarInfo } from "@/lib/app-bar";
  * `SkillShell`). Une page qui ne dit rien garde le titre de la table.
  *
  * Il porte aussi la **flèche de retour** d'un sous-écran (`useAppBarBack`),
- * qui remplace le burger de la barre.
+ * posée À CÔTÉ du burger, qui reste toujours là (2026-09-27).
  *
  * Monté par les deux shells connectés (`app/(app)/layout.tsx`,
  * `DualChromeShell`) : hors shell, `useAppBarTitle` ne fait rien et rend
@@ -41,13 +41,7 @@ const ValueContext = createContext<AppBarInfo | null>(null);
  * (`retourOuRepli`). `onBack` : la page intercepte le retour (confirmation
  * avant de quitter une session), comme son propre bouton le faisait.
  */
-export type AppBarBack = {
-  fallbackHref: string;
-  onBack?: () => void;
-  /** Garde le burger À CÔTÉ de la flèche (écran racine qu'on peut quitter en
-   *  arrière, ex. le rapport du diagnostic). Défaut : la flèche remplace le burger. */
-  withMenu?: boolean;
-};
+export type AppBarBack = { fallbackHref: string; onBack?: () => void };
 type BackSetter = (id: string, back: AppBarBack | null, hasHandler: boolean) => void;
 type BackEntry = { id: string; back: AppBarBack; hasHandler: boolean };
 
@@ -64,7 +58,6 @@ export function AppBarProvider({ children }: { children: ReactNode }) {
       if (
         cur?.id === id &&
         cur.back.fallbackHref === back.fallbackHref &&
-        cur.back.withMenu === back.withMenu &&
         cur.hasHandler === hasHandler
       ) {
         return cur;
@@ -106,8 +99,9 @@ export function useAppBarBackOverride(): AppBarBack | null {
 }
 
 /**
- * **Le sous-écran met une flèche de retour à la place du burger** (≤ 900 px),
- * comme l'`AppBar` Flutter d'un écran poussé. `back: null` ⇒ burger.
+ * **Le sous-écran ajoute une flèche de retour à côté du burger** (≤ 900 px).
+ * Le burger est TOUJOURS présent (demande du propriétaire, 2026-09-27) ;
+ * `back: null` ⇒ burger seul.
  *
  * Rend `true` quand une barre porte la flèche (shell connecté) : la page
  * masque alors son propre lien de retour sous 900 px (classe globale
@@ -118,7 +112,6 @@ export function useAppBarBack(back: AppBarBack | null): boolean {
   const id = useId();
   const fallbackHref = back?.fallbackHref;
   const onBack = back?.onBack;
-  const withMenu = back?.withMenu;
   const hasHandler = Boolean(onBack);
   const onBackRef = useRef(onBack);
 
@@ -133,12 +126,11 @@ export function useAppBarBack(back: AppBarBack | null): boolean {
       {
         fallbackHref,
         onBack: hasHandler ? () => onBackRef.current?.() : undefined,
-        withMenu,
       },
       hasHandler,
     );
     return () => set(id, null, false);
-  }, [set, id, fallbackHref, hasHandler, withMenu]);
+  }, [set, id, fallbackHref, hasHandler]);
 
   return set !== null && Boolean(fallbackHref);
 }

@@ -110,7 +110,6 @@ function PlanCycleArchiveScoped() {
                 title={archive ? journeyHistoryCycleTitle(archive.numero) : JOURNEY_ARCHIVE_KICKER}
                 lead={archive ? journeyHistoryDates(archive.debut, archive.fin) : undefined}
                 backTo={retour}
-                keepMenu
             />
             {query.loading && !archive ? (
                 <Pad>

@@ -131,7 +131,7 @@ export function PlanDomainView() {
 
 function BackToPlan() {
   // ≤ 900 px (shell connecté) : la flèche de la barre du haut le remplace.
-  const inBar = useAppBarBack({fallbackHref: "/plan", withMenu: true});
+  const inBar = useAppBarBack({fallbackHref: "/plan"});
   return (
     <Link className={`${styles.back}${inBar ? " in-bar-back" : ""}`} href="/plan">
       <ArrowLeft size={17} aria-hidden /> Mon plan
