@@ -364,7 +364,6 @@ export function SubscriptionsPage() {
                     <th>Statut</th>
                     <th>Achat</th>
                     <th>Échéance</th>
-                    <th>Maj</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -408,9 +407,6 @@ export function SubscriptionsPage() {
                         {formatPurchase(sub.purchasedAt)}
                       </td>
                       <td data-label="Échéance">{formatDate(sub.endsAt)}</td>
-                      <td data-label="Maj" className={styles.dateCell}>
-                        {formatDateTime(sub.updatedAt)}
-                      </td>
                       <td data-label="Action">
                         <div className={tableStyles.rowActions}>
                           <button
@@ -637,10 +633,6 @@ function SubscriptionDetailModal({
 
         <DetailRow label="Échéance">
           {formatDateTime(sub.endsAt)}
-        </DetailRow>
-
-        <DetailRow label="Dernière mise à jour">
-          {formatDateTime(sub.updatedAt)}
         </DetailRow>
 
         <DetailRow label="Original transaction ID">

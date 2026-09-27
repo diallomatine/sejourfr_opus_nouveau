@@ -109,7 +109,8 @@ Endpoints utilisés actuellement :
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
-  Ne fait **pas** avancer « Maj » (`updatedAt`).
+  Ne fait **pas** avancer `updatedAt`. La colonne « Maj » n'est plus affichée (2026-09-28) :
+  la liste et la fiche lisent la date d'achat.
 - `GET|POST|PUT|PATCH|DELETE /api/admin/questions[…]` — la liste accepte
   `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
   refiltrer la page courante côté navigateur, le compteur et la pagination
