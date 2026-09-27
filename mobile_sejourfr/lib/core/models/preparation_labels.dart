@@ -33,21 +33,24 @@ String objectifLabel(TargetProcedure? procedure) => procedure == null
 typedef PreparationAction = ({String statut, String cta, String route});
 
 /// « B1 → objectif B2 ». `null` si rien n'est mesuré : jamais un palier inventé.
+///
+/// 🛑 Le palier passe par [NiveauCecrl.displayName], l'autorité d'affichage :
+/// jamais le code servi — `wire` écrivait « A1_NON_ATTEINT → objectif B2 ».
 String? niveauLine(ModulePreparation m) {
   final niveau = m.niveau;
   if (niveau == null) return null;
   final cible = m.cible;
   return cible == null
-      ? niveau.wire
-      : '${niveau.wire} → objectif ${cible.wire}';
+      ? niveau.displayName
+      : '${niveau.displayName} → objectif ${cible.displayName}';
 }
 
 /// **TCF** — le Plan est TOUJOURS la prochaine action.
 ///
 /// 🛑 **D-69 (2026-09-28)** : le Plan existe pour tout compte, diagnostic fait
 /// ou non — sans diagnostic, il commence par un cycle d'examens blancs. Le
-/// diagnostic n'est plus une porte : c'est une proposition **secondaire**,
-/// portée par [diagnosticAAffiner].
+/// diagnostic n'est plus une porte, ni même une proposition de l'Accueil ou
+/// du Plan.
 PreparationAction tcfAction(ModulePreparation m) =>
     (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/plan');
 
@@ -105,83 +108,22 @@ String? aRenforcerLine(ModulePreparation m) {
   return '$n thème${n > 1 ? 's' : ''} à renforcer';
 }
 
-/// La proposition **secondaire** de diagnostic : de quoi affiner un Plan qui
-/// existe déjà.
-typedef DiagnosticAAffiner = ({
-  String titre,
-  String texte,
-  String cta,
-  String route,
-});
-
-/// 🛑 **D-69 (2026-09-28) : plus aucune porte « diagnostic obligatoire ».** Le
-/// Plan s'affiche toujours ; le diagnostic reste proposé tant qu'il n'est pas
-/// fait, **en second** — jamais le CTA rouge, jamais à la place de « À faire
-/// maintenant ». `null` = rien à proposer.
+/// **Le diagnostic de ce module a-t-il été FAIT (clos) ?** — le seul prédicat
+/// qui décide si la ligne « Mon diagnostic » du Plan s'affiche.
 ///
-/// Lu sur l'ÉTAPE servie, seul fait qui dit si le diagnostic reste à faire.
-/// 🛑 Côté TCF, seul le **rapide** se reprend (`fait == null`) : un complet
-/// commencé avant son retrait (2026-09-26) ne se propose plus.
+/// 🛑 **Lu sur un fait servi, jamais déduit** : côté TCF,
+/// `estimationSessionId` n'est servi que si un diagnostic **rapide** est clos ;
+/// côté civique, l'étape `PLAN_PRET` dit que le diagnostic civique est clos.
+/// Préparation absente ⇒ l'appelant ne l'appelle pas, et la ligne reste masquée.
 ///
-/// Miroir mot pour mot de `diagnosticAAffiner` (`web_sejoufr/lib/preparation.ts`).
-DiagnosticAAffiner? diagnosticAAffiner(
-  ModulePreparation m, {
-  required bool civique,
-}) {
-  if (civique) {
-    const titre = 'Affinez votre plan avec le diagnostic civique';
-    const route = '/diagnostic-civique';
-    return switch (m.etape) {
-      PreparationEtape.diagnosticAFaire => (
-          titre: titre,
-          texte: 'Quelques questions pour repérer les thèmes et les notions à '
-              'travailler en priorité.',
-          cta: 'Affiner avec le diagnostic civique',
-          route: route,
-        ),
-      PreparationEtape.diagnosticEnCours => (
-          titre: titre,
-          texte: _avancement(m) ?? 'Terminez-le pour affiner votre plan.',
-          cta: 'Reprendre mon diagnostic civique',
-          route: route,
-        ),
-      _ => null,
-    };
-  }
-
-  const titre = 'Affinez votre plan avec le diagnostic';
-  final route = kDiagnosticDemarrageDirect.chemin('/diagnostic');
-  if (m.etape == PreparationEtape.diagnosticAFaire) {
-    return (
-      titre: titre,
-      texte: 'En quelques minutes, une production écrite repère vos premières '
-          'priorités. Vos examens blancs restent la base de votre plan.',
-      cta: 'Affiner avec le diagnostic',
-      route: route,
-    );
-  }
-  if (m.etape == PreparationEtape.diagnosticEnCours && m.fait == null) {
-    return (
-      titre: titre,
-      texte: 'Terminez-le pour affiner votre plan.',
-      cta: 'Reprendre mon diagnostic',
-      route: route,
-    );
-  }
-  return null;
-}
-
-/// « Vous avez répondu à 14 questions sur 40. » — l'avancement du diagnostic
-/// CIVIQUE, seul lecteur depuis le retrait du complet TCF (2026-09-26).
+/// 🛑 **Le diagnostic n'est plus PROPOSÉ** ni sur l'Accueil ni sur le Plan
+/// (la carte « Affinez votre plan avec le diagnostic » et `diagnosticAAffiner`
+/// sont supprimées) : on n'y renvoie que pour **relire** un résultat existant.
 ///
-/// 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un
-/// compteur pour remplir une phrase.
-String? _avancement(ModulePreparation m) {
-  final fait = m.fait;
-  final total = m.total;
-  if (fait == null || total == null) return null;
-  return 'Vous avez répondu à $fait question${fait > 1 ? 's' : ''} sur $total.';
-}
+/// Miroir mot pour mot de `diagnosticFait` (`web_sejoufr/lib/preparation.ts`).
+bool diagnosticFait(ModulePreparation m, {required bool civique}) => civique
+    ? m.etape == PreparationEtape.planPret
+    : m.estimationSessionId != null;
 
 /// Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire.
 ///
@@ -206,8 +148,8 @@ bool moduleCiviqueParDefaut(PreparationDto prep) =>
 //
 // ⚠️ Le serveur sert ENCORE l'avancement d'un complet commencé avant le retrait
 // (`etape: diagnosticEnCours`, `fait`/`total` sur 4, `prochaineEpreuve`) : ces
-// écrans ne l'affichent plus et n'y renvoient plus (voir
-// [diagnosticAAffiner]). Nettoyage backend à suivre.
+// écrans ne l'affichent plus et n'y renvoient plus. Nettoyage backend à
+// suivre.
 
 /// **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
 ///

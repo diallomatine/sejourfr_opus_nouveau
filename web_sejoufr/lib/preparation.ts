@@ -12,12 +12,13 @@
  * la même chose.
  *
  * 🛑 **D-69 (2026-09-28) : le Plan existe pour TOUT compte**, diagnostic fait
- * ou non (`planDisponible` toujours vrai). Le diagnostic n'est plus une porte :
- * c'est une proposition SECONDAIRE, `diagnosticAAffiner`.
+ * ou non (`planDisponible` toujours vrai). Le diagnostic n'est plus une porte,
+ * et il n'est plus proposé sur l'Accueil ni sur le Plan (2026-09-28).
  *
  * Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
 import {MENTION_LABEL} from "./civic-diagnostic";
+import {niveauCecrlLabel} from "./types";
 import type {ModulePreparation, PreparationDto, TargetProcedure} from "./types";
 
 export const PREPARATION_TITLE = "Ma préparation";
@@ -69,7 +70,7 @@ export function demarrageDirectDemande(
  *
  * ⚠️ Le serveur sert ENCORE l'avancement d'un complet commencé avant le retrait
  * (`etape: DIAGNOSTIC_EN_COURS`, `fait`/`total` sur 4, `prochaineEpreuve`) : ces
- * écrans ne l'affichent plus et n'y renvoient plus (voir `diagnosticAAffiner`).
+ * écrans ne l'affichent plus et n'y renvoient plus.
  */
 
 export const TCF_LABEL = "TCF IRN";
@@ -90,8 +91,7 @@ export interface PreparationAction {
 
 export function tcfAction(m: ModulePreparation): PreparationAction {
     // 🛑 **Le Plan est TOUJOURS la prochaine action** (D-69) : il existe pour
-    // tout compte, diagnostic fait ou non. Le diagnostic se propose à part
-    // (`diagnosticAAffiner`), jamais à sa place.
+    // tout compte, diagnostic fait ou non.
     return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
 }
 
@@ -110,7 +110,9 @@ function tcfStatut(m: ModulePreparation): string {
 /** « B1 → objectif B2 ». `null` si rien n'est mesuré : jamais un palier inventé. */
 export function niveauLine(m: ModulePreparation): string | null {
     if (!m.niveau) return null;
-    return m.cible ? `${m.niveau} → objectif ${m.cible}` : `${m.niveau}`;
+    // 🛑 Le LIBELLÉ, jamais le code (« A1_NON_ATTEINT ») : une seule autorité.
+    const niveau = niveauCecrlLabel(m.niveau);
+    return m.cible ? `${niveau} → objectif ${niveauCecrlLabel(m.cible)}` : niveau;
 }
 
 /* --------------------------------------------------------------------------
@@ -153,89 +155,33 @@ export function aRenforcerLine(m: ModulePreparation): string | null {
 }
 
 /* --------------------------------------------------------------------------
-   Le DIAGNOSTIC — une proposition SECONDAIRE (D-69, 2026-09-28)
+   Le DIAGNOSTIC n'est plus PROPOSÉ — ni sur l'Accueil, ni sur le Plan
+   (2026-09-28)
+   --------------------------------------------------------------------------
+
+   🛑 `diagnosticAAffiner`, son type `DiagnosticAAffiner` et la carte
+   `DiagnosticAffinerCard` (« Affinez votre plan avec le diagnostic ») sont
+   **supprimés**. Le diagnostic reste atteignable par sa route et par le lien
+   « Mon diagnostic » du Plan (`PlanLinks`). Ne pas les recréer.
    -------------------------------------------------------------------------- */
 
-/** La proposition d'affiner le Plan par le diagnostic. */
-export interface DiagnosticAAffiner {
-    titre: string;
-    texte: string;
-    cta: string;
-    href: string;
-}
-
-const AFFINER_TERMINER = "Terminez-le pour affiner votre plan.";
-
 /**
- * Le diagnostic reste-t-il à proposer pour ce module ?
+ * **Le diagnostic de ce module est-il fait (clos) ?** — le seul prédicat qui
+ * décide d'afficher la ligne « Mon diagnostic » sous le cycle du Plan.
  *
- * 🛑 **Une proposition, jamais une porte** (D-69) : le Plan existe sans
- * diagnostic, et cette carte se pose SOUS « À faire maintenant », jamais à sa
- * place ni avec le CTA rouge. `null` = rien à proposer.
+ * 🛑 **Deux faits SERVIS, aucune déduction** : TCF → `estimationSessionId`,
+ * que le serveur ne sert que si un diagnostic RAPIDE est clos ; civique →
+ * `etape === "PLAN_PRET"` (diagnostic civique clos). `null` (préparation pas
+ * encore lue, ou en échec) ⇒ `false` : la ligne reste masquée.
  *
- * 🛑 **Seule autorité** de ces phrases sur le web — Plan TCF, Plan civique et
- * Accueil l'appellent tous. Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
+ * Miroir mobile : `diagnosticFait` (`preparation_labels.dart`).
  */
-export function diagnosticAAffiner(
-    m: ModulePreparation,
+export function diagnosticFait(
+    m: ModulePreparation | null,
     module: "TCF" | "CIVIQUE",
-): DiagnosticAAffiner | null {
-    if (module === "CIVIQUE") {
-        const titre = "Affinez votre plan avec le diagnostic civique";
-        const href = "/diagnostic-civique";
-        if (m.etape === "DIAGNOSTIC_A_FAIRE") {
-            return {
-                titre,
-                texte: "Quelques questions pour repérer les thèmes et les notions à travailler en priorité.",
-                cta: "Affiner avec le diagnostic civique",
-                href,
-            };
-        }
-        // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
-        if (m.etape === "DIAGNOSTIC_EN_COURS") {
-            return {
-                titre,
-                texte: avancement(m) ?? AFFINER_TERMINER,
-                cta: "Reprendre mon diagnostic civique",
-                href,
-            };
-        }
-        return null;
-    }
-
-    const titre = "Affinez votre plan avec le diagnostic";
-    if (m.etape === "DIAGNOSTIC_A_FAIRE") {
-        return {
-            titre,
-            texte:
-                "En quelques minutes, une production écrite repère vos premières priorités. Vos examens blancs restent la base de votre plan.",
-            cta: "Affiner avec le diagnostic",
-            href: DIAGNOSTIC_RAPIDE_START_HREF,
-        };
-    }
-    /* 🛑 Seul le **rapide** se reprend (`fait === null`). Un complet commencé
-       avant son retrait (`fait !== null`) ne se reprend plus (2026-09-26). */
-    if (m.etape === "DIAGNOSTIC_EN_COURS" && m.fait === null) {
-        return {
-            titre,
-            texte: AFFINER_TERMINER,
-            cta: "Reprendre mon diagnostic",
-            href: DIAGNOSTIC_RAPIDE_START_HREF,
-        };
-    }
-    return null;
-}
-
-/**
- * « Vous avez répondu à 14 questions sur 40. » — l'avancement du diagnostic
- * CIVIQUE, seul lecteur depuis le retrait du complet TCF (2026-09-26).
- *
- * 🛑 `null` quand le serveur n'a pas servi d'avancement : on ne fabrique pas un
- * compteur pour remplir une phrase.
- */
-function avancement(m: ModulePreparation): string | null {
-    if (m.fait === null || m.total === null) return null;
-    return `Vous avez répondu à ${m.fait} question${m.fait > 1 ? "s" : ""} sur ${m.total}.`;
+): boolean {
+    if (!m) return false;
+    return module === "TCF" ? m.estimationSessionId !== null : m.etape === "PLAN_PRET";
 }
 
 /** Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire. */

@@ -148,13 +148,14 @@ class ExamenBlancHorsPlanIT extends AbstractIntegrationTest {
 
         assertThat(examensCo(user)).singleElement()
                 .satisfies(step -> assertThat(step.estOuverte()).isTrue());
+        // D-69 : le cycle d'examens porte l'examen CO, et il n'est pas termine.
         assertThat(blocDe(vue, EpreuveType.TCF_CO).status())
-                .isEqualTo(JourneyBlocStatus.A_EVALUER);
+                .isNotEqualTo(JourneyBlocStatus.TERMINE);
         assertThat(vue.cycle().etapesTerminees()).isZero();
     }
 
     @Test
-    @DisplayName("Un examen passe AVANT le cycle : aucune etape « Evaluer » n'est posee, rien n'est compte")
+    @DisplayName("Un examen passe AVANT le cycle ne ferme rien : son examen est pose, OUVERT (D-69)")
     void unExamenAnterieurAuCycleNePoseNiNeCloturien() {
         User user = candidat();
         observationDExamenEe(user);
@@ -162,10 +163,15 @@ class ExamenBlancHorsPlanIT extends AbstractIntegrationTest {
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        // R12 : l'epreuve est deja mesuree, le cycle ne demande pas de
-        // l'evaluer — et R19 ne fabrique aucune etape « deja faite ».
-        assertThat(examensCo(user)).isEmpty();
-        assertThat(blocDe(vue, EpreuveType.TCF_CO).status()).isEqualTo(JourneyBlocStatus.TERMINE);
+        // ⚠️ REVU LE 2026-09-28 (D-69) : le premier cycle d'un compte sans
+        // diagnostic est le cycle d'examens — l'examen CO y est pose meme
+        // mesure (« Vérifier mes progrès »). R19 tient : un examen ANTERIEUR au
+        // cycle ne ferme rien, aucune etape « deja faite ».
+        assertThat(examensCo(user)).singleElement().satisfies(step -> {
+            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.REASSESS);
+            assertThat(step.estOuverte()).isTrue();
+        });
+        assertThat(blocDe(vue, EpreuveType.TCF_CO).status()).isNotEqualTo(JourneyBlocStatus.TERMINE);
         assertThat(vue.cycle().etapesTerminees()).isZero();
     }
 

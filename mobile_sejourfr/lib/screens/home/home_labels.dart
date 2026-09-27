@@ -86,8 +86,9 @@ String homeGoalText(String niveau) => 'Atteindre $niveau partout';
 // 🛑 **D-69 (2026-09-28)** : la carte « Découvrez ce qui vous bloque au TCF »
 // (`kHomeDiagStart*`, `kHomeStartBadge`, `kHomeLaterCta`,
 // `homeDiagStartSubtitle` / `homeDiagStartObjective`) est **supprimée** : sans
-// diagnostic, l'Accueil montre l'action du Plan et propose le diagnostic en
-// second (`diagnosticAAffiner`). Ne pas la recréer.
+// diagnostic, l'Accueil montre l'action du Plan, et le diagnostic n'y est plus
+// proposé du tout (la carte « Affinez votre plan » est supprimée elle aussi).
+// Ne pas les recréer.
 
 /// Le total d'exercices à rendre, **servi**. Sans lui, l'analyse en cours
 /// annonçait « vos deux réponses » sur un diagnostic qui n'en attend qu'une.

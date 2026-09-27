@@ -22,7 +22,6 @@ import {
     Pad,
     Section,
     SejourApp,
-    Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
@@ -58,10 +57,8 @@ import {
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
     DIAGNOSTIC_RAPIDE_START_HREF,
-    diagnosticAAffiner,
     moduleParDefaut,
     objectifLabel,
-    type DiagnosticAAffiner,
 } from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -92,7 +89,6 @@ import {
     type ProgressDto,
 } from "@/lib/types";
 import {planUnlockHref} from "@/lib/plan-unlock";
-import {DiagnosticAffinerCard} from "@/app/_components/plan/DiagnosticAffinerCard";
 import {civicNowCard} from "@/lib/civic-plan";
 
 /**
@@ -133,7 +129,6 @@ import {civicNowCard} from "@/lib/civic-plan";
  * | bloc | TCF | Civique |
  * |---|---|---|
  * | à faire maintenant | `/api/diagnostics/current` (reprise) puis `planNowCard(plan, journey)` | `civicNowCard(civicPlan, journey)` |
- * | affiner (secondaire) | `diagnosticAAffiner(prep.tcf)` | `diagnosticAAffiner(prep.civique)` |
  * | où vous en êtes | `progres.tcf` (4 épreuves) | `progres.civique` (thèmes) |
  *
  * 🛑 **Le civique n'a AUCUN palier CECRL servi** : pas d'échelle, pas
@@ -243,13 +238,12 @@ function DashboardRoot() {
     const [journey, setJourney] = useState<JourneyDto | null>(null);
     const [journeyCivique, setJourneyCivique] = useState<JourneyDto | null>(null);
     const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
-    const [prep, setPrep] = useState<PreparationDto | null>(null);
     const [loading, setLoading] = useState(true);
 
     /**
      * 🛑 **Le parcours affiché vit dans l'URL, exactement comme sur le Plan**
      * (`PlanModules`) : `?module=` est le seul transport, le défaut est
-     * **servi** par `moduleParDefaut(prep)`, et il n'existe aucun `useState` de
+     * **servi** par `moduleParDefaut(preparation)`, et il n'existe aucun `useState` de
      * module. Deux mécaniques auraient fini par afficher deux parcours
      * différents sur deux écrans du même compte.
      */
@@ -284,7 +278,6 @@ function DashboardRoot() {
             setProgres(progression);
             setDiagnostic(currentDiagnostic);
             setPlan(currentPlan);
-            setPrep(preparation);
             setCivicPlan(planCivique);
             setJourney(parcours);
             setJourneyCivique(parcoursCivique);
@@ -326,11 +319,10 @@ function DashboardRoot() {
     const civique = affiche === "CIVIQUE";
 
     /* 🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : la carte
-       « À faire maintenant » lit toujours le parcours. Le diagnostic n'est
-       qu'une proposition SECONDAIRE, posée sous elle (`diagnosticAAffiner`).
-       Sans action, la section n'existe pas : pas de titre au-dessus du vide. */
-    const modulePrep = prep ? (civique ? prep.civique : prep.tcf) : null;
-    const affiner = modulePrep ? diagnosticAAffiner(modulePrep, civique ? "CIVIQUE" : "TCF") : null;
+       « À faire maintenant » lit toujours le parcours. 🛑 **Le diagnostic n'est
+       plus proposé sur l'Accueil** (ni sur le Plan, 2026-09-28) : la carte
+       « Affinez votre plan avec le diagnostic » est supprimée. Sans action, la
+       section n'existe pas : pas de titre au-dessus du vide. */
     const aUneAction = civique ? Boolean(civicPlan) : Boolean(diagnostic);
 
     return (
@@ -387,22 +379,16 @@ function DashboardRoot() {
                     <Section title="À faire maintenant">
                         <Pad>
                             {civique ? (
-                                <Stack>
-                                    <ActionCivique
-                                        plan={civicPlan ?? null}
-                                        journey={journeyCivique}
-                                        free={!canAccessModule(user, "CIVIQUE")}
-                                    />
-                                    {affiner && (
-                                        <DiagnosticAffinerCard proposition={affiner} module="CIVIQUE"/>
-                                    )}
-                                </Stack>
+                                <ActionCivique
+                                    plan={civicPlan ?? null}
+                                    journey={journeyCivique}
+                                    free={!canAccessModule(user, "CIVIQUE")}
+                                />
                             ) : diagnostic ? (
                                 <ActionPrincipale
                                     diagnostic={diagnostic}
                                     plan={plan}
                                     journey={journey}
-                                    affiner={affiner}
                                     free={!canAccessModule(user, "TCF")}
                                 />
                             ) : null}
@@ -443,20 +429,17 @@ function DashboardRoot() {
  *
  * 🛑 **D-69 (2026-09-28) : plus de carte « Faire mon diagnostic ».** Un compte
  * qui ne l'a pas commencé voit l'action du Plan (le premier examen du cycle),
- * et le diagnostic se propose en secondaire, sous elle. Seul un diagnostic
- * DÉJÀ COMMENCÉ garde sa carte de reprise.
+ * et rien d'autre. Seul un diagnostic DÉJÀ COMMENCÉ garde sa carte de reprise.
  */
 function ActionPrincipale({
                               diagnostic,
                               plan,
                               journey,
-                              affiner,
                               free,
                           }: {
     diagnostic: DiagnosticResponse;
     plan: LearningPlanDto | null;
     journey: JourneyDto | null;
-    affiner: DiagnosticAAffiner | null;
     free: boolean;
 }) {
     const state = diagnosticDashboardState(diagnostic);
@@ -490,12 +473,7 @@ function ActionPrincipale({
         );
     }
 
-    return (
-        <Stack>
-            <ActionPlanDuJour plan={plan} journey={journey} free={free}/>
-            {affiner && <DiagnosticAffinerCard proposition={affiner} module="TCF"/>}
-        </Stack>
-    );
+    return <ActionPlanDuJour plan={plan} journey={journey} free={free}/>;
 }
 
 /**

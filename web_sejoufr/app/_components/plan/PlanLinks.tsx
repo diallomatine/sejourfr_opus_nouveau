@@ -19,8 +19,12 @@ import type {ParcoursModule} from "@/lib/module-switch";
  * 🛑 **Deux accès, et deux seulement** (arbitrage du propriétaire,
  * 2026-09-19) : « Toutes mes compétences » et « Mes examens blancs » ont été
  * retirés. Ne pas les réintroduire.
+ *
+ * 🛑 **« Mon diagnostic » n'existe que si le diagnostic est FAIT** (2026-09-28) :
+ * `diagnosticHref === null` ⇒ ligne masquée. L'appelant le décide sur
+ * `diagnosticFait` (`lib/preparation.ts`), jamais ici.
  */
-export function PlanLinks({module, diagnosticHref}: {module: ParcoursModule; diagnosticHref: string}) {
+export function PlanLinks({module, diagnosticHref}: {module: ParcoursModule; diagnosticHref: string | null}) {
     return (
         <Pad>
             <CompteCard>
@@ -31,13 +35,15 @@ export function PlanLinks({module, diagnosticHref}: {module: ParcoursModule; dia
                     title={JOURNEY_HISTORY_TITLE}
                     sub={journeyHistorySub(module)}
                 />
-                <CompteRow
-                    href={diagnosticHref}
-                    icon={<ClipboardCheck size={20}/>}
-                    tone="muted"
-                    title={PLAN_DIAGNOSTIC_TITLE}
-                    sub={PLAN_DIAGNOSTIC_SUB}
-                />
+                {diagnosticHref !== null && (
+                    <CompteRow
+                        href={diagnosticHref}
+                        icon={<ClipboardCheck size={20}/>}
+                        tone="muted"
+                        title={PLAN_DIAGNOSTIC_TITLE}
+                        sub={PLAN_DIAGNOSTIC_SUB}
+                    />
+                )}
             </CompteCard>
         </Pad>
     );

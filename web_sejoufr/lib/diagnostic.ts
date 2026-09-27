@@ -8,7 +8,6 @@ import type {
   DiagnosticTaskCompletion,
   LearningPlanSkillStatus,
   LearningPlanSourceType,
-  NiveauCecrl,
   PlanMilestoneExerciseDto,
   PlanSkillExerciseDto,
   ProductionTaskDto,
@@ -357,11 +356,6 @@ export function planMilestoneText(milestone: PlanMilestoneExerciseDto): string {
  *  La durée vient du DTO (`estimatedMinutes`), jamais d'un nombre écrit ici. */
 export function planMilestoneMeta(milestone: PlanMilestoneExerciseDto): string {
   return `Examen blanc n°${milestone.slotNumber} · ≈ ${milestone.estimatedMinutes} min`;
-}
-
-export function niveauEstimateLabel(level: NiveauCecrl | null | undefined): string {
-  if (!level) return "Non estimé";
-  return level === "A1_NON_ATTEINT" ? "A1 non atteint" : level;
 }
 
 /**

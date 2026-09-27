@@ -4739,8 +4739,7 @@ export interface ModulePreparation {
     /**
      * 🛑 **Toujours `true` depuis D-69 (2026-09-28)** : le Plan existe pour
      * tout compte, diagnostic fait ou non. Champ gardé parce qu'il est servi ;
-     * aucun écran ne s'en sert plus comme porte. Ce qui reste à proposer se lit
-     * sur `etape` (`diagnosticAAffiner`, `lib/preparation.ts`).
+     * aucun écran ne s'en sert plus comme porte.
      */
     planDisponible: boolean;
     /**

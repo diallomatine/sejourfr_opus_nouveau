@@ -28,6 +28,7 @@ import {
     journeyEtapeHref,
     journeyNowCta,
     journeyNowMeta,
+    journeyNowStep,
     journeyStepSubtitle,
     journeyStepTitle,
 } from "@/lib/journey";
@@ -737,13 +738,13 @@ function journeyPriorityDe(
 }
 
 /**
- * La mesure que lance une étape d'examen — **la ligne de la séance** si elle y
- * est, sinon celle que **l'étape porte**.
+ * La mesure que lance une étape d'examen — **celle que l'étape porte**
+ * (`step.assessment`), et elle seule.
  *
- * 🛑 Les deux viennent du **même** resolver serveur
- * (`PlanDomainAssessmentResolver`) : on ne compose aucune action, on retrouve
- * celle qui est déjà servie. La séance passe devant parce qu'elle porte en plus
- * les compteurs et le verrou de sa ligne.
+ * 🛑 **La séance du Plan n'est plus consultée** (2026-09-28). Elle passait
+ * devant, et c'est par là qu'une remesure de la séance (« Une de vos
+ * productions n'a pas pu être analysée… », nature `A_EVALUER`) se glissait sur
+ * la carte d'une étape du parcours. L'étape sert son action : on la lit là.
  *
  * ⚠️ **Ce second chemin lisait `domainesAEvaluer`** jusqu'au 2026-09-17, et
  * c'était faux : cette liste ne contient que les épreuves **jamais mesurées**,
@@ -754,20 +755,11 @@ function journeyPriorityDe(
  * `null` = étape d'entraînement, ou étape d'examen servie par un backend
  * antérieur au champ `assessment`.
  */
-function journeyMesureDe(
-    plan: LearningPlanDto,
-    etape: JourneyStepDto,
-): PlanSeanceAssessmentItemDto | null {
+function journeyMesureDe(etape: JourneyStepDto): PlanSeanceAssessmentItemDto | null {
     /* 🛑 La séance du Plan est TCF : ses `assessment.epreuve` sont des épreuves.
        Un bloc civique n'y a aucun équivalent, donc on sort — et c'est correct,
        pas un trou : le cycle civique a son propre écran (P8.7). */
     if (etape.type !== "SECTION_EXAM" || etape.bloc?.kind !== "EPREUVE") return null;
-    const epreuve = etape.bloc.code;
-    const dansLaSeance = plan.seance.items.find(
-        (item): item is PlanSeanceAssessmentItemDto =>
-            item.exercise === null && item.assessment.epreuve === epreuve,
-    );
-    if (dansLaSeance) return dansLaSeance;
     const assessment = etape.assessment;
     if (!assessment) return null;
     /* Une mesure n'a ni compétence, ni palier, ni état de maîtrise, ni étape :
@@ -830,7 +822,7 @@ export function planStepAction(
     plan: LearningPlanDto,
     etape: JourneyStepDto,
 ): PlanStepAction | null {
-    const mesure = journeyMesureDe(plan, etape);
+    const mesure = journeyMesureDe(etape);
     if (mesure) return {mesure, exercise: null, priority: null};
     const priority = journeyPriorityDe(plan, etape);
     /* 🛑 **L'exercice SERVI passe devant** (même raisonnement qu'`assessment`,
@@ -998,27 +990,32 @@ export function planNowCard(
 
        Donc : le parcours **désigne**, le Plan **exécute**. C'est ce qui rend la
        carte identique sur les six sites d'appel sans dupliquer une règle. */
-    const etape = journey?.current ?? null;
+    /* 🛑 **UN PARCOURS ⇒ LA CARTE LIT SON ÉTAPE, ET RIEN D'AUTRE**
+       (2026-09-28). Dès qu'un parcours existe, « À faire maintenant » est
+       l'étape que le cycle désigne (`journeyNowStep` : `current`, ou la
+       première étape verrouillée d'un parcours `LOCKED`) — identique à la
+       pastille « Maintenant » du rail. Aucun repli sur `currentPriority`, la
+       séance ou une remesure : la carte montrait sinon « Compléter mon
+       évaluation d'expression orale · À ÉVALUER » pendant que le cycle
+       désignait son premier examen.
+
+       Le Plan dérivé (priorité, séance, remesure) ne sert QUE sans parcours :
+       `journey` absent ou `NEEDS_OBJECTIVE`. */
+    const parcours = journey !== null && journey.state !== "NEEDS_OBJECTIVE";
+    const etape = journey && parcours ? journeyNowStep(journey) : null;
+    /* Un parcours sans étape à montrer (cycle terminé, à jour) : la carte
+       n'existe pas — la fin de cycle porte son propre geste. */
+    if (parcours && !etape) return null;
     const duParcours = etape ? journeyPriorityDe(plan, etape) : null;
-    /* 🛑 **Le parcours a déjà appliqué la précédence** (R12 : une épreuve non
-       mesurée passe après les lots, et son étape est à sa position). On ne
-       rejoue donc PAS `planSeanceMesure`, qui ferait passer une mesure devant
-       l'étape que le parcours vient de désigner — deux règles de précédence
-       pour une seule carte. */
-    const mesure = etape ? journeyMesureDe(plan, etape) : planSeanceMesure(plan);
+    /* 🛑 **Le parcours a déjà appliqué la précédence** : on ne rejoue PAS
+       `planSeanceMesure`, qui ferait passer une mesure devant l'étape que le
+       parcours vient de désigner. */
+    const mesure = etape ? journeyMesureDe(etape) : planSeanceMesure(plan);
 
     /* 🛑 **GARDE-FOU : on ne lance JAMAIS autre chose que l'étape annoncée.**
-       Quand le parcours désigne une étape dont l'action ne se résout pas, cette
-       fonction retombait sur `plan.currentPriority` : la carte annonçait
-       l'étape du parcours et ouvrait la compétence que le Plan priorisait ce
-       jour-là. Deux causes, toutes deux transitoires — une compétence que le
-       Plan ne priorise plus (son transfert vient d'être prouvé) et une
-       compétence hors de la fenêtre d'affichage des priorités. Dans les deux
-       cas, la carte nomme **cette étape-là**, sans bouton. */
-    /* 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
-       fenêtre des 5 priorités, `duParcours` est nul alors que l'étape a bel et
-       bien une action. La carte la lance, en nommant **cette étape-là** — elle
-       ne retombe toujours pas sur `plan.currentPriority`. */
+       L'action ne se résout pas ⇒ la carte nomme **cette étape-là**, sans
+       bouton. L'exercice SERVI sur l'étape ferme le cul-de-sac des étapes hors
+       de la fenêtre des 5 priorités. */
     const exerciceServi = etape?.exercise ?? null;
     if (etape && !duParcours && !mesure) {
         return exerciceServi
@@ -1026,15 +1023,15 @@ export function planNowCard(
             : carteIndisponible(etape, free);
     }
 
-    const priority = duParcours ?? plan.currentPriority;
+    const priority = etape ? duParcours : plan.currentPriority;
     if (!priority && !mesure) return null;
 
     const exercise = priority?.recommendedExercise ?? null;
     /* 🛑 Le verrou se lit sur ce que la carte LANCE — la mesure réelle, même
        quand un plan gratuit ne la nomme pas. */
-    const locked = mesure
+    const locked = (etape?.locked ?? false) || (mesure
         ? planSeanceItemLocked(mesure)
-        : (priority!.locked || exercise?.locked === true);
+        : (priority!.locked || exercise?.locked === true));
 
     /* 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
        D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
@@ -1108,6 +1105,33 @@ export function planNowCard(
             && exercise?.kind === "MICRO_TRAINING"
             ? `${priority?.stepPromptCount} petits sujets · ≈ ${minutes} min chacun`
             : `≈ ${minutes} min`;
+
+    /* 🛑 **L'examen d'une étape du parcours se nomme par l'ÉTAPE** — les mêmes
+       libellés que le cycle (`journeyStepTitle` / `journeyStepSubtitle` /
+       `journeyNowMeta` / `journeyNowCta`), jamais la nature `A_EVALUER` ni le
+       motif de remesure de la séance, qui décrivent une autre action. */
+    if (mesure && etape) {
+        return {
+            nature: "MESURE",
+            geste,
+            etapeHref,
+            mesure,
+            priority: null,
+            exercise: null,
+            section: PLAN_DOMAIN_SECTION[mesure.assessment.epreuve],
+            repere: null,
+            title: journeyStepTitle(etape),
+            subtitle: journeyStepSubtitle(etape) ?? planAssessmentNature(mesure.assessment),
+            badge: null,
+            objectiveLabel: null,
+            objective: null,
+            minutesLabel,
+            kindLabel: planAssessmentNature(mesure.assessment),
+            lines: [journeyNowMeta(etape)].filter((l): l is string => Boolean(l)),
+            cta: journeyNowCta(etape, geste === "DEBLOQUER"),
+            locked,
+        };
+    }
 
     if (mesure) {
         return {

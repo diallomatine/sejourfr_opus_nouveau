@@ -24,14 +24,12 @@ import {
   civicPlanGrainNote,
   civicRevueLabel,
 } from "@/lib/civic-plan";
-import {diagnosticAAffiner, type DiagnosticAAffiner} from "@/lib/preparation";
 import {
   canAccessModule,
   CIVIC_MAITRISE_LABEL,
   type CivicDiagnosticDto,
   type CivicPlanDto,
   type JourneyDto,
-  type ModulePreparation,
 } from "@/lib/types";
 import {
   Card,
@@ -44,7 +42,6 @@ import {
   Top,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {DiagnosticAffinerCard} from "./DiagnosticAffinerCard";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
@@ -99,10 +96,10 @@ import {PlanPaywall} from "./PlanPaywallCard";
  * `CivicPlanDto.disponible` garde son sens (« plan DÉRIVÉ du diagnostic
  * civique disponible ») mais ne ferme plus l'écran. Sans diagnostic civique, le
  * cycle et « À faire maintenant » se lisent sur le parcours, les listes du plan
- * dérivé sont vides, et le diagnostic se propose en secondaire
- * (`diagnosticAAffiner`).
+ * dérivé sont vides. 🛑 La carte « Affinez votre plan avec le diagnostic »
+ * n'est PAS sur le Plan (2026-09-28) : elle ne vit que sur l'Accueil.
  */
-export function CivicPlanPanel({prep}: {prep?: ModulePreparation | null}) {
+export function CivicPlanPanel({diagnosticFait}: {diagnosticFait: boolean}) {
   const {user} = useAuth();
   const [plan, setPlan] = useState<CivicPlanDto | null>(null);
   /* 🛑 **Le CYCLE civique** (D-50) : c'est lui qui porte « À faire maintenant »
@@ -151,18 +148,18 @@ export function CivicPlanPanel({prep}: {prep?: ModulePreparation | null}) {
       plan={plan}
       journey={journey}
       free={!canAccessModule(user, "CIVIQUE")}
-      affiner={prep ? diagnosticAAffiner(prep, "CIVIQUE") : null}
+      diagnosticFait={diagnosticFait}
     />
   );
 }
 
 /* ------------------------------------------------------------- l'écran */
 
-function CiviquePlan({plan, journey, free, affiner}: {
+function CiviquePlan({plan, journey, free, diagnosticFait}: {
   plan: CivicPlanDto;
   journey: JourneyDto | null;
   free: boolean;
-  affiner: DiagnosticAAffiner | null;
+  diagnosticFait: boolean;
 }) {
   /* 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'écran de
      transition** (demande du propriétaire, 2026-09-20, TCF **et** civique) : il
@@ -263,15 +260,6 @@ function CiviquePlan({plan, journey, free, affiner}: {
           examen par thématique. */}
       <ExamenCompletJalon journey={journey} module="CIVIQUE" />
 
-      {/* 🛑 Secondaire (D-69) : sous « À faire maintenant » et le jalon. */}
-      {affiner && (
-        <Section>
-          <Pad>
-            <DiagnosticAffinerCard proposition={affiner} module="CIVIQUE" />
-          </Pad>
-        </Section>
-      )}
-
       {/* Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
           🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes
           sont affichés à leur place, avec leur cadenas et le geste d'offre que
@@ -324,7 +312,7 @@ function CiviquePlan({plan, journey, free, affiner}: {
       )}
 
       {free && <PlanPaywall module="CIVIQUE" cta="Débloquer mon plan" />}
-      <AllerPlusLoin />
+      <AllerPlusLoin diagnosticFait={diagnosticFait} />
 
       {/* ⚠️ **Ce paywall ne répond plus qu'à un 403** : depuis que tout geste
           d'achat du Plan passe par l'écran de transition, plus rien ici ne
@@ -386,15 +374,14 @@ function lancer(
  * `LearningPlanView`) : même section, même carte, même libellé, même écran
  * d'arrivée — seul le `?module=` change.
  *
- * ⚠️ **Une seule ligne, là où le TCF en a deux.** Sa seconde ligne mène à
- * « Mon diagnostic » ; le civique a bien la sienne (`/diagnostic-civique`),
- * mais l'ajouter serait une entrée de navigation que personne n'a demandée —
- * à rouvrir sur un mot du propriétaire, pas ici.
+ * 🛑 **« Mon diagnostic » n'apparaît que si le diagnostic civique est clos**
+ * (`diagnosticFait`, 2026-09-28) — sinon la ligne est masquée et la session
+ * n'est même pas lue.
  *
  * ⚠️ **Absente sur un compte sans accès**, comme sur le Plan TCF gratuit : la
  * seule action dominante de cet écran-là est « Débloquer mon plan ».
  */
-function AllerPlusLoin() {
+function AllerPlusLoin({diagnosticFait}: {diagnosticFait: boolean}) {
   /* 🛑 **Le rapport directement**, quand il y a un rapport à lire : la session
      est lue au CLIC, pas au montage — un lien que la plupart des candidats ne
      touchent pas ne coûte alors aucun appel, et sans session on retombe sur le
@@ -402,6 +389,7 @@ function AllerPlusLoin() {
      (`civicDiagnosticHref`), elle n'est pas rejouée ici. */
   const [href, setHref] = useState(CIVIC_DIAGNOSTIC_HUB_HREF);
   useEffect(() => {
+    if (!diagnosticFait) return;
     let annule = false;
     civicDiagnosticApi.current().then(
       (session: CivicDiagnosticDto | null) => {
@@ -410,7 +398,7 @@ function AllerPlusLoin() {
       () => { /* le hub reste la destination : on ne bloque jamais l'accès */ },
     );
     return () => { annule = true; };
-  }, []);
+  }, [diagnosticFait]);
 
-  return <PlanLinks module="CIVIQUE" diagnosticHref={href}/>;
+  return <PlanLinks module="CIVIQUE" diagnosticHref={diagnosticFait ? href : null}/>;
 }

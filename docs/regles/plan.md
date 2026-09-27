@@ -2243,22 +2243,24 @@ de ce que D-10 vient de trancher.
 
 ### Le Plan PAR DÉFAUT — le cycle d'examens (D-69, 2026-09-28)
 
-> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-69** · autonomie **A171 → A176** ·
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-69, D-69 bis** · autonomie **A171 → A176** ·
 > verrouillé par `PlanParDefautIT`, `JourneyServiceIT` §18-1 / §18-33, `PreparationServiceIT`.
 
 🛑 **Le Plan existe pour TOUT compte.** Le diagnostic n'est plus une porte : il **affine**.
 `prep.planDisponible` vaut toujours `true` (TCF et civique), `LearningPlanDto.state` toujours
-`ACTIVE`. Le diagnostic reste **proposé en secondaire** (« Affiner avec le diagnostic », lu sur
-`etape`) — jamais à la place de « À faire maintenant ».
+`ACTIVE`. ⚠️ Le diagnostic n'est **plus proposé** sur le Plan ni l'Accueil (carte « Affinez
+votre plan » retirée le 2026-09-28) ; « À faire maintenant » lit `journey.current` seul dès qu'un
+parcours existe (le repli séance / remesure / `currentPriority` ne vit que sans parcours) ; la
+ligne « Mon diagnostic » n'apparaît que si `diagnosticFait`.
 
 | Le compte, à la première lecture du parcours | Son premier cycle |
 |---|---|
-| aucune évaluation (compte neuf, ou séries seules) | **cycle d'examens** : un `SECTION_EXAM` `INITIAL_ASSESSMENT` par épreuve non mesurée (R12) ; civique : un examen par thématique (A65) — `cycleDeMesure` servi |
-| examens blancs déjà passés, sans diagnostic | **cycle de travail** (amorce R19) : leurs priorités (≤ 3 par épreuve) + l'examen des épreuves non mesurées ; l'épreuve mesurée n'est pas redemandée |
+| aucun diagnostic rapide (compte neuf, séries seules, **ou examens déjà passés**) | **cycle d'examens** : les **quatre** `SECTION_EXAM` (`INITIAL_ASSESSMENT` si jamais mesurée, `REASSESS` sinon — `poserLeCycleDExamens`) ; civique : un examen par thématique (A65) — `cycleDeMesure` servi. Un examen antérieur au cycle ne ferme rien (D-69 bis) |
 | diagnostic rapide clos (avant la 1ʳᵉ lecture) | cycle d'**affinage** D-64, inchangé |
 | diagnostic arrivé sur le cycle d'examens **intact** (rang 1, rien de clos) | il l'**amorce** : lot EE sans second examen (le bloc porte déjà le sien, A173) ⇒ cycle d'affinage D-64 |
 | diagnostic arrivé **après** un examen du cycle d'examens | règle ordinaire D-13 : ses priorités vont au cycle en attente |
 | ancien cycle « Faire mon diagnostic » (une étape `DIAGNOSTIC` seule) | converti **à la lecture** : `DIAGNOSTIC` close `SUPERSEDED`, examens posés |
+| **premier** cycle **vide**, sans diagnostic rapide au journal (bug de prod du 2026-09-28) | converti **à la lecture** en cycle d'examens (même id) ; un cycle vide de rang ≥ 2 reste « à jour » |
 
 - **Création paresseuse, une seule fois.** Le cycle naît à la première lecture (Accueil, Plan,
   Réviser), sans migration. Un verrou consultatif par (candidat, module)

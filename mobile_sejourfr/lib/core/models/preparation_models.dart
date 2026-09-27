@@ -77,8 +77,8 @@ class ModulePreparation {
 
   /// 🛑 **D-69 (2026-09-28) : toujours `true`.** Le Plan existe pour tout
   /// compte, diagnostic fait ou non — aucun écran ne ferme plus le Plan dessus.
-  /// Champ gardé parce qu'il reste servi ; c'est [etape] qui dit si le
-  /// diagnostic reste à proposer (`diagnosticAAffiner`).
+  /// Champ gardé parce qu'il reste servi ; c'est [etape] (et, en TCF,
+  /// [estimationSessionId]) qui dit si le diagnostic est fait (`diagnosticFait`).
   final bool planDisponible;
 
   /// **TCF** : la prochaine épreuve du diagnostic **COMPLET**, celle par

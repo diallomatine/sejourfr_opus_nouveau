@@ -166,18 +166,18 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     bool civique,
   ) {
     // 🛑 **D-69 (2026-09-28) : plus aucune porte.** Le Plan s'affiche pour tout
-    // compte, diagnostic fait ou non ; la préparation ne sert plus qu'à la
-    // proposition SECONDAIRE de diagnostic ([diagnosticAAffiner]). Observée,
-    // jamais copiée : la proposition disparaît dès que le diagnostic est fait.
+    // compte, diagnostic fait ou non, et le diagnostic n'y est plus proposé. La
+    // préparation ne décide plus que d'une chose : la ligne « Mon diagnostic »
+    // n'apparaît que s'il y a un diagnostic CLOS à relire ([diagnosticFait]).
+    // Observée, jamais copiée ; non chargée ⇒ ligne masquée.
     final prep = ref.watch(preparationProvider).valueOrNull;
     final modulePrep = prep == null ? null : (civique ? prep.civique : prep.tcf);
-    final affiner = modulePrep == null
-        ? null
-        : diagnosticAAffiner(modulePrep, civique: civique);
+    final fait =
+        modulePrep != null && diagnosticFait(modulePrep, civique: civique);
     if (civique) {
       // 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`, L10) :
       // c'est un moteur, plus un echo du diagnostic.
-      return CivicPlanView(affiner: affiner);
+      return CivicPlanView(diagnosticFait: fait);
     }
     return plan.when(
       loading: () => const _LoadingPlan(),
@@ -196,7 +196,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         // à l'endpoint garde un écran entier.
         journey: ref.watch(journeyProvider).valueOrNull,
         objective: objective,
-        affiner: affiner,
+        diagnosticFait: fait,
       ),
     );
   }

@@ -9,7 +9,6 @@ import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/models/enums.dart';
-import '../../../core/models/preparation_labels.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
@@ -22,7 +21,6 @@ import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
 import '../plan_now_card.dart';
-import 'diagnostic_affiner_card.dart';
 import 'examen_complet_jalon.dart';
 import 'plan_cycle_section.dart';
 
@@ -50,21 +48,23 @@ import 'plan_cycle_section.dart';
 /// porte d'abonnement ; un abonné voit en plus ce qu'il peut lancer.
 ///
 /// 🛑 **D-69** : l'écran s'affiche aussi sans diagnostic (le cycle est alors un
-/// cycle d'examens) ; le diagnostic n'y est qu'une proposition secondaire.
+/// cycle d'examens), et le diagnostic n'y est plus proposé : sous « À faire
+/// maintenant » il ne reste que le jalon éventuel et le cycle.
 class PlanTcfView extends ConsumerWidget {
   const PlanTcfView({
     super.key,
     required this.plan,
     this.journey,
     required this.objective,
-    this.affiner,
+    this.diagnosticFait = false,
   });
 
   final LearningPlan plan;
 
-  /// La proposition **secondaire** de diagnostic (D-69), `null` quand il n'y a
-  /// rien à proposer — décidée par [diagnosticAAffiner], jamais ici.
-  final DiagnosticAAffiner? affiner;
+  /// Un diagnostic **clos** existe-t-il à relire ? Décidé par `diagnosticFait`
+  /// (`preparation_labels.dart`), jamais ici : sans lui, la ligne « Mon
+  /// diagnostic » est masquée.
+  final bool diagnosticFait;
 
   /// **Le parcours TCF**, quand il est chargé.
   ///
@@ -116,7 +116,6 @@ class PlanTcfView extends ConsumerWidget {
       // 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
       // au-dessus du cycle — servi, jamais décidé ici.
       ExamenCompletJalon(journey: journey, module: AppModule.tcf),
-      DiagnosticAffinerCard(info: affiner),
       // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
       // (« Actualiser mon plan », D-66).
@@ -158,7 +157,6 @@ class PlanTcfView extends ConsumerWidget {
         // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
         // ouvre porte, lui, les verrous d'accès servis de chaque examen.
         ExamenCompletJalon(journey: journey, module: AppModule.tcf),
-        DiagnosticAffinerCard(info: affiner),
         // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
         // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
         // masquer priverait le candidat de l'information la plus utile qu'il
@@ -183,7 +181,9 @@ class PlanTcfView extends ConsumerWidget {
   /* ------------------------------------------------------------ blocs ----- */
 
   /// « Niveau actuel → objectif ». Les deux paliers sont **servis** ; absents,
-  /// ils s'écrivent « — » : *null = inconnu, jamais mauvais*.
+  /// ils s'écrivent « Pas encore mesuré » / « — » : *null = inconnu, jamais
+  /// mauvais*. 🛑 Le niveau passe par [NiveauCecrl.displayName], l'autorité
+  /// d'affichage : jamais le code servi (`A1_NON_ATTEINT`).
   Widget _goalStrip(BuildContext context) {
     final cycle = plan.cycle;
     return Padding(
@@ -192,7 +192,7 @@ class PlanTcfView extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SfGoalStrip(
-            current: cycle?.startingLevel?.displayName ?? kPlanGoalUnknown,
+            current: cycle?.startingLevel?.displayName ?? kPlanLevelUnknown,
             goal: objective?.wire ?? kPlanGoalUnknown,
           ),
           if (objective == null) ...[
@@ -347,7 +347,7 @@ class PlanTcfView extends ConsumerWidget {
 
   /// Les accès secondaires du Plan.
   ///
-  /// 🛑 **Deux accès, et deux seulement** (arbitrage du propriétaire,
+  /// 🛑 **Deux accès au plus** (arbitrage du propriétaire,
   /// 2026-09-19) : « Toutes mes compétences » et « Mes examens blancs » ont été
   /// retirés — le premier avec son écran, le second parce que l'onglet Examens
   /// de la barre de navigation y mène déjà. Ne pas les réintroduire.
@@ -364,14 +364,17 @@ class PlanTcfView extends ConsumerWidget {
             sub: journeyHistorySub(),
             onTap: () => context.push(AppRoutes.planProgress),
           ),
-          ListRow(
-            icon: LucideIcons.clipboardCheck,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
-            title: kPlanDiagnosticTitle,
-            sub: kPlanDiagnosticSub,
-            onTap: () => context.push(AppRoutes.diagnostic),
-          ),
+          // 🛑 **Seulement s'il y a un diagnostic CLOS à relire** : le
+          // diagnostic n'est plus proposé sur le Plan.
+          if (diagnosticFait)
+            ListRow(
+              icon: LucideIcons.clipboardCheck,
+              iconBg: AppColors.surface2,
+              iconColor: AppColors.muted,
+              title: kPlanDiagnosticTitle,
+              sub: kPlanDiagnosticSub,
+              onTap: () => context.push(AppRoutes.diagnostic),
+            ),
         ],
       ),
     );

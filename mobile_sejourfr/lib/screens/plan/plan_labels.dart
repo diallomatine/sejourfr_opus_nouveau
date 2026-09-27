@@ -429,6 +429,13 @@ String planTitleFree(TargetLevel? objective) =>
 /// on n'écrit ni A1 ni B2 par défaut.
 const String kPlanGoalUnknown = '—';
 
+/// Le **niveau actuel** du bandeau quand le serveur n'en sert aucun
+/// (`cycle.startingLevel` nul) : *inconnu*, jamais « A1 non atteint » — ce
+/// dernier est une MESURE, et il se lit par [NiveauCecrl.displayName], jamais
+/// par son code. Miroir mot pour mot de `PLAN_PROGRESS_LEVEL_UNKNOWN`
+/// (`web_sejoufr/lib/plan-domain.ts`).
+const String kPlanLevelUnknown = 'Pas encore mesuré';
+
 const String kPlanGoalPick = 'Choisir mon objectif';
 
 const String kPlanNowTitle = 'À faire maintenant';

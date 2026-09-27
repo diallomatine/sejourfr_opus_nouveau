@@ -211,6 +211,12 @@ class JourneyObservationSourcesIT extends AbstractIntegrationTest {
                 epreuve, data.productionTacheNumero(EpreuveType.TCF_EE, (short) 1), user);
         observation(user, competenceEE(0), tache.getId(),
                 LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.PRIORITY);
+        // D-69 (2026-09-28) : seul un historique qui porte un diagnostic rapide
+        // s'amorce depuis l'historique (sans lui : cycle d'examens). Baseline
+        // plus ANCIENNE, sur une epreuve que l'examen mesure : jamais reference.
+        data.learningPlanObservation(user, competenceEE(1), LearningPlanSourceType.DIAGNOSTIC_EE,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null,
+                Instant.now().minusSeconds(86_400), UUID.randomUUID());
 
         journeyService.lire(user.getId(), Module.TCF);
 

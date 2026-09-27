@@ -3367,8 +3367,9 @@ diagnostic reste proposé, mais n'est plus une PORTE obligatoire vers le Plan. �
 
 **La règle.**
 1. **Parcours par défaut** = cycle d'examens pour tout compte dont le premier cycle s'amorce
-   **sans aucune évaluation** (`JourneyEvaluationFilter`) : un `SECTION_EXAM`
-   `INITIAL_ASSESSMENT` par épreuve **non mesurée** (R12, `ajouterLesEpreuvesNonMesurees`).
+   **sans diagnostic rapide** dans l'historique (révisé, D-69 bis) : un `SECTION_EXAM` par
+   épreuve, les **quatre** — `INITIAL_ASSESSMENT` si jamais mesurée, `REASSESS` sinon
+   (`JourneyService.poserLeCycleDExamens`, la même construction que le jalon D-68).
    Côté civique, c'était déjà l'amorce « rien de fait ⇒ les cinq thématiques en Évaluer mon
    niveau » (A65) : rien à changer au moteur.
 2. **Objectif** : inchangé et lu à sa seule autorité — `TargetProcedure.niveauVise(procedure,
@@ -3386,10 +3387,10 @@ diagnostic reste proposé, mais n'est plus une PORTE obligatoire vers le Plan. �
    l'analyse arrive après la première lecture. Le cycle devient le cycle d'affinage **D-64,
    inchangé**. Arrivé **après** un examen du cycle d'examens : règle ordinaire (D-13, cycle en
    attente).
-5. **Comptes avec des examens déjà passés** : l'amorce R19 existante — le premier cycle est
-   directement un **cycle de travail** sur les priorités de ces examens (lot + `REASSESS`), et
-   les épreuves non mesurées reçoivent leur examen. L'épreuve déjà mesurée n'est pas
-   redemandée.
+5. **Comptes avec des examens déjà passés** : ⚠️ **révisé le 2026-09-28 (bug de prod, voir
+   D-69 bis)** — le premier cycle est **toujours** le cycle d'examens des quatre épreuves ;
+   l'examen d'une épreuve déjà mesurée y est posé en `REASSESS` (« Vérifier mes progrès »), et
+   un examen antérieur au cycle ne ferme rien (R19).
 6. **Jalon D-68** : le cycle d'examens par défaut ne compte **pas** comme cycle de travail (il ne
    porte aucune `TRAIN_SKILL`) — cohérent avec `JourneyJalonExamenComplet`, sans code nouveau.
 7. **Freemium inchangé** : verrous `ACCESS` servis (gratuité d'examen blanc EE/EO par épreuve,
@@ -3420,3 +3421,30 @@ Verrouillé par `PlanParDefautIT` (8 scénarios), `JourneyServiceIT` §18-1 / §
 `JourneyService.amorcer`, `PreparationService.PLAN_DISPONIBLE` sur la fondation, et la branche
 `NEEDS_DIAGNOSTIC` de `LearningPlanService` (commit parent de cette passe). Aucune donnée à
 migrer : les cycles d'examens créés restent des cycles valides.
+
+### D-69 bis — Le premier cycle sans diagnostic est TOUJOURS le cycle d'examens (2026-09-28, bug de prod)
+
+**Constat (prod, 01:21 → correctif).** Compte du propriétaire, quatre épreuves déjà mesurées,
+aucune priorité ouverte : le Plan affichait « Votre parcours est à jour — Vos 4 épreuves sont
+mesurées », **sans rail ni bloc**. Cause : la règle 5 de D-69 (« examens déjà passés ⇒ cycle de
+travail direct », amorce R19) ne pose que les priorités ouvertes et l'examen des épreuves **non
+mesurées** — ici aucune des deux, donc un cycle **vide** (`UP_TO_DATE`). Le même cycle vide
+existait avant D-69 pour ces comptes, invisible derrière la porte du diagnostic.
+
+**Décision du propriétaire.** « Le plan par défaut doit s'afficher EXACTEMENT comme le plan
+normal (rail + cartes d'épreuve), où dans CHAQUE épreuve la SEULE action est l'examen blanc de
+l'épreuve. » Donc :
+1. **Sans diagnostic rapide dans l'historique, le premier cycle est TOUJOURS le cycle
+   d'examens** — quatre blocs, quatre examens, examens déjà passés ou non. La branche « cycle de
+   travail direct » est **supprimée** : l'amorce depuis l'historique ne sert plus que les
+   historiques qui portent un diagnostic rapide (cycle d'affinage D-64).
+2. **Rattrapage à la lecture** des comptes touchés : un **premier** cycle TCF (aucun cycle
+   historisé), **sans aucune étape**, dont le journal ne porte **aucun** diagnostic rapide,
+   reçoit le cycle d'examens (même id, sous le verrou du parcours ; idempotent : après, il porte
+   des étapes). Un cycle qui porte des étapes n'est jamais touché, ni un cycle vide de rang ≥ 2
+   (cycle promu « à jour », voulu).
+3. Les tests qui fabriquaient un cycle de travail par l'amorce d'historique d'examens passent
+   par le chemin qui en crée encore un : une évaluation reçue par un cycle **vide**.
+
+Verrouillé par `PlanParDefautIT` (`quatreEpreuvesDejaMesureesDonnentLeCycleDExamens`,
+`cycleVideSansDiagnosticRattrapeALaLecture`, `cyclesLegitimesInchanges`).

@@ -73,7 +73,7 @@ const String kProductionNonEvaluableRaisonsTitle = 'Ce qui a été constaté';
 /// ⚠️ Contrat gelé, miroir mot pour mot de `tacheNiveauLabel` côté web.
 String tacheNiveauLabel(NiveauCecrl niveau) =>
     niveau == NiveauCecrl.a1NonAtteint
-        ? 'A1 non atteint'
+        ? niveau.displayName
         : 'Niveau ${niveau.displayName}';
 
 /// Badge d'un sujet **rendu mais sans niveau affichable** (évaluation encore en

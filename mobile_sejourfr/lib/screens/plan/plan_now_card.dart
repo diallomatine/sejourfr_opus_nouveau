@@ -32,14 +32,16 @@ import 'plan_seance_state.dart';
 /// gratuit et le plan abonné avec la **même** carte, et `free` n'y décide que
 /// le geste.
 enum PlanNowNature {
-  /// Une **mesure de domaine** : le candidat a produit et le correcteur n'a
-  /// rien pu observer. Tout ce qui suivrait travaillerait à l'aveugle.
+  /// Une **mesure de domaine** de la séance : le candidat a produit et le
+  /// correcteur n'a rien pu observer. 🛑 **Seulement sans parcours** — avec un
+  /// parcours, l'examen d'un bloc est une [etape] du cycle.
   mesure,
 
   /// L'étape est terminée : le Plan demande une **vérification en situation**.
   verification,
 
-  /// Le cas courant : l'étape de la priorité n°1.
+  /// Le cas courant : l'étape courante du parcours (compétence ou examen de
+  /// bloc), ou, sans parcours, la priorité n°1.
   etape,
 
   /// 🛑 **Le parcours a désigné une étape dont l'action ne se résout pas.**
@@ -121,9 +123,9 @@ class PlanNowCard {
   /// la sert, comme elle sert le geste.
   final String? etapeRoute;
 
-  /// **La mesure que le bouton LANCE**, `null` dès que la carte porte une étape.
-  /// C'est elle qui décide du verrou comme du démarrage
-  /// ([startPlanSeanceItem]).
+  /// **La mesure que le bouton LANCE** — l'examen d'un bloc du cycle, ou la
+  /// mesure de la séance sans parcours ; `null` sur une compétence. C'est elle
+  /// qui décide du démarrage ([startPlanSeanceItem]).
   final PlanSeanceItem? mesure;
 
   /// `null` sur la nature [PlanNowNature.indisponible] — il n'y a **rien** à
@@ -220,7 +222,7 @@ class PlanStepAction {
 }
 
 PlanStepAction? planStepAction(LearningPlan plan, JourneyStep etape) {
-  final mesure = _mesureDe(plan, etape);
+  final mesure = _mesureDe(etape);
   if (mesure != null) return PlanStepAction(mesure: mesure);
   final priority = _priorityDe(plan, etape);
   // 🛑 **L'exercice SERVI passe devant** (même raisonnement que `assessment`,
@@ -259,31 +261,6 @@ bool planStepActionLocked(PlanStepAction action) {
   return action.exercise?.locked ?? false;
 }
 
-/// **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand le serveur
-/// n'a désigné aucune priorité (l'écran affiche alors son état vide).
-///
-/// 🛑 **Rien n'est décidé ici** : la précédence de la mesure, la nature de
-/// l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
-/// fait que choisir *laquelle* des deux identités la carte porte, et le dire une
-/// seule fois pour les deux écrans.
-///
-/// 🛑 **[free] ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
-/// « faire en sorte qu'un non abonné voie également le "à faire maintenant"
-/// d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
-/// Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
-/// titre, pastille « Priorité n°1 », métas, explication du correcteur,
-/// progression — et son bouton ouvre l'**offre** au lieu de lancer.
-///
-/// ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12
-/// (`_freeStepCard` et ses trois bénéfices verrouillés, « aucun geste ne part
-/// de cette carte »). **Ce qui TIENT** : « dans le plan, on ne travaille rien
-/// si on n'est pas abonné » — [free] force [PlanNowGeste.debloquer]
-/// **inconditionnellement**, et `_nowCard` ne branche que sur `geste`, donc
-/// aucun lanceur n'est joignable depuis un plan gratuit.
-///
-/// 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
-/// la progression et les compteurs sont des **résultats mesurés**. On floute
-/// l'action pas encore accessible, jamais le résultat mesuré.
 /// **Ce que le cycle propose pour UNE épreuve**, pour la carte de tête de son
 /// écran d'entraînement (demande du propriétaire, 2026-09-20).
 ///
@@ -383,130 +360,219 @@ PlanEpreuveCarte? planEpreuveCarte(
   );
 }
 
+/// **La carte « À faire maintenant » d'un plan TCF**, ou `null` quand il n'y a
+/// rien à annoncer (l'écran affiche alors son état vide).
+///
+/// 🛑 **Avec un parcours, c'est `journey.current` et RIEN D'AUTRE** — la même
+/// étape que le rail du cycle et sa pastille « Maintenant ». Le Plan dérivé
+/// (mesure de la séance, `currentPriority`) ne sert que **sans** parcours
+/// (non servi, ou `NEEDS_OBJECTIVE`).
+///
+/// 🛑 **Rien n'est décidé ici** : l'étape, la nature de l'action, les minutes et
+/// le verrou sont tous **servis**. Cette fonction ne fait que choisir quelle
+/// identité la carte porte, et le dire une seule fois pour les six surfaces.
+///
+/// 🛑 **[free] ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
+/// « faire en sorte qu'un non abonné voie également le "à faire maintenant"
+/// d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
+/// Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
+/// titre, pastille « Priorité n°1 », métas, explication du correcteur,
+/// progression — et son bouton ouvre l'**offre** au lieu de lancer.
+///
+/// ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12
+/// (`_freeStepCard` et ses trois bénéfices verrouillés, « aucun geste ne part
+/// de cette carte »). **Ce qui TIENT** : « dans le plan, on ne travaille rien
+/// si on n'est pas abonné » — [free] force [PlanNowGeste.debloquer]
+/// **inconditionnellement**, et `_nowCard` ne branche que sur `geste`, donc
+/// aucun lanceur n'est joignable depuis un plan gratuit.
+///
+/// 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
+/// la progression et les compteurs sont des **résultats mesurés**. On floute
+/// l'action pas encore accessible, jamais le résultat mesuré.
 PlanNowCard? planNowCard(
   LearningPlan plan, {
   Journey? journey,
   bool free = false,
 }) {
-  // 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
-  // (décision A18, `docs/decisions-autonomes-parcours-tcf.md`).
+  // 🛑 **UN PARCOURS EST SERVI ⇒ LA CARTE EST SON ÉTAPE COURANTE, ET RIEN
+  // D'AUTRE** (2026-09-28). « À faire maintenant » est la première action du
+  // cycle : `journey.current`, celle que le rail et la pastille « Maintenant »
+  // désignent. ⚠️ **Révoque** le repli sur la séance, la remesure d'une
+  // production non analysée et `currentPriority` tant qu'un parcours existe :
+  // la carte annonçait « Compléter mon évaluation d'expression orale · Une de
+  // vos productions n'a pas pu être analysée… » pendant que le cycle désignait
+  // une autre étape.
   //
-  // `JourneyStep` porte l'identité d'une étape — et **aucune action à lancer**.
-  // Le catalogue d'actions vit chez ses autorités : le petit sujet précis chez
-  // `RecommendedExerciseSelector`, « par quoi mesurer une épreuve » chez
-  // `PlanDomainAssessmentResolver`. Les recopier dans le parcours en ferait un
-  // second moteur, ce que la spec §0.4 interdit.
-  final etape = journey?.current;
-  final duParcours = etape == null ? null : _priorityDe(plan, etape);
-  // 🛑 **Une MESURE passe devant tout le reste** — sauf quand un parcours est
-  // servi : il a **déjà** appliqué la précédence (R12), et rejouer
-  // `planSeanceMesure` ferait passer une mesure devant l'étape qu'il vient de
-  // désigner. Deux règles de précédence pour une seule carte.
-  final mesure =
-      etape == null ? planSeanceMesure(plan) : _mesureDe(plan, etape);
-
-  // 🛑 **GARDE-FOU : on ne lance JAMAIS autre chose que l'étape annoncée.**
-  // Quand le parcours désigne une étape dont l'action ne se résout pas, cette
-  // fonction retombait sur `plan.currentPriority` : la carte annonçait l'étape
-  // du parcours et ouvrait la compétence que le Plan priorisait ce jour-là.
-  if (etape != null && duParcours == null && mesure == null) {
-    // 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
-    // fenêtre des 5 priorités, `duParcours` est nul alors que l'étape a bel et
-    // bien une action. La carte la lance, en nommant **cette étape-là** — elle
-    // ne retombe toujours pas sur `plan.currentPriority`.
-    final exerciceServi = etape.exercise;
-    return exerciceServi == null
-        ? _carteIndisponible(etape, free)
-        : _carteEtapeServie(etape, exerciceServi, free);
+  // Pas d'étape (cycle terminé, à jour) ⇒ pas de carte : l'écran affiche son
+  // état vide, jamais une action d'une autre source. `LOCKED` : la première
+  // étape verrouillée, avec son « Débloquer » — `journeyNowStep`, même lecture
+  // que le web.
+  if (journey != null && journey.state != JourneyState.needsObjective) {
+    final etape = journeyNowStep(journey);
+    return etape == null ? null : _carteDuParcours(plan, etape, free);
   }
+  // Pas de parcours (non servi, ou aucun objectif déclaré) : le Plan dérivé
+  // reste la seule source — une mesure passe devant, sinon la priorité n°1.
+  return _carteDuPlan(plan, free);
+}
 
-  // 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
-  // (demande du propriétaire, 2026-09-20). Compréhension CO/CE et civique : le
-  // candidat voit d'abord ce que l'étape demande — la compétence ou l'unité
-  // travaillée, le seuil, ses deux séries — puis choisit la série qu'il lance.
-  // La ligne du cycle le faisait déjà ; les cinq autres surfaces lançaient
-  // encore l'exercice, faute d'avoir la règle ICI.
-  //
-  // ⚠️ **Les étapes d'EXPRESSION (EE/EO) ne sont PAS concernées** : elles
-  // portent une tâche, [journeyEtapeASeries] les laisse de côté, et leur chemin
-  // vers leurs petits sujets ne change pas.
-  //
-  // ⚠️ **Une MESURE ne passe jamais par cet écran** : elle n'est pas une étape
-  // `TRAIN_SKILL`, donc le prédicat ne la retient pas.
-  final serie = etape != null && journeyEtapeASeries(etape);
-  final etapeRoute = serie ? journeyEtapeRoute(etape.id) : null;
+/// **La carte de l'étape que le parcours a désignée.**
+///
+/// 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
+/// (décision A18, `docs/decisions-autonomes-parcours-tcf.md`) : l'examen d'un
+/// bloc se lance par son `assessment` **servi** ; une compétence par la
+/// priorité du Plan qui la porte, sinon par l'exercice servi sur l'étape.
+///
+/// 🛑 **GARDE-FOU : on ne lance JAMAIS autre chose que l'étape annoncée.** Rien
+/// ne se résout ⇒ [PlanNowNature.indisponible] : la carte nomme l'étape, sans
+/// bouton — jamais un repli sur `plan.currentPriority`.
+PlanNowCard _carteDuParcours(
+  LearningPlan plan,
+  JourneyStep etape,
+  bool free,
+) {
+  final mesure = _mesureDe(etape);
+  if (mesure != null) return _carteExamen(etape, mesure, free);
+  final priority = _priorityDe(plan, etape);
+  if (priority != null) {
+    return _cartePriorite(plan, priority, etape: etape, free: free);
+  }
+  // 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
+  // fenêtre des 5 priorités, la priorité est introuvable alors que l'étape a
+  // bel et bien une action. La carte la lance, en nommant **cette étape-là**.
+  final exerciceServi = etape.exercise;
+  return exerciceServi == null
+      ? _carteIndisponible(etape, free)
+      : _carteEtapeServie(etape, exerciceServi, free);
+}
 
-  final priority = duParcours ?? plan.currentPriority;
-  if (priority == null && mesure == null) return null;
+/// **La carte SANS parcours** — le Plan dérivé : une mesure de la séance passe
+/// devant tout le reste, sinon la priorité n°1. `null` quand il n'y a ni l'une
+/// ni l'autre (l'écran affiche alors son état vide).
+PlanNowCard? _carteDuPlan(LearningPlan plan, bool free) {
+  final mesure = planSeanceMesure(plan);
+  final assessment = mesure?.assessment;
+  if (mesure != null && assessment != null) {
+    return _carteMesure(plan, mesure, assessment, free);
+  }
+  final priority = plan.currentPriority;
+  if (priority == null) return null;
+  return _cartePriorite(plan, priority, free: free);
+}
 
-  final exercise = priority?.recommendedExercise;
-  final mesureDomaine = mesure?.assessment;
+/// **La carte d'une MESURE de la séance** — seulement sans parcours.
+///
+/// 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
+/// D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre** ; `free`
+/// court-circuite tout, avant même le `locked` servi, et n'entre **pas** dans
+/// `locked`, qui reste le verrou **servi** et rien d'autre.
+PlanNowCard _carteMesure(
+  LearningPlan plan,
+  PlanSeanceItem mesure,
+  PlanDomainAssessment assessment,
+  bool free,
+) {
+  final verrou = planSeanceItemLocked(mesure);
+  final offre = free || verrou;
+  final priority = plan.currentPriority;
+  return PlanNowCard(
+    nature: PlanNowNature.mesure,
+    geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    etapeRoute: null,
+    mesure: mesure,
+    priority: priority,
+    exercise: priority?.recommendedExercise,
+    section: planDomainSection(assessment.epreuve),
+    icon: planDomainIcon(assessment.epreuve),
+    title: planAssessmentItemTitle(assessment),
+    subtitle: planAssessmentNature(assessment),
+    badge: PlanActionNature.aEvaluer.label,
+    objectiveLabel: null,
+    objective: null,
+    minutesLabel: _minutes(assessment.estimatedMinutes),
+    kindLabel: null,
+    // Sur une mesure, le constat de la priorité parlerait d'une AUTRE
+    // compétence que celle que le bouton va ouvrir : c'est le motif de la
+    // mesure qui se dit.
+    lines: const [kPlanReasonAEvaluer],
+    cta: offre
+        ? kPlanNowLockedCta
+        : planNowCta(priority, verifier: false, mesure: true),
+    locked: verrou,
+  );
+}
+
+/// **La carte de l'EXAMEN d'un bloc que le parcours a désigné.**
+///
+/// 🛑 **Elle nomme l'étape du CYCLE**, avec les libellés du parcours — la même
+/// autorité que le rail et l'encart d'examen du bloc : « Expression orale ·
+/// Évaluer mon niveau ». Elle ne se déguise jamais en remesure d'une
+/// production non analysée (« Compléter mon évaluation… ») : ce motif
+/// appartient à la séance du Plan dérivé, pas au cycle.
+///
+/// L'action est l'`assessment` **servi** sur l'étape ; le verrou est celui de
+/// l'étape **ou** de ce qu'elle lance, et `free` ne décide que du geste.
+PlanNowCard _carteExamen(JourneyStep etape, PlanSeanceItem mesure, bool free) {
+  final assessment = mesure.assessment!;
+  final verrou = etape.locked || planSeanceItemLocked(mesure);
+  final offre = free || verrou;
+  final meta = journeyNowMeta(etape);
+  return PlanNowCard(
+    nature: PlanNowNature.etape,
+    geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
+    etapeRoute: null,
+    mesure: mesure,
+    priority: null,
+    exercise: null,
+    section: planDomainSection(assessment.epreuve),
+    icon: planDomainIcon(assessment.epreuve),
+    title: journeyStepTitle(etape),
+    subtitle: journeyStepSubtitle(etape) ?? planAssessmentNature(assessment),
+    badge: null,
+    objectiveLabel: null,
+    objective: null,
+    minutesLabel: _minutes(assessment.estimatedMinutes),
+    kindLabel: planAssessmentNature(assessment),
+    lines: meta == null ? const <String>[] : [meta],
+    // Même libellé que le web (`journeyNowCta(etape, verrou)`).
+    cta: journeyNowCta(etape, offre),
+    locked: verrou,
+  );
+}
+
+/// **La carte d'une PRIORITÉ du Plan** — la compétence de l'étape désignée
+/// quand il y a un parcours ([etape] non nul), la priorité n°1 sinon.
+PlanNowCard _cartePriorite(
+  LearningPlan plan,
+  LearningPlanPriority priority, {
+  JourneyStep? etape,
+  required bool free,
+}) {
+  final exercise = priority.recommendedExercise;
 
   // 🛑 **La carte de vérification est une AUTRE carte.** Elle se lit sur la
   // nature **servie**, jamais sur un compteur.
-  final verifier = mesureDomaine == null &&
-      priority?.nature == PlanActionNature.aVerifier &&
+  final verifier = priority.nature == PlanActionNature.aVerifier &&
       exercise?.kind == PlanExerciseKind.reassessment;
 
-  final minutes = mesure != null
-      ? mesureDomaine?.estimatedMinutes ?? 0
-      : exercise?.estimatedMinutes ?? 0;
+  final minutes = exercise?.estimatedMinutes ?? 0;
   final minutesLabel = minutes <= 0
       ? null
       // « chacun » : les minutes sont celles d'UN sujet, pas de la série
       // entière — sans lui, « 5 sujets · ≈ 6 min » promettait six minutes pour
       // les cinq.
-      : mesure == null &&
-              !verifier &&
-              (priority?.stepPromptCount ?? 0) > 0 &&
+      : !verifier &&
+              priority.stepPromptCount > 0 &&
               exercise?.kind == PlanExerciseKind.microTraining
-          ? '${priority?.stepPromptCount} petits sujets · ≈ $minutes min chacun'
+          ? '${priority.stepPromptCount} petits sujets · ≈ $minutes min chacun'
           : '≈ $minutes min';
 
-  if (mesureDomaine != null) {
-    // 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
-    // D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
-    //
-    // 🛑 **C'est ICI que tient « dans le plan, on ne travaille rien si on n'est
-    // pas abonné »** : `free` court-circuite tout, avant même le `locked`
-    // servi. Il n'entre **pas** dans `locked`, qui reste le verrou **servi** et
-    // rien d'autre.
-    final verrou = planSeanceItemLocked(mesure!);
-    final offre = free || verrou;
-    return PlanNowCard(
-      nature: PlanNowNature.mesure,
-      geste: offre
-          ? PlanNowGeste.debloquer
-          : serie
-              ? PlanNowGeste.ouvrirEtape
-              : PlanNowGeste.lancer,
-      etapeRoute: etapeRoute,
-      mesure: mesure,
-      priority: priority,
-      exercise: exercise,
-      section: planDomainSection(mesureDomaine.epreuve),
-      icon: planDomainIcon(mesureDomaine.epreuve),
-      title: planAssessmentItemTitle(mesureDomaine),
-      subtitle: planAssessmentNature(mesureDomaine),
-      badge: PlanActionNature.aEvaluer.label,
-      objectiveLabel: null,
-      objective: null,
-      minutesLabel: minutesLabel,
-      kindLabel: null,
-      // Sur une mesure, le constat de la priorité parlerait d'une AUTRE
-      // compétence que celle que le bouton va ouvrir : c'est le motif de la
-      // mesure qui se dit.
-      lines: const [kPlanReasonAEvaluer],
-      cta: offre
-          ? kPlanNowLockedCta
-          : planNowCta(priority, verifier: false, mesure: true),
-      locked: verrou,
-    );
-  }
-
-  // Plus de mesure et plus de priorité : il n'y a rien à annoncer, et l'écran
-  // affiche son état vide.
-  if (priority == null) return null;
+  // 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
+  // (demande du propriétaire, 2026-09-20). Compréhension CO/CE : le candidat
+  // voit d'abord ce que l'étape demande, puis choisit la série qu'il lance.
+  // ⚠️ **Les étapes d'EXPRESSION (EE/EO) ne sont PAS concernées** : elles
+  // portent une tâche, [journeyEtapeASeries] les laisse de côté.
+  final serie = etape != null && journeyEtapeASeries(etape);
 
   final epreuve = planEpreuveOfSection(priority.section);
   final task = SkillTaskCode.fromSkillCode(priority.skillCode);
@@ -525,22 +591,16 @@ PlanNowCard? planNowCard(
             : exercise == null
                 ? PlanNowGeste.aucun
                 : PlanNowGeste.lancer,
-    etapeRoute: etapeRoute,
+    etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
     mesure: null,
     priority: priority,
     exercise: exercise,
     section: priority.section,
     icon: verifier ? LucideIcons.badgeCheck : planDomainIcon(epreuve),
     // 🛑 **L'ÉPREUVE en titre, la compétence en sous-titre** (demande du
-    // propriétaire, 2026-09-18). Les deux étaient inversés : le candidat lisait
-    // d'abord « Comprendre l'implicite et les nuances à l'oral » — un intitulé
-    // de référentiel, long, sur deux lignes — et devait descendre pour savoir de
-    // quelle épreuve il s'agissait. Il sait maintenant **où** il travaille avant
-    // de lire **quoi**.
-    //
-    // 🛑 **Le nom de la compétence ne se répète pas trois fois** : il vit en
-    // sous-titre, et sur la vérification il passe sous le titre — qui nomme
-    // alors l'ACTION, et c'est le seul cas où l'ordre s'inverse.
+    // propriétaire, 2026-09-18) : le candidat sait **où** il travaille avant de
+    // lire **quoi**. Sur la vérification, le titre nomme l'ACTION — le seul cas
+    // où l'ordre s'inverse.
     title: verifier
         ? kPlanNowVerifyTitle
         : planNowIdentite(
@@ -571,6 +631,10 @@ PlanNowCard? planNowCard(
   );
 }
 
+/// « ≈ 20 min », ou `null` quand aucune durée n'est servie — jamais un chiffre
+/// inventé.
+String? _minutes(int? minutes) => minutes == null || minutes <= 0 ? null : '≈ $minutes min';
+
 /// La priorité du Plan qui porte la compétence de cette étape — **son action**.
 ///
 /// 🛑 Le rapprochement se fait sur `skillCode`, pas sur `skillId` : c'est le
@@ -593,24 +657,20 @@ LearningPlanPriority? _priorityDe(LearningPlan plan, JourneyStep etape) {
   return null;
 }
 
-/// La mesure que lance une étape d'examen — **cherchée d'abord dans la séance**,
-/// puis dans « ce qu'il reste à mesurer ».
+/// La mesure que lance une étape d'examen : l'`assessment` **servi sur
+/// l'étape**, et lui seul.
 ///
-/// 🛑 Les deux viennent du **même** resolver serveur
-/// (`PlanDomainAssessmentResolver`) : on ne compose aucune action, on retrouve
-/// celle qui est déjà servie. Le second chemin existe parce que le parcours peut
-/// nommer une épreuve que la séance du jour n'a pas retenue — la séance est une
-/// vue bornée, la file ne l'est pas.
-PlanSeanceItem? _mesureDe(LearningPlan plan, JourneyStep etape) {
-  // 🛑 La séance du Plan est TCF : ses `assessment.epreuve` sont des épreuves.
-  // Un bloc civique n'y a aucun équivalent — le cycle civique a son propre
-  // écran (P8.7). On sort, et c'est correct, pas un trou.
+/// 🛑 **Plus aucune recherche dans la séance** (2026-09-28) : la séance est le
+/// Plan dérivé, et y chercher l'action d'une étape du cycle faisait porter à la
+/// carte l'identité d'une remesure. La résolution vient du **même** resolver
+/// serveur (`PlanDomainAssessmentResolver`) ; seule l'enveloppe est
+/// reconstituée ici, pour les lanceurs de mesure.
+PlanSeanceItem? _mesureDe(JourneyStep etape) {
+  // 🛑 Un bloc civique n'a aucune épreuve à mesurer ici — le cycle civique a
+  // son propre écran (P8.7). On sort, et c'est correct, pas un trou.
   if (etape.type != JourneyStepType.sectionExam ||
       etape.bloc?.kind != JourneyBlocKind.epreuve) {
     return null;
-  }
-  for (final item in plan.seance.items) {
-    if (item.assessment?.epreuve.name == _epreuveDuBloc(etape)?.name) return item;
   }
   final assessment = etape.assessment;
   if (assessment == null) return null;

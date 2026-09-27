@@ -16,6 +16,7 @@ import type {
     SituationDansNiveau,
     TargetLevel,
 } from "./types";
+import {niveauCecrlLabel} from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Échelle du TCF
@@ -242,7 +243,8 @@ export function tacheNiveau(
  * ⚠️ Contrat gelé, miroir mot pour mot de `tacheNiveauLabel` côté mobile.
  */
 export function tacheNiveauLabel(niveau: NiveauCecrl): string {
-    return niveau === "A1_NON_ATTEINT" ? "A1 non atteint" : `Niveau ${niveau}`;
+    const libelle = niveauCecrlLabel(niveau);
+    return niveau === "A1_NON_ATTEINT" ? libelle : `Niveau ${libelle}`;
 }
 
 /**

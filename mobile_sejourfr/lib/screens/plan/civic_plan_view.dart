@@ -10,7 +10,6 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
-import '../../core/models/preparation_labels.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/civique_examen.dart';
@@ -27,7 +26,6 @@ import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
 import 'plan_now_card.dart';
 import 'widgets/plan_cycle_section.dart';
-import 'widgets/diagnostic_affiner_card.dart';
 import 'widgets/examen_complet_jalon.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
@@ -79,11 +77,12 @@ import 'widgets/examen_complet_jalon.dart';
 /// maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
 /// restent lisibles. On floute l'**action**, jamais le **résultat**.
 class CivicPlanView extends ConsumerStatefulWidget {
-  const CivicPlanView({super.key, this.affiner});
+  const CivicPlanView({super.key, this.diagnosticFait = false});
 
-  /// La proposition **secondaire** de diagnostic civique (D-69), `null` quand
-  /// il n'y a rien à proposer — décidée par [diagnosticAAffiner].
-  final DiagnosticAAffiner? affiner;
+  /// Un diagnostic civique **clos** existe-t-il à relire ? Décidé par
+  /// `diagnosticFait` (`preparation_labels.dart`) : sans lui, la ligne « Mon
+  /// diagnostic » est masquée — le diagnostic n'est plus proposé sur le Plan.
+  final bool diagnosticFait;
 
   @override
   ConsumerState<CivicPlanView> createState() => _CivicPlanViewState();
@@ -213,17 +212,14 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       ],
 
       // 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
-      // plan dérivé — la même forme que `planNowCard`. Le contenu est identique
-      // pour les deux accès ; seul le geste change.
+      // plan dérivé quand `current` est nul ([civicNowCard]). Le contenu est
+      // identique pour les deux accès ; seul le geste change.
       ..._actionMaintenant(plan, parcours, free: free),
 
       // 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
       // servi, jamais décidé ici. En civique, le cycle d'examens porte un examen
       // par thématique.
       ExamenCompletJalon(journey: parcours, module: AppModule.civique),
-
-      // La proposition SECONDAIRE de diagnostic civique (D-69).
-      DiagnosticAffinerCard(info: widget.affiner),
 
       // Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
       // 🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes
@@ -251,8 +247,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// brique ([ListGroup] / [ListRow]), même icône, même libellé, même écran
   /// d'arrivée — seul le parcours affiché change ce que l'écran raconte.
   ///
-  /// ✅ **Deux lignes, comme le TCF** (demande du propriétaire, 2026-09-20) :
-  /// la seconde mène au diagnostic **civique**, qui a sa propre porte.
+  /// ✅ **Deux lignes au plus, comme le TCF** (demande du propriétaire,
+  /// 2026-09-20) : la seconde mène au diagnostic **civique**, qui a sa propre
+  /// porte — et n'apparaît que s'il y a un diagnostic clos à relire.
   ///
   /// ✅ **Visible aussi sans accès** (même demande) : ce sont deux **constats**
   /// — ce qui a été mesuré, ce qui a été fait — et rien ne s'y travaille. Les
@@ -273,23 +270,26 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
             sub: journeyHistorySub(AppModule.civique),
             onTap: () => context.push(AppRoutes.planProgress),
           ),
-          ListRow(
-            icon: LucideIcons.clipboardCheck,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
-            title: kPlanDiagnosticTitle,
-            sub: kPlanDiagnosticSub,
-            // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF
-            // ne raconte rien du civique.
-            //
-            // 🛑 **Le rapport directement**, quand il y a un rapport à lire :
-            // la session est lue au TAP, pas au montage — un lien que la
-            // plupart des candidats ne touchent pas ne coûte alors aucun
-            // appel, et sans session on retombe sur le hub, le comportement
-            // d'avant. La règle de destination vit une seule fois
-            // (`civicDiagnosticRoute`), elle n'est pas rejouée ici.
-            onTap: () => unawaited(_ouvrirDiagnostic(context)),
-          ),
+          // 🛑 **Seulement s'il y a un diagnostic civique CLOS à relire** :
+          // le diagnostic n'est plus proposé sur le Plan.
+          if (widget.diagnosticFait)
+            ListRow(
+              icon: LucideIcons.clipboardCheck,
+              iconBg: AppColors.surface2,
+              iconColor: AppColors.muted,
+              title: kPlanDiagnosticTitle,
+              sub: kPlanDiagnosticSub,
+              // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF
+              // ne raconte rien du civique.
+              //
+              // 🛑 **Le rapport directement**, quand il y a un rapport à lire :
+              // la session est lue au TAP, pas au montage — un lien que la
+              // plupart des candidats ne touchent pas ne coûte alors aucun
+              // appel, et sans session on retombe sur le hub, le comportement
+              // d'avant. La règle de destination vit une seule fois
+              // (`civicDiagnosticRoute`), elle n'est pas rejouée ici.
+              onTap: () => unawaited(_ouvrirDiagnostic(context)),
+            ),
         ],
       ),
     );

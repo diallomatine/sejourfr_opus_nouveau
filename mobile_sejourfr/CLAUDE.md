@@ -543,6 +543,12 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   `tcf_diagnostic_labels.dart` **supprimé** le 2026-09-26 avec son dernier lecteur ;
   `core/models/tcf_diagnostic_models.dart` inchangé (miroir DTO, et `TcfDiagnosticStatus` sert
   aussi au civique).
+> ⚠️ **Révisé le 2026-09-28 (D-69 bis)** : le diagnostic n'est plus proposé sur l'Accueil ni sur
+> le Plan (carte « Affinez votre plan » et `diagnosticAAffiner` retirés de l'écran) ; la ligne
+> « Mon diagnostic » des liens du Plan n'apparaît que si `diagnosticFait` ; « À faire maintenant »
+> = `journey.current` seul dès qu'un parcours existe. Ce qui suit sur la proposition secondaire
+> est périmé.
+
 - **Complet commencé avant le retrait** : `tcfAction` / `diagnosticAAffiner` ne lisent plus
   son avancement ; seul le **rapide** se propose (D-69 : le Plan existe toujours).
   Tableau : `docs/regles/diagnostic.md`, « Le diagnostic COMPLET est RETIRÉ des fronts ».

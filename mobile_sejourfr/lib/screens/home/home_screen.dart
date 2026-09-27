@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/analytics/analytics.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/civic_plan_models.dart';
@@ -30,7 +29,6 @@ import '../plan/plan_actions.dart';
 import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
-import '../plan/widgets/diagnostic_affiner_card.dart';
 import '../progres/progres_labels.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
@@ -177,8 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.watch(learningPlanProvider);
     ref.watch(civicPlanProvider);
     ref.watch(diagnosticCourantProvider);
-    // 🛑 **La préparation est observée ICI** : `_poserDefaut` compte sur elle,
-    // et la proposition secondaire de diagnostic (D-69) la lit.
+    // 🛑 **La préparation est observée ICI** : `_poserDefaut` compte sur elle.
     ref.watch(preparationProvider);
 
     return <Widget>[
@@ -206,7 +203,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return <Widget>[
       if (action != null)
         SfSection(title: kHomeNowTitle, flush: true, child: action),
-      _diagnosticAAffiner(civique),
       if (objectif != null)
         SfSection(
             title: kJourneyNeedsObjectiveTitle, flush: true, child: objectif),
@@ -241,9 +237,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// 🛑 **D-69 (2026-09-28)** : un diagnostic **non commencé** n'affiche plus la
   /// carte « Découvrez ce qui vous bloque au TCF » — le Plan existe, donc c'est
   /// SON action (le premier examen du cycle d'examens), exactement comme quand
-  /// le diagnostic est fait. Le diagnostic n'est plus qu'une proposition
-  /// secondaire ([_diagnosticAAffiner]). Seuls « en cours » et « analyse en
-  /// préparation » gardent leur carte.
+  /// le diagnostic est fait. Le diagnostic n'est plus proposé sur l'Accueil ;
+  /// seuls « en cours » et « analyse en préparation » gardent leur carte.
   Widget? _actionTcf(BuildContext context) {
     final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
     if (journey == null) return null;
@@ -380,34 +375,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _diagnosticEnCours(DiagnosticJourney journey) =>
       journey.status != DiagnosticJourneyStatus.notStarted &&
       journey.status != DiagnosticJourneyStatus.completed;
-
-  /// **La proposition SECONDAIRE de diagnostic** (D-69), sous « À faire
-  /// maintenant ». 🛑 Décidée par [diagnosticAAffiner], jamais ici — et
-  /// absente quand la carte d'action reprend déjà le diagnostic TCF : deux
-  /// gestes pour le même diagnostic.
-  Widget _diagnosticAAffiner(bool civique) {
-    final prep = ref.watch(preparationProvider).valueOrNull;
-    if (prep == null) return const SizedBox.shrink();
-    if (!civique) {
-      final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
-      if (journey != null && _diagnosticEnCours(journey)) {
-        return const SizedBox.shrink();
-      }
-    }
-    return DiagnosticAffinerCard(
-      info: diagnosticAAffiner(
-        civique ? prep.civique : prep.tcf,
-        civique: civique,
-      ),
-      onOpen: civique
-          ? null
-          : () => ref.read(analyticsServiceProvider).track(
-                AnalyticsEvent.diagnosticCtaClicked,
-                ctaLocation: AnalyticsCtaLocation.other,
-                diagnosticType: AnalyticsDiagnosticType.unknown,
-              ),
-    );
-  }
 
   /* --------------------------------------- l'action du jour — CIVIQUE ----- */
 

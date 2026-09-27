@@ -8,6 +8,7 @@ import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptMode;
+import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
@@ -83,6 +84,7 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private TestData data;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private com.sejourfr.app.repository.JourneyRepository journeys;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -367,6 +369,13 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
                         ? LearningPlanSourceType.TCF_CO : LearningPlanSourceType.TCF_CE,
                 LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null,
                 HIER, examen);
+        // D-69 (2026-09-28) : un premier cycle se cree en cycle d'examens ; une
+        // etape d'entrainement nait d'une evaluation recue par un cycle VIDE.
+        if (journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.TCF, JourneyStatus.EN_COURS).isEmpty()) {
+            data.journey(user, Module.TCF, JourneyStatus.EN_COURS,
+                    TargetProcedure.NAT.getRequiredTcfLevel());
+        }
         journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
                 examen, JourneyAssessmentKind.SECTION_EXAM, epreuve, HIER));
 

@@ -160,10 +160,10 @@ public class JourneyService {
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         List<JourneyStep> etapes = stepManager.findAll(courant.getId());
-        // 🛑 D-69 AVANT TOUT : un cycle qui n'attendait que le diagnostic
-        // devient le cycle d'examens par defaut. Les filets suivants lisent ses
+        // 🛑 D-69 AVANT TOUT : un premier cycle sans rien a faire (l'ancienne
+        // attente du diagnostic, ou un cycle vide) devient le cycle d'examens. Les filets suivants lisent ses
         // examens (un examen deja passe pendant ce cycle y est reconnu).
-        if (remplacerLAttenteDuDiagnostic(courant, etapes)) {
+        if (remplacerLePremierCycleSansTravail(courant, etapes)) {
             etapes = stepManager.findAll(courant.getId());
         }
         // 🛑 EN PREMIER : une etape rouverte redevient une competence DUE, et
@@ -178,31 +178,37 @@ public class JourneyService {
     }
 
     /**
-     * <b>Les cycles qui n'attendaient que le diagnostic</b> deviennent le cycle
-     * d'examens par defaut (D-69, 2026-09-28) — a la lecture, sans migration.
+     * <b>Les premiers cycles SANS rien a faire deviennent le cycle d'examens par
+     * defaut</b> (D-69, 2026-09-28) — a la lecture, sans migration.
      *
-     * <p>Avant D-69, un compte sans evaluation recevait un cycle ne portant
-     * qu'une etape {@code DIAGNOSTIC} : le Plan lui disait « Faire mon
-     * diagnostic » et rien d'autre. Tout compte qui a ouvert l'Accueil avec une
-     * demarche en a un. 🛑 <b>La reparation est paresseuse</b>, comme D-65 :
-     * c'est la promesse du service (« la lecture suivante rattrape »), et une
-     * migration aurait ecrit des lignes pour des comptes qui ne reviendront
-     * jamais.
+     * <p>Deux formes, toutes deux un <b>premier cycle TCF</b> (aucun cycle
+     * historise) :
+     * <ol>
+     *   <li>l'<b>attente du diagnostic</b> d'avant D-69 : une seule etape
+     *       {@code DIAGNOSTIC} ouverte (« Faire mon diagnostic »). Elle est close
+     *       {@code SUPERSEDED} — rendue caduque par la file, jamais
+     *       travaillee ;</li>
+     *   <li>le <b>cycle VIDE</b>, sans aucune etape et sans diagnostic rapide
+     *       journalise : l'amorce depuis l'historique d'un compte dont les
+     *       quatre epreuves etaient mesurees sans priorite ouverte (bug de prod
+     *       du 2026-09-28, premiere version de D-69 — et avant elle, meme
+     *       effet). L'ecran disait « Votre parcours est a jour », sans bloc.</li>
+     * </ol>
+     * Un cycle qui porte des etapes n'est <b>jamais</b> touche (un cycle de
+     * travail legitime, ou un cycle termine qui attend son actualisation).
      *
-     * <p>L'etape {@code DIAGNOSTIC} est close {@code SUPERSEDED} — rendue
-     * caduque par la file, jamais travaillee : c'est le sens exact du motif —,
-     * et les epreuves non mesurees recoivent leur examen (R12). Aucune ligne
-     * effacee. Sous le verrou du parcours (R14) : deux lectures simultanees ne
-     * posent pas deux fois les quatre examens.
+     * <p>🛑 <b>Meme cycle, meme id, aucune ligne effacee</b>, sous le verrou du
+     * parcours (R14) : deux lectures simultanees ne posent pas deux fois les
+     * examens, et la seconde relit un cycle qui n'a plus rien a convertir.
      *
      * @return {@code true} si le cycle a change
      */
-    private boolean remplacerLAttenteDuDiagnostic(Journey journey, List<JourneyStep> etapes) {
-        if (!attendLeDiagnostic(journey, etapes)) return false;
+    private boolean remplacerLePremierCycleSansTravail(Journey journey, List<JourneyStep> etapes) {
+        if (!aRemplacer(journey, etapes)) return false;
         Journey verrouille = journeyManager.findForUpdate(journey.getId()).orElse(null);
         if (verrouille == null) return false;
         List<JourneyStep> relues = stepManager.findAll(verrouille.getId());
-        if (!attendLeDiagnostic(verrouille, relues)) return false;
+        if (!aRemplacer(verrouille, relues)) return false;
         Instant maintenant = Instant.now();
         for (JourneyStep step : relues) {
             if (step.getType() == JourneyStepType.DIAGNOSTIC
@@ -210,18 +216,23 @@ public class JourneyService {
                 stepManager.save(step);
             }
         }
-        ajouterLesEpreuvesNonMesurees(verrouille, verrouille.getUser().getId());
-        log.info("Parcours {} : l'attente du diagnostic devient le cycle d'examens (D-69)",
+        poserLeCycleDExamens(verrouille, verrouille.getUser().getId());
+        log.info("Parcours {} : premier cycle sans travail remplace par le cycle d'examens (D-69)",
                 verrouille.getId());
         return true;
     }
 
-    /** Un cycle TCF qui ne porte qu'une etape DIAGNOSTIC ouverte, rien d'autre. */
-    private static boolean attendLeDiagnostic(Journey journey, List<JourneyStep> etapes) {
-        return journey.getModule() == Module.TCF
-                && attendSonAmorce(etapes)
+    private boolean aRemplacer(Journey journey, List<JourneyStep> etapes) {
+        if (journey.getModule() != Module.TCF) return false;
+        boolean attendLeDiagnostic = attendSonAmorce(etapes)
                 && etapes.stream().anyMatch(step -> step.getType() == JourneyStepType.DIAGNOSTIC
                         && step.estOuverte());
+        boolean vide = etapes.isEmpty();
+        if (!attendLeDiagnostic && !vide) return false;
+        if (journeyManager.compterHistorises(journey.getUser().getId(), Module.TCF) != 0) {
+            return false;
+        }
+        return !vide || !journeyManager.journaliseUnDiagnosticRapide(journey.getId());
     }
 
     /**
@@ -923,15 +934,19 @@ public class JourneyService {
         // cela, le bootstrap batirait une file qu'aucune evaluation ulterieure
         // ne saurait reproduire.
         List<LearningPlanObservation> evaluations = evaluationFilter.retenir(tout);
-        if (evaluations.isEmpty()) {
-            // 🛑 D-69 (2026-09-28, decision du proprietaire) : aucune evaluation
-            // exploitable ⇒ le Plan PAR DEFAUT est un CYCLE D'EXAMENS — un bloc
-            // par epreuve non mesuree, chacun son examen blanc (R12). Le
-            // diagnostic n'est plus une porte : R19.8 (« le parcours demande un
-            // diagnostic ») est revoquee, l'etape DIAGNOSTIC n'est plus posee.
-            // S'il arrive ensuite sur ce cycle intact, il l'amorce (D-64 tenu,
-            // cf. `cycleDExamensParDefautIntact`).
-            ajouterLesEpreuvesNonMesurees(journey, user.getId());
+        if (!porteUnDiagnosticRapide(evaluations)) {
+            // 🛑 D-69 (2026-09-28, decision du proprietaire, revisee le meme
+            // jour) : SANS DIAGNOSTIC RAPIDE, LE PREMIER CYCLE EST TOUJOURS LE
+            // CYCLE D'EXAMENS — les quatre epreuves, chacune son seul examen
+            // blanc, examens deja passes ou non. La branche « examens deja
+            // passes ⇒ cycle de travail direct » est SUPPRIMEE : sur un compte
+            // dont les quatre epreuves etaient mesurees sans priorite ouverte,
+            // elle rendait un cycle VIDE (« Votre parcours est a jour », aucun
+            // bloc). Un examen anterieur au cycle ne ferme rien (R19) ; ses
+            // priorites reviendront par l'examen du cycle. Le diagnostic arrive
+            // ensuite sur ce cycle intact ⇒ il l'amorce (D-64,
+            // `cycleDExamensParDefautIntact`).
+            poserLeCycleDExamens(journey, user.getId());
             return;
         }
 
@@ -1683,6 +1698,39 @@ public class JourneyService {
             step.setExamType(epreuve);
             ajouter(journey, step);
         }
+    }
+
+    /**
+     * <b>Le cycle d'EXAMENS</b> : un {@code SECTION_EXAM} par epreuve, dans
+     * {@code TcfDomainProfileDto.ORDRE}, chacun la seule etape de son bloc.
+     *
+     * <p>🛑 <b>Une seule construction, deux emplois</b> : le Plan par defaut
+     * (D-69) et le jalon d'examen complet (D-68, {@code JourneyCycleService}).
+     * « Évaluer mon niveau » ({@code INITIAL_ASSESSMENT}) sur une epreuve
+     * jamais mesuree, « Vérifier mes progrès » ({@code REASSESS}) sinon — lu
+     * chez l'unique autorite de « mesuree ». ⚠️ {@code REASSESS} n'est pas une
+     * coquetterie : le filet R12 clot un {@code INITIAL_ASSESSMENT} des que
+     * l'epreuve est mesuree, fut-ce par un examen ANTERIEUR au cycle — il
+     * fermerait aussitot l'examen qu'on vient de poser.
+     */
+    void poserLeCycleDExamens(Journey journey, UUID userId) {
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            JourneyStep step = new JourneyStep();
+            step.setJourney(journey);
+            step.setType(JourneyStepType.SECTION_EXAM);
+            step.setPurpose(mesureResolver.mesure(userId, epreuve).mesuree()
+                    ? JourneyStepPurpose.REASSESS
+                    : JourneyStepPurpose.INITIAL_ASSESSMENT);
+            step.setExamType(epreuve);
+            ajouter(journey, step);
+        }
+    }
+
+    /** L'historique porte-t-il un diagnostic RAPIDE (sa baseline EE / EO) ? */
+    private static boolean porteUnDiagnosticRapide(List<LearningPlanObservation> evaluations) {
+        return evaluations.stream().anyMatch(observation ->
+                observation.getSourceType() == LearningPlanSourceType.DIAGNOSTIC_EE
+                        || observation.getSourceType() == LearningPlanSourceType.DIAGNOSTIC_EO);
     }
 
     /**

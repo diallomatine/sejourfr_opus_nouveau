@@ -268,35 +268,83 @@ class PlanParDefautIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Examens deja passes, sans diagnostic ni parcours : le 1er cycle est directement "
-            + "un cycle de TRAVAIL sur leurs priorites ; l'epreuve mesuree n'est pas redemandee")
-    void examensDejaPassesDemarrentEnCycleDeTravail() {
+    @DisplayName("Bug prod 2026-09-28 — compte SANS parcours, 4 epreuves deja mesurees (aucune "
+            + "priorite) : le premier cycle est le cycle d'examens de 4 blocs, jamais un cycle vide")
+    void quatreEpreuvesDejaMesureesDonnentLeCycleDExamens() {
         User user = abonne();
-        Attempt examen = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+        // Sans demarche, aucun parcours ne se cree pendant que l'historique se
+        // pose (D-3) : les examens QCM passent par le VRAI `finish` (banque
+        // seedee), qui previent le parcours apres son commit.
+        user.setTargetProcedure(null);
+        user.setTargetLevel(null);
+        user = data.saveUser(user);
+        Attempt ee = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+        data.epreuveProductionPassee(user, EpreuveType.TCF_EO, NiveauCecrl.B1);
+        examens().examenQcmPasse(user, QuestionType.CO);
+        examens().examenQcmPasse(user, QuestionType.CE);
+        assertThat(journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.TCF, JourneyStatus.EN_COURS)).isEmpty();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        user = data.saveUser(user);
+        // Une evaluation SOLIDE : elle amorcait l'ancien bootstrap, sans aucun lot.
         data.learningPlanObservation(user, examens().competenceEE(0),
-                LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.PRIORITY,
-                ObservationConfidence.HIGH, null, Instant.now().minusSeconds(600), examen.getId());
+                LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.SOLID,
+                ObservationConfidence.HIGH, null, Instant.now().minusSeconds(600), ee.getId());
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        assertThat(vue.cycle().cycleDeMesure()).isFalse();
-        assertThat(vue.cycle().cycleDAffinage()).isFalse();
-        JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
-        assertThat(ee.steps()).extracting(step -> step.skillCode())
-                .containsExactly(examens().competenceEE(0).getCode());
-        // L'examen EE deja passe n'est pas redemande : le bloc se termine par la
-        // reevaluation de son travail (D-15), pas par « Évaluer mon niveau ».
-        assertThat(etapes(user)).filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM
-                        && step.getExamType() == EpreuveType.TCF_EE)
-                .singleElement()
-                .satisfies(step -> assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.REASSESS));
-        assertThat(ee.exam().lockReason()).isEqualTo(JourneyLockReason.PROGRESSION);
-        // Les trois autres epreuves, jamais mesurees : leur examen est pose.
-        assertThat(etapes(user)).filteredOn(step -> step.getPurpose() == JourneyStepPurpose.INITIAL_ASSESSMENT)
-                .extracting(JourneyStep::getExamType)
-                .containsExactlyInAnyOrder(EpreuveType.TCF_CO, EpreuveType.TCF_CE, EpreuveType.TCF_EO);
-        // Le Plan lit la priorite mesuree par l'examen, sans diagnostic.
-        assertThat(planService.get(user.getId()).currentPriority()).isNotNull();
+        assertThat(vue.state()).isNotEqualTo(JourneyState.UP_TO_DATE);
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.blocs()).hasSize(4).allSatisfy(bloc -> {
+            assertThat(bloc.steps()).isEmpty();
+            assertThat(bloc.exam()).isNotNull();
+            assertThat(bloc.exam().lockReason()).isNull();
+            assertThat(bloc.exam().status().name()).isIn("CURRENT", "UPCOMING");
+        });
+        // 🛑 Un examen ANTERIEUR au cycle ne ferme rien : « Vérifier mes
+        // progrès » sur chaque epreuve deja mesuree, ouvert.
+        assertThat(etapes(user)).hasSize(4).allSatisfy(step -> {
+            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.REASSESS);
+            assertThat(step.estOuverte()).isTrue();
+        });
+    }
+
+    @Test
+    @DisplayName("Rattrapage : un premier cycle VIDE sans diagnostic (cree par la 1re version de "
+            + "D-69) devient le cycle d'examens a la lecture — meme id, une seule fois")
+    void cycleVideSansDiagnosticRattrapeALaLecture() {
+        User user = abonne();
+        Journey vide = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
+
+        assertThat(cycleEnCours(user, Module.TCF).getId()).isEqualTo(vide.getId());
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.blocs()).hasSize(4).allSatisfy(bloc -> assertThat(bloc.exam()).isNotNull());
+        journeyService.lire(user.getId(), Module.TCF);
+        assertThat(etapes(user)).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("Rattrapage : un cycle de TRAVAIL legitime (des etapes) et un cycle vide de rang 2 "
+            + "ne sont jamais touches")
+    void cyclesLegitimesInchanges() {
+        User travail = abonne();
+        journeyService.lire(travail.getId(), Module.TCF);
+        examens().diagnosticRapide(travail);
+        List<UUID> avant = etapes(travail).stream().map(JourneyStep::getId).toList();
+        journeyService.lire(travail.getId(), Module.TCF);
+        assertThat(etapes(travail)).extracting(JourneyStep::getId)
+                .containsExactlyInAnyOrderElementsOf(avant);
+
+        User rangDeux = abonne();
+        data.journey(rangDeux, Module.TCF, JourneyStatus.HISTORISE);
+        data.journey(rangDeux, Module.TCF, JourneyStatus.EN_COURS);
+        JourneyDto vue = journeyService.lire(rangDeux.getId(), Module.TCF);
+        // Un cycle promu vide sur un compte mesure partout : « a jour », voulu.
+        assertThat(etapes(rangDeux)).isEmpty();
+        assertThat(vue.cycle().numero()).isEqualTo(2);
     }
 
     @Test

@@ -262,8 +262,10 @@ class CivicNowCard {
 /// contradiction où l'Accueil annonçait une action et le Plan une autre au même
 /// instant.
 ///
-/// 🛑 **Le repli sur `plan.prochaine` est la MÊME forme que [planNowCard]**
-/// (`duParcours ?? plan.currentPriority`), et il n'est pas décoratif : dès que
+/// ⚠️ **Le repli sur `plan.prochaine` n'est PLUS la forme de [planNowCard]**,
+/// qui depuis le 2026-09-28 ne retombe sur le Plan dérivé que **sans**
+/// parcours. Ici, il joue encore quand `current` est nul, et il n'est pas
+/// décoratif : dès que
 /// le serveur verrouillera les étapes d'entraînement civiques d'un compte sans
 /// accès (cf. la moitié backend de cette passe), `JourneyReadService.elire` les
 /// sautera et `journey.current` vaudra `null` — exactement ce qui arrive déjà au

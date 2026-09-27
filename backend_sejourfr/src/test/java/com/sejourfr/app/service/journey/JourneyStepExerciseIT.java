@@ -181,6 +181,14 @@ class JourneyStepExerciseIT extends AbstractIntegrationTest {
      * mesure du second test.
      */
     private void peupler(User user, int ee, int eo, int ce) {
+        // D-69 (2026-09-28) : sans diagnostic rapide, le premier cycle est le
+        // cycle d'examens — l'historique d'examens n'amorce plus de lots. Une
+        // baseline de diagnostic, plus ANCIENNE que les examens et sur une
+        // epreuve qu'un examen mesure (donc jamais reference, jamais un lot),
+        // rend a ces tests le cycle de travail qu'ils mesurent.
+        data.learningPlanObservation(user, expression(SkillTaskCode.EE1, 1).getFirst(),
+                LearningPlanSourceType.DIAGNOSTIC_EE, LearningPlanSkillStatus.PRIORITY,
+                ObservationConfidence.HIGH, null, HIER.minusSeconds(3_600));
         evaluation(user, EpreuveType.TCF_EE, LearningPlanSourceType.MOCK_EXAM_EE,
                 expression(SkillTaskCode.EE1, ee));
         evaluation(user, EpreuveType.TCF_EO, LearningPlanSourceType.MOCK_EXAM_EO,

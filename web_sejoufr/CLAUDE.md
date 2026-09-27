@@ -2195,6 +2195,12 @@ s'affiche même quand `CivicPlanDto.disponible` est `false` (cycle + « À faire
 sur le parcours). `PlanGate`, `planIndisponible*` et la carte « Découvrez ce qui vous bloque au
 TCF » de l'Accueil sont **supprimés**.
 
+> ⚠️ **Révisé le 2026-09-28 (D-69 bis)** : le diagnostic n'est plus proposé sur l'Accueil ni sur
+> le Plan (carte « Affinez votre plan » et `diagnosticAAffiner` retirés de l'écran) ; la ligne
+> « Mon diagnostic » des liens du Plan n'apparaît que si `diagnosticFait` ; « À faire maintenant »
+> = `journey.current` seul dès qu'un parcours existe. Ce qui suit sur la proposition secondaire
+> est périmé.
+
 - **Le diagnostic est une proposition SECONDAIRE** : `diagnosticAAffiner(m, module)`
   (`lib/preparation.ts`, seule autorité, miroir de `preparation_labels.dart`) → `null` ou
   `{titre, texte, cta, href}`, rendu par `plan/DiagnosticAffinerCard.tsx` (kit : `NoteCard`

@@ -5,8 +5,12 @@
  *
  * 🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : plus aucune
  * porte « diagnostic obligatoire ». L'état servi (`userContentApi.preparation()`)
- * descend jusqu'aux deux panneaux, qui en tirent la proposition SECONDAIRE
- * d'affiner le Plan par le diagnostic (`diagnosticAAffiner`).
+ * choisit le module affiché par défaut, et dit si le diagnostic du module est
+ * fait (`diagnosticFait`) — la ligne « Mon diagnostic » n'existe qu'alors.
+ *
+ * 🛑 **La carte « Affinez votre plan avec le diagnostic » n'est PAS sur le
+ * Plan** (2026-09-28) : elle ne vit que sur l'Accueil. Le Plan montre « À faire
+ * maintenant », le jalon éventuel et le cycle.
  *
  * ## Le module sélectionné vit dans l'URL, et nulle part ailleurs (2026-09-12)
  *
@@ -31,7 +35,7 @@ import {ModuleToggle, SejourApp, TopInAppBar, TopSlot} from "@/app/_components/s
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
-import {moduleParDefaut} from "@/lib/preparation";
+import {diagnosticFait, moduleParDefaut} from "@/lib/preparation";
 import {canAccessModule, type PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
 import {CivicPlanPanel} from "./CivicPlanPanel";
@@ -56,6 +60,8 @@ export function PlanModules() {
     const pathname = usePathname();
     const router = useRouter();
     const {user} = useAuth();
+    /** L'état servi : le module par défaut, et si le diagnostic du module est
+     *  fait (la ligne « Mon diagnostic » n'existe qu'à cette condition). */
     const [prep, setPrep] = useState<PreparationDto | null>(null);
     /**
      * Le module **servi** par défaut, quand l'URL ne dit rien. `null` tant que
@@ -100,10 +106,6 @@ export function PlanModules() {
         router.replace(`${pathname}?${params.toString()}`, {scroll: false});
     }, [demande, defaut, pathname, router, search]);
 
-    /* L'état servi du module affiché : il porte ce qui reste à proposer côté
-       diagnostic (`diagnosticAAffiner`). */
-    const moduleprep = prep ? (affiche === "TCF" ? prep.tcf : prep.civique) : null;
-
     /* La **nature** de l'écran décide de la largeur de colonne au palier
        desktop, et c'est ici qu'elle se connaît — seul endroit qui a à la fois le
        module affiché et l'accès du compte. 🛑 L'accès se **lit**
@@ -141,14 +143,11 @@ export function PlanModules() {
             <TopInAppBar>
                 <TopSlot node={toggle}>
                     {affiche === "TCF" ? (
-                        /* 🛑 `prep` descend jusqu'ici : un second appel à
-                           `preparation()` plus bas aurait pu répondre autre
-                           chose que celui qui a ouvert l'écran. */
-                        <LearningPlanView prep={moduleprep} />
+                        <LearningPlanView diagnosticFait={diagnosticFait(prep?.tcf ?? null, "TCF")} />
                     ) : (
                         /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
                            L10) : c'est un moteur, plus un écho du diagnostic. */
-                        <CivicPlanPanel prep={moduleprep} />
+                        <CivicPlanPanel diagnosticFait={diagnosticFait(prep?.civique ?? null, "CIVIQUE")} />
                     )}
                 </TopSlot>
             </TopInAppBar>

@@ -1,11 +1,9 @@
 package com.sejourfr.app.service.journey;
 
 import com.sejourfr.app.dto.JourneyDto;
-import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Theme;
-import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
@@ -17,7 +15,6 @@ import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.ThemeManager;
-import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.attempt.AttemptScoringService;
 import lombok.RequiredArgsConstructor;
@@ -75,7 +72,6 @@ public class JourneyCycleService {
     private final JourneyManager journeyManager;
     private final JourneyStepManager stepManager;
     private final TcfProfileService profileService;
-    private final NiveauActuelEpreuveResolver mesureResolver;
     // 🛑 La MEME autorite que `JourneyDto.examenComplet` (D-68) : le jalon servi
     // et ce refus serveur ne peuvent pas dire deux choses differentes.
     private final JourneyJalonExamenComplet jalonExamenComplet;
@@ -171,19 +167,8 @@ public class JourneyCycleService {
         neuf.setStatus(JourneyStatus.EN_COURS);
         neuf.setEntryLevel(sortie);
         Journey mesure = journeyManager.saveEtFlush(neuf);
-        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
-            JourneyStep step = new JourneyStep();
-            step.setJourney(mesure);
-            step.setType(JourneyStepType.SECTION_EXAM);
-            // La MEME action, deux intentions : « Évaluer mon niveau » sur une
-            // epreuve jamais mesuree, « Vérifier mes progrès » ensuite. Lu chez
-            // son unique autorite, jamais recompte ici.
-            step.setPurpose(mesureResolver.mesure(userId, epreuve).mesuree()
-                    ? JourneyStepPurpose.REASSESS
-                    : JourneyStepPurpose.INITIAL_ASSESSMENT);
-            step.setExamType(epreuve);
-            journeyService.ajouter(mesure, step);
-        }
+        // La MEME construction que le Plan par defaut (D-69) : une seule autorite.
+        journeyService.poserLeCycleDExamens(mesure, userId);
 
         log.info("Cycle {} historise ({}, sortie={}), cycle d'examens {} ouvert",
                 enCours.getId(), geste, sortie, mesure.getId());

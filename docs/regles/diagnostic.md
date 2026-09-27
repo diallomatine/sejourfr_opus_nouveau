@@ -15,24 +15,19 @@
 **Décision du propriétaire.** Le Plan existe pour **tout** compte : sans diagnostic, son premier
 cycle est le **cycle d'examens par défaut** (un examen blanc par épreuve TCF, un examen de thème
 par thématique civique). `prep.planDisponible` vaut **toujours** `true`, `LearningPlanDto.state`
-**toujours** `ACTIVE`. Le diagnostic reste **proposé en secondaire**, sous « À faire maintenant »
-(Plan TCF et civique, Accueil), par une seule autorité par front — `diagnosticAAffiner`
-(`web_sejoufr/lib/preparation.ts` ⇄ `mobile_sejourfr/lib/core/models/preparation_labels.dart`),
-lue sur `etape` :
+**toujours** `ACTIVE`.
 
-| `etape` servie | Proposition (TCF) | Proposition (civique) |
-|---|---|---|
-| `DIAGNOSTIC_A_FAIRE` | « Affiner avec le diagnostic » → rapide, démarrage direct | « Affiner avec le diagnostic civique » |
-| `DIAGNOSTIC_EN_COURS` (rapide, `fait == null`) | « Reprendre mon diagnostic » | « Reprendre mon diagnostic civique » |
-| autre | rien | rien |
-
-L'Accueil TCF d'un compte sans diagnostic n'affiche plus la carte héros « Découvrez ce qui vous
-bloque au TCF » : il affiche l'action du Plan (le premier examen), la proposition en dessous.
-Diagnostic en cours / analyse en préparation : cartes inchangées. **Le parcours
-invité → compte → analyse garde son cycle d'affinage** : l'analyse qui arrive sur le cycle
-d'examens encore intact l'amorce (D-64 tenu). Les écrans-portes (`PlanGate`,
-`planIndisponible` ⇄ `PlanIndisponible`) sont **supprimés**. → `docs/regles/plan.md`,
-§ « Le Plan PAR DÉFAUT » ; arbitrage `docs/decisions/plan-parcours-tcf.md` **D-69**.
+⚠️ **Révisé le 2026-09-28 (même jour, demande du propriétaire)** : la carte secondaire
+« Affinez votre plan avec le diagnostic » est **retirée partout** (Plan et Accueil, web et
+mobile ; `diagnosticAAffiner` / `DiagnosticAffinerCard` supprimés). Sur le Plan : « À faire
+maintenant » (= `journey.current`, rien d'autre) et le cycle. La ligne « Mon diagnostic » des
+liens du Plan ne s'affiche que si le diagnostic a été fait — `diagnosticFait` (TCF :
+`estimationSessionId != null` ; civique : `etape == PLAN_PRET`), web ⇄ mobile. L'Accueil garde
+les cartes « Reprendre mon diagnostic » / « Votre analyse est en préparation » d'un diagnostic
+**commencé**. **Le parcours invité → compte → analyse garde son cycle d'affinage** : l'analyse
+qui arrive sur le cycle d'examens encore intact l'amorce (D-64 tenu). Les écrans-portes
+(`PlanGate`, `planIndisponible`) sont supprimés. → `docs/regles/plan.md` § « Le Plan PAR
+DÉFAUT » ; arbitrages `docs/decisions/plan-parcours-tcf.md` **D-69, D-69 bis**.
 
 ⚠️ Les tableaux plus bas qui parlent de `planIndisponible` ou de `planDisponible: false` sont
 **historiques**.

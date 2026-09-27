@@ -49,7 +49,7 @@ import {retourOuRepli, withRetour} from "@/lib/retour";
 import {withPurchaseOrigin} from "@/lib/purchase-origin";
 import {passFrom} from "@/lib/passes";
 import {useAuth} from "@/lib/auth-context";
-import {canAccessModule} from "@/lib/types";
+import {canAccessModule, niveauCecrlShort} from "@/lib/types";
 import {
     PLAN_UNLOCK_CHECKS_CIVIQUE,
     PLAN_UNLOCK_CTA,
@@ -174,7 +174,7 @@ type Heros = Pick<Matiere, "heroValue" | "heroPill" | "heroRatio" | "heroMeta">;
 function herosDuDiagnostic(r: TcfDiagnosticResultDto): Heros {
     const position = levelTrackPosition(r.niveauGlobal, r.cible);
     return {
-        heroValue: r.niveauGlobal ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
+        heroValue: r.niveauGlobal ? niveauCecrlShort(r.niveauGlobal) : PLAN_UNLOCK_LEVEL_UNKNOWN,
         heroPill: planUnlockGoalPill(r.cible),
         heroRatio:
             position && position.levels.length > 1
@@ -197,7 +197,11 @@ function herosDuPlan(plan: LearningPlanDto): Heros {
     const cible = plan.cycle.objectiveLevel;
     const position = levelTrackPosition(plan.cycle.startingLevel, cible);
     return {
-        heroValue: plan.cycle.startingLevel ?? PLAN_UNLOCK_LEVEL_UNKNOWN,
+        /* 🛑 Jamais le code brut : `A1_NON_ATTEINT` (Plan par défaut D-69) se
+           rend « <A1 » par l'autorité du libellé, miroir de `shortName`. */
+        heroValue: plan.cycle.startingLevel
+            ? niveauCecrlShort(plan.cycle.startingLevel)
+            : PLAN_UNLOCK_LEVEL_UNKNOWN,
         heroPill: planUnlockGoalPill(cible),
         heroRatio:
             position && position.levels.length > 1

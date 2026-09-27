@@ -21,12 +21,11 @@ import {
 import {journeyTargetPathHref} from "@/lib/journey";
 import {PlanLinks} from "./PlanLinks";
 import {planHref} from "@/lib/module-switch";
-import {diagnosticAAffiner, type DiagnosticAAffiner} from "@/lib/preparation";
 import {
   canAccessModule,
   type JourneyDto,
   type LearningPlanDto,
-  type ModulePreparation,
+  niveauCecrlLabel,
   type PlanCycleDto,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
@@ -45,7 +44,6 @@ import {
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {planNowIcon} from "./PlanBits";
-import {DiagnosticAffinerCard} from "./DiagnosticAffinerCard";
 import {PlanPaywall} from "./PlanPaywallCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
@@ -96,7 +94,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /* ------------------------------------------------------------------ racine */
 
-export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
+export function LearningPlanView({diagnosticFait}: {diagnosticFait: boolean}) {
   const {status: authStatus, user} = useAuth();
   const [plan, setPlan] = useState<LearningPlanDto | null>(null);
   /* 🛑 Le parcours est chargé **en parallèle** du Plan, jamais après : les deux
@@ -187,14 +185,14 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
      l'examen blanc que propose le cycle. Ne pas la réintroduire.
 
      🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : plus de porte
-     « diagnostic obligatoire ». Le diagnostic RAPIDE se propose en secondaire,
-     sous « À faire maintenant » (`diagnosticAAffiner`). */
+     « diagnostic obligatoire ». 🛑 **Et la carte « Affinez votre plan avec le
+     diagnostic » n'est PAS sur le Plan** (2026-09-28) : elle ne vit que sur
+     l'Accueil. Ici, « À faire maintenant », le jalon éventuel et le cycle. */
   const abonne = canAccessModule(user, "TCF");
-  const affiner = prep ? diagnosticAAffiner(prep, "TCF") : null;
 
   return abonne
-    ? <TcfPlanPremium plan={plan} journey={journey} affiner={affiner} />
-    : <TcfPlanFree plan={plan} journey={journey} affiner={affiner} />;
+    ? <TcfPlanPremium plan={plan} journey={journey} diagnosticFait={diagnosticFait} />
+    : <TcfPlanFree plan={plan} journey={journey} diagnosticFait={diagnosticFait} />;
 }
 
 function PlanMessage({title, text, cta, href, alert}: {
@@ -224,10 +222,10 @@ function PlanMessage({title, text, cta, href, alert}: {
 
 /* ----------------------------------------------------------------- abonné */
 
-function TcfPlanPremium({plan, journey, affiner}: {
+function TcfPlanPremium({plan, journey, diagnosticFait}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  affiner: DiagnosticAAffiner | null;
+  diagnosticFait: boolean;
 }) {
   const objective = plan.cycle.objectiveLevel;
 
@@ -248,8 +246,6 @@ function TcfPlanPremium({plan, journey, affiner}: {
           au-dessus du cycle — servi, jamais décidé ici. */}
       <ExamenCompletJalon journey={journey} module="TCF" />
 
-      <Affiner affiner={affiner} />
-
       {/* 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
           bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
           deux issues. Il prend **toute la largeur** — quatre accordéons dans une
@@ -262,7 +258,7 @@ function TcfPlanPremium({plan, journey, affiner}: {
         <PlanMilestoneCard milestone={plan.milestone} journeyId={journey?.journeyId ?? null} />
       )}
 
-      <AllerPlusLoin />
+      <AllerPlusLoin diagnosticFait={diagnosticFait} />
 
       <p className={sejourStyles.footNote}>
         Estimation d&apos;entraînement SejourFR, non officielle : elle situe votre travail,
@@ -274,10 +270,10 @@ function TcfPlanPremium({plan, journey, affiner}: {
 
 /* ---------------------------------------------------------------- gratuit */
 
-function TcfPlanFree({plan, journey, affiner}: {
+function TcfPlanFree({plan, journey, diagnosticFait}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  affiner: DiagnosticAAffiner | null;
+  diagnosticFait: boolean;
 }) {
   const objective = plan.cycle.objectiveLevel;
   return (
@@ -297,8 +293,6 @@ function TcfPlanFree({plan, journey, affiner}: {
           porte, lui, les verrous d'accès servis de chaque examen. */}
       <ExamenCompletJalon journey={journey} module="TCF" />
 
-      <Affiner affiner={affiner} />
-
       {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
           toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
           masquer priverait le candidat de l'information la plus utile qu'il
@@ -312,7 +306,7 @@ function TcfPlanFree({plan, journey, affiner}: {
           droit, ça retirait la lecture de son propre parcours à celui qui en a
           le plus besoin. La barre « Débloquer mon plan » reste la seule
           **action** dominante de l'écran. */}
-      <AllerPlusLoin />
+      <AllerPlusLoin diagnosticFait={diagnosticFait} />
 
       <PlanPaywall
         module="TCF"
@@ -322,33 +316,25 @@ function TcfPlanFree({plan, journey, affiner}: {
   );
 }
 
-/* -------------------------------------------- affiner par le diagnostic */
-
-/** 🛑 Secondaire (D-69) : sous « À faire maintenant » et le jalon, jamais à
- *  leur place. `null` ⇒ rien. */
-function Affiner({affiner}: {affiner: DiagnosticAAffiner | null}) {
-  if (!affiner) return null;
-  return (
-    <Section>
-      <Pad>
-        <DiagnosticAffinerCard proposition={affiner} module="TCF" />
-      </Pad>
-    </Section>
-  );
-}
-
 /* ------------------------------------------------ objectif et niveau visé */
 
 /**
  * 🛑 `objectiveLevel` est **nullable** — on n'écrit jamais « B2 » à la place
  * d'une démarche non déclarée. Le bandeau montre alors le **palier que le cycle
  * construit**, qui est servi, et propose de fixer l'objectif.
+ *
+ * 🛑 **Le niveau passe par `niveauCecrlLabel`, jamais le code brut** : le Plan
+ * par défaut d'un compte sans diagnostic sert `startingLevel = A1_NON_ATTEINT`,
+ * qui s'affichait tel quel. `null` reste « inconnu », distinct de
+ * « A1 non atteint ». Miroir de `NiveauCecrl.displayName` côté mobile.
  */
 function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
   return (
     <>
       <GoalStrip
-        current={cycle.startingLevel ?? PLAN_PROGRESS_LEVEL_UNKNOWN}
+        current={cycle.startingLevel
+          ? niveauCecrlLabel(cycle.startingLevel)
+          : PLAN_PROGRESS_LEVEL_UNKNOWN}
         goalLabel={cycle.objectiveLevel ? "Objectif" : "Palier en cours"}
         goal={cycle.objectiveLevel ?? cycle.targetLevel}
       />
@@ -521,6 +507,6 @@ function ActionMaintenant({plan, journey, free}: {
  *
  *  Les deux accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
-function AllerPlusLoin() {
-  return <PlanLinks module="TCF" diagnosticHref="/diagnostic"/>;
+function AllerPlusLoin({diagnosticFait}: {diagnosticFait: boolean}) {
+  return <PlanLinks module="TCF" diagnosticHref={diagnosticFait ? "/diagnostic" : null}/>;
 }

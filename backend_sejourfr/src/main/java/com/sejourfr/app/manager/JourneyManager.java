@@ -154,6 +154,11 @@ public class JourneyManager {
         return eventRepository.amorceParLeDiagnosticRapide(journeyId);
     }
 
+    /** Ce cycle a-t-il journalise un diagnostic rapide ? (rattrapage D-69) */
+    public boolean journaliseUnDiagnosticRapide(UUID journeyId) {
+        return eventRepository.journaliseUnDiagnosticRapide(journeyId);
+    }
+
     public boolean dejaTraitee(UUID userId, Module module, UUID sourceAssessmentId) {
         return eventRepository.dejaTraiteeParUnCycle(userId, module, sourceAssessmentId);
     }

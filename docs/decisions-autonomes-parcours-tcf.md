@@ -3146,10 +3146,10 @@ premier examen part au cycle en attente, et le cycle d'affinage n'a pas lieu.
 ### A173 — Le diagnostic qui amorce le cycle d'examens garde l'examen déjà posé
 
 Le lot EE du diagnostic ne reçoit **pas** de second checkpoint `REASSESS` : le bloc porte déjà
-son examen `INITIAL_ASSESSMENT`, et R3 est satisfaite (même règle que le civique,
-`creerLotsCiviques`). Deux examens ouverts pour un bloc compteraient deux étapes, une seule
-montrée. `INITIAL` reste exact : le diagnostic ne **mesure** pas l'EE
-(`NiveauActuelEpreuveResolver`), et le filet R12 ne le ferme que sur un vrai examen EE.
+son examen (`INITIAL_ASSESSMENT`, ou `REASSESS` si l'EE était déjà mesurée — D-69 bis), et R3
+est satisfaite (même règle que le civique, `creerLotsCiviques`). Deux examens ouverts pour un bloc
+compteraient deux étapes, une seule montrée. Le diagnostic ne **mesure** pas l'EE
+(`NiveauActuelEpreuveResolver`) : le filet R12 ne ferme l'examen que sur un vrai examen EE.
 
 ### A174 — Les anciens cycles « Faire mon diagnostic » : `SUPERSEDED`, à la lecture
 
@@ -3158,13 +3158,12 @@ Leur étape `DIAGNOSTIC` n'a jamais été travaillée : c'est le sens exact de `
 parcours (deux lectures simultanées ne posent pas deux fois les examens). Pas de migration :
 même patron que la réparation D-65.
 
-### A175 — Comptes avec examens déjà passés : cycle de TRAVAIL d'emblée (amorce R19)
+### A175 — ~~Comptes avec examens déjà passés : cycle de TRAVAIL d'emblée~~ — RÉVOQUÉE (D-69 bis)
 
-Plutôt qu'un cycle d'examens dont les étapes seraient « reconnues faites » : R19 interdit de
-fabriquer des étapes déjà faites, et leurs priorités (journalisées par l'amorce) n'iraient
-jamais au cycle suivant — l'actualisation ouvrirait un cycle vide. L'amorce existante pose les
-priorités mesurées (≤ 3 par épreuve) et l'examen des seules épreuves non mesurées : c'est
-exactement « le fonctionnement normal reprend », sans examen redemandé.
+Révoquée le jour même : sur un compte mesuré partout sans priorité ouverte, elle rendait un
+cycle **vide** (bug de prod). Le premier cycle sans diagnostic est toujours le cycle d'examens
+(`REASSESS` sur les épreuves déjà mesurées, pour que le filet R12 ne ferme pas aussitôt
+l'examen posé sur une mesure antérieure au cycle).
 
 ### A176 — `CivicPlanDto.disponible` garde son sens ; `LearningPlanState` réduit à `ACTIVE`
 

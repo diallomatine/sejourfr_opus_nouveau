@@ -126,7 +126,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("§18-40 — la demarche declaree ensuite amorce le parcours depuis l'historique")
+    @DisplayName("§18-40 — la demarche declaree ensuite ouvre le cycle d'examens (D-69)")
     void laDemarcheDeclareeEnsuiteAmorceLeParcours() {
         User user = nouveauCandidat();
         user.setTargetProcedure(null);
@@ -141,17 +141,12 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         declarer(user, TargetProcedure.NAT);
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        // L'amorce se lit sur la FILE : un lot d'entrainement est ne de
-        // l'historique. 🛑 Pas de diagnostic : une evaluation exploitable
-        // existe (R19.8).
-        assertThat(typesDe(vue)).contains(JourneyStepType.TRAIN_SKILL);
-        assertThat(typesDe(vue)).doesNotContain(JourneyStepType.DIAGNOSTIC);
-        // ⚠️ MIS A JOUR LE 2026-09-20 (D-57). Ce candidat est GRATUIT : son
-        // etape d'entrainement est inexecutable (D-18), et depuis D-57 aucun
-        // examen d'un AUTRE bloc ne prend plus la main a sa place. L'etat est
-        // donc LOCKED — « l'effet voulu » de D-18, mot pour mot —, et ce test
-        // ne portait de toute facon pas sur l'etat mais sur l'amorce.
-        assertThat(vue.state()).isEqualTo(JourneyState.LOCKED);
+        // ⚠️ REVOQUE LE 2026-09-28 (D-69, revise) : un historique d'EXAMENS
+        // sans diagnostic n'amorce plus un cycle de travail. Le premier cycle
+        // est le cycle d'examens — un examen par epreuve, jamais vide.
+        assertThat(typesDe(vue)).doesNotContain(JourneyStepType.TRAIN_SKILL);
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.blocs()).allSatisfy(bloc -> assertThat(bloc.exam()).isNotNull());
     }
 
     // =====================================================================
@@ -270,6 +265,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE2), examen, HIER);
         observationDExamen(user, skill(SkillTaskCode.EE3), examen, HIER);
+        amorcerParLExamen(user, examen, HIER);
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
@@ -325,8 +321,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         Skill duPremierLot = skill(SkillTaskCode.EE1, 0);
         Skill detecteeEnsuite = skill(SkillTaskCode.EE1, 1);
-        observationDExamen(user, duPremierLot, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, duPremierLot, amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
         assertThat(codesDEntrainement(journeyService.lire(user.getId(), Module.TCF)))
                 .containsExactly(duPremierLot.getCode());
 
@@ -360,8 +357,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void unExamenClotLEtapeDUnBlocPret() {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
-        observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, competence, amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
         // La competence du bloc EE est faite : le bloc est pret, son examen est
         // debloque.
         cloreLEntrainement(user, competence);
@@ -393,8 +391,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @DisplayName("D-15 — une SOUS-EPREUVE d'examen complet clot l'etape de son bloc comme les autres")
     void uneSousEpreuveDExamenCompletClotLEtapeDeSonBloc() {
         User user = candidat(TargetProcedure.NAT);
-        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill(SkillTaskCode.EE1), amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
 
         // Une sous-epreuve EO d'examen blanc complet : un attempt a part
         // entiere, donc une evaluation a part entiere — et reellement passee,
@@ -424,8 +423,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void uneCompetenceClotureeNEstPasRecreeeSansRegression() {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
-        observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, competence, amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
         cloreLEntrainement(user, competence);
 
         UUID examen = UUID.randomUUID();
@@ -447,8 +447,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     void uneRegressionMesureeRemetLaCompetenceEnAttente() {
         User user = candidat(TargetProcedure.NAT);
         Skill competence = skill(SkillTaskCode.EE1, 0);
-        observationDExamen(user, competence, UUID.randomUUID(), HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, competence, amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
         cloreLEntrainement(user, competence);
 
         UUID examen = UUID.randomUUID();
@@ -473,7 +474,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, MAINTENANT);
-        journeyService.lire(user.getId(), Module.TCF);
+        amorcerParLExamen(user, examen, MAINTENANT);
         // 🛑 Compte sur la FILE, pas sur l'ecran : « ne dedouble ni le lot ni
         // ses etapes » est un fait de la base, et un doublon d'examen dans un
         // bloc ne se verrait pas dans `exam`, qui n'en sert qu'un.
@@ -482,7 +483,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
         journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, MAINTENANT));
 
-        // Le bootstrap a deja enregistre cette evaluation : la rejouer ne
+        // L'amorce a deja journalise cette evaluation : la rejouer ne
         // dedouble ni le lot, ni ses etapes.
         assertThat(etapes(user, JourneyStatus.EN_COURS)).hasSize(avant);
     }
@@ -493,7 +494,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID recente = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), recente, MAINTENANT);
-        journeyService.lire(user.getId(), Module.TCF);
+        amorcerParLExamen(user, recente, MAINTENANT);
         List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), Module.TCF));
 
         // Une session jouee hors ligne sur mobile, synchronisee apres coup.
@@ -532,7 +533,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examen, HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        amorcerParLExamen(user, examen, HIER);
         List<String> avant = codesDEntrainement(journeyService.lire(user.getId(), Module.TCF));
 
         UUID diagnostic = UUID.randomUUID();
@@ -553,7 +554,7 @@ class JourneyServiceIT extends AbstractIntegrationTest {
         User user = candidat(TargetProcedure.NAT);
         UUID examenEe = UUID.randomUUID();
         observationDExamen(user, skill(SkillTaskCode.EE1), examenEe, HIER);
-        journeyService.lire(user.getId(), Module.TCF);
+        amorcerParLExamen(user, examenEe, HIER);
         // 🛑 « Rien ne bouge devant » se lit sur la FILE : le groupement par
         // epreuve range les etapes par bloc, il ne dit plus qui est en tete de
         // file. C'est `position` qui porte cet ordre, et elle est monotone.
@@ -605,7 +606,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @DisplayName("§18-22 / §18-23 — changer d'objectif garde le cycle, sans redemander de diagnostic")
     void changerDObjectifNeForceJamaisUnDiagnostic() {
         User user = candidat(TargetProcedure.CR);
-        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill(SkillTaskCode.EE1), amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
         JourneyDto b1 = journeyService.lire(user.getId(), Module.TCF);
         assertThat(b1.objectif().code()).isEqualTo("B1");
         UUID cycle = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow().getId();
@@ -634,7 +637,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @DisplayName("§16-3 — le checkpoint d'un lot porte SA mesure, alors que l'epreuve est deja mesuree")
     void leCheckpointDUnLotPorteSaMesure() {
         User user = candidat(TargetProcedure.NAT);
-        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill(SkillTaskCode.EE1), amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
@@ -661,7 +666,9 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     @DisplayName("§16-4 — une etape d'entrainement ne mesure rien, et l'examen CO porte son type de questions")
     void seulesLesEtapesDExamenPortentUneMesure() {
         User user = candidat(TargetProcedure.NAT);
-        observationDExamen(user, skill(SkillTaskCode.EE1), UUID.randomUUID(), HIER);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill(SkillTaskCode.EE1), amorce, HIER);
+        amorcerParLExamen(user, amorce, HIER);
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
@@ -858,6 +865,24 @@ class JourneyServiceIT extends AbstractIntegrationTest {
                         ? LearningPlanSourceType.MOCK_EXAM_EO
                         : LearningPlanSourceType.MOCK_EXAM_EE,
                 LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null, quand, examen);
+    }
+
+    /**
+     * <b>Un cycle de TRAVAIL amorce par un examen</b> — la fabrique de ces tests
+     * depuis D-69 (2026-09-28).
+     *
+     * <p>Le premier cycle d'un compte sans diagnostic est desormais le cycle
+     * d'examens : l'amorce depuis l'historique d'examens n'existe plus. Un cycle
+     * de travail nait d'une evaluation recue par un cycle <b>vide</b>
+     * (« un cycle vide attend son amorce ») — c'est ce chemin, le seul qui pose
+     * encore des lots depuis un examen, que ces tests empruntent.
+     */
+    private void amorcerParLExamen(User user, UUID examen, Instant quand) {
+        if (cycle(user, JourneyStatus.EN_COURS) == null) {
+            data.journey(user, Module.TCF, JourneyStatus.EN_COURS, TargetProcedure.niveauVise(
+                    user.getTargetProcedure(), user.getTargetLevel()));
+        }
+        journeyService.onAssessmentCompleted(user.getId(), examenDe(examen, quand));
     }
 
     private static JourneyEvaluation examenDe(UUID id, Instant quand) {

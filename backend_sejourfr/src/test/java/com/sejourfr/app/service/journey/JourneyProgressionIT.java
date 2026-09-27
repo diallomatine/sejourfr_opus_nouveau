@@ -14,6 +14,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
+import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
@@ -95,6 +96,7 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         Skill duParcours = skill(SkillTaskCode.EE1, 0);
         UUID examen = UUID.randomUUID();
         observationDExamen(user, duParcours, examen);
+        amorcer(user, examen);
         // 🛑 On compte les etapes REELLEMENT EN BASE, pas celles que le DTO
         // montre : « aucune etape ajoutee » est un fait de la file, et une
         // etape creee dans un bloc qui porte deja un examen ouvert ne se
@@ -124,7 +126,9 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         User user = abonne();
         Skill skill = skill(SkillTaskCode.EE1);
         List<SkillPrompt> sujets = sujetsDeLEtape(skill);
-        observationDExamen(user, skill, UUID.randomUUID());
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill, amorce);
+        amorcer(user, amorce);
         JourneyDto avant = journeyService.lire(user.getId(), Module.TCF);
         assertThat(progressionDe(avant, skill))
                 .isEqualTo(new JourneyStepDto.JourneyProgressDto(
@@ -386,6 +390,7 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         UUID examen = UUID.randomUUID();
         observationDExamen(gratuit, premiere, examen);
         observationDExamen(gratuit, seconde, examen);
+        amorcer(gratuit, examen);
 
         JourneyDto vue = journeyService.lire(gratuit.getId(), Module.TCF);
 
@@ -436,7 +441,9 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     void lAbonnementOuvreLEtapeSansEcriture() {
         User user = candidat();
         Skill skill = skill(SkillTaskCode.EE1);
-        observationDExamen(user, skill, UUID.randomUUID());
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill, amorce);
+        amorcer(user, amorce);
         JourneyDto gratuit = journeyService.lire(user.getId(), Module.TCF);
         assertThat(etapeDe(gratuit, skill).locked()).isTrue();
 
@@ -458,7 +465,14 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         candidats.add(user.getId());
         user.setTargetProcedure(TargetProcedure.NAT);
         user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
-        return data.saveUser(user);
+        User enregistre = data.saveUser(user);
+        // D-69 (2026-09-28) : un premier cycle se cree desormais en cycle
+        // d'examens. Ces tests portent sur un cycle de TRAVAIL : il nait d'une
+        // evaluation recue par un cycle VIDE (« un cycle vide attend son
+        // amorce »), que la fabrique pose ici.
+        data.journey(enregistre, Module.TCF, JourneyStatus.EN_COURS,
+                TargetProcedure.NAT.getRequiredTcfLevel());
+        return enregistre;
     }
 
     private User abonne() {
@@ -531,6 +545,12 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         attempt.setStatus(AttemptStatus.TERMINE);
         attempt.setFinishedAt(HIER);
         return data.saveAttempt(attempt).getId();
+    }
+
+    /** L'examen EE qui amorce le cycle vide de la fabrique (D-69). */
+    private void amorcer(User user, UUID examen) {
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE, HIER));
     }
 
     private void observationDExamen(User user, Skill skill, UUID examen) {
