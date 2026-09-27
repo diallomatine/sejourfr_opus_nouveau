@@ -154,6 +154,34 @@ class UserSubscriptionManagerIT extends AbstractIntegrationTest {
                 .getRealtimeEoSessionsRemaining()).isZero();
     }
 
+    /**
+     * Consommer une simulation orale n'est pas un changement de l'abonnement :
+     * la colonne « Maj » de la console admin ne doit pas bouger. Le débit est un
+     * UPDATE en masse, qui ne passe pas par le {@code @PreUpdate} de l'entité —
+     * ce test verrouille ce contournement.
+     */
+    @Test
+    void decrementRealtimeSessionsNeFaitPasAvancerUpdatedAt() {
+        UserSubscription sub = testData.userSubscription();
+        sub.setRealtimeEoSessionsRemaining(2);
+        manager.save(sub);
+        em.flush();
+        em.createNativeQuery("UPDATE user_subscriptions SET updated_at = now() - interval '1 hour' "
+                        + "WHERE id = :id")
+                .setParameter("id", sub.getId())
+                .executeUpdate();
+        em.clear();
+        Instant repere = manager.findById(sub.getId()).orElseThrow().getUpdatedAt();
+
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.flush();
+        em.clear();
+
+        UserSubscription relu = manager.findById(sub.getId()).orElseThrow();
+        assertThat(relu.getRealtimeEoSessionsRemaining()).isEqualTo(1);
+        assertThat(relu.getUpdatedAt()).isEqualTo(repere);
+    }
+
     @Test
     void duplicateSourceAndOriginalTransactionIdViolatesUniqueIndex() {
         UserSubscription first = testData.userSubscription();

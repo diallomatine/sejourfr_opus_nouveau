@@ -273,7 +273,16 @@ réellement émis.
   `toInstant(valeur, fallback)` / `parseExpiry(…)` / `deriveAutoRenew(…)` des
   autres champs.
 - `expiry_reminded_at` n'est plus écrit (l'ancien `ExpiryReminderJob` est supprimé depuis le
-  2026-09-25, remplacé par les scénarios `PREMIUM_ENDING_*` du système d'emails).
+  2026-09-25, remplacé par les scénarios `PREMIUM_ENDING_*` du système d'emails). Les lignes
+  qu'il a touchées avant cette date gardent un `updated_at` ≈ `expiry_reminded_at` (09:00) :
+  historique, pas réécrit.
+- Le débit d'une simulation orale (`decrementRealtimeSessions`) est un `UPDATE` en masse qui
+  ne passe pas par le `@PreUpdate` : il ne fait pas avancer `updated_at`
+  (`UserSubscriptionManagerIT`). ⚠️ L'**ajustement admin** du solde
+  (`PATCH …/realtime-sessions`), lui, le fait avancer : c'est une sauvegarde d'entité.
+- Dev : `R__seed_dev_suivi.sql`, rejoué à chaque boot, pose `updated_at` = date d'achat (puis de
+  remboursement). Avant le 2026-09-27, le `DEFAULT now()` datait ses 14 lignes de l'heure du
+  boot — c'est ce qui faisait « bouger » la colonne Maj en local.
 
 Verrouillé par `StripeSubscriptionServiceTest` / `AppleSubscriptionServiceTest` /
 `GoogleSubscriptionServiceTest` (un webhook rejoué à état identique ⇒ `save()`

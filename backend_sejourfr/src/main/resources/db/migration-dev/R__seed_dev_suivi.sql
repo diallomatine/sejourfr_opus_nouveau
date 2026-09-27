@@ -186,6 +186,9 @@ END
 $$;
 
 -- Achat encaisse, decomposition figee (NULL partout = inconnue, tout ou rien).
+-- updated_at = date de l'achat (puis du remboursement, cf. suivi_remboursement) :
+-- sans elle, le DEFAULT now() datait les 14 lignes de l'heure du boot, et la
+-- colonne « Maj » de /subscriptions bougeait a chaque redemarrage du dev.
 -- ON CONFLICT DO NOTHING : un webhook rejoue n'ecrit rien (scenario 11).
 CREATE OR REPLACE FUNCTION pg_temp.suivi_achat(n int, compte uuid, plan_code text, fournisseur text,
                                                le timestamptz, devise text, brut_devise int, brut_eur int,
@@ -202,12 +205,12 @@ BEGIN
                                     amount_eur_cents, fx_rate_to_eur, purchased_at, vat_cents,
                                     provider_fee_cents, net_after_fee_cents, net_ex_vat_cents, fee_source,
                                     revenue_rules_version, origin, diagnostic_run_id, purchase_intent_id,
-                                    payment_status)
+                                    payment_status, updated_at)
     SELECT a, compte, p.id, statut, le, le + make_interval(days => p.duration_days), fournisseur,
            COALESCE(transaction, 'seed_suivi_' || n), p.code, FALSE, brut_devise, devise,
            brut_eur, CASE WHEN brut_eur IS NOT NULL THEN 1 END, le, tva,
            frais, CASE WHEN tva IS NOT NULL THEN brut_eur - frais END, net_ht, source_frais,
-           CASE WHEN tva IS NOT NULL THEN 1 END, origine, run, intention, paiement
+           CASE WHEN tva IS NOT NULL THEN 1 END, origine, run, intention, paiement, le
       FROM plans p
      WHERE p.code = plan_code
     ON CONFLICT DO NOTHING;
@@ -222,7 +225,8 @@ CREATE OR REPLACE FUNCTION pg_temp.suivi_remboursement(n int, achat uuid, fourni
 INSERT INTO payment_refunds (id, subscription_id, provider, provider_refund_id, refunded_amount_cents,
                              currency, refunded_eur_cents, net_ex_vat_delta_cents, revenue_rules_version,
                              refunded_at)
-VALUES (pg_temp.suivi_uuid(6, n), achat, fournisseur, ref, montant, 'EUR', montant, delta, 1, le)
+VALUES (pg_temp.suivi_uuid(6, n), achat, fournisseur, ref, montant, 'EUR', montant, delta, 1, le);
+UPDATE user_subscriptions SET updated_at = GREATEST(updated_at, le) WHERE id = achat;
 $$;
 
 
