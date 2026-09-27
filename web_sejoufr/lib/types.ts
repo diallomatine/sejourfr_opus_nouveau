@@ -5343,6 +5343,13 @@ export interface JourneyUniteDetailDto extends JourneyUniteRefDto {
 }
 
 /** L'étape d'entraînement, dépliée. */
+/** Miroir de `JourneyStepResolution` : pourquoi une étape du parcours est close. */
+export type JourneyStepResolution =
+    | "MASTERED"
+    | "QUOTA_REACHED"
+    | "SATISFIED_BY_ASSESSMENT"
+    | "SUPERSEDED";
+
 export interface JourneyStepDetailDto {
     stepId: string;
     type: JourneyStepType;
@@ -5378,14 +5385,19 @@ export interface JourneyStepDetailDto {
      */
     validees: number;
     /**
-     * **L'étape est franchie** — toutes ses séries réussies (ou close par le
-     * moteur, jamais « remplacée »).
+     * **L'étape est validée PAR SES SÉRIES** — quota atteint, ou close sur
+     * `QUOTA_REACHED`. Rien d'autre : close par maîtrise, par évaluation ou
+     * remplacée, elle vaut `false` (bug du 2026-09-27).
      *
-     * 🛑 **SERVI, jamais `validees >= quota` côté front** : c'est la fonction
-     * qui clôt l'étape qui le rend. Il fait apparaître « Étape validée » et
-     * « Continuer mon plan ».
+     * 🛑 **SERVI, jamais `validees >= quota` côté front.** Il fait apparaître
+     * « Étape validée » et « Continuer mon plan ».
      */
     validee: boolean;
+    /**
+     * Pourquoi l'étape est close — `null` si elle est ouverte. Le fait distinct
+     * qui permet de dire juste quand elle est close **sans** être validée.
+     */
+    resolution: JourneyStepResolution | null;
     questionsParSerie: number;
     /** 🛑 **SERVI, jamais écrit dans un front** : c'est le seuil de réussite. */
     seuilReussite: number;

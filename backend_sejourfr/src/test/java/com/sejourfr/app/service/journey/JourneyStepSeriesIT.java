@@ -128,6 +128,7 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
         assertThat(vue.locked()).isFalse();
         assertThat(vue.validees()).isZero();
         assertThat(vue.validee()).as("aucune carte reussie : l'etape n'est pas franchie").isFalse();
+        assertThat(vue.resolution()).as("ouverte : aucune resolution").isNull();
 
         assertThat(vue.series()).hasSize(config.trainSeriesQuota());
         JourneySerieDto une = vue.series().getFirst();
@@ -268,25 +269,39 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
         assertThat(stepManager.findDetail(etape.getId()).orElseThrow().estOuverte())
                 .as("l'etape est close sur son quota")
                 .isFalse();
-        assertThat(detailService.lire(user.getId(), etape.getId()).validee())
-                .as("close sur son quota : toujours franchie")
-                .isTrue();
+        JourneyStepDetailDto apres = detailService.lire(user.getId(), etape.getId());
+        assertThat(apres.validee()).as("close sur son quota : validee").isTrue();
+        assertThat(apres.resolution()).isEqualTo(JourneyStepResolution.QUOTA_REACHED);
     }
 
     /**
-     * 🛑 <b>Une etape REMPLACEE n'est pas franchie</b> : {@code SUPERSEDED} clot
-     * l'etape sans que le candidat l'ait reussie. L'ecran ne doit pas lui dire
-     * « Étape validée ».
+     * 🛑 <b>Close HORS quota ⇒ jamais « validee »</b> (bug du 2026-09-27 : une
+     * etape CO a 1/2 series, close {@code MASTERED} par maitrise transferee,
+     * affichait « Étape validée »). Seul {@code QUOTA_REACHED} valide une etape
+     * close ; la resolution est servie a part pour que l'ecran dise juste.
      */
     @Test
-    @DisplayName("Une etape remplacee (SUPERSEDED) n'est jamais servie validee")
-    void uneEtapeRemplaceeNEstPasValidee() {
+    @DisplayName("Close par maitrise, evaluation ou remplacement : validee = false, resolution servie")
+    void uneEtapeCloseHorsQuotaNEstPasValidee() {
         User user = abonne();
         JourneyStep etape = etapeDeComprehension(user, SkillSection.CO);
-        jdbc.update("UPDATE journey_step SET closed_at = now(), resolution = ? WHERE id = ?",
-                JourneyStepResolution.SUPERSEDED.name(), etape.getId());
+        essai(etape, 1, user, 19);
 
-        assertThat(detailService.lire(user.getId(), etape.getId()).validee()).isFalse();
+        for (JourneyStepResolution motif : List.of(
+                JourneyStepResolution.MASTERED,
+                JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
+                JourneyStepResolution.SUPERSEDED)) {
+            jdbc.update("UPDATE journey_step SET closed_at = now(), resolution = ? WHERE id = ?",
+                    motif.name(), etape.getId());
+
+            JourneyStepDetailDto vue = detailService.lire(user.getId(), etape.getId());
+            assertThat(vue.validees()).isEqualTo(1);
+            assertThat(vue.validee()).as("close %s a 1/2 : pas validee", motif).isFalse();
+            assertThat(vue.resolution()).isEqualTo(motif);
+            assertThat(vue.series().get(1).locked())
+                    .as("les cartes restent jouables selon les regles actuelles")
+                    .isFalse();
+        }
     }
 
     // ------------------------------------------------------------------ lancement

@@ -26,6 +26,7 @@ import {
     JOURNEY_ETAPE_SHEET_REDO,
     JOURNEY_ETAPE_START_ERROR,
     JOURNEY_ETAPE_VALIDATION_LEAD,
+    journeyEtapeCloseNote,
     journeyEtapeCompteur,
     journeyEtapeDernierScore,
     journeyEtapeDuree,
@@ -290,52 +291,67 @@ function PlanEtapeScoped() {
                         );
                     })}
 
-                    <Pad>
-                        <Stack>
-                            {erreur && (
-                                <p className={sejourStyles.tiny} role="alert">{erreur}</p>
-                            )}
-
-                            {/* 🛑 **`validee` de l'ÉTAPE est SERVI** : c'est la
-                                fonction qui la clôt qui le rend. Le bouton
-                                ramène au cycle du Plan, qui sert l'étape
-                                suivante. */}
-                            {detail.validee && (
-                                <Card variant="ok">
-                                    <DoneRow label={JOURNEY_ETAPE_DONE_LEAD} />
-                                    <p className={sejourStyles.tiny}>{JOURNEY_ETAPE_DONE_SUB}</p>
-                                </Card>
-                            )}
-                            {detail.validee && (
-                                <Cta href={planHref(parcours)} variant="blue">
-                                    {JOURNEY_ETAPE_DONE_CTA}
-                                </Cta>
-                            )}
-
-                            <InfoNote variant="check">
-                                <b>{JOURNEY_ETAPE_VALIDATION_LEAD}</b>
-                                {journeyEtapeValidation(
-                                    detail.quota,
-                                    detail.seuilReussite,
-                                    detail.questionsParSerie,
+                    {/* Le pied de l'écran est une section du kit sans
+                        intertitre : il prend la même gouttière (22 px) que
+                        deux sections, sans quoi l'encart « Étape validée »
+                        se collait à la dernière carte de série. */}
+                    <Section>
+                        <Pad>
+                            <Stack>
+                                {erreur && (
+                                    <p className={sejourStyles.tiny} role="alert">{erreur}</p>
                                 )}
-                            </InfoNote>
 
-                            {/* 🛑 **Le verrou se DIT, il ne masque rien** : la
-                                liste reste entière au-dessus. */}
-                            {detail.locked && (
-                                <p className={sejourStyles.tiny}>{JOURNEY_ETAPE_LOCKED_NOTE}</p>
-                            )}
+                                {/* 🛑 **`validee` de l'ÉTAPE est SERVI** : c'est la
+                                    fonction qui la clôt qui le rend. Le bouton
+                                    ramène au cycle du Plan, qui sert l'étape
+                                    suivante. */}
+                                {detail.validee && (
+                                    <Card variant="ok">
+                                        <DoneRow label={JOURNEY_ETAPE_DONE_LEAD} />
+                                        <p className={sejourStyles.tiny}>{JOURNEY_ETAPE_DONE_SUB}</p>
+                                    </Card>
+                                )}
+                                {/* 🛑 **Close SANS validation** (maîtrise,
+                                    évaluation, remplacée) : une phrase juste, lue
+                                    sur la `resolution` servie — jamais « Étape
+                                    validée ». */}
+                                {journeyEtapeCloseNote(detail.validee, detail.resolution) && (
+                                    <InfoNote>
+                                        {journeyEtapeCloseNote(detail.validee, detail.resolution)}
+                                    </InfoNote>
+                                )}
+                                {(detail.validee || detail.resolution !== null) && (
+                                    <Cta href={planHref(parcours)} variant="blue">
+                                        {JOURNEY_ETAPE_DONE_CTA}
+                                    </Cta>
+                                )}
 
-                            {/* 🛑 **En compréhension ORALE seulement**, sur le
-                                `section` servi — jamais déduit d'une route. */}
-                            {journeyEtapeFoot(detail.section) && (
-                                <p className={sejourStyles.tiny}>
-                                    {journeyEtapeFoot(detail.section)}
-                                </p>
-                            )}
-                        </Stack>
-                    </Pad>
+                                <InfoNote variant="check">
+                                    <b>{JOURNEY_ETAPE_VALIDATION_LEAD}</b>
+                                    {journeyEtapeValidation(
+                                        detail.quota,
+                                        detail.seuilReussite,
+                                        detail.questionsParSerie,
+                                    )}
+                                </InfoNote>
+
+                                {/* 🛑 **Le verrou se DIT, il ne masque rien** : la
+                                    liste reste entière au-dessus. */}
+                                {detail.locked && (
+                                    <p className={sejourStyles.tiny}>{JOURNEY_ETAPE_LOCKED_NOTE}</p>
+                                )}
+
+                                {/* 🛑 **En compréhension ORALE seulement**, sur le
+                                    `section` servi — jamais déduit d'une route. */}
+                                {journeyEtapeFoot(detail.section) && (
+                                    <p className={sejourStyles.tiny}>
+                                        {journeyEtapeFoot(detail.section)}
+                                    </p>
+                                )}
+                            </Stack>
+                        </Pad>
+                    </Section>
                 </>
             )}
 

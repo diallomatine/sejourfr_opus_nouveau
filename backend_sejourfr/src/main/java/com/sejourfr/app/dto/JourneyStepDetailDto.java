@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.SkillSection;
 
@@ -54,23 +55,19 @@ import java.util.UUID;
  *                          creation), par opposition a une etape ajoutee pour
  *                          une autre raison. C'est la pastille « Priorité ».
  * @param quota             cartes a reussir — {@code trainSeriesQuota} (2).
- * @param validees          cartes deja reussies, sur {@link #quota()}. 🛑 Servi,
- *                          et ce n'est pas un doublon des cartes : c'est le
- *                          <b>meme</b> nombre que le moteur compare au quota pour
- *                          clore l'etape ({@code JourneyReadService.etapesAuQuota}),
- *                          donc l'ecran ne peut pas annoncer « 1 sur 2 » sur une
- *                          etape que le serveur vient de clore. Le recompter cote
- *                          front aurait fait exister une seconde addition de la
- *                          meme chose.
- * @param validee           <b>l'etape est franchie</b> (2026-09-27) : ses
- *                          {@link #quota()} cartes sont reussies — lu chez
- *                          l'autorite de la cloture,
- *                          {@code JourneyReadService.etapesAuQuota} —, ou elle
- *                          est deja close par le moteur (quota, maitrise,
- *                          evaluation ; jamais {@code SUPERSEDED}). 🛑 Servi pour
- *                          que l'ecran n'ait pas a comparer {@code validees} a
- *                          {@code quota} : c'est ce booleen qui fait apparaitre
- *                          « Étape validée » et « Continuer mon plan ».
+ * @param validee           <b>l'etape est validee PAR SES SERIES</b>
+ *                          (2026-09-27) : ouverte, {@code etapesAuQuota} la rend
+ *                          (la fonction qui la clot) ; close, sa resolution est
+ *                          {@code QUOTA_REACHED}. 🛑 <b>Rien d'autre</b> : une
+ *                          etape close par maitrise transferee, par evaluation
+ *                          ou remplacee n'a pas ete validee par ses series, et
+ *                          l'ecran ne dit pas « Étape validée » (bug du
+ *                          2026-09-27 : 1/2 series, close {@code MASTERED}).
+ * @param resolution        pourquoi l'etape est close, {@code null} si elle est
+ *                          ouverte. C'est le fait distinct qui permet a l'ecran
+ *                          de dire juste quand l'etape est close <b>sans</b> etre
+ *                          validee ({@code MASTERED},
+ *                          {@code SATISFIED_BY_ASSESSMENT}, {@code SUPERSEDED}).
  * @param questionsParSerie taille <b>nominale</b> d'une serie (20). C'est aussi
  *                          le denominateur de {@link JourneySerieDto#dernierScore()}.
  * @param seuilReussite     bonnes reponses qui rendent une serie reussie (16).
@@ -99,6 +96,7 @@ public record JourneyStepDetailDto(
         int quota,
         int validees,
         boolean validee,
+        JourneyStepResolution resolution,
         int questionsParSerie,
         int seuilReussite,
         Integer dureeEstimeeMin,

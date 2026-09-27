@@ -289,7 +289,7 @@ Cf. `exams-tcf.md`.
   (2026-09-20) : les **2 séries à réussir** d'une compétence de compréhension (CO/CE) ou d'une
   unité officielle civique, leur état, leur score. Sert `bloc`, `unite` *(code, label,
   description — **nulle en civique**)*, `section`, `objectif` *(kind, code, label : un palier
-  **ou** une mention)*, `priorite`, `quota` (2), `validees`, `validee` (l'étape franchie), `questionsParSerie` (20),
+  **ou** une mention)*, `priorite`, `quota` (2), `validees`, `validee` (validée par ses séries), `resolution` (motif de clôture, null si ouverte), `questionsParSerie` (20),
   `seuilReussite` (16), `dureeEstimeeMin`, `locked` (freemium) et `series[]`
   (`index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`, `dernierEssaiAt`).
   🛑 **`validee` et `validees` sont SERVIS** : sans eux un front comparerait `dernierScore` à

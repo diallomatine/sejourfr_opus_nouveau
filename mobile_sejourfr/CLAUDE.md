@@ -4521,7 +4521,10 @@ dans ce fichier.
   des séries d'entraînement (`showAppSheet`, comme les sujets déjà traités) « Voir mon résultat » / « Refaire la série ».
   Listes « À faire » / « Réussies » sur `validee` servi. `detail.validee` (servi,
   jamais `validees >= quota`) affiche « Étape validée » + « Continuer mon plan »
-  → `context.go(AppRoutes.plan)`. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
+  → `context.go(AppRoutes.plan)`. 🛑 `validee` = quota de séries atteint **seulement** : une
+  étape close autrement (`MASTERED`…) n'est pas « validée » ; `detail.resolution` (servi,
+  `JourneyStepResolution`) donne alors une note neutre (`journeyEtapeCloseNote`) + le même
+  bouton. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
 - 🛑 **`objectif` est un `JourneyObjectifRef`**, pas un `TargetLevel` : on lit
   **`label`** (« B2 », « Naturalisation »), jamais `code`, et **on ne branche
   jamais sur le module**. Seule la **tournure** se choisit sur `kind`, comme

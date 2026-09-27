@@ -105,7 +105,8 @@ public class JourneyStepDetailService {
                 // 🛑 Le compte des cartes reussies est SERVI, pas recompte par
                 // l'ecran : c'est le meme nombre que le moteur compare au quota.
                 (int) cartes.stream().filter(JourneySerieDto::validee).count(),
-                franchie(userId, step),
+                valideeParSesSeries(userId, step),
+                step.getResolution(),
                 verdict.questionsParSerie(module),
                 verdict.seuilReussite(module),
                 verdict.dureeEstimeeMin(module, step.getExamType()),
@@ -229,16 +230,18 @@ public class JourneyStepDetailService {
     }
 
     /**
-     * <b>L'etape est-elle franchie ?</b> — le {@code validee} de l'ecran.
+     * <b>L'etape est-elle validee par ses series ?</b> — le {@code validee} de
+     * l'ecran.
      *
      * <p>🛑 <b>Aucune regle ecrite ici.</b> Ouverte, elle l'est quand
      * {@link JourneyReadService#etapesAuQuota} la rend — la <b>meme</b> fonction
-     * qui la clot. Close, elle l'est sauf si elle a ete <b>remplacee</b>
-     * ({@code SUPERSEDED}, qui n'est pas une reussite).
+     * qui la clot. Close, elle l'est <b>seulement</b> sur {@code QUOTA_REACHED} :
+     * une cloture par maitrise ({@code MASTERED}), par evaluation ou par
+     * remplacement n'est pas une validation par les series.
      */
-    private boolean franchie(UUID userId, JourneyStep step) {
+    private boolean valideeParSesSeries(UUID userId, JourneyStep step) {
         if (!step.estOuverte()) {
-            return step.getResolution() != JourneyStepResolution.SUPERSEDED;
+            return step.getResolution() == JourneyStepResolution.QUOTA_REACHED;
         }
         return readService.etapesAuQuota(userId, List.of(step)).contains(step.getId());
     }

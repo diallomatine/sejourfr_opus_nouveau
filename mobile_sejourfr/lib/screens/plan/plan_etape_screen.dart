@@ -137,6 +137,7 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
     final pastille =
         journeyEtapeSectionPill(detail.section, detail.objectif);
     final pied = journeyEtapeFoot(detail.section);
+    final closeNote = journeyEtapeCloseNote(detail.validee, detail.resolution);
     final erreur = _erreur;
     return [
       if (pastille != null || detail.priorite)
@@ -187,7 +188,9 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
                 rang == 0 ? null : detail.series[rang - 1].index,
               ),
         ],
-      const SizedBox(height: 12),
+      // Le pied prend la gouttière d'une section du kit (22 px, avec les deux
+      // `sfGap` de la pile), miroir de la `Section` sans titre du web.
+      const SizedBox(height: sfSectionGap - 2 * sfGap),
       if (erreur != null) SfTiny(erreur, color: AppColors.red),
       // 🛑 **`validee` de l'ÉTAPE est SERVI** : c'est la fonction qui la clôt
       // qui le rend. Le bouton ramène au cycle du Plan, qui sert l'étape
@@ -203,12 +206,16 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
             ],
           ),
         ),
+      ],
+      // 🛑 **Close SANS validation** (maîtrise, évaluation, remplacée) : une
+      // phrase juste, lue sur la `resolution` servie — jamais « Étape validée ».
+      if (closeNote != null) SfInfoNote(child: SfTiny(closeNote)),
+      if (detail.validee || detail.resolution != null)
         SfButton(
           label: kJourneyEtapeDoneCta,
           variant: SfButtonVariant.blue,
           onPressed: () => context.go(AppRoutes.plan),
         ),
-      ],
       SfInfoNote(
         variant: SfInfoNoteVariant.check,
         child: RichText(

@@ -2542,7 +2542,7 @@ V065 et le parcours V066), et elle a le **même critère** : « le candidat a la
 `GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` :
 `stepId`, `type`, `bloc`, `unite` *(code, label, description — `description` nulle en civique)*,
 `section`, `objectif` *(kind, code, label : un palier **ou** une mention)*, `priorite`, `quota`,
-`validees`, `validee` *(2026-09-27)*, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`,
+`validees`, `validee`, `resolution` *(2026-09-27)*, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`,
 `locked`, `series[]`.
 
 `JourneySerieDto` : `index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`,
@@ -2687,11 +2687,22 @@ Demande du propriétaire. `PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`, mots
 - **Deux listes** : « À faire » (non validées) puis « Réussies » (`validee`), chacune dans
   l'ordre servi ; une liste vide n'a pas d'intertitre. « Après la série N » lit la série
   précédente dans la liste **entière**, pas dans la section.
-- 🆕 **`JourneyStepDetailDto.validee`** — l'étape est **franchie** : ouverte et rendue par
-  `JourneyReadService.etapesAuQuota` (la fonction qui la clôt), ou déjà close par le moteur
-  (quota, maîtrise, évaluation), **jamais** `SUPERSEDED`. 🛑 Aucun front ne compare `validees`
-  à `quota`. Vrai ⇒ encart vert « **Étape validée** — Passez au sujet suivant de votre plan. »
-  et bouton bleu « **Continuer mon plan** » vers le cycle (`planHref(parcours)` ⇄
+- 🆕 **`JourneyStepDetailDto.validee`** — l'étape est validée **par ses séries** : ouverte et
+  rendue par `JourneyReadService.etapesAuQuota` (la fonction qui la clôt), ou close sur
+  **`QUOTA_REACHED`**, et **rien d'autre**. 🛑 Une étape close `MASTERED` (maîtrise transférée),
+  `SATISFIED_BY_ASSESSMENT` ou `SUPERSEDED` n'est **pas** validée (bug du 2026-09-27 : étape CO à
+  1/2 séries, close `MASTERED`, affichait « Étape validée »). 🛑 Aucun front ne compare
+  `validees` à `quota`. Vrai ⇒ encart vert « **Étape validée** — Passez au sujet suivant de
+  votre plan. » et bouton bleu « **Continuer mon plan** » vers le cycle (`planHref(parcours)` ⇄
   `context.go(AppRoutes.plan)`) : aucune « prochaine étape » n'est servie sur cet écran, c'est
-  le cycle qui la désigne. Verrouillé par `JourneyStepSeriesIT`.
+  le cycle qui la désigne.
+- 🆕 **`JourneyStepDetailDto.resolution`** — pourquoi l'étape est close (`null` = ouverte).
+  Close **sans** validation ⇒ pas d'encart vert : une note neutre lue sur la résolution
+  servie (`journeyEtapeCloseNote` ⇄ même nom en Dart) — « Vos résultats montrent que cette
+  compétence est acquise : votre plan est passé à la suite. Vous pouvez encore y faire vos
+  séries. » (`SUPERSEDED` : « Cette étape ne fait plus partie de votre plan actuel. … »), puis
+  le même bouton « Continuer mon plan ». Les cartes restent jouables selon les règles
+  actuelles. Verrouillé par `JourneyStepSeriesIT`.
+- Le pied de l'écran (encarts, bouton, validation) prend la gouttière d'une **section** du kit
+  (22 px) : web `Section` sans intertitre, mobile `sfSectionGap`.
 

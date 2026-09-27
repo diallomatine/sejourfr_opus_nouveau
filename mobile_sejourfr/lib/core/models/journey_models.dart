@@ -17,6 +17,27 @@ import 'diagnostic_models.dart';
 import 'enums.dart';
 import 'skill_models.dart';
 
+/// Pourquoi une étape du parcours est close — miroir de
+/// `JourneyStepResolution`. `null` côté DTO = étape ouverte.
+enum JourneyStepResolution {
+  mastered('MASTERED'),
+  quotaReached('QUOTA_REACHED'),
+  satisfiedByAssessment('SATISFIED_BY_ASSESSMENT'),
+  superseded('SUPERSEDED');
+
+  const JourneyStepResolution(this.wire);
+
+  final String wire;
+
+  static JourneyStepResolution? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final resolution in JourneyStepResolution.values) {
+      if (resolution.wire == value) return resolution;
+    }
+    return null;
+  }
+}
+
 /// Nature d'une étape du parcours.
 enum JourneyStepType {
   /// Le diagnostic rapide. Proposé **uniquement** quand aucune évaluation
@@ -1165,6 +1186,7 @@ class JourneyStepDetail {
     required this.locked,
     required this.series,
     this.validee = false,
+    this.resolution,
     this.section,
     this.objectif,
     this.dureeEstimeeMin,
@@ -1206,13 +1228,17 @@ class JourneyStepDetail {
   /// pas annoncer « 1 sur 2 » sur une étape que le serveur vient de clore.
   final int validees;
 
-  /// **L'étape est franchie** — toutes ses séries réussies (ou close par le
-  /// moteur, jamais « remplacée »).
+  /// **L'étape est validée PAR SES SÉRIES** — quota atteint, ou close sur
+  /// `QUOTA_REACHED`. Rien d'autre : close par maîtrise, par évaluation ou
+  /// remplacée, elle vaut `false` (bug du 2026-09-27).
   ///
-  /// 🛑 **SERVI, jamais `validees >= quota` côté front** : c'est la fonction qui
-  /// clôt l'étape qui le rend. Il fait apparaître « Étape validée » et
-  /// « Continuer mon plan ».
+  /// 🛑 **SERVI, jamais `validees >= quota` côté front.** Il fait apparaître
+  /// « Étape validée » et « Continuer mon plan ».
   final bool validee;
+
+  /// Pourquoi l'étape est close — `null` si elle est ouverte. Le fait distinct
+  /// qui permet de dire juste quand elle est close **sans** être validée.
+  final JourneyStepResolution? resolution;
 
   final int questionsParSerie;
 
@@ -1243,6 +1269,8 @@ class JourneyStepDetail {
         quota: (json['quota'] as num?)?.toInt() ?? 0,
         validees: (json['validees'] as num?)?.toInt() ?? 0,
         validee: json['validee'] as bool? ?? false,
+        resolution: JourneyStepResolution.fromWireNullable(
+            json['resolution'] as String?),
         questionsParSerie: (json['questionsParSerie'] as num?)?.toInt() ?? 0,
         seuilReussite: (json['seuilReussite'] as num?)?.toInt() ?? 0,
         dureeEstimeeMin: (json['dureeEstimeeMin'] as num?)?.toInt(),

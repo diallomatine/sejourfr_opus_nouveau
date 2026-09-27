@@ -2,6 +2,7 @@ import type {
     JourneyObjectifRefDto,
     JourneySerieDto,
     JourneyStepDetailDto,
+    JourneyStepResolution,
     SkillSection,
 } from "./types";
 import type {BarTone} from "../app/_components/sejour/SejourKit";
@@ -201,6 +202,28 @@ export const JOURNEY_ETAPE_DONE_SUB = "Passez au sujet suivant de votre plan.";
 
 /** Le bouton de fin d'étape : il ramène au cycle du Plan. */
 export const JOURNEY_ETAPE_DONE_CTA = "Continuer mon plan";
+
+/**
+ * **Close SANS être validée par ses séries** — la phrase se choisit sur la
+ * `resolution` **servie**, jamais sur un compteur. `null` : ouverte, ou validée
+ * (l'encart « Étape validée » parle alors).
+ *
+ * 🛑 **Jamais « Étape validée » ici** : une étape close par maîtrise ou par
+ * évaluation n'a pas eu ses séries réussies (bug du 2026-09-27, 1/2 séries).
+ * Les cartes restent jouables.
+ */
+export function journeyEtapeCloseNote(
+    validee: boolean,
+    resolution: JourneyStepResolution | null,
+): string | null {
+    if (validee || resolution === null || resolution === "QUOTA_REACHED") return null;
+    if (resolution === "SUPERSEDED") {
+        return "Cette étape ne fait plus partie de votre plan actuel. "
+            + "Vous pouvez encore y faire vos séries.";
+    }
+    return "Vos résultats montrent que cette compétence est acquise : votre plan "
+        + "est passé à la suite. Vous pouvez encore y faire vos séries.";
+}
 
 /* ----------------------------------------------------- Pied de l'écran */
 
