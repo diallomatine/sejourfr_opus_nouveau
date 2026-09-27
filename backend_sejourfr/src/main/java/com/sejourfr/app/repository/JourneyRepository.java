@@ -125,6 +125,19 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
     @Query("SELECT j FROM Journey j WHERE j.id = :id")
     Optional<Journey> findByIdForUpdate(@Param("id") UUID id);
 
+    /**
+     * <b>Serialise la CREATION d'un cycle</b> pour une cle (candidat, module) —
+     * verrou consultatif Postgres, libere a la fin de la transaction (D-69).
+     *
+     * <p>Aucune ligne n'existe encore a verrouiller : c'est precisement ce qu'on
+     * s'apprete a creer. Sans ce verrou, deux lectures concurrentes du Plan d'un
+     * compte sans parcours inseraient chacune leur cycle, et la seconde
+     * echouait sur {@code uq_journey_en_cours} (reponse 500).
+     */
+    @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtextextended(:cle, 0))) verrou",
+            nativeQuery = true)
+    Integer verrouillerLaCreation(@Param("cle") String cle);
+
     @Modifying
     @Query("DELETE FROM Journey j WHERE j.user.id = :userId")
     int deleteByUserId(@Param("userId") UUID userId);

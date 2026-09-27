@@ -1024,7 +1024,9 @@ export type DiagnosticStep = "PRESENTATION" | "WRITTEN" | "ORAL" | "ANALYSIS" | 
 
 export type DiagnosticTaskCompletion = "COMPLETED" | "PARTIAL" | "NOT_COMPLETED";
 export type DiagnosticCommunicationStatus = "EFFECTIVE" | "PARTIAL" | "INEFFECTIVE";
-export type LearningPlanState = "NEEDS_DIAGNOSTIC" | "DIAGNOSTIC_IN_PROGRESS" | "ACTIVE";
+/** 🛑 D-69 (2026-09-28) : le Plan existe pour tout compte — `ACTIVE` est la
+ *  seule valeur servie (`NEEDS_DIAGNOSTIC` / `DIAGNOSTIC_IN_PROGRESS` supprimés). */
+export type LearningPlanState = "ACTIVE";
 export type LearningPlanSkillStatus = "NOT_OBSERVED" | "PRIORITY" | "TO_REINFORCE" | "SOLID";
 
 /**
@@ -2182,8 +2184,7 @@ export interface LearningPlanDto {
      * même parcours numéroté.
      *
      * **Jamais `null`** ; **vide** tant qu'aucune compétence n'a prouvé son
-     * transfert — cas normal, y compris dans les états `NEEDS_DIAGNOSTIC` et
-     * `DIAGNOSTIC_IN_PROGRESS`. Déjà **bornée par le serveur** aux plus
+     * transfert — cas normal. Déjà **bornée par le serveur** aux plus
      * récentes : ne rien reborner ici.
      */
     completedSteps: LearningPlanCompletedStepDto[];
@@ -4703,9 +4704,8 @@ export type PreparationEtape =
     /**
      * **TCF uniquement** : la première estimation est faite, le complet non.
      *
-     * 🛑 Ne veut **pas** dire « pas de plan » : depuis l'arbitrage du
-     * 2026-09-12, le Plan existe dès cette étape. Le fait à lire est
-     * `planDisponible`.
+     * 🛑 Ne veut **pas** dire « pas de plan » : depuis D-69 (2026-09-28), le
+     * Plan existe à toutes les étapes.
      */
     | "ESTIMATION_FAITE"
     | "PLAN_PRET";
@@ -4724,8 +4724,7 @@ export interface ModulePreparation {
      * `sessionId` — dès que le complet démarre, `sessionId` désigne le complet,
      * et sans ce champ le rapport du rapide (le seul résultat que le candidat
      * possède alors) devenait introuvable. `null` = aucun rapide clos, donc
-     * rien à relire : c'est le seul état où la porte du Plan n'affiche pas de
-     * rapport.
+     * rien à relire.
      */
     estimationSessionId: string | null;
     /** **TCF** : 🛑 `null` = pas encore mesuré, jamais A1. */
@@ -4738,14 +4737,10 @@ export interface ModulePreparation {
      */
     aRenforcer: number | null;
     /**
-     * 🛑 **Le Plan de ce module est-il constructible maintenant ?** C'est le
-     * seul fait sur lequel un écran ouvre la page Plan.
-     *
-     * Depuis l'arbitrage du 2026-09-12, le diagnostic complet n'est **plus un
-     * prérequis** : dès que le rapide est clos, le Plan existe — provisoire
-     * mais réel, bâti uniquement sur ce que le rapide a mesuré. Ne pas le
-     * déduire de `etape` : le serveur rend ici, mot pour mot, la condition de
-     * son propre moteur.
+     * 🛑 **Toujours `true` depuis D-69 (2026-09-28)** : le Plan existe pour
+     * tout compte, diagnostic fait ou non. Champ gardé parce qu'il est servi ;
+     * aucun écran ne s'en sert plus comme porte. Ce qui reste à proposer se lit
+     * sur `etape` (`diagnosticAAffiner`, `lib/preparation.ts`).
      */
     planDisponible: boolean;
     /**

@@ -338,6 +338,12 @@ String journeyCycleHint(JourneyCycle cycle) {
             'affiner votre plan. Les compétences détectées par le diagnostic '
             'restent disponibles.';
   }
+  // 🛑 **Cycle d'examens d'un compte sans diagnostic** (D-69) : il ne porte
+  // aucune compétence — « toutes les compétences… » y serait faux.
+  if (cycle.cycleDeMesure && cycle.complete) {
+    return 'Les examens blancs de toutes les épreuves sont faits. Actualisez '
+        'votre plan pour recevoir les priorités qu\'ils ont identifiées.';
+  }
   if (cycle.complete) {
     return 'Toutes les compétences et tous les examens d\'épreuve prévus dans '
         'ce cycle sont terminés.';

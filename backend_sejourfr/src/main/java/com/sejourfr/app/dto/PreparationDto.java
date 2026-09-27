@@ -64,6 +64,17 @@ public record PreparationDto(
      * @param planDisponible 🛑 <b>Le Plan du module est-il constructible
      *                   MAINTENANT ?</b> C'est le seul fait sur lequel un front
      *                   a le droit d'ouvrir la page Plan.
+     *                   <p>🛑 <b>D-69 (2026-09-28, decision du proprietaire)
+     *                   : TOUJOURS vrai, pour les deux modules.</b> Le Plan
+     *                   existe pour tout compte : sans diagnostic, son cycle
+     *                   est le <b>cycle d'examens par defaut</b> (un examen
+     *                   blanc par epreuve TCF, un examen par thematique
+     *                   civique). Le diagnostic n'est plus une porte, il
+     *                   <b>affine</b> — {@code etape} et
+     *                   {@code estimationSessionId} disent s'il reste a
+     *                   proposer. Le champ reste servi : les clients installes
+     *                   le lisent pour ouvrir le Plan. Ce qui suit est
+     *                   l'historique de la regle qu'il portait.
      *                   <p><b>Arbitrage du proprietaire, 2026-09-12</b> : le
      *                   diagnostic complet <b>n'est plus un prerequis</b>
      *                   d'acces au Plan, seulement un moyen de le rendre plus

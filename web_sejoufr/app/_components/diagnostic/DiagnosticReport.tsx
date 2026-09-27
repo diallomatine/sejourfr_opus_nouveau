@@ -5,9 +5,8 @@
  *
  * Une seule production écrite a été observée : l'écran annonce une
  * *estimation*, dit ce qu'il a vu, dit **ce qu'il n'a pas vu**, puis mène au
- * **Plan** — qui existe dès que le rapide est clos, provisoire mais réel
- * (`prep.planDisponible`). Il ne pousse aucun abonnement : c'est le Plan qui
- * s'en charge.
+ * **Plan**, qu'il affine (D-69 : le Plan existe pour tout compte). Il ne
+ * pousse aucun abonnement : c'est le Plan qui s'en charge.
  *
  * 🛑 **Aucun style local.** Tout l'habillage vient du kit partagé
  * `app/_components/sejour/` (miroir du kit Flutter). Un motif qui manque
@@ -17,13 +16,7 @@
  * (`NON_EVALUABLE`) n'a pas de niveau : on écrit « — » et on dit ce qui manque.
  * Afficher A1 serait rendre un verdict que personne n'a rendu (V040/V041/V042).
  *
- * 🛑 **Deux emplacements, UN SEUL composant.** Il est la page `/diagnostic`
- * quand la session est close, et il est **encastré** dans la porte d'entrée du
- * Plan TCF tant que le Plan n'est pas servi (`embedded`) — c'est le même
- * rapport que le candidat doit retrouver, pas un résumé maison qui finirait par
- * dire autre chose. `embedded` ne retire **que la chrome de page** (le shell et
- * l'en-tête, que l'écran d'accueil porte déjà) : les quatre blocs, leur ordre et
- * leur CTA final sont les mêmes des deux côtés.
+ * Il est la page `/diagnostic` quand la session est close.
  */
 
 import type {ReactNode} from "react";
@@ -72,26 +65,12 @@ export function DiagnosticReport({
   diagnostic,
   targetLevel,
   notice,
-  embedded = false,
-  closingCta = true,
   backTo = null,
 }: {
   diagnostic: {result: DiagnosticResultDto | null};
   /** Palier visé, servi par `/api/auth/me`. `null` = démarche non déclarée. */
   targetLevel: string | null;
   notice?: ReactNode;
-  /**
-   * Le rapport est posé **dans** un écran qui porte déjà son shell et son
-   * en-tête (la porte d'entrée du Plan). On retire alors `SejourApp` et `Top` —
-   * deux `.sf-app` imbriqués, ou deux en-têtes sur la même page, seraient
-   * l'erreur qu'une copie du composant aurait produite autrement.
-   */
-  embedded?: boolean;
-  /**
-   * `false` : **l'hôte fournit le geste de fin**, le rapport n'affiche pas le
-   * sien. Jamais deux boutons pour le même parcours dans deux formulations.
-   */
-  closingCta?: boolean;
   /**
    * Le retour de l'en-tête. `null` ⇒ aucun : le rapport est alors un écran
    * racine, la barre du haut garde son menu. L'hôte ne le pose que si le
@@ -186,20 +165,14 @@ export function DiagnosticReport({
               <p className={styles.label}>{DIAGNOSTIC_SUITE_PROMISE}</p>
               <CheckList items={DIAGNOSTIC_SUITE_BENEFITS} />
             </Card>
-            {closingCta && (
-              /* Le Plan : il existe dès que le rapide est clos. La route Plan
-                 lit elle-même `planDisponible`. 🛑 Jamais l'entrée du
-                 diagnostic complet (arbitrage du 2026-09-26 : il n'est plus un
-                 parcours proposé). */
-              <Cta href={planHref("TCF")}>{DIAGNOSTIC_REPORT_PLAN_CTA}</Cta>
-            )}
+            {/* Le Plan. 🛑 Jamais l'entrée du diagnostic complet (arbitrage
+                du 2026-09-26 : il n'est plus un parcours proposé). */}
+            <Cta href={planHref("TCF")}>{DIAGNOSTIC_REPORT_PLAN_CTA}</Cta>
           </Stack>
         </Pad>
       </Section>
     </>
   );
-
-  if (embedded) return blocs;
 
   return (
     /* 🛑 `report` : 980 px de conteneur, 720 px de texte. Les deux grilles

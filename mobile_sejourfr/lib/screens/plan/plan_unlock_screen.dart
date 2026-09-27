@@ -118,8 +118,8 @@ _Heros _herosDuDiagnostic(TcfDiagnosticResultDto r) {
   );
 }
 
-/// Le héros TCF **lu sur le PLAN** — le cas ordinaire : le Plan existe dès que
-/// le diagnostic **rapide** est clos (`prep.planDisponible`, A145).
+/// Le héros TCF **lu sur le PLAN** — le cas ordinaire : le Plan existe pour
+/// tout compte (D-69).
 _Heros _herosDuPlan(LearningPlan plan) {
   // 🛑 `cycle` est **nullable** : sans démarche déclarée, il n'y a ni palier de
   // départ ni objectif — on n'en invente aucun, le hero dit « — » et le rail

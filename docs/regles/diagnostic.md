@@ -10,6 +10,33 @@
 
 ---
 
+## 🛑 Le diagnostic n'est plus une PORTE vers le Plan (D-69, 2026-09-28)
+
+**Décision du propriétaire.** Le Plan existe pour **tout** compte : sans diagnostic, son premier
+cycle est le **cycle d'examens par défaut** (un examen blanc par épreuve TCF, un examen de thème
+par thématique civique). `prep.planDisponible` vaut **toujours** `true`, `LearningPlanDto.state`
+**toujours** `ACTIVE`. Le diagnostic reste **proposé en secondaire**, sous « À faire maintenant »
+(Plan TCF et civique, Accueil), par une seule autorité par front — `diagnosticAAffiner`
+(`web_sejoufr/lib/preparation.ts` ⇄ `mobile_sejourfr/lib/core/models/preparation_labels.dart`),
+lue sur `etape` :
+
+| `etape` servie | Proposition (TCF) | Proposition (civique) |
+|---|---|---|
+| `DIAGNOSTIC_A_FAIRE` | « Affiner avec le diagnostic » → rapide, démarrage direct | « Affiner avec le diagnostic civique » |
+| `DIAGNOSTIC_EN_COURS` (rapide, `fait == null`) | « Reprendre mon diagnostic » | « Reprendre mon diagnostic civique » |
+| autre | rien | rien |
+
+L'Accueil TCF d'un compte sans diagnostic n'affiche plus la carte héros « Découvrez ce qui vous
+bloque au TCF » : il affiche l'action du Plan (le premier examen), la proposition en dessous.
+Diagnostic en cours / analyse en préparation : cartes inchangées. **Le parcours
+invité → compte → analyse garde son cycle d'affinage** : l'analyse qui arrive sur le cycle
+d'examens encore intact l'amorce (D-64 tenu). Les écrans-portes (`PlanGate`,
+`planIndisponible` ⇄ `PlanIndisponible`) sont **supprimés**. → `docs/regles/plan.md`,
+§ « Le Plan PAR DÉFAUT » ; arbitrage `docs/decisions/plan-parcours-tcf.md` **D-69**.
+
+⚠️ Les tableaux plus bas qui parlent de `planIndisponible` ou de `planDisponible: false` sont
+**historiques**.
+
 ## 🛑 Le diagnostic COMPLET (4 épreuves) est RETIRÉ des fronts (2026-09-26)
 
 **Décision du propriétaire.** Le diagnostic complet n'est plus un parcours proposé. La règle

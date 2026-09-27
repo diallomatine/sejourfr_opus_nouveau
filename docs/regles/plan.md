@@ -1138,6 +1138,13 @@ interdiction de juger la prononciation depuis une transcription). La bonne réf�
 
 ### Le diagnostic COMPLET n'est pas un prérequis d'accès au Plan (2026-09-12)
 
+> 🛑 **Mise à jour du 2026-09-28 (D-69) — le diagnostic RAPIDE non plus.** Le Plan existe pour
+> **tout** compte : `planDisponible` vaut toujours `true`, `LearningPlanDto.state` toujours
+> `ACTIVE`. Ce qui suit reste vrai pour la **fondation** (sur quel diagnostic le Plan s'appuie
+> quand il y en a un) et pour « un Plan provisoire ne s'appuie que sur ce qui a été mesuré ».
+> Ce qui est **révoqué** : toute phrase qui fait du diagnostic une condition d'existence du Plan.
+> → § « Le Plan PAR DÉFAUT » plus bas.
+
 > 🛑 **Mise à jour du 2026-09-26 — le diagnostic complet n'AFFINE plus le Plan côté produit :
 > son parcours est retiré des fronts.** Le rapide ouvre le Plan (EE renseignée) ; **CO, CE et EO
 > se mesurent par l'EXAMEN BLANC que le Plan propose** (`PlanDomainAssessmentDto`,
@@ -1646,9 +1653,10 @@ deux écrans ne peuvent donc pas désigner deux choses différentes. Les lanceur
 sont ceux du Plan (`usePlanExercise` / `usePlanAssessment` ⇄
 `startPlanSeanceItem`), jamais un second chemin.
 
-🛑 **Sans diagnostic, aucune carte de reprise** — sur les deux parcours. Le fait
-lu est **`prep.planDisponible`**, jamais `etape`. Une carte qui inventerait un
-point de reprise mentirait.
+🛑 ~~**Sans diagnostic, aucune carte de reprise**~~ — ⚠️ **révoqué le 2026-09-28 (D-69)** : le
+Plan existe sans diagnostic (cycle d'examens par défaut), la carte de reprise lit donc toujours
+le Plan. Une carte qui inventerait un point de reprise mentirait toujours : elle ne lit que ce
+que le Plan sert.
 
 🛑 **Une action verrouillée n'est pas proposée en reprise.** Le Plan d'un compte
 sans accès est un constat (cf. §« Un compte SANS accès ne voit pas la carte d'un
@@ -2200,7 +2208,7 @@ priverait le candidat gratuit de sa **vraie** priorité n°1.
 |---|---|---|
 | `TRAIN_SKILL` | le petit sujet / la série désignés | la priorité du Plan de même `skillCode`, et son `recommendedExercise` |
 | `SECTION_EXAM` | l'examen blanc de l'épreuve | la ligne de séance si elle y est, sinon **`step.assessment`** |
-| `DIAGNOSTIC` | — | rien (le Plan n'est pas `ACTIVE` dans ce cas) |
+| `DIAGNOSTIC` | — | rien — ⚠️ plus créée depuis D-69 (2026-09-28) |
 
 🛑 **`step.assessment` est SERVI, et il le fallait** (2026-09-17). `domainesAEvaluer` ne liste
 que les épreuves **jamais mesurées**, or le point d'étape d'un lot porte **toujours** sur une
@@ -2232,6 +2240,36 @@ Un candidat sans démarche déclarée n'a **pas** de parcours (D-3) mais a bien 
 carte « À faire maintenant », et **s'ajoute** à ce que l'écran affichait déjà. ⚠️ Elle ne
 remplace jamais la carte d'action : exiger un objectif pour travailler ferait du Plan l'inverse
 de ce que D-10 vient de trancher.
+
+### Le Plan PAR DÉFAUT — le cycle d'examens (D-69, 2026-09-28)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-69** · autonomie **A171 → A176** ·
+> verrouillé par `PlanParDefautIT`, `JourneyServiceIT` §18-1 / §18-33, `PreparationServiceIT`.
+
+🛑 **Le Plan existe pour TOUT compte.** Le diagnostic n'est plus une porte : il **affine**.
+`prep.planDisponible` vaut toujours `true` (TCF et civique), `LearningPlanDto.state` toujours
+`ACTIVE`. Le diagnostic reste **proposé en secondaire** (« Affiner avec le diagnostic », lu sur
+`etape`) — jamais à la place de « À faire maintenant ».
+
+| Le compte, à la première lecture du parcours | Son premier cycle |
+|---|---|
+| aucune évaluation (compte neuf, ou séries seules) | **cycle d'examens** : un `SECTION_EXAM` `INITIAL_ASSESSMENT` par épreuve non mesurée (R12) ; civique : un examen par thématique (A65) — `cycleDeMesure` servi |
+| examens blancs déjà passés, sans diagnostic | **cycle de travail** (amorce R19) : leurs priorités (≤ 3 par épreuve) + l'examen des épreuves non mesurées ; l'épreuve mesurée n'est pas redemandée |
+| diagnostic rapide clos (avant la 1ʳᵉ lecture) | cycle d'**affinage** D-64, inchangé |
+| diagnostic arrivé sur le cycle d'examens **intact** (rang 1, rien de clos) | il l'**amorce** : lot EE sans second examen (le bloc porte déjà le sien, A173) ⇒ cycle d'affinage D-64 |
+| diagnostic arrivé **après** un examen du cycle d'examens | règle ordinaire D-13 : ses priorités vont au cycle en attente |
+| ancien cycle « Faire mon diagnostic » (une étape `DIAGNOSTIC` seule) | converti **à la lecture** : `DIAGNOSTIC` close `SUPERSEDED`, examens posés |
+
+- **Création paresseuse, une seule fois.** Le cycle naît à la première lecture (Accueil, Plan,
+  Réviser), sans migration. Un verrou consultatif par (candidat, module)
+  (`JourneyManager.verrouillerLaCreation`) sérialise la création : sans lui, deux lectures
+  simultanées échouaient sur `uq_journey_en_cours`.
+- **Objectif** : lu à sa seule autorité (`TargetProcedure.niveauVise`, la mention civique). Sans
+  démarche, pas de parcours (D-3) — le profil obligatoire la demande à l'entrée de l'app.
+- **Fin du cycle d'examens** : les examens passés, « Actualiser mon plan » (D-66) ; le cycle
+  suivant porte les priorités qu'ils ont détectées (D-67).
+- **Jalon D-68** : le cycle d'examens ne compte pas comme cycle de travail (aucune `TRAIN_SKILL`).
+- **Freemium inchangé** : verrous `ACCESS` servis.
 
 ---
 
@@ -2272,9 +2310,9 @@ candidat a sous les yeux. Les **quatre** blocs sont toujours servis, dans
 (`A_EVALUER` si l'épreuve n'a jamais été mesurée, sinon `TERMINE`) > `TERMINE` > `A_EVALUER`
 > `A_VENIR`.
 
-🛑 **Une étape `DIAGNOSTIC` n'appartient à aucun bloc** — elle ne porte pas d'épreuve. C'est
-`current` qui la sert, et c'est ce qui rend la carte « Faire mon diagnostic » exacte sur un
-compte neuf. Un test le verrouille (`JourneyServiceIT` §18-32 et §18-33, lus **sur la file**).
+🛑 **Une étape `DIAGNOSTIC` n'appartient à aucun bloc** — elle ne porte pas d'épreuve. ⚠️ **Plus
+aucune n'est créée depuis D-69 (2026-09-28)** : un compte neuf reçoit le cycle d'examens par
+défaut, et les anciennes sont closes `SUPERSEDED` à la lecture (§ « Le Plan PAR DÉFAUT »). Un test le verrouille (`JourneyServiceIT` §18-32 et §18-33, lus **sur la file**).
 
 ### L'examen d'un bloc est verrouillé par SON bloc (D-15)
 

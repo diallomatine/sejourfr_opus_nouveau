@@ -543,8 +543,8 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   `tcf_diagnostic_labels.dart` **supprimé** le 2026-09-26 avec son dernier lecteur ;
   `core/models/tcf_diagnostic_models.dart` inchangé (miroir DTO, et `TcfDiagnosticStatus` sert
   aussi au civique).
-- **Complet commencé avant le retrait** : `tcfAction` / `planIndisponible` ne lisent plus son
-  avancement ; `planDisponible` vrai ⇒ « Continuer mon plan », sinon la porte est le **rapide**.
+- **Complet commencé avant le retrait** : `tcfAction` / `diagnosticAAffiner` ne lisent plus
+  son avancement ; seul le **rapide** se propose (D-69 : le Plan existe toujours).
   Tableau : `docs/regles/diagnostic.md`, « Le diagnostic COMPLET est RETIRÉ des fronts ».
 - **Fil d'étapes du rapide** (même passe) : `DiagnosticProgress(totalSteps:)` et
   `diagnosticStepHeader` (`widgets/diagnostic_common.dart`) suivent la forme servie — oral
@@ -898,9 +898,9 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   observer » (`estNonEvaluable`). Aucun écran ne lit ces trois champs depuis la refonte du
   rapport de diagnostic — la bande des 4 domaines et la carte de niveau se lisent sur le
   **Plan**, qui gère déjà l'absence de mesure.
-- L'Accueil suit trois états serveur : invitation dismissible avant diagnostic, reprise de la
-  session interrompue, puis priorité du jour après résultat. Il ne réaffiche jamais l'invitation
-  générique une fois le diagnostic terminé.
+- ⚠️ **D-69** : l'Accueil n'a plus d'invitation « avant diagnostic » (ni « Plus tard ») : sans
+  diagnostic il montre l'action du Plan + la proposition secondaire ; seule la reprise d'une
+  session interrompue / l'analyse en préparation garde sa carte. Cf. § « D-69 » en fin de fichier.
 - Les liens profonds protégés conservent leur destination dans `redirect` jusqu'à la connexion,
   y compris lors d'un démarrage à froid tant que `AuthLoading` n'a pas encore résolu le token ;
   `safePostLoginDestination` refuse tout schéma/hôte externe et toute boucle vers l'auth.
@@ -1384,12 +1384,12 @@ Deux correctifs, dans la même passe :
   VISITEUR** (`isGuest`). Sans compte ni parcours déclaré, `/diagnostic` est sa
   seule entrée et les deux diagnostics s'y valent. Un compte connecté arrive
   depuis un parcours choisi — le diagnostic civique garde ses propres portes
-  (`planIndisponible`, Accueil et Plan civiques).
+  (proposition secondaire `diagnosticAAffiner`, Accueil et Plan civiques).
 - **`?demarrer=1` saute la présentation.** Le marqueur est déclaré une fois
   (`kDiagnosticDemarrageDirect`, `core/models/preparation_labels.dart`, miroir
   de `DIAGNOSTIC_START_PARAM` côté web) et posé par les **seules portes qui
-  nomment le geste** — `tcfAction`, `planIndisponible` et **la carte de
-  l'Accueil** (`_actionTcf`), dans ses deux états « Faire » et « Reprendre ».
+  nomment le geste** — `diagnosticAAffiner` (D-69) et **la carte de
+  l'Accueil** (`_actionTcf`) dans son état « Reprendre ».
   ⚠️ **L'Accueil manquait à cette liste jusqu'au 2026-09-18** : un compte neuf
   y appuyait sur « Faire mon diagnostic » et atterrissait sur « Quel examen
   préparez-vous ? », alors qu'il venait de choisir son parcours dans la bascule
@@ -1511,7 +1511,7 @@ d'indicateurs (Maîtrise / Examens blancs / Série / Niveau TCF estimé), les
 repassé **après** la progression. Le web a été aligné dans la même passe.
 « Ma préparation » reste la porte du **Plan** et des **Examens** ; sur
 l'Accueil, « À faire maintenant » porte déjà cette porte (les trois états du
-diagnostic TCF, `planIndisponible` côté civique).
+diagnostic TCF — D-69 : plus aucune porte, cf. § « D-69 »).
 
 **Ordre des sections** : bandeau « Choisissez votre parcours » (démarche
 absente) → `SfTop` « Bonjour X » + pastille d'objectif → **bascule TCF / Examen
@@ -1624,7 +1624,7 @@ donc aucun paramètre de route n'est inventé.
 
 | bloc | source TCF | source civique |
 |---|---|---|
-| À faire maintenant | `diagnosticControllerProvider` (3 états) puis `plan.currentPriority` | `planIndisponible(prep.civique)` puis `civicPlanProvider.prochaine` |
+| À faire maintenant | `diagnosticCourantProvider` (en cours / analyse) sinon `planNowCard` — D-69 | `civicNowCard` (parcours, puis `prochaine`) — D-69 |
 | Votre Plan | `planTaskPath(plan)` | `civicPath(cible)` |
 | Votre progression | `progress.tcf.competences` | `progress.civique` |
 | Affiner votre Plan | `affinerPlan(prep.tcf, accueil: true)` | **absent** — le diagnostic 4 épreuves est un objet TCF |
@@ -1795,19 +1795,10 @@ parcours (`SfTopSlot`) → carte **« Reprendre là où vous vous êtes arrêté
   `startPlanSeanceItem` / `openPlanExercise` (TCF) et `startCivicSerie`
   (civique) — **les gestes du Plan**, jamais un second chemin.
   → `docs/regles/plan.md`, § « Le 5ᵉ et le 6ᵉ site ».
-- 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
-  propriétaire, 2026-09-13). ⚠️ **Révoque « sans diagnostic, pas de carte »** :
-  l'écran ouvrait sur sa liste d'épreuves sans jamais nommer le geste qui débloque
-  le reste. Le fait lu ne change pas — **`prep.planDisponible`**, jamais `etape` —,
-  et **aucune phrase n'est écrite ici** : titre, texte, libellé et destination
-  viennent de `planIndisponible` (`core/models/preparation_labels.dart`), la
-  **même autorité** que l'Accueil et l'écran Plan. C'est elle qui distingue
-  « faire » de « reprendre » sur un diagnostic déjà commencé, et qui sait que le
-  civique a **sa** porte. Sur-titre : `kReviserDepartLabel` (« Votre point de
-  départ »), miroir de `REVISER_DEPART_LABEL`.
-- **`_ResumeCard` porte les DEUX états** (`label` / `title` / `subtitle` / `cta`),
-  `_GateCard` n'en est qu'un habillage : mêmes quatre lignes, seul le contenu
-  change. Ne pas en faire deux widgets.
+- ⚠️ **D-69 (2026-09-28) : plus de carte « porte du diagnostic »** (`_GateCard`,
+  `kReviserDepartLabel` supprimés, révoque l'arbitrage du 2026-09-13) : le Plan existe pour
+  tout compte, donc la reprise se lit sur le Plan même sans diagnostic ; rien à reprendre ⇒
+  pas de carte.
 - 🛑 **Une action verrouillée n'est pas proposée en reprise** : la carte
   disparaît, la liste reste. C'est le corollaire de « le Plan d'un compte sans
   accès est un constat » — ce qui est ouvert gratuitement se trouve **par la
@@ -4756,3 +4747,35 @@ vide. Encart ouvert à l'arrivée : le premier qui a des lignes. Mots : `plan_un
   **`EvaluationLoadingView`** jusqu'à ce que tout soit évalué (≤ 2 min), puis bascule seul ;
   la clôture de l'attempt part en parallèle. Mots de la vue : `production_exam_copy.dart`.
 
+
+
+## D-69 — le Plan existe sans diagnostic (2026-09-28)
+
+> Décision du propriétaire. Contrat backend : `PreparationDto.*.planDisponible` toujours
+> `true` ; `LearningPlanState` ne vaut plus que `ACTIVE` ; un compte TCF sans diagnostic
+> reçoit un **cycle d'examens** (`cycle.cycleDeMesure`), jamais d'étape `DIAGNOSTIC`. Miroir
+> web dans la même passe.
+
+⚠️ **Révoque toutes les mentions plus haut de « pas de plan sans diagnostic », « le Plan
+existe dès que le rapide est clos », `planIndisponible` et `prep.planDisponible` comme fait
+à lire.**
+
+- 🛑 **Plus aucune porte « diagnostic obligatoire »** : `planIndisponible` /
+  `PlanIndisponible`, `_PlanIndisponible` (et son rapport encastré — `DiagnosticResultView`
+  perd `leading` / `trailing` / `closingCta`), les branches `needsDiagnostic` /
+  `diagnosticInProgress` de l'écran Plan, la fermeture du Plan civique sur
+  `CivicPlanDto.disponible`, la carte d'Accueil « Découvrez ce qui vous bloque au TCF » (+
+  « Plus tard », `diagnosticHomeDismissedProvider`) et la `_GateCard` de Réviser sont
+  **supprimés**. Le Plan civique s'affiche toujours (`disponible` ne dit plus que « plan
+  dérivé disponible » ; sans lui, cycle et « À faire maintenant » se lisent sur le parcours).
+- **Le diagnostic est une proposition SECONDAIRE** — une autorité,
+  `diagnosticAAffiner(m, civique:)` (`core/models/preparation_labels.dart`, miroir de
+  `web_sejoufr/lib/preparation.ts`), lue sur l'**étape** servie. Rendue par
+  `DiagnosticAffinerCard` (`screens/plan/widgets/`, composée de `SfNoteCard` + `SfButton.line`
+  du kit, jamais rouge) : Plan TCF (abonné et gratuit) et Plan civique sous le jalon ;
+  Accueil TCF et civique sous « À faire maintenant » — côté TCF, absente quand la carte
+  d'action reprend déjà un diagnostic en cours.
+- `tcfAction` mène toujours au Plan (statut : niveau ?? « Première estimation terminée » /
+  « Diagnostic non réalisé ») ; `civiqueAction` mène toujours au Plan civique. Kicker du Plan
+  TCF gratuit : « Votre parcours personnalisé ». `journeyCycleHint` a sa phrase de fin de
+  cycle d'examens.

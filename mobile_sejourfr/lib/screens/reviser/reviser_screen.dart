@@ -10,10 +10,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
-import '../../core/models/preparation_labels.dart';
-import '../../core/models/preparation_models.dart';
 import '../../core/providers/dashboard_provider.dart';
-import '../../core/providers/preparation_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dashboard_targets.dart';
 import '../../core/utils/parcours_affiche.dart';
@@ -47,13 +44,9 @@ import 'reviser_labels.dart';
 /// aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
 /// trois choses différentes.
 ///
-/// 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
-/// propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
-/// ne disparaît plus : l'écran s'ouvrait sur sa liste d'épreuves sans jamais
-/// nommer le geste qui débloque le reste. Le fait lu reste
-/// **`prep.planDisponible`**, jamais `etape` — c'est lui qui rend mot pour mot
-/// la condition du moteur —, et les phrases de la porte viennent de
-/// [planIndisponible], la même autorité que l'Accueil et l'écran Plan.
+/// 🛑 **D-69 (2026-09-28) : plus de porte « diagnostic »** — le Plan existe
+/// pour tout compte, donc la reprise est lue sur le Plan même sans diagnostic
+/// (le premier examen du cycle d'examens). Rien à reprendre ⇒ pas de carte.
 ///
 /// 🛑 **Aucune phrase n'est composée ici** : elles vivent dans
 /// `reviser_labels.dart`, miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.
@@ -70,7 +63,6 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
 
   Future<void> _refresh() async {
     ref.invalidate(dashboardProvider);
-    ref.invalidate(preparationProvider);
     await ref.read(dashboardProvider.future);
   }
 
@@ -91,7 +83,6 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     // du plan dérivé pendant que le Plan annonce l'étape du cycle — deux
     // reprises différentes pour le même candidat, au même instant.
     final parcoursCivique = ref.watch(journeyCiviqueProvider).valueOrNull;
-    final prep = ref.watch(preparationProvider).valueOrNull;
 
     // 🛑 **Le parcours affiché est celui de l'Accueil et du Plan**
     // ([parcoursCiviqueProvider]) : une seule mécanique, comme le `?module=`
@@ -142,8 +133,8 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
                     ),
                   ],
                   data: (d) => civique
-                      ? _civique(d, civicPlan, parcoursCivique, prep?.civique)
-                      : _tcf(context, d, plan, parcours, prep?.tcf),
+                      ? _civique(d, civicPlan, parcoursCivique)
+                      : _tcf(context, d, plan, parcours),
                 ),
               ],
             ),
@@ -160,20 +151,12 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     DashboardSummary dashboard,
     LearningPlan? plan,
     Journey? parcours,
-    ModulePreparation? prep,
   ) {
-    // 🛑 `planDisponible` est **le fait à lire**. Sans lui, on n'a rien à
-    // reprendre — et on ne l'invente pas : la carte de tête devient la porte du
-    // diagnostic, avec les mots de [planIndisponible].
-    final disponible = prep?.planDisponible == true;
     // 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
     // ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan.
     final auth = ref.watch(authControllerProvider);
     final free = !(auth is AuthAuthenticated && auth.user.hasTcf);
-    final resume = disponible
-        ? reviserResumeTcf(plan, journey: parcours, free: free)
-        : null;
-    final porte = prep == null ? null : planIndisponible(prep, civique: false);
+    final resume = reviserResumeTcf(plan, journey: parcours, free: free);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
     final profil = dashboard.tcfDomainProfile;
@@ -201,9 +184,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
                 context.push(resume.etapeRoute!),
             _ => () => _reprendreTcf(resume.carte!),
           },
-        )
-      else if (porte != null)
-        _GateCard(porte: porte, variant: SfButtonVariant.primary),
+        ),
       // 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
       // du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un compte
       // gratuit : sans elle, un candidat sans démarche déclarée n'apprenait
@@ -317,15 +298,10 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     DashboardSummary dashboard,
     CivicPlan? civicPlan,
     Journey? parcours,
-    ModulePreparation? prep,
   ) {
-    final disponible = prep?.planDisponible == true;
     final auth = ref.watch(authControllerProvider);
     final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
-    final resume = disponible
-        ? reviserResumeCivique(civicPlan, journey: parcours, free: free)
-        : null;
-    final porte = prep == null ? null : planIndisponible(prep, civique: true);
+    final resume = reviserResumeCivique(civicPlan, journey: parcours, free: free);
     final themes = civicPlan?.themes ?? const <CivicPlanThemeLigne>[];
     return <Widget>[
       if (resume != null)
@@ -347,9 +323,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
                 context.push(resume.etapeRoute!),
             _ => () => _reprendreCivique(resume.source),
           },
-        )
-      else if (porte != null)
-        _GateCard(porte: porte, variant: SfButtonVariant.blue),
+        ),
       SfSection(
         title: reviserSectionTitle(AppModule.civique, dashboard.civique.length),
         flush: true,
@@ -401,43 +375,6 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     }
     if (!mounted) return;
     setState(() => _lancement = false);
-  }
-}
-
-/// **La carte de tête** — « Reprendre là où vous vous êtes arrêté », ou la porte
-/// du diagnostic quand il n'y a rien à reprendre.
-///
-/// Même anatomie que la carte « À faire maintenant » du Plan : c'est la même
-/// action, vue depuis un autre écran.
-///
-/// 🛑 **Une seule carte pour les deux états**, pas deux widgets presque
-/// identiques : ce sont les mêmes quatre lignes — sur-titre, pictogramme, titre
-/// et sous-titre, bouton — et seul leur contenu change.
-
-/// **La porte du diagnostic**, à la place de la reprise.
-///
-/// 🛑 **Aucune phrase n'est écrite ici** : [planIndisponible] porte le titre, le
-/// texte, le libellé du bouton et sa destination — la **même autorité** que
-/// l'Accueil et l'écran Plan. C'est elle qui distingue « faire » de
-/// « reprendre » quand un diagnostic est déjà commencé, et qui sait que le
-/// civique a **sa** porte (`/diagnostic-civique`).
-class _GateCard extends StatelessWidget {
-  const _GateCard({required this.porte, required this.variant});
-
-  final PlanIndisponible porte;
-  final SfButtonVariant variant;
-
-  @override
-  Widget build(BuildContext context) {
-    return PlanRecoCard(
-      label: kReviserDepartLabel,
-      title: porte.titre,
-      subtitle: porte.texte,
-      cta: porte.cta,
-      icon: LucideIcons.compass,
-      variant: variant,
-      onContinue: () => context.push(porte.route),
-    );
   }
 }
 

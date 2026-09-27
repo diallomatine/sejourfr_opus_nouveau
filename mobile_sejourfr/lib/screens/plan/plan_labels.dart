@@ -415,8 +415,9 @@ String planTopKicker(TargetLevel? objective) => objective == null
     ? 'Votre parcours personnalisé'
     : 'Votre parcours personnalisé vers le ${objective.wire}';
 
-/// Le kicker d'un compte **sans accès** : son plan vient de son diagnostic.
-const String kPlanTopKickerFree = 'Créé à partir de votre diagnostic';
+/// Le kicker d'un compte **sans accès**. 🛑 Il ne dit plus « créé à partir de
+/// votre diagnostic » : depuis D-69, le Plan existe sans diagnostic.
+const String kPlanTopKickerFree = 'Votre parcours personnalisé';
 
 const String kPlanTitle = 'Mon plan du jour';
 
@@ -567,25 +568,6 @@ String planPriorityRankTag(int rank) => 'Priorité $rank';
 
 const String kPlanDiagnosticTitle = 'Mon diagnostic';
 const String kPlanDiagnosticSub = 'Résultat de départ et priorités initiales';
-
-/* ------------------------------------------- le plan qui n'existe pas encore */
-
-/// Le kicker d'un plan qui n'est pas encore constructible. Il ne promet aucun
-/// palier : rien n'a encore été mesuré.
-const String kPlanEmptyKicker = 'Votre parcours personnalisé';
-
-const String kPlanNeedsDiagnosticTitle =
-    'Votre plan commence par un diagnostic';
-const String kPlanNeedsDiagnosticText =
-    'Une production écrite et une production orale : c\'est ce qui permet de '
-    'savoir quoi travailler en premier.';
-const String kPlanNeedsDiagnosticCta = 'Faire mon diagnostic';
-
-const String kPlanDiagnosticRunningTitle = 'Votre diagnostic est en cours';
-const String kPlanDiagnosticRunningText =
-    'Reprenez là où vous vous êtes arrêté. Vos réponses déjà envoyées sont '
-    'conservées sur votre compte.';
-const String kPlanDiagnosticRunningCta = 'Reprendre le diagnostic';
 
 const String kPlanErrorTitle = 'Votre plan n\'a pas pu être chargé';
 const String kPlanErrorRetry = 'Réessayer';

@@ -21,7 +21,7 @@ import {
 import {journeyTargetPathHref} from "@/lib/journey";
 import {PlanLinks} from "./PlanLinks";
 import {planHref} from "@/lib/module-switch";
-import {planIndisponibleDepuisEtat} from "@/lib/preparation";
+import {diagnosticAAffiner, type DiagnosticAAffiner} from "@/lib/preparation";
 import {
   canAccessModule,
   type JourneyDto,
@@ -45,7 +45,7 @@ import {
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {planNowIcon} from "./PlanBits";
-import {PlanGate} from "./PlanGate";
+import {DiagnosticAffinerCard} from "./DiagnosticAffinerCard";
 import {PlanPaywall} from "./PlanPaywallCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
@@ -144,7 +144,7 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
 
   // Étape 5 du tunnel « Suivi » : le Plan affiché, avec son `journeyId`. La
   // run fondatrice se résout serveur depuis le parcours (Q8), jamais ici.
-  const planShown = plan?.state === "ACTIVE";
+  const planShown = plan !== null;
   const journeyId = journey?.journeyId ?? null;
   useEffect(() => {
     if (!planShown || !journeyRead) return;
@@ -179,38 +179,22 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
     );
   }
 
-  /* 🛑 Pas de plan sans mesure. Les mots viennent de `planIndisponible`, la
-     même autorité que l'Accueil et les Examens.
-
-     ⚠️ Ce repli ne se déclenche plus qu'en **désaccord** entre les deux
-     lectures : `planDisponible` rend la condition exacte du moteur, donc le
-     Plan est normalement `ACTIVE` dès que la porte s'ouvre. `prep` lui est
-     passé pour que, dans ce cas-là, le candidat retrouve au moins le rapport de
-     son diagnostic rapide plutôt qu'un écran qui ne dit rien. */
-  if (plan.state !== "ACTIVE") {
-    return (
-      <PlanGate
-        kicker="Votre parcours personnalisé"
-        prep={prep ?? undefined}
-        gate={planIndisponibleDepuisEtat(
-          plan.state === "DIAGNOSTIC_IN_PROGRESS" ? "DIAGNOSTIC_EN_COURS" : "DIAGNOSTIC_A_FAIRE",
-          "TCF",
-        )}
-      />
-    );
-  }
-
   /* 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
      propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours » a été
      supprimée du Plan, puis de l'Accueil le même jour — `affinerPlan` et
      `AffinerPlanCard` avec elle ; le parcours complet lui-même est retiré des
      fronts depuis le 2026-09-26. Les épreuves non mesurées se mesurent par
-     l'examen blanc que propose le cycle. Ne pas la réintroduire. */
+     l'examen blanc que propose le cycle. Ne pas la réintroduire.
+
+     🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : plus de porte
+     « diagnostic obligatoire ». Le diagnostic RAPIDE se propose en secondaire,
+     sous « À faire maintenant » (`diagnosticAAffiner`). */
   const abonne = canAccessModule(user, "TCF");
+  const affiner = prep ? diagnosticAAffiner(prep, "TCF") : null;
 
   return abonne
-    ? <TcfPlanPremium plan={plan} journey={journey} />
-    : <TcfPlanFree plan={plan} journey={journey} />;
+    ? <TcfPlanPremium plan={plan} journey={journey} affiner={affiner} />
+    : <TcfPlanFree plan={plan} journey={journey} affiner={affiner} />;
 }
 
 function PlanMessage({title, text, cta, href, alert}: {
@@ -240,9 +224,10 @@ function PlanMessage({title, text, cta, href, alert}: {
 
 /* ----------------------------------------------------------------- abonné */
 
-function TcfPlanPremium({plan, journey}: {
+function TcfPlanPremium({plan, journey, affiner}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
+  affiner: DiagnosticAAffiner | null;
 }) {
   const objective = plan.cycle.objectiveLevel;
 
@@ -262,6 +247,8 @@ function TcfPlanPremium({plan, journey}: {
       {/* 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
           au-dessus du cycle — servi, jamais décidé ici. */}
       <ExamenCompletJalon journey={journey} module="TCF" />
+
+      <Affiner affiner={affiner} />
 
       {/* 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
           bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
@@ -287,15 +274,16 @@ function TcfPlanPremium({plan, journey}: {
 
 /* ---------------------------------------------------------------- gratuit */
 
-function TcfPlanFree({plan, journey}: {
+function TcfPlanFree({plan, journey, affiner}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
+  affiner: DiagnosticAAffiner | null;
 }) {
   const objective = plan.cycle.objectiveLevel;
   return (
     <>
       <Top
-        kicker="Créé à partir de votre diagnostic"
+        kicker="Votre parcours personnalisé"
         title={objective ? `Mon plan du jour ${objective}` : "Mon plan du jour"}
       />
 
@@ -308,6 +296,8 @@ function TcfPlanFree({plan, journey}: {
       {/* Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il ouvre
           porte, lui, les verrous d'accès servis de chaque examen. */}
       <ExamenCompletJalon journey={journey} module="TCF" />
+
+      <Affiner affiner={affiner} />
 
       {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
           toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
@@ -329,6 +319,21 @@ function TcfPlanFree({plan, journey}: {
         cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
       />
     </>
+  );
+}
+
+/* -------------------------------------------- affiner par le diagnostic */
+
+/** 🛑 Secondaire (D-69) : sous « À faire maintenant » et le jalon, jamais à
+ *  leur place. `null` ⇒ rien. */
+function Affiner({affiner}: {affiner: DiagnosticAAffiner | null}) {
+  if (!affiner) return null;
+  return (
+    <Section>
+      <Pad>
+        <DiagnosticAffinerCard proposition={affiner} module="TCF" />
+      </Pad>
+    </Section>
   );
 }
 

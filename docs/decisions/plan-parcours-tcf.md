@@ -3352,3 +3352,71 @@ Verrouillé par `JourneyJalonExamenCompletIT`, `JourneyJalonObjectifIT`, `Journe
 retirer le jalon = `JourneyJalonExamenComplet.pour` → `null`. Aucune donnée à migrer
 (`INTERROMPU` reste une valeur lisible).
 
+
+## D-69 — Un Plan PAR DÉFAUT pour tout compte : le cycle d'examens (2026-09-28)
+
+**Décision du propriétaire, verbatim (résumé fidèle).** « La prod a beaucoup d'utilisateurs qui
+ont déjà travaillé (séries, examens) mais n'ont pas fait le diagnostic rapide. Avec la nouvelle
+version, le Plan leur demanderait de faire un diagnostic, ce qui est mauvais pour eux. Il faut un
+PLAN PAR DÉFAUT pour tout le monde : pour un compte sans diagnostic, le plan initial est un CYCLE
+D'EXAMENS (un bloc par épreuve TCF, chacun l'examen blanc de l'épreuve ; en civique un bloc par
+thème, l'examen de thème). Une fois les examens passés, le fonctionnement normal reprend. Ce plan
+existe dès la création du compte ET pour tous les comptes existants, sans action de
+l'utilisateur. Les comptes AVEC diagnostic rapide gardent le comportement actuel (D-64). Le
+diagnostic reste proposé, mais n'est plus une PORTE obligatoire vers le Plan. »
+
+**La règle.**
+1. **Parcours par défaut** = cycle d'examens pour tout compte dont le premier cycle s'amorce
+   **sans aucune évaluation** (`JourneyEvaluationFilter`) : un `SECTION_EXAM`
+   `INITIAL_ASSESSMENT` par épreuve **non mesurée** (R12, `ajouterLesEpreuvesNonMesurees`).
+   Côté civique, c'était déjà l'amorce « rien de fait ⇒ les cinq thématiques en Évaluer mon
+   niveau » (A65) : rien à changer au moteur.
+2. **Objectif** : inchangé et lu à sa seule autorité — `TargetProcedure.niveauVise(procedure,
+   declare)` (TCF), la mention (civique). Sans démarche, **pas de parcours** (D-3 tient) : le
+   profil obligatoire (commit `7db9b01c`) la demande à l'entrée de l'app, et la lecture suivante
+   du Plan (Accueil, Plan, Réviser) crée le cycle — aucun branchement à ajouter derrière
+   `PUT /api/me/target-path` (vérifié : `alignerObjectif` n'en crée pas, c'est `getOrCreate`
+   qui le fait à la première lecture).
+3. **Le diagnostic n'est plus une porte** : `prep.planDisponible` vaut **toujours** `true`
+   (TCF et civique) et `LearningPlanDto.state` **toujours** `ACTIVE` (`NEEDS_DIAGNOSTIC` /
+   `DIAGNOSTIC_IN_PROGRESS` supprimés). Il reste **proposé en secondaire** (« Affiner avec le
+   diagnostic », lu sur `etape`), jamais à la place de « À faire maintenant ».
+4. **Diagnostic rapide arrivé sur le cycle d'examens INTACT** (rang 1, aucune étape close, ni
+   lot ni compétence) : il l'**amorce** — c'est le parcours invité → compte → analyse, dont
+   l'analyse arrive après la première lecture. Le cycle devient le cycle d'affinage **D-64,
+   inchangé**. Arrivé **après** un examen du cycle d'examens : règle ordinaire (D-13, cycle en
+   attente).
+5. **Comptes avec des examens déjà passés** : l'amorce R19 existante — le premier cycle est
+   directement un **cycle de travail** sur les priorités de ces examens (lot + `REASSESS`), et
+   les épreuves non mesurées reçoivent leur examen. L'épreuve déjà mesurée n'est pas
+   redemandée.
+6. **Jalon D-68** : le cycle d'examens par défaut ne compte **pas** comme cycle de travail (il ne
+   porte aucune `TRAIN_SKILL`) — cohérent avec `JourneyJalonExamenComplet`, sans code nouveau.
+7. **Freemium inchangé** : verrous `ACCESS` servis (gratuité d'examen blanc EE/EO par épreuve,
+   slot CO/CE).
+
+**Création : paresseuse, pas de migration.** Le cycle naît à la **première lecture** du parcours
+(Accueil, Plan, Réviser — donc à la première connexion), pour les nouveaux comptes comme pour
+les existants. Une migration aurait écrit des milliers de lignes pour des comptes qui ne
+reviendront jamais, et figé une structure que la lecture sait déjà construire. **Idempotence** :
+un verrou consultatif Postgres par (candidat, module) sérialise la création
+(`JourneyManager.verrouillerLaCreation`) ; sans lui, deux lectures simultanées faisaient échouer
+la seconde sur `uq_journey_en_cours` (vérifié : le test concurrent passe au rouge sans verrou).
+**Les anciens cycles « Faire mon diagnostic »** (une seule étape `DIAGNOSTIC` ouverte — tout
+compte qui a ouvert l'Accueil avec une démarche en a un) sont convertis **à la lecture** :
+`DIAGNOSTIC` close `SUPERSEDED`, examens posés, sous le verrou du parcours.
+
+**Ce qui est révoqué.** R19.8 (« aucune évaluation ⇒ le parcours demande un diagnostic ») ;
+l'arbitrage du 2026-09-12 en tant que **condition** (« le Plan existe dès que le rapide est
+clos ») — il existe avant ; la phrase de `LearningPlanProfilProgressifIT` « aucun diagnostic : le
+Plan le demande pour ses PRIORITÉS » ; D-63 point 6 (« complet partiel sans rapide ⇒ pas de
+Plan ») ; les écrans-portes des fronts (`PlanGate`, `planIndisponible`).
+
+Décisions prises en autonomie : `docs/decisions-autonomes-parcours-tcf.md` **A171 → A176**.
+Verrouillé par `PlanParDefautIT` (8 scénarios), `JourneyServiceIT` §18-1 / §18-33,
+`PreparationServiceIT`, `LearningPlanServiceTest`, `CycleDAffinageIT` (inchangé sur le fond).
+
+**Si l'arbitrage changeait** (rétablir la porte) : remettre l'étape `DIAGNOSTIC` dans
+`JourneyService.amorcer`, `PreparationService.PLAN_DISPONIBLE` sur la fondation, et la branche
+`NEEDS_DIAGNOSTIC` de `LearningPlanService` (commit parent de cette passe). Aucune donnée à
+migrer : les cycles d'examens créés restent des cycles valides.

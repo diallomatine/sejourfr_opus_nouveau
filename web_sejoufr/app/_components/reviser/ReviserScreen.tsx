@@ -22,16 +22,10 @@
  * aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
  * trois choses différentes.
  *
- * 🛑 **Sans diagnostic, la carte de tête PROPOSE LE DIAGNOSTIC** (demande du
- * propriétaire, 2026-09-13) — elle n'invente toujours aucune reprise, mais elle
- * ne disparaît plus : l'écran s'ouvrait sur sa liste d'épreuves sans jamais
- * nommer le geste qui débloque le reste. Le fait lu reste
- * **`prep.planDisponible`**, jamais `etape` — c'est lui qui rend mot pour mot la
- * condition du moteur —, et les phrases de la porte viennent de
- * `planIndisponible`, la même autorité que l'Accueil et l'écran Plan.
- *
- * 🛑 **Un VISITEUR n'a pas de porte** : il n'a pas de compte, donc pas de
- * diagnostic à faire. Il garde le catalogue et son bandeau de découverte.
+ * 🛑 **Plus de porte « diagnostic » ici** (D-69, 2026-09-28) : le Plan existe
+ * pour tout compte, donc « Reprendre » annonce toujours son action — le
+ * premier examen du cycle pour un compte sans diagnostic. Un visiteur n'a pas
+ * de Plan : il garde le catalogue et son bandeau de découverte.
  *
  * 🛑 **Pas de bascule de parcours ICI** (arbitrage du propriétaire,
  * 2026-09-12) : sur le web on arrive par la barre latérale, qui porte déjà ses
@@ -73,7 +67,6 @@ import {
   journeyApi,
   learningPlanApi,
   publicThemeApi,
-  userContentApi,
 } from "@/lib/api";
 import { useCachedData } from "@/lib/use-cached-data";
 import { themeSlug } from "@/lib/themes";
@@ -94,7 +87,6 @@ import {
   type DashboardSummaryResponse,
   type JourneyDto,
   type LearningPlanDto,
-  type ModulePreparation,
   type PlanDomainDto,
   type ThemeUserResponse,
 } from "@/lib/types";
@@ -120,7 +112,6 @@ import {
   epreuveMeta,
   epreuveRatio,
   epreuveStatus,
-  REVISER_DEPART_LABEL,
   REVISER_RESUME_LABEL,
   reviserResumeCivique,
   reviserResumeTcf,
@@ -142,7 +133,6 @@ import {
   JOURNEY_NEEDS_OBJECTIVE_TITLE,
   journeyTargetPathHref,
 } from "@/lib/journey";
-import {planIndisponible, type PlanIndisponible} from "@/lib/preparation";
 import {PASS_MODULE_NAME, PASS_OFFER_PLAN, PASS_PITCH, passModuleOfExam} from "@/lib/passes";
 import styles from "./reviser.module.css";
 import { PlanRecoCard } from "@/app/_components/plan/PlanRecoCard";
@@ -265,23 +255,15 @@ function TcfBody({
     isGuest ? null : journeyApi.cacheKey,
     () => journeyApi.getCached(),
   );
-  const prep = useModulePreparation(isGuest, "TCF");
-  const disponible = prep?.planDisponible === true;
   /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
      ligne de séance est un exercice **ou** une mesure de domaine, et les
      deux savent déjà où aller. */
   const exercise = usePlanExercise();
   const assessment = usePlanAssessment();
 
-  /* 🛑 Sans `planDisponible`, il n'y a rien à reprendre — et on ne l'invente
-     pas. La carte de tête cesse d'être une reprise et devient la **porte du
-     diagnostic**, avec les mots de `planIndisponible`. */
   /* 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
      ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan. */
-  const resume = disponible
-    ? reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium)
-    : null;
-  const gate = prep && !disponible ? planIndisponible(prep, "TCF") : null;
+  const resume = reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium);
   const carte = resume?.carte ?? null;
   const busy = exercise.starting || assessment.starting !== null;
 
@@ -334,8 +316,6 @@ function TcfBody({
               : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
           tone="primary"
         />
-      ) : gate ? (
-        <GateCard gate={gate} tone="primary" />
       ) : null}
       {/* 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
           du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un
@@ -516,16 +496,8 @@ function CiviqueBody({
     isGuest ? null : journeyApi.cacheKeyFor("CIVIQUE"),
     () => journeyApi.getCached("CIVIQUE"),
   );
-  const prep = useModulePreparation(isGuest, "CIVIQUE");
-  const disponible = prep?.planDisponible === true;
-
-  const prochaine: CivicPlanCibleDto | null = disponible
-    ? (civicPlan.data?.prochaine ?? null)
-    : null;
-  const resume = disponible
-    ? reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium)
-    : null;
-  const gate = prep && !disponible ? planIndisponible(prep, "CIVIQUE") : null;
+  const prochaine: CivicPlanCibleDto | null = civicPlan.data?.prochaine ?? null;
+  const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium);
 
   const stats = useMemo(() => {
     if (summary) return summary.civique;
@@ -576,8 +548,6 @@ function CiviqueBody({
           error={erreur}
           tone="blue"
         />
-      ) : gate ? (
-        <GateCard gate={gate} tone="blue" />
       ) : null}
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="CIVIQUE" />
       <Section title={reviserSectionTitle("CIVIQUE", stats.length)}>
@@ -622,29 +592,6 @@ function CiviqueBody({
 
 
 /**
- * **La porte du diagnostic**, à la place de la reprise.
- *
- * 🛑 **Aucune phrase n'est écrite ici** : `planIndisponible` porte le titre, le
- * texte, le libellé du bouton et sa destination — la **même autorité** que
- * l'Accueil et l'écran Plan. C'est elle qui distingue « faire » de
- * « reprendre » quand un diagnostic est déjà commencé, et qui sait que le
- * civique a **sa** porte (`/diagnostic-civique`).
- */
-function GateCard({gate, tone}: {gate: PlanIndisponible; tone: "primary" | "blue"}) {
-  return (
-    <PlanRecoCard
-      icon={renderIcon(Compass)}
-      label={REVISER_DEPART_LABEL}
-      title={gate.titre}
-      subtitle={gate.texte}
-      cta={gate.cta}
-      href={gate.href}
-      tone={tone}
-    />
-  );
-}
-
-/**
  * Le bandeau de découverte, **conservé de l'ancien hub** : c'est la surface de
  * conversion de la page, et `/entrainement` reste ouverte aux visiteurs. Il
  * disparaît dès que le module est accessible.
@@ -687,20 +634,3 @@ function DemoLink({
   );
 }
 
-/**
- * L'état servi du module — `planDisponible` en est **le seul fait** qui autorise
- * une carte de reprise, et le reste décide de la porte qui la remplace.
- *
- * `null` pour un visiteur et tant que l'état n'a pas répondu : ni reprise, ni
- * porte. On n'affiche pas une carte qu'on devra retirer une seconde plus tard,
- * et on ne propose pas un diagnostic à qui n'a pas de compte.
- */
-function useModulePreparation(
-  isGuest: boolean,
-  module: "TCF" | "CIVIQUE",
-): ModulePreparation | null {
-  const prep = useCachedData(isGuest ? null : "reviser:preparation", () =>
-    userContentApi.preparation(),
-  );
-  return (module === "TCF" ? prep.data?.tcf : prep.data?.civique) ?? null;
-}

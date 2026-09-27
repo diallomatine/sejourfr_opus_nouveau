@@ -53,7 +53,8 @@ import {
  * `kCivicPlanScreenTitle`) : même famille que `DETTE-P1`, refermée ici.
  */
 export const CIVIC_PLAN_TOP_KICKER = "Votre préparation personnalisée à l'Examen civique";
-export const CIVIC_PLAN_TOP_KICKER_FREE = "Créé à partir de votre diagnostic";
+/** D-69 : un compte sans diagnostic civique a son Plan — plus « créé à partir de votre diagnostic ». */
+export const CIVIC_PLAN_TOP_KICKER_FREE = "Votre parcours personnalisé";
 export const CIVIC_PLAN_SCREEN_TITLE = "Mon plan du jour";
 
 /** Bloc 2 — à faire maintenant. */

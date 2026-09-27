@@ -46,6 +46,15 @@ public class JourneyManager {
         return repository.findByIdAndUserId(journeyId, userId);
     }
 
+    /**
+     * <b>Serialise la creation du cycle</b> de ce candidat sur ce module,
+     * jusqu'a la fin de la transaction courante (D-69). Le second appelant
+     * attend, puis relit le cycle que le premier vient de creer.
+     */
+    public void verrouillerLaCreation(UUID userId, Module module) {
+        repository.verrouillerLaCreation("journey:" + userId + ":" + module.name());
+    }
+
     /** Le parcours <b>verrouille</b> pour ecriture : toute modification passe par la (R14). */
     public Optional<Journey> findForUpdate(UUID journeyId) {
         return repository.findByIdForUpdate(journeyId);

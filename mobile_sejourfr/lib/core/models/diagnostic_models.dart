@@ -43,9 +43,10 @@ enum DiagnosticStep {
       );
 }
 
+/// 🛑 **D-69 (2026-09-28) : une seule valeur.** Le Plan existe pour tout
+/// compte ; `NEEDS_DIAGNOSTIC` et `DIAGNOSTIC_IN_PROGRESS` sont supprimés de
+/// l'enum serveur. Toute autre valeur se replie sur [active].
 enum LearningPlanState {
-  needsDiagnostic('NEEDS_DIAGNOSTIC'),
-  diagnosticInProgress('DIAGNOSTIC_IN_PROGRESS'),
   active('ACTIVE');
 
   const LearningPlanState(this.wire);
@@ -55,7 +56,7 @@ enum LearningPlanState {
   static LearningPlanState fromWire(String value) =>
       LearningPlanState.values.firstWhere(
         (state) => state.wire == value,
-        orElse: () => LearningPlanState.needsDiagnostic,
+        orElse: () => LearningPlanState.active,
       );
 }
 
@@ -2264,7 +2265,7 @@ class LearningPlan {
 
   factory LearningPlan.fromJson(Map<String, dynamic> json) => LearningPlan(
         state: LearningPlanState.fromWire(
-          json['state'] as String? ?? 'NEEDS_DIAGNOSTIC',
+          json['state'] as String? ?? 'ACTIVE',
         ),
         diagnosticSessionId: json['diagnosticSessionId'] as String?,
         diagnosticCompletedAt: _date(json['diagnosticCompletedAt']),

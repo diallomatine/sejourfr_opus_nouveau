@@ -24,13 +24,14 @@ import {
   civicPlanGrainNote,
   civicRevueLabel,
 } from "@/lib/civic-plan";
-import {planIndisponibleDepuisEtat} from "@/lib/preparation";
+import {diagnosticAAffiner, type DiagnosticAAffiner} from "@/lib/preparation";
 import {
   canAccessModule,
   CIVIC_MAITRISE_LABEL,
   type CivicDiagnosticDto,
   type CivicPlanDto,
   type JourneyDto,
+  type ModulePreparation,
 } from "@/lib/types";
 import {
   Card,
@@ -43,7 +44,7 @@ import {
   Top,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {PlanGate} from "./PlanGate";
+import {DiagnosticAffinerCard} from "./DiagnosticAffinerCard";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
@@ -93,8 +94,15 @@ import {PlanPaywall} from "./PlanPaywallCard";
  * 🛑 **La contradiction #1 reste fermée** : le nom de l'étape, l'état de
  * maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
  * restent lisibles. On floute l'**action**, jamais le **résultat**.
+ *
+ * 🛑 **Le Plan civique s'affiche pour tout compte** (D-69, 2026-09-28) :
+ * `CivicPlanDto.disponible` garde son sens (« plan DÉRIVÉ du diagnostic
+ * civique disponible ») mais ne ferme plus l'écran. Sans diagnostic civique, le
+ * cycle et « À faire maintenant » se lisent sur le parcours, les listes du plan
+ * dérivé sont vides, et le diagnostic se propose en secondaire
+ * (`diagnosticAAffiner`).
  */
-export function CivicPlanPanel() {
+export function CivicPlanPanel({prep}: {prep?: ModulePreparation | null}) {
   const {user} = useAuth();
   const [plan, setPlan] = useState<CivicPlanDto | null>(null);
   /* 🛑 **Le CYCLE civique** (D-50) : c'est lui qui porte « À faire maintenant »
@@ -122,7 +130,7 @@ export function CivicPlanPanel() {
 
   // Étape 5 du tunnel « Suivi » : le Plan civique affiché, avec son
   // `journeyId`. Miroir de `LearningPlanView`.
-  const planShown = plan?.disponible === true;
+  const planShown = plan !== null;
   const journeyId = journey?.journeyId ?? null;
   useEffect(() => {
     if (!planShown || !journeyRead) return;
@@ -138,25 +146,23 @@ export function CivicPlanPanel() {
     return <Top kicker={CIVIC_PLAN_TOP_KICKER} title={CIVIC_PLAN_SCREEN_TITLE} />;
   }
 
-  if (!plan.disponible) {
-    return (
-      <PlanGate
-        kicker={CIVIC_PLAN_TOP_KICKER}
-        gate={planIndisponibleDepuisEtat("DIAGNOSTIC_A_FAIRE", "CIVIQUE")}
-        icon={Landmark}
-      />
-    );
-  }
-
-  return <CiviquePlan plan={plan} journey={journey} free={!canAccessModule(user, "CIVIQUE")} />;
+  return (
+    <CiviquePlan
+      plan={plan}
+      journey={journey}
+      free={!canAccessModule(user, "CIVIQUE")}
+      affiner={prep ? diagnosticAAffiner(prep, "CIVIQUE") : null}
+    />
+  );
 }
 
 /* ------------------------------------------------------------- l'écran */
 
-function CiviquePlan({plan, journey, free}: {
+function CiviquePlan({plan, journey, free, affiner}: {
   plan: CivicPlanDto;
   journey: JourneyDto | null;
   free: boolean;
+  affiner: DiagnosticAAffiner | null;
 }) {
   /* 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'écran de
      transition** (demande du propriétaire, 2026-09-20, TCF **et** civique) : il
@@ -256,6 +262,15 @@ function CiviquePlan({plan, journey, free}: {
           servi, jamais décidé ici. En civique, le cycle d'examens porte un
           examen par thématique. */}
       <ExamenCompletJalon journey={journey} module="CIVIQUE" />
+
+      {/* 🛑 Secondaire (D-69) : sous « À faire maintenant » et le jalon. */}
+      {affiner && (
+        <Section>
+          <Pad>
+            <DiagnosticAffinerCard proposition={affiner} module="CIVIQUE" />
+          </Pad>
+        </Section>
+      )}
 
       {/* Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
           🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes

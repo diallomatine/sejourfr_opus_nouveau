@@ -3,19 +3,10 @@
 /**
  * **Le Plan, avec ses deux modules** : TCF IRN | Examen civique.
  *
- * 🛑 **C'est la DEUXIÈME des trois portes** vers un diagnostic inachevé
- * (Accueil, Plan, Examens). Elle lit `userContentApi.preparation()`, le **même**
- * état que les deux autres — c'est ce qui garantit que le candidat ne se voit
- * pas proposer trois choses différentes selon l'écran où il arrive.
- *
- * 🛑 **Le contenu d'un onglet dépend de l'état de SON module.** Tant que le
- * diagnostic qui construit le plan n'est pas fait, l'onglet explique pourquoi
- * et ouvre la seule porte qui débloque — jamais un plan vide, jamais un plan
- * bâti sur une mesure qui n'existe pas.
- *
- * 🛑 **Asymétrie assumée** : le plan TCF attend le diagnostic *complet* (le
- * rapide n'observe qu'une production écrite) ; le plan civique attend son
- * diagnostic unique.
+ * 🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : plus aucune
+ * porte « diagnostic obligatoire ». L'état servi (`userContentApi.preparation()`)
+ * descend jusqu'aux deux panneaux, qui en tirent la proposition SECONDAIRE
+ * d'affiner le Plan par le diagnostic (`diagnosticAAffiner`).
  *
  * ## Le module sélectionné vit dans l'URL, et nulle part ailleurs (2026-09-12)
  *
@@ -36,16 +27,14 @@
  */
 import {useEffect, useState} from "react";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {Landmark} from "lucide-react";
 import {ModuleToggle, SejourApp, TopInAppBar, TopSlot} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
-import {moduleParDefaut, planIndisponible} from "@/lib/preparation";
+import {moduleParDefaut} from "@/lib/preparation";
 import {canAccessModule, type PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
 import {CivicPlanPanel} from "./CivicPlanPanel";
-import {PlanGate} from "./PlanGate";
 
 export function PlanModules() {
     /* 🛑 **Changer d'écran ou de parcours ne coûte AUCUN appel** (2026-09-12).
@@ -111,30 +100,18 @@ export function PlanModules() {
         router.replace(`${pathname}?${params.toString()}`, {scroll: false});
     }, [demande, defaut, pathname, router, search]);
 
-    /* 🛑 L'état du module affiché, tel que le serveur le sert. La porte
-       d'entrée en a besoin en entier : l'étape dit lequel des trois écrans
-       rendre, et `sessionId` désigne le diagnostic rapide à relire. */
+    /* L'état servi du module affiché : il porte ce qui reste à proposer côté
+       diagnostic (`diagnosticAAffiner`). */
     const moduleprep = prep ? (affiche === "TCF" ? prep.tcf : prep.civique) : null;
-    const indisponible = moduleprep ? planIndisponible(moduleprep, affiche) : null;
 
     /* La **nature** de l'écran décide de la largeur de colonne au palier
        desktop, et c'est ici qu'elle se connaît — seul endroit qui a à la fois le
        module affiché et l'accès du compte. 🛑 L'accès se **lit**
        (`canAccessModule`), il ne se devine pas.
 
-       - porte d'entrée ⇒ `report` : conteneur de 980 px, texte à 720 px. Elle
-         encastre le RAPPORT du diagnostic rapide, avec ses deux grilles — elle
-         doit donc lui offrir exactement la largeur que `/diagnostic` lui
-         offre, sinon le même rapport se range de deux façons selon la porte par
-         laquelle le candidat arrive. Sa forme minimale (l'explication et son
-         geste, sans rapport) ne porte aucune grille : tout y reste plafonné à
-         720 px, donc elle se rend comme avant ;
        - compte gratuit ⇒ `sticky`, la barre d'action porte le déblocage (980) ;
        - abonné ⇒ `wide`, le Plan est un **tableau de bord** (1080). */
     const abonne = canAccessModule(user, affiche);
-    const sticky = Boolean(!indisponible && !abonne);
-    const wide = Boolean(!indisponible && abonne);
-    const report = Boolean(indisponible);
 
     /* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une seconde
        implémentation du même contrôle finirait par diverger.
@@ -157,33 +134,21 @@ export function PlanModules() {
     );
 
     return (
-        <SejourApp sticky={sticky} wide={wide} report={report}>
+        <SejourApp sticky={!abonne} wide={abonne}>
             {/* 🛑 Sous 900 px, « Mon plan du jour » et son eyebrow (l'objectif,
                 servi) montent dans la barre du haut : c'est le titre de cet
                 écran, pas le « Plan » générique de `lib/app-bar.ts`. */}
             <TopInAppBar>
                 <TopSlot node={toggle}>
-                    {indisponible ? (
-                        <PlanGate
-                            gate={indisponible}
-                            prep={moduleprep}
-                            kicker={
-                                affiche === "TCF"
-                                    ? "Votre parcours personnalisé"
-                                    : "Votre préparation personnalisée à l'Examen civique"
-                            }
-                            icon={affiche === "CIVIQUE" ? Landmark : undefined}
-                        />
-                    ) : affiche === "TCF" ? (
-                        /* 🛑 `prep` descend jusqu'ici pour la PORTE d'entrée
-                           (`PlanGate`), qui lit l'état servi du diagnostic. Un
-                           second appel à `preparation()` plus bas aurait pu
-                           répondre autre chose que celui qui a ouvert l'écran. */
+                    {affiche === "TCF" ? (
+                        /* 🛑 `prep` descend jusqu'ici : un second appel à
+                           `preparation()` plus bas aurait pu répondre autre
+                           chose que celui qui a ouvert l'écran. */
                         <LearningPlanView prep={moduleprep} />
                     ) : (
                         /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
                            L10) : c'est un moteur, plus un écho du diagnostic. */
-                        <CivicPlanPanel />
+                        <CivicPlanPanel prep={moduleprep} />
                     )}
                 </TopSlot>
             </TopInAppBar>

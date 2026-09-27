@@ -1,19 +1,11 @@
 package com.sejourfr.app.service.journey;
 
-import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyDto;
-import com.sejourfr.app.dto.StartAttemptRequest;
-import com.sejourfr.app.dto.SubmitAnswerRequest;
-import com.sejourfr.app.entity.Choice;
-import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
-import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
-import com.sejourfr.app.enums.AttemptType;
-import com.sejourfr.app.enums.DiagnosticSessionStatus;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
@@ -28,7 +20,6 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.QuestionType;
-import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.JourneyStepStatus;
@@ -52,7 +43,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -186,7 +176,11 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         User user = abonne();
         // Un cycle deja historise : celui qu'on ouvre est le 2e.
         data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
-        journeyService.lire(user.getId(), Module.TCF);
+        // ⚠️ D-69 (2026-09-28) : plus de lecture AVANT le diagnostic. Elle
+        // ouvrirait un cycle d'examens de rang 2, qu'un diagnostic n'amorce
+        // pas (seul le cycle d'examens PAR DEFAUT, rang 1, lui cede) — ses
+        // priorites partiraient au cycle en attente. Le 2e cycle naît ici de
+        // l'historique, diagnostic compris : c'est l'amorce ordinaire.
         diagnosticRapide(user);
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
@@ -430,68 +424,31 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         return user;
     }
 
-    /**
-     * Le diagnostic rapide termine, trois fragilites EE clavetees sur sa
-     * soumission ecrite — le chemin LIVE, exactement comme
-     * {@code JourneyObservationSourcesIT}.
-     */
+    private ExamensDuParcours examens() {
+        return new ExamensDuParcours(data, journeyService, attemptService,
+                attemptQuestionManager, txManager, skillManager);
+    }
+
     private void diagnosticRapide(User user) {
-        DiagnosticSession session = data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
-        ProductionSubmission ecrit = data.diagnosticSubmission(
-                session.getWrittenAttempt(), session.getWrittenTask(), user);
-        for (int rang = 0; rang < 3; rang++) {
-            data.learningPlanObservation(user, competenceEE(rang),
-                    LearningPlanSourceType.DIAGNOSTIC_EE, LearningPlanSkillStatus.PRIORITY,
-                    ObservationConfidence.HIGH, null, Instant.now().minusSeconds(3_600),
-                    ecrit.getId());
-        }
-        journeyService.onAssessmentCompleted(user.getId(),
-                JourneyEvaluation.diagnosticRapide(session.getId(), session.getCompletedAt()));
+        examens().diagnosticRapide(user);
         assertThat(etapes(user)).filteredOn(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
                 .as("le lot EE du diagnostic").hasSize(3);
     }
 
-    /** Un examen blanc EE passe, qui redetecte {@code redetectee} en PRIORITE. */
     private void examenEePasse(User user, Skill redetectee) {
-        UUID examen = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1).getId();
-        data.learningPlanObservation(user, redetectee,
-                LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.PRIORITY,
-                ObservationConfidence.HIGH, null, Instant.now(), examen);
-        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
-                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE, Instant.now()));
+        examens().examenEePasse(user, redetectee);
     }
 
     private void examenProductionPasse(User user, EpreuveType epreuve) {
-        UUID examen = data.epreuveProductionPassee(user, epreuve, NiveauCecrl.B1).getId();
-        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
-                examen, JourneyAssessmentKind.SECTION_EXAM, epreuve, Instant.now()));
+        examens().examenProductionPasse(user, epreuve);
     }
 
-    /**
-     * Un examen blanc CO/CE lance par la porte des examens, repondu juste, et
-     * termine par le VRAI {@code AttemptService.finish} — qui previent le
-     * parcours apres son commit. Questions de la banque SEEDEE.
-     */
     private void examenQcmPasse(User user, QuestionType epreuve) {
-        AttemptResponse lance = attemptService.start(user.getId(), new StartAttemptRequest(
-                AttemptType.MOCK_EXAM, Module.TCF, null, null,
-                null, null, null, null, epreuve, 1, null));
-        List<SubmitAnswerRequest> reponses = new TransactionTemplate(txManager).execute(status ->
-                attemptQuestionManager.findByAttemptOrderedByPosition(lance.id()).stream()
-                        .map(aq -> new SubmitAnswerRequest(aq.getId(), List.of(
-                                aq.getQuestion().getChoices().stream()
-                                        .filter(Choice::isCorrect).map(Choice::getId)
-                                        .findFirst().orElseThrow())))
-                        .toList());
-        assertThat(reponses).isNotEmpty();
-        reponses.forEach(reponse -> attemptService.submitAnswer(user.getId(), lance.id(), reponse));
-        attemptService.finish(user.getId(), lance.id());
+        examens().examenQcmPasse(user, epreuve);
     }
 
     private Skill competenceEE(int rang) {
-        List<Skill> seedees = skillManager.findActiveByTaskCode(SkillTaskCode.EE1);
-        assertThat(seedees).as("referentiel seede EE1").hasSizeGreaterThan(rang);
-        return seedees.get(rang);
+        return examens().competenceEE(rang);
     }
 
     private Journey cycleEnCours(User user) {

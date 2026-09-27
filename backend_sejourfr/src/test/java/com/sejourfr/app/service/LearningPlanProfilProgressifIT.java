@@ -81,7 +81,8 @@ class LearningPlanProfilProgressifIT extends AbstractIntegrationTest {
         // --- 0 / 4 : compte neuf, aucun diagnostic --------------------------
         LearningPlanDto vierge = planService.get(user.getId());
 
-        assertThat(vierge.state()).isEqualTo(LearningPlanState.NEEDS_DIAGNOSTIC);
+        // D-69 (2026-09-28) : le Plan existe des le compte neuf.
+        assertThat(vierge.state()).isEqualTo(LearningPlanState.ACTIVE);
         assertThat(vierge.cycle().domainsEvaluated()).isZero();
         assertThat(vierge.cycle().domainsExpected()).isEqualTo(4);
         assertThat(vierge.cycle().profileComplete()).isFalse();
@@ -180,8 +181,10 @@ class LearningPlanProfilProgressifIT extends AbstractIntegrationTest {
         flush();
         LearningPlanDto plan = planService.get(user.getId());
 
-        // Aucun diagnostic : le Plan le demande toujours pour ses PRIORITES...
-        assertThat(plan.state()).isEqualTo(LearningPlanState.NEEDS_DIAGNOSTIC);
+        // ⚠️ REVOQUE LE 2026-09-28 (D-69) : « aucun diagnostic, le Plan le
+        // demande pour ses PRIORITES ». Le Plan est ACTIF : ses priorites se
+        // lisent sur ce que l'examen a mesure...
+        assertThat(plan.state()).isEqualTo(LearningPlanState.ACTIVE);
         // ... mais il connait deja un domaine sur quatre, et il le dit.
         assertThat(plan.cycle().domainsEvaluated()).isEqualTo(1);
         assertThat(domaine(plan, EpreuveType.TCF_CO).evaluated()).isTrue();

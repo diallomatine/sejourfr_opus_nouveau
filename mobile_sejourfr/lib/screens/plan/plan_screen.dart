@@ -2,25 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
-import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
-import '../../core/models/preparation_models.dart';
 import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/target_level_provider.dart';
-import '../../core/router/app_router.dart';
 import '../../core/router/route_observer.dart';
 import '../../core/utils/parcours_affiche.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../diagnostic/widgets/diagnostic_result.dart';
 import 'civic_plan_provider.dart';
 import 'civic_plan_view.dart';
 import 'learning_plan_provider.dart';
@@ -170,27 +165,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
     TargetLevel? objective,
     bool civique,
   ) {
-    // 🛑 **Observé, jamais copié** : c'est ce qui fait disparaître la porte dès
-    // que le diagnostic est terminé, sans quitter l'écran.
+    // 🛑 **D-69 (2026-09-28) : plus aucune porte.** Le Plan s'affiche pour tout
+    // compte, diagnostic fait ou non ; la préparation ne sert plus qu'à la
+    // proposition SECONDAIRE de diagnostic ([diagnosticAAffiner]). Observée,
+    // jamais copiée : la proposition disparaît dès que le diagnostic est fait.
     final prep = ref.watch(preparationProvider).valueOrNull;
-
-    // 🛑 La raison pour laquelle le plan n'est pas prêt vient de l'état UNIQUE,
-    // pas d'une déduction locale.
-    //
-    // 🛑 La porte d'entrée reçoit cet état EN ENTIER : l'étape dit lequel des
-    // trois écrans rendre, et `sessionId` désigne le diagnostic rapide à
-    // relire. Miroir du web (`PlanModules` → `PlanGate`).
     final modulePrep = prep == null ? null : (civique ? prep.civique : prep.tcf);
-    final indisponible = modulePrep == null
+    final affiner = modulePrep == null
         ? null
-        : planIndisponible(modulePrep, civique: civique);
-    if (indisponible != null) {
-      return _PlanIndisponible(info: indisponible, prep: modulePrep);
-    }
+        : diagnosticAAffiner(modulePrep, civique: civique);
     if (civique) {
       // 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`, L10) :
       // c'est un moteur, plus un echo du diagnostic.
-      return const CivicPlanView();
+      return CivicPlanView(affiner: affiner);
     }
     return plan.when(
       loading: () => const _LoadingPlan(),
@@ -198,48 +185,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> with RouteAware {
         message: ApiClient.toApiException(error).message,
         onRetry: () => ref.invalidate(learningPlanProvider),
       ),
-      data: (value) => switch (value.state) {
-        // 🛑 Sans diagnostic, il n'y a pas de plan à habiller : on dit par quoi
-        // il commence et on ouvre la seule porte. Aucun contenu n'est inventé.
-        //
-        // ⚠️ Ce repli ne se déclenche plus qu'en DÉSACCORD entre les deux
-        // lectures : `planDisponible` rend la condition exacte du moteur, donc
-        // le Plan est normalement `active` dès que la porte s'ouvre. `prep` lui
-        // est passé pour que, dans ce cas-là, le candidat retrouve au moins le
-        // rapport de son diagnostic rapide plutôt qu'un écran qui ne dit rien.
-        LearningPlanState.needsDiagnostic => _PlanIndisponible(
-            info: (
-              titre: kPlanNeedsDiagnosticTitle,
-              texte: kPlanNeedsDiagnosticText,
-              cta: kPlanNeedsDiagnosticCta,
-              route: AppRoutes.diagnostic,
-            ),
-            prep: modulePrep,
-          ),
-        LearningPlanState.diagnosticInProgress => _PlanIndisponible(
-            info: (
-              titre: kPlanDiagnosticRunningTitle,
-              texte: kPlanDiagnosticRunningText,
-              cta: kPlanDiagnosticRunningCta,
-              route: AppRoutes.diagnostic,
-            ),
-            prep: modulePrep,
-          ),
-        // 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
-        // propriétaire, 2026-09-19) : la carte « Diagnostic complet en cours »
-        // a été supprimée du Plan, comme le lien « Revoir mon diagnostic
-        // rapide » ; le parcours complet lui-même est retiré des fronts depuis
-        // le 2026-09-26. Les épreuves non mesurées se mesurent par l'examen
-        // blanc que propose le cycle. Ne pas les réintroduire.
-        LearningPlanState.active => PlanTcfView(
-            plan: value,
-            // 🛑 Le parcours est **observé**, jamais attendu : son absence ne
-            // doit pas retarder le Plan d'une seconde, et un backend antérieur
-            // à l'endpoint garde un écran entier.
-            journey: ref.watch(journeyProvider).valueOrNull,
-            objective: objective,
-          ),
-      },
+      // 🛑 **Aucune invitation au diagnostic complet ici** (arbitrage du
+      // propriétaire, 2026-09-19) ; le parcours complet est retiré des fronts
+      // depuis le 2026-09-26. Les épreuves non mesurées se mesurent par
+      // l'examen blanc que propose le cycle.
+      data: (value) => PlanTcfView(
+        plan: value,
+        // 🛑 Le parcours est **observé**, jamais attendu : son absence ne
+        // doit pas retarder le Plan d'une seconde, et un backend antérieur
+        // à l'endpoint garde un écran entier.
+        journey: ref.watch(journeyProvider).valueOrNull,
+        objective: objective,
+        affiner: affiner,
+      ),
     );
   }
 
@@ -357,151 +315,4 @@ class _PlanError extends StatelessWidget {
           ),
         ],
       );
-}
-
-/// Le plan d'un module n'est pas encore constructible : on dit POURQUOI, et on
-/// ouvre la seule porte qui débloque.
-///
-/// 🛑 **Aucun contenu inventé** : ni priorité, ni parcours, ni niveau. Le titre,
-/// le texte, le geste et sa destination viennent tous de [planIndisponible],
-/// l'état unique des deux préparations — **aucun état n'est déduit d'un
-/// compteur**.
-///
-/// 🛑 **Dès que le diagnostic RAPIDE est fait et tant que le Plan n'est pas
-/// prêt, cette porte affiche SON RAPPORT** (arbitrage du propriétaire). Le
-/// déclencheur n'est pas une étape mais un **fait servi** :
-/// [ModulePreparation.estimationSessionId], l'identifiant de la session rapide
-/// close, servi à **toutes** les étapes — y compris quand un diagnostic
-/// complet commencé avant son retrait (2026-09-26) fait basculer l'étape sur
-/// `DIAGNOSTIC_EN_COURS` et que [ModulePreparation.sessionId] y désigne ce
-/// complet. Le seul état sans rapport est celui où aucun rapide n'a été clos :
-/// il n'y a rien à montrer.
-///
-/// 🛑 **Le rapport est l'ÉCRAN DE `/diagnostic`, encastré**
-/// ([DiagnosticResultView] et ses slots) — pas un résumé écrit ici : deux
-/// lectures du même diagnostic auraient fini par en dire deux choses. Et **la
-/// porte garde le geste de fin** (`closingCta: false`) : sa phrase dépend de
-/// l'étape servie (`planIndisponible`), pas celle du rapport.
-class _PlanIndisponible extends ConsumerStatefulWidget {
-  const _PlanIndisponible({required this.info, this.prep});
-
-  final PlanIndisponible info;
-
-  /// L'état servi du module affiché. Absent sur les deux replis dérivés de
-  /// l'état du Plan lui-même : la porte se réduit alors à sa forme minimale,
-  /// elle n'invente rien.
-  final ModulePreparation? prep;
-
-  @override
-  ConsumerState<_PlanIndisponible> createState() => _PlanIndisponibleState();
-}
-
-class _PlanIndisponibleState extends ConsumerState<_PlanIndisponible> {
-  /// Le résultat du diagnostic RAPIDE déjà passé. `null` = rien à afficher —
-  /// état normal, la porte n'en a jamais dépendu.
-  DiagnosticResult? _rapide;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_chargerRapide());
-  }
-
-  @override
-  void didUpdateWidget(_PlanIndisponible old) {
-    super.didUpdateWidget(old);
-    if (old.prep?.estimationSessionId != widget.prep?.estimationSessionId) {
-      unawaited(_chargerRapide());
-    }
-  }
-
-  /// 🛑 On relit **la session que le serveur a désignée**
-  /// (`prep.estimationSessionId`), pas « la session courante » : `current()`
-  /// est borné au couple (code, version) actif et répondrait « pas commencé »
-  /// sur une version antérieure du diagnostic.
-  ///
-  /// 🛑 **Aucun repli en cas d'échec** : le rapport n'apparaît pas, la porte
-  /// retombe sur sa forme minimale avec son geste. Un rapport absent est un
-  /// état normal ; un rapport reconstitué de mémoire ne l'est pas.
-  Future<void> _chargerRapide() async {
-    final sessionId = widget.prep?.estimationSessionId;
-    if (sessionId == null) {
-      if (mounted && _rapide != null) setState(() => _rapide = null);
-      return;
-    }
-    try {
-      final journey =
-          await ref.read(diagnosticRepositoryProvider).detail(sessionId);
-      if (!mounted) return;
-      setState(() => _rapide = journey.result);
-    } catch (_) {
-      // Le rapport disparaît, la porte reste : elle n'a jamais dépendu de lui.
-    }
-  }
-
-  /// L'en-tête de l'écran et l'explication, posés avant tout le reste.
-  ///
-  /// L'explication vient EN TÊTE : le rapport dit où en est le candidat, il ne
-  /// dit pas pourquoi son plan manque encore.
-  List<Widget> _tete() => [
-        const SfTop(kicker: kPlanEmptyKicker, title: kPlanTitle),
-        const SizedBox(height: 14),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SfCard(
-            variant: SfCardVariant.hero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  widget.info.titre,
-                  style: AppFonts.display(
-                    size: 20,
-                    weight: FontWeight.w700,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SfInsight(widget.info.texte),
-              ],
-            ),
-          ),
-        ),
-      ];
-
-  /// Le geste de fin, porté par la porte : sa phrase vient de l'étape servie.
-  List<Widget> _action() => [
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SfButton(
-            label: widget.info.cta,
-            onPressed: () => context.push(widget.info.route),
-          ),
-        ),
-      ];
-
-  @override
-  Widget build(BuildContext context) {
-    final rapide = _rapide;
-    if (rapide != null) {
-      return DiagnosticResultView(
-        result: rapide,
-        // 🛑 La MÊME source de palier que l'écran `/diagnostic` : l'objectif
-        // vient du compte, jamais d'un second champ qui dériverait.
-        objective: ref.watch(userTargetLevelProvider),
-        leading: _tete(),
-        closingCta: false,
-        trailing: [..._action(), const SizedBox(height: 16)],
-      );
-    }
-
-    return ListView(
-      children: [
-        ..._tete(),
-        ..._action(),
-        const SizedBox(height: 28),
-      ],
-    );
-  }
 }

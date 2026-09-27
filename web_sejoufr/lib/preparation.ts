@@ -6,10 +6,14 @@
  * discipline que partout ailleurs : « Faire mon diagnostic » est une
  * formulation, pas une donnée.
  *
- * 🛑 **Trois portes, un seul état.** L'Accueil, le Plan et les Examens
- * appellent tous les trois `userContentApi.preparation()` et passent par ces
- * fonctions. Aucun écran ne déduit son propre libellé — c'est ce qui garantit
- * qu'ils proposent la même prochaine action.
+ * 🛑 **Un seul état pour tous les écrans.** L'Accueil, le Plan et Réviser
+ * lisent `userContentApi.preparation()` et passent par ces fonctions. Aucun
+ * écran ne déduit son propre libellé — c'est ce qui garantit qu'ils proposent
+ * la même chose.
+ *
+ * 🛑 **D-69 (2026-09-28) : le Plan existe pour TOUT compte**, diagnostic fait
+ * ou non (`planDisponible` toujours vrai). Le diagnostic n'est plus une porte :
+ * c'est une proposition SECONDAIRE, `diagnosticAAffiner`.
  *
  * Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
@@ -65,8 +69,7 @@ export function demarrageDirectDemande(
  *
  * ⚠️ Le serveur sert ENCORE l'avancement d'un complet commencé avant le retrait
  * (`etape: DIAGNOSTIC_EN_COURS`, `fait`/`total` sur 4, `prochaineEpreuve`) : ces
- * écrans ne l'affichent plus et n'y renvoient plus (voir `tcfAction` et
- * `planIndisponible`). Nettoyage backend à suivre.
+ * écrans ne l'affichent plus et n'y renvoient plus (voir `diagnosticAAffiner`).
  */
 
 export const TCF_LABEL = "TCF IRN";
@@ -86,39 +89,22 @@ export interface PreparationAction {
    -------------------------------------------------------------------------- */
 
 export function tcfAction(m: ModulePreparation): PreparationAction {
-    // 🛑 **Dès que le Plan existe, c'est LUI la prochaine action** (arbitrage du
-    // 2026-09-12) — y compris quand un diagnostic complet commencé avant son
-    // retrait (2026-09-26) reste ouvert côté serveur.
-    if (m.planDisponible) {
-        return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
-    }
-    // 🛑 Seul le RAPIDE se reprend. Un `DIAGNOSTIC_EN_COURS` qui porte un
-    // avancement (`fait !== null`) est un complet commencé sans rapide : ce
-    // parcours n'existe plus, et il ne fonde pas de Plan tant qu'il n'est pas
-    // clos. La porte qui ouvre le Plan est le rapide — on y envoie.
-    if (m.etape === "DIAGNOSTIC_EN_COURS" && m.fait === null) {
-        return {
-            statut: "Diagnostic en cours",
-            cta: "Reprendre",
-            href: DIAGNOSTIC_RAPIDE_START_HREF,
-        };
-    }
-    return {
-        statut: "Diagnostic non réalisé",
-        cta: "Faire mon diagnostic",
-        href: DIAGNOSTIC_RAPIDE_START_HREF,
-    };
+    // 🛑 **Le Plan est TOUJOURS la prochaine action** (D-69) : il existe pour
+    // tout compte, diagnostic fait ou non. Le diagnostic se propose à part
+    // (`diagnosticAAffiner`), jamais à sa place.
+    return {statut: tcfStatut(m), cta: "Continuer mon plan", href: "/plan"};
 }
 
 /**
- * Ce qu'on sait du candidat quand son Plan existe.
+ * Ce qu'on sait du candidat.
  *
  * 🛑 **Aucun compteur « N / 4 »** : il décrivait l'avancement du diagnostic
  * complet, parcours retiré le 2026-09-26. Le palier mesuré prime dès qu'il est
  * servi, et `null` veut dire « pas encore mesuré », jamais A1.
  */
 function tcfStatut(m: ModulePreparation): string {
-    return niveauLine(m) ?? "Première estimation terminée";
+    return niveauLine(m)
+        ?? (m.estimationSessionId ? "Première estimation terminée" : "Diagnostic non réalisé");
 }
 
 /** « B1 → objectif B2 ». `null` si rien n'est mesuré : jamais un palier inventé. */
@@ -132,36 +118,24 @@ export function niveauLine(m: ModulePreparation): string | null {
    -------------------------------------------------------------------------- */
 
 export function civiqueAction(m: ModulePreparation): PreparationAction {
+    // 🛑 **Le Plan civique existe pour tout compte** (D-69) : c'est lui la
+    // prochaine action, quelle que soit l'étape. Seul l'état change.
+    return {statut: civiqueStatut(m), cta: "Continuer mon plan", href: "/plan?module=CIVIQUE"};
+}
+
+function civiqueStatut(m: ModulePreparation): string {
     switch (m.etape) {
-        case "DIAGNOSTIC_A_FAIRE":
-            return {
-                statut: "Diagnostic non réalisé",
-                cta: "Faire mon diagnostic civique",
-                href: "/diagnostic-civique",
-            };
         case "DIAGNOSTIC_EN_COURS":
-            return {
-                statut:
-                    m.fait !== null && m.total !== null
-                        ? `Diagnostic : ${m.fait} / ${m.total} questions`
-                        : "Diagnostic en cours",
-                cta: "Reprendre",
-                href: "/diagnostic-civique",
-            };
-        case "ESTIMATION_FAITE":
-            // 🛑 N'existe pas côté civique — il n'a qu'UN diagnostic. Ce cas est
-            // ici parce que le type est partagé, pas parce qu'il peut arriver.
-            return {
-                statut: "Diagnostic non réalisé",
-                cta: "Faire mon diagnostic civique",
-                href: "/diagnostic-civique",
-            };
+            return m.fait !== null && m.total !== null
+                ? `Diagnostic : ${m.fait} / ${m.total} questions`
+                : "Diagnostic en cours";
         case "PLAN_PRET":
-            return {
-                statut: aRenforcerLine(m) ?? "Diagnostic terminé",
-                cta: "Continuer mon plan",
-                href: "/plan?module=CIVIQUE",
-            };
+            return aRenforcerLine(m) ?? "Diagnostic terminé";
+        // 🛑 `ESTIMATION_FAITE` n'existe pas côté civique — il n'a qu'UN
+        // diagnostic. Ce cas est ici parce que le type est partagé.
+        case "ESTIMATION_FAITE":
+        case "DIAGNOSTIC_A_FAIRE":
+            return "Diagnostic non réalisé";
     }
 }
 
@@ -179,107 +153,77 @@ export function aRenforcerLine(m: ModulePreparation): string | null {
 }
 
 /* --------------------------------------------------------------------------
-   Le PLAN — pourquoi il n'est pas encore prêt
+   Le DIAGNOSTIC — une proposition SECONDAIRE (D-69, 2026-09-28)
    -------------------------------------------------------------------------- */
 
-export interface PlanIndisponible {
+/** La proposition d'affiner le Plan par le diagnostic. */
+export interface DiagnosticAAffiner {
     titre: string;
     texte: string;
     cta: string;
     href: string;
 }
 
+const AFFINER_TERMINER = "Terminez-le pour affiner votre plan.";
+
 /**
- * Le Plan d'un module peut-il être construit ?
+ * Le diagnostic reste-t-il à proposer pour ce module ?
  *
- * 🛑 `null` = **oui**, l'onglet affiche le vrai Plan. Sinon, il explique
- * pourquoi et ouvre la seule porte qui débloque — jamais un plan vide, jamais
- * un plan bâti sur une mesure qui n'existe pas.
+ * 🛑 **Une proposition, jamais une porte** (D-69) : le Plan existe sans
+ * diagnostic, et cette carte se pose SOUS « À faire maintenant », jamais à sa
+ * place ni avec le CTA rouge. `null` = rien à proposer.
+ *
+ * 🛑 **Seule autorité** de ces phrases sur le web — Plan TCF, Plan civique et
+ * Accueil l'appellent tous. Miroir de `mobile_sejourfr/lib/core/models/preparation_labels.dart`.
  */
-export function planIndisponible(
+export function diagnosticAAffiner(
     m: ModulePreparation,
     module: "TCF" | "CIVIQUE",
-): PlanIndisponible | null {
-    // 🛑 **Le fait servi, jamais l'étape.** Arbitrage du propriétaire du
-    // 2026-09-12 : le diagnostic complet n'est plus un prérequis d'accès au
-    // Plan, seulement un moyen de l'affiner. Dès que le diagnostic rapide est
-    // clos, le serveur sait bâtir un Plan provisoire mais **réel** — ses
-    // priorités viennent d'observations vraies, et aucun domaine non mesuré
-    // n'en reçoit. Lire `etape` ici ferait dire « pas encore prêt » à un écran
-    // que le moteur sert déjà.
-    if (m.planDisponible) return null;
-
+): DiagnosticAAffiner | null {
     if (module === "CIVIQUE") {
+        const titre = "Affinez votre plan avec le diagnostic civique";
+        const href = "/diagnostic-civique";
+        if (m.etape === "DIAGNOSTIC_A_FAIRE") {
+            return {
+                titre,
+                texte: "Quelques questions pour repérer les thèmes et les notions à travailler en priorité.",
+                cta: "Affiner avec le diagnostic civique",
+                href,
+            };
+        }
         // 🛑 **Un diagnostic COMMENCÉ ne se « fait » pas, il se REPREND.**
-        // Redemander « Faire mon diagnostic » à quelqu'un qui vient d'en
-        // répondre la moitié lui fait croire que son travail est perdu.
-        return m.etape === "DIAGNOSTIC_EN_COURS"
-            ? {
-                  titre: "Votre diagnostic civique est commencé",
-                  texte: avancement(m)
-                      ?? "Terminez-le pour que votre plan se construise.",
-                  cta: "Reprendre mon diagnostic",
-                  href: "/diagnostic-civique",
-              }
-            : {
-                  titre: "Votre plan civique commence par un diagnostic",
-                  texte:
-                      "Répondez à quelques questions pour identifier les thèmes et les notions à travailler.",
-                  cta: "Faire mon diagnostic civique",
-                  href: "/diagnostic-civique",
-              };
+        if (m.etape === "DIAGNOSTIC_EN_COURS") {
+            return {
+                titre,
+                texte: avancement(m) ?? AFFINER_TERMINER,
+                cta: "Reprendre mon diagnostic civique",
+                href,
+            };
+        }
+        return null;
     }
 
+    const titre = "Affinez votre plan avec le diagnostic";
+    if (m.etape === "DIAGNOSTIC_A_FAIRE") {
+        return {
+            titre,
+            texte:
+                "En quelques minutes, une production écrite repère vos premières priorités. Vos examens blancs restent la base de votre plan.",
+            cta: "Affiner avec le diagnostic",
+            href: DIAGNOSTIC_RAPIDE_START_HREF,
+        };
+    }
     /* 🛑 Seul le **rapide** se reprend (`fait === null`). Un complet commencé
-       sans rapide (`fait !== null`) ne se reprend plus — parcours retiré le
-       2026-09-26 — et ne fonde pas de Plan tant qu'il n'est pas clos : la porte
-       est le rapide, comme pour un candidat qui n'a rien commencé. */
+       avant son retrait (`fait !== null`) ne se reprend plus (2026-09-26). */
     if (m.etape === "DIAGNOSTIC_EN_COURS" && m.fait === null) {
         return {
-            titre: "Votre diagnostic TCF est commencé",
-            texte: "Terminez-le pour que votre plan se construise.",
+            titre,
+            texte: AFFINER_TERMINER,
             cta: "Reprendre mon diagnostic",
             href: DIAGNOSTIC_RAPIDE_START_HREF,
         };
     }
-
-    return {
-        titre: "Votre plan TCF commence par un diagnostic",
-        texte:
-            "Une première estimation écrite ouvre votre plan. Les autres épreuves se mesurent ensuite par un examen blanc, depuis votre plan.",
-        cta: "Faire mon diagnostic",
-        href: DIAGNOSTIC_RAPIDE_START_HREF,
-    };
-}
-
-/**
- * Le **même** écran « pas encore de plan », dérivé de l'état que sert
- * `GET /api/me/plan` — le repli quand `preparation()` n'a pas répondu.
- *
- * 🛑 Il n'écrit **aucune phrase** : il rappelle `planIndisponible`, seule
- * autorité, avec l'étape correspondante. Deux copies de ces quatre lignes
- * auraient fini par proposer deux actions différentes sur le même écran.
- */
-export function planIndisponibleDepuisEtat(
-    etape: "DIAGNOSTIC_A_FAIRE" | "DIAGNOSTIC_EN_COURS",
-    module: "TCF" | "CIVIQUE",
-): PlanIndisponible {
-    const m: ModulePreparation = {
-        etape,
-        fait: null,
-        total: null,
-        sessionId: null,
-        estimationSessionId: null,
-        niveau: null,
-        cible: null,
-        aRenforcer: null,
-        // Ce repli n'existe que quand `GET /api/me/plan` a répondu autre chose
-        // qu'`ACTIVE` : par construction, le Plan n'est pas disponible.
-        planDisponible: false,
-        prochaineEpreuve: null,
-    };
-    // `planIndisponible` ne rend `null` que si le Plan existe, exclu ici.
-    return planIndisponible(m, module)!;
+    return null;
 }
 
 /**

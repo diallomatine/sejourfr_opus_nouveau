@@ -159,26 +159,45 @@ class JourneyServiceIT extends AbstractIntegrationTest {
     // =====================================================================
 
     @Test
-    @DisplayName("§18-1 / §18-25 — aucune evaluation : l'etape courante est le DIAGNOSTIC")
-    void sansEvaluationLeParcoursProposeLeDiagnostic() {
+    @DisplayName("§18-1 / §18-25 — D-69 : aucune evaluation, le Plan par defaut est un CYCLE "
+            + "D'EXAMENS (plus jamais d'etape DIAGNOSTIC)")
+    void sansEvaluationLeParcoursEstUnCycleDExamens() {
         User user = candidat(TargetProcedure.NAT);
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
+        // ⚠️ REVOQUE LE 2026-09-28 (D-69) : l'etape courante etait le
+        // DIAGNOSTIC. Le diagnostic n'est plus une porte : un bloc par epreuve,
+        // chacun son seul examen blanc « Évaluer mon niveau ».
         assertThat(vue.current()).isNotNull();
-        assertThat(vue.current().type()).isEqualTo(JourneyStepType.DIAGNOSTIC);
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
         assertThat(vue.current().status()).isEqualTo(JourneyStepStatus.CURRENT);
+        assertThat(vue.cycle().cycleDeMesure()).isTrue();
+        assertThat(vue.cycle().cycleDAffinage()).isFalse();
+        assertThat(vue.blocs()).hasSize(4)
+                .allSatisfy(bloc -> {
+                    assertThat(bloc.steps()).isEmpty();
+                    assertThat(bloc.exam()).isNotNull();
+                    assertThat(bloc.exam().locked()).isFalse();
+                });
         // 🛑 Aucune priorite inventee : le Plan n'apprend rien tant qu'il n'a
-        // rien mesure. ⚠️ Lu sur la FILE : une etape DIAGNOSTIC ne porte aucune
-        // epreuve, donc elle n'appartient a aucun bloc — `blocs` ne peut pas la
-        // montrer, et c'est `current` qui la sert (assertion ci-dessus).
+        // rien mesure — il ne pose que des MESURES.
         assertThat(etapes(user, JourneyStatus.EN_COURS))
-                .extracting(JourneyStep::getType)
-                .containsOnly(JourneyStepType.DIAGNOSTIC);
+                .allSatisfy(step -> {
+                    assertThat(step.getType()).isEqualTo(JourneyStepType.SECTION_EXAM);
+                    assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
+                    assertThat(step.estOuverte()).isTrue();
+                })
+                .extracting(JourneyStep::getExamType)
+                .containsExactlyInAnyOrder(EpreuveType.TCF_CO, EpreuveType.TCF_CE,
+                        EpreuveType.TCF_EO, EpreuveType.TCF_EE);
+        // Le jalon D-68 n'est jamais propose sur un cycle d'examens.
+        assertThat(vue.examenComplet()).isNull();
     }
 
     @Test
-    @DisplayName("§18-33 — un candidat qui n'a QUE des entrainements n'a pas de lot (R1)")
+    @DisplayName("§18-33 — un candidat qui n'a QUE des entrainements n'a pas de lot (R1) : "
+            + "cycle d'examens (D-69)")
     void lesEntrainementsSeulsNAmorcentRien() {
         User user = candidat(TargetProcedure.CR);
         // Un petit sujet et une production d'entrainement libre : deux vraies
@@ -192,12 +211,12 @@ class JourneyServiceIT extends AbstractIntegrationTest {
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        // ⚠️ Lu sur la FILE, pour la meme raison qu'en §18-32 : une etape
-        // DIAGNOSTIC n'a pas d'epreuve, donc aucun bloc ne la porte.
-        assertThat(vue.current().type()).isEqualTo(JourneyStepType.DIAGNOSTIC);
+        // R1 tient : aucune etape d'entrainement. Ce qui change (D-69) : le
+        // cycle porte les examens a passer, plus un DIAGNOSTIC.
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
         assertThat(etapes(user, JourneyStatus.EN_COURS))
                 .extracting(JourneyStep::getType)
-                .containsOnly(JourneyStepType.DIAGNOSTIC);
+                .containsOnly(JourneyStepType.SECTION_EXAM);
     }
 
     @Test

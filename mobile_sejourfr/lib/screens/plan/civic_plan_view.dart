@@ -10,6 +10,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/civique_examen.dart';
@@ -26,6 +27,7 @@ import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
 import 'plan_now_card.dart';
 import 'widgets/plan_cycle_section.dart';
+import 'widgets/diagnostic_affiner_card.dart';
 import 'widgets/examen_complet_jalon.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
@@ -37,6 +39,10 @@ import 'widgets/examen_complet_jalon.dart';
 /// 🛑 **Rien n'est dérivé ici.** L'ordre des cibles, leur état de maîtrise,
 /// l'état de leur thème, leur échéance et leur verrou arrivent **servis**. Cet
 /// écran les met en mots (`civic_plan_labels.dart`) et ouvre ce qui existe déjà.
+///
+/// 🛑 **D-69 (2026-09-28)** : il s'affiche aussi sans diagnostic civique — le
+/// cycle porte alors un examen de thème par bloc, et le diagnostic n'est plus
+/// qu'une proposition secondaire.
 ///
 /// 🛑 **La boîte Leitner ne s'affiche jamais** : on montre `maitrise` et
 /// `prochaineRevue`, jamais `boite`.
@@ -73,7 +79,11 @@ import 'widgets/examen_complet_jalon.dart';
 /// maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
 /// restent lisibles. On floute l'**action**, jamais le **résultat**.
 class CivicPlanView extends ConsumerStatefulWidget {
-  const CivicPlanView({super.key});
+  const CivicPlanView({super.key, this.affiner});
+
+  /// La proposition **secondaire** de diagnostic civique (D-69), `null` quand
+  /// il n'y a rien à proposer — décidée par [diagnosticAAffiner].
+  final DiagnosticAAffiner? affiner;
 
   @override
   ConsumerState<CivicPlanView> createState() => _CivicPlanViewState();
@@ -127,9 +137,12 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       );
     }
     final plan = async.valueOrNull;
-    // Même raison : un plan civique indisponible ne rend pas un écran muet,
-    // il garde son en-tête — donc la bascule vers l'autre parcours.
-    if (plan == null || !plan.disponible) {
+    // 🛑 **D-69 : le Plan civique s'affiche TOUJOURS**, diagnostic civique fait
+    // ou non. `disponible` ne dit plus que « plan dérivé disponible » : sans
+    // lui, le cycle et « À faire maintenant » se lisent sur le parcours, et les
+    // listes du plan dérivé sont vides. Seul un plan illisible (erreur) garde
+    // l'en-tête seul — donc la bascule vers l'autre parcours.
+    if (plan == null) {
       return ListView(
         children: const [
           SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
@@ -208,6 +221,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // servi, jamais décidé ici. En civique, le cycle d'examens porte un examen
       // par thématique.
       ExamenCompletJalon(journey: parcours, module: AppModule.civique),
+
+      // La proposition SECONDAIRE de diagnostic civique (D-69).
+      DiagnosticAffinerCard(info: widget.affiner),
 
       // Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
       // 🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes

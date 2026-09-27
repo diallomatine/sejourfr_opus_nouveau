@@ -248,7 +248,10 @@ Cf. `exams-tcf.md`.
   `attemptsTotal` compris. Les deux attempts techniques du diagnostic initial
   sont exclus de ce compteur et de l'historique `/api/me/attempts`.
 - `GET /api/me/plan/journey[?expand=all]` → `JourneyDto` — **le parcours TCF**, la file
-  d'étapes que le Plan suit. `state` vaut `NEEDS_OBJECTIVE` (aucune démarche déclarée, donc
+  d'étapes que le Plan suit. 🛑 **Créé à la première lecture** (une seule fois, verrou
+  consultatif par (candidat, module)) : sans évaluation, c'est le **cycle d'examens par défaut**
+  (D-69, un examen par épreuve non mesurée ; plus jamais d'étape `DIAGNOSTIC`). `state` vaut
+  `NEEDS_OBJECTIVE` (aucune démarche déclarée, donc
   **aucun parcours en base**), `IN_PROGRESS`, `LOCKED` (des étapes restent, aucune n'est
   exécutable) ou `UP_TO_DATE`. 🛑 **Aucun `targetLevel` en paramètre** : le serveur connaît le
   niveau visé du candidat, l'accepter d'un client laisserait demander un parcours qui n'est pas
@@ -350,8 +353,10 @@ Cf. `exams-tcf.md`.
   (`JourneyJalonExamenComplet`) : moins de 3 cycles de travail depuis le dernier examen complet
   et objectif non atteint partout par examen blanc, ou cycle déjà d'examens. ⚠️ **Révoque** le
   déblocage à 80 % (`finDeCycleExamenRatio`, v3) et le 409 propre au cycle d'affinage.
-- `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
-  `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
+- `GET /api/me/plan` → `LearningPlanDto`. `state` vaut **toujours `ACTIVE`** depuis D-69
+  (2026-09-28) : `NEEDS_DIAGNOSTIC` et `DIAGNOSTIC_IN_PROGRESS` sont supprimés, le Plan existe
+  pour tout compte (sans diagnostic, `diagnosticSessionId` = `null` et les priorités viennent de
+  ce qui a été mesuré — rien pour un compte neuf). Le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées
   et l'exercice recommandé. Les clients ne trient ni ne recalculent ces priorités.
   `LearningPlanPriorityDto` **et** `LearningPlanSkillDto` portent

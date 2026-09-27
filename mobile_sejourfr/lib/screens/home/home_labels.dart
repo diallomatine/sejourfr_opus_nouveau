@@ -8,7 +8,6 @@
 library;
 
 import '../../core/models/diagnostic_models.dart';
-import '../diagnostic/diagnostic_intro_labels.dart';
 
 /* ------------------------------------------------------------- en-tête --- */
 
@@ -84,38 +83,11 @@ String homeGoalText(String niveau) => 'Atteindre $niveau partout';
 
 /* --------------------------------------------- l'action du jour — TCF ----- */
 
-const String kHomeDiagStartTitle = 'Découvrez ce qui vous bloque au TCF';
-const String kHomeStartBadge = 'Votre point de départ';
-const String kHomeDiagStartCta = 'Faire mon diagnostic';
-const String kHomeLaterCta = 'Plus tard';
-
-/// « 1 exercice · ≈ 5 min » — l'effort annoncé, **dérivé du format servi**.
-///
-/// 🛑 **Rien n'est écrit en dur ici** (correctif du 2026-09-14). La carte
-/// annonçait « 2 exercices · ≈ 8 à 10 min » alors que le diagnostic actif
-/// (`QUICK_TCF`) n'en comporte qu'**un** — une production écrite, sans étape
-/// orale depuis V050. Un candidat qui n'avait jamais rien fait lisait donc une
-/// promesse fausse dès sa première carte.
-///
-/// Les minutes se dérivent des bornes servies par la même règle que l'écran de
-/// présentation (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`), et
-/// « environ » reste un ordre de grandeur : rien ne chronomètre le candidat.
-/// Sans mesure exploitable, on annonce le **compte** et rien d'autre — jamais
-/// un chiffre inventé.
-String homeDiagStartSubtitle(DiagnosticFormat? format) {
-  final n = format?.exerciseCount ?? 1;
-  final exercices = '$n exercice${n > 1 ? 's' : ''}';
-  final minutes = _diagMinutes(format);
-  return minutes == null ? exercices : '$exercices · ≈ $minutes min';
-}
-
-/// « On analyse votre écrit pour construire votre premier plan. » — l'oral
-/// n'est nommé que si ce diagnostic en comporte un.
-String homeDiagStartObjective(DiagnosticFormat? format) {
-  final quoi =
-      (format?.hasOral ?? false) ? 'votre écrit et votre oral' : 'votre écrit';
-  return 'On analyse $quoi pour construire votre premier plan.';
-}
+// 🛑 **D-69 (2026-09-28)** : la carte « Découvrez ce qui vous bloque au TCF »
+// (`kHomeDiagStart*`, `kHomeStartBadge`, `kHomeLaterCta`,
+// `homeDiagStartSubtitle` / `homeDiagStartObjective`) est **supprimée** : sans
+// diagnostic, l'Accueil montre l'action du Plan et propose le diagnostic en
+// second (`diagnosticAAffiner`). Ne pas la recréer.
 
 /// Le total d'exercices à rendre, **servi**. Sans lui, l'analyse en cours
 /// annonçait « vos deux réponses » sur un diagnostic qui n'en attend qu'une.
@@ -125,18 +97,6 @@ String homeDiagAnalyzingObjective(DiagnosticFormat? format) =>
             'résultat.'
         : 'Votre réponse est enregistrée ; vous pouvez revenir voir le '
             'résultat.';
-
-/// Somme des minutes annoncées, écrit + oral. `null` quand la base ne porte
-/// aucune borne exploitable.
-int? _diagMinutes(DiagnosticFormat? format) {
-  if (format == null) return null;
-  final ecrit = diagnosticWrittenMinutesFor(
-      format.writtenWordsMin, format.writtenWordsMax);
-  final oral = diagnosticOralMinutesFor(
-      format.oralDurationMinSeconds, format.oralDurationMaxSeconds);
-  final total = (ecrit ?? 0) + (oral ?? 0);
-  return total <= 0 ? null : total;
-}
 
 const String kHomeDiagAnalyzingTitle = 'Votre analyse est en préparation';
 const String kHomeDiagResumeTitle = 'Reprenez votre diagnostic';

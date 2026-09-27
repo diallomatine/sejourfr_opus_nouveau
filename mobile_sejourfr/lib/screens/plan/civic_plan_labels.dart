@@ -110,7 +110,8 @@ String? civicRevueLabel(CivicPlanCible cible, DateTime maintenant) {
 
 const String kCivicPlanTopKicker =
     'Votre préparation personnalisée à l\'Examen civique';
-const String kCivicPlanTopKickerFree = 'Créé à partir de votre diagnostic';
+/// D-69 : un compte sans diagnostic civique a son Plan — plus « créé à partir de votre diagnostic ».
+const String kCivicPlanTopKickerFree = 'Votre parcours personnalisé';
 const String kCivicPlanScreenTitle = 'Mon plan du jour';
 
 /// Le ton d'un état de thème **servi**.

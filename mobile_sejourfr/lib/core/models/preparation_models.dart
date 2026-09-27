@@ -2,9 +2,9 @@ import 'enums.dart';
 
 /// **Où en sont les deux préparations** — l'état UNIQUE des deux modules.
 ///
-/// 🛑 **TROIS PORTES, UN SEUL ÉTAT.** L'Accueil (« quelle est ma prochaine
-/// action ? »), le Plan (« pourquoi n'est-il pas encore prêt ? ») et les
-/// Examens (« où retrouver mon diagnostic ? ») lisent tous les trois ce modèle.
+/// 🛑 **TROIS ÉCRANS, UN SEUL ÉTAT.** L'Accueil, le Plan (« le diagnostic
+/// reste-t-il à proposer ? », D-69) et les Examens (« où retrouver mon
+/// diagnostic ? ») lisent tous les trois ce modèle.
 /// Trois écrans qui déduiraient chacun leur version finiraient par proposer
 /// trois choses différentes au même candidat (arbitrage du 2026-09-10).
 ///
@@ -19,9 +19,8 @@ enum PreparationEtape {
 
   /// **TCF uniquement** : la première estimation est faite, le complet non.
   ///
-  /// 🛑 Ne veut **pas** dire « pas de plan » : depuis l'arbitrage du
-  /// 2026-09-12, le Plan existe dès cette étape. Le fait à lire est
-  /// [ModulePreparation.planDisponible].
+  /// 🛑 Ne veut **pas** dire « pas de plan » : depuis D-69, le Plan existe à
+  /// toutes les étapes.
   estimationFaite('ESTIMATION_FAITE'),
 
   planPret('PLAN_PRET');
@@ -63,7 +62,7 @@ class ModulePreparation {
   /// [sessionId] — dès que le complet démarre, [sessionId] désigne le complet,
   /// et sans ce champ le rapport du rapide (le seul résultat que le candidat
   /// possède alors) devenait introuvable. `null` = aucun rapide clos, donc rien
-  /// à relire : c'est le seul état où la porte du Plan n'affiche pas de rapport.
+  /// à relire.
   final String? estimationSessionId;
 
   /// **TCF** : 🛑 `null` = pas encore mesuré, jamais A1.
@@ -76,14 +75,10 @@ class ModulePreparation {
   /// est solide », ce qui est une tout autre nouvelle.
   final int? aRenforcer;
 
-  /// 🛑 **Le Plan de ce module est-il constructible maintenant ?** C'est le
-  /// seul fait sur lequel un écran ouvre la page Plan.
-  ///
-  /// Depuis l'arbitrage du 2026-09-12, le diagnostic complet n'est **plus un
-  /// prérequis** : dès que le rapide est clos, le Plan existe — provisoire mais
-  /// réel, bâti uniquement sur ce que le rapide a mesuré. Ne pas le déduire de
-  /// [etape] : le serveur rend ici, mot pour mot, la condition de son propre
-  /// moteur.
+  /// 🛑 **D-69 (2026-09-28) : toujours `true`.** Le Plan existe pour tout
+  /// compte, diagnostic fait ou non — aucun écran ne ferme plus le Plan dessus.
+  /// Champ gardé parce qu'il reste servi ; c'est [etape] qui dit si le
+  /// diagnostic reste à proposer (`diagnosticAAffiner`).
   final bool planDisponible;
 
   /// **TCF** : la prochaine épreuve du diagnostic **COMPLET**, celle par

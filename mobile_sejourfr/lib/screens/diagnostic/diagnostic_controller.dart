@@ -958,6 +958,3 @@ final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
   unawaited(controller.loadCurrent());
   return controller;
 });
-
-final diagnosticHomeDismissedProvider =
-    StateProvider.family<bool, String>((ref, userId) => false);

@@ -57,8 +57,8 @@ class JourneyControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Sans evaluation : le parcours propose le diagnostic, et sert son OBJECTIF")
-    void sansEvaluationLeParcoursProposeLeDiagnostic() throws Exception {
+    @DisplayName("Sans evaluation : le parcours est le cycle d'examens par defaut (D-69), et sert son OBJECTIF")
+    void sansEvaluationLeParcoursEstUnCycleDExamens() throws Exception {
         User user = data.user();
         user.setTargetProcedure(TargetProcedure.NAT);
         user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
@@ -77,7 +77,8 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.objectif.kind").value("NIVEAU"))
                 .andExpect(jsonPath("$.objectif.code").value("B2"))
                 .andExpect(jsonPath("$.objectif.label").value("B2"))
-                .andExpect(jsonPath("$.current.type").value("DIAGNOSTIC"))
+                // ⚠️ D-69 (2026-09-28) : plus d'etape DIAGNOSTIC — le premier examen.
+                .andExpect(jsonPath("$.current.type").value("SECTION_EXAM"))
                 .andExpect(jsonPath("$.current.status").value("CURRENT"))
                 .andExpect(jsonPath("$.current.locked").value(false))
                 // 🛑 Le serveur sert des FAITS : aucune phrase, aucun libelle.
@@ -105,20 +106,20 @@ class JourneyControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.blocs[1].bloc.code").value("TCF_CE"))
                 .andExpect(jsonPath("$.blocs[2].bloc.code").value("TCF_EO"))
                 .andExpect(jsonPath("$.blocs[3].bloc.code").value("TCF_EE"))
-                // Aucune competence, aucune epreuve mesuree : il n'y a rien a
-                // travailler tant que la mesure n'a pas dit quoi.
-                .andExpect(jsonPath("$.blocs[0].status").value("A_EVALUER"))
+                // Aucune competence, aucune epreuve mesuree : D-69 (2026-09-28),
+                // chaque bloc porte son seul examen, et le premier mene.
+                .andExpect(jsonPath("$.blocs[0].status").value("EN_COURS"))
                 .andExpect(jsonPath("$.blocs[0].etapesRestantes").value(0))
-                .andExpect(jsonPath("$.blocs[0].exam").doesNotExist())
+                .andExpect(jsonPath("$.blocs[0].exam").exists())
+                .andExpect(jsonPath("$.blocs[3].exam").exists())
                 // Le cycle : des NOMBRES, aucune phrase. « Cycle 1 » et
-                // « 0 etape sur 1 terminee » sont composes par les fronts.
+                // « 0 etape sur 4 terminee » sont composes par les fronts.
                 .andExpect(jsonPath("$.cycle.numero").value(1))
-                .andExpect(jsonPath("$.cycle.etapesTotal").value(1))
+                .andExpect(jsonPath("$.cycle.etapesTotal").value(4))
                 .andExpect(jsonPath("$.cycle.etapesTerminees").value(0))
                 .andExpect(jsonPath("$.cycle.complete").value(false))
-                // Un cycle qui ne porte qu'un diagnostic n'est pas un cycle de
-                // mesure : il n'a justement mesure personne.
-                .andExpect(jsonPath("$.cycle.cycleDeMesure").value(false))
+                // Le cycle d'examens par defaut EST un cycle de mesure.
+                .andExpect(jsonPath("$.cycle.cycleDeMesure").value(true))
                 // 🛑 nextStep est null tant que le cycle n'est pas termine.
                 .andExpect(jsonPath("$.nextStep").doesNotExist());
     }

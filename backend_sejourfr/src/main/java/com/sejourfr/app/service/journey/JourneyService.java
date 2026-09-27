@@ -160,6 +160,12 @@ public class JourneyService {
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         List<JourneyStep> etapes = stepManager.findAll(courant.getId());
+        // 🛑 D-69 AVANT TOUT : un cycle qui n'attendait que le diagnostic
+        // devient le cycle d'examens par defaut. Les filets suivants lisent ses
+        // examens (un examen deja passe pendant ce cycle y est reconnu).
+        if (remplacerLAttenteDuDiagnostic(courant, etapes)) {
+            etapes = stepManager.findAll(courant.getId());
+        }
         // 🛑 EN PREMIER : une etape rouverte redevient une competence DUE, et
         // les deux filets suivants lisent ce fait (garde D-15).
         boolean relire = rouvrirLesEtapesCloseesSansSeries(courant, etapes);
@@ -169,6 +175,53 @@ public class JourneyService {
             etapes = stepManager.findAll(courant.getId());
         }
         return readService.lire(courant, etapes);
+    }
+
+    /**
+     * <b>Les cycles qui n'attendaient que le diagnostic</b> deviennent le cycle
+     * d'examens par defaut (D-69, 2026-09-28) — a la lecture, sans migration.
+     *
+     * <p>Avant D-69, un compte sans evaluation recevait un cycle ne portant
+     * qu'une etape {@code DIAGNOSTIC} : le Plan lui disait « Faire mon
+     * diagnostic » et rien d'autre. Tout compte qui a ouvert l'Accueil avec une
+     * demarche en a un. 🛑 <b>La reparation est paresseuse</b>, comme D-65 :
+     * c'est la promesse du service (« la lecture suivante rattrape »), et une
+     * migration aurait ecrit des lignes pour des comptes qui ne reviendront
+     * jamais.
+     *
+     * <p>L'etape {@code DIAGNOSTIC} est close {@code SUPERSEDED} — rendue
+     * caduque par la file, jamais travaillee : c'est le sens exact du motif —,
+     * et les epreuves non mesurees recoivent leur examen (R12). Aucune ligne
+     * effacee. Sous le verrou du parcours (R14) : deux lectures simultanees ne
+     * posent pas deux fois les quatre examens.
+     *
+     * @return {@code true} si le cycle a change
+     */
+    private boolean remplacerLAttenteDuDiagnostic(Journey journey, List<JourneyStep> etapes) {
+        if (!attendLeDiagnostic(journey, etapes)) return false;
+        Journey verrouille = journeyManager.findForUpdate(journey.getId()).orElse(null);
+        if (verrouille == null) return false;
+        List<JourneyStep> relues = stepManager.findAll(verrouille.getId());
+        if (!attendLeDiagnostic(verrouille, relues)) return false;
+        Instant maintenant = Instant.now();
+        for (JourneyStep step : relues) {
+            if (step.getType() == JourneyStepType.DIAGNOSTIC
+                    && step.clore(JourneyStepResolution.SUPERSEDED, null, maintenant)) {
+                stepManager.save(step);
+            }
+        }
+        ajouterLesEpreuvesNonMesurees(verrouille, verrouille.getUser().getId());
+        log.info("Parcours {} : l'attente du diagnostic devient le cycle d'examens (D-69)",
+                verrouille.getId());
+        return true;
+    }
+
+    /** Un cycle TCF qui ne porte qu'une etape DIAGNOSTIC ouverte, rien d'autre. */
+    private static boolean attendLeDiagnostic(Journey journey, List<JourneyStep> etapes) {
+        return journey.getModule() == Module.TCF
+                && attendSonAmorce(etapes)
+                && etapes.stream().anyMatch(step -> step.getType() == JourneyStepType.DIAGNOSTIC
+                        && step.estOuverte());
     }
 
     /**
@@ -411,6 +464,24 @@ public class JourneyService {
     }
 
     /**
+     * Le cycle EN COURS du module, ou — s'il n'existe pas — le <b>verrou de
+     * creation</b> pris, puis une seconde lecture (D-69, 2026-09-28).
+     *
+     * <p>🛑 <b>Une seule creation, meme sous lectures concurrentes.</b> Le Plan
+     * par defaut naît a la premiere lecture du parcours, et l'Accueil, le Plan
+     * et Reviser le lisent en meme temps a la premiere connexion. Le chemin
+     * ordinaire (le cycle existe) ne paie aucun verrou ; seul un compte sans
+     * cycle le prend, et le second appelant retrouve, apres l'attente, le cycle
+     * que le premier a cree.
+     */
+    private Optional<Journey> cycleEnCoursOuVerrou(UUID userId, Module module) {
+        Optional<Journey> existant = journeyManager.find(userId, module, JourneyStatus.EN_COURS);
+        if (existant.isPresent()) return existant;
+        journeyManager.verrouillerLaCreation(userId, module);
+        return journeyManager.find(userId, module, JourneyStatus.EN_COURS);
+    }
+
+    /**
      * Le cycle <b>TCF</b> : son objectif est un palier CECRL, lu chez
      * {@code TargetProcedure.niveauVise()} et jamais recalcule ici.
      */
@@ -419,8 +490,7 @@ public class JourneyService {
                 user.getTargetProcedure(), user.getTargetLevel());
         if (cible == null) return Optional.empty();
 
-        Optional<Journey> existant =
-                journeyManager.find(user.getId(), Module.TCF, JourneyStatus.EN_COURS);
+        Optional<Journey> existant = cycleEnCoursOuVerrou(user.getId(), Module.TCF);
         if (existant.isPresent()) {
             alignerTcf(existant.get(), cible);
             return existant;
@@ -462,8 +532,7 @@ public class JourneyService {
         TargetProcedure mention = user.getTargetProcedure();
         if (mention == null) return Optional.empty();
 
-        Optional<Journey> existant =
-                journeyManager.find(user.getId(), Module.CIVIQUE, JourneyStatus.EN_COURS);
+        Optional<Journey> existant = cycleEnCoursOuVerrou(user.getId(), Module.CIVIQUE);
         if (existant.isPresent()) {
             alignerCivique(existant.get(), mention);
             return existant;
@@ -855,9 +924,14 @@ public class JourneyService {
         // ne saurait reproduire.
         List<LearningPlanObservation> evaluations = evaluationFilter.retenir(tout);
         if (evaluations.isEmpty()) {
-            // Aucune evaluation exploitable : c'est le seul cas ou le parcours
-            // demande un diagnostic (R19.8).
-            ajouter(journey, diagnostic(journey));
+            // 🛑 D-69 (2026-09-28, decision du proprietaire) : aucune evaluation
+            // exploitable ⇒ le Plan PAR DEFAUT est un CYCLE D'EXAMENS — un bloc
+            // par epreuve non mesuree, chacun son examen blanc (R12). Le
+            // diagnostic n'est plus une porte : R19.8 (« le parcours demande un
+            // diagnostic ») est revoquee, l'etape DIAGNOSTIC n'est plus posee.
+            // S'il arrive ensuite sur ce cycle intact, il l'amorce (D-64 tenu,
+            // cf. `cycleDExamensParDefautIntact`).
+            ajouterLesEpreuvesNonMesurees(journey, user.getId());
             return;
         }
 
@@ -977,7 +1051,9 @@ public class JourneyService {
         // de fermer est precisement ce qui dit « ce cycle attend encore son
         // amorce ». La lire apres aurait envoye en attente les priorites du
         // diagnostic qui vient d'ouvrir le parcours.
-        boolean amorce = attendSonAmorce(etapes);
+        boolean amorce = attendSonAmorce(etapes)
+                || (evaluation.kind() == JourneyAssessmentKind.QUICK_DIAGNOSTIC
+                        && cycleDExamensParDefautIntact(journey, etapes));
         // 🛑 LU AVANT TOUTE ECRITURE, lui aussi : un cycle qui attend son amorce
         // n'a pas encore de lot, donc n'est pas (encore) d'affinage — et c'est
         // juste, il n'a rien a deverrouiller ni a mettre en attente.
@@ -1007,7 +1083,8 @@ public class JourneyService {
                     sources, evaluations, maitrisees, cible,
                     profileService.levelProfile(userId));
             if (amorce) {
-                creerLots(journey, filtrerLeDiagnostic(journey, lots, evaluation));
+                creerLots(journey, filtrerLeDiagnostic(journey, lots, evaluation),
+                        epreuvesAvecExamenOuvert(etapes));
             } else {
                 mettreEnAttente(journey, etapes, lots, evaluations, evaluation, sources, affinage);
             }
@@ -1060,6 +1137,49 @@ public class JourneyService {
             if (step.getType() == JourneyStepType.SECTION_EXAM) return false;
         }
         return true;
+    }
+
+    /**
+     * <b>Le cycle d'examens PAR DEFAUT, encore intact</b> — le seul cycle porteur
+     * d'examens qu'un diagnostic rapide a encore le droit d'<b>amorcer</b>
+     * (D-69, 2026-09-28).
+     *
+     * <p>🛑 <b>Pourquoi</b> : le Plan par defaut naît a la premiere lecture, et
+     * le parcours invite → compte → analyse fait arriver l'analyse du
+     * diagnostic <b>apres</b> la creation du compte. Sans cette porte, les
+     * priorites du diagnostic partaient dans le cycle en attente, et le compte
+     * qui vient de faire son diagnostic perdait son cycle d'AFFINAGE (D-64).
+     *
+     * <p><b>Intact</b> = premier cycle TCF du candidat, sans lot ni
+     * competence, et <b>aucune etape close</b> (une etape rendue obsolete ne
+     * compte pas). Des qu'un examen y a ete passe, le cycle a commence : le
+     * diagnostic suit alors la regle ordinaire (D-13, cycle en attente), et un
+     * examen, lui, n'amorce jamais ce cycle — ses priorites vont au cycle
+     * suivant, c'est l'objet meme d'un cycle d'examens.
+     */
+    private boolean cycleDExamensParDefautIntact(Journey journey, List<JourneyStep> etapes) {
+        if (journey.getModule() != Module.TCF) return false;
+        boolean porteUnExamen = false;
+        for (JourneyStep step : etapes) {
+            if (step.getLot() != null || step.getType() == JourneyStepType.TRAIN_SKILL) return false;
+            if (step.getResolution() == JourneyStepResolution.SUPERSEDED) continue;
+            if (!step.estOuverte()) return false;
+            if (step.getType() == JourneyStepType.SECTION_EXAM) porteUnExamen = true;
+        }
+        return porteUnExamen
+                && journeyManager.compterHistorises(journey.getUser().getId(), Module.TCF) == 0;
+    }
+
+    /** Les epreuves dont le cycle porte deja un examen ouvert. */
+    private static Set<EpreuveType> epreuvesAvecExamenOuvert(List<JourneyStep> etapes) {
+        Set<EpreuveType> epreuves = new LinkedHashSet<>();
+        for (JourneyStep step : etapes) {
+            if (step.getType() == JourneyStepType.SECTION_EXAM && step.estOuverte()
+                    && step.getExamType() != null) {
+                epreuves.add(step.getExamType());
+            }
+        }
+        return epreuves;
     }
 
     // =====================================================================
@@ -1484,6 +1604,21 @@ public class JourneyService {
 
     /** Cree les lots dans l'ordre recu, chacun suivi de son checkpoint (R3, R4). */
     private void creerLots(Journey journey, List<JourneyLotBuilder.Lot> lots) {
+        creerLots(journey, lots, Set.of());
+    }
+
+    /**
+     * @param examensOuverts les epreuves dont le bloc porte <b>deja</b> un
+     *                       examen ouvert. 🛑 R3 y est deja satisfaite : le lot
+     *                       ne recoit pas de second checkpoint — deux examens
+     *                       ouverts pour un seul bloc compteraient deux etapes
+     *                       dans l'avancement, une seule montree. C'est le cas
+     *                       du diagnostic qui amorce le cycle d'examens par
+     *                       defaut (D-69) ; meme regle que le civique
+     *                       ({@link #creerLotsCiviques}).
+     */
+    private void creerLots(
+            Journey journey, List<JourneyLotBuilder.Lot> lots, Set<EpreuveType> examensOuverts) {
         for (JourneyLotBuilder.Lot prevu : lots) {
             JourneyLot lot = new JourneyLot();
             lot.setJourney(journey);
@@ -1506,6 +1641,7 @@ public class JourneyService {
 
             // R3 — un lot est TOUJOURS clos par un examen de son epreuve. Sans
             // lui, le candidat travaillerait sans jamais savoir si ca a marche.
+            if (examensOuverts.contains(prevu.epreuve())) continue;
             JourneyStep checkpoint = new JourneyStep();
             checkpoint.setJourney(journey);
             checkpoint.setLot(lot);
@@ -1547,13 +1683,6 @@ public class JourneyService {
             step.setExamType(epreuve);
             ajouter(journey, step);
         }
-    }
-
-    private JourneyStep diagnostic(Journey journey) {
-        JourneyStep step = new JourneyStep();
-        step.setJourney(journey);
-        step.setType(JourneyStepType.DIAGNOSTIC);
-        return step;
     }
 
     /**

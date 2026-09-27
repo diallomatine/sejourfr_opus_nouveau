@@ -149,7 +149,10 @@ class JourneyObservationSourcesIT extends AbstractIntegrationTest {
                 epreuve.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE,
                 epreuve.getFinishedAt()));
 
-        JourneyLot lot = lotOuvert(user, EpreuveType.TCF_EE);
+        // ⚠️ D-69 (2026-09-28) : la premiere lecture pose le cycle d'examens par
+        // defaut ; un examen n'amorce pas ce cycle, ses priorites vont au cycle
+        // EN ATTENTE — par le meme chemin LIVE (`observationSources.pour`).
+        JourneyLot lot = lotOuvertEnAttente(user, EpreuveType.TCF_EE);
         assertThat(lot).as("le lot EE que l'examen devait ouvrir").isNotNull();
         assertThat(entrainementsDuLot(lot)).hasSize(3);
         // 🛑 UN seul lot : la tache 2 ne remplace pas celui de la tache 1 (R7).
@@ -292,6 +295,14 @@ class JourneyObservationSourcesIT extends AbstractIntegrationTest {
         Journey journey = journeyService.getOrCreate(user.getId(), Module.TCF).orElseThrow();
         return lots.findByJourneyIdAndExamTypeAndStatus(
                 journey.getId(), epreuve, JourneyLotStatus.OPEN).orElse(null);
+    }
+
+    private JourneyLot lotOuvertEnAttente(User user, EpreuveType epreuve) {
+        Journey attente = journeyManager.find(
+                user.getId(), Module.TCF, com.sejourfr.app.enums.JourneyStatus.EN_ATTENTE)
+                .orElseThrow();
+        return lots.findByJourneyIdAndExamTypeAndStatus(
+                attente.getId(), epreuve, JourneyLotStatus.OPEN).orElse(null);
     }
 
     private List<JourneyStep> entrainementsDuLot(JourneyLot lot) {

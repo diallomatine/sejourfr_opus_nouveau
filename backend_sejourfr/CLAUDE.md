@@ -51,7 +51,11 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
      `journey.fin_de_cycle` (V077, 2026-09-27 ; `INTERROMPU` depuis V078, le jalon d'examen
      complet D-68), **le geste qui a clos un cycle**, écrit une
      fois à l'historisation — un cycle clos se relit en consultation sur ces seuls faits
-     persistés (`JourneyHistoryService.lireCycle`, rien de l'état d'aujourd'hui n'est rejoué) ;
+     persistés (`JourneyHistoryService.lireCycle`, rien de l'état d'aujourd'hui n'est rejoué).
+     🛑 **Le cycle naît à la première LECTURE** (D-69, 2026-09-28 : sans évaluation, c'est le
+     cycle d'examens par défaut — plus jamais d'étape `DIAGNOSTIC`), sans migration ; sa
+     création est **sérialisée** par un verrou consultatif (`JourneyManager.verrouillerLaCreation`),
+     jamais par un attrape-exception sur `uq_journey_en_cours` ;
   3. le **lien d'une série d'étape** (`journey_step_series`, V072, 2026-09-20) — « le candidat
      a lancé la série n°2 de **cette** étape » ne se lit nulle part sur l'attempt, qui porte
      20 questions et rien d'autre. 🛑 **Le LIEN seulement, jamais le verdict** : « réussie » se

@@ -6,7 +6,6 @@ import com.sejourfr.app.dto.LearningPlanPriorityDto;
 import com.sejourfr.app.dto.PlanSeanceItemDto;
 import com.sejourfr.app.enums.PlanActionNature;
 import org.mockito.ArgumentCaptor;
-import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.config.LearningPlanProperties;
 import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
@@ -34,7 +33,6 @@ import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.TcfDiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.PlanPinnedPriorityManager;
-import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,7 +69,6 @@ import static org.mockito.Mockito.when;
 
 class LearningPlanServiceTest {
 
-    private ProductionTaskManager taskManager;
     private DiagnosticSessionManager sessionManager;
     private LearningPlanObservationManager observationManager;
     private RecommendedExerciseSelector exerciseSelector;
@@ -121,7 +118,6 @@ class LearningPlanServiceTest {
 
     @BeforeEach
     void setUp() {
-        taskManager = mock(ProductionTaskManager.class);
         sessionManager = mock(DiagnosticSessionManager.class);
         observationManager = mock(LearningPlanObservationManager.class);
         exerciseSelector = mock(RecommendedExerciseSelector.class);
@@ -197,8 +193,7 @@ class LearningPlanServiceTest {
                 cycleResolver, acquisitionSelector, contentAvailability,
                 targetLevelResolver, pinManager,
                         mock(JourneyStepManager.class));
-        service = new LearningPlanService(new DiagnosticProperties(), taskManager,
-                sessionManager, observationManager,
+        service = new LearningPlanService(observationManager,
                 priorityResolver,
                 exerciseSelector, reassessmentSelector, milestoneSelector, progressCounter,
                 masteryResolver, accessService,
@@ -242,34 +237,21 @@ class LearningPlanServiceTest {
         return new TcfLevelProfile(co, ce, ee, eo, global);
     }
 
+    /**
+     * 🛑 <b>D-69 (2026-09-28)</b> : sans diagnostic, le Plan EXISTE — plus
+     * d'etat « diagnostic a faire ». Rien n'a ete mesure, donc aucune priorite
+     * n'est inventee : {@code null} = inconnu, jamais mauvais.
+     */
     @Test
-    void sansSessionLeServeurDemandeLeDiagnostic() {
+    void sansDiagnosticLePlanEstActifSansPrioriteInventee() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
-                .thenReturn(Optional.empty());
 
         var result = service.get(userId);
 
-        assertThat(result.state()).isEqualTo(LearningPlanState.NEEDS_DIAGNOSTIC);
+        assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
+        assertThat(result.diagnosticSessionId()).isNull();
         assertThat(result.currentPriority()).isNull();
-    }
-
-    @Test
-    void uneSessionExistanteEstRepriseSansPrioritesRecalculeesCoteFront() {
-        DiagnosticSession session = new DiagnosticSession();
-        session.setId(UUID.randomUUID());
-        when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
-                .thenReturn(Optional.of(session));
-
-        var result = service.get(userId);
-
-        assertThat(result.state()).isEqualTo(LearningPlanState.DIAGNOSTIC_IN_PROGRESS);
-        assertThat(result.diagnosticSessionId()).isEqualTo(session.getId());
+        assertThat(result.nextPriorities()).isEmpty();
     }
 
     @Test
@@ -947,8 +929,7 @@ class LearningPlanServiceTest {
         assertThat(service.get(userId).completedSteps()).isEmpty();
         // Et avant meme le diagnostic, le champ existe deja vide.
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.empty());
+        when(observationManager.findAllByUserWithSkill(userId)).thenReturn(List.of());
         assertThat(service.get(userId).completedSteps()).isEmpty();
     }
 
@@ -1162,16 +1143,13 @@ class LearningPlanServiceTest {
     @Test
     void lesQuatreDomainesSontServisMemeSansDiagnostic() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
-                .thenReturn(Optional.empty());
         when(profileService.levelProfile(userId))
                 .thenReturn(profil(NiveauCecrl.B1, null, null, null));
 
         var result = service.get(userId);
 
-        assertThat(result.state()).isEqualTo(LearningPlanState.NEEDS_DIAGNOSTIC);
+        // D-69 : le Plan est ACTIF sans diagnostic ; le profil reste celui du mesure.
+        assertThat(result.state()).isEqualTo(LearningPlanState.ACTIVE);
         assertThat(result.domaines()).hasSize(4);
         assertThat(result.cycle().domainsEvaluated()).isEqualTo(1);
         assertThat(result.cycle().state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
@@ -1190,10 +1168,6 @@ class LearningPlanServiceTest {
     @Test
     void sansAucuneMesureLeProfilEntierResteAEvaluer() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
-                .thenReturn(Optional.empty());
 
         var result = service.get(userId);
 
@@ -1779,10 +1753,6 @@ class LearningPlanServiceTest {
     @Test
     void sansDiagnosticLaSeanceEstVideEtRienNaChange() {
         when(sessionManager.findLatestCompleted(userId)).thenReturn(Optional.empty());
-        when(taskManager.findLatestActiveDiagnosticVersion("QUICK_TCF"))
-                .thenReturn(Optional.of(1));
-        when(sessionManager.findByUserAndVersionWithContent(userId, "QUICK_TCF", 1))
-                .thenReturn(Optional.empty());
 
         var result = service.get(userId);
 

@@ -20,7 +20,6 @@ import '../../core/utils/parcours_affiche.dart';
 import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../diagnostic/diagnostic_controller.dart';
 import '../diagnostic/diagnostic_courant_provider.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/civic_plan_provider.dart';
@@ -31,6 +30,7 @@ import '../plan/plan_actions.dart';
 import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
+import '../plan/widgets/diagnostic_affiner_card.dart';
 import '../progres/progres_labels.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
@@ -177,9 +177,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.watch(learningPlanProvider);
     ref.watch(civicPlanProvider);
     ref.watch(diagnosticCourantProvider);
-    // 🛑 **La préparation est observée ICI depuis le 2026-09-19** : elle était
-    // lue par `_blocs` pour une carte d'Accueil supprimée. Seule `_actionCivique` la lit encore, donc en TCF plus rien ne
-    // l'observait — et `_poserDefaut` compte sur elle.
+    // 🛑 **La préparation est observée ICI** : `_poserDefaut` compte sur elle,
+    // et la proposition secondaire de diagnostic (D-69) la lit.
     ref.watch(preparationProvider);
 
     return <Widget>[
@@ -207,6 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return <Widget>[
       if (action != null)
         SfSection(title: kHomeNowTitle, flush: true, child: action),
+      _diagnosticAAffiner(civique),
       if (objectif != null)
         SfSection(
             title: kJourneyNeedsObjectiveTitle, flush: true, child: objectif),
@@ -235,61 +235,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /* ------------------------------------------- l'action du jour — TCF ----- */
 
-  /// 🛑 Les trois états et leurs phrases sont **ceux du web**, mot pour mot.
-  /// Sans diagnostic servi, la section n'existe pas : pas de titre au-dessus du
-  /// vide.
+  /// 🛑 Les états et leurs phrases sont **ceux du web**, mot pour mot. Sans
+  /// diagnostic servi, la section n'existe pas : pas de titre au-dessus du vide.
+  ///
+  /// 🛑 **D-69 (2026-09-28)** : un diagnostic **non commencé** n'affiche plus la
+  /// carte « Découvrez ce qui vous bloque au TCF » — le Plan existe, donc c'est
+  /// SON action (le premier examen du cycle d'examens), exactement comme quand
+  /// le diagnostic est fait. Le diagnostic n'est plus qu'une proposition
+  /// secondaire ([_diagnosticAAffiner]). Seuls « en cours » et « analyse en
+  /// préparation » gardent leur carte.
   Widget? _actionTcf(BuildContext context) {
     final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
     if (journey == null) return null;
 
-    final auth = ref.watch(authControllerProvider);
-    final cle = auth is AuthAuthenticated ? auth.user.id : 'anonymous';
-
-    if (journey.status == DiagnosticJourneyStatus.notStarted) {
-      if (ref.watch(diagnosticHomeDismissedProvider(cle))) return null;
-      return SfNowCard(
-        icon: LucideIcons.clipboardCheck,
-        title: kHomeDiagStartTitle,
-        // 🛑 L'effort annoncé est DÉRIVÉ du format servi, jamais écrit : le
-        // diagnostic actif n'a qu'une production écrite, et la carte
-        // promettait « 2 exercices · ≈ 8 à 10 min ».
-        subtitle: homeDiagStartSubtitle(journey.format),
-        badge: kHomeStartBadge,
-        objective: homeDiagStartObjective(journey.format),
-        action: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SfButton(
-              label: kHomeDiagStartCta,
-              onPressed: () {
-                // Le clic qui ouvre le funnel du diagnostic. La variante n'est
-                // pas encore choisie ici : `UNKNOWN` est la seule valeur vraie.
-                ref.read(analyticsServiceProvider).track(
-                      AnalyticsEvent.diagnosticCtaClicked,
-                      ctaLocation: AnalyticsCtaLocation.hero,
-                      diagnosticType: AnalyticsDiagnosticType.unknown,
-                    );
-                // 🛑 **Le bouton porte déjà la décision** (arbitrage du
-                // 2026-09-12) : « Faire mon diagnostic » LANCE le diagnostic,
-                // il n'ouvre pas une page qui redemande de le lancer. Ce
-                // marqueur manquait ici — un compte neuf atterrissait sur
-                // « Quel examen préparez-vous ? » alors qu'il venait de
-                // choisir son parcours dans la bascule juste au-dessus.
-                context.push(AppRoutes.diagnosticDemarrer);
-              },
-            ),
-            HomeSoftAction(
-              label: kHomeLaterCta,
-              onTap: () => ref
-                  .read(diagnosticHomeDismissedProvider(cle).notifier)
-                  .state = true,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (journey.status != DiagnosticJourneyStatus.completed) {
+    if (_diagnosticEnCours(journey)) {
       final fait = journey.completedExerciseCount;
       final analyse = journey.status == DiagnosticJourneyStatus.analyzing ||
           journey.nextStep == DiagnosticStep.analysis;
@@ -416,12 +375,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// Un diagnostic rapide commencé et pas encore rendu : la carte d'action le
+  /// reprend, elle ne montre pas encore le Plan.
+  bool _diagnosticEnCours(DiagnosticJourney journey) =>
+      journey.status != DiagnosticJourneyStatus.notStarted &&
+      journey.status != DiagnosticJourneyStatus.completed;
+
+  /// **La proposition SECONDAIRE de diagnostic** (D-69), sous « À faire
+  /// maintenant ». 🛑 Décidée par [diagnosticAAffiner], jamais ici — et
+  /// absente quand la carte d'action reprend déjà le diagnostic TCF : deux
+  /// gestes pour le même diagnostic.
+  Widget _diagnosticAAffiner(bool civique) {
+    final prep = ref.watch(preparationProvider).valueOrNull;
+    if (prep == null) return const SizedBox.shrink();
+    if (!civique) {
+      final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
+      if (journey != null && _diagnosticEnCours(journey)) {
+        return const SizedBox.shrink();
+      }
+    }
+    return DiagnosticAffinerCard(
+      info: diagnosticAAffiner(
+        civique ? prep.civique : prep.tcf,
+        civique: civique,
+      ),
+      onOpen: civique
+          ? null
+          : () => ref.read(analyticsServiceProvider).track(
+                AnalyticsEvent.diagnosticCtaClicked,
+                ctaLocation: AnalyticsCtaLocation.other,
+                diagnosticType: AnalyticsDiagnosticType.unknown,
+              ),
+    );
+  }
+
   /* --------------------------------------- l'action du jour — CIVIQUE ----- */
 
-  /// 🛑 **Aucune règle nouvelle, aucun libellé nouveau.** Deux autorités déjà en
-  /// place, celles du Plan civique : [planIndisponible] quand le plan n'est pas
-  /// encore constructible, et `CivicPlan.prochaine` — la cible de rang 1,
-  /// **désignée par le serveur** — sinon.
+  /// 🛑 **Aucune règle nouvelle, aucun libellé nouveau** : l'autorité du Plan
+  /// civique, [civicNowCard]. 🛑 **D-69 : aucune porte** — sans diagnostic
+  /// civique, la carte lit le parcours (un examen de thème par bloc).
   ///
   /// 🛑 **Cette carte ne DÉMARRE rien** : elle mène au Plan civique, qui porte
   /// le seul lanceur de série. Un second point de départ aurait dupliqué la
@@ -431,23 +423,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// cible verrouillée garde son nom et son état — c'est la règle du module
   /// civique, et elle diffère volontairement de celle du TCF.
   Widget? _actionCivique(BuildContext context) {
-    final prep = ref.watch(preparationProvider).valueOrNull;
-    final porte =
-        prep == null ? null : planIndisponible(prep.civique, civique: true);
-    if (porte != null) {
-      return SfNowCard(
-        icon: LucideIcons.landmark,
-        title: porte.titre,
-        badge: kHomeStartBadge,
-        objective: porte.texte,
-        action: SfButton(
-          label: porte.cta,
-          variant: SfButtonVariant.blue,
-          onPressed: () => context.push(porte.route),
-        ),
-      );
-    }
-
     // 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
     // ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce
     // l'étape du cycle depuis D-50 §2, donc les deux écrans annonçaient deux

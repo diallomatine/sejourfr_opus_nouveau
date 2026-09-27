@@ -381,6 +381,10 @@ export function journeyCycleBadge(cycle: JourneyCycleDto): string | undefined {
     return cycle.complete ? undefined : `Cycle ${cycle.numero}`;
 }
 
+/** Un cycle d'examens terminé (affinage D-64 ou mesure D-69) : actualiser. */
+const JOURNEY_EXAMENS_FAITS_HINT =
+    "Les examens blancs de toutes les épreuves sont faits. Actualisez votre plan pour recevoir les priorités qu'ils ont identifiées.";
+
 /** La phrase sous la barre. */
 export function journeyCycleHint(cycle: JourneyCycleDto): string {
     /* 🛑 **Cycle d'affinage** (D-64) : lu sur le fait SERVI `cycleDAffinage`,
@@ -388,8 +392,13 @@ export function journeyCycleHint(cycle: JourneyCycleDto): string {
        « toutes les compétences sont terminées » y serait faux. */
     if (cycle.cycleDAffinage) {
         return cycle.complete
-            ? "Les examens blancs de toutes les épreuves sont faits. Actualisez votre plan pour recevoir les priorités qu'ils ont identifiées."
+            ? JOURNEY_EXAMENS_FAITS_HINT
             : "Premier cycle : passez l'examen blanc de chaque épreuve pour affiner votre plan. Les compétences détectées par le diagnostic restent disponibles.";
+    }
+    /* 🛑 **Cycle de mesure terminé** (D-69) : le compte sans diagnostic a passé
+       ses examens — ce sont eux qui fondent ses priorités, pas des compétences. */
+    if (cycle.cycleDeMesure && cycle.complete) {
+        return JOURNEY_EXAMENS_FAITS_HINT;
     }
     if (cycle.complete) {
         return "Toutes les compétences et tous les examens d'épreuve prévus dans ce cycle sont terminés.";

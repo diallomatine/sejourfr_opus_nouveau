@@ -153,13 +153,15 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
   action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
   d'épreuve ne dérive jamais d'une liste déjà tronquée.
-- 🛑 **Le diagnostic RAPIDE ouvre le Plan ; le COMPLET est retiré des fronts (2026-09-26).**
-  Dès que le rapide est clos, le Plan existe : provisoire mais réel, EE renseignée. Le fait à
-  lire est **`prep.planDisponible`**, jamais `etape`. CO, CE et EO se mesurent par l'**examen
-  blanc** que le Plan propose ; une compétence non observée est *inconnue*, ni faible ni
-  prioritaire. Peu de priorités toutes vraies est le bon résultat. Le backend du complet est
-  conservé, non appelé, et un résultat de complet déjà obtenu reste lu. Ne jamais recréer
-  `/diagnostic-tcf`. → `docs/regles/plan.md` · `docs/regles/diagnostic.md`
+- 🛑 **Le Plan existe pour TOUT compte — le diagnostic l'affine, il ne l'ouvre pas** (D-69,
+  2026-09-28). Sans évaluation, le premier cycle est le **cycle d'examens par défaut** (un examen
+  blanc par épreuve TCF, un examen par thématique civique), créé paresseusement à la première
+  lecture du parcours (verrou consultatif, aucune migration). `prep.planDisponible` vaut
+  toujours `true`, `LearningPlanDto.state` toujours `ACTIVE` ; le diagnostic se propose en
+  secondaire. Un diagnostic rapide arrivé sur ce cycle encore intact en fait le cycle d'affinage
+  D-64. Un Plan ne s'appuie toujours que sur ce qui a été mesuré. Le diagnostic COMPLET est
+  retiré des fronts (2026-09-26) : ne jamais recréer `/diagnostic-tcf`.
+  → `docs/regles/plan.md` § « Le Plan PAR DÉFAUT »
 - 🛑 **Le 1ᵉʳ cycle (issu du diagnostic rapide) est un cycle d'AFFINAGE** (2026-09-27, D-64) :
   les examens blancs n'y sont pas verrouillés par la progression, ils sont l'action mise en
   avant, et les compétences EE y sont facultatives (le cycle se clôt quand les 4 examens sont

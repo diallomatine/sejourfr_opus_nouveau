@@ -5,7 +5,6 @@ import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useState} from "react";
 import {
     ArrowRight,
-    ClipboardCheck,
     Landmark,
     Sparkles,
     Target,
@@ -23,6 +22,7 @@ import {
     Pad,
     Section,
     SejourApp,
+    Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
@@ -58,10 +58,10 @@ import {
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {
     DIAGNOSTIC_RAPIDE_START_HREF,
+    diagnosticAAffiner,
     moduleParDefaut,
     objectifLabel,
-    planIndisponible,
-    type PlanIndisponible,
+    type DiagnosticAAffiner,
 } from "@/lib/preparation";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -78,8 +78,6 @@ import {
     diagnosticCompletedExerciseCount,
     diagnosticCountLabel,
     diagnosticExerciseCount,
-    diagnosticStartObjective,
-    diagnosticStartSubtitle,
     diagnosticDashboardState,
 } from "@/lib/diagnostic";
 import {
@@ -94,6 +92,7 @@ import {
     type ProgressDto,
 } from "@/lib/types";
 import {planUnlockHref} from "@/lib/plan-unlock";
+import {DiagnosticAffinerCard} from "@/app/_components/plan/DiagnosticAffinerCard";
 import {civicNowCard} from "@/lib/civic-plan";
 
 /**
@@ -133,7 +132,8 @@ import {civicNowCard} from "@/lib/civic-plan";
  *
  * | bloc | TCF | Civique |
  * |---|---|---|
- * | à faire maintenant | `/api/diagnostics/current` puis `planNowCard(plan, journey)` | `planIndisponible(prep.civique)` puis `civicPlan.prochaine` |
+ * | à faire maintenant | `/api/diagnostics/current` (reprise) puis `planNowCard(plan, journey)` | `civicNowCard(civicPlan, journey)` |
+ * | affiner (secondaire) | `diagnosticAAffiner(prep.tcf)` | `diagnosticAAffiner(prep.civique)` |
  * | où vous en êtes | `progres.tcf` (4 épreuves) | `progres.civique` (thèmes) |
  *
  * 🛑 **Le civique n'a AUCUN palier CECRL servi** : pas d'échelle, pas
@@ -244,7 +244,6 @@ function DashboardRoot() {
     const [journeyCivique, setJourneyCivique] = useState<JourneyDto | null>(null);
     const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
     const [prep, setPrep] = useState<PreparationDto | null>(null);
-    const [diagnosticDismissed, setDiagnosticDismissed] = useState(false);
     const [loading, setLoading] = useState(true);
 
     /**
@@ -326,14 +325,13 @@ function DashboardRoot() {
 
     const civique = affiche === "CIVIQUE";
 
-    /* 🛑 **L'action civique se résout ICI, une fois.** `planIndisponible` est
-       l'autorité — la même que « Ma préparation » et que la porte du Plan — et
-       elle rend `null` dès que le plan est constructible ; c'est alors la cible
-       de rang 1 **désignée par le serveur** qui prend la place. Sans rien des
-       deux, la section n'existe pas : pas de titre au-dessus du vide, et la
-       rangée laisse sa voisine prendre toute la largeur. */
-    const gateCivique = prep ? planIndisponible(prep.civique, "CIVIQUE") : null;
-    const aUneAction = civique ? Boolean(gateCivique ?? civicPlan) : Boolean(diagnostic);
+    /* 🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : la carte
+       « À faire maintenant » lit toujours le parcours. Le diagnostic n'est
+       qu'une proposition SECONDAIRE, posée sous elle (`diagnosticAAffiner`).
+       Sans action, la section n'existe pas : pas de titre au-dessus du vide. */
+    const modulePrep = prep ? (civique ? prep.civique : prep.tcf) : null;
+    const affiner = modulePrep ? diagnosticAAffiner(modulePrep, civique ? "CIVIQUE" : "TCF") : null;
+    const aUneAction = civique ? Boolean(civicPlan) : Boolean(diagnostic);
 
     return (
         <SejourApp wide className="home">
@@ -389,19 +387,22 @@ function DashboardRoot() {
                     <Section title="À faire maintenant">
                         <Pad>
                             {civique ? (
-                                <ActionCivique
-                                    gate={gateCivique}
-                                    plan={gateCivique ? null : civicPlan ?? null}
-                                    journey={journeyCivique}
-                                    free={!canAccessModule(user, "CIVIQUE")}
-                                />
+                                <Stack>
+                                    <ActionCivique
+                                        plan={civicPlan ?? null}
+                                        journey={journeyCivique}
+                                        free={!canAccessModule(user, "CIVIQUE")}
+                                    />
+                                    {affiner && (
+                                        <DiagnosticAffinerCard proposition={affiner} module="CIVIQUE"/>
+                                    )}
+                                </Stack>
                             ) : diagnostic ? (
                                 <ActionPrincipale
                                     diagnostic={diagnostic}
                                     plan={plan}
                                     journey={journey}
-                                    dismissed={diagnosticDismissed}
-                                    onDismiss={() => setDiagnosticDismissed(true)}
+                                    affiner={affiner}
                                     free={!canAccessModule(user, "TCF")}
                                 />
                             ) : null}
@@ -440,54 +441,25 @@ function DashboardRoot() {
 /**
  * **L'action principale de l'Accueil**, dans la carte hero du KIT.
  *
- * 🛑 Les trois états et leurs phrases sont **inchangés** : ce qui a changé,
- * c'est la brique qui les porte (`NowCard`), pas ce qu'elles disent.
+ * 🛑 **D-69 (2026-09-28) : plus de carte « Faire mon diagnostic ».** Un compte
+ * qui ne l'a pas commencé voit l'action du Plan (le premier examen du cycle),
+ * et le diagnostic se propose en secondaire, sous elle. Seul un diagnostic
+ * DÉJÀ COMMENCÉ garde sa carte de reprise.
  */
 function ActionPrincipale({
                               diagnostic,
                               plan,
                               journey,
-                              dismissed,
-                              onDismiss,
+                              affiner,
                               free,
                           }: {
     diagnostic: DiagnosticResponse;
     plan: LearningPlanDto | null;
     journey: JourneyDto | null;
-    dismissed: boolean;
-    onDismiss: () => void;
+    affiner: DiagnosticAAffiner | null;
     free: boolean;
 }) {
     const state = diagnosticDashboardState(diagnostic);
-    if (state === "NOT_STARTED" && dismissed) return null;
-
-    if (state === "NOT_STARTED") {
-        return (
-            <NowCard
-                icon={ClipboardCheck}
-                title="Découvrez ce qui vous bloque au TCF"
-                /* 🛑 L'effort annoncé est DÉRIVÉ du format servi, jamais écrit :
-                   le diagnostic actif n'a qu'une production écrite, et la carte
-                   promettait « 2 exercices · ≈ 8 à 10 min ». */
-                subtitle={diagnosticStartSubtitle(diagnostic.format)}
-                badge="Votre point de départ"
-                objective={diagnosticStartObjective(diagnostic.format)}
-            >
-                <div className="home-now-actions">
-                    {/* 🛑 **Le bouton porte déjà la décision** (arbitrage du
-                        2026-09-12) : « Faire mon diagnostic » LANCE le
-                        diagnostic, il n'ouvre pas une page qui redemande de le
-                        lancer. Ce marqueur manquait ici — un compte neuf
-                        atterrissait sur « Quel examen préparez-vous ? » alors
-                        qu'il venait de choisir son parcours. */}
-                    <Cta href={DIAGNOSTIC_RAPIDE_START_HREF}>Faire mon diagnostic</Cta>
-                    <button type="button" onClick={onDismiss} className="home-now-later">
-                        Plus tard
-                    </button>
-                </div>
-            </NowCard>
-        );
-    }
 
     if (state === "IN_PROGRESS") {
         const done = diagnosticCompletedExerciseCount(diagnostic);
@@ -518,7 +490,12 @@ function ActionPrincipale({
         );
     }
 
-    return <ActionPlanDuJour plan={plan} journey={journey} free={free}/>;
+    return (
+        <Stack>
+            <ActionPlanDuJour plan={plan} journey={journey} free={free}/>
+            {affiner && <DiagnosticAffinerCard proposition={affiner} module="TCF"/>}
+        </Stack>
+    );
 }
 
 /**
@@ -653,11 +630,9 @@ function ActionPlanDuJour({plan, journey, free}: {
 /**
  * **L'action principale de l'Accueil CIVIQUE.**
  *
- * 🛑 **Aucune règle nouvelle, aucun libellé nouveau.** Deux autorités déjà en
- * place, exactement celles qu'emploient le Plan civique et les deux autres
- * portes : `planIndisponible(prep, "CIVIQUE")` quand le plan n'est pas encore
- * constructible, et `CivicPlanDto.prochaine` — la cible de rang 1, **désignée
- * par le serveur** — sinon.
+ * 🛑 **Aucune règle nouvelle, aucun libellé nouveau** : `civicNowCard`, la
+ * même autorité que le Plan civique. Plus de porte « diagnostic » (D-69) : le
+ * parcours civique existe pour tout compte.
  *
  * 🛑 **Cette carte ne DÉMARRE rien.** Elle mène au Plan civique, qui porte le
  * seul lanceur de série (`CivicPlanPanel`). Un second point de départ aurait
@@ -668,29 +643,12 @@ function ActionPlanDuJour({plan, journey, free}: {
  * et elle diffère volontairement de celle du TCF, où une priorité verrouillée
  * n'est pas nommée parce que le Plan la floute.
  */
-function ActionCivique({gate, plan, journey, free}: {
-    gate: PlanIndisponible | null;
+function ActionCivique({plan, journey, free}: {
     plan: CivicPlanDto | null;
     journey: JourneyDto | null;
     free: boolean;
 }) {
     const router = useRouter();
-    // La porte : même phrase, même bouton, même destination que « Ma
-    // préparation » et que la porte du Plan.
-    if (gate) {
-        return (
-            <NowCard
-                icon={Landmark}
-                title={gate.titre}
-                badge="Votre point de départ"
-                objective={gate.texte}
-            >
-                <div className="home-now-actions">
-                    <Cta href={gate.href} variant="blue">{gate.cta}</Cta>
-                </div>
-            </NowCard>
-        );
-    }
 
     /* 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
        ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce

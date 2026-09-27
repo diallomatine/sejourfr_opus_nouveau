@@ -3124,3 +3124,53 @@ qui peut redescendre), jamais le maximum du Plan.
 motif visuel nouveau, donc rien à ajouter aux deux kits. Bleu, pas rouge : le CTA rouge du Plan
 reste « Débloquer mon plan ». Confirmation : `ConfirmSheet` (web) ⇄ `showAppSheet` (mobile).
 
+
+### A171 — Le Plan par défaut naît à la LECTURE, jamais à l'inscription (D-69)
+
+L'inscription ne connaît pas toujours la démarche (clients mobiles installés, connexion sociale :
+le profil obligatoire la demande ensuite), et l'analyse du diagnostic invité arrive **après** la
+création du compte. Créer à la première lecture couvre les deux populations (nouveaux et anciens
+comptes) par un seul chemin, sans migration. L'Accueil lit le parcours : la « première lecture »
+est la première connexion. **Si c'était à refaire autrement** : un écouteur d'inscription
+appelant `getOrCreate` — mais il faudrait alors garder la règle A172 pour le diagnostic.
+
+### A172 — Seul le cycle d'examens PAR DÉFAUT INTACT cède au diagnostic rapide
+
+« Intact » = rang 1, aucun lot, aucune compétence, aucune étape close (une étape obsolète ne
+compte pas). Un examen n'amorce jamais ce cycle (ses priorités vont au cycle suivant : c'est
+l'objet d'un cycle d'examens) ; un cycle d'examens de rang ≥ 2 (jalon D-68, cycle promu) ne cède
+pas non plus — y poser des compétences en ferait un cycle de travail et verrouillerait (D-15)
+l'examen que le candidat est venu passer. Conséquence assumée : un diagnostic fait **après** un
+premier examen part au cycle en attente, et le cycle d'affinage n'a pas lieu.
+
+### A173 — Le diagnostic qui amorce le cycle d'examens garde l'examen déjà posé
+
+Le lot EE du diagnostic ne reçoit **pas** de second checkpoint `REASSESS` : le bloc porte déjà
+son examen `INITIAL_ASSESSMENT`, et R3 est satisfaite (même règle que le civique,
+`creerLotsCiviques`). Deux examens ouverts pour un bloc compteraient deux étapes, une seule
+montrée. `INITIAL` reste exact : le diagnostic ne **mesure** pas l'EE
+(`NiveauActuelEpreuveResolver`), et le filet R12 ne le ferme que sur un vrai examen EE.
+
+### A174 — Les anciens cycles « Faire mon diagnostic » : `SUPERSEDED`, à la lecture
+
+Leur étape `DIAGNOSTIC` n'a jamais été travaillée : c'est le sens exact de `SUPERSEDED`
+(« rendue caduque par la file »). Aucune ligne effacée, même id de cycle, sous le verrou du
+parcours (deux lectures simultanées ne posent pas deux fois les examens). Pas de migration :
+même patron que la réparation D-65.
+
+### A175 — Comptes avec examens déjà passés : cycle de TRAVAIL d'emblée (amorce R19)
+
+Plutôt qu'un cycle d'examens dont les étapes seraient « reconnues faites » : R19 interdit de
+fabriquer des étapes déjà faites, et leurs priorités (journalisées par l'amorce) n'iraient
+jamais au cycle suivant — l'actualisation ouvrirait un cycle vide. L'amorce existante pose les
+priorités mesurées (≤ 3 par épreuve) et l'examen des seules épreuves non mesurées : c'est
+exactement « le fonctionnement normal reprend », sans examen redemandé.
+
+### A176 — `CivicPlanDto.disponible` garde son sens ; `LearningPlanState` réduit à `ACTIVE`
+
+`disponible` dit « le plan **dérivé** du diagnostic civique existe » (cibles, Leitner) : il reste
+`false` sans diagnostic civique, et les fronts n'en font plus une porte — le Plan civique
+s'affiche sur son parcours. Côté TCF, les deux états de porte sont **supprimés** de l'enum (un
+état jamais servi ne se garde pas « au cas où ») ; les clients installés reçoivent `ACTIVE`, qu'ils
+connaissent. `planDisponible` reste servi (toujours vrai) : c'est lui que les clients installés
+lisent pour ouvrir le Plan.

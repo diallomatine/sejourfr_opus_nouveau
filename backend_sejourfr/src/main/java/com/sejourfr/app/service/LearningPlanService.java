@@ -1,6 +1,5 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.config.DiagnosticProperties;
 import com.sejourfr.app.dto.LearningPlanCompletedStepDto;
 import com.sejourfr.app.dto.LearningPlanDto;
 import com.sejourfr.app.dto.LearningPlanPriorityDto;
@@ -11,7 +10,6 @@ import com.sejourfr.app.dto.PlanRecentChangesDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.dto.PlanSeanceDto;
 import com.sejourfr.app.dto.PlanSkillRefDto;
-import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
@@ -23,9 +21,7 @@ import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanExerciseKind;
 import com.sejourfr.app.enums.TargetLevel;
-import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
-import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.plan.PlanConfig;
 import lombok.RequiredArgsConstructor;
@@ -99,9 +95,6 @@ public class LearningPlanService {
 
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
-    private final DiagnosticProperties diagnosticProperties;
-    private final ProductionTaskManager taskManager;
-    private final DiagnosticSessionManager sessionManager;
     private final LearningPlanObservationManager observationManager;
     private final LearningPlanPriorityResolver priorityResolver;
     private final RecommendedExerciseSelector exerciseSelector;
@@ -139,55 +132,15 @@ public class LearningPlanService {
     @Transactional
     public LearningPlanDto get(UUID userId) {
         User user = userManager.findById(userId).orElse(null);
-        // 🛑 SUR QUOI LE PLAN SE CONSTRUIT — autorite unique, partagee avec
-        // l'etat servi (PreparationDto.planDisponible). Le rapide clos suffit ;
-        // le COMPLET clos suffit aussi, meme sans rapide (arbitrage du
-        // 2026-09-12), parce que ses 4 epreuves nourrissent deja ce moteur. Un
-        // complet seulement COMMENCE ne fonde rien : le Plan attend une mesure
-        // close, il ne se batit pas sur un diagnostic en cours.
+        // 🛑 D-69 (2026-09-28, decision du proprietaire) : LE PLAN EXISTE POUR
+        // TOUT COMPTE. Il n'y a plus d'etat « diagnostic a faire » : sans
+        // diagnostic, le Plan se batit sur ce qui a ete MESURE (examens blancs,
+        // series) — et sur rien du tout pour un compte neuf, ce qui est exact.
+        // Le moteur n'a jamais invente de priorite : un domaine non observe
+        // reste inconnu (`domainesAEvaluer`), jamais fragile. La fondation ne
+        // dit plus QUE « sur quel diagnostic le Plan s'appuie », quand il y en
+        // a un. Meme verite que `PreparationDto.planDisponible`.
         PlanFoundationResolver.Foundation foundation = foundationResolver.resolve(userId);
-        if (!foundation.exists()) {
-            DiagnosticSession inProgress = currentSession(userId);
-            // Le profil et le cycle sont servis MEME SANS DIAGNOSTIC : c'est
-            // exactement l'ecran dont a besoin un candidat qui a fait une serie
-            // de comprehension sans jamais passer le diagnostic (brief §3, §6).
-            // Le diagnostic decide des PRIORITES, pas de la connaissance qu'on a
-            // de ses domaines.
-            PlanCycleResolver.Resolution profil =
-                    cycleResolver.resolve(user, List.of(), List.of());
-            // Les competences de chaque epreuve sont servies AUSSI ici : sans
-            // diagnostic elles sont toutes NOT_OBSERVED, ce qui est exactement
-            // ce que l'ecran doit montrer — un referentiel entier a decouvrir,
-            // pas quatre cartes vides. Seul le verrou est une vraie information,
-            // et il se lit chez son unique autorite.
-            List<PlanDomainDto> domaines = domainSkillResolver.attach(
-                    profil.domaines(), profil.referentiel(),
-                    Map.of(), Map.of(), Map.of(),
-                    // Le palier de chaque domaine est servi DES ICI : un candidat
-                    // sans diagnostic mais avec une serie de comprehension derriere
-                    // lui a deja un domaine mesure, donc un palier a construire.
-                    targetLevelResolver.parSection(
-                            userId, profil.domaines(), profil.cycle().objectiveLevel()),
-                    accessService.resolve(userId),
-                    // Aucun diagnostic : aucune etape commencee non plus. La map
-                    // vide vaut « rien fait », ce qui est exact — et ne coute
-                    // pas une requete de comptage.
-                    Map.of(), null);
-            return new LearningPlanDto(
-                    inProgress == null ? LearningPlanState.NEEDS_DIAGNOSTIC
-                            : LearningPlanState.DIAGNOSTIC_IN_PROGRESS,
-                    inProgress == null ? null : inProgress.getId(), null,
-                    List.of(), null, List.of(), List.of(), 0, 0, true, null,
-                    domaines, profil.cycle(),
-                    // Aucun diagnostic termine : les deux domaines d'expression
-                    // pointent vers le diagnostic, les deux de comprehension vers
-                    // leur examen blanc de module. C'est exactement l'ecran
-                    // d'onboarding du brief §6 — et il n'est jamais vide.
-                    assessmentResolver.resolve(domaines),
-                    // Aucune priorite, donc aucune seance et rien qui ait bouge :
-                    // le Plan sert le profil, pas une journee de travail.
-                    new PlanSeanceDto(List.of(), 0), null);
-        }
 
         // L'ordre des priorités vit dans LearningPlanPriorityResolver : c'est le
         // même code qui décide, côté accès, quelle compétence reste ouverte à un
@@ -649,13 +602,6 @@ public class LearningPlanService {
         return new PlanSkillRefDto(
                 observation.getSkill().getId(), observation.getSkill().getCode(),
                 observation.getSkill().getTitle(), observation.getSkill().getSection());
-    }
-
-    private DiagnosticSession currentSession(UUID userId) {
-        String code = diagnosticProperties.getInitialCode();
-        Integer version = taskManager.findLatestActiveDiagnosticVersion(code).orElse(null);
-        return version == null ? null
-                : sessionManager.findByUserAndVersionWithContent(userId, code, version).orElse(null);
     }
 
     private LearningPlanPriorityDto priority(

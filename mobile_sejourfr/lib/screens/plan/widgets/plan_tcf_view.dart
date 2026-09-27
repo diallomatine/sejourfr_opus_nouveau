@@ -9,6 +9,7 @@ import '../../../core/auth/auth_controller.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/preparation_labels.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/list_group.dart';
@@ -21,6 +22,7 @@ import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
 import '../plan_now_card.dart';
+import 'diagnostic_affiner_card.dart';
 import 'examen_complet_jalon.dart';
 import 'plan_cycle_section.dart';
 
@@ -46,15 +48,23 @@ import 'plan_cycle_section.dart';
 /// Deux mises en page, une seule lecture des données : un compte **sans accès
 /// TCF** voit son constat entier (objectif, priorités, première étape) et la
 /// porte d'abonnement ; un abonné voit en plus ce qu'il peut lancer.
+///
+/// 🛑 **D-69** : l'écran s'affiche aussi sans diagnostic (le cycle est alors un
+/// cycle d'examens) ; le diagnostic n'y est qu'une proposition secondaire.
 class PlanTcfView extends ConsumerWidget {
   const PlanTcfView({
     super.key,
     required this.plan,
     this.journey,
     required this.objective,
+    this.affiner,
   });
 
   final LearningPlan plan;
+
+  /// La proposition **secondaire** de diagnostic (D-69), `null` quand il n'y a
+  /// rien à proposer — décidée par [diagnosticAAffiner], jamais ici.
+  final DiagnosticAAffiner? affiner;
 
   /// **Le parcours TCF**, quand il est chargé.
   ///
@@ -106,6 +116,7 @@ class PlanTcfView extends ConsumerWidget {
       // 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
       // au-dessus du cycle — servi, jamais décidé ici.
       ExamenCompletJalon(journey: journey, module: AppModule.tcf),
+      DiagnosticAffinerCard(info: affiner),
       // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
       // (« Actualiser mon plan », D-66).
@@ -147,6 +158,7 @@ class PlanTcfView extends ConsumerWidget {
         // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
         // ouvre porte, lui, les verrous d'accès servis de chaque examen.
         ExamenCompletJalon(journey: journey, module: AppModule.tcf),
+        DiagnosticAffinerCard(info: affiner),
         // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
         // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
         // masquer priverait le candidat de l'information la plus utile qu'il

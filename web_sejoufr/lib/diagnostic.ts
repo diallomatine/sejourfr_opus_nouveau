@@ -129,31 +129,6 @@ export function diagnosticHasOral(format: DiagnosticFormatDto | null): boolean {
     return (format?.exerciseCount ?? 1) > 1;
 }
 
-/**
- * « 1 exercice · ≈ 5 min » — l'effort annoncé, **dérivé du format servi**.
- *
- * 🛑 **Rien n'est écrit en dur** (correctif du 2026-09-14). La carte annonçait
- * « 2 exercices · ≈ 8 à 10 min » alors que le diagnostic actif (`QUICK_TCF`)
- * n'en comporte qu'**un** — une production écrite, sans étape orale depuis
- * V050. Un candidat qui n'avait jamais rien fait lisait donc une promesse
- * fausse dès sa première carte.
- *
- * Sans mesure exploitable, on annonce le **compte** et rien d'autre.
- * Miroir mot pour mot de `homeDiagStartSubtitle` côté mobile.
- */
-export function diagnosticStartSubtitle(format: DiagnosticFormatDto | null): string {
-    const n = format?.exerciseCount ?? 1;
-    const exercices = `${n} exercice${n > 1 ? "s" : ""}`;
-    const minutes = diagnosticFormatMinutes(format);
-    return minutes == null ? exercices : `${exercices} · ≈ ${minutes} min`;
-}
-
-/** « On analyse votre écrit… » — l'oral n'est nommé que s'il existe. */
-export function diagnosticStartObjective(format: DiagnosticFormatDto | null): string {
-    const quoi = diagnosticHasOral(format) ? "votre écrit et votre oral" : "votre écrit";
-    return `On analyse ${quoi} pour construire votre premier plan.`;
-}
-
 /** L'attente d'analyse : « vos deux réponses » seulement s'il y en a deux. */
 export function diagnosticAnalyzingObjective(
     format: DiagnosticFormatDto | null,
@@ -168,25 +143,10 @@ export function diagnosticCountLabel(done: number, total: number): string {
     return `${done} / ${total} terminé${done > 1 ? "s" : ""}`;
 }
 
-/** Somme des minutes annoncées, écrit + oral. `null` sans borne exploitable. */
-function diagnosticFormatMinutes(format: DiagnosticFormatDto | null): number | null {
-    if (!format) return null;
-    // Les deux règles lisent la même forme de mesure : on la leur donne
-    // entière, le format portant les quatre bornes.
-    const mesure: DiagnosticExerciseMeasure = {
-        wordsMin: format.writtenWordsMin,
-        wordsMax: format.writtenWordsMax,
-        durationMinSeconds: format.oralDurationMinSeconds,
-        durationMaxSeconds: format.oralDurationMaxSeconds,
-    };
-    return diagnosticExpressionMinutes(mesure, mesure);
-}
-
 /**
  * Le temps annoncé pour les productions du diagnostic : l'écrit, plus l'oral
  * s'il existe. `null` quand aucune borne n'est servie — on n'invente pas une
- * durée. Seule règle du web pour ce total (présentation, choix d'examen,
- * Accueil). Miroir : `diagnosticExpressionMinutes` côté mobile.
+ * durée. Seule règle du web pour ce total (présentation, choix d'examen). Miroir : `diagnosticExpressionMinutes` côté mobile.
  */
 export function diagnosticExpressionMinutes(
     written: DiagnosticExerciseMeasure | null | undefined,

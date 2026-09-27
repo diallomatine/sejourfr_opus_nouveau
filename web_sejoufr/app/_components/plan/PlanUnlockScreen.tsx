@@ -185,8 +185,8 @@ function herosDuDiagnostic(r: TcfDiagnosticResultDto): Heros {
 }
 
 /**
- * Le héros TCF **lu sur le PLAN** — le cas ordinaire : le Plan existe dès que
- * le diagnostic **rapide** est clos (`prep.planDisponible`, A145).
+ * Le héros TCF **lu sur le PLAN** — le cas ordinaire : le Plan existe pour
+ * tout compte (D-69).
  */
 function herosDuPlan(plan: LearningPlanDto): Heros {
     /* 🛑 **L'objectif DÉCLARÉ, jamais le palier en construction.**

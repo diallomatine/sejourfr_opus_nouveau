@@ -16,8 +16,8 @@ import 'diagnostic_report_labels.dart';
 /// **Résultat du diagnostic rapide TCF.**
 ///
 /// Une seule production écrite a été observée : l'écran annonce l'estimation
-/// qu'elle permet, dit ce qu'elle vaut, et mène au **Plan** — qui existe dès
-/// que le rapide est clos, provisoire mais réel (`prep.planDisponible`).
+/// qu'elle permet, dit ce qu'elle vaut, et mène au **Plan** — qui existe pour
+/// tout compte depuis D-69 ; le diagnostic l'affine.
 /// 🛑 Jamais vers l'entrée du diagnostic complet, qui n'est plus un parcours
 /// proposé (arbitrage du 2026-09-26).
 ///
@@ -34,43 +34,14 @@ import 'diagnostic_report_labels.dart';
 /// inexploitable rend `levelEstimate == null` : la carte hero affiche l'état,
 /// pas un palier de repli.
 ///
-/// 🛑 **Deux emplacements, UN SEUL écran.** Il est le résultat de
-/// [DiagnosticScreen], et il est **encastré** dans la porte d'entrée du Plan
-/// TCF tant que le Plan n'est pas servi — c'est le même rapport que le
-/// candidat doit retrouver, pas un résumé maison qui finirait par dire autre
-/// chose. Miroir de la prop `embedded` du web : là-bas elle retire la chrome de
-/// page, ici l'écran n'en a jamais eu — il est **la liste défilante**, et
-/// l'appelant lui passe sa tête par [leading] et son pied par [trailing]
-/// plutôt que d'imbriquer deux scrollables.
-///
-/// 🛑 **Un seul geste de fin à l'écran.** L'hôte peut porter le sien
-/// ([closingCta] à `false`) : la porte du Plan le fait, parce que sa phrase
-/// dépend de l'étape servie (`planIndisponible`). La section « Découvrez où
-/// vous en êtes vraiment au TCF » reste, elle informe ; c'est le bouton seul
-/// qui s'efface.
 class DiagnosticResultView extends ConsumerWidget {
   const DiagnosticResultView({
     super.key,
     required this.result,
     this.objective,
-    this.leading = const <Widget>[],
-    this.trailing = const <Widget>[],
-    this.closingCta = true,
   });
 
   final DiagnosticResult result;
-
-  /// Ce que l'écran hôte pose **au-dessus** du rapport, dans le même défilement
-  /// (son en-tête, son explication). Vide : le rapport est seul à l'écran.
-  final List<Widget> leading;
-
-  /// Ce que l'écran hôte pose **en dessous**, dans le même défilement — son
-  /// geste de fin, quand il le porte lui-même.
-  final List<Widget> trailing;
-
-  /// `false` : **l'hôte fournit le geste de fin**, le rapport n'affiche pas le
-  /// sien. Jamais deux boutons pour le même parcours dans deux formulations.
-  final bool closingCta;
 
   /// Le palier visé, servi par la démarche déclarée du compte. `null` = pas
   /// encore choisi : la ligne d'objectif n'est pas rendue et le rail s'arrête
@@ -84,13 +55,8 @@ class DiagnosticResultView extends ConsumerWidget {
     final observations = diagnosticObservations(result);
 
     return ListView(
-      // L'espace de tête appartient au premier bloc : quand l'hôte fournit le
-      // sien, c'est lui qui le porte.
-      padding: leading.isEmpty
-          ? const EdgeInsets.only(top: 14, bottom: 32)
-          : const EdgeInsets.only(bottom: 32),
+      padding: const EdgeInsets.only(top: 14, bottom: 32),
       children: [
-        ...leading,
         Padding(
           padding: sfGutter,
           child: _HeroCard(
@@ -126,21 +92,18 @@ class DiagnosticResultView extends ConsumerWidget {
               for (final e in kDiagnosticSuiteEpreuves)
                 SfExamRow(icon: e.icon, title: e.label),
               const _PromiseCard(),
-              if (closingCta)
-                SfButton(
-                  label: kDiagnosticReportPlanCta,
-                  // Le Plan **TCF**, par la même bascule que « Voir mon Plan »
-                  // de l'Accueil : l'onglet Plan lit ce provider. La route
-                  // Plan lit elle-même `planDisponible`.
-                  onPressed: () {
-                    ref.read(parcoursCiviqueProvider.notifier).state = false;
-                    context.go(AppRoutes.plan);
-                  },
-                ),
+              SfButton(
+                label: kDiagnosticReportPlanCta,
+                // Le Plan **TCF**, par la même bascule que « Voir mon Plan »
+                // de l'Accueil : l'onglet Plan lit ce provider.
+                onPressed: () {
+                  ref.read(parcoursCiviqueProvider.notifier).state = false;
+                  context.go(AppRoutes.plan);
+                },
+              ),
             ],
           ),
         ),
-        ...trailing,
       ],
     );
   }

@@ -251,8 +251,8 @@ class PreparationServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 Sans diagnostic rapide, le Plan n'est PAS disponible — meme complet ouvert")
-    void sansRapideLePlanNestPasDisponible() {
+    @DisplayName("🛑 D-69 : sans diagnostic rapide, le Plan EST disponible — complet ouvert ou non")
+    void sansRapideLePlanEstDisponible() {
         User user = testData.user();
         tcfService.ouvrir(user.getId());
         entityManager.flush();
@@ -260,10 +260,11 @@ class PreparationServiceIT extends AbstractIntegrationTest {
 
         PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
 
-        // C'est la condition EXACTE de LearningPlanService.get() : sans session
-        // de diagnostic rapide close, le moteur rend NEEDS_DIAGNOSTIC. Un ecran
-        // qui promettrait un plan ici tomberait sur une page vide.
-        assertThat(tcf.planDisponible()).isFalse();
+        // ⚠️ REVOQUE LE 2026-09-28 (D-69) : le Plan existe pour tout compte — son
+        // cycle est le cycle d'examens par defaut. Meme verite que le moteur,
+        // qui sert ACTIVE.
+        assertThat(tcf.planDisponible()).isTrue();
+        assertThat(planService.get(user.getId()).state()).isEqualTo(LearningPlanState.ACTIVE);
         assertThat(tcf.prochaineEpreuve()).isEqualTo(EpreuveType.TCF_CO);
     }
 
@@ -287,14 +288,20 @@ class PreparationServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Un compte neuf n'a aucun plan, sur aucun des deux modules")
-    void compteNeufNaAucunPlan() {
+    @DisplayName("D-69 : un compte neuf a son Plan sur les deux modules, et le diagnostic reste a proposer")
+    void compteNeufASonPlan() {
         User user = testData.user();
 
         PreparationDto prep = service.lire(user.getId());
 
-        assertThat(prep.tcf().planDisponible()).isFalse();
-        assertThat(prep.civique().planDisponible()).isFalse();
+        // ⚠️ REVOQUE LE 2026-09-28 (D-69) : « un compte neuf n'a aucun plan ».
+        assertThat(prep.tcf().planDisponible()).isTrue();
+        assertThat(prep.civique().planDisponible()).isTrue();
+        assertThat(planService.get(user.getId()).state()).isEqualTo(LearningPlanState.ACTIVE);
+        // Le diagnostic n'est plus une porte, mais il reste PROPOSE : l'etape le dit.
+        assertThat(prep.tcf().etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_A_FAIRE);
+        assertThat(prep.civique().etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_A_FAIRE);
+        assertThat(prep.tcf().estimationSessionId()).isNull();
         assertThat(prep.tcf().prochaineEpreuve()).isNull();
     }
 
@@ -346,15 +353,15 @@ class PreparationServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("🛑 Complet PARTIEL sans rapide : pas de Plan, meme a 3 epreuves sur 4")
-    void completPartielSansRapideNeFondeAucunPlan() {
+    @DisplayName("D-69 : complet PARTIEL sans rapide — le Plan existe quand meme (cas d'heritage D-63)")
+    void completPartielSansRapideNeFermePasLePlan() {
         User user = testData.user();
         var session = tcfService.ouvrir(user.getId());
         terminerSousEpreuve(session.getId(), EpreuveType.TCF_CO);
         entityManager.flush();
         entityManager.clear();
         // 1 / 4
-        assertThat(service.lire(user.getId()).tcf().planDisponible()).isFalse();
+        assertThat(service.lire(user.getId()).tcf().planDisponible()).isTrue();
 
         terminerSousEpreuve(session.getId(), EpreuveType.TCF_CE);
         terminerSousEpreuve(session.getId(), EpreuveType.TCF_EE);
@@ -363,13 +370,12 @@ class PreparationServiceIT extends AbstractIntegrationTest {
 
         PreparationDto.ModulePreparation tcf = service.lire(user.getId()).tcf();
 
-        // 3 / 4 : le Plan attend une mesure CLOSE, il ne se batit pas sur un
-        // diagnostic qu'on est en train de passer.
+        // 3 / 4 : ⚠️ REVOQUE LE 2026-09-28 (D-69) — « le Plan attend une mesure
+        // CLOSE ». Il existe sans elle ; l'etape dit toujours le complet ouvert.
         assertThat(tcf.fait()).isEqualTo(3);
-        assertThat(tcf.planDisponible()).isFalse();
+        assertThat(tcf.planDisponible()).isTrue();
         assertThat(tcf.etape()).isEqualTo(PreparationEtape.DIAGNOSTIC_EN_COURS);
-        assertThat(planService.get(user.getId()).state())
-                .isNotEqualTo(LearningPlanState.ACTIVE);
+        assertThat(planService.get(user.getId()).state()).isEqualTo(LearningPlanState.ACTIVE);
         // La porte doit renvoyer vers le COMPLET, pas vers le rapide : `fait`
         // non nul est le fait sur lequel les fronts le decident.
         assertThat(tcf.prochaineEpreuve()).isEqualTo(EpreuveType.TCF_EO);

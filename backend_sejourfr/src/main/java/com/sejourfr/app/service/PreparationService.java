@@ -62,6 +62,19 @@ public class PreparationService {
     private final CivicDiagnosticViewService civicViewService;
     private final com.sejourfr.app.service.diagnostic.DiagnosticContentResolver content;
 
+    /**
+     * 🛑 <b>D-69 (2026-09-28, decision du proprietaire) : le Plan existe pour
+     * TOUT compte</b>, diagnostic fait ou non, TCF comme civique. Sans
+     * diagnostic, son cycle est le <b>cycle d'examens par defaut</b>
+     * ({@code JourneyService.amorcer}) ; le diagnostic ne l'ouvre plus, il
+     * l'affine. {@code LearningPlanService.get} sert donc toujours
+     * {@code ACTIVE} — la meme verite, lue des deux cotes.
+     *
+     * <p>⚠️ Revoque l'arbitrage du 2026-09-12 sur ce point (« des que le
+     * diagnostic RAPIDE est clos, le Plan existe ») : il existe avant.
+     */
+    static final boolean PLAN_DISPONIBLE = true;
+
     @Transactional(readOnly = true)
     public PreparationDto lire(UUID userId) {
         User user = userManager.findById(userId)
@@ -119,8 +132,9 @@ public class PreparationService {
             // 🛑 AUTORITE UNIQUE, et les deux lignes sont deja en main : ce
             // service ne redecide pas « le Plan existe-t-il ? », il le demande
             // a celui qui en decide pour le moteur.
-            boolean planDisponible =
-                    PlanFoundationResolver.of(rapide, clos ? session : null).exists();
+            // D-69 : le Plan existe pour tout compte, le complet ne decide plus
+            // de rien a ce sujet.
+            boolean planDisponible = PLAN_DISPONIBLE;
             return new PreparationDto.ModulePreparation(
                     clos ? PreparationEtape.PLAN_PRET : PreparationEtape.DIAGNOSTIC_EN_COURS,
                     terminees,
@@ -148,7 +162,7 @@ public class PreparationService {
                     // porte le denominateur, jamais le front.
                     0, TcfDiagnosticReadService.EPREUVES.size(),
                     estimation, null, cible, null, estimation,
-                    true,
+                    PLAN_DISPONIBLE,
                     // 🛑 Aucune « prochaine epreuve » : le complet n'a pas encore
                     // de sous-epreuves tirees, en nommer une serait l'inventer.
                     null);
@@ -165,10 +179,11 @@ public class PreparationService {
         return enCours
                 .map(session -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_EN_COURS,
-                        null, null, session.getId(), null, cible, null, null, false, null))
+                        null, null, session.getId(), null, cible, null, null,
+                        PLAN_DISPONIBLE, null))
                 .orElseGet(() -> new PreparationDto.ModulePreparation(
                         PreparationEtape.DIAGNOSTIC_A_FAIRE,
-                        null, null, null, null, cible, null, null, false, null));
+                        null, null, null, null, cible, null, null, PLAN_DISPONIBLE, null));
     }
 
     /**
@@ -200,7 +215,7 @@ public class PreparationService {
         if (session.isEmpty()) {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.DIAGNOSTIC_A_FAIRE,
-                    null, null, null, null, null, null, null, false, null);
+                    null, null, null, null, null, null, null, PLAN_DISPONIBLE, null);
         }
 
         CivicDiagnosticSession diagnostic = session.get();
@@ -209,7 +224,7 @@ public class PreparationService {
             return new PreparationDto.ModulePreparation(
                     PreparationEtape.DIAGNOSTIC_EN_COURS,
                     vue.repondues(), vue.total(), diagnostic.getId(),
-                    null, null, null, null, false, null);
+                    null, null, null, null, PLAN_DISPONIBLE, null);
         }
 
         int aRenforcer = (int) civicViewService.resultat(diagnostic).themes().stream()
@@ -221,6 +236,6 @@ public class PreparationService {
         return new PreparationDto.ModulePreparation(
                 PreparationEtape.PLAN_PRET,
                 vue.repondues(), vue.total(), diagnostic.getId(),
-                null, null, aRenforcer, null, true, null);
+                null, null, aRenforcer, null, PLAN_DISPONIBLE, null);
     }
 }

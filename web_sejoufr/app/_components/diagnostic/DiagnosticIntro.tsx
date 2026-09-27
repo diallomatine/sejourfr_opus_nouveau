@@ -72,8 +72,8 @@ function minutesLabel(minutes: number | null): string | null {
  * choix d'examen TCF ⇄ civique, `DiagnosticChoice`. Un compte connecté a déjà
  * choisi son parcours — il arrive depuis le Plan TCF ou l'Accueil TCF (souvent
  * avec `?demarrer=1`, qui saute cet écran) : on ne lui rouvre pas le choix, et
- * le diagnostic civique garde ses propres portes (`planIndisponible`, Accueil
- * et Plan civiques). Miroir mobile : `DiagnosticIntro` / `DiagnosticChoice`.
+ * le diagnostic civique garde ses propres entrées (`diagnosticAAffiner`,
+ * Accueil et Plan civiques). Miroir mobile : `DiagnosticIntro` / `DiagnosticChoice`.
  */
 export function DiagnosticIntro({
   error,
