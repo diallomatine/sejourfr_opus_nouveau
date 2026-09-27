@@ -35,6 +35,19 @@ qui dépend d'une décision prise ailleurs.
 ⚠️ Un tel test ne **ment** pas : il **dort**. Et il se réveille au pire moment — pendant une passe
 qui parle d'autre chose, en accusant le changement en cours d'un défaut bien plus ancien.
 
+## 🛑 Attendre l'asynchrone : jamais sur les compteurs de `ThreadPoolExecutor` (2026-09-27)
+
+`getTaskCount() == getCompletedTaskCount()` est **vrai** pendant qu'un worker tient une tâche
+sortie de la file (ou reçue comme première tâche) sans l'avoir encore démarrée : le JDK compte
+« terminées + workers verrouillés + file ». Mesuré : ~1 faux « au repos » pour 2 000 soumissions
+sur une machine au calme, davantage sous la charge d'un `./mvnw verify` complet. C'était la cause
+de l'échec intermittent d'`EmailDeferredRetryIT.troisRelancesAuMaximum` : la relance suivante
+trouvait la ligne encore `PENDING`, ne la reprenait pas, et la dernière relance (SMTP rétabli)
+finissait `SENT`. Les tests d'emails attendent désormais `EmailExecutorTracker.inFlight() == 0`
+(`AbstractEmailIT.awaitEmailExecutorIdle`) : un `TaskDecorator` posé par `TestSupportConfig`
+compte la tâche **dans le thread appelant** et la décompte à la fin de son exécution. Le bean
+de production n'est pas touché ; le tracker échoue au démarrage si le décorateur ne prend pas.
+
 ## Décisions structurantes
 
 | Sujet | Choix | Pourquoi |

@@ -139,6 +139,16 @@ public class TestSupportConfig {
         return duration -> { };
     }
 
+    /**
+     * Le compteur exact des taches de l'executor email — l'attente « au repos »
+     * de {@link AbstractEmailIT} le lit. {@code static} : un post-processeur doit
+     * exister avant les beans qu'il traite.
+     */
+    @Bean
+    public static EmailExecutorTracker emailExecutorTracker() {
+        return new EmailExecutorTracker();
+    }
+
     /** Horloge du systeme d'emails, figeable par test (a remettre a zero en @AfterEach). */
     @Bean
     @Primary

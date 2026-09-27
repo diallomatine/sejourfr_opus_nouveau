@@ -1,6 +1,5 @@
 package com.sejourfr.app.support;
 
-import com.sejourfr.app.config.EmailAsyncConfig;
 import com.sejourfr.app.entity.EmailDelivery;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EmailDeliveryStatus;
@@ -10,9 +9,7 @@ import com.sejourfr.app.service.email.EmailMessage;
 import com.sejourfr.app.service.email.SpringMailEmailSender;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +36,6 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
     @Autowired protected RecordingEmailSender mails;
     @Autowired protected MutableClock clock;
     @Autowired protected EmailDeliveryManager deliveries;
-    @Autowired @Qualifier(EmailAsyncConfig.EMAIL_TASK_EXECUTOR)
-    protected ThreadPoolTaskExecutor emailExecutor;
 
     private final List<UUID> createdUsers = new ArrayList<>();
     private final List<String> trackedRecipients = new ArrayList<>();
@@ -97,14 +92,20 @@ public abstract class AbstractEmailIT extends AbstractIntegrationTest {
         return rowsOf(user, type).stream().anyMatch(d -> d.getStatus() == status);
     }
 
-    /** Attend que l'executor email n'ait plus rien en cours ni en file. */
+    @Autowired private EmailExecutorTracker emailExecutorTracker;
+
+    /**
+     * Attend que l'executor email n'ait plus rien en cours ni en file.
+     *
+     * <p>🛑 Lu sur {@link EmailExecutorTracker}, jamais sur
+     * {@code getTaskCount() == getCompletedTaskCount()} : ce test-la est VRAI
+     * pendant qu'un worker tient une tache sortie de la file sans l'avoir
+     * encore demarree (cause de l'echec intermittent de
+     * {@code EmailDeferredRetryIT.troisRelancesAuMaximum}).
+     */
     protected void awaitEmailExecutorIdle() {
-        // taskCount compte tout ce qui a ete soumis ; completedTaskCount ce qui est
-        // fini. getActiveCount() seul laisse passer la fenetre ou une tache a
-        // quitte la file sans etre encore marquee active.
-        var pool = emailExecutor.getThreadPoolExecutor();
         EmailTestSupport.await("executor email au repos", () ->
-                pool.getTaskCount() == pool.getCompletedTaskCount());
+                emailExecutorTracker.inFlight() == 0);
     }
 
     @Autowired private SpringMailEmailSender springMailRenderer;
