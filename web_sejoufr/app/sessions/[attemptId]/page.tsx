@@ -30,6 +30,7 @@ import {
   CIVIC_DIAGNOSTIC_PARAM,
   civicDiagnosticResultHref,
 } from "@/lib/civic-diagnostic";
+import { unlockExamAudio } from "@/lib/exam-audio";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   epreuveExitMessage,
@@ -246,6 +247,15 @@ function SessionRunnerInner({ params }: PageProps) {
    *  paramètres (examen template / thématique / module, ou série). */
   async function retryAttempt() {
     if (!attempt || retrying) return;
+    // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+    if (
+      attempt.type === "MOCK_EXAM" &&
+      attempt.module === "TCF" &&
+      attempt.moduleExamQuestionType !== "CE" &&
+      attempt.moduleExamQuestionType !== "STRUCTURE"
+    ) {
+      unlockExamAudio();
+    }
     setRetryError(null);
     setRetrying(true);
     try {

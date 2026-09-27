@@ -9,6 +9,7 @@ import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { unlockExamAudio } from "@/lib/exam-audio";
 import {
     examIsStale,
     scoreProgressionLabel,
@@ -245,6 +246,8 @@ function ProgressInner() {
               disabled={starting}
               onClick={async () => {
                 if (starting) return;
+                // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+                if (current.epreuve === "TCF_CO") unlockExamAudio();
                 const href = subAttemptHref(current, examId);
                 // Pose l'échéance PROPRE de l'épreuve au moment de son
                 // lancement réel. Obligatoire sur les 4 épreuves : sans lui

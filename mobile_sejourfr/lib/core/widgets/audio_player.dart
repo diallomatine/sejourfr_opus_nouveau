@@ -157,7 +157,13 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
       await _player.play();
     } catch (_) {
       // L'auto-play peut être refusé sur certaines plateformes — fallback
-      // sur le bouton manuel (qui reste utilisable pour démarrer).
+      // sur le bouton manuel. Une lecture refusée ne consomme pas l'écoute
+      // unique : sans ce retour, `maxPlays` bloquerait aussi le bouton.
+      if (!mounted) return;
+      setState(() {
+        _started = false;
+        _playCount--;
+      });
     }
   }
 

@@ -5,6 +5,7 @@ import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {journeyApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
+import {unlockExamAudio} from "@/lib/exam-audio";
 import {handleStartFailure} from "@/lib/start-failure";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {journeyEtapeHref} from "@/lib/journey";
@@ -153,6 +154,8 @@ function PlanEtapeScoped() {
     const lancer = useCallback(
         async (index: number) => {
             if (!stepId || busy) return;
+            // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+            if (detail?.section === "CO") unlockExamAudio();
             setErreur(null);
             setBusy(true);
             try {
@@ -171,7 +174,7 @@ function PlanEtapeScoped() {
                 setBusy(false);
             }
         },
-        [busy, ici, router, stepId],
+        [busy, detail?.section, ici, router, stepId],
     );
 
     const sectionPill = detail

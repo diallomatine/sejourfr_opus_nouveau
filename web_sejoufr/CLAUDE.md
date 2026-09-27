@@ -216,7 +216,20 @@ qui dérive de l'unique table `tcfNiveauTone`) et l'épreuve plancher est signal
 autres (`floorMarks`) — un candidat B2 partout n'a pas de point faible.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
-fallback bouton one-shot si l'autoplay est bloqué). **Retour arrière interdit
+fallback bouton one-shot si l'autoplay est bloqué). 🛑 **Autoplay iOS** : un
+`play()` hors geste est refusé, donc la 1re question d'une session n'avait
+aucun geste derrière elle. `ExamAudio` joue sur un **élément `<audio>` PARTAGÉ**
+(`lib/exam-audio.ts`, singleton de module, survit à la navigation client),
+déverrouillé par `unlockExamAudio()` **synchronement dans le clic** qui lance
+la session, avant tout `await` : feuille du lanceur (`MockExamLauncher.start`,
+CO), carte de série d'étape du Plan (`PlanEtapeView.lancer`, section CO),
+« Commencer » CO de l'examen complet, « Refaire » d'un examen TCF
+(`sessions/[attemptId]`), examen de gabarit TCF et démo TCF
+(`examens-blancs`). Un nouveau CTA qui lance une session CO en `EXAMEN`
+**doit** l'appeler. Ouverture directe/rechargement : repli « Appuyez pour
+lancer l'écoute » (son tap déverrouille l'élément pour la suite). L'écoute
+n'est comptée qu'à `ended` — un refus ne la consomme jamais (idem mobile,
+`SejourAudioPlayer._autoStart` rend le compteur). **Retour arrière interdit
 sur tout examen** (`mode === "exam"` → `canGoPrevious = false`, toutes épreuves
 confondues civique/CO/CE/STRUCTURE : une réponse validée est définitive,
 conditions réelles — parité mobile `runner_screen.dart`). En TRAINING (séries),

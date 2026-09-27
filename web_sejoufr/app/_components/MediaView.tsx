@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { sharedExamAudio } from "@/lib/exam-audio";
 import type { MediaResponse } from "@/lib/types";
 
 /**
@@ -158,45 +159,56 @@ export function MediaView({
  * Lecteur « jour J » : l'audio démarre seul et n'est écouté qu'une fois —
  * aucun contrôle exposé. Si le navigateur bloque l'autoplay, un unique
  * bouton « lancer l'écoute » apparaît (puis disparaît, pas de réécoute).
+ *
+ * 🛑 Il joue sur l'élément PARTAGÉ `sharedExamAudio()` (`lib/exam-audio.ts`),
+ * déverrouillé dans le clic qui a lancé la session : c'est ce qui permet à
+ * iOS de lancer seule la PREMIÈRE question. L'écoute n'est comptée (`done`)
+ * qu'à la fin d'une lecture réelle — un `play()` refusé ne la consomme pas.
  */
 function ExamAudio({ src }: { src?: string }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [phase, setPhase] = useState<"playing" | "blocked" | "done">("playing");
+  const [phase, setPhase] = useState<"playing" | "blocked" | "done">(
+    src ? "playing" : "blocked",
+  );
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
+    const el = sharedExamAudio();
+    if (!el || !src) return;
+    el.pause();
+    el.src = src;
+    const onTimeUpdate = () => {
+      if (el.duration > 0) setProgress(el.currentTime / el.duration);
+    };
+    const onEnded = () => {
+      setProgress(1);
+      setPhase("done");
+    };
+    el.addEventListener("timeupdate", onTimeUpdate);
+    el.addEventListener("ended", onEnded);
     // Auto-play 0,5s après l'ouverture de la question (parité mobile), pour
     // laisser une respiration avant l'écoute unique — conditions TCF réelles.
     const timer = setTimeout(() => {
       el.play().catch(() => setPhase("blocked"));
     }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener("timeupdate", onTimeUpdate);
+      el.removeEventListener("ended", onEnded);
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+    };
+  }, [src]);
 
   const launch = () => {
-    const el = audioRef.current;
-    if (!el || phase !== "blocked") return;
+    const el = sharedExamAudio();
+    if (!el || !src || phase !== "blocked") return;
     setPhase("playing");
     el.play().catch(() => setPhase("blocked"));
   };
 
   return (
     <div className={`mediaview-exam ${phase === "done" ? "is-done" : ""}`}>
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="auto"
-        onTimeUpdate={(e) => {
-          const el = e.currentTarget;
-          if (el.duration > 0) setProgress(el.currentTime / el.duration);
-        }}
-        onEnded={() => {
-          setProgress(1);
-          setPhase("done");
-        }}
-      />
       {phase === "blocked" ? (
         <button
           type="button"
