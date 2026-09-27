@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/client_context.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/auth_models.dart';
@@ -207,9 +208,14 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Center(
-                    child: Text(
-                      'SejourFR · v0.1.0',
-                      style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                    // La version vient de l'app installée (pubspec), jamais
+                    // d'une chaîne recopiée : « 0.1.3+19 » ⇒ « v0.1.3 (19) ».
+                    child: FutureBuilder<String?>(
+                      future: ClientContext.appVersion(),
+                      builder: (context, snapshot) => Text(
+                        profileVersionLabel(snapshot.data),
+                        style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                      ),
                     ),
                   ),
                 ],
@@ -590,4 +596,13 @@ class _ObjectifCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// « SejourFR · v0.1.3 (19) » depuis `0.1.3+19` ; « SejourFR » seul si la
+/// plateforme ne dit rien.
+String profileVersionLabel(String? raw) {
+  if (raw == null || raw.isEmpty) return 'SejourFR';
+  final parts = raw.split('+');
+  final build = parts.length > 1 && parts[1].isNotEmpty ? ' (${parts[1]})' : '';
+  return 'SejourFR · v${parts.first}$build';
 }

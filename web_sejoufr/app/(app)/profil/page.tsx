@@ -284,7 +284,7 @@ export default function ProfilPage() {
                     </CompteCard>
                 </div>
 
-                <div className="pr-footer">SejourFR · v0.1.0</div>
+                <div className="pr-footer">SejourFR · v{process.env.NEXT_PUBLIC_APP_VERSION}</div>
             </div>
 
             {/* ---- MODALES ---- */}
