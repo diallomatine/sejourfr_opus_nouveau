@@ -10,6 +10,10 @@ import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {journeyEtapeHref} from "@/lib/journey";
 import {sessionHref} from "@/lib/retour";
 import {
+    JOURNEY_ETAPE_DONE_CTA,
+    JOURNEY_ETAPE_DONE_LEAD,
+    JOURNEY_ETAPE_DONE_SUB,
+    JOURNEY_ETAPE_DONE_TITLE,
     JOURNEY_ETAPE_ERROR,
     JOURNEY_ETAPE_LIST_TITLE,
     JOURNEY_ETAPE_LOADING,
@@ -18,6 +22,7 @@ import {
     JOURNEY_ETAPE_RETRY,
     JOURNEY_ETAPE_SERIE_RESULT,
     JOURNEY_ETAPE_SEUIL_SUB,
+    JOURNEY_ETAPE_SHEET_REDO,
     JOURNEY_ETAPE_START_ERROR,
     JOURNEY_ETAPE_VALIDATION_LEAD,
     journeyEtapeCompteur,
@@ -31,14 +36,18 @@ import {
     journeyEtapeSerieMark,
     journeyEtapeSerieState,
     journeyEtapeSerieTitle,
+    journeyEtapeSerieVerdict,
     journeyEtapeSeuil,
     journeyEtapeTitle,
     journeyEtapeValidation,
 } from "@/lib/journey-etape";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
 import {usePlanJourneyId} from "./use-plan-journey-id";
 import {
     Card,
+    Cta,
+    DoneRow,
     InfoNote,
     Pad,
     PanelHead,
@@ -84,6 +93,16 @@ import type {JourneySerieDto, JourneyStepDetailDto} from "@/lib/types";
  * `?retour=` sur cet écran (`sessionHref`), et c'est ce paramètre qui fait
  * rendre le rapport complet, bouton « Continuer » qui revient ici.
  *
+ * 🛑 **Une série JOUÉE se lit d'un coup d'œil** (2026-09-27) : carte compacte
+ * à coche verte (réussie) ou croix rouge (ratée), rangée sous « Réussies » ou
+ * « À faire ». Son toucher ouvre la feuille des séries d'entraînement
+ * (`ExamDoneSheet`) : « Voir mon résultat » puis « Refaire la série ». Seule
+ * une série jamais jouée garde le gros bouton « Commencer ».
+ *
+ * 🛑 **Étape franchie = `detail.validee`, SERVI** : « Étape validée » et
+ * « Continuer mon plan » (retour au cycle, `planHref`). Jamais
+ * `validees >= quota` recompté ici.
+ *
  * 🛑 **Miroir de `PlanEtapeScreen` côté mobile**, brique pour brique.
  */
 export function PlanEtapeView() {
@@ -121,6 +140,8 @@ function PlanEtapeScoped() {
     const [busy, setBusy] = useState(false);
     const [erreur, setErreur] = useState<string | null>(null);
     const [paywall, setPaywall] = useState(false);
+    /** La série jouée dont la feuille « corrigé / refaire » est ouverte. */
+    const [ouverte, setOuverte] = useState<JourneySerieDto | null>(null);
 
     /**
      * **Lancer une série.**
@@ -229,33 +250,63 @@ function PlanEtapeScoped() {
 
             {detail && (
                 <>
-                    <Section title={JOURNEY_ETAPE_LIST_TITLE} mono>
-                        <Pad>
-                            <Stack>
-                                {detail.series.map((serie, rang) => (
-                                    <Serie
-                                        key={serie.index}
-                                        serie={serie}
-                                        detail={detail}
-                                        /* 🛑 **La série précédente est celle
-                                           que la LISTE SERVIE porte avant**,
-                                           jamais `index - 1` : c'est l'ordre
-                                           servi qui dit ce qui précède. */
-                                        precedente={detail.series[rang - 1]?.index ?? null}
-                                        busy={busy}
-                                        retour={ici}
-                                        onStart={lancer}
-                                        onLocked={() => setPaywall(true)}
-                                    />
-                                ))}
-                            </Stack>
-                        </Pad>
-                    </Section>
+                    {/* 🛑 **« À faire » ne coiffe jamais une série réussie** :
+                        le partage se lit sur `validee`, servi, et chaque liste
+                        garde l'ordre servi. Une liste vide n'a pas d'intertitre. */}
+                    {[
+                        {titre: JOURNEY_ETAPE_LIST_TITLE, reussies: false},
+                        {titre: JOURNEY_ETAPE_DONE_TITLE, reussies: true},
+                    ].map(({titre, reussies}) => {
+                        const liste = detail.series.filter((serie) => serie.validee === reussies);
+                        if (liste.length === 0) return null;
+                        return (
+                            <Section key={titre} title={titre} mono>
+                                <Pad>
+                                    <Stack>
+                                        {liste.map((serie) => (
+                                            <Serie
+                                                key={serie.index}
+                                                serie={serie}
+                                                detail={detail}
+                                                /* 🛑 **La série précédente est
+                                                   celle que la LISTE SERVIE
+                                                   porte avant**, jamais
+                                                   `index - 1` — et la liste
+                                                   ENTIÈRE, pas la section. */
+                                                precedente={precedenteDe(detail, serie)}
+                                                busy={busy}
+                                                retour={ici}
+                                                onStart={lancer}
+                                                onLocked={() => setPaywall(true)}
+                                                onOpen={() => setOuverte(serie)}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Pad>
+                            </Section>
+                        );
+                    })}
 
                     <Pad>
                         <Stack>
                             {erreur && (
                                 <p className={sejourStyles.tiny} role="alert">{erreur}</p>
+                            )}
+
+                            {/* 🛑 **`validee` de l'ÉTAPE est SERVI** : c'est la
+                                fonction qui la clôt qui le rend. Le bouton
+                                ramène au cycle du Plan, qui sert l'étape
+                                suivante. */}
+                            {detail.validee && (
+                                <Card variant="ok">
+                                    <DoneRow label={JOURNEY_ETAPE_DONE_LEAD} />
+                                    <p className={sejourStyles.tiny}>{JOURNEY_ETAPE_DONE_SUB}</p>
+                                </Card>
+                            )}
+                            {detail.validee && (
+                                <Cta href={planHref(parcours)} variant="blue">
+                                    {JOURNEY_ETAPE_DONE_CTA}
+                                </Cta>
                             )}
 
                             <InfoNote variant="check">
@@ -285,6 +336,38 @@ function PlanEtapeScoped() {
                 </>
             )}
 
+            {/* 🛑 **La feuille des séries d'entraînement**, réutilisée telle
+                quelle : le corrigé par le chemin EXISTANT (`?retour=` compris),
+                refaire par le même lancement que la carte — ou l'offre, si
+                l'étape est fermée. */}
+            <ExamDoneSheet
+                open={ouverte !== null}
+                title={ouverte ? journeyEtapeSerieTitle(ouverte.index) : ""}
+                subtitle={
+                    ouverte && detail
+                        ? journeyEtapeDernierScore(ouverte.dernierScore, detail.questionsParSerie)
+                        : null
+                }
+                detailLabel={JOURNEY_ETAPE_SERIE_RESULT}
+                resumeLabel={JOURNEY_ETAPE_SHEET_REDO}
+                resumeTone="blue"
+                onViewDetail={() => {
+                    const serie = ouverte;
+                    setOuverte(null);
+                    if (serie?.dernierAttemptId) {
+                        router.push(sessionHref(serie.dernierAttemptId, ici, serie.index));
+                    }
+                }}
+                onResume={() => {
+                    const serie = ouverte;
+                    setOuverte(null);
+                    if (!serie || !detail) return;
+                    if (detail.locked) setPaywall(true);
+                    else void lancer(serie.index);
+                }}
+                onClose={() => setOuverte(null)}
+            />
+
             <PaywallSheet
                 ctaLocation="LOCKED_PLAN"
                 screen="plan"
@@ -310,7 +393,7 @@ function PlanEtapeScoped() {
  * son bouton ouvre l'offre au lieu de lancer — et c'est le serveur qui aurait
  * répondu 403 de toute façon. Une seule règle, deux endroits d'application.
  */
-function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
+function Serie({serie, detail, precedente, busy, retour, onStart, onLocked, onOpen}: {
     serie: JourneySerieDto;
     detail: JourneyStepDetailDto;
     precedente: number | null;
@@ -320,6 +403,8 @@ function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
     onStart: (index: number) => void;
     /** L'offre, quand c'est l'**étape** qui est fermée. */
     onLocked: () => void;
+    /** La feuille « corrigé / refaire » d'une série jouée. */
+    onOpen: () => void;
 }) {
     /* 🛑 **Deux verrous, deux lectures.** Celui de la SÉRIE est pédagogique
        (« la précédente n'est pas réussie ») : le bouton devient gris et porte
@@ -335,6 +420,10 @@ function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
             state={journeyEtapeSerieState(serie)}
             score={journeyEtapeDernierScore(serie.dernierScore, detail.questionsParSerie)}
             locked={ferme}
+            /* 🛑 **Jouée et jugée ⇒ compacte** : la carte ne porte plus
+               « Refaire », la feuille s'en charge. */
+            verdict={journeyEtapeSerieVerdict(serie)}
+            onOpen={onOpen}
             action={{
                 label: journeyEtapeSerieCta(serie, precedente),
                 disabled: ferme || busy,
@@ -344,9 +433,9 @@ function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
                         ? onLocked
                         : () => onStart(serie.index),
             }}
-            /* 🛑 **Le corrigé passe par le chemin EXISTANT** — le MÊME rapport
-               de série qu'à la fin de la passation, `?retour=` compris : son
-               « Continuer » revient sur cette étape. */
+            /* 🛑 **Jouée sans score** (session non terminée) : ni verdict ni
+               feuille, le bouton « Refaire la série » reste sur la carte et le
+               corrigé en lien, par le chemin EXISTANT (`?retour=` compris). */
             link={
                 serie.dernierAttemptId
                     ? {
@@ -357,4 +446,10 @@ function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
             }
         />
     );
+}
+
+/** L'index de la série que la liste SERVIE porte juste avant, ou `null`. */
+function precedenteDe(detail: JourneyStepDetailDto, serie: JourneySerieDto): number | null {
+    const rang = detail.series.findIndex((s) => s.index === serie.index);
+    return rang > 0 ? detail.series[rang - 1].index : null;
 }

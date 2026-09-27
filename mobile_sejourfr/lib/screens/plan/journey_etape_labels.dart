@@ -68,8 +68,13 @@ const kJourneyEtapeSeuilSub = 'sur chacune';
 
 /* ------------------------------------------------------------- Les séries */
 
-/// L'intertitre de la liste.
+/// Les intertitres des deux listes.
+///
+/// 🛑 **« À faire » ne coiffe jamais une série déjà réussie** : les séries
+/// validées (`validee`, servi) passent sous « Réussies ». Une liste vide ne
+/// porte pas son intertitre.
 const kJourneyEtapeListTitle = 'À FAIRE';
+const kJourneyEtapeDoneTitle = 'RÉUSSIES';
 
 /// « Série 1 » — l'index est **servi**.
 String journeyEtapeSerieTitle(int index) => 'Série $index';
@@ -96,10 +101,29 @@ String journeyEtapeQuestions(int questions) =>
 ({String label, SfBarTone tone}) journeyEtapeSerieState(JourneySerie serie) {
   if (serie.locked) return (label: 'Verrouillée', tone: SfBarTone.muted);
   if (serie.validee) return (label: 'Réussie', tone: SfBarTone.ok);
+  if (journeyEtapeSerieVerdict(serie) == SfSerieVerdict.fail) {
+    return (label: 'Ratée', tone: SfBarTone.hot);
+  }
   if (serie.dernierAttemptId != null) {
     return (label: 'À refaire', tone: SfBarTone.warn);
   }
-  return (label: 'À faire', tone: SfBarTone.hot);
+  return (label: 'À faire', tone: SfBarTone.now);
+}
+
+/// **Le verdict d'une série jouée** — la coche verte ([SfSerieVerdict.ok]) ou
+/// rouge ([SfSerieVerdict.fail]) de la carte compacte, `null` pour une carte
+/// encore à faire.
+///
+/// 🛑 **Deux faits servis, aucun nombre jugé** : `validee` dit la réussite ;
+/// « ratée » est « un score est servi ET la série n'est pas validée ». Le score
+/// lui-même n'est jamais comparé à `seuilReussite`.
+///
+/// ⚠️ **Jouée sans score** (session commencée, pas terminée) : `null`. Un score
+/// absent est **inconnu**, jamais un échec — la carte reste « À refaire ».
+SfSerieVerdict? journeyEtapeSerieVerdict(JourneySerie serie) {
+  if (serie.locked) return null;
+  if (serie.validee) return SfSerieVerdict.ok;
+  return serie.dernierScore == null ? null : SfSerieVerdict.fail;
 }
 
 /// **Le bouton de la carte.**
@@ -117,9 +141,25 @@ String journeyEtapeSerieCta(JourneySerie serie, int? precedente) {
 /// Le second accès d'une série déjà jouée : son corrigé.
 const kJourneyEtapeSerieResult = 'Voir mon résultat';
 
+/// **La feuille d'une série jouée** — la même que celle des séries
+/// d'entraînement (`showAppSheet` ⇄ `ExamDoneSheet`) : le corrigé d'abord, puis
+/// refaire. « Refaire » n'est plus sur la carte : il n'est pas mis en avant.
+const kJourneyEtapeSheetRedo = 'Refaire la série';
+
 /// « Dernier score : 17/20 ». 🛑 **Affiché, jamais comparé.**
 String? journeyEtapeDernierScore(int? score, int questions) =>
     score == null ? null : 'Dernier score : $score/$questions';
+
+/* ----------------------------------------------------- Étape franchie */
+
+/// **L'étape validée** — le `validee` **servi** de l'étape, jamais
+/// `validees >= quota` recompté ici.
+const kJourneyEtapeDoneLead = 'Étape validée';
+
+const kJourneyEtapeDoneSub = 'Passez au sujet suivant de votre plan.';
+
+/// Le bouton de fin d'étape : il ramène au cycle du Plan.
+const kJourneyEtapeDoneCta = 'Continuer mon plan';
 
 /* ----------------------------------------------------- Pied de l'écran */
 

@@ -1164,6 +1164,7 @@ class JourneyStepDetail {
     required this.seuilReussite,
     required this.locked,
     required this.series,
+    this.validee = false,
     this.section,
     this.objectif,
     this.dureeEstimeeMin,
@@ -1205,6 +1206,14 @@ class JourneyStepDetail {
   /// pas annoncer « 1 sur 2 » sur une étape que le serveur vient de clore.
   final int validees;
 
+  /// **L'étape est franchie** — toutes ses séries réussies (ou close par le
+  /// moteur, jamais « remplacée »).
+  ///
+  /// 🛑 **SERVI, jamais `validees >= quota` côté front** : c'est la fonction qui
+  /// clôt l'étape qui le rend. Il fait apparaître « Étape validée » et
+  /// « Continuer mon plan ».
+  final bool validee;
+
   final int questionsParSerie;
 
   /// 🛑 **SERVI, jamais écrit dans un front** : c'est le seuil de réussite.
@@ -1233,6 +1242,7 @@ class JourneyStepDetail {
         priorite: json['priorite'] as bool? ?? false,
         quota: (json['quota'] as num?)?.toInt() ?? 0,
         validees: (json['validees'] as num?)?.toInt() ?? 0,
+        validee: json['validee'] as bool? ?? false,
         questionsParSerie: (json['questionsParSerie'] as num?)?.toInt() ?? 0,
         seuilReussite: (json['seuilReussite'] as num?)?.toInt() ?? 0,
         dureeEstimeeMin: (json['dureeEstimeeMin'] as num?)?.toInt(),

@@ -5377,6 +5377,15 @@ export interface JourneyStepDetailDto {
      * recompter aurait fait exister une seconde addition de la même chose.
      */
     validees: number;
+    /**
+     * **L'étape est franchie** — toutes ses séries réussies (ou close par le
+     * moteur, jamais « remplacée »).
+     *
+     * 🛑 **SERVI, jamais `validees >= quota` côté front** : c'est la fonction
+     * qui clôt l'étape qui le rend. Il fait apparaître « Étape validée » et
+     * « Continuer mon plan ».
+     */
+    validee: boolean;
     questionsParSerie: number;
     /** 🛑 **SERVI, jamais écrit dans un front** : c'est le seuil de réussite. */
     seuilReussite: number;

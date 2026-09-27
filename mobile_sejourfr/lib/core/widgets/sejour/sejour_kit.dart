@@ -5718,6 +5718,15 @@ class SfSerieProgress extends StatelessWidget {
 /// résultat). Le bouton porte alors la condition (« Après la série 1 ») et ne
 /// répond pas.
 ///
+/// **Carte JOUÉE = carte COMPACTE** (demande du propriétaire, 2026-09-27) :
+/// quand [verdict] et [onOpen] sont posés, la carte se réduit à une ligne
+/// touchable — repère à **coche verte** ([SfSerieVerdict.ok]) ou **croix
+/// rouge** ([SfSerieVerdict.fail]), le motif des cartes de séries et d'examens
+/// blancs du web (`serieCheck` / `examCheckFail`) —, titre, score et état. Ni
+/// gros bouton ni lien : « Refaire » et le corrigé passent par la feuille que
+/// l'appelant ouvre (`showAppSheet`, la même que les sujets déjà traités).
+/// 🛑 **Une variante, pas une primitive de plus.**
+///
 /// Miroir web : `SerieCard`.
 class SfSerieCard extends StatelessWidget {
   const SfSerieCard({
@@ -5733,6 +5742,8 @@ class SfSerieCard extends StatelessWidget {
     this.onAction,
     this.linkLabel,
     this.onLink,
+    this.verdict,
+    this.onOpen,
   });
 
   /// Le chiffre du carré — l'`index` **servi**, mis en texte par l'appelant.
@@ -5763,8 +5774,20 @@ class SfSerieCard extends StatelessWidget {
   final String? linkLabel;
   final VoidCallback? onLink;
 
+  /// Le verdict d'une série **jouée**, composé par l'appelant sur des faits
+  /// servis. Avec [onOpen], il rend la carte compacte ; `null` = carte à faire.
+  final SfSerieVerdict? verdict;
+
+  /// Le toucher d'une carte compacte : la feuille « corrigé / refaire ».
+  final VoidCallback? onOpen;
+
   @override
   Widget build(BuildContext context) {
+    final verdict = this.verdict;
+    final onOpen = this.onOpen;
+    if (verdict != null && onOpen != null) {
+      return _compacte(verdict, onOpen);
+    }
     final inerte = onAction == null;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -5930,7 +5953,110 @@ class SfSerieCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _compacte(SfSerieVerdict verdict, VoidCallback onOpen) {
+    final ok = verdict == SfSerieVerdict.ok;
+    final teinte = ok ? AppColors.green : AppColors.red;
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadii.xl),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          boxShadow: AppShadows.card,
+        ),
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(AppRadii.xl),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                // Le repère teinté + la pastille cochée (verte) ou barrée
+                // (rouge) en coin : le motif des cartes de séries.
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: ok ? AppColors.greenLight : AppColors.redLight,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: Text(
+                        mark,
+                        style: AppFonts.label(size: 13, color: teinte),
+                      ),
+                    ),
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: teinte,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.white, width: 2),
+                        ),
+                        child: Icon(
+                          ok ? LucideIcons.check : LucideIcons.x,
+                          size: 10,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppFonts.ui(size: 15, weight: FontWeight.w700),
+                      ),
+                      if (score != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          score!,
+                          style:
+                              AppFonts.ui(size: 12, color: AppColors.muted),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  state.label.toUpperCase(),
+                  style: AppFonts.ui(
+                    size: 10,
+                    weight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                    color: _sfStatusColor(state.tone),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(LucideIcons.chevronRight,
+                    size: 16, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+/// Le verdict d'une série **jouée** — composé par l'appelant sur `validee` et
+/// la présence d'un score, **jamais** en comparant ce score à un seuil.
+enum SfSerieVerdict { ok, fail }
 
 // =============================================================================
 // ÉCRANS DE PROGRESSION (2026-09-24) — maquettes

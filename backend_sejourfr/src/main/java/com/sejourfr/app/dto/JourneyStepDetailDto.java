@@ -62,6 +62,15 @@ import java.util.UUID;
  *                          etape que le serveur vient de clore. Le recompter cote
  *                          front aurait fait exister une seconde addition de la
  *                          meme chose.
+ * @param validee           <b>l'etape est franchie</b> (2026-09-27) : ses
+ *                          {@link #quota()} cartes sont reussies — lu chez
+ *                          l'autorite de la cloture,
+ *                          {@code JourneyReadService.etapesAuQuota} —, ou elle
+ *                          est deja close par le moteur (quota, maitrise,
+ *                          evaluation ; jamais {@code SUPERSEDED}). 🛑 Servi pour
+ *                          que l'ecran n'ait pas a comparer {@code validees} a
+ *                          {@code quota} : c'est ce booleen qui fait apparaitre
+ *                          « Étape validée » et « Continuer mon plan ».
  * @param questionsParSerie taille <b>nominale</b> d'une serie (20). C'est aussi
  *                          le denominateur de {@link JourneySerieDto#dernierScore()}.
  * @param seuilReussite     bonnes reponses qui rendent une serie reussie (16).
@@ -89,6 +98,7 @@ public record JourneyStepDetailDto(
         boolean priorite,
         int quota,
         int validees,
+        boolean validee,
         int questionsParSerie,
         int seuilReussite,
         Integer dureeEstimeeMin,

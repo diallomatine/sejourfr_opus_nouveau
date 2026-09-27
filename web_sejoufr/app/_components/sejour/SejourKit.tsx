@@ -3175,6 +3175,15 @@ export function SerieProgress({
  * résultat). Le bouton porte alors la condition (« Après la série 1 ») et ne
  * répond pas.
  *
+ * **Carte JOUÉE = carte COMPACTE** (demande du propriétaire, 2026-09-27) :
+ * quand `verdict` et `onOpen` sont posés, la carte se réduit à une ligne
+ * touchable — repère à **coche verte** (`ok`) ou **croix rouge** (`fail`), le
+ * motif des cartes de séries et d'examens blancs (`serieCheck` /
+ * `examCheckFail` du hub) —, titre, score et état. Ni gros bouton ni lien :
+ * « Refaire » et le corrigé passent par la feuille que l'appelant ouvre
+ * (`ExamDoneSheet`, la même que les séries d'entraînement). 🛑 **Une variante,
+ * pas une primitive de plus.**
+ *
  * Miroir Flutter : `SfSerieCard`.
  */
 export function SerieCard({
@@ -3187,6 +3196,8 @@ export function SerieCard({
   locked,
   action,
   link,
+  verdict,
+  onOpen,
 }: {
   /** Le chiffre du carré — l'`index` **servi**, mis en texte par l'appelant. */
   mark: string;
@@ -3205,7 +3216,39 @@ export function SerieCard({
   action: { label: string; onClick?: () => void; disabled?: boolean };
   /** Le second accès d'une série jouée : son corrigé. */
   link?: { label: string; href: string };
+  /**
+   * Le verdict d'une série **jouée**, composé par l'appelant sur des faits
+   * servis. Avec `onOpen`, il rend la carte compacte ; `null` = carte à faire.
+   */
+  verdict?: "ok" | "fail" | null;
+  /** Le toucher d'une carte compacte : la feuille « corrigé / refaire ». */
+  onOpen?: () => void;
 }) {
+  if (verdict && onOpen) {
+    const ok = verdict === "ok";
+    return (
+      <button
+        type="button"
+        className={cx(styles.serieCard, styles.serieCardCompact)}
+        onClick={onOpen}
+      >
+        <span className={cx(styles.serieMark, ok ? styles.isOk : styles.isFail)}>
+          {mark}
+          <span className={styles.serieMarkCheck} aria-hidden>
+            {ok ? <Check size={11} strokeWidth={3} /> : <X size={11} strokeWidth={3} />}
+          </span>
+        </span>
+        <span className={styles.serieCardText}>
+          <b>{title}</b>
+          {score ? <span className={styles.serieMeta}>{score}</span> : null}
+        </span>
+        <span className={cx(styles.serieState, statusToneClass[state.tone])}>
+          {state.label}
+        </span>
+        <ChevronRight size={16} strokeWidth={2.2} className={styles.serieChevron} aria-hidden />
+      </button>
+    );
+  }
   const inerte = action.disabled || !action.onClick;
   return (
     <div className={cx(styles.serieCard, locked && styles.isLocked)}>

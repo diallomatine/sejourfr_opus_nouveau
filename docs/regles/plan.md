@@ -2542,7 +2542,8 @@ V065 et le parcours V066), et elle a le **même critère** : « le candidat a la
 `GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` :
 `stepId`, `type`, `bloc`, `unite` *(code, label, description — `description` nulle en civique)*,
 `section`, `objectif` *(kind, code, label : un palier **ou** une mention)*, `priorite`, `quota`,
-`validees`, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`, `locked`, `series[]`.
+`validees`, `validee` *(2026-09-27)*, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`,
+`locked`, `series[]`.
 
 `JourneySerieDto` : `index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`,
 `dernierEssaiAt`.
@@ -2667,3 +2668,30 @@ propriétaire.
   aucune action servie (TCF) ou sans diagnostic civique clos, l'écran s'efface vers l'offre.
 - ⚠️ `prioriteLibelle` / `prioritePastille` (web) et `tcf_diagnostic_labels.dart` (mobile) sont
   **supprimés** avec leur dernier lecteur.
+
+### L'écran d'étape se LIT d'un coup d'œil (2026-09-27)
+
+Demande du propriétaire. `PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`, mots dans
+`lib/journey-etape.ts` ⇄ `journey_etape_labels.dart`.
+
+- **Carte JOUÉE = carte COMPACTE** (variante `verdict` + `onOpen` de `SerieCard` ⇄
+  `SfSerieCard`, pas une primitive de plus) : repère à **coche verte** (réussie) ou **croix
+  rouge** (ratée), score, état, chevron. Plus de gros bouton « Refaire » : le toucher ouvre la
+  **feuille des séries d'entraînement** — web `ExamDoneSheet` (`hub/`), mobile `showAppSheet`
+  (celle des sujets déjà traités) — « Voir mon résultat » puis « Refaire la série ». Seule une
+  série **jamais jouée** garde le bouton pleine largeur « Commencer ».
+- 🛑 **Le verdict se compose sur deux faits servis** (`journeyEtapeSerieVerdict`) : `validee` ⇒
+  réussie ; score servi **et** non validée ⇒ ratée ; **jouée sans score** (session non
+  terminée) ⇒ aucun verdict, la carte reste « À refaire » avec son bouton — un score absent est
+  inconnu, jamais un échec. Le score n'est **jamais** comparé à `seuilReussite`.
+- **Deux listes** : « À faire » (non validées) puis « Réussies » (`validee`), chacune dans
+  l'ordre servi ; une liste vide n'a pas d'intertitre. « Après la série N » lit la série
+  précédente dans la liste **entière**, pas dans la section.
+- 🆕 **`JourneyStepDetailDto.validee`** — l'étape est **franchie** : ouverte et rendue par
+  `JourneyReadService.etapesAuQuota` (la fonction qui la clôt), ou déjà close par le moteur
+  (quota, maîtrise, évaluation), **jamais** `SUPERSEDED`. 🛑 Aucun front ne compare `validees`
+  à `quota`. Vrai ⇒ encart vert « **Étape validée** — Passez au sujet suivant de votre plan. »
+  et bouton bleu « **Continuer mon plan** » vers le cycle (`planHref(parcours)` ⇄
+  `context.go(AppRoutes.plan)`) : aucune « prochaine étape » n'est servie sur cet écran, c'est
+  le cycle qui la désigne. Verrouillé par `JourneyStepSeriesIT`.
+

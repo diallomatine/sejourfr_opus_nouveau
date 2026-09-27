@@ -4515,6 +4515,13 @@ dans ce fichier.
   `dureeEstimeeMin` sont SERVIS** : aucun « 16/20 », aucun « 2 séries » n'est
   écrit dans un front, et **`validees` ne se recompte pas** depuis `series` —
   c'est le compteur que le moteur compare au quota pour clore l'étape.
+- **Série jouée = carte COMPACTE, étape franchie = « Continuer mon plan »**
+  (2026-09-27) : `SerieCard` ⇄ `SfSerieCard` gagnent la variante `verdict` +
+  `onOpen` (coche verte / croix rouge, sans bouton) ; le toucher ouvre la feuille
+  des séries d'entraînement (`showAppSheet`, comme les sujets déjà traités) « Voir mon résultat » / « Refaire la série ».
+  Listes « À faire » / « Réussies » sur `validee` servi. `detail.validee` (servi,
+  jamais `validees >= quota`) affiche « Étape validée » + « Continuer mon plan »
+  → `context.go(AppRoutes.plan)`. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
 - 🛑 **`objectif` est un `JourneyObjectifRef`**, pas un `TargetLevel` : on lit
   **`label`** (« B2 », « Naturalisation »), jamais `code`, et **on ne branche
   jamais sur le module**. Seule la **tournure** se choisit sur `kind`, comme

@@ -4759,6 +4759,72 @@ a.pRow:focus-visible {
   color: var(--color-muted);
 }
 
+/* Carte jouée = compacte : une ligne touchable, la feuille fait le reste. */
+.serieCardCompact {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--sf-quick) var(--sf-ease-out);
+}
+
+.serieCardCompact:active {
+  transform: scale(0.98);
+}
+
+.serieCardCompact:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+/* Le motif des cartes de séries du hub : repère teinté + pastille cochée
+   (verte) ou barrée (rouge) en coin. */
+.serieMark.isOk,
+.serieMark.isFail {
+  position: relative;
+}
+
+.serieMark.isOk {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.serieMark.isFail {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.serieMarkCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid white;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.serieMark.isOk .serieMarkCheck {
+  background: var(--color-green);
+}
+
+.serieMark.isFail .serieMarkCheck {
+  background: var(--color-red);
+}
+
+.serieChevron {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+}
+
 .serieCardText {
   flex: 1 1 auto;
   min-width: 0;

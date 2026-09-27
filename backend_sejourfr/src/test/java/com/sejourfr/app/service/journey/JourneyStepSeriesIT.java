@@ -13,6 +13,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyObjectifKind;
+import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
@@ -126,6 +127,7 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
         assertThat(vue.unite().label()).isNotBlank();
         assertThat(vue.locked()).isFalse();
         assertThat(vue.validees()).isZero();
+        assertThat(vue.validee()).as("aucune carte reussie : l'etape n'est pas franchie").isFalse();
 
         assertThat(vue.series()).hasSize(config.trainSeriesQuota());
         JourneySerieDto une = vue.series().getFirst();
@@ -173,6 +175,7 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
         assertThat(apres.series().getFirst().validee()).isTrue();
         assertThat(apres.series().get(1).locked()).isFalse();
         assertThat(apres.validees()).isEqualTo(1);
+        assertThat(apres.validee()).as("1 carte sur 2 : l'etape n'est pas franchie").isFalse();
     }
 
     @Test
@@ -253,7 +256,11 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
 
         essai(etape, 1, user, 16);
         essai(etape, 2, user, 20);
-        assertThat(detailService.lire(user.getId(), etape.getId()).validees()).isEqualTo(2);
+        JourneyStepDetailDto avant = detailService.lire(user.getId(), etape.getId());
+        assertThat(avant.validees()).isEqualTo(2);
+        assertThat(avant.validee())
+                .as("au quota AVANT la cloture : l'ecran le dit deja, sur la meme fonction")
+                .isTrue();
 
         journeyService.onTrainingProgress(
                 user.getId(), List.of(etape.getSkill().getId()));
@@ -261,6 +268,25 @@ class JourneyStepSeriesIT extends AbstractIntegrationTest {
         assertThat(stepManager.findDetail(etape.getId()).orElseThrow().estOuverte())
                 .as("l'etape est close sur son quota")
                 .isFalse();
+        assertThat(detailService.lire(user.getId(), etape.getId()).validee())
+                .as("close sur son quota : toujours franchie")
+                .isTrue();
+    }
+
+    /**
+     * 🛑 <b>Une etape REMPLACEE n'est pas franchie</b> : {@code SUPERSEDED} clot
+     * l'etape sans que le candidat l'ait reussie. L'ecran ne doit pas lui dire
+     * « Étape validée ».
+     */
+    @Test
+    @DisplayName("Une etape remplacee (SUPERSEDED) n'est jamais servie validee")
+    void uneEtapeRemplaceeNEstPasValidee() {
+        User user = abonne();
+        JourneyStep etape = etapeDeComprehension(user, SkillSection.CO);
+        jdbc.update("UPDATE journey_step SET closed_at = now(), resolution = ? WHERE id = ?",
+                JourneyStepResolution.SUPERSEDED.name(), etape.getId());
+
+        assertThat(detailService.lire(user.getId(), etape.getId()).validee()).isFalse();
     }
 
     // ------------------------------------------------------------------ lancement

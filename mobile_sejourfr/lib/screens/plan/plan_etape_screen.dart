@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics_events.dart';
 import '../../core/api/api_client.dart';
@@ -13,6 +14,8 @@ import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/parcours_affiche.dart';
 import '../../core/utils/start_failure.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'journey_etape_labels.dart';
@@ -44,6 +47,16 @@ import 'learning_plan_provider.dart';
 /// 🛑 **Le corrigé d'une série jouée réutilise le chemin existant** — le rapport
 /// de série ([AppRoutes.examReportDepuisPlan]), celui des séries hors Plan, dont
 /// « Continuer » redépile ici. Aucun écran de rapport n'est écrit ici.
+///
+/// 🛑 **Une série JOUÉE se lit d'un coup d'œil** (2026-09-27) : carte compacte
+/// à coche verte (réussie) ou croix rouge (ratée), rangée sous « Réussies » ou
+/// « À faire ». Son toucher ouvre la feuille des sujets déjà traités
+/// (`showAppSheet`) : « Voir mon résultat » puis « Refaire la série ». Seule une
+/// série jamais jouée garde le gros bouton « Commencer ».
+///
+/// 🛑 **Étape franchie = `detail.validee`, SERVI** : « Étape validée » et
+/// « Continuer mon plan » (retour au cycle, [AppRoutes.plan]). Jamais
+/// `validees >= quota` recompté ici.
 ///
 /// 🛑 **Miroir de `PlanEtapeView` côté web**, brique pour brique.
 class PlanEtapeScreen extends ConsumerStatefulWidget {
@@ -153,19 +166,49 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
         done: detail.validees,
         total: detail.quota,
       ),
-      const SizedBox(height: 12),
-      SfSectionTitle(kJourneyEtapeListTitle, flush: true, mono: true),
-      for (var rang = 0; rang < detail.series.length; rang++)
-        _carte(
-          detail,
-          detail.series[rang],
-          // 🛑 **La série précédente est celle que la LISTE SERVIE porte
-          // avant**, jamais `index - 1` : c'est l'ordre servi qui dit ce qui
-          // précède.
-          rang == 0 ? null : detail.series[rang - 1].index,
-        ),
+      // 🛑 **« À faire » ne coiffe jamais une série réussie** : le partage se
+      // lit sur `validee`, servi, et chaque liste garde l'ordre servi. Une
+      // liste vide n'a pas d'intertitre.
+      for (final (titre, reussies) in const [
+        (kJourneyEtapeListTitle, false),
+        (kJourneyEtapeDoneTitle, true),
+      ])
+        if (detail.series.any((serie) => serie.validee == reussies)) ...[
+          const SizedBox(height: 12),
+          SfSectionTitle(titre, flush: true, mono: true),
+          for (var rang = 0; rang < detail.series.length; rang++)
+            if (detail.series[rang].validee == reussies)
+              _carte(
+                detail,
+                detail.series[rang],
+                // 🛑 **La série précédente est celle que la LISTE SERVIE
+                // porte avant**, jamais `index - 1` — et la liste ENTIÈRE,
+                // pas la section.
+                rang == 0 ? null : detail.series[rang - 1].index,
+              ),
+        ],
       const SizedBox(height: 12),
       if (erreur != null) SfTiny(erreur, color: AppColors.red),
+      // 🛑 **`validee` de l'ÉTAPE est SERVI** : c'est la fonction qui la clôt
+      // qui le rend. Le bouton ramène au cycle du Plan, qui sert l'étape
+      // suivante.
+      if (detail.validee) ...[
+        const SfCard(
+          variant: SfCardVariant.ok,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SfCheckRow(label: kJourneyEtapeDoneLead, large: true),
+              SfTiny(kJourneyEtapeDoneSub),
+            ],
+          ),
+        ),
+        SfButton(
+          label: kJourneyEtapeDoneCta,
+          variant: SfButtonVariant.blue,
+          onPressed: () => context.go(AppRoutes.plan),
+        ),
+      ],
       SfInfoNote(
         variant: SfInfoNoteVariant.check,
         child: RichText(
@@ -220,18 +263,61 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
       score:
           journeyEtapeDernierScore(serie.dernierScore, detail.questionsParSerie),
       locked: ferme,
+      // 🛑 **Jouée et jugée ⇒ compacte** : la carte ne porte plus « Refaire »,
+      // la feuille s'en charge.
+      verdict: journeyEtapeSerieVerdict(serie),
+      onOpen: () => _ouvrirFeuille(detail, serie),
       actionLabel: journeyEtapeSerieCta(serie, precedente),
       onAction: ferme || _occupe
           ? null
           : detail.locked
               ? () => unawaited(_ouvrirOffre())
               : () => unawaited(_lancer(serie.index)),
-      // 🛑 **Le corrigé passe par le chemin EXISTANT** — le MÊME rapport de
-      // série qu'à la fin de la passation, « Continuer » compris.
+      // 🛑 **Jouée sans score** (session non terminée) : ni verdict ni
+      // feuille, le bouton reste sur la carte et le corrigé en lien, par le
+      // chemin EXISTANT — le MÊME rapport de série, « Continuer » compris.
       linkLabel: attemptId == null ? null : kJourneyEtapeSerieResult,
       onLink: attemptId == null
           ? null
           : () => context.push(AppRoutes.examReportDepuisPlan(attemptId)),
+    );
+  }
+
+  /// **La feuille d'une série jouée** — celle des sujets déjà traités
+  /// (`showAppSheet`, miroir de l'`ExamDoneSheet` web) : le corrigé par le
+  /// chemin EXISTANT, puis refaire par le même lancement que la carte — ou
+  /// l'offre, si l'étape est fermée.
+  void _ouvrirFeuille(JourneyStepDetail detail, JourneySerie serie) {
+    final attemptId = serie.dernierAttemptId;
+    showAppSheet<void>(
+      context,
+      icon: LucideIcons.fileText,
+      title: journeyEtapeSerieTitle(serie.index),
+      sub: journeyEtapeDernierScore(
+          serie.dernierScore, detail.questionsParSerie),
+      children: [
+        if (attemptId != null)
+          AppButton(
+            label: kJourneyEtapeSerieResult,
+            icon: LucideIcons.fileText,
+            variant: AppButtonVariant.ghost,
+            height: 46,
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.push(AppRoutes.examReportDepuisPlan(attemptId));
+            },
+          ),
+        AppButton(
+          label: kJourneyEtapeSheetRedo,
+          icon: LucideIcons.refreshCw,
+          height: 46,
+          onPressed: () {
+            Navigator.of(context).pop();
+            unawaited(
+                detail.locked ? _ouvrirOffre() : _lancer(serie.index));
+          },
+        ),
+      ],
     );
   }
 

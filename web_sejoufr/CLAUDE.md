@@ -4883,7 +4883,7 @@ la tête d'une tâche EE/EO.
   concernées** — elles gardent leur chemin vers leurs petits sujets.
 - **Libellés purs** : `lib/journey-etape.ts`, **miroir mot pour mot** de
   `screens/plan/journey_etape_labels.dart`. Aucune phrase de cet écran n'est
-  servie — « À faire », « Verrouillée », « Réussie », « À refaire », « Après la
+  servie — « À faire », « Verrouillée », « Réussie », « Ratée », « À refaire », « Après la
   série 1 », l'encart de validation et le pied de page s'y composent.
 - 🛑 **Deux verrous, deux lectures.** `JourneySerieDto.locked` est **pédagogique**
   (le bouton devient **gris** et porte la condition) ; `JourneyStepDetailDto.locked`
@@ -4900,6 +4900,13 @@ la tête d'une tâche EE/EO.
   séries ». Les autres lanceurs de série du Plan (`useCivicSerie`,
   `useCivicUniteSerie`, `usePlanExercise`) posent `adresseCourante()`.
   **Aucun écran de rapport n'est écrit.**
+- **Série jouée = carte COMPACTE, étape franchie = « Continuer mon plan »**
+  (2026-09-27) : `SerieCard` ⇄ `SfSerieCard` gagnent la variante `verdict` +
+  `onOpen` (coche verte / croix rouge, sans bouton) ; le toucher ouvre la feuille
+  des séries d'entraînement (`hub/ExamDoneSheet`) « Voir mon résultat » / « Refaire la série ».
+  Listes « À faire » / « Réussies » sur `validee` servi. `detail.validee` (servi,
+  jamais `validees >= quota`) affiche « Étape validée » + « Continuer mon plan »
+  → `planHref(parcours)`. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
 - **Le retour** : `Top backTo={planHref(module)}` (une adresse fixe se partage) ;
   « Continuer » dépile **sur cet écran**, qui se relit (le `finish` purge le
   préfixe `learning-plan:`, clé du détail d'étape comprise).

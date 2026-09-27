@@ -8,6 +8,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -104,6 +105,7 @@ public class JourneyStepDetailService {
                 // 🛑 Le compte des cartes reussies est SERVI, pas recompte par
                 // l'ecran : c'est le meme nombre que le moteur compare au quota.
                 (int) cartes.stream().filter(JourneySerieDto::validee).count(),
+                franchie(userId, step),
                 verdict.questionsParSerie(module),
                 verdict.seuilReussite(module),
                 verdict.dureeEstimeeMin(module, step.getExamType()),
@@ -224,6 +226,21 @@ public class JourneyStepDetailService {
                     "Cette etape ne se travaille pas par series de questions.");
         }
         return step;
+    }
+
+    /**
+     * <b>L'etape est-elle franchie ?</b> — le {@code validee} de l'ecran.
+     *
+     * <p>🛑 <b>Aucune regle ecrite ici.</b> Ouverte, elle l'est quand
+     * {@link JourneyReadService#etapesAuQuota} la rend — la <b>meme</b> fonction
+     * qui la clot. Close, elle l'est sauf si elle a ete <b>remplacee</b>
+     * ({@code SUPERSEDED}, qui n'est pas une reussite).
+     */
+    private boolean franchie(UUID userId, JourneyStep step) {
+        if (!step.estOuverte()) {
+            return step.getResolution() != JourneyStepResolution.SUPERSEDED;
+        }
+        return readService.etapesAuQuota(userId, List.of(step)).contains(step.getId());
     }
 
     /** La carte precedente est-elle reussie ? La carte 1 n'attend personne. */

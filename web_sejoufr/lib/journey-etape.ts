@@ -84,8 +84,15 @@ export const JOURNEY_ETAPE_SEUIL_SUB = "sur chacune";
 
 /* ------------------------------------------------------------- Les séries */
 
-/** L'intertitre de la liste. */
+/**
+ * Les intertitres des deux listes.
+ *
+ * 🛑 **« À faire » ne coiffe jamais une série déjà réussie** : les séries
+ * validées (`validee`, servi) passent sous « Réussies ». Une liste vide ne
+ * porte pas son intertitre.
+ */
 export const JOURNEY_ETAPE_LIST_TITLE = "À FAIRE";
+export const JOURNEY_ETAPE_DONE_TITLE = "RÉUSSIES";
 
 /** « Série 1 » — l'index est **servi**. */
 export function journeyEtapeSerieTitle(index: number): string {
@@ -123,8 +130,26 @@ export function journeyEtapeSerieState(serie: JourneySerieDto): {
 } {
     if (serie.locked) return {label: "Verrouillée", tone: "muted"};
     if (serie.validee) return {label: "Réussie", tone: "ok"};
+    if (journeyEtapeSerieVerdict(serie) === "fail") return {label: "Ratée", tone: "hot"};
     if (serie.dernierAttemptId) return {label: "À refaire", tone: "warn"};
-    return {label: "À faire", tone: "hot"};
+    return {label: "À faire", tone: "now"};
+}
+
+/**
+ * **Le verdict d'une série jouée** — la coche verte (`ok`) ou rouge (`fail`)
+ * de la carte compacte, `null` pour une carte encore à faire.
+ *
+ * 🛑 **Deux faits servis, aucun nombre jugé** : `validee` dit la réussite ;
+ * « ratée » est « un score est servi ET la série n'est pas validée ». Le score
+ * lui-même n'est jamais comparé à `seuilReussite`.
+ *
+ * ⚠️ **Jouée sans score** (session commencée, pas terminée) : `null`. Un score
+ * absent est **inconnu**, jamais un échec — la carte reste « À refaire ».
+ */
+export function journeyEtapeSerieVerdict(serie: JourneySerieDto): "ok" | "fail" | null {
+    if (serie.locked) return null;
+    if (serie.validee) return "ok";
+    return serie.dernierScore === null ? null : "fail";
 }
 
 /**
@@ -149,6 +174,13 @@ export function journeyEtapeSerieCta(
 /** Le second accès d'une série déjà jouée : son corrigé. */
 export const JOURNEY_ETAPE_SERIE_RESULT = "Voir mon résultat";
 
+/**
+ * **La feuille d'une série jouée** — la même que celle des séries
+ * d'entraînement (`ExamDoneSheet` ⇄ `showAppSheet`) : le corrigé d'abord, puis
+ * refaire. « Refaire » n'est plus sur la carte : il n'est pas mis en avant.
+ */
+export const JOURNEY_ETAPE_SHEET_REDO = "Refaire la série";
+
 /** « Dernier score : 17/20 ». 🛑 **Affiché, jamais comparé.** */
 export function journeyEtapeDernierScore(
     score: number | null,
@@ -156,6 +188,19 @@ export function journeyEtapeDernierScore(
 ): string | null {
     return score === null ? null : `Dernier score : ${score}/${questions}`;
 }
+
+/* ----------------------------------------------------- Étape franchie */
+
+/**
+ * **L'étape validée** — le `validee` **servi** de l'étape, jamais
+ * `validees >= quota` recompté ici.
+ */
+export const JOURNEY_ETAPE_DONE_LEAD = "Étape validée";
+
+export const JOURNEY_ETAPE_DONE_SUB = "Passez au sujet suivant de votre plan.";
+
+/** Le bouton de fin d'étape : il ramène au cycle du Plan. */
+export const JOURNEY_ETAPE_DONE_CTA = "Continuer mon plan";
 
 /* ----------------------------------------------------- Pied de l'écran */
 
