@@ -4939,8 +4939,9 @@ la tête d'une tâche EE/EO.
   Listes « À faire » / « Réussies » sur `validee` servi. `detail.validee` (servi,
   jamais `validees >= quota`) affiche « Étape validée » + « Continuer mon plan »
   → `planHref(parcours)`. 🛑 `validee` = quota de séries atteint **seulement** : une étape
-  close autrement (`MASTERED`…) n'est pas « validée » ; `detail.resolution` (servi) donne
-  alors une note neutre (`journeyEtapeCloseNote`) + le même bouton. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
+  close autrement n'est pas « validée » ; depuis D-65 (« une étape exige toujours ses
+  séries ») seul `SUPERSEDED` peut l'être : `detail.resolution` (servi) donne alors une note
+  neutre (`journeyEtapeCloseNote`) + le même bouton. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
 - **Le retour** : `Top backTo={planHref(module)}` (une adresse fixe se partage) ;
   « Continuer » dépile **sur cet écran**, qui se relit (le `finish` purge le
   préfixe `learning-plan:`, clé du détail d'étape comprise).

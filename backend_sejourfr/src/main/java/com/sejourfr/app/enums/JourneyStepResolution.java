@@ -21,11 +21,20 @@ public enum JourneyStepResolution {
     /**
      * Transfert prouve en situation, lu chez
      * {@code SkillMasteryEngine.SkillMastery.transferProven()}.
+     *
+     * <p>🛑 <b>Plus jamais ecrit depuis le 2026-09-27 (D-65)</b> : « une etape
+     * exige toujours ses series ». La maitrise detectee ailleurs (examen, series
+     * hors Plan, evaluation) ne clot plus une etape d'entrainement ; seul
+     * {@link #QUOTA_REACHED} la ferme comme faite. La valeur reste pour les
+     * cycles <b>historises</b>, figes tels quels ; dans le cycle en cours, une
+     * etape close ainsi est rouverte a la lecture
+     * ({@code JourneyStep.rouvrirUneClotureSansSeries}).
      */
     MASTERED,
 
     /**
-     * Le quota de travail de l'etape est atteint <b>sans</b> maitrise. On ne
+     * Le quota de travail de l'etape est atteint. 🛑 <b>Le SEUL motif qui ferme
+     * une etape d'entrainement comme faite</b> (D-65, 2026-09-27). On ne
      * bloque jamais un candidat sur une competence non maitrisee : l'examen
      * decidera si elle revient.
      *

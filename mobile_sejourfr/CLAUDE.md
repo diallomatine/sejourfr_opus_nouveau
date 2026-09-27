@@ -4522,7 +4522,8 @@ dans ce fichier.
   Listes « À faire » / « Réussies » sur `validee` servi. `detail.validee` (servi,
   jamais `validees >= quota`) affiche « Étape validée » + « Continuer mon plan »
   → `context.go(AppRoutes.plan)`. 🛑 `validee` = quota de séries atteint **seulement** : une
-  étape close autrement (`MASTERED`…) n'est pas « validée » ; `detail.resolution` (servi,
+  étape close autrement n'est pas « validée » ; depuis D-65 (« une étape exige toujours ses
+  séries ») seul `SUPERSEDED` peut l'être : `detail.resolution` (servi,
   `JourneyStepResolution`) donne alors une note neutre (`journeyEtapeCloseNote`) + le même
   bouton. Détail : `docs/regles/plan.md` § « L'écran d'étape se LIT d'un coup d'œil ».
 - 🛑 **`objectif` est un `JourneyObjectifRef`**, pas un `TargetLevel` : on lit

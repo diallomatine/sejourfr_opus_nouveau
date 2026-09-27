@@ -66,8 +66,11 @@ import java.util.UUID;
  * @param resolution        pourquoi l'etape est close, {@code null} si elle est
  *                          ouverte. C'est le fait distinct qui permet a l'ecran
  *                          de dire juste quand l'etape est close <b>sans</b> etre
- *                          validee ({@code MASTERED},
- *                          {@code SATISFIED_BY_ASSESSMENT}, {@code SUPERSEDED}).
+ *                          validee : depuis D-65 (2026-09-27, « une etape exige
+ *                          toujours ses series »), seul {@code SUPERSEDED} le
+ *                          peut dans le cycle en cours — {@code MASTERED} n'est
+ *                          plus ecrit, et une etape close ainsi est rouverte a
+ *                          la lecture du cycle.
  * @param questionsParSerie taille <b>nominale</b> d'une serie (20). C'est aussi
  *                          le denominateur de {@link JourneySerieDto#dernierScore()}.
  * @param seuilReussite     bonnes reponses qui rendent une serie reussie (16).

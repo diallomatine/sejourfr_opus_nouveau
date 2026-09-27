@@ -99,6 +99,7 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
     @Autowired private ProductionSubmissionManager submissionManager;
     @Autowired private ProductionBilanService bilanService;
     @Autowired private JourneyManager journeyManager;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -266,6 +267,36 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         // Au 2e cycle, la regle ordinaire reprend.
         assertThat(blocDe(second, EpreuveType.TCF_EE).exam().lockReason())
                 .isEqualTo(JourneyLockReason.PROGRESSION);
+    }
+
+    @Test
+    @DisplayName("D-65 — 1er cycle : une competence close MASTERED sans ses series est rouverte, "
+            + "reste FACULTATIVE, et les quatre examens closent toujours le cycle")
+    void premierCycleCompetenceRouverteResteFacultative() {
+        User user = abonne();
+        journeyService.lire(user.getId(), Module.TCF);
+        diagnosticRapide(user);
+        JourneyStep maitrisee = etapes(user).stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> step.getSkill().getId().equals(competenceEE(1).getId()))
+                .findFirst().orElseThrow();
+        jdbc.update("UPDATE journey_step SET closed_at = now(), resolution = 'MASTERED' "
+                + "WHERE id = ?", maitrisee.getId());
+
+        examenEePasse(user, competenceEE(0));
+        examenProductionPasse(user, EpreuveType.TCF_EO);
+        examenQcmPasse(user, QuestionType.CO);
+        examenQcmPasse(user, QuestionType.CE);
+
+        JourneyDto termine = journeyService.lire(user.getId(), Module.TCF);
+        JourneyStep relue = journeySteps.findById(maitrisee.getId()).orElseThrow();
+        assertThat(relue.estOuverte()).as("rouverte : elle n'avait pas ses series").isTrue();
+        assertThat(relue.getResolution()).isNull();
+        // Facultatif n'est pas ferme, et ouvert n'est pas obligatoire (D-64).
+        assertThat(termine.cycle().cycleDAffinage()).isTrue();
+        assertThat(termine.cycle().complete()).isTrue();
+        assertThat(termine.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
+        assertThat(termine.nextStep().actualisationPossible()).isTrue();
     }
 
     // =====================================================================

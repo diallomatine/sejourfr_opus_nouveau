@@ -162,6 +162,9 @@ public class JourneyStep {
      * 🛑 <b>Ecrite une seule fois, jamais reouverte</b> (D-7). Une competence
      * redevenue fragile ne reouvre pas son etape : elle reviendra par un examen
      * (R7). C'est ce qui empeche le parcours de tourner en rond.
+     *
+     * <p>⚠️ <b>Une seule exception, et c'est une REPARATION</b> (D-65,
+     * 2026-09-27) : {@link #rouvrirUneClotureSansSeries()}.
      */
     @Column(name = "closed_at")
     private Instant closedAt;
@@ -197,6 +200,35 @@ public class JourneyStep {
         this.closedAt = quand;
         this.resolution = motif;
         this.resolvedByAssessmentId = parEvaluation;
+        return true;
+    }
+
+    /**
+     * <b>Rouvre une etape d'entrainement close SANS ses series</b> — la
+     * reparation de D-65 (2026-09-27, decision du proprietaire : « une etape
+     * exige toujours ses series »).
+     *
+     * <p>Seul {@code QUOTA_REACHED} ferme desormais une etape
+     * {@code TRAIN_SKILL} comme faite. Une etape close {@code MASTERED}
+     * (maitrise transferee) ou {@code SATISFIED_BY_ASSESSMENT} l'a ete par une
+     * regle revoquee : elle n'a jamais ete « faite ». {@code SUPERSEDED}
+     * (etape remplacee) et {@code QUOTA_REACHED} ne sont jamais touchees, pas
+     * plus qu'une etape d'examen ou de diagnostic.
+     *
+     * <p>🛑 Ce n'est pas une reouverture pedagogique (R7 tient : une competence
+     * redevenue fragile ne rouvre rien) : c'est l'annulation d'une cloture que
+     * la regle en vigueur n'aurait pas posee. L'appelant decide du perimetre
+     * (le cycle EN COURS seulement — un cycle historise est fige).
+     *
+     * @return {@code true} si cet appel a effectivement rouvert l'etape.
+     */
+    public boolean rouvrirUneClotureSansSeries() {
+        if (type != JourneyStepType.TRAIN_SKILL || closedAt == null) return false;
+        if (resolution != JourneyStepResolution.MASTERED
+                && resolution != JourneyStepResolution.SATISFIED_BY_ASSESSMENT) return false;
+        this.closedAt = null;
+        this.resolution = null;
+        this.resolvedByAssessmentId = null;
         return true;
     }
 

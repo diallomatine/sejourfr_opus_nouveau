@@ -14,6 +14,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
+import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
@@ -65,6 +66,8 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     @Autowired private com.sejourfr.app.manager.SkillPromptManager promptManager;
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private com.sejourfr.app.repository.JourneyStepRepository journeySteps;
+    @Autowired private com.sejourfr.app.service.SkillMasteryResolver masteryResolver;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final List<UUID> candidats = new java.util.ArrayList<>();
 
@@ -251,6 +254,123 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         // entrainement. C'est ce qui empeche le parcours de tourner en rond.
         assertThat(etapeDe(journeyService.lire(user.getId(), Module.TCF), skill).status())
                 .isEqualTo(close.status());
+    }
+
+    // =====================================================================
+    // D-65 — une etape exige TOUJOURS ses series (2026-09-27)
+    // =====================================================================
+
+    @Test
+    @DisplayName("D-65 — une maitrise detectee HORS series ne clot plus l'etape ; le quota, si "
+            + "(QUOTA_REACHED)")
+    void uneMaitriseHorsSeriesNeClotPlusLEtape() {
+        User user = abonne();
+        Skill skill = comprehension(SkillSection.CO);
+        UUID examen = examenBlanc(user, EpreuveType.TCF_CO);
+        data.learningPlanObservation(user, skill, LearningPlanSourceType.TCF_CO,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null,
+                HIER, examen);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, HIER));
+
+        // Le cas reel (lamine12, CO-B1) : UNE carte reussie a 19/20, et une
+        // maitrise installee ailleurs (examens, series hors Plan).
+        serie(user, skill, 1, 19);
+        for (int i = 0; i < 4; i++) {
+            data.learningPlanObservation(user, skill, LearningPlanSourceType.TCF_CO,
+                    LearningPlanSkillStatus.SOLID, ObservationConfidence.HIGH, null,
+                    Instant.now().minusSeconds(60L * (i + 1)), UUID.randomUUID());
+        }
+        // 🛑 Le test ne dort pas : la maitrise est REELLEMENT detectee.
+        assertThat(masteryResolver.bySkillIds(user.getId(), List.of(skill.getId()))
+                .get(skill.getId()).transferProven())
+                .as("precondition : le moteur conclut au transfert")
+                .isTrue();
+
+        journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
+
+        com.sejourfr.app.entity.JourneyStep ouverte = etapeEnBase(user, skill);
+        assertThat(ouverte.estOuverte()).as("1/2 series : l'etape reste ouverte").isTrue();
+        assertThat(ouverte.getResolution()).isNull();
+
+        serie(user, skill, 2, 17);
+        journeyService.onTrainingProgress(user.getId(), List.of(skill.getId()));
+
+        com.sejourfr.app.entity.JourneyStep close = etapeEnBase(user, skill);
+        assertThat(close.estOuverte()).isFalse();
+        assertThat(close.getResolution()).isEqualTo(JourneyStepResolution.QUOTA_REACHED);
+    }
+
+    @Test
+    @DisplayName("D-65 — une etape close MASTERED / SATISFIED_BY_ASSESSMENT hors quota, cycle EN "
+            + "COURS : rouverte a la lecture ; au quota : QUOTA_REACHED ; SUPERSEDED intacte")
+    void uneClotureSansSeriesEstRouverteALaLecture() {
+        User user = abonne();
+        Skill skill = comprehension(SkillSection.CE);
+        UUID examen = examenBlanc(user, EpreuveType.TCF_CE);
+        data.learningPlanObservation(user, skill, LearningPlanSourceType.TCF_CE,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null, HIER, examen);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CE, HIER));
+        UUID stepId = etapeEnBase(user, skill).getId();
+        serie(user, skill, 1, 19);
+
+        // Les deux motifs revoques, a 1/2 series : rouverte, et la vue le dit.
+        for (JourneyStepResolution motif : List.of(
+                JourneyStepResolution.MASTERED, JourneyStepResolution.SATISFIED_BY_ASSESSMENT)) {
+            fermer(stepId, motif);
+            JourneyStepDto vue = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+            assertThat(vue.status()).as("close %s a 1/2 : rouverte", motif)
+                    .isNotIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+            assertThat(resolutionEnBase(stepId)).isNull();
+        }
+
+        // SUPERSEDED n'est jamais touchee.
+        fermer(stepId, JourneyStepResolution.SUPERSEDED);
+        journeyService.lire(user.getId(), Module.TCF);
+        assertThat(resolutionEnBase(stepId)).isEqualTo(JourneyStepResolution.SUPERSEDED.name());
+
+        // Close MASTERED alors que le quota EST atteint : la reparation la
+        // referme aussitot, sur son quota — la meme autorite que l'ecriture.
+        jdbc.update("UPDATE journey_step SET closed_at = NULL, resolution = NULL WHERE id = ?",
+                stepId);
+        serie(user, skill, 2, 16);
+        fermer(stepId, JourneyStepResolution.MASTERED);
+        JourneyStepDto auQuota = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(auQuota.status()).isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+        assertThat(resolutionEnBase(stepId)).isEqualTo(JourneyStepResolution.QUOTA_REACHED.name());
+    }
+
+    @Test
+    @DisplayName("D-65 — un cycle HISTORISE est fige : son etape close MASTERED n'est pas rouverte")
+    void unCycleHistoriseResteFige() {
+        User user = abonne();
+        Skill skill = comprehension(SkillSection.CO);
+        UUID examen = examenBlanc(user, EpreuveType.TCF_CO);
+        data.learningPlanObservation(user, skill, LearningPlanSourceType.TCF_CO,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null, HIER, examen);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, HIER));
+        com.sejourfr.app.entity.JourneyStep etape = etapeEnBase(user, skill);
+        fermer(etape.getId(), JourneyStepResolution.MASTERED);
+        jdbc.update("UPDATE journey SET status = 'HISTORISE', historise_at = now() WHERE id = ?",
+                etape.getJourney().getId());
+
+        journeyService.lire(user.getId(), Module.TCF);
+
+        assertThat(resolutionEnBase(etape.getId()))
+                .as("l'historique ne se reecrit pas")
+                .isEqualTo(JourneyStepResolution.MASTERED.name());
+    }
+
+    private void fermer(UUID stepId, JourneyStepResolution motif) {
+        jdbc.update("UPDATE journey_step SET closed_at = now(), resolution = ? WHERE id = ?",
+                motif.name(), stepId);
+    }
+
+    private String resolutionEnBase(UUID stepId) {
+        return jdbc.queryForObject("SELECT resolution FROM journey_step WHERE id = ?",
+                String.class, stepId);
     }
 
     // =====================================================================

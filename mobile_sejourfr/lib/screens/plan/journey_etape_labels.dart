@@ -165,22 +165,15 @@ const kJourneyEtapeDoneCta = 'Continuer mon plan';
 /// `resolution` **servie**, jamais sur un compteur. `null` : ouverte, ou validée
 /// (l'encart « Étape validée » parle alors).
 ///
-/// 🛑 **Jamais « Étape validée » ici** : une étape close par maîtrise ou par
-/// évaluation n'a pas eu ses séries réussies (bug du 2026-09-27, 1/2 séries).
-/// Les cartes restent jouables.
+/// 🛑 **Une seule clôture possible sans séries : `SUPERSEDED`** (étape
+/// remplacée). Depuis D-65 (2026-09-27), une étape d'entraînement exige toujours
+/// ses séries : le serveur n'écrit plus `MASTERED` et rouvre, dans le cycle en
+/// cours, celles qu'il avait closes ainsi. Les cartes restent jouables.
 String? journeyEtapeCloseNote(
     bool validee, JourneyStepResolution? resolution) {
-  if (validee ||
-      resolution == null ||
-      resolution == JourneyStepResolution.quotaReached) {
-    return null;
-  }
-  if (resolution == JourneyStepResolution.superseded) {
-    return 'Cette étape ne fait plus partie de votre plan actuel. '
-        'Vous pouvez encore y faire vos séries.';
-  }
-  return 'Vos résultats montrent que cette compétence est acquise : votre plan '
-      'est passé à la suite. Vous pouvez encore y faire vos séries.';
+  if (validee || resolution != JourneyStepResolution.superseded) return null;
+  return 'Cette étape ne fait plus partie de votre plan actuel. '
+      'Vous pouvez encore y faire vos séries.';
 }
 
 /* ----------------------------------------------------- Pied de l'écran */

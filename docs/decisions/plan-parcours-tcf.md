@@ -3172,3 +3172,59 @@ aucun niveau).
 (`TcfProfileService.levelProfileAccueilDetaille`). `evaluation` est désormais servi **tant
 qu'aucun examen blanc n'a mesuré l'épreuve** (et non plus « seulement si `niveau == null` »).
 Le lanceur est inchangé : `usePlanAssessment` ⇄ `openPlanAssessment`.
+
+## D-65 — Une étape exige TOUJOURS ses séries (2026-09-27)
+
+**Décision du propriétaire.** « Une étape exige toujours ses séries. » Une étape de compétence
+du Plan ne se ferme comme **faite** que lorsque son quota de séries réussies est atteint
+(`QUOTA_REACHED`). La maîtrise détectée ailleurs (examen, séries hors Plan, évaluation) ne clôt
+plus l'étape.
+
+**Le cas qui l'a déclenchée.** `lamine12@gmail.com`, étape CO-B1 `c53a3001…` : close `MASTERED`
+à 11:21 à **1/2** séries, la série 1 à 19/20. `SkillMasteryEngine` concluait au transfert, et
+`JourneyService.onTrainingProgress` fermait l'étape sur ce motif avant son quota (b7e1d491 avait
+déjà retiré le faux « Étape validée » de l'écran ; l'étape restait pourtant close).
+
+**Ce qui est révoqué, et où.**
+- La branche **MAÎTRISE** de R8 (« une étape se clôt par MAÎTRISE ou par QUOTA ») et le motif
+  `MASTERED` introduit par D-7. `onTrainingProgress` ne lit plus `SkillMasteryResolver` : le
+  **quota** (`JourneyReadService.etapesAuQuota`, autorité unique de D-16) est le seul motif de
+  clôture d'une `TRAIN_SKILL`. `SATISFIED_BY_ASSESSMENT` n'était déjà jamais écrit sur une
+  `TRAIN_SKILL` ; il est traité pareil par la réparation.
+- **Non révoqué** : `SUPERSEDED` (lot en attente remplacé) ; la clôture des étapes d'**examen**
+  (`SECTION_EXAM` « Évaluer mon niveau » / examen blanc du bloc, `SATISFIED_BY_ASSESSMENT`,
+  commits 002447a0 et f8ae9abc) et de l'étape `DIAGNOSTIC` ; R7 (« une compétence redevenue
+  fragile ne rouvre pas son étape ») ; D-64 (compétences **facultatives** au cycle d'affinage :
+  facultatif ≠ fermé, les quatre examens closent toujours le 1er cycle).
+
+**Données existantes — réparation à la lecture, sans migration.** `JourneyService.lire` rouvre,
+**dans le cycle EN COURS seulement**, toute étape `TRAIN_SKILL` close `MASTERED` ou
+`SATISFIED_BY_ASSESSMENT` (`JourneyStep.rouvrirUneClotureSansSeries`), puis referme aussitôt en
+`QUOTA_REACHED` celles qui ont déjà leur quota. Pourquoi cette voie :
+1. c'est la promesse déjà tenue par ce service (« la lecture suivante rattrape ») — mêmes
+   patrons que les filets R12 et des examens non signalés ;
+2. aucune ligne effacée ni réécrite hors du cycle en cours : les cycles **historisés** gardent
+   leurs `MASTERED`, et leur consultation (`JourneyHistoryService.lireCycle`) reste figée ;
+3. elle passe **avant** les deux autres filets, pour que la garde D-15 voie la compétence
+   redevenue due.
+Garde : le **lot** de l'étape doit être encore **ouvert**. Un lot `CLOSED` a été validé par
+l'examen de son bloc ; y remettre du travail derrière un examen passé et non rejouable ferait
+un parcours incohérent — ce cas est laissé tel quel. En base locale au 2026-09-27, une seule
+ligne est concernée (celle de lamine12, lot ouvert, examen CO du bloc ouvert).
+
+**Ce qui entorse D-7, et pourquoi c'est admis.** D-7 dit « une clôture est écrite une fois,
+jamais réouverte ». La réparation n'est pas une réouverture pédagogique : elle annule une
+clôture qu'aucune règle en vigueur n'aurait posée. `QUOTA_REACHED` et `SUPERSEDED` ne sont
+jamais touchés.
+
+**Fronts.** Rien à recalculer (`validee` / `resolution` servis). La note « Vos résultats montrent
+que cette compétence est acquise… » devient du texte mort et est supprimée
+(`journeyEtapeCloseNote`, web ⇄ mobile) ; la note `SUPERSEDED` reste. Ce que lamine12 verra :
+son étape CO-B1 redevient « à faire » à 1/2 séries (la série à 19/20 comptée « réussie »), elle
+se valide à la 2ᵉ série réussie, et l'examen blanc CO du bloc reste verrouillé
+(`PROGRESSION`) d'ici là — son cycle en cours est le 2ᵉ, donc pas d'affinage (D-15 s'applique).
+
+**Si l'arbitrage changeait** (rétablir la clôture par maîtrise) : remettre la branche
+`transferProven ⇒ MASTERED` dans `onTrainingProgress` et retirer l'appel à
+`rouvrirLesEtapesCloseesSansSeries` ; aucune donnée à migrer. Verrouillé par
+`JourneyProgressionIT` (trois tests D-65) et `CycleDAffinageIT.premierCycleCompetenceRouverteResteFacultative`.

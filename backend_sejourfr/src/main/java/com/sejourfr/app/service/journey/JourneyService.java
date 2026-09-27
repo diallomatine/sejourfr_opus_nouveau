@@ -163,7 +163,10 @@ public class JourneyService {
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         List<JourneyStep> etapes = stepManager.findAll(courant.getId());
-        boolean relire = rattraperLesEvaluationsInitiales(courant, etapes);
+        // 🛑 EN PREMIER : une etape rouverte redevient une competence DUE, et
+        // les deux filets suivants lisent ce fait (garde D-15).
+        boolean relire = rouvrirLesEtapesCloseesSansSeries(courant, etapes);
+        relire |= rattraperLesEvaluationsInitiales(courant, etapes);
         relire |= rattraperLesExamensNonSignales(courant, etapes);
         if (relire) {
             etapes = stepManager.findAll(courant.getId());
@@ -1441,23 +1444,61 @@ public class JourneyService {
         Set<UUID> auQuota = readService.etapesAuQuota(
                 userId, stepManager.findAll(journey.getId()));
 
-        Map<UUID, SkillMasteryEngine.SkillMastery> maitrise = masteryResolver.bySkillIds(
-                userId, concernees.stream().map(step -> step.getSkill().getId()).toList());
-
+        // 🛑 D-65 (2026-09-27, decision du proprietaire) : « UNE ETAPE EXIGE
+        // TOUJOURS SES SERIES ». Le quota est le SEUL motif de cloture d'une
+        // etape d'entrainement. La maitrise transferee (`MASTERED`) la fermait
+        // avant son quota — etape CO close a 1/2 series sur une serie a 19/20.
+        // Le moteur de maitrise continue de dire si la competence est acquise
+        // (priorites, etats servis) ; il ne clot plus l'etape.
         for (JourneyStep step : concernees) {
-            UUID skillId = step.getSkill().getId();
-            SkillMasteryEngine.SkillMastery etat = maitrise.get(skillId);
-            JourneyStepResolution motif = null;
-            if (etat != null && etat.transferProven()) {
-                motif = JourneyStepResolution.MASTERED;
-            } else if (auQuota.contains(step.getId())) {
-                motif = JourneyStepResolution.QUOTA_REACHED;
-            }
-            if (motif != null && step.clore(motif, null, maintenant)) {
+            if (auQuota.contains(step.getId())
+                    && step.clore(JourneyStepResolution.QUOTA_REACHED, null, maintenant)) {
                 stepManager.save(step);
             }
         }
         journeyManager.save(journey);
+    }
+
+    /**
+     * <b>La reparation de D-65, a la lecture</b> : dans le cycle <b>EN COURS</b>,
+     * une etape d'entrainement close {@code MASTERED} ou
+     * {@code SATISFIED_BY_ASSESSMENT} — donc sans ses series — est rouverte.
+     *
+     * <p>Pourquoi a la lecture et pas par migration : c'est la promesse de ce
+     * service (« la lecture suivante rattrape »), aucune ligne n'est effacee,
+     * et un cycle <b>historise</b> n'est jamais relu par ici — son historique
+     * reste fige. Si l'etape a <b>deja</b> son quota, elle est aussitot close
+     * {@code QUOTA_REACHED} par la meme autorite que l'ecriture
+     * ({@code JourneyReadService.etapesAuQuota}).
+     *
+     * <p>🛑 <b>Garde : le lot doit etre encore OUVERT.</b> Un lot {@code CLOSED}
+     * a ete valide par l'examen de son bloc ; rouvrir une etape derriere un
+     * examen deja passe remettrait du travail avant un examen qui ne se
+     * repassera pas. Ce cas est laisse tel quel.
+     *
+     * @return {@code true} si une etape a change
+     */
+    private boolean rouvrirLesEtapesCloseesSansSeries(Journey journey, List<JourneyStep> etapes) {
+        List<JourneyStep> rouvertes = new ArrayList<>();
+        for (JourneyStep step : etapes) {
+            if (step.getLot() != null && step.getLot().getStatus() != JourneyLotStatus.OPEN) continue;
+            if (step.rouvrirUneClotureSansSeries()) {
+                stepManager.save(step);
+                rouvertes.add(step);
+            }
+        }
+        if (rouvertes.isEmpty()) return false;
+        log.info("Parcours {} : {} etape(s) close(s) sans leurs series rouverte(s) (D-65)",
+                journey.getId(), rouvertes.size());
+        Set<UUID> auQuota = readService.etapesAuQuota(journey.getUser().getId(), etapes);
+        Instant maintenant = Instant.now();
+        for (JourneyStep step : rouvertes) {
+            if (auQuota.contains(step.getId())
+                    && step.clore(JourneyStepResolution.QUOTA_REACHED, null, maintenant)) {
+                stepManager.save(step);
+            }
+        }
+        return true;
     }
 
     // =====================================================================

@@ -2036,7 +2036,14 @@ qui borne ce que le moteur produit.
 quatrième n'apparaîtra jamais. Une stratégie de rotation pourra s'ajouter **sans changer le
 modèle** (nouvelle valeur de `lotSelectionStrategy`).
 
-### R8 — une étape se clôt par MAÎTRISE ou par QUOTA, et le quota n'a pas la même unité
+### R8 — une étape se clôt par son QUOTA, et le quota n'a pas la même unité
+
+🛑 **D-65 (2026-09-27, décision du propriétaire) : « une étape exige toujours ses séries ».**
+Le titre disait « par MAÎTRISE ou par QUOTA » : la branche **maîtrise est révoquée**. Une étape
+`TRAIN_SKILL` ne se ferme comme **faite** que sur `QUOTA_REACHED` ; une maîtrise détectée
+ailleurs (examen, séries hors Plan, évaluation — `SkillMasteryEngine.transferProven`) ne la clôt
+plus. Détail, rattrapage et périmètre : § « **Une étape exige TOUJOURS ses séries** » juste en
+dessous.
 
 | Famille | Quota | Autorité **lue** |
 |---|---|---|
@@ -2098,6 +2105,44 @@ dont un invisible, les deux lecteurs partagent la **fonction**, faute de pouvoir
 rond, et c'est aussi pourquoi `resolution = MASTERED` dit « le moteur concluait au transfert **à
 cette date** », jamais « acquise aujourd'hui » — cette question-là a une seule autorité,
 `SkillMasteryEngine`, et elle se relit.
+⚠️ **Une seule exception depuis D-65, et c'est une réparation** : une étape close `MASTERED` /
+`SATISFIED_BY_ASSESSMENT` sans ses séries est rouverte dans le cycle **en cours** (§ « Une
+étape exige TOUJOURS ses séries »). Une étape close `QUOTA_REACHED` ne se rouvre toujours
+jamais, et R7 tient : une fragilité revenue passe par un examen.
+
+### Une étape exige TOUJOURS ses séries (2026-09-27, D-65)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-65** · verrouillé par
+> `JourneyProgressionIT` (D-65) et `CycleDAffinageIT` (`premierCycleCompetenceRouverteResteFacultative`)
+
+**Cas réel** : `lamine12@gmail.com`, étape CO-B1 `c53a3001…`, close `MASTERED` à 11:21 à **1/2**
+séries (série 1 à 19/20) — le moteur de maîtrise concluait au transfert, et la clôture suivait.
+
+| Étape | Ce qui la ferme | Autorité |
+|---|---|---|
+| `TRAIN_SKILL` (compétence TCF, unité civique) | **`QUOTA_REACHED` seulement** (séries réussies / sujets traités) | `JourneyService.onTrainingProgress` ⇄ `JourneyReadService.etapesAuQuota` |
+| `TRAIN_SKILL` remplacée (lot en attente remplacé) | `SUPERSEDED` — inchangé | `remplacerLesLotsEnAttente` |
+| `SECTION_EXAM` (« Évaluer mon niveau », examen blanc du bloc) | `SATISFIED_BY_ASSESSMENT` par un examen — **inchangé** | `cloreLesEtapesDExamen` (002447a0, f8ae9abc) |
+| `DIAGNOSTIC` | `SATISFIED_BY_ASSESSMENT` — inchangé | `cloreLEtapeDiagnostic` |
+
+- 🛑 **`MASTERED` n'est plus écrit.** La valeur reste dans l'enum et en base pour les cycles
+  **historisés**, figés tels quels. Le moteur de maîtrise continue de décider des priorités et
+  des états servis ; il ne ferme plus d'étape.
+- **Rattrapage À LA LECTURE, sans migration** (`JourneyService.lire` →
+  `rouvrirLesEtapesCloseesSansSeries`, **avant** les deux autres filets pour que la garde D-15
+  lise la compétence redevenue due) : dans le cycle **EN COURS** seulement, une étape
+  `TRAIN_SKILL` close `MASTERED` ou `SATISFIED_BY_ASSESSMENT` est rouverte
+  (`JourneyStep.rouvrirUneClotureSansSeries`) ; si elle a **déjà** son quota, elle est aussitôt
+  refermée `QUOTA_REACHED` par la même autorité. Garde : son **lot est encore ouvert** — un lot
+  `CLOSED` a été validé par l'examen de son bloc, on n'y remet pas de travail derrière un
+  examen passé. Aucune ligne effacée ; un cycle historisé n'est jamais relu par ici.
+- **Cycle d'affinage (D-64) intact** : facultatif ≠ fermé. Une compétence rouverte reste
+  ouverte et **facultative** ; les quatre examens closent toujours le cycle. Seul effet visible :
+  une facultative rouverte ne compte plus au numérateur « N étapes sur M » (A160) — la barre
+  peut reculer **une fois**, à la réparation.
+- **Fronts** : rien à recalculer (`validee` / `resolution` servis, b7e1d491). La note « Vos
+  résultats montrent que cette compétence est acquise… » est **supprimée** (texte mort) ;
+  `journeyEtapeCloseNote` ⇄ même nom en Dart ne parle plus que de `SUPERSEDED`.
 
 ### Étape EXÉCUTABLE — ce que `CURRENT` exige en plus d'être ouverte
 
@@ -2698,10 +2743,10 @@ Demande du propriétaire. `PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`, mots
   le cycle qui la désigne.
 - 🆕 **`JourneyStepDetailDto.resolution`** — pourquoi l'étape est close (`null` = ouverte).
   Close **sans** validation ⇒ pas d'encart vert : une note neutre lue sur la résolution
-  servie (`journeyEtapeCloseNote` ⇄ même nom en Dart) — « Vos résultats montrent que cette
-  compétence est acquise : votre plan est passé à la suite. Vous pouvez encore y faire vos
-  séries. » (`SUPERSEDED` : « Cette étape ne fait plus partie de votre plan actuel. … »), puis
-  le même bouton « Continuer mon plan ». Les cartes restent jouables selon les règles
+  servie (`journeyEtapeCloseNote` ⇄ même nom en Dart). ⚠️ **Depuis D-65, seul `SUPERSEDED`
+  y arrive** : « Cette étape ne fait plus partie de votre plan actuel. Vous pouvez encore y
+  faire vos séries. », puis le même bouton « Continuer mon plan ». La note « compétence
+  acquise » (`MASTERED`) est supprimée : ce cas ne se produit plus dans le cycle en cours. Les cartes restent jouables selon les règles
   actuelles. Verrouillé par `JourneyStepSeriesIT`.
 - Le pied de l'écran (encarts, bouton, validation) prend la gouttière d'une **section** du kit
   (22 px) : web `Section` sans intertitre, mobile `sfSectionGap`.
