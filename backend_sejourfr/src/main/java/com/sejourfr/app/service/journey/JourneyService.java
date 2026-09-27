@@ -26,7 +26,11 @@ import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.JourneyLotManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.util.ApresCommit;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
@@ -41,6 +45,7 @@ import com.sejourfr.app.service.plancivique.CivicPlanService;
 import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -121,6 +126,11 @@ public class JourneyService {
     private final JourneyLotBuilder lotBuilder;
     private final JourneyReadService readService;
     private final JourneyCycleAffinage cycleAffinage;
+    private final AttemptManager attemptManager;
+    private final ProductionSubmissionManager submissionManager;
+    // 🛑 Le rejeu part APRES le commit de la lecture : il doit passer par le
+    // PROXY, sinon son `REQUIRES_NEW` (et le verrou pessimiste de R14) sauterait.
+    private final ObjectProvider<JourneyService> self;
     private final LearningPlanObservationManager observationManager;
     private final SkillMasteryResolver masteryResolver;
     private final TcfProfileService profileService;
@@ -153,10 +163,94 @@ public class JourneyService {
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         List<JourneyStep> etapes = stepManager.findAll(courant.getId());
-        if (rattraperLesEvaluationsInitiales(courant, etapes)) {
+        boolean relire = rattraperLesEvaluationsInitiales(courant, etapes);
+        relire |= rattraperLesExamensNonSignales(courant, etapes);
+        if (relire) {
             etapes = stepManager.findAll(courant.getId());
         }
         return readService.lire(courant, etapes);
+    }
+
+    /**
+     * <b>Le filet des examens NON SIGNALES</b> (bug du 2026-09-27, mesure en
+     * base) : un examen blanc d'epreuve termine <b>pendant</b> ce cycle, que le
+     * parcours n'a jamais recu.
+     *
+     * <p>Constat : l'examen blanc EE d'un compte gratuit, en cycle d'affinage,
+     * etait passe et corrige — aucune ligne au journal, l'etape « Examen
+     * blanc » EE restait ouverte et s'affichait verrouillee (gratuite desormais
+     * consommee). La voie de l'analyse ({@code porterAuParcours}) levait hors
+     * session et le signal etait perdu ; rien ne le rejouait jamais.
+     *
+     * <p>🛑 <b>Ce filet ne decide rien de nouveau</b> : il <b>rejoue</b> le
+     * signal manque. L'etape d'examen du bloc se clot ici (memes gardes que
+     * {@link #cloreLExamenDuBloc}, donc D-15 hors affinage), pour que l'ecran lu
+     * maintenant soit juste ; le traitement complet ({@link #onAssessmentCompleted}
+     * : journal, priorites en attente) part <b>apres le commit</b> de cette
+     * lecture. Le journal le rend idempotent.
+     *
+     * <p>Gardes : l'examen doit etre <b>posterieur a la creation du cycle</b>
+     * (R19 ne fabrique aucune etape « deja faite »), <b>non journalise</b>, et —
+     * en production — <b>sans correction en cours</b> : le signaler avant la 3e
+     * analyse perdrait ses priorites (B-13).
+     *
+     * @return {@code true} si une etape a ete close
+     */
+    private boolean rattraperLesExamensNonSignales(Journey journey, List<JourneyStep> etapes) {
+        if (journey.getModule() != Module.TCF || journey.getCreatedAt() == null) return false;
+        UUID userId = journey.getUser().getId();
+        Boolean affinage = null;
+        boolean cloture = false;
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            NiveauActuelEpreuveResolver.Mesure mesure = mesureResolver.mesure(userId, epreuve);
+            if (!mesure.mesuree()) continue;
+            if (journeyManager.dejaTraitee(userId, Module.TCF, mesure.attemptId())) continue;
+            Attempt examen = attemptManager.findById(mesure.attemptId()).orElse(null);
+            if (examen == null || examen.getFinishedAt() == null
+                    || examen.getFinishedAt().isBefore(journey.getCreatedAt())) continue;
+            if ((epreuve == EpreuveType.TCF_EE || epreuve == EpreuveType.TCF_EO)
+                    && JourneyProductionBridge.enAttenteDeCorrection(
+                            submissionManager.findByAttemptId(examen.getId()))) continue;
+
+            JourneyEvaluation evaluation = new JourneyEvaluation(examen.getId(),
+                    JourneyProductionBridge.natureDeLEvaluation(examen), epreuve,
+                    examen.getFinishedAt());
+            if (affinage == null) affinage = cycleAffinage.pour(journey);
+            cloture |= cloreLesEtapesDExamen(etapes, evaluation, affinage);
+            log.info("Parcours {} : examen {} ({}) jamais signale — rejoue a la lecture",
+                    journey.getId(), examen.getId(), epreuve);
+            ApresCommit.executer("Parcours TCF, rattrapage de l'examen " + examen.getId(),
+                    () -> self.getObject().onAssessmentCompleted(userId, evaluation));
+        }
+        return cloture;
+    }
+
+    /**
+     * <b>Un examen blanc de production vient d'etre SOUMIS en entier, ses
+     * corrections tournent encore</b> (2026-09-27).
+     *
+     * <p>« Il suffit de l'avoir passe » (R1, commit {@code 002447a0}) : l'etape
+     * d'examen du bloc se clot <b>des la fin de l'examen</b>, sans attendre
+     * l'analyse. Sinon, pendant les secondes ou les minutes de correction, un
+     * compte gratuit voyait l'examen qu'il venait de passer « Réservé à l'offre
+     * complète » — sa gratuite etait deja consommee par la premiere analyse.
+     *
+     * <p>🛑 <b>Rien n'est journalise ici</b> : le journal appartient a
+     * l'evaluation complete (voie de l'analyse), qui porte les priorites. La
+     * journaliser maintenant ferait taire cette voie-la par idempotence, et les
+     * priorites de l'examen seraient perdues (B-13). Seule la <b>cloture</b>
+     * est avancee, par la meme fonction et sous les memes gardes.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void onProductionExamSubmitted(UUID userId, JourneyEvaluation evaluation) {
+        if (!evaluation.mesureUneEpreuve()) return;
+        Optional<Journey> trouve = getOrCreate(userId, Module.TCF);
+        if (trouve.isEmpty()) return;
+        Journey journey = journeyManager.findForUpdate(trouve.get().getId()).orElse(null);
+        if (journey == null) return;
+        if (journeyManager.dejaTraitee(userId, Module.TCF, evaluation.sourceAssessmentId())) return;
+        cloreLesEtapesDExamen(stepManager.findAll(journey.getId()), evaluation,
+                cycleAffinage.pour(journey));
     }
 
     /**
@@ -1244,23 +1338,14 @@ public class JourneyService {
             boolean affinage) {
         EpreuveType epreuve = evaluation.examType();
         boolean dues = competencesDues(etapes, epreuve);
-        // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : D-15 ne s'y applique pas —
-        // l'examen du bloc etait ouvert a l'ecran, il se clot donc ici. La
-        // lecture et l'ecriture posent toujours la MEME question.
+        // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : D-15 ne s'y applique pas.
         if (dues && !affinage) {
             log.info("Parcours {} : examen {} passe hors du plan, mais le bloc {} a encore des "
                             + "competences dues — rien n'est valide (R1, D-15)",
                     journey.getId(), evaluation.sourceAssessmentId(), epreuve);
             return;
         }
-        for (JourneyStep step : etapes) {
-            if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
-            if (step.getExamType() != epreuve) continue;
-            if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
-                    evaluation.sourceAssessmentId(), evaluation.completedAt())) {
-                stepManager.save(step);
-            }
-        }
+        cloreLesEtapesDExamen(etapes, evaluation, affinage);
         // En affinage, des competences facultatives restent travaillables : le
         // lot n'a pas fini son office, il reste ouvert (son examen, lui, est
         // clos). Il sera historise avec le cycle.
@@ -1273,6 +1358,37 @@ public class JourneyService {
         lot.clore(JourneyLotStatus.CLOSED,
                 evaluation.sourceAssessmentId(), evaluation.completedAt());
         lotManager.save(lot);
+    }
+
+    /**
+     * <b>LA cloture de l'etape d'examen d'un bloc</b> — l'unique fonction qui
+     * la pose, pour les trois chemins : l'evaluation complete
+     * ({@link #cloreLExamenDuBloc}), la fin d'un examen de production encore en
+     * correction ({@link #onProductionExamSubmitted}) et le filet de lecture
+     * ({@link #rattraperLesExamensNonSignales}).
+     *
+     * <p>Garde D-15 : un bloc qui a encore des competences dues ne voit pas son
+     * examen valide — <b>sauf en cycle d'affinage</b> (D-64), ou elles sont
+     * facultatives.
+     *
+     * @return {@code true} si une etape a ete close
+     */
+    private boolean cloreLesEtapesDExamen(
+            List<JourneyStep> etapes, JourneyEvaluation evaluation, boolean affinage) {
+        EpreuveType epreuve = evaluation.examType();
+        if (epreuve == null) return false;
+        if (!affinage && competencesDues(etapes, epreuve)) return false;
+        boolean cloture = false;
+        for (JourneyStep step : etapes) {
+            if (step.getType() != JourneyStepType.SECTION_EXAM || !step.estOuverte()) continue;
+            if (step.getExamType() != epreuve) continue;
+            if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
+                    evaluation.sourceAssessmentId(), evaluation.completedAt())) {
+                stepManager.save(step);
+                cloture = true;
+            }
+        }
+        return cloture;
     }
 
     // =====================================================================

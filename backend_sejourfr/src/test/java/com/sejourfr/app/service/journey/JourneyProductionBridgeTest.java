@@ -74,7 +74,8 @@ class JourneyProductionBridgeTest {
     }
 
     @Test
-    @DisplayName("B-13 — une correction encore en cours fait TAIRE ce branchement")
+    @DisplayName("B-13 — une correction en cours : AUCUNE evaluation signalee, mais l'etape "
+            + "d'examen se clot (2026-09-27)")
     void uneCorrectionEnCoursFaitTaireLeBranchement() {
         Attempt epreuve = epreuveDExamen(EpreuveType.TCF_EO);
         when(submissionManager.findByAttemptId(epreuve.getId()))
@@ -86,7 +87,9 @@ class JourneyProductionBridgeTest {
         // 🛑 Sinon l'evenement serait enregistre AVANT que les priorites soient
         // ecrites : l'idempotence ferait ensuite taire la voie de l'analyse, et
         // les priorites de l'epreuve seraient perdues pour de bon.
-        verifyNoInteractions(journeyService);
+        verify(journeyService, never()).onAssessmentCompleted(any(), any());
+        // L'examen est PASSE : son etape se clot des maintenant, sans journal.
+        verify(journeyService).onProductionExamSubmitted(eq(epreuve.getUser().getId()), any());
     }
 
     @Test

@@ -30,7 +30,14 @@ import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.SkillTaskCode;
 import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.enums.JourneyStepStatus;
+import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.manager.JourneyManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.ProductionBilanService;
+import org.hibernate.LazyInitializationException;
 import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.repository.JourneyRepository;
 import com.sejourfr.app.repository.JourneyStepRepository;
@@ -87,6 +94,10 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
     @Autowired private JourneyRepository journeys;
     @Autowired private JourneyStepRepository journeySteps;
     @Autowired private PlatformTransactionManager txManager;
+    @Autowired private JourneyProductionBridge productionBridge;
+    @Autowired private ProductionSubmissionManager submissionManager;
+    @Autowired private ProductionBilanService bilanService;
+    @Autowired private JourneyManager journeyManager;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -250,6 +261,122 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         // Au 2e cycle, la regle ordinaire reprend.
         assertThat(blocDe(second, EpreuveType.TCF_EE).exam().lockReason())
                 .isEqualTo(JourneyLockReason.PROGRESSION);
+    }
+
+    // =====================================================================
+    // Bug du 2026-09-27 : l'examen blanc EE gratuit passe restait « à acheter »
+    // =====================================================================
+
+    @Test
+    @DisplayName("Examen EE gratuit passe, signal PERDU : la lecture clot l'etape (FAIT, jamais "
+            + "ACCESS), rejoue le signal, et la carte passe a l'examen suivant")
+    void examenEeGratuitPasseSignalPerduRattrapeALaLecture() {
+        User user = candidat();
+        journeyService.lire(user.getId(), Module.TCF);
+        diagnosticRapide(user);
+        // L'examen offert est passe ET corrige : la gratuite est consommee…
+        Attempt examen = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+        data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EE, examen);
+        data.learningPlanObservation(user, competenceEE(0),
+                LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.PRIORITY,
+                ObservationConfidence.HIGH, null, Instant.now(), examen.getId());
+        // … mais le parcours n'a jamais recu le signal (cas mesure en base).
+        assertThat(journeyManager.dejaTraitee(user.getId(), Module.TCF, examen.getId())).isFalse();
+
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
+
+        JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
+        assertThat(ee.exam().status()).isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+        // 🛑 Un examen deja passe ne s'affiche jamais verrouille / a acheter.
+        assertThat(ee.exam().locked()).isFalse();
+        assertThat(ee.exam().lockReason()).isNull();
+        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
+        assertThat(vue.current().bloc().code()).isNotEqualTo(EpreuveType.TCF_EE.name());
+        // Le signal manque est rejoue apres le commit de la lecture : journal
+        // ecrit, et la priorite confirmee attend le cycle suivant.
+        assertThat(journeyManager.dejaTraitee(user.getId(), Module.TCF, examen.getId())).isTrue();
+        assertThat(competencesEnAttente(user)).contains(competenceEE(0).getCode());
+    }
+
+    @Test
+    @DisplayName("Le cas mesure (2026-09-27) : CO, CE, EO signales, EE passe mais JAMAIS signale "
+            + "— la lecture clot EE, le cycle est termine et l'actualisation offerte")
+    void lesQuatreExamensFaitsDontEeNonSignaleTerminentLeCycle() {
+        User user = candidat();
+        journeyService.lire(user.getId(), Module.TCF);
+        diagnosticRapide(user);
+        examenQcmPasse(user, QuestionType.CO);
+        examenQcmPasse(user, QuestionType.CE);
+        examenProductionPasse(user, EpreuveType.TCF_EO);
+        Attempt ee = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+        data.freeEntitlementUsage(user, FreeEntitlementCode.EXAM_BLANC_EE, ee);
+        // Etat en base du compte : les trois autres etapes closes, EE ouverte.
+        assertThat(etapes(user)).filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM
+                        && step.estOuverte())
+                .extracting(JourneyStep::getExamType)
+                .containsExactly(EpreuveType.TCF_EE);
+
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
+
+        assertThat(blocDe(vue, EpreuveType.TCF_EE).exam().lockReason()).isNull();
+        assertThat(vue.cycle().complete()).isTrue();
+        assertThat(vue.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
+        assertThat(vue.nextStep()).isNotNull();
+        assertThat(vue.nextStep().actualisationPossible()).isTrue();
+        assertThat(cycleService.actualiser(user.getId(), Module.TCF).cycle().numero()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Examen EE soumis, corrections EN COURS : l'etape se clot des la fin, sans "
+            + "journal ; l'evaluation complete arrive ensuite et porte ses priorites")
+    void examenEeSoumisPuisCorrige() {
+        User user = candidat();
+        journeyService.lire(user.getId(), Module.TCF);
+        diagnosticRapide(user);
+        Attempt examen = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+        var derniere = submissionManager.findByAttemptId(examen.getId()).getLast();
+        derniere.setStatut(SubmissionStatut.EVALUATING);
+        submissionManager.save(derniere);
+
+        productionBridge.onProductionAttemptClosed(examen);
+
+        JourneyDto pendant = journeyService.lire(user.getId(), Module.TCF);
+        assertThat(blocDe(pendant, EpreuveType.TCF_EE).exam().status())
+                .isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
+        assertThat(blocDe(pendant, EpreuveType.TCF_EE).exam().lockReason()).isNull();
+        // 🛑 Rien n'est journalise tant que la correction tourne (B-13) : ni
+        // par la fin d'examen, ni par le filet de lecture.
+        assertThat(journeyManager.dejaTraitee(user.getId(), Module.TCF, examen.getId())).isFalse();
+
+        derniere.setStatut(SubmissionStatut.EVALUATED);
+        submissionManager.save(derniere);
+        data.learningPlanObservation(user, competenceEE(0),
+                LearningPlanSourceType.MOCK_EXAM_EE, LearningPlanSkillStatus.PRIORITY,
+                ObservationConfidence.HIGH, null, Instant.now(), examen.getId());
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen.getId(), JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE,
+                examen.getFinishedAt()));
+
+        assertThat(journeyManager.dejaTraitee(user.getId(), Module.TCF, examen.getId())).isTrue();
+        assertThat(competencesEnAttente(user)).contains(competenceEE(0).getCode());
+    }
+
+    @Test
+    @DisplayName("Cause racine : les taches d'une epreuve se lisent HORS session (runner async)")
+    void lesTachesDUneEpreuveSeLisentHorsSession() {
+        User user = candidat();
+        Attempt examen = data.epreuveProductionPassee(user, EpreuveType.TCF_EE, NiveauCecrl.B1);
+
+        // L'ancienne lecture de la voie de l'analyse : taches LAZY, levait hors
+        // session — l'exception etait avalee et le parcours jamais prevenu.
+        assertThatThrownBy(() -> bilanService.latestEvalsByTache(
+                submissionManager.findByAttemptId(examen.getId())))
+                .isInstanceOf(LazyInitializationException.class);
+        // La lecture corrigee : taches chargees avec leurs soumissions.
+        assertThat(bilanService.latestEvalsByTache(
+                submissionManager.findByAttemptIdsGrouped(List.of(examen.getId()))
+                        .getOrDefault(examen.getId(), List.of())))
+                .hasSize(3);
     }
 
     // ------------------------------------------------------------------ outils

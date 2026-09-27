@@ -166,8 +166,16 @@ public class DiagnosticProductionAnalysisService {
         if (!ProductionAccessService.isExamSession(attempt)) return;
         EpreuveType epreuve = submission.getProductionTask().getEpreuve();
         try {
+            // 🛑 TACHES CHARGEES AVEC LEUR SOUMISSION (bug du 2026-09-27) : ce
+            // chemin tourne dans le runner ASYNC, hors de toute session.
+            // `findByAttemptId` rendait des taches LAZY, `latestEvalsByTache`
+            // lisait `getTacheNumero()` et levait LazyInitializationException —
+            // avalee ci-dessous. Aucun examen EE/EO corrige apres sa cloture
+            // n'atteignait donc le parcours (0 ligne au journal depuis le
+            // 2026-09-20).
             Map<Integer, AiEvaluation> parTache = bilanService.latestEvalsByTache(
-                    submissionManager.findByAttemptId(attempt.getId()));
+                    submissionManager.findByAttemptIdsGrouped(List.of(attempt.getId()))
+                            .getOrDefault(attempt.getId(), List.of()));
             if (parTache.size() < ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) return;
             Instant fin = attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now();
             UUID userId = submission.getUser().getId();

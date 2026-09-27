@@ -2299,6 +2299,19 @@ le cycle ne lui pose simplement pas d'« Évaluer mon niveau » (R12).
   ne peut pas satisfaire. C'est ce qui répare, à la lecture suivante, les comptes touchés avant
   le correctif.
 - Verrouillé par `ExamenBlancHorsPlanIT`.
+- ⚠️ **2026-09-27 — examen de production (bug mesuré sur un compte réel)** : la voie de
+  l'analyse (`DiagnosticProductionAnalysisService.porterAuParcours`, runner async) lisait les
+  tâches LAZY hors session, levait, et l'exception était avalée — **aucun examen EE/EO corrigé
+  après sa clôture n'atteignait le parcours** (0 ligne au journal depuis le 2026-09-20). Trois
+  correctifs, une seule fonction de clôture (`JourneyService.cloreLesEtapesDExamen`) :
+  (1) tâches chargées avec leurs soumissions ; (2) **à la fin d'un examen de production dont
+  les corrections tournent encore, l'étape se clôt tout de suite, sans journal**
+  (`onProductionExamSubmitted` — le journal reste à l'évaluation complète, B-13) ; (3) **filet
+  de lecture des examens non signalés** : un examen qualifiant de l'épreuve, **postérieur à la
+  création du cycle** et absent du journal, clôt l'étape d'examen (INITIAL **ou** REASSESS,
+  mêmes gardes) et son signal est **rejoué après le commit** de la lecture. Enfin, 🛑 **une
+  étape close n'est jamais verrouillée** (`lockReason = null`) : un examen gratuit passé ne
+  s'affiche plus « Réservé à l'offre complète ». Verrouillé par `CycleDAffinageIT`.
 
 ### L'étape d'examen d'un bloc : un rendu, et la RAISON du verrou servie (2026-09-26)
 

@@ -555,6 +555,11 @@ public class JourneyReadService {
             boolean moduleCivique,
             boolean accesCivique,
             boolean affinage) {
+        // 🛑 UNE ETAPE FAITE N'EST JAMAIS VERROUILLEE (2026-09-27). Le verrou dit
+        // « tu ne peux pas le faire » ; sur ce qui est deja fait, il mentait —
+        // un examen EE gratuit passe s'affichait « Réservé à l'offre
+        // complète », sa gratuite etant, justement, consommee par lui.
+        if (!step.estOuverte()) return null;
         return switch (step.getType()) {
             case DIAGNOSTIC -> null;
             // 🛑 LA CLE EST LE BLOC, PAS L'EPREUVE (D-47). Un examen de theme

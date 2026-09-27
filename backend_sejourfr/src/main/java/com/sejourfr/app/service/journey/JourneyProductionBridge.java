@@ -109,6 +109,16 @@ public class JourneyProductionBridge {
             if (enAttenteDeCorrection(soumissions)) {
                 log.debug("Parcours : epreuve {} close, correction en cours — la voie de "
                         + "l'analyse signalera (B-13)", attempt.getId());
+                // 🛑 MAIS L'EXAMEN EST PASSE (2026-09-27) : son etape se clot des
+                // maintenant, sans journal — l'evaluation complete viendra par
+                // l'analyse. Sinon, le temps des corrections, un compte gratuit
+                // voyait l'examen qu'il venait de passer « à acheter ».
+                UUID userId = attempt.getUser().getId();
+                JourneyEvaluation soumis = new JourneyEvaluation(attempt.getId(),
+                        natureDeLEvaluation(attempt), epreuve,
+                        attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now());
+                ApresCommit.executer("Parcours TCF, examen soumis " + attempt.getId(),
+                        () -> journeyService.onProductionExamSubmitted(userId, soumis));
                 return;
             }
             Map<Integer, AiEvaluation> parTache = bilanService.latestEvalsByTache(soumissions);
@@ -196,7 +206,7 @@ public class JourneyProductionBridge {
      * livrera jamais rien, et attendre indefiniment ferait perdre les priorites
      * des taches qui, elles, ont ete corrigees.
      */
-    private static boolean enAttenteDeCorrection(List<ProductionSubmission> soumissions) {
+    public static boolean enAttenteDeCorrection(List<ProductionSubmission> soumissions) {
         for (ProductionSubmission soumission : soumissions) {
             SubmissionStatut statut = soumission.getStatut();
             if (statut == SubmissionStatut.SUBMITTED
