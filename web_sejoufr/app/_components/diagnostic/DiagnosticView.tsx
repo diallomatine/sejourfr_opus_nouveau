@@ -68,8 +68,6 @@ import {DiagnosticChoice} from "./DiagnosticChoice";
 import {demarrageDirectDemande} from "@/lib/preparation";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DiagnosticReport} from "./DiagnosticReport";
-import {DIAGNOSTIC_REPORT_BACK_HREF} from "./report-labels";
-import {hasInAppHistory} from "@/lib/nav-history";
 import {DiagnosticSteps} from "./DiagnosticSteps";
 import {
   DIAGNOSTIC_ANALYSIS_FAILED_TITLE,
@@ -528,14 +526,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState<Handoff>({kind: "idle"});
   const [pendingLocal, setPendingLocal] = useState<LocalDiagnosticProductions | null>(null);
-  /**
-   * Le rapport a-t-il un écran PRÉCÉDENT où revenir ? Vrai seulement s'il a été
-   * ouvert d'emblée (déjà rendu au montage) depuis un autre écran de l'app — le
-   * Plan, l'Accueil. Au sortir du tunnel (production → compte → analyse), il
-   * reste `false` : le rapport est un écran racine, la barre garde son menu,
-   * et aucun « retour » ne ramène à l'écran de compte.
-   */
-  const [rapportAvecRetour, setRapportAvecRetour] = useState(false);
 
   const loadCurrent = useCallback(async () => {
     setError(null);
@@ -726,10 +716,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
       try {
         const current = await diagnosticApi.current();
         setDiagnostic(current);
-        setRapportAvecRetour(
-          (current.status === "COMPLETED" || current.nextStep === "RESULT") &&
-            hasInAppHistory(),
-        );
         setError(null);
       } catch (cause) {
         setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
@@ -1150,7 +1136,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         diagnostic={diagnostic}
         targetLevel={user.targetLevel ?? null}
         notice={notice}
-        backTo={rapportAvecRetour ? DIAGNOSTIC_REPORT_BACK_HREF : null}
       />
     );
   }

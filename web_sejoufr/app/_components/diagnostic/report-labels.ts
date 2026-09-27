@@ -19,13 +19,8 @@ import type {DiagnosticResultDto} from "@/lib/types";
 
 /* ------------------------------------------------------------- l'en-tête */
 
-/**
- * Le retour de l'en-tête — posé **seulement** quand le rapport a été ouvert
- * depuis un autre écran de l'app (le Plan, l'Accueil). Au sortir du tunnel
- * (production → compte → analyse), le rapport est un écran racine de fait :
- * pas de flèche, la barre garde son menu.
- */
-export const DIAGNOSTIC_REPORT_BACK_HREF = "/dashboard";
+/** Le rapport est un écran racine : la barre porte le menu, jamais une flèche
+ *  (demande du propriétaire, 2026-09-27). */
 export const DIAGNOSTIC_REPORT_KICKER = "Diagnostic rapide terminé";
 /** 🛑 « Votre estimation », pas « Votre niveau TCF ». */
 export const DIAGNOSTIC_REPORT_TITLE = "Votre estimation";
