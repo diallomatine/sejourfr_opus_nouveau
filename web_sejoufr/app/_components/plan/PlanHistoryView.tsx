@@ -1,6 +1,6 @@
 "use client";
 
-import {Suspense, useState} from "react";
+import {Suspense} from "react";
 import {useSearchParams} from "next/navigation";
 import {journeyApi} from "@/lib/api";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
@@ -9,11 +9,8 @@ import {useCachedData} from "@/lib/use-cached-data";
 import {
     BlocAccordion,
     Card,
-    ExamStepBox,
     HeroBanner,
     InfoNote,
-    JourneyList,
-    JourneyRow,
     Pad,
     PanelHead,
     SejourApp,
@@ -35,21 +32,17 @@ import {
     JOURNEY_HISTORY_SECTION_SUB,
     JOURNEY_HISTORY_SECTION_TITLE,
     JOURNEY_HISTORY_TITLE,
-    journeyHistoryBlocSkills,
+    journeyArchiveHref,
     journeyHistoryCycleMark,
     journeyHistoryEmptyText,
     journeyHistoryFootText,
     journeyHistoryCycleMeta,
     journeyHistoryCycleTitle,
-    journeyHistoryLevelNote,
-    journeyHistoryLevelState,
-    journeyHistoryLevelTitle,
     journeyHistoryStatCycles,
     journeyHistoryStatExams,
     journeyHistoryStatSkills,
-    journeyHistoryBlocTitle,
 } from "@/lib/journey";
-import type {JourneyHistoryCycleDto, JourneyHistoryDto} from "@/lib/types";
+import type {JourneyHistoryDto} from "@/lib/types";
 
 /**
  * **« Mes cycles »** (ex-« Ma progression », D16) — l'archive du parcours, derrière « Voir ma
@@ -83,6 +76,21 @@ import type {JourneyHistoryCycleDto, JourneyHistoryDto} from "@/lib/types";
  * travaillée (compétence ⇄ unité officielle), la **mesure** de fin de cycle
  * (palier CECRL ⇄ score sur 40 rapporté au seuil de 32) et la **destination du
  * retour**. Les briques, l'ordre et les états sont les mêmes.
+ *
+ * ## Un cycle terminé OUVRE SA PAGE (2026-09-27)
+ *
+ * 🛑 **La ligne d'un cycle est un lien** (`BlocAccordion` en variante `href`)
+ * vers `/plan/progression/cycle/{journeyId}` — son plan tel qu'il était, comme
+ * l'écran Plan, en lecture seule (`PlanCycleArchiveView`). ⚠️ **Révoque**
+ * l'accordéon déplié ici, dont le seul contenu était une carte « Examens
+ * réalisés · NIVEAU A2 » **cadenassée** : un cadenas sur un cycle terminé ne
+ * voulait rien dire. Une page plutôt qu'un accordéon : à 360 px, un rail
+ * d'étapes et ses blocs dépliables imbriqués dans une carte de liste perdaient
+ * la largeur qui rend le Plan lisible.
+ *
+ * 🛑 **Barre du haut : le MENU et la flèche** (`Top keepMenu`, demande du
+ * propriétaire, 2026-09-27) — « Mes cycles » se consulte comme un écran de
+ * premier niveau, et la flèche remonte au Plan.
  */
 export function PlanHistoryView() {
     /* `useSearchParams` impose une frontière de Suspense : elle est posée ici,
@@ -110,18 +118,9 @@ function PlanHistoryScoped() {
     );
     const history = query.data;
 
-    /**
-     * Le cycle déplié. 🛑 **Un seul à la fois, le plus récent par défaut** — et
-     * c'est le `numero` servi qui l'identifie, jamais un index de liste : une
-     * liste rechargée pendant qu'on lit ne doit pas rouvrir un autre cycle.
-     */
-    const [ouvert, setOuvert] = useState<number | null>(null);
-    const premier = history?.cycles[0]?.numero ?? null;
-    const deplie = ouvert ?? premier;
-
     return (
         <SejourApp>
-            <Top title={JOURNEY_HISTORY_TITLE} backTo={planHref(parcours)} />
+            <Top title={JOURNEY_HISTORY_TITLE} backTo={planHref(parcours)} keepMenu />
             <Pad>
                 <Stack>
                     {/* 🛑 Le bandeau et ses compteurs restent dans TOUS les
@@ -187,13 +186,13 @@ function PlanHistoryScoped() {
                             />
                             <Stack>
                                 {history.cycles.map((cycle) => (
-                                    <CycleTermine
-                                        key={cycle.numero}
-                                        cycle={cycle}
-                                        module={parcours}
-                                        open={deplie === cycle.numero}
-                                        onToggle={() => setOuvert(
-                                            deplie === cycle.numero ? -1 : cycle.numero)}
+                                    <BlocAccordion
+                                        key={cycle.journeyId}
+                                        href={journeyArchiveHref(cycle.journeyId, parcours)}
+                                        mark={journeyHistoryCycleMark(cycle.numero)}
+                                        title={journeyHistoryCycleTitle(cycle.numero)}
+                                        meta={journeyHistoryCycleMeta(cycle, parcours)}
+                                        status={{label: JOURNEY_HISTORY_DONE_PILL, tone: "ok"}}
                                     />
                                 ))}
                             </Stack>
@@ -207,62 +206,5 @@ function PlanHistoryScoped() {
                 </Stack>
             </Pad>
         </SejourApp>
-    );
-}
-
-/**
- * Un cycle archivé : ses blocs travaillés, puis son encart de mesure.
- *
- * 🛑 **`BlocAccordion` est réutilisé tel quel** : son `mark` est un texte, et
- * le numéro du cycle y entre sans qu'un second accordéon soit écrit.
- *
- * 🛑 **Aucune action** : un cycle historisé ne se rejoue pas. Les lignes n'ont
- * donc pas d'`onClick`, et l'encart de niveau est `locked` — c'est-à-dire
- * inerte, mais entièrement lisible.
- */
-function CycleTermine({cycle, module, open, onToggle}: {
-    cycle: JourneyHistoryCycleDto;
-    module: ParcoursModule;
-    open: boolean;
-    onToggle: () => void;
-}) {
-    return (
-        <BlocAccordion
-            mark={journeyHistoryCycleMark(cycle.numero)}
-            title={journeyHistoryCycleTitle(cycle.numero)}
-            meta={journeyHistoryCycleMeta(cycle, module)}
-            status={{label: JOURNEY_HISTORY_DONE_PILL, tone: "ok"}}
-            open={open}
-            onToggle={onToggle}
-        >
-            {/* 🛑 Une épreuve sans compétence travaillée garde sa ligne : elle a
-                reçu un examen, et l'omettre effacerait ce qui y a été mesuré.
-
-                Le corps d'un cycle archivé prend la **même** variante que celui
-                du cycle en cours : c'est le même bloc, et deux corps différents
-                sous le même en-tête se liraient comme deux écrans. Les lignes y
-                sont toutes `done` — coche verte, aucune ligne d'action — et
-                l'encart de niveau ferme le rail avec sa pastille « ◎ ». */}
-            <JourneyList
-                variant="cycle"
-                exam={
-                    <ExamStepBox
-                        title={journeyHistoryLevelTitle(cycle, module)}
-                        state={journeyHistoryLevelState(cycle, module)}
-                        note={journeyHistoryLevelNote(cycle, module)}
-                        locked
-                    />
-                }
-            >
-                {cycle.blocs.map((bloc) => (
-                    <JourneyRow
-                        key={bloc.bloc.code}
-                        state="done"
-                        title={journeyHistoryBlocTitle(bloc)}
-                        subtitle={journeyHistoryBlocSkills(bloc)}
-                    />
-                ))}
-            </JourneyList>
-        </BlocAccordion>
     );
 }

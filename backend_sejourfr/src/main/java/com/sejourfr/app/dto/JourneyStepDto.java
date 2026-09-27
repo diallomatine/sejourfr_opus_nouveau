@@ -152,7 +152,20 @@ public record JourneyStepDto(
          * verrouille reste recommande — savoir quoi travailler est justement ce
          * que le Plan apporte.
          */
-        PlanRecommendedExerciseDto exercise
+        PlanRecommendedExerciseDto exercise,
+        /**
+         * <b>Quand l'etape a ete close</b> — {@code journey_step.closed_at},
+         * lu tel quel. {@code null} tant qu'elle est ouverte (et pour toujours
+         * sur une etape {@code NON_FAITE} d'un cycle clos).
+         */
+        java.time.Instant closedAt,
+        /**
+         * <b>Ce que l'examen qui a clos cette etape a donne</b> (palier TCF ou
+         * score civique). 🛑 <b>Servi par la seule consultation d'un cycle
+         * clos</b> : {@code null} dans le Plan courant, qui ne le lit pas, et
+         * {@code null} = inconnu partout ailleurs.
+         */
+        JourneyExamResultDto resultat
 ) {
 
     /**

@@ -54,5 +54,17 @@ public enum JourneyBlocStatus {
     A_EVALUER,
 
     /** Des etapes restent, mais la main est ailleurs. */
-    A_VENIR
+    A_VENIR,
+
+    /**
+     * <b>Le bloc d'un cycle HISTORISE dont une etape obligatoire est restee
+     * ouverte</b> (2026-09-27, ecran « Mes cycles »). Un cycle peut se fermer
+     * avant d'etre entierement travaille — l'examen de fin de cycle s'ouvre des
+     * {@code finDeCycleExamenRatio} des etapes terminees.
+     *
+     * <p>🛑 <b>Servi par la seule consultation d'un cycle clos</b> : un cycle
+     * archive n'a ni bloc {@link #EN_COURS}, ni bloc {@link #A_VENIR}, ni bloc
+     * {@link #A_EVALUER} — plus rien n'y est a faire.
+     */
+    INACHEVE
 }

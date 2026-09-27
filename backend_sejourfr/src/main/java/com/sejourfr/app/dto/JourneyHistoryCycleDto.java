@@ -43,6 +43,11 @@ import java.util.List;
  *                    dans l'ordre {@code TcfDomainProfileDto.ORDRE}.
  */
 public record JourneyHistoryCycleDto(
+        /**
+         * L'identifiant du cycle — celui que la page de consultation demande
+         * ({@code GET /api/me/plan/journey/history/{journeyId}}, 2026-09-27).
+         */
+        java.util.UUID journeyId,
         int numero,
         Instant debut,
         Instant fin,

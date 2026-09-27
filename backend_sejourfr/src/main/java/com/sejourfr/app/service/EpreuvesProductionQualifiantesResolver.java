@@ -153,7 +153,28 @@ public class EpreuvesProductionQualifiantesResolver {
         // passé d'épreuve, et il ne doit rien payer de plus qu'une requête. Le
         // budget de requêtes se mesure, lui, sur le candidat qui EN a.
         if (sessions.isEmpty()) return List.of();
+        return evaluer(sessions);
+    }
 
+    /**
+     * <b>Le palier de sessions DÉJÀ CONNUES</b> — celles qui ont clos une étape
+     * d'examen d'un cycle, relues par « Mes cycles » (2026-09-27).
+     *
+     * <p>🛑 <b>La même règle que {@link #qualifiantes}</b>, sur la même
+     * évaluation par session : un palier d'épreuve ne se calcule qu'ici. Une
+     * session sans palier exploitable est <b>absente</b> de la map —
+     * {@code get()} y rend {@code null}, c'est-à-dire inconnu.
+     */
+    public Map<UUID, NiveauCecrl> niveauxDesSessions(List<Attempt> sessions) {
+        if (sessions.isEmpty()) return Map.of();
+        final Map<UUID, NiveauCecrl> out = new java.util.LinkedHashMap<>();
+        for (final EpreuveQualifiante q : evaluer(sessions)) {
+            out.put(q.attempt().getId(), q.niveau());
+        }
+        return out;
+    }
+
+    private List<EpreuveQualifiante> evaluer(List<Attempt> sessions) {
         final List<UUID> attemptIds = sessions.stream().map(Attempt::getId).toList();
         final Map<UUID, List<ProductionSubmission>> submissionsByAttempt =
                 submissionManager.findByAttemptIdsGrouped(attemptIds);

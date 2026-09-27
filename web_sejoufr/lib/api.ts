@@ -64,6 +64,7 @@ import type {
   UserStatsResponse,
     JourneyDto,
     JourneyHistoryDto,
+    JourneyCycleArchiveDto,
     AuthAttributionFields,
     DiagnosticRunCreateRequest,
     DiagnosticRunCreatedResponse,
@@ -1121,6 +1122,12 @@ function journeyHistoryCacheKey(module: ParcoursModule): string {
         : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`;
 }
 
+/** La clé d'UN cycle clos (« Mes cycles »). Sous le préfixe du Plan, comme
+ *  l'archive : une actualisation la purge avec elle. */
+function journeyCycleArchiveCacheKey(journeyId: string): string {
+    return `${JOURNEY_HISTORY_CACHE_KEY}-cycle-${journeyId}`;
+}
+
 /** La clé du détail d'UNE étape. Sous le préfixe du Plan : une série finie la
  *  purge avec le cycle, jamais l'une sans l'autre. */
 function journeyStepCacheKey(stepId: string): string {
@@ -1169,6 +1176,20 @@ export const journeyApi = {
     },
 
     historyCacheKey: JOURNEY_HISTORY_CACHE_KEY,
+
+    /**
+     * **Un cycle clos, en consultation** (« Mes cycles », 2026-09-27) — son plan
+     * tel qu'il était, sans verrou ni action. 🛑 Aucun `?module=` : le cycle
+     * porte le sien. **404** sur le cycle d'un autre ou sur un cycle non clos.
+     */
+    historyCycle(journeyId: string): Promise<JourneyCycleArchiveDto> {
+        return cached(
+            journeyCycleArchiveCacheKey(journeyId),
+            () => apiFetch<JourneyCycleArchiveDto>(
+                `/api/me/plan/journey/history/${encodeURIComponent(journeyId)}`, {auth: true}));
+    },
+
+    historyCycleCacheKey: journeyCycleArchiveCacheKey,
 
     /** 🛑 **Une clé par module**, comme pour le cycle : les deux archives sont
      *  deux réponses différentes. Le TCF garde la clé historique. */

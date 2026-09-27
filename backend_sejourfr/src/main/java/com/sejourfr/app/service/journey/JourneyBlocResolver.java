@@ -114,6 +114,17 @@ public class JourneyBlocResolver {
                     dto, jamaisMesure, affinage));
         }
 
+        return new Vue(List.copyOf(blocs), cycle(numeroDuCycle, affichables, affinage));
+    }
+
+    /**
+     * <b>L'avancement d'un cycle</b> — la barre, son compteur et sa fin
+     * annoncee. 🛑 <b>Une seule regle</b> pour le Plan courant et pour la
+     * consultation d'un cycle clos ({@link #lireArchive}) : deux copies de ce
+     * compteur finiraient par dire deux avancements pour le meme cycle.
+     */
+    private static JourneyCycleDto cycle(
+            int numeroDuCycle, List<JourneyStep> affichables, boolean affinage) {
         int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
         // 🛑 EN AFFINAGE, UNE COMPETENCE NON TRAVAILLEE NE COMPTE PAS AU
         // DENOMINATEUR : elle est facultative. Une competence FAITE, elle,
@@ -124,9 +135,87 @@ public class JourneyBlocResolver {
                 .count();
         boolean complete = JourneyCycleAffinage.termine(affichables, affinage);
         boolean mesure = cycleDeMesure(affichables);
-        return new Vue(List.copyOf(blocs), new JourneyCycleDto(
+        return new JourneyCycleDto(
                 numeroDuCycle, terminees, total, complete,
-                mesure, affinage, JourneyFinDeCycle.de(affinage, mesure)));
+                mesure, affinage, JourneyFinDeCycle.de(affinage, mesure));
+    }
+
+    /**
+     * <b>Un cycle CLOS, en consultation</b> (« Mes cycles », 2026-09-27) : les
+     * memes blocs et le meme avancement que le Plan, <b>sans rien de ce qui
+     * decide d'une action</b>.
+     *
+     * <p>🛑 <b>Ni meneur, ni etape courante, ni « a evaluer »</b> : ce sont des
+     * lectures d'aujourd'hui — l'election d'une etape a faire, la mesure
+     * actuelle d'une epreuve. Un cycle clos n'a plus rien a faire. Un bloc y
+     * est {@code TERMINE} ou {@code INACHEVE}, lu sur ses clotures persistees
+     * et la regle d'affinage ({@link JourneyCycleAffinage#termine}), rien
+     * d'autre.
+     *
+     * <p>🛑 <b>Un bloc sans aucune etape n'est pas servi</b> : un cycle clos
+     * raconte ce qu'il portait, et « Compréhension écrite — rien » n'apprend
+     * rien. L'ordre reste {@code TcfDomainProfileDto.ORDRE} (CO, CE, EO, EE,
+     * D-56 : un cycle archive n'a plus rien « a faire ») ou l'ordre des
+     * thematiques cote civique.
+     */
+    public Vue lireArchive(
+            int numeroDuCycle,
+            List<JourneyBlocRefDto> axe,
+            List<JourneyStep> affichables,
+            Function<JourneyStep, JourneyStepDto> dto,
+            boolean affinage) {
+        Map<String, List<JourneyStep>> parBloc = grouper(axe, affichables);
+        List<JourneyBlocDto> blocs = new ArrayList<>(axe.size());
+        for (JourneyBlocRefDto ref : axe) {
+            List<JourneyStep> etapes = parBloc.get(ref.code());
+            if (etapes.isEmpty()) continue;
+            blocs.add(blocArchive(ref, etapes, dto, affinage));
+        }
+        return new Vue(List.copyOf(blocs), cycle(numeroDuCycle, affichables, affinage));
+    }
+
+    private static JourneyBlocDto blocArchive(
+            JourneyBlocRefDto ref,
+            List<JourneyStep> etapes,
+            Function<JourneyStep, JourneyStepDto> dto,
+            boolean affinage) {
+        int nonFaites = (int) etapes.stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(JourneyStep::estOuverte)
+                .count();
+        int faites = (int) etapes.stream()
+                .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                .filter(step -> !step.estOuverte())
+                .count();
+        JourneyBlocStatus status = JourneyCycleAffinage.termine(etapes, affinage)
+                ? JourneyBlocStatus.TERMINE
+                : JourneyBlocStatus.INACHEVE;
+        List<JourneyStepDto> steps = etapes.stream()
+                .filter(step -> step.getType() != JourneyStepType.SECTION_EXAM)
+                .map(dto)
+                .toList();
+        JourneyStep examen = examenArchive(etapes);
+        return new JourneyBlocDto(
+                ref, status, nonFaites,
+                JourneyBlocMeta.archive(ref, faites, nonFaites,
+                        examen != null, examen != null && !examen.estOuverte()),
+                steps, examen == null ? null : dto.apply(examen));
+    }
+
+    /**
+     * L'examen d'un bloc CLOS : le <b>dernier passe</b> s'il y en a un, sinon
+     * le premier reste ouvert. 🛑 L'inverse de {@link #examenDuBloc} — dans un
+     * cycle clos, ce qui compte est ce qui a ete fait, pas ce qui restait.
+     */
+    private static JourneyStep examenArchive(List<JourneyStep> etapes) {
+        JourneyStep dernierClos = null;
+        JourneyStep premierOuvert = null;
+        for (JourneyStep step : etapes) {
+            if (step.getType() != JourneyStepType.SECTION_EXAM) continue;
+            if (!step.estOuverte()) dernierClos = step;
+            else if (premierOuvert == null) premierOuvert = step;
+        }
+        return dernierClos != null ? dernierClos : premierOuvert;
     }
 
     /**

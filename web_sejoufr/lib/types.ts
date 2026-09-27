@@ -4816,7 +4816,11 @@ export type JourneyStepStatus =
     | "SKIPPED"
     /** Remplacée par une évaluation plus récente. **Jamais servie** — elle ne
      *  figure pas dans `steps`. */
-    | "OBSOLETE";
+    | "OBSOLETE"
+    /** **Jamais faite, et elle ne le sera plus** : restée ouverte dans un cycle
+     *  **historisé**. Servie par la seule consultation d'un cycle clos (« Mes
+     *  cycles ») — jamais « à venir » dans une archive. Aucun geste. */
+    | "NON_FAITE";
 
 /** Pourquoi une étape est verrouillée. Miroir de `JourneyLockReason` (Java). */
 export type JourneyLockReason =
@@ -4876,7 +4880,10 @@ export type JourneyBlocStatus =
      *  « on ne sait pas encore ». */
     | "A_EVALUER"
     /** Des étapes restent, mais la main est ailleurs. */
-    | "A_VENIR";
+    | "A_VENIR"
+    /** Le bloc d'un cycle **historisé** dont une étape obligatoire est restée
+     *  ouverte. Servi par la seule consultation d'un cycle clos. */
+    | "INACHEVE";
 
 /** Ce que le parcours **suggère** quand il n'a plus d'étape. Une suggestion
  *  n'est **pas** une étape : hors file, sans position, elle ne se clôt pas. */
@@ -4978,6 +4985,24 @@ export interface JourneyStepDto {
      * le repli sur les priorités dans `planStepAction`.
      */
     exercise: PlanSkillExerciseDto | null;
+    /** ISO-8601 : quand l'étape a été close. `null` tant qu'elle est ouverte.
+     *  Absent sur un backend antérieur au champ. */
+    closedAt?: string | null;
+    /**
+     * **Ce que l'examen qui a clos l'étape a donné** — palier TCF ou score de
+     * thème civique, relu chez l'autorité de l'examen. 🛑 Servi par la seule
+     * consultation d'un cycle clos : `null` dans le Plan, et `null` = inconnu.
+     */
+    resultat?: JourneyExamResultDto | null;
+}
+
+/** Miroir de `JourneyExamResultDto` (Java). `null` = inconnu, jamais mauvais. */
+export interface JourneyExamResultDto {
+    /** Le palier de l'examen — **TCF**. `null` en civique. */
+    niveau: NiveauCecrl | null;
+    /** Le score — **CIVIQUE** (examen de thème). `null` en TCF. */
+    score: number | null;
+    maxScore: number | null;
 }
 
 /**
@@ -5195,6 +5220,9 @@ export interface JourneyHistoryBlocDto {
 
 /** Un cycle **historisé**. */
 export interface JourneyHistoryCycleDto {
+    /** L'identifiant du cycle — celui que la page de consultation demande
+     *  (`GET /api/me/plan/journey/history/{journeyId}`). */
+    journeyId: string;
     /** Le rang du cycle, tel que le Plan l'affichait (« Cycle 2 »). */
     numero: number;
     /** ISO-8601. */
@@ -5229,6 +5257,34 @@ export interface JourneyHistoryDto {
     stats: JourneyHistoryStatsDto;
     /** Du plus récent au plus ancien, **dans l'ordre servi**. */
     cycles: JourneyHistoryCycleDto[];
+}
+
+/**
+ * **Un cycle CLOS, relu tel qu'il était** — `GET /api/me/plan/journey/history/{journeyId}`
+ * (« Mes cycles », 2026-09-27). Miroir de `JourneyCycleArchiveDto` (Java).
+ *
+ * 🛑 `cycle` et `blocs` sont les **mêmes DTO** que ceux du Plan, en
+ * consultation : aucune étape n'y est verrouillée ni actionnable (`locked`
+ * faux, `assessment` / `exercise` / `progress` nuls), une étape restée ouverte
+ * est `NON_FAITE`, un bloc inachevé `INACHEVE`. L'écran les **lit**.
+ */
+export interface JourneyCycleArchiveDto {
+    journeyId: string;
+    numero: number;
+    /** ISO-8601. */
+    debut: string;
+    /** ISO-8601 : la date d'historisation. */
+    fin: string;
+    /** **Le geste qui l'a clos** (V077). `null` = inconnu (cycle clos avant) —
+     *  distinct de `cycle.finDeCycle`, l'issue qu'il **annonçait**. */
+    finDeCycle: JourneyFinDeCycle | null;
+    objectif: JourneyObjectifRefDto | null;
+    entryLevel: TargetLevel | null;
+    exitLevel: TargetLevel | null;
+    entryScore: number | null;
+    exitScore: number | null;
+    cycle: JourneyCycleDto;
+    blocs: JourneyBlocDto[];
 }
 
 /* ===========================================================================

@@ -188,6 +188,16 @@ final journeyHistoryProvider =
   return ref.watch(learningPlanRepositoryProvider).history(module: module);
 });
 
+/// **Un cycle clos, en consultation**, derrière une ligne de « Mes cycles »
+/// (2026-09-27). `autoDispose` : une page qu'on ouvre, pas une source
+/// d'accueil. Un cycle clos est figé — seul le compte le rend autre.
+final journeyCycleArchiveProvider =
+    FutureProvider.autoDispose.family<JourneyCycleArchive, String>(
+        (ref, journeyId) async {
+  ref.watch(compteIdProvider);
+  return ref.watch(learningPlanRepositoryProvider).historyCycle(journeyId);
+});
+
 /// **Le détail d'une étape de séries**, derrière une ligne du cycle.
 ///
 /// 🛑 **`autoDispose` et NON gardé en vie** : c'est un écran qu'on ouvre, pas

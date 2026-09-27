@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.JourneyBlocDto;
 import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.dto.JourneyCycleDto;
 import com.sejourfr.app.dto.JourneyDto;
+import com.sejourfr.app.dto.JourneyExamResultDto;
 import com.sejourfr.app.dto.JourneyNextStepDto;
 import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.dto.JourneyUniteRefDto;
@@ -315,6 +316,73 @@ public class JourneyReadService {
      * Progression lira. Une seule requete, sur l'index
      * {@code idx_journey_user_module_status}.
      */
+    /**
+     * <b>Un cycle CLOS, relu en consultation</b> (« Mes cycles »,
+     * 2026-09-27) — les memes DTO que {@link #lire}, sans rien d'actionnable.
+     *
+     * <p>🛑 <b>Fige = persiste</b>. Le statut d'une etape se lit sur sa
+     * cloture ({@link #statutHorsPromotion}, la meme regle que le Plan) ; une
+     * etape restee ouverte devient {@code NON_FAITE}. <b>Rien</b> de ce que
+     * {@link #lire} calcule sur l'etat d'AUJOURD'HUI n'est rejoue : ni acces, ni
+     * verrou, ni progression, ni exercice, ni election de l'etape courante.
+     * C'est ce qui fait qu'un abonnement souscrit ou un recalibrage du moteur
+     * ne change pas une ligne de l'archive.
+     *
+     * @param rang      le rang du cycle, deja compte par l'appelant
+     *                  ({@code JourneyCycleRank}).
+     * @param resultats ce que les examens ont donne, par etape — lus chez leurs
+     *                  autorites ({@code JourneyExamResultReader}).
+     */
+    public JourneyBlocResolver.Vue lireArchive(
+            Journey journey, List<JourneyStep> toutesLesEtapes, int rang,
+            Map<UUID, JourneyExamResultDto> resultats) {
+        boolean affinage = cycleAffinage.pour(journey, rang);
+        Map<UUID, JourneyStepStatus> statuts = new LinkedHashMap<>();
+        for (JourneyStep step : toutesLesEtapes) {
+            statuts.put(step.getId(), step.estOuverte()
+                    ? JourneyStepStatus.NON_FAITE
+                    : statutHorsPromotion(step, toutesLesEtapes));
+        }
+        List<JourneyStep> affichables = toutesLesEtapes.stream()
+                .filter(step -> statuts.get(step.getId()) != JourneyStepStatus.OBSOLETE)
+                .toList();
+        return blocResolver.lireArchive(
+                rang, axe(journey.getModule()), affichables,
+                step -> dtoArchive(step, statuts.get(step.getId()), resultats.get(step.getId())),
+                affinage);
+    }
+
+    /**
+     * Une etape d'un cycle clos : les memes faits que {@link #dto}, et
+     * <b>aucun</b> verrou, <b>aucune</b> action, <b>aucune</b> progression
+     * (elle se lirait sur les compteurs d'aujourd'hui, pas sur ceux du cycle).
+     */
+    private static JourneyStepDto dtoArchive(
+            JourneyStep step, JourneyStepStatus status, JourneyExamResultDto resultat) {
+        Skill skill = step.getSkill();
+        return new JourneyStepDto(
+                step.getId(),
+                step.getType(),
+                step.getPurpose(),
+                status,
+                step.blocRef(),
+                uniteRef(step),
+                skill == null ? null : skill.getSection(),
+                skill == null ? null : skill.getTaskCode(),
+                skill == null ? null : skill.getCode(),
+                step.uniteLabel(),
+                step.getLot() == null ? null : step.getLot().getId(),
+                step.getSourceAssessmentId(),
+                step.getPosition(),
+                null,
+                false,
+                null,
+                null,
+                null,
+                step.getClosedAt(),
+                resultat);
+    }
+
     private int numeroDuCycle(Journey journey) {
         // 🛑 LA REGLE DU RANG N'EST PAS ECRITE ICI (JourneyCycleRank) : la page
         // Progression la lit aussi, et deux copies d'un meme nombre finissent
@@ -1203,7 +1271,11 @@ public class JourneyReadService {
                 etat.locked(),
                 etat.lockReason(),
                 mesureDe(step),
-                exerciceDe(step, exercices));
+                exerciceDe(step, exercices),
+                step.getClosedAt(),
+                // Le resultat d'un examen n'est lu qu'en CONSULTATION d'un cycle
+                // clos (`dtoArchive`) : le Plan courant ne le sert pas.
+                null);
     }
 
     /**

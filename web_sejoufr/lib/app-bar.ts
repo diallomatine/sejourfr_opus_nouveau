@@ -48,6 +48,7 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
 
   ["/plan", {title: "Plan"}],
   ["/plan/progression", {title: JOURNEY_HISTORY_TITLE, subtitle: "Plan"}],
+  ["/plan/progression/cycle", {title: "Cycle terminé", subtitle: JOURNEY_HISTORY_TITLE}],
 
   ["/progression/tcf", {title: "Progression", subtitle: TCF}],
   ["/progression/civique", {title: "Progression", subtitle: CIVIQUE}],

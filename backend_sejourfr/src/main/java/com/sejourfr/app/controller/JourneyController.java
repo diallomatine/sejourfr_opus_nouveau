@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.JourneyCycleArchiveDto;
 import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.JourneyHistoryDto;
 import com.sejourfr.app.dto.JourneyStepDetailDto;
@@ -81,6 +82,20 @@ public class JourneyController {
     @GetMapping("/history")
     public JourneyHistoryDto history(@RequestParam(required = false) Module module) {
         return historyService.lire(currentUser.getId(), module == null ? Module.TCF : module);
+    }
+
+    /**
+     * <b>Un cycle clos, en consultation</b> (« Mes cycles », 2026-09-27) : son
+     * plan tel qu'il etait — les memes blocs et etapes que le Plan, sans
+     * verrou ni action.
+     *
+     * <p>🛑 <b>Aucun {@code ?module=}</b> : le cycle porte son module. <b>404</b>
+     * si le cycle n'existe pas, n'appartient pas au candidat ou n'est pas
+     * historise.
+     */
+    @GetMapping("/history/{journeyId}")
+    public JourneyCycleArchiveDto historyCycle(@PathVariable java.util.UUID journeyId) {
+        return historyService.lireCycle(currentUser.getId(), journeyId);
     }
 
     /**

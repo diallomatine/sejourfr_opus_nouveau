@@ -117,6 +117,11 @@ String? journeyCycleStepSubtitle(JourneyStep step) {
 /// La pastille de fin de ligne. **Servie au kit**, qui ne compose aucune phrase.
 String? journeyBadge(JourneyStep step) {
   if (step.status == JourneyStepStatus.current) return 'Maintenant';
+  // Un cycle CLOS (« Mes cycles ») : l'étape est restée ouverte, et elle ne se
+  // fera plus. Servi `NON_FAITE`, jamais déduit d'un `closedAt` nul.
+  if (step.status == JourneyStepStatus.nonFaite) {
+    return kJourneyArchiveStepNotDone;
+  }
   if (step.status == JourneyStepStatus.skipped) return 'Déjà travaillée';
   if (step.status == JourneyStepStatus.upcoming &&
       step.type == JourneyStepType.sectionExam) {
@@ -136,6 +141,7 @@ SfJourneyState journeyKitState(JourneyStep step) {
       return SfJourneyState.skipped;
     case JourneyStepStatus.upcoming:
     case JourneyStepStatus.obsolete:
+    case JourneyStepStatus.nonFaite:
       return SfJourneyState.upcoming;
   }
 }
@@ -371,13 +377,6 @@ String journeyBlocMark(JourneyBlocRef bloc) {
 /// seconde autorité sur un nom que le serveur connaît déjà.
 String journeyBlocTitle(JourneyBlocRef bloc) => bloc.label;
 
-/// Le titre d'un bloc de l'HISTORIQUE.
-///
-/// ✅ **Le passage annoncé a eu lieu** (P8.9, 2026-09-20) : `JourneyHistoryBloc`
-/// porte le **bloc servi**, plus `examType`. Il n'y a bien eu **qu'un** appelant
-/// à changer — c'était le but de ce helper.
-String journeyHistoryBlocTitle(JourneyHistoryBloc bloc) => bloc.bloc.label;
-
 // ⚠️ `journeyBlocMeta` A ÉTÉ SUPPRIMÉE (P8.7, chantier `DETTE-P1`).
 // Elle composait « 3 compétences restantes · puis examen » à la main, ICI et
 // dans son jumeau TypeScript — deux copies d'une phrase dont le MOT dépend du
@@ -393,6 +392,9 @@ String journeyHistoryBlocTitle(JourneyHistoryBloc bloc) => bloc.bloc.label;
       JourneyBlocStatus.enCours => (label: 'EN COURS', tone: SfTone.hot),
       JourneyBlocStatus.aEvaluer => (label: 'À ÉVALUER', tone: SfTone.warn),
       JourneyBlocStatus.aVenir => (label: 'À VENIR', tone: SfTone.muted),
+      // Un bloc d'un cycle CLOS resté incomplet (« Mes cycles »). Ton neutre :
+      // l'archive constate, elle ne reproche rien.
+      JourneyBlocStatus.inacheve => (label: 'INACHEVÉ', tone: SfTone.muted),
     };
 
 /// **L'état du rond d'un bloc sur la timeline du cycle** (2026-09-27) — une
@@ -404,6 +406,7 @@ SfRailState journeyBlocRailState(JourneyBlocStatus status) => switch (status) {
       JourneyBlocStatus.enCours => SfRailState.current,
       JourneyBlocStatus.aEvaluer => SfRailState.upcoming,
       JourneyBlocStatus.aVenir => SfRailState.upcoming,
+      JourneyBlocStatus.inacheve => SfRailState.upcoming,
     };
 
 /* ------------------------------ la dernière étape de la timeline du cycle --- */
@@ -695,16 +698,6 @@ String journeyHistoryCycleMeta(
       '${cycle.examens} examen${cycle.examens == 1 ? '' : 's'}',
     ].join(' · ');
 
-/// Les unités travaillées sur un bloc, jointes — des compétences en TCF, des
-/// unités officielles en civique (D-48). 🛑 **Les titres sont SERVIS**, cette
-/// fonction ne fait que les joindre : aucun mot de parcours n'entre ici.
-///
-/// 🛑 **`null` quand la liste est vide** : un bloc peut n'avoir reçu qu'un
-/// examen, et une ligne de sous-titre vide se lirait comme une donnée
-/// manquante.
-String? journeyHistoryBlocSkills(JourneyHistoryBloc bloc) =>
-    bloc.skillTitles.isEmpty ? null : bloc.skillTitles.join(' · ');
-
 /// **La mesure d'un cycle, par parcours** (P8.9).
 ///
 /// 🛑 **Deux axes, et un seul rempli par cycle** : le TCF mesure un **palier
@@ -712,12 +705,11 @@ String? journeyHistoryBlocSkills(JourneyHistoryBloc bloc) =>
 /// (`entryScore` / `exitScore`). Le serveur sert les deux champs et n'en
 /// remplit qu'un — `null` = inconnu **de ce module**, jamais zéro.
 ///
-/// 🛑 **C'est ICI, et seulement ici, que `entry_score` et `exit_score`
-/// s'affichent** : D-50 §1 les interdit sur la bande objectif du Plan, où un
-/// résultat d'examen blanc se lirait comme un niveau acquis. Dans une archive
-/// datée, un résultat d'examen est exactement à sa place.
+/// 🛑 **C'est dans « Mes cycles », et seulement là, que `entry_score` et
+/// `exit_score` s'affichent** : D-50 §1 les interdit sur la bande objectif du
+/// Plan, où un résultat d'examen blanc se lirait comme un niveau acquis.
 ({String? entree, String? sortie}) _mesure(
-  JourneyHistoryCycle cycle,
+  JourneyCycleArchive cycle,
   AppModule module,
 ) {
   if (module == AppModule.civique) {
@@ -735,111 +727,88 @@ String? journeyHistoryBlocSkills(JourneyHistoryBloc bloc) =>
 /// format (arrêté du 10 octobre 2025) — jamais un 40 écrit ici.
 String _scoreCivique(int score) => '$score/${CivicExamFormat.questions}';
 
-/// Le titre de l'encart de mesure d'un cycle.
-///
-/// 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand elle a bougé,
-/// l'encart parle de la mesure ; sinon il parle des examens. Le **mot** de la
-/// mesure suit le parcours — un niveau en TCF, un score en civique.
-String journeyHistoryLevelTitle(
-  JourneyHistoryCycle cycle, [
-  AppModule module = AppModule.tcf,
-]) {
-  if (!_journeyHistoryLevelMoved(cycle, module)) return 'Examens réalisés';
-  return module == AppModule.civique ? 'Score mesuré' : 'Niveau mesuré';
-}
-
-/// La pastille de l'encart de mesure.
-///
-/// 🛑 **Une sortie nulle ne devient JAMAIS une mesure** : rien n'a été mesuré,
-/// ou la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart
-/// le dit en clair, en ton [SfBarTone.muted] — `null` = inconnu, jamais mauvais.
-///
-/// ⚠️ **Le ton reste `ok` dès qu'une mesure existe, y compris sous le seuil
-/// civique** : cet encart **constate** un résultat daté, il ne le juge pas —
-/// c'est déjà la règle de l'écran TCF, et le seuil se lit dans la note.
-({String label, SfBarTone tone}) journeyHistoryLevelState(
-  JourneyHistoryCycle cycle, [
+/// **La mesure d'un cycle clos, en une ligne** — « Niveau A2 → B1 », « Niveau
+/// B1 », « Score 34/40 · seuil 32/40 ». 🛑 Une sortie nulle ne devient JAMAIS
+/// une mesure : `null`, et l'écran n'écrit rien. Miroir de
+/// `journeyArchiveLevel` (`lib/journey.ts`).
+String? journeyArchiveLevel(
+  JourneyCycleArchive cycle, [
   AppModule module = AppModule.tcf,
 ]) {
   final (:entree, :sortie) = _mesure(cycle, module);
-  if (sortie == null) {
-    return (
-      label: module == AppModule.civique
-          ? 'Score non mesuré'
-          : 'Niveau non mesuré',
-      tone: SfBarTone.muted,
-    );
-  }
-  if (_journeyHistoryLevelMoved(cycle, module)) {
-    return (label: '$entree → $sortie', tone: SfBarTone.ok);
-  }
-  return (
-    label: module == AppModule.civique ? sortie : 'Niveau $sortie',
-    tone: SfBarTone.ok,
-  );
+  if (sortie == null) return null;
+  final valeur =
+      entree != null && entree != sortie ? '$entree → $sortie' : sortie;
+  return module == AppModule.civique
+      ? 'Score $valeur · seuil ${CivicExamFormat.seuil}/${CivicExamFormat.questions}'
+      : 'Niveau $valeur';
 }
 
-/// La phrase sous la pastille.
-///
-/// 🛑 **Les blocs nommés sont ceux qui ont REÇU un examen** (`examens > 0`),
-/// jamais la liste entière : annoncer une épreuve qui n'a rien enregistré
-/// serait une mesure inventée.
-///
-/// ⚠️ **Le civique les COMPTE au lieu de les nommer** : une thématique n'a pas
-/// d'initiale (A49), et répéter cinq noms complets ici redirait ce que le corps
-/// du cycle liste déjà juste au-dessus. Le compte, lui, est un fait servi.
-///
-/// 🛑 **Le seuil accompagne toute mesure civique** : un score sur 40 ne veut
-/// rien dire sans les 32 qui le rendent suffisant.
-String journeyHistoryLevelNote(
-  JourneyHistoryCycle cycle, [
+/* ==========================================================================
+   LA CONSULTATION D'UN CYCLE CLOS (« Mes cycles », 2026-09-27)
+
+   🛑 Le cycle est servi comme le Plan (`JourneyCycleArchive` : le même
+   `cycle`, les mêmes `blocs`), SANS verrou ni action. Ces libellés ne posent
+   que les mots de la consultation. Miroir mot pour mot de `JOURNEY_ARCHIVE_*`
+   (`web_sejoufr/lib/journey.ts`).
+   ========================================================================== */
+
+/// L'œil-de-bœuf de la page d'un cycle clos.
+const String kJourneyArchiveKicker = 'Cycle terminé';
+
+/// La pastille d'une étape restée ouverte dans un cycle clos.
+const String kJourneyArchiveStepNotDone = 'Non travaillée';
+
+/// La phrase sous la barre d'un cycle clos : sa date de fin, puis sa mesure.
+String journeyArchiveHint(
+  JourneyCycleArchive archive, [
   AppModule module = AppModule.tcf,
-]) {
-  final (entree: _, :sortie) = _mesure(cycle, module);
-  final examens = [for (final b in cycle.blocs) if (b.examens > 0) b];
-  if (module == AppModule.civique) {
-    final combien = examens.length;
-    final s = combien == 1 ? '' : 's';
-    if (sortie == null) {
-      return combien == 0
-          ? 'Aucun examen n\'a été enregistré pendant ce cycle.'
-          : '$combien examen$s de thème enregistré$s — aucun score global '
-              'n\'a été mesuré pendant ce cycle.';
-    }
-    return _journeyHistoryLevelMoved(cycle, module)
-        ? '$_kSeuilCivique Cette évolution correspond aux examens enregistrés '
-            'pendant ce cycle.'
-        : '$_kSeuilCivique Résultat enregistré dans votre progression.';
-  }
-  final marks = [
-    // ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
-    // initiale pour une épreuve.
-    for (final bloc in examens)
-      if (journeyBlocMark(bloc.bloc).isNotEmpty) journeyBlocMark(bloc.bloc),
-  ];
-  if (sortie == null) {
-    return marks.isEmpty
-        ? 'Aucun examen n\'a été enregistré pendant ce cycle.'
-        : '${marks.join(' · ')} — aucun niveau global n\'a été mesuré pendant ce cycle.';
-  }
-  if (_journeyHistoryLevelMoved(cycle, module)) {
-    return 'Cette évolution correspond aux examens enregistrés pendant ce cycle.';
-  }
-  return marks.isEmpty
-      ? 'Ce niveau vient des examens enregistrés dans votre progression.'
-      : '${marks.join(' · ')} — résultats enregistrés dans votre progression.';
+]) =>
+    [
+      'Terminé le ${formatLongDate(archive.fin.toLocal())}',
+      journeyArchiveLevel(archive, module),
+    ].whereType<String>().join(' · ');
+
+/// La note de pied : ce que la page est, et où est le plan en cours.
+const String kJourneyArchiveNote =
+    'Ce cycle est terminé : il se consulte tel qu\'il était à sa clôture. '
+    'Votre plan en cours est sur l\'écran Plan.';
+
+/// Le sous-titre de l'examen d'un bloc clos — « Passé le 26 sept. 2026 ».
+String journeyArchiveExamSubtitle(JourneyStep exam) {
+  if (!journeyExamDone(exam)) return 'Non passé';
+  final quand = exam.closedAt;
+  return quand == null ? 'Passé' : 'Passé le ${formatLongDate(quand.toLocal())}';
 }
 
-/// 🛑 Le seuil vient de [CivicExamFormat] (arrêté du 10 octobre 2025), jamais
-/// d'un 32 écrit dans une phrase.
-const String _kSeuilCivique =
-    'Seuil de réussite : ${CivicExamFormat.seuil}/${CivicExamFormat.questions}.';
-
-/// Les deux mesures diffèrent, et les deux sont connues.
-bool _journeyHistoryLevelMoved(JourneyHistoryCycle cycle, AppModule module) {
-  final (:entree, :sortie) = _mesure(cycle, module);
-  return entree != null && sortie != null && entree != sortie;
+/// Ce que l'examen a donné, à droite de sa ligne — « Niveau B1 », « 17/20 ».
+/// 🛑 **Lu sur `resultat` servi** ; absent ⇒ « Passé », jamais un niveau
+/// inventé. `null` quand l'examen n'a pas été passé.
+String? journeyArchiveExamResult(JourneyStep exam) {
+  if (!journeyExamDone(exam)) return null;
+  final resultat = exam.resultat;
+  final niveau = resultat?.niveau;
+  if (niveau != null) return 'Niveau ${niveau.shortName}';
+  final score = resultat?.score;
+  final max = resultat?.maxScore;
+  if (score != null && max != null) return '$score/$max';
+  return 'Passé';
 }
+
+/// Le titre de la fin d'un cycle clos : **le geste qui l'a clos**, servi
+/// (`finDeCycle`, V077). `null` = inconnu ⇒ « Cycle terminé ».
+String journeyArchiveEndTitle(JourneyFinDeCycle? fin) => switch (fin) {
+      JourneyFinDeCycle.actualisation => 'Plan actualisé',
+      JourneyFinDeCycle.examenComplet => 'Examen blanc complet',
+      null => 'Cycle terminé',
+    };
+
+/// « Le 27 sept. 2026 » — la date de clôture, sous le titre de la fin.
+String journeyArchiveEndNote(DateTime fin) =>
+    'Le ${formatLongDate(fin.toLocal())}';
+
+const String kJourneyArchiveError =
+    'Ce cycle n\'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.';
 
 // ⚠️ `_initialeEpreuve` A ÉTÉ SUPPRIMÉE (P8.9, 2026-09-20) : l'historique lit
 // désormais le bloc SERVI, donc `journeyBlocMark` — qui rend une chaîne vide

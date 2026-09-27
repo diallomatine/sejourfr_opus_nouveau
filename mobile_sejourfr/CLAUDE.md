@@ -4358,11 +4358,20 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   reste à la barre basse « Débloquer mon plan ».
 - `screens/plan/plan_history_screen.dart` rend **« Mes cycles »** (renommé depuis « Ma
   progression » le 2026-09-24, D16 — libellés seulement, route inchangée) sur `AppRoutes.planProgress`
-  (`SfHeroBanner` + `SfStatGrid` + un `SfBlocAccordion` par cycle terminé, `mark` = le
-  numéro). ⚠️ **`plan_progress_screen.dart`, `plan_evolution_screen.dart` et
-  `AppRoutes.planEvolution` sont supprimés.**
-- **Primitives reçues par le kit** : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox`
-  (historique des cycles), `SfExamStepAction` (examen du cycle en cours), `SfNextStepCard`, `SfCycleRail` / `SfCycleRailStep` / `SfCycleRailEnd` (timeline, 2026-09-27), `SfHeroBanner`, et `AppColors.blueMid` (miroir de `--color-blue-mid`,
+  (`SfHeroBanner` + `SfStatGrid` + une ligne-lien par cycle terminé,
+  `SfBlocAccordion.lien`, `mark` = le numéro). ⚠️ **`plan_progress_screen.dart`,
+  `plan_evolution_screen.dart` et `AppRoutes.planEvolution` sont supprimés.** Pas de menu
+  burger (le web l'ajoute à la flèche) : l'app n'a pas de menu latéral.
+- **Un cycle terminé se consulte comme le Plan** (2026-09-27) : `AppRoutes.planCycleArchive`
+  (`/plan/progression/cycle/:journeyId`) → `screens/plan/plan_cycle_archive_screen.dart`, sur
+  `journeyCycleArchiveProvider` (`GET /api/me/plan/journey/history/{journeyId}`,
+  `JourneyCycleArchive` : le même `cycle` et les mêmes `blocs` que le Plan). Mêmes briques,
+  **aucun geste ni cadenas** ; libellés `kJourneyArchive*` / `journeyArchive*`
+  (`journey_labels.dart`), miroirs de `lib/journey.ts`. ⚠️ **`SfExamStepBox` est SUPPRIMÉE**
+  (et `journeyHistoryLevel*`, `journeyHistoryBloc*`). → `docs/regles/plan.md` § « Un cycle
+  clos se CONSULTE comme le Plan ».
+- **Primitives reçues par le kit** : `SfCycleProgress`, `SfBlocAccordion` (+ `.lien`,
+  2026-09-27), `SfExamStepAction` (examen d'un bloc), `SfNextStepCard`, `SfCycleRail` / `SfCycleRailStep` / `SfCycleRailEnd` (timeline, 2026-09-27 ; + `done` / `note` pour une fin franchie), `SfHeroBanner`, et `AppColors.blueMid` (miroir de `--color-blue-mid`,
   pour que le dégradé ait le même nombre d'arrêts des deux côtés).
 - 🛑 `lot`, `step`, `journey` ne s'affichent **jamais** (D-21) ; « cycle » vient des
   maquettes du propriétaire et reste.

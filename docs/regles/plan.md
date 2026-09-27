@@ -2415,7 +2415,56 @@ plus ancien : dates, nombres de compétences et d'examens **clôturés**, compé
 **groupées par épreuve** (titres de `skills.title`), et les deux niveaux lus **tels quels**.
 Les trois compteurs du bandeau portent sur **tous** les cycles, le cycle en cours compris —
 l'écran dit « tout ce que vous avez déjà travaillé ». Le cycle **en attente** n'y paraît
-jamais.
+jamais. 🛑 **Un examen = une évaluation par bloc** (2026-09-27) : deux étapes d'examen du même
+bloc closes par la même évaluation (doublon constaté en base sur une étape « Évaluer mon
+niveau » CO) ne comptent qu'**un** examen passé — le bloc reste dans la clé, un examen civique
+global qui clôt cinq thématiques compte toujours une fois par thématique.
+
+#### Un cycle clos se CONSULTE comme le Plan (2026-09-27, demande du propriétaire)
+
+Sur « Mes cycles », chaque cycle terminé est une ligne-lien (`BlocAccordion href` ⇄
+`SfBlocAccordion.lien`) vers **sa page** — `/plan/progression/cycle/{journeyId}` des deux côtés
+(`PlanCycleArchiveView` ⇄ `PlanCycleArchiveScreen`). ⚠️ **Révoque** l'accordéon déplié dans la
+liste, dont le seul contenu était une carte « Examens réalisés · NIVEAU A2 » **cadenassée** : un
+cadenas sur un cycle terminé ne voulait rien dire, et `ExamStepBox` ⇄ `SfExamStepBox` sont
+**supprimées** avec lui. Une page plutôt qu'un accordéon : à 360 px, un rail et ses blocs
+dépliables imbriqués dans une carte de liste perdaient la largeur qui rend le Plan lisible.
+
+- **Données** : `GET /api/me/plan/journey/history/{journeyId}` → `JourneyCycleArchiveDto`, qui
+  porte **les mêmes `JourneyCycleDto` et `JourneyBlocDto`** que le Plan, bâtis par les mêmes
+  règles (`JourneyBlocResolver.lireArchive`, `JourneyCycleAffinage`) sur les étapes
+  **persistées**. 🛑 **Figé = persisté** : statut d'une étape lu sur sa clôture
+  (`statutHorsPromotion`, la règle du Plan), et **rien** de ce qui se calcule sur l'état
+  d'aujourd'hui n'est rejoué — ni accès, ni verrou, ni progression, ni exercice, ni élection
+  de l'étape courante, ni « à évaluer ». Un abonnement ou un recalibrage ne change pas une ligne
+  de l'archive.
+- **La consultation est SERVIE, jamais déduite** : `locked` faux, `assessment` / `exercise` /
+  `progress` nuls ; une étape restée ouverte est **`NON_FAITE`** (jamais « à venir »), un bloc
+  dont une étape obligatoire est restée ouverte **`INACHEVE`** (jamais « en cours ») ; un bloc
+  sans étape n'est pas servi ; l'ordre est `CO, CE, EO, EE` (D-56 : plus rien « à faire »). La
+  phrase du bloc (`meta`) est servie par `JourneyBlocMeta.archive` — « 1/2 compétences
+  travaillées · examen blanc passé ».
+- **Ce que l'examen a donné** (`JourneyStepDto.resultat`, servi en consultation seulement) :
+  l'examen qui a clos l'étape (`resolved_by_assessment_id`) est relu chez **son autorité** —
+  `TcfLevelEstimatorService.niveauxQcm` (CO/CE), `EpreuvesProductionQualifiantesResolver
+  .niveauxDesSessions` (EE/EO), `score`/`max_score` d'un examen **de ce thème** (civique).
+  🛑 `null` = inconnu : diagnostic, examen d'un autre axe (examen complet, examen civique
+  global) ou tentative d'un tiers ⇒ « Passé », sans niveau.
+- **La fin du cycle** : `journey.fin_de_cycle` (**V077**) garde **le geste qui l'a clos** —
+  `ACTUALISATION` (`refresh`) ou `EXAMEN_COMPLET` (`measurement-cycle`), écrit une fois à
+  l'historisation. Un événement, pas un dérivé (même argument que D-12 / D-14) : le cycle
+  suivant ne permet pas de le reconstituer de façon sûre. `null` = cycle clos avant V077 ⇒
+  « Cycle terminé », sans inventer l'issue. Rendu : `CycleRailEnd done` ⇄ `SfCycleRailEnd.done`
+  (encart plein + date).
+- **Écran** : les briques du Plan, **sans aucun geste** — ni « Commencer », ni « Débloquer »,
+  ni « Faire cette étape », ni cadenas. Le premier bloc est déplié. Libellés
+  `JOURNEY_ARCHIVE_*` / `journeyArchive*` ⇄ `kJourneyArchive*` / `journeyArchive*`.
+- **Barre du haut (web)** : « Mes cycles » et la page d'un cycle portent **le menu ET la
+  flèche** (`Top keepMenu`). Le mobile n'a pas de menu latéral (barre d'onglets) : rien à y
+  faire.
+- **Tests** : `JourneyCycleArchiveIT` (cycle servi avec ses étapes sans verrou ni action,
+  `NON_FAITE` / `INACHEVE`, résultats relus, isolation par candidat, rang = celui de la
+  liste, civique) ; `JourneyCycleServiceIT` (le geste est écrit).
 
 ---
 

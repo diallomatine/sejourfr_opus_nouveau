@@ -1207,7 +1207,7 @@ export function JourneyRow({
  * *est* la décision d'ordonnancement que le parcours a prise, et elle ne se
  * recalcule pas.
  *
- * @param exam **la dernière étape de la file** — l'`ExamStepBox` du bloc. Dans
+ * @param exam **la dernière étape de la file** — l'`ExamStepAction` du bloc. Dans
  *   la variante `cycle`, la maquette le range SUR le rail, avec sa pastille
  *   « ◎ » : posé à côté de la liste il perdrait son repère de checkpoint. Il
  *   reste servi à part par le serveur (`bloc.exam`), et le kit ne décide donc
@@ -1810,7 +1810,7 @@ export function InfoNote({
    Maquettes « Plan — cycle » et « Plan — fin de cycle » (propriétaire,
    2026-09-18 ; `docs/progression/plan_cycle.html` ⇄ `cycle_termine.html`)
 
-   🛑 Miroirs de `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepBox` et
+   🛑 Miroirs de `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepAction` et
    `SfNextStepCard` côté Flutter, plus `Pill` (rattrapage web de `SfPill`). Un
    motif qui bouge d'un côté bouge de l'autre dans la même passe.
 
@@ -1953,41 +1953,50 @@ export function CycleProgress({
  * d'accessibilité et du parcours clavier, comme chez `Prio`.
  *
  * Composition attendue : une `JourneyList` de `JourneyRow` (les étapes, avec
- * leur rail), puis un `ExamStepBox`. Le corps ne porte donc aucun retrait de
+ * leur rail), puis un `ExamStepAction`. Le corps ne porte donc aucun retrait de
  * rail — c'est la liste qui a le sien.
  *
- * Miroir Flutter : `SfBlocAccordion`.
+ * **Variante LIEN** (`href`, « Mes cycles », 2026-09-27) : le même en-tête,
+ * sans corps, qui **ouvre une page** au lieu de se déplier — le chevron pointe
+ * alors à droite. C'est ainsi que la liste des cycles terminés mène à la
+ * consultation d'un cycle : un seul motif d'en-tête, pas une carte de plus.
+ *
+ * Miroir Flutter : `SfBlocAccordion` (`onOpen`).
  */
-export function BlocAccordion({
-  mark,
-  title,
-  meta,
-  status,
-  open,
-  onToggle,
-  current,
-  children,
-}: {
-  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique.
-   *
-   *  🛑 **Vide pour une THÉMATIQUE civique** : l'initiale à deux lettres
-   *  n'existe que pour une épreuve. La colonne disparaît alors, et **rien ne la
-   *  remplace** — un carré vide, un numéro de rang ou une icône choisie ici
-   *  seraient tous des inventions du front (A49). */
-  mark: string;
-  /** Le nom de l'épreuve **en clair**, servi. */
-  title: string;
-  /** « 1 compétence restante · puis examen », **servi**. */
-  meta: string;
-  /** Le libellé d'état et son ton, tous deux **servis**. */
-  status: { label: string; tone: Tone };
-  open: boolean;
-  onToggle: () => void;
-  /** Le bloc courant : liseré et repère accentués. **Servi**, jamais déduit. */
-  current?: boolean;
-  children: ReactNode;
-}) {
+export function BlocAccordion(props: BlocAccordionProps) {
+  const { mark, title, meta, status, current } = props;
   const panelId = useId();
+  const tete = (
+    <>
+      {mark && <span className={styles.blocMark}>{mark}</span>}
+      <span className={styles.blocId}>
+        <span className={styles.blocTitle}>{title}</span>
+        <span className={styles.blocMeta}>{meta}</span>
+      </span>
+      {/* 🛑 Sous 360 px, la maquette MASQUE l'état et l'en-tête passe à deux
+          colonnes : c'est comme ça que le nom de l'épreuve tient sur une
+          ligne sur les téléphones les plus étroits. Le masquage est dans
+          `.blocStatus`, pas ici — un rendu conditionnel en JS n'a pas de
+          miroir dans une media query. */}
+      <span className={styles.blocStatus}>
+        <Pill label={status.label} tone={status.tone} dense />
+      </span>
+    </>
+  );
+  if (props.href !== undefined) {
+    return (
+      <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
+        <Link
+          href={props.href}
+          className={cx(styles.blocHead, styles.blocLink, !mark && styles.blocHeadSansMarque)}
+        >
+          {tete}
+          <ChevronRight size={18} strokeWidth={2.5} className={styles.blocChevron} aria-hidden />
+        </Link>
+      </article>
+    );
+  }
+  const { open, onToggle, children } = props;
   return (
     <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
       <button
@@ -1997,19 +2006,7 @@ export function BlocAccordion({
         aria-controls={panelId}
         onClick={onToggle}
       >
-        {mark && <span className={styles.blocMark}>{mark}</span>}
-        <span className={styles.blocId}>
-          <span className={styles.blocTitle}>{title}</span>
-          <span className={styles.blocMeta}>{meta}</span>
-        </span>
-        {/* 🛑 Sous 360 px, la maquette MASQUE l'état et l'en-tête passe à deux
-            colonnes : c'est comme ça que le nom de l'épreuve tient sur une
-            ligne sur les téléphones les plus étroits. Le masquage est dans
-            `.blocStatus`, pas ici — un rendu conditionnel en JS n'a pas de
-            miroir dans une media query. */}
-        <span className={styles.blocStatus}>
-          <Pill label={status.label} tone={status.tone} dense />
-        </span>
+        {tete}
         {/* La seule affordance visible qu'un bloc se déplie : la maquette compte
             sur le curseur, qui n'existe pas au doigt. Le chevron PIVOTE, il ne
             se remplace pas — aucun saut de largeur à l'ouverture. */}
@@ -2027,55 +2024,27 @@ export function BlocAccordion({
   );
 }
 
-/**
- * **L'encart d'examen imbriqué en fin de bloc** — le `.examBox` de
- * `plan_cycle.html`.
- *
- * 🛑 **`locked` rend l'encart inerte** : ni bouton, ni curseur, ni `onTap`. Le
- * contenu reste **entièrement lisible** — on ajoute un verrou, on ne masque
- * rien (R16, contradiction #1 tranchée le 2026-08-21).
- *
- * `state` porte le libellé **servi** (« Verrouillé », « Disponible ») et son
- * ton : `muted` quand il n'y a rien à faire, `now` quand l'examen s'ouvre.
- *
- * Miroir Flutter : `SfExamStepBox`.
- */
-export function ExamStepBox({
-  title,
-  state,
-  note,
-  locked,
-  onClick,
-}: {
-  /** « Examen blanc · Compréhension orale », ou la mesure d'un niveau. Servi. */
+type BlocAccordionProps = {
+  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique.
+   *
+   *  🛑 **Vide pour une THÉMATIQUE civique** : l'initiale à deux lettres
+   *  n'existe que pour une épreuve. La colonne disparaît alors, et **rien ne la
+   *  remplace** — un carré vide, un numéro de rang ou une icône choisie ici
+   *  seraient tous des inventions du front (A49). */
+  mark: string;
+  /** Le nom de l'épreuve **en clair**, servi. */
   title: string;
-  state: { label: string; tone: BarTone };
-  /** La phrase de condition, **servie**. */
-  note: string;
-  locked: boolean;
-  onClick?: () => void;
-}) {
-  const body = (
-    <>
-      <span className={styles.examBoxTop}>
-        <b>{title}</b>
-        <span className={cx(styles.examBoxState, statusToneClass[state.tone])}>
-          {state.label}
-        </span>
-        {locked ? <Lock size={13} strokeWidth={2.2} aria-hidden /> : null}
-      </span>
-      <span className={styles.examBoxNote}>{note}</span>
-    </>
-  );
-  if (locked || !onClick) {
-    return <div className={cx(styles.examBox, locked && styles.isLocked)}>{body}</div>;
-  }
-  return (
-    <button type="button" className={cx(styles.examBox, styles.isOpen)} onClick={onClick}>
-      {body}
-    </button>
-  );
-}
+  /** « 1 compétence restante · puis examen », **servi**. */
+  meta: string;
+  /** Le libellé d'état et son ton, tous deux **servis**. */
+  status: { label: string; tone: Tone };
+  /** Le bloc courant : liseré et repère accentués. **Servi**, jamais déduit. */
+  current?: boolean;
+} & (
+  | { open: boolean; onToggle: () => void; children: ReactNode; href?: undefined }
+  /** La variante lien : l'en-tête ouvre une page, il n'a pas de corps. */
+  | { href: string; open?: undefined; onToggle?: undefined; children?: undefined }
+);
 
 /**
  * Ce que l'étape d'examen porte **à droite** : un bouton de lancement, ou le
@@ -2101,8 +2070,9 @@ export type ExamStepTrailing =
  * ⚠️ Le bouton passe **sous** le texte quand la ligne ne tient plus (360 px) :
  * `flex-wrap`, jamais une troncature.
  *
- * Miroir Flutter : `SfExamStepAction`. La brique voisine {@link ExamStepBox}
- * reste celle de l'historique des cycles.
+ * Miroir Flutter : `SfExamStepAction`. Elle sert aussi la consultation d'un
+ * cycle clos (« Mes cycles ») : sans `trailing` de lancement, elle y est
+ * inerte.
  */
 export function ExamStepAction({
   title,
@@ -2297,8 +2267,12 @@ export function CycleRailStep({ state, children }: { state: RailState; children:
  *   prend sa place** — la carte de fin de cycle existante, jamais un second
  *   bouton qui la dupliquerait.
  *
- * 🛑 **Aucune phrase n'est écrite ici**, et rien n'est compté : les trois
- * libellés arrivent en props.
+ * - **Franchie** (`done`, consultation d'un cycle clos, 2026-09-27) : l'encart
+ *   devient **plein** — ni pointillés, ni atténuation — et porte `note`
+ *   (« Le 27 sept. 2026 »). Aucun geste : un cycle clos ne se rejoue pas.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici**, et rien n'est compté : les libellés
+ * arrivent en props.
  *
  * Miroir Flutter : `SfCycleRailEnd`.
  */
@@ -2307,6 +2281,8 @@ export function CycleRailEnd({
   title,
   remaining,
   reached,
+  done,
+  note,
   children,
 }: {
   eyebrow: string;
@@ -2314,6 +2290,10 @@ export function CycleRailEnd({
   /** « Encore N étapes ». Absent ⇒ aucune pastille. */
   remaining?: string;
   reached: boolean;
+  /** La fin a été franchie : l'encart est plein, et lu tel quel. */
+  done?: boolean;
+  /** La ligne sous le titre d'une fin franchie (sa date), **servie**. */
+  note?: string;
   /** L'action de fin de cycle, rendue **à la place** de l'encart une fois atteinte. */
   children?: ReactNode;
 }) {
@@ -2326,9 +2306,10 @@ export function CycleRailEnd({
         {reached && children ? (
           children
         ) : (
-          <div className={styles.railEndBox}>
+          <div className={cx(styles.railEndBox, done && styles.railEndDone)}>
             <span className={styles.railEndEyebrow}>{eyebrow}</span>
             <b className={styles.railEndTitle}>{title}</b>
+            {note ? <span className={styles.railEndNote}>{note}</span> : null}
             {remaining ? (
               <span className={styles.railEndPill}>
                 <Pill label={remaining} tone="warn" />

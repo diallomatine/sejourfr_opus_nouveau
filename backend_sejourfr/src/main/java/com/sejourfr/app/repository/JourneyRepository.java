@@ -29,6 +29,8 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
      * historiser le cycle en cours jetterait le plan qu'il a sous les yeux.
      * Le cycle survit, c'est son {@code target_level} qui change.
      */
+    Optional<Journey> findByIdAndUserId(UUID id, UUID userId);
+
     Optional<Journey> findByUserIdAndModuleAndStatus(
             UUID userId, Module module, JourneyStatus status);
 

@@ -278,6 +278,25 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         assertThat(vue.cycles().getFirst().competences()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("🛑 Deux etapes d'examen du meme bloc closes par la MEME evaluation : UN examen")
+    void uneEvaluationEstUnSeulExamenParBloc() {
+        User user = candidat();
+        Journey cycle = cycleHistorise(user, jours(40), jours(30), null, TargetLevel.A2);
+        UUID memeExamen = UUID.randomUUID();
+        examen(cycle, EpreuveType.TCF_CO, memeExamen);
+        examen(cycle, EpreuveType.TCF_CO, memeExamen);
+        examen(cycle, EpreuveType.TCF_CE, true);
+
+        JourneyHistoryDto vue = historyService.lire(user.getId(), Module.TCF);
+
+        // Constat du 2026-09-27 : deux « Évaluer mon niveau » CO closes par le
+        // meme examen blanc comptaient « 2 examens passes ». Le candidat en a
+        // passe UN.
+        assertThat(vue.cycles().getFirst().examens()).isEqualTo(2);
+        assertThat(vue.stats().examensPasses()).isEqualTo(2);
+    }
+
     // =====================================================================
     // Le cout
     // =====================================================================
@@ -406,6 +425,12 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
     }
 
     private void examen(Journey journey, EpreuveType epreuve, boolean close) {
+        examen(journey, epreuve, close ? UUID.randomUUID() : null);
+    }
+
+    /** Un examen clos par {@code parEvaluation}, ou ouvert si {@code null}. */
+    private void examen(Journey journey, EpreuveType epreuve, UUID parEvaluation) {
+        boolean close = parEvaluation != null;
         JourneyStep step = new JourneyStep();
         step.setJourney(journey);
         step.setType(JourneyStepType.SECTION_EXAM);
@@ -414,7 +439,7 @@ class JourneyHistoryServiceIT extends AbstractIntegrationTest {
         step.setPosition(journey.consommerPosition());
         if (close) {
             step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
-                    UUID.randomUUID(), Instant.now());
+                    parEvaluation, Instant.now());
         }
         journeys.saveAndFlush(journey);
         steps.saveAndFlush(step);

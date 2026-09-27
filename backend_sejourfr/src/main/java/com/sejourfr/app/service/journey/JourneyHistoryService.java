@@ -1,5 +1,7 @@
 package com.sejourfr.app.service.journey;
 
+import com.sejourfr.app.dto.JourneyCycleArchiveDto;
+import com.sejourfr.app.dto.JourneyExamResultDto;
 import com.sejourfr.app.dto.JourneyHistoryBlocDto;
 import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.dto.JourneyHistoryCycleDto;
@@ -14,6 +16,7 @@ import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyBlocKind;
 import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.ThemeManager;
@@ -65,6 +68,8 @@ public class JourneyHistoryService {
     private final JourneyManager journeyManager;
     private final ThemeManager themeManager;
     private final JourneyStepManager stepManager;
+    private final JourneyReadService readService;
+    private final JourneyExamResultReader examResultReader;
 
     /**
      * L'historique du candidat sur le module demande.
@@ -100,7 +105,7 @@ public class JourneyHistoryService {
             List<JourneyStep> etapes =
                     etapesParCycle.getOrDefault(cycle.getId(), List.of());
             int competences = compter(etapes, JourneyStepType.TRAIN_SKILL);
-            int examens = compter(etapes, JourneyStepType.SECTION_EXAM);
+            int examens = compterExamens(etapes);
 
             // 🛑 Les compteurs d'en-tete portent sur TOUS les cycles, le cycle en
             // cours COMPRIS : l'ecran dit « tout ce que vous avez deja
@@ -112,6 +117,7 @@ public class JourneyHistoryService {
             if (cycle.getStatus() != JourneyStatus.HISTORISE) continue;
 
             cycles.add(new JourneyHistoryCycleDto(
+                    cycle.getId(),
                     // Le rang est la place du cycle dans l'ordre de creation :
                     // une seule regle pour les deux ecrans.
                     JourneyCycleRank.rang(rangZeroBase),
@@ -139,6 +145,55 @@ public class JourneyHistoryService {
                 new JourneyHistoryStatsDto(
                         competencesTravaillees, examensPasses, cycles.size()),
                 List.copyOf(cycles));
+    }
+
+    /**
+     * <b>Un cycle clos, relu tel qu'il etait</b> — la page de consultation de
+     * « Mes cycles » ({@code GET /api/me/plan/journey/history/{journeyId}},
+     * 2026-09-27) : le rail, les blocs et leurs etapes, comme le Plan, en
+     * lecture seule.
+     *
+     * <p>🛑 <b>404 sur le cycle d'un tiers, sur un cycle en cours et sur le
+     * cycle en attente</b> : seul un cycle {@code HISTORISE} se consulte ici —
+     * le cycle en cours a son ecran (le Plan), et le cycle en attente est
+     * invisible (D-13). Repondre 403 confirmerait l'existence du cycle.
+     *
+     * <p>🛑 <b>Le rang suit la regle de {@link #lire}</b> ({@link JourneyCycleRank}
+     * sur l'ordre de creation) : la liste et la page disent le meme numero.
+     */
+    @Transactional(readOnly = true)
+    public JourneyCycleArchiveDto lireCycle(UUID userId, UUID journeyId) {
+        Journey cycle = journeyManager.findDuCandidat(journeyId, userId)
+                .filter(journey -> journey.getStatus() == JourneyStatus.HISTORISE)
+                .orElseThrow(() -> new NotFoundException("Cycle introuvable : " + journeyId));
+
+        List<Journey> parCreation = journeyManager.racontables(userId, cycle.getModule());
+        int rangZeroBase = 0;
+        for (int i = 0; i < parCreation.size(); i++) {
+            if (parCreation.get(i).getId().equals(cycle.getId())) {
+                rangZeroBase = i;
+                break;
+            }
+        }
+        int rang = JourneyCycleRank.rang(rangZeroBase);
+
+        List<JourneyStep> etapes = stepManager.findAll(cycle.getId());
+        Map<UUID, JourneyExamResultDto> resultats = examResultReader.lire(userId, etapes);
+        JourneyBlocResolver.Vue vue = readService.lireArchive(cycle, etapes, rang, resultats);
+
+        return new JourneyCycleArchiveDto(
+                cycle.getId(),
+                rang,
+                cycle.getCreatedAt(),
+                cycle.getHistoriseAt(),
+                cycle.getFinDeCycle(),
+                cycle.objectifRef(),
+                cycle.getEntryLevel(),
+                cycle.getExitLevel(),
+                cycle.getEntryScore(),
+                cycle.getExitScore(),
+                vue.cycle(),
+                vue.blocs());
     }
 
     /**
@@ -183,6 +238,7 @@ public class JourneyHistoryService {
 
         // Les etapes arrivent dans l'ordre de la file : les titres d'un bloc
         // sortent donc dans l'ordre ou le candidat les a travailles.
+        java.util.Set<String> examensVus = new java.util.HashSet<>();
         for (JourneyStep etape : etapesCloses) {
             // ✅ AXE : `blocCode()` (DETTE-A1 refermee ici). Une etape DIAGNOSTIC
             // ne porte aucun bloc -- elle mesure le candidat (R11, A45) -- et
@@ -191,7 +247,8 @@ public class JourneyHistoryService {
             String bloc = etape.blocCode();
             if (bloc == null || !titres.containsKey(bloc)) continue;
             if (etape.getType() == JourneyStepType.SECTION_EXAM) {
-                examens.merge(bloc, 1, Integer::sum);
+                // Meme regle que `compterExamens` : une evaluation, un examen.
+                if (examensVus.add(cleExamen(etape))) examens.merge(bloc, 1, Integer::sum);
             } else if (etape.getType() == JourneyStepType.TRAIN_SKILL) {
                 // 🛑 L'unite travaillable, quelle qu'elle soit : une competence
                 // TCF ou une unite officielle civique. `uniteLabel()` porte
@@ -221,5 +278,29 @@ public class JourneyHistoryService {
 
     private static int compter(List<JourneyStep> etapes, JourneyStepType type) {
         return (int) etapes.stream().filter(etape -> etape.getType() == type).count();
+    }
+
+    /**
+     * <b>Les examens passes</b> — un par evaluation et par bloc, jamais un par
+     * ligne.
+     *
+     * <p>🛑 <b>Deux etapes d'examen du meme bloc closes par la MEME evaluation
+     * sont UN examen</b> (constat du 2026-09-27, compte reel : deux etapes
+     * « Évaluer mon niveau » CO, closes par le meme examen blanc, comptaient
+     * « 2 examens passes »). Le bloc reste dans la cle : un examen civique
+     * global qui clot les cinq thematiques d'un coup reste compte une fois par
+     * thematique, comme avant.
+     */
+    private static int compterExamens(List<JourneyStep> etapes) {
+        return (int) etapes.stream()
+                .filter(etape -> etape.getType() == JourneyStepType.SECTION_EXAM)
+                .map(JourneyHistoryService::cleExamen)
+                .distinct()
+                .count();
+    }
+
+    private static String cleExamen(JourneyStep etape) {
+        UUID evaluation = etape.getResolvedByAssessmentId();
+        return etape.blocCode() + "/" + (evaluation != null ? evaluation : etape.getId());
     }
 }

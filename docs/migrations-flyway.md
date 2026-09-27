@@ -228,7 +228,9 @@ postérieures alimentent se numérote APRÈS elles.**
   revenu/attribution de `user_subscriptions`, colonnes V074 d'`analytics_event`,
   `users.signup_*` + `is_internal`, `analytics_visitor.ft_source_raw` ; son
   initialisation de `is_internal` est rejouée par `SuiviSchemaV074IT` via la sentinelle
-  `@@INITIALISATION_IS_INTERNAL@@`) → le prochain est `V075`. Seed dev : `V901`
+  `@@INITIALISATION_IS_INTERNAL@@`) → le prochain est `V075`. ⚠️ Mis à jour le 2026-09-27 :
+  `V075`/`V076` (Suivi) puis **`V077__journey_fin_de_cycle.sql`** (le geste qui a clos un
+  cycle, « Mes cycles ») sont pris → **le prochain est `V078`**. Seed dev : `V901`
   (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le

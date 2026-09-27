@@ -112,6 +112,9 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // s'est ferme ». Il ne sera jamais recalcule.
         assertThat(historise.getHistoriseAt()).isNotNull();
         assertThat(historise.getExitLevel()).isEqualTo(TargetLevel.B1);
+        // 🛑 LE GESTE EST ECRIT (V077) : « Mes cycles » raconte comment ce
+        // cycle s'est clos, sans le deviner du cycle suivant.
+        assertThat(historise.getFinDeCycle()).isEqualTo(JourneyFinDeCycle.ACTUALISATION);
 
         Journey promu = journeys.findById(attente.getId()).orElseThrow();
         assertThat(promu.getStatus()).isEqualTo(JourneyStatus.EN_COURS);
@@ -188,6 +191,9 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
 
         assertThat(journeys.findById(precedent.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.HISTORISE);
+        // 🛑 Le geste qui l'a clos est ECRIT (V077) : l'examen blanc complet.
+        assertThat(journeys.findById(precedent.getId()).orElseThrow().getFinDeCycle())
+                .isEqualTo(JourneyFinDeCycle.EXAMEN_COMPLET);
         assertThat(journeys.findById(attente.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.EN_ATTENTE);
         // 🛑 Un cycle de mesure est DERIVE : aucune etape d'entrainement.

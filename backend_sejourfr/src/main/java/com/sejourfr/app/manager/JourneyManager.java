@@ -36,6 +36,15 @@ public class JourneyManager {
         return repository.findByUserIdAndModuleAndStatus(userId, module, status);
     }
 
+    /**
+     * Un cycle <b>de ce candidat</b>, ou rien. 🛑 L'identifiant d'un cycle d'un
+     * tiers rend {@code empty} — l'appelant repond 404, jamais 403 (confirmer
+     * l'existence d'un cycle serait deja une fuite).
+     */
+    public Optional<Journey> findDuCandidat(UUID journeyId, UUID userId) {
+        return repository.findByIdAndUserId(journeyId, userId);
+    }
+
     /** Le parcours <b>verrouille</b> pour ecriture : toute modification passe par la (R14). */
     public Optional<Journey> findForUpdate(UUID journeyId) {
         return repository.findByIdForUpdate(journeyId);

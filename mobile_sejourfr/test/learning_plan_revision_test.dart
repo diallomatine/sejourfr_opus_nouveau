@@ -89,6 +89,10 @@ class _FakeLearningPlanRepository implements LearningPlanRepository {
   Future<JourneyHistory> history({AppModule module = AppModule.tcf}) =>
       throw UnimplementedError();
 
+  @override
+  Future<JourneyCycleArchive> historyCycle(String journeyId) =>
+      throw UnimplementedError();
+
   /// Le detail d'une etape et le demarrage d'une serie n'entrent pas non plus
   /// dans ce que ce test verifie.
   @override

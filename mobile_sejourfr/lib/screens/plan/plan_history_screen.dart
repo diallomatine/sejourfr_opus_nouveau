@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/models/enums.dart';
-import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
@@ -44,22 +44,25 @@ import 'learning_plan_provider.dart';
 /// Ce qui change avec le parcours, et **rien d'autre** : le **mot** de l'unité
 /// travaillée (compétence ⇄ unité officielle) et la **mesure** de fin de cycle
 /// (palier CECRL ⇄ score sur 40 rapporté au seuil de 32).
-class PlanHistoryScreen extends ConsumerStatefulWidget {
+///
+/// ## Un cycle terminé OUVRE SON ÉCRAN (2026-09-27)
+///
+/// 🛑 **La ligne d'un cycle est un lien** ([SfBlocAccordion.lien]) vers
+/// [PlanCycleArchiveScreen] — son plan tel qu'il était, comme l'écran Plan, en
+/// lecture seule. ⚠️ **Révoque** l'accordéon déplié ici, dont le seul contenu
+/// était une carte « Examens réalisés · NIVEAU A2 » **cadenassée** : un cadenas
+/// sur un cycle terminé ne voulait rien dire. Un écran plutôt qu'un accordéon :
+/// à 360 px, un rail d'étapes et ses blocs dépliables imbriqués dans une carte
+/// de liste perdaient la largeur qui rend le Plan lisible.
+///
+/// ⚠️ **Pas de menu burger ici** (le web l'ajoute à la flèche, `Top keepMenu`) :
+/// l'app n'a pas de menu latéral, sa navigation principale est la barre
+/// d'onglets. Écart de forme, pas de parcours.
+class PlanHistoryScreen extends ConsumerWidget {
   const PlanHistoryScreen({super.key});
 
   @override
-  ConsumerState<PlanHistoryScreen> createState() => _PlanHistoryScreenState();
-}
-
-class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
-  /// Le cycle déplié. 🛑 **Un seul à la fois, le plus récent par défaut** — et
-  /// c'est le `numero` **servi** qui l'identifie, jamais un index de liste :
-  /// une liste rechargée pendant qu'on lit ne doit pas rouvrir un autre cycle.
-  /// `-1` est le « tout replié » explicite, que `null` ne saurait pas dire.
-  int? _ouvert;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     /// 🛑 **Le défaut est TCF**, pas une déduction : l'écran est atteint depuis
     /// le Plan, qui a déjà posé le parcours affiché.
     final module = (ref.watch(parcoursCiviqueProvider) ?? false)
@@ -67,10 +70,6 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
         : AppModule.tcf;
     final historyAsync = ref.watch(journeyHistoryProvider(module));
     final history = historyAsync.valueOrNull;
-    final premier = history == null || history.cycles.isEmpty
-        ? null
-        : history.cycles.first.numero;
-    final deplie = _ouvert ?? premier;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -155,12 +154,18 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
                               sub: kJourneyHistorySectionSub,
                             ),
                             for (final cycle in data.cycles)
-                              _CycleTermine(
-                                cycle: cycle,
-                                module: module,
-                                open: deplie == cycle.numero,
-                                onToggle: () => setState(() => _ouvert =
-                                    deplie == cycle.numero ? -1 : cycle.numero),
+                              SfBlocAccordion.lien(
+                                mark: journeyHistoryCycleMark(cycle.numero),
+                                title: journeyHistoryCycleTitle(cycle.numero),
+                                meta: journeyHistoryCycleMeta(cycle, module),
+                                status: (
+                                  label: kJourneyHistoryDonePill,
+                                  tone: SfTone.ok,
+                                ),
+                                onOpen: () => context.push(
+                                  AppRoutes.planCycleArchivePath(
+                                      cycle.journeyId),
+                                ),
                               ),
                           ],
                   ),
@@ -186,65 +191,6 @@ class _PlanHistoryScreenState extends ConsumerState<PlanHistoryScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Un cycle archivé : ses blocs travaillés, puis son encart de mesure.
-///
-/// 🛑 **`SfBlocAccordion` est réutilisé tel quel** : son `mark` est un texte, et
-/// le numéro du cycle y entre sans qu'un second accordéon soit écrit.
-///
-/// 🛑 **Aucune action** : un cycle historisé ne se rejoue pas. Les lignes n'ont
-/// donc pas d'`onTap`, et l'encart de niveau est `locked` — c'est-à-dire
-/// inerte, mais entièrement lisible.
-class _CycleTermine extends StatelessWidget {
-  const _CycleTermine({
-    required this.cycle,
-    required this.module,
-    required this.open,
-    required this.onToggle,
-  });
-
-  final JourneyHistoryCycle cycle;
-  final AppModule module;
-  final bool open;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return SfBlocAccordion(
-      mark: journeyHistoryCycleMark(cycle.numero),
-      title: journeyHistoryCycleTitle(cycle.numero),
-      meta: journeyHistoryCycleMeta(cycle, module),
-      status: (label: kJourneyHistoryDonePill, tone: SfTone.ok),
-      open: open,
-      onToggle: onToggle,
-      // 🛑 Une épreuve sans compétence travaillée garde sa ligne : elle a reçu
-      // un examen, et l'omettre effacerait ce qui y a été mesuré.
-      //
-      // Le corps d'un cycle archivé prend la **même** variante que celui du
-      // cycle en cours : c'est le même bloc, et deux corps différents sous le
-      // même en-tête se liraient comme deux écrans. Les lignes y sont toutes
-      // `done` — coche verte, aucune ligne d'action — et l'encart de niveau
-      // ferme le rail avec sa pastille « ◎ ».
-      child: SfJourneyList(
-        variant: SfJourneyVariant.cycle,
-        exam: SfExamStepBox(
-          title: journeyHistoryLevelTitle(cycle, module),
-          state: journeyHistoryLevelState(cycle, module),
-          note: journeyHistoryLevelNote(cycle, module),
-          locked: true,
-        ),
-        children: [
-          for (final bloc in cycle.blocs)
-            SfJourneyRow(
-              state: SfJourneyState.done,
-              title: journeyHistoryBlocTitle(bloc),
-              subtitle: journeyHistoryBlocSkills(bloc),
-            ),
-        ],
       ),
     );
   }

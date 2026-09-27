@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
 import com.sejourfr.app.enums.JourneyStepResolution;
@@ -101,7 +102,7 @@ public class JourneyCycleService {
         Journey enCours = cycleTermine(userId, module);
         if (module == Module.CIVIQUE) return actualiserLeCycleCivique(userId, enCours);
 
-        TargetLevel sortie = historiser(enCours, userId);
+        TargetLevel sortie = historiser(enCours, userId, JourneyFinDeCycle.ACTUALISATION);
 
         Journey promu = journeyManager
                 .find(userId, enCours.getModule(), JourneyStatus.EN_ATTENTE)
@@ -151,7 +152,7 @@ public class JourneyCycleService {
             throw new IllegalStateException(
                     "Ce cycle est deja un cycle de mesure : actualisez votre plan.");
         }
-        TargetLevel sortie = historiser(enCours, userId);
+        TargetLevel sortie = historiser(enCours, userId, JourneyFinDeCycle.EXAMEN_COMPLET);
 
         Journey neuf = nouveauCycle(enCours);
         neuf.setStatus(JourneyStatus.EN_COURS);
@@ -199,7 +200,7 @@ public class JourneyCycleService {
             throw new IllegalStateException(
                     "Ce cycle est deja un cycle de mesure : actualisez votre plan.");
         }
-        Short sortie = historiserLeCycleCivique(enCours);
+        Short sortie = historiserLeCycleCivique(enCours, JourneyFinDeCycle.EXAMEN_COMPLET);
 
         Journey neuf = nouveauCycle(enCours);
         neuf.setStatus(JourneyStatus.EN_COURS);
@@ -241,7 +242,7 @@ public class JourneyCycleService {
      * pas.
      */
     private JourneyDto actualiserLeCycleCivique(UUID userId, Journey enCours) {
-        Short sortie = historiserLeCycleCivique(enCours);
+        Short sortie = historiserLeCycleCivique(enCours, JourneyFinDeCycle.ACTUALISATION);
 
         Journey suivant = nouveauCycle(enCours);
         suivant.setStatus(JourneyStatus.EN_COURS);
@@ -272,11 +273,14 @@ public class JourneyCycleService {
      * les 40 de l'arrêté. Mélanger les deux échelles ferait un chiffre qui ne
      * veut rien dire.
      */
-    private Short historiserLeCycleCivique(Journey enCours) {
+    private Short historiserLeCycleCivique(Journey enCours, JourneyFinDeCycle geste) {
         Short sortie = journeyManager.dernierScoreDExamenComplet(enCours.getId());
         enCours.setStatus(JourneyStatus.HISTORISE);
         enCours.setHistoriseAt(Instant.now());
         enCours.setExitScore(sortie);
+        // 🛑 LE GESTE EST ECRIT ICI, UNE FOIS (V077) : c'est un evenement, et
+        // « Mes cycles » le raconte tel quel.
+        enCours.setFinDeCycle(geste);
         journeyManager.saveEtFlush(enCours);
         return sortie;
     }
@@ -380,12 +384,13 @@ public class JourneyCycleService {
      * seuils ne doit pas reecrire l'histoire du candidat. Meme argument que
      * {@code journey_step.resolution}.
      */
-    private TargetLevel historiser(Journey enCours, UUID userId) {
+    private TargetLevel historiser(Journey enCours, UUID userId, JourneyFinDeCycle geste) {
         TargetLevel sortie = AttemptScoringService.toTargetLevel(
                 profileService.levelProfile(userId).globalLevel());
         enCours.setStatus(JourneyStatus.HISTORISE);
         enCours.setHistoriseAt(Instant.now());
         enCours.setExitLevel(sortie);
+        enCours.setFinDeCycle(geste);
         journeyManager.saveEtFlush(enCours);
         return sortie;
     }

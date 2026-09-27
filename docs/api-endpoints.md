@@ -268,7 +268,8 @@ Cf. `exams-tcf.md`.
   **Le cycle borné (D-12)** se superpose à la même file : `cycle` (avancement, `numero`,
   `complete`, `cycleDeMesure`, `cycleDAffinage`, `finDeCycle` — `EXAMEN_COMPLET` / `ACTUALISATION`, 2026-09-27), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
   `CO, CE, EO, EE` (`TcfDomainProfileDto.ORDRE`, non configurable) avec leur `status` dérivé
-  (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR`), leurs `steps` et leur `exam` — et
+  (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR` ; `INACHEVE` en consultation d'un cycle
+  clos seulement), leurs `steps` et leur `exam` — et
   `nextStep`, **`null` sauf cycle terminé**. `state` gagne `CYCLE_COMPLETED` (cycle terminé,
   écran « Prochaine étape ») ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
   🛑 **L'examen d'un bloc est `locked` tant qu'une compétence du même bloc reste ouverte**
@@ -297,6 +298,23 @@ Cf. `exams-tcf.md`.
   🛑 **Aucun `?module=`** : l'étape porte son module. **404** si elle n'existe pas ou n'est pas
   celle du candidat ; **422** si elle ne se travaille pas par séries (expression, examen).
   → `docs/regles/plan.md` § « L'ÉCRAN D'ÉTAPE ».
+- `GET /api/me/plan/journey/history[?module=TCF|CIVIQUE]` → `JourneyHistoryDto` — **« Mes
+  cycles »** : `stats` (compétences travaillées et examens passés **cycle en cours compris**,
+  cycles terminés) et `cycles` historisés du plus récent au plus ancien — `journeyId`
+  (2026-09-27), `numero`, `debut`, `fin`, compteurs, niveaux / scores d'entrée et de sortie
+  lus tels quels, `blocs` (titres des unités travaillées). Le cycle en attente n'y paraît jamais.
+- `GET /api/me/plan/journey/history/{journeyId}` → `JourneyCycleArchiveDto` — **un cycle CLOS en
+  consultation** (2026-09-27) : `journeyId`, `numero` (même règle que la liste et le Plan),
+  `debut`, `fin`, `finDeCycle` (**le geste qui l'a clos**, V077 : `ACTUALISATION` /
+  `EXAMEN_COMPLET`, `null` = inconnu pour un cycle clos avant), `objectif`, niveaux / scores
+  d'entrée et de sortie, puis **les mêmes `cycle` et `blocs` que `JourneyDto`**, en lecture
+  seule : 🛑 aucune étape `locked` (`lockReason`, `assessment`, `exercise`, `progress` nuls),
+  une étape restée ouverte est `NON_FAITE`, un bloc incomplet `INACHEVE`, un bloc sans étape
+  n'est pas servi, ordre `CO, CE, EO, EE`. Chaque étape sert `closedAt` ; l'examen d'un bloc
+  sert `resultat` (`niveau` TCF relu chez `TcfLevelEstimatorService` /
+  `EpreuvesProductionQualifiantesResolver`, ou `score`/`maxScore` d'un examen de thème civique
+  — `null` = inconnu). **404** sur le cycle d'un autre, un cycle en cours ou en attente.
+  🛑 **Aucun `?module=`** : le cycle porte le sien.
 - `POST /api/me/plan/journey/steps/{stepId}/series/{index}` → `AttemptResponse` — **lancer (ou
   refaire) la série `index`** de cette étape. Le même DTO que tous les autres lancements : les
   fronts atterrissent sur `/sessions/{attemptId}`. 🛑 **`mode` vaut `EXAMEN`** — aucune
@@ -309,13 +327,14 @@ Cf. `exams-tcf.md`.
   Le cycle en cours est **historisé** (`historise_at`, `exit_level` = niveau global courant, lu
   chez `TcfProfileService.levelProfile` ; `null` si rien n'a été mesuré, **jamais 0**), le cycle
   **en attente** devient le cycle courant (son `entry_level` = l'`exit_level` du précédent), et
-  le prochain cycle en attente reste **paresseux**. 🛑 **Aucun paramètre** : le serveur sait
+  le prochain cycle en attente reste **paresseux**. Le geste est écrit sur le cycle clos
+  (`journey.fin_de_cycle = ACTUALISATION`, V077). 🛑 **Aucun paramètre** : le serveur sait
   quel est le cycle en cours du candidat. **409** si le cycle n'est pas terminé (au cycle
   d'affinage : tant qu'un examen reste à passer — ses compétences sont facultatives) — ce geste
   historise, il ne doit jamais jeter un plan en cours ; **422** sans démarche déclarée.
 - `POST /api/me/plan/journey/measurement-cycle` → `JourneyDto` — **« Passer l'examen blanc
   complet »** (spec §6). Crée le **cycle de mesure** : quatre blocs, chacun ne portant que son
-  examen, tous débloqués. Le cycle en attente est **laissé tel quel**. 🛑 **Il ne démarre aucun
+  examen, tous débloqués. Le cycle clos porte `fin_de_cycle = EXAMEN_COMPLET` (V077). Le cycle en attente est **laissé tel quel**. 🛑 **Il ne démarre aucun
   examen** : l'examen blanc complet reste lancé par `POST /api/full-tcf-exams`, son unique point
   d'entrée. ⚠️ **Depuis le 2026-09-20 il s'ouvre à 80 % des étapes du cycle terminées**
   (`finDeCycleExamenRatio`, configuration versionnée v3), et non plus au cycle entier — c'est

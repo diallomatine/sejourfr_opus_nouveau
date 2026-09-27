@@ -1,10 +1,11 @@
+import {niveauCecrlShort} from "./types";
 import type {
     JourneyBlocRefDto,
     JourneyBlocStatus,
+    JourneyCycleArchiveDto,
     JourneyCycleDto,
     JourneyDto,
     JourneyFinDeCycle,
-    JourneyHistoryBlocDto,
     JourneyHistoryCycleDto,
     JourneyObjectifRefDto,
     JourneyProgressDto,
@@ -15,7 +16,6 @@ import type {
 import type {ParcoursModule} from "./module-switch";
 import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "./civique-examen";
 import type {
-    BarTone,
     JourneyKind,
     JourneyState as KitJourneyState,
     NextStepFact,
@@ -136,6 +136,9 @@ export function journeyCycleStepSubtitle(step: JourneyStepDto): string | undefin
  */
 export function journeyBadge(step: JourneyStepDto): string | undefined {
     if (step.status === "CURRENT") return "Maintenant";
+    /* Un cycle CLOS (« Mes cycles ») : l'étape est restée ouverte, et elle ne
+       se fera plus. Servi `NON_FAITE`, jamais déduit d'un `closedAt` nul. */
+    if (step.status === "NON_FAITE") return JOURNEY_ARCHIVE_STEP_NOT_DONE;
     if (step.status === "SKIPPED") return "Déjà travaillée";
     if (step.status === "UPCOMING" && step.type === "SECTION_EXAM") return "Examen";
     return undefined;
@@ -421,17 +424,6 @@ export function journeyBlocMark(bloc: JourneyBlocRefDto): string {
 }
 
 /** Le nom de l'épreuve **en clair** — ce que le candidat lit (D-21). */
-/**
- * Le titre d'un bloc de l'HISTORIQUE.
- *
- * ✅ **Le passage annoncé a eu lieu** (P8.9, 2026-09-20) :
- * `JourneyHistoryBlocDto` porte le **bloc servi**, plus `examType`. Il n'y a
- * bien eu **qu'un** appelant à changer — c'était le but de ce helper.
- */
-export function journeyHistoryBlocTitle(bloc: JourneyHistoryBlocDto): string {
-    return bloc.bloc.label;
-}
-
 export function journeyBlocTitle(bloc: JourneyBlocRefDto): string {
     /* 🛑 LE LIBELLÉ EST SERVI (D-47). Il se lisait dans `epreuveNom()`, un miroir
        gelé côté front — qui reste pour ses autres emplois. Une thématique
@@ -459,6 +451,10 @@ export function journeyBlocStatus(status: JourneyBlocStatus): {label: string; to
             return {label: "À ÉVALUER", tone: "warn"};
         case "A_VENIR":
             return {label: "À VENIR", tone: "muted"};
+        /* Un bloc d'un cycle CLOS resté incomplet (« Mes cycles »). Ton neutre :
+           l'archive constate, elle ne reproche rien. */
+        case "INACHEVE":
+            return {label: "INACHEVÉ", tone: "muted"};
     }
 }
 
@@ -478,6 +474,7 @@ export function journeyBlocRailState(status: JourneyBlocStatus): RailState {
             return "current";
         case "A_EVALUER":
         case "A_VENIR":
+        case "INACHEVE":
             return "upcoming";
     }
 }
@@ -806,18 +803,12 @@ export function journeyHistoryCycleMeta(
     ].join(" · ");
 }
 
-/**
- * Les unités travaillées sur un bloc, jointes — des compétences en TCF, des
- * unités officielles en civique (D-48). 🛑 **Les titres sont SERVIS**, cette
- * fonction ne fait que les joindre : aucun mot de parcours n'entre ici.
- *
- * 🛑 **`undefined` quand la liste est vide** : un bloc peut n'avoir reçu qu'un
- * examen, et une ligne de sous-titre vide se lirait comme une donnée
- * manquante.
- */
-export function journeyHistoryBlocSkills(bloc: JourneyHistoryBlocDto): string | undefined {
-    return bloc.skillTitles.length > 0 ? bloc.skillTitles.join(" · ") : undefined;
-}
+/** Les quatre mesures d'un cycle, telles que le serveur les sert — la liste
+ *  « Mes cycles » et la consultation d'un cycle les portent toutes les deux. */
+type MesureDeCycle = Pick<
+    JourneyHistoryCycleDto,
+    "entryLevel" | "exitLevel" | "entryScore" | "exitScore"
+>;
 
 /**
  * **La mesure d'un cycle, par parcours** (P8.9).
@@ -827,13 +818,13 @@ export function journeyHistoryBlocSkills(bloc: JourneyHistoryBlocDto): string | 
  * (`entryScore` / `exitScore`). Le serveur sert les deux champs et n'en remplit
  * qu'un — `null` = inconnu **de ce module**, jamais zéro.
  *
- * 🛑 **C'est ICI, et seulement ici, que `entry_score` et `exit_score`
- * s'affichent** : D-50 §1 les interdit sur la bande objectif du Plan, où un
- * résultat d'examen blanc se lirait comme un niveau acquis. Dans une archive
- * datée, un résultat d'examen est exactement à sa place.
+ * 🛑 **C'est dans « Mes cycles », et seulement là, que `entry_score` et
+ * `exit_score` s'affichent** : D-50 §1 les interdit sur la bande objectif du
+ * Plan, où un résultat d'examen blanc se lirait comme un niveau acquis. Dans
+ * une archive datée, un résultat d'examen est exactement à sa place.
  */
 function mesure(
-    cycle: JourneyHistoryCycleDto,
+    cycle: MesureDeCycle,
     module: ParcoursModule,
 ): {entree: string | null; sortie: string | null} {
     if (module === "CIVIQUE") {
@@ -852,113 +843,110 @@ function scoreCivique(score: number): string {
 }
 
 /**
- * Le titre de l'encart de mesure d'un cycle.
+ * **La mesure d'un cycle clos, en une ligne** — « Niveau A2 → B1 », « Niveau
+ * B1 », « Score 34/40 · seuil 32/40 ».
  *
- * 🛑 **Deux lectures, et c'est la mesure qui tranche** : quand elle a bougé,
- * l'encart parle de la mesure ; sinon il parle des examens. Le **mot** de la
- * mesure suit le parcours — un niveau en TCF, un score en civique.
+ * 🛑 **Une sortie nulle ne devient JAMAIS une mesure** : `undefined`, et
+ * l'écran n'écrit rien. `null` = inconnu, jamais mauvais — et surtout jamais
+ * « Niveau A2 » par défaut.
  */
-export function journeyHistoryLevelTitle(
-    cycle: JourneyHistoryCycleDto,
+export function journeyArchiveLevel(
+    cycle: MesureDeCycle,
+    module: ParcoursModule = "TCF",
+): string | undefined {
+    const {entree, sortie} = mesure(cycle, module);
+    if (!sortie) return undefined;
+    const mot = module === "CIVIQUE" ? "Score" : "Niveau";
+    const valeur = entree !== null && entree !== sortie ? `${entree} → ${sortie}` : sortie;
+    return module === "CIVIQUE"
+        ? `${mot} ${valeur} · seuil ${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`
+        : `${mot} ${valeur}`;
+}
+
+/* ==========================================================================
+   LA CONSULTATION D'UN CYCLE CLOS (« Mes cycles », 2026-09-27)
+
+   🛑 Le cycle est servi comme le Plan (`JourneyCycleArchiveDto` : le même
+   `cycle`, les mêmes `blocs`), SANS verrou ni action. Ces libellés ne posent
+   que les mots de la consultation. Miroir mot pour mot de `kJourneyArchive*`
+   (`mobile .../screens/plan/journey_labels.dart`).
+   ========================================================================== */
+
+/** L'adresse d'un cycle clos. 🛑 Une seule constante. */
+export const JOURNEY_ARCHIVE_HREF = "/plan/progression/cycle";
+
+/** La page d'un cycle clos, **scopée au parcours** (`?module=`, comme « Mes
+ *  cycles ») : le retour y ramène sur la bonne liste. */
+export function journeyArchiveHref(journeyId: string, module: ParcoursModule): string {
+    const base = `${JOURNEY_ARCHIVE_HREF}/${encodeURIComponent(journeyId)}`;
+    return module === "TCF" ? base : `${base}?module=${module}`;
+}
+
+/** L'œil-de-bœuf de la page d'un cycle clos. */
+export const JOURNEY_ARCHIVE_KICKER = "Cycle terminé";
+
+/** La pastille d'une étape restée ouverte dans un cycle clos. */
+export const JOURNEY_ARCHIVE_STEP_NOT_DONE = "Non travaillée";
+
+/** La phrase sous la barre d'un cycle clos : sa date de fin, puis sa mesure. */
+export function journeyArchiveHint(
+    archive: JourneyCycleArchiveDto,
     module: ParcoursModule = "TCF",
 ): string {
-    if (!journeyHistoryLevelMoved(cycle, module)) return "Examens réalisés";
-    return module === "CIVIQUE" ? "Score mesuré" : "Niveau mesuré";
+    return [`Terminé le ${jourCourt(new Date(archive.fin), true)}`, journeyArchiveLevel(archive, module)]
+        .filter(Boolean)
+        .join(" · ");
+}
+
+/** La note de pied : ce que la page est, et où est le plan en cours. */
+export const JOURNEY_ARCHIVE_NOTE =
+    "Ce cycle est terminé : il se consulte tel qu'il était à sa clôture. "
+    + "Votre plan en cours est sur l'écran Plan.";
+
+/** Le sous-titre de l'examen d'un bloc clos — « Passé le 26 sept. 2026 ». */
+export function journeyArchiveExamSubtitle(exam: JourneyStepDto): string {
+    if (!journeyExamDone(exam)) return "Non passé";
+    return exam.closedAt ? `Passé le ${jourCourt(new Date(exam.closedAt), true)}` : "Passé";
 }
 
 /**
- * La pastille de l'encart de mesure.
- *
- * 🛑 **Une sortie nulle ne devient JAMAIS une mesure** : rien n'a été mesuré,
- * ou la mesure est sous l'A2 que la colonne ne sait pas dire (A35). L'encart le
- * dit en clair, en ton `muted` — `null` = inconnu, jamais mauvais.
- *
- * ⚠️ **Le ton reste `ok` dès qu'une mesure existe, y compris sous le seuil
- * civique** : cet encart **constate** un résultat daté, il ne le juge pas —
- * c'est déjà la règle de l'écran TCF, et le seuil se lit dans la note.
+ * Ce que l'examen a donné, à droite de sa ligne — « Niveau B1 », « 17/20 ».
+ * 🛑 **Lu sur `resultat` servi** ; absent ⇒ « Passé », jamais un niveau
+ * inventé. `undefined` quand l'examen n'a pas été passé.
  */
-export function journeyHistoryLevelState(
-    cycle: JourneyHistoryCycleDto,
-    module: ParcoursModule = "TCF",
-): {label: string; tone: BarTone} {
-    const {entree, sortie} = mesure(cycle, module);
-    if (!sortie) {
-        return {
-            label: module === "CIVIQUE" ? "Score non mesuré" : "Niveau non mesuré",
-            tone: "muted",
-        };
+export function journeyArchiveExamResult(exam: JourneyStepDto): string | undefined {
+    if (!journeyExamDone(exam)) return undefined;
+    const resultat = exam.resultat;
+    if (resultat?.niveau) return `Niveau ${niveauCecrlShort(resultat.niveau)}`;
+    if (resultat && resultat.score !== null && resultat.maxScore !== null) {
+        return `${resultat.score}/${resultat.maxScore}`;
     }
-    if (journeyHistoryLevelMoved(cycle, module)) {
-        return {label: `${entree} → ${sortie}`, tone: "ok"};
-    }
-    return {label: module === "CIVIQUE" ? sortie : `Niveau ${sortie}`, tone: "ok"};
+    return "Passé";
 }
 
 /**
- * La phrase sous la pastille.
- *
- * 🛑 **Les blocs nommés sont ceux qui ont REÇU un examen** (`examens > 0`),
- * jamais la liste entière : annoncer une épreuve qui n'a rien enregistré serait
- * une mesure inventée.
- *
- * ⚠️ **Le civique les COMPTE au lieu de les nommer** : une thématique n'a pas
- * d'initiale (A49), et répéter cinq noms complets ici redirait ce que le corps
- * du cycle liste déjà juste au-dessus. Le compte, lui, est un fait servi.
- *
- * 🛑 **Le seuil accompagne toute mesure civique** : un score sur 40 ne veut
- * rien dire sans les 32 qui le rendent suffisant.
+ * Le titre de la fin d'un cycle clos : **le geste qui l'a clos**, servi
+ * (`finDeCycle`, V077). `null` = inconnu (cycle clos avant) ⇒ « Cycle
+ * terminé », sans inventer l'issue.
  */
-export function journeyHistoryLevelNote(
-    cycle: JourneyHistoryCycleDto,
-    module: ParcoursModule = "TCF",
-): string {
-    const {sortie} = mesure(cycle, module);
-    const examens = cycle.blocs.filter((bloc) => bloc.examens > 0);
-    if (module === "CIVIQUE") {
-        const combien = examens.length;
-        const passes = combien > 0
-            ? `${combien} examen${combien === 1 ? "" : "s"} de thème enregistré${combien === 1 ? "" : "s"}`
-            : null;
-        if (!sortie) {
-            return passes
-                ? `${passes} — aucun score global n'a été mesuré pendant ce cycle.`
-                : "Aucun examen n'a été enregistré pendant ce cycle.";
-        }
-        return `${SEUIL_CIVIQUE}${journeyHistoryLevelMoved(cycle, module)
-            ? " Cette évolution correspond aux examens enregistrés pendant ce cycle."
-            : " Résultat enregistré dans votre progression."}`;
+export function journeyArchiveEndTitle(fin: JourneyFinDeCycle | null): string {
+    switch (fin) {
+        case "ACTUALISATION":
+            return "Plan actualisé";
+        case "EXAMEN_COMPLET":
+            return "Examen blanc complet";
+        default:
+            return "Cycle terminé";
     }
-    const marks = examens
-        /* ✅ Le bloc est SERVI ici aussi (P8.9) : `journeyBlocMark` rend son
-           initiale pour une épreuve. */
-        .map((bloc) => journeyBlocMark(bloc.bloc))
-        .filter((mark) => mark.length > 0);
-    if (!sortie) {
-        return marks.length > 0
-            ? `${marks.join(" · ")} — aucun niveau global n'a été mesuré pendant ce cycle.`
-            : "Aucun examen n'a été enregistré pendant ce cycle.";
-    }
-    if (journeyHistoryLevelMoved(cycle, module)) {
-        return "Cette évolution correspond aux examens enregistrés pendant ce cycle.";
-    }
-    return marks.length > 0
-        ? `${marks.join(" · ")} — résultats enregistrés dans votre progression.`
-        : "Ce niveau vient des examens enregistrés dans votre progression.";
 }
 
-/** 🛑 Le seuil vient de `CivicExamFormat` (arrêté du 10 octobre 2025), jamais
- *  d'un 32 écrit dans une phrase. */
-const SEUIL_CIVIQUE =
-    `Seuil de réussite : ${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}.`;
-
-/** Les deux mesures diffèrent, et les deux sont connues. */
-function journeyHistoryLevelMoved(
-    cycle: JourneyHistoryCycleDto,
-    module: ParcoursModule,
-): boolean {
-    const {entree, sortie} = mesure(cycle, module);
-    return entree !== null && sortie !== null && entree !== sortie;
+/** « Le 27 sept. 2026 » — la date de clôture, sous le titre de la fin. */
+export function journeyArchiveEndNote(fin: string): string {
+    return `Le ${jourCourt(new Date(fin), true)}`;
 }
+
+export const JOURNEY_ARCHIVE_ERROR =
+    "Ce cycle n'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.";
 
 /**
  * L'intervalle d'un cycle — « 4–16 sept. 2026 », « 28 août – 3 sept. 2026 »,

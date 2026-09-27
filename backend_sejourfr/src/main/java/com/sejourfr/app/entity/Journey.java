@@ -1,6 +1,7 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.dto.JourneyObjectifRefDto;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyObjectifKind;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.Module;
@@ -184,6 +185,16 @@ public class Journey {
      */
     @Column(name = "historise_at")
     private Instant historiseAt;
+
+    /**
+     * <b>Le geste qui a clos ce cycle</b> (V077, 2026-09-27) : l'actualisation
+     * ou l'examen blanc complet. Un evenement, pas un derive — ecrit une fois a
+     * l'historisation, jamais recalcule. {@code null} = inconnu (cycle clos
+     * avant V077), jamais une issue par defaut.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fin_de_cycle", length = 16)
+    private JourneyFinDeCycle finDeCycle;
 
     /**
      * La prochaine position libre de la file. <b>Monotone</b> : jamais

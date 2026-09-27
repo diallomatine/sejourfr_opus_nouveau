@@ -36,6 +36,22 @@ public class AttemptManager {
         return repository.save(attempt);
     }
 
+    /**
+     * Les tentatives demandées qui appartiennent <b>à ce candidat</b>, et elles
+     * seules — une requête. 🛑 Un identifiant d'un tiers est simplement absent :
+     * jamais une lecture de sa tentative.
+     */
+    public Map<UUID, Attempt> findAllOwnedBy(UUID userId, Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Map.of();
+        Map<UUID, Attempt> out = new java.util.LinkedHashMap<>();
+        for (Attempt attempt : repository.findAllById(ids)) {
+            if (attempt.getUser() != null && userId.equals(attempt.getUser().getId())) {
+                out.put(attempt.getId(), attempt);
+            }
+        }
+        return out;
+    }
+
     public Optional<Attempt> findById(UUID id) {
         return repository.findById(id);
     }

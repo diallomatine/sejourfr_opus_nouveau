@@ -67,6 +67,41 @@ final class JourneyBlocMeta {
         return "Rien à travailler pour l'instant";
     }
 
+    /**
+     * <b>La phrase d'un bloc CLOS</b> (« Mes cycles », 2026-09-27) : ce qui a
+     * ete travaille, et si l'examen a ete passe — jamais ce qui « reste ».
+     *
+     * <p>🛑 Servie pour la meme raison que {@link #pour} : le mot depend du
+     * grain du module (« compétence » / « unité », « examen blanc » /
+     * « examen »). « 1/3 compétences travaillées · examen blanc passé ».
+     */
+    static String archive(
+            JourneyBlocRefDto bloc, int faites, int nonFaites,
+            boolean examenPresent, boolean examenPasse) {
+        boolean thematique = bloc.kind() == JourneyBlocKind.THEMATIQUE;
+        java.util.List<String> parties = new java.util.ArrayList<>(2);
+        int total = faites + nonFaites;
+        if (total > 0) {
+            if (nonFaites == 0) {
+                parties.add(faites + " " + nom(thematique, faites) + " travaillée"
+                        + (faites == 1 ? "" : "s"));
+            } else if (faites == 0) {
+                parties.add(total + " " + nom(thematique, total) + " non travaillée"
+                        + (total == 1 ? "" : "s"));
+            } else {
+                parties.add(faites + "/" + total + " " + nom(thematique, total)
+                        + " travaillées");
+            }
+        }
+        if (examenPresent) {
+            String examen = thematique ? "examen" : "examen blanc";
+            parties.add(examen + (examenPasse ? " passé" : " non passé"));
+        }
+        if (parties.isEmpty()) return "Aucune étape dans ce cycle";
+        String phrase = String.join(" · ", parties);
+        return Character.toUpperCase(phrase.charAt(0)) + phrase.substring(1);
+    }
+
     private static String nom(boolean thematique, int combien) {
         String racine = thematique ? "unité" : "compétence";
         return combien == 1 ? racine : racine + "s";

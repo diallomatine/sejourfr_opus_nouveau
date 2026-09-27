@@ -83,7 +83,12 @@ enum JourneyStepStatus {
   skipped('SKIPPED'),
 
   /// Remplacée par une évaluation plus récente. **Jamais servie.**
-  obsolete('OBSOLETE');
+  obsolete('OBSOLETE'),
+
+  /// **Jamais faite, et elle ne le sera plus** : restée ouverte dans un cycle
+  /// **historisé**. Servie par la seule consultation d'un cycle clos (« Mes
+  /// cycles ») — jamais « à venir » dans une archive. Aucun geste.
+  nonFaite('NON_FAITE');
 
   const JourneyStepStatus(this.wire);
 
@@ -205,7 +210,11 @@ enum JourneyBlocStatus {
   aEvaluer('A_EVALUER'),
 
   /// Des étapes restent, mais la main est ailleurs.
-  aVenir('A_VENIR');
+  aVenir('A_VENIR'),
+
+  /// Le bloc d'un cycle **historisé** dont une étape obligatoire est restée
+  /// ouverte. Servi par la seule consultation d'un cycle clos.
+  inacheve('INACHEVE');
 
   const JourneyBlocStatus(this.wire);
 
@@ -363,6 +372,8 @@ class JourneyStep {
     this.progress,
     this.assessment,
     this.exercise,
+    this.closedAt,
+    this.resultat,
   });
 
   final String id;
@@ -459,6 +470,13 @@ class JourneyStep {
   /// les priorités dans `planStepAction`.
   final PlanRecommendedExercise? exercise;
 
+  /// Quand l'étape a été close. `null` tant qu'elle est ouverte.
+  final DateTime? closedAt;
+
+  /// **Ce que l'examen qui l'a close a donné.** 🛑 Servi par la seule
+  /// consultation d'un cycle clos : `null` dans le Plan, et `null` = inconnu.
+  final JourneyExamResult? resultat;
+
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(
         id: json['id'] as String,
         type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
@@ -489,6 +507,35 @@ class JourneyStep {
             ? null
             : PlanRecommendedExercise.fromJson(
                 json['exercise'] as Map<String, dynamic>),
+        closedAt: json['closedAt'] == null
+            ? null
+            : DateTime.parse(json['closedAt'] as String),
+        resultat: json['resultat'] == null
+            ? null
+            : JourneyExamResult.fromJson(
+                json['resultat'] as Map<String, dynamic>),
+      );
+}
+
+/// **Ce que l'examen qui a clos une étape a donné** — palier TCF ou score de
+/// thème civique, relu chez l'autorité de l'examen. Miroir de
+/// `JourneyExamResultDto`. 🛑 Servi par la seule consultation d'un cycle clos ;
+/// `null` = inconnu, jamais mauvais.
+class JourneyExamResult {
+  const JourneyExamResult({this.niveau, this.score, this.maxScore});
+
+  /// Le palier de l'examen — **TCF**. `null` en civique.
+  final NiveauCecrl? niveau;
+
+  /// Le score — **CIVIQUE** (examen de thème). `null` en TCF.
+  final int? score;
+  final int? maxScore;
+
+  factory JourneyExamResult.fromJson(Map<String, dynamic> json) =>
+      JourneyExamResult(
+        niveau: NiveauCecrl.fromWireNullable(json['niveau'] as String?),
+        score: (json['score'] as num?)?.toInt(),
+        maxScore: (json['maxScore'] as num?)?.toInt(),
       );
 }
 
@@ -857,6 +904,7 @@ class JourneyHistoryBloc {
 /// Un cycle **historise**.
 class JourneyHistoryCycle {
   const JourneyHistoryCycle({
+    required this.journeyId,
     required this.numero,
     required this.debut,
     required this.fin,
@@ -868,6 +916,10 @@ class JourneyHistoryCycle {
     this.entryScore,
     this.exitScore,
   });
+
+  /// L'identifiant du cycle — celui que la page de consultation demande
+  /// (`GET /api/me/plan/journey/history/{journeyId}`).
+  final String journeyId;
 
   /// Le rang du cycle, tel que le Plan l'affichait (« Cycle 2 »).
   final int numero;
@@ -903,6 +955,7 @@ class JourneyHistoryCycle {
 
   factory JourneyHistoryCycle.fromJson(Map<String, dynamic> json) =>
       JourneyHistoryCycle(
+        journeyId: json['journeyId'] as String? ?? '',
         numero: (json['numero'] as num?)?.toInt() ?? 1,
         debut: DateTime.parse(json['debut'] as String),
         fin: DateTime.parse(json['fin'] as String),
@@ -935,6 +988,70 @@ class JourneyHistory {
         cycles: (json['cycles'] as List<dynamic>? ?? const [])
             .map((item) =>
                 JourneyHistoryCycle.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// **Un cycle CLOS, relu tel qu'il était** —
+/// `GET /api/me/plan/journey/history/{journeyId}` (« Mes cycles »,
+/// 2026-09-27). Miroir de `JourneyCycleArchiveDto`.
+///
+/// 🛑 [cycle] et [blocs] sont les **mêmes** modèles que ceux du Plan, en
+/// consultation : aucune étape n'y est verrouillée ni actionnable, une étape
+/// restée ouverte est [JourneyStepStatus.nonFaite], un bloc incomplet
+/// [JourneyBlocStatus.inacheve]. L'écran les **lit**.
+class JourneyCycleArchive {
+  const JourneyCycleArchive({
+    required this.journeyId,
+    required this.numero,
+    required this.debut,
+    required this.fin,
+    required this.cycle,
+    required this.blocs,
+    this.finDeCycle,
+    this.objectif,
+    this.entryLevel,
+    this.exitLevel,
+    this.entryScore,
+    this.exitScore,
+  });
+
+  final String journeyId;
+  final int numero;
+  final DateTime debut;
+
+  /// La date d'historisation.
+  final DateTime fin;
+
+  /// **Le geste qui l'a clos** (V077). `null` = inconnu (cycle clos avant) —
+  /// distinct de `cycle.finDeCycle`, l'issue qu'il **annonçait**.
+  final JourneyFinDeCycle? finDeCycle;
+
+  final JourneyObjectifRef? objectif;
+  final TargetLevel? entryLevel;
+  final TargetLevel? exitLevel;
+  final int? entryScore;
+  final int? exitScore;
+  final JourneyCycle cycle;
+  final List<JourneyBloc> blocs;
+
+  factory JourneyCycleArchive.fromJson(Map<String, dynamic> json) =>
+      JourneyCycleArchive(
+        journeyId: json['journeyId'] as String,
+        numero: (json['numero'] as num?)?.toInt() ?? 1,
+        debut: DateTime.parse(json['debut'] as String),
+        fin: DateTime.parse(json['fin'] as String),
+        finDeCycle:
+            JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
+        objectif: JourneyObjectifRef.fromJsonNullable(json['objectif']),
+        entryLevel:
+            TargetLevel.fromWireNullable(json['entryLevel'] as String?),
+        exitLevel: TargetLevel.fromWireNullable(json['exitLevel'] as String?),
+        entryScore: (json['entryScore'] as num?)?.toInt(),
+        exitScore: (json['exitScore'] as num?)?.toInt(),
+        cycle: JourneyCycle.fromJson(json['cycle'] as Map<String, dynamic>),
+        blocs: (json['blocs'] as List<dynamic>? ?? const [])
+            .map((item) => JourneyBloc.fromJson(item as Map<String, dynamic>))
             .toList(growable: false),
       );
 }

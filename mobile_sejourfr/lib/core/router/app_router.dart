@@ -46,6 +46,7 @@ import '../../screens/profile/profile_screen.dart';
 import '../../screens/plan/plan_domain_screen.dart';
 import '../../screens/plan/plan_etape_screen.dart';
 import '../../screens/plan/plan_labels.dart';
+import '../../screens/plan/plan_cycle_archive_screen.dart';
 import '../../screens/plan/plan_history_screen.dart';
 import '../../screens/plan/plan_screen.dart';
 import '../../screens/plan/plan_unlock_labels.dart';
@@ -230,6 +231,13 @@ class AppRoutes {
   /// écrans de progression** ([progressionTcf] …), qui lisent des examens
   /// blancs. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
   static const planProgress = '/plan/progression';
+
+  /// **Un cycle terminé, en consultation** (2026-09-27) — ouvert depuis « Mes
+  /// cycles » : son plan tel qu'il était, en lecture seule.
+  static const planCycleArchive = '/plan/progression/cycle/:journeyId';
+
+  static String planCycleArchivePath(String journeyId) =>
+      '/plan/progression/cycle/${Uri.encodeComponent(journeyId)}';
 
   /// **Les écrans de progression** (2026-09-24, maquettes
   /// `docs/progression/maquettes-progression/`) — ouverts depuis le Profil
@@ -721,6 +729,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.planProgress,
         builder: (_, __) => const PlanHistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.planCycleArchive,
+        builder: (_, state) => PlanCycleArchiveScreen(
+          journeyId: state.pathParameters['journeyId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.planUnlock,

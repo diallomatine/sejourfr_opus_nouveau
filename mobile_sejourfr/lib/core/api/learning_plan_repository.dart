@@ -74,6 +74,16 @@ class LearningPlanRepository {
     return JourneyHistory.fromJson(response.data!);
   }
 
+  /// **Un cycle clos, en consultation** (« Mes cycles », 2026-09-27) — son
+  /// plan tel qu'il était, sans verrou ni action. 🛑 Aucun `module` : le cycle
+  /// porte le sien. **404** sur le cycle d'un autre ou sur un cycle non clos.
+  Future<JourneyCycleArchive> historyCycle(String journeyId) async {
+    final response = await _client.dio.get<Map<String, dynamic>>(
+      '/api/me/plan/journey/history/${Uri.encodeComponent(journeyId)}',
+    );
+    return JourneyCycleArchive.fromJson(response.data!);
+  }
+
   /// **Actualiser mon plan** — le cycle en attente devient le cycle courant
   /// (spec §6). Rend le parcours **frais**.
   ///

@@ -65,6 +65,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/me/plan/journey"),
                 // Les deux transitions de fin de cycle (spec §6). Elles
                 // historisent le cycle en cours : un anonyme n'en a jamais.
+                // « Mes cycles » : la consultation d'un cycle clos (2026-09-27).
+                Arguments.of(HttpMethod.GET, "/api/me/plan/journey/history/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/me/plan/journey/steps/" + RANDOM_ID),
                 Arguments.of(HttpMethod.POST,
                         "/api/me/plan/journey/steps/" + RANDOM_ID + "/series/1"),

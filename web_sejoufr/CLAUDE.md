@@ -115,6 +115,8 @@ app/
 │   ├── plan/evolution/page.tsx   # ★ « Votre programme évolue » (transitions + chemin)
 │   ├── plan/progression/page.tsx # ★ « Mes cycles » (ex-« Ma progression », D16) : l'archive
 │   │                              #   des cycles terminés du Plan (?module=CIVIQUE pour le civique)
+│   ├── plan/progression/cycle/[journeyId]/ # ★ un cycle terminé EN CONSULTATION (2026-09-27) :
+│   │                              #   son plan tel qu'il était, sans geste (PlanCycleArchiveView)
 │   ├── progression/              # ★ LES ÉCRANS DE PROGRESSION (2026-09-24) : tcf, tcf/[epreuve]
 │   │                              #   (co|ce|ee|eo), civique, civique/[theme] (slug ou UUID).
 │   │                              #   Cf. § « Les écrans de progression » en fin de fichier
@@ -4720,13 +4722,26 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   jamais ; « cycle » est le mot des maquettes du propriétaire et reste.
 - **Le tap d'une étape verrouillée ouvre le paywall**, et la décision vit **une seule fois**
   dans `planNowCard` (`lib/plan-domain.ts`, champ `geste`) — jamais dans un écran.
-- `app/_components/plan/PlanHistoryView.tsx` rend « Ma progression » sur `/plan/progression`
-  (`HeroBanner` + `StatGrid` + un `BlocAccordion` par cycle terminé). ⚠️ **`/plan/evolution`
-  et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs liens.
+- `app/_components/plan/PlanHistoryView.tsx` rend « Mes cycles » sur `/plan/progression`
+  (`HeroBanner` + `StatGrid` + une ligne-lien par cycle terminé, `BlocAccordion href`). ⚠️
+  **`/plan/evolution` et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs
+  liens. Barre du haut : **menu ET flèche** (`Top keepMenu`).
+- **Un cycle terminé se consulte comme le Plan** (2026-09-27) :
+  `/plan/progression/cycle/[journeyId]` → `PlanCycleArchiveView`, sur
+  `journeyApi.historyCycle` (`GET /api/me/plan/journey/history/{journeyId}`,
+  `JourneyCycleArchiveDto` : le même `cycle` et les mêmes `blocs` que le Plan). Mêmes briques
+  (`CycleProgress`, `CycleRail`, `BlocAccordion`, `JourneyRow`, `ExamStepAction`), **aucun
+  geste ni cadenas** ; étape `NON_FAITE` ⇒ « Non travaillée », bloc `INACHEVE` ⇒ « INACHEVÉ »,
+  examen ⇒ « Passé le … » + `resultat` servi (« Niveau B1 », « 17/20 »), fin franchie
+  `CycleRailEnd done` (geste servi `finDeCycle`). Libellés `JOURNEY_ARCHIVE_*` /
+  `journeyArchive*` (`lib/journey.ts`). ⚠️ **`ExamStepBox` est SUPPRIMÉE** (et
+  `journeyHistoryLevel*`, `journeyHistoryBloc*`) : elle ne servait que la carte cadenassée
+  « Examens réalisés » de l'ancien accordéon. → `docs/regles/plan.md` § « Un cycle clos se
+  CONSULTE comme le Plan ».
 - **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) : `CycleProgress`,
-  `BlocAccordion`, `ExamStepBox` (historique), `ExamStepAction` (examen du cycle en cours),
+  `BlocAccordion` (+ variante lien `href`, 2026-09-27), `ExamStepAction` (examen d'un bloc),
   `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`, `CycleRail` / `CycleRailStep` /
-  `CycleRailEnd` (timeline du cycle, 2026-09-27).
+  `CycleRailEnd` (timeline du cycle, 2026-09-27 ; + `done` / `note` pour une fin franchie).
 
 
 ### Le plan civique passe sur le CYCLE (P8.7, D-50, 2026-09-20)

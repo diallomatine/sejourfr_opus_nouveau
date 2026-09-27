@@ -47,7 +47,10 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
      évaluations, et le journal des évaluations traitées est ce qui rend le traitement
      idempotent. 🛑 **Seules la structure et la clôture d'une étape y sont persistées** : le
      statut d'affichage, le verrou et l'état de maîtrise restent **dérivés à la lecture** — un
-     abonnement souscrit change donc l'écran sans une seule écriture ;
+     abonnement souscrit change donc l'écran sans une seule écriture. Même famille :
+     `journey.fin_de_cycle` (V077, 2026-09-27), **le geste qui a clos un cycle**, écrit une
+     fois à l'historisation — un cycle clos se relit en consultation sur ces seuls faits
+     persistés (`JourneyHistoryService.lireCycle`, rien de l'état d'aujourd'hui n'est rejoué) ;
   3. le **lien d'une série d'étape** (`journey_step_series`, V072, 2026-09-20) — « le candidat
      a lancé la série n°2 de **cette** étape » ne se lit nulle part sur l'attempt, qui porte
      20 questions et rien d'autre. 🛑 **Le LIEN seulement, jamais le verdict** : « réussie » se

@@ -4071,7 +4071,7 @@ class _SfJourneyExamRow extends StatelessWidget {
 /// *est* la decision d'ordonnancement que le parcours a prise, et elle ne se
 /// recalcule pas.
 ///
-/// [exam] est **la derniere etape de la file** — le [SfExamStepBox] du bloc.
+/// [exam] est **la derniere etape de la file** — le [SfExamStepAction] du bloc.
 /// Dans la variante [SfJourneyVariant.cycle], la maquette le range SUR le rail ;
 /// il reste servi a part par le serveur (`bloc.exam`), et le kit ne decide ni
 /// de sa presence ni de son contenu.
@@ -4283,13 +4283,19 @@ class SfCycleProgress extends StatelessWidget {
 /// interne.
 ///
 /// Composition attendue : une [SfJourneyList] de [SfJourneyRow] (les etapes,
-/// avec leur rail), puis un [SfExamStepBox]. Le corps ne porte donc aucun
+/// avec leur rail), puis un [SfExamStepAction]. Le corps ne porte donc aucun
 /// retrait de rail — c'est la liste qui a le sien.
 ///
 /// 🛑 **Le nom de l'epreuve ne se tronque jamais** et tient sur UNE ligne
 /// (D-21). C'est la maquette qui le garantit : sous 360 px logiques elle
 /// **masque l'etat** et l'en-tete passe a deux colonnes, plutot que de
 /// retrecir le titre. Miroir exact du `@media(max-width:360px)` web.
+///
+/// **Variante LIEN** ([SfBlocAccordion.lien], « Mes cycles », 2026-09-27) : le
+/// même en-tête, sans corps, qui **ouvre un écran** au lieu de se déplier — le
+/// chevron pointe alors à droite. C'est ainsi que la liste des cycles terminés
+/// mène à la consultation d'un cycle : un seul motif d'en-tête, pas une carte
+/// de plus. Miroir de la prop `href` de `BlocAccordion`.
 ///
 /// Miroir web : `BlocAccordion`.
 class SfBlocAccordion extends StatelessWidget {
@@ -4300,10 +4306,23 @@ class SfBlocAccordion extends StatelessWidget {
     required this.meta,
     required this.status,
     required this.open,
-    required this.onToggle,
-    required this.child,
+    required VoidCallback this.onToggle,
+    required Widget this.child,
     this.current = false,
-  });
+  }) : onOpen = null;
+
+  /// La variante lien : l'en-tête ouvre un écran ([onOpen]), il n'a pas de corps.
+  const SfBlocAccordion.lien({
+    super.key,
+    required this.mark,
+    required this.title,
+    required this.meta,
+    required this.status,
+    required VoidCallback this.onOpen,
+    this.current = false,
+  })  : open = false,
+        onToggle = null,
+        child = null;
 
   /// Le repere court de l'epreuve (« CO »), en etiquette technique.
   ///
@@ -4328,12 +4347,15 @@ class SfBlocAccordion extends StatelessWidget {
   final ({String label, SfTone tone}) status;
 
   final bool open;
-  final VoidCallback onToggle;
+  final VoidCallback? onToggle;
+
+  /// La variante lien : ouvre un écran. `null` ⇒ l'en-tête déplie son corps.
+  final VoidCallback? onOpen;
 
   /// Le bloc courant : filet et repere accentues. **Servi**, jamais deduit.
   final bool current;
 
-  final Widget child;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -4354,9 +4376,9 @@ class SfBlocAccordion extends StatelessWidget {
         children: [
           Semantics(
             button: true,
-            expanded: open,
+            expanded: onOpen == null ? open : null,
             child: InkWell(
-              onTap: onToggle,
+              onTap: onOpen ?? onToggle,
               child: Padding(
                 // Les valeurs de `.groupHead` dans
                 // `docs/progression/plan_cycle.html` : `42px 1fr auto`,
@@ -4457,16 +4479,23 @@ class SfBlocAccordion extends StatelessWidget {
                     const SizedBox(width: 6),
                     // La seule affordance visible qu'un bloc se deplie. Le
                     // chevron PIVOTE, il ne se remplace pas — aucun saut de
-                    // largeur a l'ouverture.
-                    AnimatedRotation(
-                      turns: open ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 160),
-                      child: const Icon(
-                        LucideIcons.chevronDown,
+                    // largeur a l'ouverture. La variante lien pointe a droite.
+                    if (onOpen != null)
+                      const Icon(
+                        LucideIcons.chevronRight,
                         size: 18,
                         color: AppColors.muted,
+                      )
+                    else
+                      AnimatedRotation(
+                        turns: open ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 160),
+                        child: const Icon(
+                          LucideIcons.chevronDown,
+                          size: 18,
+                          color: AppColors.muted,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -4474,7 +4503,7 @@ class SfBlocAccordion extends StatelessWidget {
           ),
           // Le corps est RETIRE de l'arbre quand il est replie : un lecteur
           // d'ecran ne doit pas traverser un bloc ferme.
-          if (open)
+          if (onOpen == null && open && child != null)
             Container(
               // `.groupBody` : `4px 15px 15px`. Son 4e terme (`65px` a gauche)
               // est le retrait du rail — ici c'est `SfJourneyList` qui porte le
@@ -4486,109 +4515,6 @@ class SfBlocAccordion extends StatelessWidget {
               child: child,
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// **L'encart d'examen imbrique en fin de bloc** — le `.examBox` de
-/// `plan_cycle.html`.
-///
-/// 🛑 **[locked] rend l'encart inerte** : ni `onTap`, ni retour au toucher. Le
-/// contenu reste **entierement lisible** — on ajoute un verrou, on ne masque
-/// rien (R16, contradiction #1 tranchee le 2026-08-21).
-///
-/// [state] porte le libelle **servi** (« Verrouille », « Disponible ») et son
-/// ton : [SfBarTone.muted] quand il n'y a rien a faire, [SfBarTone.now] quand
-/// l'examen s'ouvre.
-///
-/// Miroir web : `ExamStepBox`.
-class SfExamStepBox extends StatelessWidget {
-  const SfExamStepBox({
-    super.key,
-    required this.title,
-    required this.state,
-    required this.note,
-    required this.locked,
-    this.onTap,
-  });
-
-  /// « Examen blanc · Comprehension orale », ou la mesure d'un niveau. Servi.
-  final String title;
-
-  final ({String label, SfBarTone tone}) state;
-
-  /// La phrase de condition, **servie**.
-  final String note;
-
-  final bool locked;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadii.md);
-    final corps = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppFonts.ui(
-                    size: 11.5,
-                    weight: FontWeight.w700,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                state.label.toUpperCase(),
-                style: AppFonts.label(
-                  size: 9,
-                  color: _sfStatusColor(state.tone),
-                ).copyWith(fontWeight: FontWeight.w900),
-              ),
-              if (locked) ...[
-                const SizedBox(width: 6),
-                const Icon(LucideIcons.lock, size: 13, color: AppColors.muted),
-              ],
-            ],
-          ),
-          const SizedBox(height: 5),
-          Text(
-            note,
-            style: AppFonts.ui(
-                size: 10, color: AppColors.muted, height: 1.4),
-          ),
-        ],
-      ),
-    );
-    final decore = Container(
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: radius,
-        border: Border.all(color: AppColors.line),
-      ),
-      child: corps,
-    );
-    if (locked || onTap == null) return decore;
-    return Material(
-      color: AppColors.blueSoft,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(color: AppColors.line),
-          ),
-          child: corps,
-        ),
       ),
     );
   }
@@ -4631,8 +4557,8 @@ class SfExamStepDone extends SfExamStepTrailing {
 /// tous en paramètres. Un bouton inactif se lit avec son cadenas **et** sa
 /// phrase de pied — jamais un bouton muet sans raison.
 ///
-/// Miroir web : `ExamStepAction`. La brique voisine [SfExamStepBox] reste
-/// celle de l'historique des cycles.
+/// Miroir web : `ExamStepAction`. Elle sert aussi la consultation d'un cycle
+/// clos (« Mes cycles ») : sans [trailing] de lancement, elle y est inerte.
 class SfExamStepAction extends StatelessWidget {
   const SfExamStepAction({
     super.key,
@@ -5155,9 +5081,12 @@ class SfCycleRailStep extends StatelessWidget {
 /// - **Atteinte** ([reached] + [child]) : l'encart disparait et **l'action
 ///   prend sa place** — la carte de fin de cycle existante, jamais un second
 ///   bouton qui la dupliquerait.
+/// - **Franchie** ([done], consultation d'un cycle clos, 2026-09-27) : l'encart
+///   devient **plein** — ni pointilles, ni attenuation — et porte [note]
+///   (« Le 27 sept. 2026 »). Aucun geste : un cycle clos ne se rejoue pas.
 ///
-/// 🛑 **Aucune phrase n'est ecrite ici**, et rien n'est compte : les trois
-/// libelles arrivent en parametres.
+/// 🛑 **Aucune phrase n'est ecrite ici**, et rien n'est compte : les libelles
+/// arrivent en parametres.
 ///
 /// Miroir web : `CycleRailEnd`.
 class SfCycleRailEnd extends StatelessWidget {
@@ -5167,8 +5096,16 @@ class SfCycleRailEnd extends StatelessWidget {
     required this.title,
     required this.reached,
     this.remaining,
+    this.done = false,
+    this.note,
     this.child,
   });
+
+  /// La fin a ete franchie : l'encart est plein, et lu tel quel.
+  final bool done;
+
+  /// La ligne sous le titre d'une fin franchie (sa date), **servie**.
+  final String? note;
 
   final String eyebrow;
   final String title;
@@ -5194,38 +5131,57 @@ class SfCycleRailEnd extends StatelessWidget {
       ),
       child: const Icon(Icons.star_rounded, size: 10, color: AppColors.white),
     );
-    final body = reached && action != null
-        ? action
-        : CustomPaint(
-            painter: const _SfDashedBoxPainter(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    eyebrow,
-                    style: AppFonts.ui(
-                        size: 12, color: AppColors.muted, height: 1.3),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: AppFonts.ui(
-                      size: 15,
-                      weight: FontWeight.w800,
-                      color: AppColors.ink2,
-                      height: 1.3,
-                    ),
-                  ),
-                  if (remaining != null) ...[
-                    const SizedBox(height: 8),
-                    SfPill(label: remaining!, tone: SfBarTone.warn),
-                  ],
-                ],
-              ),
+    final contenu = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            eyebrow,
+            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.3),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: AppFonts.ui(
+              size: 15,
+              weight: FontWeight.w800,
+              color: AppColors.ink2,
+              height: 1.3,
             ),
-          );
+          ),
+          if (note != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              note!,
+              style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
+            ),
+          ],
+          if (remaining != null) ...[
+            const SizedBox(height: 8),
+            SfPill(label: remaining!, tone: SfBarTone.warn),
+          ],
+        ],
+      ),
+    );
+    final Widget body;
+    if (reached && action != null) {
+      body = action;
+    } else if (done) {
+      // Franchie : un encart plein, lu tel quel (`.railEndDone` cote web).
+      body = Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          border: Border.all(color: AppColors.line),
+          boxShadow: AppShadows.card,
+        ),
+        child: contenu,
+      );
+    } else {
+      body = CustomPaint(painter: const _SfDashedBoxPainter(), child: contenu);
+    }
     return _SfRailItem(dot: dot, dotTop: _kRailEndDotTop, child: body);
   }
 }

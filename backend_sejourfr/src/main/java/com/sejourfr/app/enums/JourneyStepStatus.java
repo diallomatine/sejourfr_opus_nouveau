@@ -65,5 +65,17 @@ public enum JourneyStepStatus {
      * Remplacee par une evaluation plus recente (R7). <b>Non affichee</b> : le
      * candidat n'a pas a lire une etape que la mesure a rendue caduque.
      */
-    OBSOLETE
+    OBSOLETE,
+
+    /**
+     * <b>Jamais faite, et elle ne le sera plus</b> : l'etape est restee ouverte
+     * dans un cycle <b>historise</b> (2026-09-27, ecran « Mes cycles »).
+     *
+     * <p>🛑 <b>Servie par la seule consultation d'un cycle clos</b>
+     * ({@code GET /api/me/plan/journey/history/{journeyId}}) : dans le Plan
+     * courant, une etape ouverte est {@link #UPCOMING} ou {@link #CURRENT}. La
+     * dire « a venir » dans une archive serait faux — le cycle ne reviendra pas.
+     * Aucun geste ne s'y attache.
+     */
+    NON_FAITE
 }
