@@ -158,10 +158,7 @@ class PlanHistoryScreen extends ConsumerWidget {
                                 mark: journeyHistoryCycleMark(cycle.numero),
                                 title: journeyHistoryCycleTitle(cycle.numero),
                                 meta: journeyHistoryCycleMeta(cycle, module),
-                                status: (
-                                  label: kJourneyHistoryDonePill,
-                                  tone: SfTone.ok,
-                                ),
+                                status: journeyHistoryPill(cycle.finDeCycle),
                                 onOpen: () => context.push(
                                   AppRoutes.planCycleArchivePath(
                                       cycle.journeyId),

@@ -76,10 +76,21 @@ public record JourneyDto(
          */
         List<JourneyBlocDto> blocs,
         /**
-         * Les issues de fin de cycle (spec §6). 🛑 <b>{@code null} sauf cycle
-         * termine.</b>
+         * L'issue de fin de cycle — l'actualisation seule depuis D-66. 🛑
+         * <b>{@code null} sauf cycle termine.</b>
          */
         JourneyNextStepDto nextStep,
+        /**
+         * <b>Le jalon « Faire un examen blanc complet »</b> (2026-09-27, D-68) —
+         * propose au-dessus du Plan, sous la carte « À faire maintenant ».
+         *
+         * <p>🛑 {@code null} = <b>non propose</b>, et c'est le cas courant. Sa
+         * presence est un fait servi par {@code JourneyJalonExamenComplet} : 3
+         * cycles de travail termines depuis le dernier examen complet, ou
+         * l'objectif atteint partout par un examen blanc. Le geste
+         * ({@code POST …/journey/measurement-cycle}) lit la MEME autorite.
+         */
+        JourneyExamenCompletDto examenComplet,
         /**
          * <b>L'identifiant du parcours</b> ({@code journey.id}) : c'est le
          * {@code plan_id} du chantier Suivi (Q8). Les fronts le recopient dans

@@ -1,5 +1,6 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.TargetLevel;
 
 import java.time.Instant;
@@ -51,6 +52,13 @@ public record JourneyHistoryCycleDto(
         int numero,
         Instant debut,
         Instant fin,
+        /**
+         * <b>Le geste qui a clos ce cycle</b> (V077, V078) — lu tel quel, le
+         * meme que {@code JourneyCycleArchiveDto.finDeCycle}. La ligne de
+         * « Mes cycles » dit « Interrompu » sur {@code INTERROMPU} (D-68).
+         * {@code null} = inconnu (cycle clos avant V077).
+         */
+        JourneyFinDeCycle finDeCycle,
         int competences,
         int examens,
         /** Le palier d'entree — <b>TCF</b>. {@code null} cote civique. */

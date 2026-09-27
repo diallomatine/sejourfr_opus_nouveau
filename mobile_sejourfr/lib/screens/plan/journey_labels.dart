@@ -410,19 +410,26 @@ SfRailState journeyBlocRailState(JourneyBlocStatus status) => switch (status) {
     };
 
 /* ------------------------------ la dernière étape de la timeline du cycle --- */
-// « Fin du cycle · Actualiser mon plan · Encore 4 étapes » (demande du
-// propriétaire, 2026-09-27). Miroir mot pour mot de `JOURNEY_RAIL_END_*`.
+// « Fin du cycle · Actualiser mon plan · 3 priorités identifiées · Encore 4
+// étapes » (demande du propriétaire, 2026-09-27). Miroir mot pour mot de
+// `JOURNEY_RAIL_END_*`.
+//
+// 🛑 **Une seule fin depuis D-66** : l'examen blanc complet a quitté la fin de
+// cycle (il devient un jalon, `kJourneyJalon*`). La fin s'appelle donc toujours
+// « Actualiser mon plan ».
 
 const String kJourneyRailEndEyebrow = 'Fin du cycle';
+const String kJourneyRailEndTitle = 'Actualiser mon plan';
 
-/// 🛑 **La nature de la fin est SERVIE** ([JourneyCycle.finDeCycle]) : jamais
-/// recombinée depuis `cycleDAffinage` / `cycleDeMesure`. `null` = inconnu ⇒ on
-/// nomme l'étape sans promettre d'issue.
-String journeyRailEndTitle(JourneyFinDeCycle? fin) => switch (fin) {
-      JourneyFinDeCycle.examenComplet => 'Examen blanc complet',
-      JourneyFinDeCycle.actualisation => 'Actualiser mon plan',
-      null => 'Prochaine étape',
-    };
+/// « 3 priorités identifiées » — le nombre **servi** de priorités que le cycle
+/// suivant portera ([JourneyCycle.prioritesCycleSuivant], D-67), jamais
+/// recompté ici. `null` ⇒ rien.
+String? journeyPrioritesIdentifiees(JourneyCycle cycle) {
+  final n = cycle.prioritesCycleSuivant;
+  if (n == null) return null;
+  if (n == 0) return 'Aucune priorité identifiée pour l\'instant';
+  return '$n priorité${n == 1 ? '' : 's'} identifiée${n == 1 ? '' : 's'}';
+}
 
 /// « Encore N étapes » : le **compteur servi**, lu à l'envers —
 /// `etapesTotal - etapesTerminees`, la même arithmétique que la barre de
@@ -522,41 +529,31 @@ String journeyCycleNote(JourneyCycle cycle) => cycle.cycleDAffinage
         'Les examens d\'une épreuve s\'ouvrent seulement quand ses étapes sont '
         'terminées.';
 
-/* ----------------------------------------------------- fin de cycle (§6) --- */
+/* -------------------------------------------------- fin de cycle (D-66) --- */
+// 🛑 **Une seule issue** (décision du propriétaire, 2026-09-27) : « Actualiser
+// mon plan ». Le choix « Passer l'examen blanc complet / Actualiser sans examen
+// complet » est SUPPRIMÉ de la carte, avec ses repères et sa note.
 
-const String kJourneyNextStepEyebrow = 'Cycle terminé · mesure globale';
-const String kJourneyNextStepHeadline =
-    'Voyez maintenant où vous en êtes vraiment';
+const String kJourneyNextStepEyebrow = 'Cycle terminé';
+const String kJourneyNextStepHeadline = 'Passez au cycle suivant';
 const String kJourneyNextStepText =
-    'Vous avez travaillé toutes les priorités identifiées. Passez un TCF blanc '
-    'complet pour mesurer votre niveau global et préparer votre prochain cycle.';
+    'Vous avez terminé ce cycle. Actualisez votre plan pour travailler les '
+    'priorités que vos évaluations ont identifiées.';
 
-/// Le cas d'un **cycle de mesure** clos : enchaîner un second examen complet ne
-/// mesurerait rien de nouveau, donc la carte ne le propose pas.
-const String kJourneyNextStepTextMesure =
-    'Vos quatre épreuves viennent d\'être mesurées. Actualisez votre plan pour '
-    'recevoir les priorités que ces résultats ont identifiées.';
+/// Le repère de la carte : le nombre servi de priorités du cycle suivant.
+List<SfNextStepFact> journeyNextStepFacts(JourneyCycle cycle) {
+  final n = cycle.prioritesCycleSuivant;
+  if (n == null) return const [];
+  return [
+    (
+      value: '$n',
+      label: 'priorité${n == 1 ? '' : 's'} identifiée${n == 1 ? '' : 's'} '
+          'pour le prochain cycle',
+    ),
+  ];
+}
 
-/// Les trois repères de l'examen complet. 🛑 Aucun chiffre inventé : quatre
-/// épreuves est le format du TCF IRN, pas une donnée servie.
-const List<SfNextStepFact> kJourneyNextStepFacts = [
-  (value: '4 épreuves', label: 'TCF IRN complet'),
-  (value: 'Conditions réelles', label: 'simulation complète'),
-  (value: 'Nouveau bilan', label: 'niveau actualisé'),
-];
-
-const String kJourneyNextStepExamCta = 'Passer l\'examen blanc complet →';
-const String kJourneyNextStepRefreshCta =
-    'Actualiser mon plan sans examen complet';
-
-/// 🛑 **Le même geste, dit autrement quand il est SEUL** : « sans examen
-/// complet » n'a de sens qu'en face de l'examen complet. À la fin d'un cycle de
-/// mesure, il n'y a rien à opposer.
-const String kJourneyNextStepRefreshOnlyCta = 'Actualiser mon plan';
-
-const String kJourneyNextStepNote =
-    'L\'examen complet est recommandé, mais pas obligatoire. Vous pouvez aussi '
-    'actualiser votre plan à partir des examens déjà réalisés.';
+const String kJourneyNextStepRefreshCta = 'Actualiser mon plan';
 
 /// 🛑 **Un échec réseau se DIT** : un bouton muet laisserait croire à une panne
 /// de l'application. Aucune promesse de délai, aucun jargon.
@@ -564,9 +561,56 @@ const String kJourneyNextStepError =
     'Votre plan n\'a pas pu être actualisé. Vérifiez votre connexion et '
     'réessayez.';
 
-/// Pendant l'appel : les deux actions historisent le cycle, on ne les rejoue
-/// pas par un second appui.
+/// Pendant l'appel : l'action historise le cycle, on ne la rejoue pas par un
+/// second appui.
 const String kJourneyNextStepBusy = 'Un instant…';
+
+/* ------------------------------ le jalon « examen blanc complet » (D-68) --- */
+// Proposé au-dessus du Plan, sous « À faire maintenant », quand le serveur le
+// sert ([Journey.examenComplet]). 🛑 Aucune condition recombinée ici : la
+// raison et le compte sont SERVIS. Miroir mot pour mot de `JOURNEY_JALON_*`.
+
+const String kJourneyJalonTitle = 'Examen blanc complet';
+const String kJourneyJalonCta = 'Faire un examen blanc complet';
+const String kJourneyJalonBusy = 'Préparation…';
+const String kJourneyJalonError =
+    'Votre examen blanc complet n\'a pas pu être préparé. Vérifiez votre '
+    'connexion et réessayez.';
+
+/// La phrase du jalon, sur la **raison servie**.
+String journeyJalonText(JourneyExamenComplet jalon, AppModule module) {
+  final civique = module == AppModule.civique;
+  if (jalon.raison == JourneyJalonRaison.objectifAtteint) {
+    return civique
+        ? 'Vos examens de thème sont réussis sur toutes les thématiques. '
+            'Confirmez-le dans les conditions de l\'examen.'
+        : 'Vos examens blancs atteignent votre objectif sur les quatre '
+            'épreuves. Confirmez-le dans les conditions de l\'examen.';
+  }
+  final n = jalon.cyclesDeTravail;
+  return 'Vous avez terminé $n cycle${n == 1 ? '' : 's'} de travail depuis '
+      'votre dernier examen blanc complet. Mesurez où vous en êtes '
+      '${civique ? 'sur toutes les thématiques.' : 'sur les quatre épreuves.'}';
+}
+
+const String kJourneyJalonConfirmTitle = 'Faire un examen blanc complet ?';
+const String kJourneyJalonConfirmCta = 'Commencer le cycle d\'examens';
+const String kJourneyJalonConfirmCancel = 'Annuler';
+
+/// Ce que le geste fait, **avant** de le faire. 🛑 Sur un cycle **terminé**
+/// ([JourneyCycle.complete], servi), rien n'est interrompu.
+String journeyJalonConfirmMessage(bool cycleTermine, AppModule module) {
+  final examens = module == AppModule.civique
+      ? 'un examen par thématique'
+      : 'un examen blanc par épreuve';
+  final debut = cycleTermine
+      ? 'Votre cycle terminé sera archivé dans « Mes cycles ».'
+      : 'Votre cycle en cours sera mis de côté : il apparaîtra dans « Mes '
+          'cycles » comme interrompu.';
+  return '$debut Un cycle d\'examens le remplace, avec $examens. Vos priorités '
+      'non terminées ne sont pas perdues : les résultats de ces examens les '
+      'recalculeront.';
+}
 
 String _sectionLabel(SkillSection section) {
   switch (section) {
@@ -658,8 +702,13 @@ String journeyHistoryStatCycles(int n) =>
 const String kJourneyHistorySectionTitle = 'Cycles terminés';
 const String kJourneyHistorySectionSub = 'Du plus récent au plus ancien';
 
-/// La pastille d'un cycle archivé : un cycle historisé l'est toujours.
-const String kJourneyHistoryDonePill = 'TERMINÉ';
+/// La pastille d'un cycle archivé : « INTERROMPU » quand le jalon d'examen
+/// complet l'a mis de côté ([JourneyFinDeCycle.interrompu], V078), « TERMINÉ »
+/// sinon.
+({String label, SfTone tone}) journeyHistoryPill(JourneyFinDeCycle? fin) =>
+    fin == JourneyFinDeCycle.interrompu
+        ? (label: 'INTERROMPU', tone: SfTone.warn)
+        : (label: 'TERMINÉ', tone: SfTone.ok);
 
 /// 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN, pas une erreur** : le bandeau et ses
 /// compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
@@ -800,6 +849,7 @@ String? journeyArchiveExamResult(JourneyStep exam) {
 String journeyArchiveEndTitle(JourneyFinDeCycle? fin) => switch (fin) {
       JourneyFinDeCycle.actualisation => 'Plan actualisé',
       JourneyFinDeCycle.examenComplet => 'Examen blanc complet',
+      JourneyFinDeCycle.interrompu => 'Cycle interrompu',
       null => 'Cycle terminé',
     };
 

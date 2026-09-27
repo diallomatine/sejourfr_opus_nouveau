@@ -4336,15 +4336,22 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
 - `screens/plan/widgets/plan_cycle_section.dart` : `SfCycleProgress`, un `SfBlocAccordion`
   par bloc (**un seul déplié**), `SfJourneyRow` pour les étapes, `SfExamStepAction` pour
   l'examen (« Examen blanc » / « Évaluez vos progrès » + bouton « Commencer » à droite,
-  2026-09-26 ; état lu sur `status`, `locked` et `lockReason` servis), `SfNextStepCard` et ses deux actions sur `JourneyState.cycleCompleted`
-  (`refresh()` / `measurementCycle()` de `learning_plan_repository.dart`).
+  2026-09-26 ; état lu sur `status`, `locked` et `lockReason` servis), `SfNextStepCard` et sa
+  **seule** action « Actualiser mon plan » sur `JourneyState.cycleCompleted` (`refresh()`,
+  D-66 : l'examen complet a quitté la fin de cycle, et l'emplacement secondaire du kit avec lui).
+  🛑 **Le jalon « Faire un examen blanc complet »** (D-68) : `widgets/examen_complet_jalon.dart`
+  (`ExamenCompletJalon`, briques du kit), sous « À faire maintenant » dans `plan_tcf_view.dart`
+  (abonné et gratuit) et `civic_plan_view.dart`, **seulement** quand `journey.examenComplet` est
+  servi ; `showAppSheet` de confirmation, puis `measurementCycle()` et `relireSourcesDuCompte`.
   🛑 **Timeline du cycle** (2026-09-27) : les blocs sont posés sur `SfCycleRail` — un
   `SfCycleRailStep` par bloc (`journeyBlocRailState`, traduit du statut servi), puis
-  `SfCycleRailEnd` « Fin du cycle » (titre sur `cycle.finDeCycle` **servi**, pastille « Encore
-  N étapes » = `etapesTotal − etapesTerminees`). Atteinte, elle **devient** `SfNextStepCard`
+  `SfCycleRailEnd` « Fin du cycle » (titre **toujours** `kJourneyRailEndTitle` « Actualiser mon
+  plan », `note` « N priorités identifiées » = `cycle.prioritesCycleSuivant` **servi**, D-67,
+  pastille « Encore N étapes » = `etapesTotal − etapesTerminees`). « Mes cycles » :
+  `journeyHistoryPill` (« INTERROMPU » sur `finDeCycle` servi, V078). Atteinte, elle **devient** `SfNextStepCard`
   (plus d'intertitre « Prochaine étape »). Rond 14, trait 2, gouttière 8 ;
   `SfCycleRail.retraitDe` fait masquer la pastille d'état de `SfBlocAccordion` sous 388 px
-  (miroir du `@media` web). Les deux issues **attendent** `relireSourcesDuCompte` avant de
+  (miroir du `@media` web). L'actualisation et le jalon **attendent** `relireSourcesDuCompte` avant de
   rendre la main : le bouton reste occupé jusqu'à ce que le nouveau cycle soit lu.
   ⚠️ **Cycle d'affinage** (2026-09-27, D-64) : la note de pied et la phrase sous la barre se
   lisent sur `cycle.cycleDAffinage` (`journeyCycleNote` / `journeyCycleHint`) — jamais sur

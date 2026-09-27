@@ -40,8 +40,8 @@ import java.util.UUID;
  * @param fin        {@code journey.historise_at} — jamais {@code null} ici.
  * @param finDeCycle <b>le geste qui l'a clos</b> (V077). {@code null} =
  *                   inconnu (cycle clos avant V077) : l'ecran dit « Cycle
- *                   terminé », sans inventer l'issue. ⚠️ Distinct de
- *                   {@code cycle.finDeCycle}, qui est l'issue <b>annoncee</b>.
+ *                   terminé », sans inventer l'issue. {@code INTERROMPU}
+ *                   = mis de cote par le jalon d'examen complet (D-68).
  * @param objectif   l'objectif du cycle, servi avec son libelle.
  */
 public record JourneyCycleArchiveDto(

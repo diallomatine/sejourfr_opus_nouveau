@@ -1,7 +1,5 @@
 package com.sejourfr.app.dto;
 
-import com.sejourfr.app.enums.JourneyFinDeCycle;
-
 /**
  * <b>L'avancement du cycle</b> : la barre continue et son repere.
  *
@@ -27,17 +25,15 @@ import com.sejourfr.app.enums.JourneyFinDeCycle;
  *                        ({@code JourneyCycleAffinage.termine}) : hors
  *                        affinage, plus aucune etape ouverte du tout. C'est le fait dont l'ecran tire
  *                        « <b>Cycle entierement travaille</b> ».
- *                        <p>⚠️ <b>Ce n'est plus la seule condition qui ouvre
- *                        l'ecran « Prochaine étape »</b> (2026-09-20) :
- *                        l'<b>examen de fin de cycle</b> se debloque des
- *                        {@code finDeCycleExamenRatio} des etapes terminees
- *                        (80 % en v3). L'<b>actualisation</b>, elle, attend
- *                        toujours ce {@code complete}-ci.</p>
+ *                        <p>C'est aussi la <b>seule</b> condition de la fin
+ *                        de cycle depuis D-66 (2026-09-27) : l'examen blanc
+ *                        complet n'en fait plus partie, il ne reste que
+ *                        l'actualisation.</p>
  * @param cycleDeMesure   ce cycle ne porte <b>aucune</b> etape d'entrainement :
  *                        c'est un cycle d'examens seuls. 🛑 <b>Derive, pas une
- *                        colonne</b> : a la fin d'un tel cycle, proposer un
- *                        second examen complet enchaine n'aurait aucun sens, et
- *                        la seule issue offerte est l'actualisation.
+ *                        colonne</b>. C'est le <b>cycle d'examens</b> qu'ouvre
+ *                        le jalon « Faire un examen blanc complet » (D-68) :
+ *                        le jalon n'y est jamais propose.
  * @param cycleDAffinage  ce cycle est le <b>premier</b>, amorce par le
  *                        diagnostic rapide (2026-09-27, D-64) : il sert a
  *                        AFFINER la mesure. Ses examens d'epreuve sont ouverts
@@ -51,11 +47,17 @@ import com.sejourfr.app.enums.JourneyFinDeCycle;
  *                        etapes <b>obligatoires</b> plus les facultatives deja
  *                        faites : une competence non travaillee ne retient pas
  *                        la barre sous 100 %.</p>
- * @param finDeCycle      ce qui <b>clot</b> ce cycle, servi des son debut
- *                        (2026-09-27) : la derniere etape de la timeline du
- *                        Plan l'annonce avant qu'elle soit atteinte. 🛑
- *                        Autorite : {@link JourneyFinDeCycle#de}, la meme qui
- *                        decide de {@code nextStep.examenCompletPossible}.
+ * @param prioritesCycleSuivant <b>combien de priorites le cycle SUIVANT
+ *                        portera</b>, deja identifiees (2026-09-27, D-67) :
+ *                        l'ecran l'ecrit sous « Actualiser mon plan »,
+ *                        derniere etape de la timeline. 🛑 Autorite :
+ *                        {@code JourneyCycleSuivant} — cote TCF, les etapes
+ *                        d'entrainement ouvertes du cycle en attente ; cote
+ *                        civique, les unites que l'amorce retiendrait. C'est le
+ *                        nombre <b>retenu</b> (au plus
+ *                        {@code maxPrioritiesPerLot} par epreuve / thematique),
+ *                        jamais le nombre calcule. {@code null} en
+ *                        consultation d'un cycle clos.
  */
 public record JourneyCycleDto(
         int numero,
@@ -64,5 +66,5 @@ public record JourneyCycleDto(
         boolean complete,
         boolean cycleDeMesure,
         boolean cycleDAffinage,
-        JourneyFinDeCycle finDeCycle
+        Integer prioritesCycleSuivant
 ) {}

@@ -123,6 +123,7 @@ public class JourneyHistoryService {
                     JourneyCycleRank.rang(rangZeroBase),
                     cycle.getCreatedAt(),
                     cycle.getHistoriseAt(),
+                    cycle.getFinDeCycle(),
                     competences,
                     examens,
                     cycle.getEntryLevel(),

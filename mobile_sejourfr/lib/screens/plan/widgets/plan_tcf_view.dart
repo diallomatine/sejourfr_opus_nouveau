@@ -21,6 +21,7 @@ import '../plan_labels.dart';
 import '../plan_milestone_labels.dart';
 import '../plan_milestone_launcher.dart';
 import '../plan_now_card.dart';
+import 'examen_complet_jalon.dart';
 import 'plan_cycle_section.dart';
 
 /// **Le plan TCF**, dans l'ordre de la maquette : d'où l'on part, ce qu'on fait
@@ -102,9 +103,12 @@ class PlanTcfView extends ConsumerWidget {
         flush: true,
         child: _nowCard(context, ref),
       ),
+      // 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
+      // au-dessus du cycle — servi, jamais décidé ici.
+      ExamenCompletJalon(journey: journey, module: AppModule.tcf),
       // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
-      // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
-      // deux issues.
+      // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
+      // (« Actualiser mon plan », D-66).
       PlanCycleSection(plan: plan, journey: journey),
       if (milestone != null) _milestoneSection(context, ref, milestone),
       _links(context),
@@ -140,6 +144,9 @@ class PlanTcfView extends ConsumerWidget {
           flush: true,
           child: _nowCard(context, ref, free: true),
         ),
+        // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
+        // ouvre porte, lui, les verrous d'accès servis de chaque examen.
+        ExamenCompletJalon(journey: journey, module: AppModule.tcf),
         // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
         // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
         // masquer priverait le candidat de l'information la plus utile qu'il

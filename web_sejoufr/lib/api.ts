@@ -1225,11 +1225,16 @@ export const journeyApi = {
     },
 
     /**
-     * **Passer l'examen blanc complet** — crée le **cycle de mesure**.
+     * **Faire un examen blanc complet** — le jalon (D-68) : le cycle en cours est
+     * mis de côté (« interrompu ») et un **cycle d'examens** devient le cycle
+     * courant, un bloc par épreuve ou thématique.
      *
-     * 🛑 **Il ne démarre aucun examen** : l'examen blanc complet reste lancé par
-     * `fullTcfExamApi.start`, son unique point d'entrée. **409** si le cycle
-     * n'est pas terminé, ou s'il est déjà un cycle de mesure.
+     * 🛑 **Il ne démarre aucun examen** : chaque examen du cycle se lance depuis
+     * son bloc. **409** quand le jalon n'est pas proposé
+     * (`JourneyDto.examenComplet` nul) — la même autorité serveur.
+     *
+     * 🛑 **Les mêmes relectures que `refresh`** : la réponse EST le nouveau
+     * cycle — rangée, puis l'écran où l'on est se relit (Plan, Accueil).
      */
     async measurementCycle(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
         const journey = await apiFetch<JourneyDto>(
@@ -1237,6 +1242,8 @@ export const journeyApi = {
             {method: "POST", auth: true},
         );
         invalidateDiagnosticAndPlan();
+        primeCached(journeyCacheKey(module), journey);
+        signalerPlanARelire();
         return journey;
     },
 

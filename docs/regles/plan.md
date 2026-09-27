@@ -2025,6 +2025,11 @@ en attente**, invisible du candidat, et devient le cycle suivant à l'actualisat
 lui-même ne bouge pas** (3, par épreuve) — ce qui change, c'est la **destination** de ce qui
 dépasse.
 
+🛑 **D-67 (2026-09-27) : c'est aussi le BUDGET DE COMPOSITION du cycle suivant**, et c'est
+désormais écrit comme tel — au plus 3 priorités par épreuve (TCF), au plus 3 unités par thématique
+(civique), les plus urgentes dans l'ordre du moteur. Le nombre retenu est **servi**
+(`cycle.prioritesCycleSuivant`). → § « Le budget du cycle suivant » plus bas.
+
 **Ce n'est pas l'incident du 2026-08-25**, et la différence est ce qui rend ce choix tenable :
 là-bas un plafond de 5 actions était **partagé entre 4 domaines**, et trois domaines sur quatre
 se retrouvaient sans aucune action (10 actions existaient, 2 étaient servies). Ici le plafond est
@@ -2303,7 +2308,7 @@ n'en est pas un (A158). Servi : `JourneyCycleDto.cycleDAffinage`.
 | `cycle.complete` / `CYCLE_COMPLETED` | dès que les étapes **obligatoires** (examens, diagnostic) sont closes | plus aucune étape ouverte |
 | « N étapes sur M » | M = obligatoires + facultatives **déjà faites** (A160) | toutes les étapes non obsolètes |
 | Compétence ouverte redétectée par un examen | **part** au cycle en attente (A161) | reste due, pas remise en attente |
-| Issues de fin de cycle | **actualisation seule** ; `measurement-cycle` → 409 (A163) | actualisation + examen complet (80 %) |
+| Issues de fin de cycle | **actualisation seule** | **actualisation seule** depuis D-66 (l'examen complet est un jalon, D-68) |
 | Phrase de bloc servie | « Examen à passer · N compétences facultatives » / « Examen blanc terminé · N compétences facultatives » | « N compétences restantes · puis examen » |
 
 🛑 **Une seule autorité de « terminé »** : `JourneyCycleAffinage.termine`, lue par la lecture
@@ -2396,17 +2401,69 @@ Le **cycle en attente** est invisible du candidat : aucun endpoint ne le sert. U
 déjà clôturée dans le cycle en cours n'y est pas recréée, **sauf** si la nouvelle observation
 est `PRIORITY` — c'est la régression mesurée, et un `TO_REINFORCE` ne rouvre rien.
 
-### Fin de cycle : deux issues, et une seule pour un cycle de mesure
+### Fin de cycle : l'actualisation, et elle seule (D-66, 2026-09-27)
 
-⚠️ **Et une seule pour un cycle d'AFFINAGE** (D-64) : l'actualisation, offerte dès que ses
-examens sont passés, compétences facultatives ou non.
+🛑 **Décision du propriétaire** : la fin de cycle ne propose **que** « Actualiser mon plan », pour
+**tous** les cycles (travail, affinage, examens). L'étape finale « Examen blanc complet » et le
+choix « Passer l'examen blanc complet / Actualiser sans examen complet » sont **supprimés** ;
+l'examen complet devient un **jalon** (§ suivant). `nextStep` ne sert plus que
+`actualisationPossible` ; `examenCompletPossible` et `cycle.finDeCycle` sont supprimés.
 
-`refresh` historise le cycle courant (`historise_at`, `exit_level`) et promeut le cycle en
-attente. `measurement-cycle` historise et ouvre un cycle de **mesure** : quatre blocs,
-chacun avec son seul examen, tous débloqués. 🛑 **« Cycle de mesure » est DÉRIVÉ** — aucune
-`TRAIN_SKILL` **et** au moins un `SECTION_EXAM` (A33) : la condition « au moins un examen »
-évite de refuser l'examen complet à un cycle vide ou diagnostic-seul. À sa fin, seule
-l'actualisation est proposée.
+`refresh` historise le cycle courant (`historise_at`, `exit_level`, `fin_de_cycle =
+ACTUALISATION`) et promeut le cycle en attente. Sous « Actualiser mon plan », le rail écrit
+« N priorités identifiées » — `cycle.prioritesCycleSuivant`, **servi** (D-67).
+
+### Le jalon « Faire un examen blanc complet » (D-68, 2026-09-27)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-68** · autonomie **A165 → A170** ·
+> autorité `JourneyJalonExamenComplet` · verrouillé par `JourneyJalonExamenCompletIT`,
+> `JourneyJalonObjectifIT`, `AmorceCiviqueIT`.
+
+**Fait servi** : `JourneyDto.examenComplet` = `{raison, cyclesDeTravail}`, **`null` = non
+proposé** (le cas courant). Proposé quand :
+
+| Raison | Condition | Remise à zéro |
+|---|---|---|
+| `CYCLES_DE_TRAVAIL` | `examenCompletJalonCycles` (3, config v4) cycles de **travail** terminés depuis le dernier examen complet — le cycle en cours compte s'il est terminé (A166) | un cycle historisé `INTERROMPU` / `EXAMEN_COMPLET` (le geste persisté, A167) |
+| `OBJECTIF_ATTEINT` | TCF : les **4** épreuves au palier ≥ objectif, **provenance `EXAMEN_BLANC`** (jamais le diagnostic), palier de l'Accueil. Civique : le **dernier examen de thème** de chacune des 5 thématiques réussi (seuil servi, 16/20) | pas juste après un examen complet (A169) ; l'emporte sur les cycles |
+
+🛑 « Cycle de travail » = cycle historisé portant ≥ 1 `TRAIN_SKILL` non obsolète, **jamais le
+cycle d'affinage** (A165). 🛑 **Jamais proposé sur un cycle d'examens.** 🛑 **Freemium
+inchangé** : le jalon n'a pas de verrou ; le cycle d'examens porte les verrous d'accès servis
+(`lockReason = ACCESS`).
+
+**Le geste** (`POST …/journey/measurement-cycle`, chemin inchangé, 409 si non proposé — la même
+autorité) : le cycle en cours est **historisé** avec `fin_de_cycle = INTERROMPU` (V078) s'il
+restait des étapes obligatoires ouvertes, `EXAMEN_COMPLET` s'il était terminé (A168) ; un
+**cycle d'examens** devient courant — un bloc par épreuve (TCF, `REASSESS` si mesurée sinon
+`INITIAL_ASSESSMENT`) ou par thématique (civique, `REASSESS`), chacun son seul examen, tous
+débloqués. Le cycle en attente est laissé tel quel. 🛑 **Rien à reporter à la main** : les
+priorités non terminées sont historisées telles quelles, et chaque examen du cycle d'examens
+dépose les siennes dans le cycle en attente (`mettreEnAttente`, budget D-67) ; côté civique,
+l'amorce suivante relit le plan dérivé.
+
+🛑 « **Cycle de mesure** » (= cycle d'examens) **reste DÉRIVÉ** — aucune `TRAIN_SKILL` **et** au
+moins un `SECTION_EXAM` (A33).
+
+**Fronts** : `ExamenCompletJalon` (web `app/_components/plan/` ⇄ mobile `widgets/`), composé des
+briques du kit, sous « À faire maintenant » sur le Plan TCF (abonné et gratuit) et civique ;
+confirmation (`ConfirmSheet` ⇄ `showAppSheet`), puis relecture Plan / parcours / Accueil
+(`journeyApi.measurementCycle` → `signalerPlanARelire` ⇄ `relireSourcesDuCompte`). Mots :
+`JOURNEY_JALON_*` / `journeyJalon*` ⇄ `kJourneyJalon*` / `journeyJalon*`.
+
+### Le budget du cycle suivant (D-67, 2026-09-27)
+
+Le moteur calcule **toutes** les priorités vraies ; le cycle suivant en **retient** au plus
+`maxPrioritiesPerLot` (3) par épreuve (TCF) ou par thématique (civique), les plus urgentes dans
+l'ordre du moteur. 🛑 Règle de **composition du cycle**, documentée, par épreuve — pas un
+plafond d'écran recyclé (invariant racine) : le Plan et « Débloquer mon plan » servent toujours
+tout.
+- TCF : un lot par épreuve et par évaluation, ≤ 3 (`JourneyLotBuilder`), un seul lot ouvert par
+  épreuve dans le cycle en attente (index unique) ⇒ ≤ 3 par épreuve **par construction**.
+- Civique : `JourneyCycleSuivant.unitesRetenues`, la fonction de l'amorce.
+- Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF : les
+  étapes d'entraînement ouvertes du cycle en attente ; civique : ce que l'actualisation poserait
+  maintenant. `null` en consultation d'un cycle clos.
 
 `exit_level` se lit sur la **lecture Plan** (`TcfProfileService`, D-2) et reste `null` si
 rien n'est mesuré **ou** si le niveau est sous l'A2 : `null` = inconnu, jamais mauvais, et
@@ -2422,24 +2479,25 @@ fin de fichier.
 ### Ce que les fronts affichent, et ce qu'ils ne savent pas
 
 Le serveur sert `cycle` (numéro, étapes terminées / total, `complete`, `cycleDeMesure`,
-`cycleDAffinage`, `finDeCycle`), `blocs` et `nextStep` (les deux issues possibles).
+`cycleDAffinage`, `prioritesCycleSuivant`), `blocs`, `nextStep` (l'actualisation, D-66) et
+`examenComplet` (le jalon, D-68).
 
 **La timeline du cycle** (2026-09-27, demande du propriétaire). Les blocs sont posés sur un
 rail vertical étroit (rond 14 px, trait 2 px, gouttière 8 px — kit `CycleRail*` ⇄
 `SfCycleRail*`) : un rond par bloc, traduit du **statut servi** (`TERMINE` ⇒ plein coché,
 `EN_COURS` ⇒ épais, le reste ⇒ gris), puis une **dernière étape « Fin du cycle »**, rond
 étoilé.
-- 🛑 **Sa nature est SERVIE** : `cycle.finDeCycle` ∈ `EXAMEN_COMPLET` / `ACTUALISATION`,
-  autorité unique `JourneyFinDeCycle.de(cycleDAffinage, cycleDeMesure)` — la même qui décide
-  de `nextStep.examenCompletPossible`, pour que l'annonce et le bouton ne divergent pas. Un
-  cycle d'affinage ou de mesure annonce « Actualiser mon plan », un cycle de travail
-  « Examen blanc complet ». `null` (backend antérieur) ⇒ « Prochaine étape ».
+- 🛑 **Elle s'appelle toujours « Actualiser mon plan »** (D-66, `JOURNEY_RAIL_END_TITLE` ⇄
+  `kJourneyRailEndTitle`) : `cycle.finDeCycle` et `JourneyFinDeCycle.de` sont **supprimés**.
+  Dessous, la ligne « N priorités identifiées » (`note` de `CycleRailEnd` ⇄ `SfCycleRailEnd`)
+  lit `cycle.prioritesCycleSuivant`, **servi** (D-67).
 - « **Encore N étapes** » = `etapesTotal − etapesTerminees`, lecture arithmétique du compteur
   servi (en affinage, `etapesTotal` exclut déjà les facultatives non faites : la différence
   est exactement ce qui reste dû). Aucune pastille à 0.
 - Non atteinte, l'étape est un encart en pointillés, atténué ; **atteinte** (condition
   inchangée : `CYCLE_COMPLETED` et `nextStep` servi), elle **devient** la carte de fin de
-  cycle à deux actions — l'intertitre « Prochaine étape » est supprimé.
+  cycle — **une seule action**, « Actualiser mon plan » (D-66), le nombre de priorités en
+  repère — ; l'intertitre « Prochaine étape » est supprimé.
 - « Actualiser mon plan » **fait relire l'écran où l'on est** : web `journeyApi.refresh`
   purge, range le nouveau cycle et signale `signalerPlanARelire()` ; mobile attend
   `relireSourcesDuCompte`. Avant le 2026-09-27, le web gardait l'ancien cycle affiché
@@ -2496,8 +2554,10 @@ dépliables imbriqués dans une carte de liste perdaient la largeur qui rend le 
   🛑 `null` = inconnu : diagnostic, examen d'un autre axe (examen complet, examen civique
   global) ou tentative d'un tiers ⇒ « Passé », sans niveau.
 - **La fin du cycle** : `journey.fin_de_cycle` (**V077**) garde **le geste qui l'a clos** —
-  `ACTUALISATION` (`refresh`) ou `EXAMEN_COMPLET` (`measurement-cycle`), écrit une fois à
-  l'historisation. Un événement, pas un dérivé (même argument que D-12 / D-14) : le cycle
+  `ACTUALISATION` (`refresh`), `EXAMEN_COMPLET` (`measurement-cycle` sur un cycle terminé) ou
+  **`INTERROMPU`** (**V078**, D-68 : mis de côté par le jalon) —, écrit une fois à
+  l'historisation. La liste le sert aussi (`JourneyHistoryCycleDto.finDeCycle`) : pastille
+  « INTERROMPU » (`journeyHistoryPill`), et « Cycle interrompu » en consultation. Un événement, pas un dérivé (même argument que D-12 / D-14) : le cycle
   suivant ne permet pas de le reconstituer de façon sûre. `null` = cycle clos avant V077 ⇒
   « Cycle terminé », sans inventer l'issue. Rendu : `CycleRailEnd done` ⇄ `SfCycleRailEnd.done`
   (encart plein + date).
@@ -2639,6 +2699,10 @@ et du même palier. Compléter hors palier aurait changé ce que la série mesur
 
 ### L'examen de FIN DE CYCLE se débloque à 80 %
 
+⛔ **RÉVOQUÉ le 2026-09-27 (D-66)** : il n'y a plus d'examen de fin de cycle — l'examen blanc
+complet est un jalon (D-68). `finDeCycleExamenRatio` n'a plus de lecteur (v4 ne le porte plus).
+Ce qui suit est conservé pour mémoire.
+
 🛑 **Les 80 % portent sur l'examen qui CLÔT LE CYCLE** (`POST …/journey/measurement-cycle` et
 `nextStep.examenCompletPossible`), **jamais** sur l'examen d'épreuve à l'intérieur d'un bloc,
 qui garde son verrou (D-15).
@@ -2654,7 +2718,11 @@ qui garde son verrou (D-15).
 
 ### La configuration v3, et pourquoi v1 et v2 restent chargeables
 
-`TCF_JOURNEY_CONFIG_VERSION` vaut **3** par défaut. v3 **omet** `trainSeriesFallbackQuota` et
+⚠️ **v4 est la version par défaut depuis le 2026-09-27** : elle **omet**
+`finDeCycleExamenRatio` (D-66) et **ajoute** `examenCompletJalonCycles: 3` (D-68). Absente
+(v1–v3), cette clé veut dire « aucun jalon au compte des cycles ». v3 reste chargeable.
+
+`TCF_JOURNEY_CONFIG_VERSION` valait **3** par défaut jusqu'au 2026-09-27. v3 **omet** `trainSeriesFallbackQuota` et
 **ajoute** `finDeCycleExamenRatio: 0.80`.
 
 🛑 **Une clé absente est une RÈGLE**, jamais un zéro silencieux : pas d'échappatoire, pas de

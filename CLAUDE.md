@@ -165,6 +165,14 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   avant, et les compétences EE y sont facultatives (le cycle se clôt quand les 4 examens sont
   passés). Fait servi : `cycle.cycleDAffinage` (`JourneyCycleAffinage`, seule autorité) — jamais
   déduit d'un rang côté front. → `docs/regles/plan.md`
+- 🛑 **La fin d'un cycle ne propose que « Actualiser mon plan »** (D-66). L'examen blanc
+  complet est un **jalon servi**, `journey.examenComplet` (autorité `JourneyJalonExamenComplet`,
+  qui rend aussi le 409 de `measurement-cycle`) : 3 cycles de travail depuis le dernier
+  complet, ou objectif atteint partout PAR EXAMEN BLANC. Aucun front ne recombine la
+  condition. Le cliquer archive le cycle `INTERROMPU` (V078). → `docs/regles/plan.md`
+- **Le cycle suivant retient ≤ 3 priorités par épreuve / thème** (D-67) : budget de
+  COMPOSITION documenté, pas un plafond d'écran — le calcul reste complet ; le nombre
+  retenu est servi (`cycle.prioritesCycleSuivant`).
 - 🛑 **`NON FRAGILE` ≠ `PLUS RIEN À APPRENDRE`**, et **le palier se lit sur le DOMAINE**, pas
   sur le plancher global. Une épreuve sans fragilité mais sous l'objectif a un palier entier à
   acquérir. Un domaine plus avancé que les autres ne **redescend** pas (règle conservée) et ne

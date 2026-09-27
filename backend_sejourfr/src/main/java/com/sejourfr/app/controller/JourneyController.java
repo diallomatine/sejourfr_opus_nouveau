@@ -144,7 +144,8 @@ public class JourneyController {
      * laisserait un client historiser celui d'un autre.
      *
      * <p>Refuse en <b>409</b> si le cycle n'est pas termine : ce geste
-     * historise, et il ne doit jamais jeter un plan en cours.
+     * historise, et il ne doit jamais jeter un plan en cours. C'est la seule
+     * issue de fin de cycle depuis D-66.
      */
     @PostMapping("/refresh")
     public JourneyDto refresh(@RequestParam(required = false) Module module) {
@@ -153,15 +154,16 @@ public class JourneyController {
     }
 
     /**
-     * <b>Passer l'examen blanc complet</b> — cree le <b>cycle de mesure</b>
-     * (spec §6).
+     * <b>Faire un examen blanc complet</b> — le jalon (D-68) : le cycle en cours
+     * est mis de cote ({@code INTERROMPU}, ou {@code EXAMEN_COMPLET} s'il etait
+     * termine) et un <b>cycle d'examens</b> devient courant.
      *
-     * <p>🛑 <b>Il ne demarre aucun examen</b> : l'examen blanc complet reste
-     * lance par {@code POST /api/full-tcf-exams}, son unique point d'entree.
+     * <p>🛑 <b>Il ne demarre aucun examen</b> : chaque examen du cycle se lance
+     * depuis son bloc, par son chemin existant.
      *
-     * <p>Refuse en <b>409</b> si le cycle n'est pas termine, <b>et</b> si le
-     * cycle courant est deja un cycle de mesure — enchainer deux examens
-     * complets sans travail entre eux ne mesure rien de nouveau.
+     * <p>Refuse en <b>409</b> quand le jalon n'est pas propose
+     * ({@code JourneyDto.examenComplet} nul) — la meme autorite
+     * ({@code JourneyJalonExamenComplet}) que le jalon servi.
      */
     @PostMapping("/measurement-cycle")
     public JourneyDto measurementCycle(@RequestParam(required = false) Module module) {

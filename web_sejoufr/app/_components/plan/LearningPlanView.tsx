@@ -49,6 +49,7 @@ import {PlanGate} from "./PlanGate";
 import {PlanPaywall} from "./PlanPaywallCard";
 import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
+import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /**
@@ -258,6 +259,10 @@ function TcfPlanPremium({plan, journey}: {
 
       <ActionMaintenant plan={plan} journey={journey} />
 
+      {/* 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
+          au-dessus du cycle — servi, jamais décidé ici. */}
+      <ExamenCompletJalon journey={journey} module="TCF" />
+
       {/* 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
           bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
           deux issues. Il prend **toute la largeur** — quatre accordéons dans une
@@ -299,6 +304,10 @@ function TcfPlanFree({plan, journey}: {
       </Pad>
 
       <ActionMaintenant plan={plan} journey={journey} free />
+
+      {/* Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il ouvre
+          porte, lui, les verrous d'accès servis de chaque examen. */}
+      <ExamenCompletJalon journey={journey} module="TCF" />
 
       {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
           toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le

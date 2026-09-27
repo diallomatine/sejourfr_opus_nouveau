@@ -173,7 +173,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
     }
 
     // =====================================================================
-    // Passer l'examen blanc complet — le cycle de mesure
+    // Le jalon « Faire un examen blanc complet » — le cycle d'examens (D-68)
     // =====================================================================
 
     @Test
@@ -181,6 +181,8 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
             + "est historise")
     void leCycleDeMesurePorteQuatreExamensTousDebloques() {
         User user = abonne();
+        // D-68 : le jalon se propose au 3e cycle de travail termine.
+        deuxCyclesDeTravailHistorises(user);
         Journey precedent = cycleTermine(user);
         // Le cycle en attente est laisse TEL QUEL : c'est tout l'objet de cette
         // issue.
@@ -191,15 +193,16 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
 
         assertThat(journeys.findById(precedent.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.HISTORISE);
-        // 🛑 Le geste qui l'a clos est ECRIT (V077) : l'examen blanc complet.
+        // 🛑 Le geste qui l'a clos est ECRIT (V077) : l'examen blanc complet —
+        // pas « interrompu », il etait termine (D-68).
         assertThat(journeys.findById(precedent.getId()).orElseThrow().getFinDeCycle())
                 .isEqualTo(JourneyFinDeCycle.EXAMEN_COMPLET);
         assertThat(journeys.findById(attente.getId()).orElseThrow().getStatus())
                 .isEqualTo(JourneyStatus.EN_ATTENTE);
         // 🛑 Un cycle de mesure est DERIVE : aucune etape d'entrainement.
         assertThat(mesure.cycle().cycleDeMesure()).isTrue();
-        // La timeline annonce l'actualisation seule, des le debut du cycle.
-        assertThat(mesure.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.ACTUALISATION);
+        // Le jalon n'est jamais propose sur un cycle d'examens.
+        assertThat(mesure.examenComplet()).isNull();
         assertThat(mesure.cycle().etapesTotal()).isEqualTo(TcfDomainProfileDto.ORDRE.size());
         assertThat(mesure.blocs()).allSatisfy(bloc -> {
             assertThat(bloc.exam()).as("examen du bloc " + bloc.bloc().label()).isNotNull();
@@ -217,6 +220,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
     @DisplayName("measurement-cycle — un cycle de mesure termine n'offre QUE l'actualisation")
     void unCycleDeMesureTermineNOffreQueLActualisation() {
         User user = abonne();
+        deuxCyclesDeTravailHistorises(user);
         cycleTermine(user);
         cycleService.creerCycleDeMesure(user.getId(), Module.TCF);
         Journey mesure = journeys.findByUserIdAndModuleAndStatus(
@@ -234,7 +238,7 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         // mesure rien de nouveau : la seule issue est d'actualiser.
         assertThat(vue.nextStep()).isNotNull();
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
-        assertThat(vue.nextStep().examenCompletPossible()).isFalse();
+        assertThat(vue.examenComplet()).isNull();
         // Et le serveur le refuse, il ne se contente pas de ne pas le proposer.
         assertThatThrownBy(() -> cycleService.creerCycleDeMesure(user.getId(), Module.TCF))
                 .isInstanceOf(IllegalStateException.class);
@@ -419,6 +423,17 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
         entrainement(journey, skill(SkillTaskCode.EE1, 0), true);
         examen(journey, EpreuveType.TCF_EE, JourneyStepPurpose.REASSESS, true);
         return journey;
+    }
+
+    /** Deux cycles de travail deja clos par l'actualisation (D-68 compte les cycles). */
+    private void deuxCyclesDeTravailHistorises(User user) {
+        for (int i = 0; i < 2; i++) {
+            Journey clos = data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
+            entrainement(clos, skill(SkillTaskCode.EE1, 0), true);
+            clos = journeys.findById(clos.getId()).orElseThrow();
+            clos.setFinDeCycle(JourneyFinDeCycle.ACTUALISATION);
+            journeys.saveAndFlush(clos);
+        }
     }
 
     private JourneyStep examen(

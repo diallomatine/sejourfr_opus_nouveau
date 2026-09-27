@@ -26,6 +26,7 @@ import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
 import 'plan_now_card.dart';
 import 'widgets/plan_cycle_section.dart';
+import 'widgets/examen_complet_jalon.dart';
 
 /// **Le plan civique** (L10, `20_` §6), dans l'ordre de la maquette.
 ///
@@ -202,6 +203,11 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // plan dérivé — la même forme que `planNowCard`. Le contenu est identique
       // pour les deux accès ; seul le geste change.
       ..._actionMaintenant(plan, parcours, free: free),
+
+      // 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
+      // servi, jamais décidé ici. En civique, le cycle d'examens porte un examen
+      // par thématique.
+      ExamenCompletJalon(journey: parcours, module: AppModule.civique),
 
       // Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
       // 🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes

@@ -6,7 +6,6 @@ import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.enums.JourneyBlocStatus;
-import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStepType;
 import org.springframework.stereotype.Component;
 
@@ -91,6 +90,9 @@ public class JourneyBlocResolver {
      *                       carte quand elle nomme un examen, un bloc est
      *                       termine quand son examen l'est, et le cycle quand
      *                       ses etapes obligatoires le sont.
+     * @param prioritesCycleSuivant combien de priorites le cycle suivant
+     *                       portera ({@code JourneyCycleSuivant}, D-67) —
+     *                       relaye tel quel dans le cycle servi.
      */
     public Vue lire(
             int numeroDuCycle,
@@ -99,7 +101,8 @@ public class JourneyBlocResolver {
             JourneyStep courante,
             Function<JourneyStep, JourneyStepDto> dto,
             Predicate<JourneyBlocRefDto> jamaisMesure,
-            boolean affinage) {
+            boolean affinage,
+            Integer prioritesCycleSuivant) {
 
         Map<String, List<JourneyStep>> parBloc = grouper(axe, affichables);
 
@@ -114,17 +117,19 @@ public class JourneyBlocResolver {
                     dto, jamaisMesure, affinage));
         }
 
-        return new Vue(List.copyOf(blocs), cycle(numeroDuCycle, affichables, affinage));
+        return new Vue(List.copyOf(blocs),
+                cycle(numeroDuCycle, affichables, affinage, prioritesCycleSuivant));
     }
 
     /**
-     * <b>L'avancement d'un cycle</b> — la barre, son compteur et sa fin
-     * annoncee. 🛑 <b>Une seule regle</b> pour le Plan courant et pour la
+     * <b>L'avancement d'un cycle</b> — la barre, son compteur et le nombre de
+     * priorites du cycle suivant. 🛑 <b>Une seule regle</b> pour le Plan courant et pour la
      * consultation d'un cycle clos ({@link #lireArchive}) : deux copies de ce
      * compteur finiraient par dire deux avancements pour le meme cycle.
      */
     private static JourneyCycleDto cycle(
-            int numeroDuCycle, List<JourneyStep> affichables, boolean affinage) {
+            int numeroDuCycle, List<JourneyStep> affichables, boolean affinage,
+            Integer prioritesCycleSuivant) {
         int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
         // 🛑 EN AFFINAGE, UNE COMPETENCE NON TRAVAILLEE NE COMPTE PAS AU
         // DENOMINATEUR : elle est facultative. Une competence FAITE, elle,
@@ -137,7 +142,7 @@ public class JourneyBlocResolver {
         boolean mesure = cycleDeMesure(affichables);
         return new JourneyCycleDto(
                 numeroDuCycle, terminees, total, complete,
-                mesure, affinage, JourneyFinDeCycle.de(affinage, mesure));
+                mesure, affinage, prioritesCycleSuivant);
     }
 
     /**
@@ -171,7 +176,8 @@ public class JourneyBlocResolver {
             if (etapes.isEmpty()) continue;
             blocs.add(blocArchive(ref, etapes, dto, affinage));
         }
-        return new Vue(List.copyOf(blocs), cycle(numeroDuCycle, affichables, affinage));
+        // Un cycle clos n'a pas de « suivant » a annoncer : le nombre est nul.
+        return new Vue(List.copyOf(blocs), cycle(numeroDuCycle, affichables, affinage, null));
     }
 
     private static JourneyBlocDto blocArchive(

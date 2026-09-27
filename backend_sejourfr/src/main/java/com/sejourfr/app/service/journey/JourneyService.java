@@ -4,7 +4,6 @@ import com.sejourfr.app.dto.JourneyDto;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.dto.CivicPlanDto;
-import com.sejourfr.app.entity.CivicNotion;
 import com.sejourfr.app.entity.CivicOfficialUnit;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.Journey;
@@ -37,7 +36,6 @@ import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
-import com.sejourfr.app.manager.CivicNotionManager;
 import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.service.SkillMasteryResolver;
 import com.sejourfr.app.service.TcfProfileService;
@@ -136,14 +134,13 @@ public class JourneyService {
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
     private final UserManager userManager;
-    // 🛑 LA MEME BORNE QUE COTE TCF (D-20, `maxPrioritiesPerLot`) : une seconde
-    // valeur pour le civique ferait deux regles la ou il n'y en a qu'une.
-    private final TcfJourneyConfig config;
     // ⚠️ Cote civique : l'ordre des priorites est LU chez le plan derive (D-36),
     // les unites chez le referentiel (D-48), les thematiques chez `themes`.
     private final CivicPlanService civicPlanService;
-    private final CivicNotionManager notionManager;
     private final ThemeManager themeManager;
+    // 🛑 LA COMPOSITION DU CYCLE CIVIQUE A UNE AUTORITE (D-67) : la meme que
+    // celle qui annonce le nombre de priorites du cycle suivant.
+    private final JourneyCycleSuivant cycleSuivant;
 
     // =====================================================================
     // Lecture
@@ -561,33 +558,10 @@ public class JourneyService {
      * empeche de redemander un travail deja du.
      */
     private void creerLotsCiviques(Journey journey, CivicPlanService.OrdreDuPlan ordre) {
-        if (ordre.estVide()) return;
-
-        Map<UUID, CivicOfficialUnit> unitesParNotion = notionManager.findAllOrdonnees().stream()
-                .filter(notion -> notion.getOfficialUnit() != null)
-                .collect(Collectors.toMap(
-                        CivicNotion::getId, CivicNotion::getOfficialUnit, (a, b) -> a));
-
-        // LinkedHashMap : l'ordre des thematiques est celui de la premiere
-        // priorite rencontree -- donc l'ordre du plan derive, pas un tri de plus.
-        Map<UUID, List<CivicOfficialUnit>> parThematique = new LinkedHashMap<>();
-        Map<UUID, Theme> thematiques = new LinkedHashMap<>();
-        Set<UUID> dejaPrises = new LinkedHashSet<>();
-        for (CivicPlanDto.Cible cible : ordre.cibles()) {
-            CivicOfficialUnit unite = unitesParNotion.get(cible.id());
-            if (unite == null) continue;
-            if (!dejaPrises.add(unite.getId())) continue;
-            Theme thematique = themeManager.findById(cible.themeId()).orElse(null);
-            if (thematique == null) continue;
-            List<CivicOfficialUnit> unites = parThematique
-                    .computeIfAbsent(thematique.getId(), cle -> new ArrayList<>());
-            // D-20 — au plus trois priorites par lot, et c'est la MEME borne que
-            // cote TCF : une seconde valeur ferait deux regles la ou il n'y en a
-            // qu'une.
-            if (unites.size() >= config.maxPrioritiesPerLot()) continue;
-            unites.add(unite);
-            thematiques.put(thematique.getId(), thematique);
-        }
+        // 🛑 LA SELECTION A UNE AUTORITE (D-67) : `JourneyCycleSuivant`, la
+        // meme qui sert le nombre annonce sous « Actualiser mon plan ».
+        List<JourneyCycleSuivant.ThematiqueRetenue> retenues = cycleSuivant.unitesRetenues(ordre);
+        if (retenues.isEmpty()) return;
 
         // 🛑 R11 — LU AVANT LA PREMIERE ECRITURE : les examens deja ouverts du
         // cycle disent quels blocs portent deja leur point d'etape. Les relire
@@ -599,10 +573,13 @@ public class JourneyService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        parThematique.forEach((themeId, unites) -> {
-            Theme thematique = thematiques.get(themeId);
+        for (JourneyCycleSuivant.ThematiqueRetenue retenue : retenues) {
+            Theme thematique = retenue.thematique();
+            List<CivicOfficialUnit> unites = retenue.unites();
             // R11 : ce bloc a deja un lot ouvert ⇒ on ne le remplace pas.
-            if (lotManager.findOuvertParTheme(journey.getId(), themeId).isPresent()) return;
+            if (lotManager.findOuvertParTheme(journey.getId(), thematique.getId()).isPresent()) {
+                continue;
+            }
             JourneyLot lot = new JourneyLot();
             lot.setJourney(journey);
             lot.poserBloc(thematique);
@@ -635,7 +612,7 @@ public class JourneyService {
             // satisfaite : le bloc a bien un examen ouvert, et
             // `cloreLExamenDuBlocCivique` clot les examens du BLOC, pas ceux du
             // lot.
-            if (blocsAvecExamenOuvert.contains(thematique.getCode())) return;
+            if (blocsAvecExamenOuvert.contains(thematique.getCode())) continue;
             JourneyStep checkpoint = new JourneyStep();
             checkpoint.setJourney(journey);
             checkpoint.setLot(enregistre);
@@ -644,7 +621,7 @@ public class JourneyService {
             checkpoint.poserBloc(thematique);
             checkpoint.setSourceAssessmentId(ordre.sourceAssessmentId());
             ajouter(journey, checkpoint);
-        });
+        }
     }
 
     /**

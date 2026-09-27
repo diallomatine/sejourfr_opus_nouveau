@@ -250,15 +250,18 @@ enum JourneyBlocStatus {
   }
 }
 
-/// **Ce qui clôt un cycle.** Miroir de `JourneyFinDeCycle` (2026-09-27).
+/// **Le geste qui a clos un cycle historisé** (V077, V078). Miroir de
+/// `JourneyFinDeCycle`. ⚠️ Depuis D-66 (2026-09-27) ce n'est plus l'issue
+/// annoncée d'un cycle en cours : la fin de cycle ne propose que l'actualisation.
 enum JourneyFinDeCycle {
-  /// Le cycle se clôt par l'examen blanc complet (l'actualisation reste offerte
-  /// en second).
+  /// Cycle terminé clos en passant à l'examen blanc complet.
   examenComplet('EXAMEN_COMPLET'),
 
-  /// Le cycle se clôt par l'actualisation seule : cycle de mesure ou cycle
-  /// d'affinage (D-64).
-  actualisation('ACTUALISATION');
+  /// Clos par « Actualiser mon plan ».
+  actualisation('ACTUALISATION'),
+
+  /// Mis de côté par le jalon « Faire un examen blanc complet » (D-68).
+  interrompu('INTERROMPU');
 
   const JourneyFinDeCycle(this.wire);
 
@@ -572,7 +575,7 @@ class JourneyCycle {
     required this.complete,
     required this.cycleDeMesure,
     required this.cycleDAffinage,
-    this.finDeCycle,
+    this.prioritesCycleSuivant,
   });
 
   /// Le rang de ce cycle : nombre de cycles historisés + 1. Le premier vaut 1.
@@ -587,10 +590,12 @@ class JourneyCycle {
   final int etapesTotal;
 
   /// Plus **aucune** étape **obligatoire** ouverte (hors affinage : plus aucune
-  /// étape ouverte du tout). C'est ce qui ouvre « Prochaine étape ».
+  /// étape ouverte du tout). C'est ce qui ouvre la fin de cycle — « Actualiser
+  /// mon plan », sa seule issue depuis D-66.
   final bool complete;
 
-  /// Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls.
+  /// Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls — le
+  /// cycle d'examens ouvert par le jalon « Faire un examen blanc complet ».
   final bool cycleDeMesure;
 
   /// **Premier cycle, issu du diagnostic rapide** (2026-09-27, D-64) : il sert
@@ -600,12 +605,11 @@ class JourneyCycle {
   /// le verrou arrive déjà servi sur chaque étape (`lockReason`).
   final bool cycleDAffinage;
 
-  /// **Ce qui clôt ce cycle**, servi dès son début (2026-09-27) : la dernière
-  /// étape de la timeline du Plan l'annonce avant qu'elle soit atteinte.
-  /// 🛑 Autorité serveur (`JourneyFinDeCycle.de`), la même que
-  /// `nextStep.examenCompletPossible` — jamais recombinée ici depuis
-  /// [cycleDAffinage] / [cycleDeMesure]. `null` (backend antérieur) = inconnu.
-  final JourneyFinDeCycle? finDeCycle;
+  /// **Combien de priorités le cycle SUIVANT portera**, déjà identifiées
+  /// (2026-09-27, D-67) : « N priorités identifiées » sous « Actualiser mon
+  /// plan ». 🛑 Servi (`JourneyCycleSuivant`) : le nombre **retenu**, jamais
+  /// recompté ici. `null` en consultation d'un cycle clos, ou backend antérieur.
+  final int? prioritesCycleSuivant;
 
   factory JourneyCycle.fromJson(Map<String, dynamic> json) => JourneyCycle(
         numero: (json['numero'] as num?)?.toInt() ?? 1,
@@ -614,8 +618,7 @@ class JourneyCycle {
         complete: json['complete'] as bool? ?? false,
         cycleDeMesure: json['cycleDeMesure'] as bool? ?? false,
         cycleDAffinage: json['cycleDAffinage'] as bool? ?? false,
-        finDeCycle:
-            JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
+        prioritesCycleSuivant: (json['prioritesCycleSuivant'] as num?)?.toInt(),
       );
 }
 
@@ -681,28 +684,64 @@ class JourneyBloc {
       );
 }
 
-/// **Les issues d'un cycle terminé** (spec §6) — la carte finale à deux actions.
+/// **L'issue d'un cycle terminé** — « Actualiser mon plan », la seule depuis
+/// D-66 (l'examen blanc complet est devenu un jalon, [Journey.examenComplet]).
 ///
 /// 🛑 `null` tant que le cycle n'est pas terminé.
 class JourneyNextStep {
-  const JourneyNextStep({
-    required this.examenCompletPossible,
-    required this.actualisationPossible,
-  });
-
-  /// « Passer l'examen blanc complet » crée un **cycle de mesure**.
-  /// 🛑 Faux à la fin d'un cycle de mesure. ⚠️ Cette action **crée le cycle**,
-  /// elle ne démarre aucun examen.
-  final bool examenCompletPossible;
+  const JourneyNextStep({required this.actualisationPossible});
 
   /// « Actualiser mon plan » : le cycle en attente devient le cycle courant.
   final bool actualisationPossible;
 
   factory JourneyNextStep.fromJson(Map<String, dynamic> json) =>
       JourneyNextStep(
-        examenCompletPossible: json['examenCompletPossible'] as bool? ?? false,
         actualisationPossible: json['actualisationPossible'] as bool? ?? false,
       );
+}
+
+/// Pourquoi le jalon d'examen complet est proposé. Miroir de
+/// `JourneyJalonRaison`.
+enum JourneyJalonRaison {
+  cyclesDeTravail('CYCLES_DE_TRAVAIL'),
+  objectifAtteint('OBJECTIF_ATTEINT');
+
+  const JourneyJalonRaison(this.wire);
+
+  final String wire;
+
+  static JourneyJalonRaison? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final raison in JourneyJalonRaison.values) {
+      if (raison.wire == value) return raison;
+    }
+    return null;
+  }
+}
+
+/// **Le jalon « Faire un examen blanc complet »** (2026-09-27, D-68) — proposé
+/// au-dessus du Plan, sous « À faire maintenant ». Miroir de
+/// `JourneyExamenCompletDto`. 🛑 Sa **présence** est la proposition : aucun
+/// front ne recombine la condition.
+class JourneyExamenComplet {
+  const JourneyExamenComplet({required this.raison, required this.cyclesDeTravail});
+
+  final JourneyJalonRaison raison;
+
+  /// Cycles de travail terminés depuis le dernier examen blanc complet.
+  final int cyclesDeTravail;
+
+  /// `null` quand le serveur ne le sert pas, ou sert une raison inconnue.
+  static JourneyExamenComplet? fromJsonNullable(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    final raison =
+        JourneyJalonRaison.fromWireNullable(json['raison'] as String?);
+    if (raison == null) return null;
+    return JourneyExamenComplet(
+      raison: raison,
+      cyclesDeTravail: (json['cyclesDeTravail'] as num?)?.toInt() ?? 0,
+    );
+  }
 }
 
 /// **L'unité travaillable d'une étape, servie.**
@@ -789,6 +828,7 @@ class Journey {
     this.suggestion,
     this.cycle,
     this.nextStep,
+    this.examenComplet,
     this.journeyId,
   });
 
@@ -821,6 +861,10 @@ class Journey {
   /// 🛑 `null` sauf cycle terminé.
   final JourneyNextStep? nextStep;
 
+  /// **Le jalon « Faire un examen blanc complet »** (D-68). `null` = non
+  /// proposé, le cas courant.
+  final JourneyExamenComplet? examenComplet;
+
   /// `null` est le cas courant.
   final JourneySuggestionType? suggestion;
 
@@ -841,6 +885,7 @@ class Journey {
         nextStep: json['nextStep'] == null
             ? null
             : JourneyNextStep.fromJson(json['nextStep'] as Map<String, dynamic>),
+        examenComplet: JourneyExamenComplet.fromJsonNullable(json['examenComplet']),
         suggestion:
             JourneySuggestionType.fromWireNullable(json['suggestion'] as String?),
       );
@@ -932,11 +977,16 @@ class JourneyHistoryCycle {
     required this.competences,
     required this.examens,
     required this.blocs,
+    this.finDeCycle,
     this.entryLevel,
     this.exitLevel,
     this.entryScore,
     this.exitScore,
   });
+
+  /// **Le geste qui l'a clos** (V077/V078) — « Interrompu » sur la ligne quand
+  /// il vaut [JourneyFinDeCycle.interrompu]. `null` = inconnu.
+  final JourneyFinDeCycle? finDeCycle;
 
   /// L'identifiant du cycle — celui que la page de consultation demande
   /// (`GET /api/me/plan/journey/history/{journeyId}`).
@@ -980,6 +1030,8 @@ class JourneyHistoryCycle {
         numero: (json['numero'] as num?)?.toInt() ?? 1,
         debut: DateTime.parse(json['debut'] as String),
         fin: DateTime.parse(json['fin'] as String),
+        finDeCycle:
+            JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
         competences: (json['competences'] as num?)?.toInt() ?? 0,
         examens: (json['examens'] as num?)?.toInt() ?? 0,
         entryLevel:
@@ -1044,8 +1096,8 @@ class JourneyCycleArchive {
   /// La date d'historisation.
   final DateTime fin;
 
-  /// **Le geste qui l'a clos** (V077). `null` = inconnu (cycle clos avant) —
-  /// distinct de `cycle.finDeCycle`, l'issue qu'il **annonçait**.
+  /// **Le geste qui l'a clos** (V077, V078). `null` = inconnu (cycle clos
+  /// avant). [JourneyFinDeCycle.interrompu] = mis de côté par le jalon.
   final JourneyFinDeCycle? finDeCycle;
 
   final JourneyObjectifRef? objectif;

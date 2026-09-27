@@ -17,7 +17,6 @@ import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyBlocKind;
-import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
@@ -158,6 +157,12 @@ public class JourneyReadService {
     // 🛑 L'AUTORITE UNIQUE DU CYCLE D'AFFINAGE (2026-09-27, D-64) : la meme que
     // celle que l'ecriture (JourneyService) et l'actualisation lisent.
     private final JourneyCycleAffinage cycleAffinage;
+    // 🛑 L'AUTORITE UNIQUE DU JALON D'EXAMEN COMPLET (D-68) : la meme que le
+    // refus 409 de `measurement-cycle`.
+    private final JourneyJalonExamenComplet jalonExamenComplet;
+    // 🛑 L'AUTORITE UNIQUE DE LA COMPOSITION DU CYCLE SUIVANT (D-67) : la meme
+    // que l'amorce civique.
+    private final JourneyCycleSuivant cycleSuivant;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, JourneyLockReason lockReason,
@@ -176,7 +181,7 @@ public class JourneyReadService {
      */
     public JourneyDto sansObjectif() {
         return new JourneyDto(null, JourneyState.NEEDS_OBJECTIVE, null, null,
-                null, List.of(), null, null);
+                null, List.of(), null, null, null);
     }
 
     /**
@@ -288,7 +293,8 @@ public class JourneyReadService {
                 affichables, courante,
                 step -> dto(etats.get(step.getId()), exercices),
                 jamaisMesure(userId, journey.getModule()),
-                affinage);
+                affinage,
+                cycleSuivant.prioritesIdentifiees(journey));
 
         // 🛑 L'ETAT SE LIT SUR L'EXECUTABLE, JAMAIS SUR LA CARTE (D-18, D-60) :
         // servir une etape verrouillee dans `current` ne rend rien executable.
@@ -304,6 +310,7 @@ public class JourneyReadService {
                 vue.cycle(),
                 vue.blocs(),
                 nextStep(vue.cycle()),
+                jalonExamenComplet.pour(journey, toutesLesEtapes, affinage),
                 journey.getId());
     }
 
@@ -516,34 +523,17 @@ public class JourneyReadService {
     }
 
     /**
-     * Les issues de fin de cycle (spec §6). {@code null} tant que le cycle n'est
-     * pas termine : ces deux gestes historisent le cycle en cours.
+     * <b>L'issue de fin de cycle</b> — l'actualisation, et elle seule depuis
+     * D-66 (2026-09-27). {@code null} tant que le cycle n'est pas termine : ce
+     * geste historise le cycle et promeut le suivant.
      *
-     * <p>🛑 <b>A la fin d'un cycle de mesure, l'actualisation est la SEULE
-     * issue</b> : enchainer un second examen blanc complet n'a aucun sens
-     * pedagogique, et le proposer ferait tourner le candidat en rond entre deux
-     * mesures sans travail entre elles.
+     * <p>🛑 <b>L'examen blanc complet n'est plus une issue de fin de cycle</b> :
+     * c'est un jalon propose au-dessus du Plan ({@code JourneyDto.examenComplet},
+     * {@link JourneyJalonExamenComplet}), et le deblocage anticipe a 80 % qui
+     * l'accompagnait a disparu avec lui.
      */
-    private JourneyNextStepDto nextStep(JourneyCycleDto cycle) {
-        // 🛑 L'EXAMEN DE FIN DE CYCLE S'OUVRE AVANT LA FIN DU CYCLE (2026-09-20).
-        // La part exigee vit en configuration versionnee (0,80 en v3) parce que
-        // le proprietaire a annonce la regle comme NON FIGEE. v1 et v2 ne la
-        // portent pas : elles disent « le cycle entier », l'ancienne regle.
-        // 🛑 CYCLE D'AFFINAGE (D-64) : il vient de MESURER les epreuves une a
-        // une. Enchainer un examen blanc complet ne mesurerait rien de nouveau
-        // — exactement l'argument du cycle de mesure. Sa seule issue est
-        // l'actualisation, offerte des que ses examens sont passes.
-        boolean examen = !cycle.cycleDAffinage() && config.examenDeFinDeCycleOuvert(
-                cycle.etapesTerminees(), cycle.etapesTotal(), cycle.complete());
-        if (!examen && !cycle.complete()) return null;
-        // 🛑 SEUL L'EXAMEN SE DEBLOQUE TOT. « Actualiser mon plan » historise le
-        // cycle et promeut le suivant : l'offrir a 80 % jetterait du travail que
-        // le candidat n'a pas fait et n'a pas demande a abandonner.
-        // 🛑 LA FIN SERVIE EST L'AUTORITE (`JourneyFinDeCycle`) : la timeline
-        // l'annonce avant la fin, et ce bouton ne peut pas dire autre chose.
-        return new JourneyNextStepDto(
-                examen && cycle.finDeCycle() == JourneyFinDeCycle.EXAMEN_COMPLET,
-                cycle.complete());
+    private static JourneyNextStepDto nextStep(JourneyCycleDto cycle) {
+        return cycle.complete() ? new JourneyNextStepDto(true) : null;
     }
 
     // ------------------------------------------------------------ §5 bis : verrou

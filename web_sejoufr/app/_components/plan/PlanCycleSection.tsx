@@ -2,8 +2,7 @@
 
 import {useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
-import {attemptApi, fullTcfExamApi, journeyApi} from "@/lib/api";
-import {handleStartFailure} from "@/lib/start-failure";
+import {journeyApi} from "@/lib/api";
 import {planHref, type ParcoursModule} from "@/lib/module-switch";
 import {planSkillTargetLevelDeCode, planStepAction, planStepActionLocked} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
@@ -14,15 +13,11 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
     JOURNEY_NEXT_STEP_BUSY,
     JOURNEY_NEXT_STEP_ERROR,
-    JOURNEY_NEXT_STEP_EXAM_CTA,
     JOURNEY_NEXT_STEP_EYEBROW,
-    JOURNEY_NEXT_STEP_FACTS,
     JOURNEY_NEXT_STEP_HEADLINE,
-    JOURNEY_NEXT_STEP_NOTE,
     JOURNEY_NEXT_STEP_REFRESH_CTA,
-    JOURNEY_NEXT_STEP_REFRESH_ONLY_CTA,
     JOURNEY_NEXT_STEP_TEXT,
-    JOURNEY_NEXT_STEP_TEXT_MESURE,
+    journeyNextStepFacts,
     JOURNEY_STEP_ACTION_LINK,
     JOURNEY_STEP_UNLOCK_LINK,
     JOURNEY_SUGGESTION_MOCK_EXAM,
@@ -45,8 +40,9 @@ import {
     journeyExamDone,
     journeyExamNote,
     JOURNEY_RAIL_END_EYEBROW,
+    JOURNEY_RAIL_END_TITLE,
+    journeyPrioritesIdentifiees,
     journeyRailEndRemaining,
-    journeyRailEndTitle,
     journeyKind,
     journeyKitState,
     journeyCycleStepSubtitle,
@@ -57,6 +53,7 @@ import {
 } from "@/lib/journey";
 import type {
     JourneyBlocDto,
+    JourneyCycleDto,
     JourneyDto,
     JourneyStepDto,
     LearningPlanDto,
@@ -98,8 +95,9 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  *    **lignes d'étape** (`JourneyRow`) puis l'**encart d'examen**
  *    (`ExamStepAction`) ;
  * 4. la **note** de liberté d'ordre (`InfoNote`) ;
- * 5. sur un cycle terminé, la dernière étape **devient** la **carte à deux
- *    actions** (`NextStepCard`) — elle n'est plus un intertitre séparé.
+ * 5. sur un cycle terminé, la dernière étape **devient** la **carte de fin de
+ *    cycle** (`NextStepCard`) — « Actualiser mon plan », sa seule issue depuis
+ *    D-66 (2026-09-27).
  *
  * 🛑 **Rien n'est décidé ici.** L'ordre des blocs, leur état, le nombre de
  * compétences restantes, le verrou de chaque étape et « le cycle est-il
@@ -408,28 +406,21 @@ function CycleBody({journey, plan, module}: {
                                 </CycleRailStep>
                             ))}
 
-                            {/* 🛑 **La dernière étape annonce la fin SERVIE**
-                                (`cycle.finDeCycle`) et le compteur servi lu à
-                                l'envers. Atteinte — la condition d'avant, mot
-                                pour mot : cycle terminé ET issues servies —,
-                                elle devient la carte de fin de cycle. */}
+                            {/* 🛑 **La dernière étape : « Actualiser mon plan »**,
+                                la seule fin de cycle depuis D-66, avec le nombre
+                                SERVI de priorités du cycle suivant
+                                (`prioritesCycleSuivant`, D-67) et le compteur
+                                servi lu à l'envers. Atteinte — cycle terminé ET
+                                issue servie —, elle devient la carte de fin. */}
                             <CycleRailEnd
                                 eyebrow={JOURNEY_RAIL_END_EYEBROW}
-                                title={journeyRailEndTitle(cycle.finDeCycle ?? null)}
+                                title={JOURNEY_RAIL_END_TITLE}
+                                note={journeyPrioritesIdentifiees(cycle)}
                                 remaining={journeyRailEndRemaining(cycle)}
                                 reached={termine && journey.nextStep !== null}
                             >
                                 {termine && journey.nextStep && (
-                                    /* 🛑 **`examenCompletPossible` est SERVI** :
-                                       il dit déjà « ce cycle est un cycle de
-                                       mesure », et le redéduire de
-                                       `cycle.cycleDeMesure` ferait deux
-                                       autorités pour un fait. */
-                                    <NextStep
-                                        examenCompletPossible={journey.nextStep.examenCompletPossible}
-                                        module={module}
-                                        journeyId={journey.journeyId}
-                                    />
+                                    <NextStep cycle={cycle} module={module} />
                                 )}
                             </CycleRailEnd>
                         </CycleRail>
@@ -591,40 +582,27 @@ function ExamStep({exam, lancable, actionDe, gesteDe}: {
 }
 
 /**
- * **La fin de cycle** (spec §6) : « Prochaine étape », puis un vrai choix.
+ * **La fin de cycle** — « Actualiser mon plan », et rien d'autre (D-66,
+ * 2026-09-27). Le choix « Passer l'examen blanc complet / Actualiser sans
+ * examen complet » est supprimé : l'examen complet est devenu un **jalon**
+ * proposé au-dessus du Plan (`ExamenCompletJalon`).
  *
- * - « Passer l'examen blanc complet » appelle `POST …/measurement-cycle` **puis**
- *   lance l'examen complet par le chemin existant (`fullTcfExamApi.start`) — le
- *   geste crée le cycle de mesure, il ne démarre rien par lui-même côté serveur.
- *   🛑 **Il n'apparaît que si `examenCompletPossible`** : à la fin d'un cycle de
- *   mesure, enchaîner un second examen complet ne mesurerait rien de nouveau.
- * - « Actualiser mon plan sans examen complet » appelle `POST …/refresh`.
- *
- * 🛑 **Les deux purgent le cache du parcours et du Plan** (`journeyApi` le fait
- * déjà, à la source) puis **repeignent** — l'écran recharge ses deux lectures
- * ensemble, jamais l'une sans l'autre.
+ * 🛑 **`journeyApi.refresh` purge, range le nouveau cycle et fait relire
+ * l'écran** : rien d'autre à faire ici.
  *
  * 🛑 **Un échec réseau se DIT** : le bouton ne reste jamais muet.
  */
-function NextStep({examenCompletPossible, module, journeyId}: {
-    examenCompletPossible: boolean;
+function NextStep({cycle, module}: {
+    cycle: JourneyCycleDto;
     module: ParcoursModule;
-    journeyId: string | null;
 }) {
-    const router = useRouter();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [paywallOpen, setPaywallOpen] = useState(false);
 
     const actualiser = useCallback(async () => {
         setError(null);
         setBusy(true);
         try {
-            /* 🛑 **`journeyApi.refresh` fait TOUT** : purge (Plan, parcours,
-               Accueil, historique), range le nouveau cycle et fait relire
-               l'écran où l'on est (`signalerPlanARelire`). `router.refresh()`
-               / `router.replace()` ne remontaient rien : l'ancien cycle
-               restait affiché jusqu'au rechargement de la page. */
             await journeyApi.refresh(module);
         } catch {
             setError(JOURNEY_NEXT_STEP_ERROR);
@@ -633,106 +611,26 @@ function NextStep({examenCompletPossible, module, journeyId}: {
         }
     }, [module]);
 
-    const examenComplet = useCallback(async () => {
-        setError(null);
-        setBusy(true);
-        try {
-            await journeyApi.measurementCycle(module);
-            /* 🛑 Le geste CRÉE le cycle de mesure, puis lance l'examen complet
-               par le chemin existant de SON module — il ne démarre rien par
-               lui-même côté serveur. */
-            if (module === "CIVIQUE") {
-                const exam = await attemptApi.start({
-                    type: "MOCK_EXAM", module: "CIVIQUE",
-                });
-                router.push(`/examen-blanc?attempt=${exam.id}`);
-            } else {
-                const exam = await fullTcfExamApi.start();
-                router.push(`/examens-blancs/tcf/${exam.id}`);
-            }
-        } catch (cause) {
-            /* Un **403** au démarrage de l'examen n'est pas une panne : c'est le
-               verrou freemium que le serveur oppose, et il ouvre l'offre. Le
-               cycle de mesure, lui, est déjà créé — le candidat le retrouvera. */
-            handleStartFailure(cause, {
-                onPaywall: () => setPaywallOpen(true),
-                onMessage: setError,
-                fallbackMessage: JOURNEY_NEXT_STEP_ERROR,
-            });
-        } finally {
-            setBusy(false);
-        }
-    }, [module, router]);
-
     /* 🛑 **Plus d'intertitre « Prochaine étape »** (2026-09-27) : la carte est
        rendue DANS la dernière étape de la timeline, dont elle prend la place.
        Ni `Section` ni `Pad` — elle est déjà dans ceux du cycle. */
     return (
-        <>
-            <Stack>
-                <NextStepCard
-                    eyebrow={JOURNEY_NEXT_STEP_EYEBROW}
-                    title={JOURNEY_NEXT_STEP_HEADLINE}
-                    text={
-                        examenCompletPossible
-                            ? JOURNEY_NEXT_STEP_TEXT
-                            : JOURNEY_NEXT_STEP_TEXT_MESURE
-                    }
-                    /* 🛑 Les repères décrivent l'examen complet : sans lui,
-                       ils n'ont rien à dire. */
-                    facts={examenCompletPossible ? JOURNEY_NEXT_STEP_FACTS : []}
-                    /* Une carte à deux actions dont la première n'existe
-                       pas : l'actualisation prend la place principale, et
-                       c'est la seule issue d'un cycle de mesure clos. */
-                    primary={
-                        examenCompletPossible
-                            ? {
-                                label: busy
-                                    ? JOURNEY_NEXT_STEP_BUSY
-                                    : JOURNEY_NEXT_STEP_EXAM_CTA,
-                                onClick: () => void examenComplet(),
-                            }
-                            : {
-                                label: busy
-                                    ? JOURNEY_NEXT_STEP_BUSY
-                                    : JOURNEY_NEXT_STEP_REFRESH_ONLY_CTA,
-                                onClick: () => void actualiser(),
-                            }
-                    }
-                    /* 🛑 **Absente quand l'examen complet n'est pas
-                       proposé** : il ne reste qu'une issue, et fabriquer un
-                       second bouton pour tenir la forme ferait deux fois le
-                       même geste. */
-                    secondary={
-                        examenCompletPossible
-                            ? {
-                                label: JOURNEY_NEXT_STEP_REFRESH_CTA,
-                                onClick: () => void actualiser(),
-                            }
-                            : undefined
-                    }
-                />
-                {/* 🛑 La note ne se lit que face à un choix : sans examen
-                    complet à proposer, elle décrirait une option absente. */}
-                {examenCompletPossible && <InfoNote>{JOURNEY_NEXT_STEP_NOTE}</InfoNote>}
-                {error && (
-                    <p className={sejourStyles.tiny} role="alert">
-                        {error}
-                    </p>
-                )}
-            </Stack>
-            {/* 🛑 **Le pass suit le parcours** (A108) : le 403 d'un examen
-                civique s'ouvre avec le pass **Civique**, jamais l'Intégral. Il
-                était figé sur `INTEGRAL` — sans effet tant que la fin de cycle
-                n'existait qu'en TCF, faux dès qu'un cycle civique s'achève. */}
-            <PaywallSheet
-                ctaLocation="LOCKED_PLAN"
-                screen="plan"
-                module={module === "CIVIQUE" ? "CIVIQUE" : "INTEGRAL"}
-                journeyId={journeyId}
-                open={paywallOpen}
-                onClose={() => setPaywallOpen(false)}
+        <Stack>
+            <NextStepCard
+                eyebrow={JOURNEY_NEXT_STEP_EYEBROW}
+                title={JOURNEY_NEXT_STEP_HEADLINE}
+                text={JOURNEY_NEXT_STEP_TEXT}
+                facts={journeyNextStepFacts(cycle)}
+                primary={{
+                    label: busy ? JOURNEY_NEXT_STEP_BUSY : JOURNEY_NEXT_STEP_REFRESH_CTA,
+                    onClick: () => void actualiser(),
+                }}
             />
-        </>
+            {error && (
+                <p className={sejourStyles.tiny} role="alert">
+                    {error}
+                </p>
+            )}
+        </Stack>
     );
 }

@@ -266,18 +266,23 @@ Cf. `exams-tcf.md`.
   retrouver dans `domainesAEvaluer`**, qui ne liste que les épreuves **jamais mesurées** alors
   qu'un point d'étape porte toujours sur une épreuve déjà mesurée.
   **Le cycle borné (D-12)** se superpose à la même file : `cycle` (avancement, `numero`,
-  `complete`, `cycleDeMesure`, `cycleDAffinage`, `finDeCycle` — `EXAMEN_COMPLET` / `ACTUALISATION`, 2026-09-27), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
+  `complete`, `cycleDeMesure`, `cycleDAffinage`, `prioritesCycleSuivant` — 🆕 2026-09-27, D-67 :
+  le nombre **retenu** de priorités que le cycle suivant portera, `null` en consultation ;
+  ⚠️ `finDeCycle` est **supprimé** de ce DTO, D-66), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
   `CO, CE, EO, EE` (`TcfDomainProfileDto.ORDRE`, non configurable) avec leur `status` dérivé
   (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR` ; `INACHEVE` en consultation d'un cycle
   clos seulement), leurs `steps` et leur `exam` — et
-  `nextStep`, **`null` sauf cycle terminé**. `state` gagne `CYCLE_COMPLETED` (cycle terminé,
-  écran « Prochaine étape ») ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
+  `nextStep` (**`actualisationPossible` seul** depuis D-66 : `examenCompletPossible` est
+  supprimé), **`null` sauf cycle terminé**, et 🆕 **`examenComplet`** (D-68, 2026-09-27) : le
+  jalon « Faire un examen blanc complet » — `{raison: CYCLES_DE_TRAVAIL | OBJECTIF_ATTEINT,
+  cyclesDeTravail}`, **`null` quand il n'est pas proposé** (le cas courant ; jamais sur un cycle
+  d'examens). Autorité unique `JourneyJalonExamenComplet`. `state` gagne `CYCLE_COMPLETED`
+  (cycle terminé) ; `UP_TO_DATE` garde son sens (plus rien à faire du tout).
   🛑 **L'examen d'un bloc est `locked` tant qu'une compétence du même bloc reste ouverte**
   (D-15) — un bloc sans compétence a son examen ouvert immédiatement. ⚠️ **Sauf au cycle
   d'affinage** (`cycle.cycleDAffinage`, 2026-09-27, D-64 : premier cycle issu du diagnostic
   rapide) : aucun verrou `PROGRESSION`, compétences facultatives, `complete` dès que les
-  examens sont passés, `current` = premier examen exécutable, `nextStep.examenCompletPossible`
-  toujours `false`. ⚠️ `steps` et
+  examens sont passés, `current` = premier examen exécutable. ⚠️ `steps` et
   `hiddenUpcomingCount` sont **servis pour la transition et disparaîtront en P6**, dans la
   même passe que la bascule des fronts sur `blocs` : un nouveau lecteur se branche sur `blocs`,
   qui porte **toutes** les étapes non obsolètes, sans plafond d'affichage.
@@ -301,12 +306,13 @@ Cf. `exams-tcf.md`.
 - `GET /api/me/plan/journey/history[?module=TCF|CIVIQUE]` → `JourneyHistoryDto` — **« Mes
   cycles »** : `stats` (compétences travaillées et examens passés **cycle en cours compris**,
   cycles terminés) et `cycles` historisés du plus récent au plus ancien — `journeyId`
-  (2026-09-27), `numero`, `debut`, `fin`, compteurs, niveaux / scores d'entrée et de sortie
+  (2026-09-27), `numero`, `debut`, `fin`, `finDeCycle` (le geste qui l'a clos — 🆕 V078 :
+  `INTERROMPU` ⇒ « Interrompu »), compteurs, niveaux / scores d'entrée et de sortie
   lus tels quels, `blocs` (titres des unités travaillées). Le cycle en attente n'y paraît jamais.
 - `GET /api/me/plan/journey/history/{journeyId}` → `JourneyCycleArchiveDto` — **un cycle CLOS en
   consultation** (2026-09-27) : `journeyId`, `numero` (même règle que la liste et le Plan),
-  `debut`, `fin`, `finDeCycle` (**le geste qui l'a clos**, V077 : `ACTUALISATION` /
-  `EXAMEN_COMPLET`, `null` = inconnu pour un cycle clos avant), `objectif`, niveaux / scores
+  `debut`, `fin`, `finDeCycle` (**le geste qui l'a clos**, V077 / V078 : `ACTUALISATION` /
+  `EXAMEN_COMPLET` / `INTERROMPU`, `null` = inconnu pour un cycle clos avant), `objectif`, niveaux / scores
   d'entrée et de sortie, puis **les mêmes `cycle` et `blocs` que `JourneyDto`**, en lecture
   seule : 🛑 aucune étape `locked` (`lockReason`, `assessment`, `exercise`, `progress` nuls),
   une étape restée ouverte est `NON_FAITE`, un bloc incomplet `INACHEVE`, un bloc sans étape
@@ -328,21 +334,22 @@ Cf. `exams-tcf.md`.
   chez `TcfProfileService.levelProfile` ; `null` si rien n'a été mesuré, **jamais 0**), le cycle
   **en attente** devient le cycle courant (son `entry_level` = l'`exit_level` du précédent), et
   le prochain cycle en attente reste **paresseux**. Le geste est écrit sur le cycle clos
-  (`journey.fin_de_cycle = ACTUALISATION`, V077). 🛑 **Aucun paramètre** : le serveur sait
+  (`journey.fin_de_cycle = ACTUALISATION`, V077). 🛑 **Seule issue de fin de cycle depuis D-66.** 🛑 **Aucun paramètre** : le serveur sait
   quel est le cycle en cours du candidat. **409** si le cycle n'est pas terminé (au cycle
   d'affinage : tant qu'un examen reste à passer — ses compétences sont facultatives) — ce geste
   historise, il ne doit jamais jeter un plan en cours ; **422** sans démarche déclarée.
-- `POST /api/me/plan/journey/measurement-cycle` → `JourneyDto` — **« Passer l'examen blanc
-  complet »** (spec §6). Crée le **cycle de mesure** : quatre blocs, chacun ne portant que son
-  examen, tous débloqués. Le cycle clos porte `fin_de_cycle = EXAMEN_COMPLET` (V077). Le cycle en attente est **laissé tel quel**. 🛑 **Il ne démarre aucun
-  examen** : l'examen blanc complet reste lancé par `POST /api/full-tcf-exams`, son unique point
-  d'entrée. ⚠️ **Depuis le 2026-09-20 il s'ouvre à 80 % des étapes du cycle terminées**
-  (`finDeCycleExamenRatio`, configuration versionnée v3), et non plus au cycle entier — c'est
-  la **même autorité** que `nextStep.examenCompletPossible`. **409** en dessous de cette part,
-  **et** si le cycle courant est déjà un cycle de mesure — enchaîner deux examens complets sans
-  travail entre eux ne mesure rien de nouveau — **et** sur un cycle d'affinage (D-64). 🛑
-  « Actualiser mon plan » garde sa règle (le
-  cycle entier) : ce geste-là historise.
+- `POST /api/me/plan/journey/measurement-cycle[?module=TCF|CIVIQUE]` → `JourneyDto` — **le jalon
+  « Faire un examen blanc complet »** (D-68, 2026-09-27 ; chemin inchangé). Le cycle en cours est
+  **mis de côté** — historisé avec `fin_de_cycle = INTERROMPU` (V078) s'il restait des étapes
+  obligatoires ouvertes, `EXAMEN_COMPLET` s'il était déjà terminé — et un **cycle d'examens**
+  devient courant : un bloc par épreuve (TCF) ou par thématique (civique), chacun ne portant que
+  son examen, tous débloqués (les verrous d'**accès** restent servis en `lockReason = ACCESS`).
+  Le cycle en attente est **laissé tel quel** ; les priorités non terminées ne sont pas
+  reportées, les examens les recalculent. 🛑 **Il ne démarre aucun examen.** **409** quand le
+  jalon n'est pas proposé (`JourneyDto.examenComplet` nul) — la **même autorité**
+  (`JourneyJalonExamenComplet`) : moins de 3 cycles de travail depuis le dernier examen complet
+  et objectif non atteint partout par examen blanc, ou cycle déjà d'examens. ⚠️ **Révoque** le
+  déblocage à 80 % (`finDeCycleExamenRatio`, v3) et le 409 propre au cycle d'affinage.
 - `GET /api/me/plan` → `LearningPlanDto`. `state` vaut `NEEDS_DIAGNOSTIC`,
   `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`; une fois actif, le serveur fournit
   `currentPriority`, au plus deux `nextPriorities`, les compétences observées

@@ -20,7 +20,7 @@ import {
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {
-    JOURNEY_HISTORY_DONE_PILL,
+    journeyHistoryPill,
     JOURNEY_HISTORY_EMPTY_TITLE,
     JOURNEY_HISTORY_ERROR,
     JOURNEY_HISTORY_EYEBROW,
@@ -190,7 +190,7 @@ function PlanHistoryScoped() {
                                         mark={journeyHistoryCycleMark(cycle.numero)}
                                         title={journeyHistoryCycleTitle(cycle.numero)}
                                         meta={journeyHistoryCycleMeta(cycle, parcours)}
-                                        status={{label: JOURNEY_HISTORY_DONE_PILL, tone: "ok"}}
+                                        status={journeyHistoryPill(cycle.finDeCycle ?? null)}
                                     />
                                 ))}
                             </Stack>

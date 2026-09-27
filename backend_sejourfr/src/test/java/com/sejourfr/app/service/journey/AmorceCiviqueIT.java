@@ -1,5 +1,14 @@
 package com.sejourfr.app.service.journey;
 
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.AttemptMode;
+import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.JourneyJalonRaison;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
 import com.sejourfr.app.entity.Journey;
@@ -36,6 +45,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * <b>L'amorce d'un cycle civique</b> — spec §2, transposée sans écart.
@@ -73,6 +83,9 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     @Autowired private TcfJourneyConfig config;
     @Autowired private JourneySerieVerdict verdict;
     @Autowired private JourneyCycleService cycleService;
+    @Autowired private ThemeManager themeManager;
+    @Autowired private AttemptManager attemptManager;
+    @Autowired private QuestionManager questionManager;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -414,7 +427,8 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Le cycle de mesure civique : CINQ blocs, un examen chacun, tous debloques")
+    @DisplayName("D-68 — le jalon civique : les cinq examens de theme reussis le proposent, et "
+            + "le cycle d'examens porte CINQ blocs, un examen chacun, tous debloques")
     void leCycleDeMesureCiviqueACinqBlocs() {
         User user = candidatCivique();
         diagnosticTermine(user);
@@ -426,20 +440,115 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
                 UPDATE journey_step SET closed_at = now(), resolution = 'QUOTA_REACHED'
                 WHERE journey_id = ? AND closed_at IS NULL
                 """, cycle.getId());
+        assertThat(journeyService.lire(user.getId(), Module.CIVIQUE).examenComplet())
+                .as("aucun examen de theme : l'objectif n'est pas mesure")
+                .isNull();
+        cinqExamensDeThemeReussis(user);
+        assertThat(journeyService.lire(user.getId(), Module.CIVIQUE).examenComplet().raison())
+                .isEqualTo(JourneyJalonRaison.OBJECTIF_ATTEINT);
 
         cycleService.creerCycleDeMesure(user.getId(), Module.CIVIQUE);
 
+        // Le cycle etait termine : il est clos « examen complet », pas « interrompu ».
+        assertThat(jdbc.queryForObject("SELECT fin_de_cycle FROM journey WHERE id = ?",
+                String.class, cycle.getId())).isEqualTo("EXAMEN_COMPLET");
         Journey mesure = journeyService
                 .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
         List<Etape> etapes = etapes(mesure);
         assertThat(etapes).hasSize(5);
         assertThat(etapes).allSatisfy(etape -> {
             assertThat(etape.type()).isEqualTo("SECTION_EXAM");
-            // « Verifier mes progres », jamais « evaluer mon niveau » : un
-            // cycle de mesure ne s'ouvre qu'apres un cycle entier.
+            // « Verifier mes progres », jamais « evaluer mon niveau ».
             assertThat(etape.purpose()).isEqualTo("REASSESS");
             assertThat(etape.unite()).isNull();
         });
+    }
+
+    @Test
+    @DisplayName("D-68 — civique : le jalon clique sur un cycle inacheve le met de cote "
+            + "(« interrompu ») ; un examen de theme rate ne propose rien")
+    void leJalonCiviqueInterromptUnCycleInacheve() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        List<Theme> thematiques = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        for (int i = 0; i < thematiques.size(); i++) {
+            // Le dernier theme est RATE (15/20) : l'objectif n'est pas atteint.
+            examenDeTheme(user, thematiques.get(i), i == thematiques.size() - 1 ? 15 : 18);
+        }
+        assertThat(journeyService.lire(user.getId(), Module.CIVIQUE).examenComplet()).isNull();
+        assertThatThrownBy(() -> cycleService.creerCycleDeMesure(user.getId(), Module.CIVIQUE))
+                .isInstanceOf(IllegalStateException.class);
+
+        // Un nouvel examen, reussi, sur ce theme : le DERNIER fait foi.
+        examenDeTheme(user, thematiques.get(thematiques.size() - 1), 17);
+        assertThat(journeyService.lire(user.getId(), Module.CIVIQUE).examenComplet()).isNotNull();
+
+        cycleService.creerCycleDeMesure(user.getId(), Module.CIVIQUE);
+
+        assertThat(statut(cycle.getId())).isEqualTo("HISTORISE");
+        assertThat(jdbc.queryForObject("SELECT fin_de_cycle FROM journey WHERE id = ?",
+                String.class, cycle.getId())).isEqualTo("INTERROMPU");
+    }
+
+    @Test
+    @DisplayName("D-67 — civique : le nombre de priorites annonce est ce que l'actualisation "
+            + "pose, au plus trois unites par thematique")
+    void lesPrioritesCiviquesAnnonceesSontCellesDuCycleSuivant() {
+        User user = candidatCivique();
+        diagnosticTermine(user);
+        Journey cycle = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        jdbc.update("""
+                UPDATE journey_step SET closed_at = now(), resolution = 'QUOTA_REACHED'
+                WHERE journey_id = ? AND closed_at IS NULL
+                """, cycle.getId());
+
+        Integer annonce = journeyService.lire(user.getId(), Module.CIVIQUE)
+                .cycle().prioritesCycleSuivant();
+        cycleService.actualiser(user.getId(), Module.CIVIQUE);
+
+        Journey suivant = journeyService
+                .getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        List<Etape> unites = etapes(suivant).stream()
+                .filter(etape -> "TRAIN_SKILL".equals(etape.type()))
+                .toList();
+        assertThat(annonce).isPositive();
+        assertThat(unites).hasSize(annonce);
+        assertThat(jdbc.queryForList("""
+                SELECT count(*) FROM journey_step
+                WHERE journey_id = ? AND type = 'TRAIN_SKILL'
+                GROUP BY theme_id
+                """, Integer.class, suivant.getId()))
+                .allSatisfy(parTheme -> assertThat(parTheme).isLessThanOrEqualTo(
+                        config.maxPrioritiesPerLot()));
+    }
+
+    /** Un examen de theme civique TERMINE, sur 20, avec son score. */
+    private void examenDeTheme(User user, Theme thematique, int score) {
+        Attempt examen = data.attempt(user);
+        examen.setType(AttemptType.MOCK_EXAM);
+        examen.setMode(AttemptMode.EXAMEN);
+        examen.setStatus(AttemptStatus.TERMINE);
+        examen.setLotThemeId(thematique.getId());
+        examen.setTotalQuestions(20);
+        examen.setPassThreshold(16);
+        examen.setScore(score);
+        examen.setFinishedAt(Instant.now());
+        examen = attemptManager.save(examen);
+        // Un examen « reellement passe » porte au moins une reponse.
+        UUID question = jdbc.queryForObject(
+                "SELECT id FROM questions WHERE theme_id = ? LIMIT 1", UUID.class,
+                thematique.getId());
+        data.answer(data.attemptQuestion(examen, questionManager.findById(question).orElseThrow()),
+                true);
+    }
+
+    private void cinqExamensDeThemeReussis(User user) {
+        for (Theme thematique : themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE)) {
+            examenDeTheme(user, thematique, 18);
+        }
     }
 
     private String statut(UUID journeyId) {

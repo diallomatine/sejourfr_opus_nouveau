@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TcfJourneyConfigLoaderTest {
 
     /** La version reellement servie en production, defaut de {@code application.yaml}. */
-    private static final int VERSION_LIVREE = 3;
+    private static final int VERSION_LIVREE = 4;
 
     @Test
     @DisplayName("La version livree se charge et porte toutes ses valeurs")
@@ -32,10 +32,12 @@ class TcfJourneyConfigLoaderTest {
         assertThat(config.journeyConfigVersion()).isEqualTo(VERSION_LIVREE);
         assertThat(config.maxPrioritiesPerLot()).isPositive();
         assertThat(config.trainSeriesQuota()).isPositive();
-        // 🛑 v3 n'a PLUS d'echappatoire : la cle est absente, et son absence est
+        // 🛑 v4 n'a PLUS d'echappatoire : la cle est absente, et son absence est
         // une regle, pas un oubli.
         assertThat(config.trainSeriesFallbackQuota()).isNull();
-        assertThat(config.finDeCycleExamenRatio()).isEqualTo(0.80);
+        // 🛑 D-66 : plus de deblocage anticipe de fin de cycle.
+        assertThat(config.finDeCycleExamenRatio()).isNull();
+        assertThat(config.examenCompletJalonCycles()).isPositive();
         assertThat(config.lotSelectionStrategy())
                 .isEqualTo(JourneyLotSelectionStrategy.TOP_SEVERITY);
         assertThat(config.display().recentCompletedVisible()).isNotNegative();
@@ -57,19 +59,22 @@ class TcfJourneyConfigLoaderTest {
 
     /**
      * Les valeurs que le proprietaire a tranchees : <b>3</b> priorites par
-     * epreuve (R2), <b>2</b> series reussies pour clore une etape, <b>aucune</b>
-     * echappatoire, et l'examen de fin de cycle a <b>80 %</b>. Les verrouiller
-     * ici evite qu'un reglage d'affichage les deplace par ricochet.
+     * epreuve (R2, et budget du cycle suivant depuis D-67), <b>2</b> series
+     * reussies pour clore une etape, <b>aucune</b> echappatoire, <b>aucun</b>
+     * examen de fin de cycle (D-66) et le jalon d'examen complet apres
+     * <b>3</b> cycles de travail (D-68). Les verrouiller ici evite qu'un reglage
+     * d'affichage les deplace par ricochet.
      */
     @Test
-    @DisplayName("Les valeurs arbitrees de v3 : 3 / 2 / aucun filet / 80 %")
+    @DisplayName("Les valeurs arbitrees de v4 : 3 / 2 / aucun filet / pas de fin a 80 % / jalon a 3")
     void lesValeursArbitreesSontCellesDesArbitrages() {
         TcfJourneyConfig config = TcfJourneyConfigLoader.load(VERSION_LIVREE);
 
         assertThat(config.maxPrioritiesPerLot()).isEqualTo(3);
         assertThat(config.trainSeriesQuota()).isEqualTo(2);
         assertThat(config.trainSeriesFallbackQuota()).isNull();
-        assertThat(config.finDeCycleExamenRatio()).isEqualTo(0.80);
+        assertThat(config.finDeCycleExamenRatio()).isNull();
+        assertThat(config.examenCompletJalonCycles()).isEqualTo(3);
     }
 
     /**
@@ -104,25 +109,27 @@ class TcfJourneyConfigLoaderTest {
     }
 
     /**
-     * L'examen qui <b>clot le cycle</b> s'ouvre a 80 % des etapes terminees
-     * (v3), et au cycle entier pour les versions qui ne portent pas la cle.
-     *
-     * <p>Un cycle <b>vide</b> n'ouvre rien par le ratio (0 sur 0 n'est pas 80 %)
-     * mais reste couvert par {@code complete}, qui est vrai pour lui.
+     * 🛑 <b>v3 reste chargeable a l'identique</b> — son ratio de fin de cycle
+     * est lu, il n'a simplement plus de lecteur (D-66) — et elle ne porte pas
+     * le jalon : son absence dit « aucun jalon au compte des cycles ».
      */
     @Test
-    @DisplayName("L'examen de fin de cycle : 80 % en v3, cycle entier avant")
-    void lExamenDeFinDeCycleSuitLaVersionChargee() {
+    @DisplayName("v3 se charge encore : ratio 80 % sans lecteur, aucun jalon au compte des cycles")
+    void v3ResteChargeableSansJalon() {
         TcfJourneyConfig v3 = TcfJourneyConfigLoader.load(3);
-        assertThat(v3.examenDeFinDeCycleOuvert(7, 10, false)).isFalse();
-        assertThat(v3.examenDeFinDeCycleOuvert(8, 10, false)).isTrue();
-        assertThat(v3.examenDeFinDeCycleOuvert(10, 10, true)).isTrue();
-        assertThat(v3.examenDeFinDeCycleOuvert(0, 0, true)).isTrue();
 
-        TcfJourneyConfig v2 = TcfJourneyConfigLoader.load(2);
-        assertThat(v2.finDeCycleExamenRatio()).isNull();
-        assertThat(v2.examenDeFinDeCycleOuvert(9, 10, false)).isFalse();
-        assertThat(v2.examenDeFinDeCycleOuvert(10, 10, true)).isTrue();
+        assertThat(v3.finDeCycleExamenRatio()).isEqualTo(0.80);
+        assertThat(v3.examenCompletJalonCycles()).isNull();
+        assertThat(v3.quotaDeSerieAtteint(0, 4)).isFalse();
+    }
+
+    /** Un jalon a zero cycle serait propose a chaque cycle : le demarrage echoue. */
+    @Test
+    @DisplayName("Un jalon d'examen complet a zero cycle fait echouer le demarrage")
+    void unJalonAZeroCycleFaitEchouerLeDemarrage() {
+        assertThatThrownBy(() -> TcfJourneyConfigLoader.load(903))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("examenCompletJalonCycles");
     }
 
     /**

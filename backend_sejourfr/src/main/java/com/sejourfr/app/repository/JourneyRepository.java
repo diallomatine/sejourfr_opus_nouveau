@@ -77,6 +77,37 @@ public interface JourneyRepository extends JpaRepository<Journey, UUID> {
     List<Journey> findRacontables(@Param("userId") UUID userId, @Param("module") Module module);
 
     /**
+     * <b>Les cycles HISTORISES du module, chacun avec son nombre d'etapes
+     * d'entrainement</b> (obsoletes exclues), par ordre de creation — ce que le
+     * jalon d'examen complet compte (D-68). <b>Une requete</b>, quel que soit
+     * l'anciennete du compte.
+     */
+    @Query("""
+            SELECT j.id AS id, j.finDeCycle AS finDeCycle,
+                   (SELECT COUNT(s) FROM JourneyStep s
+                    WHERE s.journey = j
+                      AND s.type = com.sejourfr.app.enums.JourneyStepType.TRAIN_SKILL
+                      AND (s.resolution IS NULL
+                           OR s.resolution <> com.sejourfr.app.enums.JourneyStepResolution.SUPERSEDED))
+                   AS competences
+            FROM Journey j
+            WHERE j.user.id = :userId
+              AND j.module = :module
+              AND j.status = com.sejourfr.app.enums.JourneyStatus.HISTORISE
+            ORDER BY j.createdAt ASC, j.id ASC
+            """)
+    List<CycleClos> findCyclesClos(@Param("userId") UUID userId, @Param("module") Module module);
+
+    /** Projection de {@link #findCyclesClos}. */
+    interface CycleClos {
+        UUID getId();
+
+        com.sejourfr.app.enums.JourneyFinDeCycle getFinDeCycle();
+
+        long getCompetences();
+    }
+
+    /**
      * Le parcours, <b>verrouille</b> pour ecriture (R14).
      *
      * <p>🛑 <b>Un verrou pessimiste, pas un optimiste.</b> Deux evaluations

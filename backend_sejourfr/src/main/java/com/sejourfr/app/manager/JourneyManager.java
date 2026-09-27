@@ -3,6 +3,7 @@ package com.sejourfr.app.manager;
 import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyAssessmentEvent;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.repository.JourneyAssessmentEventRepository;
@@ -71,6 +72,23 @@ public class JourneyManager {
     public List<Journey> racontables(UUID userId, Module module) {
         return repository.findRacontables(userId, module);
     }
+
+    /**
+     * Les cycles <b>historises</b> du module, par ordre de creation, chacun avec
+     * son nombre d'etapes d'entrainement non obsoletes. Une requete (D-68).
+     */
+    public List<CycleClos> cyclesClos(UUID userId, Module module) {
+        return repository.findCyclesClos(userId, module).stream()
+                .map(ligne -> new CycleClos(
+                        ligne.getId(), ligne.getFinDeCycle(), ligne.getCompetences()))
+                .toList();
+    }
+
+    /**
+     * Un cycle clos, vu par le jalon d'examen complet : son geste de cloture et
+     * son nombre d'etapes d'entrainement (obsoletes exclues).
+     */
+    public record CycleClos(UUID id, JourneyFinDeCycle finDeCycle, long competences) {}
 
     public Journey save(Journey journey) {
         return repository.save(journey);

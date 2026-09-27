@@ -45,6 +45,7 @@ import {
 } from "@/app/_components/sejour/SejourKit";
 import {PlanGate} from "./PlanGate";
 import {PlanCycleSection} from "./PlanCycleSection";
+import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
 import {PlanLinks} from "./PlanLinks";
 import {CIVIC_DIAGNOSTIC_HUB_HREF, civicDiagnosticHref} from "@/lib/civic-diagnostic";
@@ -250,6 +251,11 @@ function CiviquePlan({plan, journey, free}: {
           <p className={sejourStyles.tiny} role="alert">{erreur}</p>
         </Pad>
       )}
+
+      {/* 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
+          servi, jamais décidé ici. En civique, le cycle d'examens porte un
+          examen par thématique. */}
+      <ExamenCompletJalon journey={journey} module="CIVIQUE" />
 
       {/* Le cycle en blocs — la MÊME section que le TCF, module en paramètre.
           🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes

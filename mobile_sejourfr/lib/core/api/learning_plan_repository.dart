@@ -99,12 +99,13 @@ class LearningPlanRepository {
     return Journey.fromJson(response.data!);
   }
 
-  /// **Passer l'examen blanc complet** — crée le **cycle de mesure**.
+  /// **Faire un examen blanc complet** — le jalon (D-68) : le cycle en cours
+  /// est mis de côté (« interrompu ») et un **cycle d'examens** devient le cycle
+  /// courant, un bloc par épreuve ou thématique.
   ///
-  /// 🛑 **Il ne démarre aucun examen** : l'examen blanc complet reste lancé par
-  /// `FullTcfExamRepository.start` côté TCF et par `AttemptsRepository.start`
-  /// côté civique — leurs uniques points d'entrée. **409** si le cycle n'est pas
-  /// terminé, ou s'il est déjà un cycle de mesure.
+  /// 🛑 **Il ne démarre aucun examen** : chaque examen du cycle se lance depuis
+  /// son bloc. **409** quand le jalon n'est pas proposé
+  /// ([Journey.examenComplet] nul) — la même autorité serveur.
   Future<Journey> measurementCycle({AppModule module = AppModule.tcf}) async {
     final response = await _client.dio.post<Map<String, dynamic>>(
       '/api/me/plan/journey/measurement-cycle',

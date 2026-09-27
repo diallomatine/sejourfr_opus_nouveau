@@ -2122,17 +2122,15 @@ export function ExamStepAction({
 export type NextStepFact = { value: string; label: string };
 
 /**
- * **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`, et
- * 🛑 **la seule primitive du kit à DEUX actions**.
+ * **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`.
  *
- * C'est la raison de son existence : aucune brique n'a deux emplacements
- * d'action (`NowCard` en a un, `Sticky` en porte une, `Cta` est un bouton). Le
- * choix « passer l'examen complet » / « actualiser mon plan sans examen » est
- * un vrai choix, et le second terme ne doit pas se lire comme un renoncement —
- * d'où une action **discrète mais entière** sous le CTA, pas un lien de pied.
+ * ⚠️ **Une seule action depuis le 2026-09-27** (D-66) : « Actualiser mon plan ».
+ * Le second terme « Passer l'examen blanc complet » a quitté la fin de cycle —
+ * il est devenu un jalon au-dessus du Plan — et l'emplacement secondaire est
+ * supprimé avec lui (plus aucun appelant).
  *
  * 🛑 **Aucune phrase n'est écrite ici** : `eyebrow`, `title`, `text`, les
- * `facts` et les deux libellés d'action arrivent tous en props.
+ * `facts` et le libellé d'action arrivent tous en props.
  *
  * Miroir Flutter : `SfNextStepCard`.
  */
@@ -2142,21 +2140,13 @@ export function NextStepCard({
   text,
   facts,
   primary,
-  secondary,
 }: {
   eyebrow: string;
   title: string;
   text: string;
-  /** Les repères de l'examen (3 dans la maquette). Vide ⇒ aucune grille. */
+  /** Les repères de la carte. Vide ⇒ aucune grille. */
   facts: NextStepFact[];
   primary: { label: string; onClick: () => void };
-  /**
-   * 🛑 **Facultative, et c'est une vraie issue du produit** : à la fin d'un
-   * cycle de mesure, « passer l'examen blanc complet » n'a plus de sens — il ne
-   * reste qu'une action. Absente, la carte n'affiche **rien** à sa place : on
-   * ne fabrique pas un second terme pour tenir la forme.
-   */
-  secondary?: { label: string; onClick: () => void };
 }) {
   return (
     <section className={styles.nextStep}>
@@ -2177,11 +2167,6 @@ export function NextStepCard({
         {/* Le CTA rouge est celui du kit : une seule définition de bouton
             principal, ici comme partout. */}
         <Cta onClick={primary.onClick}>{primary.label}</Cta>
-        {secondary ? (
-          <button type="button" className={styles.nextSecondary} onClick={secondary.onClick}>
-            {secondary.label}
-          </button>
-        ) : null}
       </div>
     </section>
   );
@@ -2283,7 +2268,8 @@ export function CycleRailEnd({
   reached: boolean;
   /** La fin a été franchie : l'encart est plein, et lu tel quel. */
   done?: boolean;
-  /** La ligne sous le titre d'une fin franchie (sa date), **servie**. */
+  /** La ligne sous le titre, **servie** : la date d'une fin franchie, ou
+   *  « 3 priorités identifiées » sur une fin à venir (D-67, 2026-09-27). */
   note?: string;
   /** L'action de fin de cycle, rendue **à la place** de l'encart une fois atteinte. */
   children?: ReactNode;
@@ -2386,7 +2372,7 @@ export function StatGrid({
  * 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
  * lui :
  * - `ProgressHero` porte **un résultat** en très gros, pas une introduction ;
- * - `NextStepCard` porte **deux actions** — c'est une décision à prendre.
+ * - `NextStepCard` porte une **action** — actualiser le plan.
  *
  * Ce bandeau, lui, n'a **aucune action** : il présente. C'est ce qui lui évite
  * d'être une variante de l'un ou de l'autre.

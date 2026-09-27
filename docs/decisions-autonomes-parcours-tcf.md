@@ -3080,3 +3080,47 @@ est servi `EXAMEN_BLANC`, et la carte ne propose pas de refaire la mesure. `DIAG
 désigne que le repli sur la baseline du diagnostic **rapide** (EE/EO). **Si l'arbitrage était
 autre** : exclure `tcfDiagnostic` des examens retenus par `NiveauActuelEpreuveResolver` dans le
 calcul de provenance.
+
+### A165 — Le cycle d'AFFINAGE ne compte pas comme « cycle de travail » (D-68)
+
+Son objet est de **mesurer** les épreuves une à une (D-64) ; ses compétences sont facultatives.
+Le compter avancerait le jalon d'un cycle sur un candidat qui n'a encore rien travaillé.
+Définition reprise telle quelle : rang 1 + amorcé par le diagnostic rapide
+(`JourneyManager.amorceParLeDiagnosticRapide`). **Si l'arbitrage était autre** : retirer le
+`continue` d'affinage dans `JourneyJalonExamenComplet.compter`.
+
+### A166 — Le cycle EN COURS compte dès qu'il est TERMINÉ
+
+« 3 cycles de travail terminés » est vrai avant qu'on actualise le troisième : le candidat voit
+alors, en même temps, « Actualiser mon plan » et le jalon. Attendre l'actualisation l'aurait fait
+démarrer un 4ᵉ cycle pour aussitôt le mettre de côté. **Si l'arbitrage était autre** : ne compter
+que les cycles historisés.
+
+### A167 — Ce qui remet le compteur à zéro : le GESTE persisté, pas une dérivation
+
+Un cycle historisé `INTERROMPU` ou `EXAMEN_COMPLET` (`journey.fin_de_cycle`) marque le début d'un
+cycle d'examens. « Cycle sans entraînement » n'est pas un critère sûr : un cycle promu vide ne
+porte que des « Évaluer mon niveau ». Conséquence assumée : les cycles clos avant V077 (`null`)
+ne remettent rien à zéro.
+
+### A168 — Un cycle TERMINÉ clos par le jalon s'archive « EXAMEN_COMPLET », pas « INTERROMPU »
+
+Rien n'y a été interrompu. `INTERROMPU` n'est écrit que s'il restait des étapes **obligatoires**
+ouvertes (`JourneyCycleAffinage.termine`). La confirmation le dit dans les deux cas (« Votre cycle
+terminé sera archivé… » / « … mis de côté : il apparaîtra comme interrompu »).
+
+### A169 — Pas de jalon « objectif atteint » juste après un examen complet
+
+Sinon, un candidat au niveau partout se verrait reproposer l'examen complet au premier écran du
+cycle qui suit le cycle d'examens — « enchaîner deux examens complets sans travail entre eux ne
+mesure rien de nouveau ». La condition (b) attend donc un cycle de travail terminé depuis le
+dernier examen complet (s'il y en a eu un). Quand (a) et (b) tiennent, `OBJECTIF_ATTEINT`
+l'emporte. Le palier lu est celui de l'**Accueil** (`levelProfileAccueilDetaille`, niveau actuel,
+qui peut redescendre), jamais le maximum du Plan.
+
+### A170 — Le jalon est composé des briques du kit, pas une primitive nouvelle
+
+`Section` + `Card soft` + `Cta blue` ⇄ `SfSection` + `SfCard(soft)` + `SfButton(blue)` : aucun
+motif visuel nouveau, donc rien à ajouter aux deux kits. Bleu, pas rouge : le CTA rouge du Plan
+reste « Débloquer mon plan ». Confirmation : `ConfirmSheet` (web) ⇄ `showAppSheet` (mobile).
+

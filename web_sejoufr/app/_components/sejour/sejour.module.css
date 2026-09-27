@@ -3465,40 +3465,6 @@
   gap: 9px;
 }
 
-/* L'action discrète : entière, pas un lien de pied — le second terme d'un vrai
-   choix ne doit pas se lire comme un renoncement. */
-.nextSecondary {
-  appearance: none;
-  width: 100%;
-  min-height: 46px;
-  padding: 12px 14px;
-  border: 0;
-  border-radius: var(--sf-radius-sm);
-  background: color-mix(in srgb, white 10%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 20%, transparent);
-  color: white;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color var(--sf-quick) var(--sf-ease-out);
-}
-
-.nextSecondary:hover {
-  background: color-mix(in srgb, white 18%, transparent);
-}
-
-.nextSecondary:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nextSecondary {
-    transition: none;
-  }
-}
-
 /* ⚠️ Palier desktop : la carte de fin de cycle respire, rien d'autre ne
    change. Une media query n'est pas une primitive — aucun miroir Flutter. */
 @media (min-width: 960px) {

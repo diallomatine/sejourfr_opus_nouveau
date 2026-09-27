@@ -4,20 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/repositories.dart';
-import '../../../core/models/attempt_models.dart';
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/selected_module.dart';
-import '../../../core/utils/start_failure.dart';
-import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
-import '../../module_detail/tcf_full_exams_screen.dart'
-    show fullExamsHistoryProvider;
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
@@ -224,22 +217,18 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
                         child: _corpsDuBloc(bloc),
                       ),
                     ),
-                  // 🛑 **La dernière étape annonce la fin SERVIE**
-                  // (`cycle.finDeCycle`) et le compteur servi lu à l'envers.
-                  // Atteinte — la condition d'avant, mot pour mot : cycle
-                  // terminé ET issues servies —, elle devient la carte de fin
-                  // de cycle.
+                  // 🛑 **La dernière étape : « Actualiser mon plan »**, la seule
+                  // fin de cycle depuis D-66, avec le nombre SERVI de priorités
+                  // du cycle suivant (`prioritesCycleSuivant`, D-67) et le
+                  // compteur servi lu à l'envers. Atteinte — cycle terminé ET
+                  // issue servie —, elle devient la carte de fin de cycle.
                   SfCycleRailEnd(
                     eyebrow: kJourneyRailEndEyebrow,
-                    title: journeyRailEndTitle(cycle.finDeCycle),
+                    title: kJourneyRailEndTitle,
+                    note: journeyPrioritesIdentifiees(cycle),
                     remaining: journeyRailEndRemaining(cycle),
                     reached: termine && nextStep != null,
-                    // 🛑 **`examenCompletPossible` est SERVI** : il dit déjà
-                    // « ce cycle est un cycle de mesure », et le redéduire de
-                    // `cycle.cycleDeMesure` ferait deux autorités pour un fait.
-                    child: termine && nextStep != null
-                        ? _finDeCycle(nextStep.examenCompletPossible)
-                        : null,
+                    child: termine && nextStep != null ? _finDeCycle(cycle) : null,
                   ),
                 ],
               ),
@@ -486,76 +475,34 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
         ));
   }
 
-  /* --------------------------------------------------- fin de cycle (§6) --- */
+  /* ------------------------------------------------ fin de cycle (D-66) --- */
 
-  /// **La fin de cycle** : « Prochaine étape », puis un vrai choix.
+  /// **La fin de cycle** — « Actualiser mon plan », et rien d'autre (D-66,
+  /// 2026-09-27). Le choix « Passer l'examen blanc complet / Actualiser sans
+  /// examen complet » est supprimé : l'examen complet est devenu un **jalon**
+  /// proposé au-dessus du Plan ([ExamenCompletJalon]).
   ///
-  /// - « Passer l'examen blanc complet » appelle `POST …/measurement-cycle`
-  ///   **puis** lance l'examen complet par le chemin existant
-  ///   (`FullTcfExamRepository.start`) — le geste crée le cycle de mesure, il ne
-  ///   démarre rien par lui-même côté serveur. 🛑 **Il n'apparaît que si
-  ///   `examenCompletPossible`** : à la fin d'un cycle de mesure, enchaîner un
-  ///   second examen complet ne mesurerait rien de nouveau.
-  /// - « Actualiser mon plan sans examen complet » appelle `POST …/refresh`.
-  ///
-  /// 🛑 **Les deux relancent les lectures vivantes** ([relireSourcesDuCompte]) :
-  /// Plan et parcours se rafraîchissent **ensemble**, jamais l'un sans l'autre.
+  /// 🛑 **Relance les lectures vivantes** ([relireSourcesDuCompte]) : Plan et
+  /// parcours se rafraîchissent **ensemble**, jamais l'un sans l'autre.
   ///
   /// 🛑 **Un échec réseau se DIT** : le bouton ne reste jamais muet.
-  Widget _finDeCycle(bool examenCompletPossible) {
+  Widget _finDeCycle(JourneyCycle cycle) {
     final erreur = _erreur;
     // 🛑 **Plus d'intertitre « Prochaine étape »** (2026-09-27) : la carte est
     // rendue DANS la dernière étape de la timeline, dont elle prend la place.
-    // Ni `SfSection` ni gouttière — elle est déjà dans ceux du cycle.
     return SfStack(
       pad: false,
       children: [
         SfNextStepCard(
           eyebrow: kJourneyNextStepEyebrow,
           title: kJourneyNextStepHeadline,
-          text: examenCompletPossible
-              ? kJourneyNextStepText
-              : kJourneyNextStepTextMesure,
-          // 🛑 Les repères décrivent l'examen complet : sans lui, ils n'ont
-          // rien à dire.
-          facts: examenCompletPossible
-              ? kJourneyNextStepFacts
-              : const <SfNextStepFact>[],
-          // Une carte à deux actions dont la première n'existe pas :
-          // l'actualisation prend la place principale, et c'est la seule issue
-          // d'un cycle de mesure clos.
-          primary: examenCompletPossible
-              ? (
-                  label:
-                      _occupe ? kJourneyNextStepBusy : kJourneyNextStepExamCta,
-                  onPressed: _lancerExamenComplet,
-                )
-              : (
-                  label: _occupe
-                      ? kJourneyNextStepBusy
-                      : kJourneyNextStepRefreshOnlyCta,
-                  onPressed: _actualiser,
-                ),
-          // 🛑 **Absente quand l'examen complet n'est pas proposé** : il ne
-          // reste qu'une issue, et fabriquer un second bouton pour tenir la
-          // forme ferait deux fois le même geste.
-          secondary: examenCompletPossible
-              ? (
-                  label: kJourneyNextStepRefreshCta,
-                  onPressed: _actualiser,
-                )
-              : null,
-        ),
-        // 🛑 La note ne se lit que face à un choix : sans examen complet à
-        // proposer, elle décrirait une option absente.
-        if (examenCompletPossible)
-          SfInfoNote(
-            child: Text(
-              kJourneyNextStepNote,
-              style:
-                  AppFonts.ui(size: 12, color: AppColors.muted, height: 1.45),
-            ),
+          text: kJourneyNextStepText,
+          facts: journeyNextStepFacts(cycle),
+          primary: (
+            label: _occupe ? kJourneyNextStepBusy : kJourneyNextStepRefreshCta,
+            onPressed: _actualiser,
           ),
+        ),
         if (erreur != null)
           Text(
             erreur,
@@ -574,35 +521,6 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     }));
   }
 
-  void _lancerExamenComplet() {
-    if (_occupe) return;
-    unawaited(_faire(() async {
-      await ref
-          .read(learningPlanRepositoryProvider)
-          .measurementCycle(module: widget.module);
-      // Le cycle de mesure existe désormais : il reste à ouvrir l'examen, par
-      // le **chemin existant de SON module** — aucune route n'est créée.
-      ref.read(selectedModuleProvider.notifier).state = widget.module;
-      if (widget.module == AppModule.civique) {
-        final attempt = await ref.read(attemptsRepositoryProvider).start(
-              StartAttemptRequest(
-                type: AttemptType.mockExam,
-                module: AppModule.civique,
-              ),
-            );
-        if (!mounted) return;
-        context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
-        return;
-      }
-      final exam = await ref.read(fullTcfExamRepositoryProvider).start();
-      if (!mounted) return;
-      ref.invalidate(fullExamsHistoryProvider);
-      context.go(
-        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
-      );
-    }));
-  }
-
   Future<void> _faire(Future<void> Function() geste) async {
     setState(() {
       _occupe = true;
@@ -616,25 +534,10 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
       // simple signal rendait la main aussitôt : l'écran montrait encore
       // l'ancien cycle, bouton réactivé, le temps de la relecture.
       if (mounted) await relireSourcesDuCompte(ref);
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
-      // Un **403** au démarrage de l'examen n'est pas une panne : c'est le
-      // verrou freemium que le serveur oppose, et il ouvre l'offre. Le cycle de
-      // mesure, lui, est déjà créé — le candidat le retrouvera.
-      //
-      // 🛑 **Pas de `showPaywallOrError` ici** : sa branche « message » est une
-      // SnackBar, qui disparaît — et un bouton de fin de cycle qui a échoué doit
-      // rester expliqué à l'écran. On garde donc sa CLASSIFICATION, qui est
-      // l'autorité (`classifyStartFailure`), et on pose la phrase soi-même.
-      if (classifyStartFailure(error) == StartFailure.paywall) {
-        unawaited(showPaywallSheet(
-          context,
-          ctaLocation: AnalyticsCtaLocation.lockedPlan,
-          journeyId: widget.journey?.journeyId,
-        ));
-      } else {
-        setState(() => _erreur = kJourneyNextStepError);
-      }
+      // 🛑 Un bouton de fin de cycle qui a échoué reste expliqué à l'écran.
+      setState(() => _erreur = kJourneyNextStepError);
     } finally {
       if (mounted) setState(() => _occupe = false);
     }

@@ -30,18 +30,20 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * <b>Les deux transitions de fin de cycle</b> (spec §6).
+ * <b>Les deux transitions d'un cycle</b> — la fin de cycle et le jalon.
  *
- * <p>Quand le cycle est termine — ses quatre blocs le sont —, le Plan affiche
- * « Prochaine étape » et deux issues, et deux seulement :
  * <ol>
- *   <li><b>Actualiser mon plan</b> ({@link #actualiser}) : le cycle en cours est
+ *   <li><b>Actualiser mon plan</b> ({@link #actualiser}) : la <b>seule</b>
+ *       issue de fin de cycle depuis D-66 (2026-09-27). Le cycle en cours est
  *       historise, le cycle <b>en attente</b> devient le cycle courant, et le
  *       prochain cycle en attente reste <b>paresseux</b> ;</li>
- *   <li><b>Passer l'examen blanc complet</b> ({@link #creerCycleDeMesure}) : le
- *       cycle en attente est laisse de cote, le cycle en cours est historise, et
- *       un <b>cycle de mesure</b> devient courant — quatre blocs, chacun ne
- *       portant que son examen.</li>
+ *   <li><b>Faire un examen blanc complet</b> ({@link #creerCycleDeMesure}) : un
+ *       <b>jalon propose</b>, plus une etape de fin de cycle (D-68). Offert quand
+ *       {@link JourneyJalonExamenComplet} le propose — le cycle en cours peut
+ *       alors etre inacheve : il est <b>mis de cote</b> ({@code INTERROMPU}) et
+ *       un <b>cycle d'examens</b> devient courant, un bloc par epreuve ou
+ *       thematique, chacun ne portant que son examen. Le cycle en attente est
+ *       laisse tel quel.</li>
  * </ol>
  *
  * <h2>🛑 Ce service ne DEMARRE aucun examen</h2>
@@ -51,14 +53,12 @@ import java.util.UUID;
  * demarrer deux.
  *
  * <h2>Pourquoi un refus, et lequel</h2>
- * <p>Ces deux gestes <b>historisent</b> le cycle en cours. Les autoriser sur un
- * cycle inachieve reviendrait a jeter, sur un appel malformé ou un double tap,
- * le plan que le candidat a sous les yeux. Le refus est donc opposable
- * <b>serveur</b> :
+ * <p>Ces deux gestes <b>historisent</b> le cycle en cours. Le refus est donc
+ * opposable <b>serveur</b> :
  * <ul>
  *   <li><b>409</b> ({@code IllegalStateException}, convention du
  *       {@code GlobalExceptionHandler}) quand l'etat du cycle interdit le
- *       geste — cycle inachieve, ou cycle de mesure qu'on voudrait enchainer ;
+ *       geste — actualisation d'un cycle inacheve, jalon non propose ;
  *   </li>
  *   <li><b>422</b> ({@code BusinessException}) quand il n'y a <b>pas de
  *       parcours du tout</b> : aucune demarche declaree (D-3). Ce n'est pas un
@@ -76,9 +76,9 @@ public class JourneyCycleService {
     private final JourneyStepManager stepManager;
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
-    // 🛑 La MEME autorite que `nextStep.examenCompletPossible` : le bouton servi
+    // 🛑 La MEME autorite que `JourneyDto.examenComplet` (D-68) : le jalon servi
     // et ce refus serveur ne peuvent pas dire deux choses differentes.
-    private final TcfJourneyConfig config;
+    private final JourneyJalonExamenComplet jalonExamenComplet;
     // 🛑 La MEME autorite que `cycle.complete` et `nextStep` servis : le bouton
     // « Actualiser » et le 409 ne peuvent pas dire deux choses differentes.
     private final JourneyCycleAffinage cycleAffinage;
@@ -122,37 +122,50 @@ public class JourneyCycleService {
     }
 
     /**
-     * <b>Passer l'examen blanc complet</b> (spec §6) : un <b>cycle de
-     * mesure</b> devient le cycle courant.
+     * <b>Faire un examen blanc complet</b> — le jalon (D-68) : le cycle en cours
+     * est mis de cote et un <b>cycle d'examens</b> devient le cycle courant.
      *
-     * <p>Quatre blocs, chacun ne portant que son examen, <b>tous debloques</b> —
-     * le verrou du bloc (D-15) ne se pose que sur une competence restante, et il
-     * n'y en a aucune. ⚠️ Les verrous <b>commerciaux</b> (quota d'examen blanc
-     * de production) continuent de s'appliquer : ils ne relevent pas du cycle.
+     * <p>Un bloc par epreuve (TCF) ou par thematique (civique), chacun ne
+     * portant que son examen, <b>tous debloques</b> — le verrou du bloc (D-15)
+     * ne se pose que sur une competence restante, et il n'y en a aucune. ⚠️ Les
+     * verrous <b>commerciaux</b> (gratuite d'examen de production) continuent
+     * de s'appliquer, servis en {@code lockReason = ACCESS} : le jalon ne
+     * change pas le freemium.
      *
-     * <p>🛑 <b>Le cycle en attente est laisse tel quel</b> : c'est tout l'objet
-     * de cette issue. Le candidat veut se mesurer avant de reprendre le travail
-     * qui l'attend, et les resultats de cette mesure viendront l'enrichir
-     * (D-13).
+     * <p>🛑 <b>Le mode de cloture est ECRIT</b> ({@code journey.fin_de_cycle},
+     * V078) : {@code INTERROMPU} quand des etapes obligatoires restaient
+     * ouvertes, {@code EXAMEN_COMPLET} quand le cycle etait deja termine — un
+     * cycle fini n'a pas ete interrompu.
+     *
+     * <p>🛑 <b>Rien a reporter a la main</b> : les priorites non terminees du
+     * cycle mis de cote sont historisees telles quelles, et les examens du cycle
+     * d'examens les <b>recalculent</b> — chaque examen depose ses priorites dans
+     * le cycle en attente ({@code JourneyService.mettreEnAttente}), au plus
+     * trois par epreuve (D-67). Cote civique, l'amorce du cycle suivant relit le
+     * plan derive, qui a vu les memes examens.
+     *
+     * <p>🛑 <b>Le cycle en attente est laisse tel quel</b> : les resultats des
+     * examens viendront l'enrichir (D-13).
+     *
+     * <p>🛑 <b>Ce service ne demarre aucun examen</b> : chaque examen du cycle se
+     * lance depuis son bloc, par son chemin existant.
      */
     @Transactional
     public JourneyDto creerCycleDeMesure(UUID userId, Module module) {
-        Journey enCours = cycleOuvertALExamenDeFinDeCycle(userId, module);
-        if (module == Module.CIVIQUE) return creerLeCycleDeMesureCivique(userId, enCours);
-        // 🛑 CYCLE D'AFFINAGE (D-64) : il vient de mesurer les epreuves une a
-        // une ; `nextStep.examenCompletPossible` y est toujours faux, et ce
-        // refus en est la jumelle serveur.
-        if (cycleAffinage.pour(enCours)) {
+        Journey enCours = verrouille(userId, module);
+        List<JourneyStep> etapes = nonObsoletes(enCours);
+        boolean affinage = cycleAffinage.pour(enCours);
+        // 🛑 LA MEME AUTORITE QUE LE JALON SERVI : sans lui, le geste est refuse.
+        if (jalonExamenComplet.pour(enCours, etapes, affinage) == null) {
             throw new IllegalStateException(
-                    "Ce premier cycle se termine par l'actualisation de votre plan.");
+                    "L'examen blanc complet n'est pas encore propose sur ce cycle.");
         }
-        if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
-            // Enchainer deux examens complets sans travail entre eux ne mesure
-            // rien de nouveau — c'est le « cas particulier » de la spec §6.
-            throw new IllegalStateException(
-                    "Ce cycle est deja un cycle de mesure : actualisez votre plan.");
-        }
-        TargetLevel sortie = historiser(enCours, userId, JourneyFinDeCycle.EXAMEN_COMPLET);
+        JourneyFinDeCycle geste = JourneyCycleAffinage.termine(etapes, affinage)
+                ? JourneyFinDeCycle.EXAMEN_COMPLET
+                : JourneyFinDeCycle.INTERROMPU;
+        if (module == Module.CIVIQUE) return creerLeCycleDeMesureCivique(userId, enCours, geste);
+
+        TargetLevel sortie = historiser(enCours, userId, geste);
 
         Journey neuf = nouveauCycle(enCours);
         neuf.setStatus(JourneyStatus.EN_COURS);
@@ -172,8 +185,8 @@ public class JourneyCycleService {
             journeyService.ajouter(mesure, step);
         }
 
-        log.info("Cycle {} historise (sortie={}), cycle de mesure {} ouvert",
-                enCours.getId(), sortie, mesure.getId());
+        log.info("Cycle {} historise ({}, sortie={}), cycle d'examens {} ouvert",
+                enCours.getId(), geste, sortie, mesure.getId());
         return journeyService.lire(userId, module);
     }
 
@@ -186,21 +199,18 @@ public class JourneyCycleService {
      * cycle civique aurait fabriqué un cycle de mesure TCF dans un parcours
      * civique.
      *
-     * <p>🛑 <b>{@code REASSESS} sur les cinq</b> : un cycle de mesure ne s'ouvre
-     * qu'à la fin d'un cycle entier — tout a été travaillé ou mesuré. Le geste
-     * est « <b>vérifier mes progrès</b> », jamais « évaluer mon niveau ».
+     * <p>🛑 <b>{@code REASSESS} sur les cinq</b> : le jalon ne s'ouvre qu'apres
+     * du travail ou un objectif mesure — le geste est « <b>vérifier mes
+     * progrès</b> », jamais « évaluer mon niveau ».
      *
      * <p>⚠️ <b>Aucune unité n'est posée</b>, et c'est la définition même du
      * cycle de mesure : {@code JourneyBlocResolver.cycleDeMesure} le reconnaît à
      * l'absence de {@code TRAIN_SKILL}. Les cinq examens sont donc ouverts
      * d'emblée (D-15 n'a rien à verrouiller), et passables thème par thème.
      */
-    private JourneyDto creerLeCycleDeMesureCivique(UUID userId, Journey enCours) {
-        if (JourneyBlocResolver.cycleDeMesure(nonObsoletes(enCours))) {
-            throw new IllegalStateException(
-                    "Ce cycle est deja un cycle de mesure : actualisez votre plan.");
-        }
-        Short sortie = historiserLeCycleCivique(enCours, JourneyFinDeCycle.EXAMEN_COMPLET);
+    private JourneyDto creerLeCycleDeMesureCivique(
+            UUID userId, Journey enCours, JourneyFinDeCycle geste) {
+        Short sortie = historiserLeCycleCivique(enCours, geste);
 
         Journey neuf = nouveauCycle(enCours);
         neuf.setStatus(JourneyStatus.EN_COURS);
@@ -308,47 +318,6 @@ public class JourneyCycleService {
         if (!termine) {
             throw new IllegalStateException(
                     "Votre parcours n'est pas termine : il reste des etapes a faire.");
-        }
-        return enCours;
-    }
-
-    /**
-     * Le cycle en cours, <b>verrouille</b>, et <b>assez avance pour son examen
-     * de fin de cycle</b> — sinon le geste est refuse.
-     *
-     * <h3>🛑 Ce n'est plus « termine » depuis le 2026-09-20</h3>
-     * <p>Arbitrage du proprietaire : l'examen qui <b>clot le cycle</b> se
-     * debloque a <b>80 %</b> des etapes terminees. La part vit dans
-     * {@code plan/tcf-journey-config-v3.json} — elle est annoncee comme appelee
-     * a bouger, donc elle n'a rien a faire dans le Java. Les versions
-     * anterieures ne la portent pas et continuent d'exiger le cycle entier : un
-     * retour arriere reste une variable d'environnement.
-     *
-     * <p>🛑 <b>La regle est lue chez son autorite unique</b>
-     * ({@code TcfJourneyConfig.examenDeFinDeCycleOuvert}), la meme qui decide de
-     * {@code nextStep.examenCompletPossible}. Le bouton servi et le refus
-     * serveur ne peuvent donc pas diverger — c'est la « jumelle en lecture » du
-     * verrou, jamais une seconde implementation.
-     *
-     * <p>🛑 <b>Elle ne touche PAS l'examen d'un bloc</b>, qui garde son verrou a
-     * lui (D-15 : tant qu'une competence du meme bloc est ouverte).
-     *
-     * <p>⚠️ <b>Consequence assumee</b> : entre 80 % et 100 %, ce geste historise
-     * un cycle qui porte encore des etapes ouvertes. C'est un cas que le depot
-     * connait deja et documente ({@code JourneyStepRepository}, « un cycle
-     * historise peut tres bien en porter : il a ete ferme par un geste, pas par
-     * l'achevement de tout »), et les etapes restantes ne sont <b>pas</b>
-     * comptees comme travaillees dans l'historique.
-     */
-    private Journey cycleOuvertALExamenDeFinDeCycle(UUID userId, Module module) {
-        Journey enCours = verrouille(userId, module);
-        List<JourneyStep> affichables = nonObsoletes(enCours);
-        int terminees = (int) affichables.stream().filter(step -> !step.estOuverte()).count();
-        boolean complete = terminees == affichables.size();
-        if (!config.examenDeFinDeCycleOuvert(terminees, affichables.size(), complete)) {
-            throw new IllegalStateException(
-                    "Votre parcours n'est pas assez avance : terminez vos etapes "
-                            + "avant de passer l'examen blanc complet.");
         }
         return enCours;
     }

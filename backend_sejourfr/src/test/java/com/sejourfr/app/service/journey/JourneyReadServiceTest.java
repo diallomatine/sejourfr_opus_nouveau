@@ -14,7 +14,6 @@ import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
-import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyBlocKind;
@@ -99,6 +98,8 @@ class JourneyReadServiceTest {
     @Mock private RecommendedExerciseSelector exerciseSelector;
     @Mock private ThemeManager themeManager;
     @Mock private SubscriptionService subscriptionService;
+    @Mock private JourneyJalonExamenComplet jalonExamenComplet;
+    @Mock private JourneyCycleSuivant cycleSuivant;
 
     private JourneyReadService service;
     private User user;
@@ -106,10 +107,11 @@ class JourneyReadServiceTest {
 
     @BeforeEach
     void setUp() {
-        // 🛑 v3 : AUCUNE echappatoire (le filet des 4 series terminees est
-        // supprime), et l'examen de fin de cycle a 80 %.
+        // 🛑 v4 : AUCUNE echappatoire (le filet des 4 series terminees est
+        // supprime), plus de deblocage anticipe de fin de cycle (D-66), jalon
+        // d'examen complet apres 3 cycles de travail (D-68).
         TcfJourneyConfig config = new TcfJourneyConfig(
-                3, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, null, 0.80,
+                4, 3, JourneyLotSelectionStrategy.TOP_SEVERITY, 2, null, null, 3,
                 new TcfJourneyConfig.Display(3, 5));
         // 🛑 Le verdict est le VRAI, pas un mock : « 16/20 » se derive de
         // learning-plan.comprehension.solid-ratio x la taille de la serie, et
@@ -123,7 +125,11 @@ class JourneyReadServiceTest {
                 // 🛑 Le VRAI, pas un mock : « premier cycle amorce par le
                 // diagnostic » se lit sur deux faits du manager, et chaque test
                 // les fixe. Par defaut (mocks a 0 / false) : PAS d'affinage.
-                new JourneyCycleAffinage(journeyManager));
+                new JourneyCycleAffinage(journeyManager),
+                // Le jalon et la composition du cycle suivant ont leurs propres
+                // tests d'integration (JourneyJalonExamenCompletIT) : ici, des
+                // mocks — `null` (jalon non propose) et 0 par defaut.
+                jalonExamenComplet, cycleSuivant);
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))
@@ -1434,25 +1440,18 @@ class JourneyReadServiceTest {
         assertThat(vue.cycle().etapesTerminees()).isEqualTo(2);
         assertThat(bloc(vue, EpreuveType.TCF_EE).status()).isEqualTo(JourneyBlocStatus.TERMINE);
         assertThat(vue.nextStep()).isNotNull();
+        // 🛑 D-66 : la fin de cycle n'offre plus que l'actualisation.
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
-        assertThat(vue.nextStep().examenCompletPossible()).isTrue();
-        // 🛑 L'annonce de la timeline et le bouton servi disent la meme chose.
-        assertThat(vue.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.EXAMEN_COMPLET);
     }
 
     /**
-     * 🛑 <b>L'EXAMEN DE FIN DE CYCLE S'OUVRE A 80 %</b> (2026-09-20, arbitrage du
-     * proprietaire), et <b>lui seul</b> : « Actualiser mon plan » historise le
-     * cycle et promeut le suivant, l'offrir a 80 % jetterait du travail que le
-     * candidat n'a pas demande a abandonner.
-     *
-     * <p>La part vit en configuration versionnee parce que la regle est annoncee
-     * comme <b>non figee</b>. Le test lit donc le ratio chez sa source, jamais
-     * un 0,80 recopie ici.
+     * 🛑 <b>D-66 (2026-09-27) : plus aucun deblocage anticipe.</b> L'examen
+     * blanc complet a quitte la fin de cycle, et avec lui la part de 80 % :
+     * tant qu'une etape reste ouverte, aucune issue n'est offerte.
      */
     @Test
-    @DisplayName("80 % des etapes terminees ouvrent l'examen de fin de cycle, pas l'actualisation")
-    void lExamenDeFinDeCycleSOuvreAQuatreVingtPourCent() {
+    @DisplayName("D-66 — a 80 % des etapes, aucune issue : la fin de cycle attend le cycle entier")
+    void aQuatreVingtPourCentAucuneIssue() {
         // Cinq etapes, quatre closes : 80 % exactement.
         List<JourneyStep> etapes = new java.util.ArrayList<>();
         long position = 1;
@@ -1469,45 +1468,24 @@ class JourneyReadServiceTest {
         JourneyDto vue = service.lire(journey, etapes);
 
         assertThat(vue.cycle().etapesTerminees()).isEqualTo(4);
-        assertThat(vue.cycle().etapesTotal()).isEqualTo(5);
-        assertThat(vue.cycle().complete())
-                .as("« Cycle entierement travaille » reste un fait a 100 %")
-                .isFalse();
-        assertThat(vue.nextStep()).isNotNull();
-        assertThat(vue.nextStep().examenCompletPossible())
-                .as("l'examen qui CLOT le cycle s'ouvre a 80 %")
-                .isTrue();
-        assertThat(vue.nextStep().actualisationPossible())
-                .as("actualiser historise : cela attend le cycle entier")
-                .isFalse();
+        assertThat(vue.cycle().complete()).isFalse();
+        assertThat(vue.nextStep()).isNull();
     }
 
     /**
-     * En dessous de la part exigee, rien n'est offert : {@code nextStep} reste
-     * {@code null}, exactement comme avant v3.
+     * 🛑 <b>Le nombre de priorites du cycle suivant est RELAYE</b> depuis son
+     * autorite ({@code JourneyCycleSuivant}, D-67), jamais recompte ici.
      */
     @Test
-    @DisplayName("En dessous de la part exigee, aucune issue n'est offerte")
-    void sousLaPartExigeeAucuneIssue() {
-        List<JourneyStep> etapes = new java.util.ArrayList<>();
-        long position = 1;
-        for (EpreuveType epreuve : com.sejourfr.app.dto.TcfDomainProfileDto.ORDRE) {
-            JourneyStep examen = examStep(epreuve, position++);
-            if (position <= 4) {
-                examen.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
-                        UUID.randomUUID(), Instant.now());
-            }
-            etapes.add(examen);
-        }
+    @DisplayName("D-67 — le nombre de priorites du cycle suivant est servi tel que son autorite le rend")
+    void lesPrioritesDuCycleSuivantSontRelayees() {
         Skill competence = skill("EE1-C1", SkillTaskCode.EE1);
-        etapes.add(trainStep(competence, position));
         abonneAvecSujets(competence);
+        when(cycleSuivant.prioritesIdentifiees(journey)).thenReturn(7);
 
-        JourneyDto vue = service.lire(journey, etapes);
+        JourneyDto vue = service.lire(journey, List.of(trainStep(competence, 1)));
 
-        // 3 sur 5 = 60 %.
-        assertThat(vue.cycle().etapesTerminees()).isEqualTo(3);
-        assertThat(vue.nextStep()).isNull();
+        assertThat(vue.cycle().prioritesCycleSuivant()).isEqualTo(7);
     }
 
     @Test
@@ -1531,8 +1509,6 @@ class JourneyReadServiceTest {
         // persiste.
         assertThat(vue.cycle().cycleDeMesure()).isTrue();
         assertThat(vue.state()).isEqualTo(JourneyState.CYCLE_COMPLETED);
-        // 🛑 Enchainer un second examen complet ne mesurerait rien de nouveau.
-        assertThat(vue.nextStep().examenCompletPossible()).isFalse();
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
     }
 

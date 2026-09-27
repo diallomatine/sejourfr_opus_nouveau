@@ -1593,6 +1593,12 @@ sejourfr:
   # et l'ordre des epreuves (il EST TcfDomainProfileDto.ORDRE). Deux copies d'un
   # chiffre deja servi finissent toujours par diverger.
   #
+  # v4 (2026-09-27, decisions du proprietaire D-66 / D-68) :
+  #   · finDeCycleExamenRatio DISPARAIT -- l'examen blanc complet a quitte la fin
+  #     de cycle, qui ne propose plus que l'actualisation (D-66) ;
+  #   · examenCompletJalonCycles: 3 -- le jalon « Faire un examen blanc complet »
+  #     est propose apres 3 cycles de TRAVAIL termines depuis le dernier examen
+  #     complet (D-68). Absente (v1 a v3) : aucun jalon au compte des cycles.
   # v3 (2026-09-20, arbitrage du proprietaire) :
   #   · trainSeriesFallbackQuota DISPARAIT -- LE FILET DES 4 SERIES TERMINEES EST
   #     SUPPRIME. Une cle absente veut dire « aucune echappatoire », jamais
@@ -1614,7 +1620,7 @@ sejourfr:
   # regle. Le retour arriere est cette variable d'environnement, jamais une
   # migration.
   tcf-journey:
-    config-version: ${TCF_JOURNEY_CONFIG_VERSION:3}
+    config-version: ${TCF_JOURNEY_CONFIG_VERSION:4}
 
   # ------------------------------------------------------------------ progression
   # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).

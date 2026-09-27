@@ -98,11 +98,15 @@ db/migration/
 │   ├── V068-V072                                unités officielles de l'examen civique
 │   │                                             (V068), cycle civique (V069-V071),
 │   │                                             lien d'une série d'étape (V072)
-│   └── V073__schema_emails.sql                  le système d'emails : préférences,
-│                                                 journal d'envoi (anti-doublon par
-│                                                 index unique PARTIEL), et la VUE
-│                                                 v_derniere_activite_entrainement
-│                                                 (docs/regles/emails.md)
+│   ├── V073__schema_emails.sql                  le système d'emails : préférences,
+│   │                                             journal d'envoi (anti-doublon par
+│   │                                             index unique PARTIEL), et la VUE
+│   │                                             v_derniere_activite_entrainement
+│   │                                             (docs/regles/emails.md)
+│   └── V074-V078                                Suivi (V074-V076), le geste qui a clos
+│                                                 un cycle (V077 journey.fin_de_cycle) et
+│                                                 sa valeur INTERROMPU (V078, jalon
+│                                                 d'examen complet, D-68)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -230,7 +234,9 @@ postérieures alimentent se numérote APRÈS elles.**
   initialisation de `is_internal` est rejouée par `SuiviSchemaV074IT` via la sentinelle
   `@@INITIALISATION_IS_INTERNAL@@`) → le prochain est `V075`. ⚠️ Mis à jour le 2026-09-27 :
   `V075`/`V076` (Suivi) puis **`V077__journey_fin_de_cycle.sql`** (le geste qui a clos un
-  cycle, « Mes cycles ») sont pris → **le prochain est `V078`**. Seed dev : `V901`
+  cycle, « Mes cycles ») sont pris, puis **`V078__journey_fin_de_cycle_interrompu.sql`**
+  (2026-09-27, D-68 : `INTERROMPU` admis par `chk_journey_fin_de_cycle`, cycle mis de côté par
+  le jalon d'examen complet) → **le prochain est `V079`**. Seed dev : `V901`
   (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le

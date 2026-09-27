@@ -4731,12 +4731,18 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   `BlocAccordion` par entrée de `blocs` (**un seul déplié**, le courant par défaut),
   `JourneyRow` pour les étapes, `ExamStepAction` pour l'examen du bloc (« Examen blanc » /
   « Évaluez vos progrès » + bouton « Commencer » à droite, 2026-09-26 ; état lu sur `status`,
-  `locked` et `lockReason` servis), puis `NextStepCard` et
-  ses deux actions quand `state === "CYCLE_COMPLETED"`.
+  `locked` et `lockReason` servis), puis `NextStepCard` et sa **seule** action « Actualiser mon
+  plan » quand `state === "CYCLE_COMPLETED"` (D-66 : l'examen complet a quitté la fin de cycle,
+  et l'emplacement secondaire du kit avec lui).
+  🛑 **Le jalon « Faire un examen blanc complet »** (D-68) : `ExamenCompletJalon.tsx` (briques
+  du kit), sous « À faire maintenant » dans `LearningPlanView` (abonné et gratuit) et
+  `CivicPlanPanel`, **seulement** quand `journey.examenComplet` est servi ; `ConfirmSheet`, puis
+  `journeyApi.measurementCycle` (purge, range le cycle d'examens, `signalerPlanARelire`).
   🛑 **Timeline du cycle** (2026-09-27) : les blocs sont posés sur `CycleRail` — un
   `CycleRailStep` par bloc (rond `done` / `current` / `upcoming` traduit du statut servi par
-  `journeyBlocRailState`), puis `CycleRailEnd` « Fin du cycle » : titre lu sur
-  `cycle.finDeCycle` **servi** (`journeyRailEndTitle`), pastille « Encore N étapes » =
+  `journeyBlocRailState`), puis `CycleRailEnd` « Fin du cycle » : titre **toujours**
+  `JOURNEY_RAIL_END_TITLE` « Actualiser mon plan », `note` « N priorités identifiées »
+  (`journeyPrioritesIdentifiees`, `cycle.prioritesCycleSuivant` **servi**, D-67), pastille « Encore N étapes » =
   `etapesTotal − etapesTerminees` (`journeyRailEndRemaining`). Atteinte, elle **devient**
   `NextStepCard` (plus d'intertitre « Prochaine étape »). Rail étroit : rond 14 px, trait 2 px,
   gouttière 8 px ; sur le rail, l'accordéon masque sa pastille d'état sous **388 px** (366 + 22).
@@ -4765,7 +4771,8 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   (`CycleProgress`, `CycleRail`, `BlocAccordion`, `JourneyRow`, `ExamStepAction`), **aucun
   geste ni cadenas** ; étape `NON_FAITE` ⇒ « Non travaillée », bloc `INACHEVE` ⇒ « INACHEVÉ »,
   examen ⇒ « Passé le … » + `resultat` servi (« Niveau B1 », « 17/20 »), fin franchie
-  `CycleRailEnd done` (geste servi `finDeCycle`). Libellés `JOURNEY_ARCHIVE_*` /
+  `CycleRailEnd done` (geste servi `finDeCycle` ; « Cycle interrompu » sur `INTERROMPU`, V078 —
+  la liste l'écrit en pastille, `journeyHistoryPill`). Libellés `JOURNEY_ARCHIVE_*` /
   `journeyArchive*` (`lib/journey.ts`). ⚠️ **`ExamStepBox` est SUPPRIMÉE** (et
   `journeyHistoryLevel*`, `journeyHistoryBloc*`) : elle ne servait que la carte cadenassée
   « Examens réalisés » de l'ancien accordéon. → `docs/regles/plan.md` § « Un cycle clos se

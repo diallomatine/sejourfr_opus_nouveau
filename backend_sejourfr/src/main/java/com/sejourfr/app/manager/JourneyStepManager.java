@@ -52,6 +52,11 @@ public class JourneyStepManager {
         return repository.findOuvertesByLot(lotId);
     }
 
+    /** Les etapes d'entrainement encore ouvertes d'un cycle. Une requete (D-67). */
+    public int compterEntrainementsOuverts(UUID journeyId) {
+        return (int) repository.countEntrainementsOuverts(journeyId);
+    }
+
     public JourneyStep save(JourneyStep step) {
         return repository.save(step);
     }

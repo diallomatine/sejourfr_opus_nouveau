@@ -5021,9 +5021,11 @@ export interface JourneyCycleDto {
      *  facultatives déjà faites. */
     etapesTotal: number;
     /** Plus **aucune** étape **obligatoire** ouverte (hors affinage : plus
-     *  aucune étape ouverte du tout). C'est ce qui ouvre « Prochaine étape ». */
+     *  aucune étape ouverte du tout). C'est ce qui ouvre la fin de cycle —
+     *  « Actualiser mon plan », sa seule issue depuis D-66. */
     complete: boolean;
-    /** Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls. */
+    /** Ce cycle ne porte **aucune** étape d'entraînement : des examens seuls —
+     *  le cycle d'examens ouvert par le jalon « Faire un examen blanc complet ». */
     cycleDeMesure: boolean;
     /**
      * **Premier cycle, issu du diagnostic rapide** (2026-09-27, D-64) : il sert
@@ -5034,17 +5036,36 @@ export interface JourneyCycleDto {
      */
     cycleDAffinage: boolean;
     /**
-     * **Ce qui clôt ce cycle**, servi dès son début (2026-09-27) : la dernière
-     * étape de la timeline du Plan l'annonce avant qu'elle soit atteinte.
-     * 🛑 Autorité serveur (`JourneyFinDeCycle.de`), la même que
-     * `nextStep.examenCompletPossible` — jamais recombinée ici depuis
-     * `cycleDAffinage` / `cycleDeMesure`. `null` (backend antérieur) = inconnu.
+     * **Combien de priorités le cycle SUIVANT portera**, déjà identifiées
+     * (2026-09-27, D-67) : « N priorités identifiées » sous « Actualiser mon
+     * plan ». 🛑 Servi (`JourneyCycleSuivant`) : le nombre **retenu** — au plus
+     * trois par épreuve ou thématique —, jamais recompté ici. `null` en
+     * consultation d'un cycle clos, ou backend antérieur.
      */
-    finDeCycle: JourneyFinDeCycle | null;
+    prioritesCycleSuivant: number | null;
 }
 
-/** Ce qui clôt un cycle. Miroir de `JourneyFinDeCycle`. */
-export type JourneyFinDeCycle = "EXAMEN_COMPLET" | "ACTUALISATION";
+/**
+ * **Le geste qui a clos un cycle historisé** (V077, V078). Miroir de
+ * `JourneyFinDeCycle`. ⚠️ Depuis D-66 ce n'est plus une issue annoncée d'un
+ * cycle en cours : la fin de cycle ne propose que l'actualisation.
+ */
+export type JourneyFinDeCycle = "EXAMEN_COMPLET" | "ACTUALISATION" | "INTERROMPU";
+
+/** Pourquoi le jalon d'examen complet est proposé. Miroir de `JourneyJalonRaison`. */
+export type JourneyJalonRaison = "CYCLES_DE_TRAVAIL" | "OBJECTIF_ATTEINT";
+
+/**
+ * **Le jalon « Faire un examen blanc complet »** (2026-09-27, D-68) — proposé
+ * au-dessus du Plan, sous « À faire maintenant ». Miroir de
+ * `JourneyExamenCompletDto`. 🛑 Sa **présence** est la proposition : aucun
+ * front ne recombine la condition.
+ */
+export interface JourneyExamenCompletDto {
+    raison: JourneyJalonRaison;
+    /** Cycles de travail terminés depuis le dernier examen blanc complet. */
+    cyclesDeTravail: number;
+}
 
 /** La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`. */
 export type JourneyBlocKind = "EPREUVE" | "THEMATIQUE";
@@ -5120,15 +5141,12 @@ export interface JourneyBlocDto {
 }
 
 /**
- * **Les issues d'un cycle terminé** (spec §6) — la carte finale à deux actions.
+ * **L'issue d'un cycle terminé** — « Actualiser mon plan », la seule depuis
+ * D-66 (l'examen blanc complet est devenu un jalon, `JourneyDto.examenComplet`).
  *
  * 🛑 `null` tant que le cycle n'est pas terminé.
  */
 export interface JourneyNextStepDto {
-    /** « Passer l'examen blanc complet » crée un **cycle de mesure**.
-     *  🛑 Faux à la fin d'un cycle de mesure. ⚠️ Cette action **crée le
-     *  cycle**, elle ne démarre aucun examen. */
-    examenCompletPossible: boolean;
     /** « Actualiser mon plan » : le cycle en attente devient le cycle courant. */
     actualisationPossible: boolean;
 }
@@ -5173,6 +5191,9 @@ export interface JourneyDto {
     blocs: JourneyBlocDto[];
     /** 🛑 `null` sauf cycle terminé. */
     nextStep: JourneyNextStepDto | null;
+    /** **Le jalon « Faire un examen blanc complet »** (D-68). `null` = non
+     *  proposé, le cas courant. Absent d'un backend antérieur. */
+    examenComplet?: JourneyExamenCompletDto | null;
     /** `null` est le cas courant. */
     suggestion: JourneySuggestionType | null;
     /** **L'identifiant du parcours** (`journey.id`) : le `plan_id` du chantier
@@ -5229,6 +5250,9 @@ export interface JourneyHistoryCycleDto {
     debut: string;
     /** ISO-8601 : la date d'historisation. */
     fin: string;
+    /** **Le geste qui l'a clos** (V077/V078) — « Interrompu » sur la ligne quand
+     *  il vaut `INTERROMPU`. `null` = inconnu (cycle clos avant V077). */
+    finDeCycle: JourneyFinDeCycle | null;
     competences: number;
     examens: number;
     /**
@@ -5275,8 +5299,8 @@ export interface JourneyCycleArchiveDto {
     debut: string;
     /** ISO-8601 : la date d'historisation. */
     fin: string;
-    /** **Le geste qui l'a clos** (V077). `null` = inconnu (cycle clos avant) —
-     *  distinct de `cycle.finDeCycle`, l'issue qu'il **annonçait**. */
+    /** **Le geste qui l'a clos** (V077, V078). `null` = inconnu (cycle clos
+     *  avant). `INTERROMPU` = mis de côté par le jalon d'examen complet. */
     finDeCycle: JourneyFinDeCycle | null;
     objectif: JourneyObjectifRefDto | null;
     entryLevel: TargetLevel | null;

@@ -398,6 +398,14 @@ qu'un mot de commodité du cadre fonctionnel.
   `uq_journey_user_target UNIQUE (user_id, target_level)` est adaptée en conséquence : elle
   interdisait deux parcours du même niveau cible, donc exactement ce que cette décision exige.
 
+- ⚠️ **Révisée le 2026-09-27 (D-66 / D-67 / D-68)** : le cycle en attente et sa destination
+  ne bougent pas, mais **la fin de cycle n'a plus qu'une issue** — « Actualiser mon plan ».
+  L'examen blanc complet quitte la fin de cycle et devient un **jalon proposé** au-dessus du Plan
+  (D-68) ; « le cycle en attente est laissé tel quel, les résultats de la mesure viendront
+  l'enrichir » reste vrai pour le cycle d'examens que ce jalon ouvre. Et le plafond de 3 par
+  épreuve devient explicitement le **budget de composition du cycle suivant** (D-67), étendu
+  au civique (3 par thématique).
+
 ### D-14 — Le statut de l'ÉTAPE reste dérivé ; seul le statut du CYCLE est persisté
 
 - **D-7 est maintenu en entier** : `JourneyStepStatus` (`UPCOMING` / `CURRENT` / `COMPLETED` /
@@ -3228,3 +3236,119 @@ se valide à la 2ᵉ série réussie, et l'examen blanc CO du bloc reste verroui
 `transferProven ⇒ MASTERED` dans `onTrainingProgress` et retirer l'appel à
 `rouvrirLesEtapesCloseesSansSeries` ; aucune donnée à migrer. Verrouillé par
 `JourneyProgressionIT` (trois tests D-65) et `CycleDAffinageIT.premierCycleCompetenceRouverteResteFacultative`.
+
+## D-66 — La fin de cycle ne propose QUE « Actualiser mon plan » (2026-09-27)
+
+**Décision du propriétaire (validée sur recommandation), TCF et civique.** « L'étape finale
+« Examen blanc complet » DISPARAÎT définitivement de la fin de cycle. La fin de cycle ne propose
+QUE « Actualiser mon plan ». Retirer aussi le choix « Passer l'examen blanc complet / Actualiser
+sans examen complet » de la carte de fin de cycle. » Sous « Actualiser mon plan », le nombre de
+priorités déjà identifiées pour le prochain cycle est affiché, **servi** par le serveur.
+
+**Ce qui est révoqué, et où.**
+- Les **deux issues** de la spec §6 (D-13, « Prochaine étape » à deux actions) : il n'en reste
+  qu'une. La carte de fin de cycle (`NextStepCard` ⇄ `SfNextStepCard`) perd son emplacement
+  secondaire, ses trois repères d'examen et sa note « L'examen complet est recommandé ».
+- **L'examen de fin de cycle à 80 %** (2026-09-20, `finDeCycleExamenRatio`) : sans examen de fin
+  de cycle, la part n'a plus de lecteur. `plan/tcf-journey-config-v4.json` ne la porte plus ; v3
+  reste chargeable (la clé est lue, sans lecteur). `TcfJourneyConfig.examenDeFinDeCycleOuvert`
+  est supprimée.
+- **`JourneyCycleDto.finDeCycle`** et son autorité `JourneyFinDeCycle.de` : une annonce qui vaut
+  toujours « Actualiser mon plan » ne dit rien. **`JourneyNextStepDto.examenCompletPossible`**
+  aussi. ⚠️ **L'enum `JourneyFinDeCycle` est conservé** : il porte le **mode de clôture** d'un
+  cycle historisé (`journey.fin_de_cycle`, V077), donnée réelle relue par « Mes cycles » — ce
+  n'est plus une proposition, c'est un événement.
+- A163 (« fin d'un cycle d'affinage : l'actualisation seule ») devient la règle de tous les
+  cycles.
+
+**Nouveau champ servi** : `JourneyCycleDto.prioritesCycleSuivant` (autorité `JourneyCycleSuivant`,
+cf. D-67). Le rail l'écrit sous « Actualiser mon plan » (« 3 priorités identifiées »), la carte de
+fin de cycle en fait son repère.
+
+**Si l'arbitrage changeait** : rétablir l'examen complet en fin de cycle = remettre
+`examenCompletPossible` dans `JourneyNextStepDto` et le second terme de la carte ; aucune donnée à
+migrer.
+
+## D-67 — Le cycle suivant retient au plus 3 priorités par épreuve / thématique (2026-09-27)
+
+**Décision du propriétaire (validée sur recommandation).** « Le moteur continue de calculer
+TOUTES les priorités vraies (ne jamais tronquer le calcul) ; le CYCLE SUIVANT en RETIENT au plus
+3 par épreuve (TCF : CO/CE/EE/EO) et au plus 3 par thème (civique), les plus urgentes selon
+l'ordre du moteur. C'est ce nombre retenu qu'on affiche (N). »
+
+**Justification, datée.** Un cycle est **borné** (D-12) : il a un début, une fin et une suite. Sa
+charge doit rester tenable — trois priorités par épreuve, c'est au plus douze compétences en TCF,
+quinze unités en civique, et chaque compétence exige ses séries (D-65). Au-delà, un cycle ne se
+termine plus, et « Actualiser mon plan » n'arrive jamais.
+
+**🛑 Pourquoi ce n'est PAS le défaut que l'invariant racine interdit** (« un plafond d'AFFICHAGE
+n'est jamais un budget PÉDAGOGIQUE ») :
+1. **le calcul reste complet** — le Plan sert toutes les priorités (`plan.domaines`,
+   `fragileSkillCount`, « Débloquer mon plan » et ses encarts par épreuve) ; rien n'est tronqué à
+   la source ;
+2. **le plafond est une règle de COMPOSITION du cycle**, documentée comme telle
+   (`maxPrioritiesPerLot`, configuration versionnée), jamais un plafond d'écran recyclé ;
+3. **il est PAR épreuve / thématique** : aucune épreuve n'est privée au profit d'une autre —
+   l'incident du 2026-08-25 était un plafond de 5 partagé entre 4 domaines.
+
+**Où la règle vit.**
+- TCF : `JourneyLotBuilder` (`PAR_GRAVITE`, l'ordre de `LearningPlanPriorityResolver`) retient au
+  plus `maxPrioritiesPerLot` priorités par épreuve et par évaluation ; le cycle en attente ne
+  porte qu'**un lot ouvert par épreuve** (`uq_journey_lot_open_par_epreuve`, un lot plus récent
+  remplace le précédent). Le cycle suivant est donc ≤ 3 par épreuve **par construction**.
+- Civique : `JourneyCycleSuivant.unitesRetenues` — **extrait** de `JourneyService.creerLotsCiviques`
+  pour que l'amorce et le nombre annoncé soient **la même fonction**.
+- Le nombre servi : `JourneyCycleSuivant.prioritesIdentifiees` → `cycle.prioritesCycleSuivant`
+  (TCF : étapes d'entraînement ouvertes du cycle en attente ; civique : unités que l'amorce
+  retiendrait maintenant — il n'y a pas de cycle en attente civique, D-36).
+
+**Effets vérifiés.** « Débloquer mon plan » (commit 7a6dbfce) affiche **toutes** les priorités
+servies (5 lignes par encart, plafond d'affichage) : il montre le **calcul**, pas le cycle — laissé
+tel quel. Le rattrapage des priorités non terminées : à l'actualisation, un cycle de travail est
+terminé (plus rien d'ouvert) ; un cycle d'affinage garde A161 (ce que les examens reconfirment
+part au cycle suivant, dans le budget) ; un cycle interrompu par le jalon (D-68) n'a rien à
+reporter — les examens du cycle d'examens recalculent.
+
+**Verrouillé par** `JourneyJalonExamenCompletIT` (cinq PRIORITY détectées ⇒ le Plan en voit
+cinq, le cycle en attente en retient trois, N = 3 ; N annoncé = étapes promues) et
+`AmorceCiviqueIT` (N civique = unités posées par l'actualisation, ≤ 3 par thématique).
+
+## D-68 — L'examen blanc complet devient un JALON PROPOSÉ (2026-09-27)
+
+**Décision du propriétaire (validée sur recommandation), TCF et civique.** L'examen blanc complet
+n'est plus une étape : c'est un **jalon** « Faire un examen blanc complet », proposé **au-dessus du
+Plan, sous la carte « À faire maintenant »**, quand :
+- (a) **3 cycles de TRAVAIL terminés depuis le dernier examen blanc complet** — compteur remis à
+  zéro après chaque examen complet, donc proposé tous les trois cycles ;
+- (b) ou **le niveau objectif est atteint sur toutes les épreuves (TCF) / tous les thèmes
+  (civique), mesuré par un EXAMEN BLANC** (provenance `EXAMEN_BLANC`, jamais le diagnostic).
+
+Au clic : confirmation, puis le cycle en cours est **archivé « interrompu »** et un **cycle
+d'examens** est créé (mécanisme existant : un bloc par épreuve / thème, chacun = son examen
+blanc), affiché aussitôt. Freemium inchangé.
+
+**Contrat.** `JourneyDto.examenComplet` = `{raison, cyclesDeTravail}` ou `null` (non proposé).
+Autorité unique `JourneyJalonExamenComplet`, lue par la lecture **et** par le 409 de
+`POST …/journey/measurement-cycle` (chemin inchangé). Le nombre de cycles vit en configuration
+(`examenCompletJalonCycles: 3`, v4 ; absent de v1–v3 ⇒ pas de jalon au compte des cycles).
+**V078** : `INTERROMPU` admis par `chk_journey_fin_de_cycle` ; « Mes cycles » l'affiche
+(liste : pastille « INTERROMPU » ; consultation : « Cycle interrompu »).
+
+**Civique.** Il n'y a pas d'« examen complet » au sens TCF à lancer depuis le cycle : le **cycle
+d'examens civique** (cinq blocs de thématique, un examen de thème chacun — existant) est l'examen
+complet du Plan, et l'examen blanc civique de 40 questions, s'il est passé, clôt les cinq blocs
+d'un coup (D-51). La condition (b) se lit sur le **dernier examen de thème** de chaque thématique,
+réussi au seuil servi (16/20, `CivicExamFormat.SEUIL_REUSSITE_THEME`).
+
+**Ce qui est révoqué.** Le 409 propre au cycle d'affinage sur `measurement-cycle` (A163) : si
+l'objectif est atteint partout par examen, le jalon peut s'y proposer. Le 409 « déjà un cycle de
+mesure » est absorbé : le jalon n'est jamais proposé sur un cycle d'examens.
+
+Décisions prises en autonomie : `docs/decisions-autonomes-parcours-tcf.md` **A165 → A170**.
+Verrouillé par `JourneyJalonExamenCompletIT`, `JourneyJalonObjectifIT`, `JourneyCycleServiceIT`,
+`AmorceCiviqueIT`.
+
+**Si l'arbitrage changeait** : `examenCompletJalonCycles` se règle par version de configuration ;
+retirer le jalon = `JourneyJalonExamenComplet.pour` → `null`. Aucune donnée à migrer
+(`INTERROMPU` reste une valeur lisible).
+

@@ -4722,18 +4722,15 @@ class _SfExamStepButton extends StatelessWidget {
 /// Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme.
 typedef SfNextStepFact = ({String value, String label});
 
-/// **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`, et
-/// 🛑 **la seule primitive du kit a DEUX actions**.
+/// **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`.
 ///
-/// C'est la raison de son existence : aucune brique n'a deux emplacements
-/// d'action ([SfNowCard] en a un, [SfStickyBar] en porte une, [SfButton] est un
-/// bouton). Le choix « passer l'examen complet » / « actualiser mon plan sans
-/// examen » est un vrai choix, et le second terme ne doit pas se lire comme un
-/// renoncement — d'ou une action **discrete mais entiere** sous le CTA, pas un
-/// lien de pied.
+/// ⚠️ **Une seule action depuis le 2026-09-27** (D-66) : « Actualiser mon
+/// plan ». Le second terme « Passer l'examen blanc complet » a quitte la fin de
+/// cycle — il est devenu un jalon au-dessus du Plan — et l'emplacement
+/// secondaire est supprime avec lui (plus aucun appelant).
 ///
 /// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title], [text], les
-/// [facts] et les deux libelles d'action arrivent tous en parametres.
+/// [facts] et le libelle d'action arrivent tous en parametres.
 ///
 /// Miroir web : `NextStepCard`.
 class SfNextStepCard extends StatelessWidget {
@@ -4744,23 +4741,16 @@ class SfNextStepCard extends StatelessWidget {
     required this.text,
     required this.facts,
     required this.primary,
-    this.secondary,
   });
 
   final String eyebrow;
   final String title;
   final String text;
 
-  /// Les reperes de l'examen (3 dans la maquette). Vide ⇒ aucune grille.
+  /// Les reperes de la carte. Vide ⇒ aucune grille.
   final List<SfNextStepFact> facts;
 
   final ({String label, VoidCallback onPressed}) primary;
-
-  /// 🛑 **Facultative, et c'est une vraie issue du produit** : a la fin d'un
-  /// cycle de mesure, « passer l'examen blanc complet » n'a plus de sens — il ne
-  /// reste qu'une action. Absente, la carte n'affiche **rien** a sa place : on
-  /// ne fabrique pas un second terme pour tenir la forme.
-  final ({String label, VoidCallback onPressed})? secondary;
 
   @override
   Widget build(BuildContext context) {
@@ -4888,16 +4878,6 @@ class SfNextStepCard extends StatelessWidget {
                   label: primary.label,
                   onPressed: primary.onPressed,
                 ),
-                if (secondary != null) ...[
-                  const SizedBox(height: 9),
-                  // L'action discrete : entiere, pas un lien de pied — le
-                  // second terme d'un vrai choix ne doit pas se lire comme un
-                  // renoncement.
-                  _SfNextStepSecondary(
-                    label: secondary!.label,
-                    onPressed: secondary!.onPressed,
-                  ),
-                ],
               ],
             ),
           ),
@@ -5104,7 +5084,8 @@ class SfCycleRailEnd extends StatelessWidget {
   /// La fin a ete franchie : l'encart est plein, et lu tel quel.
   final bool done;
 
-  /// La ligne sous le titre d'une fin franchie (sa date), **servie**.
+  /// La ligne sous le titre, **servie** : la date d'une fin franchie, ou
+  /// « 3 priorités identifiées » sur une fin à venir (D-67, 2026-09-27).
   final String? note;
 
   final String eyebrow;
@@ -5220,46 +5201,6 @@ class _SfDashedBoxPainter extends CustomPainter {
   bool shouldRepaint(_SfDashedBoxPainter oldDelegate) => false;
 }
 
-class _SfNextStepSecondary extends StatelessWidget {
-  const _SfNextStepSecondary({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadii.md);
-    return Material(
-      color: AppColors.white.withValues(alpha: 0.10),
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: radius,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 46),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(
-              color: AppColors.white.withValues(alpha: 0.20),
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(
-              size: 13,
-              weight: FontWeight.w700,
-              color: AppColors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // =============================================================================
 // MA PROGRESSION — HISTORIQUE DES CYCLES (maquette du proprietaire,
 // 2026-09-18) — `docs/progression/histo_cycle.html`
@@ -5274,8 +5215,8 @@ class _SfNextStepSecondary extends StatelessWidget {
 /// de cadrage, puis ce que l'ecran y pose (les compteurs, dans la maquette).
 ///
 /// 🛑 **Distinct de [SfNextStepCard]**, qu'il ne faut pas remplacer par lui :
-/// celle-ci porte **deux actions** — c'est une decision a prendre. Ce bandeau,
-/// lui, n'a **aucune action** : il presente.
+/// celle-ci porte une **action** — actualiser le plan. Ce bandeau, lui, n'a
+/// **aucune action** : il presente.
 ///
 /// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title] et [text]
 /// arrivent tous en parametres.

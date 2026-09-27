@@ -21,12 +21,15 @@ import java.io.InputStream;
  * <b>present mais hors de</b> {@code ]0 ; 1]}, et un {@code journeyConfigVersion}
  * different de celui demande.
  *
- * <h2>🛑 Deux cles OPTIONNELLES, et leur absence est une REGLE</h2>
+ * <h2>🛑 Trois cles OPTIONNELLES, et leur absence est une REGLE</h2>
  * <ul>
  *   <li>{@code trainSeriesFallbackQuota} absent ⇒ <b>aucune echappatoire</b> :
  *       seule la reussite clot une etape (v3, 2026-09-20) ;</li>
  *   <li>{@code finDeCycleExamenRatio} absent ⇒ <b>aucun deblocage anticipe</b> :
- *       l'examen de fin de cycle attend le cycle entier (regle d'avant v3).</li>
+ *       l'examen de fin de cycle attend le cycle entier (regle d'avant v3). ⚠️
+ *       Sans lecteur depuis D-66 : v4 ne la porte plus ;</li>
+ *   <li>{@code examenCompletJalonCycles} absent ⇒ <b>aucun jalon au compte des
+ *       cycles</b> (v1 a v3) ; v4 : 3 (D-68).</li>
  * </ul>
  * <p>C'est ce qui rend v1 et v2 chargeables <b>a l'identique</b> sans les
  * reecrire. Le chargeur ne <b>corrige rien</b>, n'invente aucun defaut et
@@ -95,6 +98,12 @@ public final class TcfJourneyConfigLoader {
                                 + " : une part se situe dans ]0 ; 1]");
             }
         }
+        // 🛑 ABSENT = « AUCUN JALON AU COMPTE DES CYCLES » (v1 a v3). Present,
+        // un nombre de cycles : zero ou moins proposerait le jalon a chaque
+        // cycle, examen complet a peine passe.
+        if (config.examenCompletJalonCycles() != null) {
+            positif(config.examenCompletJalonCycles(), "examenCompletJalonCycles", path);
+        }
         // ⚠️ `display` N'A PLUS DE LECTEUR depuis P6 (cf. TcfJourneyConfig.Display),
         // mais les fichiers publies le declarent et le loader refuse une cle
         // inconnue : il reste donc valide comme le reste du fichier. Valider ce
@@ -107,13 +116,13 @@ public final class TcfJourneyConfigLoader {
         }
         log.info("Configuration du parcours TCF chargee (v{}) : {} priorites par lot, "
                         + "{} serie(s) reussie(s) pour clore une etape, echappatoire={}, "
-                        + "examen de fin de cycle a {}",
+                        + "jalon d'examen complet apres {} cycle(s) de travail",
                 config.journeyConfigVersion(), config.maxPrioritiesPerLot(),
                 config.trainSeriesQuota(),
                 config.trainSeriesFallbackQuota() == null
                         ? "aucune" : config.trainSeriesFallbackQuota() + " terminee(s)",
-                config.finDeCycleExamenRatio() == null
-                        ? "cycle entier" : (int) (config.finDeCycleExamenRatio() * 100) + " %");
+                config.examenCompletJalonCycles() == null
+                        ? "aucun" : config.examenCompletJalonCycles());
         return config;
     }
 

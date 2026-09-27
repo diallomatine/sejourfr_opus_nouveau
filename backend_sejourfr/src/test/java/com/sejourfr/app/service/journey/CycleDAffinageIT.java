@@ -18,7 +18,6 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.FreeEntitlementCode;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyBlocStatus;
-import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyStatus;
@@ -121,8 +120,8 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
 
         assertThat(vue.cycle().numero()).isEqualTo(1);
         assertThat(vue.cycle().cycleDAffinage()).isTrue();
-        // La timeline annonce la fin des le debut : l'actualisation seule.
-        assertThat(vue.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.ACTUALISATION);
+        // D-68 : aucun jalon d'examen complet sur un premier cycle sans examen.
+        assertThat(vue.examenComplet()).isNull();
         JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
         // Les priorites du diagnostic restent SERVIES, ouvertes, travaillables.
         assertThat(ee.steps()).hasSize(3)
@@ -193,8 +192,6 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
         assertThat(vue.cycle().numero()).isEqualTo(2);
         assertThat(vue.cycle().cycleDAffinage()).isFalse();
-        // Un cycle de travail se clot par l'examen blanc complet.
-        assertThat(vue.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.EXAMEN_COMPLET);
         JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
         assertThat(ee.exam().lockReason()).isEqualTo(JourneyLockReason.PROGRESSION);
         assertThat(vue.current().type()).isEqualTo(JourneyStepType.TRAIN_SKILL);
@@ -251,7 +248,9 @@ class CycleDAffinageIT extends AbstractIntegrationTest {
         // La seule issue : l'actualisation. Pas d'examen complet enchaine.
         assertThat(termine.nextStep()).isNotNull();
         assertThat(termine.nextStep().actualisationPossible()).isTrue();
-        assertThat(termine.nextStep().examenCompletPossible()).isFalse();
+        // D-68 : l'objectif (B2) n'est pas atteint partout — pas de jalon, et le
+        // geste est refuse par la meme autorite.
+        assertThat(termine.examenComplet()).isNull();
         assertThatThrownBy(() -> cycleService.creerCycleDeMesure(user.getId(), Module.TCF))
                 .isInstanceOf(IllegalStateException.class);
 

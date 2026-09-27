@@ -48,7 +48,8 @@ Arborescence : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, 
      idempotent. 🛑 **Seules la structure et la clôture d'une étape y sont persistées** : le
      statut d'affichage, le verrou et l'état de maîtrise restent **dérivés à la lecture** — un
      abonnement souscrit change donc l'écran sans une seule écriture. Même famille :
-     `journey.fin_de_cycle` (V077, 2026-09-27), **le geste qui a clos un cycle**, écrit une
+     `journey.fin_de_cycle` (V077, 2026-09-27 ; `INTERROMPU` depuis V078, le jalon d'examen
+     complet D-68), **le geste qui a clos un cycle**, écrit une
      fois à l'historisation — un cycle clos se relit en consultation sur ces seuls faits
      persistés (`JourneyHistoryService.lireCycle`, rien de l'état d'aujourd'hui n'est rejoué) ;
   3. le **lien d'une série d'étape** (`journey_step_series`, V072, 2026-09-20) — « le candidat

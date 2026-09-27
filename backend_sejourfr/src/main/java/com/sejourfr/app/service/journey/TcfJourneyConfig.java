@@ -14,11 +14,12 @@ import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
  * plafond qui vaudrait zero par accident viderait la file de tout le monde sans
  * que rien n'echoue.
  *
- * <p>⚠️ <b>Deux cles font exception, et elles n'ont AUCUN nombre de repli</b>
- * ({@link #trainSeriesFallbackQuota}, {@link #finDeCycleExamenRatio}) : leur
- * <b>absence</b> est une regle a part entiere — « aucune echappatoire », « aucun
- * deblocage anticipe » — et cette regle ne se traduit par aucun chiffre ecrit
- * ici. C'est ce qui permet a v1 et v2, publiees avant elles, de rester
+ * <p>⚠️ <b>Trois cles font exception, et elles n'ont AUCUN nombre de repli</b>
+ * ({@link #trainSeriesFallbackQuota}, {@link #finDeCycleExamenRatio},
+ * {@link #examenCompletJalonCycles}) : leur <b>absence</b> est une regle a part
+ * entiere — « aucune echappatoire », « aucun deblocage anticipe », « aucun
+ * jalon au compte des cycles » — et cette regle ne se traduit par aucun chiffre
+ * ecrit ici. C'est ce qui permet a v1 et v2, publiees avant elles, de rester
  * chargeables <b>a l'identique</b> sans qu'on les reecrive : un retour arriere
  * est un changement de variable d'environnement, jamais une migration.
  *
@@ -46,9 +47,13 @@ import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
  * </ul>
  *
  * @param maxPrioritiesPerLot combien de priorites une evaluation retient par
- *                            epreuve (R2). 🛑 C'est un <b>budget de file</b>,
- *                            assume : ce qui depasse part dans le cycle en
- *                            attente (D-13).
+ *                            epreuve (R2) — et, depuis D-67 (2026-09-27), le
+ *                            <b>budget de composition du cycle suivant</b> : au
+ *                            plus ce nombre par epreuve (TCF) ou par thematique
+ *                            (civique), les plus urgentes dans l'ordre du
+ *                            moteur. 🛑 Un budget de <b>cycle</b>, assume et
+ *                            documente, jamais un plafond d'ecran : le moteur
+ *                            calcule toujours toutes les priorites vraies.
  * @param trainSeriesQuota    series <b>REUSSIES</b> qui closent une etape de
  *                            <b>comprehension</b> — et, depuis le 2026-09-20,
  *                            le nombre de <b>cartes</b> que l'ecran d'etape
@@ -88,6 +93,20 @@ import com.sejourfr.app.enums.JourneyLotSelectionStrategy;
  *                            appelee a bouger : c'est precisement pourquoi elle
  *                            vit en configuration versionnee et pas dans le
  *                            Java.</p>
+ *                            <p>🛑 <b>SANS LECTEUR depuis le 2026-09-27</b>
+ *                            (D-66) : l'examen blanc complet a quitte la fin de
+ *                            cycle. La cle reste declaree parce que v3 la porte
+ *                            et que le chargeur refuse une cle inconnue — un
+ *                            retour arriere reste une variable d'environnement.
+ *                            v4 ne la porte plus.</p>
+ * @param examenCompletJalonCycles combien de cycles de <b>travail</b> termines
+ *                            depuis le dernier examen blanc complet font
+ *                            proposer le jalon « Faire un examen blanc
+ *                            complet » (v4 : <b>3</b>, D-68). Lu par
+ *                            {@code JourneyJalonExamenComplet}, seul.
+ *                            🛑 <b>{@code null} = le jalon ne se propose pas au
+ *                            compte des cycles</b> (v1 a v3, qui ne portent pas
+ *                            la cle) ; il reste propose par l'objectif atteint.
  */
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record TcfJourneyConfig(
@@ -97,6 +116,7 @@ public record TcfJourneyConfig(
         int trainSeriesQuota,
         Integer trainSeriesFallbackQuota,
         Double finDeCycleExamenRatio,
+        Integer examenCompletJalonCycles,
         Display display
 ) {
 
@@ -114,23 +134,6 @@ public record TcfJourneyConfig(
     public boolean quotaDeSerieAtteint(int reussies, int jouees) {
         if (reussies >= trainSeriesQuota) return true;
         return trainSeriesFallbackQuota != null && jouees >= trainSeriesFallbackQuota;
-    }
-
-    /**
-     * <b>L'examen de FIN DE CYCLE est-il ouvert ?</b>
-     *
-     * <p>🛑 <b>Aucun nombre de repli en Java.</b> Sans ratio, la regle est
-     * exactement celle d'avant v3 — {@code complete}, c'est-a-dire « plus aucune
-     * etape ouverte » —, et ce n'est pas un chiffre, c'est un fait deja calcule.
-     *
-     * <p>Un cycle <b>vide</b> ({@code total = 0}) n'ouvre rien par le ratio :
-     * 0 sur 0 n'est pas 80 %. Il reste couvert par {@code complete}, qui est vrai
-     * pour lui — c'est la meme reponse qu'avant, par le meme chemin.
-     */
-    public boolean examenDeFinDeCycleOuvert(int terminees, int total, boolean complete) {
-        if (complete) return true;
-        if (finDeCycleExamenRatio == null || total <= 0) return false;
-        return terminees >= finDeCycleExamenRatio * total;
     }
 
     /**

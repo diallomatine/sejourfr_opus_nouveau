@@ -5,6 +5,7 @@ import type {
     JourneyCycleArchiveDto,
     JourneyCycleDto,
     JourneyDto,
+    JourneyExamenCompletDto,
     JourneyFinDeCycle,
     JourneyHistoryCycleDto,
     JourneyObjectifRefDto,
@@ -480,23 +481,28 @@ export function journeyBlocRailState(status: JourneyBlocStatus): RailState {
 }
 
 /* -------------------------------- la dernière étape de la timeline du cycle ---
- * « Fin du cycle · Actualiser mon plan · Encore 4 étapes » (demande du
- * propriétaire, 2026-09-27). Miroir mot pour mot de `kJourneyRailEnd*`.
+ * « Fin du cycle · Actualiser mon plan · 3 priorités identifiées · Encore 4
+ * étapes » (demande du propriétaire, 2026-09-27). Miroir mot pour mot de
+ * `kJourneyRailEnd*`.
+ *
+ * 🛑 **Une seule fin depuis D-66** : l'examen blanc complet a quitté la fin de
+ * cycle (il devient un jalon, `JOURNEY_JALON_*`). La fin s'appelle donc
+ * toujours « Actualiser mon plan » — `cycle.finDeCycle`, qui la servait, est
+ * supprimé avec son autorité.
  */
 export const JOURNEY_RAIL_END_EYEBROW = "Fin du cycle";
+export const JOURNEY_RAIL_END_TITLE = "Actualiser mon plan";
 
-/** 🛑 **La nature de la fin est SERVIE** (`cycle.finDeCycle`) : jamais
- *  recombinée depuis `cycleDAffinage` / `cycleDeMesure`. `null` = inconnu ⇒
- *  on nomme l'étape sans promettre d'issue. */
-export function journeyRailEndTitle(fin: JourneyFinDeCycle | null): string {
-    switch (fin) {
-        case "EXAMEN_COMPLET":
-            return "Examen blanc complet";
-        case "ACTUALISATION":
-            return "Actualiser mon plan";
-        default:
-            return "Prochaine étape";
-    }
+/**
+ * « 3 priorités identifiées » — le nombre **servi** de priorités que le cycle
+ * suivant portera (`cycle.prioritesCycleSuivant`, D-67), jamais recompté ici.
+ * `null` (backend antérieur, consultation) ⇒ rien.
+ */
+export function journeyPrioritesIdentifiees(cycle: JourneyCycleDto): string | undefined {
+    const n = cycle.prioritesCycleSuivant;
+    if (n === null || n === undefined) return undefined;
+    if (n === 0) return "Aucune priorité identifiée pour l'instant";
+    return `${n} priorité${n === 1 ? "" : "s"} identifiée${n === 1 ? "" : "s"}`;
 }
 
 /**
@@ -610,47 +616,84 @@ export function journeyCycleNote(cycle: JourneyCycleDto): string {
               "Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.";
 }
 
-/* ---------------------------------------------------- fin de cycle (spec §6) */
+/* ------------------------------------------------ fin de cycle (D-66) */
 
-export const JOURNEY_NEXT_STEP_EYEBROW = "Cycle terminé · mesure globale";
-export const JOURNEY_NEXT_STEP_HEADLINE = "Voyez maintenant où vous en êtes vraiment";
+/* 🛑 **Une seule issue** (décision du propriétaire, 2026-09-27) : « Actualiser
+ * mon plan ». Le choix « Passer l'examen blanc complet / Actualiser sans examen
+ * complet » est SUPPRIMÉ de la carte, avec ses repères et sa note. */
+export const JOURNEY_NEXT_STEP_EYEBROW = "Cycle terminé";
+export const JOURNEY_NEXT_STEP_HEADLINE = "Passez au cycle suivant";
 export const JOURNEY_NEXT_STEP_TEXT =
-    "Vous avez travaillé toutes les priorités identifiées. Passez un TCF blanc " +
-    "complet pour mesurer votre niveau global et préparer votre prochain cycle.";
+    "Vous avez terminé ce cycle. Actualisez votre plan pour travailler les " +
+    "priorités que vos évaluations ont identifiées.";
 
-/** Le cas d'un **cycle de mesure** clos : enchaîner un second examen complet ne
- *  mesurerait rien de nouveau, donc la carte ne le propose pas. */
-export const JOURNEY_NEXT_STEP_TEXT_MESURE =
-    "Vos quatre épreuves viennent d'être mesurées. Actualisez votre plan pour " +
-    "recevoir les priorités que ces résultats ont identifiées.";
+/** Le repère de la carte : le nombre servi de priorités du cycle suivant. */
+export function journeyNextStepFacts(cycle: JourneyCycleDto): NextStepFact[] {
+    const n = cycle.prioritesCycleSuivant;
+    if (n === null || n === undefined) return [];
+    return [{
+        value: String(n),
+        label: `priorité${n === 1 ? "" : "s"} identifiée${n === 1 ? "" : "s"} pour le prochain cycle`,
+    }];
+}
 
-/** Les trois repères de l'examen complet. 🛑 Aucun chiffre inventé : quatre
- *  épreuves est le format du TCF IRN, pas une donnée servie. */
-export const JOURNEY_NEXT_STEP_FACTS: NextStepFact[] = [
-    {value: "4 épreuves", label: "TCF IRN complet"},
-    {value: "Conditions réelles", label: "simulation complète"},
-    {value: "Nouveau bilan", label: "niveau actualisé"},
-];
-
-export const JOURNEY_NEXT_STEP_EXAM_CTA = "Passer l'examen blanc complet →";
-export const JOURNEY_NEXT_STEP_REFRESH_CTA = "Actualiser mon plan sans examen complet";
-
-/** 🛑 **Le même geste, dit autrement quand il est SEUL** : « sans examen
- *  complet » n'a de sens qu'en face de l'examen complet. À la fin d'un cycle de
- *  mesure, il n'y a rien à opposer. */
-export const JOURNEY_NEXT_STEP_REFRESH_ONLY_CTA = "Actualiser mon plan";
-export const JOURNEY_NEXT_STEP_NOTE =
-    "L'examen complet est recommandé, mais pas obligatoire. Vous pouvez aussi " +
-    "actualiser votre plan à partir des examens déjà réalisés.";
+export const JOURNEY_NEXT_STEP_REFRESH_CTA = "Actualiser mon plan";
 
 /** 🛑 **Un échec réseau se DIT** : un bouton muet laisserait croire à une panne
  *  de l'application. Aucune promesse de délai, aucun jargon. */
 export const JOURNEY_NEXT_STEP_ERROR =
     "Votre plan n'a pas pu être actualisé. Vérifiez votre connexion et réessayez.";
 
-/** Pendant l'appel : les deux actions historisent le cycle, on ne les rejoue
- *  pas par un second clic. */
+/** Pendant l'appel : l'action historise le cycle, on ne la rejoue pas par un
+ *  second clic. */
 export const JOURNEY_NEXT_STEP_BUSY = "Un instant…";
+
+/* ----------------------------------- le jalon « examen blanc complet » (D-68)
+ * Proposé au-dessus du Plan, sous « À faire maintenant », quand le serveur le
+ * sert (`journey.examenComplet`). 🛑 Aucune condition recombinée ici : la
+ * raison et le compte sont SERVIS. Miroir mot pour mot de `kJourneyJalon*`.
+ */
+export const JOURNEY_JALON_TITLE = "Examen blanc complet";
+export const JOURNEY_JALON_CTA = "Faire un examen blanc complet";
+export const JOURNEY_JALON_BUSY = "Préparation…";
+export const JOURNEY_JALON_ERROR =
+    "Votre examen blanc complet n'a pas pu être préparé. Vérifiez votre connexion et réessayez.";
+
+/** La phrase du jalon, sur la **raison servie**. */
+export function journeyJalonText(jalon: JourneyExamenCompletDto, module: ParcoursModule): string {
+    if (jalon.raison === "OBJECTIF_ATTEINT") {
+        return module === "CIVIQUE"
+            ? "Vos examens de thème sont réussis sur toutes les thématiques. Confirmez-le " +
+                  "dans les conditions de l'examen."
+            : "Vos examens blancs atteignent votre objectif sur les quatre épreuves. " +
+                  "Confirmez-le dans les conditions de l'examen.";
+    }
+    const n = jalon.cyclesDeTravail;
+    return `Vous avez terminé ${n} cycle${n === 1 ? "" : "s"} de travail depuis votre ` +
+        "dernier examen blanc complet. Mesurez où vous en êtes " +
+        (module === "CIVIQUE" ? "sur toutes les thématiques." : "sur les quatre épreuves.");
+}
+
+export const JOURNEY_JALON_CONFIRM_TITLE = "Faire un examen blanc complet ?";
+export const JOURNEY_JALON_CONFIRM_CTA = "Commencer le cycle d'examens";
+export const JOURNEY_JALON_CONFIRM_CANCEL = "Annuler";
+
+/**
+ * Ce que le geste fait, **avant** de le faire. 🛑 Sur un cycle **terminé**
+ * (`cycle.complete`, servi), rien n'est interrompu : le serveur l'archive
+ * « examen blanc complet », et la phrase le dit.
+ */
+export function journeyJalonConfirmMessage(cycleTermine: boolean, module: ParcoursModule): string {
+    const examens = module === "CIVIQUE"
+        ? "un examen par thématique"
+        : "un examen blanc par épreuve";
+    const debut = cycleTermine
+        ? "Votre cycle terminé sera archivé dans « Mes cycles »."
+        : "Votre cycle en cours sera mis de côté : il apparaîtra dans « Mes cycles » " +
+            "comme interrompu.";
+    return `${debut} Un cycle d'examens le remplace, avec ${examens}. Vos priorités ` +
+        "non terminées ne sont pas perdues : les résultats de ces examens les recalculeront.";
+}
 
 function epreuveLabel(step: JourneyStepDto): string {
     /* 🛑 Servi (D-47). Vaut pour une épreuve TCF comme pour une thématique. */
@@ -752,8 +795,15 @@ export function journeyHistoryStatCycles(n: number): string {
 export const JOURNEY_HISTORY_SECTION_TITLE = "Cycles terminés";
 export const JOURNEY_HISTORY_SECTION_SUB = "Du plus récent au plus ancien";
 
-/** La pastille d'un cycle archivé : un cycle historisé l'est toujours. */
-export const JOURNEY_HISTORY_DONE_PILL = "TERMINÉ";
+/** La pastille d'un cycle archivé : « INTERROMPU » quand le jalon d'examen
+ *  complet l'a mis de côté (`finDeCycle` servi, V078), « TERMINÉ » sinon. */
+export function journeyHistoryPill(
+    fin: JourneyFinDeCycle | null,
+): {label: string; tone: "ok" | "warn"} {
+    return fin === "INTERROMPU"
+        ? {label: "INTERROMPU", tone: "warn"}
+        : {label: "TERMINÉ", tone: "ok"};
+}
 
 /**
  * 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN, pas une erreur** : le bandeau et ses
@@ -935,6 +985,8 @@ export function journeyArchiveEndTitle(fin: JourneyFinDeCycle | null): string {
             return "Plan actualisé";
         case "EXAMEN_COMPLET":
             return "Examen blanc complet";
+        case "INTERROMPU":
+            return "Cycle interrompu";
         default:
             return "Cycle terminé";
     }
