@@ -67,6 +67,7 @@ import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
 import {DiagnosticChoice} from "./DiagnosticChoice";
 import {demarrageDirectDemande} from "@/lib/preparation";
 import {DiagnosticIntro} from "./DiagnosticIntro";
+import {DIAGNOSTIC_REPORT_BACK_HREF} from "./report-labels";
 import {DiagnosticReport} from "./DiagnosticReport";
 import {DiagnosticSteps} from "./DiagnosticSteps";
 import {
@@ -1136,6 +1137,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         diagnostic={diagnostic}
         targetLevel={user.targetLevel ?? null}
         notice={notice}
+        backTo={DIAGNOSTIC_REPORT_BACK_HREF}
       />
     );
   }

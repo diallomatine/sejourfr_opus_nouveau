@@ -189,9 +189,14 @@ export function Top({
   title,
   lead,
   badge,
+  keepMenu,
 }: {
   backTo?: string;
   onBack?: () => void;
+  /** Dans la barre du haut, la flèche s'ajoute AU burger au lieu de le
+   *  remplacer (écran racine qu'on peut quitter en arrière). Web seulement :
+   *  l'app Flutter n'a pas de burger. */
+  keepMenu?: boolean;
   kicker?: string;
   title: string;
   /**
@@ -210,7 +215,11 @@ export function Top({
   /* La flèche de retour monte dans la barre du haut (≤ 900 px, shell
      connecté) — le chevron de l'en-tête s'efface alors (`in-bar-back`). */
   const retourDansLaBarre = useAppBarBack(
-    backTo ? { fallbackHref: backTo } : onBack ? { fallbackHref: "/dashboard", onBack } : null,
+    backTo
+      ? { fallbackHref: backTo, withMenu: keepMenu }
+      : onBack
+        ? { fallbackHref: "/dashboard", onBack, withMenu: keepMenu }
+        : null,
   );
   /* 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
      2026-09-12). Il **révoque** `.topPlain`, qui centrait sous 620 px un

@@ -41,7 +41,13 @@ const ValueContext = createContext<AppBarInfo | null>(null);
  * (`retourOuRepli`). `onBack` : la page intercepte le retour (confirmation
  * avant de quitter une session), comme son propre bouton le faisait.
  */
-export type AppBarBack = { fallbackHref: string; onBack?: () => void };
+export type AppBarBack = {
+  fallbackHref: string;
+  onBack?: () => void;
+  /** Garde le burger À CÔTÉ de la flèche (écran racine qu'on peut quitter en
+   *  arrière, ex. le rapport du diagnostic). Défaut : la flèche remplace le burger. */
+  withMenu?: boolean;
+};
 type BackSetter = (id: string, back: AppBarBack | null, hasHandler: boolean) => void;
 type BackEntry = { id: string; back: AppBarBack; hasHandler: boolean };
 
@@ -58,6 +64,7 @@ export function AppBarProvider({ children }: { children: ReactNode }) {
       if (
         cur?.id === id &&
         cur.back.fallbackHref === back.fallbackHref &&
+        cur.back.withMenu === back.withMenu &&
         cur.hasHandler === hasHandler
       ) {
         return cur;
@@ -111,6 +118,7 @@ export function useAppBarBack(back: AppBarBack | null): boolean {
   const id = useId();
   const fallbackHref = back?.fallbackHref;
   const onBack = back?.onBack;
+  const withMenu = back?.withMenu;
   const hasHandler = Boolean(onBack);
   const onBackRef = useRef(onBack);
 
@@ -125,11 +133,12 @@ export function useAppBarBack(back: AppBarBack | null): boolean {
       {
         fallbackHref,
         onBack: hasHandler ? () => onBackRef.current?.() : undefined,
+        withMenu,
       },
       hasHandler,
     );
     return () => set(id, null, false);
-  }, [set, id, fallbackHref, hasHandler]);
+  }, [set, id, fallbackHref, hasHandler, withMenu]);
 
   return set !== null && Boolean(fallbackHref);
 }

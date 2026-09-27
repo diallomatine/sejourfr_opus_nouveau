@@ -93,7 +93,7 @@ export function AppTopBar() {
   return (
     <>
       <header className={`atb${scrolled ? " is-scrolled" : ""}`}>
-        {back ? (
+        {back && !back.withMenu ? (
           <button
             type="button"
             className="atb-burger"
@@ -115,6 +115,18 @@ export function AppTopBar() {
             <Menu size={20} aria-hidden />
           </button>
         )}
+        {back?.withMenu ? (
+          <button
+            type="button"
+            className="atb-burger"
+            aria-label="Retour"
+            onClick={() =>
+              back.onBack ? back.onBack() : retourOuRepli(router, back.fallbackHref)
+            }
+          >
+            <ArrowLeft size={20} aria-hidden />
+          </button>
+        ) : null}
         <Suspense fallback={<AppTopBarTitle pathname={pathname} />}>
           <AppTopBarTitleWithQuery pathname={pathname} />
         </Suspense>
