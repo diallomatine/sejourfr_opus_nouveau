@@ -24,6 +24,16 @@ export function safeInternalPath(
 }
 
 /**
+ * La destination après connexion / inscription / complétion du profil.
+ * 🛑 L'accueil public (`/`) n'en est jamais une : un compte connecté y
+ * retomberait sur la vitrine au lieu de son espace — il va au tableau de bord.
+ */
+export function postLoginPath(value: string | null | undefined): string {
+  const path = safeInternalPath(value, "/dashboard");
+  return path === "/" || path.startsWith("/?") || path.startsWith("/#") ? "/dashboard" : path;
+}
+
+/**
  * Sérialise un objet JSON-LD pour injection dans un <script type="application/ld+json">
  * via dangerouslySetInnerHTML, en échappant "<" pour empêcher un breakout
  * "</script>" (XSS) si une valeur venait à contenir du markup.

@@ -8,7 +8,7 @@ import { SIGNUP_PANEL } from "@/app/_components/auth/auth-panels";
 import styles from "@/app/_components/auth/auth.module.css";
 import { useAuth } from "@/lib/auth-context";
 import { mustCompleteProfile, PROFILE_COMPLETION_PATH } from "@/lib/profile-completion";
-import { safeInternalPath } from "@/lib/security";
+import { postLoginPath } from "@/lib/security";
 
 /**
  * **Compléter son profil** — les questions de l'inscription, posées à un
@@ -31,7 +31,7 @@ function CompleterProfilInner() {
   const router = useRouter();
   const search = useSearchParams();
   const { status, user, logout } = useAuth();
-  const raw = safeInternalPath(search.get("next"), "/dashboard");
+  const raw = postLoginPath(search.get("next"));
   // Jamais de boucle sur l'écran lui-même.
   const nextHref = raw.startsWith(PROFILE_COMPLETION_PATH) ? "/dashboard" : raw;
 

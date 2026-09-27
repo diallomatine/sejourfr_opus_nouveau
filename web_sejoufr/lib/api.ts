@@ -463,6 +463,11 @@ function redirectToLogin(): void {
     const path = window.location.pathname;
     if (path === "/connexion" || path === "/inscription") return;
     tokenStorage.clear();
+    // Depuis la vitrine (`/`), pas de `next` : la connexion mène au tableau de bord.
+    if (path === "/") {
+        window.location.assign("/connexion");
+        return;
+    }
     const next = encodeURIComponent(path + window.location.search);
     window.location.assign(`/connexion?next=${next}`);
 }

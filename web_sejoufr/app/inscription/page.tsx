@@ -9,7 +9,7 @@ import { SIGNUP_PANEL } from "@/app/_components/auth/auth-panels";
 import styles from "@/app/_components/auth/auth.module.css";
 import { track, type AnalyticsRegistrationContext } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
-import { safeInternalPath } from "@/lib/security";
+import { postLoginPath } from "@/lib/security";
 
 export default function InscriptionPage() {
   return (
@@ -25,7 +25,7 @@ function InscriptionInner() {
   const { status, user } = useAuth();
   // Parcours d'achat depuis une landing : ?next=/paiement?plan=… ramène le
   // nouvel inscrit sur le pass qu'il venait de choisir, au lieu du dashboard.
-  const nextHref = safeInternalPath(search.get("next"), "/dashboard");
+  const nextHref = postLoginPath(search.get("next"));
 
   useEffect(() => {
     if (status === "authenticated" && user) {
