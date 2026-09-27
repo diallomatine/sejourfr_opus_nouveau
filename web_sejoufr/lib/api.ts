@@ -75,6 +75,7 @@ import type {AnalyticsCtaLocation} from "./analytics";
 import {withRetour} from "./retour";
 import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
 import {requiresDiagnosticRevalidation} from "./diagnostic";
+import {signalerPlanARelire} from "./plan-relecture";
 import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
 import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
 
@@ -1194,6 +1195,11 @@ export const journeyApi = {
             {method: "POST", auth: true},
         );
         invalidateDiagnosticAndPlan();
+        /* 🛑 **La réponse EST le nouveau cycle** : on la range pour que l'écran
+           le peigne sans second appel, puis on fait relire l'écran où l'on est
+           — c'est lui qui a cliqué, et une purge seule ne le remonte pas. */
+        primeCached(journeyCacheKey(module), journey);
+        signalerPlanARelire();
         return journey;
     },
 

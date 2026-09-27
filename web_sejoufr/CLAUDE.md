@@ -4699,6 +4699,16 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   « Évaluez vos progrès » + bouton « Commencer » à droite, 2026-09-26 ; état lu sur `status`,
   `locked` et `lockReason` servis), puis `NextStepCard` et
   ses deux actions quand `state === "CYCLE_COMPLETED"`.
+  🛑 **Timeline du cycle** (2026-09-27) : les blocs sont posés sur `CycleRail` — un
+  `CycleRailStep` par bloc (rond `done` / `current` / `upcoming` traduit du statut servi par
+  `journeyBlocRailState`), puis `CycleRailEnd` « Fin du cycle » : titre lu sur
+  `cycle.finDeCycle` **servi** (`journeyRailEndTitle`), pastille « Encore N étapes » =
+  `etapesTotal − etapesTerminees` (`journeyRailEndRemaining`). Atteinte, elle **devient**
+  `NextStepCard` (plus d'intertitre « Prochaine étape »). Rail étroit : rond 14 px, trait 2 px,
+  gouttière 8 px ; sur le rail, l'accordéon masque sa pastille d'état sous **388 px** (366 + 22).
+  « Actualiser mon plan » : `journeyApi.refresh` purge, range le nouveau cycle et appelle
+  `signalerPlanARelire()` (`lib/plan-relecture.ts`) — `LearningPlanView` et `CivicPlanPanel`
+  relisent sur `usePlanRelecture()`. Sans ce signal, rien ne se relisait avant un rechargement.
   ⚠️ **Cycle d'affinage** (2026-09-27, D-64) : la note de pied et la phrase sous la barre se
   lisent sur `cycle.cycleDAffinage` (`journeyCycleNote` / `journeyCycleHint`) — jamais sur
   `numero`. Le verrou et l'étape courante arrivent servis. → `docs/regles/plan.md`.
@@ -4715,7 +4725,8 @@ touche à l'ordre du Plan TCF et à la carte « À faire maintenant ».
   et `PlanProgressView` sont supprimés**, avec `PlanRecentChanges` et leurs liens.
 - **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) : `CycleProgress`,
   `BlocAccordion`, `ExamStepBox` (historique), `ExamStepAction` (examen du cycle en cours),
-  `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`.
+  `NextStepCard`, `Pill`, `HeroBanner`, `StatGrid`, `CycleRail` / `CycleRailStep` /
+  `CycleRailEnd` (timeline du cycle, 2026-09-27).
 
 
 ### Le plan civique passe sur le CYCLE (P8.7, D-50, 2026-09-20)

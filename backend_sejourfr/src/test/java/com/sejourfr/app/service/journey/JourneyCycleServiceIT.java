@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
 import com.sejourfr.app.enums.JourneyBlocStatus;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyLotStatus;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyStatus;
@@ -191,6 +192,8 @@ class JourneyCycleServiceIT extends AbstractIntegrationTest {
                 .isEqualTo(JourneyStatus.EN_ATTENTE);
         // 🛑 Un cycle de mesure est DERIVE : aucune etape d'entrainement.
         assertThat(mesure.cycle().cycleDeMesure()).isTrue();
+        // La timeline annonce l'actualisation seule, des le debut du cycle.
+        assertThat(mesure.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.ACTUALISATION);
         assertThat(mesure.cycle().etapesTotal()).isEqualTo(TcfDomainProfileDto.ORDRE.size());
         assertThat(mesure.blocs()).allSatisfy(bloc -> {
             assertThat(bloc.exam()).as("examen du bloc " + bloc.bloc().label()).isNotNull();

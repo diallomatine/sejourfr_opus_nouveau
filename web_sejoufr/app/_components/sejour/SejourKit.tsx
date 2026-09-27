@@ -29,6 +29,7 @@ import {
   ListChecks,
   Lock,
   Minus,
+  Star,
   Target,
   AlertCircle,
   X,
@@ -2213,6 +2214,121 @@ export function NextStepCard({
         ) : null}
       </div>
     </section>
+  );
+}
+
+/* ==========================================================================
+   La timeline du cycle (demande du propriétaire, 2026-09-27)
+
+   Un rail vertical ÉTROIT à gauche des blocs : un rond par bloc, relié par un
+   trait, et une dernière étape « Fin du cycle » en bas. 🛑 Miroirs de
+   `SfCycleRail`, `SfCycleRailStep` et `SfCycleRailEnd` côté Flutter, brique
+   pour brique et au pixel près : rond 14 px, trait 2 px, gouttière 8 px — soit
+   22 px pris aux cartes, pas un de plus.
+   ========================================================================== */
+
+/**
+ * L'état d'un rond de la timeline. **Passé**, jamais déduit ici : l'écran le
+ * traduit du statut servi du bloc.
+ */
+export type RailState = "done" | "current" | "upcoming";
+
+/**
+ * **La timeline du cycle** — le conteneur du rail.
+ *
+ * Le trait est dessiné **par étape** (du haut de l'étape jusqu'à la suivante),
+ * et coupé au rond de la première et de la dernière : aucune hauteur n'est
+ * mesurée, la timeline suit ce que les cartes deviennent en se dépliant.
+ *
+ * ⚠️ **22 px de moins pour les cartes** : sous 388 px (366 + 22), l'accordéon
+ * placé dans le rail masque sa pastille d'état comme il le fait seul sous
+ * 366 px — le rond porte alors l'état, et le nom d'épreuve tient sur une ligne
+ * (D-21). Miroir Flutter : `SfCycleRail.retraitDe`.
+ *
+ * Miroir Flutter : `SfCycleRail`.
+ */
+export function CycleRail({ children }: { children: ReactNode }) {
+  return <ol className={styles.rail}>{children}</ol>;
+}
+
+/**
+ * **Une étape de la timeline** : un rond à gauche, la carte à droite, reçue
+ * **telle quelle** (`BlocAccordion` sur le Plan).
+ *
+ * - `done` — rond plein bleu, coché ;
+ * - `current` — rond épais bleu, le bloc en cours ;
+ * - `upcoming` — rond gris au trait fin.
+ *
+ * Miroir Flutter : `SfCycleRailStep`.
+ */
+export function CycleRailStep({ state, children }: { state: RailState; children: ReactNode }) {
+  return (
+    <li className={styles.railStep}>
+      <span
+        className={cx(
+          styles.railDot,
+          state === "done" && styles.railDotDone,
+          state === "current" && styles.railDotCurrent,
+        )}
+        aria-hidden
+      >
+        {state === "done" ? <Check size={9} strokeWidth={3.5} /> : null}
+      </span>
+      <div className={styles.railBody}>{children}</div>
+    </li>
+  );
+}
+
+/**
+ * **La dernière étape de la timeline** — « Fin du cycle », rond étoilé.
+ *
+ * - **Non atteinte** : un encart en pointillés, atténué — `eyebrow`, `title`
+ *   et, s'il reste des étapes, la pastille `remaining` (« Encore 4 étapes »).
+ * - **Atteinte** (`reached` + `children`) : l'encart disparaît et **l'action
+ *   prend sa place** — la carte de fin de cycle existante, jamais un second
+ *   bouton qui la dupliquerait.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici**, et rien n'est compté : les trois
+ * libellés arrivent en props.
+ *
+ * Miroir Flutter : `SfCycleRailEnd`.
+ */
+export function CycleRailEnd({
+  eyebrow,
+  title,
+  remaining,
+  reached,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  /** « Encore N étapes ». Absent ⇒ aucune pastille. */
+  remaining?: string;
+  reached: boolean;
+  /** L'action de fin de cycle, rendue **à la place** de l'encart une fois atteinte. */
+  children?: ReactNode;
+}) {
+  return (
+    <li className={cx(styles.railStep, styles.railEnd)}>
+      <span className={cx(styles.railDot, styles.railDotEnd)} aria-hidden>
+        <Star size={8} strokeWidth={0} fill="currentColor" />
+      </span>
+      <div className={styles.railBody}>
+        {reached && children ? (
+          children
+        ) : (
+          <div className={styles.railEndBox}>
+            <span className={styles.railEndEyebrow}>{eyebrow}</span>
+            <b className={styles.railEndTitle}>{title}</b>
+            {remaining ? (
+              <span className={styles.railEndPill}>
+                <Pill label={remaining} tone="warn" />
+              </span>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
 

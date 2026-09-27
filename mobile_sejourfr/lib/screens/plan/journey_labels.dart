@@ -395,6 +395,43 @@ String journeyHistoryBlocTitle(JourneyHistoryBloc bloc) => bloc.bloc.label;
       JourneyBlocStatus.aVenir => (label: 'À VENIR', tone: SfTone.muted),
     };
 
+/// **L'état du rond d'un bloc sur la timeline du cycle** (2026-09-27) — une
+/// simple traduction du statut SERVI, rien n'est classé ici.
+///
+/// Miroir mot pour mot de `journeyBlocRailState` (`lib/journey.ts`).
+SfRailState journeyBlocRailState(JourneyBlocStatus status) => switch (status) {
+      JourneyBlocStatus.termine => SfRailState.done,
+      JourneyBlocStatus.enCours => SfRailState.current,
+      JourneyBlocStatus.aEvaluer => SfRailState.upcoming,
+      JourneyBlocStatus.aVenir => SfRailState.upcoming,
+    };
+
+/* ------------------------------ la dernière étape de la timeline du cycle --- */
+// « Fin du cycle · Actualiser mon plan · Encore 4 étapes » (demande du
+// propriétaire, 2026-09-27). Miroir mot pour mot de `JOURNEY_RAIL_END_*`.
+
+const String kJourneyRailEndEyebrow = 'Fin du cycle';
+
+/// 🛑 **La nature de la fin est SERVIE** ([JourneyCycle.finDeCycle]) : jamais
+/// recombinée depuis `cycleDAffinage` / `cycleDeMesure`. `null` = inconnu ⇒ on
+/// nomme l'étape sans promettre d'issue.
+String journeyRailEndTitle(JourneyFinDeCycle? fin) => switch (fin) {
+      JourneyFinDeCycle.examenComplet => 'Examen blanc complet',
+      JourneyFinDeCycle.actualisation => 'Actualiser mon plan',
+      null => 'Prochaine étape',
+    };
+
+/// « Encore N étapes » : le **compteur servi**, lu à l'envers —
+/// `etapesTotal - etapesTerminees`, la même arithmétique que la barre de
+/// [SfCycleProgress]. ⚠️ En affinage, `etapesTotal` ne compte déjà que les
+/// étapes obligatoires (plus les facultatives faites) : la différence est donc
+/// exactement ce qui reste DÛ avant la fin. `null` ⇒ pas de pastille.
+String? journeyRailEndRemaining(JourneyCycle cycle) {
+  final restantes = cycle.etapesTotal - cycle.etapesTerminees;
+  if (cycle.complete || restantes <= 0) return null;
+  return 'Encore $restantes étape${restantes == 1 ? '' : 's'}';
+}
+
 /* ----------------------------------------- l'étape d'examen d'un bloc --- */
 // 🛑 **Un seul rendu pour toutes les épreuves** (demande du propriétaire,
 // 2026-09-26) : « Examen blanc », « Évaluez vos progrès », et le bouton à
@@ -483,9 +520,6 @@ String journeyCycleNote(JourneyCycle cycle) => cycle.cycleDAffinage
         'terminées.';
 
 /* ----------------------------------------------------- fin de cycle (§6) --- */
-
-/// L'intertitre qui introduit la carte finale.
-const String kJourneyNextStepTitle = 'Prochaine étape';
 
 const String kJourneyNextStepEyebrow = 'Cycle terminé · mesure globale';
 const String kJourneyNextStepHeadline =

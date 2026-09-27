@@ -3,6 +3,7 @@ import type {
     JourneyBlocStatus,
     JourneyCycleDto,
     JourneyDto,
+    JourneyFinDeCycle,
     JourneyHistoryBlocDto,
     JourneyHistoryCycleDto,
     JourneyObjectifRefDto,
@@ -18,6 +19,7 @@ import type {
     JourneyKind,
     JourneyState as KitJourneyState,
     NextStepFact,
+    RailState,
     Tone,
 } from "../app/_components/sejour/SejourKit";
 
@@ -460,6 +462,59 @@ export function journeyBlocStatus(status: JourneyBlocStatus): {label: string; to
     }
 }
 
+/**
+ * **L'état du rond d'un bloc sur la timeline du cycle** (2026-09-27) — une
+ * simple traduction du statut SERVI, rien n'est classé ici : `TERMINE` ⇒ fait,
+ * `EN_COURS` ⇒ en cours (le même fait que la prop `current` de l'accordéon),
+ * tout le reste ⇒ à venir.
+ *
+ * Miroir mot pour mot de `journeyBlocRailState` (`journey_labels.dart`).
+ */
+export function journeyBlocRailState(status: JourneyBlocStatus): RailState {
+    switch (status) {
+        case "TERMINE":
+            return "done";
+        case "EN_COURS":
+            return "current";
+        case "A_EVALUER":
+        case "A_VENIR":
+            return "upcoming";
+    }
+}
+
+/* -------------------------------- la dernière étape de la timeline du cycle ---
+ * « Fin du cycle · Actualiser mon plan · Encore 4 étapes » (demande du
+ * propriétaire, 2026-09-27). Miroir mot pour mot de `kJourneyRailEnd*`.
+ */
+export const JOURNEY_RAIL_END_EYEBROW = "Fin du cycle";
+
+/** 🛑 **La nature de la fin est SERVIE** (`cycle.finDeCycle`) : jamais
+ *  recombinée depuis `cycleDAffinage` / `cycleDeMesure`. `null` = inconnu ⇒
+ *  on nomme l'étape sans promettre d'issue. */
+export function journeyRailEndTitle(fin: JourneyFinDeCycle | null): string {
+    switch (fin) {
+        case "EXAMEN_COMPLET":
+            return "Examen blanc complet";
+        case "ACTUALISATION":
+            return "Actualiser mon plan";
+        default:
+            return "Prochaine étape";
+    }
+}
+
+/**
+ * « Encore N étapes » : le **compteur servi**, lu à l'envers — `etapesTotal -
+ * etapesTerminees`, la même arithmétique que la barre de `CycleProgress`.
+ * ⚠️ En affinage, `etapesTotal` ne compte déjà que les étapes obligatoires
+ * (plus les facultatives faites) : la différence est donc exactement ce qui
+ * reste DÛ avant la fin, sans rien reclasser ici. `undefined` ⇒ pas de pastille.
+ */
+export function journeyRailEndRemaining(cycle: JourneyCycleDto): string | undefined {
+    const restantes = cycle.etapesTotal - cycle.etapesTerminees;
+    if (cycle.complete || restantes <= 0) return undefined;
+    return `Encore ${restantes} étape${restantes === 1 ? "" : "s"}`;
+}
+
 /* ------------------------------------------ l'étape d'examen d'un bloc ---
  * 🛑 **Un seul rendu pour toutes les épreuves** (demande du propriétaire,
  * 2026-09-26) : « Examen blanc », « Évaluez vos progrès », et le bouton à
@@ -559,9 +614,6 @@ export function journeyCycleNote(cycle: JourneyCycleDto): string {
 }
 
 /* ---------------------------------------------------- fin de cycle (spec §6) */
-
-/** L'intertitre qui introduit la carte finale. */
-export const JOURNEY_NEXT_STEP_TITLE = "Prochaine étape";
 
 export const JOURNEY_NEXT_STEP_EYEBROW = "Cycle terminé · mesure globale";
 export const JOURNEY_NEXT_STEP_HEADLINE = "Voyez maintenant où vous en êtes vraiment";

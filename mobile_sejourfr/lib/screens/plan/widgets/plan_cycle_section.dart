@@ -202,21 +202,47 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
 
               // 🛑 **L'ordre servi est l'autorité** : aucun tri, aucun filtre —
               // les quatre épreuves sont là, même celles que la file n'a pas
-              // encore peuplées.
-              for (final bloc in parcours.blocs)
-                SfBlocAccordion(
-                  mark: journeyBlocMark(bloc.bloc),
-                  title: journeyBlocTitle(bloc.bloc),
-                  meta: bloc.meta,
-                  status: journeyBlocStatus(bloc.status),
-                  current: bloc.status == JourneyBlocStatus.enCours,
-                  open: ouvert == bloc.bloc.code,
-                  onToggle: () => setState(() {
-                    _aChoisi = true;
-                    _choix = ouvert == bloc.bloc.code ? null : bloc.bloc.code;
-                  }),
-                  child: _corpsDuBloc(bloc),
-                ),
+              // encore peuplées. Le rond de chaque bloc traduit son statut
+              // SERVI.
+              SfCycleRail(
+                children: [
+                  for (final bloc in parcours.blocs)
+                    SfCycleRailStep(
+                      state: journeyBlocRailState(bloc.status),
+                      child: SfBlocAccordion(
+                        mark: journeyBlocMark(bloc.bloc),
+                        title: journeyBlocTitle(bloc.bloc),
+                        meta: bloc.meta,
+                        status: journeyBlocStatus(bloc.status),
+                        current: bloc.status == JourneyBlocStatus.enCours,
+                        open: ouvert == bloc.bloc.code,
+                        onToggle: () => setState(() {
+                          _aChoisi = true;
+                          _choix =
+                              ouvert == bloc.bloc.code ? null : bloc.bloc.code;
+                        }),
+                        child: _corpsDuBloc(bloc),
+                      ),
+                    ),
+                  // 🛑 **La dernière étape annonce la fin SERVIE**
+                  // (`cycle.finDeCycle`) et le compteur servi lu à l'envers.
+                  // Atteinte — la condition d'avant, mot pour mot : cycle
+                  // terminé ET issues servies —, elle devient la carte de fin
+                  // de cycle.
+                  SfCycleRailEnd(
+                    eyebrow: kJourneyRailEndEyebrow,
+                    title: journeyRailEndTitle(cycle.finDeCycle),
+                    remaining: journeyRailEndRemaining(cycle),
+                    reached: termine && nextStep != null,
+                    // 🛑 **`examenCompletPossible` est SERVI** : il dit déjà
+                    // « ce cycle est un cycle de mesure », et le redéduire de
+                    // `cycle.cycleDeMesure` ferait deux autorités pour un fait.
+                    child: termine && nextStep != null
+                        ? _finDeCycle(nextStep.examenCompletPossible)
+                        : null,
+                  ),
+                ],
+              ),
 
               SfInfoNote(
                 child: Text(
@@ -234,11 +260,6 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
             ],
           ),
         ),
-        if (termine && nextStep != null)
-          // 🛑 **`examenCompletPossible` est SERVI** : il dit déjà « ce cycle est
-          // un cycle de mesure », et le redéduire de `cycle.cycleDeMesure`
-          // ferait deux autorités pour un fait.
-          _finDeCycle(nextStep.examenCompletPossible),
       ],
     );
   }
@@ -477,70 +498,70 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   ///   second examen complet ne mesurerait rien de nouveau.
   /// - « Actualiser mon plan sans examen complet » appelle `POST …/refresh`.
   ///
-  /// 🛑 **Les deux relancent les lectures vivantes** ([signalerMesureEcrite]) :
+  /// 🛑 **Les deux relancent les lectures vivantes** ([relireSourcesDuCompte]) :
   /// Plan et parcours se rafraîchissent **ensemble**, jamais l'un sans l'autre.
   ///
   /// 🛑 **Un échec réseau se DIT** : le bouton ne reste jamais muet.
   Widget _finDeCycle(bool examenCompletPossible) {
     final erreur = _erreur;
-    return SfSection(
-      title: kJourneyNextStepTitle,
-      child: SfStack(
-        children: [
-          SfNextStepCard(
-            eyebrow: kJourneyNextStepEyebrow,
-            title: kJourneyNextStepHeadline,
-            text: examenCompletPossible
-                ? kJourneyNextStepText
-                : kJourneyNextStepTextMesure,
-            // 🛑 Les repères décrivent l'examen complet : sans lui, ils n'ont
-            // rien à dire.
-            facts: examenCompletPossible
-                ? kJourneyNextStepFacts
-                : const <SfNextStepFact>[],
-            // Une carte à deux actions dont la première n'existe pas :
-            // l'actualisation prend la place principale, et c'est la seule issue
-            // d'un cycle de mesure clos.
-            primary: examenCompletPossible
-                ? (
-                    label: _occupe
-                        ? kJourneyNextStepBusy
-                        : kJourneyNextStepExamCta,
-                    onPressed: _lancerExamenComplet,
-                  )
-                : (
-                    label: _occupe
-                        ? kJourneyNextStepBusy
-                        : kJourneyNextStepRefreshOnlyCta,
-                    onPressed: _actualiser,
-                  ),
-            // 🛑 **Absente quand l'examen complet n'est pas proposé** : il ne
-            // reste qu'une issue, et fabriquer un second bouton pour tenir la
-            // forme ferait deux fois le même geste.
-            secondary: examenCompletPossible
-                ? (
-                    label: kJourneyNextStepRefreshCta,
-                    onPressed: _actualiser,
-                  )
-                : null,
+    // 🛑 **Plus d'intertitre « Prochaine étape »** (2026-09-27) : la carte est
+    // rendue DANS la dernière étape de la timeline, dont elle prend la place.
+    // Ni `SfSection` ni gouttière — elle est déjà dans ceux du cycle.
+    return SfStack(
+      pad: false,
+      children: [
+        SfNextStepCard(
+          eyebrow: kJourneyNextStepEyebrow,
+          title: kJourneyNextStepHeadline,
+          text: examenCompletPossible
+              ? kJourneyNextStepText
+              : kJourneyNextStepTextMesure,
+          // 🛑 Les repères décrivent l'examen complet : sans lui, ils n'ont
+          // rien à dire.
+          facts: examenCompletPossible
+              ? kJourneyNextStepFacts
+              : const <SfNextStepFact>[],
+          // Une carte à deux actions dont la première n'existe pas :
+          // l'actualisation prend la place principale, et c'est la seule issue
+          // d'un cycle de mesure clos.
+          primary: examenCompletPossible
+              ? (
+                  label:
+                      _occupe ? kJourneyNextStepBusy : kJourneyNextStepExamCta,
+                  onPressed: _lancerExamenComplet,
+                )
+              : (
+                  label: _occupe
+                      ? kJourneyNextStepBusy
+                      : kJourneyNextStepRefreshOnlyCta,
+                  onPressed: _actualiser,
+                ),
+          // 🛑 **Absente quand l'examen complet n'est pas proposé** : il ne
+          // reste qu'une issue, et fabriquer un second bouton pour tenir la
+          // forme ferait deux fois le même geste.
+          secondary: examenCompletPossible
+              ? (
+                  label: kJourneyNextStepRefreshCta,
+                  onPressed: _actualiser,
+                )
+              : null,
+        ),
+        // 🛑 La note ne se lit que face à un choix : sans examen complet à
+        // proposer, elle décrirait une option absente.
+        if (examenCompletPossible)
+          SfInfoNote(
+            child: Text(
+              kJourneyNextStepNote,
+              style:
+                  AppFonts.ui(size: 12, color: AppColors.muted, height: 1.45),
+            ),
           ),
-          // 🛑 La note ne se lit que face à un choix : sans examen complet à
-          // proposer, elle décrirait une option absente.
-          if (examenCompletPossible)
-            SfInfoNote(
-              child: Text(
-                kJourneyNextStepNote,
-                style:
-                    AppFonts.ui(size: 12, color: AppColors.muted, height: 1.45),
-              ),
-            ),
-          if (erreur != null)
-            Text(
-              erreur,
-              style: AppFonts.ui(size: 12, color: AppColors.red, height: 1.45),
-            ),
-        ],
-      ),
+        if (erreur != null)
+          Text(
+            erreur,
+            style: AppFonts.ui(size: 12, color: AppColors.red, height: 1.45),
+          ),
+      ],
     );
   }
 
@@ -589,9 +610,12 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     });
     try {
       await geste();
-      // 🛑 Le signal recharge les cinq lectures gardées en vie, Plan et parcours
-      // compris : c'est ce qui repeint l'écran sans le remonter.
-      if (mounted) signalerMesureEcrite(ref);
+      // 🛑 **On ATTEND la relecture** (2026-09-27) : le signal recharge les
+      // lectures gardées en vie — Plan, parcours, Accueil, historique — et le
+      // bouton reste « occupé » jusqu'à ce que le nouveau cycle soit lu. Un
+      // simple signal rendait la main aussitôt : l'écran montrait encore
+      // l'ancien cycle, bouton réactivé, le temps de la relecture.
+      if (mounted) await relireSourcesDuCompte(ref);
     } catch (error) {
       if (!mounted) return;
       // Un **403** au démarrage de l'examen n'est pas une panne : c'est le

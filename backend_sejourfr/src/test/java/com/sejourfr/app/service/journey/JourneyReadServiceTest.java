@@ -14,6 +14,7 @@ import com.sejourfr.app.entity.JourneyStepSeries;
 import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyBlocStatus;
 import com.sejourfr.app.enums.JourneyBlocKind;
@@ -1435,6 +1436,8 @@ class JourneyReadServiceTest {
         assertThat(vue.nextStep()).isNotNull();
         assertThat(vue.nextStep().actualisationPossible()).isTrue();
         assertThat(vue.nextStep().examenCompletPossible()).isTrue();
+        // 🛑 L'annonce de la timeline et le bouton servi disent la meme chose.
+        assertThat(vue.cycle().finDeCycle()).isEqualTo(JourneyFinDeCycle.EXAMEN_COMPLET);
     }
 
     /**

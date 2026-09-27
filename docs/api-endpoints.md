@@ -266,7 +266,7 @@ Cf. `exams-tcf.md`.
   retrouver dans `domainesAEvaluer`**, qui ne liste que les épreuves **jamais mesurées** alors
   qu'un point d'étape porte toujours sur une épreuve déjà mesurée.
   **Le cycle borné (D-12)** se superpose à la même file : `cycle` (avancement, `numero`,
-  `complete`, `cycleDeMesure`, `cycleDAffinage`), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
+  `complete`, `cycleDeMesure`, `cycleDAffinage`, `finDeCycle` — `EXAMEN_COMPLET` / `ACTUALISATION`, 2026-09-27), `blocs` — **toujours quatre**, une par épreuve, dans l'ordre
   `CO, CE, EO, EE` (`TcfDomainProfileDto.ORDRE`, non configurable) avec leur `status` dérivé
   (`TERMINE` / `EN_COURS` / `A_EVALUER` / `A_VENIR`), leurs `steps` et leur `exam` — et
   `nextStep`, **`null` sauf cycle terminé**. `state` gagne `CYCLE_COMPLETED` (cycle terminé,

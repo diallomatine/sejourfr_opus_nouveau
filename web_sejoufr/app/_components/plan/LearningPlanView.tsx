@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {ApiException, journeyApi, learningPlanApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
+import {usePlanRelecture} from "@/lib/plan-relecture";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -109,6 +110,7 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const trafficSource = useTrafficSource();
+  const relecture = usePlanRelecture();
 
   useEffect(() => {
     if (authStatus === "loading") return;
@@ -135,7 +137,9 @@ export function LearningPlanView({prep}: {prep?: ModulePreparation | null}) {
       if (!cancelled) setJourneyRead(true);
     });
     return () => { cancelled = true; };
-  }, [authStatus, user]);
+    /* 🛑 `relecture` : « Actualiser mon plan » se clique ICI — sans ce
+       signal, la purge du cache ne faisait relire personne. */
+  }, [authStatus, user, relecture]);
 
   // Étape 5 du tunnel « Suivi » : le Plan affiché, avec son `journeyId`. La
   // run fondatrice se résout serveur depuis le parcours (Q8), jamais ici.

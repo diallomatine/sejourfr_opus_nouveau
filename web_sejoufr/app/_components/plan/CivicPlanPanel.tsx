@@ -8,6 +8,7 @@ import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
 import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
+import {usePlanRelecture} from "@/lib/plan-relecture";
 import {useAuth} from "@/lib/auth-context";
 import {
   CIVIC_PLAN_LOCKED_CTA,
@@ -99,6 +100,7 @@ export function CivicPlanPanel() {
      et les blocs. `null` est un cas normal — pas encore lu. */
   const [journey, setJourney] = useState<JourneyDto | null>(null);
   const [journeyRead, setJourneyRead] = useState(false);
+  const relecture = usePlanRelecture();
 
   useEffect(() => {
     let vivant = true;
@@ -113,7 +115,9 @@ export function CivicPlanPanel() {
       if (vivant) setJourneyRead(true);
     });
     return () => { vivant = false; };
-  }, []);
+    /* 🛑 `relecture` : « Actualiser mon plan » se clique ICI — sans ce
+       signal, la purge du cache ne faisait relire personne. */
+  }, [relecture]);
 
   // Étape 5 du tunnel « Suivi » : le Plan civique affiché, avec son
   // `journeyId`. Miroir de `LearningPlanView`.

@@ -1,5 +1,7 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.JourneyFinDeCycle;
+
 /**
  * <b>L'avancement du cycle</b> : la barre continue et son repere.
  *
@@ -49,6 +51,11 @@ package com.sejourfr.app.dto;
  *                        etapes <b>obligatoires</b> plus les facultatives deja
  *                        faites : une competence non travaillee ne retient pas
  *                        la barre sous 100 %.</p>
+ * @param finDeCycle      ce qui <b>clot</b> ce cycle, servi des son debut
+ *                        (2026-09-27) : la derniere etape de la timeline du
+ *                        Plan l'annonce avant qu'elle soit atteinte. 🛑
+ *                        Autorite : {@link JourneyFinDeCycle#de}, la meme qui
+ *                        decide de {@code nextStep.examenCompletPossible}.
  */
 public record JourneyCycleDto(
         int numero,
@@ -56,5 +63,6 @@ public record JourneyCycleDto(
         int etapesTotal,
         boolean complete,
         boolean cycleDeMesure,
-        boolean cycleDAffinage
+        boolean cycleDAffinage,
+        JourneyFinDeCycle finDeCycle
 ) {}

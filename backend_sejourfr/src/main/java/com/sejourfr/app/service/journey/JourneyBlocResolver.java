@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.JourneyStepDto;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.dto.JourneyBlocRefDto;
 import com.sejourfr.app.enums.JourneyBlocStatus;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStepType;
 import org.springframework.stereotype.Component;
 
@@ -122,9 +123,10 @@ public class JourneyBlocResolver {
                         || JourneyCycleAffinage.obligatoire(step, affinage))
                 .count();
         boolean complete = JourneyCycleAffinage.termine(affichables, affinage);
+        boolean mesure = cycleDeMesure(affichables);
         return new Vue(List.copyOf(blocs), new JourneyCycleDto(
                 numeroDuCycle, terminees, total, complete,
-                cycleDeMesure(affichables), affinage));
+                mesure, affinage, JourneyFinDeCycle.de(affinage, mesure)));
     }
 
     /**

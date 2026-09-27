@@ -2376,8 +2376,29 @@ fin de fichier.
 
 ### Ce que les fronts affichent, et ce qu'ils ne savent pas
 
-Le serveur sert `cycle` (numéro, étapes terminées / total, `complete`, `cycleDeMesure`),
-`blocs` et `nextStep` (les deux issues possibles). 🛑 **Des faits, pas des phrases** (B-11) :
+Le serveur sert `cycle` (numéro, étapes terminées / total, `complete`, `cycleDeMesure`,
+`cycleDAffinage`, `finDeCycle`), `blocs` et `nextStep` (les deux issues possibles).
+
+**La timeline du cycle** (2026-09-27, demande du propriétaire). Les blocs sont posés sur un
+rail vertical étroit (rond 14 px, trait 2 px, gouttière 8 px — kit `CycleRail*` ⇄
+`SfCycleRail*`) : un rond par bloc, traduit du **statut servi** (`TERMINE` ⇒ plein coché,
+`EN_COURS` ⇒ épais, le reste ⇒ gris), puis une **dernière étape « Fin du cycle »**, rond
+étoilé.
+- 🛑 **Sa nature est SERVIE** : `cycle.finDeCycle` ∈ `EXAMEN_COMPLET` / `ACTUALISATION`,
+  autorité unique `JourneyFinDeCycle.de(cycleDAffinage, cycleDeMesure)` — la même qui décide
+  de `nextStep.examenCompletPossible`, pour que l'annonce et le bouton ne divergent pas. Un
+  cycle d'affinage ou de mesure annonce « Actualiser mon plan », un cycle de travail
+  « Examen blanc complet ». `null` (backend antérieur) ⇒ « Prochaine étape ».
+- « **Encore N étapes** » = `etapesTotal − etapesTerminees`, lecture arithmétique du compteur
+  servi (en affinage, `etapesTotal` exclut déjà les facultatives non faites : la différence
+  est exactement ce qui reste dû). Aucune pastille à 0.
+- Non atteinte, l'étape est un encart en pointillés, atténué ; **atteinte** (condition
+  inchangée : `CYCLE_COMPLETED` et `nextStep` servi), elle **devient** la carte de fin de
+  cycle à deux actions — l'intertitre « Prochaine étape » est supprimé.
+- « Actualiser mon plan » **fait relire l'écran où l'on est** : web `journeyApi.refresh`
+  purge, range le nouveau cycle et signale `signalerPlanARelire()` ; mobile attend
+  `relireSourcesDuCompte`. Avant le 2026-09-27, le web gardait l'ancien cycle affiché
+  jusqu'au rechargement de la page. 🛑 **Des faits, pas des phrases** (B-11) :
 « 3 étapes sur 8 terminées », « 1 compétence restante · puis examen », « VERROUILLÉ » sont
 composés par les fronts. `JourneyDto.steps` et `hiddenUpcomingCount` **n'existent plus** —
 la file plate est remplacée par les blocs dépliables, et le fenêtrage `display.*` de

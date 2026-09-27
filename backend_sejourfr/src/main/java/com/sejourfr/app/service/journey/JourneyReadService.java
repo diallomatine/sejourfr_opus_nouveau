@@ -16,6 +16,7 @@ import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyProgressUnit;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyBlocKind;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyStepResolution;
 import com.sejourfr.app.enums.JourneyStepStatus;
 import com.sejourfr.app.enums.JourneyStepType;
@@ -470,7 +471,11 @@ public class JourneyReadService {
         // 🛑 SEUL L'EXAMEN SE DEBLOQUE TOT. « Actualiser mon plan » historise le
         // cycle et promeut le suivant : l'offrir a 80 % jetterait du travail que
         // le candidat n'a pas fait et n'a pas demande a abandonner.
-        return new JourneyNextStepDto(examen && !cycle.cycleDeMesure(), cycle.complete());
+        // 🛑 LA FIN SERVIE EST L'AUTORITE (`JourneyFinDeCycle`) : la timeline
+        // l'annonce avant la fin, et ce bouton ne peut pas dire autre chose.
+        return new JourneyNextStepDto(
+                examen && cycle.finDeCycle() == JourneyFinDeCycle.EXAMEN_COMPLET,
+                cycle.complete());
     }
 
     // ------------------------------------------------------------ §5 bis : verrou

@@ -5008,7 +5008,18 @@ export interface JourneyCycleDto {
      * le verrou, lui, arrive déjà servi sur chaque étape (`lockReason`).
      */
     cycleDAffinage: boolean;
+    /**
+     * **Ce qui clôt ce cycle**, servi dès son début (2026-09-27) : la dernière
+     * étape de la timeline du Plan l'annonce avant qu'elle soit atteinte.
+     * 🛑 Autorité serveur (`JourneyFinDeCycle.de`), la même que
+     * `nextStep.examenCompletPossible` — jamais recombinée ici depuis
+     * `cycleDAffinage` / `cycleDeMesure`. `null` (backend antérieur) = inconnu.
+     */
+    finDeCycle: JourneyFinDeCycle | null;
 }
+
+/** Ce qui clôt un cycle. Miroir de `JourneyFinDeCycle`. */
+export type JourneyFinDeCycle = "EXAMEN_COMPLET" | "ACTUALISATION";
 
 /** La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`. */
 export type JourneyBlocKind = "EPREUVE" | "THEMATIQUE";

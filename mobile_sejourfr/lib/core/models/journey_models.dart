@@ -220,6 +220,29 @@ enum JourneyBlocStatus {
   }
 }
 
+/// **Ce qui clôt un cycle.** Miroir de `JourneyFinDeCycle` (2026-09-27).
+enum JourneyFinDeCycle {
+  /// Le cycle se clôt par l'examen blanc complet (l'actualisation reste offerte
+  /// en second).
+  examenComplet('EXAMEN_COMPLET'),
+
+  /// Le cycle se clôt par l'actualisation seule : cycle de mesure ou cycle
+  /// d'affinage (D-64).
+  actualisation('ACTUALISATION');
+
+  const JourneyFinDeCycle(this.wire);
+
+  final String wire;
+
+  static JourneyFinDeCycle? fromWireNullable(String? value) {
+    if (value == null) return null;
+    for (final fin in JourneyFinDeCycle.values) {
+      if (fin.wire == value) return fin;
+    }
+    return null;
+  }
+}
+
 /// Ce que le parcours **suggère** quand il n'a plus d'étape. Une suggestion
 /// n'est **pas** une étape : hors file, sans position, elle ne se clôt pas.
 enum JourneySuggestionType {
@@ -481,6 +504,7 @@ class JourneyCycle {
     required this.complete,
     required this.cycleDeMesure,
     required this.cycleDAffinage,
+    this.finDeCycle,
   });
 
   /// Le rang de ce cycle : nombre de cycles historisés + 1. Le premier vaut 1.
@@ -508,6 +532,13 @@ class JourneyCycle {
   /// le verrou arrive déjà servi sur chaque étape (`lockReason`).
   final bool cycleDAffinage;
 
+  /// **Ce qui clôt ce cycle**, servi dès son début (2026-09-27) : la dernière
+  /// étape de la timeline du Plan l'annonce avant qu'elle soit atteinte.
+  /// 🛑 Autorité serveur (`JourneyFinDeCycle.de`), la même que
+  /// `nextStep.examenCompletPossible` — jamais recombinée ici depuis
+  /// [cycleDAffinage] / [cycleDeMesure]. `null` (backend antérieur) = inconnu.
+  final JourneyFinDeCycle? finDeCycle;
+
   factory JourneyCycle.fromJson(Map<String, dynamic> json) => JourneyCycle(
         numero: (json['numero'] as num?)?.toInt() ?? 1,
         etapesTerminees: (json['etapesTerminees'] as num?)?.toInt() ?? 0,
@@ -515,6 +546,8 @@ class JourneyCycle {
         complete: json['complete'] as bool? ?? false,
         cycleDeMesure: json['cycleDeMesure'] as bool? ?? false,
         cycleDAffinage: json['cycleDAffinage'] as bool? ?? false,
+        finDeCycle:
+            JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
       );
 }
 

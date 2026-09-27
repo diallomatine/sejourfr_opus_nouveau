@@ -4441,7 +4441,13 @@ class SfBlocAccordion extends StatelessWidget {
                     // ecrite » + « A EVALUER » — la colonne du titre manque
                     // encore 0,1 px a 361 px. On elargit le palier de 6 px,
                     // ce qu'aucune largeur de telephone reelle n'occupe.
-                    if (MediaQuery.sizeOf(context).width > 366) ...[
+                    //
+                    // ⚠️ **Sur la timeline du cycle, 388** (366 + les 22 px du
+                    // rail, [SfCycleRail.retraitDe]) : miroir du
+                    // `@media (max-width: 388px)` de `.railStep` cote web.
+                    if (MediaQuery.sizeOf(context).width -
+                            SfCycleRail.retraitDe(context) >
+                        366) ...[
                       const SizedBox(width: 11),
                       SfPill(
                           label: status.label,
@@ -4973,6 +4979,289 @@ class SfNextStepCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/* ============================================================================
+   La timeline du cycle (demande du proprietaire, 2026-09-27)
+
+   Un rail vertical ETROIT a gauche des blocs : un rond par bloc, relie par un
+   trait, et une derniere etape « Fin du cycle » en bas. 🛑 Miroirs de
+   `CycleRail`, `CycleRailStep` et `CycleRailEnd` cote web, brique pour brique
+   et au pixel pres : rond 14, trait 2, gouttiere 8 — soit 22 px pris aux
+   cartes, pas un de plus. Les memes chiffres vivent dans `sejour.module.css`
+   (`.rail`) ; l'un ne bouge pas sans l'autre.
+   ========================================================================= */
+
+const double _kRailDot = 14;
+const double _kRailGap = 8;
+const double _kRailLine = 2;
+
+/// Le rond est centre sur l'en-tete d'un [SfBlocAccordion] : 15 de marge + la
+/// moitie du repere de 42 = 36, moins la moitie du rond.
+const double _kRailDotTop = 29;
+
+/// La derniere etape : le rond s'aligne sur la premiere ligne de l'encart.
+const double _kRailEndDotTop = 16;
+
+/// L'etat d'un rond de la timeline. **Passe**, jamais deduit ici : l'ecran le
+/// traduit du statut servi du bloc. Miroir web : `RailState`.
+enum SfRailState { done, current, upcoming }
+
+/// **La timeline du cycle** — le conteneur du rail.
+///
+/// Le trait est dessine **par etape** (du haut de l'etape jusqu'a la suivante,
+/// en franchissant l'ecart [sfGap]), et coupe au rond de la premiere et de la
+/// derniere : aucune hauteur n'est mesuree, la timeline suit ce que les cartes
+/// deviennent en se depliant.
+///
+/// ⚠️ **22 px de moins pour les cartes** : [retraitDe] les rend a
+/// [SfBlocAccordion], dont le palier « pastille d'etat masquee » passe ainsi de
+/// 366 a 388 px sur la timeline — le rond dit alors l'etat, et le nom
+/// d'epreuve reste sur une ligne (D-21). Miroir du `@media (max-width: 388px)`
+/// de `.railStep`.
+///
+/// Miroir web : `CycleRail`.
+class SfCycleRail extends StatelessWidget {
+  const SfCycleRail({super.key, required this.children});
+
+  /// Des [SfCycleRailStep], puis un [SfCycleRailEnd].
+  final List<Widget> children;
+
+  /// La largeur que la timeline prend aux cartes posees dessus, `0` hors
+  /// timeline.
+  static double retraitDe(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SfRailSlot>() == null
+          ? 0
+          : _kRailDot + _kRailGap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(height: sfGap),
+          _SfRailSlot(
+            first: i == 0,
+            last: i == children.length - 1,
+            child: children[i],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// La position d'une etape dans la timeline — premiere, derniere — que le trait
+/// lit pour se couper au rond (`:first-child` / `:last-child` cote web).
+class _SfRailSlot extends InheritedWidget {
+  const _SfRailSlot({
+    required this.first,
+    required this.last,
+    required super.child,
+  });
+
+  final bool first;
+  final bool last;
+
+  @override
+  bool updateShouldNotify(_SfRailSlot oldWidget) =>
+      first != oldWidget.first || last != oldWidget.last;
+}
+
+/// Le squelette commun d'une etape : le trait, le rond, la carte a droite.
+class _SfRailItem extends StatelessWidget {
+  const _SfRailItem({
+    required this.dot,
+    required this.dotTop,
+    required this.child,
+  });
+
+  final Widget dot;
+  final double dotTop;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final slot = context.dependOnInheritedWidgetOfExactType<_SfRailSlot>();
+    final first = slot?.first ?? true;
+    final last = slot?.last ?? true;
+    final centre = dotTop + _kRailDot / 2;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        if (!(first && last))
+          Positioned(
+            left: (_kRailDot - _kRailLine) / 2,
+            width: _kRailLine,
+            top: first ? centre : 0,
+            // Le trait franchit l'ecart jusqu'a l'etape suivante.
+            bottom: last ? null : -sfGap,
+            height: last ? centre : null,
+            child: const ColoredBox(color: AppColors.lineStrong),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(left: _kRailDot + _kRailGap),
+          child: child,
+        ),
+        Positioned(left: 0, top: dotTop, child: dot),
+      ],
+    );
+  }
+}
+
+/// **Une etape de la timeline** : un rond a gauche, la carte a droite, recue
+/// **telle quelle** ([SfBlocAccordion] sur le Plan).
+///
+/// - [SfRailState.done] — rond plein bleu, coche ;
+/// - [SfRailState.current] — rond epais bleu, le bloc en cours ;
+/// - [SfRailState.upcoming] — rond gris au trait fin.
+///
+/// Miroir web : `CycleRailStep`.
+class SfCycleRailStep extends StatelessWidget {
+  const SfCycleRailStep({super.key, required this.state, required this.child});
+
+  final SfRailState state;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = Container(
+      width: _kRailDot,
+      height: _kRailDot,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: state == SfRailState.done ? AppColors.blue : AppColors.white,
+        border: Border.all(
+          color: state == SfRailState.upcoming
+              ? AppColors.lineStrong
+              : AppColors.blue,
+          width: state == SfRailState.current ? 4 : 2,
+        ),
+      ),
+      child: state == SfRailState.done
+          ? const Icon(LucideIcons.check, size: 9, color: AppColors.white)
+          : null,
+    );
+    return _SfRailItem(dot: dot, dotTop: _kRailDotTop, child: child);
+  }
+}
+
+/// **La derniere etape de la timeline** — « Fin du cycle », rond etoile.
+///
+/// - **Non atteinte** : un encart en pointilles, attenue — [eyebrow], [title]
+///   et, s'il reste des etapes, la pastille [remaining] (« Encore 4 etapes »).
+/// - **Atteinte** ([reached] + [child]) : l'encart disparait et **l'action
+///   prend sa place** — la carte de fin de cycle existante, jamais un second
+///   bouton qui la dupliquerait.
+///
+/// 🛑 **Aucune phrase n'est ecrite ici**, et rien n'est compte : les trois
+/// libelles arrivent en parametres.
+///
+/// Miroir web : `CycleRailEnd`.
+class SfCycleRailEnd extends StatelessWidget {
+  const SfCycleRailEnd({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    required this.reached,
+    this.remaining,
+    this.child,
+  });
+
+  final String eyebrow;
+  final String title;
+
+  /// « Encore N etapes ». `null` ⇒ aucune pastille.
+  final String? remaining;
+  final bool reached;
+
+  /// L'action de fin de cycle, rendue **a la place** de l'encart une fois
+  /// atteinte.
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final action = child;
+    final dot = Container(
+      width: _kRailDot,
+      height: _kRailDot,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.blueDark,
+      ),
+      child: const Icon(Icons.star_rounded, size: 10, color: AppColors.white),
+    );
+    final body = reached && action != null
+        ? action
+        : CustomPaint(
+            painter: const _SfDashedBoxPainter(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    eyebrow,
+                    style: AppFonts.ui(
+                        size: 12, color: AppColors.muted, height: 1.3),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: AppFonts.ui(
+                      size: 15,
+                      weight: FontWeight.w800,
+                      color: AppColors.ink2,
+                      height: 1.3,
+                    ),
+                  ),
+                  if (remaining != null) ...[
+                    const SizedBox(height: 8),
+                    SfPill(label: remaining!, tone: SfBarTone.warn),
+                  ],
+                ],
+              ),
+            ),
+          );
+    return _SfRailItem(dot: dot, dotTop: _kRailEndDotTop, child: body);
+  }
+}
+
+/// Le cadre en pointilles de [SfCycleRailEnd] (`1.5px dashed` cote web).
+class _SfDashedBoxPainter extends CustomPainter {
+  const _SfDashedBoxPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 1.5;
+    const dash = 5.0;
+    const gap = 4.0;
+    final paint = Paint()
+      ..color = AppColors.lineStrong
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    final rect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(AppRadii.lg),
+    ).deflate(stroke / 2);
+    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(
+              distance, math.min(distance + dash, metric.length)),
+          paint,
+        );
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SfDashedBoxPainter oldDelegate) => false;
 }
 
 class _SfNextStepSecondary extends StatelessWidget {
