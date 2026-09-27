@@ -239,7 +239,16 @@ Ouverture directe/rechargement : repli « Appuyez pour lancer l'écoute » en
 examen, lecteur en pause avec son ▶ en entraînement (le tap déverrouille
 l'élément pour la suite). L'écoute d'examen n'est comptée qu'à `ended` — un
 refus ne la consomme jamais (idem mobile, `SejourAudioPlayer._autoStart` rend
-le compteur ; mobile : `autoPlay` = `QuestionDto.isComprehensionOrale`). **Retour arrière interdit
+le compteur ; mobile : `autoPlay` = `QuestionDto.isComprehensionOrale`).
+🛑 **Écran allumé pendant l'écoute CO** : l'élément partagé détient un Screen
+Wake Lock tant qu'il JOUE (`playing` → acquis ; `pause`/`ended`/`emptied` →
+relâché ; ré-armé au retour de visibilité), branché UNE fois dans
+`lib/co-audio.ts` sur `holdScreenWakeLock()` (`lib/wake-lock.ts`, sans React,
+seule implémentation — `useScreenWakeLock` de l'EO n'en est qu'un habillage).
+Aucun composant ne pose de verrou CO lui-même. API absente (Firefox, iOS <
+16.4, contexte non sécurisé : **inopérant sur `http://192.168.x.x`**, actif en
+HTTPS/localhost) ou refus → rien, sans message. Parité mobile :
+`SejourAudioPlayer` → `KeepScreenAwake(reason: 'audio-playback')`. **Retour arrière interdit
 sur tout examen** (`mode === "exam"` → `canGoPrevious = false`, toutes épreuves
 confondues civique/CO/CE/STRUCTURE : une réponse validée est définitive,
 conditions réelles — parité mobile `runner_screen.dart`). En TRAINING (séries),

@@ -13,8 +13,17 @@
  * qui lance la session (`unlockCoAudio`), puis réutilisé par le lecteur pour
  * toutes les questions.
  *
+ * **Écran allumé pendant l'écoute** : tant que l'élément JOUE (`playing`),
+ * il détient un Screen Wake Lock (`lib/wake-lock.ts`), relâché sur `pause`,
+ * `ended` ou `emptied` — ce qui couvre la fin, la pause d'entraînement, le
+ * changement de question et la sortie de l'écran (les deux lecteurs de
+ * `MediaView` font `pause()` au démontage). Branché UNE fois, sur l'élément :
+ * examen comme entraînement, aucun composant n'a à s'en soucier.
+ *
  * Aucun import React : ce module est chargé par des écrans et des hooks.
  */
+
+import { holdScreenWakeLock } from "./wake-lock";
 
 let element: HTMLAudioElement | null = null;
 let silentSrc: string | null = null;
@@ -47,12 +56,29 @@ function silence(): string {
   return silentSrc;
 }
 
+function keepScreenAwakeWhilePlaying(el: HTMLAudioElement): void {
+  let release: (() => void) | null = null;
+  const stop = () => {
+    release?.();
+    release = null;
+  };
+  el.addEventListener("playing", () => {
+    // Le silence de déverrouillage ne dure que 0,1 s : rien à maintenir.
+    if (release || el.src === silentSrc) return;
+    release = holdScreenWakeLock();
+  });
+  el.addEventListener("pause", stop);
+  el.addEventListener("ended", stop);
+  el.addEventListener("emptied", stop);
+}
+
 /** L'élément partagé, créé à la demande (jamais au SSR). */
 export function sharedCoAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
   if (!element) {
     element = new Audio();
     element.preload = "auto";
+    keepScreenAwakeWhilePlaying(element);
   }
   return element;
 }

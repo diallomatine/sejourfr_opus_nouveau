@@ -60,7 +60,7 @@ lib/
 │   ├── utils/
 │   │   └── selected_module.dart   Provider du module actif (CIVIQUE/TCF)
 │   └── widgets/                   Primitives UI réutilisables
-│       ├── audio_player.dart      SejourAudioPlayer (just_audio, source distante)
+│       ├── audio_player.dart      SejourAudioPlayer (just_audio, source distante) — écran allumé tant qu'il JOUE (`KeepScreenAwake(reason: 'audio-playback', enabled: _playing)`, wakelock_plus ; relâché pause/fin/dispose ; parité web `lib/co-audio.ts`)
 │       ├── sejourfr_logo.dart     Cocarde + Wordmark + Tagline
 │       ├── app_button.dart        Primary / Secondary / Ghost / Danger
 │       ├── app_card.dart
