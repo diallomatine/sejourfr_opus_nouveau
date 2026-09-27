@@ -26,7 +26,7 @@ import {
     CIVIQUE_EXAM_QUESTIONS,
     CIVIQUE_EXAM_SEUIL,
 } from "@/lib/civique-examen";
-import {unlockExamAudio} from "@/lib/exam-audio";
+import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -619,7 +619,7 @@ function ExamsGuestHome() {
         const tpl = examsByModule[introModule];
         if (!tpl) return;
         // Dans le clic, avant tout `await` : la 1re question CO partira seule.
-        if (introModule === "TCF") unlockExamAudio();
+        if (introModule === "TCF") unlockCoAudio();
         setDemoStarting(true);
         setDemoError(null);
         try {

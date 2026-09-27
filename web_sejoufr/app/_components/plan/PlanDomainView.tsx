@@ -226,7 +226,11 @@ function DomainDetail({plan, domain}: {plan: LearningPlanDto; domain: PlanDomain
               </div>
               <ul className={styles.panelList}>
                 {domain.paliers.map((palier) => (
-                  <LevelRow key={palier.skillId} palier={palier} />
+                  <LevelRow
+                    key={palier.skillId}
+                    palier={palier}
+                    coAudio={PLAN_DOMAIN_SECTION[domain.epreuve] === "CO"}
+                  />
                 ))}
               </ul>
               <p className={styles.panelNote}>{PLAN_COMPLETE_PROFILE_NOTE}</p>
@@ -338,7 +342,7 @@ function DomainPriorityRow({priority}: {priority: LearningPlanPriorityDto}) {
  * tranche au démarrage (403 ⇒ paywall). On ne devine pas le verrou, on ne
  * masque rien à l'avance.
  */
-function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
+function LevelRow({palier, coAudio}: {palier: PlanDomainLevelDto; coAudio: boolean}) {
   const {startSeries, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const journeyId = usePlanJourneyId("TCF");
 
@@ -352,7 +356,7 @@ function LevelRow({palier}: {palier: PlanDomainLevelDto}) {
            mesure l'exercice DÉSIGNÉ par le Plan, pas un palier choisi à la
            main sur une fiche de domaine — les deux dans le même compteur
            rendraient la mesure illisible. */
-        onClick={() => void startSeries(palier.skillId)}
+        onClick={() => void startSeries(palier.skillId, coAudio)}
       >
         <span className={`${styles.levelBadge} ${palier.blocking ? styles.levelBadgeBlocking : ""}`}>
           {palier.niveau}

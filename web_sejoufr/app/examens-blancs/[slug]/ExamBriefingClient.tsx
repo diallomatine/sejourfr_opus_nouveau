@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { attemptApi, publicAttemptApi } from "@/lib/api";
-import { unlockExamAudio } from "@/lib/exam-audio";
+import { unlockCoAudio } from "@/lib/co-audio";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { EPREUVE_PRESENTATION, plannedEpreuveLabel } from "@/lib/exam-durations";
@@ -118,7 +118,7 @@ function ExamBriefingInner({
       return;
     }
     // Dans le clic, avant tout `await` : la 1re question CO partira seule.
-    if (exam.module === "TCF") unlockExamAudio();
+    if (exam.module === "TCF") unlockCoAudio();
     setError(null);
     setStarting(true);
     try {

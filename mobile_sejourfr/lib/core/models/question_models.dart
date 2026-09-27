@@ -144,10 +144,13 @@ class QuestionDto {
   /// En CO_IMAGE les propositions sont toujours des lettres nues (le contenu
   /// vit dans l'audio).
   bool get usesLetterKeyChoices =>
-      (questionType == QuestionType.co ||
-          questionType == QuestionType.coImage) &&
+      isComprehensionOrale &&
       choices.isNotEmpty &&
       choices.every((c) => _singleLetterChoice.hasMatch(c.label.trim()));
+
+  /// CO ou CO_IMAGE : l'audio de la question se lance seul dans le runner.
+  bool get isComprehensionOrale =>
+      questionType == QuestionType.co || questionType == QuestionType.coImage;
 
   factory QuestionDto.fromJson(Map<String, dynamic> json) => QuestionDto(
         id: json['id'] as String,

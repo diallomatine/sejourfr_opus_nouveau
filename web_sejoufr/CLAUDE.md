@@ -216,20 +216,30 @@ qui dérive de l'unique table `tcfNiveauTone`) et l'épreuve plancher est signal
 autres (`floorMarks`) — un candidat B2 partout n'a pas de point faible.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
-fallback bouton one-shot si l'autoplay est bloqué). 🛑 **Autoplay iOS** : un
-`play()` hors geste est refusé, donc la 1re question d'une session n'avait
-aucun geste derrière elle. `ExamAudio` joue sur un **élément `<audio>` PARTAGÉ**
-(`lib/exam-audio.ts`, singleton de module, survit à la navigation client),
-déverrouillé par `unlockExamAudio()` **synchronement dans le clic** qui lance
-la session, avant tout `await` : feuille du lanceur (`MockExamLauncher.start`,
-CO), carte de série d'étape du Plan (`PlanEtapeView.lancer`, section CO),
-« Commencer » CO de l'examen complet, « Refaire » d'un examen TCF
-(`sessions/[attemptId]`), examen de gabarit TCF et démo TCF
-(`examens-blancs`). Un nouveau CTA qui lance une session CO en `EXAMEN`
-**doit** l'appeler. Ouverture directe/rechargement : repli « Appuyez pour
-lancer l'écoute » (son tap déverrouille l'élément pour la suite). L'écoute
-n'est comptée qu'à `ended` — un refus ne la consomme jamais (idem mobile,
-`SejourAudioPlayer._autoStart` rend le compteur). **Retour arrière interdit
+fallback bouton one-shot si l'autoplay est bloqué). 🛑 **L'audio CO part SEUL
+à chaque question, en examen ET en entraînement** (`MediaView` prop
+`coAudio`, posée par `QuestionRunner` sur CO/CO_IMAGE = le `mode` du runner) :
+`"exam"` → `ExamAudio`, une seule écoute sans contrôles ; `"training"` →
+`TrainingAudio`, lecteur natif avec pause/reprise/réécoute libres, qui démarre
+seul (0,5 s). Rapport et favoris : lecteur natif, rien ne part seul.
+🛑 **Autoplay iOS** : un `play()` hors geste est refusé, et la 1re question
+d'une session n'a aucun geste derrière elle. Les deux lecteurs jouent sur un
+**élément `<audio>` PARTAGÉ** (`lib/co-audio.ts`, singleton de module, survit
+à la navigation client ; `TrainingAudio` l'insère dans le DOM avec
+`controls`), déverrouillé par `unlockCoAudio()` **synchronement dans le clic**
+qui lance la session, avant tout `await` : feuille du lanceur
+(`MockExamLauncher.start`, CO), carte de série d'étape du Plan
+(`PlanEtapeView.lancer`), séries ciblées du Plan/Réviser
+(`usePlanExercise.start` section CO, `startSeries(skillId, coAudio)` des
+paliers de domaine), cartes de lots `entrainement/tcf/[code]/[level]` (CO),
+« Commencer » CO de l'examen complet, « Refaire » (`sessions/[attemptId]`,
+examen TCF ou lot CO), examen de gabarit TCF et démo TCF (`examens-blancs`).
+Un nouveau CTA qui lance une session TCF avec de la CO **doit** l'appeler.
+Ouverture directe/rechargement : repli « Appuyez pour lancer l'écoute » en
+examen, lecteur en pause avec son ▶ en entraînement (le tap déverrouille
+l'élément pour la suite). L'écoute d'examen n'est comptée qu'à `ended` — un
+refus ne la consomme jamais (idem mobile, `SejourAudioPlayer._autoStart` rend
+le compteur ; mobile : `autoPlay` = `QuestionDto.isComprehensionOrale`). **Retour arrière interdit
 sur tout examen** (`mode === "exam"` → `canGoPrevious = false`, toutes épreuves
 confondues civique/CO/CE/STRUCTURE : une réponse validée est définitive,
 conditions réelles — parité mobile `runner_screen.dart`). En TRAINING (séries),

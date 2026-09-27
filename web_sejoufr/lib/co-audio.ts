@@ -1,5 +1,7 @@
 /**
- * **L'élément audio PARTAGÉ de l'écoute unique CO** (`MediaView` `examAudio`).
+ * **L'élément audio PARTAGÉ de la compréhension orale** : le lecteur
+ * d'examen (écoute unique) comme le lecteur d'entraînement (contrôles libres)
+ * de `MediaView` jouent sur lui, et tous deux démarrent seuls.
  *
  * 🛑 Les navigateurs (iOS Safari et Chrome iOS surtout) refusent un `play()`
  * qui ne vient pas d'un geste de l'utilisateur. À la PREMIÈRE question d'une
@@ -8,7 +10,7 @@
  * lancer l'écoute ». iOS accorde en revanche la lecture à un ÉLÉMENT une fois
  * qu'il a joué dans un geste — d'où un élément unique, au niveau du module
  * (hors React, il survit à la navigation client), déverrouillé DANS le clic
- * qui lance la session (`unlockExamAudio`), puis réutilisé par le lecteur pour
+ * qui lance la session (`unlockCoAudio`), puis réutilisé par le lecteur pour
  * toutes les questions.
  *
  * Aucun import React : ce module est chargé par des écrans et des hooks.
@@ -46,7 +48,7 @@ function silence(): string {
 }
 
 /** L'élément partagé, créé à la demande (jamais au SSR). */
-export function sharedExamAudio(): HTMLAudioElement | null {
+export function sharedCoAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
   if (!element) {
     element = new Audio();
@@ -57,12 +59,12 @@ export function sharedExamAudio(): HTMLAudioElement | null {
 
 /**
  * **À appeler SYNCHRONEMENT dans le gestionnaire de clic** qui lance une
- * session où l'audio CO se joue seul — avant tout `await`, sinon le geste est
- * perdu. Joue un silence puis s'arrête : l'élément est alors autorisé pour
+ * session TCF où de la CO peut se jouer (série d'entraînement ou examen) —
+ * avant tout `await`, sinon le geste est perdu. Joue un silence puis s'arrête : l'élément est alors autorisé pour
  * les `play()` suivants. Sans effet si l'élément sert déjà une question.
  */
-export function unlockExamAudio(): void {
-  const el = sharedExamAudio();
+export function unlockCoAudio(): void {
+  const el = sharedCoAudio();
   if (!el) return;
   if (el.src && el.src !== silentSrc && !el.paused) return;
   const src = silence();

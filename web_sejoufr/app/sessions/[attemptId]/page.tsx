@@ -30,7 +30,7 @@ import {
   CIVIC_DIAGNOSTIC_PARAM,
   civicDiagnosticResultHref,
 } from "@/lib/civic-diagnostic";
-import { unlockExamAudio } from "@/lib/exam-audio";
+import { unlockCoAudio } from "@/lib/co-audio";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   epreuveExitMessage,
@@ -248,13 +248,15 @@ function SessionRunnerInner({ params }: PageProps) {
   async function retryAttempt() {
     if (!attempt || retrying) return;
     // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+    const firstType = attempt.questions[0]?.question.questionType;
     if (
-      attempt.type === "MOCK_EXAM" &&
       attempt.module === "TCF" &&
-      attempt.moduleExamQuestionType !== "CE" &&
-      attempt.moduleExamQuestionType !== "STRUCTURE"
+      (attempt.type === "MOCK_EXAM"
+        ? attempt.moduleExamQuestionType !== "CE" &&
+          attempt.moduleExamQuestionType !== "STRUCTURE"
+        : firstType === "CO" || firstType === "CO_IMAGE")
     ) {
-      unlockExamAudio();
+      unlockCoAudio();
     }
     setRetryError(null);
     setRetrying(true);

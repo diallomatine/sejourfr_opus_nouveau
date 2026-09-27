@@ -5,7 +5,7 @@ import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {journeyApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
-import {unlockExamAudio} from "@/lib/exam-audio";
+import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
 import {journeyEtapeHref} from "@/lib/journey";
@@ -155,7 +155,7 @@ function PlanEtapeScoped() {
         async (index: number) => {
             if (!stepId || busy) return;
             // Dans le clic, avant tout `await` : la 1re question CO partira seule.
-            if (detail?.section === "CO") unlockExamAudio();
+            if (detail?.section === "CO") unlockCoAudio();
             setErreur(null);
             setBusy(true);
             try {

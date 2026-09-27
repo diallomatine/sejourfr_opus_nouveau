@@ -21,6 +21,7 @@ class QuestionMediaView extends StatelessWidget {
     super.key,
     required this.media,
     this.examMode = false,
+    this.autoPlay = false,
     this.maxPlays,
   });
 
@@ -29,6 +30,10 @@ class QuestionMediaView extends StatelessWidget {
   /// Active les conditions strictes d'un examen module sur le player audio
   /// (auto-play 0,5s, pas de pause). Ignoré pour image / vidéo.
   final bool examMode;
+
+  /// Lance l'audio seul 0,5s après le chargement, contrôles conservés
+  /// (entraînement CO). `examMode` l'implique déjà.
+  final bool autoPlay;
 
   /// Nombre maximum d'écoutes pour les audios (typiquement 1 en examen).
   /// Null = lectures illimitées.
@@ -49,6 +54,7 @@ class QuestionMediaView extends StatelessWidget {
         return SejourAudioPlayer(
           url: url,
           examMode: examMode,
+          autoPlay: autoPlay,
           maxPlays: maxPlays,
         );
       case MediaType.image:

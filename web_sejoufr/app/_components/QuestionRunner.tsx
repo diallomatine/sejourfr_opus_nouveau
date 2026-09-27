@@ -537,10 +537,10 @@ export function QuestionRunner({
   // lettres A→D. On force le rendu en pastilles-lettres (texte masqué) sur tout
   // ce type, en plus de la détection par label déjà en place pour le FULL_AUDIO.
   const isCoImage = q.questionType === "CO_IMAGE";
-  // CO en examen : audio lancé automatiquement, une seule écoute, pas de
-  // contrôles (cf. MediaView examAudio). En entraînement, lecteur libre.
-  const examCoAudio =
-    mode === "exam" && (q.questionType === "CO" || isCoImage);
+  // CO : audio lancé automatiquement à l'arrivée sur la question. En examen,
+  // une seule écoute sans contrôles ; en entraînement, pause et réécoute
+  // libres (cf. MediaView coAudio).
+  const coAudio = q.questionType === "CO" || isCoImage ? mode : undefined;
   // Sur le TCF, le thème d'une question EST son épreuve : afficher « Compréhension
   // orale » en pastille de type puis « COMPRÉHENSION ORALE » en thème sur la même
   // ligne écrit deux fois la même information.
@@ -682,14 +682,14 @@ export function QuestionRunner({
         {/* MEDIA — image (CO_IMAGE) ou audio/svg/vidéo classique */}
         {q.media && (
           <div className="qr-media">
-            <MediaView key={q.id} media={q.media} examAudio={examCoAudio} />
+            <MediaView key={q.id} media={q.media} coAudio={coAudio} />
           </div>
         )}
 
         {/* AUDIO CO_IMAGE — intro + 4 propositions lues, sous l'image */}
         {q.audioMedia && (
           <div className="qr-media">
-            <MediaView key={`${q.id}-audio`} media={q.audioMedia} examAudio={examCoAudio} />
+            <MediaView key={`${q.id}-audio`} media={q.audioMedia} coAudio={coAudio} />
           </div>
         )}
 

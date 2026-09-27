@@ -21,7 +21,7 @@ import 'keep_screen_awake.dart';
 /// si on veut imiter les conditions réelles.
 ///
 /// `examMode` active les conditions strictes de l'examen réel :
-///   - démarrage automatique 2s après chargement
+///   - démarrage automatique 0,5s après chargement
 ///   - le bouton play ne peut pas être utilisé pour mettre en pause
 ///   - les rejouages manuels restent bloqués par `maxPlays`
 ///
@@ -34,6 +34,7 @@ class SejourAudioPlayer extends StatefulWidget {
     required this.url,
     this.maxPlays,
     this.examMode = false,
+    this.autoPlay = false,
     this.label = 'Document audio',
     this.icon = LucideIcons.headphones,
     this.accent = AppColors.blue,
@@ -43,6 +44,10 @@ class SejourAudioPlayer extends StatefulWidget {
   final String url;
   final int? maxPlays;
   final bool examMode;
+
+  /// Démarrage automatique 0,5s après chargement **sans** les contraintes
+  /// d'examen : pause, reprise et réécoute restent libres (entraînement CO).
+  final bool autoPlay;
   final String label;
   final IconData icon;
   final Color accent;
@@ -136,9 +141,9 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
       await _setSource();
       if (!mounted) return;
       setState(() => _ready = true);
-      // Examen module : on déclenche la lecture automatique 0,5s après le
-      // chargement, pour reproduire les conditions du TCF officiel.
-      if (widget.examMode) {
+      // Examen module ou entraînement CO : lecture automatique 0,5s après le
+      // chargement, comme au TCF officiel.
+      if (widget.examMode || widget.autoPlay) {
         _autoStartTimer?.cancel();
         _autoStartTimer = Timer(_examAutoStartDelay, _autoStart);
       }

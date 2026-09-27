@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { attemptApi, lotApi, publicAttemptApi, publicLotApi } from "@/lib/api";
+import { unlockCoAudio } from "@/lib/co-audio";
 import { handleStartFailure } from "@/lib/start-failure";
 import { loadFailureMessage } from "@/lib/load-failure";
 import { useAuth } from "@/lib/auth-context";
@@ -122,6 +123,8 @@ export default function TcfLevelSeriesPage() {
         return;
       }
     }
+    // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+    if (config.questionType === "CO") unlockCoAudio();
     setError(null);
     setStarting(true);
     try {

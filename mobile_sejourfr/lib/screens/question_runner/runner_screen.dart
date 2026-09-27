@@ -283,11 +283,13 @@ class _RunnerView extends ConsumerWidget {
                   if (question.hasMedia)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      // En examen module TCF : audio auto-play 0,5s, lecture
-                      // unique, pas de pause possible — conditions du TCF réel.
+                      // CO : audio auto-play 0,5s à l'arrivée sur la question.
+                      // En examen, lecture unique sans pause (TCF réel) ; en
+                      // entraînement, pause et réécoute libres.
                       child: QuestionMediaView(
                         media: question.media!,
                         examMode: state.activeAttempt.estExamen,
+                        autoPlay: question.isComprehensionOrale,
                         maxPlays: state.activeAttempt.estExamen ? 1 : null,
                       ),
                     ),
@@ -301,6 +303,7 @@ class _RunnerView extends ConsumerWidget {
                       child: QuestionMediaView(
                         media: question.audioMedia!,
                         examMode: state.activeAttempt.estExamen,
+                        autoPlay: question.isComprehensionOrale,
                         maxPlays: state.activeAttempt.estExamen ? 1 : null,
                       ),
                     ),

@@ -4599,6 +4599,11 @@ l'historique et des observations).
   `ExamTemplate` (diagnostic CO+CE) y entrent désormais — c'est ce que le **web**
   fait depuis toujours (`mode === "exam" && questionType === "CO"`), donc cette
   passe **referme un écart de parité** au lieu d'en ouvrir un.
+  🛑 **En entraînement aussi, l'audio CO part seul** (2026-09-27) :
+  `QuestionMediaView(autoPlay: question.isComprehensionOrale)` →
+  `SejourAudioPlayer.autoPlay`, démarrage 0,5 s **sans** les contraintes
+  d'examen (pause, reprise, réécoute libres). Miroir web : `MediaView`
+  `coAudio="training"`.
 - **Ce qui RESTE sur le `type`, et doit y rester** : `canPop` et la confirmation
   de sortie destructive, l'affichage du chrono, l'œil-de-bœuf « Examen blanc /
   Entraînement », l'aiguillage de fin de session et l'écran de résultat. Ce sont

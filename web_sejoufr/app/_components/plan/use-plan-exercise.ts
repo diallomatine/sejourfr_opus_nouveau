@@ -5,6 +5,7 @@ import {useCallback, useState} from "react";
 import {track, trackDiagnosticAssessmentStarted} from "@/lib/analytics";
 import {attemptApi, fullTcfExamApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
+import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
 import {adresseCourante, sessionHref} from "@/lib/retour";
 import {planSkillHref} from "@/lib/plan-domain";
@@ -89,6 +90,8 @@ export function usePlanExercise() {
                 // verrait encore un `slotNumber: null`.
                 switch (exercise.kind) {
                     case "TARGETED_QCM_SERIES": {
+                        // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+                        if (exercise.section === "CO") unlockCoAudio();
                         const attempt = await attemptApi.startTargetedSeries(exercise.skillId);
                         router.push(sessionHref(attempt.id, adresseCourante()));
                         break;
@@ -136,7 +139,9 @@ export function usePlanExercise() {
      * faire progresser une autre compétence que celle travaillée.
      */
     const startSeries = useCallback(
-        async (skillId: string) => {
+        async (skillId: string, coAudio: boolean) => {
+            // Dans le clic, avant tout `await` : la 1re question CO partira seule.
+            if (coAudio) unlockCoAudio();
             setError(null);
             setStarting(true);
             try {

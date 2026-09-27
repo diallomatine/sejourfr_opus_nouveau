@@ -6,7 +6,7 @@ import {attemptApi, productionApi, publicAttemptApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {comprehensionExamIntro} from "@/lib/exam-intro";
 import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
-import {unlockExamAudio} from "@/lib/exam-audio";
+import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
 import type {QuestionType} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
@@ -96,7 +96,7 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
   const start = useCallback(async () => {
     if (!request || starting) return;
     // Dans le clic, avant tout `await` : la 1re question CO partira seule.
-    if (request.kind === "COMPREHENSION" && request.questionType === "CO") unlockExamAudio();
+    if (request.kind === "COMPREHENSION" && request.questionType === "CO") unlockCoAudio();
     setError(null);
     setStarting(true);
     try {

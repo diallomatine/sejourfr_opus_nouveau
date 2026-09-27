@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { sharedExamAudio } from "@/lib/exam-audio";
+import { useEffect, useRef, useState } from "react";
+import { sharedCoAudio } from "@/lib/co-audio";
 import type { MediaResponse } from "@/lib/types";
 
 /**
@@ -9,10 +9,14 @@ import type { MediaResponse } from "@/lib/types";
  *   - si `inlineSvg` est défini → rend le SVG tel quel (capture TCF dessinée)
  *   - sinon → image / audio / vidéo selon le type
  *
- * `examAudio` : lecteur audio en conditions d'examen (CO en régime `EXAMEN`,
- * `AttemptResponse.mode` — plus `type === "MOCK_EXAM"` depuis le 2026-09-20) —
- * lancement automatique, une seule écoute, pas de pause ni de réécoute.
- * En entraînement (défaut), le lecteur natif reste libre.
+ * `coAudio` : l'audio d'une question de CO dans le runner, **lancé
+ * automatiquement** à l'arrivée sur la question, sur l'élément partagé
+ * déverrouillé au clic de lancement (`lib/co-audio.ts`) :
+ *   - `"exam"` (régime `EXAMEN`, `AttemptResponse.mode`) — une seule écoute,
+ *     pas de pause ni de réécoute ;
+ *   - `"training"` — le lecteur natif et ses contrôles : pause, reprise et
+ *     réécoute libres.
+ * Absent (rapport, favoris…) : lecteur natif, rien ne part seul.
  *
  * Le SVG inline est assaini (DOMPurify, profil SVG) avant injection : la
  * source (drafts générés IA / images admin) n'est pas strictement fiable.
@@ -21,10 +25,10 @@ import type { MediaResponse } from "@/lib/types";
  */
 export function MediaView({
   media,
-  examAudio = false,
+  coAudio,
 }: {
   media: MediaResponse;
-  examAudio?: boolean;
+  coAudio?: "exam" | "training";
 }) {
   // Priorité url > inlineSvg : le backend ne pose normalement qu'un seul des
   // deux, mais si une image porte les deux (cas CO_IMAGE), on privilégie l'URL.
@@ -64,8 +68,10 @@ export function MediaView({
       ) : media.type === "IMAGE" && media.url ? (
         <img src={media.url} alt="Document" className="mediaview-img" />
       ) : media.type === "AUDIO" ? (
-        examAudio ? (
+        coAudio === "exam" ? (
           <ExamAudio src={media.url} />
+        ) : coAudio === "training" ? (
+          <TrainingAudio src={media.url} />
         ) : (
           <audio src={media.url} controls className="mediaview-audio">
             Votre navigateur ne supporte pas la lecture audio.
@@ -103,6 +109,10 @@ export function MediaView({
           max-height: 420px;
           border-radius: 12px;
           border: 1px solid var(--color-line);
+        }
+        .mediaview-audio-host {
+          width: 100%;
+          max-width: 480px;
         }
         .mediaview-audio, .mediaview-video {
           width: 100%;
@@ -156,11 +166,46 @@ export function MediaView({
 }
 
 /**
+ * Lecteur d'entraînement CO : l'élément partagé est monté ici avec ses
+ * contrôles natifs (pause, reprise, réécoute) et démarre seul 0,5 s après
+ * l'arrivée sur la question. Lecture refusée (URL directe, rechargement) :
+ * il reste en pause, son bouton play suffit — et ce tap le déverrouille.
+ */
+function TrainingAudio({ src }: { src?: string }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const el = sharedCoAudio();
+    if (!host || !el || !src) return;
+    el.pause();
+    el.src = src;
+    el.controls = true;
+    el.className = "mediaview-audio";
+    host.appendChild(el);
+    const timer = setTimeout(() => {
+      el.play().catch(() => {});
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      el.pause();
+      el.removeAttribute("src");
+      el.load();
+      el.remove();
+      el.controls = false;
+      el.className = "";
+    };
+  }, [src]);
+
+  return <div ref={hostRef} className="mediaview-audio-host" />;
+}
+
+/**
  * Lecteur « jour J » : l'audio démarre seul et n'est écouté qu'une fois —
  * aucun contrôle exposé. Si le navigateur bloque l'autoplay, un unique
  * bouton « lancer l'écoute » apparaît (puis disparaît, pas de réécoute).
  *
- * 🛑 Il joue sur l'élément PARTAGÉ `sharedExamAudio()` (`lib/exam-audio.ts`),
+ * 🛑 Il joue sur l'élément PARTAGÉ `sharedCoAudio()` (`lib/co-audio.ts`),
  * déverrouillé dans le clic qui a lancé la session : c'est ce qui permet à
  * iOS de lancer seule la PREMIÈRE question. L'écoute n'est comptée (`done`)
  * qu'à la fin d'une lecture réelle — un `play()` refusé ne la consomme pas.
@@ -172,7 +217,7 @@ function ExamAudio({ src }: { src?: string }) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const el = sharedExamAudio();
+    const el = sharedCoAudio();
     if (!el || !src) return;
     el.pause();
     el.src = src;
@@ -201,7 +246,7 @@ function ExamAudio({ src }: { src?: string }) {
   }, [src]);
 
   const launch = () => {
-    const el = sharedExamAudio();
+    const el = sharedCoAudio();
     if (!el || !src || phase !== "blocked") return;
     setPhase("playing");
     el.play().catch(() => setPhase("blocked"));
