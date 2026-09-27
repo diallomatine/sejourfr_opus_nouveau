@@ -169,8 +169,9 @@ public class UserSubscription {
     // Tout ou rien, et NULL = achat anterieur a la mesure (jamais zero).
     // ------------------------------------------------------------------
 
-    /** Date reelle de l'achat (≠ {@code startsAt} quand un pass s'empile). */
-    @Column(name = "purchased_at")
+    /** Date reelle de l'achat (≠ {@code startsAt} quand un pass s'empile).
+     *  Posee a la creation, <b>jamais modifiee ensuite</b> (V079). */
+    @Column(name = "purchased_at", updatable = false)
     private Instant purchasedAt;
 
     @Column(name = "vat_cents")

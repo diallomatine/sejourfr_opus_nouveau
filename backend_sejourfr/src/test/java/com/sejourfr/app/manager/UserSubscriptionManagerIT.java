@@ -82,6 +82,19 @@ class UserSubscriptionManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void purchasedAtNeBougeJamaisApresLaCreation() {
+        UserSubscription s = testData.userSubscription();
+        java.time.Instant original = s.getPurchasedAt();
+
+        s.setPurchasedAt(java.time.Instant.parse("2020-01-01T00:00:00Z"));
+        manager.save(s);
+        em.flush();
+        em.clear();
+
+        assertThat(manager.findById(s.getId()).orElseThrow().getPurchasedAt()).isEqualTo(original);
+    }
+
+    @Test
     void findByStripeSubscriptionIdSelectsMatch() {
         String stripeSubId = "sub_" + UUID.randomUUID();
         UserSubscription s = testData.userSubscription();

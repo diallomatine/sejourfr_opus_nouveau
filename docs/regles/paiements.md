@@ -493,3 +493,11 @@ la décomposition de l'achat est inconnue.
   parcours conservé) ; `UNKNOWN` sinon. 🛑 Aucune reconstruction heuristique (pas de « run la plus récente »).
 - Les chemins d'abonnement récurrent (dormants) ne décomposent ni n'attribuent : ils ne sont
   pas en service.
+
+## Date d'achat (`purchased_at`) — immuable (2026-09-27)
+
+- Posée **une seule fois**, à la création de la souscription (`OneTimeAccessService`) ;
+  la colonne est `updatable = false` côté JPA : elle ne bouge jamais ensuite.
+- **V079** : les souscriptions antérieures à la mesure (sans `purchased_at`) ont reçu
+  `updated_at` comme date d'achat par défaut (décision du propriétaire), pour entrer
+  dans le filtre « Achats du mois » de l'admin. Leurs champs de revenu restent NULL.
