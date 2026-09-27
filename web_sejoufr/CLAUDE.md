@@ -4890,12 +4890,19 @@ la tête d'une tâche EE/EO.
   est **commercial** (le bouton reste vivant et ouvre le paywall — le même 403 que
   le serveur opposerait). Dans les deux cas **l'écran reste entier et lisible**
   (R16, D-18) : on floute l'action, jamais le résultat.
-- **Le corrigé d'une série jouée réutilise le chemin EXISTANT** :
-  `/sessions/{dernierAttemptId}?lot={index}` — le rapport des séries de
-  « Réviser ». **Aucun écran de rapport n'est écrit.**
+- **Le corrigé d'une série jouée réutilise le chemin EXISTANT** : le lancement ET
+  « Voir mon résultat » vont sur `sessionHref(id, ici, index)` (`lib/retour.ts`)
+  = `/sessions/{id}?lot={index}&retour={cet écran}`. 🛑 **`?retour=` fait de la
+  session une SÉRIE** : `/sessions/[id]` rend le rapport de série (`ExamReport`),
+  jamais `TrainingResultCard` (« Belle session / Nouvel entraînement / Accueil »,
+  le bug du 2026-09-27), et son action principale est **« Continuer »**
+  (`onContinue` → `retourOuRepli(router, retour)`), sans « Refaire » ni « Autres
+  séries ». Les autres lanceurs de série du Plan (`useCivicSerie`,
+  `useCivicUniteSerie`, `usePlanExercise`) posent `adresseCourante()`.
+  **Aucun écran de rapport n'est écrit.**
 - **Le retour** : `Top backTo={planHref(module)}` (une adresse fixe se partage) ;
-  après une série, le « Retour » de `/sessions/[id]` dépile naturellement **sur cet
-  écran**, pas sur le Plan.
+  « Continuer » dépile **sur cet écran**, qui se relit (le `finish` purge le
+  préfixe `learning-plan:`, clé du détail d'étape comprise).
 - **Primitives ajoutées au kit** (miroirs Flutter dans la même passe) :
   **`SerieProgress`** (le compteur en gros, le seuil en face, la barre) et
   **`SerieCard`** (repère carré, méta, badge, bouton pleine largeur, accès au

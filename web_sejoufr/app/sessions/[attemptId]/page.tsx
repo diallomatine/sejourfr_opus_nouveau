@@ -23,7 +23,7 @@ import {
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import { ensureDiagnosticRun } from "@/lib/diagnostic-run";
-import {retourOuRepli} from "@/lib/retour";
+import {retourDe, retourOuRepli} from "@/lib/retour";
 import {passModuleOfExam} from "@/lib/passes";
 import {sessionAppBarInfo} from "@/lib/app-bar";
 import {
@@ -214,6 +214,13 @@ function SessionRunnerInner({ params }: PageProps) {
    * plutôt qu'à un accueil qui redemanderait un clic.
    */
   const civicDiagnosticId = searchParams.get(CIVIC_DIAGNOSTIC_PARAM);
+  /**
+   * **L'écran d'où la série a été lancée** (`sessionHref`) — une étape du
+   * Plan, le Plan civique, Réviser. 🛑 Sa présence fait de la session une
+   * SÉRIE : le rapport de série complet, jamais la carte de score d'un
+   * entraînement libre, et « Continuer » y ramène. Validé comme `?next=`.
+   */
+  const retour = retourDe(searchParams);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -387,7 +394,7 @@ function SessionRunnerInner({ params }: PageProps) {
           isDiagnostic: Boolean(civicDiagnosticId),
           isSerie:
             sessionMode !== "guest" &&
-            (lotNumero != null || resultMode === "tcfLot"),
+            (lotNumero != null || resultMode === "tcfLot" || retour != null),
           openedAsFinished: openedAsFinished && sessionMode !== "guest",
         })
       : null,
@@ -399,7 +406,7 @@ function SessionRunnerInner({ params }: PageProps) {
   // la page reste visible.
   const backInBar = useAppBarBack(
     attempt && phase === "result" && attempt.type !== "MOCK_EXAM"
-      ? {fallbackHref: lotReturnPath(attempt) ?? "/entrainement"}
+      ? {fallbackHref: retour ?? lotReturnPath(attempt) ?? "/entrainement"}
       : null,
   );
 
@@ -433,7 +440,8 @@ function SessionRunnerInner({ params }: PageProps) {
     // Une série (lot) affiche le même rapport qu'un examen de thème —
     // à chaud comme en consultation (`?result=tcfLot` est l'héritage du
     // bilan donut TCF, désormais aligné sur le rapport commun).
-    const isSerie = !isGuest && (lotNumero != null || resultMode === "tcfLot");
+    const isSerie =
+      !isGuest && (lotNumero != null || resultMode === "tcfLot" || retour != null);
     const serieReturnHref =
       tcfCode && tcfLevel
         ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
@@ -448,7 +456,7 @@ function SessionRunnerInner({ params }: PageProps) {
         router,
         isExam
           ? examReturnPath(attempt)
-          : (lotReturnPath(attempt) ?? "/entrainement"),
+          : (retour ?? lotReturnPath(attempt) ?? "/entrainement"),
       );
     };
 
@@ -483,14 +491,20 @@ function SessionRunnerInner({ params }: PageProps) {
         ) : isSerie || (openedAsFinished && !isGuest) ? (
           <>
             {/* Série (à chaud ou consultation) et entraînement déjà fini :
-                même rapport qu'un examen de thème, CTAs adaptés. */}
+                même rapport qu'un examen de thème, CTAs adaptés.
+                🛑 Série lancée depuis un écran qui l'attend (`?retour=`) :
+                le MÊME rapport, dont l'action principale est « Continuer »
+                vers cet écran. « Refaire » et « Autres séries » n'y ont pas
+                cours — c'est l'écran d'origine qui relance, sur ses propres
+                cartes (une série d'étape ne se refait pas comme un lot). */}
             <ExamReport
               attempt={attempt}
               contextLabel={attemptContextLabel(attempt, lotNumero)}
-              onRetry={lotNumero != null ? retryAttempt : undefined}
+              onContinue={retour ? goBack : undefined}
+              onRetry={lotNumero != null && !retour ? retryAttempt : undefined}
               retryLabel="Refaire cette série"
               retrying={retrying}
-              moreHref={serieReturnHref}
+              moreHref={retour ? undefined : serieReturnHref}
               moreLabel="Autres séries"
               progressHref={progressionHref(attempt.module)}
             />
@@ -599,11 +613,14 @@ function SessionRunnerInner({ params }: PageProps) {
       attempt.questions.every((q) => q.question.themeId === firstThemeId);
     // Retour vers la liste des séries : les query params (code/level) priment
     // sur la dérivation depuis les questions (robuste face à CO_IMAGE).
-    const lotQuitHref = isLot
-      ? tcfCode && tcfLevel
-        ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
-        : lotReturnPath(attempt)
-      : null;
+    // Une série lancée depuis un écran qui l'attend (`?retour=`) y revient.
+    const lotQuitHref =
+      retour ??
+      (isLot
+        ? tcfCode && tcfLevel
+          ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
+          : lotReturnPath(attempt)
+        : null);
 
     return (
       <QuestionRunner

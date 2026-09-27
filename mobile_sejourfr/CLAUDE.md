@@ -4534,14 +4534,17 @@ dans ce fichier.
   que le serveur opposerait). Dans les deux cas **l'écran reste entier et lisible**
   (R16, D-18).
 - **Le corrigé d'une série jouée réutilise le chemin EXISTANT** :
-  `AppRoutes.examReport` — celui qu'ouvrent déjà les lots de « Réviser »
-  (`tcf_level_lots_screen`, `civique_theme_detail_screen`). **Aucun écran de rapport
-  n'est écrit.**
+  `AppRoutes.examReportDepuisPlan` (`ExamReportScreen`, `?from=plan`) — le rapport
+  des lots civiques, titré « Bilan de la série », avec un bouton **« Continuer »**
+  (`kExamReportContinue`) qui redépile sur l'écran de lancement. **Aucun écran de
+  rapport n'est écrit.**
 - **Le retour, et il n'est jamais un `pop()` nu** :
   `retourOuRepli(context, repli: AppRoutes.plan)`. Après une série, le runner
-  lancé avec **`?from=planEtape`** pousse le rapport en `pushReplacement`
-  (`runner_screen._navigateToResult`) : la flèche du rapport dépile donc **sur cet
-  écran**, pas sur le Plan — exactement le montage des lots.
+  lancé par **`AppRoutes.runnerDepuisPlan`** (`?from=plan`, miroir du `?retour=`
+  web) pousse le rapport en `pushReplacement` (`runner_screen._navigateToResult`) :
+  « Continuer » dépile donc **sur cet écran**, repeint par le signal « mesure
+  écrite ». Les lanceurs civiques (`startCivicSerie`, `startCivicUniteSerie`)
+  passent par la même route.
 - **Primitives ajoutées au kit** (miroirs web dans la même passe) :
   **`SfSerieProgress`** et **`SfSerieCard`**. **Variantes** : `SfSection(mono:)` /
   `SfSectionTitle(mono:)` (l'intertitre « À FAIRE ») et

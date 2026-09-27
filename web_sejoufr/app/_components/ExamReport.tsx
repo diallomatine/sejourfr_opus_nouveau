@@ -23,6 +23,9 @@ import type {
 
 type Filter = "all" | "wrong" | "right" | "skipped";
 
+/** Miroir de `kExamReportContinue` (`exam_report_screen.dart`). */
+const EXAM_REPORT_CONTINUE = "Continuer";
+
 /** Icône + libellé des épreuves d'un examen TCF multi-épreuves. */
 const EPREUVE_META: Record<string, { icon: string; label: string }> = {
   CO: { icon: "🎧", label: "Compréhension orale" },
@@ -44,6 +47,7 @@ export function ExamReport({
   attempt,
   embedded = false,
   contextLabel,
+  onContinue,
   onRetry,
   retryLabel = "Refaire cet examen",
   retrying = false,
@@ -55,6 +59,12 @@ export function ExamReport({
   embedded?: boolean;
   /** Sous-titre du hero, ex. "Compréhension orale · Examen blanc". */
   contextLabel?: string;
+  /**
+   * « Continuer » — l'action principale d'une série lancée depuis un écran
+   * qui l'attend (une étape du Plan…) : elle y ramène. Posée par le parent,
+   * qui sait où ; miroir du bouton de `ExamReportScreen` (mobile).
+   */
+  onContinue?: () => void;
   onRetry?: () => void;
   retryLabel?: string;
   retrying?: boolean;
@@ -345,6 +355,15 @@ export function ExamReport({
               </p>
             </div>
 
+            {onContinue && (
+              <button
+                type="button"
+                className="rpt-cta rpt-cta-primary"
+                onClick={onContinue}
+              >
+                {EXAM_REPORT_CONTINUE} <ArrowRight size={16} aria-hidden />
+              </button>
+            )}
             {onRetry && (
               <button
                 type="button"

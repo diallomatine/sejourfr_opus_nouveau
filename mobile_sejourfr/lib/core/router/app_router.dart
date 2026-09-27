@@ -284,6 +284,23 @@ class AppRoutes {
 
   static String examReportPath(String attemptId) => '/exam-report/$attemptId';
 
+  /// **Le contexte d'une série lancée depuis un écran qui l'attend** — une
+  /// étape du Plan, le Plan civique, Réviser. 🛑 Le runner pousse alors le
+  /// rapport de série complet ([ExamReportScreen], « Bilan de la série »),
+  /// dont le bouton « Continuer » redépile sur l'écran de lancement. Aucune
+  /// variante de rapport n'existe pour le Plan : c'est ce contexte qui en
+  /// tient lieu. Miroir web : `sessionHref` (`?retour=`, `lib/retour.ts`).
+  static const fromPlan = 'plan';
+
+  /// Le runner d'une série lancée avec [fromPlan].
+  static String runnerDepuisPlan(String attemptId) =>
+      '/runner/$attemptId?from=$fromPlan';
+
+  /// Le rapport d'une série jouée avec [fromPlan] — à chaud comme depuis
+  /// « Voir mon résultat ».
+  static String examReportDepuisPlan(String attemptId) =>
+      '${examReportPath(attemptId)}?from=$fromPlan';
+
   // Centre d'aide (hub) + contact natif + WebView générique pour FAQ/CGU/Privacy.
   static const helpCenter = '/help';
   static const contact = '/help/contact';

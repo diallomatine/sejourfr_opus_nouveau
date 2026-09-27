@@ -47,7 +47,7 @@ Future<void> startCivicSerie(
     // La série déplace la cible dans la boîte Leitner : le plan lu après elle
     // doit être recalculé.
     ref.read(learningPlanRevisionProvider.notifier).state++;
-    context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+    context.push(AppRoutes.runnerDepuisPlan(attempt.id));
   } catch (e) {
     if (!context.mounted) return;
     showPaywallOrError(
@@ -84,7 +84,7 @@ Future<void> startCivicUniteSerie(
     // La série déplace l'unité dans le cycle ET la cible dans la boîte Leitner :
     // les deux lectures se rafraîchissent ensemble, jamais l'une sans l'autre.
     signalerMesureEcrite(ref);
-    context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+    context.push(AppRoutes.runnerDepuisPlan(attempt.id));
   } catch (e) {
     if (!context.mounted) return;
     showPaywallOrError(

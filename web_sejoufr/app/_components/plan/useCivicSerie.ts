@@ -24,6 +24,7 @@ import {useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
 import {civicPlanApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
+import {adresseCourante, sessionHref} from "@/lib/retour";
 import type {CivicPlanCibleDto} from "@/lib/types";
 
 export const CIVIC_SERIE_FALLBACK = "Impossible de démarrer cette série.";
@@ -58,7 +59,9 @@ export function useCivicSerie(onVerrou?: () => void): CivicSerie {
             setErreur(null);
             try {
                 const attempt = await civicPlanApi.serie(cible.id, cible.grain);
-                router.push(`/sessions/${attempt.id}`);
+                /* `?retour=` : le rapport de série complet, et « Continuer »
+                   revient sur l'écran qui a lancé la série. */
+                router.push(sessionHref(attempt.id, adresseCourante()));
             } catch (e) {
                 handleStartFailure(e, {
                     onPaywall: () => setPaywall(true),

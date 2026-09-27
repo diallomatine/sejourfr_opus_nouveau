@@ -41,9 +41,9 @@ import 'learning_plan_provider.dart';
 /// lit ce qu'il y a à faire, seul le **geste** est fermé et il ouvre l'offre. On
 /// floute l'action, jamais le résultat.
 ///
-/// 🛑 **Le corrigé d'une série jouée réutilise le chemin existant** — l'écran de
-/// rapport ([AppRoutes.examReport]), celui des séries de « Réviser ». Aucun
-/// écran de rapport n'est écrit ici.
+/// 🛑 **Le corrigé d'une série jouée réutilise le chemin existant** — le rapport
+/// de série ([AppRoutes.examReportDepuisPlan]), celui des séries hors Plan, dont
+/// « Continuer » redépile ici. Aucun écran de rapport n'est écrit ici.
 ///
 /// 🛑 **Miroir de `PlanEtapeView` côté web**, brique pour brique.
 class PlanEtapeScreen extends ConsumerStatefulWidget {
@@ -226,13 +226,12 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
           : detail.locked
               ? () => unawaited(_ouvrirOffre())
               : () => unawaited(_lancer(serie.index)),
-      // 🛑 **Le corrigé passe par le chemin EXISTANT** — le rapport des séries
-      // de « Réviser ».
+      // 🛑 **Le corrigé passe par le chemin EXISTANT** — le MÊME rapport de
+      // série qu'à la fin de la passation, « Continuer » compris.
       linkLabel: attemptId == null ? null : kJourneyEtapeSerieResult,
       onLink: attemptId == null
           ? null
-          : () => context
-              .push(AppRoutes.examReport.replaceFirst(':attemptId', attemptId)),
+          : () => context.push(AppRoutes.examReportDepuisPlan(attemptId)),
     );
   }
 
@@ -242,9 +241,9 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
   /// panne : c'est le verrou que le serveur oppose, et il ouvre l'offre — jamais
   /// un message technique ([classifyStartFailure] est l'autorité).
   ///
-  /// 🛑 **Le runner existant**, comme toute série ciblée : `from=planEtape` lui
-  /// dit de pousser le rapport en fin de série, donc la flèche du rapport
-  /// redépile **sur cet écran** — pas sur le Plan.
+  /// 🛑 **Le runner existant**, comme toute série : [AppRoutes.runnerDepuisPlan]
+  /// lui dit de pousser le rapport de série en fin de passation, donc son
+  /// « Continuer » redépile **sur cet écran** — pas sur le Plan.
   /// Le verrou **commercial** de l'étape : un CTA du Plan (`LOCKED_PLAN`),
   /// avec le parcours affiché — l'achat qui en part se rattache au tunnel.
   Future<void> _ouvrirOffre() => showPaywallSheet(
@@ -267,9 +266,7 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
           .read(learningPlanRepositoryProvider)
           .startSerie(widget.stepId, index);
       if (!mounted) return;
-      final runner =
-          AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
-      context.push('$runner?from=planEtape');
+      context.push(AppRoutes.runnerDepuisPlan(attempt.id));
     } catch (error) {
       if (!mounted) return;
       // 🛑 **Pas de `showPaywallOrError` ici** : sa branche « message » est une

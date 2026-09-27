@@ -7,6 +7,8 @@ import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
 import {handleStartFailure} from "@/lib/start-failure";
 import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
+import {journeyEtapeHref} from "@/lib/journey";
+import {sessionHref} from "@/lib/retour";
 import {
     JOURNEY_ETAPE_ERROR,
     JOURNEY_ETAPE_LIST_TITLE,
@@ -77,8 +79,10 @@ import type {JourneySerieDto, JourneyStepDetailDto} from "@/lib/types";
  * l'offre. On floute l'action, jamais le résultat.
  *
  * 🛑 **Le corrigé d'une série jouée réutilise le chemin existant** — le rapport
- * de `/sessions/{attemptId}`, celui des séries de « Réviser ». Aucun écran de
- * rapport n'est écrit ici.
+ * de série de `/sessions/{attemptId}`, celui des séries hors Plan. Aucun écran
+ * de rapport n'est écrit ici : le lancement ET « Voir mon résultat » posent
+ * `?retour=` sur cet écran (`sessionHref`), et c'est ce paramètre qui fait
+ * rendre le rapport complet, bouton « Continuer » qui revient ici.
  *
  * 🛑 **Miroir de `PlanEtapeScreen` côté mobile**, brique pour brique.
  */
@@ -102,6 +106,9 @@ function PlanEtapeScoped() {
     /* ⚠️ Pas `module` : Next interdit d'affecter cette variable. */
     const parcours: ParcoursModule = moduleDeLUrl(useSearchParams()) ?? "TCF";
     const journeyId = usePlanJourneyId(parcours);
+    /* L'adresse de CET écran, reposée en `?retour=` sur la session : c'est ce
+       qui y ramène le candidat à la fin de sa série. */
+    const ici = stepId ? journeyEtapeHref(stepId, parcours) : null;
 
     const query = useCachedData<JourneyStepDetailDto>(
         status === "authenticated" && stepId ? journeyApi.stepCacheKeyFor(stepId) : null,
@@ -129,10 +136,11 @@ function PlanEtapeScoped() {
             setBusy(true);
             try {
                 const attempt = await journeyApi.startSerie(stepId, index);
-                /* 🛑 **Le runner existant**, comme toute série ciblée : la
-                   passation du web vit sur `/sessions/{id}`, et le retour du
-                   candidat ramène **ici** — pas sur le Plan. */
-                router.push(`/sessions/${attempt.id}`);
+                /* 🛑 **Le runner existant**, comme toute série : la passation
+                   du web vit sur `/sessions/{id}`, et `?retour=` y fait rendre
+                   le rapport de série complet, dont « Continuer » ramène
+                   **ici** — pas sur le Plan, pas sur l'Accueil. */
+                router.push(sessionHref(attempt.id, ici, index));
             } catch (cause) {
                 handleStartFailure(cause, {
                     onPaywall: () => setPaywall(true),
@@ -142,7 +150,7 @@ function PlanEtapeScoped() {
                 setBusy(false);
             }
         },
-        [busy, router, stepId],
+        [busy, ici, router, stepId],
     );
 
     const sectionPill = detail
@@ -236,6 +244,7 @@ function PlanEtapeScoped() {
                                            servi qui dit ce qui précède. */
                                         precedente={detail.series[rang - 1]?.index ?? null}
                                         busy={busy}
+                                        retour={ici}
                                         onStart={lancer}
                                         onLocked={() => setPaywall(true)}
                                     />
@@ -302,11 +311,13 @@ function PlanEtapeScoped() {
  * son bouton ouvre l'offre au lieu de lancer — et c'est le serveur qui aurait
  * répondu 403 de toute façon. Une seule règle, deux endroits d'application.
  */
-function Serie({serie, detail, precedente, busy, onStart, onLocked}: {
+function Serie({serie, detail, precedente, busy, retour, onStart, onLocked}: {
     serie: JourneySerieDto;
     detail: JourneyStepDetailDto;
     precedente: number | null;
     busy: boolean;
+    /** L'adresse de l'écran d'étape, où « Continuer » du rapport ramène. */
+    retour: string | null;
     onStart: (index: number) => void;
     /** L'offre, quand c'est l'**étape** qui est fermée. */
     onLocked: () => void;
@@ -334,14 +345,14 @@ function Serie({serie, detail, precedente, busy, onStart, onLocked}: {
                         ? onLocked
                         : () => onStart(serie.index),
             }}
-            /* 🛑 **Le corrigé passe par le chemin EXISTANT** — le rapport des
-               séries de « Réviser ». `?lot=` est ce qui le fait rendre un
-               rapport de série plutôt qu'une carte de score d'entraînement. */
+            /* 🛑 **Le corrigé passe par le chemin EXISTANT** — le MÊME rapport
+               de série qu'à la fin de la passation, `?retour=` compris : son
+               « Continuer » revient sur cette étape. */
             link={
                 serie.dernierAttemptId
                     ? {
                         label: JOURNEY_ETAPE_SERIE_RESULT,
-                        href: `/sessions/${serie.dernierAttemptId}?lot=${serie.index}`,
+                        href: sessionHref(serie.dernierAttemptId, retour, serie.index),
                     }
                     : undefined
             }

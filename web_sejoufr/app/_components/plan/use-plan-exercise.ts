@@ -6,6 +6,7 @@ import {track, trackDiagnosticAssessmentStarted} from "@/lib/analytics";
 import {attemptApi, fullTcfExamApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
 import {handleStartFailure} from "@/lib/start-failure";
+import {adresseCourante, sessionHref} from "@/lib/retour";
 import {planSkillHref} from "@/lib/plan-domain";
 import type {
     PlanDomainAssessmentDto,
@@ -34,8 +35,9 @@ import {EPREUVE_PRESENTATION, plannedEpreuveLabel} from "@/lib/exam-durations";
  *
  * 🛑 **Aucun runner concurrent n'est créé.** Une série ciblée est un attempt
  * `TRAINING` ordinaire : elle atterrit sur `/sessions/{id}`, exactement comme
- * une série de thème — même correction immédiate, mêmes raccourcis, même écran
- * de résultat.
+ * une série de thème — même correction immédiate, mêmes raccourcis, même
+ * rapport de série. `?retour=` (`sessionHref`) en fait rendre le rapport
+ * complet, dont « Continuer » revient sur l'écran du Plan qui l'a lancée.
  *
  * Un **403** au démarrage n'est pas une panne : c'est le verrou freemium que le
  * serveur oppose, et il ouvre l'offre (`handleStartFailure`), jamais un message
@@ -88,7 +90,7 @@ export function usePlanExercise() {
                 switch (exercise.kind) {
                     case "TARGETED_QCM_SERIES": {
                         const attempt = await attemptApi.startTargetedSeries(exercise.skillId);
-                        router.push(`/sessions/${attempt.id}`);
+                        router.push(sessionHref(attempt.id, adresseCourante()));
                         break;
                     }
                     case "FULL_TCF_MOCK_EXAM": {
@@ -139,7 +141,7 @@ export function usePlanExercise() {
             setStarting(true);
             try {
                 const attempt = await attemptApi.startTargetedSeries(skillId);
-                router.push(`/sessions/${attempt.id}`);
+                router.push(sessionHref(attempt.id, adresseCourante()));
             } catch (cause) {
                 handleStartFailure(cause, {
                     onPaywall: () => setPaywallOpen(true),

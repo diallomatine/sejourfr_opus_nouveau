@@ -2499,6 +2499,9 @@ réussir**, leur état, leur score, et permet de les lancer ou de les **refaire*
    rater ne la dévalide pas. La carte affiche toujours le **dernier** score.
 6. Le **résultat complet et corrigé** d'une série jouée reste consultable, comme les séries de
    « Réviser » (`GET /api/attempts/{id}` révèle les corrections une fois la session terminée).
+   🛑 **C'est LE rapport de série de chaque front**, à chaud comme via « Voir mon résultat » :
+   le point de lancement pose son adresse (`?retour=` web ⇄ `?from=plan` mobile) et le bouton
+   principal du rapport est **« Continuer »**, qui y ramène. Aucune variante pour le Plan.
 7. **Pendant la série : AUCUNE correction affichée** — ni bonne réponse, ni explication. En CO,
    **l'audio ne se joue qu'une seule fois**. C'est le comportement des examens blancs, appliqué
    à une série d'entraînement.

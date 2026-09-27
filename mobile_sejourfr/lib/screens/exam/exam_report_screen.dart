@@ -8,6 +8,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/question_detail_sheet.dart';
@@ -16,6 +17,10 @@ import '../../core/widgets/question_detail_sheet.dart';
 final examReportProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
   return ref.watch(attemptsRepositoryProvider).getById(id);
 });
+
+/// L'action principale d'une série lancée depuis un écran qui l'attend.
+/// Miroir de `EXAM_REPORT_CONTINUE` (`ExamReport.tsx`).
+const kExamReportContinue = 'Continuer';
 
 /// Mode d'affichage du rapport.
 enum _ReportFilter { all, errors, correct }
@@ -43,8 +48,15 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
     //   `canPop()` renvoie false — il faut un fallback explicite).
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fromCiviqueLot = qp['from'] == 'civiqueLot';
+    // - `from=plan` ([AppRoutes.fromPlan]) : série lancée depuis une étape du
+    //   Plan, le Plan civique ou Réviser → même bilan, et « Continuer » qui
+    //   redépile sur l'écran de lancement (repeint par le signal « mesure
+    //   écrite » du runner). Miroir web : `?retour=` sur `/sessions/[id]`.
+    final fromPlan = qp['from'] == AppRoutes.fromPlan;
     final themeId = qp['themeId'];
-    final title = fromCiviqueLot ? 'Bilan de la série' : 'Rapport d\'examen';
+    final title = fromCiviqueLot || fromPlan
+        ? 'Bilan de la série'
+        : 'Rapport d\'examen';
 
     void onBack() {
       // Prefère un vrai `pop` (préserve la stack en aval — quand on est
@@ -62,7 +74,7 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
         );
         return;
       }
-      context.go(AppRoutes.home);
+      context.go(fromPlan ? AppRoutes.plan : AppRoutes.home);
     }
 
     return Scaffold(
@@ -86,6 +98,19 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
           data: (attempt) => _buildContent(attempt),
         ),
       ),
+      bottomNavigationBar: fromPlan
+          ? SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: AppButton(
+                  label: kExamReportContinue,
+                  iconRight: LucideIcons.arrowRight,
+                  onPressed: onBack,
+                ),
+              ),
+            )
+          : null,
     );
   }
 

@@ -76,3 +76,33 @@ export function retourOuRepli(
     }
     router.replace(repli);
 }
+
+/**
+ * **L'adresse d'une session lancée depuis un écran qui veut la voir revenir**
+ * — le Plan, l'écran d'une étape, le Plan civique.
+ *
+ * 🛑 **Le retour fait de la session une SÉRIE** : `/sessions/[attemptId]` rend
+ * alors le rapport de série complet (le même qu'une série hors Plan) et son
+ * bouton principal « Continuer » ramène **à `retour`** — jamais la carte de
+ * score d'un entraînement libre, jamais « Nouvel entraînement / Accueil ».
+ * Aucune variante de rapport n'existe pour le Plan : c'est ce paramètre, posé
+ * par le point de lancement, qui en tient lieu.
+ *
+ * `lot` : le numéro de série **servi**, quand le lanceur en a un (carte d'une
+ * étape) — il ne sert qu'aux libellés (« Série 2 »).
+ *
+ * Miroir mobile : `AppRoutes.runnerDepuisPlan` (`from=plan`).
+ */
+export function sessionHref(
+    attemptId: string,
+    retour: string | null,
+    lot?: number | null,
+): string {
+    const base = lot == null ? `/sessions/${attemptId}` : `/sessions/${attemptId}?lot=${lot}`;
+    return withRetour(base, retour);
+}
+
+/** L'adresse de l'écran courant, pour la reposer en `retour`. Client seulement. */
+export function adresseCourante(): string {
+    return `${window.location.pathname}${window.location.search}`;
+}

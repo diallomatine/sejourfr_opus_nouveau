@@ -882,14 +882,14 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     return;
   }
 
-  // Contexte d'une **série d'étape** du Plan (cf. `PlanEtapeScreen._lancer`) —
+  // Contexte d'une série lancée depuis un écran qui l'attend
+  // ([AppRoutes.runnerDepuisPlan] : étape du Plan, Plan civique, Réviser) —
   // même montage que les lots : `pushReplacement` pour que le rapport puisse
-  // dépiler vers l'écran de l'étape, qui reste monté dessous. 🛑 **Aucun écran
-  // de rapport n'est créé** : on pousse celui des séries de « Réviser ».
-  if (from == 'planEtape') {
-    context.pushReplacement(
-      AppRoutes.examReport.replaceFirst(':attemptId', attempt.id),
-    );
+  // dépiler vers l'écran de lancement, qui reste monté dessous et se repeint
+  // sur le signal « mesure écrite ». 🛑 **Aucun écran de rapport n'est créé** :
+  // c'est le rapport de série, bouton « Continuer » compris.
+  if (from == AppRoutes.fromPlan) {
+    context.pushReplacement(AppRoutes.examReportDepuisPlan(attempt.id));
     return;
   }
 

@@ -16,6 +16,7 @@ import {useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
 import {civicPlanApi} from "@/lib/api";
 import {handleStartFailure} from "@/lib/start-failure";
+import {adresseCourante, sessionHref} from "@/lib/retour";
 
 export function useCivicUniteSerie() {
     const router = useRouter();
@@ -33,8 +34,9 @@ export function useCivicUniteSerie() {
                mobile). ⚠️ Il visait `/examen-blanc?attempt=`, la route
                **publique** héritée de la démo : une série d'unité civique n'est
                pas un examen blanc, et le mobile la jouait déjà dans le runner —
-               écart de parité corrigé le 2026-09-20. */
-            router.push(`/sessions/${attempt.id}`);
+               écart de parité corrigé le 2026-09-20. `?retour=` : le rapport
+               de série complet, dont « Continuer » revient ici. */
+            router.push(sessionHref(attempt.id, adresseCourante()));
         } catch (cause) {
             handleStartFailure(cause, {
                 onPaywall: () => setPaywall(true),
