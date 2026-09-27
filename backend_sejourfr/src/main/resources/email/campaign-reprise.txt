@@ -1,0 +1,8 @@
+Bonjour,
+
+La mise à jour est terminée : l'application mobile SejourFR fonctionne de nouveau normalement.
+
+Si vous rencontrez encore une erreur, installez la dernière version depuis l'App Store ou Google Play.
+
+Bonne préparation,
+L'équipe SejourFR

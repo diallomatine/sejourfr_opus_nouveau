@@ -91,6 +91,27 @@ leur propre réévaluation quotidienne (une clé `FAILED` ne bloque pas). 🛑 `
 `EmailSender.relayToSupport`, **aucune ligne de journal** ; son échec remonte à `ContactService`,
 qui l'absorbe (log masqué, réponse inchangée) : la conversation enregistrée fait foi (B-1, clos).
 
+## Campagnes de service (`incident`, `reprise`)
+
+Lancées à la main par un admin : `POST /api/admin/campaigns/{code}/send?mode=dry-run|test|send`
+(`AdminEmailCampaignController` → `EmailCampaignService`). Types `CAMPAIGN_INCIDENT` /
+`CAMPAIGN_REPRISE`, catégorie **REQUIRED** (information de service : ni préférence, ni lien de
+désabonnement, ni plafond), relance différée `NONE`. Textes repris **mot pour mot** de
+`.claude/agents/notify-users.md` ; ces gabarits portent leur propre signature, le layout n'ajoute
+donc pas « À bientôt » (`EmailType.signsItself`).
+
+- **Destinataires** : `deleted_at IS NULL`, `is_active`, `role = 'USER'`, adresse hors
+  `@anon.sejourfr`. `users` n'a ni « e-mail vérifié » ni rebond : aucun filtre possible sur ces axes.
+- **Idempotence** : `email_campaign_log` (V080), unique `(campaign_code, user_id)`. Une relance
+  ne sert que les comptes sans ligne `SENT`/`SKIPPED` ; une ligne `FAILED` est reprise. La clé
+  `email_deliveries` `CAMPAIGN_{CODE}:{userId}` double la garde.
+- **Vagues** : `email/campaigns-config-v1.json` (taille par défaut, plafond, pause conseillée,
+  attente HTTP). L'envoi part sur `emailTaskExecutor` via `EmailService` ; la requête attend au
+  plus `waveWaitSeconds`, puis répond `IN_PROGRESS`. Arrêt au premier échec.
+- `test` : une adresse (`to`), clé `CAMPAIGN_{CODE}:TEST:{uuid}`, sans ligne de campagne.
+- 🛑 `sejourfr.email.automation.enabled` ne garde **que** les scénarios automatisés : une
+  campagne n'en dépend pas (`EmailCampaignIT`).
+
 ## Les règles d'envoi — `EmailService`, dans l'ordre
 
 1. catégorie du type ;

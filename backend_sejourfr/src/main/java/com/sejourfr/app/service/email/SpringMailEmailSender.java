@@ -152,6 +152,9 @@ public class SpringMailEmailSender implements EmailSender {
         layout.put("logoUrl", properties.getLogoUrl());
         layout.put("supportEmail", supportAddress);
         layout.put("year", String.valueOf(LocalDate.now(clock.withZone(EmailFormats.PARIS)).getYear()));
+        boolean signed = message.type().signsItself();
+        layout.put("signOffGreeting", signed ? "" : "À bientôt,");
+        layout.put("signOffTeam", signed ? "" : "L'équipe SejourFR");
 
         Map<String, String> htmlLayout = new HashMap<>(layout);
         htmlLayout.put("body", bodyHtml);

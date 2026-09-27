@@ -47,7 +47,16 @@ public enum EmailType {
     PREMIUM_INACTIVE_2_DAYS(EmailCategory.ENGAGEMENT, DeferredRetry.SCENARIO, false),
     PREMIUM_ENDING_7_DAYS(EmailCategory.ENGAGEMENT, DeferredRetry.SCENARIO, false),
     PREMIUM_ENDING_2_DAYS(EmailCategory.ENGAGEMENT, DeferredRetry.SCENARIO, false),
-    PREMIUM_ENDED(EmailCategory.ENGAGEMENT, DeferredRetry.SCENARIO, false);
+    PREMIUM_ENDED(EmailCategory.ENGAGEMENT, DeferredRetry.SCENARIO, false),
+
+    /**
+     * Campagnes d'information de service ({@code EmailCampaign}), lancees a la
+     * main par un admin, vague par vague. REQUIRED : indispensables, sans lien de
+     * desabonnement. Aucune relance differee : c'est la relance de la campagne
+     * qui reprend les comptes non servis.
+     */
+    CAMPAIGN_INCIDENT(EmailCategory.REQUIRED, DeferredRetry.NONE, false),
+    CAMPAIGN_REPRISE(EmailCategory.REQUIRED, DeferredRetry.NONE, false);
 
     /**
      * Comment une ligne {@code FAILED} de ce type est retentee plus tard.
@@ -79,6 +88,14 @@ public enum EmailType {
 
     public DeferredRetry deferredRetry() {
         return deferredRetry;
+    }
+
+    /**
+     * Vrai si le gabarit porte sa propre signature : le layout n'ajoute alors
+     * pas la sienne (les campagnes sont reprises mot pour mot).
+     */
+    public boolean signsItself() {
+        return this == CAMPAIGN_INCIDENT || this == CAMPAIGN_REPRISE;
     }
 
     /** Vrai si ce mail ENGAGEMENT part meme quand le plafond du jour est atteint. */

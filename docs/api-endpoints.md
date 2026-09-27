@@ -1027,6 +1027,16 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` → `AdminSubscriptionDto`.
   Écriture ciblée (UPDATE en masse) : **ne fait pas avancer `updatedAt`**. Inconnue ⇒ 404.
 
+### Admin — Campagnes de service (`incident`, `reprise`, 2026-09-28)
+
+- `POST /api/admin/campaigns/{code}/send?mode=dry-run|test|send&batch=N&to=…` →
+  `EmailCampaignRunResponse` (`status` ∈ `DRY_RUN` / `TEST_SENT` / `COMPLETED` /
+  `NOTHING_TO_SEND` / `IN_PROGRESS` / `STOPPED_ON_ERROR`, `remaining`, `servedTotal`,
+  `failedTotal`, compteurs de la vague, `error`, `sample` masqué, `waveSize`, `pauseSeconds`).
+  `dry-run` n'écrit rien ; `test` exige `to` et n'envoie qu'à cette adresse ; `send` sert une
+  vague (`batch` par défaut et plafond : `email/campaigns-config-v1.json`), arrêtée au premier
+  échec. Une seule vague à la fois (sinon 409). Code ou mode inconnu ⇒ 400.
+
 ### Admin — Moteur de progression V4.2
 
 Le **seul** endroit du produit où `masteryScore` et `confidence` sortent du moteur
