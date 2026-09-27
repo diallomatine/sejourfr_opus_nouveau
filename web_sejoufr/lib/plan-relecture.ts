@@ -1,5 +1,3 @@
-import {useSyncExternalStore} from "react";
-
 /**
  * **« Relisez le Plan » — le signal des écritures qui changent l'écran OÙ L'ON
  * EST** (2026-09-27).
@@ -13,6 +11,9 @@ import {useSyncExternalStore} from "react";
  * dans les dépendances de leur lecture : un signal ⇒ elles relisent le cache
  * purgé. Miroir mobile : `learningPlanRevisionProvider` /
  * `relireSourcesDuCompte`.
+ *
+ * 🛑 **Aucun import React ici** : `lib/api.ts` importe ce module et il est lu
+ * par des composants SERVEUR. Le hook vit dans `use-plan-relecture.ts`.
  */
 let version = 0;
 const abonnes = new Set<() => void>();
@@ -22,14 +23,13 @@ export function signalerPlanARelire(): void {
     abonnes.forEach((abonne) => abonne());
 }
 
-function abonner(abonne: () => void): () => void {
+export function abonnerPlanRelecture(abonne: () => void): () => void {
     abonnes.add(abonne);
     return () => {
         abonnes.delete(abonne);
     };
 }
 
-/** La version courante du signal : à mettre dans les dépendances d'une lecture. */
-export function usePlanRelecture(): number {
-    return useSyncExternalStore(abonner, () => version, () => 0);
+export function versionPlanRelecture(): number {
+    return version;
 }

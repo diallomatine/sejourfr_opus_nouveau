@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import {ApiException, journeyApi, learningPlanApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
-import {usePlanRelecture} from "@/lib/plan-relecture";
+import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
 import {

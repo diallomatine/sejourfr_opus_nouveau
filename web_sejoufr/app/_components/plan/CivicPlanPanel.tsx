@@ -8,7 +8,7 @@ import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
 import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
-import {usePlanRelecture} from "@/lib/plan-relecture";
+import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {useAuth} from "@/lib/auth-context";
 import {
   CIVIC_PLAN_LOCKED_CTA,
