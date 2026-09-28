@@ -1012,6 +1012,14 @@ retour (faible / moyenne / forte).
 - Fichiers : aucun.
 - Difficulté de retour : faible (un paramètre d'origine sur trois écrans, web et mobile).
 
+**D116 — Dates de début de mesure posées : 2026-09-28 pour les 14 indicateurs** · Correctif prod (2026-09-28)
+- Contexte : en production, `/dashboard` affichait « — » partout sauf les visiteurs. Cause : `measurementStart` était resté `null` (D43) pour 12 indicateurs ; l'API servait donc `null` alors que la base contenait, pour le 28/09 (Paris) : 41 inscriptions, 2 achats Google avec ventilation, 33 runs de diagnostic, 105 `PLAN_OPENED`. Inversement, `VISITORS` / `ACQUISITION_SOURCES` = `2026-08-21` était faux en prod : `analytics_event` n'y existe que depuis V043, appliquée avec V074 → V079 le **2026-09-27 à 22:09 UTC (00:09 le 28 à Paris)** ; premier événement à 00:14. La période précédente servait donc des visiteurs à **0** (7 jours : `previous = 0`), un zéro faux.
+- Options : dater au lendemain du déploiement (règle de `deploiement-suivi.md` § 6) ; dater au jour du déploiement.
+- Choix : **`2026-09-28` pour les 14 indicateurs**, visiteurs et sources compris. La règle « lendemain » protège les inscriptions du matin du jour J faites avec l'ancien code ; ici le déploiement a eu lieu à 00:09 (Paris) et aucune inscription n'existe entre minuit et 00:09 — la journée entière est sous le nouveau code. `REVENUE_BREAKDOWN` est posé sans attendre la confirmation du taux Apple/Google : la ventilation est figée à l'écriture de l'achat **que la date soit posée ou non** ; la date ne change que l'affichage, et l'écran signale déjà les frais `ESTIMATED`.
+- Conséquence : une période qui commence avant le 28/09 (7 jours, Mois) sert toujours `null` (« mesuré depuis le 28/09 ») ; « Aujourd'hui » et une plage personnalisée à partir du 28/09 sont mesurés. Les inscriptions sans `signup_context` (clients anciens, surtout l'app pas encore à jour) restent comptées en « contexte inconnu » (D98).
+- Fichiers : `analytics/analytics-config-v1.json`, `AnalyticsConfigLoaderTest`, `AdminSuiviControllerIT` (horloge fixée la veille puis le jour de la mise en production).
+- Difficulté de retour : faible (config ; relue au démarrage).
+
 ---
 
 ## 3. Récapitulatif final (2026-09-25)
@@ -1129,8 +1137,8 @@ concernés ont vérifié leurs fichiers, rien n'a été perdu.
 
 ### 4.2 Ce qui reste ouvert
 
-1. **Dates de début de mesure** (D43) : toujours `null` sauf visiteurs et sources — à poser au
-   lendemain du dernier déploiement (`deploiement-suivi.md` § 6).
+1. ~~**Dates de début de mesure** (D43)~~ : **posées le 2026-09-28** (D116), toutes au
+   2026-09-28.
 2. **Seuil civique 80 %** : validé sur 6 sessions locales seulement (D89) ; requête de
    contrôle à relancer en production.
 3. **Ingestion unitaire** : à retirer quand `MOBILE` < 5 % des événements de l'app sur 7 j.

@@ -23,13 +23,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * {@code GET /api/admin/analytics/suivi} : droits, resolution de la periode,
  * filtres refuses en 400 nomme, et — avec la <b>vraie</b> configuration —
- * des indicateurs {@code null} tant que leur date de debut de mesure n'est pas
- * posee (Q16, D43), jamais 0. Les chiffres eux-memes sont verrouilles par
+ * des indicateurs {@code null} avant leur date de debut de mesure (Q16, D43),
+ * jamais 0, puis mesures a partir de cette date. Les chiffres eux-memes sont verrouilles par
  * {@code SuiviScenariosIT}.
  */
 class AdminSuiviControllerIT extends AbstractIntegrationTest {
 
     private static final String URL = "/api/admin/analytics/suivi";
+    /** Date posee pour tous les indicateurs dans {@code analytics-config-v1.json} (D43). */
+    private static final String MISE_EN_PRODUCTION = "2026-09-28";
+    private static final Instant VEILLE_MISE_EN_PRODUCTION = Instant.parse("2026-09-27T10:00:00Z");
+    private static final Instant JOUR_MISE_EN_PRODUCTION = Instant.parse("2026-09-28T10:00:00Z");
 
     @Autowired private MockMvc mvc;
     @Autowired private AuthTestSupport auth;
@@ -112,13 +116,15 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("D43 — avec la configuration livrée, tout indicateur sans date de mesure vaut null, jamais 0")
-    void configurationLivree() throws Exception {
+    @DisplayName("D43 — avec la configuration livrée, la veille de la mise en production tout indicateur daté vaut null, jamais 0")
+    void configurationLivreeAvantMiseEnProduction() throws Exception {
+        clock.set(VEILLE_MISE_EN_PRODUCTION);
         mvc.perform(get(URL).header("Authorization", auth.bearer(data.admin())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.measurementStart.VISITORS").value("2026-08-21"))
-                .andExpect(jsonPath("$.measurementStart.DIAGNOSTIC_SUBJECT_VIEWED").value(nullValue()))
-                .andExpect(jsonPath("$.kpis.visitors.value").isNumber())
+                .andExpect(jsonPath("$.window.from").value("2026-09-27"))
+                .andExpect(jsonPath("$.measurementStart.VISITORS").value(MISE_EN_PRODUCTION))
+                .andExpect(jsonPath("$.measurementStart.DIAGNOSTIC_SUBJECT_VIEWED").value(MISE_EN_PRODUCTION))
+                .andExpect(jsonPath("$.kpis.visitors.value").value(nullValue()))
                 .andExpect(jsonPath("$.kpis.submitted.value").value(nullValue()))
                 .andExpect(jsonPath("$.kpis.purchases.value").value(nullValue()))
                 .andExpect(jsonPath("$.kpis.netExVatCents.value").value(nullValue()))
@@ -140,14 +146,41 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.signups.byPlatform.ios").value(nullValue()))
                 .andExpect(jsonPath("$.signups.typeFilterApplied").value(false))
                 .andExpect(jsonPath("$.sources", hasSize(5)))
-                .andExpect(jsonPath("$.sources[0].visitors").isNumber())
+                .andExpect(jsonPath("$.sources[0].visitors").value(nullValue()))
                 .andExpect(jsonPath("$.ratios.subjectToSubmissionPct").value(nullValue()))
                 .andExpect(jsonPath("$.activity.anonymousSubmittedNeverAttached").value(nullValue()));
     }
 
     @Test
+    @DisplayName("D43 — avec la configuration livrée, le jour de la mise en production tout est mesuré ; la veille reste inconnue")
+    void configurationLivreeJourDeMiseEnProduction() throws Exception {
+        clock.set(JOUR_MISE_EN_PRODUCTION);
+        mvc.perform(get(URL).header("Authorization", auth.bearer(data.admin())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.window.from").value(MISE_EN_PRODUCTION))
+                .andExpect(jsonPath("$.kpis.visitors.value").isNumber())
+                .andExpect(jsonPath("$.kpis.visitors.previous").value(nullValue()))
+                .andExpect(jsonPath("$.kpis.submitted.value").isNumber())
+                .andExpect(jsonPath("$.kpis.purchases.value").isNumber())
+                .andExpect(jsonPath("$.kpis.purchases.previous").value(nullValue()))
+                .andExpect(jsonPath("$.kpis.netExVatCents.value").isNumber())
+                .andExpect(jsonPath("$.funnel.steps[0].count").isNumber())
+                .andExpect(jsonPath("$.funnel.steps[6].count").isNumber())
+                .andExpect(jsonPath("$.funnel.attached.signedUpAfter").isNumber())
+                .andExpect(jsonPath("$.revenue.purchases").isNumber())
+                .andExpect(jsonPath("$.revenue.byProvider[0].purchases").isNumber())
+                .andExpect(jsonPath("$.revenue.refunds.count").isNumber())
+                .andExpect(jsonPath("$.byType[0].subjectViewed").isNumber())
+                .andExpect(jsonPath("$.signups.outsideDiagnostic").isNumber())
+                .andExpect(jsonPath("$.signups.byPlatform.ios").isNumber())
+                .andExpect(jsonPath("$.sources[0].visitors").isNumber())
+                .andExpect(jsonPath("$.activity.submittedRaw").isNumber());
+    }
+
+    @Test
     @DisplayName("D43 — filtre iOS avant la mesure iOS/Android : visiteurs et inscriptions null, pas 0")
     void filtreIosAvantMesure() throws Exception {
+        clock.set(VEILLE_MISE_EN_PRODUCTION);
         mvc.perform(get(URL).param("platform", "IOS").header("Authorization", auth.bearer(data.admin())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.kpis.visitors.value").value(nullValue()))

@@ -73,9 +73,12 @@ class AnalyticsConfigLoaderTest {
         assertThat(config.diagnosticRunRateLimit().perIpBurst().max()).isEqualTo(30);
         assertThat(config.diagnosticRunRateLimit().perAnonymousIdDaily().max()).isEqualTo(100);
         assertThat(config.claimTokenTtl()).isEqualTo(java.time.Duration.ofDays(2));
-        // Q16 : un indicateur pas encore mesure n'a pas de date, jamais une date inventee.
-        assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
-        assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 8, 21));
+        // D43 : tous les indicateurs datent de la mise en production du 2026-09-28
+        // (V043 a V079 appliquees le 2026-09-28 a 00:09, heure de Paris).
+        LocalDate miseEnProduction = LocalDate.of(2026, 9, 28);
+        for (SuiviIndicator indicator : SuiviIndicator.values()) {
+            assertThat(config.measurementStartOf(indicator)).as(indicator.name()).contains(miseEnProduction);
+        }
     }
 
     /** Scenario 17 : {@code ig} se range sous instagram, a la lecture. */
@@ -201,8 +204,8 @@ class AnalyticsConfigLoaderTest {
             AnalyticsConfig config = AnalyticsConfigLoader.withMeasurementStartOverrides(
                     fichier, new EnumMap<>(SuiviIndicator.class), dev);
             assertThat(config).isSameAs(fichier);
-            assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
-            assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 8, 21));
+            assertThat(config.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).contains(LocalDate.of(2026, 9, 28));
+            assertThat(config.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 9, 28));
         }
         assertThat(AnalyticsConfigLoader.withMeasurementStartOverrides(fichier, null, false)).isSameAs(fichier);
     }
@@ -228,13 +231,13 @@ class AnalyticsConfigLoaderTest {
 
         assertThat(dev.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).contains(LocalDate.of(2026, 1, 1));
         assertThat(dev.measurementStartOf(SuiviIndicator.VISITORS)).contains(LocalDate.of(2026, 1, 1));
-        assertThat(dev.measurementStartOf(SuiviIndicator.PURCHASES)).isEmpty();
+        assertThat(dev.measurementStartOf(SuiviIndicator.PURCHASES)).contains(LocalDate.of(2026, 9, 28));
         assertThat(dev.measurementStart()).hasSize(SuiviIndicator.values().length);
         assertThat(dev.cohortWindowDays()).isEqualTo(fichier.cohortWindowDays());
         assertThat(dev.civicSubmittedMinAnsweredRatio()).isEqualTo(fichier.civicSubmittedMinAnsweredRatio());
         assertThat(dev.utmSourceGroups()).isEqualTo(fichier.utmSourceGroups());
         // Le fichier charge n'est pas modifie en place.
-        assertThat(fichier.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).isEmpty();
+        assertThat(fichier.measurementStartOf(SuiviIndicator.DIAGNOSTIC_SUBMITTED)).contains(LocalDate.of(2026, 9, 28));
     }
 
     @Test

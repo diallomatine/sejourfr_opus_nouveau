@@ -91,6 +91,10 @@ que pour une connexion venant du loopback ou d'une plage privée.
 
 ## 6. Dates de début de mesure (le jour J + 1)
 
+✅ **Fait le 2026-09-28 (D116)** : les 14 indicateurs datés du 2026-09-28 (déploiement à 00:09,
+heure de Paris, aucune inscription entre minuit et le déploiement). La règle ci-dessous reste
+celle d'un futur indicateur.
+
 Dans `backend_sejourfr/src/main/resources/analytics/analytics-config-v1.json`,
 `measurementStart` : poser la date **du lendemain du dernier déploiement** (backend + web ;
 la date est au jour, les inscriptions du matin même seraient sinon comptées) pour :

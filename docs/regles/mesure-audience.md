@@ -406,12 +406,11 @@ Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
   oublier à la run son `anonymous_id` et sa `client_key` (D27) ; la run et ses faits
   restent. **Suppression de compte** (contrôle N9) : `AccountDeletionService` fait de même,
   immédiatement, sur toutes les runs du compte (`DiagnosticRunManager.forgetIdentifiersOfUser`).
-- ⚠️ **Dates de début de mesure** (Q16) : `DIAGNOSTIC_SUBJECT_VIEWED`,
-  `DIAGNOSTIC_SUBMITTED`, `ACCOUNT_ATTACHED` et `SIGNUP_CONTEXT` restent **`null`** dans
-  `analytics-config-v1.json` : le serveur est prêt, mais la mesure ne démarre qu'avec les
-  clients du lot 3 (sans eux, aucune run n'est créée et toute inscription s'écrit
-  `OUTSIDE_DIAGNOSTIC`). **Le lot 3 pose la date de sa mise en production** ; la lecture
-  (lot 4) ignore tout ce qui précède (D28).
+- ⚠️ **Dates de début de mesure** (Q16) : les 14 indicateurs de `measurementStart`
+  (`analytics-config-v1.json`) valent **`2026-09-28`**, jour de la mise en production de V043 et
+  V074 → V079 (D116). Avant cette date, tout indicateur vaut `null`, jamais 0 ; une période qui
+  la chevauche aussi. Un nouvel indicateur arrive à `null` et reçoit la date de SA mise en
+  production (D28, D43).
 
 ## Chantier « Suivi » — lecture du dashboard Suivi (lot 4, 2026-09-25)
 
