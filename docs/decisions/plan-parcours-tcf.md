@@ -3448,3 +3448,60 @@ l'épreuve. » Donc :
 
 Verrouillé par `PlanParDefautIT` (`quatreEpreuvesDejaMesureesDonnentLeCycleDExamens`,
 `cycleVideSansDiagnosticRattrapeALaLecture`, `cyclesLegitimesInchanges`).
+
+## D-69 ter — Lancement : un cycle d'examens NON FAIT pour tout le monde (2026-09-28)
+
+**Décision du propriétaire, verbatim.** « On vient de lancer : mettre à TOUT LE MONDE un plan NON
+FAIT avec uniquement des examens blancs. Dans chaque épreuve, l'examen blanc à faire et c'est
+tout. Il fera ça, actualisera son plan, et tout fonctionnera normalement. Ça alimentera les
+futurs plans. »
+
+**Constat qui l'a déclenchée (prod, compte du propriétaire).** Cycle 1 : CO et CE cochés « Niveau
+évalué · examen blanc terminé » par des examens passés **avant** le cycle (blocs vides, sans
+étape), EO « Examen à passer », EE « Niveau à évaluer », compteur « 1 étape sur 3 » pour 4 blocs.
+
+**La règle.**
+1. **Le cycle d'examens** (par défaut, jalon D-68, lancement) porte une étape `SECTION_EXAM`
+   **ouverte** par bloc — les 4 épreuves TCF, une par thématique civique —, **une seule nature**
+   (`INITIAL_ASSESSMENT`, libellé unique « Examen blanc » ; « Évaluer mon niveau / Vérifier mes
+   progrès » disparaît). Construction unique : `JourneyService.poserLeCycleDExamens` /
+   `poserLeCycleDExamensCivique`.
+2. 🛑 **Un examen passé AVANT la création du cycle ne ferme JAMAIS une étape.** Le filet R12
+   (`rattraperLesEvaluationsInitiales`) ne clôt plus que sur un examen terminé **après** la
+   création du cycle (`passePendantLeCycle`) — c'est lui qui cochait CO/CE. Seul un examen passé
+   pendant le cycle ferme son étape (002447a0 / f8ae9abc inchangés).
+3. **Remise à zéro unique des comptes existants.** V082 ajoute `journey.reinitialiser_au_lancement`
+   et le pose **une fois**, par Flyway, sur les cycles vivants (`EN_COURS`, `EN_ATTENTE`). À la
+   première lecture (`getOrCreate`, donc aussi un examen qui se termine), sous le verrou
+   consultatif de création : le cycle en cours est historisé **`INTERROMPU`** (sa sortie lue chez
+   son autorité, `JourneyHistorisation`), le cycle en attente est **vidé** (étapes et lots
+   `SUPERSEDED`, marqueur retiré), un cycle d'examens neuf devient courant — il naît non marqué,
+   donc jamais réinitialisé. Les cycles archivés ne bougent pas ; aucun résultat d'examen ni de
+   série n'est touché. **Pourquoi un marqueur et pas une migration qui construit les cycles** :
+   la construction d'un cycle a une autorité Java ; la recopier en SQL en ferait une seconde, et
+   aucune ligne n'est écrite pour un compte qui ne revient pas. Traçable : `fin_de_cycle =
+   INTERROMPU` + marqueur resté `true` sur le cycle historisé + log.
+4. **Nouveaux comptes** : cycle d'examens neuf. **Exception D-64 confirmée** : un compte dont le
+   diagnostic rapide arrive **avant toute autre évaluation** reçoit le cycle d'affinage (le
+   diagnostic amorce le cycle d'examens encore intact). ⚠️ Cas limite signalé, non modifié : un
+   compte **sans démarche** (pas de parcours, D-3) qui passe un examen puis le diagnostic, puis
+   déclare sa démarche, s'amorce depuis l'historique (diagnostic présent) — un premier cycle
+   mixte, pas un cycle d'examens.
+5. **Écran** : une étape d'examen close sert son **résultat** sur le Plan courant
+   (`JourneyStepDto.resultat`, même lecture que la consultation d'un cycle clos) — « Examen blanc
+   · Passé le … · Niveau B1 ». « N étapes sur M » vaut 4 sur un cycle d'examens TCF.
+6. **Fin du cycle d'examens** : « Actualiser mon plan » ⇒ cycle de travail sur les priorités de
+   ces examens, ≤ 3 par épreuve (D-67).
+
+**Ce qui est supprimé.** Le rattrapage à la lecture de D-69 bis (premier cycle vide / ancienne
+attente du diagnostic) : tous les cycles vivants au déploiement sont réinitialisés par le
+lancement, et un nouveau compte naît en cycle d'examens — plus aucun cycle ne peut en avoir
+besoin. La distinction `REASSESS` / `INITIAL_ASSESSMENT` à la création d'un cycle d'examens.
+
+Verrouillé par `PlanParDefautIT` (`lancementReinitialiseUneSeuleFois`,
+`leMarquageNeViseQueLesCyclesVivants`, `quatreEpreuvesDejaMesureesDonnentLeCycleDExamens`,
+`unExamenDuCycleFermeSonEtapeEtSertSonResultat`, `finDuCycleDExamensOuvreUnCycleDeTravail`),
+`CycleDAffinageIT` (D-64), `JourneyProgressionIT` (D-65), `JourneyJalonExamenCompletIT` (D-68).
+
+**Si l'arbitrage changeait** : ne plus lire le marqueur (`cycleEnCoursOuVerrou`) suffit à
+arrêter toute réinitialisation ; les cycles déjà remplacés restent des cycles valides.

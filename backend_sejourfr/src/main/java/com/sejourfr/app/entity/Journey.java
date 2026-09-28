@@ -198,6 +198,17 @@ public class Journey {
     private JourneyFinDeCycle finDeCycle;
 
     /**
+     * <b>A reinitialiser au lancement du cycle d'examens pour tous</b> (V082,
+     * D-69 ter, 2026-09-28). Pose une fois par Flyway sur les cycles vivants au
+     * deploiement ; lu par {@code JourneyService} a la premiere lecture, qui
+     * historise le cycle en cours ({@code INTERROMPU}) et ouvre un cycle
+     * d'examens. Un cycle cree ensuite naît a {@code false}. Sur un cycle
+     * historise par le lancement, il reste {@code true} : c'est la trace.
+     */
+    @Column(name = "reinitialiser_au_lancement", nullable = false)
+    private boolean reinitialiserAuLancement = false;
+
+    /**
      * La prochaine position libre de la file. <b>Monotone</b> : jamais
      * decremente, jamais renumerote.
      *

@@ -15,6 +15,7 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.JourneyAssessmentKind;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyLotStatus;
 import com.sejourfr.app.enums.JourneyStatus;
 import com.sejourfr.app.enums.JourneyStepPurpose;
@@ -141,6 +142,8 @@ public class JourneyService {
     // 🛑 LA COMPOSITION DU CYCLE CIVIQUE A UNE AUTORITE (D-67) : la meme que
     // celle qui annonce le nombre de priorites du cycle suivant.
     private final JourneyCycleSuivant cycleSuivant;
+    // 🛑 L'unique facon d'historiser un cycle (actualisation, jalon, lancement).
+    private final JourneyHistorisation historisation;
 
     // =====================================================================
     // Lecture
@@ -160,12 +163,6 @@ public class JourneyService {
         if (journey.isEmpty()) return readService.sansObjectif();
         Journey courant = journey.get();
         List<JourneyStep> etapes = stepManager.findAll(courant.getId());
-        // 🛑 D-69 AVANT TOUT : un premier cycle sans rien a faire (l'ancienne
-        // attente du diagnostic, ou un cycle vide) devient le cycle d'examens. Les filets suivants lisent ses
-        // examens (un examen deja passe pendant ce cycle y est reconnu).
-        if (remplacerLePremierCycleSansTravail(courant, etapes)) {
-            etapes = stepManager.findAll(courant.getId());
-        }
         // 🛑 EN PREMIER : une etape rouverte redevient une competence DUE, et
         // les deux filets suivants lisent ce fait (garde D-15).
         boolean relire = rouvrirLesEtapesCloseesSansSeries(courant, etapes);
@@ -175,64 +172,6 @@ public class JourneyService {
             etapes = stepManager.findAll(courant.getId());
         }
         return readService.lire(courant, etapes);
-    }
-
-    /**
-     * <b>Les premiers cycles SANS rien a faire deviennent le cycle d'examens par
-     * defaut</b> (D-69, 2026-09-28) — a la lecture, sans migration.
-     *
-     * <p>Deux formes, toutes deux un <b>premier cycle TCF</b> (aucun cycle
-     * historise) :
-     * <ol>
-     *   <li>l'<b>attente du diagnostic</b> d'avant D-69 : une seule etape
-     *       {@code DIAGNOSTIC} ouverte (« Faire mon diagnostic »). Elle est close
-     *       {@code SUPERSEDED} — rendue caduque par la file, jamais
-     *       travaillee ;</li>
-     *   <li>le <b>cycle VIDE</b>, sans aucune etape et sans diagnostic rapide
-     *       journalise : l'amorce depuis l'historique d'un compte dont les
-     *       quatre epreuves etaient mesurees sans priorite ouverte (bug de prod
-     *       du 2026-09-28, premiere version de D-69 — et avant elle, meme
-     *       effet). L'ecran disait « Votre parcours est a jour », sans bloc.</li>
-     * </ol>
-     * Un cycle qui porte des etapes n'est <b>jamais</b> touche (un cycle de
-     * travail legitime, ou un cycle termine qui attend son actualisation).
-     *
-     * <p>🛑 <b>Meme cycle, meme id, aucune ligne effacee</b>, sous le verrou du
-     * parcours (R14) : deux lectures simultanees ne posent pas deux fois les
-     * examens, et la seconde relit un cycle qui n'a plus rien a convertir.
-     *
-     * @return {@code true} si le cycle a change
-     */
-    private boolean remplacerLePremierCycleSansTravail(Journey journey, List<JourneyStep> etapes) {
-        if (!aRemplacer(journey, etapes)) return false;
-        Journey verrouille = journeyManager.findForUpdate(journey.getId()).orElse(null);
-        if (verrouille == null) return false;
-        List<JourneyStep> relues = stepManager.findAll(verrouille.getId());
-        if (!aRemplacer(verrouille, relues)) return false;
-        Instant maintenant = Instant.now();
-        for (JourneyStep step : relues) {
-            if (step.getType() == JourneyStepType.DIAGNOSTIC
-                    && step.clore(JourneyStepResolution.SUPERSEDED, null, maintenant)) {
-                stepManager.save(step);
-            }
-        }
-        poserLeCycleDExamens(verrouille, verrouille.getUser().getId());
-        log.info("Parcours {} : premier cycle sans travail remplace par le cycle d'examens (D-69)",
-                verrouille.getId());
-        return true;
-    }
-
-    private boolean aRemplacer(Journey journey, List<JourneyStep> etapes) {
-        if (journey.getModule() != Module.TCF) return false;
-        boolean attendLeDiagnostic = attendSonAmorce(etapes)
-                && etapes.stream().anyMatch(step -> step.getType() == JourneyStepType.DIAGNOSTIC
-                        && step.estOuverte());
-        boolean vide = etapes.isEmpty();
-        if (!attendLeDiagnostic && !vide) return false;
-        if (journeyManager.compterHistorises(journey.getUser().getId(), Module.TCF) != 0) {
-            return false;
-        }
-        return !vide || !journeyManager.journaliseUnDiagnosticRapide(journey.getId());
     }
 
     /**
@@ -360,6 +299,11 @@ public class JourneyService {
             NiveauActuelEpreuveResolver.Mesure mesure =
                     mesureResolver.mesure(journey.getUser().getId(), epreuve);
             if (!mesure.mesuree()) continue;
+            // 🛑 D-69 ter (2026-09-28) : un examen passe AVANT la creation du
+            // cycle ne ferme JAMAIS son etape — il ne fermait que parce que
+            // l'epreuve etait « mesuree », ce qui a coche CO et CE dans un
+            // cycle d'examens tout neuf (constat de prod).
+            if (!passePendantLeCycle(journey, mesure.attemptId())) continue;
             if (step.clore(JourneyStepResolution.SATISFIED_BY_ASSESSMENT,
                     mesure.attemptId(), maintenant)) {
                 stepManager.save(step);
@@ -367,6 +311,15 @@ public class JourneyService {
             }
         }
         return cloture;
+    }
+
+    /** L'examen {@code attemptId} s'est-il termine APRES la creation de ce cycle ? */
+    private boolean passePendantLeCycle(Journey journey, UUID attemptId) {
+        if (journey.getCreatedAt() == null || attemptId == null) return false;
+        return attemptManager.findById(attemptId)
+                .map(Attempt::getFinishedAt)
+                .map(fin -> !fin.isBefore(journey.getCreatedAt()))
+                .orElse(false);
     }
 
     /**
@@ -487,9 +440,76 @@ public class JourneyService {
      */
     private Optional<Journey> cycleEnCoursOuVerrou(UUID userId, Module module) {
         Optional<Journey> existant = journeyManager.find(userId, module, JourneyStatus.EN_COURS);
-        if (existant.isPresent()) return existant;
+        if (existant.isPresent() && !existant.get().isReinitialiserAuLancement()) return existant;
         journeyManager.verrouillerLaCreation(userId, module);
-        return journeyManager.find(userId, module, JourneyStatus.EN_COURS);
+        Optional<Journey> relu = journeyManager.find(userId, module, JourneyStatus.EN_COURS);
+        if (relu.isPresent() && relu.get().isReinitialiserAuLancement()) {
+            return Optional.of(reinitialiserAuLancement(relu.get()));
+        }
+        return relu;
+    }
+
+    /**
+     * <b>Le lancement du cycle d'examens pour TOUS</b> (D-69 ter, 2026-09-28,
+     * decision du proprietaire : « mettre a TOUT LE MONDE un plan NON FAIT avec
+     * uniquement des examens blancs »).
+     *
+     * <p>Un cycle marque par V082 (vivant au deploiement) est remplace a sa
+     * premiere lecture, <b>une seule fois</b>, sous le verrou de creation :
+     * <ol>
+     *   <li>le cycle en cours est historise {@code INTERROMPU} (le geste du
+     *       jalon D-68 : « mis de cote »), sa sortie lue chez son autorite ;</li>
+     *   <li>le cycle EN ATTENTE (TCF) est <b>vide</b> de ses lots : ses
+     *       priorites datent d'avant le lancement, les examens du nouveau cycle
+     *       les recalculent (D-67). Il n'est jamais montre, rien ne se perd a
+     *       l'ecran ; ses lignes restent en base ({@code SUPERSEDED}) ;</li>
+     *   <li>un <b>cycle d'examens</b> neuf devient courant — il naît non
+     *       marque, donc n'est jamais reinitialise a son tour.</li>
+     * </ol>
+     * Les cycles deja historises ne bougent pas ; aucun resultat d'examen ni de
+     * serie n'est touche.
+     */
+    private Journey reinitialiserAuLancement(Journey ancien) {
+        Journey enCours = journeyManager.findForUpdate(ancien.getId()).orElse(ancien);
+        UUID userId = enCours.getUser().getId();
+        Module module = enCours.getModule();
+        Instant maintenant = Instant.now();
+
+        Journey neuf = new Journey();
+        neuf.setUser(enCours.getUser());
+        neuf.setModule(module);
+        if (module == Module.CIVIQUE) {
+            neuf.poserObjectif(enCours.getTargetProcedure());
+            neuf.setEntryScore(historisation.historiserCivique(enCours, JourneyFinDeCycle.INTERROMPU));
+        } else {
+            neuf.poserObjectif(enCours.getTargetLevel());
+            neuf.setEntryLevel(historisation.historiserTcf(enCours, JourneyFinDeCycle.INTERROMPU));
+        }
+
+        journeyManager.find(userId, module, JourneyStatus.EN_ATTENTE).ifPresent(attente -> {
+            for (JourneyStep step : stepManager.findAll(attente.getId())) {
+                if (step.clore(JourneyStepResolution.SUPERSEDED, null, maintenant)) {
+                    stepManager.save(step);
+                }
+            }
+            for (JourneyLot lot : lotManager.findOuverts(attente.getId())) {
+                lot.clore(JourneyLotStatus.SUPERSEDED, null, maintenant);
+                lotManager.save(lot);
+            }
+            attente.setReinitialiserAuLancement(false);
+            journeyManager.save(attente);
+        });
+
+        neuf.setStatus(JourneyStatus.EN_COURS);
+        neuf = journeyManager.saveEtFlush(neuf);
+        if (module == Module.CIVIQUE) {
+            poserLeCycleDExamensCivique(neuf);
+        } else {
+            poserLeCycleDExamens(neuf, userId);
+        }
+        log.info("Lancement D-69 ter : cycle {} ({}) historise INTERROMPU, cycle d'examens {} ouvert",
+                enCours.getId(), module, neuf.getId());
+        return neuf;
     }
 
     /**
@@ -1704,24 +1724,37 @@ public class JourneyService {
      * <b>Le cycle d'EXAMENS</b> : un {@code SECTION_EXAM} par epreuve, dans
      * {@code TcfDomainProfileDto.ORDRE}, chacun la seule etape de son bloc.
      *
-     * <p>🛑 <b>Une seule construction, deux emplois</b> : le Plan par defaut
-     * (D-69) et le jalon d'examen complet (D-68, {@code JourneyCycleService}).
-     * « Évaluer mon niveau » ({@code INITIAL_ASSESSMENT}) sur une epreuve
-     * jamais mesuree, « Vérifier mes progrès » ({@code REASSESS}) sinon — lu
-     * chez l'unique autorite de « mesuree ». ⚠️ {@code REASSESS} n'est pas une
-     * coquetterie : le filet R12 clot un {@code INITIAL_ASSESSMENT} des que
-     * l'epreuve est mesuree, fut-ce par un examen ANTERIEUR au cycle — il
-     * fermerait aussitot l'examen qu'on vient de poser.
+     * <p>🛑 <b>Une seule construction, trois emplois</b> : le Plan par defaut
+     * (D-69), le jalon d'examen complet (D-68, {@code JourneyCycleService}) et
+     * le lancement (D-69 ter). Quatre etapes OUVERTES, une seule nature ; un
+     * examen passe AVANT le cycle n'en ferme aucune.
      */
     void poserLeCycleDExamens(Journey journey, UUID userId) {
         for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
             JourneyStep step = new JourneyStep();
             step.setJourney(journey);
             step.setType(JourneyStepType.SECTION_EXAM);
-            step.setPurpose(mesureResolver.mesure(userId, epreuve).mesuree()
-                    ? JourneyStepPurpose.REASSESS
-                    : JourneyStepPurpose.INITIAL_ASSESSMENT);
+            // D-69 ter : UNE seule nature, « Examen blanc » — plus de
+            // distinction « Évaluer / Vérifier ». Un examen anterieur au cycle
+            // ne ferme jamais cette etape (filets de lecture gardes par la
+            // date de creation du cycle).
+            step.setPurpose(JourneyStepPurpose.INITIAL_ASSESSMENT);
             step.setExamType(epreuve);
+            ajouter(journey, step);
+        }
+    }
+
+    /**
+     * <b>Le cycle d'examens CIVIQUE</b> : un examen par thematique, dans l'ordre
+     * d'affichage du module — le jalon D-68 et le lancement D-69 ter.
+     */
+    void poserLeCycleDExamensCivique(Journey journey) {
+        for (Theme thematique : themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE)) {
+            JourneyStep step = new JourneyStep();
+            step.setJourney(journey);
+            step.setType(JourneyStepType.SECTION_EXAM);
+            step.setPurpose(JourneyStepPurpose.INITIAL_ASSESSMENT);
+            step.poserBloc(thematique);
             ajouter(journey, step);
         }
     }

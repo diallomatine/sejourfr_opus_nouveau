@@ -163,6 +163,7 @@ public class JourneyReadService {
     // 🛑 L'AUTORITE UNIQUE DE LA COMPOSITION DU CYCLE SUIVANT (D-67) : la meme
     // que l'amorce civique.
     private final JourneyCycleSuivant cycleSuivant;
+    private final JourneyExamResultReader examResultReader;
 
     /** L'etat lu d'une etape : le fait persiste, plus tout ce qui s'en derive. */
     private record Etat(JourneyStep step, JourneyStepStatus status, JourneyLockReason lockReason,
@@ -237,6 +238,11 @@ public class JourneyReadService {
         // pas avec le nombre d'etapes.
         Map<UUID, PlanRecommendedExerciseDto> exercices =
                 exercicesDesCompetences(userId, toutesLesEtapes, access);
+        // 🛑 D-69 ter : une etape d'examen CLOSE du cycle en cours sert ce que
+        // l'examen a donne — « Examen blanc · Fait » et son niveau —, lu chez
+        // l'autorite de cet examen (la meme que la consultation d'un cycle
+        // clos). Aucune requete tant qu'aucun examen n'est clos.
+        Map<UUID, JourneyExamResultDto> resultats = examResultReader.lire(userId, toutesLesEtapes);
 
         Map<UUID, Etat> etats = new LinkedHashMap<>();
         for (JourneyStep step : toutesLesEtapes) {
@@ -291,7 +297,7 @@ public class JourneyReadService {
         JourneyBlocResolver.Vue vue = blocResolver.lire(
                 rang, axeServi,
                 affichables, courante,
-                step -> dto(etats.get(step.getId()), exercices),
+                step -> dto(etats.get(step.getId()), exercices, resultats),
                 jamaisMesure(userId, journey.getModule()),
                 affinage,
                 cycleSuivant.prioritesIdentifiees(journey));
@@ -305,7 +311,7 @@ public class JourneyReadService {
         return new JourneyDto(
                 journey.objectifRef(),
                 state,
-                courante == null ? null : dto(etats.get(courante.getId()), exercices),
+                courante == null ? null : dto(etats.get(courante.getId()), exercices, resultats),
                 suggestion(state, userId),
                 vue.cycle(),
                 vue.blocs(),
@@ -1233,7 +1239,8 @@ public class JourneyReadService {
     }
 
     private JourneyStepDto dto(
-            Etat etat, Map<UUID, PlanRecommendedExerciseDto> exercices) {
+            Etat etat, Map<UUID, PlanRecommendedExerciseDto> exercices,
+            Map<UUID, JourneyExamResultDto> resultats) {
         JourneyStep step = etat.step();
         Skill skill = step.getSkill();
         return new JourneyStepDto(
@@ -1263,9 +1270,9 @@ public class JourneyReadService {
                 mesureDe(step),
                 exerciceDe(step, exercices),
                 step.getClosedAt(),
-                // Le resultat d'un examen n'est lu qu'en CONSULTATION d'un cycle
-                // clos (`dtoArchive`) : le Plan courant ne le sert pas.
-                null);
+                // Le resultat d'un examen CLOS, servi aussi sur le Plan courant
+                // depuis D-69 ter (null = inconnu : « Passé », sans niveau).
+                resultats.get(step.getId()));
     }
 
     /**

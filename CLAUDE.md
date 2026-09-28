@@ -153,14 +153,14 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   plafond utilisé comme budget de production a privé trois domaines sur quatre de toute
   action (2026-08-25 : 10 actions existaient, 2 étaient servies). Corollaire : une carte
   d'épreuve ne dérive jamais d'une liste déjà tronquée.
-- 🛑 **Le Plan existe pour TOUT compte — le diagnostic l'affine, il ne l'ouvre pas** (D-69,
-  2026-09-28). Sans évaluation, le premier cycle est le **cycle d'examens par défaut** (un examen
-  blanc par épreuve TCF, un examen par thématique civique), créé paresseusement à la première
-  lecture du parcours (verrou consultatif, aucune migration). `prep.planDisponible` vaut
-  toujours `true`, `LearningPlanDto.state` toujours `ACTIVE` ; le diagnostic se propose en
-  secondaire. Un diagnostic rapide arrivé sur ce cycle encore intact en fait le cycle d'affinage
-  D-64. Un Plan ne s'appuie toujours que sur ce qui a été mesuré. Le diagnostic COMPLET est
-  retiré des fronts (2026-09-26) : ne jamais recréer `/diagnostic-tcf`.
+- 🛑 **Le Plan existe pour TOUT compte, et son premier cycle est un cycle d'EXAMENS** (D-69 /
+  D-69 ter, 2026-09-28) : une étape « Examen blanc » ouverte par bloc (4 TCF, une par thème
+  civique). 🛑 **Un examen passé AVANT la création d'un cycle ne ferme jamais une de ses
+  étapes.** Au lancement, tout cycle vivant (marqueur V082 `journey.reinitialiser_au_lancement`)
+  est historisé `INTERROMPU` et remplacé une fois, à sa première lecture. Seule exception : le
+  diagnostic rapide arrivé avant toute autre évaluation donne le cycle d'affinage D-64.
+  `prep.planDisponible` toujours vrai ; « À faire maintenant » = `journey.current`. Le diagnostic
+  COMPLET est retiré des fronts : ne jamais recréer `/diagnostic-tcf`.
   → `docs/regles/plan.md` § « Le Plan PAR DÉFAUT »
 - 🛑 **Le 1ᵉʳ cycle (issu du diagnostic rapide) est un cycle d'AFFINAGE** (2026-09-27, D-64) :
   les examens blancs n'y sont pas verrouillés par la progression, ils sont l'action mise en

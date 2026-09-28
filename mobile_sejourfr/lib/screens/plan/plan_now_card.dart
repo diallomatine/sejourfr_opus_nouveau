@@ -506,7 +506,7 @@ PlanNowCard _carteMesure(
 ///
 /// 🛑 **Elle nomme l'étape du CYCLE**, avec les libellés du parcours — la même
 /// autorité que le rail et l'encart d'examen du bloc : « Expression orale ·
-/// Évaluer mon niveau ». Elle ne se déguise jamais en remesure d'une
+/// Examen blanc ». Elle ne se déguise jamais en remesure d'une
 /// production non analysée (« Compléter mon évaluation… ») : ce motif
 /// appartient à la séance du Plan dérivé, pas au cycle.
 ///

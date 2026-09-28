@@ -17,6 +17,7 @@ import '../plan_actions.dart';
 import '../plan_cta.dart';
 import '../plan_labels.dart';
 import '../plan_now_card.dart';
+import 'journey_exam_lu.dart';
 
 /// **Le cycle du Plan** — tout ce que l'écran affiche à partir du titre
 /// « Votre parcours vers le B2 » (D-22, 2026-09-18).
@@ -288,13 +289,9 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// étape d'examen ne porte donc pas de bouton, qui serait inactif sans
   /// raison. Le verrou, lui, reste dit.
   Widget _examen(JourneyStep exam) {
-    if (journeyExamDone(exam)) {
-      return const SfExamStepAction(
-        title: kJourneyExamTitle,
-        subtitle: kJourneyExamSubtitle,
-        trailing: SfExamStepDone(label: kJourneyExamDone),
-      );
-    }
+    // 🛑 **Passé ⇒ la lecture de « Mes cycles »** (D-69 ter) : sa date et son
+    // résultat servi, jamais un « Fait » muet.
+    if (journeyExamDone(exam)) return JourneyExamLu(exam: exam);
     final lancable = widget.module != AppModule.civique;
     final action = lancable ? _actionDe(exam) : null;
     final achat = action == null &&

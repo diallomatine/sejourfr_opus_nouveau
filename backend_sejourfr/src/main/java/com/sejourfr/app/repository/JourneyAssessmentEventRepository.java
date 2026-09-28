@@ -64,13 +64,6 @@ public interface JourneyAssessmentEventRepository
             """)
     boolean amorceParLeDiagnosticRapide(@Param("journeyId") UUID journeyId);
 
-    /** Ce cycle a-t-il journalise un diagnostic RAPIDE, quel qu'en soit l'effet ? (D-69) */
-    @Query("""
-            SELECT COUNT(e) > 0 FROM JourneyAssessmentEvent e
-            WHERE e.journey.id = :journeyId
-              AND e.assessmentKind = com.sejourfr.app.enums.JourneyAssessmentKind.QUICK_DIAGNOSTIC
-            """)
-    boolean journaliseUnDiagnosticRapide(@Param("journeyId") UUID journeyId);
 
     /**
      * <b>Le score du dernier examen civique COMPLET</b> journalise par ce cycle.

@@ -49,15 +49,17 @@ String journeyStepTitle(JourneyStep step) {
 }
 
 /// La seconde ligne. 🛑 **Elle dit ce que l'étape est**, jamais ce qu'il faut en
-/// penser : « Expression écrite · Tâche 1 », « Vérifier mes progrès ».
+/// penser : « Expression écrite · Tâche 1 », « Examen blanc ».
+///
+/// 🛑 **Un examen se dit « Examen blanc », quel que soit son `purpose`**
+/// (D-69 ter, propriétaire, 2026-09-28) : la distinction « Évaluer mon niveau »
+/// / « Vérifier mes progrès » a quitté l'affichage. Le titre porte l'épreuve.
 String? journeyStepSubtitle(JourneyStep step) {
   switch (step.type) {
     case JourneyStepType.diagnostic:
       return 'Identifier vos premières priorités';
     case JourneyStepType.sectionExam:
-      return step.purpose == JourneyStepPurpose.reassess
-          ? 'Vérifier mes progrès'
-          : 'Évaluer mon niveau';
+      return kJourneyExamTitle;
     case JourneyStepType.trainSkill:
       final parts = <String>[
         if (step.section != null) _sectionLabel(step.section!),
@@ -205,9 +207,8 @@ String? journeyNowMeta(JourneyStep step) {
     case JourneyStepType.trainSkill:
       return journeyProgressLabel(step.progress);
     case JourneyStepType.sectionExam:
-      return step.purpose == JourneyStepPurpose.reassess
-          ? 'Cette épreuve mesure ce que vous venez de travailler.'
-          : 'Cette épreuve complète votre niveau et identifie vos prochaines priorités.';
+      // D-69 ter : aucune phrase sous un examen — miroir du web.
+      return null;
     case JourneyStepType.diagnostic:
       return 'Quelques minutes pour identifier vos premières priorités.';
   }
@@ -452,7 +453,10 @@ String? journeyRailEndRemaining(JourneyCycle cycle) {
 // 🛑 **Un seul rendu pour toutes les épreuves** (demande du propriétaire,
 // 2026-09-26) : « Examen blanc », « Évaluez vos progrès », et le bouton à
 // droite. Le nom de l'épreuve n'y est plus — l'en-tête du bloc le porte déjà —,
-// et `purpose` ne change plus le titre.
+// et `purpose` ne change aucun libellé (D-69 ter).
+//
+// 🛑 **Un examen PASSÉ se lit comme dans « Mes cycles »** (D-69 ter) : « Passé
+// le … » et son résultat servi à droite — une seule lecture, [JourneyExamLu].
 //
 // ⚠️ **Registre : le vouvoiement**, celui de tout le Plan. Le propriétaire avait
 // écrit « Évalue tes progrès ».
@@ -462,7 +466,6 @@ String? journeyRailEndRemaining(JourneyCycle cycle) {
 const String kJourneyExamTitle = 'Examen blanc';
 const String kJourneyExamSubtitle = 'Évaluez vos progrès';
 const String kJourneyExamStart = 'Commencer';
-const String kJourneyExamDone = 'Fait';
 
 /// Verrou `progression` (D-15) — le compte restant est déjà dans l'en-tête du
 /// bloc.
@@ -829,7 +832,8 @@ const String kJourneyArchiveNote =
     'Ce cycle est terminé : il se consulte tel qu\'il était à sa clôture. '
     'Votre plan en cours est sur l\'écran Plan.';
 
-/// Le sous-titre de l'examen d'un bloc clos — « Passé le 26 sept. 2026 ».
+/// Le sous-titre d'un examen lu sans geste — « Passé le 26 sept. 2026 ». Sert
+/// un cycle clos **et** l'examen passé du Plan courant (D-69 ter).
 String journeyArchiveExamSubtitle(JourneyStep exam) {
   if (!journeyExamDone(exam)) return 'Non passé';
   final quand = exam.closedAt;
@@ -837,8 +841,9 @@ String journeyArchiveExamSubtitle(JourneyStep exam) {
 }
 
 /// Ce que l'examen a donné, à droite de sa ligne — « Niveau B1 », « 17/20 ».
-/// 🛑 **Lu sur `resultat` servi** ; absent ⇒ « Passé », jamais un niveau
-/// inventé. `null` quand l'examen n'a pas été passé.
+/// 🛑 **Lu sur `resultat` servi** — sur un cycle clos comme sur le Plan courant
+/// (D-69 ter) ; absent ⇒ « Passé », jamais un niveau inventé. `null` quand
+/// l'examen n'a pas été passé.
 String? journeyArchiveExamResult(JourneyStep exam) {
   if (!journeyExamDone(exam)) return null;
   final resultat = exam.resultat;

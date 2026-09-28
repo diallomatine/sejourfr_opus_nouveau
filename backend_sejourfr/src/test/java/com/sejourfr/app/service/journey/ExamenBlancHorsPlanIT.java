@@ -168,7 +168,8 @@ class ExamenBlancHorsPlanIT extends AbstractIntegrationTest {
         // mesure (« Vérifier mes progrès »). R19 tient : un examen ANTERIEUR au
         // cycle ne ferme rien, aucune etape « deja faite ».
         assertThat(examensCo(user)).singleElement().satisfies(step -> {
-            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.REASSESS);
+            // D-69 ter : une seule nature pour les examens du cycle d'examens.
+            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
             assertThat(step.estOuverte()).isTrue();
         });
         assertThat(blocDe(vue, EpreuveType.TCF_CO).status()).isNotEqualTo(JourneyBlocStatus.TERMINE);

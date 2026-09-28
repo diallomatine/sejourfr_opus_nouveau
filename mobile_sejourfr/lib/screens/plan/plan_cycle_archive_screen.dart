@@ -12,6 +12,7 @@ import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
+import 'widgets/journey_exam_lu.dart';
 
 /// **Un cycle terminé, consulté tel qu'il était** — l'écran ouvert depuis
 /// « Mes cycles » (`/plan/progression/cycle/:journeyId`, 2026-09-27).
@@ -181,17 +182,9 @@ class _PlanCycleArchiveScreenState
   /// actionnés.
   Widget _bloc(JourneyBloc bloc) {
     final exam = bloc.exam;
-    final resultat = exam == null ? null : journeyArchiveExamResult(exam);
     return SfJourneyList(
       variant: SfJourneyVariant.cycle,
-      exam: exam == null
-          ? null
-          : SfExamStepAction(
-              title: kJourneyExamTitle,
-              subtitle: journeyArchiveExamSubtitle(exam),
-              trailing:
-                  resultat == null ? null : SfExamStepDone(label: resultat),
-            ),
+      exam: exam == null ? null : JourneyExamLu(exam: exam),
       children: [
         for (final step in bloc.steps)
           SfJourneyRow(

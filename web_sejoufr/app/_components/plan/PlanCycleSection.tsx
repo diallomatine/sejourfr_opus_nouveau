@@ -33,7 +33,6 @@ import {
     journeyCycleHint,
     journeyCycleNote,
     journeyCycleLabel,
-    JOURNEY_EXAM_DONE,
     JOURNEY_EXAM_START,
     JOURNEY_EXAM_SUBTITLE,
     JOURNEY_EXAM_TITLE,
@@ -77,6 +76,7 @@ import {
     Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
+import {ClosedExamStep} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /**
@@ -538,7 +538,8 @@ function BlocBody({
 
 /**
  * **L'étape d'examen d'un bloc** — « Examen blanc », « Évaluez vos progrès », et
- * le bouton « Commencer » à droite (demande du propriétaire, 2026-09-26).
+ * le bouton « Commencer » à droite (demande du propriétaire, 2026-09-26) ; une
+ * fois passé, « Passé le … » et son résultat servi (D-69 ter).
  *
  * 🛑 **Tout l'état est lu, rien n'est classé ici** : passé ⇐ `status` servi ;
  * verrouillé ⇐ `locked` servi, et sa raison ⇐ `lockReason` servi. Le bouton est
@@ -555,15 +556,10 @@ function ExamStep({exam, lancable, actionDe, gesteDe}: {
     actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
     gesteDe: (etape: JourneyStepDto) => {label: string; onClick: () => void} | undefined;
 }) {
-    if (journeyExamDone(exam)) {
-        return (
-            <ExamStepAction
-                title={JOURNEY_EXAM_TITLE}
-                subtitle={JOURNEY_EXAM_SUBTITLE}
-                trailing={{kind: "done", label: JOURNEY_EXAM_DONE}}
-            />
-        );
-    }
+    /* 🛑 **Un examen passé PENDANT le cycle montre ce qu'il a donné**
+       (D-69 ter) : même ligne que la consultation d'un cycle clos, résultat
+       servi, jamais un bloc muet. */
+    if (journeyExamDone(exam)) return <ClosedExamStep exam={exam} />;
     const action = lancable ? actionDe(exam) : undefined;
     const achat = !action && (exam.locked ? exam.lockReason === "ACCESS" : lancable)
         ? gesteDe(exam)

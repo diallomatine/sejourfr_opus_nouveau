@@ -34,6 +34,13 @@ import {
     planTaskObservedLabel,
 } from "@/lib/plan-domain";
 import {withPlanStep} from "@/lib/plan-step";
+import {
+    JOURNEY_EXAM_TITLE,
+    journeyClosedExamResult,
+    journeyClosedExamSubtitle,
+} from "@/lib/journey";
+import type {JourneyStepDto} from "@/lib/types";
+import {ExamStepAction} from "@/app/_components/sejour/SejourKit";
 import {RowChevron} from "@/app/_components/skill-ui/SkillLayout";
 import styles from "./plan.module.css";
 
@@ -274,5 +281,25 @@ export function PlanTaskRow({
                 <RowChevron />
             </Link>
         </li>
+    );
+}
+
+/**
+ * **L'examen d'un bloc, une fois clos** — « Examen blanc », « Passé le 26 sept.
+ * 2026 », et ce qu'il a donné à droite (« Niveau B1 », « 17/20 », « Passé »).
+ *
+ * 🛑 **Un seul rendu pour le Plan courant et la consultation d'un cycle clos**
+ * (D-69 ter, 2026-09-28) : le résultat est servi des deux côtés
+ * (`JourneyStepDto.resultat`), et `null` = inconnu ⇒ « Passé », jamais un
+ * niveau inventé. Aucun geste : un examen passé ne se relance pas d'ici.
+ */
+export function ClosedExamStep({exam}: {exam: JourneyStepDto}) {
+    const resultat = journeyClosedExamResult(exam);
+    return (
+        <ExamStepAction
+            title={JOURNEY_EXAM_TITLE}
+            subtitle={journeyClosedExamSubtitle(exam)}
+            trailing={resultat ? {kind: "done", label: resultat} : undefined}
+        />
     );
 }

@@ -2243,6 +2243,17 @@ de ce que D-10 vient de trancher.
 
 ### Le Plan PAR DÉFAUT — le cycle d'examens (D-69, 2026-09-28)
 
+> 🛑 **D-69 ter (2026-09-28, lancement) — prime sur le tableau ci-dessous.** Le cycle d'examens
+> porte **une étape ouverte par bloc** (4 en TCF, une par thématique civique), **une seule
+> nature** (« Examen blanc »), et **un examen passé AVANT sa création n'en ferme aucune** (le
+> filet R12 ne clôt que sur un examen terminé après la création du cycle). Au lancement, **tout
+> cycle vivant** (marqué par V082, `journey.reinitialiser_au_lancement`) est historisé
+> `INTERROMPU` à sa première lecture et remplacé par un cycle d'examens neuf, **une fois** ; le
+> cycle en attente est vidé ; les archives ne bougent pas. Une étape d'examen close sert son
+> `resultat` sur le Plan courant. Le rattrapage « premier cycle vide / ancienne attente du
+> diagnostic » est supprimé. Nouveaux comptes : cycle d'examens ; exception D-64 si le diagnostic
+> rapide arrive avant toute autre évaluation. → `docs/decisions/plan-parcours-tcf.md` **D-69 ter**.
+
 > Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-69, D-69 bis** · autonomie **A171 → A176** ·
 > verrouillé par `PlanParDefautIT`, `JourneyServiceIT` §18-1 / §18-33, `PreparationServiceIT`.
 

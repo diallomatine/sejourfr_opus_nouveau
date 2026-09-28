@@ -2,8 +2,8 @@
 /// Miroir manuel de `JourneyDto` / `JourneyStepDto` (`GET /api/me/plan/journey`).
 ///
 /// 🛑 **Le serveur sert des FAITS, la phrase appartient à ce front.**
-/// « Expression écrite · Tâche 1 », « Vérifier mes progrès », « Évaluer mon
-/// niveau », « Déjà maîtrisée » se composent dans `screens/plan/plan_labels.dart`,
+/// « Expression écrite · Tâche 1 », « Examen blanc », « Déjà maîtrisée » se
+/// composent dans `screens/plan/plan_labels.dart`,
 /// miroir de `web_sejoufr/lib/plan-domain.ts`. Les faire servir ouvrirait une
 /// 7ᵉ copie de libellés dans le dépôt.
 ///
@@ -50,7 +50,8 @@ enum JourneyStepType {
   /// déduite de la nullité de `taskCode`.
   trainSkill('TRAIN_SKILL'),
 
-  /// Passer une épreuve. L'intention se lit sur [JourneyStep.purpose].
+  /// Passer une épreuve. Son intention est servie ([JourneyStep.purpose]) mais
+  /// ne change aucun libellé : c'est toujours un « Examen blanc » (D-69 ter).
   sectionExam('SECTION_EXAM');
 
   const JourneyStepType(this.wire);
@@ -497,8 +498,9 @@ class JourneyStep {
   /// Quand l'étape a été close. `null` tant qu'elle est ouverte.
   final DateTime? closedAt;
 
-  /// **Ce que l'examen qui l'a close a donné.** 🛑 Servi par la seule
-  /// consultation d'un cycle clos : `null` dans le Plan, et `null` = inconnu.
+  /// **Ce que l'examen qui l'a close a donné.** 🛑 Servi sur la consultation
+  /// d'un cycle clos **et**, depuis D-69 ter, sur l'examen CLOS du Plan
+  /// courant. `null` = inconnu — jamais un niveau bas.
   final JourneyExamResult? resultat;
 
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(

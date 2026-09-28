@@ -458,8 +458,9 @@ class AmorceCiviqueIT extends AbstractIntegrationTest {
         assertThat(etapes).hasSize(5);
         assertThat(etapes).allSatisfy(etape -> {
             assertThat(etape.type()).isEqualTo("SECTION_EXAM");
-            // « Verifier mes progres », jamais « evaluer mon niveau ».
-            assertThat(etape.purpose()).isEqualTo("REASSESS");
+            // D-69 ter : une seule nature, « Examen blanc » (plus de distinction
+            // « Évaluer / Vérifier »), et la meme construction que le lancement.
+            assertThat(etape.purpose()).isEqualTo("INITIAL_ASSESSMENT");
             assertThat(etape.unite()).isNull();
         });
     }

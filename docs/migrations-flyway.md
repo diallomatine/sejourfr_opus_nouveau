@@ -107,8 +107,12 @@ db/migration/
 │   │                                             un cycle (V077 journey.fin_de_cycle) et
 │   │                                             sa valeur INTERROMPU (V078, jalon
 │   │                                             d'examen complet, D-68)
-│   └── V080-V081                                campagnes de service incident/reprise
-│                                                 (unicité campagne × compte ; V081 attempt_count)
+│   ├── V080-V081                                campagnes de service incident/reprise
+│   │                                             (unicité campagne × compte ; V081 attempt_count)
+│   └── V082__journey_reinitialisation_lancement  marqueur `journey.reinitialiser_au_lancement`
+│                                                 posé une fois sur les cycles vivants (D-69 ter,
+│                                                 lu à la première lecture ; sentinelle testée
+│                                                 par PlanParDefautIT)
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)

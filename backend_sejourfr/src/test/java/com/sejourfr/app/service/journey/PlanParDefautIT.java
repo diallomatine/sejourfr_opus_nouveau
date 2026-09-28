@@ -8,6 +8,7 @@ import com.sejourfr.app.entity.Journey;
 import com.sejourfr.app.entity.JourneyStep;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.JourneyFinDeCycle;
 import com.sejourfr.app.enums.JourneyLockReason;
 import com.sejourfr.app.enums.JourneyState;
 import com.sejourfr.app.enums.JourneyStatus;
@@ -94,6 +95,7 @@ class PlanParDefautIT extends AbstractIntegrationTest {
     @Autowired private AccountDeletionService accountDeletionService;
     @Autowired private JourneyRepository journeys;
     @Autowired private JourneyStepRepository journeySteps;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final List<UUID> candidats = new ArrayList<>();
 
@@ -194,36 +196,6 @@ class PlanParDefautIT extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Ancien cycle qui n'attendait que le diagnostic : converti a la lecture en cycle "
-            + "d'examens (DIAGNOSTIC obsolete, aucune ligne effacee), une seule fois")
-    void ancienneAttenteDuDiagnosticDevientCycleDExamens() {
-        User user = candidat();
-        Journey ancien = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
-        JourneyStep attente = new JourneyStep();
-        attente.setJourney(ancien);
-        attente.setType(JourneyStepType.DIAGNOSTIC);
-        attente.setPosition(ancien.consommerPosition());
-        journeys.saveAndFlush(ancien);
-        journeySteps.saveAndFlush(attente);
-
-        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
-
-        assertThat(vue.current().type()).isEqualTo(JourneyStepType.SECTION_EXAM);
-        assertThat(vue.blocs()).hasSize(4)
-                .allSatisfy(bloc -> assertThat(bloc.exam()).isNotNull());
-        assertThat(journeySteps.findById(attente.getId()).orElseThrow())
-                .satisfies(step -> {
-                    assertThat(step.estOuverte()).isFalse();
-                    assertThat(step.getResolution()).isEqualTo(JourneyStepResolution.SUPERSEDED);
-                });
-        assertThat(cycleEnCours(user, Module.TCF).getId()).isEqualTo(ancien.getId());
-
-        journeyService.lire(user.getId(), Module.TCF);
-        assertThat(etapes(user)).filteredOn(step -> step.getType() == JourneyStepType.SECTION_EXAM)
-                .hasSize(4);
-    }
-
-    @Test
     @DisplayName("Compte AVEC diagnostic : le diagnostic arrive sur le cycle d'examens intact et en "
             + "fait le cycle d'AFFINAGE (D-64), sans second examen EE")
     void diagnosticSurLeCycleParDefautDonneLAffinage() {
@@ -302,49 +274,110 @@ class PlanParDefautIT extends AbstractIntegrationTest {
             assertThat(bloc.exam().lockReason()).isNull();
             assertThat(bloc.exam().status().name()).isIn("CURRENT", "UPCOMING");
         });
-        // 🛑 Un examen ANTERIEUR au cycle ne ferme rien : « Vérifier mes
-        // progrès » sur chaque epreuve deja mesuree, ouvert.
+        // 🛑 Un examen ANTERIEUR au cycle ne ferme rien (D-69 ter) : quatre
+        // etapes ouvertes, une seule nature — meme apres une seconde lecture,
+        // qui passe les filets.
+        journeyService.lire(user.getId(), Module.TCF);
         assertThat(etapes(user)).hasSize(4).allSatisfy(step -> {
-            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.REASSESS);
+            assertThat(step.getPurpose()).isEqualTo(JourneyStepPurpose.INITIAL_ASSESSMENT);
             assertThat(step.estOuverte()).isTrue();
         });
     }
 
     @Test
-    @DisplayName("Rattrapage : un premier cycle VIDE sans diagnostic (cree par la 1re version de "
-            + "D-69) devient le cycle d'examens a la lecture — meme id, une seule fois")
-    void cycleVideSansDiagnosticRattrapeALaLecture() {
+    @DisplayName("Lancement D-69 ter : tout cycle EN COURS marque est historise INTERROMPU et "
+            + "remplace par un cycle d'examens neuf, UNE fois ; archives intactes, attente videe")
+    void lancementReinitialiseUneSeuleFois() {
         User user = abonne();
-        Journey vide = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        Journey archive = data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
+        Instant archivageAvant = journeys.findById(archive.getId()).orElseThrow().getHistoriseAt();
+        // Un cycle de TRAVAIL vivant au deploiement : un lot EE, amorce par un examen.
+        Journey travail = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        examens().examenEePasse(user, examens().competenceEE(0));
+        assertThat(etapes(user)).anyMatch(step -> step.getType() == JourneyStepType.TRAIN_SKILL);
+        // Et un cycle EN ATTENTE, porteur d'une priorite d'avant le lancement.
+        examens().examenEePasse(user, examens().competenceEE(1));
+        assertThat(competencesEnAttente(user)).isNotEmpty();
+        Journey civique = journeyService.getOrCreate(user.getId(), Module.CIVIQUE).orElseThrow();
+        // V082 : le marqueur pose par Flyway sur les cycles vivants.
+        jdbc.update("UPDATE journey SET reinitialiser_au_lancement = true "
+                + "WHERE user_id = ? AND status IN ('EN_COURS', 'EN_ATTENTE')", user.getId());
 
         JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
 
-        assertThat(cycleEnCours(user, Module.TCF).getId()).isEqualTo(vide.getId());
+        Journey ancien = journeys.findById(travail.getId()).orElseThrow();
+        assertThat(ancien.getStatus()).isEqualTo(JourneyStatus.HISTORISE);
+        assertThat(ancien.getFinDeCycle()).isEqualTo(JourneyFinDeCycle.INTERROMPU);
+        Journey neuf = cycleEnCours(user, Module.TCF);
+        assertThat(neuf.getId()).isNotEqualTo(travail.getId());
+        assertThat(neuf.isReinitialiserAuLancement()).isFalse();
         assertThat(vue.cycle().cycleDeMesure()).isTrue();
-        assertThat(vue.blocs()).hasSize(4).allSatisfy(bloc -> assertThat(bloc.exam()).isNotNull());
+        assertThat(etapes(user)).hasSize(4).allSatisfy(step -> {
+            assertThat(step.getType()).isEqualTo(JourneyStepType.SECTION_EXAM);
+            assertThat(step.estOuverte()).isTrue();
+        });
+        // L'attente d'avant le lancement est videe : les examens la recalculeront.
+        assertThat(competencesEnAttente(user)).isEmpty();
+        assertThat(journeys.findByUserIdAndModuleAndStatus(
+                user.getId(), Module.TCF, JourneyStatus.EN_ATTENTE).orElseThrow()
+                .isReinitialiserAuLancement()).isFalse();
+        // Les cycles ARCHIVES ne bougent pas.
+        Journey archiveRelue = journeys.findById(archive.getId()).orElseThrow();
+        assertThat(archiveRelue.getHistoriseAt()).isEqualTo(archivageAvant);
+        assertThat(archiveRelue.getFinDeCycle()).isNull();
+
+        // Une seule fois : la lecture suivante ne touche plus rien.
         journeyService.lire(user.getId(), Module.TCF);
+        assertThat(cycleEnCours(user, Module.TCF).getId()).isEqualTo(neuf.getId());
         assertThat(etapes(user)).hasSize(4);
+
+        // Civique : meme regle, un examen par thematique.
+        int thematiques = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE).size();
+        JourneyDto vueCivique = journeyService.lire(user.getId(), Module.CIVIQUE);
+        assertThat(journeys.findById(civique.getId()).orElseThrow().getFinDeCycle())
+                .isEqualTo(JourneyFinDeCycle.INTERROMPU);
+        assertThat(vueCivique.blocs()).hasSize(thematiques)
+                .allSatisfy(bloc -> assertThat(bloc.exam()).isNotNull());
     }
 
     @Test
-    @DisplayName("Rattrapage : un cycle de TRAVAIL legitime (des etapes) et un cycle vide de rang 2 "
-            + "ne sont jamais touches")
-    void cyclesLegitimesInchanges() {
-        User travail = abonne();
-        journeyService.lire(travail.getId(), Module.TCF);
-        examens().diagnosticRapide(travail);
-        List<UUID> avant = etapes(travail).stream().map(JourneyStep::getId).toList();
-        journeyService.lire(travail.getId(), Module.TCF);
-        assertThat(etapes(travail)).extracting(JourneyStep::getId)
-                .containsExactlyInAnyOrderElementsOf(avant);
+    @DisplayName("V082 : le marquage ne vise que les cycles VIVANTS (en cours, en attente)")
+    void leMarquageNeViseQueLesCyclesVivants() {
+        User user = candidat();
+        Journey enCours = data.journey(user, Module.TCF, JourneyStatus.EN_COURS);
+        Journey attente = data.journey(user, Module.TCF, JourneyStatus.EN_ATTENTE);
+        Journey archive = data.journey(user, Module.TCF, JourneyStatus.HISTORISE);
+        String sql = sqlDuMarquage();
 
-        User rangDeux = abonne();
-        data.journey(rangDeux, Module.TCF, JourneyStatus.HISTORISE);
-        data.journey(rangDeux, Module.TCF, JourneyStatus.EN_COURS);
-        JourneyDto vue = journeyService.lire(rangDeux.getId(), Module.TCF);
-        // Un cycle promu vide sur un compte mesure partout : « a jour », voulu.
-        assertThat(etapes(rangDeux)).isEmpty();
-        assertThat(vue.cycle().numero()).isEqualTo(2);
+        // 🛑 Rejoue le SQL REEL de V082 dans une transaction ANNULEE : il marque
+        // toute la base, et ce test ne doit rien laisser derriere lui.
+        new org.springframework.transaction.support.TransactionTemplate(txManager)
+                .executeWithoutResult(status -> {
+                    jdbc.execute(sql);
+                    assertThat(marque(enCours)).isTrue();
+                    assertThat(marque(attente)).isTrue();
+                    assertThat(marque(archive)).isFalse();
+                    status.setRollbackOnly();
+                });
+        // Un cycle cree apres le lancement naît non marque.
+        assertThat(marque(enCours)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Un examen passe PENDANT le cycle ferme son etape, qui s'affiche avec son resultat")
+    void unExamenDuCycleFermeSonEtapeEtSertSonResultat() {
+        User user = abonne();
+        journeyService.lire(user.getId(), Module.TCF);
+
+        examens().examenEePasse(user, examens().competenceEE(0));
+        JourneyDto vue = journeyService.lire(user.getId(), Module.TCF);
+
+        JourneyBlocDto ee = blocDe(vue, EpreuveType.TCF_EE);
+        assertThat(ee.exam()).isNotNull();
+        assertThat(ee.exam().status().name()).isIn("COMPLETED", "SKIPPED");
+        assertThat(ee.exam().resultat()).isNotNull();
+        assertThat(vue.cycle().etapesTotal()).isEqualTo(4);
+        assertThat(vue.cycle().etapesTerminees()).isEqualTo(1);
     }
 
     @Test
@@ -377,6 +410,8 @@ class PlanParDefautIT extends AbstractIntegrationTest {
                 .contains(examens().competenceEE(0).getCode());
         assertThat(blocDe(second, EpreuveType.TCF_EE).exam().lockReason())
                 .isEqualTo(JourneyLockReason.PROGRESSION);
+        // D-67 : au plus trois priorites par epreuve.
+        assertThat(second.blocs()).allSatisfy(bloc -> assertThat(bloc.steps()).hasSizeLessThanOrEqualTo(3));
         // D-68 : zero cycle de TRAVAIL termine — le cycle d'examens n'en est pas un.
         assertThat(second.examenComplet()).isNull();
     }
@@ -416,9 +451,30 @@ class PlanParDefautIT extends AbstractIntegrationTest {
                         user.getId(), Module.TCF, JourneyStatus.EN_ATTENTE)
                 .map(attente -> journeySteps.findAllByJourney(attente.getId()).stream()
                         .filter(step -> step.getType() == JourneyStepType.TRAIN_SKILL)
+                        .filter(JourneyStep::estOuverte)
                         .map(step -> step.getSkill().getCode())
                         .toList())
                 .orElse(List.of());
+    }
+
+    private boolean marque(Journey journey) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT reinitialiser_au_lancement FROM journey WHERE id = ?",
+                Boolean.class, journey.getId()));
+    }
+
+    private static String sqlDuMarquage() {
+        String sentinelle = "-- @@MARQUAGE_DU_LANCEMENT@@";
+        var resource = new org.springframework.core.io.ClassPathResource(
+                "db/migration/00_schema/V082__journey_reinitialisation_lancement.sql");
+        try (var in = resource.getInputStream()) {
+            String migration = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            int coupe = migration.indexOf(sentinelle);
+            assertThat(coupe).as("sentinelle de V082").isPositive();
+            return migration.substring(coupe + sentinelle.length());
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
     private static JourneyBlocDto blocDe(JourneyDto vue, EpreuveType epreuve) {

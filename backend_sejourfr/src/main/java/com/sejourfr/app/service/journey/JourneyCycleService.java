@@ -15,14 +15,11 @@ import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.ThemeManager;
-import com.sejourfr.app.service.TcfProfileService;
-import com.sejourfr.app.service.attempt.AttemptScoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,7 +68,8 @@ public class JourneyCycleService {
     private final ThemeManager themeManager;
     private final JourneyManager journeyManager;
     private final JourneyStepManager stepManager;
-    private final TcfProfileService profileService;
+    // 🛑 L'UNIQUE facon d'historiser un cycle, partagee avec le lancement (D-69 ter).
+    private final JourneyHistorisation historisation;
     // 🛑 La MEME autorite que `JourneyDto.examenComplet` (D-68) : le jalon servi
     // et ce refus serveur ne peuvent pas dire deux choses differentes.
     private final JourneyJalonExamenComplet jalonExamenComplet;
@@ -202,15 +200,8 @@ public class JourneyCycleService {
         neuf.setEntryScore(sortie);
         Journey mesure = journeyManager.saveEtFlush(neuf);
 
-        for (Theme thematique : themeManager
-                .findByModuleOrderedByDisplayOrder(Module.CIVIQUE)) {
-            JourneyStep step = new JourneyStep();
-            step.setJourney(mesure);
-            step.setType(JourneyStepType.SECTION_EXAM);
-            step.setPurpose(JourneyStepPurpose.REASSESS);
-            step.poserBloc(thematique);
-            journeyService.ajouter(mesure, step);
-        }
+        // La MEME construction que le lancement (D-69 ter) : une seule autorite.
+        journeyService.poserLeCycleDExamensCivique(mesure);
 
         log.info("Cycle civique {} historise (sortie={}), cycle de mesure {} ouvert",
                 enCours.getId(), sortie, mesure.getId());
@@ -269,15 +260,7 @@ public class JourneyCycleService {
      * veut rien dire.
      */
     private Short historiserLeCycleCivique(Journey enCours, JourneyFinDeCycle geste) {
-        Short sortie = journeyManager.dernierScoreDExamenComplet(enCours.getId());
-        enCours.setStatus(JourneyStatus.HISTORISE);
-        enCours.setHistoriseAt(Instant.now());
-        enCours.setExitScore(sortie);
-        // 🛑 LE GESTE EST ECRIT ICI, UNE FOIS (V077) : c'est un evenement, et
-        // « Mes cycles » le raconte tel quel.
-        enCours.setFinDeCycle(geste);
-        journeyManager.saveEtFlush(enCours);
-        return sortie;
+        return historisation.historiserCivique(enCours, geste);
     }
 
     // ------------------------------------------------------------------ outils
@@ -339,14 +322,7 @@ public class JourneyCycleService {
      * {@code journey_step.resolution}.
      */
     private TargetLevel historiser(Journey enCours, UUID userId, JourneyFinDeCycle geste) {
-        TargetLevel sortie = AttemptScoringService.toTargetLevel(
-                profileService.levelProfile(userId).globalLevel());
-        enCours.setStatus(JourneyStatus.HISTORISE);
-        enCours.setHistoriseAt(Instant.now());
-        enCours.setExitLevel(sortie);
-        enCours.setFinDeCycle(geste);
-        journeyManager.saveEtFlush(enCours);
-        return sortie;
+        return historisation.historiserTcf(enCours, geste);
     }
 
     /** Un cycle neuf pour le meme candidat, le meme module et le meme objectif. */

@@ -10,14 +10,11 @@ import {
     JOURNEY_ARCHIVE_ERROR,
     JOURNEY_ARCHIVE_KICKER,
     JOURNEY_ARCHIVE_NOTE,
-    JOURNEY_EXAM_TITLE,
     JOURNEY_HISTORY_LOADING,
     JOURNEY_HISTORY_RETRY,
     JOURNEY_RAIL_END_EYEBROW,
     journeyArchiveEndNote,
     journeyArchiveEndTitle,
-    journeyArchiveExamResult,
-    journeyArchiveExamSubtitle,
     journeyArchiveHint,
     journeyBadge,
     journeyBlocMark,
@@ -42,7 +39,6 @@ import {
     CycleRail,
     CycleRailEnd,
     CycleRailStep,
-    ExamStepAction,
     InfoNote,
     JourneyList,
     JourneyRow,
@@ -53,6 +49,7 @@ import {
     Top,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
+import {ClosedExamStep} from "./PlanBits";
 
 /**
  * **Un cycle terminé, consulté tel qu'il était** — la page ouverte depuis
@@ -199,20 +196,10 @@ function ArchiveBody({archive, module}: {archive: JourneyCycleArchiveDto; module
  * actionnés.
  */
 function ArchiveBloc({bloc}: {bloc: JourneyBlocDto}) {
-    const exam = bloc.exam;
-    const resultat = exam ? journeyArchiveExamResult(exam) : undefined;
     return (
         <JourneyList
             variant="cycle"
-            exam={
-                exam && (
-                    <ExamStepAction
-                        title={JOURNEY_EXAM_TITLE}
-                        subtitle={journeyArchiveExamSubtitle(exam)}
-                        trailing={resultat ? {kind: "done", label: resultat} : undefined}
-                    />
-                )
-            }
+            exam={bloc.exam && <ClosedExamStep exam={bloc.exam} />}
         >
             {bloc.steps.map((step) => (
                 <JourneyRow

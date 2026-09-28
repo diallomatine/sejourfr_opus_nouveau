@@ -100,6 +100,7 @@ class JourneyReadServiceTest {
     @Mock private SubscriptionService subscriptionService;
     @Mock private JourneyJalonExamenComplet jalonExamenComplet;
     @Mock private JourneyCycleSuivant cycleSuivant;
+    @Mock private JourneyExamResultReader examResultReader;
 
     private JourneyReadService service;
     private User user;
@@ -129,7 +130,9 @@ class JourneyReadServiceTest {
                 // Le jalon et la composition du cycle suivant ont leurs propres
                 // tests d'integration (JourneyJalonExamenCompletIT) : ici, des
                 // mocks — `null` (jalon non propose) et 0 par defaut.
-                jalonExamenComplet, cycleSuivant);
+                jalonExamenComplet, cycleSuivant,
+                // D-69 ter : le resultat d'un examen clos (mock : aucun).
+                examResultReader);
         // 🛑 Les blocs interrogent « cette epreuve a-t-elle deja ete mesuree ? »
         // chez son unique autorite. Par defaut : aucune mesure.
         when(mesureResolver.mesure(any(), any()))

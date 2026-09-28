@@ -65,12 +65,16 @@ export function journeyStepTitle(step: JourneyStepDto): string {
 
 /**
  * La seconde ligne. 🛑 **Elle dit ce que l'étape est**, jamais ce qu'il faut en
- * penser : « Expression écrite · Tâche 1 », « Vérifier mes progrès ».
+ * penser : « Expression écrite · Tâche 1 », « Examen blanc ».
+ *
+ * 🛑 **Un examen se dit « Examen blanc », quel que soit son `purpose`**
+ * (D-69 ter, 2026-09-28) : la distinction « Évaluer mon niveau / Vérifier mes
+ * progrès » a quitté l'affichage. Le titre porte l'épreuve (`bloc.label`).
  */
 export function journeyStepSubtitle(step: JourneyStepDto): string | undefined {
     if (step.type === "DIAGNOSTIC") return "Identifier vos premières priorités";
     if (step.type === "SECTION_EXAM") {
-        return step.purpose === "REASSESS" ? "Vérifier mes progrès" : "Évaluer mon niveau";
+        return JOURNEY_EXAM_TITLE;
     }
     const domaine = step.section ? sectionLabel(step.section) : null;
     // 🛑 `taskCode` nul = compétence de COMPRÉHENSION : CO/CE n'ont ni tâche ni
@@ -222,14 +226,16 @@ export function journeyProgressLabel(progress: JourneyProgressDto | null): strin
         : `${progress.done} / ${progress.quota} petits sujets`;
 }
 
-/** Ce que la carte « À faire maintenant » met sous son titre. */
+/**
+ * Ce que la carte « À faire maintenant » met sous son titre.
+ *
+ * 🛑 **Rien sous un examen** (D-69 ter) : « Compréhension orale » puis
+ * « Examen blanc » disent déjà tout, et la phrase qui variait selon `purpose`
+ * a disparu avec la distinction.
+ */
 export function journeyNowMeta(step: JourneyStepDto): string | undefined {
     if (step.type === "TRAIN_SKILL") return journeyProgressLabel(step.progress);
-    if (step.type === "SECTION_EXAM") {
-        return step.purpose === "REASSESS"
-            ? "Cette épreuve mesure ce que vous venez de travailler."
-            : "Cette épreuve complète votre niveau et identifie vos prochaines priorités.";
-    }
+    if (step.type === "SECTION_EXAM") return undefined;
     return "Quelques minutes pour identifier vos premières priorités.";
 }
 
@@ -541,7 +547,6 @@ export function journeyRailEndRemaining(cycle: JourneyCycleDto): string | undefi
 export const JOURNEY_EXAM_TITLE = "Examen blanc";
 export const JOURNEY_EXAM_SUBTITLE = "Évaluez vos progrès";
 export const JOURNEY_EXAM_START = "Commencer";
-export const JOURNEY_EXAM_DONE = "Fait";
 /** Verrou `PROGRESSION` (D-15) — le compte restant est déjà dans l'en-tête du bloc. */
 export const JOURNEY_EXAM_NOTE_PROGRESSION = "Terminez d'abord les étapes ci-dessus.";
 /** Verrou `ACCESS` — suivi du lien « Débloquer mon plan → ». */
@@ -962,18 +967,26 @@ export const JOURNEY_ARCHIVE_NOTE =
     "Ce cycle est terminé : il se consulte tel qu'il était à sa clôture. "
     + "Votre plan en cours est sur l'écran Plan.";
 
-/** Le sous-titre de l'examen d'un bloc clos — « Passé le 26 sept. 2026 ». */
-export function journeyArchiveExamSubtitle(exam: JourneyStepDto): string {
+/**
+ * Le sous-titre d'un examen de bloc **clos** — « Passé le 26 sept. 2026 ».
+ *
+ * 🛑 **Le Plan courant et la consultation d'un cycle clos le lisent tous les
+ * deux** (D-69 ter) : un examen passé pendant le cycle montre la même ligne
+ * que dans « Mes cycles ». « Non passé » ne se lit qu'en consultation — sur le
+ * Plan, un examen ouvert garde son bouton.
+ */
+export function journeyClosedExamSubtitle(exam: JourneyStepDto): string {
     if (!journeyExamDone(exam)) return "Non passé";
     return exam.closedAt ? `Passé le ${jourCourt(new Date(exam.closedAt), true)}` : "Passé";
 }
 
 /**
  * Ce que l'examen a donné, à droite de sa ligne — « Niveau B1 », « 17/20 ».
+ * Servi sur le Plan courant comme sur un cycle clos (D-69 ter).
  * 🛑 **Lu sur `resultat` servi** ; absent ⇒ « Passé », jamais un niveau
  * inventé. `undefined` quand l'examen n'a pas été passé.
  */
-export function journeyArchiveExamResult(exam: JourneyStepDto): string | undefined {
+export function journeyClosedExamResult(exam: JourneyStepDto): string | undefined {
     if (!journeyExamDone(exam)) return undefined;
     const resultat = exam.resultat;
     if (resultat?.niveau) return `Niveau ${niveauCecrlShort(resultat.niveau)}`;
