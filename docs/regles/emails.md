@@ -102,12 +102,24 @@ donc pas « À bientôt » (`EmailType.signsItself`).
 
 - **Destinataires** : `deleted_at IS NULL`, `is_active`, `role = 'USER'`, adresse hors
   `@anon.sejourfr`. `users` n'a ni « e-mail vérifié » ni rebond : aucun filtre possible sur ces axes.
-- **Idempotence** : `email_campaign_log` (V080), unique `(campaign_code, user_id)`. Une relance
-  ne sert que les comptes sans ligne `SENT`/`SKIPPED` ; une ligne `FAILED` est reprise. La clé
+- **Idempotence** : `email_campaign_log` (V080, `attempt_count` V081), unique
+  `(campaign_code, user_id)`. Un compte `SENT`/`SKIPPED` n'est jamais resservi. La clé
   `email_deliveries` `CAMPAIGN_{CODE}:{userId}` double la garde.
-- **Vagues** : `email/campaigns-config-v1.json` (taille par défaut, plafond, pause conseillée,
-  attente HTTP). L'envoi part sur `emailTaskExecutor` via `EmailService` ; la requête attend au
-  plus `waveWaitSeconds`, puis répond `IN_PROGRESS`. Arrêt au premier échec.
+- **Sélection** : une vague sert d'abord les comptes **jamais tentés** ; les `FAILED` ne sont
+  repris que lorsqu'il n'en reste plus aucun, au plus `maxAttemptsPerRecipient` tentatives en
+  tout (la campagne se termine). `remaining` = jamais tentés + reprenables.
+- **Classement des échecs** (`SpringMailEmailSender.recipientRejected`, défaut prudent =
+  systémique) : refus **5xx sur l'adresse** (`SMTPAddressFailedException` 550/553/501…) ou
+  adresse illisible ⇒ **propre au destinataire** : `EmailOutcome.RECIPIENT_REJECTED`, sans
+  relance immédiate (vaut pour tous les mails), ligne `FAILED`, la vague **continue**. Tout le
+  reste — code 4xx, statut étendu `4.x.x`, « per sender » (limite LWS `450 4.7.1`), refus de
+  l'expéditeur, connexion, auth — est **systémique** : la vague s'arrête (`STOPPED_ON_ERROR`) et
+  la tentative n'est pas imputée au compte. Garde-fou : `maxConsecutiveRecipientFailures` refus
+  d'adresse d'affilée arrêtent aussi la vague.
+- **Vagues** : `email/campaigns-config-v2.json` (taille par défaut, plafond, pause conseillée —
+  180 s pour 10 mails, sous les 240 envois/h de LWS —, attente HTTP). L'envoi part sur
+  `emailTaskExecutor` via `EmailService` ; la requête attend au plus `waveWaitSeconds`, puis
+  répond `IN_PROGRESS`.
 - `test` : une adresse (`to`), clé `CAMPAIGN_{CODE}:TEST:{uuid}`, sans ligne de campagne.
 - 🛑 `sejourfr.email.automation.enabled` ne garde **que** les scénarios automatisés : une
   campagne n'en dépend pas (`EmailCampaignIT`).

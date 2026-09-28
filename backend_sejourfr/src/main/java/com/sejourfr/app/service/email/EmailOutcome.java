@@ -6,6 +6,11 @@ public enum EmailOutcome {
     SENT,
     /** Toutes les tentatives immediates ont echoue (ligne FAILED). */
     FAILED,
+    /**
+     * Le serveur a refuse l'ADRESSE (5xx sur le destinataire, adresse illisible) :
+     * echec definitif, sans relance immediate (ligne FAILED).
+     */
+    RECIPIENT_REJECTED,
     /** Ligne PENDING ecrite, l'envoi part sur l'executor email. */
     QUEUED,
     /** L'executor a refuse la tache (ligne FAILED « rejected »). */

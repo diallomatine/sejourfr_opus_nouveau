@@ -147,6 +147,73 @@ class EmailCampaignIT extends AbstractEmailIT {
         }
     }
 
+    private Integer attempts(String code, User u) {
+        return jdbc.queryForObject("SELECT attempt_count FROM email_campaign_log WHERE campaign_code = ? "
+                + "AND user_id = ?", Integer.class, code, u.getId());
+    }
+
+    private String logStatus(String code, User u) {
+        return jdbc.queryForObject("SELECT status FROM email_campaign_log WHERE campaign_code = ? "
+                + "AND user_id = ?", String.class, code, u.getId());
+    }
+
+    @Test
+    void uneAdresseRefuseeNArretePasLaVagueEtNEstRepriseQuALaFin() throws Exception {
+        User dead = user();
+        mails.rejectRecipient(dead.getEmail());
+
+        // 1. La vague continue apres le refus : a et b sont servis, l'adresse morte est FAILED.
+        call("incident", "send", "batch", "100")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.waveFailed").value(0))
+                .andExpect(jsonPath("$.waveRejected").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+        assertThat(mailsTo(a)).isEqualTo(1);
+        assertThat(mailsTo(b)).isEqualTo(1);
+        assertThat(logStatus("incident", dead)).isEqualTo("FAILED");
+        assertThat(attempts("incident", dead)).isEqualTo(1);
+
+        // 2. Un compte jamais tente passe AVANT la reprise des echecs.
+        User fresh = user();
+        call("incident", "send", "batch", "100")
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.waveSent").value(1))
+                .andExpect(jsonPath("$.remainingNeverAttempted").value(0))
+                .andExpect(jsonPath("$.remainingRetry").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
+        assertThat(mailsTo(fresh)).isEqualTo(1);
+        assertThat(attempts("incident", dead)).as("pas repris tant qu'un jamais-tente restait").isEqualTo(1);
+
+        // 3. Plus aucun jamais-tente : les echecs sont repris (2e et derniere tentative).
+        call("incident", "send", "batch", "100").andExpect(jsonPath("$.status").value("COMPLETED"));
+        assertThat(attempts("incident", dead)).isEqualTo(2);
+        assertThat(logStatus("incident", dead)).isEqualTo("FAILED");
+
+        // 4. Plafond atteint : la campagne se termine, personne n'a recu deux fois.
+        call("incident", "send", "batch", "100")
+                .andExpect(jsonPath("$.status").value("NOTHING_TO_SEND"))
+                .andExpect(jsonPath("$.remaining").value(0));
+        assertThat(mailsTo(dead)).isZero();
+        for (User u : List.of(a, b, fresh)) {
+            assertThat(mailsTo(u)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void uneLimiteDeDebitArreteLaVagueSansConsommerDeTentative() throws Exception {
+        mails.failNext(4); // echec systemique (1 tentative + 3 relances immediates)
+        call("reprise", "send", "batch", "100")
+                .andExpect(jsonPath("$.status").value("STOPPED_ON_ERROR"))
+                .andExpect(jsonPath("$.waveFailed").value(1))
+                .andExpect(jsonPath("$.waveSent").value(0));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM email_campaign_log WHERE campaign_code = 'reprise' "
+                + "AND status = 'FAILED' AND attempt_count > 0", Long.class)).isZero();
+        assertThat(mails.sent()).isEmpty();
+
+        sendAll("reprise");
+        assertThat(mailsTo(a)).isEqualTo(1);
+        assertThat(mailsTo(b)).isEqualTo(1);
+    }
+
     @Test
     void testNEnvoieQuAUneSeuleAdresseSansToucherLaCampagne() throws Exception {
         String to = trackRecipient("proprio-test@test.sejourfr");

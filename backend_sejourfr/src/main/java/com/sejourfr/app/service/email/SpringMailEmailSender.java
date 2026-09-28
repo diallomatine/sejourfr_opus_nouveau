@@ -36,6 +36,12 @@ import java.util.Map;
 @ConditionalOnProperty(name = "sejourfr.email.provider", havingValue = "spring-mail", matchIfMissing = true)
 public class SpringMailEmailSender implements EmailSender {
 
+    /** Code d'etat SMTP etendu temporaire (RFC 3463) : {@code 4.7.1}, {@code 4.2.2}... */
+    private static final java.util.regex.Pattern TRANSIENT_STATUS =
+            java.util.regex.Pattern.compile("(?<![\\d.])4\\.\\d{1,3}\\.\\d{1,3}(?![\\d.])");
+
+    private static final java.util.regex.Pattern SMTP_CODE = java.util.regex.Pattern.compile("^\\s*(\\d{3})\\b");
+
     static final String LAYOUT = "email/layout";
     static final String UNSUBSCRIBE_FRAGMENT = "email/fragments/unsubscribe";
 
@@ -107,8 +113,52 @@ public class SpringMailEmailSender implements EmailSender {
             mailSender.send(mime);
             return null;
         } catch (MessagingException | MailException e) {
-            throw new EmailSendException(EmailErrors.sanitize(e));
+            throw new EmailSendException(EmailErrors.sanitize(e), recipientRejected(e));
         }
+    }
+
+    /**
+     * Vrai si l'echec tient a l'ADRESSE du destinataire : adresse illisible, ou
+     * refus SMTP 5xx sur le destinataire (550, 553, 501...). Tout le reste est
+     * SYSTEMIQUE (defaut prudent) : un code 4xx (dont la limite de debit
+     * « 450 4.7.1 ... per sender »), un refus de l'expediteur ou du message
+     * ({@code SMTPSendFailedException}), une connexion ou une auth en echec.
+     */
+    static boolean recipientRejected(Throwable error) {
+        boolean addressRejected = false;
+        java.util.Deque<Throwable> todo = new java.util.ArrayDeque<>();
+        java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        todo.add(error);
+        while (!todo.isEmpty()) {
+            Throwable t = todo.poll();
+            if (!seen.add(t)) continue;
+            String msg = t.getMessage() == null ? "" : t.getMessage().toLowerCase(java.util.Locale.ROOT);
+            if (msg.contains("per sender") || TRANSIENT_STATUS.matcher(msg).find()) {
+                return false;
+            }
+            // Classes d'Angus Mail (dependance runtime seulement) : reconnues par leur
+            // nom, le code SMTP lu en tete de la reponse du serveur.
+            String type = t.getClass().getSimpleName();
+            if (type.equals("SMTPAddressFailedException")) {
+                java.util.regex.Matcher code = SMTP_CODE.matcher(t.getMessage() == null ? "" : t.getMessage());
+                if (!code.find() || code.group(1).charAt(0) != '5') return false;
+                addressRejected = true;
+            } else if (type.equals("SMTPSendFailedException")) {
+                return false;
+            } else if (t instanceof jakarta.mail.internet.AddressException) {
+                addressRejected = true;
+            }
+            if (t instanceof org.springframework.mail.MailSendException m) {
+                for (Exception nested : m.getMessageExceptions()) {
+                    if (nested != null) todo.add(nested);
+                }
+            }
+            if (t instanceof MessagingException me) {
+                if (me.getNextException() != null) todo.add(me.getNextException());
+            }
+            if (t.getCause() != null) todo.add(t.getCause());
+        }
+        return addressRejected;
     }
 
     @Override

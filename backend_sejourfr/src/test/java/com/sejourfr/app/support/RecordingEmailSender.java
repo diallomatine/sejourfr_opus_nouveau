@@ -24,6 +24,7 @@ public class RecordingEmailSender implements EmailSender {
     private final List<SupportRelayMessage> relayed = new CopyOnWriteArrayList<>();
     private final AtomicInteger failures = new AtomicInteger();
     private volatile boolean relayFails;
+    private final java.util.Set<String> rejected = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @Override
     public EmailProvider provider() {
@@ -32,6 +33,9 @@ public class RecordingEmailSender implements EmailSender {
 
     @Override
     public String send(EmailMessage message) {
+        if (rejected.contains(message.recipient().toLowerCase())) {
+            throw new EmailSendException("SMTPAddressFailedException: 550 5.1.1 adresse inconnue (simule)", true);
+        }
         if (failures.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
             throw new EmailSendException("MailSendException: SMTP indisponible (simule)");
         }
@@ -49,6 +53,11 @@ public class RecordingEmailSender implements EmailSender {
 
     public void failNext(int count) {
         failures.set(count);
+    }
+
+    /** Refus definitif de cette adresse par le serveur (550), jusqu'au {@link #reset()}. */
+    public void rejectRecipient(String recipient) {
+        rejected.add(recipient.toLowerCase());
     }
 
     public void failRelay(boolean fails) {
@@ -76,5 +85,6 @@ public class RecordingEmailSender implements EmailSender {
         relayed.clear();
         failures.set(0);
         relayFails = false;
+        rejected.clear();
     }
 }

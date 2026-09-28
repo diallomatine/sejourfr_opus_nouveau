@@ -25,13 +25,23 @@ public class EmailCampaignManager {
     private final EmailCampaignRepository repository;
 
     @Transactional(readOnly = true)
-    public long countEligible(EmailCampaign campaign) {
-        return repository.countEligible(campaign.code());
+    public long countNeverAttempted(EmailCampaign campaign) {
+        return repository.countNeverAttempted(campaign.code());
     }
 
     @Transactional(readOnly = true)
-    public List<Recipient> findEligible(EmailCampaign campaign, int limit) {
-        return repository.findEligible(campaign.code(), limit);
+    public long countRetryable(EmailCampaign campaign, int maxAttempts) {
+        return repository.countRetryable(campaign.code(), maxAttempts);
+    }
+
+    /**
+     * Les prochains destinataires : les comptes jamais tentes ; s'il n'en reste
+     * aucun, les comptes a reprendre (« a la fin »).
+     */
+    @Transactional(readOnly = true)
+    public List<Recipient> findNext(EmailCampaign campaign, int maxAttempts, int limit) {
+        List<Recipient> fresh = repository.findNeverAttempted(campaign.code(), limit);
+        return fresh.isEmpty() ? repository.findRetryable(campaign.code(), maxAttempts, limit) : fresh;
     }
 
     @Transactional(readOnly = true)
@@ -41,8 +51,14 @@ public class EmailCampaignManager {
 
     /** @return vrai si le compte est reserve pour cet envoi, faux s'il est deja servi */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean claim(EmailCampaign campaign, UUID userId, Instant now) {
-        return repository.claim(UUID.randomUUID(), campaign.code(), userId, now) == 1;
+    public boolean claim(EmailCampaign campaign, UUID userId, Instant now, int maxAttempts) {
+        return repository.claim(UUID.randomUUID(), campaign.code(), userId, now, maxAttempts) == 1;
+    }
+
+    /** Echec systemique : FAILED, sans imputer la tentative au compte. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void releaseAttempt(EmailCampaign campaign, UUID userId, Instant now) {
+        repository.releaseAttempt(campaign.code(), userId, now);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

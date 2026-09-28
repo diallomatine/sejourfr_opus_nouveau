@@ -1036,11 +1036,13 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 
 - `POST /api/admin/campaigns/{code}/send?mode=dry-run|test|send&batch=N&to=…` →
   `EmailCampaignRunResponse` (`status` ∈ `DRY_RUN` / `TEST_SENT` / `COMPLETED` /
-  `NOTHING_TO_SEND` / `IN_PROGRESS` / `STOPPED_ON_ERROR`, `remaining`, `servedTotal`,
-  `failedTotal`, compteurs de la vague, `error`, `sample` masqué, `waveSize`, `pauseSeconds`).
+  `NOTHING_TO_SEND` / `IN_PROGRESS` / `STOPPED_ON_ERROR`, `remaining` =
+  `remainingNeverAttempted` + `remainingRetry`, `servedTotal`, `failedTotal`, compteurs de la
+  vague dont `waveRejected` (adresses refusées, la vague a continué) et `waveFailed` (échec
+  systémique, la vague s'est arrêtée), `error`, `sample` masqué, `waveSize`, `pauseSeconds`).
   `dry-run` n'écrit rien ; `test` exige `to` et n'envoie qu'à cette adresse ; `send` sert une
-  vague (`batch` par défaut et plafond : `email/campaigns-config-v1.json`), arrêtée au premier
-  échec. Une seule vague à la fois (sinon 409). Code ou mode inconnu ⇒ 400.
+  vague (réglages : `email/campaigns-config-v2.json`). Une seule vague à la fois (sinon 409).
+  Code ou mode inconnu ⇒ 400.
 
 ### Admin — Moteur de progression V4.2
 

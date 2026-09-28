@@ -35,8 +35,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <ul>
  *   <li>{@code dry-run} : nombre de comptes a servir et echantillon masque, rien d'ecrit ;</li>
  *   <li>{@code test} : un seul mail, vers l'adresse passee, sans toucher au journal de campagne ;</li>
- *   <li>{@code send} : une vague, arretee au premier echec.</li>
+ *   <li>{@code send} : une vague. Un refus PROPRE A L'ADRESSE (5xx destinataire,
+ *       adresse illisible) passe la ligne en FAILED et la vague continue ; un
+ *       echec SYSTEMIQUE (limite de debit, SMTP injoignable, auth) l'arrete, sans
+ *       imputer la tentative au compte.</li>
  * </ul>
+ *
+ * <p>Selection : les comptes jamais tentes d'abord ; les FAILED ne sont repris
+ * qu'une fois qu'il n'en reste plus aucun, dans la limite de
+ * {@code maxAttemptsPerRecipient}.
  *
  * <p>🛑 L'envoi passe par {@link EmailService} (journal {@code email_deliveries},
  * cle anti-doublon par compte) sur {@code emailTaskExecutor}, jamais dans le
@@ -94,6 +101,7 @@ public class EmailCampaignService {
         volatile int sent;
         volatile int alreadyServed;
         volatile int skipped;
+        volatile int rejected;
         volatile int failed;
         volatile String error;
     }
@@ -123,13 +131,16 @@ public class EmailCampaignService {
                 wave.sent++;
             } else if (outcome == EmailOutcome.SKIPPED_ALLOWLIST) {
                 wave.skipped++;
+            } else if (outcome == EmailOutcome.RECIPIENT_REJECTED) {
+                wave.rejected++;
+                wave.error = outcome.name();
             } else {
                 wave.failed++;
                 wave.error = outcome.name();
             }
         });
         if (status.equals("COMPLETED")) {
-            status = wave.failed > 0 ? "STOPPED_ON_ERROR" : "TEST_SENT";
+            status = wave.failed + wave.rejected > 0 ? "STOPPED_ON_ERROR" : "TEST_SENT";
         }
         log.info("Campagne {} : test vers {} -> {}", campaign.code(), LogMask.email(recipient), status);
         return response(campaign, Mode.TEST, status, wave);
@@ -139,7 +150,7 @@ public class EmailCampaignService {
         if (batch < 1 || batch > config.maxWaveSize()) {
             throw new IllegalArgumentException("batch doit etre compris entre 1 et " + config.maxWaveSize());
         }
-        List<Recipient> recipients = campaigns.findEligible(campaign, batch);
+        List<Recipient> recipients = campaigns.findNext(campaign, config.maxAttemptsPerRecipient(), batch);
         Wave wave = new Wave();
         if (recipients.isEmpty()) {
             return response(campaign, Mode.SEND, "NOTHING_TO_SEND", wave);
@@ -148,16 +159,21 @@ public class EmailCampaignService {
         if (status.equals("COMPLETED") && wave.failed > 0) {
             status = "STOPPED_ON_ERROR";
         }
-        log.info("Campagne {} : vague de {} -> {} (envoyes {}, deja servis {}, ignores {}, echecs {})",
-                campaign.code(), recipients.size(), status, wave.sent, wave.alreadyServed, wave.skipped,
-                wave.failed);
+        log.info("Campagne {} : vague de {} -> {} (envoyes {}, deja servis {}, ignores {}, adresses refusees {}, "
+                        + "echecs systemiques {})", campaign.code(), recipients.size(), status, wave.sent,
+                wave.alreadyServed, wave.skipped, wave.rejected, wave.failed);
         return response(campaign, Mode.SEND, status, wave);
     }
 
-    /** Sur l'executor email. S'arrete au premier echec. */
+    /**
+     * Sur l'executor email. Un refus d'adresse ne bloque pas la vague ; un echec
+     * systemique l'arrete (et la tentative est rendue au compte), comme une
+     * serie de {@code maxConsecutiveRecipientFailures} refus d'adresse.
+     */
     private void sendWave(EmailCampaign campaign, List<Recipient> recipients, Wave wave) {
+        int consecutiveRejects = 0;
         for (Recipient r : recipients) {
-            if (!campaigns.claim(campaign, r.getUserId(), clock.instant())) {
+            if (!campaigns.claim(campaign, r.getUserId(), clock.instant(), config.maxAttemptsPerRecipient())) {
                 wave.alreadyServed++;
                 continue;
             }
@@ -167,41 +183,51 @@ public class EmailCampaignService {
                 outcome = emailService.send(new EmailRequest(campaign.emailType(), r.getUserId(), r.getEmail(),
                         Map.of(), key, null, null, EmailRequest.Origin.EVENT));
             } catch (RuntimeException e) {
-                campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.FAILED, clock.instant());
-                wave.failed++;
-                wave.error = e.getClass().getSimpleName();
+                stopSystemic(campaign, r, wave, e.getClass().getSimpleName());
                 return;
             }
             switch (outcome) {
                 case SENT -> {
                     campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.SENT, clock.instant());
                     wave.sent++;
+                    consecutiveRejects = 0;
                 }
                 case SKIPPED_ALLOWLIST -> {
                     campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.SKIPPED, clock.instant());
                     wave.skipped++;
                 }
+                case RECIPIENT_REJECTED, EXHAUSTED -> {
+                    campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.FAILED, clock.instant());
+                    wave.rejected++;
+                    if (++consecutiveRejects >= config.maxConsecutiveRecipientFailures()) {
+                        wave.failed++;
+                        wave.error = consecutiveRejects + " adresses refusees d'affilee : vague arretee";
+                        return;
+                    }
+                }
                 case DUPLICATE -> {
                     boolean alreadySent = deliveries.findByKey(key).stream()
                             .anyMatch(d -> d.getStatus() == EmailDeliveryStatus.SENT);
-                    campaigns.mark(campaign, r.getUserId(),
-                            alreadySent ? EmailDeliveryStatus.SENT : EmailDeliveryStatus.FAILED, clock.instant());
                     if (alreadySent) {
+                        campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.SENT, clock.instant());
                         wave.alreadyServed++;
                     } else {
-                        wave.failed++;
-                        wave.error = "DUPLICATE (envoi precedent encore PENDING)";
+                        stopSystemic(campaign, r, wave, "DUPLICATE (envoi precedent encore PENDING)");
                         return;
                     }
                 }
                 default -> {
-                    campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.FAILED, clock.instant());
-                    wave.failed++;
-                    wave.error = outcome.name();
+                    stopSystemic(campaign, r, wave, outcome.name());
                     return;
                 }
             }
         }
+    }
+
+    private void stopSystemic(EmailCampaign campaign, Recipient r, Wave wave, String error) {
+        campaigns.releaseAttempt(campaign, r.getUserId(), clock.instant());
+        wave.failed++;
+        wave.error = error;
     }
 
     /**
@@ -244,15 +270,17 @@ public class EmailCampaignService {
 
     private EmailCampaignRunResponse response(EmailCampaign campaign, Mode mode, String status, Wave wave) {
         List<String> sample = mode == Mode.DRY_RUN
-                ? campaigns.findEligible(campaign, config.sampleSize()).stream()
+                ? campaigns.findNext(campaign, config.maxAttemptsPerRecipient(), config.sampleSize()).stream()
                         .map(r -> LogMask.email(r.getEmail())).toList()
                 : List.of();
+        long neverAttempted = campaigns.countNeverAttempted(campaign);
+        long retry = campaigns.countRetryable(campaign, config.maxAttemptsPerRecipient());
         return new EmailCampaignRunResponse(
                 campaign.code(), mode.wire(), status,
-                campaigns.countEligible(campaign),
+                neverAttempted + retry, neverAttempted, retry,
                 campaigns.countByStatus(campaign, EmailDeliveryStatus.SENT),
                 campaigns.countByStatus(campaign, EmailDeliveryStatus.FAILED),
-                wave.sent, wave.alreadyServed, wave.skipped, wave.failed, wave.error,
+                wave.sent, wave.alreadyServed, wave.skipped, wave.rejected, wave.failed, wave.error,
                 sample, config.waveSize(), config.pauseSeconds());
     }
 }

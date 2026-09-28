@@ -1,0 +1,10 @@
+{
+  "campaignsConfigVersion": 2,
+  "waveSize": 10,
+  "maxWaveSize": 100,
+  "pauseSeconds": 180,
+  "waveWaitSeconds": 50,
+  "sampleSize": 10,
+  "maxAttemptsPerRecipient": 2,
+  "maxConsecutiveRecipientFailures": 5
+}

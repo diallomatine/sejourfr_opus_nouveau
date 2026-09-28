@@ -264,6 +264,19 @@ class EmailServiceTest {
     }
 
     @Test
+    @DisplayName("Adresse refusee (5xx destinataire) : une seule tentative, RECIPIENT_REJECTED, ligne FAILED")
+    void adresseRefuseeSansRelance() {
+        doThrow(new EmailSendException("550 5.1.1 user unknown", true)).when(sender).send(any());
+
+        EmailOutcome outcome = service.send(request(EmailType.WELCOME, EmailRequest.Origin.EVENT));
+
+        assertThat(outcome).isEqualTo(EmailOutcome.RECIPIENT_REJECTED);
+        verify(sender, times(1)).send(any());
+        verify(deliveries).markFailed(eq(deliveryId), any(), any(), eq(1));
+        assertThat(sleeps).isEmpty();
+    }
+
+    @Test
     @DisplayName("Un echec d'envoi ne propage jamais d'exception")
     void aucuneExceptionNeSort() {
         doThrow(new RuntimeException("boom")).when(sender).send(any());

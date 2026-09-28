@@ -272,6 +272,11 @@ public class EmailService {
                 lastError = EmailErrors.sanitize(e);
                 log.warn("Echec d'envoi {} vers {} (tentative {}/{}) : {}", message.type(),
                         LogMask.email(message.recipient()), attempts, delays.size() + 1, lastError);
+                // Adresse refusee : definitif, une relance immediate n'y changerait rien.
+                if (e instanceof EmailSendException s && s.recipientRejected()) {
+                    deliveries.markFailed(deliveryId, clock.instant(), lastError, attempts);
+                    return EmailOutcome.RECIPIENT_REJECTED;
+                }
             }
         }
         deliveries.markFailed(deliveryId, clock.instant(), lastError, attempts);
