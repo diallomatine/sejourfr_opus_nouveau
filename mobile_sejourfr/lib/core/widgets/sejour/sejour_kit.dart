@@ -1909,7 +1909,7 @@ class SfNowCard extends StatelessWidget {
               ],
             ),
           ],
-          if (child != null) ...[const SizedBox(height: 12), child!],
+          if (child != null) ...[const SizedBox(height: 16), child!],
           if (action != null) ...[const SizedBox(height: 14), action!],
           if (caption != null) ...[
             const SizedBox(height: 10),
