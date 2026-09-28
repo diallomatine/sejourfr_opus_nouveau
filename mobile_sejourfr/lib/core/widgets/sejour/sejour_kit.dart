@@ -6016,8 +6016,8 @@ enum SfSerieVerdict { ok, fail }
 // sémantique de [SfRing]). Seule la pastille de l'œil-de-bœuf reste rouge : la
 // convention du kit (`.heroDot`), comme le web.
 //
-// Miroirs web (mêmes noms, sans `Sf`) : `ProgressTopbar`, `ProgressIntro`,
-// `ProgressHero`, `ProgressStatTile`, `ProgressStatGrid`, `ProgressDomainCard`,
+// Miroirs web (mêmes noms, sans `Sf`) : `ProgressIntro`, `ProgressHero`,
+// `ProgressStatTile`, `ProgressStatGrid`, `ProgressDomainCard`,
 // `ProgressChart`, `ProgressScaleLegend`, `ProgressExamRow`,
 // `ProgressGlobalExamRow`.
 // =============================================================================
@@ -6060,131 +6060,6 @@ class _SfProgressCard extends StatelessWidget {
       child: Ink(
         decoration: _sfProgressCardDecoration(),
         child: InkWell(onTap: onTap, borderRadius: radius, child: contenu),
-      ),
-    );
-  }
-}
-
-/// **La barre haute** : le retour (flèche en tuile + intitulé) à gauche, le
-/// CTA « Nouvel examen blanc » à droite.
-///
-/// 🛑 [ctaLocked] est le `cta.locked` **servi** (D20) : le bouton garde sa
-/// place et son libellé, il gagne un cadenas, et c'est l'appelant qui ouvre le
-/// paywall au toucher. Aucun verrou n'est déduit ici. Bouton **bleu** : ce
-/// n'est pas un CTA critique.
-///
-/// Miroir web : `ProgressTopbar`.
-class SfProgressTopbar extends StatelessWidget {
-  const SfProgressTopbar({
-    super.key,
-    required this.backLabel,
-    required this.onBack,
-    this.ctaLabel,
-    this.onCta,
-    this.ctaLocked = false,
-  });
-
-  final String backLabel;
-  final VoidCallback onBack;
-
-  /// `null` = aucun bouton (chargement, erreur) : on ne propose pas une porte
-  /// dont le verrou n'est pas encore connu.
-  final String? ctaLabel;
-  final VoidCallback? onCta;
-  final bool ctaLocked;
-
-  @override
-  Widget build(BuildContext context) {
-    final libelle = ctaLabel;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Semantics(
-                button: true,
-                child: InkWell(
-                  onTap: onBack,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(11),
-                            border: Border.all(color: AppColors.line),
-                          ),
-                          child: const Icon(LucideIcons.arrowLeft,
-                              size: 17, color: AppColors.blueDark),
-                        ),
-                        const SizedBox(width: 9),
-                        Flexible(
-                          child: Text(
-                            backLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppFonts.ui(
-                              size: 14,
-                              weight: FontWeight.w800,
-                              color: AppColors.blueDark,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (libelle != null) ...[
-            const SizedBox(width: 12),
-            Flexible(
-              child: Material(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.circular(13),
-                child: InkWell(
-                  onTap: onCta,
-                  borderRadius: BorderRadius.circular(13),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (ctaLocked) ...[
-                          const Icon(LucideIcons.lock,
-                              size: 14, color: AppColors.white),
-                          const SizedBox(width: 6),
-                        ],
-                        Flexible(
-                          child: Text(
-                            libelle,
-                            textAlign: TextAlign.center,
-                            style: AppFonts.ui(
-                              size: 13.5,
-                              weight: FontWeight.w800,
-                              color: AppColors.white,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }

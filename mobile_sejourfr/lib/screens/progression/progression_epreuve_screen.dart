@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
@@ -19,8 +20,8 @@ import 'widgets/progression_page.dart';
 ///
 /// 🛑 **Tout est servi** (`GET /api/me/progression/tcf/{epreuve}`) : score,
 /// palier de chaque examen, écart et sens, meilleur, ordinal, durée fiable,
-/// bandes (EE/EO seulement — D2 : aucune en CO/CE), niveau actuel (D4) et
-/// verrou du bouton (D20). Pas d'anneau en TCF (D5).
+/// bandes (EE/EO seulement — D2 : aucune en CO/CE) et niveau actuel (D4).
+/// Pas d'anneau en TCF (D5).
 ///
 /// Miroir web : `app/(app)/progression/tcf/[domaine]`.
 class ProgressionEpreuveScreen extends ConsumerWidget {
@@ -36,20 +37,10 @@ class ProgressionEpreuveScreen extends ConsumerWidget {
     final provider = progressionEpreuveProvider(epreuve);
     return ProgressionPage<ProgressionEpreuve>(
       async: ref.watch(provider),
-      backLabel: kEpreuveBackLabel,
+      barSub: kTcfLabel,
       onBack: () =>
           retourOuRepli(context, repli: AppRoutes.progressionTcf),
       onRefresh: () => ref.refresh(provider.future),
-      cta: (data) => (
-        label: kEpreuveCta,
-        locked: data.cta.locked,
-        onTap: () => ouvrirProgressionCta(
-              context,
-              ref,
-              locked: data.cta.locked,
-              grille: progressionEpreuveCtaPath(epreuve),
-            ),
-      ),
       children: (data) => _corps(context, data),
     );
   }

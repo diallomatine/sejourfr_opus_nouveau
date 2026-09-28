@@ -2495,7 +2495,7 @@ export function GoalHero({
    `docs/progression/maquettes-progression/*.html`)
 
    TCF global, une épreuve TCF, civique global, un thème civique. Ils
-   assemblent ces briques et RIEN d'autre : barre haute, intro, carte de tête,
+   assemblent ces briques et RIEN d'autre : intro, carte de tête,
    compteurs, cartes d'épreuve / de thème, courbe, légende d'échelle, lignes
    d'examen.
 
@@ -2510,9 +2510,8 @@ export function GoalHero({
    un halo ; seule la pastille de l'œil-de-bœuf garde le rouge de `.heroDot`,
    convention déjà en place dans le kit.
 
-   Miroirs Flutter (même passe, même nom, préfixe `Sf`) : `SfProgressTopbar`,
-   `SfProgressIntro`, `SfProgressHero`, `SfProgressStatTile`,
-   `SfProgressStatGrid`, `SfProgressDomainCard`, `SfProgressChart`,
+   Miroirs Flutter (même passe, même nom, préfixe `Sf`) : `SfProgressIntro`,
+   `SfProgressHero`, `SfProgressStatTile`, `SfProgressStatGrid`, `SfProgressDomainCard`, `SfProgressChart`,
    `SfProgressScaleLegend`, `SfProgressExamRow`, `SfProgressGlobalExamRow`.
    ========================================================================== */
 
@@ -2529,72 +2528,6 @@ const progressChipClass: Record<BarTone, string> = {
 
 function ProgressChipView({ chip }: { chip: ProgressChip }) {
   return <span className={cx(styles.pChip, progressChipClass[chip.tone])}>{chip.label}</span>;
-}
-
-/**
- * **La barre haute** — le retour libellé à gauche, le CTA à droite.
- *
- * 🛑 **Le cadenas est SERVI** (`cta.locked`, D20) : verrouillé, le bouton porte
- * un cadenas et appelle `onLocked` (la feuille de paywall de l'écran) au lieu
- * de naviguer. Le kit ne décide jamais qu'un bouton est fermé.
- *
- * `onBack` : le geste du retour (miroir de `SfProgressTopbar.onBack`) —
- * l'écran remonte l'historique. Le lien garde `backHref` pour le clic du
- * milieu et les touches de modification, qui ouvrent un onglet.
- */
-export function ProgressTopbar({
-  backHref,
-  backLabel,
-  onBack,
-  cta,
-  onLocked,
-}: {
-  backHref: string;
-  onBack?: () => void;
-  /**
-   * 🛑 Le retour reste DANS la page, y compris sous 900 px : les écrans de
-   * progression gardent le burger dans la barre du haut (demande du
-   * propriétaire, 2026-09-24) — la Progression est une entrée du menu.
-   */
-  backLabel: string;
-  /** `null` ⇒ pas de CTA (chargement, erreur). */
-  cta?: { label: string; href: string; locked: boolean } | null;
-  onLocked?: () => void;
-}) {
-  return (
-    <header className={styles.pTopbar}>
-      <Link
-        href={backHref}
-        className={styles.pBack}
-        onClick={
-          onBack
-            ? (e) => {
-                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                e.preventDefault();
-                onBack();
-              }
-            : undefined
-        }
-      >
-        <span className={styles.pBackIcon} aria-hidden>
-          <ChevronLeft size={18} strokeWidth={2.2} />
-        </span>
-        <span>{backLabel}</span>
-      </Link>
-      {cta ? (
-        cta.locked ? (
-          <button type="button" className={styles.pCta} onClick={onLocked}>
-            <Lock size={15} strokeWidth={2.4} aria-hidden />
-            <span>{cta.label}</span>
-          </button>
-        ) : (
-          <Link href={cta.href} className={styles.pCta}>
-            {cta.label}
-          </Link>
-        )
-      ) : null}
-    </header>
-  );
 }
 
 /** **L'intro** — œil-de-bœuf « Votre progression », titre, phrase de cadrage. */

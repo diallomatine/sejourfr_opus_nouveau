@@ -18,9 +18,7 @@ import {
 import {progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
-    CIVIQUE_BACK_LABEL,
     CIVIQUE_CARTE_SUB,
-    CIVIQUE_CTA,
     CIVIQUE_HERO_LABEL,
     CIVIQUE_HINT,
     CIVIQUE_LEAD,
@@ -37,7 +35,6 @@ import {
     CIVIQUE_THEMES_TITLE,
     CIVIQUE_TITLE,
     PROGRESSION_ERROR,
-    PROGRESSION_GLOBAL_CTA_HREF,
     PROGRESSION_SANS_EXAMEN_THEME,
     PROGRESSION_VIDE,
     PROGRESSION_VOIR,
@@ -101,13 +98,9 @@ function CiviqueScoped() {
     return (
         <ProgressionFrame
             backHref="/dashboard?module=CIVIQUE"
-            backLabel={CIVIQUE_BACK_LABEL}
-            cta={dto ? {label: CIVIQUE_CTA, href: PROGRESSION_GLOBAL_CTA_HREF, locked: dto.cta.locked} : null}
             title={CIVIQUE_TITLE}
             lead={CIVIQUE_LEAD}
             module="CIVIQUE"
-            paywallModule="CIVIQUE"
-            screen="progression_civique"
         >
             {dto ? (
                 <CiviqueContenu dto={dto} tous={tous}/>

@@ -2,48 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/analytics/analytics.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/paywall_sheet.dart';
+import '../../../core/widgets/screen_header.dart';
 import '../../../core/widgets/segmented_tabs.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../progression_labels.dart';
 
-/// **Le geste du CTA** « Nouvel examen blanc » : la GRILLE d'examens, jamais un
-/// démarrage direct (la grille sert ses propres verrous de créneau).
+/// **Le squelette commun des quatre écrans de progression** : la barre du haut
+/// (retour + « Progression » + le parcours), puis le contenu d'une lecture
+/// servie, avec tiré-pour-rafraîchir.
 ///
-/// 🛑 **D20 : seul `cta.locked` servi ferme la porte**, et elle s'ouvre sur le
-/// paywall — le parcours d'abonnement unique, compté comme un vrai clic sur un
-/// appel à l'examen blanc. Aucun verrou n'est déduit ici.
-void ouvrirProgressionCta(
-  BuildContext context,
-  WidgetRef ref, {
-  required bool locked,
-  required String grille,
-}) {
-  if (locked) {
-    showPaywallSheet(
-      context,
-      ref: ref,
-      ctaLocation: AnalyticsCtaLocation.mockExam,
-    );
-    return;
-  }
-  context.push(grille);
-}
-
-/// Le CTA de la barre haute, **servi** : son libellé, son verrou (`cta.locked`,
-/// D20) et son geste.
-typedef ProgressionCta = ({String label, bool locked, VoidCallback onTap});
-
-/// **Le squelette commun des quatre écrans de progression** : la barre haute,
-/// puis le contenu d'une lecture servie, avec tiré-pour-rafraîchir.
-///
-/// 🛑 **La barre haute reste dans tous les états** — chargement et erreur
-/// compris : c'est la porte de sortie. Son CTA, lui, n'apparaît qu'une fois la
-/// lecture arrivée, parce que son verrou vient d'elle.
+/// 🛑 **Le retour vit dans la barre du haut** (demande du propriétaire,
+/// 2026-09-28) : plus de rangée « retour + examen blanc » dans la page. La
+/// barre reste dans tous les états — chargement et erreur compris : c'est la
+/// porte de sortie. [onBack] remonte l'historique (`retourOuRepli`). Miroir
+/// web : la flèche d'`AppTopBar`, posée par `ProgressionFrame`.
 ///
 /// 🛑 **Un échec n'est pas « aucun examen »** : on ne range pas une panne dans
 /// l'état vide.
@@ -51,27 +26,26 @@ class ProgressionPage<T> extends StatelessWidget {
   const ProgressionPage({
     super.key,
     required this.async,
-    required this.backLabel,
+    required this.barSub,
     required this.onBack,
     required this.onRefresh,
     required this.children,
-    this.cta,
     this.notFound,
     this.entete = const [],
   });
 
   final AsyncValue<T> async;
-  final String backLabel;
+  /// Le parcours sous le titre de la barre (« TCF IRN », « Examen civique »).
+  final String barSub;
   final VoidCallback onBack;
   final Future<void> Function() onRefresh;
   final List<Widget> Function(T data) children;
-  final ProgressionCta Function(T data)? cta;
 
   /// Le message d'un **404** servi (thème inconnu) — une absence, pas une
   /// panne. `null` = le message d'échec générique.
   final String? notFound;
 
-  /// Ce qui suit la barre haute **dans tous les états** (chargement et erreur
+  /// Ce qui ouvre la page **dans tous les états** (chargement et erreur
   /// compris) : l'intro et la bascule des deux écrans globaux — la bascule est
   /// une navigation, pas un résultat. Vide ailleurs.
   final List<Widget> entete;
@@ -79,7 +53,6 @@ class ProgressionPage<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = async.valueOrNull;
-    final bouton = data == null ? null : cta?.call(data);
     final List<Widget> corps;
     if (data != null) {
       corps = children(data);
@@ -99,23 +72,28 @@ class ProgressionPage<T> extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
-          onRefresh: onRefresh,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 42),
-            children: [
-              SfProgressTopbar(
-                backLabel: backLabel,
-                onBack: onBack,
-                ctaLabel: bouton?.label,
-                ctaLocked: bouton?.locked ?? false,
-                onCta: bouton?.onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ScreenHeader(
+              title: kProgressionBarTitle,
+              sub: barSub,
+              onBack: onBack,
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: onRefresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 42),
+                  children: [
+                    ...entete,
+                    ...corps,
+                  ],
+                ),
               ),
-              ...entete,
-              ...corps,
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

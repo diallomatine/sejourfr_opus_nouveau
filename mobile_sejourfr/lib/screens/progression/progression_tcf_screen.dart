@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
@@ -35,19 +36,9 @@ class ProgressionTcfScreen extends ConsumerWidget {
     final provider = progressionTcfProvider(tous);
     return ProgressionPage<ProgressionTcf>(
       async: ref.watch(provider),
-      backLabel: kTcfBackLabel,
+      barSub: kTcfLabel,
       onBack: () => retourOuRepli(context),
       onRefresh: () => ref.refresh(provider.future),
-      cta: (data) => (
-        label: kTcfCta,
-        locked: data.cta.locked,
-        onTap: () => ouvrirProgressionCta(
-              context,
-              ref,
-              locked: data.cta.locked,
-              grille: AppRoutes.tcfFullExams,
-            ),
-      ),
       children: (data) => _corps(context, data),
       entete: const [
         SfProgressIntro(

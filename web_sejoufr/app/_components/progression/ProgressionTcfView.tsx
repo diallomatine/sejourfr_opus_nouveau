@@ -19,13 +19,10 @@ import {progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
     PROGRESSION_ERROR,
-    PROGRESSION_GLOBAL_CTA_HREF,
     PROGRESSION_SANS_EXAMEN,
     PROGRESSION_VIDE,
     PROGRESSION_VOIR,
-    TCF_BACK_LABEL,
     TCF_CARTE_SUB,
-    TCF_CTA,
     TCF_EPREUVES_SUB,
     TCF_EPREUVES_TITLE,
     TCF_HERO_LABEL,
@@ -106,13 +103,9 @@ function TcfScoped() {
     return (
         <ProgressionFrame
             backHref="/dashboard?module=TCF"
-            backLabel={TCF_BACK_LABEL}
-            cta={dto ? {label: TCF_CTA, href: PROGRESSION_GLOBAL_CTA_HREF, locked: dto.cta.locked} : null}
             title={TCF_TITLE}
             lead={TCF_LEAD}
             module="TCF"
-            paywallModule="INTEGRAL"
-            screen="progression_tcf"
         >
             {dto ? (
                 <TcfContenu dto={dto} tous={tous}/>

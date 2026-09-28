@@ -1,15 +1,13 @@
 "use client";
 
-import {useState, type ReactNode} from "react";
-import {useRouter} from "next/navigation";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import type {ReactNode} from "react";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {
     Card,
     ModuleToggle,
     Pad,
     PanelHead,
     ProgressIntro,
-    ProgressTopbar,
     SejourApp,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
@@ -20,61 +18,41 @@ import {
     PROGRESSION_RETRY,
     progressionHref,
 } from "@/lib/progression";
-import {retourOuRepli} from "@/lib/retour";
 
 /**
- * Le cadre commun des quatre écrans de progression : colonne du kit, barre
- * haute (retour + CTA), intro, et la feuille de paywall du CTA.
+ * Le cadre commun des quatre écrans de progression : colonne du kit, intro,
+ * et la bascule de module des écrans globaux.
  *
- * 🛑 **Le cadenas du CTA est SERVI** (`cta.locked`, D20) : tous les résultats
- * restent visibles, seul le bouton vers un nouvel examen peut ouvrir le paywall.
- * Rien n'est déduit ici d'un rang, d'un quota ou d'un abonnement.
+ * 🛑 **Le retour vit dans la barre du haut**, à côté du burger qui reste
+ * toujours là (demande du propriétaire, 2026-09-28) : plus de rangée « retour
+ * + examen blanc » dans la page. La flèche remonte l'historique
+ * (`retourOuRepli`, dans `AppTopBar`) — l'écran d'où l'on vient —, et
+ * `backHref` seulement quand il n'y en a pas (lien direct, nouvel onglet).
  *
  * [module] : présent sur les deux écrans GLOBAUX seulement, il pose la bascule
  * TCF IRN / Examen civique du kit sous l'intro, comme le Plan et l'Accueil.
  * 🛑 **Des liens, pas un état local** : l'adresse (`/progression/tcf` ⇄
  * `/progression/civique`) reste l'unique autorité du choix, et `?tous=true`
  * tombe à la bascule. Les écrans d'épreuve et de thème ne la portent pas.
- *
- * 🛑 **Le retour remonte l'historique** (`retourOuRepli`) : l'écran d'où l'on
- * vient — Accueil, Plan, Réviser, progression globale… —, et `backHref`
- * seulement quand il n'y en a pas (lien direct, nouvel onglet).
  */
 export function ProgressionFrame({
     backHref,
-    backLabel,
-    cta,
     title,
     lead,
     module,
-    paywallModule,
-    screen,
     children,
 }: {
     backHref: string;
-    backLabel: string;
-    /** `null` tant que le serveur n'a pas répondu : pas de CTA sans son verrou. */
-    cta: {label: string; href: string; locked: boolean} | null;
     title: string;
     lead?: string | null;
     module?: ParcoursModule;
-    paywallModule: "CIVIQUE" | "INTEGRAL";
-    screen: string;
     children: ReactNode;
 }) {
-    const router = useRouter();
-    const [paywall, setPaywall] = useState(false);
+    useAppBarBack({fallbackHref: backHref});
     return (
         <SejourApp wide>
             <Pad>
                 <div className={sejourStyles.pScreen}>
-                    <ProgressTopbar
-                        backHref={backHref}
-                        backLabel={backLabel}
-                        onBack={() => retourOuRepli(router, backHref)}
-                        cta={cta}
-                        onLocked={() => setPaywall(true)}
-                    />
                     <ProgressIntro eyebrow={PROGRESSION_EYEBROW} title={title} lead={lead}/>
                     {module ? (
                         <ModuleToggle
@@ -86,13 +64,6 @@ export function ProgressionFrame({
                     {children}
                 </div>
             </Pad>
-            <PaywallSheet
-                open={paywall}
-                onClose={() => setPaywall(false)}
-                module={paywallModule}
-                ctaLocation="MOCK_EXAM"
-                screen={screen}
-            />
         </SejourApp>
     );
 }

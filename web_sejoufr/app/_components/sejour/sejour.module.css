@@ -111,7 +111,7 @@
     padding-top: var(--app-bar-gap);
   }
 
-  :global(.app-shell--has-drawer) .pTopbar {
+  :global(.app-shell--has-drawer) .pIntro {
     margin-top: var(--app-bar-gap);
   }
 }
@@ -3743,74 +3743,6 @@
   box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 7%, transparent);
 }
 
-/* ---------- La barre haute ---------- */
-
-.pTopbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 4px 0 24px;
-}
-
-.pBack {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  color: var(--color-blue-dark);
-  font-size: 14px;
-  font-weight: 800;
-  text-decoration: none;
-}
-
-.pBack > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pBackIcon {
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--color-line);
-  border-radius: 11px;
-  background: white;
-}
-
-.pCta {
-  flex: 0 1 auto;
-  /* Reste à droite quand le retour libellé est passé dans la barre du haut. */
-  margin-left: auto;
-  max-width: 62%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 0;
-  border-radius: 13px;
-  padding: 11px 14px;
-  background: var(--color-blue);
-  color: white;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.25;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-blue) 14%, transparent);
-  transition: background-color var(--sf-quick) var(--sf-ease-out);
-}
-
-.pCta:hover,
-.pCta:focus-visible {
-  background: var(--color-blue-dark);
-}
-
 /* ---------- L'intro ---------- */
 
 .pIntro {
@@ -4539,14 +4471,6 @@ a.pRow:focus-visible {
 }
 
 @container pscreen (min-width: 621px) {
-  .pTopbar {
-    margin-bottom: 30px;
-  }
-
-  .pCta {
-    padding: 13px 18px;
-  }
-
   .pHero {
     align-items: center;
     padding: 24px 26px;
@@ -4614,7 +4538,6 @@ a.pRow:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pCta,
   .pDomain,
   .pRow {
     transition: none;

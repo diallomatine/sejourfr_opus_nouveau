@@ -19,7 +19,6 @@ import {civicBarTone} from "./civic-diagnostic";
 import type {ParcoursModule} from "./module-switch";
 import {planDomainFromSlug, planDomainLabel, planDomainShort, planDomainSlug, type PlanDomainEpreuve} from "./plan-domain";
 import {TCF_EPREUVES_OFFICIELLES} from "./tcf-epreuves";
-import {civicThemeExamsHref, themeSlug} from "./themes";
 import {CIVIC_THEME_STATE_LABEL, formatDurationSec, niveauCecrlShort} from "./types";
 import type {
     CivicThemeState,
@@ -96,19 +95,6 @@ export function progressionRapportHref(
         }
     }
 }
-
-/** Le CTA d'une épreuve : sa GRILLE d'examens, jamais un démarrage direct. */
-export function progressionEpreuveCtaHref(epreuve: PlanDomainEpreuve): string {
-    return `/entrainement/tcf/${planDomainSlug(epreuve)}/examens`;
-}
-
-/** Le CTA d'un thème : la grille de ses examens. */
-export function progressionThemeCtaHref(code: string): string {
-    return civicThemeExamsHref(themeSlug(code));
-}
-
-/** Le CTA des deux écrans globaux : la grille des examens blancs. */
-export const PROGRESSION_GLOBAL_CTA_HREF = "/examens-blancs";
 
 /* ------------------------------------------------------------ mots communs */
 
@@ -329,8 +315,6 @@ export function progressionExamensTermines(n: number): string {
    Écran d'une ÉPREUVE TCF (`progression_epreuve_tcf.html`)
    ====================================================================== */
 
-export const EPREUVE_BACK_LABEL = "Retour";
-export const EPREUVE_CTA = "Nouvel examen blanc";
 export const EPREUVE_HERO_LABEL = "Dernier résultat";
 export const EPREUVE_MEILLEUR_LABEL = "Meilleur score";
 export const EPREUVE_NOMBRE_LABEL = "Examens réalisés";
@@ -385,8 +369,6 @@ export const EPREUVE_NOTE_20_PORTEE =
    Écran TCF GLOBAL (`progression_global_tcf.html`)
    ====================================================================== */
 
-export const TCF_BACK_LABEL = "Accueil";
-export const TCF_CTA = "Faire un examen blanc";
 export const TCF_TITLE = "Progression globale";
 export const TCF_LEAD = "Suivez l'évolution de vos résultats sur toutes les épreuves du TCF.";
 export const TCF_HERO_LABEL = "Niveau global estimé";
@@ -454,8 +436,6 @@ export function tcfEpreuveNom(epreuve: EpreuveType): string {
    Écran CIVIQUE GLOBAL (`progression_global_civique.html`)
    ====================================================================== */
 
-export const CIVIQUE_BACK_LABEL = "Accueil";
-export const CIVIQUE_CTA = "Faire un examen blanc global";
 export const CIVIQUE_TITLE = "Examen civique";
 export const CIVIQUE_LEAD = "Suivez votre progression globale et celle de chaque thème.";
 export const CIVIQUE_HERO_LABEL = "Dernier résultat global";
@@ -491,8 +471,6 @@ export function civiquePart(bonnes: number, posees: number): string {
    Écran d'un THÈME civique (`progression_theme_civique.html`)
    ====================================================================== */
 
-export const THEME_BACK_LABEL = "Retour";
-export const THEME_CTA = "Nouvel examen blanc";
 export const THEME_LEAD = "Suivez vos résultats sur ce thème précis à travers vos examens blancs.";
 export const THEME_HERO_LABEL = "Dernier résultat";
 export const THEME_MEILLEUR_LABEL = "Meilleur score";

@@ -1462,6 +1462,13 @@ plafonnée abaisse le palier, jamais la note.
 | thème civique | `AttemptService.isExamenCiviqueVerrouille` (premium, D-33) |
 | civique global | `AttemptService.isGrilleCiviqueGlobaleVerrouillee` (pas d'accès civique **et** aucun template civique gratuit publié) |
 
+⚠️ **2026-09-28 (demande du propriétaire)** : les quatre écrans n'affichent plus
+la rangée « retour + examen blanc » ni aucun bouton d'examen. Le retour est la
+flèche de la barre du haut, à côté du burger (web `useAppBarBack` posé par
+`ProgressionFrame`, mobile `ScreenHeader` de `ProgressionPage`), et remonte
+l'historique (`retourOuRepli`). `cta.locked` reste servi par le DTO mais n'est
+plus lu par aucun front ; `ProgressTopbar` ⇄ `SfProgressTopbar` sont supprimés.
+
 ### 🛑 D19 — le palier d'un examen complet se RE-DÉRIVE toujours
 
 `FullTcfExamResponseBuilder` préférait `attempts.final_cecrl_level` persisté à la

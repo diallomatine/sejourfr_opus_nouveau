@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
@@ -35,21 +36,11 @@ class ProgressionThemeScreen extends ConsumerWidget {
     final provider = progressionThemeProvider(themeId);
     return ProgressionPage<ProgressionTheme>(
       async: ref.watch(provider),
-      backLabel: kThemeBackLabel,
+      barSub: kCiviqueLabel,
       onBack: () =>
           retourOuRepli(context, repli: AppRoutes.progressionCivique),
       onRefresh: () => ref.refresh(provider.future),
       notFound: kThemeIntrouvable,
-      cta: (data) => (
-        label: kThemeCta,
-        locked: data.cta.locked,
-        onTap: () => ouvrirProgressionCta(
-              context,
-              ref,
-              locked: data.cta.locked,
-              grille: AppRoutes.civiqueThemeExamsPath(data.themeId),
-            ),
-      ),
       children: (data) => _corps(context, data),
     );
   }

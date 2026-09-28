@@ -17,10 +17,8 @@ import {
 import {progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
-    EPREUVE_BACK_LABEL,
     TCF_TITLE,
     EPREUVE_COURBE_TITLE,
-    EPREUVE_CTA,
     EPREUVE_HERO_LABEL,
     EPREUVE_INTROUVABLE,
     EPREUVE_LISTE_SUB,
@@ -49,7 +47,6 @@ import {
     progressionDuree,
     progressionEchelleNote,
     progressionEcart,
-    progressionEpreuveCtaHref,
     progressionEpreuveFromSlug,
     progressionExamensTermines,
     progressionNiveauPill,
@@ -72,8 +69,7 @@ import {ProgressionEtat, ProgressionFrame} from "./ProgressionFrame";
  * Lit `GET /api/me/progression/tcf/{epreuve}` : ses examens blancs (épreuve
  * passée seule + la même épreuve dans un examen complet, D1), l'échelle servie
  * (CO/CE /499 SANS bande, D2 ; EE/EO /20 avec les bandes officielles, D3), le
- * résumé (dernier, meilleur, écart, sens), le niveau de l'Accueil (D4) et le
- * verrou du CTA (D20).
+ * résumé (dernier, meilleur, écart, sens) et le niveau de l'Accueil (D4).
  *
  * 🛑 Rien n'est recalculé : ce composant écrit des faits servis.
  * 🛑 Miroir de `ProgressionEpreuveScreen` côté mobile, brique pour brique.
@@ -85,11 +81,7 @@ export function ProgressionEpreuveView() {
         return (
             <ProgressionFrame
                 backHref={PROGRESSION_TCF_HREF}
-                backLabel={EPREUVE_BACK_LABEL}
-                cta={null}
                 title={TCF_TITLE}
-                paywallModule="INTEGRAL"
-                screen="progression_epreuve"
             >
                 <ProgressionEtat error={EPREUVE_INTROUVABLE}/>
             </ProgressionFrame>
@@ -110,16 +102,8 @@ function EpreuveScoped({epreuve}: {epreuve: PlanDomainEpreuve}) {
     return (
         <ProgressionFrame
             backHref={PROGRESSION_TCF_HREF}
-            backLabel={EPREUVE_BACK_LABEL}
-            cta={dto ? {
-                label: EPREUVE_CTA,
-                href: progressionEpreuveCtaHref(epreuve),
-                locked: dto.cta.locked,
-            } : null}
             title={epreuveTitre(epreuve)}
             lead={epreuveLead(epreuve)}
-            paywallModule="INTEGRAL"
-            screen="progression_epreuve"
         >
             {dto ? (
                 <EpreuveContenu dto={dto} epreuve={epreuve}/>

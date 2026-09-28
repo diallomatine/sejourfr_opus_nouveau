@@ -54,16 +54,11 @@ String? progressionRapportPath(
         },
     };
 
-/// Le CTA d'une épreuve : sa GRILLE d'examens, jamais un démarrage direct.
-String progressionEpreuveCtaPath(EpreuveType epreuve) => switch (epreuve) {
-      EpreuveType.tcfCe => AppRoutes.tcfCeExams,
-      EpreuveType.tcfEe => productionExamsPath(TcfProductionModule.ee),
-      EpreuveType.tcfEo => productionExamsPath(TcfProductionModule.eo),
-      _ => AppRoutes.tcfCoExams,
-    };
-
 /* ------------------------------------------------------------ mots communs */
 
+/// Le titre de la barre du haut des quatre écrans (miroir de `lib/app-bar.ts`
+/// côté web : « Progression » + le parcours).
+const String kProgressionBarTitle = 'Progression';
 const String kProgressionEyebrow = 'Votre progression';
 const String kProgressionLoading = 'Chargement…';
 const String kProgressionError = 'Impossible de charger votre progression.';
@@ -348,8 +343,6 @@ String progressionExamensTermines(int n) =>
    Écran d'une ÉPREUVE TCF (`progression_epreuve_tcf.html`)
    ====================================================================== */
 
-const String kEpreuveBackLabel = 'Retour';
-const String kEpreuveCta = 'Nouvel examen blanc';
 const String kEpreuveHeroLabel = 'Dernier résultat';
 const String kEpreuveMeilleurLabel = 'Meilleur score';
 const String kEpreuveNombreLabel = 'Examens réalisés';
@@ -402,8 +395,6 @@ const String kEpreuveNote20Portee =
    Écran TCF GLOBAL (`progression_global_tcf.html`)
    ====================================================================== */
 
-const String kTcfBackLabel = 'Accueil';
-const String kTcfCta = 'Faire un examen blanc';
 const String kTcfTitle = 'Progression globale';
 const String kTcfLead =
     "Suivez l'évolution de vos résultats sur toutes les épreuves du TCF.";
@@ -466,8 +457,6 @@ String tcfEpreuveNom(EpreuveType epreuve) => epreuve.displayLabel;
    Écran CIVIQUE GLOBAL (`progression_global_civique.html`)
    ====================================================================== */
 
-const String kCiviqueBackLabel = 'Accueil';
-const String kCiviqueCta = 'Faire un examen blanc global';
 const String kCiviqueTitle = 'Examen civique';
 const String kCiviqueLead =
     'Suivez votre progression globale et celle de chaque thème.';
@@ -505,8 +494,6 @@ String civiquePart(int bonnes, int posees) =>
    Écran d'un THÈME civique (`progression_theme_civique.html`)
    ====================================================================== */
 
-const String kThemeBackLabel = 'Retour';
-const String kThemeCta = 'Nouvel examen blanc';
 const String kThemeLead =
     'Suivez vos résultats sur ce thème précis à travers vos examens blancs.';
 const String kThemeHeroLabel = 'Dernier résultat';

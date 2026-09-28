@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
@@ -31,19 +32,9 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
     final provider = progressionCiviqueProvider(tous);
     return ProgressionPage<ProgressionCivique>(
       async: ref.watch(provider),
-      backLabel: kCiviqueBackLabel,
+      barSub: kCiviqueLabel,
       onBack: () => retourOuRepli(context),
       onRefresh: () => ref.refresh(provider.future),
-      cta: (data) => (
-        label: kCiviqueCta,
-        locked: data.cta.locked,
-        onTap: () => ouvrirProgressionCta(
-              context,
-              ref,
-              locked: data.cta.locked,
-              grille: AppRoutes.civiqueExamsBlanc,
-            ),
-      ),
       children: (data) => _corps(context, data),
       entete: const [
         SfProgressIntro(
