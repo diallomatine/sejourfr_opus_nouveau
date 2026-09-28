@@ -329,7 +329,7 @@ export function progressionExamensTermines(n: number): string {
    Écran d'une ÉPREUVE TCF (`progression_epreuve_tcf.html`)
    ====================================================================== */
 
-export const EPREUVE_BACK_LABEL = "Progression globale";
+export const EPREUVE_BACK_LABEL = "Retour";
 export const EPREUVE_CTA = "Nouvel examen blanc";
 export const EPREUVE_HERO_LABEL = "Dernier résultat";
 export const EPREUVE_MEILLEUR_LABEL = "Meilleur score";
@@ -491,7 +491,7 @@ export function civiquePart(bonnes: number, posees: number): string {
    Écran d'un THÈME civique (`progression_theme_civique.html`)
    ====================================================================== */
 
-export const THEME_BACK_LABEL = "Examen civique";
+export const THEME_BACK_LABEL = "Retour";
 export const THEME_CTA = "Nouvel examen blanc";
 export const THEME_LEAD = "Suivez vos résultats sur ce thème précis à travers vos examens blancs.";
 export const THEME_HERO_LABEL = "Dernier résultat";

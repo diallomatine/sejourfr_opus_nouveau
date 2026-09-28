@@ -1,6 +1,7 @@
 "use client";
 
 import {useState, type ReactNode} from "react";
+import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
     Card,
@@ -19,6 +20,7 @@ import {
     PROGRESSION_RETRY,
     progressionHref,
 } from "@/lib/progression";
+import {retourOuRepli} from "@/lib/retour";
 
 /**
  * Le cadre commun des quatre écrans de progression : colonne du kit, barre
@@ -33,6 +35,10 @@ import {
  * 🛑 **Des liens, pas un état local** : l'adresse (`/progression/tcf` ⇄
  * `/progression/civique`) reste l'unique autorité du choix, et `?tous=true`
  * tombe à la bascule. Les écrans d'épreuve et de thème ne la portent pas.
+ *
+ * 🛑 **Le retour remonte l'historique** (`retourOuRepli`) : l'écran d'où l'on
+ * vient — Accueil, Plan, Réviser, progression globale… —, et `backHref`
+ * seulement quand il n'y en a pas (lien direct, nouvel onglet).
  */
 export function ProgressionFrame({
     backHref,
@@ -56,6 +62,7 @@ export function ProgressionFrame({
     screen: string;
     children: ReactNode;
 }) {
+    const router = useRouter();
     const [paywall, setPaywall] = useState(false);
     return (
         <SejourApp wide>
@@ -64,6 +71,7 @@ export function ProgressionFrame({
                     <ProgressTopbar
                         backHref={backHref}
                         backLabel={backLabel}
+                        onBack={() => retourOuRepli(router, backHref)}
                         cta={cta}
                         onLocked={() => setPaywall(true)}
                     />

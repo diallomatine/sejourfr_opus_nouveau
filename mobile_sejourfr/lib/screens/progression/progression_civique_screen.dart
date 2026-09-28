@@ -157,8 +157,7 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
       sub: kCiviqueCarteSub,
       onTap: themeId == null
           ? () {}
-          : () => context.push(
-              AppRoutes.progressionThemePath(themeId, depuisGlobal: true)),
+          : () => context.push(AppRoutes.progressionThemePath(themeId)),
       empty: dernier == null ? kProgressionSansExamenTheme : null,
       value: progressionValeur(dernier?.score),
       unit: progressionUnite(carte.echelle.max),

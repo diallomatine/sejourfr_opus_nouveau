@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
@@ -25,13 +26,9 @@ class ProgressionThemeScreen extends ConsumerWidget {
   const ProgressionThemeScreen({
     super.key,
     required this.themeId,
-    this.depuisGlobal = false,
   });
 
   final String themeId;
-
-  /// Poussé depuis l'écran civique global : le retour dépile.
-  final bool depuisGlobal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,11 +36,8 @@ class ProgressionThemeScreen extends ConsumerWidget {
     return ProgressionPage<ProgressionTheme>(
       async: ref.watch(provider),
       backLabel: kThemeBackLabel,
-      onBack: () => retourVersGlobal(
-        context,
-        depuisGlobal: depuisGlobal,
-        global: AppRoutes.progressionCivique,
-      ),
+      onBack: () =>
+          retourOuRepli(context, repli: AppRoutes.progressionCivique),
       onRefresh: () => ref.refresh(provider.future),
       notFound: kThemeIntrouvable,
       cta: (data) => (

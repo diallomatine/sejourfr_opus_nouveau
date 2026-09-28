@@ -34,22 +34,6 @@ void ouvrirProgressionCta(
   context.push(grille);
 }
 
-/// **Le retour d'un écran d'épreuve ou de thème** — « Progression globale » /
-/// « Examen civique » : l'écran global du module. Venu de lui, on dépile ;
-/// venu d'ailleurs (l'Accueil), on l'ouvre à la place de celui-ci — le retour
-/// suivant ramène alors là d'où l'on venait. Miroir du lien de retour du web.
-void retourVersGlobal(
-  BuildContext context, {
-  required bool depuisGlobal,
-  required String global,
-}) {
-  if (depuisGlobal && context.canPop()) {
-    context.pop();
-    return;
-  }
-  context.pushReplacement(global);
-}
-
 /// Le CTA de la barre haute, **servi** : son libellé, son verrou (`cta.locked`,
 /// D20) et son geste.
 typedef ProgressionCta = ({String label, bool locked, VoidCallback onTap});

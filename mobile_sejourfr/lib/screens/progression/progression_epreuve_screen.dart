@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
@@ -26,13 +27,9 @@ class ProgressionEpreuveScreen extends ConsumerWidget {
   const ProgressionEpreuveScreen({
     super.key,
     required this.epreuve,
-    this.depuisGlobal = false,
   });
 
   final EpreuveType epreuve;
-
-  /// Poussé depuis l'écran global TCF : le retour dépile.
-  final bool depuisGlobal;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,11 +37,8 @@ class ProgressionEpreuveScreen extends ConsumerWidget {
     return ProgressionPage<ProgressionEpreuve>(
       async: ref.watch(provider),
       backLabel: kEpreuveBackLabel,
-      onBack: () => retourVersGlobal(
-        context,
-        depuisGlobal: depuisGlobal,
-        global: AppRoutes.progressionTcf,
-      ),
+      onBack: () =>
+          retourOuRepli(context, repli: AppRoutes.progressionTcf),
       onRefresh: () => ref.refresh(provider.future),
       cta: (data) => (
         label: kEpreuveCta,

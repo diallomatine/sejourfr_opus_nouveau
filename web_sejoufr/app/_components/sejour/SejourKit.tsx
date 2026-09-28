@@ -2537,14 +2537,20 @@ function ProgressChipView({ chip }: { chip: ProgressChip }) {
  * 🛑 **Le cadenas est SERVI** (`cta.locked`, D20) : verrouillé, le bouton porte
  * un cadenas et appelle `onLocked` (la feuille de paywall de l'écran) au lieu
  * de naviguer. Le kit ne décide jamais qu'un bouton est fermé.
+ *
+ * `onBack` : le geste du retour (miroir de `SfProgressTopbar.onBack`) —
+ * l'écran remonte l'historique. Le lien garde `backHref` pour le clic du
+ * milieu et les touches de modification, qui ouvrent un onglet.
  */
 export function ProgressTopbar({
   backHref,
   backLabel,
+  onBack,
   cta,
   onLocked,
 }: {
   backHref: string;
+  onBack?: () => void;
   /**
    * 🛑 Le retour reste DANS la page, y compris sous 900 px : les écrans de
    * progression gardent le burger dans la barre du haut (demande du
@@ -2557,7 +2563,19 @@ export function ProgressTopbar({
 }) {
   return (
     <header className={styles.pTopbar}>
-      <Link href={backHref} className={styles.pBack}>
+      <Link
+        href={backHref}
+        className={styles.pBack}
+        onClick={
+          onBack
+            ? (e) => {
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                onBack();
+              }
+            : undefined
+        }
+      >
         <span className={styles.pBackIcon} aria-hidden>
           <ChevronLeft size={18} strokeWidth={2.2} />
         </span>

@@ -24,6 +24,7 @@ import {
     PROGRESSION_TEMPS_LABEL,
     PROGRESSION_VOIR,
     THEME_BACK_LABEL,
+    CIVIQUE_TITLE,
     THEME_COURBE_SUB,
     THEME_COURBE_TITLE,
     THEME_CTA,
@@ -110,7 +111,7 @@ export function ProgressionThemeView() {
             backHref={PROGRESSION_CIVIQUE_HREF}
             backLabel={THEME_BACK_LABEL}
             cta={dto ? {label: THEME_CTA, href: progressionThemeCtaHref(dto.code), locked: dto.cta.locked} : null}
-            title={dto ? themeTitre(dto.label) : THEME_BACK_LABEL}
+            title={dto ? themeTitre(dto.label) : CIVIQUE_TITLE}
             lead={THEME_LEAD}
             paywallModule="CIVIQUE"
             screen="progression_theme"

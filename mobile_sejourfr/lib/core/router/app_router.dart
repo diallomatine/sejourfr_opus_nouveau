@@ -251,11 +251,10 @@ class AppRoutes {
   /// Une épreuve TCF — clé `co|ce|ee|eo`, la même que [planDomain].
   static const progressionEpreuve = '/progression/tcf/:domainKey';
 
-  /// [depuisGlobal] : poussé depuis l'écran global du module — le retour
-  /// dépile alors ; sinon il ouvre cet écran global (« Progression globale »).
-  static String progressionEpreuvePath(String domainKey,
-          {bool depuisGlobal = false}) =>
-      '/progression/tcf/$domainKey${depuisGlobal ? '?depuis=global' : ''}';
+  /// 🛑 Toujours **poussé** (`context.push`) : son retour dépile vers l'écran
+  /// d'où l'on vient, quel qu'il soit (`retourOuRepli`).
+  static String progressionEpreuvePath(String domainKey) =>
+      '/progression/tcf/$domainKey';
 
   static const progressionCivique = '/progression/civique';
   static const progressionCiviqueTous = '/progression/civique?tous=true';
@@ -263,9 +262,9 @@ class AppRoutes {
   /// Un thème civique — l'identifiant **servi**, jamais inventé.
   static const progressionTheme = '/progression/civique/:themeId';
 
-  static String progressionThemePath(String themeId,
-          {bool depuisGlobal = false}) =>
-      '/progression/civique/$themeId${depuisGlobal ? '?depuis=global' : ''}';
+  /// 🛑 Toujours **poussé**, comme [progressionEpreuvePath].
+  static String progressionThemePath(String themeId) =>
+      '/progression/civique/$themeId';
 
   /// « Mes favoris », poussé depuis le Profil (miroir web : `/favoris`).
   static const mesFavoris = '/mes-favoris';
@@ -593,10 +592,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Une clé inconnue ne fabrique pas d'épreuve : on retombe sur la
           // progression globale plutôt que d'inventer un domaine.
           if (epreuve == null) return const ProgressionTcfScreen();
-          return ProgressionEpreuveScreen(
-            epreuve: epreuve,
-            depuisGlobal: state.uri.queryParameters['depuis'] == 'global',
-          );
+          return ProgressionEpreuveScreen(epreuve: epreuve);
         },
       ),
       GoRoute(
@@ -609,7 +605,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.progressionTheme,
         builder: (_, state) => ProgressionThemeScreen(
           themeId: state.pathParameters['themeId']!,
-          depuisGlobal: state.uri.queryParameters['depuis'] == 'global',
         ),
       ),
       // Hors shell : poussé depuis le Profil. Le garder dans le ShellRoute

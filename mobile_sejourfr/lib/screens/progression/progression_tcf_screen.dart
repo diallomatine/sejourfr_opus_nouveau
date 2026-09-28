@@ -170,9 +170,8 @@ class ProgressionTcfScreen extends ConsumerWidget {
       icon: situationEpreuveIcon(planDomainSection(epreuve)),
       title: tcfEpreuveNom(epreuve),
       sub: kTcfCarteSub,
-      onTap: () => context.push(AppRoutes.progressionEpreuvePath(
-          planDomainKey(epreuve),
-          depuisGlobal: true)),
+      onTap: () => context
+          .push(AppRoutes.progressionEpreuvePath(planDomainKey(epreuve))),
       empty: dernier == null ? kProgressionSansExamen : null,
       value: progressionValeur(dernier?.score),
       unit: progressionUnite(carte.echelle.max),

@@ -348,7 +348,7 @@ String progressionExamensTermines(int n) =>
    Écran d'une ÉPREUVE TCF (`progression_epreuve_tcf.html`)
    ====================================================================== */
 
-const String kEpreuveBackLabel = 'Progression globale';
+const String kEpreuveBackLabel = 'Retour';
 const String kEpreuveCta = 'Nouvel examen blanc';
 const String kEpreuveHeroLabel = 'Dernier résultat';
 const String kEpreuveMeilleurLabel = 'Meilleur score';
@@ -505,7 +505,7 @@ String civiquePart(int bonnes, int posees) =>
    Écran d'un THÈME civique (`progression_theme_civique.html`)
    ====================================================================== */
 
-const String kThemeBackLabel = 'Examen civique';
+const String kThemeBackLabel = 'Retour';
 const String kThemeCta = 'Nouvel examen blanc';
 const String kThemeLead =
     'Suivez vos résultats sur ce thème précis à travers vos examens blancs.';

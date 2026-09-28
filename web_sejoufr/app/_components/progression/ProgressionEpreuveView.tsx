@@ -18,6 +18,7 @@ import {progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
     EPREUVE_BACK_LABEL,
+    TCF_TITLE,
     EPREUVE_COURBE_TITLE,
     EPREUVE_CTA,
     EPREUVE_HERO_LABEL,
@@ -86,7 +87,7 @@ export function ProgressionEpreuveView() {
                 backHref={PROGRESSION_TCF_HREF}
                 backLabel={EPREUVE_BACK_LABEL}
                 cta={null}
-                title={EPREUVE_BACK_LABEL}
+                title={TCF_TITLE}
                 paywallModule="INTEGRAL"
                 screen="progression_epreuve"
             >
