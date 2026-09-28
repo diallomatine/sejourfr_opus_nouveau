@@ -12,6 +12,12 @@ import com.sejourfr.app.enums.NiveauEvolution;
 import com.sejourfr.app.enums.PlanDomainAssessmentKind;
 import com.sejourfr.app.service.TcfProfileService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
+import com.sejourfr.app.dto.CivicPlanDto;
+import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.manager.ThemeManager;
+import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticThemeResolver;
+import com.sejourfr.app.service.plancivique.CivicPlanService;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import jakarta.persistence.EntityManager;
@@ -20,6 +26,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -51,6 +59,10 @@ class ProgressServiceIT extends AbstractIntegrationTest {
     @Autowired private TestData testData;
     @Autowired private EntityManager entityManager;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private ThemeManager themeManager;
+    @Autowired private CivicDiagnosticThemeResolver civicThemeResolver;
+    @Autowired private ProgressionExamensService progressionService;
+    @Autowired private CivicPlanService civicPlanService;
 
     private CivicDiagnosticSession diagnosticCiviqueTermine(User user) {
         CivicDiagnosticSession session = civicDiagnosticService.ouvrir(user.getId());
@@ -286,5 +298,149 @@ class ProgressServiceIT extends AbstractIntegrationTest {
                 .extracting(com.sejourfr.app.dto.CivicPlanDto.ThemeLigne::code)
                 .doesNotHaveDuplicates()
                 .allSatisfy(code -> assertThat(code).startsWith("CIV_"));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  Un EXAMEN BLANC mesure le thème (2026-09-28)
+    // ══════════════════════════════════════════════════════════════════════
+
+    private final Instant maintenant = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+
+    private List<Theme> themesCiviques() {
+        return themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+    }
+
+    private static CivicPlanDto.ThemeLigne ligne(ProgressDto.Civique civique, UUID themeId) {
+        return civique.themes().stream()
+                .filter(l -> l.themeId().equals(themeId))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private void flush() {
+        entityManager.flush();
+        entityManager.clear();
+    }
+
+    /**
+     * 🛑 <b>Le bug de prod du 2026-09-28</b> : l'examen blanc du thème
+     * « Principes et valeurs » passé, l'étape du Plan se fermait, mais la carte
+     * de l'Accueil disait toujours « À évaluer » — l'Accueil ne lisait que le
+     * diagnostic. Le thème est désormais évalué, sans {@code evaluation}, avec
+     * l'état que sert l'écran de progression du thème ; les autres, jamais
+     * mesurés, restent {@code NON_EVALUE}.
+     */
+    @Test
+    @DisplayName("🛑 Examen de thème terminé ⇒ le thème est évalué sur l'Accueil, comme sur sa progression")
+    void examenDeThemeEvalueLeTheme() {
+        User user = testData.user();
+        Theme principes = themesCiviques().getFirst();
+        testData.examenDeTheme(user, principes, 17, maintenant.minus(1, ChronoUnit.HOURS));
+        flush();
+
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        CivicPlanDto.ThemeLigne evalue = ligne(civique, principes.getId());
+        assertThat(evalue.etat())
+                .isEqualTo(civicThemeResolver.etat(17, 20))
+                .isNotEqualTo(CivicThemeState.NON_EVALUE);
+        // Plus rien à lancer depuis la carte : elle ouvre ses résultats.
+        assertThat(evalue.evaluation()).isNull();
+        // 🛑 La même chose que l'écran de progression du thème (D13).
+        assertThat(progressionService.theme(user.getId(), principes.getId()).etat())
+                .isEqualTo(evalue.etat());
+        // Les autres n'ont été mesurés par rien : inconnus, jamais faibles.
+        assertThat(civique.themes())
+                .filteredOn(l -> !l.themeId().equals(principes.getId()))
+                .hasSize(4)
+                .allSatisfy(l -> {
+                    assertThat(l.etat()).isEqualTo(CivicThemeState.NON_EVALUE);
+                    assertThat(l.evaluation()).isNotNull();
+                });
+    }
+
+    /**
+     * Un examen civique COMPLET couvre les thèmes : chacun de ceux qu'il a
+     * posés est mesuré par sa part (« x / n posées »). 🛑 Un thème qu'il n'a
+     * pas posé n'est pas raté : il reste {@code NON_EVALUE}.
+     */
+    @Test
+    @DisplayName("🛑 Examen civique complet terminé ⇒ chaque thème posé est évalué sur sa part")
+    void examenCompletEvalueLesThemesPoses() {
+        User user = testData.user();
+        List<Theme> themes = themesCiviques();
+        int[] posees = {8, 8, 8, 8, 0};
+        int[] bonnes = {8, 5, 1, 7, 0};
+        testData.examenCivique(user, null, 32, 26, maintenant.minus(1, ChronoUnit.HOURS),
+                themes, posees, bonnes, null);
+        flush();
+
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        for (int t = 0; t < 4; t++) {
+            CivicPlanDto.ThemeLigne l = ligne(civique, themes.get(t).getId());
+            assertThat(l.etat())
+                    .as("thème %s", themes.get(t).getCode())
+                    .isEqualTo(civicThemeResolver.etat(bonnes[t], posees[t]))
+                    .isNotEqualTo(CivicThemeState.NON_EVALUE);
+            assertThat(l.evaluation()).isNull();
+        }
+        CivicPlanDto.ThemeLigne nonPose = ligne(civique, themes.get(4).getId());
+        assertThat(nonPose.etat()).isEqualTo(CivicThemeState.NON_EVALUE);
+        assertThat(nonPose.evaluation()).isNotNull();
+    }
+
+    /**
+     * 🛑 <b>Un examen blanc prime sur le diagnostic</b>, qui n'est qu'un repli
+     * (comme le palier TCF). Et le Plan civique (écran Réviser) sert la même
+     * ligne que l'Accueil : une seule autorité.
+     */
+    @Test
+    @DisplayName("🛑 L'examen de thème prime sur le diagnostic, et le Plan dit la même chose")
+    void examenPrimeSurLeDiagnostic() {
+        User user = testData.user();
+        diagnosticCiviqueTermine(user);
+        Theme principes = themesCiviques().getFirst();
+        testData.examenDeTheme(user, principes, 20, maintenant);
+        flush();
+
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        assertThat(ligne(civique, principes.getId()).etat()).isEqualTo(CivicThemeState.SOLIDE);
+        // Les thèmes sans examen gardent l'état du diagnostic (tout faux ici).
+        assertThat(civique.themes())
+                .filteredOn(l -> !l.themeId().equals(principes.getId()))
+                .extracting(CivicPlanDto.ThemeLigne::etat)
+                .doesNotContain(CivicThemeState.SOLIDE, CivicThemeState.NON_EVALUE);
+        assertThat(civicPlanService.plan(user.getId()).themes())
+                .extracting(CivicPlanDto.ThemeLigne::themeId, CivicPlanDto.ThemeLigne::etat)
+                .containsExactlyElementsOf(civique.themes().stream()
+                        .map(l -> org.assertj.core.groups.Tuple.tuple(l.themeId(), l.etat()))
+                        .toList());
+    }
+
+    /**
+     * 🛑 Un examen de thème (20 questions sur le thème) passe devant la part
+     * d'un examen global, même plus récent : c'est lui que l'écran de
+     * progression du thème appelle l'état du thème.
+     */
+    @Test
+    @DisplayName("L'examen de thème passe devant la part d'un examen global plus récent")
+    void examenDeThemeDevantLaPartDUnGlobal() {
+        User user = testData.user();
+        List<Theme> themes = themesCiviques();
+        Theme principes = themes.getFirst();
+        testData.examenDeTheme(user, principes, 5, maintenant.minus(2, ChronoUnit.DAYS));
+        testData.examenCivique(user, null, 32, 26, maintenant.minus(1, ChronoUnit.HOURS),
+                themes, new int[]{8, 8, 8, 8, 0}, new int[]{8, 8, 8, 8, 0}, null);
+        flush();
+
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        assertThat(ligne(civique, principes.getId()).etat())
+                .isEqualTo(civicThemeResolver.etat(5, 20))
+                .isEqualTo(progressionService.theme(user.getId(), principes.getId()).etat());
+        assertThat(ligne(civique, themes.get(1).getId()).etat())
+                .isEqualTo(civicThemeResolver.etat(8, 8));
     }
 }

@@ -526,6 +526,10 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
       if (!_guest) _onMesureEcrite();
       return finished;
     } catch (e) {
+      // 🛑 Un `finish` refusé peut suivre une clôture faite côté serveur
+      // (échéance dépassée) : la mesure est écrite, la réponse ne le dit pas.
+      // Pendant web : `attemptApi.finish`, purgé aussi sur échec.
+      if (!_guest) _onMesureEcrite();
       state = AsyncValue.data(cur.copyWith(
         submitting: false,
         errorMessage: ApiClient.toApiException(e).message,

@@ -167,7 +167,10 @@ public record CivicPlanDto(
      * @param themeId     le theme
      * @param code        {@code CIV_PRINCIPES} … {@code CIV_SOCIETE}
      * @param label       son libelle editorial, tel qu'il vit en base
-     * @param etat        l'etat servi par le dernier diagnostic. 🛑
+     * @param etat        l'etat du theme : son dernier examen blanc de theme,
+     *                    sinon sa part du dernier examen civique global, sinon
+     *                    le dernier diagnostic ({@code EtatThemeCiviqueParExamens},
+     *                    2026-09-28). 🛑
      *                    {@code NON_EVALUE} n'est pas « faible » : c'est une
      *                    absence de mesure
      * @param grain       a quel grain CE theme est travaille aujourd'hui — le

@@ -1768,12 +1768,20 @@ export const attemptApi = {
      * ⚠️ C'est **tout le pipeline QCM** qui était muet : un examen blanc de
      * compréhension orale rendait B1 et « Où vous en êtes » continuait
      * d'afficher « À évaluer » jusqu'au rechargement complet de la page.
+     *
+     * 🛑 **Purgé aussi sur ÉCHEC** : un `finish` refusé parce que le serveur a
+     * déjà clos l'examen (échéance dépassée) laisse une mesure écrite sans que
+     * la réponse le dise. Pendant mobile : `_handleTimeExpired`, qui émet
+     * `signalerMesureEcrite` quand `finish` échoue.
      */
     finish(attemptId: string): Promise<AttemptResponse> {
         return apiFetch<AttemptResponse>(`/api/attempts/${attemptId}/finish`, {
             method: "POST",
             auth: true,
-        }).then(afterMeasureWrite);
+        }).then(afterMeasureWrite, (e: unknown) => {
+            invalidateDiagnosticAndPlan();
+            throw e;
+        });
     },
 
     /**

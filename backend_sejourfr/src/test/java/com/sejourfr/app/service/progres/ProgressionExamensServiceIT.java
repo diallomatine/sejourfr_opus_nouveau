@@ -181,44 +181,13 @@ class ProgressionExamensServiceIT extends AbstractIntegrationTest {
         return themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
     }
 
-    /**
-     * Examen civique terminé : {@code questions} posées par thème (dans
-     * l'ordre), {@code bonnes} premières réussies. Le {@code score} persisté est
-     * le total des bonnes réponses, comme le pose le moteur.
-     */
     private Attempt examenCivique(User user, UUID lotThemeId, int total, int seuil, Instant fin,
                                   List<Theme> themes, int[] posees, int[] bonnes, QuestionType type) {
-        Attempt a = data.attempt(user);
-        a.setType(AttemptType.MOCK_EXAM);
-        a.setMode(AttemptMode.EXAMEN);
-        a.setModule(Module.CIVIQUE);
-        a.setEpreuve(EpreuveType.CIVIQUE);
-        a.setStatus(AttemptStatus.TERMINE);
-        a.setLotThemeId(lotThemeId);
-        a.setTotalQuestions(total);
-        a.setPassThreshold(seuil);
-        a.setTimeLimitSeconds(total == 20 ? 1200 : 2700);
-        a.setStartedAt(fin.minus(10, ChronoUnit.MINUTES));
-        a.setFinishedAt(fin);
-        int score = 0;
-        for (int t = 0; t < themes.size() && t < posees.length; t++) {
-            for (int i = 0; i < posees[t]; i++) {
-                Question q = data.question(themes.get(t));
-                if (type != null && i == 0) {
-                    q.setQuestionType(type);
-                }
-                boolean juste = i < bonnes[t];
-                data.answer(data.attemptQuestion(a, q), juste);
-                if (juste) score++;
-            }
-        }
-        a.setScore(score);
-        return attemptManager.save(a);
+        return data.examenCivique(user, lotThemeId, total, seuil, fin, themes, posees, bonnes, type);
     }
 
     private Attempt examenDeTheme(User user, Theme theme, int bonnes, Instant fin) {
-        return examenCivique(user, theme.getId(), 20, 16, fin,
-                List.of(theme), new int[]{20}, new int[]{bonnes}, null);
+        return data.examenDeTheme(user, theme, bonnes, fin);
     }
 
     // ══════════════════════════════════════════════════════════════════════

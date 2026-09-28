@@ -370,6 +370,53 @@ public class TestData {
         return journeyStepSeriesManager.lier(step, index, attemptManager.save(a));
     }
 
+    /**
+     * <b>Un examen blanc civique TERMINE</b> : {@code posees[t]} questions du
+     * theme {@code themes[t]} (dans l'ordre), dont les {@code bonnes[t]}
+     * premieres reussies. Le {@code score} persiste est le total des bonnes
+     * reponses, comme le pose le moteur.
+     *
+     * @param lotThemeId le theme d'un examen de theme, {@code null} pour un
+     *                   examen global
+     * @param type       le type de la premiere question de chaque theme, ou
+     *                   {@code null}
+     */
+    public Attempt examenCivique(User user, UUID lotThemeId, int total, int seuil, Instant fin,
+                                 List<Theme> themes, int[] posees, int[] bonnes, QuestionType type) {
+        Attempt a = attempt(user);
+        a.setType(AttemptType.MOCK_EXAM);
+        a.setMode(AttemptMode.EXAMEN);
+        a.setModule(Module.CIVIQUE);
+        a.setEpreuve(EpreuveType.CIVIQUE);
+        a.setStatus(AttemptStatus.TERMINE);
+        a.setLotThemeId(lotThemeId);
+        a.setTotalQuestions(total);
+        a.setPassThreshold(seuil);
+        a.setTimeLimitSeconds(total == 20 ? 1200 : 2700);
+        a.setStartedAt(fin.minus(10, ChronoUnit.MINUTES));
+        a.setFinishedAt(fin);
+        int score = 0;
+        for (int t = 0; t < themes.size() && t < posees.length; t++) {
+            for (int i = 0; i < posees[t]; i++) {
+                Question q = question(themes.get(t));
+                if (type != null && i == 0) {
+                    q.setQuestionType(type);
+                }
+                boolean juste = i < bonnes[t];
+                answer(attemptQuestion(a, q), juste);
+                if (juste) score++;
+            }
+        }
+        a.setScore(score);
+        return attemptManager.save(a);
+    }
+
+    /** Un examen blanc de thème (20 questions, seuil 16) terminé. */
+    public Attempt examenDeTheme(User user, Theme theme, int bonnes, Instant fin) {
+        return examenCivique(user, theme.getId(), 20, 16, fin,
+                List.of(theme), new int[]{20}, new int[]{bonnes}, null);
+    }
+
     /** Reecrit une session modifiee par le test (type, epreuve, cloture). */
     public Attempt saveAttempt(Attempt attempt) {
         return attemptManager.save(attempt);

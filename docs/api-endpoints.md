@@ -689,7 +689,9 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
   servi **tant qu'aucun examen blanc n'a mesuré l'épreuve** (`niveau == null` **ou**
   `provenance == DIAGNOSTIC`) — c'est ce qui donne « Évaluer mon niveau » sur la carte. `civique.historique` porte les diagnostics
   clos (l'Accueil en affiche le dernier score), `civique.themes` les lignes du
-  moteur du plan civique (`CivicPlanService.themesAccueil`).
+  moteur du plan civique (`CivicPlanService.themesAccueil`). Leur `etat` vient du dernier
+  **examen blanc de thème**, sinon de la part du thème dans le dernier **examen civique global**,
+  sinon du diagnostic (`EtatThemeCiviqueParExamens`, 2026-09-28).
 - ~~`GET /api/me/progress/tcf/{epreuve}/historique`~~ — **supprimé le
   2026-09-24** (« Vos résultats »), remplacé par
   `GET /api/me/progression/tcf/{epreuve}`.

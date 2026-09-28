@@ -26,7 +26,6 @@ import '../civique/civique_full_exams_screen.dart' show civiqueGlobalExamsProvid
 import '../module_detail/civique_hub_data.dart' show civiqueThemeExamsHistoryProvider;
 import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
-import '../plan/learning_plan_provider.dart' show signalerMesureEcrite;
 import '../tcf_full_exam/full_exam_exit_labels.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'mock_exam_exit_labels.dart';
@@ -102,10 +101,10 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
     if (attempt == null) {
       // `finish` peut échouer si le serveur a déjà clôturé l'épreuve : on relit
       // l'état réel plutôt que d'afficher un score périmé.
+      // Clôturée côté serveur, pas par `finish` : son échec a déjà émis le
+      // signal (`RunnerController.finish`).
       await ctrl.retry();
       if (!mounted) return;
-      // Clôturée côté serveur, pas par `finish` : son signal n'est pas parti.
-      signalerMesureEcrite(ref);
       attempt = ref.read(runnerControllerProvider(attemptId)).valueOrNull
           ?.activeAttempt;
     }

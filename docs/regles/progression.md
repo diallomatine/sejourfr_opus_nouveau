@@ -394,7 +394,7 @@ servent déjà :
 | **statut d'une épreuve face à l'objectif** | `StatutObjectifResolver` (2026-09-16) |
 | compétences tenues | moteur de maîtrise (`SkillMasteryResolver`) |
 | compteurs civiques | moteur du plan civique (L10) |
-| **détail civique par thème** | `CivicPlanService.themeLignes()` (L10, le même que Plan / Réviser) |
+| **détail civique par thème** | `CivicPlanService.themeLignes()` (L10, le même que Plan / Réviser) ; l'**état** d'un thème mesuré par examen blanc vient d'`EtatThemeCiviqueParExamens` (2026-09-28) |
 | jours travaillés | `AttemptRepository.findDistinctActivityDates` (celui du streak) |
 
 Aucun niveau, aucun palier, aucun état n'est recalculé ici.
@@ -642,6 +642,43 @@ diagnostic civique clos, `CivicPlanService.themesAccueil` rend les 5 thèmes
 sur un calcul sans mesure). La liste servait vide et l'onglet « Examen civique » de
 l'Accueil n'affichait rien sous « À faire maintenant ». Aucun front ne change : ils
 rendaient déjà `NON_EVALUE` en « À évaluer », échelle vide.
+
+🛑 **Un EXAMEN BLANC mesure le thème, et prime sur le diagnostic** (demande du
+propriétaire, 2026-09-28). Bug de prod : l'examen blanc du thème « Principes et
+valeurs » passé, l'étape du Plan se fermait, mais la carte de l'Accueil disait
+toujours « À évaluer » / « Évaluer mon niveau » — `themeLignes` ne lisait que le
+**diagnostic** civique. L'état d'un thème (Accueil **et** lignes de Réviser, même
+constructeur) se lit désormais chez **une** autorité,
+`EtatThemeCiviqueParExamens` (`service/progres/`), dans cet ordre :
+
+1. le **dernier examen de thème** terminé — exactement l'état de l'écran de
+   progression du thème (`etatSource = DERNIER_EXAMEN_THEME`, D13), qui passe par
+   la même méthode (`etatDExamen`) : les deux écrans ne peuvent pas diverger ;
+2. sinon, la **part du thème dans le dernier examen civique global** terminé qui
+   l'a posé (« x / n posées », D11) ;
+3. sinon, le **diagnostic** civique (repli, comme côté TCF où le palier affiché
+   vient des examens et le diagnostic seulement à défaut) ;
+4. sinon `NON_EVALUE`, avec `evaluation`.
+
+Un examen de thème passe devant une part d'examen global **même plus récente** :
+20 questions sur le thème mesurent mieux que les quelques-unes d'un examen global.
+Ce qui est lu est la définition existante du « qualifiant »
+(`findCivicExamensThemePasses` / `findCivicExamensGlobauxPasses` : `MOCK_EXAM`
+terminé, hors diagnostic, ≥ 1 réponse) — **jamais les séries d'entraînement**.
+L'état se demande à `CivicDiagnosticThemeResolver` : aucun seuil recopié. Un thème
+non posé par un examen global n'est pas raté (`null = inconnu`). `evaluation`
+suit l'état : servi seulement s'il reste `NON_EVALUE`. ⚠️ Limites assumées : les
+**compteurs** de la ligne (`cibles`, `maitrisees`, `travaillees`) et le
+**classement** des cibles du plan dérivé restent ceux du moteur, bâti sur le
+diagnostic (à zéro sans diagnostic) ; la bande « Votre dernier résultat » lit
+toujours `civique.historique` (les diagnostics). Côté Plan, l'étape « Examen
+blanc » du thème se clôt sur le même examen (`JourneyExamResultReader` en sert
+le score). Fraîcheur : `attemptApi.finish` purge progrès / Plan / parcours
+(`afterMeasureWrite`, **aussi sur échec** depuis le 2026-09-28 : l'examen a pu
+être clos côté serveur) ⇄ `RunnerController.finish` émet
+`signalerMesureEcrite`, que `progressProvider`, `civicPlanProvider`,
+`journeyCiviqueProvider` et les écrans de progression écoutent. Verrouillé par
+`ProgressServiceIT` (§ « Un EXAMEN BLANC mesure le thème »).
 
 🛑 **Le rang n'est pas un code inventé** : un thème sert un `code`
 (`CIV_PRINCIPES`…), qui n'est pas une abréviation de deux lettres, et en
@@ -1196,7 +1233,9 @@ parlent d'un niveau, qui n'existe pas ici.
 dit « Évaluer mon niveau » (bouton plein) et lance l'examen blanc du thème
 servi, `ThemeLigne.evaluation` (`JourneyThemeExamDto` : thème + créneau offert,
 fabrique `JourneyThemeExamDto.offert`, la même que l'étape d'examen du Plan).
-Servi **exactement** quand l'état vaut `NON_EVALUE`, `null` sinon ; les fronts
+Servi **exactement** quand l'état vaut `NON_EVALUE`, `null` sinon — et un examen
+blanc du thème (ou un examen global qui l'a posé) le fait disparaître, puisqu'il
+mesure le thème (2026-09-28) ; les fronts
 passent par le lanceur d'examen de thème (`useMockExamLauncher` `kind: "CIVIQUE"`
 ⇄ `launchCiviqueThemeExam`) et ne déduisent rien. Un thème évalué garde
 « Voir mes résultats ».
@@ -1401,7 +1440,10 @@ plafonnée abaisse le palier, jamais la note.
   examen global en « x / n posées », mises en situation comprises, sans état ;
 - **D12** états `CivicThemeState` servis (Solide / À renforcer / Faible / Non
   évalué), libellés existants (`CIVIC_THEME_STATE_LABEL` ⇄ `CivicThemeState.label`) ;
-- **D13** l'Accueil garde son moteur (état civique issu du diagnostic) ; l'écran
+- **D13** ~~l'Accueil garde son moteur (état civique issu du diagnostic)~~ —
+  **révoqué le 2026-09-28** : l'Accueil lit l'état du dernier examen du thème
+  (puis la part d'un examen global, puis le diagnostic), voir § « Le pendant
+  CIVIQUE » ; l'écran
   de thème sert `etatSource = DERNIER_EXAMEN_THEME` et `etatSourceLabel`
   (« D'après votre dernier examen de ce thème », gelé) ;
 - **D14** nouvelle famille `/api/me/progression/*` ; l'ancien

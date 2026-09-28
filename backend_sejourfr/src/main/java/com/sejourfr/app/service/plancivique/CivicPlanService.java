@@ -36,6 +36,7 @@ import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticViewService;
+import com.sejourfr.app.service.progres.EtatThemeCiviqueParExamens;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -106,6 +107,7 @@ public class CivicPlanService {
     private final QuestionManager questionManager;
     private final CivicOfficialUnitManager unitManager;
     private final CivicPlanProperties props;
+    private final EtatThemeCiviqueParExamens etatThemeParExamens;
 
     /**
      * <b>Le calcul complet</b> : TOUTES les cibles, classees, avant toute
@@ -144,7 +146,7 @@ public class CivicPlanService {
                     false, calcul.mention(), null, null, List.of(), 0, List.of(), List.of(),
                     List.of(), grain(Map.of()), null, calcul.maintenant());
         }
-        return mettreEnForme(calcul);
+        return mettreEnForme(calcul, etatsParExamens(userId, calcul.themes()));
     }
 
     /**
@@ -328,7 +330,7 @@ public class CivicPlanService {
      * Du calcul complet a l'ecran : c'est <b>ici</b>, et nulle part ailleurs,
      * que les plafonds d'affichage s'appliquent.
      */
-    private CivicPlanDto mettreEnForme(Calcul calcul) {
+    private CivicPlanDto mettreEnForme(Calcul calcul, Map<UUID, CivicThemeState> parExamens) {
         List<CivicPlanDto.Cible> cibles = calcul.cibles();
         CivicDiagnosticResultDto resultat = calcul.resultat();
         Instant maintenant = calcul.maintenant();
@@ -385,7 +387,7 @@ public class CivicPlanService {
                 Math.max(0, proposables.size() - priorites.size()),
                 aRevoir,
                 solides,
-                themeLignes(calcul, prochaine),
+                themeLignes(calcul, prochaine, parExamens),
                 grain(calcul.taggage()),
                 changements,
                 maintenant);
@@ -433,7 +435,8 @@ public class CivicPlanService {
      * l'ecran, il est a zero.
      */
     private List<CivicPlanDto.ThemeLigne> themeLignes(
-            Calcul calcul, CivicPlanDto.Cible prochaine) {
+            Calcul calcul, CivicPlanDto.Cible prochaine,
+            Map<UUID, CivicThemeState> parExamens) {
         Map<UUID, List<CivicPlanDto.Cible>> parTheme = new LinkedHashMap<>();
         for (CivicPlanDto.Cible cible : calcul.cibles()) {
             parTheme.computeIfAbsent(cible.themeId(), k -> new ArrayList<>()).add(cible);
@@ -456,7 +459,11 @@ public class CivicPlanService {
                             ? new CivicPlanDto.CibleRef(prochaine.id(), prochaine.code(),
                                     prochaine.label(), prochaine.grain())
                             : null;
-            CivicThemeState etat = etatDuTheme(calcul.resultat(), theme.getId());
+            // 🛑 Un examen blanc du theme (ou sa part d'un examen global) prime
+            // sur le diagnostic, qui n'est qu'un repli (2026-09-28) : c'est
+            // l'etat que l'ecran de progression du theme sert aussi.
+            CivicThemeState etat = parExamens.getOrDefault(
+                    theme.getId(), etatDuTheme(calcul.resultat(), theme.getId()));
             lignes.add(new CivicPlanDto.ThemeLigne(
                     theme.getId(),
                     theme.getCode(),
@@ -498,6 +505,13 @@ public class CivicPlanService {
      * n'existe tant que le plan dérivé n'a pas de mesure — pas parce qu'on les
      * aurait forcés.
      *
+     * <p>🛑 <b>Un examen blanc mesure le thème</b> (demande du propriétaire,
+     * 2026-09-28) : le dernier examen du thème, sinon sa part du dernier examen
+     * civique global, prime sur le diagnostic
+     * ({@link EtatThemeCiviqueParExamens}, la même lecture que l'écran de
+     * progression du thème). L'Accueil ne disait « À évaluer » après un examen
+     * de thème passé que parce qu'il ne lisait que le diagnostic.
+     *
      * <p>⚠️ Remplace {@code compteurs(userId)} (2026-09-24) : ses compteurs
      * « travaillées / maîtrisées / grain » n'étaient lus que par l'ancien écran
      * « Votre progression », supprimé.
@@ -506,14 +520,24 @@ public class CivicPlanService {
     public List<CivicPlanDto.ThemeLigne> themesAccueil(UUID userId) {
         Calcul calcul = calculer(userId);
         if (!calcul.disponible()) {
-            // Meme constructeur de lignes, sur un calcul SANS mesure : aucune
-            // cible, aucun resultat — donc NON_EVALUE et zero partout.
+            // Meme constructeur de lignes, sur un calcul SANS diagnostic : aucune
+            // cible, donc zero partout ; NON_EVALUE sauf pour un theme qu'un
+            // examen blanc a mesure.
             Calcul sansMesure = new Calcul(false, calcul.mention(), null, List.of(),
                     themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE),
                     Map.of(), planManager.taggageParTheme(), calcul.maintenant());
-            return themeLignes(sansMesure, null);
+            return themeLignes(sansMesure, null, etatsParExamens(userId, sansMesure.themes()));
         }
-        return themeLignes(calcul, prochaine(proposables(calcul.cibles())));
+        return themeLignes(calcul, prochaine(proposables(calcul.cibles())),
+                etatsParExamens(userId, calcul.themes()));
+    }
+
+    /**
+     * L'etat des themes mesures par un examen blanc, lu chez son unique
+     * autorite. Un theme absent n'a ete mesure par aucun examen.
+     */
+    private Map<UUID, CivicThemeState> etatsParExamens(UUID userId, List<Theme> themes) {
+        return etatThemeParExamens.etats(userId, themes.stream().map(Theme::getId).toList());
     }
 
     // ------------------------------------------------------------------------

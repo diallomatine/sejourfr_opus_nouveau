@@ -114,7 +114,7 @@ public class ProgressionExamensService {
     private final TcfProfileService tcfProfileService;
     private final ProductionAccessService productionAccessService;
     private final ExamenBlancAccessService examenBlancAccess;
-    private final CivicDiagnosticThemeResolver civicThemeResolver;
+    private final EtatThemeCiviqueParExamens etatThemeParExamens;
     private final ResumeExamensResolver resumeResolver;
     private final ProgressionEchelleResolver echelleResolver;
 
@@ -362,7 +362,8 @@ public class ProgressionExamensService {
                 ProgressionProvenance.EXAMEN_THEME);
         ProgressionResumeDto resume = resumeResolver.resumer(examens);
         // 🛑 D13 : l'état de CET écran est celui du dernier examen du thème, et
-        // la source est servie avec lui. L'Accueil garde le sien (diagnostic).
+        // la source est servie avec lui. L'Accueil lit le même depuis le
+        // 2026-09-28 (`EtatThemeCiviqueParExamens`), le diagnostic en repli.
         CivicThemeState etat = resume.dernier() == null ? null : resume.dernier().etat();
         return new ProgressionThemeDto(
                 theme.getId(), theme.getCode(), theme.getName(),
@@ -399,7 +400,8 @@ public class ProgressionExamensService {
                     a.getId(), ResumeExamensResolver.numero(i, examens.size()), a.getFinishedAt(),
                     bonnes == null ? null : BigDecimal.valueOf(bonnes), total,
                     null,
-                    bonnes == null ? null : civicThemeResolver.etat(bonnes, total),
+                    // L'état d'un examen : la même autorité que l'Accueil.
+                    etatThemeParExamens.etatDExamen(a, totalParDefaut),
                     bonnes == null ? null : bonnes >= seuil,
                     bonnes == null ? null : Math.max(0, seuil - bonnes),
                     bonnes == null ? null : CivicDiagnosticThemeResolver.taux(bonnes, total),
