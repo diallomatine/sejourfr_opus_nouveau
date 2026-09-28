@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Flame, Trophy } from "lucide-react";
-import { attemptApi, publicAttemptApi, publicThemeApi, themeApi } from "@/lib/api";
-import { handleStartFailure } from "@/lib/start-failure";
+import { attemptApi, publicThemeApi, themeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { themeSlug, resolveThemeRef } from "@/lib/themes";
 import {
@@ -17,7 +16,7 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
-import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
+import { useMockExamLauncher } from "@/app/_components/hub/MockExamLauncher";
 import { examSlotGrid } from "@/lib/exam-slots";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -45,7 +44,7 @@ const SLOTS = 20;
 export default function CiviqueThemeExamsPage() {
   const params = useParams<{ theme: string }>();
   const themeRef = params?.theme ?? "";
-  const router = useRouter();
+  const launchExam = useMockExamLauncher();
   const { user, status } = useAuth();
   const isGuest = status === "guest";
 
@@ -53,12 +52,8 @@ export default function CiviqueThemeExamsPage() {
   const [notFound, setNotFound] = useState(false);
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
   const [slotLocks, setSlotLocks] = useState<boolean[] | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [guestGateOpen, setGuestGateOpen] = useState(false);
-  const [introOpen, setIntroOpen] = useState(false);
-  const [pendingSlot, setPendingSlot] = useState(1);
 
   useEffect(() => {
     if (status === "loading" || !themeRef) return;
@@ -103,42 +98,19 @@ export default function CiviqueThemeExamsPage() {
   // Grille indexée par slot : refaire l'examen N met à jour la case N.
   const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
 
+  /* 🛑 **Le lanceur partagé** (`useMockExamLauncher`) : feuille
+     d'information, puis démarrage au clic — le même que l'étape « Examen
+     blanc » d'un bloc du Plan civique. L'offre reste celle de cet écran. */
   function requestStart(slot: number) {
-    if (starting || !theme) return;
-    setError(null);
-    setPendingSlot(slot);
-    setIntroOpen(true);
-  }
-
-  async function launch() {
-    if (starting || !theme) return;
-    setError(null);
-    setStarting(true);
-    try {
-      const body = {
-        type: "MOCK_EXAM" as const,
-        module: "CIVIQUE" as const,
-        themeId: theme.id,
-        slotNumber: pendingSlot,
-      };
-      // Visiteur : voie publique (attempt anonyme), jamais l'API authentifiée
-      // — même montage que l'examen 1 d'une épreuve CO / CE.
-      const a = isGuest
-        ? await publicAttemptApi.startDemo(body)
-        : await attemptApi.start(body);
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      handleStartFailure(e, {
-        onPaywall: () => {
-          setIntroOpen(false);
-          if (isGuest) setGuestGateOpen(true);
-          else setPaywallOpen(true);
-        },
-        onMessage: setError,
-        fallbackMessage: "Impossible de démarrer l'examen.",
-      });
-      setStarting(false);
-    }
+    if (!theme) return;
+    launchExam({
+      kind: "CIVIQUE",
+      themeId: theme.id,
+      themeName: theme.name,
+      slotNumber: slot,
+      guest: isGuest,
+      onPaywall: () => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true)),
+    });
   }
 
   const done = Math.min(doneCount, SLOTS);
@@ -195,36 +167,14 @@ export default function CiviqueThemeExamsPage() {
           />
         </div>
 
-        {error && <div className={detail.error}>{error}</div>}
-
         <ExamsGrid
           count={SLOTS}
           exams={bySlot}
           slotLocks={slotLocks ?? []}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
-          starting={starting}
+          starting={false}
           onStart={requestStart}
           onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
-        />
-        <ExamIntroSheet
-          open={introOpen}
-          eyebrow={`Examen blanc · ${theme?.name ?? "Civique"}`}
-          title={`${theme?.name ?? "Examen civique"} en conditions réelles`}
-          subtitle="Avant de commencer, voici comment se déroule l'examen."
-          facts={[
-            { label: "questions du thème", value: "20" },
-            { label: "en conditions réelles", value: "20 min" },
-            { label: "seuil de réussite", value: "16/20", highlight: true },
-          ]}
-          tips={[
-            "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
-            "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
-            "Pas de retour en arrière : une réponse validée est définitive, comme le jour J.",
-          ]}
-          loading={starting}
-          error={error}
-          onConfirm={() => void launch()}
-          onClose={() => setIntroOpen(false)}
         />
         <PaywallSheet ctaLocation="MOCK_EXAM" screen="examens_civique" open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
         <GuestGateSheet

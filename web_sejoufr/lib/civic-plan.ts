@@ -246,6 +246,10 @@ export function civicNowCard(
            ici pour que le bouton « Travailler » aboutisse au même écran que la
            ligne du cycle. `DEBLOQUER` reste prioritaire. */
         const serie = journeyEtapeASeries(etape);
+        /* 🛑 **Un examen de bloc se sous-titre par son ACTION** (« Examen
+           blanc »), comme la carte TCF : le titre porte déjà le thème, qui
+           s'affichait deux fois. La méta, qui disait la même chose, se tait. */
+        const examen = etape.type === "SECTION_EXAM";
         return {
             geste: verrou
                 ? "DEBLOQUER"
@@ -255,13 +259,15 @@ export function civicNowCard(
             etapeHref: serie ? journeyEtapeHref(etape.id, "CIVIQUE") : null,
             source: resoluble ? {kind: "UNITE", code: unite.code} : null,
             title: journeyStepTitle(etape),
-            subtitle: etape.bloc?.label ?? null,
+            subtitle: examen
+                ? journeyStepSubtitle(etape) ?? null
+                : etape.bloc?.label ?? null,
             badge: etape.locked ? JOURNEY_LOCKED_BADGE : null,
             objectiveLabel: null,
             objective: null,
             /* `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche
                alors aucune méta plutôt qu'une ligne vide. */
-            meta: journeyStepSubtitle(etape) ?? null,
+            meta: examen ? null : journeyStepSubtitle(etape) ?? null,
             cta: verrou ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA,
             locked: etape.locked,
         };

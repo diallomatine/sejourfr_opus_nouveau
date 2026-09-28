@@ -5,22 +5,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/api/api_client.dart';
-import '../../core/api/repositories.dart';
-import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/selected_module.dart';
-import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../tcf_production/widgets/exam_filter_chips.dart';
 import '../tcf_production/widgets/exam_progress_card.dart';
 import '../tcf_production/widgets/exams_error_view.dart';
 import '../tcf_production/widgets/flag_badge.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
-import 'civique_exam_briefing_sheet.dart';
+import 'civique_theme_exam_launcher.dart';
 import 'civique_hub_data.dart';
 import 'widgets/exam_done_sheet.dart';
 import 'widgets/civique_exams/civique_exam_slot_builder.dart';
@@ -69,31 +64,6 @@ class _CiviqueThemeExamsScreenState
           ?.isLocked(slot) ??
       true;
 
-  Future<void> _startExam(ThemeDto theme, {required int slotNumber}) async {
-    if (_starting) return;
-    setState(() => _starting = true);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
-    try {
-      final attempt = await ref.read(attemptsRepositoryProvider).start(
-            StartAttemptRequest(
-              type: AttemptType.mockExam,
-              module: AppModule.civique,
-              themeId: theme.id,
-              slotNumber: slotNumber,
-            ),
-          );
-      if (!mounted) return;
-      ref.invalidate(civiqueThemeExamsHistoryProvider(theme.id));
-      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
-    } catch (e) {
-      if (!mounted) return;
-      showPaywallOrError(context, e,
-          ctaLocation: AnalyticsCtaLocation.mockExam);
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
-  }
-
   void _openBriefing(ThemeDto theme, {required int slotNumber}) {
     if (_starting) return;
     if (_isLocked(slotNumber)) {
@@ -104,10 +74,15 @@ class _CiviqueThemeExamsScreenState
       );
       return;
     }
-    showCiviqueThemeExamBriefingSheet(
+    launchCiviqueThemeExam(
       context,
+      ref,
+      themeId: theme.id,
       themeName: theme.name,
-      onStart: () => _startExam(theme, slotNumber: slotNumber),
+      slotNumber: slotNumber,
+      onBusy: (busy) {
+        if (mounted) setState(() => _starting = busy);
+      },
     );
   }
 

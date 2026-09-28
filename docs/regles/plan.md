@@ -2437,8 +2437,16 @@ cumulés ⇒ `PROGRESSION` (la condition à remplir d'abord). Une étape d'entra
 verrouillée est toujours `ACCESS`. Un front ne classe **jamais** le verrou d'après
 `etapesRestantes`. ⚠️ **« En cours / Reprendre » n'existe pas** : aucun champ ne sert une
 tentative d'examen en cours sur l'étape. L'achèvement de cette étape : § « L'achèvement de
-l'étape d'examen d'un bloc » plus haut. ⚠️ **Le cycle CIVIQUE** reçoit le même rendu, **sans**
-bouton : il n'a aucun lanceur d'examen de thème depuis le cycle (A86), seul le verrou est dit.
+l'étape d'examen d'un bloc » plus haut. 🛑 **Le cycle CIVIQUE reçoit le même rendu, bouton
+compris** (2026-09-28, révoque le « sans bouton » d'A86) : l'étape d'examen d'un thème
+**sert** son action, `JourneyStepDto.examenTheme` (`JourneyThemeExamDto {themeId,
+slotNumber}`, créneau `ExamenBlancAccessService.CRENEAU_OFFERT` ; `null` hors examen de bloc
+civique et sur un cycle clos). Elle arrivait sans action (`assessment` est une table
+d'épreuves TCF), donc sans « Commencer » — un cul-de-sac sur le premier cycle d'examens
+(D-69 ter). Les fronts relaient thème et créneau au lanceur **partagé** avec la grille du
+thème : web `useMockExamLauncher` (`kind: "CIVIQUE"`) ⇄ mobile `launchCiviqueThemeExam`. Sur
+la carte « À faire maintenant », une étape d'examen civique se sous-titre « Examen blanc »
+(comme le TCF) au lieu de répéter le thème.
 
 ### Trois statuts de cycle, et un seul est persisté
 

@@ -28,6 +28,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ExamenBlancAccessService {
 
+    /**
+     * <b>Le créneau offert</b> d'une grille d'examens blancs QCM : ouvert à tout
+     * compte comme à un visiteur, et rejouable à volonté. Public pour que
+     * l'étape d'examen d'un bloc civique le serve sans le recopier.
+     */
+    public static final int CRENEAU_OFFERT = 1;
+
     private final SubscriptionService subscriptionService;
     private final ExamTemplateManager examTemplateManager;
 
@@ -45,7 +52,7 @@ public class ExamenBlancAccessService {
      */
     @Transactional(readOnly = true)
     public boolean isExamenBlancVerrouille(UUID userId, Module module, int slot) {
-        if (slot <= 1) return false;
+        if (slot <= CRENEAU_OFFERT) return false;
         return !aAcces(userId, module);
     }
 

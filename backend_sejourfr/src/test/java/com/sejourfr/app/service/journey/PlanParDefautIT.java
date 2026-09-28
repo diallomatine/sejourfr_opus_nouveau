@@ -161,6 +161,48 @@ class PlanParDefautIT extends AbstractIntegrationTest {
         assertThat(preparationService.lire(user.getId()).civique().planDisponible()).isTrue();
     }
 
+    /**
+     * 🛑 <b>L'etape d'examen d'un theme SERT son action</b> (2026-09-28) : elle
+     * arrivait sans rien a lancer, et les deux fronts la rendaient sans bouton
+     * « Commencer » — un cul-de-sac sur le premier cycle d'examens. Le theme
+     * servi est celui du bloc, le creneau est l'offert (jamais le paywall), et
+     * il demarre bien l'examen de theme pour un compte GRATUIT. Le TCF garde
+     * son {@code assessment}, sans examen de theme.
+     */
+    @Test
+    @DisplayName("Cycle d'examens civique : chaque etape d'examen sert son examen de theme, "
+            + "lancable par un compte gratuit ; le TCF n'en sert aucun")
+    void lEtapeDExamenCiviqueServeSonExamenDeTheme() {
+        User user = candidat();
+
+        JourneyDto civique = journeyService.lire(user.getId(), Module.CIVIQUE);
+
+        assertThat(civique.blocs()).isNotEmpty().allSatisfy(bloc -> {
+            var cible = bloc.exam().examenTheme();
+            assertThat(cible).as("examen de theme servi pour %s", bloc.bloc().code()).isNotNull();
+            assertThat(cible.slotNumber())
+                    .isEqualTo(com.sejourfr.app.service.examenblanc.ExamenBlancAccessService.CRENEAU_OFFERT);
+            assertThat(themeManager.findById(cible.themeId()))
+                    .get().extracting(com.sejourfr.app.entity.Theme::getCode)
+                    .isEqualTo(bloc.bloc().code());
+            assertThat(bloc.exam().assessment()).isNull();
+            assertThat(bloc.exam().locked()).isFalse();
+        });
+        assertThat(civique.current().examenTheme()).isNotNull();
+
+        var cible = civique.blocs().getFirst().exam().examenTheme();
+        var lance = attemptService.start(user.getId(), new com.sejourfr.app.dto.StartAttemptRequest(
+                com.sejourfr.app.enums.AttemptType.MOCK_EXAM, Module.CIVIQUE, null, cible.themeId(),
+                null, null, null, null, null, cible.slotNumber(), null));
+        assertThat(lance.themeId()).isEqualTo(cible.themeId());
+
+        JourneyDto tcf = journeyService.lire(user.getId(), Module.TCF);
+        assertThat(tcf.blocs()).allSatisfy(bloc -> {
+            assertThat(bloc.exam().examenTheme()).isNull();
+            assertThat(bloc.exam().assessment()).isNotNull();
+        });
+    }
+
     @Test
     @DisplayName("Compte existant sans parcours : cree a la premiere lecture, UNE fois, meme sous "
             + "quatre lectures concurrentes — et les lectures suivantes ne recreent rien")

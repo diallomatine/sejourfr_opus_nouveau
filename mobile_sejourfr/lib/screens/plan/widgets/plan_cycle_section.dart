@@ -11,6 +11,7 @@ import '../../../core/models/journey_models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
+import '../../module_detail/civique_theme_exam_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
@@ -285,14 +286,15 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// 🛑 **Le geste d'achat n'apparaît que sur un verrou d'ACCÈS** : un verrou de
   /// progression (D-15) ne se lève pas avec un pass.
   ///
-  /// ⚠️ **Le cycle civique n'a pas de lanceur d'examen de thème** (A86) : son
-  /// étape d'examen ne porte donc pas de bouton, qui serait inactif sans
-  /// raison. Le verrou, lui, reste dit.
+  /// 🛑 **En civique, le bouton existe dès que l'examen de thème est SERVI**
+  /// (`examenTheme`, 2026-09-28 — révoque le « sans bouton » d'A86). Le verrou,
+  /// lui, reste dit dans tous les cas.
   Widget _examen(JourneyStep exam) {
     // 🛑 **Passé ⇒ la lecture de « Mes cycles »** (D-69 ter) : sa date et son
     // résultat servi, jamais un « Fait » muet.
     if (journeyExamDone(exam)) return JourneyExamLu(exam: exam);
-    final lancable = widget.module != AppModule.civique;
+    final lancable =
+        widget.module != AppModule.civique || exam.examenTheme != null;
     final action = lancable ? _actionDe(exam) : null;
     final achat = action == null &&
             (exam.locked
@@ -439,9 +441,22 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     if (journeyEtapeASeries(etape)) {
       return () => context.push(AppRoutes.planEtapePath(etape.id));
     }
+    // 🛑 **L'examen d'un bloc CIVIQUE lance l'examen de thème SERVI**
+    // (`examenTheme`, 2026-09-28) — par le lanceur de la grille du thème :
+    // feuille d'information, puis démarrage. Le thème et le créneau viennent
+    // du serveur, jamais d'ici.
+    final examenTheme = etape.examenTheme;
+    if (examenTheme != null) {
+      return () => unawaited(launchCiviqueThemeExam(
+            context,
+            ref,
+            themeId: examenTheme.themeId,
+            themeName: etape.bloc?.label ?? kJourneyExamTitle,
+            slotNumber: examenTheme.slotNumber,
+          ));
+    }
     // 🛑 **Le Plan TCF n'a rien à dire d'une étape civique** (A86) : hors étape
-    // de séries, une ligne civique n'a pas de geste — l'examen d'un bloc se
-    // lance depuis son propre encart.
+    // de séries et examen de thème, une ligne civique n'a pas de geste.
     if (widget.module == AppModule.civique) return null;
     final plan = widget.plan;
     if (plan == null) return null;

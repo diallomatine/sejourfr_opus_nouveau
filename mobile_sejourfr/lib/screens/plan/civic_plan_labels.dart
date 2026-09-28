@@ -297,6 +297,10 @@ CivicNowCard? civicNowCard(
     // « Travailler » aboutisse au même écran que la ligne du cycle.
     // `debloquer` reste prioritaire.
     final serie = journeyEtapeASeries(etape);
+    // 🛑 **Un examen de bloc se sous-titre par son ACTION** (« Examen blanc »),
+    // comme la carte TCF : le titre porte déjà le thème, qui s'affichait deux
+    // fois. La méta, qui disait la même chose, se tait.
+    final examen = etape.type == JourneyStepType.sectionExam;
     return CivicNowCard(
       geste: verrou
           ? PlanNowGeste.debloquer
@@ -308,13 +312,13 @@ CivicNowCard? civicNowCard(
       etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
       source: resoluble ? CivicNowUnite(unite.code) : null,
       title: journeyStepTitle(etape),
-      subtitle: etape.bloc?.label,
+      subtitle: examen ? journeyStepSubtitle(etape) : etape.bloc?.label,
       badge: etape.locked ? kJourneyLockedBadge : null,
       objectiveLabel: null,
       objective: null,
       // `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche alors
       // aucune méta plutôt qu'une ligne vide.
-      meta: journeyStepSubtitle(etape),
+      meta: examen ? null : journeyStepSubtitle(etape),
       cta: verrou ? kCivicPlanLockedCta : kCivicPlanWorkCta,
       locked: etape.locked,
     );

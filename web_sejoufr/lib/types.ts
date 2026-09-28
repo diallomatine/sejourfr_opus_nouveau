@@ -4988,6 +4988,19 @@ export interface JourneyStepDto {
      * consultation d'un cycle clos : `null` dans le Plan, et `null` = inconnu.
      */
     resultat?: JourneyExamResultDto | null;
+    /**
+     * **L'examen blanc de thème que cette étape LANCE** — servi sur la seule
+     * étape d'examen d'un bloc **civique** (le TCF porte `assessment`). Le
+     * front relaie le thème et le créneau, il ne les déduit jamais. `null` hors
+     * de ce cas, et absent sur un backend antérieur au champ.
+     */
+    examenTheme?: JourneyThemeExamDto | null;
+}
+
+/** Miroir de `JourneyThemeExamDto` (Java). */
+export interface JourneyThemeExamDto {
+    themeId: string;
+    slotNumber: number;
 }
 
 /** Miroir de `JourneyExamResultDto` (Java). `null` = inconnu, jamais mauvais. */

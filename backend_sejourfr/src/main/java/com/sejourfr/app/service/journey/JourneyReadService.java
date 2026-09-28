@@ -26,10 +26,12 @@ import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepSeriesManager;
 import com.sejourfr.app.manager.ThemeManager;
+import com.sejourfr.app.dto.JourneyThemeExamDto;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
@@ -393,7 +395,8 @@ public class JourneyReadService {
                 null,
                 null,
                 step.getClosedAt(),
-                resultat);
+                resultat,
+                null);
     }
 
     private int numeroDuCycle(Journey journey) {
@@ -1272,7 +1275,8 @@ public class JourneyReadService {
                 step.getClosedAt(),
                 // Le resultat d'un examen CLOS, servi aussi sur le Plan courant
                 // depuis D-69 ter (null = inconnu : « Passé », sans niveau).
-                resultats.get(step.getId()));
+                resultats.get(step.getId()),
+                examenThemeDe(step));
     }
 
     /**
@@ -1336,10 +1340,25 @@ public class JourneyReadService {
      */
     private PlanDomainAssessmentDto mesureDe(JourneyStep step) {
         if (step.getType() != JourneyStepType.SECTION_EXAM) return null;
-        // ⚠️ AXE : CHEMIN TCF (DETTE-A1). `pour(null)` rend `null`, donc un
-        // examen de theme civique arrive SANS action a l'ecran. Pas un NPE, un
-        // trou muet : l'action d'un examen de theme se sert en P8.7, avec les
-        // ecrans. `CivicExamFormat` en porte deja le format (20 questions).
+        // Axe TCF seulement : `pour(null)` rend `null` sur un examen de theme
+        // civique, dont l'action est servie a part (`examenThemeDe`).
         return assessmentResolver.pour(step.getExamType());
+    }
+
+    /**
+     * <b>L'examen blanc de theme que lance l'etape d'examen d'un bloc
+     * civique</b>, ou {@code null} ailleurs.
+     *
+     * <p>🛑 Il fermait la DETTE-A1 : l'etape d'examen d'un theme arrivait sans
+     * action, et les deux fronts la rendaient sans bouton (2026-09-28, premier
+     * cycle d'examens D-69 ter). Le creneau est celui de l'autorite du verrou
+     * ({@link ExamenBlancAccessService#CRENEAU_OFFERT}) — offert et rejouable,
+     * comme le slot TCF de {@code PlanDomainAssessmentResolver}. <b>Zero
+     * requete</b> : le theme est deja charge par {@code blocRef()}.
+     */
+    private static JourneyThemeExamDto examenThemeDe(JourneyStep step) {
+        if (step.getType() != JourneyStepType.SECTION_EXAM || step.getTheme() == null) return null;
+        return new JourneyThemeExamDto(
+                step.getTheme().getId(), ExamenBlancAccessService.CRENEAU_OFFERT);
     }
 }

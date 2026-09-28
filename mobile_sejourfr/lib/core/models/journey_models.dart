@@ -399,6 +399,7 @@ class JourneyStep {
     this.exercise,
     this.closedAt,
     this.resultat,
+    this.examenTheme,
   });
 
   final String id;
@@ -503,6 +504,13 @@ class JourneyStep {
   /// courant. `null` = inconnu — jamais un niveau bas.
   final JourneyExamResult? resultat;
 
+  /// **L'examen blanc de thème que cette étape LANCE** — servi sur la seule
+  /// étape d'examen d'un bloc **civique** (le TCF porte [assessment]). Le front
+  /// relaie le thème et le créneau, il ne les déduit jamais. `null` hors de ce
+  /// cas, et sur un backend antérieur au champ. Miroir web :
+  /// `JourneyStepDto.examenTheme`.
+  final JourneyThemeExam? examenTheme;
+
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(
         id: json['id'] as String,
         type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
@@ -540,6 +548,26 @@ class JourneyStep {
             ? null
             : JourneyExamResult.fromJson(
                 json['resultat'] as Map<String, dynamic>),
+        examenTheme: json['examenTheme'] == null
+            ? null
+            : JourneyThemeExam.fromJson(
+                json['examenTheme'] as Map<String, dynamic>),
+      );
+}
+
+/// **L'examen blanc de thème civique qu'une étape lance** — miroir de
+/// `JourneyThemeExamDto`. Le créneau est celui que sert l'autorité du verrou
+/// (l'offert), jamais un `1` décidé ici.
+class JourneyThemeExam {
+  const JourneyThemeExam({required this.themeId, required this.slotNumber});
+
+  final String themeId;
+  final int slotNumber;
+
+  factory JourneyThemeExam.fromJson(Map<String, dynamic> json) =>
+      JourneyThemeExam(
+        themeId: json['themeId'] as String,
+        slotNumber: (json['slotNumber'] as num).toInt(),
       );
 }
 

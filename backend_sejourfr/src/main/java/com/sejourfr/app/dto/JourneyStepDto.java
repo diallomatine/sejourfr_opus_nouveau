@@ -165,7 +165,18 @@ public record JourneyStepDto(
          * clos</b> : {@code null} dans le Plan courant, qui ne le lit pas, et
          * {@code null} = inconnu partout ailleurs.
          */
-        JourneyExamResultDto resultat
+        JourneyExamResultDto resultat,
+        /**
+         * <b>L'examen blanc de theme que cette etape LANCE</b> — non
+         * {@code null} pour les seules etapes {@code SECTION_EXAM} d'un bloc
+         * <b>civique</b> (le TCF porte {@link #assessment()}).
+         *
+         * <p>🛑 Meme raisonnement qu'{@code assessment} (A24) : sans action
+         * servie, l'etape d'examen d'un theme n'avait aucun bouton. ⚠️
+         * {@link #locked()} reste l'autorite du verrou de l'etape.
+         * {@code null} sur un cycle clos (consultation, aucune action).
+         */
+        JourneyThemeExamDto examenTheme
 ) {
 
     /**

@@ -76,6 +76,7 @@ import {
     Stack,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
+import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {ClosedExamStep} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
@@ -211,6 +212,10 @@ function CycleBody({journey, plan, module}: {
     const routerCycle = useRouter();
     const exercises = usePlanExercise();
     const assessments = usePlanAssessment();
+    const launchExam = useMockExamLauncher();
+    /* Le 403 d'un examen de thème (garde de dernier recours : le créneau servi
+       est l'offert) ouvre la même offre que le reste du cycle. */
+    const [examPaywallOpen, setExamPaywallOpen] = useState(false);
     const busy = exercises.starting || assessments.starting !== null;
 
 
@@ -248,9 +253,23 @@ function CycleBody({journey, plan, module}: {
             if (journeyEtapeASeries(etape)) {
                 return () => routerCycle.push(journeyEtapeHref(etape.id, module));
             }
+            /* 🛑 **L'examen d'un bloc CIVIQUE lance l'examen de thème SERVI**
+               (`examenTheme`, 2026-09-28) — par le lanceur partagé de la grille
+               du thème : feuille d'information, puis démarrage. Le thème et le
+               créneau viennent du serveur, jamais d'ici. */
+            const examenTheme = etape.examenTheme;
+            if (examenTheme) {
+                return () => launchExam({
+                    kind: "CIVIQUE",
+                    themeId: examenTheme.themeId,
+                    themeName: etape.bloc?.label ?? JOURNEY_EXAM_TITLE,
+                    slotNumber: examenTheme.slotNumber,
+                    onPaywall: () => setExamPaywallOpen(true),
+                });
+            }
             /* 🛑 **Le Plan TCF n'a rien à dire d'une étape civique** (A86) : hors
-               étape de séries, une ligne civique n'a pas de geste — l'examen d'un
-               bloc se lance depuis son propre encart. */
+               étape de séries et examen de thème, une ligne civique n'a pas de
+               geste. */
             if (module === "CIVIQUE") return undefined;
             if (!plan) return undefined;
             const action = planStepAction(plan, etape);
@@ -267,7 +286,7 @@ function CycleBody({journey, plan, module}: {
             const exercise = action.exercise!;
             return () => void exercises.start(exercise);
         },
-        [assessments, busy, exercises, module, plan, routerCycle],
+        [assessments, busy, exercises, launchExam, module, plan, routerCycle],
     );
 
     /**
@@ -397,7 +416,13 @@ function CycleBody({journey, plan, module}: {
                                     >
                                         <BlocBody
                                             bloc={bloc}
-                                            examenLancable={module !== "CIVIQUE"}
+                                            /* 🛑 Un examen de thème civique
+                                               est lançable dès que son action
+                                               est SERVIE (`examenTheme`). */
+                                            examenLancable={
+                                                module !== "CIVIQUE"
+                                                || Boolean(bloc.exam?.examenTheme)
+                                            }
                                             actionDe={actionDe}
                                             gesteDe={gesteDe}
                                             niveauDe={niveauDe}
@@ -448,10 +473,11 @@ function CycleBody({journey, plan, module}: {
                 screen="plan"
                 module={passOffre}
                 journeyId={journey.journeyId}
-                open={exercises.paywallOpen || assessments.paywallOpen}
+                open={exercises.paywallOpen || assessments.paywallOpen || examPaywallOpen}
                 onClose={() => {
                     exercises.closePaywall();
                     assessments.closePaywall();
+                    setExamPaywallOpen(false);
                 }}
             />
         </>
@@ -472,9 +498,10 @@ function BlocBody({
     niveauDe,
 }: {
     bloc: JourneyBlocDto;
-    /** ⚠️ **Le cycle civique n'a pas de lanceur d'examen de thème** (A86) : son
-     *  étape d'examen ne porte donc pas de bouton « Commencer », qui serait
-     *  inactif sans raison. Le verrou, lui, reste dit. */
+    /** L'étape d'examen porte-t-elle un bouton « Commencer » ? Toujours en
+     *  TCF ; en civique, dès que l'examen de thème est **servi**
+     *  (`examenTheme`, 2026-09-28 — révoque le « sans bouton » d'A86). Le
+     *  verrou, lui, reste dit dans tous les cas. */
     examenLancable: boolean;
     /** Le lancement d'une étape **ouverte** — c'est tout ce dont l'encart
      *  d'examen a besoin : verrouillé, il reste inerte et sa phrase servie dit

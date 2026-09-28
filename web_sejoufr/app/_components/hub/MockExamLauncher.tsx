@@ -41,16 +41,44 @@ export type MockExamLaunch =
       /** Appelé avec l'attempt créé, avant la navigation (marque d'analytics
        *  posée par la mesure d'un domaine). */
       onStarted?: (attemptId: string) => void;
+    }
+  | {
+      /** L'examen blanc d'un **thème civique** (20 questions du thème) — la
+       *  grille du thème et l'étape d'examen d'un bloc du Plan civique, dont le
+       *  thème et le créneau sont servis (`JourneyStepDto.examenTheme`). */
+      kind: "CIVIQUE";
+      themeId: string;
+      /** L'intitulé du thème, tel qu'il est servi. */
+      themeName: string;
+      slotNumber: number;
+      /** Visiteur : voie publique (attempt anonyme), jamais l'API authentifiée. */
+      guest?: boolean;
+      onPaywall: () => void;
     };
 
 type Launch = (request: MockExamLaunch) => void;
 
 const LauncherContext = createContext<Launch | null>(null);
 
+/** Ce que la feuille d'un examen de thème civique annonce. Miroir mobile :
+ *  `showCiviqueThemeExamBriefingSheet`. */
+const CIVIC_THEME_EXAM_FACTS = [
+  {label: "questions du thème", value: "20"},
+  {label: "en conditions réelles", value: "20 min"},
+  {label: "seuil de réussite", value: "16/20", highlight: true},
+];
+
+const CIVIC_THEME_EXAM_TIPS = [
+  "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
+  "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
+  "Pas de retour en arrière : une réponse validée est définitive, comme le jour J.",
+];
+
 /**
- * **LE point de lancement d'un examen blanc d'épreuve TCF du web** — miroir
- * de `launchProductionExam` (EE/EO, `production_exam_launcher.dart`) et de
- * `showModuleExamBriefingSheet` (CO/CE) côté mobile.
+ * **LE point de lancement d'un examen blanc d'épreuve TCF — et d'un thème
+ * civique — du web** — miroir de `launchProductionExam` (EE/EO,
+ * `production_exam_launcher.dart`), de `showModuleExamBriefingSheet` (CO/CE)
+ * et de `launchCiviqueThemeExam` (thème civique) côté mobile.
  *
  * Tous les points d'entrée passent par lui — la grille « Examens blancs » de
  * l'épreuve, l'Accueil, le Plan (jalon, étape « Examen blanc », séance),
@@ -109,6 +137,17 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
           slotNumber: request.slotNumber,
         });
         router.push(`${config.base}/session/${attempt.id}`);
+      } else if (request.kind === "CIVIQUE") {
+        const body = {
+          type: "MOCK_EXAM" as const,
+          module: "CIVIQUE" as const,
+          themeId: request.themeId,
+          slotNumber: request.slotNumber,
+        };
+        const attempt = request.guest
+          ? await publicAttemptApi.startDemo(body)
+          : await attemptApi.start(body);
+        router.push(`/sessions/${attempt.id}`);
       } else {
         const body = {
           type: "MOCK_EXAM" as const,
@@ -148,6 +187,21 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
         starting={starting}
         error={error}
         onStart={() => void start()}
+        onClose={close}
+      />
+    );
+  } else if (request?.kind === "CIVIQUE") {
+    sheet = (
+      <ExamIntroSheet
+        open
+        eyebrow={`Examen blanc · ${request.themeName}`}
+        title={`${request.themeName} en conditions réelles`}
+        subtitle="Avant de commencer, voici comment se déroule l'examen."
+        facts={CIVIC_THEME_EXAM_FACTS}
+        tips={CIVIC_THEME_EXAM_TIPS}
+        loading={starting}
+        error={error}
+        onConfirm={() => void start()}
         onClose={close}
       />
     );
