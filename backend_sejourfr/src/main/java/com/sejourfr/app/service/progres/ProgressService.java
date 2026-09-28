@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.progres;
 
+import com.sejourfr.app.dto.CivicPlanDto;
 import com.sejourfr.app.dto.ProgressDto;
 import com.sejourfr.app.dto.TcfLevelProfile;
 import com.sejourfr.app.entity.CivicDiagnosticSession;
@@ -149,8 +150,11 @@ public class ProgressService {
                                 CivicDiagnosticSession::getCompletedAt,
                                 Comparator.nullsLast(Comparator.naturalOrder())))
                         .toList();
+        // 🛑 Les themes sont servis MEME sans diagnostic clos (NON_EVALUE, a
+        // zero) : le pendant des 4 epreuves TCF, toujours servies.
+        List<CivicPlanDto.ThemeLigne> themes = civicPlanService.themesAccueil(userId);
         if (clos.isEmpty()) {
-            return new ProgressDto.Civique(List.of(), List.of());
+            return new ProgressDto.Civique(List.of(), themes);
         }
         List<ProgressDto.Score> historique = clos.stream()
                 .map(civicViewService::resultat)
@@ -158,6 +162,6 @@ public class ProgressService {
                         r.sessionId(), r.bonnes(), r.posees(),
                         r.seuilReussite(), r.formatQuestions(), r.completedAt()))
                 .toList();
-        return new ProgressDto.Civique(historique, civicPlanService.themesAccueil(userId));
+        return new ProgressDto.Civique(historique, themes);
     }
 }

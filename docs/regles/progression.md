@@ -635,6 +635,14 @@ tête entière disparaît** quand aucun examen civique n'a été passé : sans
 `historique`, le serveur ne sert ni score ni seuil — exactement comme le bandeau
 TCF disparaît sans démarche déclarée.
 
+🛑 **Les thèmes sont TOUJOURS servis, diagnostic fait ou non** (demande du
+propriétaire, 2026-09-28) — le pendant des 4 épreuves TCF toujours servies. Sans
+diagnostic civique clos, `CivicPlanService.themesAccueil` rend les 5 thèmes
+`NON_EVALUE`, compteurs à 0, par le **même** constructeur de lignes (`themeLignes`
+sur un calcul sans mesure). La liste servait vide et l'onglet « Examen civique » de
+l'Accueil n'affichait rien sous « À faire maintenant ». Aucun front ne change : ils
+rendaient déjà `NON_EVALUE` en « À évaluer », échelle vide.
+
 🛑 **Le rang n'est pas un code inventé** : un thème sert un `code`
 (`CIV_PRINCIPES`…), qui n'est pas une abréviation de deux lettres, et en
 fabriquer une serait inventer un libellé. On montre la **position dans la liste

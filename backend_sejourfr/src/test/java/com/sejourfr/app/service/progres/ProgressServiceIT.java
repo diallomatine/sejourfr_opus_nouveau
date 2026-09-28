@@ -82,7 +82,10 @@ class ProgressServiceIT extends AbstractIntegrationTest {
 
         assertThat(progres.tcf().epreuves()).allSatisfy(e -> assertThat(e.niveau()).isNull());
         assertThat(progres.civique().historique()).isEmpty();
-        assertThat(progres.civique().themes()).isEmpty();
+        // Les themes, eux, sont servis NON_EVALUE (cf. le test dedie plus bas).
+        assertThat(progres.civique().themes())
+                .extracting(com.sejourfr.app.dto.CivicPlanDto.ThemeLigne::etat)
+                .containsOnly(CivicThemeState.NON_EVALUE);
     }
 
     /**
@@ -241,12 +244,37 @@ class ProgressServiceIT extends AbstractIntegrationTest {
                 .doesNotContain(CivicThemeState.SOLIDE, CivicThemeState.NON_EVALUE);
     }
 
-    /** Sans diagnostic civique clos, on n'invente pas même une liste de thèmes. */
+    /**
+     * 🛑 <b>Sans diagnostic civique clos, TOUS les thèmes sont servis</b>
+     * (demande du propriétaire, 2026-09-28) : {@code NON_EVALUE}, à zéro, dans
+     * l'ordre d'affichage du module — le pendant des 4 épreuves TCF toujours
+     * servies. La liste servait vide, et l'Accueil civique d'un compte neuf
+     * n'affichait rien. 🛑 {@code NON_EVALUE} n'est pas {@code FAIBLE} : rien
+     * n'a été mesuré, rien n'a été raté.
+     */
     @Test
-    @DisplayName("Sans diagnostic civique, le détail par thème est vide")
-    void detailCiviqueVideSansDiagnostic() {
+    @DisplayName("🛑 Sans diagnostic civique, tous les thèmes sont servis NON_EVALUE, à zéro")
+    void themesCiviquesServisSansDiagnostic() {
         User user = testData.user();
 
-        assertThat(service.progres(user.getId()).civique().themes()).isEmpty();
+        ProgressDto.Civique civique = service.progres(user.getId()).civique();
+
+        assertThat(civique.historique()).isEmpty();
+        assertThat(civique.themes()).hasSize(5).allSatisfy(ligne -> {
+            assertThat(ligne.themeId()).isNotNull();
+            assertThat(ligne.code()).isNotBlank();
+            assertThat(ligne.label()).isNotBlank();
+            assertThat(ligne.etat()).isEqualTo(CivicThemeState.NON_EVALUE);
+            assertThat(ligne.grain()).isNotNull();
+            assertThat(ligne.cibles()).isZero();
+            assertThat(ligne.maitrisees()).isZero();
+            assertThat(ligne.travaillees()).isZero();
+            assertThat(ligne.enCours()).isNull();
+        });
+        // L'ordre d'affichage du module, le meme qu'apres un diagnostic.
+        assertThat(civique.themes())
+                .extracting(com.sejourfr.app.dto.CivicPlanDto.ThemeLigne::code)
+                .doesNotHaveDuplicates()
+                .allSatisfy(code -> assertThat(code).startsWith("CIV_"));
     }
 }

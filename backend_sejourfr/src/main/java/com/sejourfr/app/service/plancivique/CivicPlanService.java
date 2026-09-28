@@ -479,8 +479,16 @@ public class CivicPlanService {
      * <p>🛑 Aucun second calcul de maîtrise : on <b>réexpose</b> ce que le
      * moteur produit, sur le même {@code calculer(userId)}, par la même autorité
      * que l'écran Plan — deux lectures du même candidat ne peuvent donc pas
-     * rendre deux états différents pour un thème. Vide quand aucun diagnostic
-     * n'est clos : rien n'a été mesuré.
+     * rendre deux états différents pour un thème.
+     *
+     * <p>🛑 <b>Sans diagnostic clos, les thèmes sont TOUS servis, à zéro et
+     * {@code NON_EVALUE}</b> (demande du propriétaire, 2026-09-28) — le pendant
+     * exact des 4 épreuves TCF, toujours servies (2026-09-16). La liste servait
+     * vide, et l'Accueil civique d'un compte neuf n'avait rien sous « À faire
+     * maintenant ». {@code NON_EVALUE} n'est pas {@code FAIBLE} : rien n'a été
+     * mesuré, rien n'a été raté. Les compteurs valent 0 parce qu'aucune cible
+     * n'existe tant que le plan dérivé n'a pas de mesure — pas parce qu'on les
+     * aurait forcés.
      *
      * <p>⚠️ Remplace {@code compteurs(userId)} (2026-09-24) : ses compteurs
      * « travaillées / maîtrisées / grain » n'étaient lus que par l'ancien écran
@@ -489,7 +497,14 @@ public class CivicPlanService {
     @Transactional(readOnly = true)
     public List<CivicPlanDto.ThemeLigne> themesAccueil(UUID userId) {
         Calcul calcul = calculer(userId);
-        if (!calcul.disponible()) return List.of();
+        if (!calcul.disponible()) {
+            // Meme constructeur de lignes, sur un calcul SANS mesure : aucune
+            // cible, aucun resultat — donc NON_EVALUE et zero partout.
+            Calcul sansMesure = new Calcul(false, calcul.mention(), null, List.of(),
+                    themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE),
+                    Map.of(), planManager.taggageParTheme(), calcul.maintenant());
+            return themeLignes(sansMesure, null);
+        }
         return themeLignes(calcul, prochaine(proposables(calcul.cibles())));
     }
 
@@ -905,6 +920,8 @@ public class CivicPlanService {
     }
 
     private static CivicThemeState etatDuTheme(CivicDiagnosticResultDto resultat, UUID themeId) {
+        // Aucun diagnostic : rien n'est mesure, rien n'est rate.
+        if (resultat == null) return CivicThemeState.NON_EVALUE;
         return resultat.themes().stream()
                 .filter(t -> t.themeId().equals(themeId))
                 .map(CivicDiagnosticResultDto.ThemeResultat::etat)

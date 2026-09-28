@@ -316,14 +316,24 @@ class ProgressServiceTest {
                 .satisfies(sc -> assertThat(sc.bonnes()).isEqualTo(28));
     }
 
-    /** Aucun diagnostic civique clos : rien n'est inventé, pas même une liste. */
+    /**
+     * Aucun diagnostic civique clos : aucun score n'est inventé, mais les
+     * thèmes sont servis tels que le moteur les rend (NON_EVALUE, à zéro —
+     * demande du propriétaire, 2026-09-28).
+     */
     @Test
-    @DisplayName("Sans diagnostic civique clos, le detail par theme est vide")
-    void sansDiagnosticCiviqueAucunTheme() {
+    @DisplayName("Sans diagnostic civique clos, les themes sont servis quand meme, sans score")
+    void sansDiagnosticCiviqueLesThemesSontServis() {
+        when(civicPlanService.themesAccueil(userId)).thenReturn(List.of(
+                themeLigne("CIV_PRINCIPES", "Principes", CivicThemeState.NON_EVALUE)));
+
         ProgressDto.Civique civique = service.progres(userId).civique();
 
         assertThat(civique.historique()).isEmpty();
-        assertThat(civique.themes()).isEmpty();
+        assertThat(civique.themes())
+                .extracting(CivicPlanDto.ThemeLigne::etat)
+                .containsExactly(CivicThemeState.NON_EVALUE);
+        verify(civicPlanService, times(1)).themesAccueil(userId);
     }
 
     // ------------------------------------------------------------------------
