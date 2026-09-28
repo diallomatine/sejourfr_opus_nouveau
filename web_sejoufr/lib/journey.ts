@@ -552,6 +552,31 @@ export const JOURNEY_EXAM_NOTE_PROGRESSION = "Terminez d'abord les étapes ci-de
 /** Verrou `ACCESS` — suivi du lien « Débloquer mon plan → ». */
 export const JOURNEY_EXAM_NOTE_ACCESS = "Réservé à l'offre complète.";
 
+/** Ce que le lanceur d'examen de thème civique reçoit (`useMockExamLauncher`,
+ *  `kind: "CIVIQUE"`). */
+export interface JourneyExamenThemeLance {
+    themeId: string;
+    themeName: string;
+    slotNumber: number;
+}
+
+/**
+ * **L'examen de thème qu'une étape civique LANCE** — thème et créneau servis
+ * (`examenTheme`), l'intitulé du bloc pour la feuille d'information. `null`
+ * quand rien n'est servi. 🛑 Une seule lecture pour la ligne du cycle et la
+ * carte « À faire maintenant ». Miroir : `journeyExamenThemeLance`
+ * (`journey_labels.dart`).
+ */
+export function journeyExamenThemeLance(step: JourneyStepDto): JourneyExamenThemeLance | null {
+    const examen = step.examenTheme;
+    if (!examen) return null;
+    return {
+        themeId: examen.themeId,
+        themeName: step.bloc?.label ?? JOURNEY_EXAM_TITLE,
+        slotNumber: examen.slotNumber,
+    };
+}
+
 /** L'examen est-il passé ? Lu sur le statut **servi**. */
 export function journeyExamDone(exam: JourneyStepDto): boolean {
     return exam.status === "COMPLETED" || exam.status === "SKIPPED";

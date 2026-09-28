@@ -2446,7 +2446,11 @@ d'épreuves TCF), donc sans « Commencer » — un cul-de-sac sur le premier cyc
 (D-69 ter). Les fronts relaient thème et créneau au lanceur **partagé** avec la grille du
 thème : web `useMockExamLauncher` (`kind: "CIVIQUE"`) ⇄ mobile `launchCiviqueThemeExam`. Sur
 la carte « À faire maintenant », une étape d'examen civique se sous-titre « Examen blanc »
-(comme le TCF) au lieu de répéter le thème.
+(comme le TCF) au lieu de répéter le thème, et **porte son bouton** « Passer l'épreuve »
+(`journeyNowCta`, comme le TCF) qui lance ce même examen (`civicNowCard(…, lancerExamen)` ⇄
+`civicNowCard(lancerExamen:)`, champ `examen`, lecture unique `journeyExamenThemeLance`).
+🛑 Seul le Plan civique passe `lancerExamen` : l'Accueil et Réviser, qui n'ont pas ce lanceur,
+gardent le geste `AUCUN` sur un examen.
 
 ### Trois statuts de cycle, et un seul est persisté
 

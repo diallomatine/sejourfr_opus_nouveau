@@ -37,6 +37,7 @@ import {
     JOURNEY_EXAM_SUBTITLE,
     JOURNEY_EXAM_TITLE,
     journeyExamDone,
+    journeyExamenThemeLance,
     journeyExamNote,
     JOURNEY_RAIL_END_EYEBROW,
     JOURNEY_RAIL_END_TITLE,
@@ -257,13 +258,11 @@ function CycleBody({journey, plan, module}: {
                (`examenTheme`, 2026-09-28) — par le lanceur partagé de la grille
                du thème : feuille d'information, puis démarrage. Le thème et le
                créneau viennent du serveur, jamais d'ici. */
-            const examenTheme = etape.examenTheme;
+            const examenTheme = journeyExamenThemeLance(etape);
             if (examenTheme) {
                 return () => launchExam({
                     kind: "CIVIQUE",
-                    themeId: examenTheme.themeId,
-                    themeName: etape.bloc?.label ?? JOURNEY_EXAM_TITLE,
-                    slotNumber: examenTheme.slotNumber,
+                    ...examenTheme,
                     onPaywall: () => setExamPaywallOpen(true),
                 });
             }

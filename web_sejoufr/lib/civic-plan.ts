@@ -32,6 +32,9 @@ import {
     JOURNEY_LOCKED_BADGE,
     journeyEtapeASeries,
     journeyEtapeHref,
+    journeyExamenThemeLance,
+    journeyNowCta,
+    type JourneyExamenThemeLance,
     journeyStepSubtitle,
     journeyStepTitle,
 } from "./journey";
@@ -193,6 +196,12 @@ export interface CivicNowVue {
     etapeHref: string | null;
     /** `null` quand rien ne se résout — la carte nomme l'étape et s'arrête là. */
     source: CivicNowSource | null;
+    /**
+     * **L'examen de thème que le geste `LANCER` démarre** — servi par l'étape
+     * (`examenTheme`), `null` ailleurs. Seul un appelant qui a demandé
+     * `lancerExamen` le reçoit.
+     */
+    examen: JourneyExamenThemeLance | null;
     title: string;
     subtitle: string | null;
     badge: string | null;
@@ -231,13 +240,24 @@ export interface CivicNowVue {
  */
 export function civicNowCard(
     plan: CivicPlanDto,
-    {journey = null, free = false}: {journey?: JourneyDto | null; free?: boolean} = {},
+    {journey = null, free = false, lancerExamen = false}: {
+        journey?: JourneyDto | null;
+        free?: boolean;
+        /**
+         * 🛑 **L'appelant porte-t-il le lanceur d'examen de thème ?** Le Plan
+         * civique, oui : son étape d'examen reçoit alors le geste `LANCER` et
+         * l'examen servi. Les autres surfaces (Accueil, Réviser) gardent `AUCUN`
+         * sur un examen — elles n'ont pas ce lanceur.
+         */
+        lancerExamen?: boolean;
+    } = {},
 ): CivicNowVue | null {
     const etape = journey?.current ?? null;
     if (etape) {
         const unite = etape.unite;
-        /* 🛑 Un examen de bloc ne se lance pas d'ICI : il a son encart dans le
-           cycle. Rien ne se résout ⇒ aucun geste (garde-fou du 2026-09-17). */
+        /* 🛑 Une UNITÉ se résout sur une étape d'entraînement ; l'examen de
+           bloc, lui, se résout par `examenTheme` (plus bas). Rien ne se résout
+           ⇒ aucun geste (garde-fou du 2026-09-17). */
         const resoluble = unite !== null && etape.type === "TRAIN_SKILL";
         const verrou = free || etape.locked;
         /* 🛑 **UNE UNITÉ CIVIQUE OUVRE SON ÉCRAN, elle ne lance plus sa série**
@@ -250,14 +270,18 @@ export function civicNowCard(
            blanc »), comme la carte TCF : le titre porte déjà le thème, qui
            s'affichait deux fois. La méta, qui disait la même chose, se tait. */
         const examen = etape.type === "SECTION_EXAM";
+        /* 🛑 **L'examen de thème SERVI se lance d'ici** (2026-09-28), par le
+           même lanceur que la ligne du cycle — sur le Plan seulement. */
+        const examenLance = examen && lancerExamen ? journeyExamenThemeLance(etape) : null;
         return {
             geste: verrou
                 ? "DEBLOQUER"
                 : serie
                     ? "OUVRIR_ETAPE"
-                    : resoluble ? "LANCER" : "AUCUN",
+                    : resoluble || examenLance ? "LANCER" : "AUCUN",
             etapeHref: serie ? journeyEtapeHref(etape.id, "CIVIQUE") : null,
             source: resoluble ? {kind: "UNITE", code: unite.code} : null,
+            examen: examenLance,
             title: journeyStepTitle(etape),
             subtitle: examen
                 ? journeyStepSubtitle(etape) ?? null
@@ -268,7 +292,11 @@ export function civicNowCard(
             /* `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche
                alors aucune méta plutôt qu'une ligne vide. */
             meta: examen ? null : journeyStepSubtitle(etape) ?? null,
-            cta: verrou ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA,
+            /* Un examen se dit comme au TCF (`journeyNowCta` : « Passer
+               l'épreuve », « Débloquer cette étape ») — ce n'est pas une série. */
+            cta: examen
+                ? journeyNowCta(etape, verrou)
+                : verrou ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA,
             locked: etape.locked,
         };
     }
@@ -284,6 +312,7 @@ export function civicNowCard(
            pas d'écran d'étape, et son geste reste le lanceur de série. */
         etapeHref: null,
         source: {kind: "CIBLE", cible},
+        examen: null,
         title: cible.label,
         subtitle: cible.label === cible.themeLabel ? null : cible.themeLabel,
         badge: cible.locked ? JOURNEY_LOCKED_BADGE : null,

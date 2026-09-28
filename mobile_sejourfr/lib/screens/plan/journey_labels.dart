@@ -476,6 +476,35 @@ const String kJourneyExamNoteProgression =
 const String kJourneyExamNoteAccess = 'Réservé à l\'offre complète.';
 
 /// L'examen est-il passé ? Lu sur le statut **servi**.
+/// Ce que le lanceur d'examen de thème civique reçoit
+/// (`launchCiviqueThemeExam`).
+class JourneyExamenThemeLance {
+  const JourneyExamenThemeLance({
+    required this.themeId,
+    required this.themeName,
+    required this.slotNumber,
+  });
+
+  final String themeId;
+  final String themeName;
+  final int slotNumber;
+}
+
+/// **L'examen de thème qu'une étape civique LANCE** — thème et créneau servis
+/// (`examenTheme`), l'intitulé du bloc pour la feuille d'information. `null`
+/// quand rien n'est servi. 🛑 Une seule lecture pour la ligne du cycle et la
+/// carte « À faire maintenant ». Miroir : `journeyExamenThemeLance`
+/// (`lib/journey.ts`).
+JourneyExamenThemeLance? journeyExamenThemeLance(JourneyStep step) {
+  final examen = step.examenTheme;
+  if (examen == null) return null;
+  return JourneyExamenThemeLance(
+    themeId: examen.themeId,
+    themeName: step.bloc?.label ?? kJourneyExamTitle,
+    slotNumber: examen.slotNumber,
+  );
+}
+
 bool journeyExamDone(JourneyStep exam) =>
     exam.status == JourneyStepStatus.completed ||
     exam.status == JourneyStepStatus.skipped;

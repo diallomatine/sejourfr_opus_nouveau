@@ -445,13 +445,13 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     // (`examenTheme`, 2026-09-28) — par le lanceur de la grille du thème :
     // feuille d'information, puis démarrage. Le thème et le créneau viennent
     // du serveur, jamais d'ici.
-    final examenTheme = etape.examenTheme;
+    final examenTheme = journeyExamenThemeLance(etape);
     if (examenTheme != null) {
       return () => unawaited(launchCiviqueThemeExam(
             context,
             ref,
             themeId: examenTheme.themeId,
-            themeName: etape.bloc?.label ?? kJourneyExamTitle,
+            themeName: examenTheme.themeName,
             slotNumber: examenTheme.slotNumber,
           ));
     }

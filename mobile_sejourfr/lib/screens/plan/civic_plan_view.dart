@@ -19,6 +19,7 @@ import 'plan_labels.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/civic_diagnostic_models.dart';
 import '../diagnostic_civique/civic_diagnostic_labels.dart';
+import '../module_detail/civique_theme_exam_launcher.dart';
 import 'civic_plan_labels.dart';
 import 'civic_serie_launcher.dart';
 import 'civic_plan_provider.dart';
@@ -321,10 +322,16 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     Journey? parcours, {
     required bool free,
   }) {
-    final carte = civicNowCard(plan, journey: parcours, free: free);
+    final carte = civicNowCard(
+      plan,
+      journey: parcours,
+      free: free,
+      lancerExamen: true,
+    );
     if (carte == null) return const <Widget>[];
     final meta = carte.meta;
     final source = carte.source;
+    final examen = carte.examen;
     return <Widget>[
       SfSection(
         title: kCivicPlanNowTitle,
@@ -359,6 +366,19 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
                 onPressed: carte.etapeRoute == null
                     ? null
                     : () => context.push(carte.etapeRoute!),
+              ),
+            // 🛑 **L'étape d'examen lance l'examen de thème SERVI**
+            // ([CivicNowCard.examen]) — le même lanceur que la ligne du cycle.
+            PlanNowGeste.lancer when examen != null => SfButton(
+                label: carte.cta,
+                variant: SfButtonVariant.blue,
+                onPressed: () => unawaited(launchCiviqueThemeExam(
+                  context,
+                  ref,
+                  themeId: examen.themeId,
+                  themeName: examen.themeName,
+                  slotNumber: examen.slotNumber,
+                )),
               ),
             PlanNowGeste.lancer => source == null
                 ? null

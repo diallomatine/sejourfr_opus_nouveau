@@ -218,6 +218,7 @@ class CivicNowCard {
     required this.geste,
     required this.etapeRoute,
     required this.source,
+    required this.examen,
     required this.title,
     required this.subtitle,
     required this.badge,
@@ -238,6 +239,11 @@ class CivicNowCard {
 
   /// `null` quand rien ne se résout — la carte nomme l'étape et s'arrête là.
   final CivicNowSource? source;
+
+  /// **L'examen de thème que [PlanNowGeste.lancer] démarre** — servi par
+  /// l'étape (`examenTheme`), `null` ailleurs. Seul un appelant qui a demandé
+  /// `lancerExamen` le reçoit.
+  final JourneyExamenThemeLance? examen;
 
   final String title;
   final String? subtitle;
@@ -283,12 +289,18 @@ CivicNowCard? civicNowCard(
   CivicPlan plan, {
   Journey? journey,
   bool free = false,
+  // 🛑 **L'appelant porte-t-il le lanceur d'examen de thème ?** Le Plan
+  // civique, oui : son étape d'examen reçoit alors [PlanNowGeste.lancer] et
+  // l'examen servi. Les autres surfaces (Accueil, Réviser) gardent `aucun` sur
+  // un examen — elles n'ont pas ce lanceur.
+  bool lancerExamen = false,
 }) {
   final etape = journey?.current;
   if (etape != null) {
     final unite = etape.unite;
-    // 🛑 Un examen de bloc ne se lance pas d'ICI : il a son encart dans le
-    // cycle. Rien ne se résout ⇒ aucun geste (garde-fou du 2026-09-17).
+    // 🛑 Une UNITÉ se résout sur une étape d'entraînement ; l'examen de bloc,
+    // lui, se résout par `examenTheme` (plus bas). Rien ne se résout ⇒ aucun
+    // geste (garde-fou du 2026-09-17).
     final resoluble = unite != null && etape.type == JourneyStepType.trainSkill;
     final verrou = free || etape.locked;
     // 🛑 **UNE UNITÉ CIVIQUE OUVRE SON ÉCRAN, elle ne lance plus sa série**
@@ -301,16 +313,21 @@ CivicNowCard? civicNowCard(
     // comme la carte TCF : le titre porte déjà le thème, qui s'affichait deux
     // fois. La méta, qui disait la même chose, se tait.
     final examen = etape.type == JourneyStepType.sectionExam;
+    // 🛑 **L'examen de thème SERVI se lance d'ici** (2026-09-28), par le même
+    // lanceur que la ligne du cycle — sur le Plan seulement.
+    final examenLance =
+        examen && lancerExamen ? journeyExamenThemeLance(etape) : null;
     return CivicNowCard(
       geste: verrou
           ? PlanNowGeste.debloquer
           : serie
               ? PlanNowGeste.ouvrirEtape
-              : resoluble
+              : resoluble || examenLance != null
                   ? PlanNowGeste.lancer
                   : PlanNowGeste.aucun,
       etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
       source: resoluble ? CivicNowUnite(unite.code) : null,
+      examen: examenLance,
       title: journeyStepTitle(etape),
       subtitle: examen ? journeyStepSubtitle(etape) : etape.bloc?.label,
       badge: etape.locked ? kJourneyLockedBadge : null,
@@ -319,7 +336,13 @@ CivicNowCard? civicNowCard(
       // `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche alors
       // aucune méta plutôt qu'une ligne vide.
       meta: examen ? null : journeyStepSubtitle(etape),
-      cta: verrou ? kCivicPlanLockedCta : kCivicPlanWorkCta,
+      // Un examen se dit comme au TCF ([journeyNowCta] : « Passer l'épreuve »,
+      // « Débloquer cette étape ») — ce n'est pas une série.
+      cta: examen
+          ? journeyNowCta(etape, verrou)
+          : verrou
+              ? kCivicPlanLockedCta
+              : kCivicPlanWorkCta,
       locked: etape.locked,
     );
   }
@@ -335,6 +358,7 @@ CivicNowCard? civicNowCard(
     // d'écran d'étape, et son geste reste le lanceur de série.
     etapeRoute: null,
     source: CivicNowCible(cible),
+    examen: null,
     title: cible.label,
     subtitle: cible.label == cible.themeLabel || cible.themeLabel.isEmpty
         ? null

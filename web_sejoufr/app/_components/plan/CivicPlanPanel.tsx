@@ -4,6 +4,7 @@ import {Landmark, ListChecks} from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
 import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
@@ -177,8 +178,12 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
      ouvrait le paywall d'un coup. Le 403 du lanceur, lui, reste un refus. */
   const serieCible = useCivicSerie(() => router.push(planUnlockHref("CIVIQUE")));
   const serieUnite = useCivicUniteSerie();
+  /* L'examen de thème de l'étape courante : le lanceur partagé avec la ligne
+     du cycle. Son 403 ouvre la même offre que les séries. */
+  const launchExam = useMockExamLauncher();
+  const [examPaywall, setExamPaywall] = useState(false);
 
-  const carte = civicNowCard(plan, {journey, free});
+  const carte = civicNowCard(plan, {journey, free, lancerExamen: true});
   const grainNote = civicPlanGrainNote(plan.grain);
   const erreur = serieCible.erreur ?? serieUnite.erreur;
 
@@ -225,6 +230,20 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
                   ancré en pied (A46). */}
               {carte.geste === "DEBLOQUER" && (
                 <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>{carte.cta}</Cta>
+              )}
+              {/* 🛑 **L'étape d'examen lance l'examen de thème SERVI**
+                  (`carte.examen`) — le même lanceur que la ligne du cycle. */}
+              {carte.geste === "LANCER" && carte.examen && (
+                <Cta
+                  variant="blue"
+                  onClick={() => launchExam({
+                    kind: "CIVIQUE",
+                    ...carte.examen!,
+                    onPaywall: () => setExamPaywall(true),
+                  })}
+                >
+                  {carte.cta}
+                </Cta>
               )}
               {carte.geste === "LANCER" && carte.source && (
                 <Cta
@@ -324,11 +343,12 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
         ctaLocation="LOCKED_PLAN"
         screen="plan_civique"
         journeyId={journey?.journeyId ?? null}
-        open={serieCible.paywall || serieUnite.paywall}
+        open={serieCible.paywall || serieUnite.paywall || examPaywall}
         module="CIVIQUE"
         onClose={() => {
           serieCible.setPaywall(false);
           serieUnite.setPaywall(false);
+          setExamPaywall(false);
         }}
       />
     </>
