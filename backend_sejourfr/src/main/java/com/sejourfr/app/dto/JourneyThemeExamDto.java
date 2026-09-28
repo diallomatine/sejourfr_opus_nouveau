@@ -1,5 +1,7 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
+
 import java.util.UUID;
 
 /**
@@ -22,6 +24,16 @@ import java.util.UUID;
  *                   et rejouable pour tout compte, comme le slot servi par
  *                   {@code PlanDomainAssessmentResolver} cote TCF. Mesurer un
  *                   theme ne bute donc jamais sur le paywall.
+ *
+ * <p>🛑 <b>Deux points d'appel, une seule fabrique</b> ({@link #offert}) :
+ * l'etape d'examen du Plan ({@code JourneyStepDto.examenTheme}) et la carte
+ * d'un theme jamais evalue de l'Accueil ({@code CivicPlanDto.ThemeLigne.evaluation},
+ * 2026-09-28). Aucun ne recopie le creneau.
  */
 public record JourneyThemeExamDto(UUID themeId, int slotNumber) {
+
+    /** L'examen blanc du theme sur le creneau offert, rejouable par tout compte. */
+    public static JourneyThemeExamDto offert(UUID themeId) {
+        return new JourneyThemeExamDto(themeId, ExamenBlancAccessService.CRENEAU_OFFERT);
+    }
 }

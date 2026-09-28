@@ -1,6 +1,7 @@
 import 'civic_diagnostic_models.dart';
 import 'diagnostic_models.dart';
 import 'enums.dart';
+import 'journey_models.dart';
 
 /// Miroirs de `CivicPlanDto` (L10, `20_` §6).
 ///
@@ -321,6 +322,7 @@ class CivicPlanThemeLigne {
     required this.maitrisees,
     required this.travaillees,
     this.enCours,
+    this.evaluation,
   });
 
   final String themeId;
@@ -346,6 +348,12 @@ class CivicPlanThemeLigne {
   /// plus un thème la porte : c'est `prochaine`, lue chez la même autorité.
   final CivicPlanCibleRef? enCours;
 
+  /// **L'examen blanc qui mesure ce thème**, servi exactement quand [etat]
+  /// vaut `NON_EVALUE`, `null` sinon (2026-09-28). C'est le « Évaluer mon
+  /// niveau » de la carte de l'Accueil : le front relaie le thème et le
+  /// créneau au lanceur d'examen de thème, il ne les déduit jamais.
+  final JourneyThemeExam? evaluation;
+
   static CivicPlanThemeLigne fromJson(Map<String, dynamic> json) =>
       CivicPlanThemeLigne(
         themeId: json['themeId'] as String? ?? '',
@@ -359,6 +367,10 @@ class CivicPlanThemeLigne {
         travaillees: (json['travaillees'] as num? ?? 0).toInt(),
         enCours: json['enCours'] is Map<String, dynamic>
             ? CivicPlanCibleRef.fromJson(json['enCours'] as Map<String, dynamic>)
+            : null,
+        evaluation: json['evaluation'] is Map<String, dynamic>
+            ? JourneyThemeExam.fromJson(
+                json['evaluation'] as Map<String, dynamic>)
             : null,
       );
 }

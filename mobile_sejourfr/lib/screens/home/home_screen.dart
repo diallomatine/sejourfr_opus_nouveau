@@ -20,6 +20,7 @@ import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/diagnostic_courant_provider.dart';
+import '../module_detail/civique_theme_exam_launcher.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/civic_plan_provider.dart';
 import '../../core/models/journey_models.dart';
@@ -592,6 +593,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     CivicPlanThemeLigne theme,
     int rang,
   ) {
+    final mesure = theme.evaluation;
     return SfLevelCard(
       mark: '${rang + 1}',
       icon: situationThemeIcon(theme.code),
@@ -616,11 +618,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         dim: theme.etat == CivicThemeState.nonEvalue,
         labels: false,
       ),
-      cta: kHomeSituationCivicCta,
+      // 🛑 **Deux issues, lues sur le descripteur SERVI** : un thème jamais
+      // évalué porte `evaluation` (thème + créneau offert) et la carte le
+      // **lance** par le lanceur de la grille du thème et de l'étape du Plan ;
+      // sinon elle ouvre ses résultats. Aucun recalcul ici.
+      cta: mesure != null ? kAccueilEvaluerCta : kHomeSituationCivicCta,
+      // Le bouton plein est réservé à la mesure qui MANQUE, comme sur le TCF.
+      ctaPrimary: mesure != null,
       // 🛑 **L'écran de progression du thème** (D17, 2026-09-24), le pendant
       // civique de l'écran de progression d'une épreuve TCF.
-      onTap: () =>
-          context.push(AppRoutes.progressionThemePath(theme.themeId)),
+      onTap: mesure != null
+          ? () => launchCiviqueThemeExam(
+                context,
+                ref,
+                themeId: mesure.themeId,
+                themeName: theme.label,
+                slotNumber: mesure.slotNumber,
+              )
+          : () => context.push(AppRoutes.progressionThemePath(theme.themeId)),
     );
   }
 

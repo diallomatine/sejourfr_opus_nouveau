@@ -4597,6 +4597,14 @@ export interface CivicPlanThemeLigneDto {
      * plus un thème la porte : c'est `prochaine`, lue chez la même autorité.
      */
     enCours: CivicPlanCibleRefDto | null;
+    /**
+     * **L'examen blanc qui mesure ce thème**, servi exactement quand `etat` vaut
+     * `NON_EVALUE`, `null` sinon (2026-09-28). C'est le « Évaluer mon niveau »
+     * de la carte de l'Accueil : le front relaie le thème et le créneau au
+     * lanceur d'examen de thème, il ne les déduit jamais. Optionnel pour un
+     * backend antérieur.
+     */
+    evaluation?: JourneyThemeExamDto | null;
 }
 
 /**

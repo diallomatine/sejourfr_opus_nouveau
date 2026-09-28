@@ -182,6 +182,14 @@ public record CivicPlanDto(
      *                    c'est {@code prochaine}, lue chez la meme autorite —
      *                    l'ecran Reviser et le Plan ne peuvent donc pas designer
      *                    deux choses differentes
+     * @param evaluation  <b>l'examen blanc qui mesure ce theme</b>, servi
+     *                    exactement quand {@code etat} vaut {@code NON_EVALUE},
+     *                    {@code null} sinon (2026-09-28). C'est le « Evaluer mon
+     *                    niveau » de la carte de l'Accueil, pendant civique de
+     *                    {@code ProgressDto.Epreuve.evaluation} : le front ne
+     *                    deduit ni l'absence de mesure, ni le theme, ni le
+     *                    creneau — il relaie ce descripteur au lanceur d'examen
+     *                    de theme, le meme que l'etape du Plan
      */
     public record ThemeLigne(
             UUID themeId,
@@ -192,7 +200,8 @@ public record CivicPlanDto(
             int cibles,
             int maitrisees,
             int travaillees,
-            CibleRef enCours) {
+            CibleRef enCours,
+            JourneyThemeExamDto evaluation) {
     }
 
     /**

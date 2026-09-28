@@ -676,7 +676,7 @@ invité de la démo (`user_id IS NULL` + `client_ip`), et `civic_diagnostic_sess
 
 ## « Où vous en êtes » (Accueil)
 
-- `GET /api/me/progress` → `ProgressDto { tcf: { objectif, epreuves[4] }, civique: { historique, themes } }`.
+- `GET /api/me/progress` → `ProgressDto { tcf: { objectif, epreuves[4] }, civique: { historique, themes } }` — chaque thème (`CivicPlanDto.ThemeLigne`) porte `evaluation` (`{themeId, slotNumber}`), servi seulement quand il est `NON_EVALUE`.
   🛑 **Élagué le 2026-09-24** : `activite`, `tcf.disponible`, `tcf.niveauActuel`,
   `tcf.historique`, `tcf.competences`, `civique.disponible`, `civique.travaillees`,
   `civique.maitrisees`, `civique.grainNotion` n'étaient lus que par l'ancien écran

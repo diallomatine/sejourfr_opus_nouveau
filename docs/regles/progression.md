@@ -1192,6 +1192,14 @@ court** (`mark`) — la maquette n'en donne qu'aux quatre épreuves, et un thèm
 n'a aucun code de deux lettres servi ; la **ligne de repères** — le civique n'a
 ni palier CECRL ni objectif ; la **cocarde** et la **note de pied** — elles
 parlent d'un niveau, qui n'existe pas ici.
+🛑 **Un thème `NON_EVALUE` n'a pas de résultats à voir** (2026-09-28) : sa carte
+dit « Évaluer mon niveau » (bouton plein) et lance l'examen blanc du thème
+servi, `ThemeLigne.evaluation` (`JourneyThemeExamDto` : thème + créneau offert,
+fabrique `JourneyThemeExamDto.offert`, la même que l'étape d'examen du Plan).
+Servi **exactement** quand l'état vaut `NON_EVALUE`, `null` sinon ; les fronts
+passent par le lanceur d'examen de thème (`useMockExamLauncher` `kind: "CIVIQUE"`
+⇄ `launchCiviqueThemeExam`) et ne déduisent rien. Un thème évalué garde
+« Voir mes résultats ».
 
 ### La page « Voir mes résultats »
 

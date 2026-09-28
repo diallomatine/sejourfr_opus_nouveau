@@ -242,6 +242,10 @@ class ProgressServiceIT extends AbstractIntegrationTest {
         assertThat(civique.themes())
                 .extracting(com.sejourfr.app.dto.CivicPlanDto.ThemeLigne::etat)
                 .doesNotContain(CivicThemeState.SOLIDE, CivicThemeState.NON_EVALUE);
+        // 🛑 Un theme evalue n'a plus rien a lancer depuis sa carte : elle
+        // mene a ses resultats.
+        assertThat(civique.themes()).allSatisfy(ligne ->
+                assertThat(ligne.evaluation()).isNull());
     }
 
     /**
@@ -270,6 +274,12 @@ class ProgressServiceIT extends AbstractIntegrationTest {
             assertThat(ligne.maitrisees()).isZero();
             assertThat(ligne.travaillees()).isZero();
             assertThat(ligne.enCours()).isNull();
+            // 🛑 Rien de mesure => la carte porte DE QUOI mesurer : l'examen
+            // blanc de CE theme, sur le creneau offert (« Evaluer mon niveau »).
+            assertThat(ligne.evaluation()).isNotNull();
+            assertThat(ligne.evaluation().themeId()).isEqualTo(ligne.themeId());
+            assertThat(ligne.evaluation().slotNumber())
+                    .isEqualTo(com.sejourfr.app.service.examenblanc.ExamenBlancAccessService.CRENEAU_OFFERT);
         });
         // L'ordre d'affichage du module, le meme qu'apres un diagnostic.
         assertThat(civique.themes())

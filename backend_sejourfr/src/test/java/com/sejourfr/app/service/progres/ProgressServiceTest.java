@@ -386,7 +386,7 @@ class ProgressServiceTest {
             String code, String label, CivicThemeState etat) {
         return new CivicPlanDto.ThemeLigne(
                 UUID.randomUUID(), code, label, etat,
-                CivicPlanGrain.THEME, 5, 1, 3, null);
+                CivicPlanGrain.THEME, 5, 1, 3, null, null);
     }
 
     // ------------------------------------------------------------------------

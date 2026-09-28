@@ -4,6 +4,7 @@ import com.sejourfr.app.config.CivicPlanProperties;
 import com.sejourfr.app.dto.CivicDiagnosticResultDto;
 import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.CivicPlanDto;
+import com.sejourfr.app.dto.JourneyThemeExamDto;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.CivicOfficialUnit;
@@ -455,16 +456,23 @@ public class CivicPlanService {
                             ? new CivicPlanDto.CibleRef(prochaine.id(), prochaine.code(),
                                     prochaine.label(), prochaine.grain())
                             : null;
+            CivicThemeState etat = etatDuTheme(calcul.resultat(), theme.getId());
             lignes.add(new CivicPlanDto.ThemeLigne(
                     theme.getId(),
                     theme.getCode(),
                     theme.getName(),
-                    etatDuTheme(calcul.resultat(), theme.getId()),
+                    etat,
                     grainDuTheme(calcul.taggage().get(theme.getId())),
                     cibles.size(),
                     maitrisees,
                     travaillees,
-                    enCours));
+                    enCours,
+                    // 🛑 Rien de mesure => de quoi mesurer : l'examen blanc du
+                    // theme, sur le creneau offert. Un theme deja evalue n'a
+                    // plus rien a lancer depuis sa carte.
+                    etat == CivicThemeState.NON_EVALUE
+                            ? JourneyThemeExamDto.offert(theme.getId())
+                            : null));
         }
         return List.copyOf(lignes);
     }

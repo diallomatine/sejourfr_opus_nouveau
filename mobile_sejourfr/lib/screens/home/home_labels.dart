@@ -58,6 +58,10 @@ const String kHomeSituationNote =
 /// propriétaire, 2026-09-19) : elle ouvre **l'historique des examens blancs du
 /// thème**, la page qui existe déjà — pendant exact du « Voir mes résultats »
 /// d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
+///
+/// 🛑 **Un thème JAMAIS évalué n'a pas de résultats à voir** (2026-09-28) : sa
+/// carte dit `kAccueilEvaluerCta` et lance l'examen blanc du thème servi
+/// (`CivicPlanThemeLigne.evaluation`), comme une épreuve TCF jamais mesurée.
 /// Miroir web : `SITUATION_CIVIC_CTA`.
 const String kHomeSituationCivicCta = 'Voir mes résultats';
 

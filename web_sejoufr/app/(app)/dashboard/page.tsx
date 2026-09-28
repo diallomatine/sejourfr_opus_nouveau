@@ -70,6 +70,7 @@ import {
 import {planNowIcon} from "@/app/_components/plan/PlanBits";
 import {usePlanAssessment, usePlanExercise} from "@/app/_components/plan/use-plan-exercise";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {
     diagnosticAnalyzingObjective,
     diagnosticCompletedExerciseCount,
@@ -185,11 +186,14 @@ const SITUATION_NOTE =
    `situation_icons.dart`). */
 
 /**
- * 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
- * propriétaire, 2026-09-19) : la ligne d'un thème ouvre **l'écran de
- * progression du thème** (`/progression/civique/[theme]`, D17) — pendant exact
- * du « Voir mes résultats » d'une épreuve TCF mesurée. Le lanceur de série
- * reste au Plan.
+ * 🛑 **Un thème évalué ne démarre rien, et ne mène plus au Plan** (demande du
+ * propriétaire, 2026-09-19) : sa ligne ouvre **l'écran de progression du
+ * thème** (`/progression/civique/[theme]`, D17) — pendant exact du « Voir mes
+ * résultats » d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
+ *
+ * 🛑 **Un thème JAMAIS évalué n'a pas de résultats à voir** (2026-09-28) : sa
+ * carte dit `ACCUEIL_EVALUER_CTA` et lance l'examen blanc du thème servi
+ * (`evaluation`), comme la carte d'une épreuve TCF jamais mesurée.
  */
 const SITUATION_CIVIC_CTA = "Voir mes résultats";
 
@@ -846,6 +850,11 @@ function SituationTcf({progres}: {progres: ProgressDto}) {
  * porte sur les **thèmes** de la liste servie.
  */
 function SituationCivique({progres}: {progres: ProgressDto}) {
+    /* 🛑 **Le lanceur de la grille du thème et de l'étape du Plan, jamais un
+       second** : feuille d'information, puis démarrage. Hooks avant tout
+       retour anticipé. */
+    const launchExam = useMockExamLauncher();
+    const [paywallOpen, setPaywallOpen] = useState(false);
     const themes = progres.civique.themes;
     if (themes.length === 0) return null;
     /* 🛑 Rien n'est fabriqué : sans examen civique passé, le serveur ne sert ni
@@ -871,49 +880,76 @@ function SituationCivique({progres}: {progres: ProgressDto}) {
                     />
                 )}
                 <LevelCardGrid>
-                    {themes.map((t, rang) => (
-                        <LevelCard
-                            key={t.themeId}
-                            /* 🛑 **Le repère est le RANG SERVI**, pas un code
-                               abrégé : un thème n'a aucun code de deux lettres
-                               servi (`CIV_PRINCIPES` n'en est pas un), et en
-                               inventer un serait fabriquer un libellé. */
-                            mark={`${rang + 1}`}
-                            icon={situationIcon(t.code)}
-                            title={t.label}
-                            /* 🛑 L'état arrive **servi** : on pose son libellé
-                               gelé, on ne classe aucun nombre. `NON_EVALUE`
-                               reste neutre, jamais ambre. */
-                            status={t.etat === "NON_EVALUE"
-                                ? NON_MESURE_LABEL
-                                : CIVIC_THEME_STATE_LABEL[t.etat]}
-                            tone={civicBarTone(t.etat)}
-                            /* 🛑 **Aucun palier CECRL en civique** : le civique
-                               se mesure en thèmes, jamais en paliers. La carte
-                               n'a donc pas de valeur en gros. */
-                            level={null}
-                            measured={t.etat !== "NON_EVALUE"}
-                            /* 🛑 **Le même cran segmenté que le TCF**, sur la
-                               seule donnée servie pour un thème : son `etat`
-                               (`accueilEchelonsCivique`). Sans libellés : les
-                               trois états ne tiennent pas sous une demi-carte,
-                               et la pastille de statut les dit déjà. */
-                            scale={
-                                <LevelLadder
-                                    steps={accueilEchelonsCivique(t.etat)}
-                                    label={accueilEchelleLabelCivique(t.etat)}
-                                    dim={t.etat === "NON_EVALUE"}
-                                    labels={false}
-                                />
-                            }
-                            cta={SITUATION_CIVIC_CTA}
-                            /* 🛑 **L'écran de progression du thème**, le
-                               pendant civique de celui d'une épreuve TCF (D17). */
-                            href={progressionThemeHref(themeSlug(t.code))}
-                        />
-                    ))}
+                    {themes.map((t, rang) => {
+                        /* 🛑 **Deux issues, lues sur le descripteur SERVI** :
+                           un thème jamais évalué porte `evaluation` (thème +
+                           créneau offert) et la carte le **lance** ; sinon
+                           elle ouvre ses résultats. Aucun recalcul ici. */
+                        const mesure = t.evaluation ?? null;
+                        return (
+                            <LevelCard
+                                key={t.themeId}
+                                /* 🛑 **Le repère est le RANG SERVI**, pas un code
+                                   abrégé : un thème n'a aucun code de deux lettres
+                                   servi (`CIV_PRINCIPES` n'en est pas un), et en
+                                   inventer un serait fabriquer un libellé. */
+                                mark={`${rang + 1}`}
+                                icon={situationIcon(t.code)}
+                                title={t.label}
+                                /* 🛑 L'état arrive **servi** : on pose son libellé
+                                   gelé, on ne classe aucun nombre. `NON_EVALUE`
+                                   reste neutre, jamais ambre. */
+                                status={t.etat === "NON_EVALUE"
+                                    ? NON_MESURE_LABEL
+                                    : CIVIC_THEME_STATE_LABEL[t.etat]}
+                                tone={civicBarTone(t.etat)}
+                                /* 🛑 **Aucun palier CECRL en civique** : le civique
+                                   se mesure en thèmes, jamais en paliers. La carte
+                                   n'a donc pas de valeur en gros. */
+                                level={null}
+                                measured={t.etat !== "NON_EVALUE"}
+                                /* 🛑 **Le même cran segmenté que le TCF**, sur la
+                                   seule donnée servie pour un thème : son `etat`
+                                   (`accueilEchelonsCivique`). Sans libellés : les
+                                   trois états ne tiennent pas sous une demi-carte,
+                                   et la pastille de statut les dit déjà. */
+                                scale={
+                                    <LevelLadder
+                                        steps={accueilEchelonsCivique(t.etat)}
+                                        label={accueilEchelleLabelCivique(t.etat)}
+                                        dim={t.etat === "NON_EVALUE"}
+                                        labels={false}
+                                    />
+                                }
+                                cta={mesure ? ACCUEIL_EVALUER_CTA : SITUATION_CIVIC_CTA}
+                                /* Le bouton plein est réservé à la mesure qui
+                                   MANQUE, comme sur le TCF. */
+                                ctaPrimary={Boolean(mesure)}
+                                /* 🛑 **L'écran de progression du thème**, le
+                                   pendant civique de celui d'une épreuve TCF (D17). */
+                                href={mesure ? null : progressionThemeHref(themeSlug(t.code))}
+                                onClick={mesure
+                                    ? () => launchExam({
+                                        kind: "CIVIQUE",
+                                        themeId: mesure.themeId,
+                                        themeName: t.label,
+                                        slotNumber: mesure.slotNumber,
+                                        onPaywall: () => setPaywallOpen(true),
+                                    })
+                                    : undefined}
+                            />
+                        );
+                    })}
                 </LevelCardGrid>
             </Pad>
+            {/* Garde de dernier recours : le créneau servi est l'offert. */}
+            <PaywallSheet
+                ctaLocation="MOCK_EXAM"
+                screen="dashboard_theme"
+                module="CIVIQUE"
+                open={paywallOpen}
+                onClose={() => setPaywallOpen(false)}
+            />
         </Section>
     );
 }

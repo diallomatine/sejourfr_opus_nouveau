@@ -1358,7 +1358,6 @@ public class JourneyReadService {
      */
     private static JourneyThemeExamDto examenThemeDe(JourneyStep step) {
         if (step.getType() != JourneyStepType.SECTION_EXAM || step.getTheme() == null) return null;
-        return new JourneyThemeExamDto(
-                step.getTheme().getId(), ExamenBlancAccessService.CRENEAU_OFFERT);
+        return JourneyThemeExamDto.offert(step.getTheme().getId());
     }
 }
