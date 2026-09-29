@@ -1,0 +1,37 @@
+{
+  "task_type": "EE_TASK_2",
+  "v15_rubric": "EE_T2",
+  "titre": "EE2 — Récit / expérience",
+  "_source_adaptation": "docs/jev/spec-benchmark-jev-sejourfr.md §25 (verbatim)",
+  "_source_criteres": "backend_sejourfr/src/main/resources/prompts/production-rubrics-v15.json rubrics.EE_T2.criteres[] (code, label, description) — COPIE, vérifiée par check-prompts",
+  "adaptation": "Observer :\n\n- chronologie ;\n- capacité à raconter ;\n- emploi des temps ;\n- maîtrise réelle des temps ;\n- description ;\n- ressenti ;\n- causes ;\n- conséquences ;\n- explications ;\n- cohérence.\n\nNe pas surévaluer un candidat parce qu’il utilise plusieurs temps verbaux.\n\nCe qui compte est leur maîtrise.",
+  "criteres": [
+    {
+      "code": "communiquer",
+      "label": "Communiquer : accomplir la tâche et enchaîner les idées",
+      "description": "Sur cette tache : les points OBLIGATOIRES de la consigne (raconter / decrire / expliquer / conseiller, et les informations exigees) sont-ils traites avec un minimum de details concrets (faits, lieux, personnes, raisons) ? Les faits s'enchainent-ils dans un ordre comprehensible, avec des reperes temporels (hier, d'abord, ensuite, le lendemain) et des temps du passe employes a bon escient ? Le texte forme-t-il un tout, sans juxtaposition brute ni contradiction ? Ce critere reunit le contenu, la chronologie et l'organisation d'ensemble : c'est ici, et nulle part ailleurs, que se juge le deroulement du recit."
+    },
+    {
+      "code": "interagir",
+      "label": "Interagir : adaptation à la situation et au destinataire",
+      "description": "Sur cette tache : le message est-il ecrit POUR QUELQU'UN et dans une intention claire ? Adresse au destinataire indique (ami, collegue, responsable), registre tenu du debut a la fin, formule d'ouverture et de cloture, prise en compte de ce que le destinataire sait deja ou attend (expliquer ce qu'il ignore, conseiller sans brusquer)."
+    },
+    {
+      "code": "lexique",
+      "label": "Lexique : vocabulaire approprié",
+      "description": "Vocabulaire APPROPRIE : etendue au-dela des mots les plus frequents, precision des mots choisis, justesse par rapport au theme. Porteur du niveau : note en ABSOLU sur l'echelle CECRL complete, jamais relativement a la tache."
+    },
+    {
+      "code": "morphosyntaxe",
+      "label": "Morphosyntaxe : correction grammaticale",
+      "description": "Correction grammaticale : conjugaisons, accords, determinants, prepositions, construction et variete des phrases, subordination. Porteur du niveau : note en ABSOLU sur l'echelle CECRL, sans comptage mecanique des fautes."
+    }
+  ],
+  "_source_descripteurs": "production-rubrics-v15.json rubrics.EE_T2.descripteurs (A1..B2, globaux à la tâche, PAS par critère) — COPIE vérifiée par check-prompts",
+  "descripteurs_v15": {
+    "A1": "Juxtaposition de mots ou de phrases isolees, ne developpe pas, pas de reperes temporels, present employe pour du passe — MEME SI le deroulement se comprend et que la consigne est traitee.",
+    "A2": "Developpement minimal, phrases simples, peu de connecteurs, passe compose seul temps reellement employe. Reste A2 meme si le recit est ordonne et le passe compose CORRECT : maitriser une seule structure n'est pas de l'etendue ; il faudrait imparfait + subordination + connecteurs organisants pour du B1.",
+    "B1": "Recit/description structure, details concrets, connecteurs courants (d'abord, ensuite, donc, car), temps du passe globalement maitrises, destinataire clairement pris en compte. Erreurs ponctuelles. Reste B1 meme si la production est longue, fluide et sans faute : c'est le repertoire employe qui decide, pas la proprete.",
+    "B2": "Texte bien organise, lexique riche et precis, structures variees, point de vue clair, chronologie parfaitement tenue, effet recherche sur le destinataire. Erreurs rares. Exige DEUX marqueurs B2 citables (cf. TEST DECISIF B1 vs B2), dont un lexique precis ou une objection envisagee puis traitee."
+  }
+}

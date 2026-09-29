@@ -1,0 +1,13 @@
+[project]
+name = "jev-bench"
+version = "0.1.0"
+description = "Benchmark local JEV (TypeSafe) vs correcteur SejourFR sur les productions EE — outil hors application."
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "streamlit>=1.36",
+    "pandas>=2.0",
+]
+
+[tool.setuptools]
+packages = ["jev_bench"]

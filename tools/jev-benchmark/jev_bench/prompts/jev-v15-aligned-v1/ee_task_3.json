@@ -1,0 +1,37 @@
+{
+  "task_type": "EE_TASK_3",
+  "v15_rubric": "EE_T3",
+  "titre": "EE3 — Opinion / argumentation",
+  "_source_adaptation": "docs/jev/spec-benchmark-jev-sejourfr.md §26 (verbatim)",
+  "_source_criteres": "backend_sejourfr/src/main/resources/prompts/production-rubrics-v15.json rubrics.EE_T3.criteres[] (code, label, description) — COPIE, vérifiée par check-prompts",
+  "adaptation": "Observer :\n\n- position ;\n- arguments ;\n- justification ;\n- comparaison ;\n- exemples ;\n- causes / conséquences ;\n- nuance ;\n- opposition ;\n- hypothèses ;\n- organisation du raisonnement.\n\nNe pas exiger :\n\n- premièrement ;\n- cependant ;\n- en conclusion ;\n- style de dissertation.\n\nQuelques expressions mémorisées ne suffisent pas pour démontrer B2.",
+  "criteres": [
+    {
+      "code": "communiquer",
+      "label": "Communiquer : accomplir la tâche et enchaîner les idées",
+      "description": "Sur cette tache : une opinion est-elle explicitement formulee et identifiable en une lecture (reponse a la question posee, position assumee et non simple description du sujet) ? Est-elle SOUTENUE par au moins deux arguments distincts et developpes (raison + illustration ou exemple) ? Les idees s'enchainent-elles (avis -> arguments -> conclusion, connecteurs logiques, pas d'argument contradictoire non assume) ? Ce critere reunit la prise de position, l'argumentation et l'organisation : c'est le coeur de la tache. Un texte purement descriptif, sans position ni justification, PLAFONNE communiquer a la bande 2-5 (A2)."
+    },
+    {
+      "code": "interagir",
+      "label": "Interagir : adaptation à la situation et au destinataire",
+      "description": "Sur cette tache : le texte est-il ecrit pour un lecteur identifiable (forum, courrier des lecteurs, ami, responsable) dans un registre tenu ? Le candidat s'adresse-t-il a un destinataire susceptible de ne pas partager son avis : formulation courtoise du desaccord, objection prise au serieux plutot qu'ignoree, exemple choisi pour convaincre CE lecteur-la ?"
+    },
+    {
+      "code": "lexique",
+      "label": "Lexique : vocabulaire approprié",
+      "description": "Vocabulaire APPROPRIE : etendue au-dela des mots les plus frequents, precision des mots choisis, justesse par rapport au theme. Porteur du niveau : note en ABSOLU sur l'echelle CECRL complete, jamais relativement a la tache."
+    },
+    {
+      "code": "morphosyntaxe",
+      "label": "Morphosyntaxe : correction grammaticale",
+      "description": "Correction grammaticale : conjugaisons, accords, determinants, prepositions, construction et variete des phrases, subordination. Porteur du niveau : note en ABSOLU sur l'echelle CECRL, sans comptage mecanique des fautes."
+    }
+  ],
+  "_source_descripteurs": "production-rubrics-v15.json rubrics.EE_T3.descripteurs (A1..B2, globaux à la tâche, PAS par critère) — COPIE vérifiée par check-prompts",
+  "descripteurs_v15": {
+    "A1": "Opinion absente OU posee en phrases juxtaposees sans completive construite ni connecteur logique, justifications reduites a des affirmations non developpees.",
+    "A2": "Opinion tres simple, raisons enumerees ('d'abord', 'aussi') mais non developpees, present uniquement, aucune subordination. Reste A2 meme si deux raisons distinctes sont donnees et le texte correct.",
+    "B1": "Opinion claire avec une ou deux raisons DEVELOPPEES (raison + illustration), connecteurs qui articulent le raisonnement, subordination presente, organisation basique mais tenue, registre adapte au lecteur. Reste B1 meme si la production est longue, fluide et sans faute : c'est le repertoire employe qui decide, pas la proprete.",
+    "B2": "Position nette, arguments developpes et hierarchises, objection envisagee puis traitee, connecteurs logiques (cependant, en effet, par consequent), lexique nuance, structures complexes. Erreurs rares. Exige DEUX marqueurs B2 citables (cf. TEST DECISIF B1 vs B2), dont un lexique precis ou une objection envisagee puis traitee."
+  }
+}

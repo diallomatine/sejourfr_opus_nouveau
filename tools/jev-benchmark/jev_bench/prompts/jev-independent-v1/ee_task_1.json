@@ -1,0 +1,30 @@
+{
+  "task_type": "EE_TASK_1",
+  "v15_rubric": "EE_T1",
+  "titre": "EE1 — Message fonctionnel",
+  "_source_adaptation": "docs/jev/spec-benchmark-jev-sejourfr.md §24 (verbatim ; seule retouche : « Adapter le prompt pour observer » → « Pour cette tâche, observer », la phrase d origine s adressant au rédacteur du prompt)",
+  "_source_criteres": "backend_sejourfr/src/main/resources/prompts/production-rubrics-v15.json rubrics.EE_T1.criteres[] (code, label, description) — COPIE, vérifiée par check-prompts",
+  "adaptation": "Pour cette tâche, observer particulièrement :\n\n- compréhension de la situation ;\n- transmission des informations demandées ;\n- réalisation des points ;\n- clarté ;\n- registre ;\n- organisation ;\n- précision lexicale ;\n- contrôle grammatical.\n\nNe pas exiger d’argumentation longue.\n\nUn B2 peut parfaitement produire une réponse courte et simple si la tâche le demande.\n\nLe niveau doit être observé dans :\n\n- la précision ;\n- le naturel ;\n- la souplesse ;\n- les structures ;\n- le contrôle de langue.",
+  "criteres": [
+    {
+      "code": "communiquer",
+      "label": "Communiquer : accomplir la tâche et enchaîner les idées",
+      "description": "Sur cette tache : les points OBLIGATOIRES de la consigne (typiquement annoncer, decrire, inviter) sont-ils traites de facon comprehensible, ET le message se lit-il d'un trait (informations enchainees, pas de contradiction) ? Ce critere reunit ce que la consigne demande de FAIRE et l'enchainement des idees. Ne compte QUE les points obligatoires ; les exemples proposes par le sujet sont des PISTES et ne penalisent jamais. Note le NIVEAU auquel la tache est accomplie, pas le nombre de cases cochees."
+    },
+    {
+      "code": "interagir",
+      "label": "Interagir : adaptation à la situation et au destinataire",
+      "description": "Sur cette tache : formule d'appel et formule de cloture presentes et adaptees au destinataire indique (ami, famille, voisin, collegue), registre tenu du debut a la fin, effet recherche sur le lecteur (annoncer une nouvelle, donner envie de venir). Un message amical n'a pas a etre formel, et inversement."
+    },
+    {
+      "code": "lexique",
+      "label": "Lexique : vocabulaire approprié",
+      "description": "Vocabulaire APPROPRIE : etendue au-dela des mots les plus frequents, precision des mots choisis, justesse par rapport au theme. Porteur du niveau : note en ABSOLU sur l'echelle CECRL complete, jamais relativement a la tache."
+    },
+    {
+      "code": "morphosyntaxe",
+      "label": "Morphosyntaxe : correction grammaticale",
+      "description": "Correction grammaticale : conjugaisons, accords, determinants, prepositions, construction et variete des phrases, subordination. Porteur du niveau : note en ABSOLU sur l'echelle CECRL, sans comptage mecanique des fautes."
+    }
+  ]
+}

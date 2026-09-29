@@ -1,0 +1,57 @@
+{
+  "prompt_version": "jev-v15-aligned-v1",
+  "_sources": {
+    "niveau_global.cadre": "docs/jev/spec-benchmark-jev-sejourfr.md §18 (verbatim)",
+    "niveau_global.insufficient": "§12 (verbatim, sans la mise en forme Markdown)",
+    "niveaux": "§19 à §23 (verbatim)",
+    "pertinence": "§15 ; libellés imposés par le propriétaire (DANS_LE_SUJET / PARTIEL / HORS_SUJET)",
+    "critere": "gabarit maison ; intitulé et description de chaque critère repris de la grille v15",
+    "critere.echelle_cecrl_v15": "production-rubrics-v15.json commun.sections « Echelle CECRL (descripteurs courts a appliquer a la production reelle) », lignes A1..B2 (verbatim, COPIE vérifiée par check-prompts)"
+  },
+  "niveau_global": {
+    "question": "Quel niveau CECRL cette production démontre-t-elle réellement ?",
+    "cadre": "Déterminer le niveau CECRL réellement démontré dans cette production.\n\nÉvaluer uniquement les capacités effectivement observables.\n\nNe jamais déduire le niveau :\n- du niveau cible supposé de la tâche ;\n- du numéro de la tâche ;\n- de la longueur seule ;\n- de quelques mots sophistiqués isolés ;\n- de quelques expressions mémorisées ;\n- du simple nombre de temps verbaux employés.\n\nÉvaluer notamment :\n- efficacité de la communication ;\n- construction syntaxique ;\n- maîtrise grammaticale ;\n- richesse et précision lexicale ;\n- cohérence ;\n- capacité à relier les idées ;\n- développement approprié à la tâche ;\n- capacité à raconter, expliquer, justifier, comparer, nuancer ou argumenter lorsque la tâche le permet.\n\nLes erreurs sont compatibles avec tous les niveaux CECRL.\n\nCe qui compte est leur fréquence, leur nature, leur caractère systématique et leur impact sur la communication.\n\nUne production concise peut démontrer un niveau élevé.\n\nUne production longue ne démontre pas automatiquement un niveau élevé.\n\nÉvaluer le niveau démontré par CETTE production et non le niveau général supposé du candidat.",
+    "insufficient": "INSUFFICIENT signifie : pas assez de matière linguistique exploitable pour estimer raisonnablement le niveau. Cela ne signifie pas : niveau faible. Une production faible mais exploitable peut être A1."
+  },
+  "niveaux": {
+    "A1": "Le candidat :\n\n- transmet quelques informations très simples ;\n- utilise des structures très simples ;\n- possède un lexique élémentaire ;\n- juxtapose souvent les idées ;\n- peut produire des phrases incomplètes ;\n- montre une maîtrise grammaticale très limitée.\n\nUne production A1 reste évaluable.\n\nNe pas la classer automatiquement `INSUFFICIENT`.",
+    "A2": "Le candidat :\n\n- communique sur des situations familières ;\n- utilise principalement des phrases simples ;\n- possède un vocabulaire courant ;\n- utilise des connecteurs élémentaires ;\n- peut raconter ou expliquer simplement ;\n- commet des erreurs régulières ;\n- reste généralement compréhensible.",
+    "B1": "Le candidat :\n\n- produit un texte suivi ;\n- raconte ;\n- explique ;\n- justifie ;\n- donne des raisons ;\n- exprime un avis ;\n- développe plusieurs idées ;\n- utilise des structures plus variées ;\n- possède un lexique suffisant pour développer ;\n- commet encore des erreurs sans bloquer la communication.",
+    "B2": "Le candidat :\n\n- produit un texte clair relativement à la tâche ;\n- développe ;\n- justifie ;\n- compare ;\n- nuance ;\n- émet des hypothèses ;\n- défend un point de vue ;\n- utilise une syntaxe variée ;\n- possède un lexique suffisamment précis ;\n- maîtrise globalement la grammaire.\n\nNe pas exiger :\n\n- dissertation ;\n- style académique ;\n- connecteurs artificiels ;\n- vocabulaire excessivement recherché.\n\nUn B2 peut être naturel et simple dans la forme.",
+    "INSUFFICIENT": "Utiliser uniquement lorsque la matière est réellement insuffisante.\n\nExemples :\n\n- quelques mots seulement ;\n- texte presque vide ;\n- production techniquement inexploitable ;\n- contenu ne permettant pas d’observer suffisamment de français.\n\nNe pas utiliser simplement parce que le candidat est A1."
+  },
+  "pertinence": {
+    "question": "La production répond-elle au sujet demandé par la consigne ?",
+    "regles": [
+      "Juger uniquement l'adéquation au sujet : thème, situation et destinataire indiqués par la consigne.",
+      "Ne pas juger la langue : un texte hors sujet écrit dans un excellent français reste HORS_SUJET ; un texte dans le sujet écrit avec beaucoup d'erreurs reste DANS_LE_SUJET.",
+      "La longueur ne décide pas de la pertinence."
+    ],
+    "criteria": {
+      "DANS_LE_SUJET": "La production traite le sujet demandé : l'essentiel de ce que la consigne demande est abordé.",
+      "PARTIEL": "La production aborde le sujet, mais une partie importante de ce que demande la consigne est absente, à peine esquissée ou remplacée par un autre propos.",
+      "HORS_SUJET": "La production ne traite pas le sujet demandé : elle parle d'autre chose, ou son lien avec la consigne reste superficiel."
+    }
+  },
+  "critere": {
+    "question": "À quel niveau CECRL cette production se situe-t-elle sur ce seul critère ?",
+    "regles": [
+      "Juger uniquement ce critère, indépendamment des autres critères.",
+      "Évaluer uniquement ce qui est effectivement observable dans la production.",
+      "Ne jamais déduire le niveau du niveau cible supposé de la tâche, du numéro de la tâche ni de la longueur seule.",
+      "Les erreurs sont compatibles avec tous les niveaux CECRL : compter leur fréquence, leur nature et leur impact."
+    ],
+    "choix": [
+      "A1",
+      "A2",
+      "B1",
+      "B2"
+    ],
+    "echelle_cecrl_v15": {
+      "A1": "phrases isolees ou juxtaposees, vocabulaire minimal (nom, age, ville, quotidien immediat), connecteurs limites a 'et/mais/apres/aussi', present uniquement, conjugaisons, determinants et accords souvent fautifs, aucune subordination. Le message peut etre COMPREHENSIBLE et traiter toute la consigne : cela ne le fait pas sortir du A1.",
+      "A2": "phrases simples coordonnees (parce que, mais, alors), vocabulaire concret familier, passe compose basique, discours descriptif (pas argumentatif), pas de subordination construite ni de connecteur organisant le propos. Une production A2 peut etre ENTIEREMENT CORRECTE : la correction ne la fait pas monter en B1.",
+      "B1": "discours suivi sur sujets familiers, subordonnees simples (qui/que/quand), but/cause (pour + infinitif, car), passe compose/imparfait corrects, connecteurs varies (d'abord, ensuite, en effet, par exemple), opinion claire avec arguments. Un discours B1 peut etre LONG, ORDONNE et SANS FAUTE : enchainer proprement des idees ne le fait pas sortir du B1.",
+      "B2": "argumentation EFFICACE et point de vue DEFENDU (objection envisagee puis traitee), subordonnees variees (bien que, a condition que, alors que, tellement... que, si + imparfait), conditionnel et subjonctif employes a bon escient, lexique precis et soutenu parfois image, reformulations spontanees, structure aboutie. Ce qui separe le B2 du B1, c'est l'efficacite de l'argumentation et l'etendue du repertoire, PAS l'absence de fautes."
+    }
+  }
+}
