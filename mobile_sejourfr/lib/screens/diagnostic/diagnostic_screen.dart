@@ -649,9 +649,11 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         ? state.guestStep == DiagnosticGuestStep.oral
         : state.journey?.nextStep == DiagnosticStep.oral;
     // 🛑 L'étape 1 du tunnel se lit sur la RUN (Q3), jamais sur un événement :
-    // pas de `DIAGNOSTIC_SUBJECT_VIEWED`. La première question du TCF rapide,
-    // c'est l'écrit.
-    if (onWritten && !_subjectViewedTracked) {
+    // pas de `DIAGNOSTIC_SUBJECT_VIEWED`. La première question affichée est
+    // l'écrit, ou l'oral pour un passage repris après l'écrit (autre appareil,
+    // réinstallation) — comme le web (`DiagnosticView`, écrit OU oral). La run
+    // est idempotente : un passage déjà tracé n'en crée pas une seconde.
+    if ((onWritten || onOral) && !_subjectViewedTracked) {
       _subjectViewedTracked = true;
       unawaited(_runs.subjectViewed(
         DiagnosticRunType.quickTcf,
