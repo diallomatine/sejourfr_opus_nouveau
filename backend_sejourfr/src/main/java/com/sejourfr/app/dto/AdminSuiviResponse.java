@@ -192,7 +192,9 @@ public record AdminSuiviResponse(
      * directe n'a pas de type ; la ventilation TCF / Civique est dans
      * {@code afterDiagnostic}.
      *
-     * @param contextUnknown          comptes sans contexte d'inscription (anterieurs a la mesure)
+     * @param contextUnknown          comptes sans contexte d'inscription : client ancien qui ne
+     *                                sait pas le transmettre (D98 ; en prod, l'application publiee
+     *                                avant iOS / Android), ou compte anterieur a la mesure
      * @param loggedInAfterDiagnostic connexions a un compte existant ayant rattache un
      *                                diagnostic dans la periode (ce ne sont pas des inscriptions)
      */

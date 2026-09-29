@@ -48,7 +48,7 @@ export function SignupsCard({ data }: { data: AdminSuiviResponse }) {
         {signups.contextUnknown != null && signups.contextUnknown > 0 && (
           <StatItem
             name="Origine inconnue"
-            meta="Comptes créés avant la mesure du contexte"
+            meta="Contexte non transmis : client ancien (application pas à jour)"
             number={int(signups.contextUnknown)}
           />
         )}
