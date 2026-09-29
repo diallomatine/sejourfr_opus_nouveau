@@ -1,0 +1,318 @@
+package com.sejourfr.app.service.diagnostic;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.service.AccountDeletionService;
+import com.sejourfr.app.service.ProductionPipelineAsyncRunner;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.AuthTestSupport;
+import com.sejourfr.app.support.TestData;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * LE TUNNEL DU DIAGNOSTIC ÉCRIT RAPIDE (lot L3), contre la vraie base.
+ *
+ * <p>Le parcours arbitré en {@code 50_} §3.1 : le visiteur lit le sujet
+ * <b>sans compte</b>, rédige <b>sur son appareil</b> (aucun {@code anon_id},
+ * aucune ligne en base), crée son compte, puis pousse son texte. L'appel LLM ne
+ * part qu'à ce moment — on ne paie pas les diagnostics abandonnés.
+ *
+ * <p>Ce que ce test verrouille, et pourquoi chacun compte :
+ * <ul>
+ *   <li>le sujet public et le sujet de la session créée sont <b>le même</b> —
+ *       sinon le candidat rédige sur un énoncé et se fait corriger sur un
+ *       autre ;</li>
+ *   <li><b>un seul</b> attempt est créé : pas d'attempt oral orphelin ;</li>
+ *   <li>sous 80 mots, <b>aucun appel au pipeline</b> — la recevabilité doit
+ *       couper AVANT la dépense, pas après ;</li>
+ *   <li>la fourchette est <b>80 à 300 mots</b> (V758), servie par la donnée du
+ *       sujet et appliquée par la même donnée à la soumission — et la consigne
+ *       ne réclame plus une autre longueur (« 150 à 220 mots ») que celle de
+ *       l'écran.</li>
+ * </ul>
+ */
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+class DiagnosticRapideIT extends AbstractIntegrationTest {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Autowired private MockMvc mockMvc;
+    @Autowired private TestData data;
+    @Autowired private AuthTestSupport auth;
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private AccountDeletionService accountDeletionService;
+
+    @MockitoBean private ProductionPipelineAsyncRunner pipelineRunner;
+
+    /**
+     * 🔴 <b>Le FORMAT est servi AVANT que rien ne soit commence.</b>
+     *
+     * <p>Constate a l'ecran le 2026-09-14 : l'accueil annonçait « 2 exercices ·
+     * ≈ 8 a 10 min » a un candidat qui n'avait jamais rien fait, alors que le
+     * diagnostic actif ({@code QUICK_TCF}) n'en comporte qu'<b>UN</b> — une
+     * production ecrite, sans etape orale depuis V050.
+     *
+     * <p>Le contrat rendait l'erreur inevitable : sur un parcours
+     * {@code NOT_STARTED}, {@code written} et {@code oral} valent tous deux
+     * {@code null} (le serveur n'attache ses sujets qu'a l'ouverture), donc
+     * aucun front ne pouvait deriver le compte — et les deux l'ont ecrit a la
+     * main.
+     *
+     * <p>🛑 <b>Les SUJETS, eux, restent nuls</b> : le sujet ecrit est TIRE a
+     * l'ouverture, en annoncer un ici en designerait un autre que celui qui
+     * sera joue.
+     */
+    @Test
+    @DisplayName("🔴 Sans session, le format dit combien d'exercices attendent — sans révéler de sujet")
+    void leFormatEstServiAvantToutParcours() throws Exception {
+        User user = data.user();
+        String token = auth.bearer(user);
+
+        mockMvc.perform(get("/api/diagnostics/current").header(HttpHeaders.AUTHORIZATION, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("NOT_STARTED")))
+                // Le diagnostic actif est le rapide : UNE production ecrite.
+                .andExpect(jsonPath("$.format.exerciseCount", is(1)))
+                .andExpect(jsonPath("$.format.writtenWordsMin").isNumber())
+                .andExpect(jsonPath("$.format.writtenWordsMax").isNumber())
+                // Pas d'oral : ses mesures sont nulles, jamais des zeros.
+                .andExpect(jsonPath("$.format.oralDurationMinSeconds").doesNotExist())
+                .andExpect(jsonPath("$.format.oralDurationMaxSeconds").doesNotExist())
+                // 🛑 Aucun sujet n'est revele : il n'est pas encore tire.
+                .andExpect(jsonPath("$.written").doesNotExist())
+                .andExpect(jsonPath("$.oral").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Le sujet lu sans compte est celui de la session créée après inscription")
+    void leSujetLuSansCompteEstCeluiDeLaSession() throws Exception {
+        UUID sujetPublic = UUID.fromString(publicCurrent()
+                .path("written").path("productionTaskId").asText());
+
+        User user = data.user();
+        try {
+            JsonNode session = startSession(auth.bearer(user), sujetPublic);
+
+            assertThat(UUID.fromString(
+                    session.path("written").path("productionTaskId").asText()))
+                    .isEqualTo(sujetPublic);
+            // 🛑 Pas d'étape orale, donc l'écrit mène DIRECTEMENT à l'analyse.
+            assertThat(session.path("oral").isMissingNode()
+                    || session.path("oral").isNull()).isTrue();
+            assertThat(session.path("nextStep").asText()).isEqualTo("WRITTEN");
+            // Un seul attempt : un attempt oral orphelin coûterait une ligne à
+            // chaque candidat, pour une étape qui n'existe pas.
+            assertThat(countAttempts(user.getId())).isEqualTo(1);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    @Test
+    @DisplayName("🛑 Sous 80 mots : refus AVANT toute dépense, et le message ne parle pas de « tâche »")
+    void sousLeSeuilDeRecevabiliteAucunAppelLlm() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            mockMvc.perform(post("/api/production-submissions")
+                            .header(HttpHeaders.AUTHORIZATION, bearer)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(JSON.writeValueAsString(Map.of(
+                                    "productionTaskId",
+                                    session.path("written").path("productionTaskId").asText(),
+                                    "attemptId",
+                                    session.path("written").path("attemptId").asText(),
+                                    "texte", copieDe(60)))))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.message",
+                            is("Nous n'avons pas assez d'éléments pour estimer votre niveau. "
+                                    + "Complétez votre texte : il faut au moins 80 mots.")));
+
+            // 🛑 L'ASSERTION QUI COMPTE : pas un seul appel payant. La garde de
+            // recevabilité doit couper avant le pipeline, jamais après.
+            verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+            assertThat(countSubmissions(user.getId())).isZero();
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    /**
+     * 🔴 <b>Une seule fourchette, et c'est la donnée du sujet</b> (V758).
+     *
+     * <p>Constaté à l'écran le 2026-09-26 : la consigne réclamait « entre 150
+     * et 220 mots » pendant que l'éditeur annonçait 100–300. Les bornes servies
+     * (sujet public, format, session) sont celles que la soumission applique ;
+     * la consigne n'en énonce plus aucune autre, et son contenu est intact.
+     */
+    @Test
+    @DisplayName("🔴 Le sujet sert 80 à 300 mots, partout, et sa consigne ne réclame plus 150-220")
+    void laFourchetteEstUniqueEtServie() throws Exception {
+        JsonNode written = publicCurrent().path("written");
+        assertThat(written.path("wordsMin").asInt()).isEqualTo(80);
+        assertThat(written.path("wordsMax").asInt()).isEqualTo(300);
+        String consigne = written.path("instruction").asText();
+        assertThat(consigne).doesNotContain("150").doesNotContain("220").doesNotContain("Écrivez entre");
+        // Le reste de l'énoncé ne bouge pas : l'allowlist s'appuie sur ses trois mouvements.
+        assertThat(consigne)
+                .startsWith("Parlez-nous un peu de vous et de votre quotidien.")
+                .contains("- décrivez votre lieu de vie ;")
+                .contains("- racontez une expérience récente qui vous a marqué ;")
+                .endsWith("- expliquez quelque chose que vous aimeriez changer dans votre quotidien, et pourquoi.");
+
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            mockMvc.perform(get("/api/diagnostics/current").header(HttpHeaders.AUTHORIZATION, bearer))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.format.writtenWordsMin", is(80)))
+                    .andExpect(jsonPath("$.format.writtenWordsMax", is(300)));
+
+            JsonNode session = startSession(bearer, null);
+            assertThat(session.path("written").path("wordsMin").asInt()).isEqualTo(80);
+            assertThat(session.path("written").path("wordsMax").asInt()).isEqualTo(300);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    /**
+     * La borne basse lue par la soumission est la DONNÉE (80), pas l'ancienne
+     * valeur : 85 mots, refusés avant V758, sont reçus.
+     */
+    @Test
+    @DisplayName("85 mots : recevable depuis V758, le pipeline part une fois")
+    void entre80Et100MotsLaProductionEstRecue() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            submitWritten(bearer, session, 85)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.statut", is("SUBMITTED")));
+
+            assertThat(countSubmissions(user.getId())).isEqualTo(1);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    @Test
+    @DisplayName("🛑 Au-delà de 300 mots : refus AVANT toute dépense")
+    void auDelaDu300MotsAucunAppelLlm() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            submitWritten(bearer, session, 301)
+                    .andExpect(status().isUnprocessableEntity());
+
+            verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
+            assertThat(countSubmissions(user.getId())).isZero();
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    @Test
+    @DisplayName("Au-dessus du seuil, la production est reçue et le pipeline part une fois")
+    void auDessusDuSeuilLaProductionEstRecue() throws Exception {
+        User user = data.user();
+        String bearer = auth.bearer(user);
+        try {
+            JsonNode session = startSession(bearer, null);
+
+            mockMvc.perform(post("/api/production-submissions")
+                            .header(HttpHeaders.AUTHORIZATION, bearer)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(JSON.writeValueAsString(Map.of(
+                                    "productionTaskId",
+                                    session.path("written").path("productionTaskId").asText(),
+                                    "attemptId",
+                                    session.path("written").path("attemptId").asText(),
+                                    "texte", copieDe(180)))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.statut", is("SUBMITTED")));
+
+            assertThat(countSubmissions(user.getId())).isEqualTo(1);
+        } finally {
+            accountDeletionService.deleteAccount(user.getId());
+        }
+    }
+
+    // ------------------------------------------------------------------------
+
+    private ResultActions submitWritten(
+            String bearer, JsonNode session, int mots) throws Exception {
+        return mockMvc.perform(post("/api/production-submissions")
+                .header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(JSON.writeValueAsString(Map.of(
+                        "productionTaskId",
+                        session.path("written").path("productionTaskId").asText(),
+                        "attemptId",
+                        session.path("written").path("attemptId").asText(),
+                        "texte", copieDe(mots)))));
+    }
+
+    private JsonNode publicCurrent() throws Exception {
+        return JSON.readTree(mockMvc.perform(get("/api/public/diagnostics/current"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private JsonNode startSession(String bearer, UUID writtenTaskId) throws Exception {
+        var request = post("/api/diagnostics").header(HttpHeaders.AUTHORIZATION, bearer);
+        if (writtenTaskId != null) {
+            request = request.param("writtenTaskId", writtenTaskId.toString());
+        }
+        return JSON.readTree(mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private int countAttempts(UUID userId) {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM attempts WHERE user_id = ?", Integer.class, userId);
+    }
+
+    private int countSubmissions(UUID userId) {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM production_submissions WHERE user_id = ?",
+                Integer.class, userId);
+    }
+
+    /** Un texte de {@code mots} mots, sans autre propriété que sa longueur. */
+    private static String copieDe(int mots) {
+        return String.join(" ", java.util.Collections.nCopies(mots, "quotidien"));
+    }
+}

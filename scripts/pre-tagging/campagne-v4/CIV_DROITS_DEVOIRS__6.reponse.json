@@ -1,0 +1,83 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiSTxR5pPkd8QpGg9c",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_013WXFc3F4KAKVhnNstRR5gr",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.85,
+            "rationale": "Droit à l'environnement, énoncé toujours couplé au devoir environnemental dans ce référentiel",
+            "alternative": "dd_textes_fondateurs",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 2,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.93,
+            "rationale": "Liberté syndicale citée explicitement comme droit social dans la frontière"
+          },
+          {
+            "rang": 3,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.93,
+            "rationale": "Droit de grève cité explicitement dans les droits sociaux"
+          },
+          {
+            "rang": 4,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.92,
+            "rationale": "Instruction obligatoire et gratuité de l'école, droit social matériel"
+          },
+          {
+            "rang": 5,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.92,
+            "rationale": "Protection de la santé, droit social reconnu par le préambule de 1946"
+          },
+          {
+            "rang": 6,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.88,
+            "rationale": "Devoir de fraternité cité explicitement dans les devoirs constitutionnels"
+          },
+          {
+            "rang": 7,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "La majorité civile est explicitement citée dans la frontière de cette notion"
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 7518,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 524,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

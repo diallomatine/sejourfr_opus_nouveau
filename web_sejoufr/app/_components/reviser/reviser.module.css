@@ -1,0 +1,73 @@
+/* Écran « Réviser » — ce que le KIT ne porte pas encore.
+
+   🛑 Trois blocs seulement, et c'est volontaire : la liste des épreuves, son
+   anneau et sa ligne d'état vivent dans le kit (`EpreuveRow`, `Ring`), parce
+   qu'elles ont un miroir Flutter. Ce qui reste ici est **propre à la page web**
+   — le sous-titre sous l'en-tête, la carte de reprise et le bandeau de
+   découverte, qui n'existe pas côté mobile (l'app n'a pas de visiteurs). */
+
+.sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+  max-width: 46ch;
+}
+
+/* ---------- Reprendre là où vous vous êtes arrêté ---------- */
+
+/* 🛑 La carte est celle du KIT (`Card variant="hero"`) : rayon, ombre et
+   rythme y vivent déjà, et le mobile monte la sienne sur `SfCard(hero)`. On ne
+   garde ici que le **dégradé**, qui n'a pas de pendant dans le kit.
+
+   Ce qu'une carte maison coûtait : au palier desktop, le kit ne lève le plafond
+   de 420 px d'un `.btn` que **dans ses propres cartes** — « Continuer » finissait
+/* La porte du diagnostic porte une phrase, pas un repère de domaine : sans
+   plafond, elle s'étirerait sur toute la largeur d'un desktop. */
+@media (min-width: 960px) {
+  .resumeHead span span {
+    max-width: 62ch;
+  }
+}
+
+/* ---------- Découverte gratuite ---------- */
+
+.demoWrap {
+  margin-top: 14px;
+}
+
+.demo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-blue-soft);
+  box-shadow: inset 0 0 0 1px var(--color-blue-light);
+  color: inherit;
+}
+
+.demo:hover {
+  background: var(--color-blue-light);
+}
+
+.demoBody b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.demoBody span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.demoArrow {
+  font-size: 18px;
+  color: var(--color-blue);
+}

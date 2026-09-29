@@ -1,0 +1,670 @@
+{
+  "skillCode": "EO3-C9",
+  "rang": 7,
+  "titre": "Reformuler pour relancer son propos",
+  "critere": "Reprendre autrement ce que l'on vient de dire pour préciser ou repartir, au lieu de tourner en rond.",
+  "remplace": "EO3-C6 — Comparer ou présenter avantages et inconvénients (15 sujets désactivés : décalque de EE3-C6, non structurant à l'oral)",
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "« C'est mieux pour tout le monde »",
+      "context": "Vous défendez les horaires souples au travail et vous venez de dire : « C'est mieux pour tout le monde. » Votre interlocuteur attend, l'air peu convaincu.",
+      "instruction": "Reprenez cette phrase autrement pour la préciser, sans la répéter telle quelle.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise la précise.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 35,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Redites-le autrement",
+        "Précisez qui et comment",
+        "Ne répétez pas la phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Précision ajoutée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je veux dire par là que…",
+      "tip": "reformuler, ce n'est pas répéter : c'est dire la même chose plus précisément",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui, vraiment, c'est mieux pour tout le monde. Pour les salariés, pour l'entreprise, pour tout le monde, c'est mieux. Je pense que c'est mieux comme ça.",
+          "pedagogicalNote": "La phrase revient à l'identique : rien n'est précisé, le propos piétine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je veux dire par là que chacun peut caler ses horaires sur ses trajets et sa famille. L'entreprise y gagne aussi : moins de retards le matin, moins de journées posées pour un rendez-vous.",
+          "pedagogicalNote": "L'idée est redite en d'autres mots et gagne en précision."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je veux dire par là que chacun choisit son heure d'arrivée selon ses trajets et ses enfants. Pour l'entreprise, cela veut dire moins de retards le matin et moins de congés posés pour un rendez-vous d'une heure. « Mieux pour tout le monde », c'est cela concrètement.",
+          "pedagogicalNote": "La reprise précise l'idée des deux côtés et referme la boucle sur la formule de départ."
+        }
+      ]
+    },
+    {
+      "title": "« Ça coûte cher »",
+      "context": "Vous parlez du prix des transports et vous venez de dire : « Ça coûte cher. » Votre interlocuteur hausse les épaules.",
+      "instruction": "Reprenez cette phrase autrement pour la préciser, sans la répéter telle quelle.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise la précise.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 35,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Redites-le autrement",
+        "Donnez une mesure concrète",
+        "Ne répétez pas la phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Précision ajoutée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Plus précisément…",
+      "tip": "« cher » ne dit rien tant qu'on ne dit pas cher par rapport à quoi",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui, ça coûte cher, vraiment très cher. Les transports, c'est cher pour tout le monde et ça augmente encore. C'est cher, voilà.",
+          "pedagogicalNote": "Le mot « cher » revient quatre fois sans jamais être expliqué."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Plus précisément, l'abonnement me prend soixante-quinze euros par mois, soit une semaine de courses. Et ce n'est pas un choix : sans voiture, je n'ai pas d'autre moyen d'aller travailler.",
+          "pedagogicalNote": "L'idée est redite en termes concrets : « cher » devient mesurable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Plus précisément, soixante-quinze euros par mois, c'est une semaine de courses pour ma famille. Et ce n'est pas une dépense qu'on peut réduire : sans voiture, il n'y a pas d'autre façon d'aller travailler. C'est ce que j'appelle cher.",
+          "pedagogicalNote": "La reprise chiffre, explique l'absence de choix, puis reprend le mot de départ."
+        }
+      ]
+    },
+    {
+      "title": "« C'est plus pratique »",
+      "context": "Vous défendez les commerces de quartier et vous venez de dire : « C'est plus pratique. » Votre interlocuteur attend la suite.",
+      "instruction": "Reprenez cette phrase autrement pour la préciser, sans la répéter telle quelle.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise la précise.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 35,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Redites-le autrement",
+        "Dites pratique pour quoi",
+        "Ne répétez pas la phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Précision ajoutée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Pratique, c'est-à-dire que…",
+      "tip": "« pratique » se précise toujours : pratique pour qui, pour quel geste",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est plus pratique, franchement. Les commerces de quartier, c'est vraiment pratique au quotidien, beaucoup plus pratique que les grandes surfaces.",
+          "pedagogicalNote": "Le mot est répété sans être expliqué : le propos tourne sur lui-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pratique, c'est-à-dire que je descends acheter du pain en trois minutes, sans voiture et sans faire la queue. Je n'ai pas besoin de prévoir ni de charger un coffre.",
+          "pedagogicalNote": "L'idée est reformulée par des gestes concrets : « pratique » devient visible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pratique, c'est-à-dire que j'y descends en trois minutes, sans voiture, sans chariot, sans queue. Je peux y aller à sept heures du soir pour une chose oubliée. Une grande surface demande de prévoir ; le commerce du bas, non.",
+          "pedagogicalNote": "La reprise remplace le mot par des gestes, puis oppose les deux situations."
+        }
+      ]
+    },
+    {
+      "title": "« C'est important pour les enfants »",
+      "context": "Vous parlez de la lecture le soir et vous venez de dire : « C'est important pour les enfants. » On vous demande d'aller plus loin.",
+      "instruction": "Reprenez cette phrase autrement pour la préciser, sans la répéter telle quelle.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise la précise.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 35,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Redites-le autrement",
+        "Dites important en quoi",
+        "Ne répétez pas la phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Précision ajoutée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Important, je veux dire que…",
+      "tip": "« important » se précise en disant ce que cela change vraiment",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est très important pour les enfants, c'est même essentiel. Tous les spécialistes le disent, la lecture est importante pour les enfants, il ne faut pas l'oublier.",
+          "pedagogicalNote": "Le mot est renforcé au lieu d'être expliqué : rien ne progresse."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Important, je veux dire que dix minutes chaque soir suffisent à leur donner du vocabulaire. Un enfant à qui l'on a lu des histoires arrive en classe avec des mots que les autres découvrent.",
+          "pedagogicalNote": "L'idée est redite concrètement : « important » se transforme en effet observable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Important, je veux dire que dix minutes par soir changent le vocabulaire d'un enfant en un an. Il arrive en classe avec des mots que les autres découvrent, et il suit sans effort. Ce n'est pas un supplément : c'est ce qui rend l'école plus facile.",
+          "pedagogicalNote": "La reprise mesure l'effet, puis requalifie le mot de départ."
+        }
+      ]
+    },
+    {
+      "title": "« Ça ne marche pas »",
+      "context": "Vous parlez du tri des déchets dans votre immeuble et vous venez de dire : « Ça ne marche pas. » Un voisin vous demande ce que vous voulez dire.",
+      "instruction": "Reprenez cette phrase autrement pour la préciser, sans la répéter telle quelle.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise la précise.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 35,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Redites-le autrement",
+        "Décrivez ce qu'on voit",
+        "Ne répétez pas la phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Précision ajoutée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Concrètement…",
+      "tip": "« ça ne marche pas » ne dit rien : décrivez ce qu'on voit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ça ne marche pas, c'est tout. On a essayé, ça ne marche pas dans notre immeuble. Il faudrait autre chose parce que là, ça ne marche vraiment pas.",
+          "pedagogicalNote": "La formule revient trois fois sans qu'on sache de quoi il s'agit."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Concrètement, le bac jaune est plein de sacs noirs dès le lundi soir. Le camion refuse de le vider et tout part à l'incinération, y compris ce que les autres ont trié.",
+          "pedagogicalNote": "L'idée est redite par une scène précise : le problème devient visible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Concrètement, le bac jaune contient des sacs noirs dès le lundi soir. Le camion le refuse, et tout part à l'incinération, y compris ce que les autres ont trié correctement. Ceux qui font l'effort le font donc pour rien, et ils arrêtent.",
+          "pedagogicalNote": "La reprise décrit la scène, puis explique pourquoi le système se défait."
+        }
+      ]
+    },
+    {
+      "title": "« Les jeunes ne lisent plus »",
+      "context": "Vous venez de dire : « Les jeunes ne lisent plus. » Votre interlocuteur répond : « Vous êtes dur avec eux. » Ce n'est pas ce que vous vouliez dire.",
+      "instruction": "Reprenez votre idée autrement pour lever le malentendu, sans la répéter ni vous excuser.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise lève le malentendu.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 42,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Écartez le malentendu",
+        "Redites l'idée autrement",
+        "Ne vous excusez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Malentendu levé",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Ce n'est pas ce que je voulais dire…",
+      "tip": "reformuler vaut mieux que se défendre : redites l'idée, autrement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Non, non, je ne suis pas dur, pas du tout. Je dis juste qu'ils ne lisent plus, c'est un constat, ce n'est pas une critique, voilà tout.",
+          "pedagogicalNote": "La même phrase revient avec une dénégation : le malentendu reste entier."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce n'est pas ce que je voulais dire : ils lisent beaucoup, mais sur écran, par petits morceaux. Ce qui se perd, c'est le texte long qu'on suit pendant une heure.",
+          "pedagogicalNote": "L'idée est reformulée et le malentendu tombe de lui-même."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce n'est pas ce que je voulais dire : ils lisent sans doute plus de mots que nous au même âge, mais par fragments, sur un écran. Ce qui disparaît, c'est le texte long, tenu pendant une heure. Le reproche n'est pas pour eux, il est pour la forme.",
+          "pedagogicalNote": "La reprise inverse le reproche et redéfinit exactement ce qui était visé."
+        }
+      ]
+    },
+    {
+      "title": "« Limiter les voitures en centre-ville »",
+      "context": "Vous venez de dire : « Il faut limiter les voitures en centre-ville. » Votre interlocuteur répond : « Donc vous voulez les interdire. » Ce n'est pas votre position.",
+      "instruction": "Reprenez votre idée autrement pour lever le malentendu, sans la répéter ni vous excuser.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise lève le malentendu.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 42,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Écartez le malentendu",
+        "Redites l'idée autrement",
+        "Ne vous excusez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Malentendu levé",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Je ne dis pas cela. Je dis que…",
+      "tip": "quand on vous prête un excès, redonnez la mesure exacte de votre idée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Non, je n'ai jamais dit interdire, jamais. J'ai dit limiter, ce n'est pas pareil du tout. Limiter, c'est limiter, ce n'est pas interdire les voitures.",
+          "pedagogicalNote": "La dénégation tourne en rond : l'idée n'est jamais redite autrement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je ne dis pas cela. Je dis que la place du centre peut accueillir vingt voitures au lieu de quatre-vingts, avec un parking à trois minutes à pied. Les voitures restent, elles se garent ailleurs.",
+          "pedagogicalNote": "L'idée est reformulée par un chiffre et une solution : le malentendu tombe."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je ne dis pas cela. Je dis que la place peut accueillir vingt voitures au lieu de quatre-vingts, avec un parking à trois minutes à pied. Les livraisons passent le matin, les riverains gardent leur accès. Ce n'est pas moins de voitures, c'est moins de voitures arrêtées là.",
+          "pedagogicalNote": "La reprise donne la mesure, les exceptions, puis reformule la nuance décisive."
+        }
+      ]
+    },
+    {
+      "title": "« Le télétravail isole »",
+      "context": "Vous venez de dire : « Le télétravail isole. » Votre interlocuteur répond : « Vous êtes donc contre. » Ce n'est pas votre position.",
+      "instruction": "Reprenez votre idée autrement pour lever le malentendu, sans la répéter ni vous excuser.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise lève le malentendu.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 42,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Écartez le malentendu",
+        "Redites l'idée autrement",
+        "Ne vous excusez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Malentendu levé",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Non, je ne suis pas contre. Ce que je dis, c'est que…",
+      "tip": "signaler un risque n'est pas s'opposer : dites-le autrement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Non, je ne suis pas contre le télétravail, pas du tout. Je dis juste que ça isole. Ça isole, c'est un fait, mais je ne suis pas contre.",
+          "pedagogicalNote": "La phrase revient telle quelle : l'interlocuteur n'a aucune raison de changer d'avis."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Non, je ne suis pas contre. Ce que je dis, c'est qu'au bout de trois mois sans venir, on ne sait plus à qui poser une question simple. Deux jours sur place par semaine suffisent à éviter cela.",
+          "pedagogicalNote": "L'idée est reformulée avec sa condition : la position devient claire."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Non, je ne suis pas contre. Ce que je dis, c'est qu'au bout de trois mois à distance, on ne sait plus à qui poser une question de deux minutes, et on attend un rendez-vous pour cela. Deux jours sur place suffisent. Le problème n'est pas le télétravail, c'est le télétravail complet.",
+          "pedagogicalNote": "La reprise déplace le problème et nomme exactement ce qui était visé."
+        }
+      ]
+    },
+    {
+      "title": "« L'école demande trop aux parents »",
+      "context": "Vous venez de dire : « L'école demande trop aux parents. » Votre interlocutrice, enseignante, répond : « Vous nous reprochez quelque chose ? » Ce n'est pas ce que vous vouliez dire.",
+      "instruction": "Reprenez votre idée autrement pour lever le malentendu, sans la répéter ni vous excuser.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise lève le malentendu.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 42,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Écartez le malentendu",
+        "Redites l'idée autrement",
+        "Ne vous excusez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Malentendu levé",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Ce n'est pas à vous que je pense. Je pense à…",
+      "tip": "désignez ce que vous visez vraiment : le malentendu tombe tout seul",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Non, non, ce n'est pas contre vous, vraiment pas. Je dis que l'école demande trop, c'est tout. Ce n'est pas un reproche, c'est un constat sur l'école.",
+          "pedagogicalNote": "Le constat est répété et la personne reste visée : rien n'est levé."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce n'est pas à vous que je pense. Je pense aux devoirs qui supposent un parent disponible à dix-huit heures et capable d'expliquer une leçon. Un parent qui finit à dix-neuf heures ne peut pas suivre.",
+          "pedagogicalNote": "L'idée est redirigée vers son vrai objet : le malentendu disparaît."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce n'est pas à vous que je pense. Je pense aux devoirs qui supposent un adulte disponible à dix-huit heures, capable d'expliquer une division et de faire réciter une leçon. Un parent qui finit à dix-neuf heures ne peut pas, et son enfant prend du retard sans que personne l'ait décidé.",
+          "pedagogicalNote": "La reprise nomme précisément le mécanisme visé, sans jamais accuser quelqu'un."
+        }
+      ]
+    },
+    {
+      "title": "« Les réseaux font perdre du temps »",
+      "context": "Vous venez de dire : « Les réseaux sociaux font perdre du temps. » Votre interlocuteur répond : « Il faudrait donc les supprimer ? » Ce n'est pas votre position.",
+      "instruction": "Reprenez votre idée autrement pour lever le malentendu, sans la répéter ni vous excuser.",
+      "uniqueCriterion": "La même idée est redite en d'autres mots, et la reprise lève le malentendu.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 42,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Écartez le malentendu",
+        "Redites l'idée autrement",
+        "Ne vous excusez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Malentendu levé",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Ce n'est pas la question. Ce que je dis, c'est que…",
+      "tip": "on vous pousse à l'extrême : ramenez votre idée à sa taille réelle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Les supprimer ? Non, bien sûr que non, ce n'est pas ce que j'ai dit. J'ai dit qu'ils font perdre du temps, et c'est vrai, ils font perdre du temps.",
+          "pedagogicalNote": "L'extrême est écarté mais la phrase revient à l'identique : rien n'avance."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce n'est pas la question. Ce que je dis, c'est qu'on les ouvre pour cinq minutes et qu'on referme une heure plus tard sans s'en rendre compte. Ce n'est pas l'outil, c'est la façon dont il retient.",
+          "pedagogicalNote": "L'idée est reformulée et le débat revient à sa vraie mesure."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce n'est pas la question. Ce que je dis, c'est qu'on les ouvre pour cinq minutes et qu'on referme une heure plus tard, sans décision consciente entre les deux. Ce n'est pas l'outil qui est en cause, c'est ce qui est fait pour qu'on ne s'arrête pas. Les supprimer ne réglerait rien.",
+          "pedagogicalNote": "La reprise déplace la cible et répond à l'objection dans le même mouvement."
+        }
+      ]
+    },
+    {
+      "title": "« Une question de moyens »",
+      "context": "Vous parlez du manque de places en crèche. Vous venez de dire deux fois « c'est une question de moyens » et vous sentez que vous tournez en rond.",
+      "instruction": "Reprenez votre idée autrement pour repartir, au lieu de la redire une troisième fois.",
+      "uniqueCriterion": "L'idée est reprise en d'autres mots et la reprise relance le propos ailleurs.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 48,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Redites l'idée autrement",
+        "Repartez sur autre chose",
+        "Ne redites pas la formule"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Propos relancé",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Plutôt que de parler de moyens, disons que…",
+      "tip": "quand une formule revient, changez de mots : les idées suivent",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est vraiment une question de moyens, je le maintiens. Sans moyens, on ne peut rien faire, c'est toujours une question de moyens au bout du compte.",
+          "pedagogicalNote": "La formule revient une troisième fois : le propos n'avance plus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Plutôt que de parler de moyens, disons qu'une crèche a besoin d'une professionnelle pour cinq enfants, et qu'on ne les trouve pas. Le problème n'est pas seulement l'argent, c'est le métier.",
+          "pedagogicalNote": "L'idée est reprise en d'autres termes et le propos repart sur le recrutement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Plutôt que de parler de moyens, disons qu'une crèche a besoin d'une professionnelle pour cinq enfants, et que ces professionnelles n'existent pas en nombre suffisant. Même avec le budget, les places n'ouvriraient pas cette année. Le vrai sujet, c'est la formation, et elle prend deux ans.",
+          "pedagogicalNote": "La reprise abandonne la formule et ouvre une suite entièrement nouvelle."
+        }
+      ]
+    },
+    {
+      "title": "« C'est important »",
+      "context": "Vous parlez de l'apprentissage du français à l'arrivée en France. Vous avez déjà dit trois fois « c'est important » et vous n'avancez plus.",
+      "instruction": "Reprenez votre idée autrement pour repartir, au lieu de la redire une fois de plus.",
+      "uniqueCriterion": "L'idée est reprise en d'autres mots et la reprise relance le propos ailleurs.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 48,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Redites l'idée autrement",
+        "Repartez sur autre chose",
+        "Ne redites pas la formule"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Propos relancé",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Disons-le autrement…",
+      "tip": "changer de mot est souvent le seul moyen de sortir d'une boucle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est important, c'est vraiment important d'apprendre le français. Tout le monde vous dira que c'est important, et moi aussi je trouve que c'est important.",
+          "pedagogicalNote": "Le mot revient sans cesse : le propos tourne sur place."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Disons-le autrement : sans le français, on ne comprend pas une lettre de la préfecture et on signe des papiers qu'on n'a pas lus. Ce n'est pas une question d'importance, c'est une question d'autonomie.",
+          "pedagogicalNote": "L'idée est reformulée et le propos repart sur l'autonomie."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Disons-le autrement : sans le français, on signe des papiers qu'on n'a pas lus et on dépend de quelqu'un pour chaque courrier. Ma voisine a attendu six mois un droit qu'elle avait, faute d'avoir compris une lettre. Ce n'est pas une question d'importance, c'est une question d'autonomie.",
+          "pedagogicalNote": "La reprise remplace le mot, apporte un fait, et ouvre une suite claire."
+        }
+      ]
+    },
+    {
+      "title": "« Ça dépend des gens »",
+      "context": "On vous demande si le bénévolat devrait être davantage encouragé. Vous tournez autour de « ça dépend des gens » depuis un moment.",
+      "instruction": "Reprenez votre idée autrement pour repartir, au lieu de rester sur cette formule.",
+      "uniqueCriterion": "L'idée est reprise en d'autres mots et la reprise relance le propos ailleurs.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 48,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Redites l'idée autrement",
+        "Repartez sur autre chose",
+        "Ne redites pas la formule"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Propos relancé",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Au fond, ce que je veux dire, c'est que…",
+      "tip": "« ça dépend » se transforme facilement : dites de quoi, exactement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ça dépend vraiment des gens, franchement. Certains aiment ça, d'autres pas du tout, donc ça dépend des gens et de leur caractère, je crois.",
+          "pedagogicalNote": "La formule revient et le propos ne trouve aucune sortie."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Au fond, ce que je veux dire, c'est que ça dépend surtout du temps disponible. Une personne qui travaille en trois-huit ne peut pas s'engager le samedi, même si elle en a envie.",
+          "pedagogicalNote": "La reprise transforme « ça dépend » en une condition précise : le propos repart."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Au fond, ce que je veux dire, c'est que cela dépend moins du caractère que des horaires. Une personne en trois-huit ne peut pas s'engager tous les samedis, même très motivée. La vraie question, c'est donc de créer des missions de deux heures, à des horaires variables.",
+          "pedagogicalNote": "La reprise déplace la condition et ouvre directement sur une proposition."
+        }
+      ]
+    },
+    {
+      "title": "« Il faut du temps »",
+      "context": "Vous parlez de l'installation dans un nouveau pays. Vous avez dit trois fois « il faut du temps » et vous sentez que vous piétinez.",
+      "instruction": "Reprenez votre idée autrement pour repartir, au lieu de la redire une fois de plus.",
+      "uniqueCriterion": "L'idée est reprise en d'autres mots et la reprise relance le propos ailleurs.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 48,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Redites l'idée autrement",
+        "Repartez sur autre chose",
+        "Ne redites pas la formule"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Propos relancé",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Plutôt que « du temps », disons…",
+      "tip": "remplacez le mot vague par ce qu'il contient : le propos redémarre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il faut du temps, vraiment. Ça prend du temps, on ne peut pas aller plus vite, il faut laisser du temps au temps, c'est comme ça.",
+          "pedagogicalNote": "La formule est répétée et même redoublée : le propos n'avance plus du tout."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Plutôt que « du temps », disons qu'il faut une adresse stable, un compte en banque et un premier contrat. Tant que ces trois choses manquent, rien d'autre ne peut commencer.",
+          "pedagogicalNote": "La formule vague devient une liste concrète : le propos repart."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Plutôt que « du temps », disons qu'il faut trois choses dans l'ordre : une adresse stable, un compte en banque, puis un premier contrat. Chacune conditionne la suivante, et c'est cet enchaînement qui prend dix-huit mois. Ce n'est pas la lenteur des gens, c'est l'ordre des démarches.",
+          "pedagogicalNote": "La reprise remplace le mot par un mécanisme, puis écarte une fausse explication."
+        }
+      ]
+    },
+    {
+      "title": "Le mot ne vient pas",
+      "context": "Vous défendez les jardins partagés de votre ville. Vous cherchez un mot depuis quelques secondes et il ne vient pas.",
+      "instruction": "Reprenez votre idée avec d'autres mots pour repartir, sans attendre que le mot exact revienne.",
+      "uniqueCriterion": "L'idée est redite avec d'autres mots et le propos repart, sans blocage sur le mot manquant.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 48,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Renoncez au mot exact",
+        "Redites l'idée autrement",
+        "Repartez sans vous arrêter"
+      ],
+      "constraintTags": [
+        {
+          "label": "Reprise autrement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Propos relancé",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je ne trouve pas le mot, mais l'idée, c'est que…",
+      "tip": "le mot exact n'est pas nécessaire : l'idée passe très bien autrement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un endroit où… comment on dit… attendez… c'est le mot que je cherche… un truc comme… non, ça ne me revient pas, désolé.",
+          "pedagogicalNote": "Tout s'arrête sur le mot manquant : l'idée n'est jamais dite."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je ne trouve pas le mot, mais l'idée, c'est que les gens du quartier cultivent chacun un petit morceau de terrain et se croisent en le faisant. C'est cela qui compte, plus que les légumes.",
+          "pedagogicalNote": "Le mot est abandonné, l'idée est redite autrement, et le propos continue."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je ne trouve pas le mot, mais l'idée, c'est que chacun cultive un petit morceau de terrain et croise les autres en venant arroser. Des gens qui ne se parlaient pas dans l'ascenseur discutent une heure entre deux rangs de tomates. C'est cela que je voulais dire.",
+          "pedagogicalNote": "Le blocage est contourné en deux secondes et l'exemple relance le propos plus loin."
+        }
+      ]
+    }
+  ]
+}

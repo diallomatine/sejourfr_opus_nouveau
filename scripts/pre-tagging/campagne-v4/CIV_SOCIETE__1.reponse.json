@@ -1,0 +1,191 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyjXdY6CqxaPiFCmpFo",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01PDp2F9pEnEazNTZUYVdfzj",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_sante_soins",
+            "confiance": 0.97,
+            "rationale": "Rôle du médecin traitant dans le parcours de soins ordinaire."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_sante_soins",
+            "confiance": 0.9,
+            "rationale": "Vaccinations obligatoires font partie du parcours de soins."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_sante_soins",
+            "confiance": 0.97,
+            "rationale": "Carte Vitale citée explicitement dans la frontière."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_sante_soins",
+            "confiance": 0.95,
+            "rationale": "Mutuelle citée explicitement dans la frontière."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Autorité parentale et obligations envers les enfants."
+          },
+          {
+            "rang": 6,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Cycles scolaires (élémentaire vers collège)."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Obligation d'instruction pour tous les enfants."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Assiduité scolaire obligatoire."
+          },
+          {
+            "rang": 9,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.9,
+            "rationale": "Rôle de la police nationale, service rendu."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro d'urgence européen 112."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 17 police."
+          },
+          {
+            "rang": 12,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.9,
+            "rationale": "Rôle de la gendarmerie comme service."
+          },
+          {
+            "rang": 13,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.9,
+            "rationale": "Rôle de la police nationale en zone urbaine."
+          },
+          {
+            "rang": 14,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 18 pompiers."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 15 SAMU."
+          },
+          {
+            "rang": 16,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 112 européen."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.95,
+            "rationale": "Âge minimum permis de conduire."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.95,
+            "rationale": "Liste des numéros d'urgence."
+          },
+          {
+            "rang": 19,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.85,
+            "rationale": "Numéro 3919 fait partie des numéros de secours listés."
+          },
+          {
+            "rang": 20,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 15 SAMU."
+          },
+          {
+            "rang": 21,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.97,
+            "rationale": "Numéro 18 pompiers."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.95,
+            "rationale": "Définition générale des numéros d'urgence."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Conditions du mariage civil."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.9,
+            "rationale": "Travail non déclaré explicitement cité dans la frontière du contrat."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.85,
+            "rationale": "SMIC et salaire, contrat individuel; convention collective mentionnée mais accessoire.",
+            "alternative": "vs_travail_entreprise",
+            "alternative_confiance": 0.4
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10481,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1422,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

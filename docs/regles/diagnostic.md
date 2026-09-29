@@ -1,0 +1,808 @@
+# Diagnostic initial TCF
+
+> **Extrait de `CLAUDE.md` racine le 2026-08-23**, lors de la restructuration du fichier
+> (343 599 chars pour une limite de 150 000, rechargé à chaque requête). **Contenu verbatim, aucune réécriture.**
+> Origine : lignes 644-813, 1342-1405 de l'ancien `CLAUDE.md`.
+> **Lu à la demande** — ce fichier n'est jamais chargé automatiquement.
+> Ce fichier porte la loi de ce sous-système : on l'ouvre **quand on travaille dedans**.
+> Fichier jumeau : `docs/decisions/diagnostic.md`
+> Traçabilité complète : `docs/inventaire-claude-md.md`.
+
+---
+
+## 🛑 Le diagnostic n'est plus une PORTE vers le Plan (D-69, 2026-09-28)
+
+**Décision du propriétaire.** Le Plan existe pour **tout** compte : sans diagnostic, son premier
+cycle est le **cycle d'examens par défaut** (un examen blanc par épreuve TCF, un examen de thème
+par thématique civique). `prep.planDisponible` vaut **toujours** `true`, `LearningPlanDto.state`
+**toujours** `ACTIVE`.
+
+⚠️ **Révisé le 2026-09-28 (même jour, demande du propriétaire)** : la carte secondaire
+« Affinez votre plan avec le diagnostic » est **retirée partout** (Plan et Accueil, web et
+mobile ; `diagnosticAAffiner` / `DiagnosticAffinerCard` supprimés). Sur le Plan : « À faire
+maintenant » (= `journey.current`, rien d'autre) et le cycle. La ligne « Mon diagnostic » des
+liens du Plan ne s'affiche que si le diagnostic a été fait — `diagnosticFait` (TCF :
+`estimationSessionId != null` ; civique : `etape == PLAN_PRET`), web ⇄ mobile. L'Accueil garde
+les cartes « Reprendre mon diagnostic » / « Votre analyse est en préparation » d'un diagnostic
+**commencé**. **Le parcours invité → compte → analyse garde son cycle d'affinage** : l'analyse
+qui arrive sur le cycle d'examens encore intact l'amorce (D-64 tenu). Les écrans-portes
+(`PlanGate`, `planIndisponible`) sont supprimés. → `docs/regles/plan.md` § « Le Plan PAR
+DÉFAUT » ; arbitrages `docs/decisions/plan-parcours-tcf.md` **D-69, D-69 bis**.
+
+⚠️ Les tableaux plus bas qui parlent de `planIndisponible` ou de `planDisponible: false` sont
+**historiques**.
+
+## 🛑 Le diagnostic COMPLET (4 épreuves) est RETIRÉ des fronts (2026-09-26)
+
+**Décision du propriétaire.** Le diagnostic complet n'est plus un parcours proposé. La règle
+devient : on fait le diagnostic **RAPIDE** → le Plan est créé, **EE** remplie avec les priorités
+détectées ; pour les autres épreuves (CO, CE, EO), **le Plan demande un EXAMEN BLANC** — c'est là
+qu'on identifie les compétences à travailler (`PlanDomainAssessmentDto`, natures
+`MODULE_MOCK_EXAM` / `PRODUCTION_MOCK_EXAM`, déjà servies depuis le 2026-09-16).
+
+**Deux arbitrages :**
+
+1. **Suppression FRONTS SEULEMENT** (web + mobile). Le backend — endpoints
+   `/api/tcf-diagnostics/**`, calcul 4 épreuves, `PreparationService` — reste en place, **non
+   appelé** par un parcours. Nettoyage plus tard (liste dans `docs/decisions/plan-parcours-tcf.md`,
+   entrée du 2026-09-26).
+2. **Les résultats d'un complet DÉJÀ obtenus restent lus** : le moteur du Plan, les observations
+   (`JourneyAssessmentKind.FULL_DIAGNOSTIC`), le profil TCF, les DTO et leurs miroirs front sont
+   inchangés. Côté front, seule la relecture subsiste : `tcfDiagnosticApi.current/readResult`
+   ⇄ `TcfDiagnosticRepository.current/readResult`, lus par l'écran de déblocage du Plan
+   (`PlanUnlockScreen.tsx` ⇄ `plan_unlock_screen.dart`) **pour son héros seulement** — ses
+   priorités se lisent sur le Plan depuis le 2026-09-26 (`docs/regles/plan.md`).
+
+**Ce qui a disparu des deux fronts** : le hub `/diagnostic-tcf` et le résultat
+`/diagnostic-tcf/{id}/resultat` (web `app/(app)/diagnostic-tcf/`, `_components/diagnostic-tcf/` ⇄
+mobile `tcf_diagnostic_screen.dart`, `tcf_diagnostic_result_screen.dart`,
+`tcf_diagnostic_current_provider.dart`), le marqueur de retour `tcfDiagnosticId`
+(`TCF_DIAGNOSTIC_PARAM` ⇄ `kTcfDiagnosticParam`) dans le runner QCM et les sessions EE/EO,
+`DIAGNOSTIC_COMPLET_HREF` / `_CTA_START` / `_CTA_RESUME` ⇄ `kDiagnosticCompletRoute` /
+`kDiagnosticCompletCtaStart` / `…Resume`, la marche « Compréhension » de `DiagnosticSteps`, et
+les promesses « dans le diagnostic complet » de la présentation et du rapport rapide.
+
+**Redirections** : web `next.config.ts` → `/diagnostic-tcf` et `/diagnostic-tcf/:path*` vers
+`/plan?module=TCF` (307) ; mobile `AppRoutes.tcfDiagnosticRetire` → `/plan` (route et sous-route
+`:sessionId/resultat`).
+
+**Complet COMMENCÉ avant le retrait** (le serveur sert toujours `etape: DIAGNOSTIC_EN_COURS`,
+`fait`/`total` sur 4, `prochaineEpreuve`) :
+
+| Situation servie | Accueil (`tcfAction`) | Plan (`planIndisponible`) |
+|---|---|---|
+| `planDisponible: true` (rapide clos), complet ouvert | « Continuer mon plan » ; statut = palier servi ou « Première estimation terminée » — **plus de « Diagnostic complet : N / 4 »** | vrai Plan |
+| `planDisponible: false`, `DIAGNOSTIC_EN_COURS` avec `fait != null` (complet sans rapide) | « Faire mon diagnostic » → rapide | « Votre plan TCF commence par un diagnostic » → rapide |
+| `DIAGNOSTIC_EN_COURS` avec `fait == null` (rapide en cours) | « Reprendre » → rapide | « Reprendre mon diagnostic » → rapide |
+
+Aucun état n'est recalculé : les fronts lisent `planDisponible`, `etape` et la présence d'un
+avancement servi, comme avant ; seule la destination change.
+
+**Le rapport du rapide** garde son bloc « Découvrez où vous en êtes vraiment au TCF » (les 4
+épreuves), mais il dit désormais que **le Plan propose un examen blanc par épreuve à mesurer**
+(`DIAGNOSTIC_SUITE_*` ⇄ `kDiagnosticSuite*`), puis « Voir mon plan ».
+
+**Fil d'étapes** : dérivé de la forme servie des deux côtés — oral `null` ⇒ **une seule** étape
+d'expression. Web `diagnosticSteps({guest, oral})` ; mobile `diagnosticExpressionSteps` /
+`diagnosticStepHeader` (`diagnostic_common.dart`) : barre à un segment et en-tête « Écrit » au
+lieu de « Étape 1 sur 2 · Écrit ».
+
+⚠️ **Tout ce qui suit sur le diagnostic complet (sections du 2026-09-12 : « n'est plus un
+prérequis », CTA « Faire le diagnostic complet / Continuer le diagnostic », carte « Affiner ») est
+HISTORIQUE** côté fronts : conservé pour la trace et parce que la règle d'accès au Plan
+(`PlanFoundationResolver`) reste vraie côté serveur.
+
+---
+
+## Le format du diagnostic est SERVI, jamais écrit par un front
+
+🔴 **Correctif du 2026-09-14, constaté à l'écran.** L'Accueil annonçait
+« 2 exercices · ≈ 8 à 10 min » à un candidat qui n'avait **jamais rien fait**,
+alors que le diagnostic actif (`QUICK_TCF`) n'en comporte qu'**un** — une
+production écrite, sans étape orale depuis V050. Même chose sur « 1 / 2 terminé »
+et « Vos deux réponses sont enregistrées ».
+
+**Le contrat rendait l'erreur inévitable** : sur un parcours `NOT_STARTED`,
+`written` et `oral` valent tous deux `null` — le serveur n'attache ses sujets
+qu'à `POST /api/diagnostics` —, donc aucun front ne pouvait dériver le compte,
+et les deux l'ont écrit à la main.
+
+- **`DiagnosticResponse.format`** (`DiagnosticFormatDto`) est **toujours servi**,
+  `NOT_STARTED` compris : `exerciseCount` (1 ou 2) et les bornes de chaque
+  exercice.
+- 🛑 **Ce n'est PAS un sujet** : ni identifiant, ni consigne, ni titre. Le sujet
+  écrit est **tiré** à l'ouverture (`drawWrittenTask`) ; en annoncer un ici en
+  désignerait un autre que celui qui sera joué. Le format se lit donc sur
+  `writtenTask`, déterministe, et **pour ses seules bornes**.
+- 🛑 **Le compte se lit sur le CONTENU** — un sujet oral publié ou non —, jamais
+  sur un réglage. C'est ce que V050 a rendu possible : « un diagnostic à une
+  production et un diagnostic à deux productions coexistent, et c'est le CONTENU
+  qui dit lequel est servi ».
+- Une fois la session ouverte, les mesures sont celles de **ses** sujets à elle :
+  un diagnostic se relit sous la forme qui l'a produit.
+- **Les fronts dérivent tout** : `homeDiagStartSubtitle` / `homeDiagStartObjective`
+  / `homeDiagCount` / `homeDiagAnalyzingObjective` ⇄ `diagnosticStartSubtitle` /
+  `diagnosticStartObjective` / `diagnosticCountLabel` /
+  `diagnosticAnalyzingObjective`. Les minutes passent par la **même règle** que
+  l'écran de présentation (`diagnosticWrittenMinutes` / `diagnosticOralMinutes`),
+  extraite pour accepter des **bornes nues**. Sans mesure exploitable, on annonce
+  le compte et rien d'autre — jamais un chiffre inventé.
+- Verrou : `DiagnosticRapideIT.leFormatEstServiAvantToutParcours`.
+
+
+## L'écrit du diagnostic rapide : UNE fourchette, 80 à 300 mots (V758, 2026-09-26)
+
+🔴 **Constaté à l'écran par le propriétaire** : trois longueurs contradictoires sur
+le même écran — la consigne réclamait « entre 150 et 220 mots », une pastille de la
+carte du sujet disait « 100–300 mots », l'éditeur « 100–300 mots ». Et le
+sous-titre annonçait « Premier exercice sur deux » sur un diagnostic qui n'en a
+qu'un.
+
+- **Bornes fixes 80 à 300 mots**, portées par la donnée du sujet
+  (`production_tasks.mots_min / mots_max` du sujet `QUICK_TCF` v1). C'est la
+  **même** donnée qui accepte ou refuse la copie (`ProductionTextBounds` via
+  `validateTextWordCount`, soumission connectée **et** reprise d'un invité, qui
+  passe par la même route) : aucune constante 100/300 n'existe ailleurs. Le
+  plafond 300 coïncide avec le garde-fou absolu `max-text-words: 300`.
+- **La consigne ne parle plus de longueur** : V758 retire « Écrivez entre 150 et
+  220 mots. » sans toucher un autre caractère (l'allowlist s'appuie sur ses trois
+  mouvements).
+- 🛑 **Correction EN PLACE de la version 1, pas une version 2** (même voie que
+  V756). Une v2 rouvrirait le diagnostic aux comptes qui l'ont terminé (unicité
+  `(user, code, version)`, version active = la plus haute), invaliderait les
+  brouillons invités rangés sous `code/vN` (« sujets d'une autre version ») et
+  changerait l'UUID clé des sessions. « On versionne, on ne réécrit jamais » vaut
+  pour les **contrats** (rubrique, tool-schema, prompt), pas pour l'énoncé d'un
+  sujet, contenu éditorial.
+- ⚠️ **Effet sur l'analyse IA, signalé** : `DiagnosticAnalysisPromptBuilder`
+  passe la consigne au correcteur (`instruction`) — il ne lit donc plus aucune
+  longueur demandée. Ni `diagnostic-analysis-rubrics-v1` ni son tool-schema ne
+  parlent de longueur (inchangés). Si le propriétaire veut que l'IA connaisse la
+  fourchette, la voie propre est d'injecter les bornes servies dans l'entrée
+  (comme `EvaluationPromptBuilder` le fait en « LONGUEUR ATTENDUE »), ce qui
+  change l'entrée d'un contrat mesuré : à décider, et à mesurer, par lui.
+- **Écran (web ⇄ mobile)** : la fourchette s'affiche **une seule fois**, en tête de
+  la zone de saisie, à côté du compteur live (vert dans les bornes, ambre hors
+  bornes) — `diagnosticWordRangeLabel` ⇄ même nom (`diagnostic_intro_labels.dart`),
+  seule mise en mots de la fourchette, que lit aussi la présentation. Plus de
+  pastille sur la carte du sujet, et l'aide de longueur ne la répète pas.
+- **Rang de l'exercice lu sur la forme servie** : `diagnosticExerciseSub(kind,
+  hasOral)` ⇄ `diagnosticExerciseSub` → « Un seul exercice · aucune note sur 20. »
+  quand l'oral est `null`. Bouton : `diagnosticWrittenSubmitLabel({guest, hasOral})`.
+- **Consigne mise en forme, jamais réécrite** : `diagnosticConsigneBlocks` (les
+  deux fronts) découpe paragraphes et listes (« - », « • », « * », « 1. »), la
+  ligne qui précède les puces devient leur amorce.
+- Verrous : `DiagnosticRapideIT.laFourchetteEstUniqueEtServie`,
+  `…entre80Et100MotsLaProductionEstRecue`, `…auDelaDu300MotsAucunAppelLlm`,
+  `…sousLeSeuilDeRecevabiliteAucunAppelLlm` (« au moins 80 mots »),
+  `PublicDiagnosticControllerIT`.
+
+
+## Diagnostic initial TCF et Plan personnalisé
+
+Le diagnostic est un **parcours distinct** des examens blancs et de la notation
+standard. Il comporte exactement deux exercices hybrides fixes par
+version : une EE de 100–130 mots, puis une EO enregistrée de 2–3 minutes. Ils
+vivent dans `production_tasks` pour réutiliser la soumission, R2 et Whisper,
+mais portent `diagnostic_code` + `diagnostic_version` ; tous les catalogues,
+tirages, historiques, statistiques, quotas, outils admin standard, validateurs
+de rubriques et files de calibration doivent garder le filtre
+`diagnostic_code IS NULL`. Ce n'est jamais un `TCF_COMPLET`.
+
+- **Parcours : productions en invité → compte → analyse.** Un visiteur fait ses
+  **deux productions AVANT** qu'on lui demande un compte, le crée au moment
+  d'« Analyser mes réponses », et l'analyse IA ne tourne qu'ensuite. **Les
+  productions restent CÔTÉ CLIENT tant qu'il n'y a pas de compte** : aucune
+  session diagnostique anonyme, aucune ligne en base, aucun audio d'invité sur
+  R2 — `diagnostic_sessions.user_id` reste `NOT NULL`, ne rien rendre nullable.
+  Le seul besoin serveur est donc **servir les deux sujets** :
+  `GET /api/public/diagnostics/current` (public, rate-limité par IP à 120 / 10
+  min, `PublicDiagnosticResponse` **sans** `attemptId`/`submissionId`/
+  `submissionStatus`). La **version active et ses deux sujets se résolvent en un
+  seul endroit** (`DiagnosticContentResolver`, partagé par la lecture publique,
+  la création de session et la restitution) : deux résolutions séparées feraient
+  soumettre une production pour un sujet que le candidat n'a jamais lu. Funnel :
+  `DIAGNOSTIC_ACCOUNT_REQUIRED` sur `/diagnostic` est LA mesure de conversion —
+  tout ce qui précède se joue hors base. Après inscription, l'enchaînement
+  `POST /api/diagnostics` → écrit → oral **coup sur coup** est accepté sans
+  assouplir aucune garde (`DiagnosticPostSignupSequenceIT`) ; un compte au
+  diagnostic **déjà terminé** récupère sa session `COMPLETED` (200, avec son
+  `result`, jamais de seconde session) et toute nouvelle production est refusée
+  en **422** — c'est au front d'afficher le message.
+- **Agrégat** : `diagnostic_sessions` enveloppe les deux attempts EE/EO, avec
+  unicité `(user, code, version)` **et** unicité séparée de chaque attempt. Les
+  états persistés sont `IN_PROGRESS`, `ANALYZING`, `COMPLETED`, `FAILED` ; le DTO
+  ajoute `NOT_STARTED` quand aucune session n'existe. `POST /api/diagnostics`
+  est idempotent et sûr en concurrence ; `GET /api/diagnostics/current` permet
+  la reprise cross-device, `GET /api/diagnostics/{id}` protège l'IDOR par 404,
+  et `POST .../{id}/retry-analysis` est borné/configuré et rate-limité.
+- **Soumission stricte** : les routes de production existantes sont réutilisées,
+  mais le bypass de quota n'est accordé que si la tâche, l'attempt, l'utilisateur,
+  la session courante et l'étape concordent. Une tâche diagnostique seule ne
+  suffit jamais. Une seule submission diagnostique est admise par attempt ; la
+  route générique `/production-submissions/{id}/retry` la refuse au profit du
+  retry agrégé. Audio, taille, durée, rate-limit et Whisper restent appliqués.
+- **Contrat IA séparé** : `diagnostic-analysis-rubrics-v1.json` et
+  `diagnostic-analysis-tool-schema-v1.json`, configurés sous
+  `sejourfr.diagnostic.analysis`, ne produisent **aucune note /20**. Le schéma
+  impose l'allowlist exacte des compétences de la tâche, codes uniques, preuve
+  par segment réel, confiance et cohérence statut/observation. Une réponse
+  vide/illisible est transitoire et une seule réparation de format est tentée.
+  **On versionne ces deux fichiers, on ne réécrit jamais une version livrée.**
+- **`priority` est DÉRIVÉ de `status`, il n'est plus un motif de refus**
+  (`DiagnosticAnalysisReconciler`, qui passe **avant** le validateur) : une
+  divergence est réconciliée puis comptée, et le plafond de **2 priorités par
+  production** est une **troncature déterministe** (les 2 meilleures par
+  confiance puis rang d'allowlist — règle partagée `DiagnosticPriorityRanking`,
+  **jamais l'alphabet** ; le surplus est abaissé d'un cran en `TO_REINFORCE`),
+  jamais un refus. Motif : ce couple d'invariants n'était **écrit nulle part
+  dans le prompt** et portait sur un champ **redondant** (`status` fait foi, il
+  est seul persisté et contraint en base) — il a détruit un diagnostic réel,
+  donc les **deux productions** du candidat. Contrat v1 inchangé ; compteurs
+  `DiagnosticReconciliationMetrics`, famille distincte.
+- **Les LONGUEURS et les TAILLES DE LISTE sont des troncatures, jamais des
+  refus** (2026-08-25, même réconciliateur, avant le validateur) : `summary`
+  (280), un item de `strengths`/`weaknesses` (180), une `explanation` (220) et
+  le plafond de **3 items** par liste sont coupés côté serveur — coupe sur
+  limite de mot, ellipse `…`, jamais un point final inventé. Et **la confiance
+  d'une compétence non observée est ramenée à `LOW`**, comme `priority` est
+  ramené à `false` : `observed=false` ne dit rien du candidat, il n'y a aucune
+  confiance à graduer. Motif : ces `maxLength`/`maxItems` sont déclarés au
+  tool-schema mais **aucun fournisseur ne les applique** (contrairement à
+  `enum`, `required`, `additionalProperties`) ; en prod le 2026-08-25, un
+  `summary` de ~300 caractères a coûté une réparation payée **puis** tout le
+  diagnostic (submission `3136658f`, `AiEvaluationException` → `FAILED`, chaque
+  retry repayant deux appels). Compteurs `SYNTHESE_TRONQUEE`, `TEXTE_TRONQUE`,
+  `LISTE_TRONQUEE`, `CONFIANCE_NON_OBSERVEE_DERIVEE`.
+- **Ce qui reste un refus dur**, et doit le rester : ce que le serveur ne peut
+  pas inventer sans mentir — `skill_code` hors allowlist, compétence manquante,
+  `evidence_segment` absent ou hors bornes, enum invalide, champ hors contrat,
+  `level_estimate` au-dessus de B2. Une **preuve posée sur une compétence
+  déclarée non observée** n'est pas non plus effacée : c'est une contradiction
+  du correcteur, pas une mise en forme.
+- **Le déséquilibre EE/EO de la notation est MESURÉ, pas corrigé** (2026-08-26).
+  Sur les 22 analyses en base : `EE` 2 `PRIORITY` / 34 `TO_REINFORCE` / 51 `SOLID` ;
+  `EO` **0** `PRIORITY` / 10 / 57. Et 12 observations sur 12 en `SOLID`/`HIGH` sur une
+  compétence **B2** chez un candidat estimé **B1** à l'oral.
+  🛑 **Vérifié : ce n'est pas structurel.** Le tool-schema est un **fichier unique** pour les
+  deux modalités et autorise les quatre statuts ; les rubriques demandent explicitement « au
+  plus deux compétences prioritaires ». La seule consigne propre à l'oral porte sur ce que le
+  correcteur ne peut pas **entendre** (prononciation, débit, intonation), jamais sur les
+  verdicts. Le déséquilibre est donc **comportemental**.
+  Compteur posé (`DiagnosticStatusDistributionMetrics`, clés `TCF_EO:SOLID`…) : il **ne décide
+  de rien** et n'entre dans aucun calcul. À relire vers **N ≈ 100**. Aucun garde-fou, aucune
+  consigne de prompt de plus, aucun backfill — 22 lignes ne portent rien.
+  ⚠️ Ce déséquilibre compte : c'est toujours l'oral qui se retrouve sans fragilité, donc sans
+  priorité, sur les écrans. → `docs/regles/plan.md`
+- **Bifurcation persistée** : `production_submissions.is_diagnostic` décide du
+  pipeline async. Une submission diagnostique réutilise Whisper si nécessaire,
+  puis `DiagnosticProductionAnalysisService` ; elle ne passe jamais dans
+  `AiEvaluationService`, `ai_evaluations`, la version ciblée, le profil TCF ni la
+  calibration. L'assemblage des deux analyses est déterministe, sans troisième
+  appel LLM, limite les priorités globales à trois et renvoie toujours un
+  `nextAction` réellement disponible, même si aucune priorité n'est assez
+  fiable. La relance agrégée réserve `FAILED → ANALYZING` sous verrou pessimiste
+  puis déclenche l'async après commit ; une session `COMPLETED` n'est jamais
+  rétrogradée par un recorder tardif.
+- **Écran de RÉSULTAT — le « + N autres » est un VRAI nombre** (2026-08-21).
+  L'ordre des blocs est figé et identique sur les deux fronts : **Mes priorités**
+  (1 en clair, 2 lignes réelles floutées, « + N autres ») → **Points forts**
+  (même traitement) → **Compléter mon profil** (si `domainesAEvaluer` n'est pas
+  vide) → **carte d'abonnement**. Seuils d'**affichage** déclarés une fois par
+  front : `FREE_PRIORITIES`/`FREE_STRENGTHS` = 1 et `TEASE_SAMPLE` = 2 (web) ⇄
+  `_kFreeFocusVisible`/`_kFreeSolidVisible` = 1 et `_kBlurredSample` = 2 (mobile).
+  🛑 **`DiagnosticResultDto.fragileSkillCount` / `.solidSkillCount` sont
+  l'autorité du compteur, et ils sont SERVEUR** (`DiagnosticService`,
+  compétences **distinctes** de `written.skills` + `oral.skills`, `observed`,
+  statut `PRIORITY|TO_REINFORCE` / `SOLID`, dédoublonnées par code) : le calculer
+  dans chaque front aurait produit deux nombres pour la même chose. Il **ne se
+  lit pas sur `priorities`**, plafonné à 3 par règle produit — le plafond n'est
+  pas touché, et un « + 2 » de plafond n'est pas une réalité. Il ne se lit pas
+  non plus sur `strengths`, plafonné à 3 **à l'écriture** du résumé par
+  `DiagnosticSessionCoordinator`. `0` ⇒ **aucun bloc flouté**, et une liste plus
+  courte que le seuil s'affiche en clair. Contenu flouté = le **vrai**, hors
+  arbre d'accessibilité et hors parcours clavier (`aria-hidden` + `inert` ⇄
+  `BlurredContent`), l'information nette (compteur, CTA) vivant hors du rideau ;
+  un seul chemin vers l'offre, **aucun événement d'audience ajouté**.
+  ⚠️ **Trois surfaces démentaient le flou et ont été fermées** : la section web
+  « Le détail reste disponible » listait en clair **toutes** les observations —
+  elle est **remplacée** par « Vos points forts » (les seules compétences
+  `SOLID`) ; les phrases `strengths` deviennent un **repli** affiché seulement
+  quand aucune compétence solide n'existe (deux listes disaient la même chose) ;
+  et la liste « À travailler » de chaque production (web `ProductionSummary`,
+  mobile `_ProductionCard`) n'est servie qu'à un compte **avec** accès. En
+  contrepartie, la liste des priorités est **complétée** par les autres
+  fragilités observées au-delà des 3 servies : un abonné doit voir exactement ce
+  que le compteur d'un compte gratuit lui a promis.
+- ⚠️ **Corollaire de cette bifurcation : le diagnostic ne traverse AUCUN filet de
+  `AiEvaluationService`.** Il rendait donc des reproches bâtis sur un artefact de
+  transcription — cas réel : `EO2-C3` reprochait « « horreurs » pour « horaires »
+  est une erreur lexicale », alors que le candidat avait dit « horaires ».
+  **`DiagnosticOralArtifactFilter`** (livré **ACTIF** le 2026-08-14, EO **seulement**)
+  applique la règle du volet FORME au diagnostic oral : une remarque qui
+  **reproche**, **cite un passage réel** de la transcription et dont la citation
+  ne nomme **qu'1 ou 2 mots pleins** est purgée ; **0 mot porteur** (structure
+  pure) et **≥ 3** sont conservés ; transcription **dégradée**
+  (`TranscriptionQualityAudit`) ⇒ tout reproche ancré tombe. **Rien n'est extrait
+  du néant** : la règle entière vit dans **`EvaluationOralForme`**
+  (`reprocheAncreSurUneForme`, 3ᵉ occurrence ⇒ les patterns `CITATION`/`REPROCHE`
+  y ont été **déplacés** depuis `EvaluationOralArtifactFilter`, qui délègue
+  désormais), le découpage en phrases dans `EvaluationTexte` (rendue publique).
+  ⚠️ **Le diagnostic n'a PAS d'axe de critères** (ses observations sont des
+  compétences, pas `morphosyntaxe`/`lexique`) : la restriction « jamais `lexique` »
+  des productions **ne s'y transpose pas**, et le propriétaire a arbitré qu'on
+  purge quand même un reproche dit « lexical » — les deux lectures (machine qui a
+  mal entendu / candidat qui a mal prononcé) mènent au même endroit, et la grille
+  interdit déjà de noter la prononciation. **Champs purgés** :
+  `skills[].explanation` (l'observation **survit sans son explication**),
+  `weaknesses[]` (entrée vidée ⇒ retirée), `summary` (**champ obligatoire**, donc
+  remplacé, jamais vidé — par un texte qui **rassure** : « Votre production a bien
+  été analysée. Certaines remarques portaient sur la transcription, pas sur vous :
+  elles n'ont pas été retenues. » Il n'explique **plus** notre mécanique de
+  filtrage — c'est le premier écran de quelqu'un qui découvre son niveau, et la
+  trace de la purge vit dans le compteur, pas à l'écran. Même mouvement que les
+  trois avertissements oraux ramenés à un seul le 2026-08-16 ; texte gelé par
+  `DiagnosticOralArtifactFilterTest`, posé **uniquement** par le serveur, aucun
+  front ne le recopie, legacy non migré). **Jamais touchés** : l'ÉCRIT, `strengths`, `evidence`, `status`,
+  `priority`, `confidence`, `level_estimate`, `task_completion`,
+  `communication_status`, l'ordre des priorités. 🛑 **Une purge ne peut pas rendre
+  une session `FAILED`** : le filtre tourne **après** `DiagnosticAnalysisValidator`
+  sur la sortie déjà normalisée (rien ne revalide derrière), et `purge` **avale
+  toute exception**. Compté `EvaluationPurgeMetrics.ARTEFACT_ORAL_FORME_DIAGNOSTIC`
+  — même **nature** (une purge retire une phrase) donc même famille que les 4
+  surfaces `MARQUEUR_PALIER*`, dont une est déjà diagnostique ; constante à part
+  pour distinguer les deux voies. **Contrats IA inchangés** (`diagnostic-analysis-*-v1`) :
+  c'est un contrôle serveur, pas une consigne. Legacy non migré.
+- **Départage des priorités : allowlist puis alternance, jamais l'alphabet**
+  (`DiagnosticSessionCoordinator`). À confiance égale (`HIGH>MEDIUM>LOW`), c'est
+  le rang de la compétence dans l'allowlist de son sujet
+  (`diagnostic_task_skills.display_order`, l'ordre éditorial d'importance) qui
+  tranche ; à égalité résiduelle, écrit et oral **alternent** au lieu d'être
+  groupés (la première égalité parfaite revient à l'écrit, produit en premier).
+  L'ancien départage se faisait sur l'ordre **alphabétique du code**, ce qui
+  faisait mécaniquement passer toutes les priorités `EE…` devant les `EO…` et les
+  compétences C1/C2 devant les autres. Déterministe, aucun appel LLM.
+- **Une priorité se DÉRIVE des faiblesses quand le correcteur n'en désigne
+  aucune** (`DiagnosticPriorityRanking.faiblesseObservee`, appliqué par
+  `DiagnosticSessionCoordinator`). Mesuré sur deux diagnostics réels joués de
+  bout en bout — dont un sur une production A1/A2 volontairement fautive : le
+  modèle range tout en `TO_REINFORCE` et ne pose jamais `status=PRIORITY`, donc
+  `priority_skill_codes` sortait **vide** et le Plan restait `ACTIVE` sans rien à
+  faire. Rien dans les rubriques ne l'y oblige (« **au plus** deux » est satisfait
+  par zéro) et une consigne ne serait qu'un vœu : la dérivation est déterministe
+  et serveur. Une priorité **désignée l'emporte toujours** (on complète, on ne
+  remplace pas) ; `SOLID` et `NOT_OBSERVED` n'en deviennent **jamais** une — zéro
+  faiblesse observée ⇒ zéro priorité, état légitime. Bornes inchangées (2 par
+  production, 3 après fusion, alternance écrit/oral), comptage
+  `DiagnosticReconciliationMetrics.PRIORITE_DERIVEE_DE_FAIBLESSE`.
+  **Le Plan applique la même règle** : `LearningPlanPriorityResolver.actionable`
+  traite une observation `TO_REINFORCE` comme une priorité dérivée et départage
+  par **confiance** avant la récence, miroir de `DiagnosticPriorityRanking` — les
+  deux productions du diagnostic sont observées au même instant, la récence n'y
+  trie rien. `/api/me/plan` et `GET /api/diagnostics/{id}` ne peuvent donc plus
+  désigner deux étapes n°1 différentes, et le freemium suit
+  (`SkillAccessService` ouvre la compétence de la priorité, dérivée comprise).
+- **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
+  sujets et leurs allowlists de huit compétences. La console de sujets standard
+  refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2
+  fixe, produit une fois explicitement et vérifié en HTTP 200. `GET
+  /api/admin/diagnostics/{code}/versions/{version}/instruction-audio` inspecte
+  son état ; `POST` le génère ou répare idempotemment son URL sous la clé stable
+  dérivée de l'UUID de tâche. Rien n'est généré au boot ni au démarrage candidat.
+  **`POST …?force=true` refait la synthèse même si l'objet existe** — seul moyen
+  de corriger un audio devenu faux quand la consigne change (cas V756 : trois
+  étapes à l'écran, quatre dans la voix), le retour anticipé idempotent ne sachant
+  que réparer l'URL. **Opt-in strict** : sans le paramètre, le comportement est
+  inchangé et aucun appel payant ne part, même sur une route rejouée. L'écrasement
+  se fait **sous la même clé** (`putObject`, last-write-wins — jamais de delete,
+  qui ouvrirait un 404 transitoire), donc l'URL en base et côté fronts ne bouge
+  pas, et `generatedNow` dit la vérité : `true` seulement si une synthèse a eu
+  lieu.
+  **V756 raccourcit les deux consignes EN PLACE dans la version 1** (EE 100-120
+  mots, EO 90-150 s) : les sujets de V755 se lisaient comme un examen complet dès
+  le premier contact, alors que le diagnostic doit se lire « 5 minutes et je
+  découvre mon niveau ». Aucun UUID ne bouge (clé de `diagnostic_sessions` **et**
+  de l'audio R2), aucune allowlist n'est touchée — les incises « et ce que vous en
+  avez pensé », « dites ce que vous cherchez » et « (activités, horaires, tarif,
+  inscription) » sont conservées exprès, sans elles `EE2-C7`, `EO1-C3` et `EO2-C4`
+  reviendraient `NOT_OBSERVED`. ⚠️ **L'audio de consigne de l'oral est donc faux
+  tant qu'il n'est pas régénéré** par le `POST` ci-dessus. V756 retire au passage
+  les bornes du diagnostic écrites en dur dans `chk_prod_task_tcf_irn_ee_word_bounds`
+  (piège de V723/V724) : un sujet diagnostique est exempté de la table officielle,
+  ses bornes vivent dans `production_tasks.mots_min/mots_max`.
+- **« Avant / après » de l'écran de résultat — SECOND APPEL LLM SÉPARÉ, ÉCRIT
+  SEULEMENT** (`service/diagnostic/exemplecible/`, livré **ACTIF**). Rend la
+  phrase du candidat **et la même phrase réécrite au palier qu'il vise** : on ne
+  lui dit pas qu'il a un problème, on lui montre à quoi ressemblerait sa propre
+  phrase un cran plus haut. Jumeau de `service/versionciblee/`, mêmes invariants :
+  **best-effort**, lancé par `ProductionPipelineAsyncRunner` **après** que
+  l'analyse est persistée et la session assemblée, **hors transaction**, toute
+  exception avalée, **aucun rejeu** — un échec laisse le diagnostic complet et la
+  session `COMPLETED`. **Le contrat d'analyse (`diagnostic-analysis-*-v1`) ne
+  bouge pas d'un octet** : le correcteur du diagnostic n'apprend jamais qu'on va
+  réécrire quoi que ce soit (v10/v11 ont mesuré qu'un bloc ajouté à une grille qui
+  juge fait tomber l'accord exact de 81,8 % à 75,6 %) ; verrou
+  `DiagnosticExempleCibleContractTest`. **La production ORALE n'est jamais
+  réécrite** — aucun appel n'est émis, aucun bloc produit. Le modèle **désigne la
+  phrase par son NUMÉRO** (`EvaluationProductionSegments`, technique v12), le
+  serveur la **résout en texte avant persistance** : aucun miroir DTO ne
+  transporte d'entier. DTO `DiagnosticResultDto.exempleCible` **nullable**
+  (`original` = sous-chaîne exacte de la production, `texte`, `segments[{extrait,
+  apport}]`, `niveauVise`) — **son absence est un cas NORMAL**. Persisté dans
+  `diagnostic_production_analyses.analysis_json.exemple_cible` (**aucune
+  migration**, legacy intact) et **pas** dans `summary_json`, que le coordinateur
+  remet à null puis reconstruit à chaque assemblage. Segments = **confort**
+  (`util/SegmentsSurlignage`) ; bornes du texte = `util/ProductionTextBounds`,
+  **plafond seul** (la borne basse décrit une production de 100 mots, on réécrit
+  une phrase) ; filet marqueurs A2 sur les `apport`, **4ᵉ surface**
+  (`EvaluationMarqueursA2`, compté `MARQUEUR_PALIER_APPORT_DIAGNOSTIC`). **Une
+  seule réparation par bloc**, et seulement sur du mécanique (numéro hors bornes,
+  texte trop long) ; compteurs dédiés `DiagnosticExempleCibleMetrics`. Retour
+  arrière : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false`.
+
+Les migrations structurantes sont V029 (agrégats/observations et séparation des
+tâches), V030 (événements du funnel), V031 (sources d'examen blanc +
+`subject_id`, additive) et V755 (contenu initial). La suppression de
+compte purge observations et sessions **avant** les attempts. Le détail grand
+public du jugement et de ses limites est dans `docs/notation-ia-eo-ee.md`.
+
+
+## Le diagnostic se passe AVANT le compte — des DEUX côtés (V053, 2026-09-10)
+
+🛑 **Arbitrage du propriétaire** : « que ce soit le diagnostic examen civique ou
+TCF, l'utilisateur doit pouvoir passer le diagnostic avant de créer son compte,
+il saisit le texte ou répond au QCM et seulement après on lui demande de créer
+son compte pour voir le résultat. »
+
+La règle produit est **la même des deux côtés**. La mécanique, non — et la
+différence est délibérée, pas un oubli de parité :
+
+| | TCF invité | Civique invité |
+|---|---|---|
+| Ce qui est produit | un texte (et un audio) | 40 réponses à un QCM |
+| Où ça vit avant le compte | **l'appareil** (IndexedDB / `SharedPreferences`) | **le serveur** (attempt invité, `user_id IS NULL` + `client_ip`) |
+| Ce que l'appareil garde | la production entière | **deux UUID** : la session et son attempt |
+| Le compte est demandé | à « Analyser mes réponses » | à « Voir mon résultat » |
+
+🛑 **Pourquoi le civique ne peut pas garder ses réponses sur l'appareil** : le
+corriger côté client obligerait à **servir les bonnes réponses à un visiteur**,
+et jouer 40 questions hors `attempts` obligerait à écrire un **second runner** —
+les deux sont interdits. On réutilise donc la mécanique d'attempt invité qui
+existe déjà pour la démo.
+
+Les invariants qui tiennent ce tunnel :
+
+- 🛑 **La session civique existe dès le premier tirage**, avant le compte : c'est
+  elle qui porte `attempts.civic_diagnostic_id`. Sans elle, les 40 questions d'un
+  visiteur seraient un **examen blanc** pour toutes les grilles.
+- 🛑 **Aucune route de résultat publique.** Le résultat est ce qu'on échange
+  contre le compte : le serveur n'en sert aucun sans authentification, donc aucun
+  front ne peut mentir sur ce point.
+- 🛑 **La démarche est demandée AVANT le tirage** (CSP / CR / NAT) : c'est elle
+  qui choisit les questions. Absente ⇒ **CSP**, le périmètre le plus étroit.
+  Mesurer un candidat naturalisation sur le programme d'une carte de séjour
+  produirait un diagnostic flatteur et un plan incomplet.
+  Preuve : `CivicDiagnosticComposer.composer(mention)` filtre `q.difficulty =
+  :mention` (égalité stricte) et les trois pools CSP / CR / NAT sont disjoints
+  (3 énoncés communs seulement au 2026-09-26). Le Plan civique relit, lui,
+  `users.target_procedure`. Supprimer le choix invité sans décision produit
+  tirerait tout visiteur sur **CSP**, puis l'adoption garderait cette mention
+  même pour un compte NAT.
+- **Compte qui porte déjà sa démarche** (arbitrage du propriétaire,
+  2026-09-26) : l'écran d'entrée ne la **rappelle plus** (« Vous préparez : … »)
+  et ne propose plus « Modifier ma démarche » ; elle reste modifiable dans
+  `/parcours` (web) / `TargetPathScreen` (mobile). Le tirage côté compte lit
+  toujours `users.target_procedure`.
+- 🛑 **L'adoption ne rejoue rien** : mêmes questions, mêmes réponses déjà
+  corrigées ; le serveur pose seulement le porteur. Un second tirage rendrait au
+  candidat un résultat qui n'est pas celui qu'il vient de passer.
+- 🛑 **Le quota du compte s'applique à l'adoption** (`20_` §4.3) : sinon il
+  suffirait de se déconnecter pour se refaire un diagnostic gratuit indéfiniment.
+  Conséquence assumée : un compte qui a déjà son diagnostic **perd** les réponses
+  du tunnel invité — les fronts retombent alors sur son diagnostic existant, sans
+  message d'erreur.
+- 🛑 **Une session adoptée n'est plus lisible publiquement**, même depuis la même
+  IP : deux personnes derrière le même NAT ne se lisent pas.
+
+Routes et détail : `docs/api-endpoints.md`, section « Diagnostic civique (L9) ».
+Journal de la décision : `docs/review_all/60_DECISIONS_IMPLEMENTATION.md`,
+section « Le diagnostic se passe AVANT le compte ».
+
+---
+
+## La trace du tunnel — `diagnostic_run` (chantier Suivi, lot 2a, 2026-09-25)
+
+Une `diagnostic_run` (V074) est la **trace** d'un passage dans le tunnel diagnostic,
+**jamais son contenu** (Q3, invariant V053 intact : la production TCF invitée reste sur
+l'appareil). Elle mesure le tunnel du dashboard « Suivi » : sujet vu → soumis → compte
+rattaché. Décisions : `docs/admin/decisions-suivi.md` D21 → D30.
+
+| Fait | TCF rapide (`QUICK_TCF`) | Civique (`CIVIQUE`) | TCF complet (`FULL_TCF`) |
+|---|---|---|---|
+| **Sujet vu** (création) | client, `POST /api/public/diagnostic-runs` à l'affichage de la 1ʳᵉ question | idem, avec `sessionId` | idem, avec `sessionId`, compte requis |
+| **Session liée** | connecté : `sessionId` à la création ; invité : au handoff, `POST /api/diagnostics?diagnosticRunId=` | à la création (compte, ou IP de l'invité) | à la création |
+| **Soumis** | **client**, `POST …/{id}/submit` à « Analyser mes réponses » | **serveur**, fin de l'attempt (`AttemptInteractionService.doFinish`, ou clôture), avec la mesure répondues / posées (V076) ; compté soumis à la lecture si ≥ 80 % | **serveur**, `TcfDiagnosticService.cloturer` |
+| **Rattaché** | soumis connecté, ou claim à l'auth | idem | toujours connecté |
+
+- 🛑 **Une seule autorité de « soumis » par type.** Le TCF rapide invité n'a aucun fait
+  serveur avant le compte, et `POST /api/diagnostics` est appelé au **démarrage** par un
+  connecté : ce n'est pas une soumission. Le civique et le complet ont un fait serveur
+  fiable, l'appel client y est refusé (409). « Soumis » s'écrit **une seule fois**
+  (`UPDATE … WHERE submitted_at IS NULL`). Un soumis **connecté** pose aussi le porteur :
+  « soumis connecté » implique « compte rattaché ».
+- 🛑 **« Soumis » civique = au moins 80 % des questions répondues** (contrôle C, V076,
+  2026-09-25). Le civique n'a pas d'échéance, et « Quitter » confirmé passe par la même fin
+  d'attempt qu'une copie rendue : un abandon à 0/40 posait `submitted_at`. Le serveur
+  **fige la mesure** dans le même `UPDATE` (`submitted_answered_count`,
+  `submitted_question_count` ; répondue = une réponse existe, même règle que l'écran de
+  résultat) ; la **règle** vit à la lecture (`civicSubmittedMinAnsweredRatio` de
+  `analytics-config-v1.json`, 0,8), donc un changement de seuil ne demande aucune migration.
+  Une run civique sans mesure (antérieure à V076) est **inconnue** : jamais comptée soumise,
+  jamais lue comme 0 réponse. Vaut pour le tunnel, les ratios, l'activité, « jamais
+  rattachées » **et le contexte d'inscription** (claim). `submitted_at` reste posé : c'est
+  le fait brut, pas le verdict. **Une autorité** : `util/SoumisRetenu` porte le prédicat SQL
+  (lu par `SuiviReadRepository.RUNS`) et son jumeau Java (lu par `DiagnosticRunClaimService`),
+  au seuil de la même config ; `SoumisRetenuIT` évalue les deux sur la même grille.
+- 🛑 **Une run n'est reprise par sa `clientKey` que si elle est récente et à
+  l'appelant** (contrôle F2, 2026-09-25) : porteur nul ou égal à l'appelant, sujet vu
+  depuis moins de `runReuseWindowHours` (24 h). Sinon run neuve, et la clé passe à la
+  neuve. Une vieille run d'invité restée sur l'appareil ne devient donc plus le passage
+  d'un diagnostic connecté (vieille cohorte, soumission hors fenêtre), ni la run d'un
+  autre compte.
+- 🛑 **Un runId n'est jamais cru sur parole** : c'est un identifiant (il voyage dans les
+  événements), pas un secret. L'appartenance se prouve par le **compte porteur** ou par le
+  **`claimToken`** (et, s'ils sont tous deux connus, le même `X-Sejourfr-Anonymous-Id`).
+  Une session fournie à la création doit appartenir à l'appelant (même règle que sa
+  lecture : compte, ou IP pour le civique invité).
+- **Claim** (`DiagnosticRunClaimService`) dans la **transaction d'auth** : jeton qui
+  correspond au hash, non expiré, run jamais claimée et sans porteur. 🛑 **Échéance
+  ancrée sur le sujet vu** (contrôle E, 2026-09-25) : `subject_viewed_at + 2 j`
+  (`claimTokenTtlDays`), **jamais prolongée** par un rejeu de la création — sur un
+  appareil partagé, la run d'un tiers ne reste claimable que 2 jours. Compromis
+  assumé : un vrai candidat qui s'inscrit après ce délai sort `OUTSIDE_DIAGNOSTIC`, et
+  le lien web → app expire pareil. `claim_kind`
+  = `SIGNUP` | `LOGIN`, `claimed_via` = `SAME_DEVICE` ou `APP_LINK` (champ `claimVia` de la
+  requête d'auth, déclaré par le client, **mêmes vérifications**). **Plusieurs runs par
+  authentification** (contrôle N3, 2026-09-25) : `diagnosticRunClaims` (liste, 3 au
+  plus, avec le trio unique historique) ; chaque run valide est claimée, et le
+  contexte d'inscription se lit sur la **soumise la plus récente** parmi elles. 🛑 **Aucune recherche par
+  `anonymous_id`** : sans jeton, pas de claim.
+- **Lien web → app** (lot 3b, scénario 4, D82 → D86) : sur l'écran de compte invité (TCF
+  rapide et civique), **sur téléphone** et pour une run d'invité au jeton valide, le web
+  propose « Continuer sur l'application » :
+  `https://<hôte>/continuer-sur-app#run=<id>&token=<jeton>` (🛑 jeton dans le **fragment**,
+  jamais en query string ni dans un événement). L'app installée l'intercepte (universal link
+  / App Link), garde la run à part des passages de l'appareil et la transmet à la
+  **prochaine** auth avec `claimVia = APP_LINK`. Sinon le navigateur ouvre la page
+  `/continuer-sur-app` (installer, revenir, toucher de nouveau). Deferred deep link **hors
+  MVP** : une inscription après installation reste `OUTSIDE_DIAGNOSTIC`, la run compte dans
+  « soumis anonymes jamais rattachés ». Les **réponses** ne suivent pas : la production du
+  TCF rapide invité reste sur le navigateur (V053), l'analyse s'y lance à la connexion.
+- 🛑 **Le claim ne dépend pas du quota.** Un compte qui a déjà son diagnostic claime quand
+  même la run (le tunnel le compte « rattaché ») ; **le contenu reste refusé comme avant**
+  (adoption civique en 422, productions du handoff TCF abandonnées).
+- **Contexte d'inscription** (`users.signup_context`) posé au même instant que le claim,
+  à l'inscription seulement : `AFTER_DIAGNOSTIC` si la run claimée est **soumise** (avec
+  `signup_diagnostic_type`, `signup_diagnostic_run_id`), `OUTSIDE_DIAGNOSTIC` sinon — y
+  compris une run claimée jamais soumise. 🛑 **« Soumise » = soumis retenu** (contrôle C,
+  2026-09-25) : un abandon civique sous 80 % de réponses, ou sans mesure, claimé à
+  l'inscription est **rattaché** mais ne fait pas `AFTER_DIAGNOSTIC` ; parmi plusieurs runs
+  claimées, la référence est la soumise retenue la plus récente. 🛑 **Client ancien ⇒ `null`** (contrôle G,
+  2026-09-25) : une app d'avant iOS / Android (`mobile`), un client sans plateforme, ou
+  un onglet web sans `X-Sejourfr-App-Version` ne transmettent jamais de run ; sans run
+  soumise claimée, leur inscription est **inconnue** (comptée dans `contextUnknown`),
+  jamais `OUTSIDE_DIAGNOSTIC`. Règle : `ClientContext.isLegacyClient()`. Autorité :
+  `SignupAttribution.stampContext`. Version minimale de l'app servie par
+  `GET /api/public/app-config` (option a, sans effet tant qu'elle vaut `null`).
+- `GuestAttemptPurgeJob` **ne touche jamais** `diagnostic_run` : la purge d'un attempt
+  civique invité passe la FK de session à `NULL`, la run et son « soumis » restent
+  (scénario 19, `GuestAttemptPurgeJobIT`).
+- **Plan ↔ run (Q8)** : `DiagnosticRunManager.findFoundingRun(journeyId, userId)` rend la
+  run du diagnostic **le plus ancien journalisé** sur le parcours (règle écrite une fois,
+  dans la vue `v_journey_founding_run`, V075, aussi lue par le dashboard Suivi)
+  (`journey_assessment_event`), reliée par les FK de session, et seulement si elle
+  appartient au porteur du parcours. `JourneyDto.journeyId` sert `journey.id`. Un
+  diagnostic sans run liée (client ancien) rend vide : inconnu, jamais deviné.
+
+Tests : `DiagnosticRunLifecycleIT` (scénarios 3, 4, 5, 6, 7, 16 civique, 20 ; contrôle C
+au claim : 50 %, 80 %, sans mesure), `SoumisRetenuIT` (SQL ⇄ Java),
+`DiagnosticRunQuickTcfHandoffIT`, `DiagnosticRunFoundingIT`, `GuestAttemptPurgeJobIT`.
+
+---
+
+## `estimationSessionId` — le rapide reste relisible après le démarrage du complet (2026-09-12)
+
+`PreparationService.tcf()` ne servait, dans la branche « complet présent », que le `sessionId`
+de la session **TCF 4 épreuves** : le `findLatestCompleted` qui retrouve la session du rapide
+n'était atteint que si aucun complet n'existait. Dès le démarrage du complet, l'identifiant du
+rapide **disparaissait de la réponse** et son rapport devenait introuvable pour les trois
+fronts. Aucun correctif front ne pouvait compenser ça.
+
+`PreparationDto.ModulePreparation` porte donc **`estimationSessionId`** (`UUID`, nullable),
+résolu **avant** le branchement d'étape et servi à **toutes** les étapes — y compris
+`PLAN_PRET`. `sessionId` garde son sens inchangé : « le diagnostic à reprendre ».
+
+🛑 **Champ distinct, jamais un `sessionId` surchargé.** Deux sens sur un même champ finissent
+toujours par se contredire, et les fronts auraient dû deviner lequel ils lisent selon l'étape.
+Même doctrine que `nextTargetLevel` vs `cycle.targetLevel`.
+
+**Coût assumé** : une lecture indexée de plus sur `/api/me/preparation`, à toutes les étapes.
+Le champ aurait pu n'être calculé que quand le plan n'est pas prêt, mais un champ qui ne dit
+vrai qu'à certaines étapes finit par être lu aux autres. Commenté dans le service.
+
+Civique : toujours `null` (il n'a qu'un diagnostic), verrouillé par test. Gelé par
+`PreparationServiceIT` — `estimationSurvitAuDemarrageDuComplet` est le test du bug ; un rapide
+`IN_PROGRESS` rend `null`, on n'invente pas un rapport.
+
+Lecteur : la porte d'entrée du Plan TCF → `docs/regles/plan.md`.
+
+---
+
+## 🛑 Le diagnostic complet n'est plus un prérequis d'accès au Plan (2026-09-12)
+
+> ⚠️ **Historique côté fronts depuis le 2026-09-26** : le parcours complet est retiré (voir
+> « Le diagnostic COMPLET est RETIRÉ des fronts » en tête de fichier). Les CTA et la carte décrits
+> ci-dessous n'existent plus ; la condition serveur d'accès au Plan reste vraie.
+
+**Arbitrage du propriétaire.** *« Dès que le diagnostic rapide est terminé, le serveur doit
+constituer un premier Plan à partir des données disponibles dans ce diagnostic rapide. Ce Plan
+est provisoire mais réel et utilisable. […] Le diagnostic complet ne doit plus être un
+prérequis d'accès au Plan, seulement un moyen de le rendre plus précis. »*
+
+### Où était réellement la porte
+
+**Pas dans le moteur.** `LearningPlanService.get()` a toujours basculé en `ACTIVE` sur
+`DiagnosticSessionManager.findLatestCompleted(userId)` — c'est-à-dire sur le diagnostic
+**RAPIDE**. Vérifié en base : les comptes sans aucun `tcf_diagnostic_sessions` portent 8 à 27
+`learning_plan_observations`, toutes issues du rapide, et `LearningPlanProfilProgressifIT`
+assertait déjà `ACTIVE` après le seul rapide.
+
+La porte vivait **uniquement dans l'état servi** (`PreparationService` + les deux fronts, qui
+lisaient `etape == PLAN_PRET`). C'est elle, et elle seule, qui affichait « Votre plan TCF n'est
+pas encore prêt » devant un plan que le serveur savait construire.
+
+### Le fait servi : `planDisponible`
+
+`PreparationDto.ModulePreparation.planDisponible` (`boolean`) rend **mot pour mot** la
+condition du moteur — « une session de diagnostic rapide close existe-t-elle ? ».
+🛑 **Il ne se déduit pas de `etape`** : un écran qui promettrait un plan que le moteur refuse
+de construire est exactement la contradiction que l'état unique existe pour empêcher.
+`ESTIMATION_FAITE` garde son sens (« où en est le diagnostic »), et son commentaire
+« le Plan ne peut pas encore être construit » est **révoqué**.
+
+### Ce que le Plan provisoire n'invente pas
+
+🛑 **Aucune priorité sur une compétence que le rapide n'a pas observée.** Les trois garde-fous
+existaient déjà et sont conservés tels quels :
+
+- `LearningPlanPriorityResolver` ne trie que des **observations réelles** ;
+- `PlanAcquisitionSelector` exige que le **domaine ait déjà été mesuré** — un domaine jamais
+  évalué « se mesure avant de s'apprendre » ;
+- les domaines non mesurés ressortent dans `domainesAEvaluer` avec
+  `PlanDomainPriority.A_EVALUER`, `niveau: null`, `evaluated: false` — *`null` = inconnu, jamais
+  mauvais*, la confusion même de V040/V041/V042.
+
+Un Plan avec **peu** de priorités, toutes vraies, est le bon résultat. Gelé par
+`LearningPlanProfilProgressifIT.leRapideSeulDonneUnPlanSansInventerDePriorite` : rapide écrit
+seul ⇒ `ACTIVE`, priorités **toutes en EE**, et EO/CO/CE à `acquireCount == 0`.
+
+### Le recalcul, et la marque « provisoire »
+
+**Rien à invalider** : le Plan est dérivé à la lecture de bout en bout (moteur de maîtrise,
+cycle, domaines). Chaque épreuve du complet qui se termine écrit ses observations, et la
+lecture suivante en tient compte — sans job ni cache.
+
+Le caractère provisoire est **déjà servi**, aucun champ nouveau : `LearningPlanDto.cycle
+.profileComplete` / `domainsEvaluated` / `domainsExpected`, et `domainesAEvaluer` non vide.
+Un front ne compte jamais des domaines vides pour le deviner.
+
+### Reprendre, pas recommencer : `prochaineEpreuve`
+
+`ModulePreparation.prochaineEpreuve` (`EpreuveType`, nullable) = la première section non
+`TERMINEE`, dans l'ordre serveur (`TcfDiagnosticReadService.EPREUVES`). 🛑 `null` quand il n'y a
+rien à reprendre — complet **jamais démarré** (aucune sous-épreuve n'est tirée, en nommer une
+serait l'inventer) ou **terminé**. Et `fait` / `total` valent `0 / 4` dès que le Plan existe :
+le dénominateur est une donnée serveur, pas une constante front.
+
+Le CTA vise le **hub** `/diagnostic-tcf`, jamais un lancement direct : c'est le hub qui reprend
+où l'on s'est arrêté (une épreuve terminée n'y porte plus de bouton) et qui pose
+l'avertissement « une fois commencée, elle se termine d'une traite ». Un lien profond
+déclencherait un chrono par surprise.
+
+### Le freemium ne bouge pas
+
+`locked` reste servi et opposable en 403. Un Plan provisoire pour un non-abonné est verrouillé
+exactement comme un Plan complet — aucun accès n'a été ouvert dans cette passe.
+
+Gelé par `PreparationServiceIT` : `leRapideClosRendLePlanDisponible`,
+`leCompletEnCoursNeFermePasLePlan`, `sansRapideLePlanNestPasDisponible`,
+`leCompletClosNaPlusDeProchaineEpreuve`.
+
+### Côté fronts — une autorité, trois lecteurs
+
+`affinerPlan()` (web `lib/preparation.ts` ⇄ mobile `core/models/preparation_labels.dart`,
+miroirs mot pour mot) rend l'invitation au complet sous ses **trois** formes, lue par le Plan
+gratuit, le Plan abonné et l'Accueil :
+
+| État servi | Carte |
+|---|---|
+| `0 / 4`, jamais commencé | « Affiner votre Plan » (abonné : « Rendez votre Plan encore plus précis »). 🛑 **« 0 / 4 » n'est pas affiché** |
+| `1 / 4` à `3 / 4` | « Diagnostic complet en cours » + « N / 4 épreuves terminées » + barre + prochaine épreuve **si servie** |
+| `4 / 4` | `null` — plus aucune invitation, nulle part |
+
+Le rendu vit dans un composant unique par front (`AffinerPlanCard`), posé **après** le contenu
+du Plan, bouton `line` (contour) : 🛑 sur un compte gratuit, le seul bouton plein de la page
+reste « Débloquer mon plan ». Sur l'Accueil la carte n'apparaît **que** si le complet est
+commencé, en action secondaire persistante.
+
+### Complément du 2026-09-12 — le complet CLOS fonde un Plan à lui seul
+
+**Arbitrage du propriétaire** : *« Ne l'interdis pas. […] complet terminé → Plan disponible
+également, même si le rapide n'a jamais été fait ; complet seulement partiellement commencé sans
+rapide → ne considère pas encore le Plan comme prêt. »*
+
+**Ce que le complet alimentait déjà** — établi par le code et par la base :
+
+- **CO / CE** : les deux sous-épreuves sont des `attempts` ordinaires
+  (`TcfDiagnosticSectionStarter.creerComprehension`) ; leur clôture passe par
+  `AttemptInteractionService`, donc par `ComprehensionObservationService`. Vérifié en base :
+  **6 `TCF_CO` + 3 `TCF_CE`** rattachées à des sous-épreuves de diagnostic complet.
+- **EE / EO** : `creerProduction` crée des attempts **vides** ; les 3 tâches sont soumises par
+  `/api/production-submissions` avec des tâches de production **standard** (non
+  `diagnostic_code`), donc `observeStandardProduction` ne retourne pas tôt et
+  `LearningPlanObservationService` les classe `MOCK_EXAM_EE/EO` (`isMockExam` : le sous-attempt
+  porte un `parentAttempt`).
+
+Le moteur était donc **déjà nourri** par les 4 épreuves ; seule sa **condition d'entrée** en
+`ACTIVE` était trop étroite (elle ne regardait que `DiagnosticSessionManager.findLatestCompleted`,
+c'est-à-dire le rapide).
+
+**`PlanFoundationResolver`, autorité unique extraite.** La règle « sur quelle mesure le Plan se
+construit-il ? » a désormais **un seul endroit**, appelé par ses deux lecteurs :
+`LearningPlanService.get()` (bascule `ACTIVE`) et `PreparationService` (`planDisponible`). 🛑 On ne
+l'écrit pas à deux endroits — c'est la duplication implicite précédente qui a coûté l'arbitrage.
+
+| Situation | Plan |
+|---|---|
+| rapide clos | **disponible** (chemin normal et court) |
+| complet clos, sans rapide | **disponible** |
+| complet `1/4` … `3/4`, sans rapide | 🛑 **pas** disponible — le Plan attend une mesure close |
+| rien de clos | pas disponible |
+
+Quand les deux existent, `LearningPlanDto.diagnosticSessionId` désigne le **rapide** : c'est lui
+qui a ouvert le parcours et c'est son rapport qui se relit. Sans rapide, `estimationSessionId`
+vaut `null` et **aucun écran ne propose de rapport** — rien n'est inventé.
+
+**Coût** : le budget du Plan passe de **21 à 22 requêtes**, une lecture indexée inconditionnelle
+et indépendante des données du candidat. Verrouillé par égalité dans `LearningPlanCycleIT`.
+
+Gelé par `PreparationServiceIT` : `completClosSansRapideRendLePlanDisponible` (qui assert **aussi**
+`LearningPlanState.ACTIVE`, pour que l'écran et le moteur ne puissent pas se contredire),
+`completPartielSansRapideNeFondeAucunPlan` (1/4 puis 3/4), `leRapideResteLeCheminCourt`.
+
+### Complément du 2026-09-12 — les deux seuls libellés du diagnostic complet
+
+> ⚠️ **Supprimés le 2026-09-26** avec le parcours complet (constantes retirées des deux fronts).
+
+| Avancement | CTA |
+|---|---|
+| jamais commencé | **« Faire le diagnostic complet »** |
+| `1/4` · `2/4` · `3/4` | **« Continuer le diagnostic »** |
+| terminé | **aucun CTA de diagnostic** |
+
+🛑 La variante **« Faire mon diagnostic complet » est supprimée**, ainsi que « Faire mon
+diagnostic TCF complet ». Autorité unique par front : `DIAGNOSTIC_COMPLET_CTA_START` /
+`DIAGNOSTIC_COMPLET_CTA_RESUME` dans `web_sejoufr/lib/preparation.ts` ⇄
+`kDiagnosticCompletCtaStart` / `kDiagnosticCompletCtaResume` dans
+`mobile_sejourfr/lib/core/models/preparation_labels.dart`. Les libellés du rapport
+(`report-labels.ts` / `diagnostic_report_labels.dart`) et la landing `ReussirView` les
+**réexportent**, ils ne les redéclarent plus.
+
+### Complément du 2026-09-12 — « Revoir mon diagnostic rapide »
+
+Un **lien** discret, **en bas de page** du Plan, sous la carte « Affiner ». Jamais une carte,
+jamais un bouton plein : il ne doit concurrencer ni « Débloquer mon plan » (compte gratuit) ni
+« À faire maintenant » (abonné). Il n'existe que si `estimationSessionId` est **servi**, et il
+vise `/diagnostic`, qui rend déjà ce rapport — aucun écran n'est recréé.
+Web `RevoirEstimation` (`LearningPlanView.tsx`) ⇄ mobile `RevoirEstimationLink`
+(`core/widgets/affiner_plan_card.dart`), même mesure (13 px, gras, bleu, chevron).

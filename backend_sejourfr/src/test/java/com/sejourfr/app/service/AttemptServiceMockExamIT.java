@@ -1,0 +1,495 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.StartAttemptRequest;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.ExamTemplate;
+import com.sejourfr.app.entity.ExamTemplateRule;
+import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ExamTemplateManager;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Démarrage d'attempts MOCK_EXAM : examen civique global/thématique, examen
+ * module TCF (CO/CE), examen template. DB réelle (pool seedé).
+ */
+class AttemptServiceMockExamIT extends AbstractIntegrationTest {
+
+    @Autowired AttemptService service;
+    @Autowired TestData data;
+    @Autowired AttemptManager attemptManager;
+    @Autowired ExamTemplateManager templateManager;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private void makePremium(User user) {
+        data.userSubscription(user, data.plan());
+    }
+
+    private StartAttemptRequest mock(Module module, UUID themeId, UUID templateId,
+                                     QuestionType moduleExamType, Integer slot) {
+        return new StartAttemptRequest(AttemptType.MOCK_EXAM, module, templateId, themeId,
+                null, null, null, null, moduleExamType, slot, null);
+    }
+
+
+    @Test
+    void civiqueFullMockExam_config40Questions_2700s_seuil32() {
+        User user = data.user();
+        makePremium(user); // slot 3 : au-dela du slot 1 offert
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 3));
+
+        assertThat(r.type()).isEqualTo(AttemptType.MOCK_EXAM);
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(r.timeLimitSeconds()).isEqualTo(45 * 60);
+        assertThat(r.passThreshold()).isEqualTo(32);
+
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getSlotNumber()).isEqualTo(3);
+        assertThat(persisted.getLotThemeId()).isNull();
+    }
+
+    @Test
+    void civiqueThemeExam_config20Questions_1200s_seuil16_scopeTheme() {
+        // 🛑 SUR UNE THÉMATIQUE OFFICIELLE, et plus sur un thème de fixture
+        // (D-47). L'examen de thème se compose désormais par les UNITÉS de sa
+        // thématique, aux proportions de l'annexe I : un thème hors programme
+        // n'a aucune unité, donc aucun examen — et c'est le bon refus. La
+        // fixture créait un thème « exam-theme » avec 25 questions, ce qui ne
+        // testait que le tirage libre par `theme_id`.
+        // ⚠️ ABONNÉ : depuis P8.5 un examen de thème est premium (D-33). Ce
+        // test porte sur le FORMAT, pas sur l'accès — celui-ci a ses propres
+        // tests juste en dessous.
+        User user = data.user();
+        makePremium(user);
+        UUID themeId = jdbc.queryForObject(
+                "SELECT id FROM themes WHERE code = 'CIV_PRINCIPES'", UUID.class);
+
+        AttemptResponse r = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeId, null, null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
+        assertThat(r.passThreshold()).isEqualTo(16);
+        assertThat(r.themeId()).isEqualTo(themeId);
+    }
+
+    @Test
+    void civiqueThemeExam_themeHorsProgramme_estRefuse() {
+        // Le pendant du précédent : un thème qui n'est pas dans l'annexe I n'a
+        // aucune unité officielle, donc aucun examen de thème possible.
+        User user = data.user();
+        makePremium(user);
+        Theme horsProgramme = data.theme(Module.CIVIQUE, "exam-theme", "Hors programme");
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, horsProgramme.getId(), null, null, null)))
+                .hasMessageContaining("Thematique civique inconnue du programme");
+    }
+
+    @Test
+    void tcfGlobalMockExam_legacy_60Questions_5400s() {
+        User user = data.user();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(60);
+        assertThat(r.timeLimitSeconds()).isEqualTo(90 * 60);
+        assertThat(r.passThreshold()).isNull();
+        assertThat(r.module()).isEqualTo(Module.TCF);
+    }
+
+    @Test
+    void moduleExamCO_premium_25Questions_1200s() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+        assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
+        assertThat(r.moduleExamQuestionType()).isEqualTo(QuestionType.CO);
+    }
+
+    @Test
+    void moduleExamCE_premium_25Questions_2100s() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CE, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+        assertThat(r.timeLimitSeconds()).isEqualTo(35 * 60);
+    }
+
+    @Test
+    void moduleExam_slot1_compteGratuit_autorise() {
+        User user = data.user();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, 1));
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+        assertThat(r.moduleExamQuestionType()).isEqualTo(QuestionType.CO);
+    }
+
+    @Test
+    void moduleExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void moduleExam_questionTypeInvalide_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.CONNAISSANCE, null)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void moduleExam_moduleCivique_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, null, null, QuestionType.CO, null)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // Verrou freemium de la branche legacy (examens civiques globaux / de thème
+    // / TCF 60 Q) — elle ne contrôlait RIEN : un compte gratuit pouvait lancer
+    // n'importe quel slot en illimité (le verrou n'existait que côté client).
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 <b>Le serveur décide du verrou de la grille</b> (2026-09-24). La grille
+     * des examens civiques globaux offre son créneau 1 à un compte gratuit —
+     * c'est {@code civique-decouverte}, gratuit par D-33, et c'est ce que le web
+     * lance. Le mobile lance la même grille SANS gabarit : pour un compte sans
+     * accès Civique, le serveur joue alors le gabarit gratuit, au lieu du 403
+     * qui fermait au mobile ce que le web offrait.
+     */
+    @Test
+    void civiqueFullMockExam_slot1_compteGratuit_joueLeGabaritGratuit() {
+        User user = data.user();
+        ExamTemplate decouverte = templateManager.findBySlug("civique-decouverte").orElseThrow();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+        AttemptResponse rejoue = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+
+        assertThat(r.examTemplateId()).isEqualTo(decouverte.getId());
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(rejoue.examTemplateId()).isEqualTo(decouverte.getId());
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void civiqueFullMockExam_sansSlot_compteGratuit_vautLeCreneau1() {
+        User user = data.user();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+    }
+
+    @Test
+    void civiqueFullMockExam_gabaritGratuitDepublie_compteGratuit_refuse() {
+        // Sans gabarit gratuit publié, la grille n'offre rien : l'examen global
+        // reste premium (D-33).
+        User user = data.user();
+        jdbc.update("UPDATE exam_templates SET is_published = false WHERE slug = 'civique-decouverte'");
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, null, null, null, 1)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_abonne_autorise() {
+        // 🛑 Le pendant : l'abonné passe, et le format reste celui de l'arrêté.
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot20_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 20)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // 🛑 Examen de THÈME : slot 1 offert et rejouable, slots 2+ aux abonnés
+    // Civique (arbitrage du propriétaire du 2026-09-24, révoque D-33 sur ce
+    // point). Même règle que le slot 1 d'une épreuve CO / CE.
+    // ------------------------------------------------------------------------
+
+    private UUID themeOfficiel(String code) {
+        return jdbc.queryForObject("SELECT id FROM themes WHERE code = ?", UUID.class, code);
+    }
+
+    @Test
+    void civiqueThemeExam_slot1_compteGratuit_autorise_etRejouable() {
+        User user = data.user();
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse premier = service.start(user.getId(), mock(Module.CIVIQUE, themeId, null, null, 1));
+        AttemptResponse rejoue = service.start(user.getId(), mock(Module.CIVIQUE, themeId, null, null, 1));
+
+        assertThat(premier.totalQuestions()).isEqualTo(20);
+        assertThat(rejoue.totalQuestions()).isEqualTo(20);
+        assertThat(attemptManager.findById(rejoue.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void civiqueThemeExam_slot1_chaqueTheme_compteGratuit_autorise() {
+        // « Par thème » : le slot 1 de CHAQUE thème, pas un examen de thème au total.
+        User user = data.user();
+
+        service.start(user.getId(), mock(Module.CIVIQUE, themeOfficiel("CIV_PRINCIPES"), null, null, 1));
+        AttemptResponse autre = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeOfficiel("CIV_HISTOIRE_GEO"), null, null, 1));
+
+        assertThat(autre.totalQuestions()).isEqualTo(20);
+    }
+
+    @Test
+    void civiqueThemeExam_slot2_abonne_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(),
+                mock(Module.CIVIQUE, themeOfficiel("CIV_PRINCIPES"), null, null, 2));
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+    }
+
+    @Test
+    void civiqueThemeExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+        Theme theme = data.theme(Module.CIVIQUE, "exam-theme-lock", "Examen thème verrouillé");
+        for (int i = 0; i < 25; i++) {
+            data.question(theme);
+        }
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, theme.getId(), null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void tcfGlobalMockExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot2_premium_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 2));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(2);
+    }
+
+    // ------------------------------------------------------------------------
+    // Bornes du slotNumber (1..20) — 999 et -3 étaient acceptés et persistés,
+    // et un slot <= 0 passait même sous le verrou `slot > 1`.
+    // ------------------------------------------------------------------------
+
+    @Test
+    void mockExam_slotHorsBorne_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 999)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, -3)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 0)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    /**
+     * L'épreuve fine doit refléter le sous-module joué. Elle n'était jamais
+     * posée : le @PrePersist d'Attempt retombait sur TCF_CO pour TOUT le TCF,
+     * et un examen de compréhension écrite ressortait « TCF_CO » dans
+     * {@code GET /api/me/attempts} — donc « Compréhension orale » à l'écran.
+     */
+    @Test
+    void moduleExam_poseLEpreuveDuSousModule() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse co = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, null));
+        AttemptResponse ce = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CE, null));
+        AttemptResponse st = service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.STRUCTURE, null));
+
+        assertThat(epreuveOf(co.id())).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(epreuveOf(ce.id())).isEqualTo(EpreuveType.TCF_CE);
+        assertThat(epreuveOf(st.id())).isEqualTo(EpreuveType.TCF_STRUCTURE);
+    }
+
+    /** Même cause, même correctif, sur les séries d'entraînement TCF. */
+    @Test
+    void lotTcf_poseLEpreuveDuSousModule() {
+        User user = data.user();
+        AttemptResponse ce = service.start(user.getId(),
+                new StartAttemptRequest(AttemptType.TRAINING, Module.TCF, null, null,
+                        Difficulty.A2, QuestionType.CE, null, 1, null, null, null));
+
+        assertThat(epreuveOf(ce.id())).isEqualTo(EpreuveType.TCF_CE);
+    }
+
+    private EpreuveType epreuveOf(UUID attemptId) {
+        return attemptManager.findById(attemptId).orElseThrow().getEpreuve();
+    }
+
+    @Test
+    void moduleExam_slotHorsBorne_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.CO, 999)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.CO, -3)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void moduleExam_slot20_premium_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, 20));
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+    }
+
+    @Test
+    void startFromTemplate_slotHorsBorne_refuse() {
+        User user = data.user();
+        ExamTemplate t = data.examTemplate();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, 999)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void startFromTemplate_templateGratuitPublie_compteGratuit_ok() {
+        User user = data.user();
+        ExamTemplate t = data.examTemplate(); // TCF, free, published, 20 questions
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null));
+
+        assertThat(r.type()).isEqualTo(AttemptType.MOCK_EXAM);
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.timeLimitSeconds()).isEqualTo(5400);
+        assertThat(r.examTemplateId()).isEqualTo(t.getId());
+    }
+
+    @Test
+    void startFromTemplate_nonPublie_refuse() {
+        User user = data.user();
+        ExamTemplate t = data.examTemplate(Module.TCF, true, false);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void startFromTemplate_payant_compteGratuit_refuse() {
+        User user = data.user();
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void startFromTemplate_payant_premium_ok() {
+        User user = data.user();
+        makePremium(user);
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.examTemplateId()).isEqualTo(t.getId());
+    }
+
+    @Test
+    void startFromTemplate_gratuit_compteGratuit_creneau2Refuse() {
+        // Un gabarit gratuit n'offre que son créneau 1 : la même règle que la
+        // grille servie (`ExamenBlancAccessService.isGabaritVerrouille`).
+        User user = data.user();
+        ExamTemplate t = data.examTemplate(); // TCF, free, published
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void startFromTemplate_payant_passCiviqueSeul_refuse() {
+        // 🛑 L'accès se lit PAR MODULE : un pass civique n'ouvre pas un gabarit
+        // TCF payant (l'agrégat `isPremium` l'ouvrait).
+        User user = data.user();
+        data.userSubscription(user, data.plan(com.sejourfr.app.enums.ModuleAccess.CIVIQUE));
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void start_templateIntrouvable_lanceNotFound() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, UUID.randomUUID(), null, null)))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+}

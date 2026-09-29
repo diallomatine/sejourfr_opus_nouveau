@@ -1,0 +1,125 @@
+package com.sejourfr.app.dto;
+
+import com.sejourfr.app.enums.NiveauCecrl;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Agrégat unique pour le tableau de bord web : un seul appel
+ * {@code GET /api/me/dashboard} alimente tout l'écran (stat cards + cards
+ * de progression par catégorie).
+ *
+ * <ul>
+ *   <li>{@code currentStreakDays} : jours CONSÉCUTIFS d'activité (≥1 attempt
+ *       démarré dans la journée, fuseau Europe/Paris) se terminant aujourd'hui
+ *       ou hier. 0 si la série est rompue.</li>
+ *   <li>{@code recordStreakDays} : plus longue série observée sur tout
+ *       l'historique.</li>
+ *   <li>{@code activeToday} : true si au moins un attempt démarré aujourd'hui —
+ *       permet au front d'adapter le wording ("continuez" vs "reprenez").</li>
+ *   <li>{@code mockExamsTotal} : nb d'examens blancs (MOCK_EXAM) finis, tous
+ *       modules confondus.</li>
+ *   <li>{@code civiqueMockExams} / {@code tcfMockExams} : totaux par module
+ *       pour les hubs (TCF : sous-attempts d'un examen complet exclus —
+ *       seul le parent TCF_COMPLET compte).</li>
+ *   <li>{@code globalSuccessPercent} : progression globale 0-100 = moyenne
+ *       des progressions des catégories renseignées (Civique + TCF, EE/EO
+ *       inclus). Null si rien travaillé.</li>
+ *   <li>{@code estimatedTcfLevel} : niveau TCF <b>estimé</b> du candidat —
+ *       plancher des 4 épreuves (CO/CE/EE/EO), chacune retenant son
+ *       <b>meilleur</b> résultat, une épreuve abandonnée sans rien rendre étant
+ *       <b>exclue</b> (cf. {@code TcfProfileService}). Null tant qu'aucune
+ *       épreuve n'a été réellement passée — null = inconnu, jamais mauvais.
+ *       Dérivé serveur : aucun front ne le recalcule.</li>
+ *   <li>{@code estimatedTcfLevelEpreuvesCounted} /
+ *       {@code estimatedTcfLevelEpreuvesExpected} /
+ *       {@code estimatedTcfLevelPartial} : <b>périmètre</b> de ce niveau, même
+ *       contrat que {@code epreuvesCountedInFinalLevel} /
+ *       {@code epreuvesExpected} / {@code finalLevelPartial} sur un examen blanc
+ *       complet. Sans lui, un candidat qui n'a passé que l'expression écrite
+ *       lisait « Niveau TCF estimé : B1 » sur la foi d'<b>une</b> épreuve sur
+ *       quatre, sans que rien ne le signale. Partiel = au moins une épreuve
+ *       comptée, mais pas les quatre : à zéro épreuve le niveau est déjà
+ *       {@code null} et il n'y a rien à annoter. Dérivé serveur
+ *       ({@code TcfLevelProfile}) — <b>aucun front ne recompte</b>.</li>
+ *   <li>{@code tcfDomainProfile} : le <b>même</b> niveau, publié
+ *       <b>domaine par domaine</b> (CO · CE · EO · EE) pour l'écran « Mon
+ *       profil TCF » et le bloc « Compléter mon profil ». Les trois scalaires
+ *       ci-dessus en sont le résumé : ils ne sont pas une seconde source, et
+ *       restent servis pour les fronts qui ne lisent que le global. Liste
+ *       <b>toujours de 4</b>, <b>ordre figé côté serveur</b> — cf.
+ *       {@code TcfDomainProfileDto}.</li>
+ *   <li>{@code civique} / {@code tcf} : une entrée par catégorie, TOUS les
+ *       thèmes du module (même jamais travaillés → percent null). Côté TCF,
+ *       deux entrées synthétiques {@code TCF_EE} / {@code TCF_EO} sont
+ *       ajoutées depuis les évaluations IA.</li>
+ * </ul>
+ */
+public record DashboardSummaryResponse(
+        int currentStreakDays,
+        int recordStreakDays,
+        boolean activeToday,
+        int mockExamsTotal,
+        int civiqueMockExams,
+        int tcfMockExams,
+        Integer globalSuccessPercent,
+        NiveauCecrl estimatedTcfLevel,
+        int estimatedTcfLevelEpreuvesCounted,
+        int estimatedTcfLevelEpreuvesExpected,
+        boolean estimatedTcfLevelPartial,
+        TcfDomainProfileDto tcfDomainProfile,
+        List<CategoryStat> civique,
+        List<CategoryStat> tcf
+) {
+
+    /**
+     * Stat d'une catégorie du dashboard.
+     *
+     * <ul>
+     *   <li>{@code themeId} : null pour les entrées synthétiques EE/EO.</li>
+     *   <li>{@code percent} : progression 0-100 = réussite × confiance
+     *       (réussite = réussies/répondues distinctes ; confiance =
+     *       min(1, répondues / min(40, pool))). EE/EO : moyenne des notes /20
+     *       des 3 dernières soumissions ×5 × min(1, soumissions/3). Null si
+     *       jamais travaillée. Cf. UserDashboardService.</li>
+     *   <li>{@code answered} / {@code total} : couverture du pool (questions
+     *       distinctes tentées / questions actives). 0/0 pour EE/EO.</li>
+     *   <li>{@code mockExams} : nb d'examens blancs finis scopés à la
+     *       catégorie (civique : examens thématiques ; TCF : examens module
+     *       CO/CE/STRUCTURE). 0 pour EE/EO.</li>
+     *   <li>{@code bestMockScore} : record du score brut sur les examens de
+     *       la catégorie. Null si aucun examen noté.</li>
+     *   <li>{@code seriesDone} / {@code seriesTotal} : les <b>séries</b>
+     *       d'entraînement de la catégorie — combien le candidat en a terminé,
+     *       sur combien elle en porte. C'est le « 2 / 10 séries » de l'écran
+     *       Réviser. Côté TCF, le compte est fait <b>tous paliers confondus</b>
+     *       (A2 + B1 + B2) ; côté civique, sur le thème. {@code 0 / 0} pour
+     *       EE/EO, qui n'ont pas de séries : l'écran y montre des compétences.
+     *       🛑 Dérivé serveur ({@code LotService}) — un front ne recompte
+     *       jamais des lots, il en lit le décompte.</li>
+     *   <li>{@code subjectsDone} / {@code subjectsTotal} : EE/EO seulement —
+     *       le « 3/40 sujets » de l'écran Réviser. Total = sujets publiés
+     *       (actifs, hors diagnostic) de l'épreuve, <b>ses 3 tâches
+     *       confondues</b> ; fait = sujets publiés <b>distincts</b> ayant au
+     *       moins une soumission du candidat, quels que soient son statut et sa
+     *       session. Même règle que « Sujets traités » des examens blancs.
+     *       {@code 0 / 0} pour les autres catégories. 🛑 Dérivé serveur.</li>
+     * </ul>
+     */
+    public record CategoryStat(
+            UUID themeId,
+            String code,
+            String label,
+            Integer percent,
+            int answered,
+            int total,
+            int mockExams,
+            Integer bestMockScore,
+            int seriesDone,
+            int seriesTotal,
+            int subjectsDone,
+            int subjectsTotal
+    ) {
+    }
+}

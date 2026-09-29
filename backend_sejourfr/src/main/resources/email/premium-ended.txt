@@ -1,0 +1,9 @@
+{{accessLabel}} est terminé
+
+{{greeting}},
+
+{{accessLabel}} est arrivé à son terme le {{accessEndDate}}. {{remainingAccessSentence}}
+
+Votre progression et vos résultats restent disponibles. Merci d'avoir préparé votre examen avec SejourFR.
+
+Retrouver ma progression : {{dashboardUrl}}

@@ -1,0 +1,67 @@
+import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../models/dashboard_models.dart';
+import 'tcf_epreuves.dart';
+import '../router/app_router.dart';
+
+/// Icône canonique d'une catégorie du dashboard (`CategoryStat.code`).
+/// Partagé par Accueil, Réviser et Progrès.
+IconData dashboardCategoryIcon(String code) => switch (code) {
+      'TCF_CO' => LucideIcons.ear,
+      'TCF_CE' => LucideIcons.fileText,
+      'TCF_STRUCTURE' => LucideIcons.layoutGrid,
+      'TCF_EE' => LucideIcons.penLine,
+      'TCF_EO' => LucideIcons.mic,
+      'CIV_PRINCIPES' => LucideIcons.scale,
+      'CIV_INSTITUTIONS' => LucideIcons.landmark,
+      'CIV_DROITS_DEVOIRS' => LucideIcons.handshake,
+      'CIV_HISTOIRE_GEO' => LucideIcons.map,
+      'CIV_SOCIETE' => LucideIcons.house,
+      _ => LucideIcons.bookOpen,
+    };
+
+/// Route de l'écran détail d'une catégorie du dashboard (« s'entraîner sur
+/// cette catégorie »). Les thèmes civique routent vers leur détail via
+/// `themeId` ; les épreuves QCM vers leur hub d'épreuve.
+///
+/// **EE/EO n'ont plus de hub** : on entre directement sur l'écran d'accueil du
+/// parcours (mode « Compétences » de la tâche 1), le changement de tâche s'y
+/// faisant par les pastilles T1/T2/T3.
+String dashboardCategoryRoute(DashboardCategoryStat stat) => switch (stat.code) {
+      'TCF_CO' => AppRoutes.tcfCoDetail,
+      'TCF_CE' => AppRoutes.tcfCeDetail,
+      'TCF_STRUCTURE' => AppRoutes.tcfStructureDetail,
+      'TCF_EE' => AppRoutes.tcfEeEntry,
+      'TCF_EO' => AppRoutes.tcfEoEntry,
+      _ => AppRoutes.civiqueThemeDetail
+          .replaceFirst(':themeId', stat.themeId ?? ''),
+    };
+
+/// Ordre canonique des **quatre** épreuves du TCF IRN pour l'affichage (le
+/// backend renvoie les thèmes QCM puis ajoute EE/EO en synthétique).
+///
+/// 🛑 **Structure de la langue n'y figure pas** : ce n'est pas une épreuve de
+/// l'examen — cf. `core/utils/tcf_epreuves.dart`, autorité unique. Elle est
+/// rangée à part sur Réviser, dans « Renforcer mon français ».
+const tcfCategoryOrder = kTcfEpreuvesOfficielles;
+
+/// Réordonne les catégories TCF du dashboard selon [tcfCategoryOrder].
+List<DashboardCategoryStat> orderedTcfCategories(
+  List<DashboardCategoryStat> tcf,
+) {
+  final byCode = {for (final s in tcf) s.code: s};
+  return [
+    for (final code in tcfCategoryOrder)
+      if (byCode[code] != null) byCode[code]!,
+  ];
+}
+
+/// Structure de la langue, servie comme les autres mais **hors des quatre**.
+/// `null` quand le dashboard ne la porte pas — on n'en fabrique pas une ligne.
+DashboardCategoryStat? complementaireCategory(List<DashboardCategoryStat> tcf) {
+  for (final s in tcf) {
+    if (s.code == kTcfCodeComplementaire) return s;
+  }
+  return null;
+}

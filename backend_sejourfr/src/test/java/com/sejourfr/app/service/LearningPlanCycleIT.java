@@ -1,0 +1,323 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.LearningPlanDto;
+import com.sejourfr.app.dto.PlanDomainDto;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.AttemptQuestion;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AttemptMode;
+import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.LearningPlanSourceType;
+import com.sejourfr.app.enums.LearningPlanState;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.PlanCycleState;
+import com.sejourfr.app.enums.PlanDomainPriority;
+import com.sejourfr.app.enums.SkillMasteryState;
+import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityManager;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Le Plan d'un candidat <b>reel</b>, construit de bout en bout contre la vraie
+ * base : ses quatre domaines, son cycle de palier, et le <b>cout</b> de la
+ * lecture.
+ *
+ * <p>Le cout est la moitie de l'objet de ce test. Le Plan lit un historique
+ * d'observations, six competences de comprehension, six taches d'expression et
+ * quatre domaines : si l'une de ces lectures se faisait element par element, la
+ * regression serait invisible en unitaire et payee a chaque ouverture de
+ * l'ecran. On compte donc les requetes reellement preparees par Hibernate et on
+ * verifie qu'elles <b>ne bougent pas</b> quand l'historique grossit — patron de
+ * {@code SkillMasteryResolverIT}.
+ */
+class LearningPlanCycleIT extends AbstractIntegrationTest {
+
+    @Autowired private TestData data;
+    @Autowired private LearningPlanService service;
+    @Autowired private SkillManager skillManager;
+    @Autowired private EntityManager entityManager;
+
+    @Test
+    @DisplayName("Le Plan d'un candidat reel : quatre domaines mesures, un cycle vers le B1")
+    void lePlanCompletDunCandidatReel() {
+        User user = candidat(TargetProcedure.NAT);
+        data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+
+        // Compréhension : deux examens blancs QCM réellement passés.
+        examenQcmPasse(user, EpreuveType.TCF_CO, NiveauCecrl.A2);
+        examenQcmPasse(user, EpreuveType.TCF_CE, NiveauCecrl.B1);
+        // Expression : deux productions corrigées.
+        productionEvaluee(user, EpreuveType.TCF_EE, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EO, NiveauCecrl.A2);
+
+        // CO-A2 consolidée par deux séries ; une fragilité en expression écrite.
+        Skill coA2 = seed("CO-A2");
+        observation(user, coA2, LearningPlanSourceType.TCF_CO,
+                LearningPlanSkillStatus.SOLID, jours(3));
+        observation(user, coA2, LearningPlanSourceType.TCF_CO,
+                LearningPlanSkillStatus.SOLID, jours(1));
+        Skill ee2 = data.skill(SkillTaskCode.EE2);
+        observation(user, ee2, LearningPlanSourceType.PRODUCTION_EE,
+                LearningPlanSkillStatus.TO_REINFORCE, jours(2));
+        flush();
+
+        LearningPlanDto plan = service.get(user.getId());
+
+        assertThat(plan.state()).isEqualTo(LearningPlanState.ACTIVE);
+        // Les quatre domaines, toujours, ordonnés par le serveur.
+        assertThat(plan.domaines()).hasSize(4);
+        assertThat(plan.domaines()).allSatisfy(domaine ->
+                assertThat(domaine.evaluated()).isTrue());
+        assertThat(plan.domaines().getFirst().priority()).isEqualTo(PlanDomainPriority.FORTE);
+        assertThat(plan.domaines().getFirst().epreuve()).isEqualTo(EpreuveType.TCF_EE);
+
+        // Le cycle part du plancher mesuré (A2) et vise le cran au-dessus.
+        assertThat(plan.cycle().startingLevel()).isEqualTo(NiveauCecrl.A2);
+        assertThat(plan.cycle().targetLevel()).isEqualTo(TargetLevel.B1);
+        assertThat(plan.cycle().objectiveLevel()).isEqualTo(TargetLevel.B2);
+        assertThat(plan.cycle().profileComplete()).isTrue();
+        assertThat(plan.cycle().domainsEvaluated()).isEqualTo(4);
+        // Une fragilité reste ouverte : le palier n'est pas prêt à être confirmé.
+        assertThat(plan.cycle().state()).isEqualTo(PlanCycleState.TRAINING);
+        // Compréhension : la règle de prérequis se lit sur les trois paliers.
+        PlanDomainDto co = domaine(plan, EpreuveType.TCF_CO);
+        assertThat(co.paliers()).hasSize(3);
+        assertThat(co.paliers().getFirst().masteryState()).isEqualTo(SkillMasteryState.SOLID);
+        assertThat(co.consolidatedLevel()).isEqualTo(TargetLevel.A2);
+        assertThat(co.blockingLevel()).isEqualTo(TargetLevel.B1);
+        assertThat(co.taches()).isEmpty();
+
+        // Expression : les trois tâches et leur couverture.
+        PlanDomainDto ee = domaine(plan, EpreuveType.TCF_EE);
+        assertThat(ee.taches()).hasSize(3);
+        assertThat(ee.taches().get(1).taskCode()).isEqualTo(SkillTaskCode.EE2);
+        assertThat(ee.taches().get(1).observedSkills()).isEqualTo(1);
+        assertThat(ee.taches().get(1).totalSkills()).isGreaterThanOrEqualTo(8);
+        assertThat(ee.paliers()).isEmpty();
+    }
+
+    /**
+     * Brief §77 : trois domaines mesures et rien de fragile ne suffisent pas.
+     * Le Plan reclame d'abord de completer le profil ; le gate n'a rien a
+     * confirmer sur un domaine jamais mesure.
+     */
+    @Test
+    @DisplayName("Profil a 3 sur 4 : aucun examen de palier, meme sans priorite restante")
+    void unProfilIncompletNouvrePasLeGate() {
+        User user = candidat(TargetProcedure.NAT);
+        data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        examenQcmPasse(user, EpreuveType.TCF_CO, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EE, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EO, NiveauCecrl.A2);
+        flush();
+
+        LearningPlanDto plan = service.get(user.getId());
+
+        assertThat(plan.cycle().domainsEvaluated()).isEqualTo(3);
+        assertThat(plan.cycle().state()).isEqualTo(PlanCycleState.BUILDING_BASELINE);
+        assertThat(plan.milestone()).isNull();
+        assertThat(domaine(plan, EpreuveType.TCF_CE).priority())
+                .isEqualTo(PlanDomainPriority.A_EVALUER);
+        assertThat(domaine(plan, EpreuveType.TCF_CE).niveau()).isNull();
+    }
+
+    /**
+     * Le cout de la lecture ne doit pas dependre du nombre de competences
+     * observees : tout se charge en lot. On mesure deux fois, avec un historique
+     * quatre fois plus gros la seconde fois.
+     */
+    @Test
+    @DisplayName("Le cout du Plan ne grandit pas avec l'historique")
+    void leCoutDuPlanNeGrandiPasAvecLHistorique() {
+        User user = candidat(TargetProcedure.NAT);
+        data.diagnosticSession(user, DiagnosticSessionStatus.COMPLETED);
+        examenQcmPasse(user, EpreuveType.TCF_CO, NiveauCecrl.A2);
+        examenQcmPasse(user, EpreuveType.TCF_CE, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EE, NiveauCecrl.A2);
+        productionEvaluee(user, EpreuveType.TCF_EO, NiveauCecrl.A2);
+        for (SkillTaskCode code : new SkillTaskCode[]{SkillTaskCode.EE1, SkillTaskCode.EO1}) {
+            observation(user, data.skill(code), LearningPlanSourceType.PRODUCTION_EE,
+                    LearningPlanSkillStatus.TO_REINFORCE, jours(2));
+        }
+        flush();
+
+        // Une premiere lecture pour amorcer le contexte (metadonnees, plans).
+        service.get(user.getId());
+        long petit = requetes(user);
+
+        for (SkillTaskCode code : SkillTaskCode.values()) {
+            for (int rang = 0; rang < 3; rang++) {
+                observation(user, data.skill(code), LearningPlanSourceType.PRODUCTION_EE,
+                        LearningPlanSkillStatus.TO_REINFORCE, jours(2));
+            }
+        }
+        flush();
+        long grand = requetes(user);
+
+        // Mesure du jour : 19 requetes pour un Plan complet, dont 7 pour le
+        // cycle et les domaines (le compte, les quatre epreuves du profil TCF,
+        // les six competences de comprehension en un lot, les six taches en un
+        // lot). La borne est large a dessein : ce qui compte, c'est l'egalite
+        // ci-dessous — une requete par competence ferait exploser la seconde
+        // mesure, pas la premiere.
+        // 🛑 UN NOMBRE FIXE, ASSUME — plus une borne large (2026-08-26).
+        //
+        // 21 requetes pour un Plan complet. 19 jusqu'au 2026-08-26, +2 pour le
+        // FILTRE DE FAISABILITE : les competences d'expression qui ont un sujet
+        // publie, et le stock de questions par (type, palier). Les deux sont
+        // AGREGEES et ne dependent ni du nombre de competences, ni du nombre de
+        // domaines, ni des donnees du candidat — c'est la condition posee par le
+        // proprietaire pour que ce budget ait le droit d'augmenter.
+        //
+        // La passe « palier par domaine » n'a rien coute : les paliers se
+        // chargent toujours en UN lot, quel que soit le nombre de paliers
+        // distincts. Et les exercices ne sont plus resolus que pour les cartes
+        // AFFICHEES, la ou ils l'etaient pour tout le pool.
+        //
+        // Ce chiffre tranche la CONTRADICTION #3 du depot (« 20 requetes, +1 ou
+        // 19 ? ») : c'etait 21, mesure ici, et cette ligne fait foi.
+        //
+        // 22 depuis le 2026-09-12 : PlanFoundationResolver lit AUSSI la derniere
+        // session du diagnostic COMPLET, parce qu'un complet clos fonde
+        // desormais un Plan a lui seul (arbitrage du proprietaire). Une lecture
+        // indexee de plus, INCONDITIONNELLE et independante des donnees du
+        // candidat — la meme condition que celle posee pour les deux requetes du
+        // filtre de faisabilite. Elle remplace une regle qui vivait en deux
+        // copies implicites, dont le prix etait bien plus eleve.
+        //
+        // 23 depuis le 2026-09-13 : la PREMIERE PLACE EST EPINGLEE, et l'epingle
+        // se lit (`plan_pinned_priorities`, cle primaire = l'utilisateur). Une
+        // lecture par cle, INCONDITIONNELLE et independante des donnees du
+        // candidat — la meme condition que pour les trois requetes precedentes.
+        // Elle n'est SUIVIE D'AUCUNE ECRITURE ici : la ligne n'est reecrite que
+        // lorsque la premiere place change reellement, jamais a chaque lecture,
+        // sinon `pinned_at` daterait la derniere consultation et ce GET serait
+        // un UPDATE par appel. C'est ce que verrouille
+        // LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle.
+        //
+        // 24 depuis le 2026-09-17 : la PREMIERE PLACE SE LIT SUR LE PARCOURS
+        // quand il existe (`journey_step`, premiere etape d'entrainement encore
+        // ouverte). Une lecture indexee, INCONDITIONNELLE et independante des
+        // donnees du candidat — la meme condition que pour les quatre requetes
+        // precedentes. 🛑 Elle se paie parce que sans elle le freemium ouvrait
+        // une AUTRE competence que celle que la carte « À faire maintenant »
+        // annonce : le candidat gratuit lisait une etape et pouvait en
+        // travailler une autre. UNE requete, jointure comprise — deux lectures
+        // (le parcours, puis ses etapes) auraient coute deux.
+        // 21 depuis le 2026-09-18 (D-18) : `SkillAccessService` ne lit plus que
+        // l'ABONNEMENT. Les trois requetes qu'il payait — la premiere competence
+        // de chaque tache, le rang le plus bas de chaque domaine de
+        // comprehension, les sujets actifs des competences ouvertes — n'ont plus
+        // d'objet : travailler une competence depuis le Plan est premium, sans
+        // exception, donc il n'y a plus rien a ouvrir. 🛑 Une EGALITE, jamais un
+        // `<=` : c'est la seule facon d'attraper un N+1 ou une requete revenue
+        // par la bande.
+        // 23 depuis le 2026-09-20 : le niveau CECRL d'une epreuve QCM n'est plus
+        // PERSISTE, il se DERIVE des reponses. `TcfProfileService.bestQcm` paie
+        // donc une requete agregee PAR EPREUVE de comprehension (CO, CE), soit
+        // deux — et deux seulement, quel que soit le nombre d'examens dans
+        // l'historique du candidat. 🛑 C'est exactement ce que l'assertion
+        // suivante prouve : `grand == petit`. Une boucle sur les sessions aurait
+        // fait exploser ce chiffre avec l'historique.
+        assertThat(petit)
+                .as("budget de requetes du Plan, fixe et assume")
+                .isEqualTo(23);
+        assertThat(grand)
+                .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
+                .isEqualTo(petit);
+    }
+
+    // ------------------------------------------------------------------------
+    // Fabriques
+    // ------------------------------------------------------------------------
+
+    /** Requetes reellement preparees par une lecture du Plan, contexte vide. */
+    private long requetes(User user) {
+        flush();
+        Statistics statistics = entityManager.getEntityManagerFactory()
+                .unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+        service.get(user.getId());
+        return statistics.getPrepareStatementCount();
+    }
+
+    private void flush() {
+        entityManager.flush();
+        entityManager.clear();
+    }
+
+    private User candidat(TargetProcedure procedure) {
+        User user = data.user();
+        user.setTargetProcedure(procedure);
+        user.setTargetLevel(procedure.getRequiredTcfLevel());
+        return data.saveUser(user);
+    }
+
+    /** Une competence du referentiel publie (V318), designee par son code. */
+    private Skill seed(String code) {
+        return skillManager.findByCode(code).orElseThrow();
+    }
+
+    /**
+     * Un examen blanc QCM reellement passe : termine, avec au moins une reponse
+     * — c'est exactement ce que {@code TcfProfileService} exige pour compter une
+     * epreuve de comprehension.
+     */
+    /**
+     * 🛑 Delegue a {@code TestData.examenQcmTcfPasse} : depuis la suppression de
+     * {@code attempts.cecrl_level}, le palier d'une epreuve QCM se DEMONTRE par
+     * ses reponses, il ne se declare plus. Ce helper vivait en quatre copies.
+     */
+    private void examenQcmPasse(User user, EpreuveType epreuve, NiveauCecrl niveau) {
+        data.examenQcmTcfPasse(user, epreuve, niveau);
+    }
+
+    /** Une production corrigee : c'est elle qui donne son niveau a EE ou EO. */
+    private void productionEvaluee(User user, EpreuveType epreuve, NiveauCecrl niveau) {
+        ProductionSubmission submission = data.productionSubmission(
+                data.attempt(user), data.productionTask(epreuve), user);
+        data.aiEvaluation(submission).setNiveauCecrl(niveau);
+    }
+
+    private void observation(
+            User user, Skill skill, LearningPlanSourceType source,
+            LearningPlanSkillStatus status, Instant quand) {
+        data.learningPlanObservation(user, skill, source, status,
+                ObservationConfidence.HIGH, UUID.randomUUID(), quand);
+    }
+
+    private static PlanDomainDto domaine(LearningPlanDto plan, EpreuveType epreuve) {
+        return plan.domaines().stream()
+                .filter(item -> item.epreuve() == epreuve)
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static Instant jours(int nombre) {
+        return Instant.now().minus(nombre, ChronoUnit.DAYS);
+    }
+}

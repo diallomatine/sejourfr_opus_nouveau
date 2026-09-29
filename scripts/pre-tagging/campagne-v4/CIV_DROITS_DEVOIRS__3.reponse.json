@@ -1,0 +1,191 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVaESTD9tox3xDZ5x",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01Fh1XmbWWGMLT7NzMaezFJN",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "dd_police_justice",
+            "confiance": 0.93,
+            "rationale": "Réparation via constitution de partie civile relève de la procédure judiciaire."
+          },
+          {
+            "rang": 2,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Interdiction absolue de l'esclavage, noyau dur des droits intangibles."
+          },
+          {
+            "rang": 3,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.85,
+            "rationale": "Probité de l'agent public, devoir cité explicitement dans la notion."
+          },
+          {
+            "rang": 4,
+            "notion": "dd_devoirs_citoyen",
+            "confiance": 0.95,
+            "rationale": "Devoir de tri des déchets, cité explicitement dans la frontière."
+          },
+          {
+            "rang": 5,
+            "notion": "dd_interdits_quotidien",
+            "confiance": 0.9,
+            "rationale": "Propos et actes racistes comme interdit concret sanctionné."
+          },
+          {
+            "rang": 6,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.97,
+            "rationale": "Article 1er DDHC cité nommément."
+          },
+          {
+            "rang": 7,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.96,
+            "rationale": "Article 2 DDHC, droits naturels imprescriptibles."
+          },
+          {
+            "rang": 8,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.9,
+            "rationale": "Article 4 DDHC cité nommément, définition textuelle de la liberté."
+          },
+          {
+            "rang": 9,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.75,
+            "rationale": "Article 9 DDHC cité, mais contenu proche présomption innocence procédurale.",
+            "alternative": "dd_police_justice",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 10,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.9,
+            "rationale": "Égalité devant la loi comme principe de texte, article 6 DDHC cité."
+          },
+          {
+            "rang": 11,
+            "notion": "dd_textes_fondateurs",
+            "confiance": 0.95,
+            "rationale": "Article 11 DDHC cité nommément."
+          },
+          {
+            "rang": 12,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.93,
+            "rationale": "Contenu et limites de la liberté d'expression."
+          },
+          {
+            "rang": 13,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.9,
+            "rationale": "Secret des correspondances relève de la sphère intime."
+          },
+          {
+            "rang": 14,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.96,
+            "rationale": "Droit à la vie privée, article 9 Code civil."
+          },
+          {
+            "rang": 15,
+            "notion": "dd_vie_privee_famille",
+            "confiance": 0.95,
+            "rationale": "Droit à l'image cité explicitement."
+          },
+          {
+            "rang": 16,
+            "notion": "dd_police_justice",
+            "confiance": 0.85,
+            "rationale": "Procès équitable, procédure judiciaire française."
+          },
+          {
+            "rang": 17,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.95,
+            "rationale": "Principe de légalité des délits et des peines, article 8 DDHC."
+          },
+          {
+            "rang": 18,
+            "notion": "dd_police_justice",
+            "confiance": 0.85,
+            "rationale": "Présomption d'innocence dans le cadre procédural."
+          },
+          {
+            "rang": 19,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.92,
+            "rationale": "Prescription des délits, principe pénal."
+          },
+          {
+            "rang": 20,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.9,
+            "rationale": "Interdiction absolue de la torture, noyau dur intangible."
+          },
+          {
+            "rang": 21,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.93,
+            "rationale": "Liberté d'aller et venir citée explicitement."
+          },
+          {
+            "rang": 22,
+            "notion": "dd_libertes_limites",
+            "confiance": 0.9,
+            "rationale": "Droit d'asile cité explicitement dans la notion."
+          },
+          {
+            "rang": 23,
+            "notion": "dd_infractions_peines",
+            "confiance": 0.85,
+            "rationale": "Dignité humaine, principe cité dans infractions_peines."
+          },
+          {
+            "rang": 24,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.95,
+            "rationale": "Droits sociaux fondamentaux du préambule de 1946."
+          },
+          {
+            "rang": 25,
+            "notion": "dd_droits_sociaux",
+            "confiance": 0.93,
+            "rationale": "Droit au logement opposable, droit social devant un juge."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10972,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1535,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

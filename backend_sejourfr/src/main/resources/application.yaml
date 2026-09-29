@@ -2,23 +2,55 @@ spring:
   application:
     name: sejourfr-backend
   profiles:
-    active: dev
+    # Defaut dev pour le confort local ; un deploiement DOIT poser
+    # SPRING_PROFILES_ACTIVE=prod (les scripts de deploiement le font). Le
+    # profil actif est logue au demarrage, avec un WARN si dev est actif
+    # (cf. StartupProfileLogger) — garde-fou contre un deploiement prod
+    # demarre par erreur en dev.
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate   # Flyway gere le schema, JPA valide juste
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         jdbc:
           time_zone: UTC
   flyway:
     enabled: true
     baseline-on-migrate: true
+    # Arborescence par domaine sous db/migration (scan recursif par defaut) :
+    #   00_schema (V001-V099) -> 100_reference (V100-V199)
+    #   -> 200_civique (V200-V299) -> 400_tcf (V400-V799).
+    # C'est le NUMERO de version qui ordonne l'execution, pas le dossier ;
+    # les plages garantissent schema -> reference -> contenu.
+    out-of-order: true
+    # Tolere une migration retiree du code mais deja appliquee en base. Sans ca,
+    # un env deploye AVANT un retrait echoue au boot sur "Detected applied
+    # migration not resolved locally". N'affecte que les bases qui l'avaient
+    # deja appliquee ; les bases neuves ne sont pas concernees.
+    ignore-migration-patterns: "*:missing"
   servlet:
     multipart:
       max-file-size: 25MB
       max-request-size: 25MB
+      # L'AUDIO D'UN CANDIDAT NE DOIT JAMAIS TOUCHER LE DISQUE. Par defaut ce
+      # seuil vaut 0B : Spring ecrit alors TOUT upload multipart dans un fichier
+      # temporaire, y compris les enregistrements des candidats — que la
+      # decision produit interdit precisement de stocker. En le portant
+      # au-dessus de max-file-size, tout tient en memoire et rien n'est spoule.
+      # Cout : au pire 25 Mo de tas par upload concurrent (les productions
+      # reelles pesent quelques centaines de Ko). Ne pas rabaisser.
+      file-size-threshold: 26MB
+  data:
+    web:
+      pageable:
+        # Plafond des listes paginees (?size=). Sans lui, Spring accepte
+        # jusqu'a 2000 elements par page : un `?size=2000` sur les questions
+        # admin renvoyait 2,65 Mo en une requete. 100 couvre tous les usages
+        # de la console (page par defaut : 20).
+        max-page-size: 100
 
 server:
   port: 8080
@@ -38,18 +70,1585 @@ management:
 
 sejourfr:
   cors:
-    allowed-origins: http://localhost:4200
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.104:3000
+  # URLs publiques qui servent a construire les liens des emails (bienvenue,
+  # reinitialisation de mot de passe, confirmation de changement d'email) et les
+  # success/cancel URLs Stripe. Declarees ICI, dans le fichier de base, et pas
+  # seulement dans application-prod.yaml : sans ca, une instance demarree sans le
+  # profil `prod` ignore APP_BASE_URL / BACKEND_BASE_URL et retombe sur le defaut
+  # Java (localhost), meme quand la variable d'environnement est correctement posee
+  # — c'est ce qui a envoye un mail de bienvenue de production vers localhost:3000.
+  app:
+    base-url: ${APP_BASE_URL:http://localhost:3000}
+  backend:
+    base-url: ${BACKEND_BASE_URL:http://localhost:8080}
+  # --------------------------------------------------------------------------
+  # Systeme d'emails (docs/regles/emails.md). Valeurs par defaut identiques dans
+  # le POJO config/EmailProperties, SAUF `templates` (verifie au demarrage :
+  # chaque type configure doit avoir ses fichiers .html et .txt).
+  # Delais, fenetres, plafond et tentatives : email/email-automation-config-vN.json.
+  # --------------------------------------------------------------------------
+  email:
+    # spring-mail aujourd'hui ; brevo demain (BrevoEmailSender + brevo-template-id).
+    provider: ${EMAIL_PROVIDER:spring-mail}
+    from: "SejourFR <${MAIL_FROM:no-reply@sejourfr.fr}>"
+    reply-to: ${sejourfr.contact.to:support@sejourfr.fr}
+    # URL absolue hebergee : un template Brevo ne sait pas faire d'image CID.
+    logo-url: ${EMAIL_LOGO_URL:https://sejourfr.fr/logo_sejourFR.png}
+    unsubscribe:
+      # La cle COURANTE signe les nouveaux liens ; toutes les cles listees
+      # verifient (rotation sans casser les liens deja envoyes). SANS DEFAUT :
+      # une cle courante absente fait echouer le demarrage.
+      current-key-version: ${EMAIL_UNSUBSCRIBE_KEY_VERSION:1}
+      keys:
+        1: ${EMAIL_UNSUBSCRIBE_KEY_V1:}
+    # Liste blanche des destinataires : activee en dev (application-dev.yaml).
+    allowlist:
+      enabled: false
+    automation:
+      enabled: ${EMAIL_AUTOMATION_ENABLED:true}
+      # Passage quotidien des scenarios ENGAGEMENT, fuseau Europe/Paris.
+      cron: "0 0 9 * * *"
+      config-version: ${EMAIL_AUTOMATION_CONFIG_VERSION:1}
+    maintenance:
+      # PENDING bloques + relance differee des mails evenementiels (horaire).
+      retry-cron: "0 20 * * * *"
+      # Purge de retention d'email_deliveries (12 mois), quotidienne.
+      retention-cron: "0 40 3 * * *"
+    executor:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 500
+    # Un gabarit par type : sujet et preheader du rendu LOCAL ({{variable}}
+    # substituee), fichiers local-template(.html|.txt), et demain l'id Brevo.
+    templates:
+      WELCOME:
+        subject: "Bienvenue sur SejourFR"
+        preheader: "Votre compte est créé : commencez votre entraînement civique et TCF."
+        local-template: email/welcome
+      DIAGNOSTIC_PLAN_READY:
+        subject: "Votre plan d'entraînement est prêt"
+        preheader: "Votre diagnostic {{diagnosticType}} est terminé : découvrez vos priorités."
+        local-template: email/diagnostic-plan-ready
+      PREMIUM_ACCESS_STARTED:
+        subject: "Votre accès Premium est activé"
+        preheader: "Votre accès {{offerName}} est ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-access-started
+      PREMIUM_ACCESS_EXTENDED:
+        subject: "Votre accès a été prolongé"
+        preheader: "Votre accès reste ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-access-extended
+      PREMIUM_SUBSCRIPTION_CANCELED:
+        subject: "Résiliation enregistrée"
+        preheader: "Votre accès reste ouvert jusqu'au {{accessEndDate}}."
+        local-template: email/premium-subscription-canceled
+      PASSWORD_RESET:
+        subject: "Réinitialisation de votre mot de passe"
+        preheader: "Choisissez un nouveau mot de passe : lien valable {{expiresInMinutes}} minutes."
+        local-template: email/password-reset
+      PASSWORD_CHANGED:
+        subject: "Votre mot de passe a été modifié"
+        preheader: "Si vous n'êtes pas à l'origine de ce changement, contactez-nous."
+        local-template: email/password-changed
+      EMAIL_CHANGE_CONFIRMATION:
+        subject: "Confirmez votre nouvelle adresse email"
+        preheader: "Confirmez votre nouvelle adresse : lien valable {{expiresInMinutes}} minutes."
+        local-template: email/email-change-confirmation
+      EMAIL_CHANGED:
+        subject: "L'adresse de votre compte SejourFR a changé"
+        preheader: "Si vous n'êtes pas à l'origine de ce changement, contactez-nous."
+        local-template: email/email-changed
+      CONTACT_RECEIVED:
+        subject: "Votre message a bien été reçu"
+        preheader: "Numéro de suivi {{ticketId}} : réponse sous 24 h ouvrées."
+        local-template: email/contact-received
+      SUPPORT_REPLY:
+        subject: "Réponse à votre message"
+        preheader: "Notre équipe a répondu à votre demande."
+        local-template: email/support-reply
+      NO_PREMIUM_AFTER_7_DAYS:
+        subject: "Où en est votre préparation ?"
+        preheader: "Un diagnostic de quelques minutes construit votre plan d'entraînement."
+        local-template: email/no-premium-after-7-days
+      NO_TRAINING_7_DAYS:
+        subject: "On reprend votre entraînement ?"
+        preheader: "Une courte série aujourd'hui suffit à garder le rythme."
+        local-template: email/no-training-7-days
+      PREMIUM_INACTIVE_2_DAYS:
+        subject: "Votre prochaine séance vous attend"
+        preheader: "Votre plan d'entraînement est prêt."
+        local-template: email/premium-inactive-2-days
+      PREMIUM_ENDING_7_DAYS:
+        subject: "{{accessLabel}} se termine le {{accessEndDate}}"
+        preheader: "Vos entraînements restent ouverts jusqu'à cette date."
+        local-template: email/premium-ending-7-days
+      PREMIUM_ENDING_2_DAYS:
+        subject: "{{accessLabel}} se termine le {{accessEndDate}}"
+        preheader: "Vos entraînements restent ouverts jusqu'à cette date."
+        local-template: email/premium-ending-2-days
+      PREMIUM_ENDED:
+        subject: "{{accessLabel}} est terminé"
+        preheader: "Votre progression et vos résultats restent disponibles."
+        local-template: email/premium-ended
+      # Campagnes d'information de service (EmailCampaign) : textes repris mot
+      # pour mot de .claude/agents/notify-users.md, preheader = une phrase du corps.
+      CAMPAIGN_INCIDENT:
+        subject: "Mise à jour de SejourFR : l'application mobile peut être perturbée"
+        preheader: "Pendant les prochains jours, l'application mobile peut rencontrer des erreurs."
+        local-template: email/campaign-incident
+      CAMPAIGN_REPRISE:
+        subject: "Mise à jour obligatoire de l'application SejourFR"
+        preheader: "L'ancienne version ne fonctionne plus : installez la dernière version depuis l'App Store ou Google Play."
+        local-template: email/campaign-reprise
+  stripe:
+    # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
+    # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
+    # ne pas les déclarer ici. Tant que secret-key est vide, /api/billing/*
+    # renvoie 503 sur les flows payants.
+    secret-key: ""
+    webhook-secret: ""
+    app-base-url: ${APP_BASE_URL:http://localhost:3000}
+  # --------------------------------------------------------------------------
+  # Apple App Store Server (IAP iOS).
+  # --------------------------------------------------------------------------
+  # Tant qu'un champ est vide → endpoints IAP Apple renvoient 503.
+  # Variables d'env (cf. .env dev / secrets prod) :
+  #   APPLE_ISSUER_ID=99b16628-15e4-4668-972b-eeff55eeff55
+  #   APPLE_KEY_ID=ABCDEFGHIJ
+  #   APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+  #   APPLE_BUNDLE_ID=com.sejourfr.app
+  #   APPLE_APP_ID=1234567890                # prod uniquement
+  #   APPLE_ENVIRONMENT=SANDBOX              # ou PRODUCTION
+  # Les root certs Apple doivent être présents dans src/main/resources/apple/
+  # (AppleRootCA-G3.cer, AppleIncRootCertificate.cer, AppleComputerRootCertificate.cer).
+  apple:
+    issuer-id: ""
+    key-id: ""
+    private-key: ""
+    bundle-id: ""
+    app-apple-id: null
+    environment: SANDBOX
+    root-certs-classpath: "classpath:apple/*.cer"
+    enable-online-checks: true
+  # --------------------------------------------------------------------------
+  # Google Play Billing (IAP Android).
+  # --------------------------------------------------------------------------
+  # Tant qu'un champ est vide → endpoints IAP Google renvoient 503.
+  # Variables d'env :
+  #   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+  #   GOOGLE_PLAY_PACKAGE_NAME=com.sejourfr.app
+  #   GOOGLE_PUBSUB_AUDIENCE=https://api.sejourfr.fr/api/billing/webhooks/google
+  #   GOOGLE_PUBSUB_SA_EMAIL=pubsub-pusher@<project>.iam.gserviceaccount.com
+  google:
+    service-account-json: ""
+    package-name: ""
+    pub-sub-audience: ""
+    pub-sub-service-account-email: ""
   security:
     jwt:
       issuer: sejourfr-backend
       access-token-ttl-minutes: 60
       refresh-token-ttl-days: 30
+  # --------------------------------------------------------------------------
+  # OAuth / OIDC providers externes (Google web + Android, Apple iOS).
+  # --------------------------------------------------------------------------
+  # Tant qu'aucune audience n'est configuree, l'endpoint correspondant renvoie 503.
+  # Configurer via .env (dev) ou variables d'env (prod) :
+  #   GOOGLE_OAUTH_AUDIENCES=client-web.apps.googleusercontent.com,client-ios.apps.googleusercontent.com,client-android.apps.googleusercontent.com
+  #   APPLE_OAUTH_AUDIENCES=com.sejourfr.app
+  #   APPLE_TEAM_ID=ABCDE12345
+  #
+  # Google : l'audience presente dans le token est le client ID qui a demande
+  # l'auth (web GIS, iOS google_sign_in, Android google_sign_in). Sur Android,
+  # google_sign_in doit recevoir le "Web client ID" (server client id) en
+  # `serverClientId` pour produire un id_token consommable cote backend —
+  # c'est donc le client web qui finit dans l'audience.
+  #
+  # Apple : sur iOS natif, l'audience = Bundle ID. Si on ajoute le web plus
+  # tard, ajouter le Services ID configure dans Apple Developer.
+  oauth:
+    google:
+      audiences: ${GOOGLE_OAUTH_AUDIENCES:}
+    apple:
+      audiences: ${APPLE_OAUTH_AUDIENCES:}
+      team-id: ${APPLE_TEAM_ID:}
   storage:
     # Implementation par defaut : disque local
     provider: local
     local:
       root: ./var/uploads
-      public-base-url: http://localhost:8080/files
+      public-base-url: http://192.168.1.104:8080/files
     max-file-size-bytes: 26214400
     allowed-image-types: image/png,image/jpeg,image/webp
     allowed-audio-types: audio/mpeg,audio/mp3,audio/ogg,audio/wav
+
+  # Pipeline de generation de questions audio (TCF Comprehension Orale)
+  # Cles API et secrets : exclusivement via variables d'environnement.
+  # Tant qu'elles ne sont pas renseignees, l'endpoint /generate renverra 503.
+  # En dev local : placer les vraies valeurs dans backend_sejourfr/.env
+  # (gitignore), et lancer avec `source .env && ./mvnw spring-boot:run`.
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${ANTHROPIC_MODEL:claude-opus-4-7}
+    api-url: https://api.anthropic.com/v1/messages
+    anthropic-version: "2023-06-01"
+    timeout-sec: 60
+    max-retries: 2
+    max-tokens: 4000
+    prompt-version: ${ANTHROPIC_PROMPT_VERSION:v2}
+  azure-speech:
+    key: ${AZURE_SPEECH_KEY:}
+    region: ${AZURE_SPEECH_REGION:francecentral}
+    output-format: audio-24khz-48kbitrate-mono-mp3
+    timeout-sec: 30
+    max-retries: 2
+  r2:
+    account-id: ${R2_ACCOUNT_ID:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket-name: ${R2_BUCKET_NAME:sejourfr-audio}
+    public-url-base: ${R2_PUBLIC_URL_BASE:}
+    timeout-sec: 30
+  audio-generation:
+    global-timeout-sec: ${AUDIO_GENERATION_TIMEOUT_SEC:120}
+    rate-limit-per-minute: 10
+    duplicate-similarity-threshold: 0.85
+
+  # Rate-limit anti-abus (par IP / par utilisateur), applique en memoire.
+  # Les seuils par surface ont des defauts genereux dans RateLimitProperties
+  # (login, register, forgot/reset-password, contact, demo guest, soumissions
+  # production EE/EO). Surcharge possible via sejourfr.rate-limit.<surface>.*.
+  # RATE_LIMIT_ENABLED=false = soupape de secours (desactive tout le mecanisme).
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+
+  # Mode commercial et regles de revenus (config/BillingProperties, memes
+  # valeurs par defaut). revenue-rules-version : version de
+  # billing/revenue-rules-v{n}.json appliquee aux achats A VENIR ; chaque achat
+  # fige la sienne, le passe ne bouge jamais.
+  billing:
+    revenue-rules-version: ${REVENUE_RULES_VERSION:1}
+    # Borne d'un prix Google declare par l'application (purchases.products.get
+    # ne rend aucun prix) : retenu s'il tient dans plans.price x (1 +/- 0,5) en
+    # euros, sinon le prix du plan. Meme valeur que BillingProperties.
+    store-price-tolerance: 0.5
+
+  # Mesure d'audience (analytics). Les valeurs par defaut vivent AUSSI dans le
+  # POJO config/AnalyticsProperties, a l'identique : un POJO qui diverge de son
+  # YAML ne se decouvre que le jour ou la cle disparait de la configuration.
+  analytics:
+    # Taux de conversion vers l'euro, par devise ISO 4217. CE N'EST PAS un taux
+    # « du jour » : la valeur est RECOPIEE dans user_subscriptions.fx_rate_to_eur
+    # au moment du paiement, et plus jamais relue pour cette ligne. La modifier
+    # ici n'affecte donc que les paiements A VENIR — le chiffre d'affaires passe
+    # ne bouge pas. Une devise absente de cette table donne un montant en euros
+    # NUL : un revenu inconnu vaut null, jamais zero, jamais une conversion
+    # inventee.
+    fx-rates:
+      EUR: 1
+      USD: 0.92
+      GBP: 1.17
+      CHF: 1.05
+      CAD: 0.68
+    # Version de analytics/analytics-config-v{n}.json (retention 395 j, cohorte,
+    # ingestion en lot, groupes de sources, debuts de mesure). Les comptes exclus
+    # des statistiques sont desormais users.is_internal (V074), plus une liste
+    # d'adresses ici.
+    config-version: ${ANALYTICS_CONFIG_VERSION:1}
+    # Purge des evenements bruts et des visiteurs inactifs au-dela de la retention
+    # de la config (condition de l'exemption CNIL). Quotidienne, Europe/Paris.
+    retention-cron: "0 10 4 * * *"
+    # Surcharge des dates de debut de mesure (measurementStart du fichier
+    # versionne). RESERVEE AU PROFIL DEV (application-dev.yaml) : hors dev, une
+    # entree ici fait echouer le demarrage. En production, les dates se posent
+    # au deploiement dans analytics-config-vN.json (D43).
+    measurement-start-overrides: {}
+    geoip:
+      # Chemin du fichier GeoLite2-Country.mmdb. VIDE PAR DEFAUT : la base
+      # exige un compte MaxMind et sa licence interdit de la versionner, donc
+      # son absence est un cas NORMAL, pas une panne. Sans elle, le resolveur
+      # est inerte et le pays des visiteurs vaut INCONNU — jamais un pays
+      # plausible invente pour remplir le tableau.
+      database-path: ${ANALYTICS_GEOIP_DB:}
+      classpath-resource: geoip/GeoLite2-Country.mmdb
+
+  # Proxys dont on accepte les en-tetes X-Forwarded-For / X-Real-IP
+  # (cf. util.ClientIpResolver). VIDE PAR DEFAUT : sans configuration, l'IP
+  # retenue est celle de la socket, ce qui rend les compteurs par IP
+  # (rate-limits, attempts invites) reellement efficaces — sinon un simple
+  # en-tete remet le compteur a zero. En production, renseigner les
+  # adresses/CIDR du reverse-proxy reel, separes par des virgules
+  # (ex: 10.0.0.0/8,172.16.0.0/12). Valeur speciale `*` = faire confiance a
+  # tout appelant : uniquement si le port n'est joignable que par le LB.
+  trusted-proxies:
+    ranges: ${TRUSTED_PROXY_RANGES:}
+
+  # Configuration publique de l'app mobile (GET /api/public/app-config,
+  # controle G). Version minimale par systeme, MAJOR.MINOR.PATCH ; VIDE =
+  # aucune exigence, personne n'est bloque (valeur livree). Cf.
+  # config.AppConfigProperties.
+  app-config:
+    min-supported-version:
+      ios: ${APP_MIN_VERSION_IOS:}
+      android: ${APP_MIN_VERSION_ANDROID:}
+
+  # Purge des attempts INVITES (user_id IS NULL) — cf. GuestAttemptPurgeJob.
+  # LIVREE ETEINTE, comme production-evaluation.fluidite / seconde-passe :
+  # a false, la passe sort immediatement, aucune ligne supprimee.
+  #
+  # PREREQUIS AVANT D'ACTIVER : ces lignes SONT la mesure « combien de
+  # visiteurs se testent avant de creer un compte » (client_ip posee expres).
+  # Les purger detruit la mesure. Il faut d'abord un compteur agrege des
+  # passages invites — une ligne par (surface, jour), patron de la table
+  # page_views (V020), borne par construction. Tant qu'il n'existe pas, laisser
+  # enabled a false.
+  guest-attempt-purge:
+    enabled: ${GUEST_ATTEMPT_PURGE_ENABLED:false}
+    # Age au-dela duquel un attempt invite est purgeable, compte sur
+    # started_at (un attempt abandonne n'a pas de finished_at). Decision
+    # produit, pas constante : 2 h.
+    retention: ${GUEST_ATTEMPT_PURGE_RETENTION:2h}
+    # Plafond de lignes supprimees par lot (une transaction par lot).
+    batch-size: ${GUEST_ATTEMPT_PURGE_BATCH_SIZE:500}
+    # Toutes les 30 min : deux fois plus fin que la retention.
+    cron: ${GUEST_ATTEMPT_PURGE_CRON:0 0/30 * * * *}
+
+  # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
+  # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
+  # Cles API exclusivement via variables d'environnement.
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    api-url: https://api.openai.com/v1/audio/transcriptions
+    whisper:
+      model: ${OPENAI_WHISPER_MODEL:whisper-1}
+      # Tarif du modèle ci-dessus, en USD par MINUTE d'audio (whisper-1 : 0,006,
+      # relevé le 2026-08-16 sur la page tarifaire OpenAI). Whisper facture à la
+      # durée, jamais au token : ce tarif n'a donc rien à voir avec les
+      # `cost-per-million-*-tokens` de sejourfr.production-evaluation.
+      # ⚠ Même règle que pour les correcteurs : le tarif voyage AVEC le modèle,
+      # dans la même source. Poser OPENAI_WHISPER_MODEL sans
+      # OPENAI_WHISPER_COST_PER_MINUTE laisserait le prix de l'ancien modèle, et
+      # le coût est PERSISTÉ dans transcriptions.cout_micro_usd : un tarif faux y
+      # reste faux pour toujours.
+      cost-per-minute-usd: ${OPENAI_WHISPER_COST_PER_MINUTE:0.006}
+      language: fr
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      # Force la transcription "verbatim" : Whisper tend a auto-corriger les
+      # fautes des apprenants ce qui rend l'evaluation trop indulgente.
+      literal-mode-prompt: >
+        Transcription litterale d'un apprenant de francais langue etrangere.
+        Conserver les hesitations, les repetitions, et les eventuelles fautes
+        grammaticales telles que prononcees.
+  production-evaluation:
+    # Source unique du LLM correcteur : deepseek (defaut depuis le 2026-08-08),
+    # openai ou anthropic. Runtime async, fin de session temps reel, seconde
+    # passe et banc de calibration lisent tous cette meme valeur. Pour switcher,
+    # changer EVAL_LLM_PROVIDER dans le .env et redemarrer le backend. Aucune
+    # migration ni changement cote mobile : le DTO + le tool schema sont
+    # identiques, seule la maniere d'appeler le LLM change.
+    #
+    # /!\ REGLE : changer de correcteur OU de modele ne doit demander AUCUNE
+    # modification de code ni de ce fichier — une ligne de .env, un redemarrage.
+    # Trois mecanismes la garantissent, ne pas les defaire :
+    #   1. la FORME de la requete est negociee avec le fournisseur au premier
+    #      appel (ChatCompletionDialectNegotiator), jamais codee en dur ;
+    #   2. le MODELE de chaque bloc est un ${EVAL_*_MODEL:...} ;
+    #   3. le TARIF de chaque bloc est un ${EVAL_*_COST_*:...} — le prix voyage
+    #      donc avec le modele, dans la meme source (cf. EvaluationPricingTest).
+    # Les valeurs ci-dessous ne sont que des DEFAUTS, pas un catalogue.
+    provider: ${EVAL_LLM_PROVIDER:deepseek}
+    # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
+    # prompts/production-rubrics-<v>.json. Le system prompt et le user message
+    # sont generes depuis ce fichier (plus de .md system/user-template).
+    # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
+    # v4.1 : v4 (criteres propres a chaque tache) + correction de l'INDULGENCE
+    # du BAS de l'echelle mesuree au banc (ecart global (reference - IA) -1,93
+    # en v4 -> -1,0 en v4.1 ; A2 dans la fourchette 38 % -> 92-100 %).
+    # Defaut v4.2 : le defaut residuel s'etait deplace vers le HAUT (des B1
+    # annonces B2 — l'erreur la plus couteuse, la naturalisation exigeant B2
+    # sans compensation). v4.2 rend la frontiere B1/B2 OPPOSABLE (test decisif
+    # + obligation de citer deux marqueurs B2, plafond a 14/20 a defaut).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), 3 campagnes v4.2 contre une
+    # campagne v4.1 le meme jour : B1 correctement classe 8/12 -> 10-11/12,
+    # B2 6/7 -> 7/7 (3 fois sur 3), accord exact 75,0 % -> 81,25 % (3 fois sur
+    # 3), accord +/-1 85,4 % -> 91,7 %, ecart global -1,05 -> -0,89/-1,03,
+    # sorties invalides 0 % ; A1, A2, hors-sujet et transcriptions bruitees
+    # inchanges. Le plafond v4.2 ne mord qu'au-dessus de 15/20 : il ne peut,
+    # par construction, rien changer sous B1.
+    # v6 : v5 avait adopte les CRITERES du TCF, v6 adopte son ECHELLE.
+    # La note se convertit desormais en niveau par la table OFFICIELLE du TCF
+    # IRN (0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1, 10-20 = B2), et
+    # CHAQUE critere est note sur cette meme table. Motif : sous v5 une carte de
+    # resultat pouvait afficher « 12,5/20 » et « proche du B1 », alors que 12,5
+    # vaut B2 sur la grille officielle — deux informations contradictoires.
+    # Ce n'est PAS un simple deplacement de seuils : tous les reperes, tous les
+    # descripteurs et les 16 ancres few-shot ont ete re-scores sur l'echelle du
+    # TCF, et le garde-fou de couplage recalcule (4 -> 1 point, cf. plus bas).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), campagne v6 contre un temoin v5
+    # rejoue le meme jour : accord exact 86,0 % -> 87,0 %, accord +/-1 palier
+    # 88,4 % -> 100 %, pieges evites 6/7 -> 8/8 (le quasi-muet, rate par v5,
+    # passe), « A1 non atteint » 4/8 -> 8/8 (le point faible documente du banc),
+    # B2 6/7 -> 6/6, B1 8/8 -> 10/11, A2 11/12 -> 11/13, 0 sortie invalide.
+    # Seul recul : les productions A1 passent de 8/8 a 5/8, les trois cas
+    # ressortant A2 — un niveau que la reference TOLERE explicitement sur ces
+    # trois cas, et que le modele leur donnait DEJA sous v5 (il y notait leur
+    # langue 7/20, soit la bande A2 de v5) : c'est le decalage entre bandes de
+    # critere et bandes globales de v5 qui affichait A1, pas son jugement.
+    # v7 verrouille le profil TCF_IRN, le plafond B2, les quatre criteres, les
+    # bornes EE 30-60 / 60-90 / 60-90 et le contrat de sortie v4.
+    # v8 (active) NE TOUCHE A AUCUN BAREME : echelle, criteres, seuils, couplage
+    # (+1), plafonds, bandes, tests decisifs et les 16 ancres few-shot sont ceux
+    # de v7, a l'identique. Elle ne corrige que la RESTITUTION, jugee repetitive
+    # et contradictoire : confiance = certitude du correcteur et jamais qualite
+    # du candidat, regle anti-repetition (une erreur, un seul endroit), aucun
+    # reproche sur un moyen que la consigne n'exigeait pas (levier de
+    # progression), coherence accomplissement / reste du rapport, verdict
+    # explicite accomplissement.objectif + objectif_resume, version_amelioree
+    # obligatoire sur les taches ECRITES, points_forts plafonnes a 2 et
+    # exemples_corriges a 3. Aucune campagne de banc n'est requise pour cette
+    # bascule : la notation est inchangee par construction.
+    # v9 (ACTIVE) : MEME CONTRAT DE SORTIE (v5), aucun champ ajoute ni retire.
+    # Elle ne modifie que les DEUX SECTIONS ORALES du prompt (les six rubriques
+    # par tache, les seuils, le couplage, les plafonds, les bandes et les 16
+    # ancres few-shot sont ceux de v8, verrouilles par
+    # ProductionEvaluationContractTest) :
+    #  (a) le correcteur sait qu'il lit une TRANSCRIPTION AUTOMATIQUE et evalue
+    #      le SENS voulu ; un mot inexistant en francais, ou dont une relecture
+    #      proche par le son rend la phrase coherente, est un ARTEFACT et ne doit
+    #      etre cite NULLE PART. Aucune echappatoire : une vraie erreur de langue
+    #      reste une erreur et la regle de preuve litterale est inchangee ;
+    #  (b) en dialogue, le DEROULE DE L'ECHANGE (l'examinateur a-t-il repondu a
+    #      propos, a-t-il du faire repeter, l'echange s'est-il maintenu) devient
+    #      un element d'appreciation de communiquer et interagir — le garde-fou
+    #      oral reste entier, une relance n'est pas une hesitation, la preuve
+    #      reste prise dans un tour « Candidat : ».
+    # Motif : incident du 2026-08-06 (submission EO T3), trois artefacts de
+    # transcription imputes au candidat dans cinq champs, sans qu'aucun mot du
+    # garde-fou lexical n'apparaisse.
+    # Mesure (banc golden-set-v1, 48 cas, deepseek-v4-flash ; temoin v8 rejoue
+    # le MEME JOUR, meme modele, parallelisme 3) : accord exact 74,5 % -> 81,3 %,
+    # accord +/-1 palier 93,6 % -> 97,9 %, pieges evites 4/8 -> 8/8 (les deux
+    # transcriptions bruitees, le hors-sujet, le memorise et l'autre-langue),
+    # « A1 non atteint » 5/8 -> 8/8, A2 8/12 -> 10/13, B1 12/12 -> 12/12,
+    # 0 % de sortie invalide des deux cotes, cas perdus 2,1 % -> 0 %, ecart de
+    # severite (reference - IA) -0,57 -> -0,38. Deux reculs a dire : B2 7/7 ->
+    # 6/7 (un B2 ressorti B1, sens prudent, n=7) et l'accord de CONFIANCE
+    # 53,2 % -> 45,8 %, le correcteur se declarant plus sur qu'il ne devrait sur
+    # les transcriptions bruitees — consequence directe de la regle d'artefact,
+    # a surveiller. Le prompt est plus long : 62 -> 91 centimes la campagne.
+    # /!\ Toute nouvelle version de CONSIGNES DE NOTATION se mesure de la meme
+    # facon avant d'etre activee : campagne + temoin de la version precedente
+    # rejoue le MEME JOUR.
+    # Matrice verifiee au demarrage : v3-v4.2 -> schema v2, v5-v6 -> schema v3,
+    # v7 -> schema v4, v8/v9/v10/v11 -> schema v5, v12 -> schema v6,
+    # v13 -> schema v7, v14 -> schema v8. Un rollback
+    # change donc la paire EVAL_RUBRICS_VERSION + EVAL_PROMPT_VERSION ;
+    # une combinaison incoherente bloque le demarrage.
+    #
+    # ---------------------------------------------------------------------
+    # v10 et v11 : ECRITES, MESUREES MOINS BONNES QUE v9, NON ACTIVEES.
+    # NE PAS REESSAYER CETTE VOIE SANS LE SAVOIR.
+    # ---------------------------------------------------------------------
+    # Les deux ajoutaient a v9 une CONSIGNE demandant au correcteur de ne pas
+    # imputer au candidat un fragment en langue etrangere a l'oral. Mesurees le
+    # 2026-08-07 contre un temoin v9 du MEME JOUR, meme modele,
+    # calibration.retries=1 (comme la production) :
+    #   v9  : 81,8 % de niveaux exacts · 8,33 % de corrections perdues · 7/8 pieges
+    #   v10 : 75,6 % · 14,58 % · 4/8   (hors-sujet remonte de A1_NON_ATTEINT a A1,
+    #         transcription bruitee A2 -> B1 ; le bloc ajoute, +4197 caracteres,
+    #         diluait la severite du reste de la grille)
+    #   v11 : 76,7 % · 10,42 % · 5/8   (derives de v10 corrigees, mais toujours
+    #         en dessous du temoin)
+    # Conclusion : ecrire une consigne de plus n'a pas regle le probleme et a
+    # coute ailleurs. Le comportement est desormais tenu par un CONTROLE SERVEUR
+    # DETERMINISTE (EvaluationOralArtifactFilter, volet LANGUE), qui ne touche ni
+    # a la note, ni a un seuil, ni au prompt. Ordre de preference du depot :
+    # tool-schema > longueur plafonnee > controle serveur > consigne de rubrique.
+    # v10 et v11 restent CHARGEABLES (on ne supprime jamais une grille livree) et
+    # ne s'activent que par EVAL_RUBRICS_VERSION=v10|v11 — ce qui ferait revenir
+    # les chiffres ci-dessus.
+    #
+    # ---------------------------------------------------------------------
+    # v12 : ACTIVE. LA PREUVE SE DESIGNE PAR NUMERO, ELLE NE SE RECOPIE PLUS.
+    # ---------------------------------------------------------------------
+    # v12 = v9 AU BIT PRES pour tout ce qui note (echelle, quatre criteres,
+    # seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et B1/B2, les
+    # 16 ancres few-shot, les six rubriques de tache — verrouille par
+    # ProductionEvaluationContractTest). SEULE change la forme de la PREUVE :
+    # la production part DECOUPEE EN SEGMENTS NUMEROTES et le correcteur
+    # renvoie `preuve_segment`, un ENTIER, au lieu de recopier un extrait
+    # (tool-schema v6). Le serveur resout le numero en texte avant
+    # persistance : `feedback_json.preuve` reste une chaine, les trois fronts
+    # ne changent pas d'une ligne.
+    # Motif : une citation recopiee peut etre JUSTE et refusee quand meme. Cas
+    # reel, submission e6f28822 (EO, deepseek-v4-flash) : deux appels refuses
+    # d'affilee, deux citations exactes au begaiement pres, puis mode degrade.
+    # Plus generalement, `flash` voyait 42,9 % de ses appels ORAUX refuses par
+    # nos propres controles. Avec un numero, inventer une preuve devient
+    # impossible PAR CONSTRUCTION : le seul defaut possible est un entier hors
+    # bornes, trivial a detecter et a reparer.
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — bascule livree sans campagne (aucun appel LLM
+    # paye n'etait autorise). Ce qui la rend defendable sans mesure : elle ne
+    # touche AUCUNE regle de notation, et le peu qu'elle change au prompt
+    # SUPPRIME une contrainte au lieu d'en ajouter une.
+    # v12 corrige AUSSI une contradiction envoyee au correcteur : les bornes de
+    # mots EE etaient recopiees en dur dans la grille (« taches 2 et 3 : 60 a 90
+    # mots ») a cote des bornes reellement injectees depuis production_tasks.
+    # Depuis la migration V724 (minimum T2/T3 60 -> 40), les deux se
+    # contredisaient. v12 ne redeclare plus rien : elle RENVOIE au bloc
+    # « LONGUEUR ATTENDUE » de l'enonce (verrou : EvaluationBornesMotsSourceUniqueTest).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v9 +
+    # EVAL_PROMPT_VERSION=v5 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # /!\ CE RETOUR ARRIERE N'EST PAS UN RETOUR A UN ETAT SAIN : v9 (comme v8,
+    # v10, v11 et le tool-schema v5) porte encore les bornes historiques 60-90
+    # pour EE T2/T3, alors que la base dit 40-90. En v9, le correcteur recevra
+    # donc de nouveau deux longueurs contradictoires, et la version amelioree
+    # rendue au candidat visera 60-90 meme sur une copie de 45 mots parfaitement
+    # valide. C'est assume : on ne reecrit pas une grille livree, dont dependent
+    # des evaluations deja notees. Basculer en v9 en connaissance de cause.
+    #
+    # v13 = v12 AU BIT PRES pour tout ce qui note ET pour toute la
+    # restitution — memes seuils, memes criteres, memes plafonds, memes bandes,
+    # memes 16 ancres, memes six rubriques de tache, memes 23 sections. SEULE
+    # ADDITION : une 24e section qui exige que le francais RENDU AU CANDIDAT
+    # soit ACCENTUE, et qui reserve explicitement les CITATIONS (recopiees
+    # telles quelles, accents manquants compris). Motif, constate en
+    # production : le correcteur rendait « Excuse formulee », « le passe compose
+    # est maitrise », « J'espere que cette date te convient » — a des gens qui
+    # apprennent le francais. Le tool-schema v7 va avec : c'est v6 avec ses
+    # descriptions accentuees (le correcteur imite la langue de son prompt) et
+    # la meme reserve de citation ; aucun champ ajoute ni retire.
+    # Aucune regle de notation ne bouge => AUCUNE campagne de banc requise
+    # (regle du depot). Verrou : ProductionEvaluationContractTest.
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v12 +
+    # EVAL_PROMPT_VERSION=v6.
+    #
+    # v14 = v13 AU BIT PRES pour TOUT ce qui note : echelle, quatre
+    # criteres, seuils, couplage, plafonds, bandes, tests decisifs A1/A2 et
+    # B1/B2, les 16 ancres few-shot, les descripteurs et le bareme des six
+    # taches. SEUL RETRAIT : tout ce qui decrivait `version_amelioree` (la
+    # section dediee — 23 sections au lieu de 24 —, sa ligne dans « une erreur,
+    # un seul endroit », sa mention dans les champs obligatoires et dans la
+    # regle d'accentuation, et la derniere phrase des six consignes de tache).
+    # Le tool-schema v8 va avec : c'est v7 sans cette propriete, rien d'autre.
+    # Motif : plus aucun front ne l'affiche depuis que le texte modele rendu au
+    # candidat est `version_ciblee` (appel separe, « la marche au-dessus »), or
+    # elle reecrivait la production AU MEME NIVEAU que le candidat — mesure en
+    # base : recopiee telle quelle et resoumise, elle rend la meme note au
+    # dixieme pres. On payait donc des tokens de SORTIE a chaque correction
+    # ECRITE pour un champ que personne ne lit (mesure sur les 12 evaluations
+    # EE qui la portent : 297 caracteres, 54 mots, ~5,7 % du JSON de sortie,
+    # soit ~90 tokens de sortie par correction ecrite).
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — comme v12 et v13, et pour la meme raison : aucune
+    # regle de notation ne bouge, et le peu qui change au prompt RETIRE une
+    # contrainte au lieu d'en ajouter une (a l'inverse de v10/v11, mesurees
+    # moins bonnes parce qu'elles AJOUTAIENT du texte).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v13 +
+    # EVAL_PROMPT_VERSION=v7 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    #
+    # v15 (ACTIVE) = v14 AU BIT PRES pour TOUT ce qui note : echelle, quatre
+    # criteres, seuils `commun.niveau`, couplage, plafonds, bandes, tests
+    # decisifs A1/A2 et B1/B2, les 16 ancres few-shot, les descripteurs et le
+    # bareme des six taches. SEUL RETRAIT : tout ce qui decrivait
+    # `exemples_corriges` et `suggestions` (le bloc EXEMPLES CORRIGES et le
+    # renvoi vers suggestions de la section « preuves et priorites », leurs deux
+    # lignes dans « une erreur, un seul endroit », le paragraphe oral qui
+    # bornait les exemples a la clarte, les etapes 10-11 de la methode, le
+    # plafond « 3 exemples corriges », leurs mentions dans la regle
+    # d'accentuation et dans les six consignes de tache). Le tool-schema v9 va
+    # avec : c'est v8 sans ces deux proprietes ni leurs entrees `required`,
+    # rien d'autre.
+    # Motif : le bloc replie « Voir l'analyse complete » de l'ecran de resultat
+    # EE/EO — le seul endroit ou ces deux champs etaient affiches — disparait.
+    # On cesse donc de payer des tokens de SORTIE pour des paves que personne
+    # ne lit, et la place gagnee finance un second appel plus utile
+    # (`version_ciblee`). Ce qui compte se dit desormais dans `accomplissement`,
+    # `points_forts`, `points_a_ameliorer` et les commentaires de critere.
+    # `accomplissement` et `avertissements` RESTENT produits : le premier
+    # alimente le bandeau du haut, le compteur « Ce qui marche » et le controle
+    # serveur `applyObjectifCoherence` ; le second est ecrit par le SERVEUR
+    # (limite assumee de l'oral, signalement des purges) et n'a jamais ete dans
+    # le tool-schema.
+    # Ordre de preference du depot respecte : c'est un changement de
+    # TOOL-SCHEMA, pas une consigne de rubrique de plus.
+    # /!\ NON MESUREE AU BANC — comme v12, v13 et v14, et pour la meme raison :
+    # aucune regle de notation ne bouge, et le peu qui change au prompt RETIRE
+    # du texte au lieu d'en ajouter (a l'inverse de v10/v11, mesurees moins
+    # bonnes parce qu'elles AJOUTAIENT du texte).
+    # Retour arriere, sans migration : EVAL_RUBRICS_VERSION=v14 +
+    # EVAL_PROMPT_VERSION=v8 (les deux ensemble : la matrice refuse une paire
+    # incoherente au demarrage).
+    # Matrice : v13 -> schema v7, v14 -> schema v8, v15 -> schema v9.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v15}
+    # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
+    # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
+    # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
+    #
+    # /!\ CE BLOC EST LE REGLAGE DES GRILLES v3 / v4 / v4.1 / v4.2 UNIQUEMENT.
+    # Depuis v5, le fichier de rubriques declare LUI-MEME ses criteres porteurs
+    # et ses seuils (bloc `commun.niveau`), et c'est lui qui gagne — cf.
+    # ProductionRubricsProvider#niveauCecrl(). Cela evite une troisieme bascule
+    # de configuration pour les seuils lors d'un rollback : revenir a v4.2 avec
+    # les seuils de v5 en config donnerait des niveaux faux.
+    # Ne pas calibrer v5, v6 ni v7 ici, mais dans production-rubrics-<version>.json.
+    # (v7 active : 10 / 6 / 2 — la table du profil TCF IRN, pas un reglage.)
+    #
+    # source-criteres (v3-v4.2) : marqueurs de langue/discours porteurs du
+    # niveau. La coherence (organisation du discours) y est incluse — vraie
+    # dimension CECRL, surtout a l'oral. La pertinence y restait EXCLUE
+    # (completion de tache). C'est precisement ce que v5 corrige : le TCF donne
+    # 25 % a l'accomplissement de la tache, la v5 le remet dans le niveau et le
+    # protege autrement (descripteurs par niveau + garde-fou de couplage).
+    niveau-cecrl:
+      source-criteres: [ lexique, morphosyntaxe, coherence ]
+      seuil-b2: 15.0
+      seuil-b1: 12.0
+      # 7.0 -> 8.0 : seul deplacement de seuil mesure comme gratuit par le banc
+      # (balayage hors ligne sur 96 executions v4.1) — accord exact 71,9% ->
+      # 76,0%, A1 correctement classe 62,5% -> 87,5%, A2/B1/B2 inchanges. Monter
+      # seuil-b1 a 13 serait le pire choix teste : A2 passerait a 100% mais B1
+      # s'effondrerait a 33%, donc on annoncerait A2 a de vrais B1.
+      seuil-a2: 8.0
+      # Poids des taches dans la note ET le niveau d'epreuve (index = tache - 1).
+      # EGAUX depuis v5 : le TCF publie UNE note /20 par epreuve et aucune
+      # ponderation par tache ; la difficulte croissante des 3 taches est deja
+      # portee par leurs descripteurs (T3 vise B2), la ponderer une seconde fois
+      # la compterait deux fois. Surtout, la moyenne simple rend le bilan
+      # coherent : la note d'epreuve affichee est la moyenne des 3 notes de
+      # tache, et le niveau d'epreuve se lit sur cette meme note. Revenir a
+      # [1, 2, 3] ne demande aucun redeploiement.
+      poids-taches: [ 1.0, 1.0, 1.0 ]
+    # GARDE-FOU DE COUPLAGE (filet deterministe, v5) : les criteres de
+    # REALISATION (communiquer, interagir) sont ramenes sous
+    # moyenne(lexique, morphosyntaxe) + ecart-max AVANT le calcul de la note.
+    # La regle est deja ecrite dans le prompt v5 ; ce filet la garantit, comme
+    # le plafond des 2 priorites. C'est la contrepartie de la reintroduction de
+    # l'accomplissement dans le niveau : sans lui, cocher tous les points d'une
+    # consigne A2 dans un francais pauvre suffirait a monter d'un palier.
+    # SANS EFFET sur v3/v4/v4.1/v4.2 : leurs grilles ne portent pas ces codes.
+    #
+    # /!\ `ecart-max` ci-dessous est le reglage des grilles ANTERIEURES A v6.
+    # L'ecart n'a pas le meme sens d'une echelle a l'autre : ce qui compte est
+    # le gain qu'il concede a la moyenne des quatre criteres (ecart-max / 2),
+    # qui doit rester sous la largeur d'un palier. v6, dont l'echelle est celle
+    # du TCF (paliers de 4 points, seuils non decales), declare le sien dans son
+    # fichier de rubriques — `commun.couplage.ecart_max` = 1.0 — et c'est lui qui
+    # gagne. `enabled` reste un coupe-circuit de deploiement, jamais surcharge
+    # par la grille.
+    couplage:
+      enabled: ${EVAL_COUPLAGE_ENABLED:true}
+      ecart-max: 4.0
+    # Bandes qualitatives par critere affichees aux candidats A LA PLACE du
+    # nombre (une IA ne distingue pas honnetement un 13 d'un 14). Bornes des
+    # grilles v3 a v5 ; v6/v7 declarent les leurs (10 / 6 / 2) dans
+    # `commun.bandes_criteres` de son fichier de rubriques. Sans ce mecanisme,
+    # un critere v6 a 8 (bon B1) s'afficherait « en cours d'acquisition ».
+    bandes-criteres:
+      tres-bonne-maitrise: 16.0
+      satisfaisant: 11.0
+      en-cours-acquisition: 6.0
+    # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
+    # langue dominante, recopiage de la consigne, production vide. Un verdict
+    # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
+    # FAIBLE) ; un AVERTISSEMENT laisse l'IA noter mais plafonne la confiance a
+    # MOYENNE et expose ses raisons au candidat. Heuristiques => seuils
+    # ajustables sans redeploiement.
+    validite:
+      min-mots-exploitables: 5
+      # Plancher du DIAGNOSTIC INITIAL seulement : sa production fixe le niveau
+      # d'un domaine entier (repli de TcfProfileService, plancher des 4 domaines).
+      # 20 mots = deux ou trois phrases completes, soit un cinquieme de ce que le
+      # sujet demande. Raisonnement complet dans ProductionEvaluationProperties.Validite.
+      min-mots-diagnostic: 20
+      mots-min-analyse-langue: 12
+      ratio-mots-outils-invalide: 0.10
+      ratio-mots-outils-avertissement: 0.18
+      ratio-alphabet-non-latin-invalide: 0.30
+      ngram-consigne: 5
+      ratio-recopiage-avertissement: 0.30
+      ratio-recopiage-invalide: 0.60
+    # Plafonds de niveau appliques APRES le calcul du niveau par soumission.
+    # Volontairement peu nombreux : uniquement ce qui est objectivable a partir
+    # des criteres v4. enabled=false pour mesurer avec / sans.
+    # Les SEUILS ci-dessous se lisent sur la note d'un critere : ils suivent donc
+    # l'echelle de la grille. 5.0 = haut de la bande A1 des criteres v3-v5 (1-5).
+    # v6 declare les siens (1.0, haut de la bande A1 sur l'echelle du TCF) dans
+    # `commun.plafonds` de son fichier de rubriques.
+    plafonds:
+      enabled: ${EVAL_PLAFONDS_ENABLED:true}
+      prise-position-seuil: 5.0
+      prise-position-niveau-max: A2
+      conduite-echange-seuil: 5.0
+      conduite-echange-niveau-max: A2
+    # RECOLLAGE DES TOURS d'un transcript dialogue (expression orale TEMPS REEL),
+    # livre ACTIF — c'est une CORRECTION, pas une experimentation.
+    # La transcription temps reel cloture un tour sur le signal de fin de tour du
+    # MODELE, qui n'est pas la fin de la phrase du CANDIDAT : un meme enonce
+    # ressortait scinde en plusieurs tours consecutifs, a une frontiere
+    # arbitraire (« Candidat : … pousse a l'air. Ah. » / « Candidat : aller vers
+    # l'informatique. »). Consequences : une citation a cheval sur deux tours
+    # n'etait JAMAIS retrouvable par EvaluationProofMatcher (un segment par
+    # tour), le correcteur jugeait la morphosyntaxe sur un texte hache et
+    # baissait sa confiance pour une raison qui venait de NOUS, et le candidat
+    # relisait sa phrase coupee en deux bulles.
+    # Non destructif : le recollage se fait A LA LECTURE, en un seul point
+    # (TranscriptionManager + util/TranscriptTurnStitcher), en amont du prompt,
+    # du controle de preuve ET du DTO servi aux fronts — donc le texte cite est
+    # toujours exactement le texte affiche. Rien n'est reecrit en base
+    # (realtime_sessions.transcript et transcriptions.texte restent intacts) :
+    # EVAL_RECOLLAGE_TOURS_ENABLED=false rend le comportement d'avant a
+    # l'identique, sans redeploiement des fronts.
+    # EN CAS DE DOUTE, ON NE FUSIONNE PAS : sur un texte qui fait foi pour la
+    # note ET que le candidat relit, une fusion FAUSSE est pire qu'une fusion
+    # manquee — la seconde ramene au comportement d'avant, la premiere FABRIQUE
+    # de la parole. Trois garde-fous, tous dans ce sens : meme locuteur
+    # seulement ; jamais a travers un tour « Examinateur : » ; jamais quand une
+    # phrase parait terminee et qu'une nouvelle commence (ponctuation forte a
+    # gauche ET majuscule a droite = deux tentatives distinctes, pas une phrase
+    # coupee) ; jamais autour d'un fragment sans aucun caractere alphanumerique
+    # (« . . . . »), qui reste un tour isole et n'est jamais retire du texte
+    # servi (on n'enleve que des FRONTIERES, jamais du contenu).
+    recollage-tours:
+      enabled: ${EVAL_RECOLLAGE_TOURS_ENABLED:true}
+    # --- Phase 3, livree DESACTIVEE : trois changements de comportement produit
+    # --- qui ne s'allument qu'apres mesure au banc. A false, aucun effet.
+    #
+    # Indice de fluidite des productions ORALES : debit (mots/minute) depuis la
+    # duree parlee + les mots de la transcription, et compte de pauses longues
+    # SI la transcription porte des horodatages (format `hh:mm:ss,mmm --> ...`).
+    # Expose comme DONNEE FACTUELLE dans le feedback, jamais comme une note :
+    # rien dans le calcul de la note ni du niveau ne lit ce bloc, meme allume.
+    # Neutre vis-a-vis de l'accent, contrairement a une analyse de prononciation.
+    # Allumer inverse la regle actuelle « ne pas juger le debit ni la duree » :
+    # EVAL_FLUIDITE_ENABLED=true.
+    fluidite:
+      enabled: ${EVAL_FLUIDITE_ENABLED:false}
+      duree-min-sec: 20
+      pause-longue-seuil-sec: 3.0
+    # Seconde passe d'evaluation, UNIQUEMENT en zone floue (confiance FAIBLE, ou
+    # competence a moins de `marge-seuil-niveau` d'un seuil, ou niveau LLM
+    # divergent de plus d'un palier du calcul serveur). On retient la passe la
+    # plus BASSE (le biais mesure est vers l'indulgence) et on abaisse la
+    # confiance quand les deux divergent. Elle reutilise obligatoirement le
+    # provider et le modele principaux : une seule bascule de configuration.
+    seconde-passe:
+      enabled: ${EVAL_SECONDE_PASSE_ENABLED:false}
+      marge-seuil-niveau: 1.0
+    # Coherence du bilan d'epreuve (3 taches) : pas de B2 global si la tache 3
+    # (argumentation) est sous B1. Applique APRES la moyenne ponderee, ne fait
+    # qu'ABAISSER — jamais relever, c'est ce qui le rend sur.
+    # ACTIF par defaut : le niveau d'epreuve est une moyenne des competences des
+    # 3 taches, or elles ne sont pas interchangeables — la tache 3 est la seule
+    # qui demande d'argumenter, donc la seule qui puisse demontrer un B2.
+    # Active sur du RAISONNEMENT, pas sur une mesure : le banc de calibration ne
+    # peut pas trancher ce choix (son corpus a un niveau attendu PAR TACHE, il
+    # n'a aucune reference de niveau d'EPREUVE). Cf. docs/notation-ia-eo-ee.md.
+    # Retour arriere en une variable : EVAL_COHERENCE_BILAN_ENABLED=false rend
+    # strictement les bilans d'avant (moyenne ponderee seule).
+    coherence-bilan:
+      enabled: ${EVAL_COHERENCE_BILAN_ENABLED:true}
+      tache3-niveau-min: B1
+      plafond-si-tache3-faible: B1
+    # VERSION AU NIVEAU VISE — livree ACTIVE. La reponse du candidat reecrite au
+    # palier qu'il VISE (son TargetLevel TCF, a defaut le niveau_cible de la
+    # tache), plus deux a trois leviers concrets pour l'atteindre. EE UNIQUEMENT,
+    # en miroir de la regle version_amelioree (obligatoire a l'ecrit, retiree a
+    # l'oral).
+    #
+    # /!\ SECOND APPEL LLM, TOTALEMENT SEPARE DE LA CORRECTION. C'est la raison
+    # meme de la fonctionnalite : le prompt de NOTATION ne change pas d'un octet,
+    # et le correcteur n'apprend jamais quel niveau vise le candidat — sinon il
+    # aligne sa note dessus. Le depot a deja mesure qu'ajouter un bloc a la
+    # grille degrade la notation (rubriques v10/v11 : accord exact 81,8 % ->
+    # 75,6 %). NE PAS FUSIONNER LES DEUX APPELS, meme si ca parait plus
+    # economique.
+    #
+    # BEST-EFFORT, JAMAIS BLOQUANT : timeout, sortie invalide ou cle absente
+    # laissent l'evaluation EVALUATED et complete, le bloc `version_ciblee` est
+    # simplement absent du feedback. Aucun reessai (c'est un confort, pas une
+    # correction) et aucune campagne de banc requise : rien de ce qui NOTE ne
+    # bouge, par construction.
+    #
+    # Le FOURNISSEUR reste production-evaluation.provider ci-dessus (regle « un
+    # seul correcteur configurable ») : la version rendue au candidat et la
+    # correction qu'il lit juste au-dessus viennent de la meme main. Ce bloc ne
+    # porte que le contrat de sortie, le budget de tokens et le coupe-circuit.
+    # Retour arriere en une variable : EVAL_VERSION_CIBLEE_ENABLED=false.
+    version-ciblee:
+      enabled: ${EVAL_VERSION_CIBLEE_ENABLED:true}
+      # Consignes : prompts/production-version-ciblee-rubrics-<v>.json.
+      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v2}
+      # Contrat de sortie : prompts/production-version-ciblee-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION:v2}
+      # Plafond de tokens de SORTIE, PROPRE a cet appel — pas les 4000 d'une
+      # correction complete : la sortie tient en un texte de 40 a 90 mots, deux ou
+      # trois leviers courts et une tournure a retenir. C'est un plafond, pas une
+      # consommation ; il monte a 1600 avec le contrat v2, qui ajoute les segments
+      # surlignes (ecrit) ou les reformulations (oral).
+      max-tokens: 1600
+      # Zero : deux lectures du meme texte doivent rendre la meme version.
+      temperature: 0
+      # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
+      # Troisieme filet, celui qui ne depend d'aucune cooperation du modele.
+      max-leviers: 3
+    max-audio-duration-seconds: 300
+    max-text-words: 300
+    min-text-words: 10
+    max-audio-size-bytes: 26214400
+    cost-tracking-enabled: true
+    max-retries-per-submission: 3
+    presigned-url-expiry-minutes: 15
+    # PLAFOND DE TOKENS DE SORTIE — 4000, IDENTIQUE SUR LES TROIS PROVIDERS.
+    # Il etait a 2000 depuis mai 2026, avant que le tool-schema strict n'ajoute
+    # QUATRE citations litterales (une par critere) a la sortie. Mesure :
+    # une correction EE tient en ~1500 tokens, une correction EO en 1800-2000 —
+    # donc le plafond etait atteint ou frole sur presque toutes les EO. Une
+    # sortie tronquee arrive en `finish_reason=length` avec un JSON coupe :
+    # `tool_call.arguments non desorialisable`, la soumission ECHOUE, le
+    # candidat ne voit pas sa note. Le meme appel a 4000 passe (~2300 tokens).
+    # C'est un PLAFOND, pas une consommation : on ne paie que ce qui est
+    # reellement produit, le relever ne coute rien sur les corrections courtes.
+    # Ne pas le redescendre sans avoir d'abord retire des champs de la sortie.
+    openai:
+      # Defaut : reutilise OPENAI_API_KEY (deja config pour Whisper). Surcharge
+      # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
+      api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
+      api-url: https://api.openai.com/v1/chat/completions
+      # Defaut de repli, PAS le correcteur actif (cf. provider ci-dessus).
+      # gpt-5.4 : moderne ET compatible temperature 0 (gpt-5.5 refuse toute
+      # temperature autre que son defaut — voir send-temperature ci-dessous).
+      # Changer ce modele se fait par EVAL_OPENAI_MODEL, avec ses deux tarifs.
+      model: ${EVAL_OPENAI_MODEL:gpt-5.4}
+      # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
+      temperature: ${EVAL_OPENAI_TEMPERATURE:0}
+      # FORME DE LA REQUÊTE — négociée avec le fournisseur, pas codée en dur.
+      # Objectif : brancher un modèle qui n'existe pas encore aujourd'hui ne doit
+      # demander AUCUNE modification de code ni recompilation — une ligne de
+      # .env (EVAL_OPENAI_MODEL), un redémarrage. Sur un 400 du type
+      # « Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens'
+      # instead » ou « Unsupported value: 'temperature' does not support 0 »,
+      # le client corrige la forme, rejoue une fois et MÉMORISE le résultat pour
+      # la durée du processus (cf. ChatCompletionDialectNegotiator). Un 400
+      # métier (tool-schema, contenu) n'y touche pas et remonte immédiatement.
+      #
+      # `auto` (défaut) = négociation. Les deux clés ci-dessous ne servent qu'à
+      # REPRENDRE LA MAIN sans code, et désactivent la négociation du champ
+      # concerné.
+      #   send-temperature : `false` = ne pas envoyer le champ du tout (valeur
+      #     distincte de 0 et de 1 — envoyer 1 reviendrait à accepter en douce
+      #     une notation non déterministe).
+      #   max-tokens-param : nom du champ de plafond, quel qu'il soit.
+      send-temperature: ${EVAL_OPENAI_SEND_TEMPERATURE:auto}
+      max-tokens-param: ${EVAL_OPENAI_MAX_TOKENS_PARAM:auto}
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus. La VALEUR ne change
+      # pas avec le nom du champ.
+      max-tokens: 4000
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
+      # Tarification gpt-5.4 (USD / 1M tokens, relevée sur la page tarifaire
+      # OpenAI le 2026-08-07 : 2,50 en entrée / 15,00 en sortie).
+      # ⚠ Ces deux valeurs vont AVEC `model` ci-dessus : le coût estimé est
+      # PERSISTÉ dans ai_evaluations.cout_micro_usd, un tarif faux y reste faux
+      # pour toujours. Le tarif se surcharge DANS LA MÊME SOURCE que le modèle :
+      # poser EVAL_OPENAI_MODEL sans EVAL_OPENAI_COST_INPUT/OUTPUT fait échouer
+      # le build (EvaluationPricingTest), exprès.
+      cost-per-million-input-tokens: ${EVAL_OPENAI_COST_INPUT:2.50}
+      cost-per-million-output-tokens: ${EVAL_OPENAI_COST_OUTPUT:15.00}
+      # Tarif des tokens d'entrée servis par le cache de préfixe. 0 = non
+      # modélisé ici : ces tokens sont alors facturés au tarif d'entrée plein,
+      # ce qui SURESTIME, jamais l'inverse. OpenAI applique bien une remise de
+      # cache ; on ne la déclare pas tant qu'OpenAI n'est pas le correcteur
+      # actif, plutôt que de figer un chiffre qu'on ne vérifie pas.
+      cost-per-million-cached-input-tokens: ${EVAL_OPENAI_COST_CACHED_INPUT:0}
+      # Pas d'heures pleines chez OpenAI : multiplicateur neutre, plages vides.
+      peak-multiplier: ${EVAL_OPENAI_PEAK_MULTIPLIER:1.0}
+      peak-utc-ranges: "${EVAL_OPENAI_PEAK_UTC:}"
+    anthropic:
+      api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
+      api-url: https://api.anthropic.com/v1/messages
+      anthropic-version: "2023-06-01"
+      model: ${EVAL_ANTHROPIC_MODEL:claude-sonnet-4-5}
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
+      # Tarif claude-sonnet-4-5 (USD / 1M tokens). Surchargeable comme le modèle,
+      # et dans la même source que lui.
+      cost-per-million-input-tokens: ${EVAL_ANTHROPIC_COST_INPUT:3.0}
+      cost-per-million-output-tokens: ${EVAL_ANTHROPIC_COST_OUTPUT:15.0}
+      # Le cache Anthropic se DEMANDE (`cache_control` sur un bloc du prompt) ;
+      # nous ne l'envoyons pas, donc aucun token n'est jamais servi par le
+      # cache et ce tarif ne s'appliquerait à rien. Laissé à 0 = plein tarif.
+      cost-per-million-cached-input-tokens: ${EVAL_ANTHROPIC_COST_CACHED_INPUT:0}
+      peak-multiplier: ${EVAL_ANTHROPIC_PEAK_MULTIPLIER:1.0}
+      peak-utc-ranges: "${EVAL_ANTHROPIC_PEAK_UTC:}"
+    # DeepSeek : API compatible OpenAI (meme client). CORRECTEUR ACTIF depuis le
+    # 2026-08-08 (cf. provider ci-dessus) — clé via EVAL_DEEPSEEK_API_KEY (ou
+    # DEEPSEEK_API_KEY).
+    deepseek:
+      api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
+      api-url: https://api.deepseek.com/chat/completions
+      # deepseek-v4-flash : correcteur EN VIGUEUR — choix ARBITRE ET CLOS le
+      # 2026-08-16, motif LATENCE. `flash` repond en 16,3 s de mediane et 36 s
+      # au pire appel, contre 28,8 s / 66,7 s pour `pro` : sur un ecran ou le
+      # candidat attend sa correction, c'est le seul ecart qui se voit. Et la
+      # justesse ne se gagne pas en changeant de moteur — la campagne du
+      # 2026-08-16 a pris +14,5 points d'accord exact SANS toucher au modele,
+      # uniquement par les contrats de sortie et les controles serveur.
+      # /!\ CONTRE-INTUITIF, et c'est exactement pour ca que c'est ecrit ici :
+      # `deepseek-v4-pro`, le « grand » modele de la gamme V4, coute PLUS CHER
+      # que `flash` (0,022/0,66/1,98 contre 0,007/0,22/0,66 ; 1,12 $ contre
+      # 0,91 $ sur la meme campagne de 48 corrections, ancienne grille) SANS
+      # mieux noter (pieges 4/8 contre 8/8, B2 3/7 contre 6/7). Le nom du modele
+      # ne dit rien de son prix relatif ni de son aptitude a corriger une
+      # production TCF. Ne pas « reparer » ce choix en repassant a `pro` sans
+      # avoir remesure au banc.
+      # /!\ NE PAS CITER la ligne « corrections perdues » des campagnes v9 :
+      # elles n'ont pas tourne avec le meme `calibration.retries` (9 / 3 / 1)
+      # alors que la PRODUCTION n'accorde qu'UN SEUL rejeu — cette metrique
+      # mesure le reglage du banc, pas le modele.
+      # Le defaut connu de `flash`, lui, ne depend pas du nombre d'essais :
+      # 27,3 % de ses appels sont refuses par nos controles serveur, et
+      # 42,9 % sur les seules productions ORALES (0 % en EE, chez les trois
+      # moteurs). `pro` : 17,9 % / 31,2 %. `gpt-5.4` : 0 % / 0 %.
+      # Detail des 3 campagnes v9 : docs/notation-ia-eo-ee.md §12.6.
+      # Se change par EVAL_DEEPSEEK_MODEL, avec ses deux tarifs.
+      model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
+      # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
+      # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
+      disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
+      temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
+      # FORME DE LA REQUÊTE — négociée, comme pour OpenAI : `auto` laisse le
+      # client déduire du 400 du fournisseur le nom du champ de plafond et
+      # l'acceptation de `temperature`. Ces deux clés ne servent qu'à reprendre
+      # la main SANS code si la négociation ne suffisait pas.
+      send-temperature: ${EVAL_DEEPSEEK_SEND_TEMPERATURE:auto}
+      max-tokens-param: ${EVAL_DEEPSEEK_MAX_TOKENS_PARAM:auto}
+      # cf. le bloc « PLAFOND DE TOKENS DE SORTIE » ci-dessus.
+      max-tokens: 4000
+      # BUDGET D'ATTENTE D'UN SEUL APPEL HTTP (read timeout), pas d'une
+      # correction. A ne pas dimensionner sur la duree d'un CAS du banc : le
+      # « pic a 5 min 44 » de `flash` est le cumul de NEUF appels sur un meme
+      # cas (rejeu de preuve + rejeu transitoire), pas un appel lent.
+      # Mesure v9, 48 cas, sur les cas resolus en UN appel : `flash` median
+      # 16,3 s, max 36,2 s ; `pro` median 28,8 s, max 66,7 s.
+      # 90 s = 2,5x le pire appel `flash` mesure, ET au-dessus du pire appel
+      # `pro` — donc un retour arriere vers `pro` reste 3 lignes de .env, sans
+      # second reglage a toucher. Un appel coupe n'est pas perdu : il repart
+      # en AiEvaluationTransientException, rejouee 3 fois (@Retryable), donc le
+      # pire cas d'attente est ~4 min 40 par evaluation au lieu de ~9 min a
+      # 180 s. Un vrai incident RESEAU n'est pas gouverne par cette valeur :
+      # le connect timeout est plafonne a 10 s (min(timeoutSec, 10), cf.
+      # OpenAiCompatibleEvalClient#buildRequestFactory) — au-dela, c'est un
+      # fournisseur qui a accepte la requete et genere.
+      timeout-sec: ${EVAL_DEEPSEEK_TIMEOUT_SEC:90}
+      prompt-version: ${EVAL_PROMPT_VERSION:v9}
+      # TARIFICATION deepseek-v4-flash — grille en vigueur depuis le 2026-08-16
+      # 16:00 UTC (USD / 1M tokens), en HEURES CREUSES :
+      #     entrée cache hit 0,007 · entrée cache miss 0,22 · sortie 0,66
+      # HEURES PLEINES = exactement le DOUBLE des trois (0,014 / 0,44 / 1,32),
+      # sur 01:00-04:00 et 06:00-10:00 UTC. D'où un multiplicateur unique plutôt
+      # que six chiffres : la grille EST proportionnelle, la recopier six fois
+      # n'ajouterait que des occasions de divergence.
+      # Pour mémoire, même structure chez deepseek-v4-pro : 0,022 / 0,66 / 1,98
+      # en creuses, ×2 en pleines.
+      # ⚠ L'ancienne paire 0,14 / 0,28 écrite ici était fausse DANS LES DEUX
+      # SENS : elle sous-estimait la sortie d'un facteur 2,4 à 4,7 et l'entrée
+      # cache miss d'un facteur 1,6 à 3,1, tout en SURestimant l'entrée cache
+      # hit d'un facteur 20. Les lignes déjà persistées gardent l'ancienne
+      # grille, on ne réécrit pas l'historique.
+      cost-per-million-input-tokens: ${EVAL_DEEPSEEK_COST_INPUT:0.22}
+      cost-per-million-output-tokens: ${EVAL_DEEPSEEK_COST_OUTPUT:0.66}
+      # Tarif des tokens d'entrée servis par le cache de préfixe : 31× moins
+      # cher que le cache miss. Le découpage n'est PAS deviné — DeepSeek le
+      # renvoie dans `usage.prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`,
+      # on ne fait que le lire (cf. util/CoutAppelLlm). Champ absent ⇒ tout est
+      # facturé cache miss, hypothèse prudente.
+      cost-per-million-cached-input-tokens: ${EVAL_DEEPSEEK_COST_CACHED_INPUT:0.007}
+      # Heures pleines : les trois tarifs sont doublés. Les BORNES vivent en
+      # configuration, jamais en dur dans le Java — c'est une donnée commerciale
+      # du fournisseur, elle doit se corriger par une ligne de .env.
+      peak-multiplier: ${EVAL_DEEPSEEK_PEAK_MULTIPLIER:2.0}
+      peak-utc-ranges: "${EVAL_DEEPSEEK_PEAK_UTC:01:00-04:00,06:00-10:00}"
+
+  # Expression orale en TEMPS RÉEL (examinateur vocal IA, Tâches 1 & 2).
+  # S'ajoute au pipeline async — ne le remplace pas. Schéma de connexion (A) :
+  # le backend émet un token éphémère (persona verrouillée côté serveur), le
+  # client ouvre lui-même le WebSocket vers le fournisseur. Si la clé n'est pas
+  # renseignée, le mode bascule silencieusement en async (jamais bloquant).
+  realtime:
+    provider: ${REALTIME_PROVIDER:gemini}
+    # Gabarit de persona chargé (prompts/realtime-personas-<version>.json).
+    # v2 = v1 + rendu de la fiche de scénario T2 (production_tasks.agent_role_card)
+    # quand le sujet en porte une. Repli sur v1/v2 possible par variable d'env.
+    #
+    # v3 = v2 + VERROU DE LANGUE (3 règles, tout le reste identique au caractère
+    # près, cf. RealtimePersonaV3Test). Motif : le modèle natif-audio est conçu
+    # pour « changer de langue naturellement en cours de conversation » ; sur un
+    # passage bruité ou mal articulé, il restitue la parole du candidat en arabe,
+    # en néerlandais ou en cyrillique. Mesuré en base : 6 transcriptions temps
+    # réel sur 39 portent une écriture non latine, contre 0 sur 36 côté Whisper
+    # asynchrone. L'API Live ne permet PAS d'imposer la langue à la
+    # transcription d'entrée (AudioTranscriptionConfig n'a aucun champ) et les
+    # modèles natif-audio REFUSENT speechConfig.languageCode — poser un code de
+    # langue ferait échouer l'émission du token et basculerait tout le temps
+    # réel en async. La system instruction est donc le SEUL levier disponible.
+    # C'est un biais, pas une garantie : le filet qui protège réellement le
+    # candidat est le contrôle serveur déterministe
+    # EvaluationOralArtifactFilter (volet LANGUE), livré ACTIF. La voie
+    # « écrire une consigne de plus » a été tentée (rubriques v10 et v11) et
+    # mesurée moins bonne que v9 — cf. rubrics-version plus haut.
+    persona-version: ${REALTIME_PERSONA_VERSION:v3}
+    gemini:
+      # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
+      api-key: ${GEMINI_API_KEY:}
+      auth-tokens-url: https://generativelanguage.googleapis.com/v1alpha/auth_tokens
+      # Token éphémère CONTRAINT -> endpoint "...Constrained" (sinon la system
+      # instruction verrouillée + la transcription ne s'appliquent pas).
+      ws-endpoint: wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained
+      # ⚠️ Gamme native-audio en évolution : alias GA stable par défaut (le
+      # preview ...-09-2025 est déprécié le 2026-03-19). À revérifier au build.
+      # native-audio 2.5 = le moins cher, choix assumé. La transcription temps
+      # réel devient propre côté CLIENT : fragments concaténés VERBATIM + ligne
+      # émise seulement au turnComplete (pas d'espace ajouté, pas de nouvelle
+      # ligne par flush) — c'est l'assemblage qui corrigeait « bon jour »/« 2 5 »,
+      # pas le modèle.
+      model: ${REALTIME_GEMINI_MODEL:gemini-live-2.5-flash-native-audio}
+      voice: ${REALTIME_GEMINI_VOICE:Aoede}
+      temperature: 0.7
+      # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
+      # 🛑 Chaque sensibilité n'admet que TROIS valeurs : ..._UNSPECIFIED,
+      # ..._LOW, ..._HIGH. IL N'Y A PAS DE « MEDIUM ». Posé du 2026-08-12 au
+      # 2026-08-16, END_SENSITIVITY_MEDIUM faisait répondre auth_tokens en 400
+      # INVALID_ARGUMENT à CHAQUE émission de token : plus une seule session
+      # temps réel pendant 4 jours, sur les deux fronts, et en silence (le
+      # serveur retombe en ASYNC_FALLBACK). Une valeur hors liste fait
+      # désormais échouer le BOOT (GeminiTokenBroker.assertVadSupportee).
+      # Arbitrage patience ↔ réactivité :
+      #   * end-sensitivity LOW = la confirmation la plus prudente avant de
+      #     déclarer la fin de parole. C'est le réglage le plus LENT, et c'est
+      #     assumé : le seul autre choix est HIGH, qui couperait un apprenant A2
+      #     en pleine hésitation. Le vrai levier de réactivité est
+      #     silence-duration-ms, pas cette enum.
+      #   * silence-duration-ms 500 = PLANCHER recommandé par Google (500-800) :
+      #     en dessous, un énoncé se fragmente sur ses pauses naturelles. Ne pas
+      #     descendre.
+      #   * prefix-padding-ms 300 : plus bas, la première syllabe est coupée.
+      #   * start-sensitivity HIGH = détection rapide du DÉBUT de parole.
+      # Les cinq valeurs sont surchargeables par env : essayer HIGH ne demande
+      # aucune recompilation.
+      vad:
+        disabled: ${REALTIME_GEMINI_VAD_DISABLED:false}
+        start-sensitivity: ${REALTIME_GEMINI_VAD_START_SENSITIVITY:START_SENSITIVITY_HIGH}
+        end-sensitivity: ${REALTIME_GEMINI_VAD_END_SENSITIVITY:END_SENSITIVITY_LOW}
+        prefix-padding-ms: ${REALTIME_GEMINI_VAD_PREFIX_PADDING_MS:300}
+        silence-duration-ms: ${REALTIME_GEMINI_VAD_SILENCE_DURATION_MS:500}
+      # REPRISE DE SESSION après coupure réseau (sessionResumption du setup
+      # verrouillé). Sans elle, un WebSocket qui tombe (métro, ascenseur, appli
+      # en arrière-plan) détruisait la session ET le slot déjà débité : le
+      # candidat payait une simulation qu'il n'a pas pu terminer.
+      # Le handle ne peut PAS venir du client (token contraint = aucun champ de
+      # setup côté client) : il est relayé au serveur, qui le verrouille dans le
+      # setup d'un nouveau token via POST /api/realtime/eo/sessions/{id}/resume.
+      # Retour arrière : REALTIME_SESSION_RESUMPTION_ENABLED=false.
+      session-resumption:
+        enabled: ${REALTIME_SESSION_RESUMPTION_ENABLED:true}
+        max-resumptions: ${REALTIME_SESSION_MAX_RESUMPTIONS:3}
+      # Fenêtre glissante de contexte. L'audio consomme ~25 tokens/s et une
+      # session audio est plafonnée à 15 min SANS compression ; nos sessions
+      # visent ~200 s, donc ce n'est pas encore bloquant — c'est ce qui permet à
+      # une session REPRISE de ne pas heurter ce plafond. 0 sur un seuil = champ
+      # non envoyé, défaut du fournisseur appliqué.
+      # Retour arrière : REALTIME_CONTEXT_COMPRESSION_ENABLED=false.
+      context-window-compression:
+        enabled: ${REALTIME_CONTEXT_COMPRESSION_ENABLED:true}
+        trigger-tokens: ${REALTIME_CONTEXT_COMPRESSION_TRIGGER_TOKENS:25600}
+        target-tokens: ${REALTIME_CONTEXT_COMPRESSION_TARGET_TOKENS:12800}
+      # Ouvertures de WebSocket admises pour UN token. 1 (l'ancien défaut) = le
+      # token meurt à la première connexion, donc toute coupure était fatale.
+      # 3 = ouverture + 2 reprises. Contrepartie assumée : un token volé est
+      # rejouable pendant sa fenêtre de validité — mais son setup est verrouillé
+      # (il ne peut parler qu'à NOTRE persona) et le quota se débite côté
+      # serveur, pas par connexion. Ne pas monter sans raison.
+      token-uses: ${REALTIME_GEMINI_TOKEN_USES:3}
+      # Délai pour ouvrir (ou ROUVRIR) une connexion avec le token. 120 s ne
+      # couvrait pas une coupure réelle : un tunnel de métro suffisait à tuer le
+      # token avant le retour du réseau. 600 s couvre les coupures courantes tout
+      # en restant très en deçà de session-expire-seconds (1800).
+      new-session-expire-seconds: ${REALTIME_GEMINI_NEW_SESSION_EXPIRE_SECONDS:600}
+      session-expire-seconds: ${REALTIME_GEMINI_SESSION_EXPIRE_SECONDS:1800}
+      timeout-sec: ${REALTIME_GEMINI_TIMEOUT_SEC:15}
+    # Formats audio Gemini Live : entrée PCM 16 bits 16 kHz mono, sortie 24 kHz.
+    audio:
+      input-sample-rate: 16000
+      input-mime-type: audio/pcm;rate=16000
+      output-sample-rate: 24000
+    # Le QUOTA de sessions par pass vit désormais en base (colonne
+    # plans.realtime_eo_sessions, migrations V018/V113) — éditable côté admin,
+    # « adapté selon le pass ». Plus de mapping en config ici.
+
+  # Module « Competences TCF » : micro-entrainement EE/EO, une competence et un
+  # seul critere a la fois. VOIE PARALLELE a la notation des productions
+  # completes — pas de note sur 20, pas de niveau CECRL, pas les 4 criteres du
+  # TCF : un exercice de quelques phrases ne permet ni l'un ni l'autre. D'ou un
+  # namespace a part, pour qu'un retour arriere sur la grille des epreuves
+  # completes (EVAL_RUBRICS_VERSION) n'emporte pas au passage l'analyse des
+  # competences, et inversement.
+  # Le FOURNISSEUR, lui, reste celui de production-evaluation.provider : la
+  # regle « un seul correcteur configurable » vaut aussi ici.
+  # Les valeurs doivent rester identiques a celles de config/CompetenceProperties
+  # (deux sources qui divergent = un comportement different selon qu'une cle est
+  # presente ou non).
+  # --------------------------------------------------------------------------
+  # Diagnostic TCF 4 epreuves (lot L4). Spec : docs/review_all/10_ §4.
+  # --------------------------------------------------------------------------
+  # 🛑 LES VALEURS CI-DESSOUS SONT RECOPIEES A L'IDENTIQUE dans le POJO
+  # config/TcfDiagnosticProperties. Un POJO qui diverge de son YAML ne se
+  # decouvre que le jour ou la cle disparait de la configuration.
+  #
+  # 🛑 config-version : A INCREMENTER des qu'un reglage change le SENS d'un
+  # resultat (composition du tirage, seuils). Il est recopie sur chaque session, et
+  # un diagnostic se relit avec la configuration QUI L'A PRODUIT — sans lui, un
+  # recalibrage reinterpreterait retroactivement des diagnostics deja passes.
+  #
+  # Ce qui n'est PAS ici, et n'a rien a y faire : les durees d'epreuve du TCF
+  # (DureeEpreuve) et la table des paliers par demarche (TargetProcedure). Ce
+  # sont des donnees officielles, donc du code, pas des reglages.
+  # Diagnostic CIVIQUE (20_ §4). 🛑 Aucun cout LLM : le civique est du QCM
+  # deterministe, sa correction ne passe par aucun modele. Le quota est donc
+  # distinct de celui des analyses IA.
+  # Les valeurs par defaut vivent AUSSI dans config/CivicDiagnosticProperties,
+  # a l'identique : un POJO qui diverge de son YAML ne se decouvre que le jour
+  # ou la cle disparait de la configuration.
+  civic-diagnostic:
+    # 🛑 A incrementer des qu'un reglage ci-dessous change le SENS d'un
+    # resultat. Un diagnostic se relit avec la configuration QUI L'A PRODUIT.
+    config-version: 1
+    # 🛑 `connaissances` ET `mises-en-situation` ONT DISPARU D'ICI (D-44,
+    # 2026-09-19), et ne sont pas remplacees par un alias. Le partage 28 / 12 est
+    # de la LOI -- arrete du 10 octobre 2025, annexe I -- et il est lu chez son
+    # autorite unique : CivicExamFormat.CONNAISSANCES / MISES_EN_SITUATION.
+    # Mesure faite avant de trancher : `config_version` est ecrit sur la session
+    # mais JAMAIS RELU cote civique, aucun test ne faisait varier ces valeurs, et
+    # aucun profil ne surchargeait ce bloc. Elles ne pilotaient rien -- elles
+    # offraient seulement de faire cesser le diagnostic de simuler l'examen legal.
+    # 🛑 Contrainte explicite de 20_ §4.2 : « ne jamais evaluer un theme sur une
+    # seule question ». Un theme juge sur une reponse produirait un etat qui ne
+    # veut rien dire -- et c'est cet etat qui decide ensuite du plan.
+    # Releve de 3 a 4 avec le passage a 40 : 28 questions de connaissance sur
+    # 5 themes en autorisent 4 chacun et laissent 8 au complement.
+    min-par-theme: 4
+    seuils:
+      solide: 0.80
+      faible: 0.55
+    # Meme raison qu'au TCF : sans delai, une reevaluation a volonte ne
+    # mesurerait plus une progression.
+    reevaluation: 14d
+
+  # Le PLAN civique (L10, 20_ §5 et §6).
+  # 🛑 Aucun config-version ici, et c'est voulu : le plan est un DERIVE relu a
+  # chaque lecture, donc rien ne se reinterprete retroactivement. Changer un
+  # reglage change le plan au prochain appel, sans migration.
+  civic-plan:
+    # Part des questions de CONNAISSANCE actives d'un theme qui doivent etre
+    # TAGUEES pour que le plan y travaille par notion (20_ §3.3). La bascule est
+    # PAR THEME : un theme tague a 90 % n'attend pas celui qui est a 10 %.
+    # 🛑 Le denominateur EXCLUT les mises en situation : elles relevent des
+    # domaines `sit_*` (50_ §6.2) et ne recoivent pas de notion. Les compter
+    # plafonnait trois themes sur cinq a 77,9 / 77,9 / 79,0 % -- ils n'auraient
+    # JAMAIS franchi ce seuil, meme entierement tagues.
+    # ⚠️ ETAT REEL AU 2026-09-19 : la campagne du 2026-09-11 a porte les cinq
+    # themes a 97 - 98,6 % de leurs questions de connaissance. LES CINQ SONT AU
+    # GRAIN NOTION. Le commentaire precedent (« 0 question sur 1 016 est taguee,
+    # les cinq themes sont donc au grain THEME ») decrivait le 2026-09-10.
+    seuil-tagging: 0.80
+    # 50_ §6.1 : >= 5 questions dans la mention = notion pleinement utilisable ;
+    # 1 a 4 = visible en revision libre, JAMAIS proposee en priorite. Compte PAR
+    # MENTION : une notion peut etre dotee pour un NAT et vide pour un CSP.
+    # 🛑 5 partout (arbitrage proprietaire) : une notion a 4 questions est trop
+    # fragile pour devenir une unite de parcours adaptatif. Le « < 4 » de 20_
+    # §3.4 est annule par 50_ §6.1.
+    # 🛑 Plafonds d'AFFICHAGE, jamais des budgets de calcul. Le moteur classe
+    # TOUTES les cibles et le DTO compte le reste (« + 6 autres notions »).
+    priorites-visibles: 3
+    revisions-visibles: 3
+    # 20 questions ciblees depuis le 2026-09-20 (arbitrage du proprietaire :
+    # « passer aussi a 20 », sans restriction -- donc 20 PARTOUT dans le
+    # civique, series du plan derive comprises). La duree annoncee se DERIVE de
+    # ces deux valeurs -- raccourcir la serie raccourcit la promesse.
+    # 🛑 C'est aussi le DENOMINATEUR du seuil de reussite d'une serie d'etape :
+    # learning-plan.comprehension.solid-ratio x 20 = 16 (JourneySerieVerdict).
+    questions-par-serie: 20
+    secondes-par-question: 36
+
+  tcf-diagnostic:
+    # 🛑 3 depuis le 2026-09-13 : chaque epreuve de comprehension du diagnostic
+    # est desormais UN EXAMEN BLANC D'EPREUVE — meme tirage (25 items, 8/9/8),
+    # meme duree pleine. Le SENS d'un niveau change, donc la version bouge ;
+    # `items-per-level` a disparu avec l'ancien tirage reduit.
+    config-version: 3
+    # Seuils de bascule (10_ §4.3). Un palier superieur exige de tenir AUSSI
+    # les paliers inferieurs : reussir le B2 en echouant l'A2 ne fait pas un B2.
+    seuils:
+      a2: 0.60
+      a2-pour-b1: 0.80
+      b1: 0.60
+      b1-pour-b2: 0.70
+      b2: 0.60
+    # Delai de REPRISE d'un diagnostic commence, pas de peremption du resultat :
+    # passe ce delai, les sections faites comptent toujours et les autres
+    # restent « non evaluee ». Rien n'est detruit.
+    reprise: 7d
+    # Delai minimal entre deux diagnostics pour un abonne. Sans lui, une
+    # reevaluation a volonte ne mesurerait plus une progression.
+    reevaluation: 14d
+    # Plafond d'AFFICHAGE des priorites (arbitrage A6). 🛑 Ce n'est PAS un
+    # budget de calcul : le moteur classe TOUTES les taches, l'ecran en montre
+    # trois.
+    max-priorites: 3
+
+  competences:
+    analysis:
+      # Consignes d'analyse : prompts/competence-analysis-rubrics-<v>.json.
+      # v6 = v5 au bit pres pour tout ce qui JUGE (verdicts, regle de decision,
+      # table des cinq paliers, brievete, garde-fou oral, accentuation, plafonds,
+      # et les dix ancres dans leur substance). Elle corrige la DERNIERE cause du
+      # « tout le monde a A2 » mesure en base (0 B2 sur 18 tentatives), et c'est
+      # la seule qu'aucune ancre ne pouvait corriger : le COUT DE NOMMER UN
+      # PALIER etait asymetrique. Pour dire B1/B2 il fallait fournir un numero de
+      # segment, et un numero absent ou faux faisait abaisser le verdict d'un
+      # cran ; pour dire A2, rien a fournir, rien a risquer. Le mecanisme
+      # lui-meme rendait le palier bas confortable.
+      #  (a) `level_evidence` devient REQUIS a tous les paliers (tool-schema v5)
+      #      — l'effort de production est le meme partout, et c'est la que vit
+      #      l'incitation ;
+      #  (b) la sanction, elle, NE BOUGE PAS : le serveur n'abaisse toujours que
+      #      sur un B1/B2 mal etaye. Punir un A2 sans preuve, ce serait punir la
+      #      prudence, exactement l'inverse du but. Un defaut sous le B1 est
+      #      COMPTE (CompetenceLevelDowngradeMetrics, cle /SANS_SANCTION/) et ne
+      #      vaut aucune reparation payee ;
+      #  (c) les six ancres qui n'avaient pas de preuve en portent une, dont
+      #      celle d'A1_NON_ATTEINT : elle designe le passage qui MONTRE que le
+      #      palier n'est pas atteint.
+      # /!\ Une preuve manquante ne fait toujours JAMAIS echouer l'analyse : le
+      # champ reste hors de CompetenceAnalysisValidator, seul habilite a rendre
+      # FAILED. Une analyse perdue coute au candidat sa production et son quota.
+      # /!\ Aucune campagne de mesure n'appuie cette bascule a ce jour — mais,
+      # contrairement aux precedentes, elle le deviendra : un corpus de
+      # micro-productions et son banc sont en construction, et l'hypothese « le
+      # cout asymetrique tirait vers le A2 » se testera en comparant v5 et v6 sur
+      # le meme corpus, le meme jour.
+      # La note /20 reste interdite : aucun champ ne peut la loger.
+      # Retour arriere : v5 + v4 (ou v4 + v4, v3 + v3, v2 + v2, v1 + v1).
+      rubrics-version: ${COMPETENCE_RUBRICS_VERSION:v6}
+      # Contrat de sortie : prompts/competence-analysis-tool-schema-<v>.json.
+      # Versionne separement des consignes — deux analyses produites avec le
+      # meme schema mais des consignes differentes ne sont pas comparables.
+      # Le tool-schema v5 est celui de v4 avec `level_evidence` dans son
+      # `required`, et RIEN d'autre : c'est la contrainte dure qui tient la
+      # regle, pas la consigne de la grille.
+      tool-schema-version: ${COMPETENCE_TOOL_SCHEMA_VERSION:v5}
+      # Plafond de tokens de SORTIE. 600 suffit largement : la reponse tient en
+      # cinq champs courts (verdict, niveau, deux etiquettes de trois mots).
+      # C'est un plafond, pas une consommation.
+      max-tokens: 600
+      # Zero : sur un verdict de critere on veut de la reproductibilite, pas de
+      # la creativite.
+      temperature: 0
+      # 🛑 `free-analyses: 3` (« 3 analyses IA offertes a vie ») est SUPPRIME le
+      # 2026-09-18 par l'arbitrage D-17, et il n'est PAS remplace : l'analyse IA du
+      # module Competences est premium, point. Aucun quota journalier n'a ete
+      # introduit (le premier jet de la spec proposait « 1 analyse / jour » :
+      # refuse). Ce qui reste gratuit est ailleurs : le diagnostic rapide, et un
+      # examen blanc EE + un examen blanc EO corriges en entier
+      # (free_entitlement_usage, FreeExamEntitlementService).
+      # Garde-fou ANTI-ABUS (cout LLM, taille de ligne), pas une regle
+      # pedagogique : les bornes recommandees d'un sujet restent indicatives et
+      # ne bloquent jamais une soumission.
+      max-text-words: 400
+      # Meme nature, cote oral : un micro-exercice se joue en une trentaine de
+      # secondes, 180 s ne cadre pas le candidat, cela coupe l'abus.
+      max-audio-duration-seconds: 180
+    # SECOND appel « pour viser X », emis APRES l'analyse et separement d'elle :
+    # l'analyse ne doit jamais apprendre quel niveau le candidat vise, sinon elle
+    # aligne son jugement dessus (mesure v10/v11 : accord exact 81,8 % -> 75,6 %).
+    # Best-effort : a false, ou en cas d'echec, le bloc est absent et l'analyse
+    # reste complete.
+    niveau-vise:
+      enabled: ${COMPETENCE_NIVEAU_VISE_ENABLED:true}
+      # Consignes : prompts/competence-niveau-vise-rubrics-<v>.json.
+      # v3 : chaque levier declare le PROCEDE de langue qu'il met en œuvre, dans
+      # la meme enumeration fermee que les marqueurs du palier — un conseil de
+      # ton (« rends ton invitation plus chaleureuse ») n'est pas un levier. Le
+      # procede ne purge JAMAIS un levier : il est compte, pas oppose.
+      # v2 : le texte modele vise la MARCHE SUIVANTE (constate + 1, plafonne a
+      # l'objectif), sa longueur est bornee par celle du sujet, et il doit
+      # designer des marqueurs_du_palier recopies de lui-meme.
+      # Retour arriere sans migration : v2 + v2, ou v1 + v1.
+      rubrics-version: ${COMPETENCE_NIVEAU_VISE_RUBRICS_VERSION:v3}
+      # Contrat de sortie : prompts/competence-niveau-vise-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${COMPETENCE_NIVEAU_VISE_TOOL_SCHEMA_VERSION:v3}
+      # Plafond de tokens de SORTIE, propre a cet appel : deux ou trois leviers
+      # de six mots, un texte court, une tournure. C'est un plafond.
+      max-tokens: 900
+      # Zero : deux lectures de la meme production doivent rendre le meme plan.
+      temperature: 0
+      # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
+      max-leviers: 3
+
+  # Moteur de maitrise des micro-competences (Plan personnalise).
+  #
+  # TOUS les nombres qui decident d'un etat de maitrise sont ici, et nulle part
+  # ailleurs. Rien n'est persiste : changer une valeur relit tout l'historique au
+  # prochain appel, sans migration ni job de rattrapage. Ce sont des parametres
+  # produit, a recalibrer quand il y aura des donnees — pas des verites.
+  # /!\ Les valeurs par defaut de LearningPlanProperties doivent rester
+  # identiques a celles-ci.
+  learning-plan:
+    mastery:
+      # Fenetre glissante : au-dela, une observation ne compte plus du tout. Une
+      # moyenne depuis la creation du compte penaliserait eternellement une
+      # erreur ancienne et ferait remonter trop lentement une competence
+      # nouvellement acquise.
+      window-days: 180
+      # Plafond d'observations retenues par competence, les plus recentes
+      # d'abord : sans lui, trente micro-exercices enchaines dans la journee
+      # ecraseraient deux vraies taches ratees.
+      max-observations: 12
+      # Poids par source. Une reussite tres ciblee ne doit jamais peser autant
+      # qu'une reussite obtenue dans une production complete, ou le candidat
+      # gere en meme temps la consigne, la longueur, le lexique et le temps.
+      # L'examen blanc est la preuve la moins assistee : c'est le poids le plus
+      # fort. Le diagnostic est une vraie production, mais c'est la BASELINE.
+      weight-skill-training: 0.45
+      weight-diagnostic: 0.80
+      weight-production: 1.00
+      weight-mock-exam: 1.20
+      # Observation DETERMINISTE de comprehension (CO / CE), ecrite par
+      # ComprehensionObservationService. Meme poids qu'une production complete :
+      # un QCM de comprehension EST le format reel de l'epreuve, il n'y a ni
+      # assistance ni filet dont l'absence rendrait l'examen plus probant. Ce
+      # qui varie d'une session a l'autre, c'est la taille de l'echantillon, et
+      # c'est la CONFIANCE qui la porte (cf. learning-plan.comprehension).
+      weight-comprehension: 1.00
+      # Confiance DU CORRECTEUR sur son observation (jamais la qualite du
+      # candidat) : une observation incertaine pese moins sans disparaitre.
+      confidence-high: 1.00
+      confidence-medium: 0.80
+      confidence-low: 0.55
+      # Recence par paliers : decroissance douce, plancher a 0.70. Un candidat
+      # ne doit pas voir son etat basculer parce qu'une nuit est passee.
+      recency-recent-days: 14
+      recency-recent-factor: 1.00
+      recency-medium-days: 30
+      recency-medium-factor: 0.85
+      recency-old-factor: 0.70
+      # Seuils du score pondere, dans [0,1]. Le score reste INTERNE : aucun DTO
+      # candidat ne l'expose, on n'affiche pas un « 73 % maitrise » qui ferait
+      # croire a une precision qui n'existe pas.
+      solid-score: 0.75
+      consolidating-score: 0.50
+      reinforce-score: 0.30
+      # SOLID ne se deduit jamais du seul score : il faut plusieurs reussites,
+      # sur des sujets differents, dont au moins une CONTEXTUALISEE (production
+      # complete ou examen blanc — jamais un micro-entrainement seul).
+      min-positive-observations: 2
+      min-distinct-subjects: 2
+      # Stabilite : il faut DEUX fragilites contextualisees recentes pour faire
+      # redescendre une competence solide. Une seule production moins bonne est
+      # toleree — la progression doit sembler stable, pas aleatoire.
+      fragility-tolerance: 2
+      fragility-window-days: 60
+      # « Pret a etre verifie en situation » : signal INTERNE qui fait passer le
+      # Plan de APPRENDRE a VERIFIER, au lieu d'empiler un 4e micro-exercice.
+      # Le seuil porte sur la performance CIBLEE, pas sur le score global : la
+      # baseline du diagnostic est une fragilite et un micro-exercice reussi ne
+      # vaut qu'une demi-preuve, donc un seuil global serait mecaniquement hors
+      # d'atteinte et le Plan proposerait des micro-exercices a l'infini.
+      # ARITHMETIQUE, a refaire avant de toucher ce nombre : un micro-exercice
+      # reussi vaut 0.5, un rate 0, et la voie ciblee n'ecrit JAMAIS SOLID
+      # (critere valide -> TO_REINFORCE) -> la performance ciblee est BORNEE a
+      # 0.50. Au-dela, le signal s'eteint ; a 0.50 pile, il exige un sans-faute.
+      # Ce que 0.30 tranche : 2 reussites sans echec = 0.50 (oui) ; 1 echec
+      # ancien puis 2 reussites = 0.351 (oui, trajectoire normale) ; 2 reussites
+      # noyees dans 3 echecs recents = 0.20 (non). 0.30 vaut 60 % du plafond
+      # reel — ce n'est pas un seuil « trop bas ».
+      readiness-targeted-score: 0.30
+      # Ce nombre ne decide PAS de la bascule : LearningPlanService exige en
+      # plus une etape TERMINEE (LearningPlanStep.Progress.completed(), les 5
+      # sujets). La verification de progression est donc premium par arbitrage
+      # produit — inutile de monter ce seuil pour « proteger » d'une bascule
+      # prematuree, il n'en protege rien.
+      readiness-targeted-subjects: 2
+      # Duree de validite d'une preuve de transfert : tant qu'elle tient, on ne
+      # redemande pas de verification.
+      transfer-proof-days: 60
+    # JALONS : les deux barreaux au-dessus de l'etape. On ESCALADE, on ne
+    # reporte pas — la verification ciblee est le seul mecanisme qui fait passer
+    # une competence en SOLID, la repousser bloquerait tout le monde en
+    # consolidation. Ces jalons ne creent aucun contenu : ils designent un
+    # examen blanc DEJA existant (epreuve + slot de grille).
+    milestone:
+      # Competences transferees (SOLID) exigees dans une epreuve avant de
+      # proposer son examen blanc : une seule ne dit rien d'une epreuve entiere.
+      epreuve-min-solid-skills: 2
+      # ... et il en faut une majorite parmi les competences OBSERVEES de
+      # l'epreuve : proposer un examen blanc a un candidat dont la moitie des
+      # competences restent des priorites lui ferait mesurer un echec.
+      epreuve-solid-ratio: 0.5
+      # Duree de validite d'un jalon franchi : un jalon est une etape, pas une
+      # boucle — on ne represente pas un examen blanc qu'on vient de passer.
+      proof-days: 45
+    # COMPREHENSION (CO / CE) : la seule voie ou une observation ne vient pas
+    # d'un correcteur mais d'un taux de bonnes reponses. Ces seuils sont NEUFS
+    # et SEPARES de ceux de `mastery`, qui agrege un historique deja qualifie —
+    # « 16 bonnes reponses sur 20 » et « 0,75 de moyenne ponderee » ne vivent
+    # pas sur la meme echelle. Seuils INTERNES SejourFR : jamais presentes au
+    # candidat comme une equivalence de score officiel TCF.
+    comprehension:
+      # >= 80 % (16/20 sur une serie ciblee) : niveau reussi dans cette session.
+      solid-ratio: 0.80
+      # 65-79 % : en progression. En dessous : priorite.
+      reinforce-ratio: 0.65
+      # Plancher de fiabilite. Avec n questions le taux ne prend que n+1
+      # valeurs espacees de 1/n : sous 6, le pas (20 points a n=5) depasse la
+      # largeur de la bande intermediaire (15 points) et un tel echantillon ne
+      # peut rendre QUE les deux verdicts les plus tranches, sur la preuve la
+      # plus mince. Sous ce plancher, l'observation est NOT_OBSERVED — jamais
+      # une fausse fragilite. Les strates d'un examen d'epreuve (8/9/8) passent
+      # toutes les trois ; un reliquat de 3 questions, non.
+      min-questions: 6
+      # Confiance de l'OBSERVATEUR, jamais qualite du candidat : ce qui la
+      # limite ici, c'est la taille de l'echantillon. Une serie ciblee de 20
+      # questions du meme niveau est plus assuree que les 8 questions A2 noyees
+      # dans un examen d'epreuve — 12 separe exactement ces deux cas.
+      high-confidence-questions: 12
+
+  # Diagnostic initial : même fournisseur/modèle que production-evaluation,
+  # mais contrat et consignes séparés (aucune note /20, aucune tâche officielle).
+  diagnostic:
+    # QUELLE FORME DE DIAGNOSTIC EST SERVIE, et c'est une DONNÉE, pas un drapeau.
+    #   · QUICK_TCF   (L3) une seule production écrite transversale, 8-10 min ;
+    #   · INITIAL_TCF (historique) la paire EE 100-120 mots + EO 2 min.
+    # Le serveur ne sait rien d'autre : il regarde si ce couple (code, version)
+    # porte un sujet TCF_EO actif, et sert l'étape orale si oui. C'est ce qui
+    # rend le retour arrière gratuit -- reposer INITIAL_TCF ici suffit, sans
+    # migration, sans recalcul, et les sessions déjà passées gardent la forme
+    # sous laquelle elles ont été menées.
+    initial-code: ${DIAGNOSTIC_CODE:QUICK_TCF}
+    analysis:
+      rubrics-version: ${DIAGNOSTIC_RUBRICS_VERSION:v1}
+      tool-schema-version: ${DIAGNOSTIC_TOOL_SCHEMA_VERSION:v1}
+      max-tokens: 2200
+      temperature: 0
+      max-session-retries: 3
+    # SECOND appel « avant / apres » de l'ecran de resultat : la phrase du
+    # candidat, et la meme phrase reecrite au niveau qu'il VISE. Emis APRES
+    # l'analyse et separement d'elle : le contrat d'analyse ne bouge pas d'un
+    # octet et le correcteur du diagnostic n'apprend jamais qu'on va reecrire
+    # quoi que ce soit (mesure v10/v11 : un bloc ajoute a une grille qui juge
+    # fait tomber l'accord exact de 81,8 % a 75,6 %).
+    # ECRIT SEULEMENT : la production orale n'est jamais reecrite.
+    # Best-effort : a false, ou en cas d'echec, le bloc est absent et le
+    # diagnostic reste complet.
+    exemple-cible:
+      enabled: ${DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED:true}
+      # Consignes : prompts/diagnostic-exemple-cible-rubrics-<v>.json.
+      rubrics-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_RUBRICS_VERSION:v1}
+      # Contrat de sortie : prompts/diagnostic-exemple-cible-tool-schema-<v>.json.
+      # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
+      tool-schema-version: ${DIAGNOSTIC_EXEMPLE_CIBLE_TOOL_SCHEMA_VERSION:v1}
+      # Plafond de tokens de SORTIE, propre a cet appel : un numero, une phrase
+      # reecrite, deux ou trois etiquettes de trois mots. C'est un plafond.
+      max-tokens: 700
+      # Zero : deux lectures de la meme production doivent rendre la meme phrase.
+      temperature: 0
+
+  # -------------------------------------------------------------------------- plan
+  # Plafonds d'affichage et poids de classement du Plan : plan/plan-config-v{n}.json.
+  #
+  # 🛑 FICHIER DISTINCT de progression-config, et ca doit le rester (arbitrage du
+  # proprietaire, 2026-08-26) : progression-config porte l'integrite d'engineVersion
+  # et le REJEU de la maitrise, plan-config ne porte que de la SELECTION et de
+  # l'AFFICHAGE et bougera souvent (composition de la seance, rideau, A/B). Les
+  # melanger invaliderait le rejeu a chaque reglage d'ecran.
+  #
+  # INVARIANT : plan-config ne peut RIEN influencer du calcul de maitrise.
+  plan:
+    config-version: ${PLAN_CONFIG_VERSION:1}
+
+  # ------------------------------------------------------------------ parcours TCF
+  # La file d'etapes du Plan TCF : plan/tcf-journey-config-v{n}.json.
+  #
+  # 🛑 FICHIER DISTINCT de plan-config, et pas par gout de la symetrie : plan-config
+  # porte l'interdiction de « rien pouvoir influencer du calcul de maitrise »
+  # (arbitrage du 2026-08-26), or trainSeriesQuota decide de la CLOTURE d'une etape.
+  #
+  # Ce qui n'y est PAS, volontairement : le quota d'etape d'EXPRESSION (il EST
+  # LearningPlanStep.PROMPTS_PAR_ETAPE, deja servi aux fronts dans progress.quota)
+  # et l'ordre des epreuves (il EST TcfDomainProfileDto.ORDRE). Deux copies d'un
+  # chiffre deja servi finissent toujours par diverger.
+  #
+  # v4 (2026-09-27, decisions du proprietaire D-66 / D-68) :
+  #   · finDeCycleExamenRatio DISPARAIT -- l'examen blanc complet a quitte la fin
+  #     de cycle, qui ne propose plus que l'actualisation (D-66) ;
+  #   · examenCompletJalonCycles: 3 -- le jalon « Faire un examen blanc complet »
+  #     est propose apres 3 cycles de TRAVAIL termines depuis le dernier examen
+  #     complet (D-68). Absente (v1 a v3) : aucun jalon au compte des cycles.
+  # v3 (2026-09-20, arbitrage du proprietaire) :
+  #   · trainSeriesFallbackQuota DISPARAIT -- LE FILET DES 4 SERIES TERMINEES EST
+  #     SUPPRIME. Une cle absente veut dire « aucune echappatoire », jamais
+  #     « zero suffit ». Consequence assumee et validee : un candidat qui ne
+  #     passe jamais 16/20 reste sur sa competence (ce que le filet de D-16
+  #     evitait, et l'arbitrage a ete rendu contre) ;
+  #   · finDeCycleExamenRatio: 0.80 -- l'examen qui CLOT LE CYCLE s'ouvre a 80 %
+  #     des etapes terminees. Il ne touche PAS l'examen d'epreuve d'un bloc, qui
+  #     garde son verrou (D-15). Regle annoncee comme NON FIGEE : elle vit ici et
+  #     pas dans le Java precisement pour cela.
+  # 🛑 « Reussie » a desormais UNE autorite, JourneySerieVerdict : 16 bonnes
+  # reponses sur les 20 de la serie, lues sur l'attempt. Le 16 se DERIVE de
+  # learning-plan.comprehension.solid-ratio x la taille de la serie -- aucune 8e
+  # declaration de 0.80.
+  #
+  # v2 (2026-09-18, D-16) et v1 restent sur le disque et restent chargeables A
+  # L'IDENTIQUE : elles portent trainSeriesFallbackQuota (4 et 2) et ignorent
+  # finDeCycleExamenRatio, dont l'absence dit « le cycle entier », l'ancienne
+  # regle. Le retour arriere est cette variable d'environnement, jamais une
+  # migration.
+  tcf-journey:
+    config-version: ${TCF_JOURNEY_CONFIG_VERSION:4}
+
+  # ------------------------------------------------------------------ progression
+  # Moteur de progression V4.2 (docs/plan/SEJOURFR_PROGRESSION_ENGINE_V4_2.md).
+  #
+  # Ces deux cles sont les SEULES qui vivent ici. Seuils, poids, demi-vie, epoch
+  # et gates vivent dans progression/progression-config-v{engine-version}.json,
+  # et nulle part ailleurs -- invariant I32. Aucune valeur metier ne se duplique
+  # dans ce YAML : il n'y a rien a garder synchronise.
+  progression:
+    # SHADOW : les preuves sont enregistrees, les etats calcules, les predictions
+    # persistees, et le Plan servi n'est PAS modifie.
+    # ACTIVE : le Plan lit prescriptionLevel et les etats du moteur.
+    # 🛑 On ne passe a ACTIVE qu'apres validation produit des metriques shadow
+    # (precision des predictions SOLID >= 70 %, cf. §47.4). Les seuils initiaux
+    # sont des hypotheses produit, pas des mesures.
+    mode: ${PROGRESSION_ENGINE_MODE:SHADOW}
+    # Une nouvelle calibration = un nouveau fichier de config + cette version
+    # incrementee + un replay controle (§29). Jamais une edition d'un fichier
+    # deja livre : un retour arriere doit rester un changement de variable
+    # d'environnement, pas une migration.
+    engine-version: ${PROGRESSION_ENGINE_VERSION:1}

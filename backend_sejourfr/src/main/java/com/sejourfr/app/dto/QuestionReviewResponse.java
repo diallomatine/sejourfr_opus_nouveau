@@ -1,0 +1,33 @@
+package com.sejourfr.app.dto;
+
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Version "revue" d'une question : inclut l'explication et le flag correct
+ * sur chaque choix. À renvoyer uniquement quand l'utilisateur a le droit de
+ * voir la correction (question déjà tentée ou favori).
+ */
+public record QuestionReviewResponse(
+        UUID id,
+        Module module,
+        UUID themeId,
+        String themeName,
+        Difficulty difficulty,
+        QuestionType questionType,
+        String statement,
+        String passageText,
+        String explanation,
+        MediaResponse media,
+        // Second média audio des questions CO_IMAGE (cf. QuestionPublicResponse).
+        MediaResponse audioMedia,
+        List<ChoiceReviewResponse> choices,
+        // Choix sélectionnés par l'utilisateur lors de sa dernière tentative.
+        // Liste vide s'il n'a jamais répondu (cas d'une question favori non
+        // tentée). Permet au mobile de marquer en rouge la réponse erronée.
+        List<UUID> userSelectedChoiceIds
+) {}

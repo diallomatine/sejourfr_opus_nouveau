@@ -1,0 +1,5002 @@
+/* ============================================================================
+   Kit « parcours » — diagnostic + plan, TCF et civique.
+
+   Portage 1:1 de la maquette de référence (grok_ecran/src/sejour.css), remappé
+   sur les tokens du dépôt. AUCUNE couleur ni font en dur : tout passe par
+   `var(--color-*)` / `var(--font-*)` de `app/globals.css`.
+
+   Une seule colonne, pensée à 390 px. Au-delà de 560 px la colonne se centre
+   et s'arrête : ces écrans sont des écrans de lecture, pas des tableaux de
+   bord — les élargir casserait la hiérarchie de la maquette.
+
+   🛑 Ce fichier est l'AUTORITÉ visuelle des 7 écrans. Un écran qui a besoin
+   d'un style nouveau l'ajoute ICI, il ne le redéclare pas localement.
+   ============================================================================ */
+
+/* ⚠️ **Les tokens `--sf-*` ne vivent plus ici, mais sur `:root`**
+   (`app/globals.css`, 2026-09-12). Ils étaient déclarés sur `.app`, donc une
+   primitive du kit employée hors du scope `.app` perdait ses rayons et ses
+   ombres sans le dire — c'est arrivé à `ModuleToggle`, désormais rendue par le
+   hub `/entrainement`, qui n'est pas un écran du kit. Les valeurs sont
+   inchangées, seule leur portée a bougé : un token est un token, il appartient
+   à la feuille de tokens. */
+.app {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-bottom: 28px;
+}
+
+.app :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+.app p {
+  text-wrap: pretty;
+}
+
+/* Réserve de place pour la barre d'action collée en bas. */
+.hasSticky {
+  padding-bottom: 148px;
+}
+
+/* ---------- En-tête d'écran ---------- */
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px 8px;
+}
+
+.iconBtn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  margin-left: -6px;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  border-radius: var(--sf-radius-sm);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.iconBtn:hover,
+.iconBtn:focus-visible {
+  background: var(--color-blue-light);
+  outline: none;
+}
+
+/* ---------- Sous la barre du haut de l'espace connecté (≤ 900 px) ----------
+
+   🛑 Le premier élément d'un écran du kit se pose à `--app-bar-gap` de la
+   barre (`AppTopBar`) : `.app` n'ajoute plus rien, c'est l'en-tête qui porte
+   l'écart — 8 px ici + les 6 px de `.topText` (alignement sur la flèche de
+   retour). Hors shell connecté (`/diagnostic` invité, sous le `SiteHeader`) :
+   inchangé.
+
+   `.topInAppBar` : l'en-tête a monté dans la barre (`TopInAppBar`, le Plan).
+   Il s'efface à l'œil et reste le `<h1>` des lecteurs d'écran ; la bascule de
+   parcours qui le suit devient le premier élément visible. */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .app {
+    padding-top: 0;
+  }
+
+  :global(.app-shell--has-drawer) .top {
+    padding-top: calc(var(--app-bar-gap) - 6px);
+  }
+
+  .topInAppBar {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .topInAppBar + .segWrap {
+    padding-top: var(--app-bar-gap);
+  }
+
+  :global(.app-shell--has-drawer) .pIntro {
+    margin-top: var(--app-bar-gap);
+  }
+}
+
+/* La tete d'un ecran de transition (`SheetHead`) : la croix a gauche,
+   l'oeil-de-boeuf a droite. Miroir Flutter : `SfSheetHead`. */
+.sheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 18px 6px;
+}
+
+.sheetEyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  text-align: right;
+}
+
+.topText {
+  padding-top: 6px;
+  min-width: 0;
+}
+
+.kicker {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: 750;
+  color: var(--color-ink);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---------- Rythme ---------- */
+
+.pad {
+  padding: 0 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 10px;
+}
+
+.section {
+  margin-top: 22px;
+}
+
+.sectionH {
+  margin: 0 16px 10px;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.sectionHFlush {
+  margin: 0 0 10px;
+}
+
+/* L'intertitre de tête d'un tableau de bord (« Où vous en êtes »). Variante
+   de `.sectionH`. Miroir Flutter : `SfSectionTitle(lead: true)`. */
+.sectionHLead {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+/* Titre + lien discret à droite (« Mon plan »). La rangée prend les marges du
+   titre, qui n'en garde aucune. */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+}
+
+.sectionHead .sectionH {
+  margin: 0;
+  min-width: 0;
+}
+
+.sectionHead.sectionHFlush {
+  margin: 0 0 12px;
+}
+
+.sectionAction {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-blue);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sectionAction:hover {
+  text-decoration: underline;
+}
+
+.sectionAction:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* L'intertitre en petites capitales mono (« À FAIRE »). Variante de
+   `.sectionH`, pas une seconde règle de titre. Miroir Flutter :
+   `SfSectionTitle(mono: true)`. */
+.sectionHMono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.tiny {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+  letter-spacing: 0.01em;
+}
+
+.sub {
+  margin: 8px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+.footNote {
+  margin: 8px 16px 0;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+/* ---------- Cartes ---------- */
+
+.card {
+  background: #fff;
+  border-radius: var(--sf-radius-xl);
+  box-shadow: var(--sf-shadow-border);
+  padding: 18px 16px;
+}
+
+.cardTight {
+  padding: 8px 16px;
+}
+
+.cardRows {
+  padding: 12px 16px;
+}
+
+.cardSoft {
+  background: var(--color-blue-soft);
+  box-shadow: 0 0 0 1px rgba(30, 58, 140, 0.08);
+}
+
+.cardWarn {
+  background: var(--color-amber-light);
+  box-shadow: 0 0 0 1px var(--color-amber-border);
+}
+
+.cardOk {
+  background: var(--color-green-light);
+  box-shadow: 0 0 0 1px var(--color-green-border);
+}
+
+.cardHero {
+  background: #fff;
+  border-radius: 28px;
+  padding: 22px 18px 18px;
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* ---------- Niveau ---------- */
+
+.level {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 72px;
+  font-weight: 560;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--color-blue);
+}
+
+.goalLine {
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+
+.goalLine span {
+  color: var(--color-blue);
+}
+
+.insight {
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+.emphasis {
+  display: block;
+  margin-top: 10px;
+  font-weight: 750;
+  color: var(--color-blue-dark);
+}
+
+/* ---------- Piste de niveau (A2 — B1 — B2) ---------- */
+
+.trackWrap {
+  padding-bottom: 2px;
+}
+
+.track {
+  position: relative;
+  display: grid;
+  align-items: start;
+  padding: 2px 0 0;
+  margin: 18px 0 2px;
+}
+
+.track::before {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 9px;
+  height: 3px;
+  background: var(--color-line-strong);
+  border-radius: 99px;
+}
+
+/* Portion parcourue : largeur pilotée en ligne (--sf-track-fill). */
+.track::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  width: var(--sf-track-fill, 0%);
+  top: 9px;
+  height: 3px;
+  background: var(--color-blue);
+  border-radius: 99px;
+}
+
+.trackCol {
+  display: grid;
+  justify-items: center;
+  grid-template-rows: 20px 18px 16px;
+  row-gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #c9d0e0;
+  box-shadow: 0 0 0 4px #fff;
+}
+
+.trackCol.isDone .dot {
+  background: #9aa8c9;
+}
+
+.trackCol.isNow .dot {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  background: var(--color-blue);
+  box-shadow: 0 0 0 5px var(--color-blue-light);
+}
+
+.trackCol.isGoal .dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  background: #fff;
+  border: 2px solid var(--color-blue);
+  box-shadow: 0 0 0 4px #fff;
+}
+
+.lvl {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-muted);
+  line-height: 18px;
+}
+
+.trackCol.isNow .lvl {
+  color: var(--color-blue);
+}
+
+.trackCol.isGoal .lvl {
+  color: var(--color-ink);
+}
+
+.cap {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--color-muted);
+  white-space: nowrap;
+  line-height: 16px;
+}
+
+/* ---------- Observations (points positifs / à améliorer) ---------- */
+
+.obs {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 10px;
+  align-items: start;
+  background: #fff;
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-border);
+  padding: 13px 14px;
+}
+
+.obsIco {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.obsIco.ok {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.obsIco.up {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+
+.obsIco.onWhite {
+  background: #fff;
+}
+
+.obsKicker {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.obsKicker.ok {
+  color: var(--color-green-dark);
+}
+
+.obsKicker.up {
+  color: var(--color-amber-dark);
+}
+
+.obs strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+  line-height: 1.3;
+}
+
+.obs p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Encart d'avertissement / de réassurance : icône + bloc de texte. */
+.noteRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.noteTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.noteTitleLg {
+  font-size: 16px;
+}
+
+/* ---------- Lignes d'épreuve ---------- */
+
+.exam {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border-radius: var(--sf-radius-md);
+  box-shadow: var(--sf-shadow-border);
+  padding: 11px 12px;
+}
+
+.exam.simple {
+  grid-template-columns: 40px 1fr;
+}
+
+.examIco {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  flex: 0 0 auto;
+}
+
+.exam b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.exam small {
+  display: block;
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.examEnd {
+  text-align: right;
+}
+
+.lvlChip {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  color: var(--color-blue);
+  line-height: 1;
+}
+
+.status {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: right;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.status.ok {
+  color: var(--color-green-dark);
+}
+
+.status.warn {
+  color: var(--color-amber-dark);
+}
+
+.status.hot {
+  color: var(--color-red-dark);
+}
+
+/* Non mesuré : ni rassurant, ni alarmant. */
+.status.muted {
+  color: var(--color-muted);
+}
+
+/* ---------- Une épreuve / un thème sur Réviser ---------- */
+
+.epreuve {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 40px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px;
+  background: #fff;
+  border: 0;
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-border);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--motion-quick, 120ms) ease-out;
+}
+
+.epreuve:active {
+  transform: scale(0.99);
+}
+
+.epreuve:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.epreuveIco {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+}
+
+.epreuveBody {
+  min-width: 0;
+}
+
+.epreuveBody b {
+  display: block;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.epreuveBody span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+
+/* Le compteur : c'est un nombre, il se lit en chiffres alignés. */
+.epreuveMeta {
+  font-weight: 700;
+  color: var(--color-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.epreuveEnd {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted-2);
+}
+
+.ring {
+  flex: 0 0 auto;
+  justify-self: end;
+}
+
+/* ---------- Listes à cocher ---------- */
+
+.checks {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--color-ink-2);
+  line-height: 1.4;
+}
+
+.tick {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--color-green-light);
+  color: var(--color-green);
+  display: grid;
+  place-items: center;
+}
+
+.tickLg {
+  width: 22px;
+  height: 22px;
+  margin-top: 0;
+}
+
+.tickOnWhite {
+  background: #fff;
+}
+
+/* ---------- Boutons ---------- */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 18px 14px 20px;
+  border: 0;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-red);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(225, 55, 47, 0.22);
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.btn:hover {
+  background: var(--color-red-dark);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.btnGhost {
+  background: var(--color-blue);
+  box-shadow: 0 8px 18px rgba(30, 58, 140, 0.18);
+}
+
+.btnGhost:hover {
+  background: var(--color-blue-dark);
+}
+
+.btnLine {
+  background: #fff;
+  color: var(--color-blue);
+  box-shadow: var(--sf-shadow-border);
+  font-size: 14.5px;
+}
+
+.btnLine:hover {
+  background: var(--color-blue-soft);
+}
+
+/* Ce que l'action va coûter, juste au-dessus du bouton. Miroir Flutter :
+   `SfButton.lead`. */
+.btnLead {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.btnCaption {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.legal {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-muted-2);
+}
+
+.legal a {
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------- Priorités ---------- */
+
+.prio {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  background: #fff;
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-border);
+  padding: 14px 14px 14px 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.prio::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--sf-prio, var(--color-red));
+}
+
+.p1 {
+  --sf-prio: var(--color-red);
+}
+
+.p2 {
+  --sf-prio: var(--color-amber);
+}
+
+.p3 {
+  --sf-prio: var(--color-yellow);
+}
+
+.prioN {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--sf-radius-sm);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--sf-prio);
+}
+
+.prioTag {
+  margin: 0 0 3px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.prio h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.prio p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--color-blue);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+/* Le chevron de l'encart rétractable : il pivote, il ne se remplace pas —
+   une seule icône, donc aucun saut de largeur à l'ouverture. */
+.chevron {
+  transition: transform 0.16s ease;
+}
+
+.chevronUp {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* ---------- Aperçu de plan (lignes numérotées) ---------- */
+
+.mini {
+  display: grid;
+  gap: 0;
+}
+
+.miniRow {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--color-line);
+  font-size: 13.5px;
+}
+
+.miniRow:last-child {
+  border-bottom: 0;
+}
+
+.miniN {
+  font-weight: 800;
+  color: var(--color-blue);
+  font-size: 13px;
+}
+
+.pill {
+  font-size: 11px;
+  font-weight: 750;
+  padding: 4px 8px;
+  border-radius: var(--sf-radius-pill);
+  white-space: nowrap;
+}
+
+.pill.hot {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.pill.warn {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+
+.pill.ok {
+  background: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
+/* ⚠️ **Renommée `.pillNow`** (2026-09-20) : la règle s'appelait `.pill.now` et
+   n'était atteinte par aucun chemin — `toneClass` ne portait pas `now`, et
+   `.now` est par ailleurs la carte « À faire maintenant », dont le rayon et le
+   fond auraient gagné sur ceux de la pastille. Refonte = suppression de
+   l'ancien nom. */
+.pill.pillNow {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.pill.muted {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+/* Variante RESSERRÉE de la pastille — les valeurs de `.status` dans
+   `docs/progression/plan_cycle.html`. ⚠️ Elle ne change **pas** la pastille par
+   défaut : `.pill` sert d'autres écrans. Elle n'existe que pour la ligne
+   d'en-tête de `BlocAccordion`, où la largeur doit aller au **nom de
+   l'épreuve** (D-21). Miroir Flutter : `SfPill(dense: true)`. */
+.pill.dense {
+  font-size: 9.5px;
+  font-weight: 900;
+  padding: 5px 8px;
+}
+
+/* ---------- « À faire maintenant » ---------- */
+
+.now {
+  background: linear-gradient(180deg, #f7f8fc 0%, #fff 42%);
+  border-radius: 28px;
+  box-shadow: var(--sf-shadow-lift);
+  padding: 18px 16px 16px;
+}
+
+/* 🛑 LA CARTE DE VÉRIFICATION EST UNE AUTRE CARTE. Le nom de la compétence ne
+   change pas quand la série se termine : si seul le bouton changeait de
+   libellé, le candidat lirait « rien n'a bougé ». D'où un fond, un liseré et
+   une pastille d'icône ambre — l'accent de « preuve à faire », jamais le vert
+   d'un acquis. */
+.now.isVerify {
+  background: linear-gradient(180deg, var(--color-amber-light) 0%, #fff 46%);
+  box-shadow: var(--sf-shadow-lift), inset 0 0 0 1px var(--color-amber-border);
+}
+
+.now.isVerify .nowIco {
+  background: var(--color-amber-dark);
+}
+
+.now.isVerify /* Le bouton de la carte (enfant `div` de `Cta`) ne colle jamais à l'en-tête
+   quand aucune ligne `meta` ne s'intercale. Miroir : `SfNowCard.child`. */
+.nowHead + div:not(.meta),
+.nowObj + div:not(.meta) {
+  margin-top: 16px;
+}
+
+.nowObj {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px var(--color-amber-border);
+}
+
+.now.isVerify .nowBadge {
+  background: #fff;
+  color: var(--color-amber-dark);
+  box-shadow: inset 0 0 0 1px var(--color-amber-border);
+}
+
+.nowHead {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.nowIco {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sf-radius-md);
+  display: grid;
+  place-items: center;
+  background: var(--color-blue);
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.nowHead b {
+  display: block;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.nowSub {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.nowBadge {
+  display: inline-flex;
+  margin-top: 10px;
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-radius: var(--sf-radius-xs);
+  white-space: nowrap;
+  width: max-content;
+}
+
+.nowObj {
+  margin: 14px 0 0;
+  padding: 12px;
+  background: var(--color-blue-soft);
+  border-radius: 14px;
+}
+
+.nowObj small {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  margin-bottom: 4px;
+}
+
+.nowObj p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--color-ink);
+}
+
+.meta {
+  margin: 12px 0 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+  font-weight: 650;
+}
+
+.meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reco {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-blue-dark);
+  background: var(--color-blue-soft);
+  border-radius: var(--sf-radius-sm);
+  padding: 10px 12px;
+}
+
+/* ---------- Bandeau objectif (niveau actuel → objectif) ---------- */
+
+.goal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.goal small {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 4px;
+}
+
+.goal > div:not(.goalArrow) {
+  container-type: inline-size;
+}
+
+/* La taille suit le mot le plus long (`--goal-word`, posé par `GoalValue`) :
+   ~0,62 em par caractère en Fraunces, donc le mot tient dans 100cqi. */
+.goal b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: min(32px, calc(100cqi / (var(--goal-word, 4) * 0.62)));
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  color: var(--color-blue);
+  line-height: 1;
+}
+
+.goalArrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- Parcours (étapes) ---------- */
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--color-ink);
+}
+
+.progressLabel span {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.bar {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.bar i {
+  display: block;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--color-line);
+}
+
+.bar i.on {
+  background: var(--color-green);
+}
+
+.bar i.nowSeg {
+  background: var(--color-blue);
+}
+
+/* Série finie, preuve encore à faire : ni la ligne d'arrivée (vert), ni le
+   travail en cours (bleu). */
+.bar i.verifySeg {
+  background: var(--color-amber);
+}
+
+.step {
+  display: grid;
+  /* La 3ᵉ colonne SHRINKE : la pastille peut porter « Série terminée · À
+     vérifier », qui déborderait un téléphone à 360 px en `auto` pur. */
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+
+.step.isDone {
+  color: var(--color-muted);
+}
+
+.step.isDone b {
+  font-weight: 600;
+}
+
+.step.isNext {
+  background: var(--color-blue-soft);
+  margin: 0 -10px;
+  padding: 8px 10px;
+  border-radius: var(--sf-radius-sm);
+}
+
+.step.isNext b {
+  font-weight: 750;
+}
+
+/* 🛑 « Série terminée · À vérifier » doit se lire au premier coup d'œil comme
+   un état À PART : ce n'est ni une coche verte (rien n'est acquis) ni une
+   ligne à venir. */
+.step.isVerify {
+  background: var(--color-amber-light);
+  margin: 0 -10px;
+  padding: 8px 10px;
+  border-radius: var(--sf-radius-sm);
+}
+
+.step.isVerify b {
+  font-weight: 750;
+}
+
+.step.isVerify .bullet {
+  background: #fff;
+  color: var(--color-amber-dark);
+  box-shadow: 0 0 0 1px var(--color-amber-border);
+}
+
+.step.isVerify .nowPill {
+  color: var(--color-amber-dark);
+  box-shadow: 0 0 0 1px var(--color-amber-border);
+}
+
+.nowPill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  background: #fff;
+  border-radius: var(--sf-radius-xs);
+  padding: 4px 7px;
+  /* La pastille porte un état SERVI (« Série terminée · À vérifier ») : sur un
+     téléphone elle doit se replier sur deux lignes plutôt que d'être tronquée —
+     un état à moitié lu ne dit plus rien. */
+  white-space: normal;
+  text-align: right;
+  text-wrap: balance;
+  min-width: 0;
+  box-shadow: 0 0 0 1px rgba(30, 58, 140, 0.12);
+}
+
+.bullet {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-line);
+  color: var(--color-muted);
+}
+
+.step.isDone .bullet {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.step.isNext .bullet {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  box-shadow: 0 0 0 3px #eef1fb;
+}
+
+/* ---------- Lignes « déjà validé » ---------- */
+
+.doneRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--color-ink-2);
+}
+
+.doneRowFlush {
+  padding-top: 0;
+}
+
+.skillMini {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.skillMiniRow {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.skillMiniRow.isDone {
+  color: var(--color-green-dark);
+}
+
+.skillMiniRow.isNow {
+  color: var(--color-blue-dark);
+  font-weight: 700;
+}
+
+/* ---------- Bascule TCF | Civique ---------- */
+
+.segWrap {
+  padding: 12px 16px 4px;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-blue-light);
+  border-radius: 14px;
+}
+
+.seg a,
+.seg button {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--color-blue);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 750;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.seg a.isOn,
+.seg button.isOn {
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: var(--sf-shadow-border);
+}
+
+/* ---------- Pastilles de contexte ---------- */
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pillMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #fff;
+  border-radius: var(--sf-radius-sm);
+  box-shadow: var(--sf-shadow-border);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Score (civique) ---------- */
+
+.score {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 560;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: var(--color-blue);
+}
+
+.scoreMd {
+  font-size: 40px;
+}
+
+.score small {
+  font-size: 22px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.threshold {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--color-blue-soft);
+  border-radius: var(--sf-radius-sm);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-ink-2);
+}
+
+.sitScore {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+/* ---------- Lignes de thème ---------- */
+
+.themeLine {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.themeLine:last-child {
+  border-bottom: 0;
+}
+
+.themeLine b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.themeMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.themeMark.ok {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.themeMark.hot {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.themeMark.warn {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+
+.themeMark.muted {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.themeList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.themeList li {
+  position: relative;
+  padding: 8px 0 8px 14px;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.themeList li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.themeList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-blue);
+}
+
+/* ---------- Statistiques d'intro ---------- */
+
+.statGrid {
+  display: grid;
+  /* Le nombre de colonnes SUIT la liste : un compteur que le serveur ne sert
+     pas laisse sa place aux autres au lieu d'un vide. */
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+  text-align: center;
+}
+
+.statGrid b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 560;
+  color: var(--color-blue);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.statGrid span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--color-muted);
+  line-height: 1.3;
+}
+
+/* Les mêmes compteurs POSÉS SUR UN FOND DE MARQUE (`.hero .stat` de
+   `histo_cycle.html`) : tuiles translucides, calées à gauche. */
+.statGrid.isOnHero {
+  text-align: left;
+}
+
+.isOnHero .stat {
+  min-height: 72px;
+  padding: 11px 9px;
+  border-radius: 14px;
+  background: color-mix(in srgb, white 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 12%, transparent);
+  min-width: 0;
+}
+
+.isOnHero .stat b {
+  font-family: var(--font-sans);
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: white;
+  overflow-wrap: anywhere;
+}
+
+.isOnHero .stat span {
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  color: color-mix(in srgb, white 70%, transparent);
+}
+
+/* Le compteur accentué de la maquette. 🛑 C'est l'ÉCRAN qui l'élit, pas le
+   kit : le rouge clair n'est pas un signal d'urgence, c'est l'accent de marque
+   posé sur le chiffre que l'écran met en avant. */
+.isOnHero .stat.isAccent b {
+  color: var(--color-red-bright);
+}
+
+/* ---------- Cartes de choix (démarche, pass) ---------- */
+
+.choice {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 0;
+  box-shadow: var(--sf-shadow-border);
+  border-radius: var(--sf-radius-md);
+  padding: 14px;
+  min-height: 52px;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  font-weight: 650;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    box-shadow var(--sf-quick) var(--sf-ease-out);
+}
+
+.choice:active {
+  transform: scale(0.98);
+}
+
+.choice.isOn {
+  box-shadow: 0 0 0 2px var(--color-blue);
+  background: var(--color-blue-soft);
+  color: var(--color-blue-dark);
+}
+
+.choiceRow {
+  display: grid;
+  grid-template-columns: 1fr 22px;
+  gap: 10px;
+  align-items: center;
+}
+
+.choiceMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line-strong);
+  background: #fff;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.choice.isOn .choiceMark,
+/* ---------- Barre d'action collée ---------- */
+
+.sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 20px;
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--color-paper) 94%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--sf-shadow-sticky);
+}
+
+/* ---------- Apparition ---------- */
+
+.app > * {
+  animation: sfIn var(--sf-fast) var(--sf-ease-out) both;
+}
+
+.app > *:nth-child(1) { animation-delay: 0ms; }
+.app > *:nth-child(2) { animation-delay: 40ms; }
+.app > *:nth-child(3) { animation-delay: 80ms; }
+.app > *:nth-child(4) { animation-delay: 120ms; }
+.app > *:nth-child(5) { animation-delay: 160ms; }
+.app > *:nth-child(6) { animation-delay: 200ms; }
+.app > *:nth-child(7) { animation-delay: 240ms; }
+.app > *:nth-child(8) { animation-delay: 280ms; }
+
+@keyframes sfIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app > *,
+  .btn,
+  .iconBtn,
+  .choice {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* ---------- Confort de lecture au-dessus de 560 px ---------- */
+
+@media (min-width: 620px) {
+  .app {
+    padding-top: 8px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  /* La barre collée ne sort pas de la colonne : elle la suit. */
+  .sticky {
+    border-radius: var(--sf-radius-lg) var(--sf-radius-lg) 0 0;
+  }
+
+  /* 🛑 **La colonne cesse d'être une colonne de téléphone.** 560 px, c'était la
+     largeur d'un écran mobile étiré ; 720 px est la *colonne de lecture* de la
+     maquette (`.sf-main` d'un écran sans barre d'onglets ni barre collée). Le
+     rendu ≤ 620 px, lui, ne bouge pas d'un pixel. */
+  .app {
+    max-width: 720px;
+  }
+}
+
+/* ============================================================================
+   LE PALIER DESKTOP — la fondation des écrans « web » (2026-09-12)
+   ============================================================================
+
+   ## Ce que fait la maquette (`grok_ecran/src/sejour.css`)
+
+   Elle n'a **qu'une** borne de mise en page, `@media (min-width: 960px)` (plus
+   une borne *interne* à 1100 px qui fait seulement passer deux grilles de 2 à
+   3 colonnes). À cette borne :
+
+   1. le cadre téléphone disparaît et la barre latérale de 248 px apparaît ;
+   2. la colonne de contenu (`.sf-main`) cesse d'être plafonnée à 390 px et
+      prend un plafond **choisi par la NATURE de l'écran** — 1080 px pour un
+      tableau de bord, 980 px pour un écran à barre d'action collée, 720 px
+      pour un écran de lecture — avec une gouttière de 36 px ;
+      ⚠️ le quatrième régime, `report` (980 px de conteneur, 720 px de texte),
+      est le nôtre : la maquette n'a pas d'écran de rapport en desktop. Il ne
+      crée ni borne ni composant, il ne fait que combiner deux plafonds déjà
+      là — cf. son bloc dédié plus bas ;
+   3. les blocs perdent leur padding latéral de 16 px (la gouttière a déménagé
+      sur la colonne) ;
+   4. des **classes de disposition** inertes sur mobile (`.sf-desk-pair`,
+      `.sf-prio-grid`, `.sf-obs-grid`, `.sf-exam-grid`) deviennent des grilles.
+
+   🛑 **C'est le point à retenir : le desktop n'ajoute AUCUN composant.** Ce
+   sont des media queries sur les briques qui existent déjà, plus des `div`
+   porteurs d'une classe de grille. C'est exactement ce qu'on transpose ici.
+
+   ## Nos bornes, et pourquoi ce sont les siennes
+
+   - **620 px** — borne déjà présente (confort de lecture). Inchangée.
+   - **960 px** — la borne desktop. On reprend le chiffre de la maquette parce
+     que notre shell connecté a **la même barre latérale de 248 px** qu'elle :
+     à 960 px de fenêtre, la colonne de contenu vaut 712 px des deux côtés, donc
+     la maquette *prouve* que ses deux colonnes tiennent. Ce n'est pas un
+     chiffre rond choisi au hasard, c'est une mesure vérifiée
+     (`screenshots/accueil.png`, 1280 px : 1280 − 248 − 2 × 36 = 960 px de
+     contenu, ce que la capture mesure exactement).
+   - **1100 px** — borne *interne* : `.deskGrid` passe de 2 à 3 colonnes. Idem
+     maquette, et valide pour la même raison.
+
+   🛑 **On n'en ajoute pas d'autres.** Un écran qui « aurait besoin » d'une
+   quatrième borne a en réalité besoin d'une des trois largeurs de colonne.
+
+   ## Comment un écran s'en sert
+
+   - `<SejourApp wide>` → colonne de 1080 px (tableau de bord : l'Accueil, le
+     Plan). `<SejourApp sticky>` → 980 px (écran à barre d'action collée).
+     `<SejourApp report>` → conteneur de 980 px **dont le texte reste à
+     720 px** (les trois rapports de diagnostic ; détail plus bas). Sans rien →
+     720 px, colonne de lecture pleine et entière.
+   - `<div className={sejourStyles.deskPair}>` autour de **deux** `Section`
+     voisines → elles se posent côte à côte à partir de 960 px, l'une sous
+     l'autre en dessous. Une seule `Section` dans la paire occupe la colonne de
+     gauche et laisse la droite vide : c'est le comportement de la maquette
+     (cf. `accueil-civ.png`), pas un accident.
+   - `<Stack className={sejourStyles.deskGrid}>` → 1 colonne, puis 2 à 960 px,
+     puis 3 à 1100 px (priorités, observations).
+   - `<Stack className={sejourStyles.deskGrid2}>` → 1 colonne, puis 2 à 960 px,
+     et on s'arrête là (épreuves, cartes larges).
+
+   🛑 **Ces classes ne sont PAS des primitives.** Elles n'ont, et ne doivent
+   avoir, aucun miroir dans `sejour_kit.dart` : l'app Flutter est en portrait
+   téléphone, elle n'a pas de desktop. Un motif *visuel* nouveau, lui, reste
+   une primitive et s'ajoute des DEUX côtés dans la même passe.
+   ============================================================================ */
+
+/* 🛑 Sous 960 px ces trois classes ne déclarent RIEN : `deskPair` reste un
+   `div` de flux ordinaire et `deskGrid`/`deskGrid2` s'emploient sur un `Stack`
+   qui empile déjà. C'est ce qui garantit que le rendu mobile est, au sens
+   strict, le rendu d'avant. */
+
+@media (min-width: 960px) {
+  /* Un écran de LECTURE ne s'élargit pas : ce qu'il gagnerait en largeur, il
+     le perdrait en lisibilité. Il reste à sa colonne de 720 px. */
+  .app {
+    padding-inline: 36px;
+    padding-bottom: 48px;
+  }
+
+  /* La barre d'action n'a plus besoin de réserver la hauteur d'un pouce : elle
+     redevient une carte dans le flux (voir `.sticky` plus bas). */
+  .app.hasSticky {
+    max-width: 980px;
+    padding-bottom: 32px;
+  }
+
+  .app.wide {
+    max-width: 1080px;
+  }
+
+  /* ---------- `report` — conteneur LARGE, colonne de texte ÉTROITE ----------
+
+     🛑 **Une quatrième NATURE d'écran, pas une quatrième borne** (arbitrage du
+     propriétaire, 2026-09-12) : « Ne passe pas simplement tout à 980 px. Garde
+     une colonne de lecture confortable autour de 720 px pour le texte, mais
+     autorise le conteneur du rapport à monter jusqu'à 980 px lorsque le
+     contenu en bénéficie : grilles de compétences, cartes, comparaisons,
+     résultats par épreuve. » Elle règle les deux défauts d'un coup : la colonne
+     minuscule perdue au milieu d'un desktop, et les lignes de texte trop
+     longues. Les trois rapports de diagnostic l'emploient — rapide, complet
+     TCF, civique — plus la porte d'entrée du Plan, qui encastre le rapide.
+
+     **La règle tient en une phrase : dans un `report`, tout est du TEXTE par
+     défaut et plafonné à 720 px ; ce qui porte une classe de GRILLE
+     (`deskGrid`, `deskGrid2`, `deskPair`) s'en affranchit et prend les 980 px.**
+
+     🛑 **Un nouveau bloc n'a donc RIEN de nouveau à marquer**, et c'est le
+     point : il déclare déjà exactement ça au palier desktop. S'il range des
+     cartes, il porte sa grille — donc il est large. S'il raconte quelque chose,
+     il ne porte rien — donc il reste lisible. Pas de classe « pleine largeur »
+     à retenir, pas de liste d'exceptions à tenir à jour.
+
+     Et la règle ne peut pas se retourner contre un écran : un `max-width` est
+     **inerte** partout où le conteneur est déjà plus étroit — dans une colonne
+     de `deskPair`, dans une carte, et à toute largeur de fenêtre < 960 px.
+
+     ⚠️ L'en-tête de page (`.top`) n'est PAS plafonné : c'est une rangée flex
+     dont les enfants sont dimensionnés par leur contenu (flèche, eyebrow,
+     titre, badge), elle commence au bord gauche et se lit pareil à 720 comme à
+     980. Lui poser un plafond n'aurait rien changé qu'une règle de plus. */
+
+  .app.report {
+    max-width: 980px;
+  }
+
+  /* Le texte, par défaut. `.pad` est la gouttière que TOUS les blocs du kit
+     traversent : le plafond se pose là, une fois, au lieu d'être répété sur
+     chaque primitive de paragraphe (`.insight`, `.sub`, `.tiny`, `.threshold`…).
+     `.sectionH` et `.footNote` vivent hors de `.pad`, d'où leurs deux lignes. */
+  .app.report .pad,
+  .app.report .sectionH,
+  .app.report .footNote {
+    max-width: 720px;
+  }
+
+  /* ⚠️ **Le titre suit son contenu, jamais l'inverse.** Un titre de section
+     calé à 720 px au-dessus d'une grille qui en fait 980 se lirait décentré, et
+     un titre de 980 px au-dessus d'un paragraphe de 720 aussi. C'est donc la
+     SECTION qui tranche, en regardant si elle range une grille — et son titre
+     comme son contenu prennent la même largeur. */
+  .app.report .section:has(.deskGrid, .deskGrid2, .deskPair) .sectionH,
+  .app.report .pad:has(.deskGrid, .deskGrid2, .deskPair),
+  .app.report .deskPair {
+    max-width: none;
+  }
+
+  /* La gouttière a déménagé sur la colonne : les blocs la rendent. */
+  .pad,
+  .top,
+  .segWrap {
+    padding-inline: 0;
+  }
+
+  .sectionH,
+  .sectionHead,
+  .footNote {
+    margin-inline: 0;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  /* Un bouton pleine largeur sur 1008 px de colonne n'est plus un bouton,
+     c'est une bannière. Exceptions : ceux qui vivent DANS une carte, dont la
+     largeur est déjà celle de la carte. */
+  .btn {
+    max-width: 420px;
+  }
+
+  .now .btn,
+  .cardHero .btn,
+  .card .btn,
+  .cardOk .btn,
+  .nextStep .btn,
+  .sticky .btn {
+    max-width: none;
+  }
+
+  /* Plus de barre posée sur le bord bas de l'écran : une carte collée en fin
+     de colonne, comme la maquette. */
+  .sticky {
+    border-radius: var(--sf-radius-lg);
+    margin-top: 24px;
+    padding: 14px 16px;
+    background: #fff;
+    backdrop-filter: none;
+    box-shadow: var(--sf-shadow-border);
+  }
+
+  .deskPair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 28px;
+    align-items: start;
+  }
+
+  .deskGrid,
+  .deskGrid2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* 🛑 **Une carte seule sur sa rangée prend toute la rangée** (arbitrage du
+     propriétaire, 2026-09-12). La règle vit ICI, dans le kit, et vaut pour les
+     trois grilles : un écran qui perd un bloc selon l'état du candidat —
+     « Affiner votre Plan » qui disparaît à 4 / 4, « À faire maintenant » sans
+     priorité servie, « Déjà travaillé » encore vide — ne doit pas laisser une
+     demi-colonne blanche à sa place. Réserver le vide pour garder la grille
+     donne à lire un contenu manquant ; l'interface suit l'état, pas l'inverse.
+
+     Sous 960 px la question ne se pose pas : ce sont des blocs empilés en
+     pleine largeur. */
+  .deskPair > :only-child,
+  .deskGrid > :only-child,
+  .deskGrid2 > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  .isLead .panelTitle {
+    font-size: 28px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .deskGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Même raison, un cran plus loin : à trois colonnes, **deux** cartes
+     laisseraient un tiers vide. La rangée redescend à deux colonnes plutôt que
+     de garder une place pour une carte qui n'existe pas. */
+  .deskGrid:has(> :nth-child(2):last-child) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* ==========================================================================
+   Maquette « Où vous en êtes » (propriétaire, 2026-09-16)
+
+   🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
+   `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
+   ce bloc doit rester vide.
+   ========================================================================== */
+
+/* ---------- « Où vous en êtes » : la grille de cartes d'épreuve ---------- */
+
+/* 🛑 **Maquette v3 (2026-09-24)** : une carte blanche PAR épreuve, deux
+   colonnes dès 360 px. La grille se règle sur **sa propre largeur** (requête
+   de conteneur), jamais sur la fenêtre : la barre latérale du desktop en
+   mange une part variable.
+   - < 560 px de grille : deux colonnes serrées (téléphone) ;
+   - ≥ 560 px : deux colonnes aérées (tablette, desktop étroit) ;
+   - ≥ 820 px : quatre cartes sur UNE rangée, cinq en 3 + 2.
+   Une dernière carte impaire prend toute la rangée tant que la grille est en
+   deux colonnes. Les cartes d'une rangée ont toujours la même hauteur, et
+   leur action est épinglée en bas. */
+.levelCardGridWrap {
+  container-type: inline-size;
+}
+
+.levelCardGrid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.levelCardItem {
+  display: flex;
+  min-width: 0;
+}
+
+.levelCardItem:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.levelCard {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px 12px 12px;
+  border: 0;
+  border-radius: var(--sf-radius-lg);
+  background: white;
+  box-shadow: var(--sf-shadow-border);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: box-shadow var(--sf-quick), transform var(--sf-quick);
+}
+
+.levelCard:hover {
+  box-shadow: var(--sf-shadow-lift);
+}
+
+.levelCard:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.levelCard:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Une épreuve **jamais mesurée** se détache : c'est la seule carte qui
+   demande un geste pour exister. 🛑 Le fait est **passé** (`measured`), jamais
+   lu d'un libellé — et il ne se confond pas avec « &lt;A1 », qui est une
+   mesure. */
+.levelCard.isTodo {
+  background: var(--color-paper-2);
+}
+
+.levelCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Le repère court (« CO »), en mono : c'est une étiquette technique. */
+.levelCardMark {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.levelCardIcon {
+  flex: 0 0 auto;
+  color: var(--color-blue);
+}
+
+/* 🛑 **Coupé entre deux mots, jamais au milieu** : « Compréhension écrite »
+   passe sur deux lignes à 360 px, et « Compréhension » tient entier dans une
+   demi-carte. */
+.levelCardName {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--color-muted);
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+}
+
+/* Le palier, en très gros : c'est LA donnée de la carte. Sa taille suit la
+   largeur de la carte (`cqi`), bornée — « &lt;A1 » tient dans une demi-carte
+   de 360 px. */
+.levelCardLevel {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(34px, 30cqi, 52px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* 🛑 Non mesuré : le mot de l'absence, en neutre et en petit. Le très gros
+   noir est réservé à un palier réel — une absence de mesure en gros se
+   lirait comme un résultat. */
+.levelCardLevel.isNa {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--color-muted);
+  white-space: normal;
+}
+
+/* La pastille de statut prend le ton **servi**, et le mot le redit : la
+   couleur n'est jamais le seul porteur de l'information. */
+.levelCardStatus {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.levelCardStatus::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translateY(-1px);
+}
+
+.levelCardScale {
+  display: block;
+  margin-top: 12px;
+}
+
+/* 🛑 **L'action épinglée en bas** : `margin-top: auto` pousse le filet et le
+   lien au pied de la carte, donc les barres et les « Voir mes résultats »
+   d'une même rangée restent alignés quelle que soit la longueur des noms. */
+.levelCardFoot {
+  display: block;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.levelCardCta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-blue);
+}
+
+.levelCardCta > svg {
+  flex: 0 0 auto;
+}
+
+/* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
+   jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
+.levelCardCta.isPrimary {
+  justify-content: center;
+  padding: 9px 12px;
+  border-top: 0;
+  border-radius: var(--sf-radius-xs);
+  background: var(--color-red);
+  color: white;
+  text-align: center;
+  transition: background var(--sf-quick);
+}
+
+.levelCard:hover .levelCardCta.isPrimary {
+  background: var(--color-red-dark);
+}
+
+/* ---------- Deux actions : un lien ET la mesure qui manque (2026-09-27) ----------
+   La carte n'est plus un seul lien : chaque action l'est. Empilées, jamais
+   côte à côte — deux boutons ne tiennent pas dans une demi-carte de 360 px. */
+.levelCard.isStatic {
+  cursor: default;
+}
+
+.levelCard.isStatic:hover {
+  box-shadow: var(--sf-shadow-border);
+}
+
+.levelCardFoot.isDouble {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.isDouble .levelCardCta {
+  width: 100%;
+  margin: 0;
+  padding: 12px 0 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.isDouble .levelCardCta.isPrimary {
+  padding: 9px 12px;
+  background: var(--color-red);
+  text-align: center;
+}
+
+.isDouble .levelCardCta.isPrimary:hover {
+  background: var(--color-red-dark);
+}
+
+.isDouble .levelCardCta:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.isDouble .levelCardCta:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.toneOk { color: var(--color-green); }
+.toneNow { color: var(--color-blue); }
+.toneWarn { color: var(--color-amber-dark); }
+.toneHot { color: var(--color-red-dark); }
+.toneMuted { color: var(--color-muted); }
+
+/* Tablette et desktop étroit : mêmes deux colonnes, plus d'air. */
+@container (min-width: 560px) {
+  .levelCardGrid {
+    gap: 14px;
+  }
+
+  .levelCard {
+    padding: 18px 18px 16px;
+  }
+}
+
+/* Desktop large : les quatre épreuves sur une rangée ; les cinq thèmes
+   civiques en 3 + 2 sur une grille de six colonnes — cinq cartes côte à côte
+   y seraient trop étroites pour leurs intitulés. */
+@container (min-width: 820px) {
+  .levelCardGrid:has(> .levelCardItem:nth-child(4):last-child) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem {
+    grid-column: span 2;
+  }
+
+  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem:nth-child(n + 4) {
+    grid-column: span 3;
+  }
+}
+
+/* ---------- L'échelle CECRL : l'élément signature ---------- */
+
+/* 🛑 **Quatre crans à largeur égale**, jamais proportionnels : ce n'est pas
+   une jauge, c'est une position. Aucun chiffre n'y est écrit.
+
+   ⚠️ La maquette en montrait SIX (C1 et C2 grisés) : arbitrage du propriétaire
+   du 2026-09-16 — l'échelle s'arrête à B2, comme le reste du produit. */
+.ladder {
+  display: block;
+}
+
+/* 🛑 **Autant de colonnes qu'on lui passe de crans, à largeur égale** : la
+   piste comptait `repeat(4, …)` en dur, ce qui laissait une colonne vide sous
+   une échelle de trois crans. `grid-auto-flow: column` lit le nombre de crans
+   dans les enfants — le rendu du TCF (quatre crans) est inchangé, et l'échelle
+   civique (trois états servis) tombe juste. */
+.ladderTrack {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.ladderStep {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--color-line);
+}
+
+.ladderStep.isDone {
+  background: var(--color-blue-muted);
+}
+
+.ladderStep.isTarget {
+  background: var(--color-red-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-red-muted);
+}
+
+/* Épreuve jamais mesurée : les crans passent en contour. Le cran d'objectif,
+   lui, reste marqué — c'est la seule chose qu'on sait d'elle. */
+.ladder.isDim .ladderStep {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-line);
+}
+
+.ladder.isDim .ladderStep.isTarget {
+  background: var(--color-red-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-red-muted);
+}
+
+/* Les libellés sous CHAQUE échelle (maquette v3) : chaque carte d'épreuve
+   porte la sienne, il n'y a plus de légende commune. */
+.ladderLabels {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.ladderLabels span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-muted-2);
+  text-align: center;
+}
+
+.ladderLabels .isCur {
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.ladderLabels .isTgt {
+  color: var(--color-red);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ladderStep {
+    transition: background var(--sf-fast);
+  }
+}
+
+/* ---------- Le bandeau d'objectif ---------- */
+
+/* 🛑 **Bande bleue pleine** : elle annonce l'objectif avant que les cartes
+   disent où on en est. Le compteur « 4 / 4 » s'écrit en gros, sans pastilles
+   (maquette v3, 2026-09-24) : les cartes en dessous les montrent déjà. */
+.goalBanner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-blue);
+  color: white;
+}
+
+/* La cocarde : trois cercles concentriques, en pur dégradé radial. */
+.goalCocarde {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--color-red) 0 36%,
+    white 37% 70%,
+    var(--color-blue-dark) 71%
+  );
+  box-shadow: 0 0 0 2px color-mix(in srgb, white 25%, transparent);
+}
+
+.goalBannerBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.goalBannerBody small {
+  font-size: 13px;
+  font-weight: 500;
+  color: color-mix(in srgb, white 78%, var(--color-blue));
+}
+
+.goalBannerBody b {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.goalCount {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.goalCount b {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.goalCount small {
+  margin-top: 2px;
+  font-size: 12px;
+  color: color-mix(in srgb, white 78%, var(--color-blue));
+}
+
+@media (min-width: 620px) {
+  .goalBanner {
+    padding: 18px 22px;
+  }
+}
+
+/* ---------- La note discrète de bas de carte ---------- */
+
+.microNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.microNoteIco {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-blue);
+}
+
+/* ---------- L'en-tête d'un panneau ---------- */
+
+.panelHead {
+  margin-bottom: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.panelSub {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* Variante **de tête de carte** (maquette « Où vous en êtes » v2) : un titre
+   éditorial et une phrase de cadrage, là où la variante par défaut coiffe un
+   bloc dans une page de résultats. 🛑 Une variante, pas une primitive de plus. */
+.panelHead.isLead {
+  margin-bottom: 12px;
+}
+
+.isLead .panelTitle {
+  font-size: 23px;
+  letter-spacing: -0.03em;
+}
+
+.isLead .panelSub {
+  margin-top: 6px;
+  max-width: 44ch;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* ---------- L'encart de pied de liste ---------- */
+
+.infoNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 12px 13px;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-amber-light);
+  border: 1px solid var(--color-amber-border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--color-amber-dark);
+}
+
+.infoNote b {
+  font-weight: 800;
+}
+
+.infoNoteIco {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--color-amber-dark);
+}
+
+/* L'encart de **validation** : il énonce une condition à remplir, pas une
+   réserve — d'où le bleu et la coche. Miroir Flutter :
+   `SfInfoNote(variant: SfInfoNoteVariant.check)`. */
+.infoNote.isCheck {
+  background: var(--color-blue-light);
+  border-color: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.isCheck .infoNoteIco {
+  color: var(--color-blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levelCard,
+  .ladderStep {
+    transition: none;
+  }
+}
+
+/* ======================================================================
+   PARCOURS TCF — la file d'étapes (spec §12-13)
+
+   🛑 Une étape VERROUILLÉE garde exactement sa place et sa taille : on ajoute
+   un cadenas, on ne déplace ni ne masque rien. C'est la contradiction #1 du
+   dépôt, tranchée le 2026-08-21 — « le Plan reste intégralement visible ».
+   ====================================================================== */
+
+.journey {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Le rail : un trait continu derrière les marqueurs. Il s'arrête avant la
+   première et après la dernière pastille (les 14 px), sinon il dépasse en
+   haut et en bas de la liste. */
+.journey::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--color-line);
+  border-radius: 2px;
+}
+
+.jRow {
+  position: relative;
+  display: grid;
+  /* La colonne du badge SHRINKE : « Déjà maîtrisée » déborderait un téléphone
+     à 360 px en `auto` pur. */
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px 9px 0;
+  border-radius: var(--sf-radius-sm);
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.jRowButton {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+}
+
+.jBullet {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-muted);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+/* Le CHECKPOINT se repère de loin : double cercle, jamais un rond plein. Ce
+   n'est pas une tâche de plus, c'est ce qui clôt un lot. */
+.jBullet.jExam {
+  color: var(--color-blue);
+  box-shadow: 0 0 0 1px var(--color-blue), inset 0 0 0 3px #fff;
+  background: var(--color-blue-soft);
+}
+
+.jText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.jText b {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.jText span {
+  font-size: 14px;
+}
+
+.jText small {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.jDone {
+  color: var(--color-muted);
+}
+
+.jDone .jBullet {
+  color: var(--color-green);
+  background: var(--color-green-light);
+  box-shadow: 0 0 0 1px var(--color-green-border);
+}
+
+.jDone .jText b {
+  font-weight: 600;
+}
+
+.jCurrent {
+  background: var(--color-blue-soft);
+}
+
+.jCurrent .jBullet {
+  color: #fff;
+  background: var(--color-blue);
+  box-shadow: none;
+}
+
+.jCurrent .jText b {
+  font-weight: 800;
+}
+
+.jLock {
+  color: var(--color-muted);
+}
+
+.jBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  background: #fff;
+  border-radius: var(--sf-radius-xs);
+  padding: 4px 7px;
+  box-shadow: 0 0 0 1px var(--color-line);
+  /* Un état à moitié lu ne dit plus rien : on replie plutôt que de tronquer. */
+  white-space: normal;
+  text-align: right;
+  text-wrap: balance;
+  min-width: 0;
+}
+
+.jDone .jBadge {
+  color: var(--color-green);
+  box-shadow: 0 0 0 1px var(--color-green-border);
+}
+
+/* ----------------------------------------------------------------------
+   VARIANTE « cycle » — le CORPS DÉPLIÉ d'un bloc d'épreuve
+   (`.groupBody` / `.step` de `docs/progression/plan_cycle.html`)
+
+   🛑 **Une VARIANTE, pas un remplacement.** `JourneyRow` est aussi la file de
+   l'ACCUEIL (`app/(app)/dashboard/page.tsx`), qui ne doit pas bouger d'un
+   pixel (D-22). L'Accueil n'enveloppe pas ses lignes dans une `JourneyList` :
+   il ne peut donc pas hériter de `.journeyCycle`, et tout ce qui suit est
+   inatteignable depuis lui. Le rendu par défaut ci-dessus est intact.
+
+   🛑 **Géométrie copiée à la lettre** (consigne du propriétaire du
+   2026-09-19 : « fais comme la maquette avec nos couleurs ») : retrait de
+   65 px, pastilles 16×16 à `left:-28px` / `top:17px`, rail de 2 px aligné sous
+   leur centre, pointillés entre les étapes et pas après la dernière, 14 px de
+   respiration, ligne d'action à 9 px.
+
+   Teintes : ce sont NOS tokens, choisis au plus près de la maquette —
+   `#e6e9f1` (pointillé) et `#e7eaf2` (rail) ⇒ `--color-line` (#E4E7F2),
+   `#cfd5e5` (bordure de pastille) ⇒ `--color-line-strong` (#D4DAE6),
+   `#fff3f1` (fond du tag) ⇒ `--color-red-light`.
+
+   Miroir Flutter : `SfJourneyList(variant: SfJourneyVariant.cycle)` +
+   `_SfJourneyCycleSlot`.
+   ---------------------------------------------------------------------- */
+
+.journeyCycle {
+  display: block;
+  /* `.groupBody` de la maquette retire à 65 px. `.blocBody` en pose déjà 15 :
+     la file complète les 50 qui manquent, et l'encart d'examen — qui est ici
+     la dernière étape de la file — s'aligne dessus. */
+  padding-left: 50px;
+}
+
+/* Le rail CONTINU du rendu par défaut n'a pas cours ici : chaque étape porte
+   son propre segment, qui s'interrompt autour de chaque pastille. */
+.journeyCycle::before {
+  content: none;
+}
+
+.journeyCycle .jRow {
+  display: block;
+  position: relative;
+  grid-template-columns: none;
+  gap: 0;
+  padding: 14px 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-ink);
+  /* `.step` : 1px dashed #e6e9f1 — notre `--color-line` en est à 2 unités. */
+  border-bottom: 1px dashed var(--color-line);
+}
+
+.journeyCycle .jRow:last-child {
+  border-bottom: 0;
+}
+
+/* `.step:not(:last-child):after` — de 2 px sous la pastille jusqu'au haut de
+   la suivante (`top:35px`, `height:calc(100% - 18px)`), donc il traverse le
+   pointillé, comme dans la maquette. Recentré à -21 px : la maquette écrit -20
+   et laisse le rail 1 px à droite du centre de la pastille. */
+.journeyCycle .jRow::after {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 35px;
+  width: 2px;
+  height: calc(100% - 18px);
+  background: var(--color-line);
+}
+
+.journeyCycle .jRow:last-child::after {
+  content: none;
+}
+
+/* La pastille quitte la grille et devient le marqueur du rail. */
+.journeyCycle .jBullet {
+  position: absolute;
+  left: -28px;
+  top: 17px;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 2px solid var(--color-line-strong);
+  box-shadow: none;
+  color: var(--color-muted);
+}
+
+.journeyCycle .jDone .jBullet {
+  background: var(--color-green);
+  border-color: var(--color-green);
+  box-shadow: none;
+  color: white;
+}
+
+/* `.step.current:before` : disque ROUGE, bordure blanche, halo 4 px. */
+.journeyCycle .jCurrent .jBullet {
+  background: var(--color-red);
+  border-color: white;
+  box-shadow: 0 0 0 4px var(--color-red-light);
+  color: white;
+}
+
+/* `.step.exam:before` : le « ◎ » — anneau bleu, point bleu, rien d'autre. */
+.journeyCycle .jBullet.jExam {
+  background: white;
+  border-color: var(--color-blue);
+  box-shadow: none;
+}
+
+.journeyCycle .jBullet.jExam::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-blue);
+}
+
+.journeyCycle .jText {
+  display: block;
+  min-width: 0;
+}
+
+.journeyCycle .jText b,
+.journeyCycle .jText span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* La maquette écrit TOUTES ses étapes en `<strong>` : une étape à venir n'est
+   pas plus pâle qu'une autre, elle n'a simplement pas encore d'action. */
+.journeyCycle .jText span {
+  font-weight: 600;
+}
+
+.journeyCycle .jText small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+/* Une étape courante n'a plus de fond : ce qui la signale est sa pastille
+   rouge et son tag, exactement comme dans la maquette. */
+.journeyCycle .jCurrent {
+  background: none;
+}
+
+.journeyCycle .jDone {
+  color: var(--color-ink);
+}
+
+.journeyCycle .jDone .jText b {
+  font-weight: 700;
+}
+
+.journeyCycle .jCurrent .jText b {
+  font-weight: 800;
+}
+
+/* `.rowAction` : le tag à gauche, le lien à droite. */
+.jAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.jActionLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.jActionLeft svg {
+  color: var(--color-muted);
+}
+
+/* `.tag` : 9 px, poids 900, rouge sur rouge très pâle. Le ton suit l'état —
+   un « Déjà travaillée » en rouge dirait une urgence qui n'existe pas. */
+.jTag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 7px;
+  border-radius: var(--sf-radius-pill);
+  color: var(--color-red);
+  background: var(--color-red-light);
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.jDone .jTag {
+  color: var(--color-green-dark);
+  background: var(--color-green-light);
+}
+
+/* La maquette n'a pas de tag sur une étape à venir ; « Examen » en porte un.
+   `--color-line-2` ⇄ `AppColors.line2` sont la même valeur des deux côtés. */
+.jUpcoming .jTag {
+  color: var(--color-muted);
+  background: var(--color-line-2);
+}
+
+/* `.link` : bleu, poids 900, 10,5 px, ni bordure ni fond. */
+.jLink {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 900;
+  color: var(--color-blue);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jLink:hover {
+  color: var(--color-blue-dark);
+}
+
+.jLink:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: var(--sf-radius-xs);
+}
+
+/* L'encart d'examen est la DERNIÈRE étape de la file : il prend le rail et sa
+   pastille « ◎ », au lieu d'être posé sous la liste sans repère. */
+.journeyCycle .jExamStep {
+  padding-bottom: 0;
+}
+
+.journeyCycle .jExamStep .examBox {
+  margin-top: 2px;
+}
+
+/* ======================================================================
+   PLAN — CYCLE ET FIN DE CYCLE (maquettes du propriétaire, 2026-09-18)
+   `docs/progression/plan_cycle.html` ⇄ `docs/progression/cycle_termine.html`
+
+   Miroir Flutter : `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepAction`,
+   `SfNextStepCard` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+
+   🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
+   `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
+   ce bloc doit rester vide.
+   ====================================================================== */
+
+/* ---------- L'avancement du cycle (barre CONTINUE, avec son chiffre) ---- */
+
+.cycleTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cycleTop b {
+  font-size: 13.5px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.cycleBadge {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* Le cycle est clos : le chiffre prend la place du repère de cycle. */
+.cyclePct {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-green-dark);
+  white-space: nowrap;
+}
+
+.cycleBar {
+  margin-top: 10px;
+  height: 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-line);
+  overflow: hidden;
+}
+
+/* ⚠️ Dégradé bleu → rouge : c'est la teinte de la maquette validée. Le rouge
+   n'y signale rien d'urgent, il ferme l'accent tricolore de la marque — la
+   règle « rouge = CTA critique » porte sur les actions, pas sur cet aplat. */
+.cycleBar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: linear-gradient(90deg, var(--color-blue), var(--color-red));
+  transition: width var(--sf-fast) var(--sf-ease-out);
+}
+
+.cycleBar.isDone i {
+  background: linear-gradient(90deg, var(--color-blue), var(--color-green));
+}
+
+.cycleHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cycleBar i {
+    transition: none;
+  }
+}
+
+/* ---------- Le bloc d'épreuve dépliable ---------- */
+
+.blocGroup {
+  background: white;
+  border-radius: var(--sf-radius-lg);
+  box-shadow: var(--sf-shadow-border);
+  overflow: hidden;
+}
+
+/* Le bloc courant se détache : liseré plus marqué et relief, comme `.current`
+   dans la maquette. */
+.blocGroup.isCurrent {
+  box-shadow:
+    0 0 0 1px var(--color-line-strong),
+    var(--sf-shadow-lift);
+}
+
+.blocHead {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  font: inherit;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  /* Les valeurs de `.groupHead` dans `docs/progression/plan_cycle.html`
+     (`42px 1fr auto`, `gap: 11px`, `padding: 15px`), plus la colonne du
+     chevron — la maquette compte sur le curseur, qui n'existe pas au doigt. */
+  grid-template-columns: 42px minmax(0, 1fr) auto 18px;
+  gap: 11px;
+  align-items: center;
+  padding: 15px;
+}
+
+.blocHead:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: -2px;
+}
+
+/* Le repère d'épreuve — les valeurs de `.initial` dans
+   `docs/progression/plan_cycle.html` : 42 px, fond bleu très pâle bordé, texte
+   bleu en 12 px poids 900.
+
+   ⚠️ **Plus de `--font-mono` ici** : la maquette écrit le repère dans la police
+   de texte, et le miroir Flutter n'a jamais eu de mono (`AppFonts.label`). La
+   mono des deux côtés n'existait donc que d'un seul. */
+.blocMark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  /* La maquette dit 13 px ; le token le plus proche vaut 12 px. */
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-line);
+  color: var(--color-blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.isCurrent .blocMark {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: white;
+}
+
+.blocId {
+  min-width: 0;
+}
+
+/* `.groupTitle` de la maquette : 14 px, poids 850.
+
+   🛑 **Le titre d'une épreuve est BLEU** (arbitrage du propriétaire,
+   2026-09-19). La capture montre un bleu de navigateur — celui que Safari pose
+   sur le texte d'un `<button>` ; c'est **notre** bleu de marque qui est écrit
+   ici, jamais la teinte de la capture. `--color-blue` sur blanc tient largement
+   le contraste AA, et le bloc courant n'est pas concerné : sa pastille
+   d'initiale est bleue PLEINE avec un texte blanc, le titre reste à côté sur le
+   fond blanc de la carte.
+
+   ⚠️ `BlocAccordion` sert aussi « Ma progression », où le titre est
+   « Cycle 2 » : il y passe au bleu lui aussi, et c'est voulu — un seul motif
+   d'en-tête de bloc, pas deux. */
+.blocTitle {
+  display: block;
+  color: var(--color-blue);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.25;
+  /* On replie plutôt que de tronquer : un nom d'épreuve coupé est interdit
+     (D-21). La maquette garantit qu'on n'y arrive pas. */
+  overflow-wrap: anywhere;
+}
+
+.blocMeta {
+  display: block;
+  margin-top: 3px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* La colonne d'état. 🛑 **Sous 360 px la maquette la MASQUE** et l'en-tête
+   passe à deux colonnes (plus celle du chevron) : c'est ainsi qu'elle garantit
+   le nom de l'épreuve sur une ligne sur les téléphones les plus étroits.
+   ⚠️ Ce palier-ci a bien un miroir Flutter (`MediaQuery.sizeOf`) — 360 px est
+   un vrai téléphone, pas un palier desktop. */
+.blocStatus {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* 366 et non 360 : la maquette coupe à 360, mais **mesuré** (vraies métriques
+   Hanken Grotesk / Plus Jakarta Sans, pire cas « Compréhension écrite » +
+   « À ÉVALUER »), la colonne du titre manque encore 0,1 px à 361 px et ne
+   repasse en une ligne qu'à partir de 362. Un nom d'épreuve qui se plie est
+   interdit (D-21) : on élargit le palier de 6 px, ce qu'aucune largeur de
+   téléphone réelle n'occupe. */
+@media (max-width: 366px) {
+  .blocStatus {
+    display: none;
+  }
+
+  .blocHead {
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+  }
+
+  .blocHeadSansMarque {
+    grid-template-columns: minmax(0, 1fr) 18px;
+  }
+}
+
+/* 🛑 UN BLOC SANS REPÈRE — le cas d'une THÉMATIQUE civique (P8.6).
+   L'initiale à deux lettres n'existe que pour une épreuve : « Principes et
+   valeurs de la République » ne se réduit pas à deux lettres, et en inventer
+   une serait un libellé fabriqué par le front (A49). La colonne du repère
+   DISPARAÎT — on n'affiche pas un carré vide, et on ne met rien à la place :
+   le titre prend la largeur, ce dont un nom de thématique a justement besoin. */
+.blocHeadSansMarque {
+  grid-template-columns: minmax(0, 1fr) auto 18px;
+}
+
+/* La variante LIEN (« Mes cycles ») : l'en-tête ouvre une page. */
+.blocLink {
+  text-decoration: none;
+}
+
+.blocChevron {
+  color: var(--color-muted);
+  transition: transform 0.16s ease;
+}
+
+.blocBody {
+  border-top: 1px solid var(--color-line);
+  /* `.groupBody` de la maquette : `4px 15px 15px`. Son 4ᵉ terme (`65px` à
+     gauche) est le retrait du rail — ici c'est `JourneyList` qui porte le
+     sien, l'ajouter le doublerait. */
+  padding: 4px 15px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blocChevron {
+    transition: none;
+  }
+}
+
+/* ---------- L'encart d'examen imbriqué ---------- */
+
+.examBox {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 12px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-soft);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+.examBox svg {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+}
+
+/* ---------- L'étape d'examen d'un bloc : texte à gauche, bouton à droite ----
+   Miroir Flutter : `SfExamStepAction`. */
+
+.examAction {
+  gap: 6px;
+}
+
+.examActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.examActionText {
+  flex: 1 1 120px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.examActionText b {
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.examActionSub {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.examActionBtn {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 0;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-white);
+  background: var(--color-blue);
+  cursor: pointer;
+  transition: background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.examActionBtn:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+}
+
+.examActionBtn:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+/* Inactif : le bouton reste lisible, grisé, avec son cadenas. */
+.examActionBtn:disabled {
+  cursor: not-allowed;
+  color: var(--color-muted);
+  background: var(--color-line);
+}
+
+.examAction .examActionBtn svg {
+  color: currentColor;
+}
+
+.examActionDone {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.examAction .examActionDone svg {
+  color: currentColor;
+}
+
+.examActionFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ---------- La carte de fin de cycle (DEUX actions) ---------- */
+
+.nextStep {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 20px 18px 18px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-blue-dark) 0%,
+    var(--color-blue) 58%,
+    var(--color-blue-mid) 100%
+  );
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* L'anneau décoratif du coin, comme `.finalCard:after`. */
+.nextStep::after {
+  content: "";
+  position: absolute;
+  right: -55px;
+  top: -62px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 28px solid color-mix(in srgb, white 6%, transparent);
+  pointer-events: none;
+}
+
+.nextStep > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nextEyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 14%, transparent);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, white 88%, transparent);
+}
+
+.nextTitle {
+  margin: 12px 0 6px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.nextText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 86%, transparent);
+}
+
+.nextFacts {
+  display: grid;
+  /* Trois colonnes dès qu'elles tiennent, une pile en dessous : à 360 px trois
+     colonnes de 96 px ne laissent plus lire les libellés. */
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.nextFact {
+  border-radius: 13px;
+  padding: 10px;
+  background: color-mix(in srgb, white 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 10%, transparent);
+  min-width: 0;
+}
+
+.nextFact b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.nextFact span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: color-mix(in srgb, white 78%, transparent);
+}
+
+.nextActions {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* ⚠️ Palier desktop : la carte de fin de cycle respire, rien d'autre ne
+   change. Une media query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .nextStep {
+    padding: 26px 24px 22px;
+  }
+
+  .nextTitle {
+    font-size: 25px;
+  }
+
+  .nextActions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .nextActions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* ---------- Le bandeau de tête d'un écran d'archive ---------- */
+
+.heroBanner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: 22px 18px;
+  color: white;
+  background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* L'œil-de-bœuf du coin, comme `.hero` dans la maquette. */
+.heroBanner::after {
+  content: "";
+  position: absolute;
+  right: -34px;
+  top: -34px;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 20px solid color-mix(in srgb, white 6%, transparent);
+  pointer-events: none;
+}
+
+.heroBanner > * {
+  position: relative;
+  z-index: 1;
+}
+
+.heroEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, white 74%, transparent);
+}
+
+.heroDot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-red);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 16%, transparent);
+}
+
+.heroTitle {
+  margin: 10px 0 8px;
+  max-width: 24ch;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.heroText {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 80%, transparent);
+}
+
+.heroBody {
+  margin-top: 18px;
+}
+
+/* ⚠️ Palier desktop : le bandeau respire, rien d'autre ne change. Une media
+   query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .heroBanner {
+    padding: 28px 26px;
+  }
+
+  .heroTitle {
+    font-size: 30px;
+  }
+}
+
+/* ============================================================================
+   Le BANDEAU D'OBJECTIF (`GoalHero`) et la phrase de cadrage de `Top`.
+   ⚠️ L'ancien écran « Votre progression » qui les a fait naître est SUPPRIMÉ
+   (2026-09-24), avec ses autres classes (`.levelStrip*`, `.chartTitle`,
+   `.chartNote*`, `.statList` / `.statRow*`). Miroir Flutter : `SfGoalHero`.
+   ========================================================================== */
+
+/* La phrase de cadrage de l'en-tête (`Top lead`). */
+.topLead {
+  margin: 8px 0 0;
+  max-width: 44ch;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- Le bandeau d'objectif ---------- */
+
+.goalHero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 20px;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--color-blue-dark) 0%,
+    var(--color-blue) 62%,
+    var(--color-blue-mid) 100%
+  );
+  box-shadow: var(--sf-shadow-lift);
+}
+
+/* L'œil-de-bœuf du coin (`.hero:after` du template). */
+.goalHero::after {
+  content: "";
+  position: absolute;
+  right: -68px;
+  top: -86px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 34px solid color-mix(in srgb, white 5%, transparent);
+  pointer-events: none;
+}
+
+.goalHero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.goalHeroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.goalHeroId {
+  min-width: 0;
+}
+
+.goalHeroLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: color-mix(in srgb, white 82%, var(--color-blue));
+}
+
+.goalHeroValue {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.goalHeroPill {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 12%, transparent);
+  border: 1px solid color-mix(in srgb, white 15%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.goalHeroRail {
+  display: block;
+  height: 7px;
+  margin: 18px 0 0;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, white 18%, transparent);
+  overflow: hidden;
+}
+
+.goalHeroRail i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: white;
+}
+
+.goalHeroMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: color-mix(in srgb, white 82%, var(--color-blue));
+}
+
+.goalHeroMeta b {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: white;
+}
+
+.goalHeroBody {
+  margin-top: 12px;
+}
+
+/* ⚠️ Palier desktop : le bandeau respire, rien d'autre ne change. Une
+   media query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .goalHero {
+    padding: 26px 24px;
+  }
+
+  .goalHeroValue {
+    font-size: 31px;
+  }
+}
+
+/* ============================================================================
+   LES ÉCRANS DE PROGRESSION (maquettes du propriétaire, 2026-09-24 ;
+   `docs/progression/maquettes-progression/*.html`)
+
+   Portage de la maquette, remappé sur les tokens : `--brand` → `--color-blue`
+   (fonds, boutons) / `--color-blue-dark` (textes de marque), `--brand-soft` →
+   `--color-blue-light`, `--green(-soft)` → `--color-green(-light)`, `--line`
+   → `--color-line`. Titres en Fraunces, le reste en Plus Jakarta Sans.
+
+   🛑 **Le rouge de la maquette ne passe pas** (réservé aux CTA critiques) :
+   anneau bleu (vert au seuil servi), dernier point bleu foncé avec halo,
+   badge « B2 » bleu comme les autres. L'œil-de-bœuf garde la pastille rouge
+   de `.heroDot`, déjà la convention du kit.
+
+   🛑 **Les bornes sont celles de la maquette, mais sur la largeur du
+   CONTENU** (`@container pscreen`), pas sur la fenêtre : la barre latérale du
+   desktop mange 248 px, et une borne de fenêtre casserait la grille entre 960
+   et 1 100 px. 780 px (épreuve, thème) et 860 px (écrans globaux) sont ses
+   deux bornes ; 620 / 470 px ses deux crans de confort. Une media query n'est
+   pas une primitive : aucun miroir Flutter pour ces bornes.
+   ========================================================================== */
+
+.pScreen {
+  container: pscreen / inline-size;
+}
+
+.pCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 7%, transparent);
+}
+
+/* ---------- L'intro ---------- */
+
+.pIntro {
+  margin-bottom: 20px;
+}
+
+/* La bascule TCF / civique des deux écrans globaux, posée sous l'intro : la
+   colonne (`.pad`) porte déjà la gouttière, la bascule ne la double pas. */
+.pScreen .segWrap {
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.pEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4.2cqi, 39px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--color-blue-dark);
+}
+
+.pLead {
+  margin: 9px 0 0;
+  font-size: 15px;
+  color: var(--color-muted);
+}
+
+/* ---------- Carte de tête + compteurs ---------- */
+
+.pSummary,
+.pOverview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.pHero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 21px;
+}
+
+.pHeroBody {
+  min-width: 0;
+}
+
+.pHeroLabel {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pHeroScore {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  margin: 0;
+  color: var(--color-blue-dark);
+}
+
+.pHeroScore strong {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.pHeroScore span {
+  padding-bottom: 5px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.pChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: var(--sf-radius-pill);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pChipNow {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.pChipOk {
+  background: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
+.pChipWarn {
+  background: var(--color-amber-light);
+  color: var(--color-amber-dark);
+}
+
+.pChipHot {
+  background: var(--color-red-light);
+  color: var(--color-red-dark);
+}
+
+.pChipMuted {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.pHeroNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.pHeroNote + .pHeroNote {
+  margin-top: 4px;
+}
+
+.pRing {
+  position: relative;
+  flex: 0 0 auto;
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+}
+
+.pRing svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pRing b {
+  position: relative;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--color-blue-dark);
+}
+
+.pStatGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.pStat {
+  min-width: 0;
+}
+
+.pStatLabel {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pStatValue {
+  display: block;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--color-blue-dark);
+}
+
+.pStatSub {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Écran épreuve / thème : chaque compteur est sa propre carte. */
+.pStatGrid.isCards > .pStat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 125px;
+  padding: 17px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 7%, transparent);
+}
+
+/* Écrans globaux : une carte, quatre encarts. */
+.pStatGrid.isBoxed {
+  gap: 10px;
+  padding: 16px;
+}
+
+.isBoxed > .pStat {
+  padding: 15px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+
+.isBoxed .pStatLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.isBoxed .pStatValue {
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+
+.isBoxed .pStatSub {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+/* ---------- Titre de section hors carte ---------- */
+
+.pSectionHead {
+  margin: 28px 0 14px;
+}
+
+/* ---------- Cartes d'épreuve / de thème ---------- */
+
+.pDomainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.pDomain {
+  display: block;
+  padding: 18px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--sf-fast) var(--sf-ease-out),
+    box-shadow var(--sf-fast) var(--sf-ease-out),
+    border-color var(--sf-fast) var(--sf-ease-out);
+}
+
+.pDomain:hover,
+.pDomain:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--color-line-strong);
+  box-shadow: 0 20px 46px color-mix(in srgb, var(--color-blue) 10%, transparent);
+}
+
+.pDomainHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.pDomainName {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pDomainName b {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-blue-dark);
+}
+
+.pDomainName small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pDomainIcon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.pDomainArrow {
+  flex: 0 0 auto;
+  color: var(--color-muted-2);
+}
+
+.pDomainMain {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.pDomainFigures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pDomainScore {
+  color: var(--color-blue-dark);
+}
+
+.pDomainScore strong {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.pDomainScore span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pDomain .pChip {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+
+.pDelta {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pDomainEmpty {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.pSpark {
+  flex: 0 0 auto;
+  width: 115px;
+  height: 58px;
+}
+
+.pSpark path {
+  fill: none;
+  stroke: var(--color-blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pSpark circle {
+  fill: white;
+  stroke: var(--color-blue-dark);
+  stroke-width: 2.5;
+}
+
+/* ---------- Panneaux (courbe, historique) ---------- */
+
+.pPanel {
+  margin-bottom: 14px;
+  padding: 18px;
+}
+
+/* ---------- La courbe ---------- */
+
+.pChart {
+  margin-top: 4px;
+}
+
+.pChartNote {
+  margin: 0 0 6px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pChartScroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pChartInner {
+  position: relative;
+  height: 300px;
+  padding: 26px 30px 44px 56px;
+  box-sizing: border-box;
+}
+
+.pChartPlot {
+  position: relative;
+  height: 100%;
+}
+
+.pBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-line-strong);
+}
+
+.pBand i {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--color-muted);
+}
+
+.pBandNow {
+  background: color-mix(in srgb, var(--color-blue) 4%, white);
+}
+
+.pBandNow:nth-of-type(even) {
+  background: color-mix(in srgb, var(--color-blue) 8%, white);
+}
+
+.pBandOk {
+  background: color-mix(in srgb, var(--color-green) 7%, white);
+}
+
+.pBandWarn {
+  background: color-mix(in srgb, var(--color-amber) 10%, white);
+}
+
+.pBandHot {
+  background: color-mix(in srgb, var(--color-red) 5%, white);
+}
+
+.pBandMuted {
+  background: var(--color-paper);
+}
+
+.pGrid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.pGrid i {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: -8px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--color-muted);
+}
+
+.pSeuil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px dashed var(--color-amber-dark);
+}
+
+.pSeuil i {
+  position: absolute;
+  right: 6px;
+  top: -19px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--color-amber-dark);
+}
+
+.pChartSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pDot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 3px solid var(--color-blue);
+  border-radius: 50%;
+  background: white;
+  box-sizing: border-box;
+}
+
+.pDot.isLast {
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  border: 4px solid var(--color-blue-dark);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-blue) 16%, transparent);
+}
+
+.pValue {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-blue);
+}
+
+.pValue.isLast {
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 2px 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue-dark);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.pDate {
+  position: absolute;
+  bottom: -30px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+/* ---------- La légende de l'échelle ---------- */
+
+.pScale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pScaleItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 11px;
+  background: var(--color-paper);
+}
+
+.pScaleItem strong {
+  font-size: 12px;
+  color: var(--color-blue-dark);
+}
+
+.pScaleItem span {
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--color-muted);
+}
+
+/* ---------- Les lignes d'examen ---------- */
+
+.pExamList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    border-color var(--sf-quick) var(--sf-ease-out);
+}
+
+a.pRow:hover,
+a.pRow:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--color-line-strong);
+}
+
+.pRow.isGlobal {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pRowId {
+  min-width: 0;
+}
+
+.pRowId b {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-blue-dark);
+}
+
+.pRowId small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.pRowStat {
+  min-width: 0;
+}
+
+.pRowStat small {
+  display: block;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+
+.pRowStat b {
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-ink);
+}
+
+.pRowBadge {
+  display: inline-block;
+  min-width: 45px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.pRowBadgeCell {
+  display: flex;
+}
+
+.pRowParts {
+  display: none;
+  gap: 14px;
+}
+
+.pRowEnd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.pRowAction {
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--color-blue);
+}
+
+.pRowWide {
+  display: none;
+}
+
+.pMore {
+  margin-top: 14px;
+}
+
+/* ---------- Les bornes, sur la largeur du contenu ---------- */
+
+@container pscreen (min-width: 471px) {
+  .pHeroScore strong {
+    font-size: 44px;
+  }
+
+  .pRing {
+    width: 88px;
+    height: 88px;
+  }
+
+  .pRing b {
+    font-size: 18px;
+  }
+
+  .pStatGrid.isCards > .pStat {
+    min-height: 145px;
+    padding: 22px;
+  }
+
+  .pStatValue {
+    font-size: 28px;
+  }
+}
+
+@container pscreen (min-width: 621px) {
+  .pHero {
+    align-items: center;
+    padding: 24px 26px;
+  }
+
+  .pStatGrid.isBoxed {
+    gap: 14px;
+    padding: 24px;
+  }
+
+  .isBoxed > .pStat {
+    padding: 17px;
+  }
+
+  .pDomain {
+    padding: 21px;
+  }
+
+  .pSpark {
+    width: 145px;
+  }
+}
+
+@container pscreen (min-width: 781px) {
+  .pSummary {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.3fr);
+  }
+
+  .pPanel {
+    padding: 24px;
+  }
+
+  .pRow {
+    grid-template-columns: minmax(180px, 1.3fr) minmax(0, 0.6fr) minmax(0, 0.5fr) minmax(0, 0.6fr) auto;
+    gap: 16px;
+    padding: 15px 17px;
+  }
+
+  .pRowWide {
+    display: block;
+  }
+}
+
+@container pscreen (min-width: 861px) {
+  .pOverview {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  }
+
+  .pOverview .pRing {
+    width: 100px;
+    height: 100px;
+  }
+
+  .pDomainGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .pRow.isGlobal {
+    grid-template-columns: minmax(150px, 1.1fr) minmax(0, 3fr) auto;
+  }
+
+  .pRowParts {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pDomain,
+  .pRow {
+    transition: none;
+  }
+
+  .pDomain:hover,
+  a.pRow:hover {
+    transform: none;
+  }
+}
+
+
+/* ==========================================================================
+   Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
+   Miroirs Flutter : `SfSerieProgress`, `SfSerieCard`.
+   ========================================================================== */
+
+.serieProgTop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Le compteur des séries validées : c'est le chiffre que le candidat vient
+   chercher, donc le seul gros de la carte. */
+.serieProgCount {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--color-blue);
+}
+
+.serieProgNote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  min-width: 0;
+}
+
+.serieProgNote b {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--color-ink);
+}
+
+.serieProgNote small {
+  font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.serieProgBar {
+  margin-top: 12px;
+  height: 7px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-line);
+  overflow: hidden;
+}
+
+.serieProgBar i {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-blue);
+  transition: width var(--sf-fast) var(--sf-ease-out);
+}
+
+/* ---------- La carte d'une série ---------- */
+
+.serieCard {
+  padding: 14px 14px 14px;
+  border-radius: var(--sf-radius-xl);
+  background: white;
+  box-shadow: var(--sf-shadow-border);
+}
+
+/* 🛑 Verrouillée = atténuée, JAMAIS masquée (R16). */
+.serieCard.isLocked {
+  background: var(--color-paper-2);
+  box-shadow: var(--sf-shadow-border);
+}
+
+.serieCardTop {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.serieMark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.serieMark.isLocked {
+  background: var(--color-line);
+  color: var(--color-muted);
+}
+
+/* Carte jouée = compacte : une ligne touchable, la feuille fait le reste. */
+.serieCardCompact {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--sf-quick) var(--sf-ease-out);
+}
+
+.serieCardCompact:active {
+  transform: scale(0.98);
+}
+
+.serieCardCompact:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+/* Le motif des cartes de séries du hub : repère teinté + pastille cochée
+   (verte) ou barrée (rouge) en coin. */
+.serieMark.isOk,
+.serieMark.isFail {
+  position: relative;
+}
+
+.serieMark.isOk {
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.serieMark.isFail {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.serieMarkCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid white;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.serieMark.isOk .serieMarkCheck {
+  background: var(--color-green);
+}
+
+.serieMark.isFail .serieMarkCheck {
+  background: var(--color-red);
+}
+
+.serieChevron {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+}
+
+.serieCardText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.serieCardText b {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+}
+
+.serieMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.serieMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.serieState {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.serieScore {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--color-ink-2);
+}
+
+.serieBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-blue);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  transition:
+    transform var(--sf-quick) var(--sf-ease-out),
+    background-color var(--sf-quick) var(--sf-ease-out);
+}
+
+.serieBtn:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+}
+
+.serieBtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.serieBtn:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+/* 🛑 Un bouton fermé est GRIS, pas un bouton d'action pâli : il porte la
+   condition qui l'ouvrira, et rien ne doit inviter à le presser. */
+.serieBtn.isOff {
+  background: var(--color-line);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.serieLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 9px;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+
+.serieLink:hover {
+  text-decoration: underline;
+}
+
+/* ⚠️ Palier desktop : la carte respire, rien d'autre ne change. Une media
+   query n'est pas une primitive — aucun miroir Flutter. */
+@media (min-width: 960px) {
+  .serieCard {
+    padding: 16px 18px;
+  }
+
+  .serieProgCount {
+    font-size: 28px;
+  }
+
+  .serieBtn {
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* ==========================================================================
+   La timeline du cycle — `CycleRail`, `CycleRailStep`, `CycleRailEnd`
+   (demande du propriétaire, 2026-09-27). Miroirs Flutter : `SfCycleRail*`.
+
+   🛑 VOLONTAIREMENT ÉTROITE : rond 14 px, trait 2 px, gouttière 8 px — 22 px
+   pris aux cartes. Les mêmes chiffres vivent dans `sejour_kit.dart`
+   (`_kRail*`) ; l'un ne bouge pas sans l'autre.
+   ========================================================================== */
+.rail {
+  --rail-dot: 14px;
+  --rail-gap: 8px;
+  /* Le rond est centré sur l'en-tête d'un `BlocAccordion` : 15 px de marge
+     + la moitié du repère de 42 px = 36 px, moins la moitié du rond. */
+  --rail-dot-top: 29px;
+  --rail-step-gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--rail-step-gap);
+}
+
+.railStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--rail-dot) minmax(0, 1fr);
+  column-gap: var(--rail-gap);
+  align-items: start;
+}
+
+/* Le trait : du haut de l'étape jusqu'au haut de la suivante (il franchit
+   l'écart de la grille), coupé au rond de la première et de la dernière. */
+.railStep::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--rail-dot) / 2 - 1px);
+  width: 2px;
+  top: 0;
+  bottom: calc(-1 * var(--rail-step-gap));
+  background: var(--color-line-strong);
+}
+
+.railStep:first-child::before {
+  top: calc(var(--rail-dot-top) + var(--rail-dot) / 2);
+}
+
+.railStep:last-child::before {
+  bottom: auto;
+  height: calc(var(--rail-dot-top) + var(--rail-dot) / 2);
+}
+
+.railStep:only-child::before {
+  display: none;
+}
+
+.railDot {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: var(--rail-dot);
+  height: var(--rail-dot);
+  margin-top: var(--rail-dot-top);
+  border-radius: 50%;
+  background: var(--color-white);
+  border: 2px solid var(--color-line-strong);
+  color: var(--color-white);
+}
+
+.railDotDone {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+}
+
+.railDotCurrent {
+  border: 4px solid var(--color-blue);
+}
+
+.railDotEnd {
+  background: var(--color-blue-dark);
+  border-color: var(--color-blue-dark);
+}
+
+.railBody {
+  min-width: 0;
+}
+
+/* La dernière étape : son rond s'aligne sur la première ligne de l'encart. */
+.railEnd {
+  --rail-dot-top: 16px;
+}
+
+.railEndBox {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--color-line-strong);
+  border-radius: var(--sf-radius-lg);
+}
+
+.railEndEyebrow {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--color-muted);
+}
+
+.railEndTitle {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--color-ink-2);
+}
+
+.railEndPill {
+  margin-top: 4px;
+}
+
+/* La fin FRANCHIE d'un cycle clos (« Mes cycles ») : un encart plein, lu tel
+   quel — ni pointillés, ni atténuation. Miroir : `SfCycleRailEnd.done`. */
+.railEndDone {
+  border: 1px solid var(--color-line);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-border);
+}
+
+.railEndNote {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ⚠️ Les 22 px du rail sont pris à l'accordéon : son palier « pastille d'état
+   masquée » passe de 366 à 388 px quand il est posé sur la timeline — le rond
+   dit alors l'état, et le nom d'épreuve reste sur une ligne (D-21). Miroir
+   Flutter : `SfCycleRail.retraitDe` lu par `SfBlocAccordion`. */
+@media (max-width: 388px) {
+  .railStep .blocStatus {
+    display: none;
+  }
+
+  .railStep .blocHead {
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+  }
+
+  .railStep .blocHeadSansMarque {
+    grid-template-columns: minmax(0, 1fr) 18px;
+  }
+}

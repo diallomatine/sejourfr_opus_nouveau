@@ -1,0 +1,237 @@
+{
+  "rubrics-version": "v2",
+  "_note": "Source unique du 'comment noter' par (épreuve, tache). Lookup: cle = <EPREUVE>_<TACHE> (EE_T1, EO_T3, ...). Niveau cible passe en runtime via {NIVEAU}; les descripteurs servent au placement niveau_cecrl. note_globale = qualite au regard de la tache ET du niveau cible. niveau_cecrl = competence reelle observee (peut depasser la cible).",
+  "rubrics": {
+    "EE_T1": {
+      "intitule": "Expression écrite - Tache 1 : message court (annoncer, décrire, inviter)",
+      "niveau_cible_indicatif": "A2",
+      "bornes_mots": {
+        "min": 30,
+        "max": 60
+      },
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.35
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.25
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction morphosyntaxique",
+          "poids": 0.25
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence et organisation",
+          "poids": 0.15
+        }
+      ],
+      "bareme_note": "Bandes /20 appliquées a CHAQUE critère, relatives au niveau cible :\n- 16-20 : répond pleinement aux attentes du niveau cible (et au-dela). Erreurs rares, sans gene.\n- 11-15 : répond globalement aux attentes. Erreurs ponctuelles, sens toujours preserve.\n- 6-10  : attentes partiellement remplies. Erreurs fréquentes gênant par moments.\n- 1-5   : attentes non remplies. Difficilement comprehensible / consigne a peine traitée.\n- 0     : hors-sujet total (cf. regle hors-sujet du system prompt).\nREGLE D'OR : une production qui satisfait les attentes du NIVEAU CIBLE mérite 16-20 sur le critère, sans exiger de competences d'un niveau superieur. Ne pas confondre note_globale et niveau_cecrl.\nPour T1, 'repondre aux attentes' = les points de la consigne (annoncer / decrire / inviter) sont traites en phrases simples comprehensibles.",
+      "descripteurs": {
+        "A1": "Mots, expressions isolées et formules figées. Communication minimale, points de la consigne a peine effleures.",
+        "A2": "Phrases simples reliées par et/mais/parce que. Transmet l'essentiel (annonce, breve description, invitation) malgré des erreurs courantes.",
+        "B1": "Message clair, lexique du quotidien varie, quelques connecteurs. Erreurs n'entravant pas la comprehension.",
+        "B2": "Message fluide et naturel, registre amical adapte, lexique precis. Erreurs rares.",
+        "C1": "Grande aisance, nuances et idiomatismes, registre parfaitement maitrise.",
+        "C2": "Maitrise complete, naturel total, aucune trace d'effort."
+      },
+      "consignes_correcteur": "Recompenser le traitement de CHAQUE point de la consigne (annoncer la nouvelle, décrire brièvement, inviter). Verifier formule d'appel + de cloture (registre amical attendu, pas formel). TOLERER les erreurs courantes attendues a l'ecrit court d'un A2 (accords, prepositions, pluriels) : elles minorent peu si le sens passe. NE PAS exiger de connecteurs elabores ni de developpement. NE PAS penaliser la brievete si la consigne est complete. Coherence faiblement ponderee (texte court)."
+    },
+    "EE_T2": {
+      "intitule": "Expression ecrite - Tache 2 : message/courriel developpe (raconter, decrire, expliquer, conseiller)",
+      "niveau_cible_indicatif": "B1",
+      "bornes_mots": {
+        "min": 40,
+        "max": 90
+      },
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.25
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence et organisation",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.25
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction morphosyntaxique",
+          "poids": 0.25
+        }
+      ],
+      "bareme_note": "Memes bandes /20 par critere (cf. EE_T1).\nREGLE D'OR identique.\nPour T2, 'repondre aux attentes' = la consigne est developpee (recit/description/explication avec details), les idees sont enchainees par des connecteurs courants et les temps (present, passe compose, imparfait, futur proche) sont employes a bon escient.",
+      "descripteurs": {
+        "A1": "Trop court / juxtaposition de mots. Ne developpe pas.",
+        "A2": "Developpement minimal, phrases simples, peu de connecteurs. Raconte/decrit de facon rudimentaire.",
+        "B1": "Recit ou description structure, connecteurs courants (d'abord, ensuite, donc, car), temps du passe globalement maitrises. Erreurs ponctuelles.",
+        "B2": "Texte bien organise, lexique riche et precis, structures variees. Point de vue/explication clairs. Erreurs rares.",
+        "C1": "Argumentation/recit nuance, cohesion forte, lexique etendu et idiomatique.",
+        "C2": "Maitrise complete, style naturel et efficace."
+      },
+      "consignes_correcteur": "Recompenser le DEVELOPPEMENT (details, exemples), l'usage approprie des temps du passe et des connecteurs courants. Penaliser MODEREMENT le manque d'organisation (juxtaposition sans liens). Verifier que tous les sous-points de la consigne sont couverts. Lexique : valoriser la variete au-dela des mots les plus frequents. Tolerance d'erreurs intermediaire entre T1 et T3."
+    },
+    "EE_T3": {
+      "intitule": "Expression ecrite - Tache 3 : prise de position / opinion argumentee / comparaison",
+      "niveau_cible_indicatif": "B2",
+      "bornes_mots": {
+        "min": 40,
+        "max": 90
+      },
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.25
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence et argumentation",
+          "poids": 0.30
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.20
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction morphosyntaxique",
+          "poids": 0.25
+        }
+      ],
+      "bareme_note": "Memes bandes /20 par critere (cf. EE_T1).\nREGLE D'OR identique.\nPour T3, 'repondre aux attentes' = une prise de position CLAIRE est formulee, justifiee par au moins deux arguments, organisee (introduction de l'avis -> arguments -> conclusion). La simple description ou paraphrase sans argumentation PLAFONNE la pertinence a la bande 6-10.",
+      "descripteurs": {
+        "A1": "Ne formule pas d'opinion exploitable.",
+        "A2": "Opinion exprimee de facon tres simple, sans veritable justification.",
+        "B1": "Opinion claire avec une ou deux raisons simples, organisation basique, connecteurs courants.",
+        "B2": "Position nette, arguments developpes et hierarchises, connecteurs logiques (cependant, en effet, par consequent), lexique nuance, structures complexes. Erreurs rares.",
+        "C1": "Argumentation fine, contre-arguments, nuances, cohesion forte.",
+        "C2": "Demonstration aboutie, registre et rhetorique parfaitement maitrises."
+      },
+      "consignes_correcteur": "Exiger une PRISE DE POSITION explicite + justification. Recompenser : arguments distincts, organisation (plan apparent), connecteurs logiques, lexique nuance, structures complexes (subordonnées, opposition, hypothèse). Pénaliser : texte purement descriptif, arguments contradictoires non assumes, absence de conclusion. La coherence/argumentation est le critere le plus pondere ici."
+    },
+    "EO_T1": {
+      "intitule": "Expression orale - Tache 1 : entretien dirige (se presenter, parler de soi et de son quotidien)",
+      "niveau_cible_indicatif": "A2",
+      "support": "transcription Whisper (litterale, sans ponctuation fiable)",
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.35
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.30
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction grammaticale perceptible",
+          "poids": 0.20
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence du propos",
+          "poids": 0.15
+        }
+      ],
+      "bareme_note": "Memes bandes /20 par critere (cf. EE_T1), REGLE D'OR identique (relatif au niveau cible).\nPour T1, 'repondre aux attentes' = la personne se presente et parle de son quotidien de facon comprehensible avec un lexique simple.",
+      "descripteurs": {
+        "A1": "Mots isoles, formules apprises. Repond a peine.",
+        "A2": "Se presente et parle de son quotidien en phrases simples, lexique de base, erreurs courantes mais propos comprehensible.",
+        "B1": "Discours plus developpe et detaille, lexique varie du quotidien, enchainements simples.",
+        "B2": "Propos riche, nuance et bien organise, lexique etendu.",
+        "C1": "Aisance, spontaneite, nuances.",
+        "C2": "Maitrise complete et naturelle."
+      },
+      "consignes_correcteur": "EVALUER UNIQUEMENT LE TEXTE TRANSCRIT (Whisper litteral). TOLERANCE OBLIGATOIRE - ne JAMAIS penaliser : absence de ponctuation et de majuscules ; repetitions, hesitations et tics oraux (euh, ben, bah, voila, du coup) ; reformulations et faux departs ; oralite et phrases inachevees naturelles a l'oral. NE PAS evaluer l'orthographe (c'est de l'oral transcrit). JUGER : etendue du lexique, controle grammatical PERCEPTIBLE (accords, temps, structures), coherence/enchainement du propos, traitement de la consigne. En cas d'ambiguite due a la transcription, accorder le BENEFICE DU DOUTE."
+    },
+    "EO_T2": {
+      "intitule": "Expression orale - Tache 2 : interaction (situation de la vie courante, obtenir/donner des informations)",
+      "niveau_cible_indicatif": "B1",
+      "support": "transcription Whisper (litterale, sans ponctuation fiable)",
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.30
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.25
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction grammaticale perceptible",
+          "poids": 0.25
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence et gestion de l'echange",
+          "poids": 0.20
+        }
+      ],
+      "bareme_note": "Memes bandes /20 par critere (cf. EE_T1), REGLE D'OR identique.\nPour T2, 'repondre aux attentes' = la personne mene la situation (pose les questions utiles / donne les informations demandees) de facon comprehensible et adaptee au contexte.",
+      "descripteurs": {
+        "A1": "Echange minimal, mots isoles.",
+        "A2": "Pose des questions simples / donne des informations de base, lexique courant, erreurs frequentes mais echange fonctionnel.",
+        "B1": "Gere la situation avec des questions/reponses pertinentes, lexique adapte au contexte, formulations correctes dans l'ensemble.",
+        "B2": "Interaction fluide et nuancee, lexique precis, registre adapte.",
+        "C1": "Aisance et spontaneite dans l'echange.",
+        "C2": "Maitrise complete."
+      },
+      "consignes_correcteur": "Memes regles de TOLERANCE TRANSCRIPTION que EO_T1 (ne jamais penaliser ponctuation/majuscules/hesitations/reformulations ; ne pas evaluer l'orthographe ; benefice du doute). Specifique T2 : valoriser la capacite a interagir (questions pertinentes, reponses adaptees, gestion de la situation) et l'adequation au registre du contexte. Juger lexique, grammaire perceptible, coherence de l'echange."
+    },
+    "EO_T3": {
+      "intitule": "Expression orale - Tache 3 : expression d'un point de vue / monologue suivi (donner et défendre une opinion)",
+      "niveau_cible_indicatif": "B2",
+      "support": "transcription Whisper (litterale, sans ponctuation fiable)",
+      "criteres": [
+        {
+          "code": "pertinence",
+          "label": "Pertinence et respect de la consigne",
+          "poids": 0.25
+        },
+        {
+          "code": "coherence",
+          "label": "Coherence et argumentation",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Etendue et maitrise du lexique",
+          "poids": 0.25
+        },
+        {
+          "code": "morphosyntaxe",
+          "label": "Correction grammaticale perceptible",
+          "poids": 0.25
+        }
+      ],
+      "bareme_note": "Memes bandes /20 par critere (cf. EE_T1), REGLE D'OR identique.\nPour T3, 'repondre aux attentes' = un point de vue CLAIR est exprime et soutenu par des arguments, dans un propos organise. La simple description sans prise de position PLAFONNE la pertinence a la bande 6-10.",
+      "descripteurs": {
+        "A1": "Pas d'opinion exploitable.",
+        "A2": "Opinion tres simple, sans justification.",
+        "B1": "Opinion claire avec quelques raisons, enchainements simples.",
+        "B2": "Point de vue argumente, idees hierarchisees, connecteurs logiques, lexique nuance, structures variees.",
+        "C1": "Argumentation fine avec nuances et contre-arguments.",
+        "C2": "Demonstration aboutie et naturelle."
+      },
+      "consignes_correcteur": "Memes regles de TOLERANCE TRANSCRIPTION que EO_T1. Specifique T3 : exiger une prise de position et des arguments ; recompenser l'organisation du monologue, les connecteurs logiques, le lexique nuance et les structures complexes PERCEPTIBLES dans la transcription. Penaliser le propos purement descriptif. Rappel : ni prononciation, ni debit, ni duree ne sont evalues."
+    }
+  }
+}

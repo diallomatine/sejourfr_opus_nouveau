@@ -1,0 +1,239 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVNL8zEoYxvz2haA9",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01ERtVfqi1Syv1zL86rqw8n2",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.75,
+            "rationale": "Liberté d'expression comme principe proclamé, référence DDHC.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.2
+          },
+          {
+            "rang": 2,
+            "notion": "AUCUNE",
+            "confiance": 0.85,
+            "rationale": "Régime juridique et limites concrètes de la liberté d'expression → dd_libertes_limites, hors référentiel.",
+            "alternative": "pv_libertes_ddhc",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 3,
+            "notion": "pv_laicite",
+            "confiance": 0.97,
+            "rationale": "Définition de la séparation État/religions.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 4,
+            "notion": "pv_laicite",
+            "confiance": 0.7,
+            "rationale": "Date de la loi de 1905, mais frontière indique que la date comme repère historique va vers hg_conquetes_droits.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 5,
+            "notion": "AUCUNE",
+            "confiance": 0.75,
+            "rationale": "Droit individuel de croire ou non → dd_libertes_limites, hors référentiel selon frontière laïcité.",
+            "alternative": "pv_laicite",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 6,
+            "notion": "AUCUNE",
+            "confiance": 0.75,
+            "rationale": "Droit individuel de conscience/religion → dd_libertes_limites, hors référentiel.",
+            "alternative": "pv_laicite",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 7,
+            "notion": "pv_laicite",
+            "confiance": 0.93,
+            "rationale": "Neutralité de l'école publique, obligation de l'État = laïcité.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.1
+          },
+          {
+            "rang": 8,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Compositeur de l'hymne national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 9,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.95,
+            "rationale": "Date de composition de La Marseillaise.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 10,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.95,
+            "rationale": "Lieu d'écriture de l'hymne national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 11,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Occasions de chanter l'hymne national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 12,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.95,
+            "rationale": "Attribut de Marianne, symbole national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 13,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Symbolique du bonnet phrygien de Marianne.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 14,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.92,
+            "rationale": "Présence du buste de Marianne dans les mairies.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 15,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.93,
+            "rationale": "Marianne sur timbres et pièces, symbole national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 16,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Coq gaulois, emblème national.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 17,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.93,
+            "rationale": "Origine historique du drapeau tricolore.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 18,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.88,
+            "rationale": "Affichage obligatoire du drapeau sur bâtiments publics.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.1
+          },
+          {
+            "rang": 19,
+            "notion": "AUCUNE",
+            "confiance": 0.85,
+            "rationale": "Symboles européens (drapeau UE) → inst_ue, hors référentiel.",
+            "alternative": "pv_symboles_devise",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 20,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.93,
+            "rationale": "Date d'adoption de la devise républicaine.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 21,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Origine historique de la devise.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 22,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.9,
+            "rationale": "Égalité des chances comme principe d'égalité réelle.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 23,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.7,
+            "rationale": "Mot 'fraternité' de la devise, sens du mot.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 24,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.95,
+            "rationale": "Définition du régime républicain et souveraineté populaire.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          },
+          {
+            "rang": 25,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.93,
+            "rationale": "Définition de la démocratie représentative.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.0
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 8486,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 2076,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

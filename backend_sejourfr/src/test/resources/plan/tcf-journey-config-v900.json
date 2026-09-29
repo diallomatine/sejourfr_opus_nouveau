@@ -1,0 +1,11 @@
+{
+  "journeyConfigVersion": 1,
+  "maxPrioritiesPerLot": 3,
+  "lotSelectionStrategy": "TOP_SEVERITY",
+  "trainSeriesQuota": 2,
+  "trainSeriesFallbackQuota": 4,
+  "display": {
+    "recentCompletedVisible": 3,
+    "upcomingVisible": 5
+  }
+}

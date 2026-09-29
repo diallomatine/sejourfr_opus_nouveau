@@ -1,0 +1,244 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.CivicNotionDto;
+import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * LE RÉFÉRENTIEL DE NOTIONS CIVIQUES ET SON TAGGING (L8), contre la vraie base.
+ *
+ * <p>Ce que ce test verrouille :
+ * <ul>
+ *   <li>les notions du référentiel <b>validé</b> (V058) sont bien seedées,
+ *       réparties sur les cinq thèmes, et aucune n'a été supprimée — les 14
+ *       fusions sont des désactivations qui gardent leur trace ;</li>
+ *   <li>🛑 une question non taguée est <b>en attente</b>, pas hors programme —
+ *       et le tag s'efface, parce que se tromper doit rester rattrapable ;</li>
+ *   <li>🛑 la couverture est ventilée <b>par mention</b> : c'est la seule
+ *       façon de voir qu'une notion pleine en NAT est vide en CSP ;</li>
+ *   <li>🛑 une notion fusionnée ne se pose plus.</li>
+ * </ul>
+ */
+class CivicNotionServiceIT extends AbstractIntegrationTest {
+
+    @Autowired private CivicNotionService service;
+    @Autowired private TestData data;
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private EntityManager entityManager;
+
+    @Test
+    @DisplayName("Le référentiel validé sert 46 notions actives sur les 5 thèmes, et garde ses 14 fusions")
+    void referentielSeede() {
+        var referentiel = service.referentiel();
+
+        // Le référentiel n'est PAS figé : 40 notions de travail (V051),
+        // + `hg_fetes_jours_feries` (V055), puis la relecture question par
+        // question du corpus réel (V058) qui en ajoute 19 et en désactive 14.
+        // 🛑 AUCUNE n'est supprimée — une notion retirée du programme reste une
+        // trace, et `merged_into_id` dit où son contenu est parti. Ce compte
+        // suit donc les migrations.
+        assertThat(referentiel).hasSize(60);
+        assertThat(referentiel).extracting(CivicNotionDto::themeCode).containsOnly(
+                "CIV_PRINCIPES", "CIV_INSTITUTIONS", "CIV_DROITS_DEVOIRS",
+                "CIV_HISTOIRE_GEO", "CIV_SOCIETE");
+
+        var actives = referentiel.stream().filter(CivicNotionDto::active).toList();
+        assertThat(actives).hasSize(46);
+        assertThat(actives).allSatisfy(n -> assertThat(n.mergedIntoCode()).isNull());
+
+        var fusionnees = referentiel.stream().filter(n -> !n.active()).toList();
+        assertThat(fusionnees).hasSize(14);
+        // 🛑 Treize pointent leur destination ; UNE seule garde `null`, et c'est
+        // voulu : « vs_vie_collective » s'est dissoute sans destination
+        // dominante, et inventer une destination unique serait une trace fausse.
+        assertThat(fusionnees).filteredOn(n -> n.mergedIntoCode() == null)
+                .extracting(CivicNotionDto::code)
+                .containsExactly("vs_vie_collective");
+
+        assertThat(referentiel).extracting(CivicNotionDto::code)
+                .contains("pv_laicite", "hg_fetes_jours_feries",
+                        // les nouvelles de V058…
+                        "hg_napoleon_xixe", "dd_droits_sociaux",
+                        // …et les désactivées, toujours présentes.
+                        "vs_laicite_quotidien", "dd_logement", "vs_logement_pratique");
+    }
+
+    @Test
+    @DisplayName("🛑 Une question non taguée attend : couverture nulle, jamais « sans notion »")
+    void questionNonTagueeAttend() {
+        // 🛑 On mesure un DELTA, pas un zéro absolu. La version précédente
+        // exigeait « aucune notion ne compte quoi que ce soit » : elle tenait
+        // seulement tant que le catalogue seedé n'avait AUCUNE question taguée,
+        // et V294 en tague une (« Que peut-on dire de l'accès aux soins en
+        // France ? », rangée sous `dd_droits_sociaux`). L'invariant visé n'a
+        // jamais été « le référentiel est vide » mais « une question non taguée
+        // n'est comptée nulle part » — c'est ce que le delta dit, et il le dira
+        // encore quand le tagging avancera.
+        long avant = couvertureTotale();
+
+        Question question = data.question();
+        entityManager.flush();
+
+        assertThat(notionDe(question.getId())).isNull();
+        // Aucune notion ne la compte : elle n'est rattachée nulle part, et ce
+        // n'est pas un verdict sur elle.
+        assertThat(couvertureTotale()).isEqualTo(avant);
+    }
+
+    /** Ce que le référentiel dit couvrir, toutes notions confondues. */
+    private long couvertureTotale() {
+        return service.referentiel().stream()
+                .mapToLong(CivicNotionDto::questionsTaguees)
+                .sum();
+    }
+
+    @Test
+    @DisplayName("Le tag se pose, se lit par mention, et s'efface")
+    void leTagSePoseSeLitEtSEfface() {
+        // 🛑 Le corpus part NON TAGUE (2026-09-19). Ce test compte les questions
+        // d'une notion apres en avoir tague UNE : il attendait donc 1, et
+        // `pv_laicite` en porte 9 depuis que V297 a mis la campagne du
+        // 2026-09-11 en migration (DETTE-T1). Ce qu'il verifie -- le tag se pose,
+        // se lit par mention, s'efface -- n'a pas change ; sa precondition
+        // devient explicite au lieu d'accidentelle.
+        remettreLeCorpusANonTague();
+        Question question = data.question();
+        entityManager.flush();
+        entityManager.clear();
+
+        service.taguer(question.getId(), "pv_laicite");
+        entityManager.clear();
+
+        CivicNotionDto laicite = notion("pv_laicite");
+        assertThat(laicite.questionsTaguees()).isEqualTo(1);
+        // 🛑 Ventilée par mention : c'est ce qui permet de voir qu'une notion
+        // pleine pour une démarche est vide pour une autre.
+        assertThat(laicite.parMention()).singleElement()
+                .satisfies(m -> assertThat(m.questions()).isEqualTo(1));
+
+        // Se tromper doit rester rattrapable sans passer par la base.
+        service.taguer(question.getId(), null);
+        entityManager.clear();
+        assertThat(notion("pv_laicite").questionsTaguees()).isZero();
+    }
+
+    @Test
+    @DisplayName("Une notion inconnue est refusée en nommant la raison")
+    void notionInconnueRefusee() {
+        Question question = data.question();
+        entityManager.flush();
+
+        assertThatThrownBy(() -> service.taguer(question.getId(), "pv_inexistante"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("pv_inexistante");
+    }
+
+    @Test
+    @DisplayName("🛑 Une notion FUSIONNÉE ne se pose plus : ce serait du travail à défaire")
+    void notionFusionneeNeSePosePlus() {
+        Question question = data.question();
+        entityManager.flush();
+        // Fusion telle que la porte de revue §6.1.3 la produirait : la notion
+        // est désactivée et pointe vers celle qui la reprend. Elle n'est JAMAIS
+        // supprimée — les questions déjà taguées gardent leur lien.
+        jdbc.update("""
+                UPDATE civic_notions
+                SET is_active = false,
+                    merged_into_id = (SELECT id FROM civic_notions WHERE code = 'pv_laicite')
+                WHERE code = 'vs_laicite_quotidien'
+                """);
+        entityManager.clear();
+
+        assertThatThrownBy(() -> service.taguer(question.getId(), "vs_laicite_quotidien"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("fusionnée");
+
+        assertThat(notion("vs_laicite_quotidien").mergedIntoCode()).isEqualTo("pv_laicite");
+    }
+
+    @Test
+    @DisplayName("La file de tagging rend ce qu'il reste, et le compte diminue quand on tague")
+    void fileDeTagging() {
+        // 🛑 PRECONDITION EXPLICITE : ce test verifie le MECANISME de la file --
+        // ce qu'il reste a taguer, et que le compte diminue quand on tague. Il
+        // lui faut donc un corpus vierge, et il le dit au lieu de compter
+        // dessus : le depot est tague en migration depuis V296/V297 (DETTE-T1),
+        // et une file sans suggestion est l'etat de CE TEST, plus celui du depot.
+        remettreLeCorpusANonTague();
+        jdbc.update("DELETE FROM question_notion_suggestions");
+
+        var avant = service.fileDeTagging(null, false, false, 25, 0);
+
+        assertThat(avant.resteATaguer()).isPositive();
+        assertThat(avant.questions()).isNotEmpty();
+        assertThat(avant.questions()).allSatisfy(q -> {
+            assertThat(q.notionCode()).isNull();
+            assertThat(q.suggestions()).isEmpty();
+        });
+
+        UUID premiere = avant.questions().getFirst().questionId();
+        service.taguer(premiere, "pv_symboles_devise");
+        entityManager.clear();
+
+        var apres = service.fileDeTagging(null, false, false, 25, 0);
+        assertThat(apres.resteATaguer()).isEqualTo(avant.resteATaguer() - 1);
+        // Taguée, elle sort de la file de travail et entre dans l'autre.
+        assertThat(apres.questions())
+                .noneSatisfy(q -> assertThat(q.questionId()).isEqualTo(premiere));
+        assertThat(service.fileDeTagging(null, true, false, 25, 0).questions())
+                .anySatisfy(q -> {
+                    assertThat(q.questionId()).isEqualTo(premiere);
+                    assertThat(q.notionCode()).isEqualTo("pv_symboles_devise");
+                });
+    }
+
+    @Test
+    @DisplayName("Le filtre par thème sert l'ordre de tagging recommandé (§6.1.2)")
+    void filtreParTheme() {
+        var file = service.fileDeTagging("CIV_HISTOIRE_GEO", false, false, 25, 0);
+
+        assertThat(file.questions()).isNotEmpty();
+        assertThat(file.questions())
+                .allSatisfy(q -> assertThat(q.themeCode()).isEqualTo("CIV_HISTOIRE_GEO"));
+    }
+
+    private CivicNotionDto notion(String code) {
+        return service.referentiel().stream()
+                .filter(n -> n.code().equals(code))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private String notionDe(UUID questionId) {
+        return jdbc.queryForObject(
+                """
+                SELECT n.code FROM questions q
+                         LEFT JOIN civic_notions n ON n.id = q.civic_notion_id
+                WHERE q.id = ?
+                """, String.class, questionId);
+    }
+
+    /**
+     * 🛑 Remet le corpus civique a l'etat NON TAGUE, dans la transaction du test.
+     *
+     * <p>Le tagging de la campagne du 2026-09-11 vit desormais en migration
+     * (V296/V297, DETTE-T1). Les tests qui comptent des tags a partir de zero
+     * doivent donc le dire, au lieu de compter sur un corpus vierge par accident.
+     */
+    private void remettreLeCorpusANonTague() {
+        jdbc.update("UPDATE questions SET civic_notion_id = NULL WHERE module = 'CIVIQUE'");
+    }
+}

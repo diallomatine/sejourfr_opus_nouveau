@@ -1,0 +1,76 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.dto.AdminSetRealtimeSessionsRequest;
+import com.sejourfr.app.dto.AdminSubscriptionDto;
+import com.sejourfr.app.dto.CancelSubscriptionResponse;
+import com.sejourfr.app.dto.PageResponse;
+import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.service.AdminSubscriptionService;
+import com.sejourfr.app.service.billing.SubscriptionCancellationService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.YearMonth;
+import java.util.UUID;
+
+/**
+ * Console admin : liste paginée des UserSubscription avec filtres.
+ * {@code purchasedMonth=yyyy-MM} restreint aux achats de ce mois (heure de Paris).
+ *
+ * <p>Sécurité : {@code /api/admin/**} → ROLE_ADMIN (cf. SecurityConfig).
+ */
+@RestController
+@RequestMapping("/api/admin/subscriptions")
+@RequiredArgsConstructor
+public class AdminSubscriptionController {
+
+    private final AdminSubscriptionService adminSubscriptionService;
+    private final SubscriptionCancellationService subscriptionCancellationService;
+
+    @GetMapping
+    public PageResponse<AdminSubscriptionDto> list(
+            @RequestParam(required = false) SubscriptionSource source,
+            @RequestParam(required = false) SubscriptionStatus status,
+            @RequestParam(required = false) ModuleAccess moduleAccess,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth purchasedMonth,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return adminSubscriptionService.list(
+                source, status, moduleAccess, search, purchasedMonth, page, size);
+    }
+
+    /**
+     * Annulation admin / support d'une souscription précise. Stripe est
+     * effectivement résiliée côté serveur ({@code action=DONE}). Apple et
+     * Google renvoient {@code action=REDIRECT} : les stores n'autorisent
+     * l'annulation que par l'utilisateur depuis ses Settings. L'UI admin
+     * affiche alors l'URL à communiquer au client.
+     */
+    @PostMapping("/{id}/cancel")
+    public CancelSubscriptionResponse cancel(@PathVariable UUID id) {
+        return subscriptionCancellationService.cancelSubscriptionById(id);
+    }
+
+    /**
+     * Ajuste le solde de sessions EO temps réel d'une souscription (support :
+     * offrir ou corriger des sessions à un utilisateur).
+     */
+    @PatchMapping("/{id}/realtime-sessions")
+    public AdminSubscriptionDto setRealtimeSessions(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminSetRealtimeSessionsRequest req) {
+        return adminSubscriptionService.setRealtimeSessions(id, req.remaining());
+    }
+}

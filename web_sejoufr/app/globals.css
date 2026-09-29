@@ -1,0 +1,785 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Design tokens SejourFR
+   ============================================================================ */
+@theme {
+  /* Couleurs France */
+  --color-blue: #1E3A8C;
+  --color-blue-dark: #15296B;
+  --color-blue-light: #E8ECF8;
+  --color-blue-soft: #F4F6FC;
+  --color-red: #E1372F;
+  --color-red-dark: #B5251E;
+  --color-red-light: #FDECEB;
+  /* Rouge LISIBLE SUR FOND BLEU. `--color-red` posé sur le bleu France ne
+     passe aucun contraste, et `--color-red-light` y disparaît. C'est la teinte
+     de la maquette `histo_cycle.html`, réservée aux accents d'un bandeau de
+     marque — jamais un signal d'urgence. Miroir : `AppColors.redBright`. */
+  --color-red-bright: #FF6962;
+  --color-ink: #0F1839;
+  --color-ink-2: #1F2950;
+  --color-muted: #6B7299;
+  --color-muted-2: #9CA2BD;
+  --color-line: #E4E7F2;
+  --color-line-2: #EEF0F8;
+  /* Fonds neutres froids (refonte web_refonte, maquette sejour_fr.html) —
+     ex-beiges #FAFAF7/#F2F1EC, désormais teintés bleu comme le shell app. */
+  --color-paper: #F7F8FC;
+  --color-paper-2: #ECEFF7;
+  --color-green: #168F5B;
+  --color-amber: #E8A317;
+  /* Ambre LISIBLE EN TEXTE. `--color-amber` est un ambre de remplissage : posé
+     sur du blanc, il ne passe aucun contraste. Tout libellé ambre (badge
+     « À renforcer », tipline, icône d'encart) prend celui-ci. */
+  --color-amber-dark: #8A6100;
+
+  /* Palette d'état du kit « parcours » (diagnostic + plan). Trois familles
+     seulement : vert = acquis, ambre = à renforcer, rouge = prioritaire. Le
+     jaune ne sert QUE au liseré de la priorité 3, pour la distinguer de
+     l'ambre de la priorité 2 — jamais en texte. */
+  --color-green-light: #E6F6EE;
+  --color-green-dark: #0F5C3A;
+  --color-green-border: #BFE8D2;
+  --color-amber-light: #FBF3E0;
+  --color-amber-border: #EAD4A0;
+  --color-yellow: #D4A017;
+  --color-blue-mid: #2A4BB0;
+  --color-line-strong: #D4DAE6;
+
+  /* Dégradés de bandeau (hero « Compétences »). Deuxième butée dérivée de la
+     couleur de marque elle-même : on éclaircit le bleu / le rouge, on
+     n'introduit aucune teinte nouvelle. */
+  --gradient-hero-blue: linear-gradient(
+    140deg,
+    var(--color-blue),
+    color-mix(in srgb, var(--color-blue) 84%, white)
+  );
+  --gradient-hero-red: linear-gradient(
+    140deg,
+    var(--color-red),
+    color-mix(in srgb, var(--color-red) 84%, white)
+  );
+  /* Bandeau sombre « analyse IA » : encre → bleu France. */
+  --gradient-ink-blue: linear-gradient(135deg, var(--color-ink), var(--color-blue));
+
+  /* Fonts (variables injectées par next/font dans layout.tsx) */
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* ============================================================================
+   Tokens du kit « parcours » (`app/_components/sejour/`)
+
+   Rayons, ombres et courbes des 7 écrans de diagnostic et de plan. Ils vivaient
+   sur `.app`, la racine du kit ; une primitive employée **hors** de ce scope
+   perdait alors silencieusement son rayon ou son ombre — ce qui est arrivé à
+   `ModuleToggle` le jour où le hub `/entrainement`, qui n'est pas un écran du
+   kit, a dû porter la bascule de parcours. Un token appartient à la feuille de
+   tokens : valeurs identiques, portée globale.
+
+   🛑 Ils ne passent PAS par `@theme` : Tailwind y génère des utilities à partir
+   de chaque entrée, et ces variables ne sont pas des couleurs de design system
+   exposées au markup — elles n'ont de sens que pour le kit.
+   ============================================================================ */
+:root {
+  /* 🛑 **Les deux tons ADOUCIS de la carte « Où vous en êtes »** (demande du
+     propriétaire, 2026-09-19 : « baisse l'intensité du bleu un peu, et même le
+     rouge un peu »). Les tokens de marque ne bougent pas : `--color-blue` et
+     `--color-red` restent l'identité, et ces deux-là ne servent QUE cette
+     carte. Miroirs Flutter : `AppColors.blueMuted` / `AppColors.redMuted`.
+
+     ⚠️ **Ils sont ICI et non dans `@theme`**, comme les autres variables du
+     kit : `@theme` génère une utility par entrée, et ces deux teintes n'ont de
+     sens que pour le kit — pas pour le markup. */
+  --color-blue-muted: #3C5490;
+  --color-red-muted: #D9645C;
+
+  /* Vert **posé sur un fond foncé** : la flèche « en progrès » de la bande de
+     paliers d'un bandeau de marque. `--color-green` y devient sombre et se
+     noie, `--color-green-light` y vire au blanc. Pendant de
+     `--color-red-bright`, et miroir de `AppColors.greenBright`.
+
+     ⚠️ **Ici et non dans `@theme`** : Tailwind v4 élague toute variable de
+     thème qu'aucune classe utilitaire n'emploie — un bandeau en avait déjà fait
+     les frais. */
+  --color-green-bright: #6DE0B1;
+
+  /* Le blanc des cartes et des champs, miroir de `AppColors.white`. Un
+     module qui pose une surface blanche le lit ici plutôt que d'écrire
+     `#fff`. ⚠️ Hors `@theme`, pour la même raison que les deux au-dessus. */
+  --color-white: #FFFFFF;
+
+  --sf-radius-xs: 8px;
+  --sf-radius-sm: 12px;
+  --sf-radius-md: 16px;
+  --sf-radius-lg: 20px;
+  --sf-radius-xl: 24px;
+  --sf-radius-pill: 999px;
+
+  --sf-shadow-border:
+    0 0 0 1px rgba(15, 24, 57, 0.06),
+    0 1px 2px -1px rgba(15, 24, 57, 0.05),
+    0 4px 12px rgba(15, 24, 57, 0.04);
+  --sf-shadow-lift:
+    0 0 0 1px rgba(15, 24, 57, 0.07),
+    0 8px 24px rgba(15, 24, 57, 0.08);
+  --sf-shadow-sticky: 0 -8px 24px rgba(15, 24, 57, 0.06);
+
+  --sf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --sf-quick: 150ms;
+  --sf-fast: 250ms;
+
+  /* 🛑 **L'écart entre la barre du haut (`AppTopBar`, ≤ 900 px) et le premier
+     élément d'un écran connecté** (demande du propriétaire, 2026-09-24 :
+     « baisser la distance, partout »). UNE valeur, lue par chaque conteneur
+     d'écran dans sa media query `≤ 900 px` scopée `.app-shell--has-drawer`.
+     Desktop : aucune barre, les conteneurs gardent leur respiration. */
+  --app-bar-gap: 14px;
+}
+
+/* ============================================================================
+   Base
+   ============================================================================ */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Filet de sécurité global : aucun débordement horizontal ne doit créer
+     de scroll. Fallback `hidden` pour les browsers sans support de `clip`
+     (iOS Safari ≤ 15). `clip` est préféré quand dispo car il ne crée pas
+     de scroll container parasite qui casserait la sticky position. */
+  overflow-x: hidden;
+}
+@supports (overflow-x: clip) {
+  html { overflow-x: clip; }
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  line-height: 1.55;
+  font-size: 16px;
+  overflow-x: hidden;
+  /* Limite dure : le body ne peut pas dépasser la largeur du viewport.
+     Empêche tout enfant débordant de pousser la mise en page horizontalement. */
+  max-width: 100vw;
+}
+@supports (overflow-x: clip) {
+  body { overflow-x: clip; }
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ============================================================================
+   Helpers utility
+   ============================================================================ */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  font-weight: 500;
+}
+
+.editorial {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.editorial em {
+  color: var(--color-red);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ============================================================================
+   Cocarde (logo SVG en pur CSS)
+   ============================================================================ */
+.cocarde {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  position: relative;
+  flex-shrink: 0;
+}
+.cocarde::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  background: #fff;
+  border-radius: 50%;
+}
+.cocarde::after {
+  content: "";
+  position: absolute;
+  inset: 11px;
+  background: var(--color-red);
+  border-radius: 50%;
+}
+.cocarde.lg {
+  width: 56px;
+  height: 56px;
+}
+.cocarde.lg::before {
+  inset: 9px;
+}
+.cocarde.lg::after {
+  inset: 17px;
+}
+
+/* ============================================================================
+   Wordmark
+   ============================================================================ */
+.wordmark {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  color: var(--color-blue);
+}
+.wordmark .fr {
+  color: var(--color-red);
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--color-blue);
+  background: var(--color-blue);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  letter-spacing: -0.005em;
+}
+.btn:hover {
+  background: var(--color-blue-dark);
+  border-color: var(--color-blue-dark);
+  transform: translateY(-1px);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-lg {
+  padding: 14px 26px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+.btn-red {
+  background: var(--color-red);
+  border-color: var(--color-red);
+}
+.btn-red:hover {
+  background: var(--color-red-dark);
+  border-color: var(--color-red-dark);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+.btn-ghost:hover {
+  background: var(--color-paper-2);
+  border-color: var(--color-ink);
+}
+.btn-link-soft {
+  background: transparent;
+  color: var(--color-ink);
+  border: none;
+  padding: 10px 6px;
+}
+.btn-link-soft:hover {
+  color: var(--color-blue);
+  transform: none;
+}
+.btn .arrow {
+  transition: transform 0.15s ease;
+}
+.btn:hover .arrow {
+  transform: translateX(3px);
+}
+
+/* ============================================================================
+   Form inputs (réutilisable inscription/connexion/paiement)
+   ============================================================================ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.field-input {
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 13px 14px;
+  /* 16px minimum : en dessous, iOS Safari zoome au focus du champ, ce qui
+     permet un scroll horizontal sur mobile. 16px le neutralise sans avoir à
+     désactiver le pinch-zoom (mauvais pour l'accessibilité). */
+  font-size: 16px;
+  color: var(--color-ink);
+  transition: all 0.15s;
+  width: 100%;
+}
+.field-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(30, 58, 140, 0.1);
+}
+.field-input::placeholder {
+  color: var(--color-muted-2);
+}
+
+/* ============================================================================
+   Section helpers
+   ============================================================================ */
+.container-x {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+@media (max-width: 560px) {
+  .container-x {
+    padding: 0 20px;
+  }
+}
+
+/* Erreur de form */
+.form-error {
+  background: var(--color-red-light);
+  border: 1px solid var(--color-red);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--color-red-dark);
+  margin-bottom: 4px;
+}
+
+/* Status pill */
+.pill-success {
+  background: rgba(22, 143, 91, 0.12);
+  color: var(--color-green);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+}
+
+/* ============================================================================
+   MDX prose (blog) — typographie longue du contenu d'article
+   ============================================================================ */
+.mdx-prose {
+  color: var(--color-ink-2);
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+@media (min-width: 1024px) {
+  .mdx-prose {
+    font-size: 17.5px;
+  }
+}
+.mdx-prose h2,
+.mdx-prose h3,
+.mdx-prose h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  scroll-margin-top: 96px;
+}
+.mdx-prose h2 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 44px 0 16px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h2 {
+    font-size: 32px;
+    margin: 56px 0 20px;
+  }
+}
+.mdx-prose h3 {
+  font-size: 21px;
+  line-height: 1.25;
+  margin: 32px 0 12px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h3 {
+    font-size: 24px;
+    margin: 40px 0 14px;
+  }
+}
+.mdx-prose h4 {
+  font-size: 18px;
+  line-height: 1.3;
+  margin: 24px 0 10px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h4 {
+    font-size: 20px;
+    margin: 32px 0 12px;
+  }
+}
+.mdx-prose p {
+  margin: 0 0 20px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose p {
+    margin: 0 0 24px;
+  }
+}
+.mdx-prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.mdx-prose em {
+  font-style: italic;
+}
+.mdx-prose a {
+  color: var(--color-blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(30, 58, 140, 0.3);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+.mdx-prose a:hover {
+  text-decoration-color: var(--color-blue);
+}
+.mdx-prose ul,
+.mdx-prose ol {
+  margin: 20px 0 24px;
+  padding-left: 24px;
+}
+.mdx-prose li {
+  margin-bottom: 8px;
+  line-height: 1.65;
+}
+.mdx-prose li::marker {
+  color: var(--color-blue);
+}
+.mdx-prose ol li::marker {
+  font-weight: 600;
+}
+.mdx-prose blockquote {
+  margin: 24px 0;
+  padding: 4px 0 4px 20px;
+  border-left: 4px solid var(--color-line);
+  font-style: italic;
+  color: var(--color-muted);
+}
+.mdx-prose hr {
+  margin: 40px 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+}
+.mdx-prose code {
+  background: var(--color-paper-2);
+  color: var(--color-blue);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.mdx-prose pre {
+  margin: 24px 0;
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--color-ink);
+  color: #fff;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.mdx-prose pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.mdx-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 15px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+}
+.mdx-prose th {
+  background: var(--color-paper-2);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-ink);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-line);
+}
+.mdx-prose td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-line-2);
+  vertical-align: top;
+  color: var(--color-ink-2);
+}
+.mdx-prose tr:last-child td {
+  border-bottom: 0;
+}
+.mdx-prose .heading-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.mdx-prose .heading-anchor:hover {
+  text-decoration: none;
+}
+
+/* ============================================================================
+   Barre du haut + tiroir de l'espace connecté — voir AppTopBar.tsx
+   ============================================================================ */
+/* Sous 900 px : le pendant de l'en-tête Flutter (`ScreenHeader`) — fond papier
+   translucide flouté, filet bas, titre Fraunces. Sticky EN TÊTE de la colonne
+   de contenu : elle prend sa place dans le flux, aucune page ne compense.
+   z-index 60 : au-dessus du contenu, sous l'overlay (80), le tiroir (90) et
+   les feuilles / modales (≥ 100). */
+.atb {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  align-items: center;
+  gap: 10px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 16px 0 12px;
+  background: color-mix(in srgb, var(--color-paper) 88%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-line-2);
+  transition: box-shadow 0.18s, border-color 0.18s;
+}
+.atb.is-scrolled {
+  border-bottom-color: var(--color-line);
+  box-shadow: 0 8px 20px -16px color-mix(in srgb, var(--color-ink) 45%, transparent);
+}
+.atb-burger {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.atb-burger:hover {
+  background: var(--color-blue-soft);
+  border-color: var(--color-blue);
+}
+.atb-burger:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+.atb-titles {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.atb-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.atb-sub {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 24, 57, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 80;
+  animation: ms-overlay-in 0.18s ease-out;
+  /* Empêche le scroll/geste sur l'overlay de défiler la page derrière. */
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+@keyframes ms-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ms-drawer {
+  display: none;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(86vw, 300px);
+  background: #fff;
+  z-index: 90;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease-out;
+  box-shadow: 18px 0 40px -20px rgba(15, 24, 57, 0.35);
+  flex-direction: column;
+}
+.ms-drawer.is-open {
+  transform: translateX(0);
+}
+.ms-drawer-inner {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.ms-close:hover {
+  background: var(--color-red-light);
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
+
+/* Override de l'AppSidebar quand elle est rendue à l'intérieur du drawer
+   mobile : on veut retrouver l'affichage vertical complet (et pas la barre
+   horizontale scrollable que l'AppSidebar applique elle-même sous 900px). */
+.ms-drawer-inner .app-sidebar {
+  position: static;
+  height: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 22px 16px 16px;
+  border-right: none;
+  border-bottom: none;
+  gap: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Le scroll interne du drawer ne doit pas "chaîner" vers la page derrière
+     quand on atteint le haut/bas (scroll bleed mobile). */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.ms-drawer-inner .app-brand {
+  border-bottom: 1px solid var(--color-line-2);
+  padding: 6px 8px 22px;
+  margin: 0 0 20px;
+  flex-shrink: 0;
+}
+.ms-drawer-inner .app-nav {
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+}
+.ms-drawer-inner .nav-item {
+  padding: 10px 11px;
+  font-size: 14px;
+  white-space: normal;
+  margin-bottom: 2px;
+}
+.ms-drawer-inner .nav-label { display: block; }
+.ms-drawer-inner .app-sidebar-foot {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line-2);
+  flex-shrink: 0;
+  flex-direction: column;
+}
+.ms-drawer-inner .streak-card { display: flex; }
+.ms-drawer-inner .user-mini { padding: 8px; }
+.ms-drawer-inner .user-info { display: flex; }
+
+@media (max-width: 900px) {
+  .atb { display: flex; }
+  /* Le lien de retour d'un sous-écran : la flèche de la barre le remplace
+     (`useAppBarBack`). Desktop et visiteur : il reste. */
+  .app-shell--has-drawer .in-bar-back { display: none !important; }
+  /* L'en-tête de page monté dans la barre (`useAppBarTitle`) : effacé à
+     l'œil, il reste le `<h1>` des lecteurs d'écran. */
+  .app-shell--has-drawer .in-bar-title {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  /* Une ancre (#section) ne s'arrête pas sous la barre sticky. */
+  html:has(.app-shell--has-drawer) { scroll-padding-top: 64px; }
+  .ms-overlay { display: block; }
+  .ms-drawer { display: flex; }
+
+  /* Masque la version "horizontale" de l'AppSidebar quand le shell utilise
+     le drawer mobile (classe ajoutée par AppGroupLayout / DualChromeShell). */
+  .app-shell--has-drawer > .app-sidebar { display: none; }
+}

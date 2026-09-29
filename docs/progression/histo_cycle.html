@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SejourFR — Historique des cycles</title>
+
+<style>
+  :root{
+    /* Palette SejourFR */
+    --navy:#10204A;
+    --blue:#1F4698;
+    --blue-2:#2854AE;
+    --blue-soft:#F0F4FC;
+
+    --red:#EF3E36;
+    --red-dark:#D92F28;
+    --red-soft:#FFF2F1;
+
+    --text:#10204A;
+    --muted:#8A96B0;
+    --muted-2:#66738C;
+
+    --line:#E5EAF2;
+    --bg:#F7F8FB;
+    --white:#FFFFFF;
+
+    --shadow:0 10px 28px rgba(16,32,74,.07);
+    --shadow-soft:0 5px 16px rgba(16,32,74,.05);
+  }
+
+  *{box-sizing:border-box}
+
+  body{
+    margin:0;
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:#eef1f6;
+    color:var(--text);
+  }
+
+  button{font:inherit}
+
+  .phone{
+    width:min(100%,430px);
+    min-height:100vh;
+    margin:0 auto;
+    background:var(--bg);
+  }
+
+  /* HEADER */
+  .topbar{
+    height:64px;
+    padding:0 18px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:rgba(255,255,255,.96);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid #EEF1F6;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+
+  .back{
+    width:38px;
+    height:38px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:#fff;
+    display:grid;
+    place-items:center;
+    color:var(--blue);
+    font-size:23px;
+    line-height:1;
+    cursor:pointer;
+  }
+
+  .topbar strong{
+    font-size:16px;
+    font-weight:800;
+    letter-spacing:-.01em;
+  }
+
+  main{
+    padding:20px 18px 40px;
+  }
+
+  /* HERO */
+  .hero{
+    background:
+      radial-gradient(circle at 92% 8%, rgba(255,255,255,.10) 0 44px, transparent 45px),
+      radial-gradient(circle at 92% 8%, transparent 0 72px, rgba(255,255,255,.055) 73px 92px, transparent 93px),
+      linear-gradient(135deg,var(--blue) 0%, #173C86 100%);
+    border-radius:22px;
+    padding:22px;
+    color:#fff;
+    box-shadow:0 14px 28px rgba(31,70,152,.18);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .eyebrow{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:11px;
+    letter-spacing:.075em;
+    text-transform:uppercase;
+    font-weight:800;
+    color:rgba(255,255,255,.72);
+  }
+
+  .eyebrow-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--red);
+    box-shadow:0 0 0 4px rgba(239,62,54,.15);
+  }
+
+  h1{
+    margin:8px 0 8px;
+    max-width:330px;
+    font-size:25px;
+    line-height:1.15;
+    letter-spacing:-.03em;
+  }
+
+  .hero p{
+    margin:0;
+    max-width:330px;
+    font-size:14px;
+    line-height:1.5;
+    color:rgba(255,255,255,.78);
+  }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:18px;
+  }
+
+  .stat{
+    min-height:72px;
+    padding:11px 9px;
+    border-radius:14px;
+    background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.12);
+  }
+
+  .stat b{
+    display:block;
+    font-size:19px;
+    line-height:1.1;
+    color:#fff;
+  }
+
+  .stat span{
+    display:block;
+    margin-top:5px;
+    font-size:10.5px;
+    line-height:1.25;
+    color:rgba(255,255,255,.69);
+  }
+
+  .stat.accent b{color:#FF6962}
+
+  /* SECTION */
+  .section-title{
+    margin:26px 2px 12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:12px;
+  }
+
+  .section-title h2{
+    margin:0;
+    font-size:18px;
+    letter-spacing:-.02em;
+  }
+
+  .section-title span{
+    max-width:130px;
+    text-align:right;
+    font-size:11px;
+    line-height:1.3;
+    color:var(--muted);
+  }
+
+  /* CYCLE CARD */
+  .cycle{
+    margin-bottom:12px;
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:19px;
+    overflow:hidden;
+    box-shadow:var(--shadow-soft);
+  }
+
+  .cycle-btn{
+    width:100%;
+    padding:16px;
+    border:0;
+    background:#fff;
+    text-align:left;
+    cursor:pointer;
+    display:grid;
+    grid-template-columns:46px 1fr 22px;
+    gap:12px;
+    align-items:center;
+  }
+
+  .cycle-icon{
+    width:46px;
+    height:46px;
+    border-radius:14px;
+    background:var(--blue-soft);
+    color:var(--blue);
+    display:grid;
+    place-items:center;
+    font-size:18px;
+    font-weight:900;
+    border:1px solid #E3EAF8;
+  }
+
+  .cycle.open .cycle-icon{
+    background:var(--blue);
+    color:#fff;
+    border-color:var(--blue);
+  }
+
+  .cycle-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:4px;
+  }
+
+  .cycle-title strong{
+    font-size:15px;
+    font-weight:800;
+  }
+
+  .done{
+    padding:4px 7px;
+    border-radius:99px;
+    background:var(--red-soft);
+    color:var(--red-dark);
+    font-size:9px;
+    font-weight:900;
+    letter-spacing:.035em;
+  }
+
+  .cycle-meta{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.4;
+  }
+
+  .chevron{
+    color:#A4AEC2;
+    font-size:18px;
+    text-align:center;
+    transition:.2s ease;
+  }
+
+  .cycle.open .chevron{
+    transform:rotate(180deg);
+    color:var(--blue);
+  }
+
+  .cycle-body{
+    display:none;
+    border-top:1px solid #EEF1F6;
+    padding:2px 16px 17px 74px;
+  }
+
+  .cycle.open .cycle-body{display:block}
+
+  /* SKILLS */
+  .item{
+    position:relative;
+    padding:14px 0 13px;
+    border-bottom:1px dashed #E4E8F0;
+  }
+
+  .item:last-of-type{border-bottom:0}
+
+  .item:before{
+    content:"✓";
+    position:absolute;
+    left:-31px;
+    top:14px;
+    width:21px;
+    height:21px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:var(--blue-soft);
+    color:var(--blue);
+    border:1px solid #DCE6F7;
+    font-size:11px;
+    font-weight:900;
+  }
+
+  .item strong{
+    display:block;
+    margin-bottom:4px;
+    font-size:13px;
+    font-weight:800;
+    color:var(--navy);
+  }
+
+  .item small{
+    display:block;
+    font-size:12px;
+    color:var(--muted-2);
+    line-height:1.45;
+  }
+
+  /* EXAM SUMMARY */
+  .exam{
+    margin-top:12px;
+    padding:13px 14px;
+    border-radius:15px;
+    background:linear-gradient(180deg,#FFF7F6 0%,var(--red-soft) 100%);
+    border:1px solid #FFD8D4;
+  }
+
+  .exam-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+
+  .exam strong{
+    font-size:12.5px;
+    font-weight:850;
+    color:var(--navy);
+  }
+
+  .level{
+    flex:none;
+    padding:5px 8px;
+    border-radius:99px;
+    background:#fff;
+    border:1px solid #FFD1CE;
+    color:var(--red-dark);
+    font-size:10px;
+    font-weight:900;
+  }
+
+  .exam p{
+    margin:6px 0 0;
+    font-size:11.5px;
+    line-height:1.4;
+    color:#7E6870;
+  }
+
+  /* FOOTER INFO */
+  .footer-note{
+    margin-top:20px;
+    padding:15px 16px;
+    border-radius:16px;
+    background:#fff;
+    border:1px solid var(--line);
+    color:var(--muted-2);
+    font-size:12px;
+    line-height:1.5;
+    box-shadow:var(--shadow-soft);
+  }
+
+  .footer-note b{color:var(--blue)}
+
+  /* Small visual separator inspired by the app */
+  .footer-note:before{
+    content:"";
+    display:inline-block;
+    width:7px;
+    height:7px;
+    margin-right:7px;
+    border-radius:50%;
+    background:var(--red);
+    vertical-align:1px;
+  }
+
+  @media (max-width:360px){
+    h1{font-size:23px}
+    .stat{padding:10px 7px}
+    .stat span{font-size:10px}
+    .cycle-body{padding-left:68px}
+  }
+</style>
+</head>
+
+<body>
+<div class="phone">
+
+  <header class="topbar">
+    <button class="back" aria-label="Retour" onclick="history.back()">‹</button>
+    <strong>Ma progression</strong>
+  </header>
+
+  <main>
+
+    <section class="hero">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        Votre parcours
+      </div>
+
+      <h1>Tout ce que vous avez déjà travaillé</h1>
+      <p>Vos anciens cycles restent ici, même lorsque votre plan évolue.</p>
+
+      <div class="stats">
+        <div class="stat">
+          <b>12</b>
+          <span>compétences travaillées</span>
+        </div>
+        <div class="stat accent">
+          <b>5</b>
+          <span>examens passés</span>
+        </div>
+        <div class="stat">
+          <b>2</b>
+          <span>cycles terminés</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <h2>Cycles terminés</h2>
+      <span>Du plus récent au plus ancien</span>
+    </div>
+
+    <!-- CYCLE 2 -->
+    <article class="cycle open">
+      <button class="cycle-btn" onclick="toggleCycle(this)">
+        <div class="cycle-icon">2</div>
+
+        <div>
+          <div class="cycle-title">
+            <strong>Cycle 2</strong>
+            <span class="done">TERMINÉ</span>
+          </div>
+          <div class="cycle-meta">
+            4–16 septembre · 6 compétences · 3 examens
+          </div>
+        </div>
+
+        <div class="chevron">⌄</div>
+      </button>
+
+      <div class="cycle-body">
+        <div class="item">
+          <strong>Compréhension orale</strong>
+          <small>Repérer les informations importantes · Comprendre une annonce</small>
+        </div>
+
+        <div class="item">
+          <strong>Expression écrite</strong>
+          <small>Structurer un message · Utiliser les connecteurs simples</small>
+        </div>
+
+        <div class="item">
+          <strong>Expression orale</strong>
+          <small>Donner son opinion et la justifier</small>
+        </div>
+
+        <div class="exam">
+          <div class="exam-head">
+            <strong>Examens réalisés</strong>
+            <span class="level">Niveau B1</span>
+          </div>
+          <p>CO · EE · EO — résultats enregistrés dans votre progression.</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- CYCLE 1 -->
+    <article class="cycle">
+      <button class="cycle-btn" onclick="toggleCycle(this)">
+        <div class="cycle-icon">1</div>
+
+        <div>
+          <div class="cycle-title">
+            <strong>Cycle 1</strong>
+            <span class="done">TERMINÉ</span>
+          </div>
+          <div class="cycle-meta">
+            18–31 août · 6 compétences · 2 examens
+          </div>
+        </div>
+
+        <div class="chevron">⌄</div>
+      </button>
+
+      <div class="cycle-body">
+        <div class="item">
+          <strong>Compréhension écrite</strong>
+          <small>Identifier l’idée principale · Comprendre les détails utiles</small>
+        </div>
+
+        <div class="item">
+          <strong>Compréhension orale</strong>
+          <small>Comprendre une conversation courte</small>
+        </div>
+
+        <div class="item">
+          <strong>Expression écrite</strong>
+          <small>Rédiger un message simple et compréhensible</small>
+        </div>
+
+        <div class="exam">
+          <div class="exam-head">
+            <strong>Niveau mesuré</strong>
+            <span class="level">A2 → B1</span>
+          </div>
+          <p>Cette évolution correspond aux examens enregistrés pendant ce cycle.</p>
+        </div>
+      </div>
+    </article>
+
+    <div class="footer-note">
+      <b>Rien n’est perdu :</b> lorsqu’un nouveau plan est généré, vos cycles terminés et les compétences travaillées restent visibles ici.
+    </div>
+
+  </main>
+</div>
+
+<script>
+  function toggleCycle(btn){
+    btn.closest('.cycle').classList.toggle('open');
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,312 @@
+import '../../core/models/civic_diagnostic_models.dart';
+import '../../core/models/tcf_diagnostic_models.dart';
+import '../../core/router/app_router.dart';
+import '../../core/models/enums.dart';
+
+/// Règles d'affichage du diagnostic **civique** — **pures**, déclarées une fois
+/// pour tout le mobile.
+///
+/// 🛑 Le serveur n'expose que des **faits** (un état de thème, un compte, une
+/// projection). Les phrases vivent ici, et sont des **miroirs mot pour mot** de
+/// `web_sejoufr/lib/civic-diagnostic.ts`.
+///
+/// 🛑 Ce fichier ne **dérive** aucun état pédagogique.
+
+/// L'en-tête de l'**intro** (maquette `civique-intro`).
+const String kCivicIntroKicker = 'Diagnostic';
+const String kCivicIntroTitle = 'Examen civique';
+const String kCivicIntroLead =
+    'Découvrez les thèmes et notions que vous devez travailler en priorité.';
+
+/// L'en-tête du **résultat** (maquette `civique-resultat`).
+const String kCivicResultKicker = 'Examen civique';
+const String kCivicResultTitle = 'Votre diagnostic';
+const String kCivicResultBadge = 'Diagnostic terminé';
+
+/// Le format OFFICIEL de l'examen — miroir de `CivicExamFormat` côté Java, où
+/// ces deux nombres sont du **code** et non un réglage.
+///
+/// 🛑 Ils ne servent qu'à l'écran **d'intro**, seul moment du parcours où aucune
+/// session n'existe encore : dès qu'un résultat est servi, ce sont
+/// `formatQuestions` et `seuilReussite` du DTO qui font foi, jamais ceux-ci.
+const int kCivicExamQuestions = 40;
+const int kCivicExamSeuilReussite = 32;
+
+/// Les thèmes du livret officiel. Structure de l'épreuve, pas un réglage.
+const int kCivicThemesCount = 5;
+
+const String kCivicIntroThemesTitle = 'Les 5 thèmes du livret';
+const String kCivicIntroSituationsNote =
+    'Certaines questions sont des mises en situation, pour vérifier que vous '
+    'savez appliquer les règles à des cas concrets.';
+
+/// Les libellés de la carte de statistiques de l'intro.
+const String kCivicIntroStatQuestions = 'Questions';
+const String kCivicIntroStatThemes = 'Thèmes évalués';
+const String kCivicIntroStatSeuil = 'Seuil de réussite';
+
+/// La légende sous le CTA de l'intro. Le constat est gratuit, on le dit.
+const String kCivicIntroFreeCaption = 'Votre premier diagnostic est offert.';
+
+/// 🛑 Le diagnostic **n'est pas** un examen blanc (`20_` §4.1), et l'écran doit
+/// le dire avant de commencer : sinon le candidat lit son résultat comme un
+/// pronostic de réussite.
+const String kCivicDiagnosticNotExam =
+    'Ce n\'est pas un examen blanc : il sert à repérer ce qu\'il vous reste à travailler.';
+
+const String kCivicDiagnosticStartCta = 'Commencer mon diagnostic';
+
+/// Le tunnel **invité** (`V053`), en mots.
+///
+/// 🛑 **La démarche est demandée AVANT le tirage**, et ce n'est pas un
+/// formulaire de confort : c'est elle qui choisit les questions. Un candidat
+/// naturalisation mesuré sur des questions de carte de séjour repartirait avec
+/// un diagnostic flatteur et un plan incomplet.
+const String kCivicDiagnosticGuestTitle = 'Quelle démarche préparez-vous ?';
+
+/// 🛑 Promesse tenue par le serveur : aucun compte n'est demandé pour répondre.
+const String kCivicDiagnosticGuestNote =
+    'Pas besoin de compte pour commencer. Il ne vous sera demandé qu\'au moment '
+    'de voir votre résultat.';
+const String kCivicDiagnosticGuestBadge = 'Sans compte';
+
+/// Le résultat est ce qu'on échange contre le compte — dit sans détour.
+const String kCivicDiagnosticGateEyebrow = 'Dernière étape';
+const String kCivicDiagnosticGateTitle = 'Vos réponses sont enregistrées';
+const String kCivicDiagnosticGateLead =
+    'Créez votre compte gratuit pour voir votre résultat et votre plan.';
+
+/// Vrai sans chiffre : un candidat peut n'avoir répondu qu'à une partie des
+/// questions (« Vos 40 réponses » ne l'était pas). Miroir de
+/// `CIVIC_DIAGNOSTIC_GATE_SAFE` (web).
+const String kCivicDiagnosticGateSafe =
+    'Vos réponses sont déjà enregistrées : elles vous suivent.';
+const String kCivicDiagnosticResumeCta = 'Reprendre';
+const String kCivicDiagnosticResultCta = 'Voir mon résultat';
+const String kCivicDiagnosticPlanCta = 'Découvrir mon plan';
+
+/// L'en-tête d'un diagnostic déjà ouvert (reprise).
+const String kCivicDiagnosticEnCoursLabel = 'Votre diagnostic en cours';
+
+/// Les trois démarches, dans l'ordre du livret.
+///
+/// 🛑 **Dérivée, jamais recopiée** : l'autorité est
+/// [TargetProcedure.mentionLabel], que la pastille d'objectif de l'Accueil lit
+/// aussi. Deux tables auraient fini par nommer la même démarche de deux façons.
+final Map<String, String> kMentionLabel = {
+  for (final procedure in TargetProcedure.values)
+    procedure.wire: procedure.mentionLabel,
+};
+
+/// « 12 sur 40 répondues ». Compté sur ce que le serveur a servi.
+String civicProgressionLabel(int repondues, int total) =>
+    '$repondues sur $total répondue${repondues > 1 ? 's' : ''}';
+
+const String kCivicScoreLabel = 'Bonnes réponses';
+
+/// La mise en perspective sous le score.
+///
+/// **Deux formulations, et la différence est de l'honnêteté :** le format
+/// entier posé ⇒ le score EST le résultat, on ne projette rien ; un catalogue
+/// sous-doté ⇒ on projette, et on le dit, parce qu'un report n'est pas une
+/// mesure.
+///
+/// 🛑 `null` ⇒ aucune phrase : « on n'a rien mesuré » ne se dit pas « vous
+/// auriez 0 ».
+String? civicPerspectiveLine(CivicDiagnosticResultDto r) {
+  final projection = r.projection40;
+  if (projection == null) return null;
+  if (r.posees == r.formatQuestions) {
+    return 'Votre résultat est directement comparable à l\'examen : '
+        'vos ${r.posees} questions sont au format de l\'épreuve.';
+  }
+  return 'Votre résultat actuel correspond à environ $projection / '
+      '${r.formatQuestions} sur un examen complet.';
+}
+
+/// L'encart de seuil.
+///
+/// 🛑 **Aucune promesse de réussite.** On dit le seuil, jamais « vous êtes
+/// prêt » ni « vous allez échouer ». La mention « estimation » n'apparaît que
+/// quand le nombre affiché **est** une estimation : la coller sur un score
+/// complet ferait douter d'une mesure exacte.
+String civicThresholdLine(CivicDiagnosticResultDto r) {
+  final seuil = 'Seuil de référence : ${r.seuilReussite} / ${r.formatQuestions}.';
+  return r.posees == r.formatQuestions
+      ? seuil
+      : '$seuil Il s\'agit d\'une estimation, pas d\'une prédiction de réussite.';
+}
+
+/// Le ton d'un thème. 🛑 `nonEvalue` n'a **pas** de couleur d'alerte.
+enum CivicThemeTone { ok, warn, hot, muted }
+
+CivicThemeTone civicThemeTone(CivicThemeState etat) => switch (etat) {
+      CivicThemeState.solide => CivicThemeTone.ok,
+      CivicThemeState.aRenforcer => CivicThemeTone.warn,
+      CivicThemeState.faible => CivicThemeTone.hot,
+      CivicThemeState.nonEvalue => CivicThemeTone.muted,
+    };
+
+const String kCivicThemesTitle = 'Vos thèmes';
+
+const String kCivicSituationsTitle = 'Mises en situation';
+const String kCivicSituationsLabel = 'Application des règles';
+const String kCivicSituationsText =
+    'Les mises en situation demandent d\'appliquer les règles à un cas concret. '
+    'C\'est souvent ce qui fait la différence à l\'examen.';
+
+/// « 8 réponses correctes sur 12 ». `null` quand aucune n'a été posée : le mode
+/// dégradé **masque toute la section** plutôt que d'annoncer un zéro.
+String? situationsLine(CivicDiagnosticResultDto r) {
+  if (r.situations.posees <= 0) return null;
+  final n = r.situations.reussies;
+  return '$n réponse${n > 1 ? 's' : ''} correcte${n > 1 ? 's' : ''} '
+      'sur ${r.situations.posees}';
+}
+
+/// Le titre du bloc 4, volontairement concret (`20_` §4.5).
+const String kCivicPrioritesTitle = 'Ce qui vous coûte le plus de points';
+
+/// 🛑 **Plafond d'AFFICHAGE, jamais un budget.** Le serveur classe *tous* les
+/// thèmes sous l'objectif ; l'écran en montre trois et **compte** le reste.
+const int kCivicPrioritesVisibles = 3;
+
+const String kCivicRassuranceTitle = 'Vous n\'avez pas besoin de tout réviser';
+
+/// 🛑 `null` quand aucun thème n'est solide : « 0 thème est déjà solide » serait
+/// une phrase de consolation qui sonne faux au pire moment.
+String? civicRassuranceText(CivicDiagnosticResultDto r) {
+  final solides =
+      r.themes.where((t) => t.etat == CivicThemeState.solide).length;
+  if (solides <= 0) return null;
+  return '$solides thème${solides > 1 ? 's sont déjà solides' : ' est déjà solide'}. '
+      'Votre plan se concentrera sur ce qui vous fait perdre le plus de points.';
+}
+
+const String kCivicPlanTeaserTitle = 'Votre plan Examen civique est prêt';
+
+/// « + 2 autres thèmes à consolider ».
+///
+/// 🛑 **Un vrai nombre**, celui que le plafond d'affichage n'a pas montré —
+/// jamais un « + d'autres » décoratif : le candidat doit pouvoir vérifier.
+/// `null` quand la liste servie tient entière à l'écran.
+///
+/// 🛑 **Le grain est le THÈME**, pas la notion : aucune question n'est encore
+/// taguée par notion (`20_` §3.4), et annoncer des « notions » promettrait une
+/// finesse que la base ne sert pas.
+String? civicAutresPrioritesLine(int total) {
+  final reste = total - kCivicPrioritesVisibles;
+  if (reste <= 0) return null;
+  return '+ $reste autre${reste > 1 ? 's' : ''} thème${reste > 1 ? 's' : ''} '
+      'à consolider';
+}
+
+/// Le paramètre que le runner reçoit quand la série appartient à un diagnostic
+/// civique.
+///
+/// 🛑 **Sa seule fonction est le RETOUR**. Sans lui, le candidat termine ses 40 questions et
+/// atterrit sur le bilan de série générique, très loin de son diagnostic. Il ne
+/// change **rien d'autre** : ni la passation, ni la correction, ni le décompte.
+const String kCivicDiagnosticParam = 'civicDiagnosticId';
+
+/// Le runner, avec le marqueur de retour vers le diagnostic.
+String civicRunnerPath(String attemptId, String sessionId) =>
+    '/runner/$attemptId?$kCivicDiagnosticParam=$sessionId';
+
+/* ------------------------------------- L'écran de déblocage du Plan (A) --- */
+
+/// **Le score du diagnostic, ramené au format de l'épreuve.**
+///
+/// 🛑 **Les deux nombres sont SERVIS**, et la branche est celle de
+/// [civicPerspectiveLine] : le diagnostic a posé le format entier ⇒ le score
+/// **est** le résultat ; sinon c'est `projection40`, calculé serveur. Rien
+/// n'est recalculé ici. `null` quand rien n'a été mesuré — « on n'a rien
+/// mesuré » ne se dit pas « 0 sur 40 ».
+///
+/// Miroir de `civicScoreSurFormat` (`web_sejoufr/lib/civic-diagnostic.ts`).
+({int valeur, int sur})? civicScoreSurFormat(CivicDiagnosticResultDto r) {
+  if (r.formatQuestions <= 0) return null;
+  if (r.posees == r.formatQuestions) {
+    return (valeur: r.bonnes, sur: r.formatQuestions);
+  }
+  final projection = r.projection40;
+  if (projection == null) return null;
+  return (valeur: projection, sur: r.formatQuestions);
+}
+
+/// « 11 / 40 » — la valeur du héros. `null` quand rien n'a été mesuré.
+String? civicScoreLabel(CivicDiagnosticResultDto r) {
+  final score = civicScoreSurFormat(r);
+  return score == null ? null : '${score.valeur} / ${score.sur}';
+}
+
+/// **Ce qui manque pour atteindre le seuil**, en points.
+///
+/// ⚠️ C'est une **soustraction de deux faits servis** (le seuil et le score
+/// ramené au format), pas un classement : aucun état pédagogique n'en sort.
+/// `null` dès que le score n'est pas mesuré, ou que le seuil est déjà atteint.
+String? civicEcartLine(CivicDiagnosticResultDto r) {
+  final score = civicScoreSurFormat(r);
+  if (score == null) return null;
+  final manque = r.seuilReussite - score.valeur;
+  if (manque <= 0) return null;
+  return '$manque point${manque > 1 ? 's' : ''} à combler';
+}
+
+/// **La part du seuil déjà acquise** (0–1), pour le rail du héros.
+///
+/// 🛑 Ce n'est ni un pourcentage de réussite ni un pronostic : c'est la
+/// position du score servi sur l'axe du format. `null` sans mesure ⇒ pas de
+/// rail.
+double? civicScoreRatio(CivicDiagnosticResultDto r) {
+  final score = civicScoreSurFormat(r);
+  if (score == null || score.sur <= 0) return null;
+  return (score.valeur / score.sur).clamp(0.0, 1.0);
+}
+
+/// « Mises en situation : 1 / 12 » — **deux nombres servis** (`situations`).
+///
+/// 🛑 `null` quand aucune n'a été posée : un « 0 / 0 » ne dit rien et se lit
+/// comme un échec.
+String? civicSituationsTitre(CivicDiagnosticResultDto r) {
+  if (r.situations.posees <= 0) return null;
+  return '$kCivicSituationsTitle : '
+      '${r.situations.reussies} / ${r.situations.posees}';
+}
+
+/// « 12 des 40 questions de l'examen. Votre plan les travaille en premier. »
+///
+/// 🛑 **Seulement quand le diagnostic a posé le format entier.** En mode
+/// dégradé (catalogue sous-doté), les mises en situation posées ne sont pas
+/// celles de l'examen : l'annoncer serait un report présenté comme une mesure.
+String? civicSituationsNote(CivicDiagnosticResultDto r) {
+  if (r.situations.posees <= 0) return null;
+  if (r.posees != r.formatQuestions) return null;
+  return '${r.situations.posees} des ${r.formatQuestions} questions de '
+      'l\'examen. Votre plan les travaille en premier.';
+}
+
+/// **Où mène « Mon diagnostic » depuis le Plan civique.**
+///
+/// 🛑 **Le rapport directement, quand il y a un rapport à lire** (demande du
+/// propriétaire, 2026-09-20) : le hub n'ajoutait qu'un écran de plus — « 40 sur
+/// 40 répondues » puis un bouton — entre le candidat et son résultat.
+///
+/// 🛑 **Mais jamais sur un diagnostic INACHEVÉ.** L'écran de résultat
+/// **clôture** la session (`CivicDiagnosticRepository.result`) : y envoyer un
+/// candidat à 10/40 figerait son diagnostic sur trente questions sans réponse.
+/// Tant que tout n'est pas répondu, on passe donc par le hub, qui sait
+/// reprendre.
+///
+/// `null` — aucun diagnostic ouvert — ⇒ le hub aussi : c'est lui qui propose de
+/// le commencer.
+///
+/// Miroir web : `civicDiagnosticHref` (`lib/civic-diagnostic.ts`).
+String civicDiagnosticRoute(CivicDiagnosticDto? session) {
+  final fini = session != null &&
+      (session.status == TcfDiagnosticStatus.completed ||
+          session.repondues >= session.total);
+  return fini
+      ? AppRoutes.civicDiagnosticResultPath(session.sessionId)
+      : AppRoutes.civicDiagnostic;
+}

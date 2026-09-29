@@ -11,6 +11,25 @@ spring:
     properties:
       hibernate:
         show_sql: false
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: ${MAIL_HOST}
+          # Échec rapide si le SMTP est injoignable, plutôt qu'un hang qui
+          # bloque le thread HTTP (contact, reset password).
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   flyway:
     # En prod : uniquement le schema commun, jamais le seed dev
     locations: classpath:db/migration
@@ -21,7 +40,22 @@ logging:
     com.sejourfr: INFO
 
 server:
-  forward-headers-strategy: framework
+  # Controle N8 (2026-09-25) : `native`, jamais `framework`. `framework` pose le
+  # ForwardedHeaderFilter de Spring, qui reecrit l'IP de TOUTE requete avec la
+  # PREMIERE valeur de X-Forwarded-For, sans regarder qui parle : un client la
+  # choisit (verrouille par ForwardedHeadersStrategyTest), et les rate-limits
+  # par IP deviennent decoratifs. `native` = valve RemoteIp de Tomcat : l'en-tete
+  # n'est lu que si la connexion vient d'un proxy interne (loopback et plages
+  # privees par defaut), et c'est la derniere adresse non interne de la chaine
+  # qui est retenue. X-Forwarded-Proto est traite de la meme facon.
+  # Reverse-proxy sur une adresse PUBLIQUE (load balancer externe) : declarer
+  # son adresse (regex Java) dans TOMCAT_TRUSTED_PROXIES, sinon tout le monde
+  # aurait l'IP du proxy. TRUSTED_PROXY_RANGES (ClientIpResolver) reste VIDE :
+  # l'IP est deja resolue par la valve.
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      trusted-proxies: ${TOMCAT_TRUSTED_PROXIES:}
 
 sejourfr:
   cors:
@@ -35,3 +69,32 @@ sejourfr:
     local:
       root: ${STORAGE_LOCAL_ROOT:/var/sejourfr/uploads}
       public-base-url: ${STORAGE_PUBLIC_BASE_URL}
+  email:
+    unsubscribe:
+      keys:
+        # 🛑 Obligatoire en production : sans elle le backend ne demarre pas.
+        1: ${EMAIL_UNSUBSCRIBE_KEY_V1}
+  app:
+    base-url: ${APP_BASE_URL:https://sejourfr.fr}
+  backend:
+    # URL publique de l'API : le lien de confirmation de changement d'email pointe
+    # vers le backend, pas vers le site.
+    base-url: ${BACKEND_BASE_URL:https://api.sejourfr.fr}
+  stripe:
+    # Stripe Price IDs vivent en base (plans.stripe_price_id) — cf. lot 4.
+    secret-key: ${STRIPE_SECRET_KEY}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+    app-base-url: ${APP_BASE_URL:https://sejourfr.fr}
+  apple:
+    issuer-id: ${APPLE_ISSUER_ID:}
+    key-id: ${APPLE_KEY_ID:}
+    private-key: ${APPLE_PRIVATE_KEY:}
+    bundle-id: ${APPLE_BUNDLE_ID:}
+    app-apple-id: ${APPLE_APP_ID:#{null}}
+    environment: ${APPLE_ENVIRONMENT:PRODUCTION}
+  google:
+    service-account-json: ${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:}
+    package-name: ${GOOGLE_PLAY_PACKAGE_NAME:}
+    pub-sub-audience: ${GOOGLE_PUBSUB_AUDIENCE:}
+    pub-sub-service-account-email: ${GOOGLE_PUBSUB_SA_EMAIL:}
+

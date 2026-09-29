@@ -1,0 +1,11 @@
+{{accessLabel}} se termine le {{accessEndDate}}
+
+{{greeting}},
+
+{{accessLabel}} se termine le {{accessEndDate}}. {{remainingAccessSentence}}
+
+D'ici là, tous vos entraînements restent ouverts. Après cette date, votre progression et vos résultats restent disponibles sur votre compte.
+
+Voir mon pass : {{manageAccessUrl}}
+
+Il s'agit d'un achat unique : rien n'est prélevé automatiquement.

@@ -1,0 +1,220 @@
+package com.sejourfr.app.service.billing;
+
+import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PaymentStatus;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.email.event.PremiumAccessGrantedEvent;
+import com.sejourfr.app.util.LogMask;
+import org.springframework.context.ApplicationEventPublisher;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+/**
+ * Accorde l'accès Premium pour un PASS one-time (lot 5), commun aux 3 canaux
+ * (Stripe / Apple / Google). Écrit une ligne {@code user_subscriptions}
+ * {@code ACTIVE}, {@code auto_renew=false}, dont la durée est posée par le
+ * backend ({@code plan.durationDays}) — contrairement à l'abonnement où la
+ * période vient du store.
+ *
+ * <p><b>Prolongation (décision produit)</b> : un nouvel achat repart de la fin
+ * d'accès courante, pas de « maintenant ». Donc acheter un pass alors qu'un
+ * accès est encore valide CUMULE les durées. La proration éventuelle (upgrade
+ * Civique→Intégral) est gérée en amont côté Stripe (web) — ici on ne fait que
+ * créditer la durée du pass acheté.
+ *
+ * <p><b>Idempotence</b> : la clé {@code (source, original_transaction_id)} est
+ * unique. Re-vérifier le même reçu (replay) ne crée pas de seconde période —
+ * on renvoie la ligne existante telle quelle.
+ */
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class OneTimeAccessService {
+
+    private final UserManager userManager;
+    private final UserSubscriptionManager userSubscriptionManager;
+    private final SubscriptionService subscriptionService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final MontantEncaisseResolver montantEncaisseResolver;
+    private final RevenueCalculator revenueCalculator;
+    private final PurchaseIntentService purchaseIntentService;
+
+    /**
+     * Variante sans montant déclaré : le canal ne dit pas ce qu'il a prélevé,
+     * on retombe sur le prix affiché du plan.
+     */
+    public UserSubscription grantOneTimeAccess(
+            UUID userId, Plan plan, SubscriptionSource source,
+            String originalTransactionId, String externalTransactionId) {
+        return grantOneTimeAccess(userId, plan, source, originalTransactionId,
+                externalTransactionId, MontantEncaisse.INCONNU);
+    }
+
+    /**
+     * Crédite l'accès du pass {@code plan} à {@code userId} via {@code source}.
+     *
+     * @param originalTransactionId clé de réconciliation stable (Stripe:
+     *        session/payment_intent ; Apple: transactionId ; Google:
+     *        purchaseToken/orderId).
+     * @param externalTransactionId id de transaction courant (traçabilité).
+     * @param montantConstate montant réellement prélevé par le canal, quand il
+     *        le déclare ; {@link MontantEncaisse#INCONNU} sinon — on retombe
+     *        alors sur le prix affiché du plan, <b>au moment de l'achat</b>.
+     *        🛑 Il est FIGÉ ici et n'est jamais recalculé ensuite :
+     *        {@code plans.price} est modifiable en console, le relire plus tard
+     *        réécrirait le chiffre d'affaires du passé.
+     * @return la souscription accordée (existante en cas de replay).
+     */
+    public UserSubscription grantOneTimeAccess(
+            UUID userId, Plan plan, SubscriptionSource source,
+            String originalTransactionId, String externalTransactionId,
+            MontantEncaisse montantConstate) {
+        return grantOneTimeAccess(userId, plan, source, originalTransactionId,
+                externalTransactionId, montantConstate, ContexteAchat.AUCUN);
+    }
+
+    /**
+     * Variante complète (chantier Suivi, lot 2b) : en plus du montant, le canal
+     * transmet ce qu'il sait de l'achat ({@link ContexteAchat}). À la création
+     * — jamais sur un rejeu — la ligne fige :
+     * <ul>
+     *   <li>{@code purchased_at} (date du canal, sinon l'heure d'écriture) ;</li>
+     *   <li>la décomposition du revenu ({@link RevenueCalculator}), quand le
+     *       brut en euros est connu — sinon les six colonnes restent NULL ;</li>
+     *   <li>{@code payment_status = PAID} ;</li>
+     *   <li>l'attribution lue sur l'intention d'achat, consommée ici, dans la
+     *       même transaction (Q12).</li>
+     * </ul>
+     */
+    public UserSubscription grantOneTimeAccess(
+            UUID userId, Plan plan, SubscriptionSource source,
+            String originalTransactionId, String externalTransactionId,
+            MontantEncaisse montantConstate, ContexteAchat contexte) {
+        ContexteAchat achat = contexte != null ? contexte : ContexteAchat.AUCUN;
+
+        UserSubscription existing = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(source, originalTransactionId)
+                .orElse(null);
+
+        if (existing != null) {
+            // Anti account-stealing : un reçu rattaché à un autre compte ne peut
+            // pas être réutilisé.
+            if (existing.getUser() == null || !existing.getUser().getId().equals(userId)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Ce paiement est déjà rattaché à un autre compte.");
+            }
+            // Replay du même achat : idempotent, pas de nouvelle période.
+            // S2 : pour Google, originalTransactionId EST le purchaseToken — masque
+            // comme partout ailleurs dans le code de paiement.
+            log.info("Pass one-time déjà accordé (replay) user={} source={} tx={}",
+                    userId, source, LogMask.token(originalTransactionId));
+            return existing;
+        }
+
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User introuvable : " + userId));
+
+        Instant now = Instant.now();
+        // Prolongation par module : on repart de la fin d'un accès existant de
+        // module >= celui acheté (cf. currentEndForAtLeast). Ainsi un upgrade
+        // Civique→Intégral repart de maintenant (le reste Civique est crédité
+        // via la proration Stripe), tandis qu'un re-achat même module cumule.
+        Instant currentEnd =
+                subscriptionService.currentEndForAtLeast(userId, plan.getModuleAccess());
+        boolean extension = currentEnd != null && currentEnd.isAfter(now);
+        Instant base = extension ? currentEnd : now;
+        Instant endsAt = base.plus(plan.getDurationDays(), ChronoUnit.DAYS);
+
+        // Sessions EO temps réel : on CUMULE (report du reste du pass couvrant en
+        // cours + allocation du nouveau pass = plans.realtime_eo_sessions). Un
+        // premier achat repart de 0 + allocation. Le report ne vient que si l'accès
+        // en cours couvre au moins le module acheté (extension), auquel cas
+        // currentSubscription est bien le pass qu'on prolonge (Intégral pour l'EO).
+        int carriedRealtime = extension
+                ? subscriptionService.currentSubscription(userId)
+                        .map(UserSubscription::getRealtimeEoSessionsRemaining)
+                        .orElse(0)
+                : 0;
+
+        UserSubscription sub = new UserSubscription();
+        sub.setUser(user);
+        sub.setPlan(plan);
+        sub.setProductId(plan.getCode());
+        sub.setSource(source);
+        sub.setOriginalTransactionId(originalTransactionId);
+        sub.setExternalTransactionId(externalTransactionId);
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setAutoRenew(false);
+        sub.setStartsAt(now);
+        sub.setEndsAt(endsAt);
+        sub.setRealtimeEoSessionsRemaining(carriedRealtime + Math.max(0, plan.getRealtimeEoSessions()));
+        // Le montant reellement encaisse, fige avec sa devise et son taux. Un
+        // montant inconnu n'ecrit rien : NULL se lit « on ne sait pas », un 0
+        // se lirait « gratuit ».
+        montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
+        sub.setPurchasedAt(achat.purchasedAt() != null ? achat.purchasedAt() : now);
+        sub.setPaymentStatus(PaymentStatus.PAID);
+        decomposerSansJamaisBloquer(sub, source, achat.fraisReelEurCents());
+        Instant intentionJugeeA = achat.intentionJugeeA() != null
+                ? achat.intentionJugeeA() : sub.getPurchasedAt();
+        purchaseIntentService.consommer(userId, plan, achat.purchaseIntentId(), intentionJugeeA)
+                .appliquerA(sub);
+        userSubscriptionManager.save(sub);
+
+        log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",
+                userId, plan.getCode(), source, endsAt, base);
+
+        // Premier achat → PREMIUM_ACCESS_STARTED ; prolongation d'un accès en cours
+        // → PREMIUM_ACCESS_EXTENDED (arbitrage n°4). Publié ICI, au moment où
+        // l'accès est effectivement accordé (arbitrage n°20), et envoyé APRÈS le
+        // commit : un rollback de l'octroi n'envoie rien.
+        eventPublisher.publishEvent(new PremiumAccessGrantedEvent(
+                user.getId(), user.getEmail(), sub.getId(), extension));
+
+        return sub;
+    }
+
+    /**
+     * Décomposition du revenu (contrôle A) : <b>un échec de calcul ne bloque
+     * jamais le crédit d'un achat payé</b>. Le calcul est du Java pur, sans
+     * appel base, donc un {@code try/catch} ici ne peut pas laisser la
+     * transaction dans un état inutilisable. En cas d'échec, les six colonnes
+     * restent {@code NULL} (inconnu, jamais zéro — le CHECK tout-ou-rien de V074
+     * tient) et l'accès est accordé.
+     */
+    private void decomposerSansJamaisBloquer(UserSubscription sub, SubscriptionSource source,
+                                             Integer fraisReelEurCents) {
+        if (sub.getAmountEurCents() == null) return;
+        try {
+            revenueCalculator.decomposer(source, sub.getAmountEurCents(), fraisReelEurCents)
+                    .appliquerA(sub);
+        } catch (RuntimeException e) {
+            sub.setVatCents(null);
+            sub.setProviderFeeCents(null);
+            sub.setNetAfterFeeCents(null);
+            sub.setNetExVatCents(null);
+            sub.setFeeSource(null);
+            sub.setRevenueRulesVersion(null);
+            log.warn("Décomposition du revenu en échec (source={} brut={} c€) : colonnes de revenu "
+                    + "laissées inconnues, accès accordé. Cause : {}", source, sub.getAmountEurCents(),
+                    e.toString());
+        }
+    }
+}

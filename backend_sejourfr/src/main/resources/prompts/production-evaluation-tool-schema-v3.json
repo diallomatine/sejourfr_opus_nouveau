@@ -1,0 +1,177 @@
+{
+  "type": "object",
+  "required": ["note_globale", "niveau_cecrl", "justification_niveau", "scores_criteres", "points_forts", "points_a_ameliorer", "confiance", "accomplissement"],
+  "properties": {
+    "note_globale": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Note sur 20 = MOYENNE DES QUATRE CRITERES, tous ponderes a 0,25 (recalculee cote serveur). C'est elle qui donne le niveau : 16 et plus = B2, 11 a 15 = B1, 7 a 10 = A2, 1 a 6 = A1, 0 = A1 non atteint. PAS relative au niveau cible de la tache. Doit raconter la meme histoire que niveau_cecrl."
+    },
+    "niveau_cecrl": {
+      "type": "string",
+      "enum": ["A1_NON_ATTEINT", "A1", "A2", "B1", "B2", "C1", "C2"],
+      "description": "Niveau CECRL REELLEMENT demontre par la production, independamment du niveau cible de la tache. NE PLAFONNE PAS au niveau cible (peut etre inferieur OU superieur). Doit tomber dans la bande de note_globale (cf. section 'Du score au niveau' du system prompt)."
+    },
+    "justification_niveau": {
+      "type": "string",
+      "minLength": 30,
+      "description": "Obligatoire : 2 a 3 phrases citant des marqueurs concrets (de preference des passages litteraux de la production) qui justifient le niveau_cecrl attribue. Exemple : 'Niveau B1 : emploi de \"pour + infinitif\" et passe compose maitrise, paragraphe descriptif coherent.'"
+    },
+    "confiance": {
+      "type": "string",
+      "enum": ["HAUTE", "MOYENNE", "FAIBLE"],
+      "description": "Obligatoire : degre de certitude de CETTE evaluation. HAUTE = production complete et lisible, consigne claire, marqueurs de langue nets. MOYENNE = production courte mais exploitable, transcription partiellement incertaine, hesitation entre deux niveaux voisins. FAIBLE = transcription tres bruitee, tache incomplete ou interrompue, preuves insuffisantes. La confiance ne modifie JAMAIS la note : elle dit ce que tu sais, pas ce que vaut la production. Une confiance FAIBLE n'autorise ni le hors-sujet, ni la mention 'incomprehensible'."
+    },
+    "confiance_raisons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "1 a 3 raisons courtes, factuelles et comprehensibles par le candidat, qui expliquent le niveau de confiance. Exemples : 'transcription temps reel partiellement incertaine', 'production tres courte, peu de marqueurs grammaticaux observables', 'echange interrompu avant la fin'. Sur une production orale, mentionner ici la limite 'evaluation fondee sur la transcription, la voix n'est pas analysee' quand elle pese sur le jugement."
+    },
+    "accomplissement": {
+      "type": "object",
+      "required": ["points_traites", "points_oublies"],
+      "description": "Ce que le candidat a fait / n'a pas fait par rapport a la consigne. Affiche AVANT le detail de langue : libelles courts (5 a 12 mots), langue simple, sans jargon. La distinction obligatoire/piste est capitale : un point 'piste' non traite n'a AUCUNE consequence sur la note et ne doit jamais etre presente comme un manque.",
+      "properties": {
+        "points_traites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["libelle", "obligatoire"],
+            "properties": {
+              "libelle": {
+                "type": "string",
+                "description": "Point de la consigne effectivement traite, formule du point de vue de la consigne (ex. 'Nouvelle annoncee', 'Logement decrit')."
+              },
+              "obligatoire": {
+                "type": "boolean",
+                "description": "true = point exige par la consigne (compte dans la note) ; false = piste suggeree par le sujet, abordee spontanement (n'influence pas la note)."
+              }
+            }
+          },
+          "description": "Points effectivement traites. Un point partiellement traite figure ici, avec la reserve exprimee dans le commentaire du critere communiquer."
+        },
+        "points_oublies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["libelle", "obligatoire"],
+            "properties": {
+              "libelle": {
+                "type": "string",
+                "description": "Point non traite, formule du point de vue de la consigne (ex. 'Invitation absente')."
+              },
+              "obligatoire": {
+                "type": "boolean",
+                "description": "true = manque reel, exige par la consigne, qui pese sur le critere communiquer ; false = simple piste non abordee, informative, SANS aucune consequence sur la note."
+              }
+            }
+          },
+          "description": "Points non traites. Ne jamais fabriquer un manque pour remplir la liste : si tous les points obligatoires sont traites, cette liste ne contient que des pistes, ou reste vide."
+        }
+      }
+    },
+    "scores_criteres": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "EXACTEMENT les quatre criteres de la grille du TCF, avec leurs codes EXACTS et aucun autre : communiquer, interagir, lexique, morphosyntaxe. Ils sont les MEMES sur les six taches et pesent 0,25 chacun ; ce sont les DESCRIPTEURS et les CONSIGNES de la tache qui disent ce qu'ils observent ici.",
+      "items": {
+        "type": "object",
+        "required": ["code", "note_sur_20", "commentaire", "preuve"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["communiquer", "interagir", "lexique", "morphosyntaxe"],
+            "description": "Code du critere, recopie EXACTEMENT depuis la grille passee dans le prompt."
+          },
+          "note_sur_20": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20,
+            "description": "Note du critere sur l'echelle CECRL complete (16-20 = B2, 11-15 = B1, 6-10 = A2, 1-5 = A1, 0 = hors-sujet). communiquer et interagir se notent AU NIVEAU ou la tache est accomplie, jamais plus de 4 points au-dessus de la moyenne de lexique et morphosyntaxe (garde-fou de couplage, applique cote serveur)."
+          },
+          "commentaire": {
+            "type": "string",
+            "description": "Commentaire portant sur CE critere precisement (pas sur la production en general), en lien avec la description du critere dans la grille de la tache."
+          },
+          "preuve": {
+            "type": "string",
+            "description": "Obligatoire : citation LITTERALE et courte (3 a 15 mots) de la production du candidat, recopiee exactement, qui justifie la note de ce critere. Ne jamais inventer, reformuler ni corriger la citation. A l'oral en interaction, citer uniquement un tour 'Candidat :'. Chaine vide si la production ne contient reellement rien d'exploitable pour ce critere (le commentaire doit alors l'expliquer)."
+          }
+        }
+      }
+    },
+    "points_forts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Vrais points forts identifies, appuyes sur ce que la production contient reellement (pas de compliment de courtoisie). A l'oral, ne jamais feliciter la prononciation, l'accent, l'aisance ou la fluidite : ils ne sont pas evalues."
+    },
+    "points_a_ameliorer": {
+      "type": "array",
+      "maxItems": 2,
+      "description": "AU MAXIMUM 2 priorites, la plus importante en premier. Chacune doit ENSEIGNER : un constat, puis COMMENT faire, puis la demonstration sur une phrase du candidat. Une priorite sans 'comment' concret n'apprend rien et est refusee. Ne jamais y faire figurer une piste du sujet non abordee, ni l'orthographe/la ponctuation d'une production orale. Cas hors-sujet : une entree dont le constat est la phrase EXACTE 'Production hors-sujet : la consigne n'a pas ete traitee.'",
+      "items": {
+        "type": "object",
+        "required": ["constat", "comment"],
+        "properties": {
+          "constat": {
+            "type": "string",
+            "description": "Ce qui ne va pas, en une phrase, appuye sur SA production. Ex. 'Vos idees sont posees les unes apres les autres, sans lien entre elles.'"
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 40,
+            "description": "COMMENT s'y prendre : une technique REUTILISABLE, appliquee a SON texte — la regle a appliquer, le mot-outil a employer, la tournure modele, la question a se poser en se relisant. Doit contenir un verbe d'action adresse au candidat (remplace, ajoute, commence par, relis, utilise, transforme). INTERDIT : 'ameliorer la ponctuation pour plus de clarte', 'pratiquer l'utilisation de connecteurs', 'enrichir son vocabulaire', 'travailler la grammaire' — ce sont des constats deguises."
+          },
+          "exemple": {
+            "type": "object",
+            "required": ["avant", "apres"],
+            "description": "Demonstration de la technique sur la production du candidat. A omettre uniquement si la production ne contient litteralement aucune phrase exploitable.",
+            "properties": {
+              "avant": {
+                "type": "string",
+                "description": "Phrase EXACTE du candidat, recopiee telle quelle."
+              },
+              "apres": {
+                "type": "string",
+                "description": "La meme phrase, reecrite en appliquant la technique."
+              }
+            }
+          }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recommandations pedagogiques (regles a reviser, exercices), formulees comme un conseil d'entrainement et non comme un reproche. C'est ici que vont les remarques secondaires ecartees de points_a_ameliorer."
+    },
+    "exemples_corriges": {
+      "type": "array",
+      "description": "1 a 3 REFORMULATIONS qui feraient GAGNER UN NIVEAU : une juxtaposition transformee en subordonnee, deux phrases fusionnees par un connecteur logique, un mot passe-partout remplace par un terme precis, une affirmation transformee en argument justifie, une concession transformee en objection traitee. JAMAIS une virgule ajoutee, un accent, une majuscule ou une faute de frappe : ces micro-corrections ne font progresser personne. A l'ORAL : uniquement des reformulations de PHRASE ameliorant la clarte (jamais un mot isole, jamais l'orthographe, l'accentuation ou la ponctuation). Liste vide plutot que des corrections cosmetiques.",
+      "items": {
+        "type": "object",
+        "required": ["original", "corrige", "explication", "gain"],
+        "properties": {
+          "original": {
+            "type": "string",
+            "description": "Citation EXACTE de la production."
+          },
+          "corrige": {
+            "type": "string",
+            "description": "La reformulation, au palier au-dessus."
+          },
+          "explication": {
+            "type": "string",
+            "description": "Pourquoi cette version est meilleure, en langue simple."
+          },
+          "gain": {
+            "type": "string",
+            "description": "Ce que la version corrigee DEMONTRE de plus, en une phrase. Ex. 'cette version emploie une subordonnee relative, marqueur attendu au B1'."
+          }
+        }
+      }
+    }
+  }
+}

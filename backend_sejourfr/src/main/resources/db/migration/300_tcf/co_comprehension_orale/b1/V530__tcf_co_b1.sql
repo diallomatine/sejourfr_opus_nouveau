@@ -1,0 +1,804 @@
+-- ============================================================================
+-- V435 — TCF CO B1
+-- ----------------------------------------------------------------------------
+-- Questions + choix. 22222222-0000-0000-0000-000000000001 AND difficulty='B1'.
+-- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
+-- ============================================================================
+
+
+-- medias (AUDIO/IMAGE) — référencés par les questions ci-dessous
+INSERT INTO medias
+  (id, type, url, storage_key, original_filename, content_type, size_bytes, duration_sec,
+   alt_text, created_at, transcript, inline_svg)
+VALUES
+  ('0949c588-3e50-47fb-a44b-eea2fa798cc6', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/6419f107-b92a-423d-a863-f9ea2baaba3a.mp3',
+   'audio/6419f107-b92a-423d-a863-f9ea2baaba3a.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:32.317249+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens de ton week-end à la campagne ?
+[Femme] Oui, et franchement, je suis sous le charme.
+[Homme] Qu''est-ce qui t''a le plus surprise, là-bas ?
+[Femme] ...
+
+A. Pendant deux nuits seulement.
+B. Avec mon mari et nos enfants.
+C. Le calme absolu de la nuit.
+D. Près de Chartres, en Eure-et-Loir.',
+   NULL),
+
+  ('0ed06acc-8f74-4198-b87a-f2507db73159', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2529e126-8253-46bc-9ce1-a0767bcf90fc.mp3',
+   'audio/2529e126-8253-46bc-9ce1-a0767bcf90fc.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:29.716179+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Ça y est, ton rendez-vous à la préfecture est confirmé.
+[Homme] Oui. Et c''est pour quand exactement ?
+[Femme] ...
+
+A. Au guichet numéro quatre.
+B. Pour renouveler mon titre de séjour.
+C. Mercredi prochain, à dix heures.
+D. Avec ma sœur qui m''accompagne.',
+   NULL),
+
+  ('341e223d-e390-4cac-b063-33cc7f097130', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/7a28d13d-f084-48bd-b20a-93a734139728.mp3',
+   'audio/7a28d13d-f084-48bd-b20a-93a734139728.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:30.784008+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as donné ton dîner d''anniversaire hier soir, c''est ça ?
+[Homme] Oui, à la maison.
+[Femme] Vous étiez combien, finalement ?
+[Homme] ...
+
+A. Avec un menu très convivial.
+B. Une douzaine, en comptant les enfants.
+C. Jusqu''à minuit, environ.
+D. Dans le jardin, sous la tonnelle.',
+   NULL),
+
+  ('36ac02fa-0576-4237-8ca7-f641149bdde4', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/b1c8a511-f1e5-42c9-80c2-6fcd985292ad.mp3',
+   'audio/b1c8a511-f1e5-42c9-80c2-6fcd985292ad.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:34.402085+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai vu que tu t''étais inscrite à la piscine.
+[Femme] Oui, depuis le mois dernier. Et toi, tu y vas à quelle fréquence ?
+[Homme] ...
+
+A. Deux fois par semaine, en moyenne.
+B. Pendant une heure à chaque séance.
+C. Tout près de mon travail.
+D. Pour me remettre tranquillement en forme.',
+   NULL),
+
+  ('39a110a2-17db-43f1-aad6-8a278b69768c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/795d7e15-63c0-40fd-a7db-49e862909f28.mp3',
+   'audio/795d7e15-63c0-40fd-a7db-49e862909f28.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:29.201079+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as enfin réussi à monter ton étagère toute seule ?
+[Femme] Oui, hier après-midi.
+[Homme] Mais tu as fait comment ?
+[Femme] ...
+
+A. Pendant deux heures environ.
+B. En suivant la notice étape par étape.
+C. Parce que j''en avais vraiment besoin.
+D. Dans le salon, contre le mur.',
+   NULL),
+
+  ('3fb10d17-2d34-40e1-a449-02a775e96cc3', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/099a3851-fad2-42c2-a4de-f0347a875fd0.mp3',
+   'audio/099a3851-fad2-42c2-a4de-f0347a875fd0.mp3', NULL, 'audio/mpeg', NULL, '32', NULL, '2026-05-31 16:50:32.996823+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu peux me passer ça, sur la table de la cuisine ?
+[Homme] Tu parles de quoi, exactement ?
+[Femme] ...
+
+A. Sur la grande table, juste là.
+B. Pour préparer le repas de ce soir.
+C. Le grand bol bleu, à droite.
+D. Avec le couvercle en verre.',
+   NULL),
+
+  ('3fec2966-96d3-435b-bb31-5e3addf91138', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8489f1d7-73e3-4ae1-a5c0-15549487f11d.mp3',
+   'audio/8489f1d7-73e3-4ae1-a5c0-15549487f11d.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:30.65061+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens tout juste d''Italie, c''est ça ?
+[Femme] Oui ! Et toi, tu y étais resté combien de temps déjà ?
+[Homme] ...
+
+A. Trois semaines, l''été dernier.
+B. À Rome surtout, puis à Florence.
+C. Avec deux amis de la fac.
+D. Pour voir tous les musées possibles.',
+   NULL),
+
+  ('4071f7a9-34a3-4745-94bc-1d1185545893', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/225d77e4-c260-4469-bf5b-63a128d38aa4.mp3',
+   'audio/225d77e4-c260-4469-bf5b-63a128d38aa4.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:52.836489+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu vas souvent voir ta famille en province ?
+[Femme] Plusieurs fois par an, oui.
+[Homme] C''est à quelle distance, déjà ?
+[Femme] ...
+
+A. À environ trois cent cinquante kilomètres.
+B. Toutes les six semaines à peu près.
+C. En train direct, sans correspondance.
+D. Pour passer toutes les fêtes ensemble.',
+   NULL),
+
+  ('42fba0eb-2b3c-48d7-83ce-dc8be8eb086e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d5aedab7-2d21-439b-b919-dfc9900d6989.mp3',
+   'audio/d5aedab7-2d21-439b-b919-dfc9900d6989.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:33.208764+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''étais à un concert génial hier soir.
+[Femme] Ah, super ! Tu y étais avec qui ?
+[Homme] ...
+
+A. À la salle Pleyel, à Paris.
+B. Avec ma sœur et son copain.
+C. Jusqu''à minuit, environ.
+D. Parce que j''adore ce groupe depuis longtemps.',
+   NULL),
+
+  ('44c895f2-40e6-4dee-9c8f-e443517e8d3e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/0f231a62-f02e-42bb-b8ed-6847e07969b7.mp3',
+   'audio/0f231a62-f02e-42bb-b8ed-6847e07969b7.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:47.117795+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as bien aimé le repas chez les Dupont, hier ?
+[Homme] C''était excellent, vraiment.
+[Femme] Tu as préféré quoi, dans tout ce qu''elle a servi ?
+[Homme] ...
+
+A. Pour environ une dizaine d''invités.
+B. Jusqu''à très tard dans la nuit.
+C. Avec les voisins du dessus, aussi.
+D. Le tiramisu fait maison, sans hésiter.',
+   NULL),
+
+  ('4b62d51d-ddaf-4899-a7b8-895342ee640e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d939ce2e-f757-4124-9f29-f7eb45dc18f2.mp3',
+   'audio/d939ce2e-f757-4124-9f29-f7eb45dc18f2.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:29.168587+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu m''avais dit que tu cuisinais tout le repas toi-même.
+[Femme] Oui, j''ai passé l''après-midi en cuisine.
+[Homme] Et tu as préparé quoi, alors ?
+[Femme] ...
+
+A. Pendant presque quatre bonnes heures.
+B. Pour une douzaine d''invités, je l''ai dit.
+C. Un tajine d''agneau aux pruneaux.
+D. Avec ma mère qui m''a aidée pour le dessert.',
+   NULL),
+
+  ('4e593d6a-88ac-40f2-8045-9539bd9cdc3c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/7da0d4e5-6acf-4a44-b0fe-ffc8bcb4b000.mp3',
+   'audio/7da0d4e5-6acf-4a44-b0fe-ffc8bcb4b000.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:51.484425+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu m''as parlé d''un rendez-vous important à venir.
+[Femme] Oui, un entretien d''embauche très attendu.
+[Homme] C''est prévu pour quelle date ?
+[Femme] ...
+
+A. Pour un poste de chef de projet.
+B. Au siège de l''entreprise à La Défense.
+C. Le quinze du mois prochain.
+D. Avec deux responsables des ressources humaines.',
+   NULL),
+
+  ('4eae4795-2772-4830-b958-07348ca9a151', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8761af5e-c37b-49d1-8de4-86db6deef71d.mp3',
+   'audio/8761af5e-c37b-49d1-8de4-86db6deef71d.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:42.201822+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu connais bien le quartier, tu m''as dit.
+[Homme] J''y vis depuis dix ans, oui.
+[Femme] Tu me recommanderais quel restaurant pour ce soir ?
+[Homme] ...
+
+A. Pour environ trente euros la personne.
+B. Le petit italien au coin de la rue.
+C. À deux pas de la station de métro.
+D. Plutôt vers vingt heures, pour bien dîner.',
+   NULL),
+
+  ('5d0b528c-9282-4639-8e14-8c3d7ab7cbf1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/71413ccc-e8fa-4f89-a680-6e1dea3a25d5.mp3',
+   'audio/71413ccc-e8fa-4f89-a680-6e1dea3a25d5.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:49:33.753597+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''hésite entre les deux paires de chaussures pour le mariage.
+[Homme] Montre-moi, voir.
+[Femme] Alors, tu préfères laquelle ?
+[Homme] ...
+
+A. La noire, sans hésiter, elle est plus chic.
+B. Chez un cordonnier près du métro.
+C. Environ soixante euros la paire.
+D. Plutôt pour aller travailler, en fait.',
+   NULL),
+
+  ('61484468-fabf-4458-82a0-f7b0d84fac6c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/23cdb629-9edc-46b3-9940-858e06b0a267.mp3',
+   'audio/23cdb629-9edc-46b3-9940-858e06b0a267.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:50:48.150939+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''ai croisé ton nouveau voisin hier matin. Il a l''air sympa. Il fait quoi dans la vie ?
+[Homme] ...
+
+A. Depuis quelques mois seulement chez nous.
+B. Architecte dans une petite agence parisienne.
+C. Au troisième étage, juste au-dessus.
+D. Avec sa famille au grand complet.',
+   NULL),
+
+  ('6d4e80c5-1ac8-4c93-9554-4d2993095d7a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/25fdfe4a-1e33-4384-88ac-b2082aa6ce99.mp3',
+   'audio/25fdfe4a-1e33-4384-88ac-b2082aa6ce99.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:31.250376+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu écoutes de la musique au travail ?
+[Homme] Tout le temps, ça m''aide à me concentrer.
+[Femme] Et quel style, plutôt ?
+[Homme] ...
+
+A. Avec un casque sans fil très pratique.
+B. Pendant toute la journée, sans discontinuer.
+C. Pour rester bien concentré, justement.
+D. Du jazz instrumental, surtout.',
+   NULL),
+
+  ('70fc56b1-4569-4b04-b834-49540d8437db', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/1729bff6-fc12-4c46-817b-25727dff1c8f.mp3',
+   'audio/1729bff6-fc12-4c46-817b-25727dff1c8f.mp3', NULL, 'audio/mpeg', NULL, '30', NULL, '2026-05-31 16:50:33.585264+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''ai vu sur ta photo ton nouveau vélo. Il est de quelle couleur en vrai ?
+[Homme] ...
+
+A. Un vélo électrique tout neuf.
+B. Bleu foncé avec des liserés blancs.
+C. Pour mes trajets au travail.
+D. Chez un magasin de la Bastille.',
+   NULL),
+
+  ('71d9023c-1673-4c7f-80b7-a7a633f23d81', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/3fecf5c6-36f1-40fe-a6aa-b435cce02e89.mp3',
+   'audio/3fecf5c6-36f1-40fe-a6aa-b435cce02e89.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:31.70034+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as fini par trouver un cadeau d''anniversaire pour ta nièce ?
+[Homme] Oui, j''ai eu de la chance.
+[Femme] Tu lui as offert quoi, finalement ?
+[Homme] ...
+
+A. Pour ses huit ans, comme prévu.
+B. Une jolie raquette de tennis.
+C. Dans un magasin de sport de la galerie.
+D. Avec ma femme, samedi après-midi.',
+   NULL),
+
+  ('8b41ec26-fc24-4fd2-abbb-f142ae82dbdd', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/f8fe2a5f-f134-4585-b576-637a6c3639ca.mp3',
+   'audio/f8fe2a5f-f134-4585-b576-637a6c3639ca.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:32.037043+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai enfin trouvé une superbe robe pour le mariage de ma cousine !
+[Femme] Ah, génial. Tu l''as dénichée où ?
+[Homme] ...
+
+A. Avec ma mère, samedi dernier.
+B. Plutôt longue, avec des manches.
+C. Pour environ quatre-vingts euros.
+D. Dans une petite boutique du centre-ville.',
+   NULL),
+
+  ('8baec140-a67d-4ac7-9213-d3a66ccc17d3', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2a48d52e-80fd-4294-a2d3-ed62b0518c9c.mp3',
+   'audio/2a48d52e-80fd-4294-a2d3-ed62b0518c9c.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:49:32.565867+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as fini de lire le roman que je t''avais prêté ?
+[Femme] Oui, hier soir.
+[Homme] Et alors, tu en as pensé quoi ?
+[Femme] ...
+
+A. Sur ma table de chevet, tranquillement.
+B. En deux semaines, à peu près.
+C. À ma grande surprise, beaucoup de bien.
+D. Surtout dans le métro, le matin.',
+   NULL),
+
+  ('8c18e1d7-bf1b-46e2-ac14-0ad24dce220b', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/44ef364b-3750-4f26-b0b8-c0389a2b78f2.mp3',
+   'audio/44ef364b-3750-4f26-b0b8-c0389a2b78f2.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:49.668762+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] On se voit cette semaine pour le café qu''on s''était promis ?
+[Femme] Oui, avec plaisir ! Tu es libre quand ?
+[Homme] ...
+
+A. Pour rattraper le temps perdu, vraiment.
+B. Avec ma collègue Catherine, aussi.
+C. Mercredi après-midi, sans souci.
+D. Dans un café près de Bastille.',
+   NULL),
+
+  ('a217288b-2738-4ba8-bc3c-9cfd49fd9223', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/240ca5b7-3ee7-4e57-9489-4fb84679220e.mp3',
+   'audio/240ca5b7-3ee7-4e57-9489-4fb84679220e.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:41.669589+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens du garage avec ta voiture ?
+[Femme] Oui, ils m''ont fait toute la révision.
+[Homme] Et ça t''a coûté combien en tout ?
+[Femme] ...
+
+A. Près de quatre cents euros, finalement.
+B. Pendant presque deux heures de travail.
+C. Avec le changement des freins inclus.
+D. Chez un garagiste vraiment de confiance.',
+   NULL),
+
+  ('a4bb4653-eea7-43bd-9389-e1f7bd0c2eba', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/122d23d0-0297-42e9-9e68-4536a34bca68.mp3',
+   'audio/122d23d0-0297-42e9-9e68-4536a34bca68.mp3', NULL, 'audio/mpeg', NULL, '32', NULL, '2026-05-31 16:50:28.350964+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu pars chez le médecin tout à l''heure ?
+[Femme] Oui, c''est confirmé.
+[Homme] Et à quelle heure exactement ?
+[Femme] ...
+
+A. À seize heures trente, normalement.
+B. Pour un simple contrôle annuel.
+C. Près de la place du marché.
+D. Avec mon nouveau généraliste.',
+   NULL),
+
+  ('bf27b420-860c-4bd7-9cf3-4e5782c92e8f', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/edc163b6-628d-4561-9ef1-cabff2bbbb39.mp3',
+   'audio/edc163b6-628d-4561-9ef1-cabff2bbbb39.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:30.132677+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as fait toutes les courses pour la fête de ce soir ?
+[Homme] Oui, je rentre tout juste du supermarché.
+[Femme] Et tu as pris combien de bouteilles de vin ?
+[Homme] ...
+
+A. Du rouge et un peu de blanc.
+B. Six, comme on s''était dit.
+C. Pour à peu près trente euros.
+D. Chez le caviste de la place.',
+   NULL),
+
+  ('ca839640-2c55-433f-8cdf-efd52a7c559e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/3ba23b74-0333-4059-9443-c5158dfe3c6e.mp3',
+   'audio/3ba23b74-0333-4059-9443-c5158dfe3c6e.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:50.267427+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Alors, tes plans pour le week-end qui arrive ?
+[Femme] Rien d''extraordinaire, tu sais. Et toi, tu fais quoi ?
+[Homme] ...
+
+A. À cause du beau temps annoncé.
+B. Avec ma cousine en visite à Paris.
+C. Pour me reposer un peu, surtout.
+D. Du rangement et un peu de lecture.',
+   NULL),
+
+  ('db38be0d-cb81-40a8-876d-d55acbf69438', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/58065788-11e9-4d9d-9d06-b7cbb8846bc0.mp3',
+   'audio/58065788-11e9-4d9d-9d06-b7cbb8846bc0.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:49:31.417697+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Léa a pleuré toute la soirée hier.
+[Homme] Vraiment ? Elle qui est si calme d''habitude.
+[Femme] Tu sais pourquoi ?
+[Homme] ...
+
+A. Pendant plus d''une heure, je crois.
+B. À cause d''une dispute avec sa sœur.
+C. Pour qu''on lui prête un peu d''attention.
+D. Dans sa chambre, toute seule.',
+   NULL),
+
+  ('dd02714e-f01c-4d47-b9df-843503246dc1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/fdf85567-de6d-4f06-99c1-bd9ea63c442c.mp3',
+   'audio/fdf85567-de6d-4f06-99c1-bd9ea63c442c.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:29.717778+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as appris la nouvelle pour la promotion de ton frère ?
+[Femme] Oui, il m''a appelée hier.
+[Homme] Tu as ressenti quoi, en l''apprenant ?
+[Femme] ...
+
+A. Une vraie fierté pour lui, à vrai dire.
+B. À cause de tous ses efforts, je crois.
+C. Pendant un long appel téléphonique.
+D. Avec ma sœur qui était présente.',
+   NULL),
+
+  ('ecf25678-09dd-40e2-9ee1-20ad8b3f623a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/297b9903-e141-420d-a450-e3e4b90ae6cb.mp3',
+   'audio/297b9903-e141-420d-a450-e3e4b90ae6cb.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:50.901142+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as l''air de bien connaître les habitants de cet immeuble.
+[Femme] Oui, j''y vis depuis longtemps.
+[Homme] Et qui habite juste en face de toi ?
+[Femme] ...
+
+A. Une famille avec deux jeunes enfants.
+B. Au troisième étage gauche, comme moi.
+C. Depuis bientôt cinq ans, je crois.
+D. Pour un loyer relativement modéré.',
+   NULL),
+
+  ('f3c50fc2-2bb1-4e90-9f91-d090f2419ac4', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2f9869ae-a89d-4d03-ba1b-bb80ce0ba0d6.mp3',
+   'audio/2f9869ae-a89d-4d03-ba1b-bb80ce0ba0d6.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:49.100879+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu reviens tout juste de Normandie, je crois ?
+[Homme] Oui, trois jours formidables.
+[Femme] Vous avez eu quel temps, là-bas ?
+[Homme] ...
+
+A. Avec une amie d''enfance et son fils.
+B. Pendant le week-end de Pâques exactement.
+C. À côté de Deauville, sur la côte.
+D. Du soleil presque tout le séjour.',
+   NULL),
+
+  ('fc71a32c-394f-44d2-82c6-a986cf56068b', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d7b14534-1944-41d6-820c-ad002a5d3e86.mp3',
+   'audio/d7b14534-1944-41d6-820c-ad002a5d3e86.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:30.251182+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu pars travailler tôt, dis-moi.
+[Homme] Oui, j''ai presque une heure de trajet.
+[Femme] Tu y vas comment, en général ?
+[Homme] ...
+
+A. À six heures et quart précises.
+B. Pour une bonne heure environ.
+C. À cause des bouchons constants en voiture.
+D. En train, puis à pied jusqu''au bureau.',
+   NULL);
+
+-- questions
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('0a8ddf62-fe6c-4902-98f6-3d7f15538bcf', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '36ac02fa-0576-4237-8ca7-f641149bdde4', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le premier tour pose le sujet (la piscine), le second précise la durée d''inscription puis pose la question implicite « à quelle fréquence ? », qui porte sur **le rythme, la régularité**. Seule A « deux fois par semaine » exprime une fréquence. B exprime une **durée d''une séance** (« combien de temps restes-tu ? »). C exprime un **lieu** (« où se trouve la piscine ? »). D exprime un **but** (« pourquoi y vas-tu ? »). Piège B1 : A et B mélangent souvent dans l''oreille des candidats, car les deux donnent une indication temporelle.',
+   'true', '2026-05-31 16:49:34.402744+02', '2026-05-31 16:49:34.402744+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('1540861c-4a04-4e8e-a7c9-0fd963aee223', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '8baec140-a67d-4ac7-9213-d3a66ccc17d3', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Les deux premiers tours fixent le contexte (lecture du roman terminée), le troisième pose la question implicite « tu en as pensé quoi ? », qui demande **une opinion, un jugement de valeur**. Seule C « beaucoup de bien » exprime une appréciation. A donne un **lieu de lecture** (« où l''as-tu lu ? »). B donne une **durée de lecture** (« en combien de temps l''as-tu lu ? »). D donne un **moment / contexte de lecture** (« quand le lisais-tu ? »). Piège B1 : trois distracteurs parlent de la lecture mais aucun ne livre un avis.',
+   'true', '2026-05-31 16:49:32.566385+02', '2026-05-31 16:49:32.566385+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('1a05fb59-dbab-4263-98a5-d1e9b8132543', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '4eae4795-2772-4830-b958-07348ca9a151', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu me recommanderais quel restaurant ? » appelle **le nom / la désignation d''un restaurant**. Seule B « le petit italien au coin de la rue » identifie un établissement. A donne **le prix moyen**. C donne **la localisation**. D donne **l''heure conseillée**.',
+   'true', '2026-05-31 16:50:42.202357+02', '2026-05-31 16:50:42.202357+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('1c93e7a5-5213-4656-b456-7c68e8ff1d56', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'ecf25678-09dd-40e2-9ee1-20ad8b3f623a', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Qui habite juste en face de toi ? » porte sur **l''identité / la composition du foyer voisin**. Seule A « une famille avec deux jeunes enfants » désigne les occupants. B donne **l''étage** (« où ? »). C donne **depuis quand**. D donne **le loyer** (« combien ? »).',
+   'true', '2026-05-31 16:50:50.90162+02', '2026-05-31 16:50:50.90162+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('2a066bb4-774f-4dc9-8f8c-fe4fe25028e2', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '3fec2966-96d3-435b-bb31-5e3addf91138', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le premier tour pose le contexte (le retour d''Italie de l''interlocutrice) ; le second contient la question implicite « combien de temps ? », qui porte sur **la durée d''un séjour passé**. Seule A « trois semaines » exprime une durée. B donne le **lieu / les villes visitées** (« où es-tu allé ? »). C donne l''**accompagnant** (« avec qui ? »). D donne le **but du voyage** (« pourquoi y es-tu allé ? »). Piège B1 : A contient « l''été dernier » qui ressemble à un moment, mais la durée principale est bien « trois semaines ».',
+   'true', '2026-05-31 16:49:30.651368+02', '2026-05-31 16:49:30.651368+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('3b3553d8-7869-4d35-a7d1-e1de6e8f855a', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'bf27b420-860c-4bd7-9cf3-4e5782c92e8f', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Les deux premiers tours fixent le contexte (les courses sont déjà faites). La question implicite « combien de bouteilles ? » porte sur **un nombre**. Seule B « six » donne une quantité. A renvoie au **type de vin** (« quel vin ? »). C renvoie au **prix total** (« combien as-tu dépensé ? »). D renvoie au **lieu d''achat** (« où les as-tu achetées ? ») — piège B1 : le contexte mentionne le supermarché, mais le caviste reste plausible. Seul B répond bien à « combien ».',
+   'true', '2026-05-31 16:49:30.133108+02', '2026-05-31 16:49:30.133108+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('3ced560d-0998-40a1-9f3c-e5f56f158ed5', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'a4bb4653-eea7-43bd-9389-e1f7bd0c2eba', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« À quelle heure exactement ? » porte sur **l''heure précise du rendez-vous**. Seule A « à seize heures trente » donne une heure. B donne **le motif de la consultation**. C donne **le lieu** du cabinet. D donne **l''interlocuteur médical**.',
+   'true', '2026-05-31 16:50:28.351642+02', '2026-05-31 16:50:28.351642+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('4d176b98-5d1b-4114-b59f-bd0254e22e00', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '42fba0eb-2b3c-48d7-83ce-dc8be8eb086e', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le premier tour mentionne le concert ; le second pose la question implicite « avec qui ? », qui porte sur **l''accompagnant**. Seule B « avec ma sœur et son copain » désigne des personnes. A donne le **lieu** (« où était-ce ? »). C donne un **moment / fin** (« jusqu''à quelle heure ? »). D donne la **cause** (« pourquoi y es-tu allé ? »). Toutes restent dans le champ « concert », ce qui en fait des distracteurs réalistes pour B1.',
+   'true', '2026-05-31 16:49:33.209838+02', '2026-05-31 16:49:33.209838+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('53e49fd8-12ab-4a43-bdcd-65e0d21ce92b', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '4e593d6a-88ac-40f2-8045-9539bd9cdc3c', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« C''est prévu pour quelle date ? » porte sur **la date du rendez-vous**. Seule C « le quinze du mois prochain » donne une date. A donne **le poste visé**. B donne **le lieu de l''entretien**. D donne **les interlocuteurs**.',
+   'true', '2026-05-31 16:50:51.484838+02', '2026-05-31 16:50:51.484838+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('5afaf94b-1764-4388-9b06-3174692d36ff', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '6d4e80c5-1ac8-4c93-9554-4d2993095d7a', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Quel style, plutôt ? » porte sur **le genre musical écouté**. Seule D « du jazz instrumental » désigne un style. A donne **le matériel utilisé** (« avec quoi écoutes-tu ? »). B donne **la durée d''écoute**. C donne **le but** (« pourquoi en écoutes-tu ? »).',
+   'true', '2026-05-31 16:50:31.250992+02', '2026-05-31 16:50:31.250992+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('5c2506b4-432a-4101-b074-3a8b09157044', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '5d0b528c-9282-4639-8e14-8c3d7ab7cbf1', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le contexte (hésitation entre deux paires, demande d''avis) prépare une question de **choix entre deux options proposées**. La question implicite « tu préfères laquelle ? » appelle l''identification d''une des deux. Seule A « la noire, sans hésiter » désigne un choix. B donne un **lieu d''achat possible** (« où en trouver ? »). C donne un **prix** (« combien coûtent-elles ? »). D donne un **usage** (« pour quoi faire ? »). Piège B1 : B, C, D restent crédibles dans une conversation sur des chaussures, mais aucune ne répond à « laquelle ».',
+   'true', '2026-05-31 16:49:33.754454+02', '2026-05-31 16:49:33.754454+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('61ab0fd2-5b46-4878-92c4-d2538a89535b', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '70fc56b1-4569-4b04-b834-49540d8437db', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'La question porte sur **la couleur du vélo**. Seule B « bleu foncé avec des liserés blancs » donne une couleur. A donne **le type de vélo** (« quel type ? »). C donne **l''usage** (« pour quoi faire ? »). D donne **le lieu d''achat** (« où l''as-tu acheté ? »).',
+   'true', '2026-05-31 16:50:33.585889+02', '2026-05-31 16:50:33.585889+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('755c75e2-0fd0-43ea-ae9d-6ff2b1a971a9', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '61484468-fabf-4458-82a0-f7b0d84fac6c', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Il fait quoi dans la vie ? » porte sur **la profession du voisin**. Seule B « architecte dans une petite agence » nomme un métier. A donne **depuis quand il habite là**. C donne **son étage**. D donne **sa composition familiale**.',
+   'true', '2026-05-31 16:50:48.151853+02', '2026-05-31 16:50:48.151853+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('785101e5-ee79-4b42-ab51-e90e51fe5bdd', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'ca839640-2c55-433f-8cdf-efd52a7c559e', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'La question retournée « et toi, tu fais quoi ? » porte sur **les activités prévues**. Seule D « du rangement et un peu de lecture » liste des activités. A donne **une cause / motif** (« pourquoi sortir ? »). B donne **l''accompagnante**. C donne **le but général** (« pour quoi faire ? »).',
+   'true', '2026-05-31 16:50:50.267873+02', '2026-05-31 16:50:50.267873+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('7f35bda8-7335-4e3d-9617-f5af86e27a05', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'db38be0d-cb81-40a8-876d-d55acbf69438', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Les deux premiers tours installent l''étonnement (Léa pleure alors qu''elle est calme d''habitude), le troisième pose la question implicite « pourquoi ? », qui porte sur **la cause, ce qui a déclenché les pleurs**. Seule B « à cause d''une dispute » donne une cause antérieure. A donne une **durée** (« combien de temps a-t-elle pleuré ? »). C donne un **but** (« dans quel objectif pleurait-elle ? ») — piège B1 classique : confusion cause / but. D donne un **lieu** (« où était-elle ? »).',
+   'true', '2026-05-31 16:49:31.418403+02', '2026-05-31 16:49:31.418403+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('89080e14-2417-4817-9ea1-1f8ef672a28a', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '8c18e1d7-bf1b-46e2-ac14-0ad24dce220b', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu es libre quand ? » porte sur **un créneau de disponibilité**. Seule C « mercredi après-midi » donne un créneau précis. A donne **un but / motif**. B donne **un accompagnement potentiel**. D donne **un lieu**.',
+   'true', '2026-05-31 16:50:49.669129+02', '2026-05-31 16:50:49.669129+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('8947412f-28d4-43a1-be85-613bab08d3e3', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '0949c588-3e50-47fb-a44b-eea2fa798cc6', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Qu''est-ce qui t''a le plus surprise ? » porte sur **l''élément qui a marqué / étonné**. Seule C « le calme absolu de la nuit » désigne un tel élément. A donne **la durée du séjour**. B donne **les accompagnants**. D donne **le lieu**.',
+   'true', '2026-05-31 16:50:32.317871+02', '2026-05-31 16:50:32.317871+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('8f66f807-8c94-441f-bec3-e8e784a8b2e3', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '341e223d-e390-4cac-b063-33cc7f097130', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Vous étiez combien ? » porte sur **le nombre de convives**. Seule B « une douzaine » donne un nombre. A donne **la qualité du repas** (« comment était le menu ? »). C donne **l''heure de fin** (« jusqu''à quand ? »). D donne **le lieu** (« où dîniez-vous ? »).',
+   'true', '2026-05-31 16:50:30.784501+02', '2026-05-31 16:50:30.784501+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('a00bc929-8047-4039-bcf7-8e9deebb454c', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'f3c50fc2-2bb1-4e90-9f91-d090f2419ac4', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Vous avez eu quel temps ? » porte sur **la météo** pendant le séjour. Seule D « du soleil presque tout le séjour » décrit le temps. A donne **les accompagnants**. B donne **la période** du séjour. C donne **le lieu précis**.',
+   'true', '2026-05-31 16:50:49.101405+02', '2026-05-31 16:50:49.101405+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('b2e3ce65-34d3-4d15-98f2-c815dbd6b9cc', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'fc71a32c-394f-44d2-82c6-a986cf56068b', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu y vas comment, en général ? » porte sur **le moyen de transport habituel**. Seule D « en train, puis à pied » nomme les moyens utilisés. A donne **l''heure de départ**. B donne **la durée du trajet**. C donne **une cause expliquant un autre choix** (« pourquoi pas en voiture ? »).',
+   'true', '2026-05-31 16:50:30.251748+02', '2026-05-31 16:50:30.251748+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('b46f6d55-581a-42ae-bfa6-d6067c78366c', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'a217288b-2738-4ba8-bc3c-9cfd49fd9223', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Ça t''a coûté combien en tout ? » porte sur **le prix total payé**. Seule A « près de quatre cents euros » donne un montant. B donne **la durée de l''intervention**. C donne **les prestations incluses**. D donne **le lieu / la qualité du garage**.',
+   'true', '2026-05-31 16:50:41.671065+02', '2026-05-31 16:50:41.671065+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('bd5ca8f4-887b-4900-9a48-194106dc87c4', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '4b62d51d-ddaf-4899-a7b8-895342ee640e', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu as préparé quoi ? » porte sur **le plat cuisiné**. Seule C « un tajine d''agneau aux pruneaux » nomme un plat. A donne **la durée** passée en cuisine. B donne **le nombre de convives**. D donne **l''aide reçue** (« avec qui as-tu cuisiné ? »).',
+   'true', '2026-05-31 16:50:29.169233+02', '2026-05-31 16:50:29.169233+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('c69d7d67-dc6d-4583-bfbf-f1c99bf3cbff', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '8b41ec26-fc24-4fd2-abbb-f142ae82dbdd', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le premier tour fixe le sujet (une robe pour un mariage déjà trouvée) ; le second pose la question implicite « tu l''as dénichée où ? », qui porte sur **le lieu d''achat**. Seule D « dans une petite boutique du centre-ville » désigne un lieu. A donne un **accompagnant et un moment** (« avec qui et quand ? »). B donne une **description** de la robe (« comment est-elle ? »). C donne un **prix** (« combien l''as-tu payée ? »). Toutes les pistes restent crédibles dans un échange sur les achats.',
+   'true', '2026-05-31 16:49:32.037718+02', '2026-05-31 16:49:32.037718+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('d02724c3-3e95-4eab-bd0c-6f2a1ef45b2f', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '3fb10d17-2d34-40e1-a449-02a775e96cc3', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'La question « tu parles de quoi ? » demande **l''identification de l''objet** désigné par « ça ». Seule C « le grand bol bleu » nomme un objet. A donne le **lieu** où il se trouve. B donne le **but** de la demande. D donne un **accessoire** qui l''accompagne.',
+   'true', '2026-05-31 16:50:32.997331+02', '2026-05-31 16:50:32.997331+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('d4e9bc58-428b-4391-b57a-1e8718839be3', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '44c895f2-40e6-4dee-9c8f-e443517e8d3e', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu as préféré quoi, dans tout ce qu''elle a servi ? » porte sur **le plat favori du repas**. Seule D « le tiramisu fait maison » désigne un plat. A donne **le nombre d''invités**. B donne **la durée de la soirée**. C donne **les autres convives**.',
+   'true', '2026-05-31 16:50:47.118255+02', '2026-05-31 16:50:47.118255+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('dd0e791e-4d66-4d94-9a9d-227c52d09759', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '71d9023c-1673-4c7f-80b7-a7a633f23d81', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu lui as offert quoi ? » porte sur **la nature de l''objet offert**. Seule B « une jolie raquette de tennis » nomme un cadeau. A donne **l''occasion** (« pour quel motif ? »). C donne **le lieu d''achat**. D donne **l''accompagnement et le moment** de l''achat.',
+   'true', '2026-05-31 16:50:31.700891+02', '2026-05-31 16:50:31.700891+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('e3cb5a63-3db5-4dd2-b6d2-68e828d7f197', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '4071f7a9-34a3-4745-94bc-1d1185545893', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« C''est à quelle distance ? » porte sur **la distance géographique**. Seule A « à environ trois cent cinquante kilomètres » donne une distance. B donne **la fréquence des visites**. C donne **le moyen de transport**. D donne **le but / l''occasion**.',
+   'true', '2026-05-31 16:50:52.836936+02', '2026-05-31 16:50:52.836936+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('efffcc31-a8ff-4f4e-82f9-a77d5c6c03c0', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '39a110a2-17db-43f1-aad6-8a278b69768c', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Les deux premiers tours plantent le contexte (le montage est terminé). La question finale « tu as fait comment ? » porte sur **la manière, la méthode employée**. Seule B « en suivant la notice étape par étape » (gérondif de moyen) y répond. A indique une **durée** (« combien de temps cela t''a-t-il pris ? »). C indique une **cause / motivation** (« pourquoi l''as-tu montée ? »). D indique un **lieu** (« où l''as-tu installée ? »). Piège B1 : les quatre réponses parlent bien du montage, seule la nature de la question (« comment ») permet de trancher.',
+   'true', '2026-05-31 16:49:29.201727+02', '2026-05-31 16:49:29.201727+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('f8279fe6-8161-4db6-a012-faeb450fbd90', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   '0ed06acc-8f74-4198-b87a-f2507db73159', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   'Le premier tour pose le sujet (un rendez-vous à la préfecture, déjà confirmé) ; le second contient la question implicite « pour quand exactement ? » qui porte sur **un moment précis**. Seule C « mercredi prochain, à dix heures » donne un point dans le temps. A indique un **lieu** dans la préfecture (« à quel guichet ? »). B exprime un **but / motif** (« pour quoi faire ? »). D précise l''**accompagnant** (« avec qui y vas-tu ? »). Toutes les réponses restent dans le champ administratif, ce qui rend le piège B1 réaliste.',
+   'true', '2026-05-31 16:49:29.716948+02', '2026-05-31 16:49:29.716948+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite'),
+
+  ('f8a4caec-7329-4a7e-86c5-be12b2d578ec', 'TCF', '22222222-0000-0000-0000-000000000001', NULL,
+   'dd02714e-f01c-4d47-b9df-843503246dc1', 'B1', 'CO',
+   'Écoutez le document sonore, puis choisissez la bonne réponse parmi les propositions A, B, C ou D.',
+   '« Tu as ressenti quoi ? » porte sur **l''émotion personnelle** éprouvée. Seule A « une vraie fierté pour lui » nomme un sentiment. B donne **la cause de la promotion** du frère (« pourquoi a-t-il été promu ? »). C donne **la durée de l''appel**. D donne **l''accompagnante**.',
+   'true', '2026-05-31 16:50:29.718214+02', '2026-05-31 16:50:29.718214+02', 'ACTIVE', NULL, NULL, 'co_dialogue_b1_implicite');
+
+-- choices
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('17e99dc8-b7bb-4060-95ed-6062b1a357b9', '0a8ddf62-fe6c-4902-98f6-3d7f15538bcf', 'Deux fois par semaine, en moyenne.', 'true', '1'),
+  ('f81be387-30d1-416a-87ea-aa3e0a738aa1', '0a8ddf62-fe6c-4902-98f6-3d7f15538bcf', 'Pendant une heure à chaque séance.', 'false', '2'),
+  ('80723b02-d88d-4e9b-8d59-b79585f5461d', '0a8ddf62-fe6c-4902-98f6-3d7f15538bcf', 'Tout près de mon travail.', 'false', '3'),
+  ('1793bef3-c30c-4d34-8087-b718a9b21de1', '0a8ddf62-fe6c-4902-98f6-3d7f15538bcf', 'Pour me remettre tranquillement en forme.',
+   'false', '4'),
+  ('28f6109e-3d5b-4310-8a33-d1b0a95edd47', '1540861c-4a04-4e8e-a7c9-0fd963aee223', 'Sur ma table de chevet, tranquillement.',
+   'false', '1'),
+  ('6c256afa-a79f-47f1-9b15-672b8152729f', '1540861c-4a04-4e8e-a7c9-0fd963aee223', 'En deux semaines, à peu près.', 'false', '2'),
+  ('67b91013-c2a4-417a-9d9c-e26e50b8b1e9', '1540861c-4a04-4e8e-a7c9-0fd963aee223', 'À ma grande surprise, beaucoup de bien.', 'true',
+   '3'),
+  ('da0b2640-a13c-44ea-9d7f-5e9bad550ea5', '1540861c-4a04-4e8e-a7c9-0fd963aee223', 'Surtout dans le métro, le matin.', 'false', '4'),
+  ('9e4ec95f-7d46-44c7-bb60-bd071d27866e', '1a05fb59-dbab-4263-98a5-d1e9b8132543', 'A', 'false', '1'),
+  ('9f8088ea-b233-43e9-9ec0-96620e215956', '1a05fb59-dbab-4263-98a5-d1e9b8132543', 'B', 'true', '2'),
+  ('6d622c37-d086-4538-8483-c1a0af8c961c', '1a05fb59-dbab-4263-98a5-d1e9b8132543', 'C', 'false', '3'),
+  ('c108c746-e761-47a2-8064-a9e1bd48570c', '1a05fb59-dbab-4263-98a5-d1e9b8132543', 'D', 'false', '4'),
+  ('0f46f9ba-bb1a-41fb-a29b-108682ea4ef2', '1c93e7a5-5213-4656-b456-7c68e8ff1d56', 'A', 'true', '1'),
+  ('005b0387-4080-417a-9a0b-c69b23d3dcae', '1c93e7a5-5213-4656-b456-7c68e8ff1d56', 'B', 'false', '2'),
+  ('5d8ae8d6-5232-41bc-beab-a9f0dce67756', '1c93e7a5-5213-4656-b456-7c68e8ff1d56', 'C', 'false', '3'),
+  ('59e2b7b1-eb87-4be9-be51-024d2285555b', '1c93e7a5-5213-4656-b456-7c68e8ff1d56', 'D', 'false', '4'),
+  ('dc70ec7d-871e-4571-bb16-b907a38c0354', '2a066bb4-774f-4dc9-8f8c-fe4fe25028e2', 'Trois semaines, l''été dernier.', 'true', '1'),
+  ('c6d79789-1574-4803-bf22-964290346a78', '2a066bb4-774f-4dc9-8f8c-fe4fe25028e2', 'À Rome surtout, puis à Florence.', 'false', '2'),
+  ('e4b78992-5d9f-44bb-a6a5-ef2c3d24bb32', '2a066bb4-774f-4dc9-8f8c-fe4fe25028e2', 'Avec deux amis de la fac.', 'false', '3'),
+  ('370906ee-8e1b-47d0-bec0-81b13b3b592d', '2a066bb4-774f-4dc9-8f8c-fe4fe25028e2', 'Pour voir tous les musées possibles.', 'false',
+   '4'),
+  ('2800950b-ff96-4d7a-a94f-2f3e67f4967e', '3b3553d8-7869-4d35-a7d1-e1de6e8f855a', 'Du rouge et un peu de blanc.', 'false', '1'),
+  ('5cedba32-5474-432b-9c72-69fbed491e18', '3b3553d8-7869-4d35-a7d1-e1de6e8f855a', 'Six, comme on s''était dit.', 'true', '2'),
+  ('878ba866-270c-4d44-b67d-e0a5bd98b611', '3b3553d8-7869-4d35-a7d1-e1de6e8f855a', 'Pour à peu près trente euros.', 'false', '3'),
+  ('7c474020-89f6-4105-90e3-2a578bfd3ccd', '3b3553d8-7869-4d35-a7d1-e1de6e8f855a', 'Chez le caviste de la place.', 'false', '4'),
+  ('3fb75ca4-1166-4b69-a911-1ad2ac6b5dc9', '3ced560d-0998-40a1-9f3c-e5f56f158ed5', 'A', 'true', '1'),
+  ('91f57d53-86dc-4510-aaee-ae8b0ff72f91', '3ced560d-0998-40a1-9f3c-e5f56f158ed5', 'B', 'false', '2'),
+  ('e6c7776b-7ae5-4999-8826-fb539911d757', '3ced560d-0998-40a1-9f3c-e5f56f158ed5', 'C', 'false', '3'),
+  ('5eb0e701-f34b-437a-856a-4b77a5209e43', '3ced560d-0998-40a1-9f3c-e5f56f158ed5', 'D', 'false', '4'),
+  ('d7f7fc24-f92e-477c-8ea6-78638e22d07a', '4d176b98-5d1b-4114-b59f-bd0254e22e00', 'À la salle Pleyel, à Paris.', 'false', '1'),
+  ('5d5dc70a-0639-4d06-af24-4c023f10788c', '4d176b98-5d1b-4114-b59f-bd0254e22e00', 'Avec ma sœur et son copain.', 'true', '2'),
+  ('b79f72c9-7c6c-41cf-a8c4-36609276140e', '4d176b98-5d1b-4114-b59f-bd0254e22e00', 'Jusqu''à minuit, environ.', 'false', '3'),
+  ('fce6061a-cb77-452c-8e25-faf4b965eab8', '4d176b98-5d1b-4114-b59f-bd0254e22e00', 'Parce que j''adore ce groupe depuis longtemps.',
+   'false', '4'),
+  ('694658d8-cbed-4ffd-b07f-fe986cba15fe', '53e49fd8-12ab-4a43-bdcd-65e0d21ce92b', 'A', 'false', '1'),
+  ('184818a6-0cb3-4434-9f39-3d8beac1d23a', '53e49fd8-12ab-4a43-bdcd-65e0d21ce92b', 'B', 'false', '2'),
+  ('27cb4229-319f-4a35-9ee3-44a59d950747', '53e49fd8-12ab-4a43-bdcd-65e0d21ce92b', 'C', 'true', '3'),
+  ('6ba4f0cf-6fd3-46e7-b23a-d4bc786a94e0', '53e49fd8-12ab-4a43-bdcd-65e0d21ce92b', 'D', 'false', '4'),
+  ('781cf752-2614-423c-a267-7d6ce0d79623', '5afaf94b-1764-4388-9b06-3174692d36ff', 'A', 'false', '1'),
+  ('a823ec9c-8625-4308-8bfe-af601a6ed516', '5afaf94b-1764-4388-9b06-3174692d36ff', 'B', 'false', '2'),
+  ('544a7512-7886-4457-91d2-648535e2645e', '5afaf94b-1764-4388-9b06-3174692d36ff', 'C', 'false', '3'),
+  ('05d7d2f1-cece-479c-9095-50f1d548b4cc', '5afaf94b-1764-4388-9b06-3174692d36ff', 'D', 'true', '4'),
+  ('47ff2813-1709-4b38-bc4a-353e3839e61b', '5c2506b4-432a-4101-b074-3a8b09157044', 'La noire, sans hésiter, elle est plus chic.',
+   'true', '1'),
+  ('9a8bc523-e2f3-4426-8897-2aae4eae2c91', '5c2506b4-432a-4101-b074-3a8b09157044', 'Chez un cordonnier près du métro.', 'false', '2'),
+  ('ee04afe7-17a4-4d09-ae7e-0120c5a5bac4', '5c2506b4-432a-4101-b074-3a8b09157044', 'Environ soixante euros la paire.', 'false', '3'),
+  ('4ef68788-8a61-413f-9538-2967f8ccad92', '5c2506b4-432a-4101-b074-3a8b09157044', 'Plutôt pour aller travailler, en fait.', 'false',
+   '4'),
+  ('5f944789-187a-441d-9df0-ede447ac690f', '61ab0fd2-5b46-4878-92c4-d2538a89535b', 'A', 'false', '1'),
+  ('b0ed4196-c078-426d-ba06-af2564948b96', '61ab0fd2-5b46-4878-92c4-d2538a89535b', 'B', 'true', '2'),
+  ('f1a1651f-b0ff-48b2-9cc3-e3008d4be5f0', '61ab0fd2-5b46-4878-92c4-d2538a89535b', 'C', 'false', '3'),
+  ('e817aae1-635c-456b-8e6c-fd457f04ef84', '61ab0fd2-5b46-4878-92c4-d2538a89535b', 'D', 'false', '4'),
+  ('a227d2a1-1d0b-4498-b2ab-5d8d09d02708', '755c75e2-0fd0-43ea-ae9d-6ff2b1a971a9', 'A', 'false', '1'),
+  ('35ea70f0-4672-4710-9847-460d0e5889eb', '755c75e2-0fd0-43ea-ae9d-6ff2b1a971a9', 'B', 'true', '2'),
+  ('182b8e75-c4cd-4ee2-a4ff-9c5246a83314', '755c75e2-0fd0-43ea-ae9d-6ff2b1a971a9', 'C', 'false', '3'),
+  ('2ce74289-ca43-44c1-8bd8-b8426261fa79', '755c75e2-0fd0-43ea-ae9d-6ff2b1a971a9', 'D', 'false', '4'),
+  ('84b22c47-6aaf-44be-aae7-1cda1c13d9de', '785101e5-ee79-4b42-ab51-e90e51fe5bdd', 'A', 'false', '1'),
+  ('be147849-481a-4ea4-8b3d-691c3b0474b2', '785101e5-ee79-4b42-ab51-e90e51fe5bdd', 'B', 'false', '2'),
+  ('4cc9b406-af2f-4f02-9794-5e5cdd17dc1f', '785101e5-ee79-4b42-ab51-e90e51fe5bdd', 'C', 'false', '3'),
+  ('98f6b292-d738-43cf-a8bc-e5d210060a3d', '785101e5-ee79-4b42-ab51-e90e51fe5bdd', 'D', 'true', '4'),
+  ('55f23cb6-0d3b-4e5a-b070-94038c53a083', '7f35bda8-7335-4e3d-9617-f5af86e27a05', 'Pendant plus d''une heure, je crois.', 'false',
+   '1'),
+  ('e3a57998-fbc1-49a7-ab46-a4bd19bd9686', '7f35bda8-7335-4e3d-9617-f5af86e27a05', 'À cause d''une dispute avec sa sœur.', 'true',
+   '2'),
+  ('c94cbdee-737f-4380-afaf-8e8a3295877f', '7f35bda8-7335-4e3d-9617-f5af86e27a05', 'Pour qu''on lui prête un peu d''attention.',
+   'false', '3'),
+  ('f391605b-3a86-4593-bbd0-e3f7fc3fad22', '7f35bda8-7335-4e3d-9617-f5af86e27a05', 'Dans sa chambre, toute seule.', 'false', '4'),
+  ('4c6d544f-93c6-4c18-bb1c-e6aa9bfb3b95', '89080e14-2417-4817-9ea1-1f8ef672a28a', 'A', 'false', '1'),
+  ('04b3a0a3-26b4-4f07-b138-b21d31530c75', '89080e14-2417-4817-9ea1-1f8ef672a28a', 'B', 'false', '2'),
+  ('38cc51f8-2ada-42d9-bdde-8e350bb30911', '89080e14-2417-4817-9ea1-1f8ef672a28a', 'C', 'true', '3'),
+  ('a8579713-4fb9-45b8-9985-7f8f321778d1', '89080e14-2417-4817-9ea1-1f8ef672a28a', 'D', 'false', '4'),
+  ('a5bdb239-4c26-4358-b6cf-f168ac649d1c', '8947412f-28d4-43a1-be85-613bab08d3e3', 'A', 'false', '1'),
+  ('bb2ec0a6-d6a3-4b01-b966-658e007e4ea8', '8947412f-28d4-43a1-be85-613bab08d3e3', 'B', 'false', '2'),
+  ('d05827e2-c98f-40f4-94c6-b066e2974c0b', '8947412f-28d4-43a1-be85-613bab08d3e3', 'C', 'true', '3'),
+  ('c818e3a6-e431-43fd-8853-0fcf4b85deaa', '8947412f-28d4-43a1-be85-613bab08d3e3', 'D', 'false', '4'),
+  ('fa15b377-3299-4434-a303-18606ee50070', '8f66f807-8c94-441f-bec3-e8e784a8b2e3', 'A', 'false', '1'),
+  ('f7d6807f-b2c8-4d6b-8f83-1810728bc99c', '8f66f807-8c94-441f-bec3-e8e784a8b2e3', 'B', 'true', '2'),
+  ('6d165836-35ca-4b32-93a4-99d2e0227932', '8f66f807-8c94-441f-bec3-e8e784a8b2e3', 'C', 'false', '3'),
+  ('201c897e-0517-48cb-b8ca-a576c41b38c9', '8f66f807-8c94-441f-bec3-e8e784a8b2e3', 'D', 'false', '4'),
+  ('72d3a8e0-bcea-4af6-8eb5-51c76aadc50b', 'a00bc929-8047-4039-bcf7-8e9deebb454c', 'A', 'false', '1'),
+  ('0089a4be-21a8-4d74-becc-278aa90a7d50', 'a00bc929-8047-4039-bcf7-8e9deebb454c', 'B', 'false', '2'),
+  ('6e5982a0-14cb-4209-89b3-c65e454dd514', 'a00bc929-8047-4039-bcf7-8e9deebb454c', 'C', 'false', '3'),
+  ('7cd619e3-05c7-4288-a85a-587054feefe7', 'a00bc929-8047-4039-bcf7-8e9deebb454c', 'D', 'true', '4'),
+  ('ad271756-eef1-451a-bc49-932a4a2a53d8', 'b2e3ce65-34d3-4d15-98f2-c815dbd6b9cc', 'A', 'false', '1'),
+  ('a9e09a37-6010-4b90-adb7-c39cf646aefc', 'b2e3ce65-34d3-4d15-98f2-c815dbd6b9cc', 'B', 'false', '2'),
+  ('6fe7943a-70d2-4421-b45c-3612def844f7', 'b2e3ce65-34d3-4d15-98f2-c815dbd6b9cc', 'C', 'false', '3'),
+  ('61b44516-c789-48d6-837a-7ec388dc5113', 'b2e3ce65-34d3-4d15-98f2-c815dbd6b9cc', 'D', 'true', '4'),
+  ('ef448721-e342-4b15-af6d-be451df8ecc8', 'b46f6d55-581a-42ae-bfa6-d6067c78366c', 'A', 'true', '1'),
+  ('e12a15c4-c738-41cb-9788-f7ab8a9a45a3', 'b46f6d55-581a-42ae-bfa6-d6067c78366c', 'B', 'false', '2'),
+  ('74f9b793-3ca5-4fe2-82f8-75c6f6e3ef59', 'b46f6d55-581a-42ae-bfa6-d6067c78366c', 'C', 'false', '3'),
+  ('a17bf261-3ae3-45ba-8a13-b040adb84272', 'b46f6d55-581a-42ae-bfa6-d6067c78366c', 'D', 'false', '4'),
+  ('05c7da11-1cf8-4d97-b766-ad45e0a04dc8', 'bd5ca8f4-887b-4900-9a48-194106dc87c4', 'A', 'false', '1'),
+  ('c9e7245d-522e-4be9-8cf7-18b13f02fdfa', 'bd5ca8f4-887b-4900-9a48-194106dc87c4', 'B', 'false', '2'),
+  ('d96f9889-582f-4589-a10e-df79c7bade8c', 'bd5ca8f4-887b-4900-9a48-194106dc87c4', 'C', 'true', '3'),
+  ('c226ee7e-0b30-4655-9216-2f5281fda1f1', 'bd5ca8f4-887b-4900-9a48-194106dc87c4', 'D', 'false', '4'),
+  ('b5e99ebc-9919-4eb7-b007-b5517fd180d1', 'c69d7d67-dc6d-4583-bfbf-f1c99bf3cbff', 'Avec ma mère, samedi dernier.', 'false', '1'),
+  ('eeb0eb25-a97f-4fc2-b32e-d71bf3ce462c', 'c69d7d67-dc6d-4583-bfbf-f1c99bf3cbff', 'Plutôt longue, avec des manches.', 'false', '2'),
+  ('8fd70373-c1be-4c2f-8930-75c86de1e179', 'c69d7d67-dc6d-4583-bfbf-f1c99bf3cbff', 'Pour environ quatre-vingts euros.', 'false', '3'),
+  ('436da4d8-1959-4416-915a-53a88964f4dd', 'c69d7d67-dc6d-4583-bfbf-f1c99bf3cbff', 'Dans une petite boutique du centre-ville.',
+   'true', '4'),
+  ('beab8744-9fab-4e2f-8c91-178cfd463119', 'd02724c3-3e95-4eab-bd0c-6f2a1ef45b2f', 'A', 'false', '1'),
+  ('ac282002-903c-417c-bc88-cb389c16ec9c', 'd02724c3-3e95-4eab-bd0c-6f2a1ef45b2f', 'B', 'false', '2'),
+  ('e1a1bc59-5074-4730-83bb-67f66e0f6c52', 'd02724c3-3e95-4eab-bd0c-6f2a1ef45b2f', 'C', 'true', '3'),
+  ('8e7db6c9-759e-4d62-a567-22e6dc356caf', 'd02724c3-3e95-4eab-bd0c-6f2a1ef45b2f', 'D', 'false', '4'),
+  ('174205ab-4883-472e-a5bf-676961652300', 'd4e9bc58-428b-4391-b57a-1e8718839be3', 'A', 'false', '1'),
+  ('cf8edd9a-eda9-489e-8bb7-fb5c6f63a03c', 'd4e9bc58-428b-4391-b57a-1e8718839be3', 'B', 'false', '2'),
+  ('30b120b3-a2cf-42cc-9fd5-ec3110e7ae50', 'd4e9bc58-428b-4391-b57a-1e8718839be3', 'C', 'false', '3'),
+  ('581bc43c-c70b-4324-b996-b8d986c0bd6d', 'd4e9bc58-428b-4391-b57a-1e8718839be3', 'D', 'true', '4'),
+  ('e1460119-4278-4d2c-94a7-c0cc3e3a323b', 'dd0e791e-4d66-4d94-9a9d-227c52d09759', 'A', 'false', '1'),
+  ('4aca9f32-d774-4e99-8699-0c2b0c3d25a4', 'dd0e791e-4d66-4d94-9a9d-227c52d09759', 'B', 'true', '2'),
+  ('9924a769-0233-4a95-a276-30f2a0803592', 'dd0e791e-4d66-4d94-9a9d-227c52d09759', 'C', 'false', '3'),
+  ('4db3f71c-3b15-4c50-b4db-bb2a2f95c987', 'dd0e791e-4d66-4d94-9a9d-227c52d09759', 'D', 'false', '4'),
+  ('0ac1e445-ca9c-47ac-96d5-d793fdaa23c5', 'e3cb5a63-3db5-4dd2-b6d2-68e828d7f197', 'A', 'true', '1'),
+  ('816fe144-4b4e-4739-ae73-b37bfd398660', 'e3cb5a63-3db5-4dd2-b6d2-68e828d7f197', 'B', 'false', '2'),
+  ('69561913-75e6-4d65-bf56-70caa33531f1', 'e3cb5a63-3db5-4dd2-b6d2-68e828d7f197', 'C', 'false', '3'),
+  ('3ec49f83-7489-41f8-8ea2-0ab09b08c7d8', 'e3cb5a63-3db5-4dd2-b6d2-68e828d7f197', 'D', 'false', '4'),
+  ('08aa2ccf-9b66-4a41-8a7d-030170c4fd66', 'efffcc31-a8ff-4f4e-82f9-a77d5c6c03c0', 'Pendant deux heures environ.', 'false', '1'),
+  ('91e20202-1ed7-4333-a4f2-aa15d35b87da', 'efffcc31-a8ff-4f4e-82f9-a77d5c6c03c0', 'En suivant la notice étape par étape.', 'true',
+   '2'),
+  ('cb001f28-1aa5-4d01-b2b2-1e2c03877817', 'efffcc31-a8ff-4f4e-82f9-a77d5c6c03c0', 'Parce que j''en avais vraiment besoin.', 'false',
+   '3'),
+  ('99140bf3-cf2b-401b-9a44-8976eb87992d', 'efffcc31-a8ff-4f4e-82f9-a77d5c6c03c0', 'Dans le salon, contre le mur.', 'false', '4'),
+  ('7d3618a8-4efc-464b-892e-ad0d25c76d23', 'f8279fe6-8161-4db6-a012-faeb450fbd90', 'Au guichet numéro quatre.', 'false', '1'),
+  ('9ce10e0c-92a4-4cdc-afe7-34721c356404', 'f8279fe6-8161-4db6-a012-faeb450fbd90', 'Pour renouveler mon titre de séjour.', 'false',
+   '2'),
+  ('db7006b3-a498-4e2d-b73a-c6ea0edb0b02', 'f8279fe6-8161-4db6-a012-faeb450fbd90', 'Mercredi prochain, à dix heures.', 'true', '3'),
+  ('b3c8e43a-4735-4470-b2f2-de1692a71e29', 'f8279fe6-8161-4db6-a012-faeb450fbd90', 'Avec ma sœur qui m''accompagne.', 'false', '4'),
+  ('fce2dfd3-5399-4d6a-8d4a-be223c1e6e08', 'f8a4caec-7329-4a7e-86c5-be12b2d578ec', 'A', 'true', '1'),
+  ('5ccf723f-e6c8-4abd-a4e5-88b0d8d03ed4', 'f8a4caec-7329-4a7e-86c5-be12b2d578ec', 'B', 'false', '2'),
+  ('81959fc2-4433-4d49-91bb-dd71f7b92b42', 'f8a4caec-7329-4a7e-86c5-be12b2d578ec', 'C', 'false', '3'),
+  ('44cf9f86-0f6f-439b-b90f-5afb1a8aaa55', 'f8a4caec-7329-4a7e-86c5-be12b2d578ec', 'D', 'false', '4');

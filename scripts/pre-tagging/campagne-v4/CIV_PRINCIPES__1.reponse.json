@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVLMLrAwSPQaMmh1p",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01P1S4AT176MswVPcyzTwm5u",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "14 juillet comme fête nationale, symbole."
+          },
+          {
+            "rang": 2,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Marianne symbole officiel."
+          },
+          {
+            "rang": 3,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Drapeau tricolore symbole."
+          },
+          {
+            "rang": 4,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Liste symboles officiels."
+          },
+          {
+            "rang": 5,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Drapeau tricolore."
+          },
+          {
+            "rang": 6,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Couleurs du drapeau."
+          },
+          {
+            "rang": 7,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Coq symbole national."
+          },
+          {
+            "rang": 8,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Marianne allégorie de la République."
+          },
+          {
+            "rang": 9,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "Hymne national."
+          },
+          {
+            "rang": 10,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.98,
+            "rationale": "La Marseillaise hymne."
+          },
+          {
+            "rang": 11,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Devise de la République."
+          },
+          {
+            "rang": 12,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Emplacement de la devise, sur symbole."
+          },
+          {
+            "rang": 13,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Devise nommée."
+          },
+          {
+            "rang": 14,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.75,
+            "rationale": "Définition de la liberté comme principe, mais proche du régime juridique.",
+            "alternative": "pv_symboles_devise",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 15,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.85,
+            "rationale": "Égalité devant la loi comme principe, sans distinction.",
+            "alternative": "pv_symboles_devise",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 16,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.9,
+            "rationale": "Loi même pour tous, non-discrimination."
+          },
+          {
+            "rang": 17,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.8,
+            "rationale": "Sens du mot fraternité de la devise, un des trois mots."
+          },
+          {
+            "rang": 18,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Rôle des associations, relève plutôt de CIV_SOCIETE."
+          },
+          {
+            "rang": 19,
+            "notion": "AUCUNE",
+            "confiance": 0.75,
+            "rationale": "Date Constitution 1958, relève plutôt de hg_republiques (hors référentiel)."
+          },
+          {
+            "rang": 20,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.92,
+            "rationale": "Régime démocratique de la France, principe."
+          },
+          {
+            "rang": 21,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.7,
+            "rationale": "Article 1er, adjectifs de la République incluant laïcité.",
+            "alternative": "pv_laicite",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 22,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "14 juillet fête nationale."
+          },
+          {
+            "rang": 23,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.7,
+            "rationale": "Défilé militaire du 14 juillet, associé à la fête nationale symbole."
+          },
+          {
+            "rang": 24,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Langue officielle, article 2 des symboles."
+          },
+          {
+            "rang": 25,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.9,
+            "rationale": "Place de la langue française, article 2."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 8325,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1424,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

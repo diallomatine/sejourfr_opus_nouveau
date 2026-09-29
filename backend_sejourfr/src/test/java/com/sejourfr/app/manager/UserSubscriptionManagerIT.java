@@ -1,0 +1,213 @@
+package com.sejourfr.app.manager;
+
+import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PlanPurchaseType;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.repository.UserSubscriptionRepository;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Intégration réelle (Postgres embarqué) du {@link UserSubscriptionManager} :
+ * lookups par user / clé Stripe / clé canonique de réconciliation, recherche
+ * paginée par Specification, requête métier des passes one-time, et la
+ * contrainte d'unicité {@code (source, original_transaction_id)} (V103).
+ */
+class UserSubscriptionManagerIT extends AbstractIntegrationTest {
+
+    @Autowired
+    private UserSubscriptionManager manager;
+
+    @Autowired
+    private UserSubscriptionRepository repository;
+
+    @Autowired
+    private PlanManager planManager;
+
+    @Autowired
+    private EntityManager em;
+
+    @Autowired
+    private TestData testData;
+
+    @Test
+    void findByUserIdReturnsOnlyThatUsersSubscriptions() {
+        User user = testData.user();
+        Plan plan = testData.plan();
+        UserSubscription s1 = testData.userSubscription(user, plan);
+        UserSubscription s2 = testData.userSubscription(user, plan);
+        UserSubscription other = testData.userSubscription();
+
+        List<UserSubscription> found = manager.findByUserId(user.getId());
+
+        assertThat(found).extracting(UserSubscription::getId)
+                .containsExactlyInAnyOrder(s1.getId(), s2.getId())
+                .doesNotContain(other.getId());
+    }
+
+    @Test
+    void findByIdReturnsMatchAndEmptyWhenAbsent() {
+        UserSubscription s = testData.userSubscription();
+
+        assertThat(manager.findById(s.getId())).isPresent();
+        assertThat(manager.findById(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void saveAssignsIdAndTimestamps() {
+        UserSubscription s = testData.userSubscription();
+
+        assertThat(s.getId()).isNotNull();
+        assertThat(s.getUpdatedAt()).isNotNull();
+        assertThat(manager.findById(s.getId())).isPresent();
+    }
+
+    @Test
+    void purchasedAtNeBougeJamaisApresLaCreation() {
+        UserSubscription s = testData.userSubscription();
+        java.time.Instant original = s.getPurchasedAt();
+
+        s.setPurchasedAt(java.time.Instant.parse("2020-01-01T00:00:00Z"));
+        manager.save(s);
+        em.flush();
+        em.clear();
+
+        assertThat(manager.findById(s.getId()).orElseThrow().getPurchasedAt()).isEqualTo(original);
+    }
+
+    @Test
+    void findByStripeSubscriptionIdSelectsMatch() {
+        String stripeSubId = "sub_" + UUID.randomUUID();
+        UserSubscription s = testData.userSubscription();
+        s.setStripeSubscriptionId(stripeSubId);
+        manager.save(s);
+
+        Optional<UserSubscription> found = manager.findByStripeSubscriptionId(stripeSubId);
+        assertThat(found).isPresent();
+        assertThat(found.get().getId()).isEqualTo(s.getId());
+        assertThat(manager.findByStripeSubscriptionId("sub_absent_" + UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findBySourceAndOriginalTransactionIdMatchesOnBothColumns() {
+        UserSubscription s = testData.userSubscription(); // source STRIPE
+        String tx = s.getOriginalTransactionId();
+
+        assertThat(manager.findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, tx))
+                .get().extracting(UserSubscription::getId).isEqualTo(s.getId());
+        // Bonne tx mais mauvaise source → pas de match (l'index est composite).
+        assertThat(manager.findBySourceAndOriginalTransactionId(SubscriptionSource.APPLE, tx))
+                .isEmpty();
+        // Bonne source mais tx inconnue → pas de match.
+        assertThat(manager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "tx_absent_" + UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findAllWithSpecificationFiltersByStatus() {
+        User user = testData.user();
+        Plan plan = testData.plan();
+        UserSubscription active = testData.userSubscription(user, plan);
+        UserSubscription canceled = testData.userSubscription(user, plan);
+        canceled.setStatus(SubscriptionStatus.CANCELED);
+        manager.save(canceled);
+
+        Specification<UserSubscription> spec = (root, query, cb) -> cb.and(
+                cb.equal(root.get("user").get("id"), user.getId()),
+                cb.equal(root.get("status"), SubscriptionStatus.ACTIVE));
+
+        Page<UserSubscription> page = manager.findAll(spec, PageRequest.of(0, 10));
+
+        assertThat(page.getContent()).extracting(UserSubscription::getId)
+                .containsExactly(active.getId())
+                .doesNotContain(canceled.getId());
+    }
+
+    @Test
+    void decrementRealtimeSessionsDebitsOneWhenPositiveAndStopsAtZero() {
+        UserSubscription sub = testData.userSubscription();
+        sub.setRealtimeEoSessionsRemaining(2);
+        manager.save(sub);
+
+        // 2 -> 1 (débitée)
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.clear(); // le UPDATE en masse ne touche pas le cache L1 → on relit la DB
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isEqualTo(1);
+
+        // 1 -> 0 (débitée)
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.clear();
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isZero();
+
+        // 0 : solde nul → aucun débit, jamais négatif.
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isFalse();
+        em.clear();
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isZero();
+    }
+
+    /**
+     * Consommer une simulation orale n'est pas un changement de l'abonnement :
+     * la colonne « Maj » de la console admin ne doit pas bouger. Le débit est un
+     * UPDATE en masse, qui ne passe pas par le {@code @PreUpdate} de l'entité —
+     * ce test verrouille ce contournement.
+     */
+    @Test
+    void decrementRealtimeSessionsNeFaitPasAvancerUpdatedAt() {
+        UserSubscription sub = testData.userSubscription();
+        sub.setRealtimeEoSessionsRemaining(2);
+        manager.save(sub);
+        em.flush();
+        em.createNativeQuery("UPDATE user_subscriptions SET updated_at = now() - interval '1 hour' "
+                        + "WHERE id = :id")
+                .setParameter("id", sub.getId())
+                .executeUpdate();
+        em.clear();
+        Instant repere = manager.findById(sub.getId()).orElseThrow().getUpdatedAt();
+
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.flush();
+        em.clear();
+
+        UserSubscription relu = manager.findById(sub.getId()).orElseThrow();
+        assertThat(relu.getRealtimeEoSessionsRemaining()).isEqualTo(1);
+        assertThat(relu.getUpdatedAt()).isEqualTo(repere);
+    }
+
+    @Test
+    void duplicateSourceAndOriginalTransactionIdViolatesUniqueIndex() {
+        UserSubscription first = testData.userSubscription();
+
+        UserSubscription dup = new UserSubscription();
+        dup.setUser(first.getUser());
+        dup.setPlan(first.getPlan());
+        dup.setStatus(SubscriptionStatus.ACTIVE);
+        dup.setStartsAt(Instant.now());
+        dup.setSource(first.getSource());
+        dup.setOriginalTransactionId(first.getOriginalTransactionId());
+
+        assertThatThrownBy(() -> repository.saveAndFlush(dup))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+}

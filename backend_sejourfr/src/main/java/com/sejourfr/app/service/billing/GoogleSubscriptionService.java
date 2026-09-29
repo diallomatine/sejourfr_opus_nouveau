@@ -1,0 +1,699 @@
+package com.sejourfr.app.service.billing;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.services.androidpublisher.model.AutoRenewingPlan;
+import com.google.api.services.androidpublisher.model.ProductPurchase;
+import com.google.api.services.androidpublisher.model.SubscriptionPurchaseLineItem;
+import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
+import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.util.LogMask;
+import com.sejourfr.app.enums.PaymentStatus;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.PlanManager;
+import com.sejourfr.app.manager.ProcessedExternalEventManager;
+import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Logique métier Google Play Billing : activation à partir d'un
+ * {@code purchaseToken} remonté par l'app mobile (verify-receipt) et
+ * application des Real-time Developer Notifications (RTDN via Pub/Sub).
+ *
+ * <p>Clé d'unicité : {@code (GOOGLE, purchaseToken)}. Un même purchaseToken
+ * Google reste stable sur toute la chaîne de renouvellements d'un user — c'est
+ * notre {@code originalTransactionId}. Les renouvellements UPDATE la ligne
+ * existante (nouveau {@code latestOrderId} et {@code expiryTime} repoussé).
+ *
+ * <p>Source de vérité : on appelle TOUJOURS {@code GoogleStoreClient.getSubscriptionV2}
+ * pour obtenir l'état autoritatif côté Play, qu'on traite ensuite. La RTDN
+ * sert uniquement de trigger ("quelque chose a changé sur ce token") ; on ne
+ * lit jamais l'état directement dedans, comme recommandé par Google.
+ *
+ * <p>Idempotence webhook : chaque {@code messageId} Pub/Sub passé une fois
+ * est stocké dans {@code processed_external_events}. Pub/Sub at-least-once :
+ * un même messageId peut arriver plusieurs fois, on doit pouvoir l'ignorer.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class GoogleSubscriptionService {
+
+    private final GoogleStoreClient googleStoreClient;
+    private final PlanManager planManager;
+    private final UserManager userManager;
+    private final UserSubscriptionManager userSubscriptionManager;
+    private final ProcessedExternalEventManager processedEventManager;
+    private final SubscriptionNotificationService subscriptionNotifier;
+    private final OneTimeAccessService oneTimeAccessService;
+    private final com.sejourfr.app.config.BillingProperties billingProperties;
+    private final MontantEncaisseResolver montantEncaisseResolver;
+    private final PaymentRefundService paymentRefundService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // ------------------------------------------------------------------------
+    // verify-receipt : flow client → backend après un achat sur l'app
+    // ------------------------------------------------------------------------
+
+    /**
+     * Active (ou rafraîchit) un abonnement Premium pour l'utilisateur authentifié
+     * à partir d'un {@code purchaseToken} (Google Play Billing). Le backend
+     * re-valide l'état contre l'API Play — on ne fait JAMAIS confiance au
+     * client.
+     *
+     * @throws ResponseStatusException 400 si l'état Play ne contient pas le
+     *         productId attendu, si on ne trouve pas le Plan correspondant,
+     *         ou si l'API Play échoue ; 409 si le purchaseToken est déjà
+     *         rattaché à un autre user.
+     */
+    /**
+     * Variante sans montant déclaré par l'application (client antérieur au
+     * champ) : on retombera sur le prix affiché du plan.
+     */
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String purchaseToken) {
+        return activateFromReceipt(userId, expectedProductId, purchaseToken,
+                MontantEncaisse.INCONNU);
+    }
+
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate) {
+        return activateFromReceipt(userId, expectedProductId, purchaseToken, montantConstate, null);
+    }
+
+    /**
+     * 🛑 {@code purchases.products.get} ne rend aucun prix : le montant déclaré
+     * par l'application est le seul disponible, et il est <b>borné par le
+     * catalogue</b> (bug Q11, {@link MontantEncaisseResolver#borneParCatalogue}).
+     * {@code purchaseIntentId} est l'intention créée par le mobile avant la
+     * feuille d'achat (Q12), validée et consommée à l'octroi.
+     */
+    @Transactional
+    public UserSubscription activateFromReceipt(
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate, String purchaseIntentId) {
+        log.info(
+                "Google verify-receipt START user={} expectedProductId={} purchaseToken={}",
+                userId, expectedProductId, LogMask.token(purchaseToken)
+        );
+        try {
+            // Mode passes one-time (lot 5) : produit managed → API products.get
+            // (et non subscriptionsv2). Grant commun, durée backend.
+            if (billingProperties.isOneTime()) {
+                return activateOneTimeProduct(userId, expectedProductId, purchaseToken,
+                        montantConstate, purchaseIntentId);
+            }
+
+            SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
+
+            SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, expectedProductId);
+            Plan plan = lookupPlanOrThrow(lineItem.getProductId());
+            User user = userManager.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
+
+            // Restauration côté StoreKit/Play : verify-receipt peut être rappelé
+            // sur un purchaseToken existant. Pas de mail de bienvenue dans ce cas.
+            boolean isNew = userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
+                    .isEmpty();
+            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken,
+                    montantEncaisseResolver.borneParCatalogue(
+                            montantConstate, plan, billingProperties.getStorePriceTolerance()));
+            log.info(
+                    "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={} new={}",
+                    userId, lineItem.getProductId(), LogMask.token(purchaseToken), sub.getStatus(), sub.getEndsAt(), isNew
+            );
+            if (isNew) {
+                subscriptionNotifier.sendActivation(sub);
+            }
+            return sub;
+        } catch (ResponseStatusException e) {
+            // Rend visible côté serveur la raison exacte du refus (sinon le 400
+            // est muet dans les logs et seul un message générique remonte à l'app).
+            log.warn(
+                    "Google verify-receipt REFUSÉ user={} expectedProductId={} purchaseToken={} → {} {}",
+                    userId, expectedProductId, LogMask.token(purchaseToken),
+                    e.getStatusCode(), e.getReason()
+            );
+            throw e;
+        }
+    }
+
+    /**
+     * Active un pass one-time (managed product) via {@code purchases.products.get}.
+     * On valide l'état d'achat (purchaseState=0 Purchased), acquitte best-effort,
+     * puis crédite via le grant commun. La consommation (ré-achat) est faite
+     * côté client par in_app_purchase.
+     */
+    private UserSubscription activateOneTimeProduct(
+            UUID userId, String expectedProductId, String purchaseToken,
+            MontantEncaisse montantConstate, String purchaseIntentId) {
+        ProductPurchase pp;
+        try {
+            pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
+        } catch (IOException e) {
+            log.warn("Google getProduct a échoué (productId={}, token={}) : {}",
+                    expectedProductId, LogMask.token(purchaseToken), e.getMessage(), e);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Reçu Google invalide ou inaccessible : " + e.getMessage(), e);
+        }
+        // purchaseState : 0 = Purchased, 1 = Canceled, 2 = Pending.
+        Integer purchaseState = pp.getPurchaseState();
+        if (purchaseState != null && purchaseState != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Achat Google non finalisé (purchaseState=" + purchaseState + ").");
+        }
+        Plan plan = lookupPlanOrThrow(expectedProductId);
+
+        // Acquittement obligatoire sous 3 j (sinon Play rembourse automatiquement).
+        // Best-effort : un échec d'ack ne doit jamais bloquer l'octroi d'un accès
+        // déjà payé.
+        acquitter(expectedProductId, purchaseToken, pp);
+
+        // ⚠️ `purchases.products.get` ne rend AUCUN prix : le seul montant
+        // disponible est celui que l'application a affiché (verify-receipt),
+        // retenu seulement s'il tient dans le catalogue. Sinon, le prix du plan.
+        UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
+                userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId(),
+                montantEncaisseResolver.borneParCatalogue(
+                        montantConstate, plan, billingProperties.getStorePriceTolerance()),
+                new ContexteAchat(null, toInstantMillis(pp.getPurchaseTimeMillis()), purchaseIntentId));
+        log.info("Google one-time pass user={} productId={} token={} endsAt={}",
+                userId, expectedProductId, LogMask.token(purchaseToken), sub.getEndsAt());
+        return sub;
+    }
+
+    /**
+     * Acquitte un pass one-time, sauf s'il l'est déjà.
+     *
+     * <p>Le plugin {@code in_app_purchase} <b>consomme</b> le pass côté client
+     * ({@code autoConsume: true}, indispensable pour qu'il soit ré-achetable), et
+     * une consommation vaut acquittement implicite côté Play. Cette consommation
+     * court en parallèle de notre verify-receipt : quand elle gagne la course,
+     * l'API refuse l'acquittement en <b>400 {@code invalidPurchaseState}</b>.
+     * Ce n'est pas une anomalie — l'achat EST acquitté, il n'y a aucun risque de
+     * remboursement automatique. On ne réacquitte donc pas ce qui l'est déjà, et
+     * ce refus précis ne remonte plus en {@code WARN} : le laisser au niveau
+     * d'alerte noyait les vrais échecs d'acquittement, ceux qui, eux, exposent à
+     * un refund à 3 jours.
+     */
+    private void acquitter(String productId, String purchaseToken, ProductPurchase pp) {
+        if (dejaAcquitte(pp)) {
+            log.debug("Google acknowledgeProduct ignoré (productId={}) : achat déjà acquitté ou consommé.",
+                    productId);
+            return;
+        }
+        try {
+            googleStoreClient.acknowledgeProduct(productId, purchaseToken);
+        } catch (IOException e) {
+            if (acquittementDejaFaitCoteStore(e)) {
+                log.debug("Google acknowledgeProduct (productId={}) : achat déjà acquitté côté store "
+                        + "(consommation client concurrente).", productId);
+                return;
+            }
+            log.warn("Google acknowledgeProduct a échoué (productId={}) : {} — accès accordé quand même.",
+                    productId, e.getMessage());
+        }
+    }
+
+    /** {@code acknowledgementState=1} = acquitté, {@code consumptionState=1} = consommé (donc acquitté). */
+    private static boolean dejaAcquitte(ProductPurchase pp) {
+        return Objects.equals(pp.getAcknowledgementState(), 1)
+                || Objects.equals(pp.getConsumptionState(), 1);
+    }
+
+    /**
+     * Le 400 {@code invalidPurchaseState} de l'API Play sur un acquittement veut
+     * dire « cet achat n'est plus dans un état où on peut l'acquitter » — en
+     * pratique, chez nous : il vient d'être consommé par le client.
+     */
+    private static boolean acquittementDejaFaitCoteStore(IOException e) {
+        if (!(e instanceof GoogleJsonResponseException google) || google.getStatusCode() != 400) {
+            return false;
+        }
+        GoogleJsonError details = google.getDetails();
+        if (details != null && details.getErrors() != null
+                && details.getErrors().stream()
+                        .anyMatch(err -> "invalidPurchaseState".equals(err.getReason()))) {
+            return true;
+        }
+        return String.valueOf(google.getContent()).contains("invalidPurchaseState");
+    }
+
+    // ------------------------------------------------------------------------
+    // Webhook : Real-time Developer Notifications (Pub/Sub push)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Traite une RTDN reçue depuis Pub/Sub. Étapes :
+     * <ol>
+     *   <li>Vérifie le Bearer JWT Pub/Sub (signature, audience, email SA) →
+     *       401 si invalide. Cf. {@link GoogleStoreClient#verifyPubSubBearer}.</li>
+     *   <li>Décode le {@code message.data} (base64 → JSON).</li>
+     *   <li>Idempotence : chaque {@code message.messageId} traité une fois est
+     *       stocké, replays Pub/Sub at-least-once silencieusement skipés.</li>
+     *   <li>Extrait {@code subscriptionNotification.purchaseToken} et
+     *       {@code notificationType}.</li>
+     *   <li>Appelle {@code subscriptionsv2.get(purchaseToken)} pour avoir
+     *       l'état autoritatif (la RTDN ne porte pas le détail).</li>
+     *   <li>Update {@code user_subscriptions} sur la clé
+     *       {@code (GOOGLE, purchaseToken)}.</li>
+     * </ol>
+     */
+    @Transactional
+    public void handleNotification(String authHeader, String pubSubPayload) {
+        googleStoreClient.verifyPubSubBearer(authHeader);
+
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(pubSubPayload);
+        } catch (IOException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Payload Pub/Sub non parsable : " + e.getMessage(), e);
+        }
+
+        JsonNode message = root.path("message");
+        String messageId = message.path("messageId").asText("");
+        if (messageId.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "message.messageId manquant dans le payload Pub/Sub.");
+        }
+
+        if (!processedEventManager.tryMarkProcessed(
+                SubscriptionSource.GOOGLE.providerKey(), messageId)) {
+            log.info("Google RTDN messageId={} déjà traité — skip (replay Pub/Sub).", messageId);
+            return;
+        }
+
+        String dataBase64 = message.path("data").asText("");
+        if (dataBase64.isBlank()) {
+            log.warn("Google RTDN messageId={} sans data — ignoré.", messageId);
+            return;
+        }
+
+        JsonNode data;
+        try {
+            byte[] decoded = Base64.getDecoder().decode(dataBase64);
+            data = objectMapper.readTree(decoded);
+        } catch (IllegalArgumentException | IOException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "message.data Pub/Sub non décodable : " + e.getMessage(),
+                    e
+            );
+        }
+
+        // Mode passes one-time (lot 5) : on traite voidedPurchaseNotification
+        // (refund/chargeback → REFUNDED) et on logue oneTimeProductNotification
+        // (l'octroi se fait via verify-receipt). Pas de subscriptionNotification.
+        if (billingProperties.isOneTime()) {
+            handleOneTimeNotification(data, messageId, parsePublishTime(message));
+            return;
+        }
+
+        // RTDN d'abonnement uniquement (on ignore voidedPurchaseNotification,
+        // oneTimeProductNotification, testNotification — non utilisés pour
+        // l'IAP Premium actuel).
+        JsonNode subNotif = data.path("subscriptionNotification");
+        if (subNotif.isMissingNode() || subNotif.isNull()) {
+            JsonNode testNotif = data.path("testNotification");
+            if (!testNotif.isMissingNode() && !testNotif.isNull()) {
+                log.info("Google RTDN testNotification messageId={} — pas d'impact.", messageId);
+                return;
+            }
+            log.warn(
+                    "Google RTDN messageId={} sans subscriptionNotification — ignoré (payload={}).",
+                    messageId, data
+            );
+            return;
+        }
+
+        int notificationType = subNotif.path("notificationType").asInt(-1);
+        String purchaseToken = subNotif.path("purchaseToken").asText("");
+        if (purchaseToken.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "subscriptionNotification.purchaseToken manquant.");
+        }
+
+        Optional<UserSubscription> existing = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(
+                        SubscriptionSource.GOOGLE, purchaseToken);
+
+        if (existing.isEmpty()) {
+            // Cas usuel : RTDN reçue pour un user qui n'a pas (encore) appelé
+            // verify-receipt — l'app a planté ou est offline. On log et on
+            // attend que l'app revienne ; pas de création sans userId.
+            log.warn(
+                    "Google RTDN messageId={} type={} purchaseToken={} : aucune subscription locale, ignorée.",
+                    messageId, notificationType, LogMask.token(purchaseToken)
+            );
+            return;
+        }
+
+        UserSubscription sub = existing.get();
+
+        // SUBSCRIPTION_REVOKED (12) → traitement spécial : Premium retiré
+        // immédiatement, indépendamment de l'état renvoyé par l'API. La V2
+        // peut encore montrer ACTIVE temporairement le temps que l'état se
+        // propage.
+        if (notificationType == GoogleNotificationType.SUBSCRIPTION_REVOKED) {
+            appliquerRetraitAcces(sub, "RTDN REVOKED", purchaseToken);
+            return;
+        }
+
+        // Refetch l'état autoritatif côté Play et applique-le. Sans ça on
+        // se fie à un timestamp dans la notification qui peut être en retard.
+        SubscriptionPurchaseV2 state;
+        try {
+            state = googleStoreClient.getSubscriptionV2(purchaseToken);
+        } catch (IOException e) {
+            // Si l'API Play est down, on rend 502 pour que Pub/Sub retente.
+            // L'event sort de processed_external_events via le rollback de la
+            // transaction (insertion + side-effect dans la même @Transactional).
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Échec refetch état Google Play : " + e.getMessage(),
+                    e
+            );
+        }
+
+        SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, null);
+        SubscriptionStatus oldStatus = sub.getStatus();
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        EtatAbonnement.poser(lineItem.getProductId(), sub::getProductId, sub::setProductId);
+        EtatAbonnement.poser(
+                EtatAbonnement.connuOu(state.getLatestOrderId(), sub.getExternalTransactionId()),
+                sub::getExternalTransactionId, sub::setExternalTransactionId);
+        EtatAbonnement.poser(parseExpiry(lineItem.getExpiryTime(), sub.getEndsAt()),
+                sub::getEndsAt, sub::setEndsAt);
+        EtatAbonnement.poser(deriveAutoRenew(lineItem, sub.isAutoRenew()),
+                sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(mapSubscriptionState(state.getSubscriptionState(), sub.getStatus()),
+                sub::getStatus, sub::setStatus);
+
+        if (avant.identiqueA(sub)) {
+            // Pub/Sub est at-least-once, et plusieurs RTDN décrivent le même
+            // cycle : l'état refetché est déjà celui de la ligne, rien à écrire.
+            log.debug("Google RTDN type={} messageId={} sans changement d'état — pas de sauvegarde.",
+                    notificationType, messageId);
+            return;
+        }
+        userSubscriptionManager.save(sub);
+
+        // Mail de résiliation UNIQUEMENT sur transition vers CANCELED. Pas
+        // d'envoi si CANCELED → CANCELED (replay RTDN ; Pub/Sub at-least-once).
+        if (oldStatus != SubscriptionStatus.CANCELED
+                && sub.getStatus() == SubscriptionStatus.CANCELED) {
+            subscriptionNotifier.sendCancellation(sub);
+        }
+        log.info(
+                "Google RTDN type={} messageId={} appliqué user={} status={} endsAt={} autoRenew={}",
+                notificationType, messageId,
+                sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
+        );
+    }
+
+    /**
+     * Retire l'accès Premium (révocation, remboursement, chargeback). Rejouable :
+     * une seconde notification sur une ligne déjà REFUNDED n'écrit rien, donc
+     * {@code updated_at} n'avance pas.
+     */
+    private void appliquerRetraitAcces(UserSubscription sub, String contexte, String purchaseToken) {
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+        EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(PaymentStatus.REFUNDED, sub::getPaymentStatus, sub::setPaymentStatus);
+        if (avant.identiqueA(sub)) {
+            log.debug("Google {} déjà appliqué (token={}) — pas de sauvegarde.",
+                    contexte, LogMask.token(purchaseToken));
+            return;
+        }
+        userSubscriptionManager.save(sub);
+        log.info("Google {} appliqué user={} purchaseToken={}",
+                contexte, sub.getUser().getId(), LogMask.token(purchaseToken));
+    }
+
+    /**
+     * RTDN en mode passes one-time : refund/chargeback → REFUNDED. L'achat
+     * (oneTimeProductNotification PURCHASED) est crédité via verify-receipt, on
+     * se contente de loguer ici (pas de mapping userId sans ligne existante).
+     */
+    private void handleOneTimeNotification(JsonNode data, String messageId, Instant publishTime) {
+        JsonNode voided = data.path("voidedPurchaseNotification");
+        if (!voided.isMissingNode() && !voided.isNull()) {
+            String token = voided.path("purchaseToken").asText("");
+            if (token.isBlank()) {
+                log.warn("Google RTDN voided messageId={} sans purchaseToken — ignoré.", messageId);
+                return;
+            }
+            userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, token)
+                    .ifPresentOrElse(
+                            sub -> {
+                                // Contrôle A : verrou, retrait d'accès, puis
+                                // écriture comptable (qui ne peut pas l'annuler).
+                                userSubscriptionManager.verrouiller(sub);
+                                appliquerRetraitAcces(sub, "one-time voided/refund", token);
+                                enregistrerRemboursement(sub, voided, token, publishTime);
+                            },
+                            () -> log.warn(
+                                    "Google RTDN voided messageId={} token={} : aucune subscription locale.",
+                                    messageId, LogMask.token(token)));
+            return;
+        }
+        JsonNode oneTime = data.path("oneTimeProductNotification");
+        if (!oneTime.isMissingNode() && !oneTime.isNull()) {
+            log.info("Google one-time product notif messageId={} sku={} type={} — octroi via verify-receipt.",
+                    messageId, oneTime.path("sku").asText(""),
+                    oneTime.path("notificationType").asInt(-1));
+            return;
+        }
+        JsonNode testNotif = data.path("testNotification");
+        if (!testNotif.isMissingNode() && !testNotif.isNull()) {
+            log.info("Google RTDN testNotification messageId={} (one-time) — pas d'impact.", messageId);
+            return;
+        }
+        log.warn("Google RTDN one-time messageId={} sans notif exploitable — ignoré (payload={}).",
+                messageId, data);
+    }
+
+    /**
+     * Ligne {@code payment_refunds} d'un {@code voidedPurchaseNotification}.
+     * Une commande Play n'est annulée qu'une fois : identifiant = {@code orderId}
+     * (le {@code purchaseToken} à défaut). Montant = l'achat entier — nos pass
+     * sont vendus à l'unité, un {@code QUANTITY_BASED_PARTIAL_REFUND} n'y a pas
+     * de sens. Date = {@code publishTime} Pub/Sub (la notification n'en porte
+     * pas d'autre).
+     */
+    private void enregistrerRemboursement(UserSubscription sub, JsonNode voided, String token,
+                                          Instant publishTime) {
+        if (sub.getAmountCents() == null) return;
+        String orderId = voided.path("orderId").asText("");
+        paymentRefundService.enregistrer(sub, orderId.isBlank() ? token : orderId,
+                sub.getAmountCents(), sub.getCurrency(), publishTime);
+    }
+
+    private static Instant parsePublishTime(JsonNode message) {
+        String raw = message.path("publishTime").asText("");
+        if (raw.isBlank()) return Instant.now();
+        try {
+            return Instant.parse(raw);
+        } catch (DateTimeParseException e) {
+            return Instant.now();
+        }
+    }
+
+    private static Instant toInstantMillis(Long millis) {
+        return millis != null ? Instant.ofEpochMilli(millis) : null;
+    }
+
+    // ------------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------------
+
+    private SubscriptionPurchaseV2 fetchSubscriptionOrThrow(String purchaseToken) {
+        try {
+            return googleStoreClient.getSubscriptionV2(purchaseToken);
+        } catch (IOException e) {
+            // L'exception Google (GoogleJsonResponseException) porte le vrai motif
+            // (403 permissions SA, 404 token/package, API non activée…) — on la
+            // trace en entier, c'est la donnée clé pour diagnostiquer.
+            log.warn("Google getSubscriptionV2 a échoué (purchaseToken={}) : {}",
+                    LogMask.token(purchaseToken), e.getMessage(), e);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Reçu Google invalide ou inaccessible : " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    /**
+     * Sélectionne le line item à utiliser pour l'upsert. En pratique Play
+     * renvoie 1 seul line item pour les abonnements simples ; on prend le
+     * premier qui matche {@code expectedProductId} si fourni, sinon le
+     * premier tout court. Lève 400 si match attendu et pas trouvé.
+     */
+    private SubscriptionPurchaseLineItem pickPrimaryLineItem(
+            SubscriptionPurchaseV2 state, String expectedProductId) {
+        List<SubscriptionPurchaseLineItem> items = state.getLineItems();
+        if (items == null || items.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "État Google Play sans lineItems.");
+        }
+        if (expectedProductId == null) {
+            return items.get(0);
+        }
+        return items.stream()
+                .filter(li -> expectedProductId.equals(li.getProductId()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Le productId Play (" + items.get(0).getProductId()
+                                + ") ne correspond pas à celui annoncé (" + expectedProductId + ")."
+                ));
+    }
+
+    private Plan lookupPlanOrThrow(String productId) {
+        return planManager.findByGoogleProductId(productId).orElseThrow(() ->
+                new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Aucun Plan configuré pour googleProductId=" + productId
+                                + " (renseigner plans.google_product_id en DB)."
+                )
+        );
+    }
+
+    private UserSubscription upsert(
+            User user,
+            Plan plan,
+            SubscriptionPurchaseLineItem lineItem,
+            SubscriptionPurchaseV2 state,
+            String purchaseToken) {
+        return upsert(user, plan, lineItem, state, purchaseToken, MontantEncaisse.INCONNU);
+    }
+
+    private UserSubscription upsert(
+            User user,
+            Plan plan,
+            SubscriptionPurchaseLineItem lineItem,
+            SubscriptionPurchaseV2 state,
+            String purchaseToken,
+            MontantEncaisse montantConstate) {
+        UserSubscription sub = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
+                .orElse(null);
+
+        boolean created = sub == null;
+        if (created) {
+            sub = new UserSubscription();
+            sub.setUser(user);
+            sub.setSource(SubscriptionSource.GOOGLE);
+            sub.setOriginalTransactionId(purchaseToken);
+            sub.setStartsAt(Instant.now());
+        } else if (!sub.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Ce reçu Google est déjà rattaché à un autre compte."
+            );
+        }
+
+        sub.setPlan(plan);
+        sub.setProductId(lineItem.getProductId());
+        sub.setExternalTransactionId(state.getLatestOrderId());
+        sub.setEndsAt(parseExpiry(lineItem.getExpiryTime(), null));
+        sub.setAutoRenew(deriveAutoRenew(lineItem, true));
+        sub.setStatus(mapSubscriptionState(state.getSubscriptionState(), SubscriptionStatus.ACTIVE));
+        // Sessions EO temps réel : allocation du pass à la 1re souscription.
+        // TODO (récurrent dormant) : re-créditer à chaque renouvellement — non
+        // implémenté (mode ONE_TIME actif, cf. OneTimeAccessService).
+        if (created) {
+            sub.setRealtimeEoSessionsRemaining(Math.max(0, plan.getRealtimeEoSessions()));
+            // Montant figé À LA CRÉATION seulement : un renouvellement ne doit
+            // pas écraser ce qu'a coûté le premier achat.
+            montantEncaisseResolver.ouDefautDuPlan(montantConstate, plan).appliquerA(sub);
+        }
+        return userSubscriptionManager.save(sub);
+    }
+
+    /**
+     * Mappe la string {@code subscriptionState} renvoyée par l'API Play
+     * (ex: "SUBSCRIPTION_STATE_ACTIVE") vers notre vocabulaire commun.
+     */
+    private SubscriptionStatus mapSubscriptionState(String state, SubscriptionStatus fallback) {
+        if (state == null) return fallback;
+        return switch (state) {
+            case "SUBSCRIPTION_STATE_ACTIVE" -> SubscriptionStatus.ACTIVE;
+            case "SUBSCRIPTION_STATE_CANCELED" -> SubscriptionStatus.CANCELED;
+            case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" -> SubscriptionStatus.IN_GRACE;
+            case "SUBSCRIPTION_STATE_ON_HOLD",
+                 "SUBSCRIPTION_STATE_PAUSED",
+                 "SUBSCRIPTION_STATE_EXPIRED" -> SubscriptionStatus.EXPIRED;
+            case "SUBSCRIPTION_STATE_PENDING" -> SubscriptionStatus.PENDING;
+            case "SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED" -> SubscriptionStatus.REFUNDED;
+            default -> {
+                log.warn("Google subscriptionState inattendu : {}", state);
+                yield fallback;
+            }
+        };
+    }
+
+    private boolean deriveAutoRenew(SubscriptionPurchaseLineItem lineItem, boolean fallback) {
+        AutoRenewingPlan plan = lineItem.getAutoRenewingPlan();
+        if (plan == null || plan.getAutoRenewEnabled() == null) {
+            return fallback;
+        }
+        return plan.getAutoRenewEnabled();
+    }
+
+    /**
+     * Parse l'expiryTime ISO-8601 renvoyé par Play (ex:
+     * {@code "2026-07-15T10:00:00.000Z"}) en Instant. Retourne {@code fallback}
+     * si parsing échoue, pour ne pas casser un upsert sur un format inattendu.
+     */
+    private Instant parseExpiry(String expiryTime, Instant fallback) {
+        if (expiryTime == null || expiryTime.isBlank()) return fallback;
+        try {
+            return Instant.parse(expiryTime);
+        } catch (DateTimeParseException e) {
+            log.warn("Google expiryTime non parsable : {} ({})", expiryTime, e.getMessage());
+            return fallback;
+        }
+    }
+
+    /**
+     * Constantes des notification types RTDN. Google les expose en int dans le
+     * JSON ; on garde un mini-registre ici pour les types qui ont un traitement
+     * spécifique. Cf. https://developer.android.com/google/play/billing/rtdn-reference
+     */
+    private static final class GoogleNotificationType {
+        static final int SUBSCRIPTION_REVOKED = 12;
+        private GoogleNotificationType() {}
+    }
+}

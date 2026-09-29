@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C2",
+  "rang": 1,
+  "titre": "Répondre précisément à la demande du message",
+  "critere": "Identifier ce que le message reçu demande, et y répondre sans s'écarter.",
+  "remplace": "EE1-C2 — Annoncer clairement l'objet du message (15 sujets désactivés)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Quelqu'un a sonné chez la voisine",
+      "context": "Votre voisine vous écrit : « Bonjour, une personne a sonné chez moi ce matin en disant venir de votre part. Je n'ai pas ouvert. Elle était comment ? »",
+      "instruction": "Répondez-lui en décrivant la personne que vous aviez envoyée.",
+      "uniqueCriterion": "Votre réponse décrit la personne, et rien d'autre : elle ne raconte pas pourquoi vous l'aviez envoyée.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Relisez sa question",
+        "Décrivez la personne",
+        "Ne parlez que d'elle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, oui, c'était…",
+      "tip": "elle veut savoir à quoi elle ressemblait, pas ce qu'elle venait faire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, oui pardon, je lui avais demandé de passer récupérer mon échelle parce que je n'étais pas là ce matin. J'aurais dû vous prévenir avant, je suis désolée du dérangement.",
+          "pedagogicalNote": "Vous expliquez pourquoi vous l'aviez envoyée. La voisine demandait à quoi elle ressemblait : sa question reste sans réponse."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, oui, c'était mon beau-frère. C'est un homme d'une trentaine d'années, grand et mince, avec une barbe courte. Il portait une veste bleue et une casquette grise. Il est plutôt timide.",
+          "pedagogicalNote": "Âge, taille, barbe, vêtements, caractère : chaque phrase répond à la question posée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, oui, c'était mon beau-frère Idriss. Un homme d'une trentaine d'années, grand et mince, la barbe courte et les cheveux très courts. Il portait une veste bleue un peu usée et une casquette grise. Il parle bas et n'insiste jamais.",
+          "pedagogicalNote": "Le prénom, l'usure de la veste et la manière de parler rendent la personne réellement reconnaissable."
+        }
+      ]
+    },
+    {
+      "title": "Un colis retrouvé dans le hall",
+      "context": "Le gardien affiche un mot : « Un colis a été déposé dans le hall sans étiquette lisible. Si vous attendez une livraison, décrivez-moi votre colis : je vérifierai si c'est le vôtre. »",
+      "instruction": "Écrivez-lui une réponse qui décrit le colis que vous attendez.",
+      "uniqueCriterion": "Votre réponse décrit le colis attendu ; elle ne réclame rien et ne raconte pas la commande.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Lisez ce qu'il demande",
+        "Décrivez votre colis",
+        "Ne réclamez rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour, j'attends en effet un colis…",
+      "tip": "il veut le reconnaître : forme, taille, couleur, étiquette",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, oui j'attends un colis depuis mardi dernier, le vendeur m'avait dit trois jours. C'est vraiment long. Est-ce que vous pouvez me le monter s'il vous plaît ? J'habite au quatrième.",
+          "pedagogicalNote": "Vous racontez le retard et vous demandez un service. Le gardien voulait une description pour identifier le colis."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, j'attends un colis. C'est une boîte en carton marron, assez plate, d'environ quarante centimètres de côté. Elle n'est pas lourde. Il y a du ruban adhésif bleu sur le dessus.",
+          "pedagogicalNote": "Forme, matière, taille, poids, détail visible : tout sert à reconnaître le colis."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, j'attends un colis. C'est une boîte en carton marron, plate, d'environ quarante centimètres de côté et très légère. Le dessus est fermé par du ruban adhésif bleu, et un coin est un peu enfoncé.",
+          "pedagogicalNote": "Les mêmes traits, plus un détail distinctif — le coin enfoncé — qui rend l'identification certaine."
+        }
+      ]
+    },
+    {
+      "title": "Quelle salle pour la réunion ?",
+      "context": "Une collègue vous écrit : « Je n'ai jamais mis les pieds dans la salle Mistral où se tient la réunion de jeudi. Elle est comment ? Je voudrais savoir si mon matériel va tenir. »",
+      "instruction": "Répondez-lui en décrivant la salle Mistral.",
+      "uniqueCriterion": "Votre réponse décrit la salle ; elle ne rappelle ni l'horaire ni l'ordre du jour de la réunion.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Repérez sa question",
+        "Décrivez la salle",
+        "Laissez l'horaire de côté"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La salle Mistral est…",
+      "tip": "elle pense à son matériel : taille, tables, prises, lumière",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La réunion commence à quatorze heures, n'oublie pas. On doit parler du budget et du planning de septembre, donc prévois large. La salle Mistral est au deuxième étage, tu verras, c'est indiqué dans le couloir.",
+          "pedagogicalNote": "Vous redonnez l'horaire et l'ordre du jour, qu'elle connaît déjà. Sa question sur la salle reste sans réponse."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La salle Mistral est assez grande, avec une longue table centrale et une douzaine de chaises. Il y a un écran au mur et plusieurs prises le long de la cloison. La lumière du jour entre bien.",
+          "pedagogicalNote": "Taille, mobilier, équipement, lumière : tout ce qu'il faut pour savoir si le matériel tiendra."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La salle Mistral est spacieuse : une longue table centrale, une douzaine de chaises, et un écran fixé au mur du fond. Des prises courent le long de la cloison de droite, juste au niveau de la table. Deux grandes fenêtres l'éclairent.",
+          "pedagogicalNote": "Les prises sont situées « au niveau de la table » : le détail répond exactement à son inquiétude."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe du cours de français",
+      "context": "Un ami hésite à s'inscrire à votre cours de français. Il vous écrit : « Tu es avec quel genre de personnes ? J'ai peur d'être le seul débutant. »",
+      "instruction": "Répondez-lui en décrivant le groupe avec qui vous suivez le cours.",
+      "uniqueCriterion": "Votre réponse décrit le groupe — qui le compose, quelle ambiance — sans parler du programme ni des horaires.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez ce qui l'inquiète",
+        "Décrivez le groupe",
+        "Laissez le programme"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous sommes un petit groupe…",
+      "tip": "il a peur d'être seul de son niveau : dites qui est là",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le cours est très bien, on travaille la grammaire le lundi et l'oral le jeudi. La prof donne des exercices à faire à la maison. Ça dure deux heures, de dix-huit à vingt heures.",
+          "pedagogicalNote": "Vous décrivez le cours, pas le groupe. Son inquiétude — être le seul débutant — n'est pas levée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous sommes huit, de tous les âges. Il y a deux autres débutants comme toi, et les autres parlent un peu mieux mais restent simples. L'ambiance est détendue, tout le monde s'aide.",
+          "pedagogicalNote": "Nombre, âges, niveaux, ambiance : le groupe est décrit, et la crainte trouve sa réponse."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous sommes huit, entre vingt et soixante ans. Deux personnes débutent comme toi, et même les plus avancés font des fautes sans que cela gêne personne. L'ambiance est très détendue : on rit beaucoup et chacun aide son voisin.",
+          "pedagogicalNote": "Les âges sont chiffrés et l'ambiance montrée par des faits — « on rit », « chacun aide » — plutôt que nommée."
+        }
+      ]
+    },
+    {
+      "title": "Le vélo à vendre",
+      "context": "Quelqu'un répond à votre annonce : « Bonjour, votre vélo m'intéresse. Vous pouvez me le décrire un peu mieux ? La photo est floue. »",
+      "instruction": "Répondez-lui en décrivant le vélo que vous vendez.",
+      "uniqueCriterion": "Votre réponse décrit le vélo ; elle ne négocie pas le prix et ne fixe pas de rendez-vous.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Notez ce qu'il demande",
+        "Décrivez le vélo",
+        "Ne parlez pas du prix"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour, bien sûr. C'est un vélo…",
+      "tip": "la photo est floue : dites ce qu'elle ne montre pas",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, je le vends cent vingt euros et je ne descendrai pas plus bas. Je suis disponible samedi matin si vous voulez le voir. Prévenez-moi la veille pour que je le sorte de la cave.",
+          "pedagogicalNote": "Vous parlez prix et rendez-vous. L'acheteur demandait une description : il ne sait toujours pas à quoi ressemble le vélo."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, bien sûr. C'est un vélo de ville bleu, avec un guidon droit et un panier à l'avant. Il a six vitesses et des pneus larges. Le cadre a quelques rayures mais tout fonctionne bien.",
+          "pedagogicalNote": "Type, couleur, équipement, état : la description remplace utilement la photo."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, bien sûr. C'est un vélo de ville bleu foncé, guidon droit et panier en osier à l'avant. Six vitesses, des pneus larges et confortables. Le cadre porte quelques rayures près de la selle, mais les freins et les vitesses répondent parfaitement.",
+          "pedagogicalNote": "Chaque trait est localisé — « en osier », « près de la selle » — et l'état est dit fonction par fonction."
+        }
+      ]
+    },
+    {
+      "title": "La nouvelle collègue",
+      "context": "Votre responsable vous écrit : « La personne qui remplace Sonia arrive lundi et c'est vous qui l'accueillez. Pouvez-vous me dire comment vous la reconnaîtrez ? Elle m'a envoyé quelques indications. »",
+      "instruction": "Répondez en décrivant la personne que vous devez accueillir, d'après ce qu'elle a indiqué.",
+      "uniqueCriterion": "Votre réponse décrit la personne à reconnaître ; elle ne décrit pas le poste ni la journée d'accueil.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Lisez la demande",
+        "Décrivez la personne",
+        "Laissez le poste de côté"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je la reconnaîtrai sans difficulté…",
+      "tip": "il veut savoir à quoi elle ressemble, pas ce qu'elle fera",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je m'occupe de tout. Je lui montrerai son bureau, je lui présenterai l'équipe et je lui expliquerai le logiciel. Elle remplace Sonia sur les dossiers clients, donc il faudra qu'on reprenne les trois dossiers en cours.",
+          "pedagogicalNote": "Vous décrivez la journée d'accueil. Le responsable demandait comment vous la reconnaîtrez."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je la reconnaîtrai sans difficulté. C'est une femme d'une quarantaine d'années, grande, avec des cheveux courts et bruns. Elle portera un manteau vert et un grand sac noir. Elle arrivera vers neuf heures.",
+          "pedagogicalNote": "Âge, taille, cheveux, vêtements : tous les traits servent à l'identifier à son arrivée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je la reconnaîtrai sans difficulté. C'est une femme d'une quarantaine d'années, assez grande, les cheveux bruns coupés court. Elle m'a dit qu'elle porterait un manteau vert et un grand sac noir en bandoulière. Elle arrive vers neuf heures par le tramway.",
+          "pedagogicalNote": "La source de l'information est rappelée (« elle m'a dit »), et « en bandoulière » ajoute un repère visuel utile."
+        }
+      ]
+    },
+    {
+      "title": "L'appartement du dessus",
+      "context": "Une amie cherche un logement dans votre immeuble. Elle vous écrit : « Le studio du cinquième se libère, tu l'as déjà vu ? Dis-moi à quoi il ressemble avant que je prenne rendez-vous. »",
+      "instruction": "Répondez-lui en décrivant ce studio.",
+      "uniqueCriterion": "Votre réponse décrit le studio ; elle ne donne ni le loyer ni la marche à suivre pour visiter.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Repérez sa question",
+        "Décrivez le studio",
+        "Laissez le loyer"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Oui, je l'ai visité l'an dernier. C'est…",
+      "tip": "elle veut se le représenter : surface, pièces, lumière, état",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui je l'ai vu. Le loyer est de cinq cent quatre-vingts euros charges comprises, il faut un garant et deux mois de caution. Appelle l'agence Dumas, c'est eux qui gèrent, demande Madame Roy.",
+          "pedagogicalNote": "Vous donnez le loyer et la marche à suivre. Elle voulait savoir à quoi ressemble le studio."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Oui, je l'ai visité l'an dernier. C'est une pièce d'environ vingt-cinq mètres carrés, avec un coin cuisine et une petite salle d'eau. La fenêtre donne sur la cour, donc c'est calme. Les murs sont blancs et le sol est en parquet.",
+          "pedagogicalNote": "Surface, agencement, exposition, matériaux : elle peut se représenter le lieu."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Oui, je l'ai visité l'an dernier. Une pièce d'environ vingt-cinq mètres carrés, avec un coin cuisine le long du mur et une petite salle d'eau derrière une cloison. L'unique fenêtre donne sur la cour : c'est très calme, mais un peu sombre le matin. Parquet clair, murs blancs.",
+          "pedagogicalNote": "La nuance « calme, mais un peu sombre » est exactement ce qu'on attend d'une description honnête."
+        }
+      ]
+    },
+    {
+      "title": "Les gens du jardin partagé",
+      "context": "Un voisin vous écrit : « J'hésite à prendre une parcelle au jardin partagé. Qui s'en occupe, en fait ? J'aimerais savoir dans quoi je mets les pieds. »",
+      "instruction": "Répondez-lui en décrivant les personnes qui font vivre ce jardin.",
+      "uniqueCriterion": "Votre réponse décrit le groupe des jardiniers ; elle n'explique pas comment obtenir une parcelle.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez ce qu'il demande",
+        "Décrivez les jardiniers",
+        "Laissez les démarches"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce sont surtout des habitants du quartier…",
+      "tip": "il demande qui sont les gens, pas comment s'inscrire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il faut remplir un formulaire à la mairie et attendre la commission de mars. La cotisation est de quinze euros par an. Après, on te donne une parcelle et une clé du portail. C'est assez simple.",
+          "pedagogicalNote": "Vous expliquez la démarche d'inscription. Sa question portait sur les personnes."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce sont surtout des habitants du quartier, une quinzaine. Il y a plusieurs retraités qui viennent en semaine, deux familles avec enfants le week-end, et un jeune couple très actif. Tout le monde est plutôt accueillant.",
+          "pedagogicalNote": "Nombre, profils, rythmes, ambiance : le groupe prend forme."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce sont surtout des habitants du quartier, une quinzaine. Plusieurs retraités viennent en semaine et connaissent tout du potager ; deux familles avec enfants passent le samedi, et un jeune couple s'occupe du compost. On se prête les outils sans compter.",
+          "pedagogicalNote": "Chaque sous-groupe est caractérisé par ce qu'il fait, et le dernier détail montre l'ambiance au lieu de la déclarer."
+        }
+      ]
+    },
+    {
+      "title": "Un manteau oublié au café",
+      "context": "Le gérant du café vous écrit : « Bonjour, vous nous avez appelés pour un manteau oublié hier soir. Nous en avons trois derrière le comptoir. Le vôtre, il est comment ? »",
+      "instruction": "Répondez-lui en décrivant votre manteau.",
+      "uniqueCriterion": "Votre réponse décrit le manteau ; elle ne raconte pas la soirée et ne demande pas de le mettre de côté.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Lisez sa question",
+        "Décrivez le manteau",
+        "Ne racontez pas la soirée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour, c'est un manteau…",
+      "tip": "il en a trois : donnez ce qui distingue le vôtre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, j'étais là hier soir vers vingt heures avec deux amies, on était installées près de la fenêtre. On est parties un peu vite parce qu'on avait un train. Pouvez-vous me le garder jusqu'à samedi ?",
+          "pedagogicalNote": "Vous racontez la soirée et vous demandez un service. Avec trois manteaux au comptoir, le gérant ne peut toujours pas trouver le vôtre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, c'est un manteau de laine bleu marine, assez long, avec des boutons dorés. Il y a une écharpe grise dans la manche gauche et un ticket de bus dans la poche.",
+          "pedagogicalNote": "Matière, couleur, longueur, boutons, et deux détails intérieurs qui prouvent que le manteau est bien le vôtre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, c'est un manteau de laine bleu marine, assez long, fermé par de gros boutons dorés. La doublure est à carreaux. Vous trouverez une écharpe grise roulée dans la manche gauche et un ticket de bus au fond de la poche droite.",
+          "pedagogicalNote": "La doublure et la localisation précise des objets rendent l'identification indiscutable."
+        }
+      ]
+    },
+    {
+      "title": "Le stand du marché",
+      "context": "Une amie vous écrit : « Tu m'as parlé d'un stand de fromages au marché du samedi. Je n'y suis jamais allée. Comment je le repère ? »",
+      "instruction": "Répondez-lui en décrivant ce stand.",
+      "uniqueCriterion": "Votre réponse décrit le stand pour qu'elle le repère ; elle ne donne ni horaires ni conseils d'achat.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Repérez sa question",
+        "Décrivez le stand",
+        "Laissez les horaires"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Tu le verras tout de suite…",
+      "tip": "elle veut le reconnaître dans la foule : couleur, taille, enseigne",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le marché ouvre à huit heures et ferme vers treize heures. Vas-y tôt, après il y a trop de monde. Prends le comté de douze mois, c'est le meilleur, et demande à goûter, ils acceptent toujours.",
+          "pedagogicalNote": "Horaires et conseils d'achat. Elle demandait comment repérer le stand."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Tu le verras tout de suite : c'est un grand stand sous une bâche verte, au milieu de l'allée centrale. Il y a une vitrine réfrigérée pleine de meules et une ardoise avec les prix écrits à la craie.",
+          "pedagogicalNote": "Taille, couleur, emplacement, mobilier : le stand est identifiable de loin."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Tu le verras tout de suite : un grand stand sous une bâche vert foncé, au milieu de l'allée centrale, juste en face du marchand de fleurs. Une vitrine réfrigérée déborde de meules, et une ardoise annonce les prix à la craie. Il y a presque toujours la queue.",
+          "pedagogicalNote": "Le repère voisin et la file d'attente sont deux indices très efficaces pour retrouver un stand."
+        }
+      ]
+    },
+    {
+      "title": "L'entraîneur du club",
+      "context": "Un parent de l'école vous écrit : « Ma fille voudrait s'inscrire au club où va votre fils. C'est qui, l'entraîneur ? Je voudrais savoir comment il est avec les enfants. »",
+      "instruction": "Répondez-lui en décrivant l'entraîneur.",
+      "uniqueCriterion": "Votre réponse décrit l'entraîneur — sa manière d'être avec les enfants ; elle ne parle pas des tarifs ni des horaires.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez ce qui l'intéresse",
+        "Décrivez l'entraîneur",
+        "Laissez les tarifs"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "L'entraîneur s'appelle Marc. C'est…",
+      "tip": "elle demande comment il est, pas ce que coûte le club",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "L'inscription est de cent dix euros à l'année, licence comprise. Les entraînements ont lieu le mardi et le jeudi de dix-sept à dix-huit heures trente, et il y a un match un samedi sur deux.",
+          "pedagogicalNote": "Tarifs et horaires. La question portait sur l'entraîneur et sa manière d'être."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "L'entraîneur s'appelle Marc. C'est un homme d'une cinquantaine d'années, calme et très patient. Il parle doucement et ne crie jamais. Il prend le temps d'expliquer deux fois aux plus jeunes.",
+          "pedagogicalNote": "Âge, caractère, manière de parler, comportement avec les enfants : la question trouve sa réponse."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "L'entraîneur s'appelle Marc, une cinquantaine d'années, très calme. Il ne crie jamais : quand un enfant se trompe, il s'accroupit à sa hauteur et réexplique. Mon fils, qui est timide, a osé lui poser des questions dès la deuxième séance.",
+          "pedagogicalNote": "Le caractère est montré par des faits observables, et l'exemple final vaut mieux que n'importe quel adjectif."
+        }
+      ]
+    },
+    {
+      "title": "La salle d'attente du centre",
+      "context": "Votre cousin vous écrit : « J'ai rendez-vous au centre de santé jeudi avec le petit. On va attendre longtemps ? La salle est comment, il y a de quoi l'occuper ? »",
+      "instruction": "Répondez-lui en décrivant la salle d'attente du centre.",
+      "uniqueCriterion": "Votre réponse décrit la salle d'attente ; elle ne donne pas de conseils sur le rendez-vous lui-même.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Lisez sa question",
+        "Décrivez la salle",
+        "Laissez le rendez-vous"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La salle d'attente est…",
+      "tip": "il pense à son enfant : place, sièges, jeux, bruit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Prends bien la carte Vitale et le carnet de santé, sinon ils te renvoient. Arrive dix minutes avant, il faut s'enregistrer à l'accueil. Et surtout ne sois pas en retard, ils sautent le rendez-vous après un quart d'heure.",
+          "pedagogicalNote": "Vous conseillez sur le rendez-vous. Il demandait à quoi ressemble la salle d'attente."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La salle d'attente est grande et claire, avec une vingtaine de chaises le long des murs. Il y a un coin avec un tapis, des cubes et quelques livres pour les enfants. C'est assez calme en général.",
+          "pedagogicalNote": "Taille, lumière, mobilier, coin enfants, ambiance sonore : tout répond à ce qui l'inquiète."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La salle d'attente est grande et très claire, une vingtaine de chaises le long des murs. Dans l'angle du fond, un tapis avec des cubes et une caisse de livres cartonnés occupe bien les petits. Il y fait plutôt calme, sauf le mercredi.",
+          "pedagogicalNote": "Le coin enfants est situé et détaillé, et la réserve sur le mercredi rend la description crédible."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du matin",
+      "context": "Votre responsable vous écrit : « Vous passez à l'équipe du matin lundi. Je vous préviens, l'ambiance n'y est pas la même que le soir — dites-moi si ce que vous avez vu aux relèves vous inquiète. »",
+      "instruction": "Répondez-lui. Il ne pose pas sa question directement : à vous de comprendre ce qu'il veut savoir, et d'y répondre en décrivant l'équipe.",
+      "uniqueCriterion": "Votre réponse décrit l'équipe du matin telle que vous l'avez observée ; elle ne parle ni de votre changement d'horaires ni de vos propres tâches.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Cherchez la vraie question",
+        "Décrivez l'équipe",
+        "Ne parlez pas de vous"
+      ],
+      "constraintTags": [
+        {
+          "label": "Demande implicite",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je les croise chaque soir à la relève. Ils sont…",
+      "tip": "« l'ambiance n'y est pas la même » : c'est d'eux qu'il veut vous entendre parler",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Non, rien ne m'inquiète, ça ira très bien. Ça va surtout me changer mes horaires : je commençais à quatorze heures et maintenant ce sera six heures, donc je vais devoir revoir la garde de ma fille et prendre le premier bus.",
+          "pedagogicalNote": "Vous rassurez en une phrase, puis vous parlez de vos horaires. Le responsable voulait vous entendre décrire l'équipe."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je les croise chaque soir à la relève. Ils sont cinq, plutôt jeunes, sauf le chef d'équipe qui a de l'ancienneté. Ils travaillent vite et parlent peu pendant le service, mais ils prennent toujours leur pause ensemble. Rien ne m'inquiète.",
+          "pedagogicalNote": "La question implicite est comprise : c'est bien l'équipe qui est décrite, et la réserve du responsable trouve sa réponse."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je les croise chaque soir à la relève. Ils sont cinq, plutôt jeunes, sauf le chef d'équipe qui est là depuis quinze ans. Ils échangent peu pendant le service et vont vite, mais ils prennent toujours leur pause ensemble dehors, même l'hiver. Ce silence-là ne m'inquiète pas.",
+          "pedagogicalNote": "Le candidat nomme précisément ce que le responsable sous-entendait — le silence au travail — et le décrit au lieu de le nier."
+        }
+      ]
+    },
+    {
+      "title": "Le fauteuil à donner",
+      "context": "Sur le groupe de voisins, quelqu'un répond à votre annonce : « Bonjour, je veux bien le fauteuil ! Mais mon couloir est étroit. Il fait quelle taille et il est dans quel état ? »",
+      "instruction": "Répondez-lui en décrivant le fauteuil.",
+      "uniqueCriterion": "Votre réponse décrit le fauteuil — taille et état ; elle n'organise pas l'enlèvement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Notez ses deux questions",
+        "Décrivez taille et état",
+        "N'organisez rien"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse ciblée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour ! C'est un fauteuil…",
+      "tip": "deux questions posées, deux questions à traiter",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour ! Super, il est pour vous. Je suis là samedi toute la journée et dimanche matin. J'habite au 12 rue Pasteur, deuxième étage, il n'y a pas d'ascenseur, prévoyez d'être deux. Sonnez à Berthier.",
+          "pedagogicalNote": "Vous organisez l'enlèvement. Les deux questions — la taille et l'état — restent sans réponse."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour ! C'est un fauteuil assez large, environ quatre-vingts centimètres, en tissu beige. Le dossier est haut. Il est en bon état général, mais l'accoudoir droit est un peu taché et l'assise s'est creusée.",
+          "pedagogicalNote": "La taille est chiffrée et l'état détaillé sans le cacher : les deux questions sont traitées."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour ! C'est un fauteuil large d'environ quatre-vingts centimètres pour un mètre de haut, en tissu beige, avec un dossier haut. Il est solide et propre, mais l'accoudoir droit porte une tache sombre et l'assise s'est un peu creusée au milieu.",
+          "pedagogicalNote": "Deux dimensions au lieu d'une — décisives pour un couloir étroit — et les défauts sont localisés."
+        }
+      ]
+    },
+    {
+      "title": "Le village de vos parents",
+      "context": "Une collègue vous écrit : « Tu m'as dit que tes parents vivaient dans un village de montagne. On cherche du calme cet été, mais ma mère marche mal. Le village est comment, et on y trouve quoi sur place ? »",
+      "instruction": "Répondez-lui en décrivant le village. Sa demande contient deux points : traitez-les tous les deux.",
+      "uniqueCriterion": "Votre réponse décrit à la fois l'aspect du village et ce qu'on y trouve sur place ; elle ne raconte pas vos souvenirs et ne propose pas de logement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Comptez ses questions",
+        "Décrivez le village",
+        "Dites ce qu'on y trouve"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux points à traiter",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est un village de…",
+      "tip": "elle demande deux choses : l'allure du village, et ce qu'il y a sur place",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un village de trois cents habitants accroché au flanc de la montagne, avec des maisons en pierre grise et des volets de bois. J'y ai passé tous mes étés petite, on partait à vélo jusqu'au lac et on rentrait à la nuit.",
+          "pedagogicalNote": "Le premier point est traité, puis les souvenirs prennent la place du second : on ne sait toujours pas ce qu'on trouve sur place."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un village de trois cents habitants, accroché au flanc de la montagne, avec des maisons en pierre grise. Sur la place, il y a une fontaine, une épicerie et un café. Le médecin passe le mardi. Tout est à moins de cinq minutes à pied.",
+          "pedagogicalNote": "Les deux points sont traités, et la dernière phrase répond même à la difficulté de marche, sans s'écarter."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un village de trois cents habitants accroché au flanc de la montagne, maisons en pierre grise aux volets délavés. Autour de la place : une fontaine, une épicerie, un café qui ferme à vingt heures. Le médecin passe le mardi. Tout tient dans un rayon de deux cents mètres, et la place est plate.",
+          "pedagogicalNote": "Les deux points sont traités et la contrainte de marche est prise au sérieux — « un rayon de deux cents mètres », « la place est plate »."
+        }
+      ]
+    }
+  ]
+}

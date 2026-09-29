@@ -1,0 +1,642 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/analytics/analytics_events.dart';
+import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/attempt_models.dart';
+import '../../core/models/enums.dart';
+import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
+import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
+
+/// Briefing avant le démarrage d'un examen module TCF (CO ou CE). Présenté
+/// en bottomsheet modal — plus léger qu'un push de route, garde le détail
+/// module visible en arrière-plan. Reproduit le pattern du design HTML
+/// (écran 4 du parcours TCF) en restant strictement dans la palette
+/// bleu / blanc / rouge de SejourFR.
+///
+/// Au tap "Commencer maintenant" : ferme le sheet, POST /api/attempts,
+/// puis push runner. Réservé premium TCF — 403 → showPaywallSheet.
+///
+/// **Sauf si [onStart] est fourni** : le sheet se contente alors d'annoncer
+/// l'épreuve et de rendre la main. C'est ce dont a besoin le **diagnostic TCF**,
+/// dont les sous-attempts existent déjà — il les lance par son propre chemin
+/// (`/sections/{epreuve}/start`), pas en créant un attempt de plus. Un second
+/// briefing écrit pour lui aurait divergé de celui-ci à la première retouche.
+class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
+  const ModuleExamBriefingSheet({
+    super.key,
+    required this.module,
+    this.slotNumber,
+    this.onStart,
+    this.eyebrow,
+    this.durationLabel,
+    required this.ctaLocation,
+    this.journeyId,
+  });
+
+  final TcfQcmModule module;
+
+  /// L'origine d'un achat qui partirait de ce sas (Q12) : `LOCKED_PLAN` + le
+  /// parcours quand il est ouvert depuis le Plan, `MOCK_EXAM` depuis la grille.
+  /// Requise (contrôle F) : `null` explicite = inconnue, aucune intention.
+  final AnalyticsCtaLocation? ctaLocation;
+  final String? journeyId;
+
+  /// Slot d'examen visé dans la grille (1..10). Propagé au backend pour que
+  /// refaire l'examen N préserve la position du slot N. Cf. V110.
+  final int? slotNumber;
+
+  /// Démarrage **délégué** à l'appelant. `null` = comportement historique :
+  /// le sheet crée l'attempt et pousse le runner lui-même.
+  ///
+  /// 🛑 Il ne court-circuite **aucun** verrou : l'appelant qui le fournit est
+  /// responsable de son propre accès, et le serveur reste l'arbitre (403).
+  final VoidCallback? onStart;
+
+  /// Sur-titre, à surcharger quand ce n'est **pas** un examen blanc.
+  ///
+  /// 🛑 Le diagnostic TCF le fait, et ce n'est pas cosmétique : `10_` §4.1
+  /// **interdit** d'appeler le diagnostic un examen blanc, même quand il en a
+  /// exactement la forme.
+  final String? eyebrow;
+
+  /// Durée annoncée. Par défaut celle de la **table de référence**, qui vaut
+  /// pour un examen qui n'existe pas encore. Une section de diagnostic est
+  /// **déjà composée** : elle passe la sienne, sinon le sas annoncerait 20 min
+  /// sur une section qui en dure 12.
+  final String? durationLabel;
+
+  @override
+  ConsumerState<ModuleExamBriefingSheet> createState() =>
+      _ModuleExamBriefingSheetState();
+}
+
+class _ModuleExamBriefingSheetState
+    extends ConsumerState<ModuleExamBriefingSheet> {
+  bool _starting = false;
+
+  Future<void> _start() async {
+    if (_starting) return;
+    // Démarrage délégué (diagnostic TCF) : le sous-attempt existe déjà, il n'y
+    // a rien à créer ici. On ferme et on rend la main.
+    final delegue = widget.onStart;
+    if (delegue != null) {
+      Navigator.of(context).pop();
+      delegue();
+      return;
+    }
+    final isPremium = ref.read(accesModuleProvider(AppModule.tcf));
+    // Slot 1 = examen offert (rejouable à volonté) pour tout compte inscrit ;
+    // slots 2+ réservés aux abonnés TCF. Le backend applique la même règle.
+    final isSlot1 = (widget.slotNumber ?? 1) == 1;
+    if (!isPremium && !isSlot1) {
+      // On ferme le briefing avant de montrer le paywall pour éviter
+      // l'empilement de deux sheets.
+      Navigator.of(context).pop();
+      showPaywallSheet(
+        context,
+        ctaLocation: widget.ctaLocation,
+        journeyId: widget.journeyId,
+      );
+      return;
+    }
+
+    setState(() => _starting = true);
+    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+
+    try {
+      final attempt = await ref.read(attemptsRepositoryProvider).start(
+            StartAttemptRequest(
+              type: AttemptType.mockExam,
+              module: AppModule.tcf,
+              moduleExamQuestionType: widget.module.questionType,
+              slotNumber: widget.slotNumber,
+            ),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      // Le push runner se fait depuis le caller (le BuildContext du sheet
+      // est en train d'être disposé après le pop) — on utilise le router
+      // au niveau racine pour pousser.
+      GoRouter.of(context).push(
+        AppRoutes.runner.replaceFirst(':attemptId', attempt.id),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // On ferme le briefing avant le paywall pour éviter deux feuilles empilées.
+      showPaywallOrError(
+        context,
+        e,
+        onForbidden: () => Navigator.of(context).pop(),
+        ctaLocation: widget.ctaLocation,
+        journeyId: widget.journeyId,
+      );
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mod = widget.module;
+    final copy = _BriefingCopy.forModule(mod);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.6,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        widget.eyebrow ?? 'EXAMEN ${mod.title.toUpperCase()}',
+                        style: AppFonts.mono(
+                          size: 9.5,
+                          color: AppColors.muted,
+                          letterSpacing: 1.8,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      _DurationBadge(
+                        label: widget.durationLabel ??
+                            epreuveDurationLabelFor(mod.epreuve),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _BriefingHero(
+                    icon: copy.heroIcon,
+                    title: copy.heroTitle,
+                    description: copy.heroDescription,
+                  ),
+                  if (copy.notice != null) ...[
+                    const SizedBox(height: 12),
+                    _NoticeCard(text: copy.notice!),
+                  ],
+                  const SizedBox(height: 16),
+                  _ConsignesCard(items: copy.consignes),
+                  const SizedBox(height: 12),
+                  _ConseilCard(text: copy.conseil),
+                  const SizedBox(height: 22),
+                  AppButton(
+                    label: 'Commencer maintenant',
+                    icon: LucideIcons.play,
+                    isLoading: _starting,
+                    onPressed: _starting ? null : _start,
+                  ),
+                  const SizedBox(height: 8),
+                  AppButton(
+                    label: 'Annuler',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: _starting
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Helper : ouvre le briefing en bottomsheet modal.
+/// `slotNumber` sert à stabiliser la numérotation côté grille examens
+/// (refaire le slot N → nouvel attempt avec slot_number=N).
+void showModuleExamBriefingSheet(
+  BuildContext context,
+  TcfQcmModule module, {
+  int? slotNumber,
+  VoidCallback? onStart,
+  String? eyebrow,
+  String? durationLabel,
+  required AnalyticsCtaLocation? ctaLocation,
+  String? journeyId,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => ModuleExamBriefingSheet(
+      module: module,
+      slotNumber: slotNumber,
+      onStart: onStart,
+      eyebrow: eyebrow,
+      durationLabel: durationLabel,
+      ctaLocation: ctaLocation,
+      journeyId: journeyId,
+    ),
+  );
+}
+
+class _ConsigneLine {
+  const _ConsigneLine({required this.label, required this.icon});
+
+  final String label;
+  final String icon;
+}
+
+/// Textes du briefing dérivés du module. Centralise les variations entre CO,
+/// CE et STRUCTURE (hero, consignes, conseil) — évite les ternaires imbriqués
+/// dans `build()`. `notice` est non-null uniquement pour STRUCTURE (rappel :
+/// module hors TCF IRN).
+///
+/// 🛑 **Aucune durée ici** : elle se lit sur `TcfQcmModule.durationLabel`, qui
+/// la tire de `kEpreuveDurationSeconds`. Deux copies avaient déjà divergé.
+class _BriefingCopy {
+  const _BriefingCopy({
+    required this.heroIcon,
+    required this.heroTitle,
+    required this.heroDescription,
+    required this.consignes,
+    required this.conseil,
+    this.notice,
+  });
+
+  final IconData heroIcon;
+  final String heroTitle;
+  final String heroDescription;
+  final List<_ConsigneLine> consignes;
+  final String conseil;
+  final String? notice;
+
+  static _BriefingCopy forModule(TcfQcmModule mod) {
+    switch (mod.questionType) {
+      case QuestionType.co:
+        return const _BriefingCopy(
+          heroIcon: LucideIcons.headphones,
+          heroTitle: 'Prêt à écouter ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions audio. Chaque document peut être écouté une seule fois, comme en condition d\'examen.',
+          consignes: [
+            _ConsigneLine(label: '1 audio par question', icon: '🎧'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Lis rapidement les réponses avant d\'écouter. Concentre-toi sur l\'idée principale, pas chaque mot.',
+        );
+      case QuestionType.ce:
+        return const _BriefingCopy(
+          heroIcon: LucideIcons.bookOpen,
+          heroTitle: 'Prêt à lire ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions sur textes courts. Lis attentivement avant de choisir, comme en condition d\'examen.',
+          consignes: [
+            _ConsigneLine(label: '1 texte par question', icon: '📖'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Repère les mots-clés de la question avant de lire le texte. Une seule réponse est correcte.',
+        );
+      case QuestionType.structure:
+        return const _BriefingCopy(
+          heroIcon: LucideIcons.spellCheck,
+          heroTitle: 'Prêt à analyser ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions de grammaire et de lexique : conjugaison, accords, prépositions, connecteurs.',
+          consignes: [
+            _ConsigneLine(label: '1 phrase à compléter', icon: '✏️'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Lis la phrase entière avant de choisir : le bon mot dépend souvent du contexte autour du trou.',
+          notice:
+              'La structure de la langue n\'est pas évaluée au TCF IRN officiel. Cet entraînement reste très utile pour renforcer ta grammaire.',
+        );
+      case QuestionType.connaissance:
+      case QuestionType.miseSituation:
+      case QuestionType.coImage:
+        // Ces types ne sont pas exposés via le briefing module exam (cf.
+        // validation backend `startModuleExam`). Garde un fallback pour
+        // l'exhaustivité du switch.
+        return const _BriefingCopy(
+          heroIcon: LucideIcons.circleHelp,
+          heroTitle: 'Prêt à commencer ?',
+          heroDescription: '25 questions à enchaîner sans retour en arrière.',
+          consignes: [
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil: 'Lis chaque question attentivement avant de répondre.',
+        );
+    }
+  }
+}
+
+/// Bandeau d'avertissement rendu sous le hero quand le module n'est pas
+/// officiellement évalué au TCF IRN (cf. STRUCTURE).
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              LucideIcons.info,
+              color: AppColors.blue,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: AppFonts.ui(
+                size: 12.5,
+                color: AppColors.ink2,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BriefingHero extends StatelessWidget {
+  const _BriefingHero({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.red, AppColors.redDark],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.red.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, size: 30, color: AppColors.white),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: AppFonts.ui(
+              size: 22,
+              weight: FontWeight.w800,
+              color: AppColors.white,
+              height: 1.15,
+            ).copyWith(letterSpacing: -0.3),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            style: AppFonts.ui(
+              size: 13.5,
+              color: AppColors.white.withValues(alpha: 0.92),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DurationBadge extends StatelessWidget {
+  const _DurationBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.blueLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(LucideIcons.timer, size: 13, color: AppColors.blue),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppFonts.ui(
+              size: 12,
+              weight: FontWeight.w800,
+              color: AppColors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsignesCard extends StatelessWidget {
+  const _ConsignesCard({required this.items});
+
+  final List<_ConsigneLine> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'CONSIGNES',
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.muted,
+              letterSpacing: 1.8,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < items.length; i++) ...[
+            _ConsigneRow(line: items[i]),
+            if (i != items.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsigneRow extends StatelessWidget {
+  const _ConsigneRow({required this.line});
+
+  final _ConsigneLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              line.label,
+              style: AppFonts.ui(
+                size: 13.5,
+                color: AppColors.ink2,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            line.icon,
+            style: AppFonts.ui(size: 16, weight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConseilCard extends StatelessWidget {
+  const _ConseilCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        // Rouge léger en accent secondaire (palette française : on évite
+        // d'empiler du bleu partout sur ce sheet).
+        color: AppColors.redLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.lightbulb,
+                size: 14,
+                color: AppColors.red,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'CONSEIL',
+                style: AppFonts.mono(
+                  size: 9.5,
+                  color: AppColors.red,
+                  letterSpacing: 1.8,
+                  weight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: AppFonts.ui(
+              size: 13,
+              color: AppColors.ink2,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

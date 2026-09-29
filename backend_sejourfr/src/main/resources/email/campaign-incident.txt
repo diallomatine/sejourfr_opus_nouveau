@@ -1,0 +1,12 @@
+Bonjour,
+
+Nous déployons une nouvelle version de SejourFR. Pendant les prochains jours, l'application mobile peut rencontrer des erreurs.
+
+Que faire ?
+- Vérifiez si une mise à jour est disponible sur l'App Store ou Google Play : l'installer corrige le problème.
+- En attendant, le site sejourfr.fr fonctionne normalement, avec votre compte et votre progression.
+
+Nous vous enverrons un email dès que tout sera revenu à la normale.
+
+Merci de votre patience,
+L'équipe SejourFR

@@ -1,0 +1,446 @@
+package com.sejourfr.app.service.diagnostic;
+
+import com.sejourfr.app.config.DiagnosticProperties;
+import com.sejourfr.app.dto.DiagnosticExerciseDto;
+import com.sejourfr.app.dto.DiagnosticFormatDto;
+import com.sejourfr.app.dto.DiagnosticProductionResultDto;
+import com.sejourfr.app.dto.DiagnosticResponse;
+import com.sejourfr.app.dto.DiagnosticExempleCibleDto;
+import com.sejourfr.app.dto.DiagnosticResultDto;
+import com.sejourfr.app.dto.DiagnosticSkillObservationDto;
+import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
+import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
+import com.sejourfr.app.entity.DiagnosticSession;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.ClientPlatform;
+import com.sejourfr.app.enums.DiagnosticJourneyStatus;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.DiagnosticStep;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.service.ProductionEvaluationService;
+import com.sejourfr.app.service.RecommendedExerciseSelector;
+import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleFields;
+import com.sejourfr.app.ratelimit.RateLimitGuard;
+import com.sejourfr.app.service.diagnosticrun.DiagnosticRunService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+/** Démarrage idempotent, reprise cross-device et restitution agrégée. */
+@Service
+@RequiredArgsConstructor
+public class DiagnosticService {
+
+    private final DiagnosticProperties properties;
+    private final DiagnosticContentResolver content;
+    private final DiagnosticSessionManager sessionManager;
+    private final DiagnosticSessionCreator sessionCreator;
+    private final ProductionSubmissionManager submissionManager;
+    private final DiagnosticProductionAnalysisManager analysisManager;
+    private final SkillManager skillManager;
+    private final RecommendedExerciseSelector exerciseSelector;
+    private final ProductionEvaluationService evaluationService;
+    private final DiagnosticSessionCoordinator coordinator;
+    private final RateLimitGuard rateLimitGuard;
+    private final DiagnosticRunService diagnosticRunService;
+
+    public DiagnosticResponse current(UUID userId) {
+        String code = content.activeCode();
+        int version = content.activeVersion(code);
+        return sessionManager.findByUserAndVersionWithContent(userId, code, version)
+                .map(session -> toResponse(userId, session))
+                .orElseGet(() -> notStarted(code, version));
+    }
+
+    /**
+     * @param writtenTaskId le sujet que le candidat a réellement lu et traité
+     *                      quand le diagnostic tire dans un pool (L3).
+     *                      {@code null} ⇒ tirage serveur. Il est vérifié contre
+     *                      le pool actif — un identifiant reçu du client ne
+     *                      désigne jamais une tâche arbitraire du catalogue.
+     */
+    public DiagnosticResponse startOrResume(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId) {
+        return startOrResume(userId, platform, writtenTaskId, null);
+    }
+
+    /**
+     * @param diagnosticRunId la run creee par le client a l'affichage du sujet
+     *                        (chantier Suivi, lot 2a), facultative. Liee a la
+     *                        session seulement si elle appartient DEJA a ce
+     *                        compte (claimee a l'auth, ou creee connecte) —
+     *                        jamais crue sur parole. Best-effort : elle ne fait
+     *                        jamais echouer le demarrage.
+     */
+    public DiagnosticResponse startOrResume(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId, UUID diagnosticRunId) {
+        DiagnosticResponse response = startOrResumeSession(userId, platform, writtenTaskId);
+        diagnosticRunService.linkQuickTcfAtHandoff(diagnosticRunId, userId, response.sessionId());
+        return response;
+    }
+
+    private DiagnosticResponse startOrResumeSession(
+            UUID userId, ClientPlatform platform, UUID writtenTaskId) {
+        String code = content.activeCode();
+        int version = content.activeVersion(code);
+        DiagnosticSession existing = sessionManager
+                .findByUserAndVersionWithContent(userId, code, version).orElse(null);
+        if (existing != null) return toResponse(userId, existing);
+        try {
+            sessionCreator.create(userId, code, version, platform, writtenTaskId);
+        } catch (DataIntegrityViolationException concurrentStart) {
+            // La transaction concurrente gagnante porte l'unique session ; la
+            // transaction de ce caller a rollbacké ses deux attempts.
+        }
+        DiagnosticSession created = sessionManager
+                .findByUserAndVersionWithContent(userId, code, version)
+                .orElseThrow(() -> new IllegalStateException(
+                        "La session diagnostic n'a pas pu être créée ni retrouvée"));
+        return toResponse(userId, created);
+    }
+
+    public DiagnosticResponse detail(UUID userId, UUID sessionId) {
+        DiagnosticSession session = sessionManager.findOwnedWithContent(sessionId, userId)
+                .orElseThrow(() -> new NotFoundException("Diagnostic introuvable : " + sessionId));
+        return toResponse(userId, session);
+    }
+
+    public DiagnosticResponse retryAnalysis(UUID userId, UUID sessionId) {
+        rateLimitGuard.checkProductionSubmission(userId);
+        int max = properties.getAnalysis().getMaxSessionRetries();
+        // Le bean transactionnel séparé prend un verrou pessimiste et committe
+        // ANALYZING avant tout déclenchement @Async. Deux POST concurrents ne
+        // peuvent ainsi jamais lancer deux pipelines/LLM.
+        DiagnosticSessionCoordinator.RetryPlan retry =
+                coordinator.beginRetry(sessionId, userId, max);
+        for (UUID submissionId : retry.failedSubmissionIds()) {
+            evaluationService.retryDiagnostic(submissionId, userId, max);
+        }
+        if (retry.failedSubmissionIds().isEmpty()) {
+            // Les deux analyses peuvent être valides et seul l'assemblage avoir
+            // été interrompu. Celui-ci est déterministe et ne coûte aucun appel.
+            coordinator.onAnalysisCompleted(retry.assemblyTriggerSubmissionId());
+        }
+        return detail(userId, sessionId);
+    }
+
+    @Transactional(readOnly = true)
+    protected DiagnosticResponse toResponse(UUID userId, DiagnosticSession session) {
+        ProductionSubmission writtenSubmission = submission(session.getWrittenAttempt().getId());
+        // 🛑 Pas d'étape orale (diagnostic rapide, L3) ⇒ pas de soumission orale
+        // à chercher, et surtout pas une étape « ORAL » à réclamer.
+        ProductionSubmission oralSubmission = session.hasOral()
+                ? submission(session.getOralAttempt().getId()) : null;
+        DiagnosticResultDto result = session.getStatus() == DiagnosticSessionStatus.COMPLETED
+                ? result(userId, session, writtenSubmission, oralSubmission) : null;
+        return new DiagnosticResponse(
+                session.getId(), session.getDiagnosticCode(), session.getDiagnosticVersion(),
+                DiagnosticJourneyStatus.valueOf(session.getStatus().name()),
+                step(session, writtenSubmission, oralSubmission),
+                exercise(session.getWrittenTask(), session.getWrittenAttempt().getId(), writtenSubmission),
+                session.hasOral()
+                        ? exercise(session.getOralTask(), session.getOralAttempt().getId(), oralSubmission)
+                        : null,
+                // Le format de CETTE session : ses propres sujets, jamais ceux
+                // du contenu actif — un diagnostic se relit sous la forme qui
+                // l'a produit.
+                format(session.getWrittenTask(),
+                        session.hasOral() ? session.getOralTask() : null),
+                result, session.getStartedAt(), session.getCompletedAt(), session.getErrorMessage(),
+                session.getStatus() == DiagnosticSessionStatus.FAILED
+                        && session.getRetryCount() < properties.getAnalysis().getMaxSessionRetries());
+    }
+
+    /**
+     * Aucun parcours ouvert. 🛑 <b>Le FORMAT est servi quand meme</b> : c'est
+     * exactement l'ecran ou les fronts en ont besoin (« combien d'exercices
+     * m'attendent ? »), et c'est faute de l'avoir qu'ils annonçaient « 2
+     * exercices » sur un diagnostic qui n'en a qu'un.
+     *
+     * <p>🛑 <b>Les SUJETS, eux, restent nuls</b> : le sujet ecrit est
+     * <b>tire</b> a l'ouverture de la session, et en annoncer un ici en
+     * designerait un autre que celui qui sera joue. Le format se lit donc sur
+     * {@code writtenTask}, deterministe, et <b>pour ses seules bornes</b>.
+     */
+    private DiagnosticResponse notStarted(String code, int version) {
+        return new DiagnosticResponse(
+                null, code, version, DiagnosticJourneyStatus.NOT_STARTED,
+                DiagnosticStep.PRESENTATION, null, null,
+                format(content.writtenTask(code, version),
+                        content.oralTask(code, version).orElse(null)),
+                null, null, null, null, false);
+    }
+
+    /**
+     * Le format d'un diagnostic : combien d'exercices, et leurs mesures.
+     *
+     * <p>🛑 <b>Le compte se lit sur le CONTENU</b> — un sujet oral publie ou
+     * non —, jamais sur un reglage. C'est ce que V050 a rendu possible : « un
+     * diagnostic a une production et un diagnostic a deux productions
+     * coexistent, et c'est le CONTENU qui dit lequel est servi ».
+     */
+    private static DiagnosticFormatDto format(ProductionTask written, ProductionTask oral) {
+        return new DiagnosticFormatDto(
+                oral == null ? 1 : 2,
+                written == null ? null : written.getMotsMin(),
+                written == null ? null : written.getMotsMax(),
+                oral == null ? null : oral.getDureeMinSec(),
+                oral == null ? null : oral.getDureeMaxSec());
+    }
+
+    private DiagnosticExerciseDto exercise(
+            ProductionTask task, UUID attemptId, ProductionSubmission submission) {
+        return new DiagnosticExerciseDto(
+                task.getId(), attemptId, task.getEpreuve(), task.getTitre(), task.getConsigne(),
+                DiagnosticContentResolver.helperText(task.getEpreuve()),
+                task.getMotsMin(), task.getMotsMax(), task.getDureeMinSec(), task.getDureeMaxSec(),
+                task.getInstructionAudioUrl(), submission == null ? null : submission.getId(),
+                submission == null ? null : submission.getStatut());
+    }
+
+    private DiagnosticStep step(
+            DiagnosticSession session,
+            ProductionSubmission written,
+            ProductionSubmission oral) {
+        if (session.getStatus() == DiagnosticSessionStatus.COMPLETED) return DiagnosticStep.RESULT;
+        if (written == null) return DiagnosticStep.WRITTEN;
+        // 🛑 Sans étape orale, l'écrit rendu mène DIRECTEMENT à l'analyse. Le
+        // test historique (`oral == null ⇒ ORAL`) enverrait le diagnostic
+        // rapide sur un écran d'enregistrement qui n'existe pas.
+        if (session.hasOral() && oral == null) return DiagnosticStep.ORAL;
+        return DiagnosticStep.ANALYSIS;
+    }
+
+    private DiagnosticResultDto result(
+            UUID userId,
+            DiagnosticSession session,
+            ProductionSubmission writtenSubmission,
+            ProductionSubmission oralSubmission) {
+        DiagnosticProductionAnalysis writtenAnalysis = analysis(writtenSubmission);
+        DiagnosticProductionResultDto written = productionResult(writtenAnalysis);
+        DiagnosticProductionResultDto oral = productionResult(analysis(oralSubmission));
+        Map<String, DiagnosticSkillObservationDto> observations = new LinkedHashMap<>();
+        if (written != null) written.skills().forEach(item -> observations.put(item.skillCode(), item));
+        if (oral != null) oral.skills().forEach(item -> observations.put(item.skillCode(), item));
+
+        Map<String, Object> summary = session.getSummaryJson() == null
+                ? Map.of() : session.getSummaryJson();
+        // 🛑 Le plafond de 3 est une RÈGLE PRODUIT du diagnostic, pas un plafond
+        // d'affichage : on n'y touche pas. C'est exactement pourquoi le « + N
+        // autres » des fronts ne peut pas se calculer là-dessus, et pourquoi le
+        // compte réel est servi à côté.
+        List<DiagnosticSkillObservationDto> priorities = strings(summary.get("priority_skill_codes"))
+                .stream().map(observations::get).filter(Objects::nonNull).limit(3).toList();
+        PlanRecommendedExerciseDto next = recommendedAction(userId, observations, priorities);
+        return new DiagnosticResultDto(
+                written, oral, strings(summary.get("strengths")), priorities,
+                nullableText(summary.get("main_priority_explanation")), next,
+                exempleCible(writtenAnalysis),
+                fragileSkillCount(observations.values()),
+                solidSkillCount(observations.values()));
+    }
+
+    /**
+     * Combien de compétences <b>distinctes</b> les deux productions ont
+     * réellement montrées fragiles.
+     *
+     * <p>🛑 <b>Autorité unique du « + N autres » des fronts.</b> Ni le web ni le
+     * mobile ne recomptent : deux dérivations finiraient par afficher deux
+     * nombres différents pour la même chose. Et le compte ne peut pas se lire
+     * sur {@code priorities}, plafonné à 3 par règle produit — un « + 2 » de
+     * plafond n'est pas une réalité.
+     *
+     * <p>{@code 0} est un état normal (aucune fragilité observée) : les fronts
+     * ne rendent alors aucun bloc.
+     */
+    static int fragileSkillCount(Collection<DiagnosticSkillObservationDto> observations) {
+        return countObserved(observations, EnumSet.of(
+                LearningPlanSkillStatus.PRIORITY, LearningPlanSkillStatus.TO_REINFORCE));
+    }
+
+    /**
+     * Le compte réel des points forts : compétences distinctes observées
+     * {@code SOLID}.
+     *
+     * <p>⚠️ {@code strengths} ne peut pas rendre ce service : la liste est
+     * plafonnée à 3 <b>au moment où le résumé est assemblé et persisté</b>
+     * ({@code DiagnosticSessionCoordinator}), donc sa longueur ne dit rien du
+     * nombre réel.
+     */
+    static int solidSkillCount(Collection<DiagnosticSkillObservationDto> observations) {
+        return countObserved(observations, EnumSet.of(LearningPlanSkillStatus.SOLID));
+    }
+
+    /**
+     * Dédoublonnage par <b>code de compétence</b> : une même compétence peut
+     * apparaître dans les deux allowlists, elle ne compte qu'une fois. Une
+     * observation non effective ({@code observed = false}) n'est jamais comptée —
+     * « je n'ai pas pu observer » n'est pas « le candidat est faible ».
+     */
+    private static int countObserved(
+            Collection<DiagnosticSkillObservationDto> observations,
+            Set<LearningPlanSkillStatus> statuses) {
+        Set<String> codes = new HashSet<>();
+        for (DiagnosticSkillObservationDto observation : observations) {
+            if (observation == null || !observation.observed()) continue;
+            if (observation.status() == null || !statuses.contains(observation.status())) continue;
+            codes.add(observation.skillCode());
+        }
+        return codes.size();
+    }
+
+    /**
+     * AVANT / APRÈS de la production ÉCRITE, lu tel quel dans le JSON déjà
+     * persisté de son analyse — {@code null} quand le second appel best-effort
+     * n'a rien produit, ce qui est un cas <b>normal</b> (coupe-circuit, objectif
+     * déjà atteint, fournisseur muet, ou analyse antérieure à la mise en
+     * service). Aucune migration : le bloc vit dans le {@code jsonb} existant.
+     *
+     * <p>Le serveur ne recalcule rien ici : {@code original} est déjà la
+     * sous-chaîne exacte de la production, résolue depuis le numéro de segment au
+     * moment de l'écriture, et chaque {@code extrait} est déjà une sous-chaîne
+     * exacte de {@code texte}.
+     */
+    static DiagnosticExempleCibleDto exempleCible(DiagnosticProductionAnalysis analysis) {
+        if (analysis == null || analysis.getAnalysisJson() == null) return null;
+        if (!(analysis.getAnalysisJson().get(DiagnosticExempleCibleFields.BLOC)
+                instanceof Map<?, ?> bloc)) {
+            return null;
+        }
+        String original = nullableText(bloc.get(DiagnosticExempleCibleFields.ORIGINAL));
+        String texte = nullableText(bloc.get(DiagnosticExempleCibleFields.TEXTE));
+        if (original == null || texte == null) return null;
+
+        List<DiagnosticExempleCibleDto.Segment> segments = new ArrayList<>();
+        if (bloc.get(DiagnosticExempleCibleFields.SEGMENTS) instanceof List<?> items) {
+            for (Object raw : items) {
+                if (!(raw instanceof Map<?, ?> item)) continue;
+                String extrait = nullableText(item.get(DiagnosticExempleCibleFields.EXTRAIT));
+                String apport = nullableText(item.get(DiagnosticExempleCibleFields.APPORT));
+                if (extrait == null || apport == null) continue;
+                segments.add(new DiagnosticExempleCibleDto.Segment(extrait, apport));
+            }
+        }
+        return new DiagnosticExempleCibleDto(original, texte, List.copyOf(segments),
+                niveau(bloc.get(DiagnosticExempleCibleFields.NIVEAU_VISE)));
+    }
+
+    private static NiveauCecrl niveau(Object raw) {
+        String texte = nullableText(raw);
+        if (texte == null) return null;
+        try {
+            return NiveauCecrl.valueOf(texte.toUpperCase());
+        } catch (IllegalArgumentException unknown) {
+            return null;
+        }
+    }
+
+    private DiagnosticProductionAnalysis analysis(ProductionSubmission submission) {
+        if (submission == null) return null;
+        return analysisManager.findBySubmissionId(submission.getId()).orElse(null);
+    }
+
+    /**
+     * Garantit une action concrète même si aucune priorité n'est assez fiable :
+     * on préfère une priorité, puis une compétence à renforcer, puis toute
+     * compétence réellement observée, et enfin une compétence de l'allowlist.
+     *
+     * <p>Le sujet renvoyé pour la compétence retenue est choisi par
+     * {@link RecommendedExerciseSelector} — le même code que le Plan, pour que
+     * les deux écrans proposent le même exercice, et qui fait avancer le
+     * candidat au lieu de lui resservir le sujet de rang 1.
+     */
+    PlanRecommendedExerciseDto recommendedAction(
+            UUID userId,
+            Map<String, DiagnosticSkillObservationDto> observations,
+            List<DiagnosticSkillObservationDto> priorities) {
+        Map<String, DiagnosticSkillObservationDto> candidates = new LinkedHashMap<>();
+        priorities.forEach(item -> candidates.putIfAbsent(item.skillCode(), item));
+        observations.values().stream()
+                .filter(DiagnosticSkillObservationDto::observed)
+                .filter(item -> item.status() == LearningPlanSkillStatus.TO_REINFORCE)
+                .forEach(item -> candidates.putIfAbsent(item.skillCode(), item));
+        observations.values().stream()
+                .filter(DiagnosticSkillObservationDto::observed)
+                .forEach(item -> candidates.putIfAbsent(item.skillCode(), item));
+        observations.values().forEach(
+                item -> candidates.putIfAbsent(item.skillCode(), item));
+
+        // Cascade évaluée en lot : les 8 compétences de l'allowlist se résolvent
+        // en une requête de compétences + deux du sélecteur, pas 3 par candidat.
+        Map<String, Skill> skills = skillManager.findByCodes(candidates.keySet());
+        Map<UUID, PlanRecommendedExerciseDto> exercises =
+                exerciseSelector.selectAll(userId, candidates.keySet().stream()
+                        .map(skills::get).filter(Objects::nonNull).toList());
+        for (String code : candidates.keySet()) {
+            Skill skill = skills.get(code);
+            if (skill == null) continue;
+            PlanRecommendedExerciseDto exercise = exercises.get(skill.getId());
+            if (exercise != null) return exercise;
+        }
+        throw new IllegalStateException(
+                "Aucun micro-exercice actif pour les compétences du diagnostic");
+    }
+
+    private DiagnosticProductionResultDto productionResult(DiagnosticProductionAnalysis analysis) {
+        if (analysis == null) return null;
+        Map<String, Object> json = analysis.getAnalysisJson();
+        List<DiagnosticSkillObservationDto> skills = new ArrayList<>();
+        if (json.get("skills") instanceof List<?> items) {
+            for (Object raw : items) {
+                if (!(raw instanceof Map<?, ?> item)) continue;
+                String code = String.valueOf(item.get("skill_code"));
+                Skill skill = skillManager.findByCode(code).orElse(null);
+                if (skill == null) continue;
+                skills.add(new DiagnosticSkillObservationDto(
+                        skill.getId(), skill.getCode(), skill.getTitle(), skill.getSection(),
+                        Boolean.TRUE.equals(item.get("observed")),
+                        LearningPlanSkillStatus.valueOf(String.valueOf(item.get("status"))),
+                        nullableText(item.get("evidence")), nullableText(item.get("explanation")),
+                        ObservationConfidence.valueOf(String.valueOf(item.get("confidence"))),
+                        Boolean.TRUE.equals(item.get("priority"))));
+            }
+        }
+        return new DiagnosticProductionResultDto(
+                analysis.getEvaluabilite(),
+                analysis.getLevelEstimate(), analysis.getTaskCompletion(),
+                analysis.getCommunicationStatus(), nullableText(json.get("summary")),
+                strings(json.get("strengths")), strings(json.get("weaknesses")), skills);
+    }
+
+    private ProductionSubmission submission(UUID attemptId) {
+        return submissionManager.findByAttemptId(attemptId).stream().findFirst().orElse(null);
+    }
+
+    private static List<String> strings(Object raw) {
+        if (!(raw instanceof List<?> list)) return List.of();
+        return list.stream().filter(String.class::isInstance).map(String.class::cast).limit(3).toList();
+    }
+
+    private static String nullableText(Object raw) {
+        if (raw == null) return null;
+        String text = raw.toString().trim();
+        return text.isEmpty() ? null : text;
+    }
+}

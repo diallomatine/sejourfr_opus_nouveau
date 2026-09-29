@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C3",
+  "rang": 7,
+  "titre": "Donner des détails concrets et précis",
+  "critere": "Appuyer la description sur des éléments vérifiables — couleur, nombre, emplacement, moment — plutôt que sur des mots vagues.",
+  "remplace": "EE1-C3 — Donner des informations pratiques précises (15 sujets désactivés)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Un chèque envoyé sans détail",
+      "context": "Votre banque vous écrit : « Bonjour, vous signalez un chèque perdu. Plusieurs correspondent à votre compte. Décrivez celui-ci précisément. »",
+      "instruction": "Répondez-leur en décrivant ce chèque avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse s'appuie sur des éléments vérifiables — montant, date, numéro, aspect — et non sur des impressions.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez un chiffre",
+        "Donnez une date",
+        "Évitez le vague"
+      ],
+      "constraintTags": [
+        {
+          "label": "Chiffres exacts",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Il s'agit du chèque de…",
+      "tip": "« assez récent » ne se vérifie pas, une date oui",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un chèque d'un montant assez important, émis il y a quelques semaines au profit d'un artisan. Il était dans une enveloppe blanche que j'ai postée près de chez moi. Il n'a jamais été encaissé apparemment.",
+          "pedagogicalNote": "« Assez important », « quelques semaines », « un artisan » : rien ne se vérifie dans un fichier bancaire."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Il s'agit du chèque de quatre cent vingt euros, émis le 14 mars à l'ordre de l'entreprise Rivière. C'est le numéro 0047123 du carnet. Il a été posté le 15 mars depuis la boîte de la rue Carnot.",
+          "pedagogicalNote": "Montant, date, bénéficiaire, numéro, lieu et date de dépôt : chaque élément est vérifiable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Il s'agit du chèque de quatre cent vingt euros, émis le 14 mars à l'ordre de l'entreprise Rivière, numéro 0047123 du carnet ouvert en janvier. Il a été posté le 15 mars vers dix-huit heures depuis la boîte de la rue Carnot, dans une enveloppe blanche sans fenêtre.",
+          "pedagogicalNote": "Même nature d'éléments, poussés d'un cran : l'heure de dépôt et le type d'enveloppe restent tous deux vérifiables."
+        }
+      ]
+    },
+    {
+      "title": "L'endroit exact de la fuite",
+      "context": "Le plombier vous écrit : « Bonjour, avant de venir, dites-moi où ça fuit exactement. Cela change le matériel que j'emporte. »",
+      "instruction": "Répondez-lui en décrivant précisément l'endroit et l'aspect de la fuite.",
+      "uniqueCriterion": "Votre réponse situe la fuite par des repères vérifiables — pièce, hauteur, élément — et en donne l'ampleur chiffrée.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Situez précisément",
+        "Donnez une quantité",
+        "Évitez le vague"
+      ],
+      "constraintTags": [
+        {
+          "label": "Emplacement exact",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "La fuite se trouve…",
+      "tip": "« ça fuit beaucoup » n'aide pas : dites combien et où",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ça fuit pas mal dans la salle de bains, surtout le soir quand on utilise beaucoup d'eau. Il y a de l'humidité un peu partout et une odeur désagréable. C'est vraiment embêtant, il faudrait venir rapidement.",
+          "pedagogicalNote": "« Pas mal », « un peu partout » : le plombier ne sait ni où chercher ni quel matériel prendre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La fuite se trouve sous le lavabo de la salle de bains, au raccord du siphon, à environ soixante centimètres du sol. Il tombe une goutte toutes les dix secondes. Une bassine d'un litre se remplit en une nuit.",
+          "pedagogicalNote": "Pièce, élément, hauteur, débit chiffré : tout est vérifiable et permet de préparer l'intervention."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La fuite se trouve sous le lavabo de la salle de bains, au raccord du siphon côté mur, à environ soixante centimètres du sol. Une goutte toutes les dix secondes, soit un litre par nuit. Le tuyau est en PVC gris de trente-deux millimètres.",
+          "pedagogicalNote": "Le côté du raccord, la matière et le diamètre du tuyau décident du matériel à emporter."
+        }
+      ]
+    },
+    {
+      "title": "Le colis à reconnaître",
+      "context": "Le gardien vous écrit : « Bonjour, deux colis attendent au même nom. Décrivez-moi le vôtre précisément, je ne veux pas me tromper. »",
+      "instruction": "Répondez-lui en décrivant votre colis avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse s'appuie sur des éléments mesurables ou visibles, pas sur une appréciation générale.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez une dimension",
+        "Donnez une couleur",
+        "Ajoutez un repère"
+      ],
+      "constraintTags": [
+        {
+          "label": "Mesures et couleurs",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Le mien mesure…",
+      "tip": "« assez grand » dépend de qui regarde : donnez des centimètres",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le mien est assez grand et plutôt lourd, un carton normal quoi. Il vient d'un site de vente en ligne. Je crois qu'il y a une étiquette dessus avec mon nom. Vous devriez le reconnaître sans difficulté.",
+          "pedagogicalNote": "« Assez grand », « plutôt lourd », « un carton normal » : avec deux colis au même nom, rien ne permet de choisir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le mien mesure environ quarante centimètres sur trente et pèse à peu près trois kilos. C'est un carton brun fermé par du ruban adhésif bleu. L'étiquette est collée sur le dessus, en haut à gauche.",
+          "pedagogicalNote": "Dimensions, poids, couleur, ruban, position de l'étiquette : chaque élément se vérifie d'un coup d'œil."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le mien mesure environ quarante centimètres sur trente et dix de haut, pour trois kilos. Carton brun fermé par du ruban adhésif bleu, avec l'étiquette collée sur le dessus en haut à gauche et un autocollant « fragile » orange sur le flanc droit.",
+          "pedagogicalNote": "La troisième dimension et l'autocollant orange sont deux repères de plus, aussi vérifiables que les premiers."
+        }
+      ]
+    },
+    {
+      "title": "Une trace sur le mur",
+      "context": "Votre assurance vous écrit : « Madame, décrivez-nous précisément les traces d'humidité constatées, l'expert passera avec ces éléments. »",
+      "instruction": "Répondez-leur en décrivant ces traces avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne l'emplacement, l'étendue et l'aspect des traces en termes vérifiables.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Situez sur le mur",
+        "Donnez l'étendue",
+        "Décrivez l'aspect"
+      ],
+      "constraintTags": [
+        {
+          "label": "Étendue chiffrée",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Les traces se trouvent…",
+      "tip": "un expert mesure : donnez-lui des mesures",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a beaucoup d'humidité sur le mur, c'est vraiment très visible et ça s'étend de plus en plus vite. La peinture est en train de partir par endroits. C'est franchement inquiétant, il faudrait venir vite.",
+          "pedagogicalNote": "« Beaucoup », « par endroits », « de plus en plus vite » : l'expert ne peut rien préparer avec cela."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Les traces se trouvent sur le mur nord de la chambre, derrière l'armoire. Elles partent de la plinthe et montent à environ quatre-vingts centimètres, sur un mètre cinquante de large. La peinture cloque et le mur est noir par plaques.",
+          "pedagogicalNote": "Mur, emplacement, hauteur, largeur, aspect : tout est mesurable et vérifiable sur place."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Les traces se trouvent sur le mur nord de la chambre, derrière l'armoire. Elles partent de la plinthe et montent à quatre-vingts centimètres, sur un mètre cinquante de large. La peinture cloque sur toute la zone et trois plaques noires de dix centimètres environ sont apparues depuis février.",
+          "pedagogicalNote": "La taille des plaques et la date d'apparition ajoutent deux éléments datés et mesurés, décisifs pour une expertise."
+        }
+      ]
+    },
+    {
+      "title": "L'inconnu filmé par l'interphone",
+      "context": "Le syndic vous écrit : « Bonjour, vous signalez un passage suspect mardi. Décrivez-nous précisément la personne, nous consulterons les enregistrements. »",
+      "instruction": "Répondez-leur en décrivant cette personne avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne des éléments vérifiables — taille, moment, vêtements, objets portés — sans jugement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez l'heure",
+        "Décrivez les vêtements",
+        "Évitez le jugement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Faits vérifiables",
+          "icon": "TIME"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "La personne est passée…",
+      "tip": "« l'air louche » ne se vérifie pas, une heure et une veste oui",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'était quelqu'un qui avait vraiment l'air louche, il tournait autour de l'entrée sans raison. Il m'a semblé jeune et pas du quartier. Je n'ai pas aimé sa façon de regarder les boîtes aux lettres.",
+          "pedagogicalNote": "« L'air louche », « pas du quartier » sont des impressions. Rien ne permet de retrouver la personne sur un enregistrement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La personne est passée mardi entre quatorze heures et quatorze heures dix. C'est un homme d'environ un mètre quatre-vingts, en veste noire à capuche et pantalon clair. Il portait un sac à dos gris et il est resté trois ou quatre minutes dans le hall.",
+          "pedagogicalNote": "Heure, taille, vêtements, sac, durée : chaque élément se retrouve sur un enregistrement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La personne est passée mardi entre quatorze heures et quatorze heures dix. Un homme d'environ un mètre quatre-vingts, veste noire à capuche, pantalon clair, sac à dos gris porté sur une seule épaule. Il est resté trois à quatre minutes dans le hall, puis est ressorti côté cour.",
+          "pedagogicalNote": "La façon de porter le sac et la sortie côté cour sont deux faits observables de plus, toujours sans jugement."
+        }
+      ]
+    },
+    {
+      "title": "Le bruit qui revient",
+      "context": "Le garagiste vous écrit : « Bonjour, vous parlez d'un bruit. Décrivez-le précisément : quand, où, à quelle vitesse. Sinon je ne le retrouverai pas. »",
+      "instruction": "Répondez-lui en décrivant ce bruit avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse situe le phénomène par des conditions précises et reproductibles.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites quand",
+        "Dites où",
+        "Donnez la vitesse"
+      ],
+      "constraintTags": [
+        {
+          "label": "Conditions précises",
+          "icon": "TIME"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Le bruit apparaît…",
+      "tip": "il doit pouvoir reproduire le bruit : donnez-lui les conditions",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a un bruit bizarre qui revient souvent, surtout depuis quelques temps. C'est assez fort et ça m'inquiète un peu. Parfois ça disparaît pendant plusieurs jours puis ça revient sans prévenir.",
+          "pedagogicalNote": "« Bizarre », « souvent », « parfois » : le garagiste ne pourra pas reproduire le bruit lors de l'essai."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le bruit apparaît à partir de soixante kilomètres-heure, seulement en virage à droite. C'est un grincement métallique qui vient de la roue avant gauche. Il dure tant que le virage dure et s'arrête ensuite.",
+          "pedagogicalNote": "Vitesse, condition, nature, localisation, durée : le bruit est reproductible lors d'un essai."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le bruit apparaît à partir de soixante kilomètres-heure, seulement en virage à droite, jamais à gauche. C'est un grincement métallique venant de la roue avant gauche. Il dure tant que le virage dure, et il est nettement plus fort par temps sec.",
+          "pedagogicalNote": "« Jamais à gauche » et l'influence du temps sec sont deux conditions négatives et positives qui orientent le diagnostic."
+        }
+      ]
+    },
+    {
+      "title": "La plante à identifier",
+      "context": "Une jardinerie vous écrit : « Bonjour, sans photo nous ne pouvons pas identifier votre plante. Décrivez-la précisément : feuilles, taille, fleurs. »",
+      "instruction": "Répondez-leur en décrivant cette plante avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse décrit la plante par des caractères observables et mesurables, pas par son effet sur vous.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Décrivez les feuilles",
+        "Donnez la taille",
+        "Dites la floraison"
+      ],
+      "constraintTags": [
+        {
+          "label": "Caractères observables",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "La plante mesure…",
+      "tip": "« très belle » ne l'identifie pas : comptez, mesurez, regardez",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est une plante magnifique que ma voisine m'a donnée il y a deux ans. Elle pousse très bien et tout le monde me demande son nom. Elle fleurit chaque année et elle sent vraiment très bon.",
+          "pedagogicalNote": "Aucun caractère observable : la jardinerie ne peut pas identifier une plante sur son parfum et son succès."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La plante mesure environ un mètre vingt. Les feuilles sont allongées, vert foncé, avec un bord dentelé, longues de dix centimètres. Les fleurs sont blanches, en grappes, et apparaissent en mai. La tige est ligneuse à la base.",
+          "pedagogicalNote": "Taille, forme et bord des feuilles, couleur et disposition des fleurs, période, tige : tout est observable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La plante mesure environ un mètre vingt. Feuilles allongées de dix centimètres, vert foncé, à bord dentelé, opposées deux par deux sur la tige. Fleurs blanches en grappes serrées, ouvertes début mai pendant trois semaines. Tige ligneuse à la base, verte au sommet.",
+          "pedagogicalNote": "La disposition des feuilles et la durée de floraison sont précisément les caractères qu'utilise une clé d'identification."
+        }
+      ]
+    },
+    {
+      "title": "La place de parking",
+      "context": "Un futur locataire vous écrit : « Bonjour, l'annonce mentionne une place de parking. Elle est comment exactement ? J'ai un monospace. »",
+      "instruction": "Répondez-lui en décrivant cette place avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne les dimensions et les contraintes d'accès réelles, sans les qualifier de « suffisantes ».",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez les dimensions",
+        "Dites l'accès",
+        "Évitez « suffisant »"
+      ],
+      "constraintTags": [
+        {
+          "label": "Dimensions exactes",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La place fait…",
+      "tip": "« ça passe largement » ne se vérifie pas : donnez des mètres",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle est largement assez grande, ne vous inquiétez pas, tous les locataires précédents y garaient leur voiture sans aucun problème. C'est une place très pratique et l'accès est facile même aux heures de pointe.",
+          "pedagogicalNote": "« Largement assez grande » ne dit rien à quelqu'un qui a un monospace : aucune mesure, aucune contrainte."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La place fait deux mètres quarante de large sur cinq mètres de long. Elle est en sous-sol, avec une hauteur limitée à un mètre quatre-vingt-dix à l'entrée. La rampe d'accès est en pente et le virage avant la place est assez serré.",
+          "pedagogicalNote": "Largeur, longueur, hauteur limite, accès : le locataire peut vérifier avec les dimensions de son véhicule."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La place fait deux mètres quarante de large sur cinq mètres, en sous-sol, avec une hauteur limitée à un mètre quatre-vingt-dix à l'entrée du parking. La rampe descend sur quinze mètres et le virage juste avant la place se prend en deux manœuvres avec un véhicule long.",
+          "pedagogicalNote": "Le nombre de manœuvres est une information concrète, vérifiable, et bien plus honnête que « accès facile »."
+        }
+      ]
+    },
+    {
+      "title": "Le document manquant",
+      "context": "La préfecture vous écrit : « Madame, vous indiquez qu'un document ne figure pas dans votre dossier. Décrivez précisément la pièce concernée. »",
+      "instruction": "Répondez-leur en décrivant précisément ce document.",
+      "uniqueCriterion": "Votre réponse identifie le document par des éléments vérifiables — nature, date, émetteur, format.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Nommez la pièce",
+        "Donnez sa date",
+        "Dites qui l'a émise"
+      ],
+      "constraintTags": [
+        {
+          "label": "Références exactes",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Il s'agit de…",
+      "tip": "une administration retrouve une pièce par sa date et son émetteur",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Madame, Monsieur, il manque un papier important que j'avais pourtant bien joint à mon envoi. Je l'avais mis avec les autres dans la même enveloppe. C'est très ennuyeux car mon dossier est bloqué depuis.",
+          "pedagogicalNote": "« Un papier important » ne permet aucune recherche : ni nature, ni date, ni émetteur."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Il s'agit de l'attestation d'hébergement établie le 12 février par Monsieur Diallo, mon logeur. C'est une feuille A4 manuscrite, signée en bas à droite, accompagnée d'une copie de sa pièce d'identité.",
+          "pedagogicalNote": "Nature, date, émetteur, format, signature, annexe : la pièce est identifiable dans un dossier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Il s'agit de l'attestation d'hébergement établie le 12 février par Monsieur Diallo, mon logeur, domicilié au 7 rue des Tilleuls. Une feuille A4 manuscrite à l'encre bleue, signée en bas à droite, agrafée à une copie recto-verso de sa carte d'identité.",
+          "pedagogicalNote": "L'adresse, l'encre et l'agrafage sont trois repères matériels supplémentaires, tous vérifiables dans une pile de dossiers."
+        }
+      ]
+    },
+    {
+      "title": "Le passage difficile",
+      "context": "Une entreprise de déménagement vous écrit : « Bonjour, vous parlez d'un accès compliqué. Décrivez-le précisément, cela détermine le camion que nous envoyons. »",
+      "instruction": "Répondez-leur en décrivant cet accès avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne les largeurs, hauteurs et distances réelles, sans qualifier l'accès de « juste » ou « difficile ».",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez les largeurs",
+        "Donnez les distances",
+        "Évitez « difficile »"
+      ],
+      "constraintTags": [
+        {
+          "label": "Mesures d'accès",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "L'accès se fait par…",
+      "tip": "ils choisissent un camion sur des chiffres, pas sur un adjectif",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "L'accès est vraiment compliqué, la rue est étroite et il y a souvent des voitures garées n'importe comment. Le passage est un peu juste pour un gros véhicule. Il vaudrait mieux venir tôt le matin pour éviter les problèmes.",
+          "pedagogicalNote": "« Étroite », « un peu juste » : impossible de choisir un camion sur ces mots."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "L'accès se fait par une rue de trois mètres cinquante de large, en sens unique. Le porche de l'immeuble mesure deux mètres dix de haut et deux mètres de large. Il y a quarante mètres entre la rue et la cage d'escalier.",
+          "pedagogicalNote": "Largeur de rue, sens, dimensions du porche, distance de portage : le camion se choisit sur ces chiffres."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "L'accès se fait par une rue de trois mètres cinquante en sens unique, sans stationnement possible devant. Le porche mesure deux mètres dix de haut sur deux de large, et quarante mètres séparent la rue de la cage d'escalier, dont vingt en pente légère.",
+          "pedagogicalNote": "L'absence de stationnement et la portion en pente changent le devis : deux faits vérifiables de plus."
+        }
+      ]
+    },
+    {
+      "title": "La personne à l'accueil du salon",
+      "context": "Une collègue vous écrit : « Je te rejoins au salon professionnel. Tu m'as dit de demander quelqu'un à l'accueil du stand. Elle est comment, précisément ? »",
+      "instruction": "Répondez-lui en décrivant cette personne avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne des traits observables et un repère de position, sans jugement de caractère.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez des traits visibles",
+        "Situez-la au stand",
+        "Évitez le caractère"
+      ],
+      "constraintTags": [
+        {
+          "label": "Faits vérifiables",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Tu la trouveras…",
+      "tip": "un salon est bondé : ce qui se voit prime sur ce qu'on sait d'elle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Tu la reconnaîtras facilement, elle est très souriante et vraiment adorable. Elle travaille avec nous depuis longtemps et elle connaît tout le catalogue par cœur. Demande-lui ce que tu veux, elle saura te répondre.",
+          "pedagogicalNote": "Souriante et adorable ne se voient pas de loin dans un salon bondé, et ne la distinguent pas des autres hôtesses."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Tu la trouveras au comptoir de droite du stand 24. C'est une femme d'environ trente ans, un mètre soixante-dix, cheveux noirs attachés. Elle porte le polo bleu de l'entreprise et un badge au nom de Sonia Merle.",
+          "pedagogicalNote": "Position, âge, taille, cheveux, uniforme, badge nommé : chaque élément se vérifie sur place."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Tu la trouveras au comptoir de droite du stand 24, celui qui fait l'angle de l'allée C. Une femme d'environ trente ans, un mètre soixante-dix, cheveux noirs attachés, polo bleu de l'entreprise et badge « Sonia Merle ». Elle est la seule du stand à porter des lunettes.",
+          "pedagogicalNote": "L'angle d'allée et « la seule à porter des lunettes » transforment une description en identification certaine."
+        }
+      ]
+    },
+    {
+      "title": "L'horaire de la panne",
+      "context": "Le fournisseur d'électricité vous écrit : « Bonjour, pour traiter votre réclamation, décrivez précisément les coupures : dates, heures, durées. »",
+      "instruction": "Répondez-leur en décrivant ces coupures avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne des dates, des heures et des durées précises, sans généralisation.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez les dates",
+        "Donnez les heures",
+        "Donnez les durées"
+      ],
+      "constraintTags": [
+        {
+          "label": "Dates et durées",
+          "icon": "TIME"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai relevé trois coupures…",
+      "tip": "« tout le temps » n'ouvre aucun dossier : relevez, datez, chronométrez",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous avons des coupures tout le temps depuis le début de l'hiver, c'est vraiment insupportable. Parfois ça dure longtemps, parfois c'est très bref. Cela arrive surtout le soir quand tout le monde est à la maison.",
+          "pedagogicalNote": "« Tout le temps », « parfois », « surtout le soir » : aucun relevé exploitable pour une réclamation."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai relevé trois coupures : le 4 janvier de dix-neuf heures dix à dix-neuf heures quarante, le 11 janvier de vingt heures à vingt heures cinq, et le 19 janvier de dix-huit heures trente à vingt heures quinze.",
+          "pedagogicalNote": "Trois dates, trois plages horaires : le fournisseur peut confronter le relevé à son réseau."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai relevé trois coupures : le 4 janvier de dix-neuf heures dix à dix-neuf heures quarante, le 11 janvier de vingt heures à vingt heures cinq, et le 19 janvier de dix-huit heures trente à vingt heures quinze. À chaque fois, seul le tableau du bas a disjoncté.",
+          "pedagogicalNote": "Le détail du tableau concerné est le seul élément technique qui manquait, et il est aussi vérifiable que les horaires."
+        }
+      ]
+    },
+    {
+      "title": "Le trajet à pied",
+      "context": "Un livreur vous écrit : « Bonjour, le GPS s'arrête à l'entrée de la résidence. Décrivez-moi précisément le chemin jusqu'à votre porte. »",
+      "instruction": "Répondez-lui en décrivant ce chemin avec des repères vérifiables.",
+      "uniqueCriterion": "Votre réponse s'appuie sur des repères visibles et des distances, pas sur des indications relatives comme « après » ou « pas loin ».",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez des repères visibles",
+        "Donnez une distance",
+        "Évitez le relatif"
+      ],
+      "constraintTags": [
+        {
+          "label": "Repères visibles",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Après le portail, comptez…",
+      "tip": "il ne connaît rien : chaque repère doit se voir depuis le précédent",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Après le portail, vous continuez tout droit un petit moment, puis vous tournez au niveau des bâtiments. Ce n'est pas très loin, vous verrez c'est bien indiqué. Mon bâtiment est celui qui est un peu en retrait.",
+          "pedagogicalNote": "« Un petit moment », « au niveau des bâtiments », « un peu en retrait » : rien ne se repère pour qui ne connaît pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Après le portail, comptez cinquante mètres tout droit jusqu'à un grand cèdre. Tournez à gauche : le bâtiment C est le deuxième, avec une façade jaune. Ma porte est la première à droite au rez-de-chaussée, numéro 4.",
+          "pedagogicalNote": "Distance, repère visible, direction, couleur, position, numéro : chaque étape se vérifie depuis la précédente."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Après le portail, comptez cinquante mètres tout droit jusqu'à un grand cèdre, seul arbre de l'allée. Tournez à gauche : bâtiment C, le deuxième, façade jaune, lettre peinte en noir au-dessus de la porte. Ma porte est la première à droite au rez-de-chaussée, numéro 4.",
+          "pedagogicalNote": "« Seul arbre de l'allée » et la lettre peinte rendent chaque repère exclusif, ce qui est l'essentiel pour un livreur pressé."
+        }
+      ]
+    },
+    {
+      "title": "Les participants attendus",
+      "context": "Un traiteur vous écrit : « Bonjour, pour établir le devis, décrivez précisément le groupe attendu : nombre, âges, contraintes alimentaires. »",
+      "instruction": "Répondez-lui en décrivant le groupe avec des éléments vérifiables.",
+      "uniqueCriterion": "Votre réponse donne des nombres exacts et des contraintes nommées, sans approximation du type « une trentaine ».",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez les nombres",
+        "Détaillez les régimes",
+        "Évitez l'à-peu-près"
+      ],
+      "constraintTags": [
+        {
+          "label": "Nombres exacts",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous serons exactement…",
+      "tip": "un devis se calcule sur des nombres, pas sur « une trentaine »",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous serons une trentaine de personnes à peu près, peut-être un peu plus. Il y aura des enfants et quelques personnes qui ne mangent pas de tout. Je vous préciserai ça plus tard quand j'aurai les réponses.",
+          "pedagogicalNote": "« Une trentaine », « quelques personnes », « pas de tout » : aucun devis ne se calcule sur ces valeurs."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous serons exactement trente-deux : vingt-six adultes et six enfants de moins de dix ans. Quatre personnes ne mangent pas de porc, deux sont végétariennes et une est allergique aux fruits à coque.",
+          "pedagogicalNote": "Effectif exact, répartition, régimes nommés et comptés : le devis peut être établi."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous serons exactement trente-deux : vingt-six adultes et six enfants de moins de dix ans, dont deux de moins de trois ans. Quatre personnes ne mangent pas de porc, deux sont végétariennes, et une est allergique aux fruits à coque, y compris aux traces.",
+          "pedagogicalNote": "Les moins de trois ans et la mention des traces sont deux précisions qui changent réellement une prestation."
+        }
+      ]
+    },
+    {
+      "title": "Le créneau resté libre",
+      "context": "La secrétaire du cabinet vous écrit : « Bonjour, vous dites être venue mais ne pas avoir été reçue. Décrivez précisément ce que vous avez constaté sur place. »",
+      "instruction": "Répondez-lui en décrivant précisément ce que vous avez constaté.",
+      "uniqueCriterion": "Votre réponse s'appuie sur des faits datés et observables, sans interprétation ni reproche.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez l'heure",
+        "Notez les faits vus",
+        "Pas d'interprétation"
+      ],
+      "constraintTags": [
+        {
+          "label": "Faits vérifiables",
+          "icon": "TIME"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Je me suis présentée…",
+      "tip": "un constat se vérifie, une interprétation non",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je me suis déplacée pour rien et personne ne s'est occupé de moi, ce qui est franchement inadmissible pour un cabinet de cette taille. J'ai attendu très longtemps sans aucune explication avant de finir par repartir.",
+          "pedagogicalNote": "Le reproche remplace le constat : aucune heure, aucun fait observable à vérifier dans le registre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je me suis présentée le 9 avril à quatorze heures, comme indiqué sur ma convocation. La porte du cabinet était fermée et aucun mot n'était affiché. J'ai attendu jusqu'à quatorze heures quarante et je suis repartie.",
+          "pedagogicalNote": "Date, heure, état des lieux, durée d'attente, heure de départ : tout est vérifiable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je me suis présentée le 9 avril à quatorze heures, comme indiqué sur ma convocation. La porte était fermée à clé, la salle d'attente éteinte, et aucun mot n'était affiché. Deux autres personnes attendaient sur le palier. Je suis repartie à quatorze heures quarante.",
+          "pedagogicalNote": "L'éclairage, la serrure et les deux témoins sont trois constats matériels de plus, toujours sans le moindre reproche."
+        }
+      ]
+    }
+  ]
+}

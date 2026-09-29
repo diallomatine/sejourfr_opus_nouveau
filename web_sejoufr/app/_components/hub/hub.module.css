@@ -1,0 +1,56 @@
+/* Ce qui reste du hub : l'intertitre de section et l'en-tête d'une page de
+   détail.
+
+   ⚠️ Le bandeau de découverte (`.demo*`) vivait ici ; il a suivi les hubs
+   `/entrainement` dans leur refonte (`reviser.module.css`, 2026-09-12) et ses
+   règles sont supprimées. */
+
+.headerTitle {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.headerSub {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 4px 0 0;
+}
+
+.sectionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.sectionLabel {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.detailHeader { display: flex; align-items: center; gap: 12px; }
+
+.backBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.backBtn:hover { border-color: var(--color-blue); color: var(--color-blue); }

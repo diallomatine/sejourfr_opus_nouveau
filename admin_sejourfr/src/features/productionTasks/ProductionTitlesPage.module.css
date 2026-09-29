@@ -1,0 +1,102 @@
+.error {
+  padding: 24px;
+  color: var(--red);
+}
+
+.filtersBar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px 20px;
+  align-items: end;
+}
+
+@media (max-width: 560px) {
+  .filtersBar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.filterLabel {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.rankCell {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.consigne {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.contexte {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  font-style: italic;
+  margin-bottom: 3px;
+}
+
+.titreCell {
+  min-width: 0;
+}
+
+.titreForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.titreInput {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.fallback {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.counter {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.counterOver {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.help {
+  padding: 4px 20px 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+  max-width: 78ch;
+}
+
+.help code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+}

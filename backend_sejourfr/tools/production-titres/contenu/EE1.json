@@ -1,0 +1,107 @@
+{
+  "epreuve": "TCF_EE",
+  "tacheNumero": 1,
+  "libelle": "Message court",
+  "titres": [
+    {
+      "id": "26b5d842-04c6-46b6-92e2-c324a9c39490",
+      "titre": "Réclamation à un prestataire",
+      "repere": "Vous avez reçu un service de mauvaise qualité…"
+    },
+    {
+      "id": "48b8be40-994f-4afb-b03c-b9a56b670cd1",
+      "titre": "Emménagement dans un nouveau quartier",
+      "repere": "Vous venez d'emménager dans un nouveau quartier…"
+    },
+    {
+      "id": "84941b89-6ec6-4ae6-91b9-0cc26a83e5df",
+      "titre": "Événement du quartier",
+      "repere": "Vous avez assisté à un événement marquant dans votre quartier…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000001",
+      "titre": "Invitation à un pique-nique",
+      "repere": "Écrivez un message à Fatou pour l'inviter à ce pique-nique…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000002",
+      "titre": "Refus d'une invitation",
+      "repere": "Répondez à Wei pour décliner son invitation avec tact…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000003",
+      "titre": "Annonce d'un nouvel emploi",
+      "repere": "Écrivez à votre frère Amadou pour lui annoncer la nouvelle…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000004",
+      "titre": "Portrait d'une collègue",
+      "repere": "Répondez à Lucia : décrivez votre collègue…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000005",
+      "titre": "Service demandé à un voisin",
+      "repere": "Écrivez à Rachid pour lui demander d'arroser vos plantes…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000006",
+      "titre": "Félicitations pour un diplôme",
+      "repere": "Écrivez à Olena pour la féliciter…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000007",
+      "titre": "Remerciements pour un vélo prêté",
+      "repere": "Écrivez à Diego pour le remercier…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000008",
+      "titre": "Des nouvelles à une cousine",
+      "repere": "Répondez à Priya : donnez de vos nouvelles…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-000000000009",
+      "titre": "Rendez-vous difficile à fixer",
+      "repere": "Écrivez à Nadia pour lui proposer un rendez-vous…"
+    },
+    {
+      "id": "77777777-e101-1000-0000-00000000000a",
+      "titre": "Cours de théâtre conseillé",
+      "repere": "Répondez à Tomás : donnez un avis nuancé sur le cours…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000001",
+      "titre": "Excuses après un rendez-vous manqué",
+      "repere": "Écrivez à Khalil pour vous excuser…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000002",
+      "titre": "Garde du chat confirmée",
+      "repere": "Répondez à Sofia pour confirmer que vous gardez son chat…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000003",
+      "titre": "Conseils avant un entretien",
+      "repere": "Répondez à Ibrahim : donnez-lui deux conseils…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000004",
+      "titre": "Invitation à un tournoi",
+      "repere": "Écrivez à Pavel pour l'inviter à votre tournoi…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000005",
+      "titre": "Relecture d'une lettre de motivation",
+      "repere": "Écrivez à Carmen pour lui demander de relire votre lettre…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000006",
+      "titre": "Projet de traiteur présenté",
+      "repere": "Écrivez à Yuki pour lui présenter votre projet…"
+    },
+    {
+      "id": "77777777-e102-1000-0000-000000000007",
+      "titre": "Réponse à une amie déçue",
+      "repere": "Répondez à Anya avec tact : reconnaissez votre maladresse…"
+    }
+  ]
+}

@@ -1,0 +1,1461 @@
+/* ============================================================================
+   Expression écrite (TCF_EE) — rédaction + feedback IA. Calqué sur les écrans
+   mobiles `screens/tcf_production/*`. Consomme les tokens @theme (var(--color-*)).
+   ============================================================================ */
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 24px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (max-width: 760px) {
+  .wrap { padding: 18px 16px 64px; gap: 14px; }
+}
+
+/* ---------- Cartes génériques ----------
+   Conservées pour les blocs de l'écran de résultat (`ProductionCriteriaCard`,
+   `ProductionFeedbackView`), qui gardent leur mise en forme : leur ordre et
+   leurs règles de lecture sont des décisions de notation, pas de maquette. */
+.card {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.cardLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin: 0 0 8px;
+}
+
+/* ---------- Critères (liste) ---------- */
+.criteriaList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.criteriaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--color-ink-2);
+  line-height: 1.45;
+}
+.criteriaDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  margin-top: 7px;
+  flex-shrink: 0;
+}
+.criteriaFoot {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid var(--color-line-2);
+  border-top-color: var(--color-blue);
+  animation: ee-spin 0.8s linear infinite;
+}
+@keyframes ee-spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) {
+  .scoreCard { padding: 18px 16px; }
+}
+@media (max-width: 420px) {
+  .scoreHead { gap: 12px; }
+}
+.heroConfWhy {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- « À savoir sur cette évaluation » ----------
+   Une NOTE, pas une carte : posée sous le bandeau de résultat, elle se lit au
+   passage sans disputer la première lecture au verdict. Le texte vient du
+   serveur (limite de l'oral, purges automatiques), jamais du correcteur — c'est
+   pour ça qu'il survit au retrait de « Voir l'analyse complète » (v15/v9). */
+.evalNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px 11px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-amber) 8%, transparent);
+}
+.evalNoticeIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-amber-dark);
+}
+.evalNoticeBody { min-width: 0; }
+.evalNoticeTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.evalNoticeText {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- Critères notés (feedback) ---------- */
+.critRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-line-2);
+}
+.critRow:first-child { border-top: none; }
+.critTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+.critLabel { font-weight: 700; font-size: 13.5px; color: var(--color-ink); }
+.critComment {
+  font-size: 12.5px;
+  color: var(--color-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ---------- Bande qualitative d'un critère (remplace la note chiffrée) ----------
+   4 segments : Fragile 1 · En cours 2 · Satisfaisant 3 · Très bonne maîtrise 4.
+   Non évaluable : aucun segment allumé. */
+.critBande {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+.critBande[data-band="SATISFAISANT"] {
+  background: color-mix(in srgb, var(--color-blue) 12%, transparent);
+  color: var(--color-blue);
+}
+.critBande[data-band="EN_COURS_ACQUISITION"] {
+  background: color-mix(in srgb, var(--color-amber) 20%, transparent);
+  color: var(--color-amber-dark);
+}
+.critBande[data-band="FRAGILE"] {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red);
+}
+.critBande[data-band="NON_EVALUABLE"] {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+.critProof {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-paper);
+  border-left: 2px solid var(--color-line);
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+.critProof svg { flex-shrink: 0; margin-top: 3px; color: var(--color-muted-2); }
+.critProof span { min-width: 0; overflow-wrap: anywhere; }
+
+.prioHowTag,
+.prioExampleTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Tonalités par tâche (alignées sur les cards : T1 bleu, T2 ambre, T3 rouge). */
+
+.bilanFoot {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+/* ---------- Encart « évaluation sur transcription » (EO) ---------- */
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.noticeIcon {
+  color: var(--color-blue);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.noticeStrong {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+/* ---------- Enregistreur audio (EO) ---------- */
+.recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px;
+}
+.recordCircle {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: var(--color-red);
+  box-shadow: 0 12px 30px -10px rgba(225, 55, 47, 0.55);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.recordCircle:hover { transform: translateY(-2px); }
+.recordCircle:disabled { opacity: 0.6; cursor: not-allowed; }
+.recordCircleRec {
+  background: var(--color-ink);
+  box-shadow: 0 0 0 0 rgba(225, 55, 47, 0.5);
+  animation: ee-pulse 1.4s ease-out infinite;
+}
+@keyframes ee-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(225, 55, 47, 0.45); }
+  100% { box-shadow: 0 0 0 18px rgba(225, 55, 47, 0); }
+}
+/* Départ d'une tâche d'expression orale en examen : la consigne se lit SANS
+   décompte, et c'est ce bouton — pas un chrono déjà lancé — qui met le temps
+   en marche. Largeur pleine sous 420 px, comme tous les CTA du parcours. */
+.readyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+  min-height: 52px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-red);
+  box-shadow: 0 12px 30px -12px rgba(225, 55, 47, 0.55);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.readyBtn:hover { transform: translateY(-1px); }
+.readyBtn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.timerBig {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 34px;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.timerOk { color: var(--color-green); }
+.timerWarn { color: var(--color-amber); }
+
+/* ---------- Chrono vivant (pendant la capture) ----------
+   Pendant l'enregistrement, le chrono cesse d'être un nombre posé sur fond
+   blanc : un micro rouge se tient à côté des chiffres, et chaque seconde donne
+   un battement.
+
+   Le partage des rôles est volontaire. Le micro pulse en **CSS** : c'est de
+   l'affect, il dit « ça enregistre ». Le battement des chiffres est remonté par
+   **React**, une fois par seconde — c'est lui la preuve. Une animation CSS pure
+   continue de tourner sur le compositeur même quand le fil principal est bloqué,
+   elle ne prouve donc rien ; un battement qui s'arrête en même temps que les
+   chiffres, si. */
+.timerLive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.timerMic {
+  flex: none;
+  color: var(--color-red);
+  transform-origin: center;
+  animation: ee-mic 1.4s ease-in-out infinite;
+}
+/* Même période que le halo du bouton d'arrêt (`ee-pulse`) : les deux respirent
+   ensemble, sinon l'écran clignote à deux rythmes concurrents. */
+@keyframes ee-mic {
+  0%, 100% { transform: scale(1); opacity: 0.74; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+/* Court exprès : à une seconde de cadence, un battement plus long n'aurait
+   jamais de repos et se lirait comme une oscillation permanente. */
+.timerBeat {
+  display: inline-block;
+  transform-origin: center;
+  animation: ee-beat 0.32s ease-out;
+}
+@keyframes ee-beat {
+  0% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+@media (max-width: 420px) {
+  .timerLive { gap: 10px; }
+}
+
+/* Réservé aux lecteurs d'écran : l'état de la capture est **annoncé**, pas
+   seulement montré. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.recordHint {
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.45;
+}
+.player {
+  width: 100%;
+  max-width: 420px;
+}
+.player audio { width: 100%; }
+
+/* ---------- Retour visuel de la capture (RecordingLevelMeter) ---------- */
+/* Rouge assumé : c'est le seul signal d'urgence de l'écran, comme le bouton
+   d'enregistrement — le reste du parcours de production est bleu. */
+.recLive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.recPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-red) 12%, transparent);
+  color: var(--color-red);
+  font-size: 13px;
+  font-weight: 700;
+}
+.recDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: rec-dot 1.2s ease-in-out infinite alternate;
+}
+@keyframes rec-dot {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+.wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  max-width: 340px;
+  height: 70px;
+}
+/* Hauteur fixe + `scaleY` : l'animation reste sur le compositeur, aucune barre
+   ne déclenche de recalcul de mise en page à 60 fps. La valeur doit suivre
+   `BAR_MAX_PX` côté composant. */
+.waveBar {
+  width: 3px;
+  height: 62px;
+  border-radius: 2px;
+  background: var(--color-red);
+  transform: scaleY(0.1);
+  transform-origin: center;
+  will-change: transform;
+}
+.recUnheard {
+  margin: 0;
+  max-width: 320px;
+  text-align: center;
+  color: var(--color-amber-dark);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+/* Un enregistrement dure jusqu'à trois minutes : une pulsation permanente y
+   devient pénible, voire malaisante. On coupe donc tout ce qui est de l'AFFECT
+   — le halo du bouton, la respiration du micro, la pastille, le battement de la
+   seconde. Ce qui **prouve** que la capture tourne reste entier : les chiffres
+   changent toujours, et la forme d'onde suit toujours la voix (son amplitude
+   décorative est seulement rabaissée, cf. `RecordingLevelMeter`). */
+@media (prefers-reduced-motion: reduce) {
+  .recDot { animation: none; }
+  /* Le halo du bouton d'arrêt est ENTIÈREMENT porté par l'animation (`box-shadow`
+     de rayon 0 au repos) : le couper sec effacerait la seule marque d'état du
+     bouton. On lui rend donc un anneau fixe. */
+  .recordCircleRec {
+    animation: none;
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-red) 20%, transparent);
+  }
+  .timerMic { animation: none; opacity: 1; }
+  .timerBeat { animation: none; }
+}
+
+/* ===== Bilan de session EE/EO (hero bleu + détail par tâche), calqué mobile ===== */
+.sessHero {
+  background: linear-gradient(135deg, var(--color-blue), var(--color-blue-dark));
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  color: white;
+  margin-bottom: 18px;
+  box-shadow: 0 24px 48px -24px rgba(30, 58, 140, 0.5);
+}
+.sessHeroEyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 14px;
+}
+.sessHeroRow {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.sessHeroNoteLabel { font-size: 12.5px; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
+.sessHeroNote {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 44px; line-height: 1; letter-spacing: -0.02em;
+}
+.sessHeroNoteOf { font-size: 0.42em; color: rgba(255, 255, 255, 0.7); margin-left: 3px; }
+.sessHeroSide { text-align: right; }
+.sessHeroSideLabel { font-size: 12px; color: rgba(255, 255, 255, 0.85); margin-bottom: 5px; }
+.sessHeroBadge {
+  display: inline-block; background: white; color: var(--color-blue);
+  font-weight: 800; font-size: 16px; padding: 5px 14px; border-radius: 999px;
+}
+.sessHeroBadgePending {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; color: rgba(255, 255, 255, 0.9);
+}
+.sessScale { display: flex; gap: 4px; margin-top: 16px; }
+.sessSeg { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.22); }
+.sessSegOn { background: rgba(255, 255, 255, 0.55); }
+.sessSegTarget { background: white; }
+.sessScaleLabels {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 9px;
+  color: rgba(255, 255, 255, 0.7); margin-top: 6px;
+}
+
+/* Correspondance avec les fourchettes officielles du TCF IRN. Uniquement au
+   bilan d'une épreuve entière : une tâche isolée n'a pas de note TCF. */
+.sessTcf {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.sessTcfPhrase {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: white;
+}
+.sessTcfSource {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.sessSectionLabel {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; color: var(--color-muted); margin-bottom: 4px;
+}
+.sessSectionSub { font-size: 12.5px; color: var(--color-muted); margin: 0 0 12px; }
+
+.sessTacheList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.sessTache {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  background: white; border: 1px solid var(--color-line);
+  border-radius: 14px; padding: 13px 14px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.sessTache:hover:not(:disabled) { border-color: var(--color-blue); background: var(--color-blue-soft); }
+.sessTache:disabled { cursor: default; opacity: 0.85; }
+.sessTacheNum {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 10px; display: grid; place-items: center;
+  background: var(--color-line-2); color: var(--color-muted);
+  font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+}
+.sessTacheNumDone { background: var(--color-green); color: white; }
+.sessTacheBody { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sessTacheTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); }
+.sessTacheSub { font-size: 12.5px; color: var(--color-muted); margin-top: 2px; }
+.sessTacheSubPending { color: var(--color-blue); font-weight: 600; }
+.sessTacheSubFail { color: var(--color-red); font-weight: 600; }
+.sessTacheChevron { color: var(--color-muted-2); flex-shrink: 0; }
+
+.sessNext {
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-blue-light);
+  border-left: 3px solid var(--color-blue);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 18px;
+}
+.sessNextTitle {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0 0 6px;
+}
+.sessNextBody { font-size: 13px; line-height: 1.55; color: var(--color-ink-2); margin: 0; }
+
+.sessEvalBanner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--color-blue-soft); border: 1px solid var(--color-blue-light);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
+  font-size: 13px; color: var(--color-blue-dark);
+}
+
+/* Étape de lecture du sujet avant une session temps réel (le candidat démarre
+   l'échange quand il est prêt — le jeu de rôle T2 exige d'avoir lu la situation). */
+.rtPrep {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ============================================================================
+   RAPPORT EXPRESS (passe 2026-08-08) — miroir strict du mobile
+   (`results_hero.dart`, `results_summary_tiles.dart`, `criteria_overview.dart`,
+   `production_text_card.dart`) et de la maquette « Résultats TCF ».
+
+   Le contenu était juste, sa restitution illisible : accusé de traitement,
+   bandeau d'objectif, carte de note, deux blocs de puces et trois paragraphes
+   avant le premier conseil. Rien n'est retiré — ce qui disait la même chose est
+   fusionné, ce qui se consulte est replié.
+   ============================================================================ */
+
+/* ---------- Hero : verdict + note + niveau, un seul bloc ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: 22px;
+  color: white;
+  background: linear-gradient(135deg, var(--color-blue-dark), var(--color-blue));
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-blue) 24%, transparent);
+}
+/* Le halo clair en haut à droite : sans lui, l'aplat bleu paraît plat. */
+.heroHalo {
+  position: absolute;
+  top: -70px;
+  right: -70px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, white 20%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.heroTop {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.heroMain { min-width: 0; }
+.heroTag {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, white 75%, transparent);
+}
+.heroVerdict {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.08;
+  font-weight: 700;
+}
+.heroResume {
+  position: relative;
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 84%, transparent);
+}
+
+/* ---------- Panneau de niveau : translucide, et il ouvre la règle ----------
+   Il est `<details>` : la portée du niveau se consulte d'un geste au lieu
+   d'imposer trois lignes de prose avant le premier conseil. La pastille
+   d'information en est le repère visible. */
+.levelPanel {
+  position: relative;
+  margin-top: 18px;
+  border-radius: 18px;
+  background: color-mix(in srgb, white 13%, transparent);
+  border: 1px solid color-mix(in srgb, white 18%, transparent);
+}
+.levelSummary {
+  display: block;
+  padding: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.levelSummary::-webkit-details-marker { display: none; }
+.levelSummary:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+  border-radius: 18px;
+}
+.levelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.levelMain { min-width: 0; }
+.levelEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, white 75%, transparent);
+}
+.levelValue {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+/* Le cran DANS le palier (« Palier solide ») : discret, il nuance le niveau au
+   lieu de le remplacer. Aucun chiffre — c'est tout l'objet du champ. */
+.levelSituation {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  max-width: 100%;
+  background: color-mix(in srgb, white 16%, transparent);
+  border: 1px solid color-mix(in srgb, white 26%, transparent);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: color-mix(in srgb, white 92%, transparent);
+}
+
+/* `.pill.light` de la maquette : fond blanc, texte à la teinte du palier. C'est
+   elle qui porte la couleur du niveau, puisque l'échelle passe en blanc. */
+.levelPill {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: white;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+}
+.levelPill[data-tone="amber"] { color: var(--color-amber-dark); }
+.levelPill[data-tone="blue"] { color: var(--color-blue); }
+.levelPill[data-tone="green"] { color: var(--color-green); }
+
+/* L'échelle SUR le dégradé : cinq segments, une seule ligne de libellés. */
+.heroScale { display: block; margin-top: 12px; }
+.heroScaleTrack {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.heroScaleSeg {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, white 18%, transparent);
+}
+.heroScaleSeg[data-active] { background: white; }
+.heroScaleLabels {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-top: 7px;
+}
+.heroScaleLabel {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: color-mix(in srgb, white 55%, transparent);
+}
+.heroScaleLabel[data-active] { color: white; font-weight: 800; }
+
+.heroConfBox {
+  display: block;
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: color-mix(in srgb, white 12%, transparent);
+}
+.heroConfLabel {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.heroConfWhy {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: color-mix(in srgb, white 80%, transparent);
+}
+
+.levelRule {
+  padding: 0 14px 14px;
+  color: color-mix(in srgb, white 88%, transparent);
+}
+.levelRuleText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* ---------- Rappel d'enjeu : le niveau atteint face à la démarche visée ----
+   Le vrai anti-découragement. Filet vertical côté gauche, jamais rouge : un
+   objectif encore devant n'est pas une faute. */
+.heroStake {
+  position: relative;
+  display: block;
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  border-radius: 14px;
+  border-left: 3px solid color-mix(in srgb, white 55%, transparent);
+  background: color-mix(in srgb, white 12%, transparent);
+}
+.heroStake[data-reached] {
+  border-left-color: white;
+  background: color-mix(in srgb, white 17%, transparent);
+}
+.heroStakeLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: color-mix(in srgb, white 75%, transparent);
+}
+.heroStakeText {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, white 92%, transparent);
+}
+
+/* ---------- Deux bandeaux : ce qui marche / à corriger ----------
+   Une ligne chacun, repliés. Le détail s'ouvre DANS le bandeau. */
+.tile {
+  border-radius: 18px;
+  border: 1px solid;
+}
+.tile[data-tone="good"] {
+  background: color-mix(in srgb, var(--color-green) 8%, white);
+  border-color: color-mix(in srgb, var(--color-green) 28%, transparent);
+}
+/* Le rouge est juste ici : c'est le seul bloc qui dit « à refaire », et il ne
+   peint aucun palier CECRL — la règle « jamais de rouge sur un niveau » ne
+   s'applique pas. */
+.tile[data-tone="fix"] {
+  background: color-mix(in srgb, var(--color-red) 7%, white);
+  border-color: color-mix(in srgb, var(--color-red) 28%, transparent);
+}
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.tileHead::-webkit-details-marker { display: none; }
+.tileHead:focus-visible { outline: 2px solid var(--color-blue); outline-offset: -2px; border-radius: 18px; }
+.tileIcon { display: inline-flex; flex-shrink: 0; }
+.tile[data-tone="good"] .tileIcon,
+.tile[data-tone="good"] .tileTitle,
+.tile[data-tone="good"] .tileChevron { color: var(--color-green); }
+.tile[data-tone="fix"] .tileIcon,
+.tile[data-tone="fix"] .tileTitle,
+.tile[data-tone="fix"] .tileChevron { color: var(--color-red); }
+.tileTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.tileValue {
+  flex-shrink: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.tileChevron { flex-shrink: 0; transition: transform 0.18s ease; }
+.tile[open] .tileChevron { transform: rotate(180deg); }
+.tileBody { padding: 0 14px 14px; }
+.tileBullets { list-style: none; margin: 0; padding: 0; }
+.tileBullets li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.tileBullets li + li { margin-top: 7px; }
+.tileBullets li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  color: var(--color-green);
+}
+/* Les points EXIGÉS non traités, dans le même dépliant que la fraction : sans
+   eux, « 2/3 points traités » ne dit jamais lequel manque. Un titre est ici
+   nécessaire — sans lui, un manque se lirait comme une réussite de plus. */
+.tileMissedTitle {
+  margin: 12px 0 7px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--color-red);
+}
+.tileBullets[data-tone="missed"] li::before { color: var(--color-red); }
+
+/* Un filet, pas un titre : la consigne d'un côté, la langue de l'autre. */
+.tileSplit {
+  display: block;
+  height: 1px;
+  margin: 11px 0;
+  background: color-mix(in srgb, var(--color-green) 22%, transparent);
+}
+
+/* ---------- Une priorité, dans le bandeau rouge ---------- */
+.prioBlock + .prioBlock {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--color-red) 20%, transparent);
+}
+.prioRankTag {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-red);
+}
+.prioTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.prioHowBox { margin-top: 8px; }
+.prioHowSummary {
+  display: inline-block;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-blue);
+}
+.prioHowSummary::-webkit-details-marker { display: none; }
+.prioHowSummary::after { content: " ▾"; }
+.prioHowBox[open] .prioHowSummary::after { content: " ▴"; }
+.prioHowText {
+  margin: 7px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.rewrite {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid color-mix(in srgb, var(--color-red) 22%, transparent);
+}
+.rewriteLabel {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.rewriteBad {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-red);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.rewriteGood {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: var(--color-green);
+}
+
+/* ---------- Intertitre de section (hors carte) ---------- */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 4px 10px;
+}
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.sectionHint { font-size: 12px; color: var(--color-muted); }
+
+/* ---------- Profil par critère : une carte par critère ---------- */
+.critSection { display: flex; flex-direction: column; }
+.critSection .sectionHead { margin-bottom: 10px; }
+.critCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  padding: 14px 15px;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+.critCard + .critCard { margin-top: 10px; }
+.critSummary {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.critSummary::-webkit-details-marker { display: none; }
+.critSummary:focus-visible { outline: 2px solid var(--color-blue); outline-offset: 4px; border-radius: 12px; }
+.critIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+.critIcon[data-band="TRES_BONNE_MAITRISE"] { background: color-mix(in srgb, var(--color-green) 12%, white); color: var(--color-green); }
+.critIcon[data-band="SATISFAISANT"] { background: color-mix(in srgb, var(--color-blue) 12%, white); color: var(--color-blue); }
+.critIcon[data-band="EN_COURS_ACQUISITION"] { background: color-mix(in srgb, var(--color-amber) 16%, white); color: var(--color-amber-dark); }
+.critIcon[data-band="FRAGILE"] { background: color-mix(in srgb, var(--color-red) 12%, white); color: var(--color-red); }
+.critIcon[data-band="NON_EVALUABLE"] { background: var(--color-line-2); color: var(--color-muted-2); }
+.critMain { min-width: 0; }
+.critName { display: block; font-size: 14px; font-weight: 700; color: var(--color-ink); }
+.critBar {
+  display: block;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+.critBar > span { display: block; height: 100%; border-radius: inherit; }
+.critBar[data-band="TRES_BONNE_MAITRISE"] > span { width: 100%; background: var(--color-green); }
+.critBar[data-band="SATISFAISANT"] > span { width: 75%; background: var(--color-blue); }
+.critBar[data-band="EN_COURS_ACQUISITION"] > span { width: 50%; background: var(--color-amber); }
+.critBar[data-band="FRAGILE"] > span { width: 25%; background: var(--color-red); }
+.critBar[data-band="NON_EVALUABLE"] > span { width: 0; }
+/* Le lien de dépliage prend toute la largeur sous la ligne : c'est le
+   « Voir pourquoi » de la maquette, pas un chevron muet. */
+.critWhy {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-blue);
+}
+.critWhyOpen { display: none; }
+.critCard[open] .critWhyClosed,
+.prioHowBox[open] .critWhyClosed { display: none; }
+.critCard[open] .critWhyOpen,
+.prioHowBox[open] .critWhyOpen { display: inline; }
+.critDetail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line);
+}
+.critFull {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Votre rédaction : le texte rendu, et lui seul ----------
+   La bascule « version améliorée » a été retirée : elle réécrivait au niveau
+   déjà constaté, et c'était le texte le plus copiable du rapport. Le seul
+   modèle de la page est `.targetCard`, plus bas. */
+.prodSection { display: block; }
+.prodCard {
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  padding: 15px;
+}
+.prodText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--color-ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.prodMark {
+  background: color-mix(in srgb, var(--color-amber) 26%, white);
+  border-radius: 6px;
+  padding: 1px 3px;
+  color: inherit;
+}
+.prodActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.prodBtnSoft {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 13px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+/* ---------- Le plan d'action : leviers, version plus aboutie, à retenir ----------
+   Mêmes blocs que le retour d'un micro-exercice de compétence
+   (`skill-ui/ActionPlan`) : seuls les intertitres sont rendus ici, avec le
+   gabarit de titre du rapport. `.targetCard` ne sert plus qu'aux évaluations du
+   contrat v1, qui portent un texte modèle et des leviers en texte libre.
+   ⚠️ Plus aucun titre ni sous-titre n'étiquette un texte d'un palier : rien ne
+   vérifie qu'il l'atteint. Seul l'objectif du candidat est nommé. */
+.targetSection { display: block; }
+.targetCard {
+  background: color-mix(in srgb, var(--color-blue) 5%, white);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 22%, transparent);
+  border-radius: 20px;
+  padding: 15px;
+}
+.targetText {
+  margin: 11px 0 0;
+  padding: 13px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid var(--color-line);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--color-ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Premier enfant de la carte depuis que le titre est sorti du cadre. */
+.targetCard > .targetText:first-child,
+.targetCard > .targetGapList:first-child { margin-top: 0; }
+/* La carte « À retenir » porte sa marge d'entrée pour le flux des compétences ;
+   ici la colonne a déjà son `gap`. */
+.planMemo { margin-top: 0; }
+.targetGapList {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.targetGapItem {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.targetGapRank {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-blue) 12%, white);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-blue);
+}
+
+/* ---------- Objectif atteint : ce qui prend la place du texte modèle ----------
+   Même gabarit que `.targetCard`, en VERT : c'est le palier tenu, pas la marche
+   au-dessus. Le vert dit « B2 » dans toute l'app (cf. `tcfNiveauTone`), et il
+   n'y a ici aucune marche à monter. */
+.reachedCard {
+  background: color-mix(in srgb, var(--color-green) 6%, white);
+  border: 1px solid color-mix(in srgb, var(--color-green) 26%, transparent);
+  border-radius: 20px;
+  padding: 15px;
+}
+.reachedEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.reachedIntro {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink-2);
+}
+
+@media (max-width: 480px) {
+  .hero { padding: 18px; border-radius: 22px; }
+  .heroVerdict { font-size: 24px; }
+  .levelValue { font-size: 16px; }
+  .sectionTitle { font-size: 17px; }
+  .targetCard { padding: 13px; border-radius: 18px; }
+  .reachedCard { padding: 13px; border-radius: 18px; }
+}
+
+/* ---------- Production inexploitable (`evaluabilite: NON_EVALUABLE`) ----------
+   Le rapport entier est remplacé par cette carte : le serveur n'a appelé aucun
+   correcteur, il n'y a donc ni note, ni niveau, ni critère à montrer.
+   AMBRE (attention), jamais rouge (échec) : le candidat n'a pas raté, c'est
+   notre mesure qui n'a rien pu observer. Géométrie alignée sur le mobile
+   (`production_non_evaluable_card.dart`). */
+.unusable {
+  border: 1px solid color-mix(in srgb, var(--color-amber) 30%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-amber) 8%, transparent);
+  padding: 18px;
+}
+.unusableTag {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.unusableKind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-amber-dark);
+}
+.unusableTitle {
+  margin: 9px 0 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.unusableLead {
+  margin: 9px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--color-ink-2);
+}
+.unusableReasonsHead {
+  margin: 14px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+/* Une liste de constats, pas une liste de fautes : puce neutre, ni croix ni
+   icône d'erreur (même parti pris que la puce du mobile). */
+.unusableReasons {
+  margin: 6px 0 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.unusableFoot {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+@media (max-width: 520px) {
+  .unusable { padding: 15px; border-radius: 18px; }
+  .unusableTitle { font-size: 18px; }
+}
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .wrap {
+    padding-top: var(--app-bar-gap);
+  }
+}
+
+/* ---------- Revue d'une prise d'examen (EO) ----------
+   Après l'arrêt, la prise se réécoute (lecture LOCALE du Blob), se recommence
+   ou s'envoie. Le bouton principal dit l'envoi en cours : c'est le silence de
+   cet instant qui faisait croire à un écran figé. */
+.reviewHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.reviewCheck {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  background: var(--color-green);
+}
+.reviewTitle {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.reviewDuration {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.reviewNote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+  text-align: center;
+}
+.btnSpinner {
+  width: 15px;
+  height: 15px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-white) 40%, transparent);
+  border-top-color: var(--color-white);
+  animation: ee-spin 0.8s linear infinite;
+  flex: none;
+}
+
+/* ---------- Passage d'une tâche d'examen à la suivante ----------
+   Fondu + glissement court : la tâche suivante n'apparaît plus « d'un coup ». */
+.taskEnter {
+  animation: task-enter 0.28s ease-out;
+}
+@keyframes task-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Attente de l'évaluation (miroir d'`EvaluationLoadingView`) ---------- */
+.evalWait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 16px 48px;
+}
+.evalCocarde {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  position: relative;
+  animation: ee-spin 6s linear infinite;
+}
+.evalCocarde::before {
+  content: "";
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  background: var(--color-white);
+}
+.evalCocarde::after {
+  content: "";
+  position: absolute;
+  inset: 30px;
+  border-radius: 50%;
+  background: var(--color-red);
+}
+.evalTitle {
+  margin: 28px 0 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.evalLead {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.evalSteps {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+.evalStep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+.evalStepMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-line-2);
+  color: var(--color-muted-2);
+}
+.evalStep[data-state="active"],
+.evalStep[data-state="done"] {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.evalStep[data-state="active"] .evalStepMark {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.evalStep[data-state="done"] .evalStepMark {
+  background: color-mix(in srgb, var(--color-green) 10%, transparent);
+  color: var(--color-green);
+}
+.evalStepSpin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--color-blue-light);
+  border-top-color: var(--color-blue);
+  animation: ee-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .taskEnter { animation: none; }
+  .evalCocarde { animation: none; }
+  .btnSpinner,
+  .evalStepSpin { animation-duration: 2.4s; }
+}

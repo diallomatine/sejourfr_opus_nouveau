@@ -1,0 +1,148 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.range {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.range strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step,
+.number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.step:hover:not(:disabled),
+.number:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.step:focus-visible,
+.number:focus-visible,
+.sizeSelect:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.number:disabled {
+  cursor: default;
+}
+
+.current,
+.current:disabled {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--blue-ink);
+  font-weight: 700;
+}
+
+.gap {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.compact {
+  display: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  padding: 0 8px;
+}
+
+.sizePicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.sizeSelect {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+@media (max-width: 720px) {
+  .numbers {
+    display: none;
+  }
+
+  .compact {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pages {
+    justify-content: space-between;
+  }
+
+  .stepText {
+    display: none;
+  }
+
+  .sizePicker {
+    justify-content: space-between;
+  }
+}

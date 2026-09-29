@@ -1,0 +1,306 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.StartAttemptRequest;
+import com.sejourfr.app.dto.SubmitAnswerRequest;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.AttemptQuestion;
+import com.sejourfr.app.entity.ExamTemplate;
+import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.manager.ExamTemplateManager;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * Démo guest (visiteur non authentifié) : tirages déterministes, verrous
+ * d'accès (séries 2+ réservées aux comptes ; examen blanc d'épreuve TCF QCM
+ * ouvert au SLOT 1 seulement depuis le 2026-08-16, examen de thème civique
+ * de même depuis le 2026-09-24), et accès sécurisé par IP. DB réelle.
+ */
+class AttemptServiceGuestIT extends AbstractIntegrationTest {
+
+    private static final String IP = "198.51.100.42";
+
+    @Autowired AttemptService service;
+    @Autowired TestData data;
+    @Autowired AttemptManager attemptManager;
+    @Autowired AttemptQuestionManager attemptQuestionManager;
+    @Autowired ExamTemplateManager templateManager;
+
+    private StartAttemptRequest req(AttemptType type, Module module, UUID templateId, UUID themeId,
+                                    Difficulty difficulty, QuestionType qType, Integer lotNumero,
+                                    QuestionType moduleExamType) {
+        return new StartAttemptRequest(type, module, templateId, themeId,
+                difficulty, qType, null, lotNumero, moduleExamType, null, null);
+    }
+
+    /** Examen blanc d'épreuve TCF QCM joué sans compte, sur un slot donné. */
+    private StartAttemptRequest moduleExam(QuestionType moduleExamType, Integer slot) {
+        return new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.TCF, null, null,
+                null, null, null, null, moduleExamType, slot, null);
+    }
+
+
+    @Test
+    void guestDemoTraining_serieDeterministe_userNull_ipPosee() {
+        AttemptResponse r = service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.CIVIQUE, null, null, null, null, null, null), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getUser()).isNull();
+        assertThat(persisted.getClientIp()).isEqualTo(IP);
+    }
+
+    @Test
+    void loadGuestAttempt_bonneIp_ok_mauvaiseIp_notFound() {
+        AttemptResponse r = service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.CIVIQUE, null, null, null, null, null, null), IP);
+
+        Attempt loaded = service.loadGuestAttempt(r.id(), IP);
+        assertThat(loaded.getId()).isEqualTo(r.id());
+
+        assertThatThrownBy(() -> service.loadGuestAttempt(r.id(), "10.0.0.1"))
+                .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void guestDemoMockExam_templateGratuit_ok() {
+        ExamTemplate t = data.examTemplate(); // free, published, TCF
+
+        AttemptResponse r = service.startGuestDemo(
+                req(AttemptType.MOCK_EXAM, Module.TCF, t.getId(), null, null, null, null, null), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.examTemplateId()).isEqualTo(t.getId());
+    }
+
+    @Test
+    void guestDemoMockExam_templatePayant_refuse() {
+        ExamTemplate t = data.examTemplate(Module.TCF, false, true);
+
+        assertThatThrownBy(() -> service.startGuestDemo(
+                req(AttemptType.MOCK_EXAM, Module.TCF, t.getId(), null, null, null, null, null), IP))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // Examen blanc de THÈME civique sans compte — SLOT 1 SEULEMENT
+    // (arbitrage du propriétaire du 2026-09-24 : ces examens étaient refusés
+    // en bloc aux visiteurs ; le premier de chaque thème s'ouvre, comme CO / CE)
+    // ------------------------------------------------------------------------
+
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private UUID themeOfficiel(String code) {
+        return jdbc.queryForObject("SELECT id FROM themes WHERE code = ?", UUID.class, code);
+    }
+
+    private StartAttemptRequest themeExam(UUID themeId, Integer slot) {
+        return new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, themeId,
+                null, null, null, null, null, slot, null);
+    }
+
+    @Test
+    void guestThemeExam_slot1_ok_userNull_formatDuTheme() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse r = service.startGuestDemo(themeExam(themeId, 1), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
+        assertThat(r.passThreshold()).isEqualTo(16);
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getUser()).isNull();
+        assertThat(persisted.getClientIp()).isEqualTo(IP);
+        assertThat(persisted.getLotThemeId()).isEqualTo(themeId);
+        assertThat(persisted.getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void guestThemeExam_slotAbsent_valeurParDefaut1() {
+        AttemptResponse r = service.startGuestDemo(themeExam(themeOfficiel("CIV_HISTOIRE_GEO"), null), IP);
+
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void guestThemeExam_slot2_refuse() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(themeId, 2), IP))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(themeId, 20), IP))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void guestThemeExam_tirageDeterministe_memeExamenARejouage() {
+        UUID themeId = themeOfficiel("CIV_PRINCIPES");
+
+        AttemptResponse a = service.startGuestDemo(themeExam(themeId, 1), IP);
+        AttemptResponse b = service.startGuestDemo(themeExam(themeId, 1), IP);
+
+        assertThat(questionIds(a)).hasSize(20).isEqualTo(questionIds(b));
+    }
+
+    @Test
+    void guestThemeExam_themeHorsProgramme_refuse() {
+        Theme theme = data.theme(Module.CIVIQUE, "guest-theme", "Guest thème");
+
+        assertThatThrownBy(() -> service.startGuestDemo(themeExam(theme.getId(), 1), IP))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // Examen blanc d'épreuve TCF QCM sans compte — SLOT 1 SEULEMENT
+    // (changement de règle 2026-08-16 : ces examens étaient refusés en bloc)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void guestModuleExam_slot1_ok_userNull_ipPosee_epreuveEtChronoPoses() {
+        AttemptResponse r = service.startGuestDemo(moduleExam(QuestionType.CO, 1), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+        assertThat(r.timeLimitSeconds()).isEqualTo(20 * 60);
+        assertThat(r.moduleExamQuestionType()).isEqualTo(QuestionType.CO);
+
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getUser()).isNull();
+        assertThat(persisted.getClientIp()).isEqualTo(IP);
+        assertThat(persisted.getEpreuve()).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(persisted.getSlotNumber()).isEqualTo(1);
+    }
+
+    @Test
+    void guestModuleExam_slotAbsent_valeurParDefaut1() {
+        AttemptResponse r = service.startGuestDemo(moduleExam(QuestionType.CE, null), IP);
+
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getSlotNumber()).isEqualTo(1);
+        assertThat(persisted.getEpreuve()).isEqualTo(EpreuveType.TCF_CE);
+    }
+
+    @Test
+    void guestModuleExam_structure_ok() {
+        AttemptResponse r = service.startGuestDemo(moduleExam(QuestionType.STRUCTURE, 1), IP);
+
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getEpreuve()).isEqualTo(EpreuveType.TCF_STRUCTURE);
+    }
+
+    @Test
+    void guestModuleExam_slot2_refuse() {
+        assertThatThrownBy(() -> service.startGuestDemo(moduleExam(QuestionType.CO, 2), IP))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void guestModuleExam_slotHorsBornes_refuse() {
+        assertThatThrownBy(() -> service.startGuestDemo(moduleExam(QuestionType.CO, 999), IP))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void guestModuleExam_typeNonQcm_refuse() {
+        assertThatThrownBy(() -> service.startGuestDemo(moduleExam(QuestionType.CONNAISSANCE, 1), IP))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void guestModuleExam_moduleCivique_refuse() {
+        StartAttemptRequest r = new StartAttemptRequest(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null,
+                null, null, null, null, QuestionType.CO, 1, null);
+        assertThatThrownBy(() -> service.startGuestDemo(r, IP))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void guestModuleExam_tirageDeterministe_memeExamenARejouage() {
+        AttemptResponse a = service.startGuestDemo(moduleExam(QuestionType.CO, 1), IP);
+        AttemptResponse b = service.startGuestDemo(moduleExam(QuestionType.CO, 1), IP);
+
+        assertThat(questionIds(a)).isEqualTo(questionIds(b));
+    }
+
+    private List<UUID> questionIds(AttemptResponse r) {
+        return attemptQuestionManager.findByAttemptOrderedByPosition(r.id()).stream()
+                .map(aq -> aq.getQuestion().getId())
+                .toList();
+    }
+
+    @Test
+    void guestDemoMockExam_civiqueGlobal_config40() {
+        AttemptResponse r = service.startGuestDemo(
+                req(AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null, null, null, null, null), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(r.timeLimitSeconds()).isEqualTo(45 * 60);
+        assertThat(r.passThreshold()).isEqualTo(32);
+    }
+
+    @Test
+    void guestLot1_civique_ok() {
+        Theme theme = data.theme(Module.CIVIQUE, "guest-lot", "Guest lot");
+        for (int i = 0; i < 25; i++) {
+            data.question(theme);
+        }
+
+        AttemptResponse r = service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.CIVIQUE, null, theme.getId(), null, null, 1, null), IP);
+
+        assertThat(r.totalQuestions()).isEqualTo(20);
+        Attempt persisted = attemptManager.findById(r.id()).orElseThrow();
+        assertThat(persisted.getUser()).isNull();
+        assertThat(persisted.getLotNumero()).isEqualTo(1);
+        assertThat(persisted.getLotThemeId()).isEqualTo(theme.getId());
+    }
+
+    @Test
+    void guestLot_serie2_refuse() {
+        Theme theme = data.theme(Module.CIVIQUE, "guest-lot2", "Guest lot 2");
+
+        assertThatThrownBy(() -> service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.CIVIQUE, null, theme.getId(), null, null, 2, null), IP))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void guestLot_tcfSansDifficulty_refuse() {
+        assertThatThrownBy(() -> service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.TCF, null, null, null, QuestionType.CE, 1, null), IP))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void guestSubmitEtFinish_viaVariantesSansControleUser() {
+        AttemptResponse started = service.startGuestDemo(
+                req(AttemptType.TRAINING, Module.CIVIQUE, null, null, null, null, null, null), IP);
+        Attempt attempt = service.loadGuestAttempt(started.id(), IP);
+        List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(started.id());
+        UUID anyChoice = aqs.get(0).getQuestion().getChoices().get(0).getId();
+
+        service.submitAnswerForAttempt(attempt, new SubmitAnswerRequest(aqs.get(0).getId(), List.of(anyChoice)));
+        AttemptResponse finished = service.finishAttempt(attempt);
+
+        assertThat(finished.finishedAt()).isNotNull();
+    }
+}

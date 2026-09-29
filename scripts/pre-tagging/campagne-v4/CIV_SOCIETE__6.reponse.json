@@ -1,0 +1,191 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVN5nYQkgVS2M84PN",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_011VNuijK3g6MxMJALcYkiSd",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.97,
+            "rationale": "AAH est une prestation sous condition, relève des aides sociales."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.9,
+            "rationale": "MDPH est le guichet des aides handicap."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_nationalite_francaise",
+            "confiance": 0.95,
+            "rationale": "TCF exigé pour la naturalisation, niveau de français."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_nationalite_francaise",
+            "confiance": 0.97,
+            "rationale": "Examen civique 2026 pour naturalisation, explicitement dans la notion."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_nationalite_francaise",
+            "confiance": 0.75,
+            "rationale": "Valeurs auxquelles le candidat à la naturalisation doit adhérer.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 6,
+            "notion": "vs_nationalite_francaise",
+            "confiance": 0.95,
+            "rationale": "Charte des droits et devoirs remise lors de la naturalisation."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Égalité des époux dans le mariage civil."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.9,
+            "rationale": "IVG constitutionnalisée, entre dans la notion famille/état civil."
+          },
+          {
+            "rang": 9,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Délai légal de l'IVG, explicitement inclus dans la notion."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "GPA interdite en France, notion famille/état civil."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "PMA ouverte à toutes les femmes, notion famille/état civil."
+          },
+          {
+            "rang": 12,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Âge minimum du mariage civil, condition du mariage."
+          },
+          {
+            "rang": 13,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "Régime matrimonial par défaut, explicitement inclus."
+          },
+          {
+            "rang": 14,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.9,
+            "rationale": "Réserve héréditaire mentionnée explicitement dans la notion."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.9,
+            "rationale": "Permis à points relève de la conduite/sécurité routière."
+          },
+          {
+            "rang": 16,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.9,
+            "rationale": "AGS mentionnée explicitement comme dispositif collectif entreprise."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.95,
+            "rationale": "CSE est une instance collective, explicitement citée."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.9,
+            "rationale": "Représentativité syndicale, notion collective entreprise."
+          },
+          {
+            "rang": 19,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.85,
+            "rationale": "Travail non déclaré cité explicitement dans contrat/salaire."
+          },
+          {
+            "rang": 20,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.9,
+            "rationale": "PEE cité explicitement comme dispositif collectif entreprise."
+          },
+          {
+            "rang": 21,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.9,
+            "rationale": "Participation aux bénéfices, dispositif collectif d'entreprise."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.9,
+            "rationale": "Mandat de protection future cité explicitement dans la notion."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.95,
+            "rationale": "PACS explicitement cité dans la notion famille/état civil."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.9,
+            "rationale": "Protection sociale au sens large, cœur de la notion."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.85,
+            "rationale": "État-providence, modèle de redistribution sociale."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 11048,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1576,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

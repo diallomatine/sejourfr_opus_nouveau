@@ -1,0 +1,1177 @@
+/* ============================================================================
+   Les écrans SECONDAIRES du Plan : la fiche d'un domaine
+   (`/plan/domaine/[domaine]`), « Votre programme évolue » (`/plan/evolution`)
+   et « Ma progression » (`/plan/progression`).
+
+   ⚠️ **L'écran `/plan` lui-même n'est plus ici** : il est passé sur le kit
+   `app/_components/sejour/` le 2026-09-11, avec ses deux onglets TCF et
+   civique. Ce qui restait de son anatomie (grille à deux colonnes, carte de
+   priorité, séance, encarts rétractables, bandeaux de tête, carte
+   d'abonnement) a été supprimé dans la même passe.
+
+   🛑 **Les COULEURS et les FONTES sont celles de SejourFR** : `var(--color-*)`
+   et `var(--font-*)` uniquement. Les teintes absentes des tokens sont dérivées
+   en `color-mix()` dans le bloc de variables locales ci-dessous — jamais
+   écrites en dur ailleurs dans ce fichier.
+   ============================================================================ */
+
+.page {
+  /* Variables locales : le seul endroit de ce module où une teinte se
+     fabrique. Toutes dérivent des tokens de `globals.css`. */
+  --plan-surface: #fff;
+  --plan-surface-2: var(--color-blue-soft);
+  --plan-surface-3: var(--color-paper-2);
+  --plan-line-soft: var(--color-line-2);
+  --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
+  --plan-shadow: 0 12px 30px color-mix(in srgb, var(--color-ink) 7%, transparent);
+  --plan-shadow-soft: 0 6px 18px color-mix(in srgb, var(--color-ink) 5%, transparent);
+
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 34px 28px 56px;
+}
+
+/* ------------------------------------------------------------ tête d'écran */
+
+.header {
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 9px;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(27px, 4vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: pretty;
+}
+
+.header > p:last-of-type,
+.header > p:not(.eyebrow) {
+  max-width: 66ch;
+  margin: 9px 0 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+}
+
+/* ------------------------------------------------------------ intertitres */
+
+.blockHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 10px 2px 13px;
+}
+
+.blockHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(19px, 2.4vw, 21px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.blockHead p {
+  max-width: 60ch;
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+
+/* Sur un petit écran, l'action passe SOUS l'intertitre plutôt que d'écraser sa
+   phrase : « Toutes mes compétences » ne tient pas à côté de « Mes priorités »
+   à 360 px. */
+@media (max-width: 560px) {
+  .blockHead {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .blockHead > div {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+/* --------------------------------------------------------- ce qui a changé */
+
+
+
+
+
+
+
+
+
+.changesPriority {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.changesPriority p {
+  margin: 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.changesPriority b {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-ink);
+  font-size: 15.5px;
+  font-weight: 700;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------- panneaux (colonne aside) */
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: var(--plan-surface);
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--plan-line-soft);
+}
+
+.panelHead > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.panelHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.panelHead p {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.panelList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panelList li + li .panelRow {
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.panelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.panelRow:hover {
+  background: var(--plan-surface-2);
+}
+
+.panelRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.panelBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.panelTitle {
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panelMeta {
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  text-wrap: pretty;
+}
+
+.panelCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--color-blue);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.panelNote {
+  margin: 0;
+  padding: 12px 18px 15px;
+  border-top: 1px solid var(--plan-line-soft);
+  background: var(--plan-surface-2);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.asideNote {
+  margin: 0 4px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ chemin */
+
+.pathList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 16px 18px 18px;
+  list-style: none;
+}
+
+.pathList li {
+  display: flex;
+  gap: 13px;
+}
+
+.pathList li:not(:last-child) .pathBody {
+  padding-bottom: 15px;
+}
+
+.pathMark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pathList li[data-status="DONE"] .pathMark {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.pathList li[data-status="CURRENT"] .pathMark {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.pathList li {
+  position: relative;
+}
+
+/* Le filet qui relie les étapes : c'est lui qui fait lire un chemin plutôt
+   qu'une pile. */
+.pathList li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 28px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.pathList li[data-status="DONE"]:not(:last-child)::before,
+.pathList li[data-status="CURRENT"]:not(:last-child)::before {
+  background: color-mix(in srgb, var(--color-blue) 40%, transparent);
+}
+
+.pathBody {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.pathTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--color-ink);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.pathList li[data-status="CURRENT"] .pathTitle {
+  font-weight: 700;
+}
+
+.pathList li[data-status="DONE"] .pathTitle {
+  color: var(--color-muted);
+}
+
+.pathBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Ce qui ferme une étape de palier : elle ne se termine pas sur un compteur
+   d'exercices, elle se confirme par un examen blanc complet. Posée sur l'étape
+   concernée — jamais sur celles qui ne sont pas des paliers. */
+.pathNote {
+  display: block;
+  justify-self: start;
+  margin-top: 5px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: var(--plan-surface-2);
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.pathList li[data-status="CURRENT"] .pathNote {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+  font-weight: 600;
+}
+
+.pathMeta {
+  margin-top: 1px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+/* ------------------------------------------------- briques du plan (PlanBits) */
+
+.domainIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.domainIconSmall {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.domainIconActive {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+/* La teinte suit la FAMILLE du domaine, comme la maquette : compréhension en
+   bleu (CO, CE), expression en rouge (EO, EE). Le jeton `data-tone` est posé
+   par `PlanDomainIcon`, qui le dérive de `PLAN_DOMAIN_SECTION` — aucune couleur
+   n'est écrite en dur, aucune seconde table de domaines n'est tenue à jour.
+   ⚠️ Rien à voir avec `--skill-accent`, l'accent du module Compétences. */
+.domainIcon[data-tone="expression"] {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.domainIconActive[data-tone="expression"] {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+/* Pastille d'urgence d'un domaine. 🛑 Aucune valeur ne nomme une faiblesse :
+   `A_EVALUER` est neutre, jamais rouge — c'est une donnée manquante. */
+.domainPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.domainPill[data-priority="FORTE"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.domainPill[data-priority="A_TRAVAILLER"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.domainPill[data-priority="ENTRETIEN"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+/* --------------------------------------------- nature d'une action du Plan
+
+   Quatre natures, quatre lectures — et surtout **« à acquérir » ne doit jamais
+   se lire comme « à renforcer »** : la teinte de fragilité (rouge) est réservée
+   à ce qui a été **observé** fragile. Une compétence jamais travaillée prend la
+   teinte d'apprentissage (bleue), et une mesure manquante reste **neutre** :
+   *null = inconnu, jamais mauvais*.
+
+   La couleur ne porte jamais seule : chaque pastille a aussi son libellé gelé
+   et son icône. */
+
+.naturePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+  color: var(--color-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.naturePillIcon {
+  display: inline-flex;
+}
+
+/* Mesurer : neutre. Il manque une donnée, ce n'est pas un défaut. */
+.naturePill[data-nature="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
+/* Réparer : la seule teinte de fragilité, et elle suppose un constat. */
+.naturePill[data-nature="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+/* Vérifier : le travail est fait, il reste à le prouver. */
+.naturePill[data-nature="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+/* Apprendre : rien n'a échoué ici. */
+.naturePill[data-nature="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.naturePill[data-status="PRIORITE"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_RENFORCER"] {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.naturePill[data-status="A_VERIFIER"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_ACQUERIR"] {
+  background: var(--plan-blue-tint);
+  color: var(--color-blue);
+}
+
+.naturePill[data-status="SOLIDE"] {
+  background: var(--plan-green-tint);
+  color: var(--color-green);
+}
+
+.naturePill[data-status="A_EVALUER"] {
+  background: var(--plan-surface-3);
+  color: var(--color-ink-2);
+}
+
+.domainPillDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.rail {
+  display: flex;
+  align-items: center;
+}
+
+.railCell {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.railCell:last-child {
+  flex: none;
+}
+
+.railStep {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+}
+
+.railDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+}
+
+.railStep[data-state="done"] .railDot,
+.railStep[data-state="current"] .railDot {
+  background: var(--color-blue);
+}
+
+.railStep[data-state="current"] .railDot {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 0 4px var(--plan-blue-tint);
+}
+
+.railLabel {
+  color: var(--color-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.railStep[data-state="done"] .railLabel,
+.railStep[data-state="current"] .railLabel {
+  color: var(--color-ink);
+}
+
+.railStep[data-state="current"] .railLabel {
+  font-weight: 800;
+}
+
+.railLink {
+  flex: 1;
+  height: 3px;
+  margin: 0 10px;
+  border-radius: 999px;
+  background: var(--plan-surface-3);
+}
+
+.railLink[data-state="done"] {
+  background: var(--color-blue);
+}
+
+/* Variante claire du rail, posée sur un aplat de couleur. */
+.railDark .railDot {
+  background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+}
+
+.railDark .railStep[data-state="done"] .railDot,
+.railDark .railStep[data-state="current"] .railDot {
+  background: var(--color-paper);
+}
+
+.railDark .railStep[data-state="current"] .railDot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-paper) 24%, transparent);
+}
+
+.railDark .railLabel {
+  color: color-mix(in srgb, var(--color-paper) 65%, transparent);
+}
+
+.railDark .railStep[data-state="done"] .railLabel,
+.railDark .railStep[data-state="current"] .railLabel {
+  color: var(--color-paper);
+}
+
+.railDark .railLink {
+  background: color-mix(in srgb, var(--color-paper) 30%, transparent);
+}
+
+.railDark .railLink[data-state="done"] {
+  background: var(--color-paper);
+}
+
+/* Le bouton qui occupe toute la largeur de sa carte. */
+.todayCta {
+  width: 100%;
+  margin-top: 15px;
+}
+
+.milestoneError {
+  margin: 10px 0 0;
+  color: var(--color-red-dark);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------- cartes d'appoint */
+
+.emptyCard {
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-paper) 94%, var(--color-blue-light));
+  padding: clamp(28px, 5vw, 44px);
+  text-align: center;
+}
+
+.emptyIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 58px;
+  height: 58px;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  border-radius: 18px;
+}
+
+.emptyCard h2 {
+  margin: 16px 0 0;
+  color: var(--color-ink);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.emptyCard > p {
+  max-width: 52ch;
+  margin: 9px auto 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 23px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 11px 19px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  color: var(--color-paper);
+  background: var(--color-blue);
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--color-blue) 20%, transparent);
+}
+
+.primaryButton:hover {
+  background: var(--color-blue-dark);
+}
+
+/* Un démarrage part sur le réseau : le bouton cesse de se proposer tant que la
+   session n'est pas créée, sinon deux clics = deux sessions. */
+.primaryButton:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.primaryButton:focus-visible,
+.panelRow:focus-visible,
+.page a:focus-visible,
+.page button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- squelette */
+
+.skeletonHead,
+.skeletonHero {
+  border-radius: 20px;
+  background: linear-gradient(90deg, var(--color-line), var(--color-blue-soft), var(--color-line));
+  background-size: 200% 100%;
+  animation: loading 1.4s linear infinite;
+}
+
+.skeletonHead {
+  width: 42%;
+  height: 75px;
+  margin-bottom: 24px;
+}
+
+.skeletonHero {
+  height: 300px;
+}
+
+@keyframes loading {
+  to { background-position: -200% 0; }
+}
+
+/* ============================================================================
+   Fiche d'un domaine (`/plan/domaine/[domaine]`) et écran d'évolution
+   (`/plan/evolution`) — mêmes briques, quelques structures propres.
+   ============================================================================ */
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  color: var(--color-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.narrow {
+  width: min(100%, 780px);
+  margin: 0 auto;
+}
+
+.domainHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.domainHeroBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.domainHeroLevel {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.domainHeroMeta {
+  margin: 2px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+}
+
+.card {
+  padding: 20px 22px;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--color-ink);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.cardText {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.tint {
+  border-color: transparent;
+  background: var(--plan-surface-2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.levelRow:hover {
+  background: var(--plan-surface-2);
+}
+
+.levelRow:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.levelBadge {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--plan-surface-3);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.levelBadgeBlocking {
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+}
+
+.levelFlag {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--plan-red-tint);
+  color: var(--color-red-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.taskCount {
+  flex: none;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Écran d'évolution : le bandeau de tête, centré. */
+.evolutionHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 26px;
+  text-align: center;
+}
+
+.evolutionIcon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.evolutionHead h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(26px, 4vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.evolutionHead p {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* La même liste de domaines, réemployée par « Ma progression » : elle y vit
+   hors de `.page`, donc elle porte ses propres variables locales. */
+.domainsSummary {
+  --plan-surface: #fff;
+  --plan-surface-2: var(--color-blue-soft);
+  --plan-surface-3: var(--color-paper-2);
+  --plan-line-soft: var(--color-line-2);
+  --plan-blue-tint: color-mix(in srgb, var(--color-blue) 10%, transparent);
+  --plan-red-tint: color-mix(in srgb, var(--color-red) 9%, transparent);
+  --plan-green-tint: color-mix(in srgb, var(--color-green) 12%, transparent);
+  --plan-amber-tint: color-mix(in srgb, var(--color-amber) 20%, transparent);
+
+  margin-bottom: 22px;
+}
+
+/* ============================================================ verrou freemium
+
+   Le flou de la maquette, posé sur DEUX endroits et deux seulement : les items
+   de la séance à partir du deuxième, et les lignes de « Mes priorités » à
+   partir de la deuxième — c'est-à-dire sur ce que le serveur a marqué
+   `locked`. Tout le reste de l'écran (profil, chemin, compteurs, compétences
+   observées, étapes franchies) reste NET : on floute l'action pas encore
+   accessible, jamais le résultat mesuré. Ce sont ses productions.
+
+   ⚠️ Le flou n'est PAS la protection — le blocage vient de `aria-hidden` +
+   `inert` posés par `PlanBlur`, et le serveur refuse l'accès de son côté.
+   ============================================================================ */
+
+.blur {
+  display: grid;
+  min-width: 0;
+  /* 4 px : la valeur de la maquette (`WFlou force={4}`). Assez pour que le mot
+     ne se lise pas, assez peu pour qu'on voie qu'il y a bien du contenu. */
+  filter: blur(4px);
+  opacity: 0.5;
+  /* Ni sélectionnable ni cliquable : un flou qu'on copie-colle ne cache rien. */
+  user-select: none;
+  pointer-events: none;
+}
+
+/* L'information NETTE d'une ligne verrouillée, réservée aux lecteurs d'écran :
+   ce qu'il y a derrière le flou et comment l'ouvrir. Elle vit hors du bloc
+   flouté, sinon elle partirait avec lui. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ============================================================================
+   « Ma progression » (`/plan/progression`) — le suivi adossé au Plan.
+
+   🛑 Aucune barre de pourcentage : le score interne du moteur de maîtrise n'est
+   exposé à aucun front. Les paliers portent leur ÉTAT, pas un chiffre.
+   ============================================================================ */
+
+.progressHero {
+  padding: 22px clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--plan-surface);
+  box-shadow: var(--plan-shadow-soft);
+}
+
+.progressHeroRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.progressHeroBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+}
+
+.progressHeroLabel {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.progressHeroValue {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(28px, 6vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Rien de mesuré : la phrase remplace le palier, et se lit comme une phrase —
+   jamais comme un niveau. */
+.progressHeroValue[data-unknown="1"] {
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.progressHeroGoal .progressHeroLabel,
+.progressHeroGoal .progressHeroValue {
+  color: var(--color-blue);
+}
+
+.progressHeroArrow {
+  flex: none;
+  margin-bottom: 8px;
+  color: var(--color-muted-2);
+}
+
+.progressHeroRail {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--plan-line-soft);
+}
+
+.progressHeroCount {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Deux colonnes dès qu'il y a la place, une seule sinon — sans point de rupture
+   à tenir à la main. */
+.progressGrid {
+  display: grid;
+  /* `min(…, 100%)` : sous 344 px de large, la colonne se rabat au lieu de
+     déborder — pas de scroll horizontal à 360 px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(288px, 100%), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.progressCardHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--plan-line-soft);
+  transition: background 0.15s ease;
+}
+
+.progressCardHead:hover {
+  background: var(--plan-surface-2);
+}
+
+.progressEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.progressEmpty .primaryButton {
+  min-height: 42px;
+  font-size: 13.5px;
+}
+
+/* Le repère factuel du passage à faire (sa nature, sa durée quand il en a une)
+   — sous le bouton, jamais à sa place. */
+.progressEmptyMeta {
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Un palier jamais mesuré n'emprunte l'état de personne : il le dit. */
+.progressUnknown {
+  flex: none;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 460px) {
+  .progressCardHead {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+}
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .page {
+    padding-top: var(--app-bar-gap);
+  }
+}

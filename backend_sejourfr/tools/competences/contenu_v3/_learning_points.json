@@ -1,0 +1,242 @@
+{
+  "EE1-C2": [
+    "Repérer ce qui est demandé",
+    "Répondre à cette demande seule",
+    "Écarter ce qui n'est pas demandé"
+  ],
+  "EE1-C1": [
+    "Choisir le tutoiement ou le vouvoiement",
+    "Tenir le même ton partout",
+    "Rester poli sans être guindé"
+  ],
+  "EE1-C9": [
+    "Nommer ce dont on parle",
+    "Donner un signe qui distingue",
+    "Écarter les autres possibilités"
+  ],
+  "EE1-C10": [
+    "Repérer ce qui intéresse le lecteur",
+    "Retenir les traits utiles",
+    "Laisser de côté le reste"
+  ],
+  "EE1-C7": [
+    "Donner l'aspect et l'âge",
+    "Dire le caractère ou le rôle",
+    "Décrire la composition d'un groupe"
+  ],
+  "EE1-C11": [
+    "Situer le lieu ou l'objet",
+    "Donner la taille et la matière",
+    "Dire l'usage ou l'ambiance"
+  ],
+  "EE1-C3": [
+    "Remplacer les mots vagues",
+    "Donner une couleur ou un nombre",
+    "Préciser l'endroit ou le moment"
+  ],
+  "EE1-C8": [
+    "Choisir un ordre de description",
+    "Relier les phrases entre elles",
+    "Refermer la description naturellement"
+  ],
+  "EE2-C1": [
+    "Donner un repère de temps",
+    "Nommer le lieu du récit",
+    "Poser ces repères d'emblée"
+  ],
+  "EE2-C2": [
+    "Nommer les personnes présentes",
+    "Dire ce que chacun faisait",
+    "Ne pas redire le lieu"
+  ],
+  "EE2-C3": [
+    "Tenir le récit au passé",
+    "Distinguer les actions du contexte",
+    "Garder des temps cohérents"
+  ],
+  "EE2-C9": [
+    "Donner la raison d'un choix",
+    "Nommer la cause d'un fait",
+    "Rendre une réaction compréhensible"
+  ],
+  "EE2-C5": [
+    "Poser la première étape",
+    "Enchaîner les étapes suivantes",
+    "Varier les connecteurs de temps"
+  ],
+  "EE2-C6": [
+    "Préciser une personne ou un lieu",
+    "Ajouter une circonstance concrète",
+    "Rester dans le sujet"
+  ],
+  "EE2-C7": [
+    "Nommer un sentiment précis",
+    "Le relier à la situation vécue",
+    "Éviter les mots passe-partout"
+  ],
+  "EE2-C8": [
+    "Dire comment cela s'est terminé",
+    "Ou ce que cela a changé",
+    "Refermer sans exagérer la fin"
+  ],
+  "EE3-C1": [
+    "Répondre à la question posée",
+    "Rendre son avis identifiable",
+    "Rester sur le sujet visé"
+  ],
+  "EE3-C2": [
+    "Donner une raison à son avis",
+    "La rattacher à l'avis annoncé",
+    "Éviter la raison hors sujet"
+  ],
+  "EE3-C3": [
+    "Expliquer pourquoi la raison vaut",
+    "Dérouler le lien jusqu'au bout",
+    "Nommer l'effet obtenu"
+  ],
+  "EE3-C4": [
+    "Choisir un cas précis",
+    "Situer un moment et un geste",
+    "Relier l'exemple à l'argument"
+  ],
+  "EE3-C5": [
+    "Apporter une idée nouvelle",
+    "Changer de terrain",
+    "Ne pas revenir sur la précédente"
+  ],
+  "EE3-C9": [
+    "Ajuster le ton à la personne",
+    "Choisir le niveau de politesse",
+    "Doser la franchise sans blesser"
+  ],
+  "EE3-C7": [
+    "Reconnaître un point adverse réel",
+    "Marquer la concession clairement",
+    "Garder sa position malgré elle"
+  ],
+  "EE3-C8": [
+    "Relier les idées entre elles",
+    "Choisir le bon connecteur",
+    "Se passer d'une conclusion formelle"
+  ],
+  "EO1-C1": [
+    "Donner son nom et sa situation",
+    "Répondre à ce qui est demandé",
+    "Rester court et clair"
+  ],
+  "EO1-C2": [
+    "Répondre par une phrase complète",
+    "Éviter le simple oui ou non",
+    "Rester sur la question posée"
+  ],
+  "EO1-C3": [
+    "Ajouter un quand ou un où",
+    "Préciser avec qui ou pourquoi",
+    "Donner une fréquence"
+  ],
+  "EO1-C4": [
+    "Décrire ses horaires habituels",
+    "Suivre l'ordre de la journée",
+    "Nommer des gestes concrets"
+  ],
+  "EO1-C5": [
+    "Présenter sa famille ou ses proches",
+    "Décrire son logement ou son quartier",
+    "Ajouter deux détails concrets"
+  ],
+  "EO1-C6": [
+    "Situer le moment du récit",
+    "Résumer l'essentiel",
+    "S'arrêter avant le récit développé"
+  ],
+  "EO1-C7": [
+    "Annoncer une intention",
+    "Situer le projet dans le temps",
+    "Ajouter une précision utile"
+  ],
+  "EO1-C8": [
+    "Comprendre ce qu'on vous redemande",
+    "Compléter au lieu de répéter",
+    "Relancer l'échange naturellement"
+  ],
+  "EO2-C1": [
+    "Saluer son interlocuteur",
+    "Présenter la situation en une phrase",
+    "Annoncer ce que l'on cherche"
+  ],
+  "EO2-C2": [
+    "Construire une question complète",
+    "La relier à la situation",
+    "Éviter la question trop vague"
+  ],
+  "EO2-C3": [
+    "Demander prix, horaire ou durée",
+    "Demander documents et inscription",
+    "Demander les règles et services"
+  ],
+  "EO2-C9": [
+    "Poursuivre après un refus",
+    "Relancer poliment",
+    "Proposer une autre solution"
+  ],
+  "EO2-C5": [
+    "Reprendre la réponse obtenue",
+    "En tirer une question nouvelle",
+    "Demander un complément utile"
+  ],
+  "EO2-C6": [
+    "Signaler ce qu'on n'a pas compris",
+    "Demander de répéter autrement",
+    "Reformuler pour faire confirmer"
+  ],
+  "EO2-C7": [
+    "Interroger chaque possibilité",
+    "Faire préciser les différences",
+    "Obtenir ce qui n'est pas dit"
+  ],
+  "EO2-C8": [
+    "Récapituler l'essentiel obtenu",
+    "Vérifier un dernier point",
+    "Prendre congé naturellement"
+  ],
+  "EO3-C1": [
+    "Répondre clairement à la question",
+    "Rendre son opinion identifiable",
+    "Ne pas laisser deviner son avis"
+  ],
+  "EO3-C8": [
+    "Enchaîner sans laisser retomber",
+    "Relier chaque idée à la précédente",
+    "Organiser au lieu d'énumérer"
+  ],
+  "EO3-C2": [
+    "Donner une raison à sa position",
+    "La rattacher à ce qu'on défend",
+    "Éviter la raison hors sujet"
+  ],
+  "EO3-C3": [
+    "Expliquer la cause de sa raison",
+    "En donner la conséquence",
+    "Ajouter une précision concrète"
+  ],
+  "EO3-C4": [
+    "Annoncer qu'on donne un exemple",
+    "Situer une personne et un moment",
+    "Dire l'effet observé"
+  ],
+  "EO3-C5": [
+    "Apporter une idée qui avance",
+    "Changer de terrain",
+    "Ne pas compter ses arguments"
+  ],
+  "EO3-C9": [
+    "Redire la même idée autrement",
+    "Préciser au lieu de répéter",
+    "Repartir sans bloquer sur un mot"
+  ],
+  "EO3-C7": [
+    "Introduire une réserve",
+    "Reconnaître une exception",
+    "Tenir sa position malgré elle"
+  ]
+}

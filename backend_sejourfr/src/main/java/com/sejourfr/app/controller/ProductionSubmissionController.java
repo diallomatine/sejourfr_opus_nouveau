@@ -1,0 +1,107 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.dto.ProductionBilanResponse;
+import com.sejourfr.app.dto.ProductionSubmissionDto;
+import com.sejourfr.app.dto.ProductionTaskDto;
+import com.sejourfr.app.dto.SubmitProductionTextRequest;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.service.ProductionSubmissionService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Surface utilisateur des epreuves productives TCF EO/EE.
+ * Toute la logique vit dans {@link ProductionSubmissionService}.
+ * Les endpoints admin sont dans {@code AdminCalibrationController}.
+ */
+@RestController
+@RequiredArgsConstructor
+public class ProductionSubmissionController {
+
+    private final ProductionSubmissionService productionSubmissionService;
+
+    /**
+     * EO : upload multipart de l'audio.
+     *
+     * <p>{@code clientSubmissionId} est facultatif et porte l'idempotence
+     * (V046) : rejouer la meme cle rend la meme soumission sans repayer.
+     */
+    @PostMapping(value = "/api/production-submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProductionSubmissionDto submitAudio(
+            @RequestPart("audio") MultipartFile audio,
+            @RequestParam("productionTaskId") UUID productionTaskId,
+            @RequestParam("attemptId") UUID attemptId,
+            @RequestParam(value = "clientSubmissionId", required = false) UUID clientSubmissionId) {
+        return productionSubmissionService.submitAudio(
+                productionTaskId, attemptId, audio, clientSubmissionId);
+    }
+
+    /** EE : texte JSON. */
+    @PostMapping(value = "/api/production-submissions", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ProductionSubmissionDto submitText(@Valid @RequestBody SubmitProductionTextRequest req) {
+        return productionSubmissionService.submitText(req);
+    }
+
+    /** Relancer une submission FAILED (max 3 retries, controle dans le service). */
+    @PostMapping("/api/production-submissions/{id}/retry")
+    public ProductionSubmissionDto retry(@PathVariable UUID id) {
+        return productionSubmissionService.retry(id);
+    }
+
+    /** Detail d'une submission : reserve au proprietaire (l'admin a sa propre route). */
+    @GetMapping("/api/production-submissions/{id}")
+    public ProductionSubmissionDto detail(@PathVariable UUID id) {
+        return productionSubmissionService.getOwnDetail(id);
+    }
+
+    /**
+     * Bilan serveur d'une session production EE/EO. Le niveau CECRL d'epreuve
+     * n'est rempli que pour une session d'examen blanc entierement evaluee
+     * (ou terminee : taches manquantes comptees 0).
+     */
+    @GetMapping("/api/attempts/{attemptId}/production-bilan")
+    public ProductionBilanResponse bilan(@PathVariable UUID attemptId) {
+        return productionSubmissionService.bilan(attemptId);
+    }
+
+    /**
+     * Composition deterministe d'une session d'examen blanc production : les
+     * 3 sujets (T1, T2, T3) de l'attempt — module (bandes A2/B1/B2 par slot)
+     * ou sous-epreuve d'un examen TCF complet (niveau cible du user).
+     */
+    @GetMapping("/api/attempts/{attemptId}/production-exam-tasks")
+    public List<ProductionTaskDto> examTasks(@PathVariable UUID attemptId) {
+        return productionSubmissionService.examTasks(attemptId);
+    }
+
+    /** Historique de l'utilisateur, optionnellement filtre par epreuve. */
+    @GetMapping("/api/users/me/production-submissions")
+    public List<ProductionSubmissionDto> mine(
+            @RequestParam(required = false) EpreuveType epreuve,
+            @RequestParam(defaultValue = "20") int limit) {
+        return productionSubmissionService.listMine(epreuve, limit);
+    }
+
+    /**
+     * Derniere submission de l'utilisateur par numero de tache pour un (epreuve, niveau).
+     * Sert au hub d'entrainement pour afficher la derniere note sur chaque card (T1, T2, T3).
+     */
+    @GetMapping("/api/users/me/production-submissions/last-per-task")
+    public List<ProductionSubmissionDto> lastPerTask(
+            @RequestParam EpreuveType epreuve,
+            @RequestParam String niveau) {
+        return productionSubmissionService.lastPerTask(epreuve, niveau);
+    }
+}

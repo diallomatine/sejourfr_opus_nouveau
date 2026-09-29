@@ -1,0 +1,363 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/analytics/analytics.dart';
+import '../../core/api/api_client.dart';
+import '../../core/models/attempt_summary.dart';
+import '../../core/models/question_models.dart';
+import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import '../tcf_production/widgets/exam_filter_chips.dart';
+import '../tcf_production/widgets/exam_progress_card.dart';
+import '../tcf_production/widgets/exams_error_view.dart';
+import '../tcf_production/widgets/flag_badge.dart';
+import '../tcf_production/widgets/module_screen_header.dart';
+import 'civique_theme_exam_launcher.dart';
+import 'civique_hub_data.dart';
+import 'widgets/exam_done_sheet.dart';
+import 'widgets/civique_exams/civique_exam_slot_builder.dart';
+import 'widgets/civique_exams/civique_exams_stats_row.dart';
+
+const int _examSlotsCount = 10;
+const int _visibleByDefault = 7;
+const int _examTotalQuestions = 20;
+
+/// Page « Examens blancs » d'un thème Civique (`/civique/theme/:themeId/examens`).
+/// Pendant de `TcfQcmExamsScreen` — header + drapeau + 3 stats + progress +
+/// chips filtre + 10 slots numérotés.
+///
+/// 🛑 **Le slot 1 de chaque thème est offert et rejouable** (arbitrage du
+/// propriétaire du 2026-09-24, qui révoque D-33 sur ce point), comme l'examen 1
+/// d'une épreuve CO / CE ; les suivants sont réservés aux abonnés Civique.
+///
+/// Le verrou est **servi** créneau par créneau
+/// ([civiqueThemeExamSlotsProvider]) et opposable (403) : l'écran le lit, il ne
+/// le déduit jamais du rang. Miroir web :
+/// `app/entrainement/civique/[theme]/examens/page.tsx`.
+class CiviqueThemeExamsScreen extends ConsumerStatefulWidget {
+  const CiviqueThemeExamsScreen({super.key, required this.themeId});
+
+  final String themeId;
+
+  @override
+  ConsumerState<CiviqueThemeExamsScreen> createState() =>
+      _CiviqueThemeExamsScreenState();
+}
+
+class _CiviqueThemeExamsScreenState
+    extends ConsumerState<CiviqueThemeExamsScreen> {
+  int _filter = 0;
+  bool _showAll = false;
+  bool _starting = false;
+
+  /// 🛑 **`watch`, jamais `read`** : le paywall est poussé AU-DESSUS de cet
+  /// écran, qui reste monté — et la source observe `accesRevisionProvider`,
+  /// donc les cadenas se relisent après un achat. Tant que la grille servie
+  /// n'est pas arrivée, un créneau reste verrouillé.
+  bool _isLocked(int slot) =>
+      ref
+          .watch(civiqueThemeExamSlotsProvider(widget.themeId))
+          .valueOrNull
+          ?.isLocked(slot) ??
+      true;
+
+  void _openBriefing(ThemeDto theme, {required int slotNumber}) {
+    if (_starting) return;
+    if (_isLocked(slotNumber)) {
+      showPaywallSheet(
+        context,
+        ref: ref,
+        ctaLocation: AnalyticsCtaLocation.mockExam,
+      );
+      return;
+    }
+    launchCiviqueThemeExam(
+      context,
+      ref,
+      themeId: theme.id,
+      themeName: theme.name,
+      slotNumber: slotNumber,
+      onBusy: (busy) {
+        if (mounted) setState(() => _starting = busy);
+      },
+    );
+  }
+
+  /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination
+  /// que « Voir le détail » des lots.
+  void _openExamReport(AttemptSummary attempt) {
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
+  }
+
+  void _showExamSheet(AttemptSummary attempt, ThemeDto theme, int slot) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final subtitle =
+        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: 'Examen blanc $slot',
+        subtitle: subtitle,
+        accent: AppColors.blue,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          _openExamReport(attempt);
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          _openBriefing(theme, slotNumber: slot);
+        },
+      ),
+    );
+  }
+
+  void _back() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(
+        AppRoutes.civiqueThemeDetail.replaceFirst(':themeId', widget.themeId),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themesAsync = ref.watch(civiqueThemesProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: themesAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.blue),
+          ),
+          error: (e, _) => ExamsErrorView(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () => ref.invalidate(civiqueThemesProvider),
+            accent: AppColors.blue,
+          ),
+          data: (themes) {
+            final theme =
+                themes.where((t) => t.id == widget.themeId).firstOrNull;
+            if (theme == null) {
+              return ExamsErrorView(
+                message: 'Thème introuvable.',
+                onRetry: () => ref.invalidate(civiqueThemesProvider),
+                accent: AppColors.blue,
+              );
+            }
+            return _buildScaffold(theme);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(ThemeDto theme) {
+    final async = ref.watch(civiqueThemeExamsHistoryProvider(theme.id));
+    return Column(
+      children: [
+        ModuleScreenHeader(
+          title: 'Examens blancs',
+          subtitle: '${theme.name} · Civique',
+          onBack: _back,
+          trailing: const FlagBadge(),
+        ),
+        Expanded(
+          child: async.when(
+            loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.blue)),
+            error: (e, _) => ExamsErrorView(
+              message: ApiClient.toApiException(e).message,
+              onRetry: () => ref
+                  .invalidate(civiqueThemeExamsHistoryProvider(theme.id)),
+              accent: AppColors.blue,
+            ),
+            data: (history) => _buildContent(theme, history),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(ThemeDto theme, List<AttemptSummary> history) {
+    // Group by slot_number : dernier essai par slot (cf. V110 + commentaire
+    // sur `civique_full_exams_screen.dart::_buildContent`).
+    final bySlot = <int, AttemptSummary>{};
+    for (final a in history) {
+      if (!a.isFinished || a.slotNumber == null) continue;
+      bySlot.putIfAbsent(a.slotNumber!, () => a);
+    }
+    final nextSlot = _firstFreeSlot(bySlot);
+
+    final filtered = <int>[
+      for (int i = 0; i < _examSlotsCount; i++)
+        if (_passesFilterBySlot(slotIndex: i, bySlot: bySlot)) i,
+    ];
+    final visible =
+        _showAll ? filtered : filtered.take(_visibleByDefault).toList();
+    final hiddenCount = filtered.length - visible.length;
+
+    final doneCount = bySlot.length;
+    final scores = bySlot.values
+        .where((a) => a.score != null && a.totalQuestions > 0)
+        .toList();
+    final bestScore = scores.isEmpty
+        ? null
+        : scores.map((a) => a.score!).reduce((a, b) => a > b ? a : b);
+    final maxPossible =
+        scores.isEmpty ? _examTotalQuestions : scores.first.totalQuestions;
+    final avgScore = scores.isEmpty
+        ? null
+        : (scores.map((a) => a.score!).reduce((a, b) => a + b) / scores.length)
+            .round();
+
+    final todoCount =
+        _examSlotsCount - bySlot.length - _lockedTodoCountBySlot(bySlot);
+
+    return RefreshIndicator(
+      color: AppColors.blue,
+      onRefresh: () async {
+        ref.invalidate(civiqueThemeExamsHistoryProvider(theme.id));
+        ref.invalidate(civiqueThemeExamSlotsProvider(theme.id));
+        await ref.read(civiqueThemeExamsHistoryProvider(theme.id).future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+        children: [
+          CiviqueExamsStatsRow(
+            doneCount: doneCount,
+            totalCount: _examSlotsCount,
+            bestScore: bestScore,
+            avgScore: avgScore,
+            maxPossible: maxPossible,
+          ),
+          const SizedBox(height: 12),
+          ExamProgressCard(doneCount: doneCount, total: _examSlotsCount),
+          const SizedBox(height: 12),
+          ExamFilterChips(
+            active: _filter,
+            labels: [
+              'Tous · $_examSlotsCount',
+              'À faire · $todoCount',
+              'Terminés · $doneCount',
+            ],
+            onChanged: (i) => setState(() {
+              _filter = i;
+              _showAll = false;
+            }),
+          ),
+          const SizedBox(height: 12),
+          for (final i in visible) ...[
+            _buildSlot(i, bySlot, nextSlot, theme),
+            const SizedBox(height: 8),
+          ],
+          if (filtered.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+              child: Text(
+                _filter == 1
+                    ? 'Tous les examens disponibles sont déjà faits.'
+                    : _filter == 2
+                        ? 'Aucun examen terminé pour l\'instant.'
+                        : 'Aucun examen.',
+                style: AppFonts.ui(size: 13, color: AppColors.muted),
+              ),
+            ),
+          if (hiddenCount > 0)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: TextButton.icon(
+                onPressed: () => setState(() => _showAll = true),
+                icon: Text(
+                  'Voir les examens ${visible.length + 1} à ${filtered.length}',
+                  style: AppFonts.ui(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+                label: const Icon(LucideIcons.chevronDown,
+                    size: 18, color: AppColors.blue),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  bool _passesFilterBySlot({
+    required int slotIndex,
+    required Map<int, AttemptSummary> bySlot,
+  }) {
+    final slotNumber = slotIndex + 1;
+    final isDone = bySlot.containsKey(slotNumber);
+    final isLocked = _isLocked(slotNumber);
+    return switch (_filter) {
+      1 => !isDone && !isLocked,
+      2 => isDone,
+      _ => true,
+    };
+  }
+
+  int _firstFreeSlot(Map<int, AttemptSummary> bySlot) {
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i)) return i;
+    }
+    return _examSlotsCount + 1;
+  }
+
+  int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
+    var locked = 0;
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i) && _isLocked(i)) locked++;
+    }
+    return locked;
+  }
+
+  Widget _buildSlot(
+    int slotIndex,
+    Map<int, AttemptSummary> bySlot,
+    int nextSlot,
+    ThemeDto theme,
+  ) {
+    final number = slotIndex + 1;
+    final attempt = bySlot[number];
+    final isLocked = _isLocked(number);
+    final isNext = number == nextSlot && number <= _examSlotsCount;
+    final action = attempt != null
+        ? () => _showExamSheet(attempt, theme, number)
+        : _onEmptyTap(number, theme);
+    return CiviqueExamSlotBuilder(
+      number: number,
+      attempt: attempt,
+      isLocked: isLocked,
+      isNext: isNext,
+      examTotalQuestions: _examTotalQuestions,
+      onTap: action,
+      onAction: action,
+    ).build();
+  }
+
+  VoidCallback _onEmptyTap(int slotNumber, ThemeDto theme) {
+    return () {
+      if (_isLocked(slotNumber)) {
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
+      } else {
+        _openBriefing(theme, slotNumber: slotNumber);
+      }
+    };
+  }
+}

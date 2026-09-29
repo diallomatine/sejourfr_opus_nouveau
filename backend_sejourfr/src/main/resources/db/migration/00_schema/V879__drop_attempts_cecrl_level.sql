@@ -1,0 +1,37 @@
+-- ============================================================================
+-- V879 — attempts.cecrl_level : SUPPRESSION
+-- ----------------------------------------------------------------------------
+-- ⚠️ NUMERO HORS DE LA PLAGE DU DOSSIER (00_schema = V001-V099), ET C'EST
+--    VOULU. Flyway ordonne par NUMERO, pas par dossier : une migration de
+--    reference ECRIT dans cette colonne (V112__reset_tcf_cecrl_levels), donc un
+--    drop numerote dans les V0xx s'executerait AVANT elle et ferait echouer
+--    toute base neuve sur « column cecrl_level does not exist ». Le drop d'une
+--    colonne que des migrations posterieures alimentent se numerote APRES
+--    elles. V879 : apres tout le contenu (max V878), avant le seed dev (V900).
+-- ----------------------------------------------------------------------------
+-- Le niveau CECRL d'une epreuve QCM (CO/CE) n'est plus persiste : c'est un
+-- DERIVE, recalcule a la lecture depuis les reponses par
+-- TcfLevelEstimatorService (regle du « plus haut palier maitrise », 2026-09-20).
+--
+-- Pourquoi la colonne PART, et ne reste pas « au cas ou » :
+--   * elle portait un VERDICT, pas une mesure. Une ligne ecrite sous une regle
+--     donnee ne peut plus etre relue par la suivante -- c'est exactement ce qui
+--     rendait impossible de reparer la bande A2 morte sans migration de
+--     recalcul ;
+--   * une colonne qu'on ecrit sans jamais la lire refabrique des lignes
+--     fossiles. Elle n'est plus ecrite depuis le meme commit ;
+--   * l'entite Attempt ne la mappe plus. La garder ferait diverger schema et
+--     modele sans qu'aucun test ne le voie.
+--
+-- Ce qui RESTE persiste, et qui est de la MESURE, pas un verdict :
+--   * weighted_score / max_weighted_score, matiere du score de PROGRESSION
+--     100-499 (qui ne classe plus rien) ;
+--   * level_achieved, palier legacy A2/B1/B2 ;
+--   * final_cecrl_level, sur le parent TCF_COMPLET uniquement -- il agrege
+--     aussi EE/EO, dont la notation IA n'est pas rejouable a la lecture.
+--
+-- Aucune perte d'information : les reponses qui produisaient ce niveau sont en
+-- base (attempt_questions + answers), et la regle les relit toutes.
+-- ============================================================================
+
+ALTER TABLE attempts DROP COLUMN IF EXISTS cecrl_level;

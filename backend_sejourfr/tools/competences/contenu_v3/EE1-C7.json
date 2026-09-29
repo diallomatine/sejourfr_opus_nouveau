@@ -1,0 +1,659 @@
+{
+  "skillCode": "EE1-C7",
+  "rang": 5,
+  "titre": "Décrire une personne ou un groupe",
+  "critere": "Donner l'aspect, l'âge, le caractère, le rôle, ou la composition et l'ambiance d'un groupe.",
+  "remplace": "EE1-C7 — Décrire simplement une personne, un lieu ou une situation (15 sujets désactivés ; S2 et S8 repris dans leur idée)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Qui viendra chercher les clés",
+      "context": "L'agence immobilière vous écrit : « Madame, vous nous annoncez qu'une autre personne viendra rendre les clés. Pouvez-vous nous la décrire, afin que nous la reconnaissions à l'accueil ? »",
+      "instruction": "Répondez-leur en décrivant cette personne.",
+      "uniqueCriterion": "Votre réponse décrit une personne par des traits qui permettent de la reconnaître à l'accueil.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez son allure",
+        "Ajoutez un vêtement",
+        "Restez sur elle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect physique",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Il s'agit de ma belle-sœur…",
+      "tip": "à l'accueil, on reconnaît une allure avant un prénom",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il s'agit de ma belle-sœur. Elle passera dans la matinée de vendredi, avant midi si tout va bien. Elle aura les deux clés et le badge du parking. Merci de lui remettre l'attestation en échange.",
+          "pedagogicalNote": "Le moment et les objets remis sont donnés, mais aucun trait ne permet de la reconnaître à l'accueil."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Il s'agit de ma belle-sœur, Lina. C'est une femme d'une quarantaine d'années, de taille moyenne, avec des cheveux châtains attachés. Elle porte des lunettes fines et vient souvent en tailleur gris.",
+          "pedagogicalNote": "Âge, taille, cheveux, lunettes, vêtement : chaque trait se voit depuis un comptoir d'accueil."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Il s'agit de ma belle-sœur, Lina. Une femme d'une quarantaine d'années, de taille moyenne, les cheveux châtains toujours attachés en queue basse. Elle porte de fines lunettes rondes et vient généralement en tailleur gris. Elle parle assez fort et sourit facilement.",
+          "pedagogicalNote": "L'allure gagne en précision et le caractère ajoute un repère utile quand plusieurs personnes attendent."
+        }
+      ]
+    },
+    {
+      "title": "Décrire son groupe à l'office",
+      "context": "L'office de tourisme vous écrit : « Bonjour, vous avez réservé pour une visite en famille. Décrivez-nous votre groupe : cela nous aide à vous conseiller un parcours. »",
+      "instruction": "Répondez-leur en décrivant votre groupe.",
+      "uniqueCriterion": "Votre réponse décrit la composition du groupe et ce qui le caractérise, pas le programme de votre séjour.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites combien",
+        "Donnez les âges",
+        "Ajoutez l'ambiance"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous serons six…",
+      "tip": "un groupe se décrit par qui le compose, pas par ce qu'il fera",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous arrivons vendredi soir et nous repartons dimanche. Nous voudrions voir le château samedi matin et le musée l'après-midi, puis peut-être le marché avant de partir. Nous logeons près de la gare.",
+          "pedagogicalNote": "Vous décrivez votre programme. L'office demandait qui compose le groupe, pour pouvoir vous conseiller."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous serons six : mes parents, qui ont plus de soixante-dix ans, ma sœur et moi, et nos deux enfants de six et neuf ans. Trois générations, donc, avec des rythmes très différents. Tout le monde parle français.",
+          "pedagogicalNote": "Effectif, âges, générations, langue : la composition est claire et l'office peut adapter son conseil."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous serons six : mes parents, plus de soixante-dix ans et marcheurs prudents, ma sœur et moi, et nos deux enfants de six et neuf ans, infatigables. Trois générations, donc, et deux rythmes qui ne vont pas ensemble. Tout le monde parle français.",
+          "pedagogicalNote": "Les rythmes opposés sont nommés : c'est le trait du groupe qui pèse le plus sur le conseil demandé."
+        }
+      ]
+    },
+    {
+      "title": "Le nouveau voisin de palier",
+      "context": "Une voisine du troisième vous écrit : « Il paraît que quelqu'un a emménagé au deuxième. Vous l'avez croisé ? Il est comment ? J'aimerais savoir à qui je dis bonjour. »",
+      "instruction": "Répondez-lui en décrivant ce nouveau voisin.",
+      "uniqueCriterion": "Votre réponse décrit la personne — son allure et sa manière d'être — et non son emménagement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez son âge",
+        "Décrivez son allure",
+        "Dites comment il est"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Oui, je l'ai croisé deux fois. C'est…",
+      "tip": "elle veut mettre un visage sur un bonjour",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui, il a emménagé samedi dernier. Le camion est resté toute la journée devant le porche et ils ont monté des meubles jusqu'à dix-neuf heures. Il y avait beaucoup de cartons, il doit venir de loin.",
+          "pedagogicalNote": "Vous racontez le déménagement. Votre voisine demandait à quoi ressemble la personne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Oui, je l'ai croisé deux fois. C'est un homme d'une cinquantaine d'années, assez grand, les cheveux gris et courts. Il porte souvent une veste en jean. Il dit bonjour le premier et il s'arrête volontiers pour parler.",
+          "pedagogicalNote": "Âge, taille, cheveux, vêtement, manière d'être : la voisine peut le reconnaître et sait à quoi s'attendre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Oui, je l'ai croisé deux fois. Un homme d'une cinquantaine d'années, assez grand, les cheveux gris coupés court et une barbe de trois jours. Il porte presque toujours une veste en jean. Il dit bonjour le premier et s'arrête volontiers, même quand on est pressé.",
+          "pedagogicalNote": "Le dernier détail — s'arrêter même quand on est pressé — dit le caractère par un fait plutôt que par un adjectif."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe de bénévoles",
+      "context": "La mairie vous écrit : « Bonjour, vous coordonnez les bénévoles de la fête de quartier. Décrivez-nous l'équipe que vous avez réunie cette année. »",
+      "instruction": "Répondez-leur en décrivant cette équipe de bénévoles.",
+      "uniqueCriterion": "Votre réponse décrit la composition et l'ambiance de l'équipe, pas l'organisation de la fête.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites combien",
+        "Donnez les profils",
+        "Ajoutez l'ambiance"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "L'équipe compte…",
+      "tip": "ils demandent qui est l'équipe, pas ce qu'elle va organiser",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous prévoyons trois stands, une buvette et un podium pour le concert du soir. Le montage aura lieu le vendredi après-midi et le rangement le dimanche matin. Il nous faudrait deux tables supplémentaires.",
+          "pedagogicalNote": "Vous décrivez la fête. La mairie demandait à quoi ressemble l'équipe que vous avez réunie."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "L'équipe compte douze personnes cette année. Sept étaient déjà là l'an dernier, cinq sont nouvelles. Il y a quatre retraités, trois lycéens et cinq parents d'élèves. L'ambiance est très bonne et chacun sait déjà ce qu'il fait.",
+          "pedagogicalNote": "Effectif, ancienneté, profils, ambiance : le groupe est décrit sans glisser vers l'événement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "L'équipe compte douze personnes, dont sept déjà présentes l'an dernier. Quatre retraités très réguliers, trois lycéens qui viennent surtout le samedi, et cinq parents d'élèves. Les anciens forment les nouveaux sans qu'on ait rien à organiser.",
+          "pedagogicalNote": "Les disponibilités par sous-groupe et l'entraide spontanée décrivent le fonctionnement réel du groupe."
+        }
+      ]
+    },
+    {
+      "title": "La personne qui garde les enfants",
+      "context": "Votre belle-mère vous écrit : « Tu m'as dit que quelqu'un garderait les petits samedi. Je passerai leur dire bonjour. Elle est comment, pour que je ne me trompe pas ? »",
+      "instruction": "Répondez-lui en décrivant cette personne.",
+      "uniqueCriterion": "Votre réponse décrit la personne et sa manière d'être avec les enfants, pas l'organisation de la garde.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez son allure",
+        "Dites comment elle est",
+        "Laissez l'organisation"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est Élodie…",
+      "tip": "elle veut la reconnaître et savoir à qui elle confie les petits",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle arrive à neuf heures et repart vers dix-sept heures. Elle a les clés et le numéro du médecin. Les enfants déjeunent à midi et Léa fait la sieste après. Tout est écrit sur la porte du frigo.",
+          "pedagogicalNote": "Vous décrivez l'organisation de la journée. Elle demandait à quoi ressemble la personne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est Élodie, une jeune femme de vingt-cinq ans, petite et brune, avec des cheveux bouclés. Elle porte souvent un sweat orange. Elle est très calme avec les enfants et elle ne hausse jamais la voix.",
+          "pedagogicalNote": "Âge, taille, cheveux, vêtement, manière d'être : la personne est reconnaissable et rassurante."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est Élodie, vingt-cinq ans, petite et brune, les cheveux bouclés attachés en chignon. Elle porte presque toujours un sweat orange. Avec les enfants, elle est d'un calme rare : elle s'accroupit pour leur parler et ne hausse jamais la voix.",
+          "pedagogicalNote": "Le geste de s'accroupir montre le calme au lieu de l'affirmer, ce qui rassure bien davantage."
+        }
+      ]
+    },
+    {
+      "title": "Les gens du cours de sport",
+      "context": "Une amie vous écrit : « J'hésite à venir à ton cours de gym. J'ai cinquante ans et je n'ai plus fait de sport depuis dix ans. Les autres sont comment ? »",
+      "instruction": "Répondez-lui en décrivant le groupe du cours.",
+      "uniqueCriterion": "Votre réponse décrit qui compose le groupe et son ambiance, pas le contenu des séances.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites combien",
+        "Donnez les profils",
+        "Ajoutez l'ambiance"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous sommes une quinzaine, et…",
+      "tip": "elle craint d'être à part : dites qui sont les gens",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "On commence par vingt minutes d'échauffement, puis des exercices au sol et on finit par des étirements. Le prof adapte toujours les mouvements. Ça dure une heure et c'est le mardi soir à dix-neuf heures.",
+          "pedagogicalNote": "Vous décrivez la séance. Votre amie demandait qui sont les autres participants."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous sommes une quinzaine, et la plupart ont entre quarante et soixante ans. Trois personnes ont commencé cette année sans jamais avoir fait de sport. Personne ne regarde les autres, l'ambiance est très détendue.",
+          "pedagogicalNote": "Effectif, tranche d'âge, débutants, ambiance : exactement ce qui peut lever sa crainte."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous sommes une quinzaine, la plupart entre quarante et soixante ans. Trois personnes ont commencé cette année après des années sans sport, et l'une d'elles suivait encore assise il y a six mois. Personne ne regarde personne, on rit beaucoup plus qu'on ne transpire.",
+          "pedagogicalNote": "L'exemple de la personne assise il y a six mois vaut mieux que toutes les assurances possibles."
+        }
+      ]
+    },
+    {
+      "title": "Le médecin remplaçant",
+      "context": "Votre père vous écrit : « J'ai rendez-vous jeudi mais tu m'as dit que mon médecin était remplacé. C'est qui ? Je n'aime pas arriver sans savoir. »",
+      "instruction": "Répondez-lui en décrivant ce médecin remplaçant.",
+      "uniqueCriterion": "Votre réponse décrit la personne — son allure, son âge, sa façon d'être — et non le fonctionnement du cabinet.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez son âge",
+        "Décrivez son allure",
+        "Dites comment il est"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est le docteur Belkacem…",
+      "tip": "il est inquiet : décrivez la personne, pas le cabinet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le cabinet est le même, au premier étage, et le secrétariat n'a pas changé. Les rendez-vous durent vingt minutes comme d'habitude. Prends ta carte Vitale et ton ordonnance, il aura accès à ton dossier.",
+          "pedagogicalNote": "Vous décrivez le cabinet. Votre père voulait savoir qui il allait trouver en face de lui."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est le docteur Belkacem, une femme d'une trentaine d'années, brune, plutôt petite. Elle parle doucement et prend le temps d'expliquer. Elle t'a déjà reçu l'hiver dernier quand tu avais ta bronchite.",
+          "pedagogicalNote": "Âge, aspect, manière de parler, et un souvenir concret : la personne devient familière."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est le docteur Belkacem, une femme d'une trentaine d'années, brune et plutôt petite. Elle parle doucement, reformule tout ce qu'elle explique et écrit les noms de médicaments en majuscules. Elle t'avait reçu l'hiver dernier pour ta bronchite.",
+          "pedagogicalNote": "Reformuler et écrire en majuscules sont deux gestes observés, exactement ce qui rassure une personne âgée."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe qui reprend le commerce",
+      "context": "Un habitué du quartier vous écrit : « On dit que la boulangerie est reprise. Vous les avez rencontrés ? Ils sont comment, ceux qui arrivent ? »",
+      "instruction": "Répondez-lui en décrivant les personnes qui reprennent la boulangerie.",
+      "uniqueCriterion": "Votre réponse décrit le groupe qui reprend le commerce, pas les travaux ni les futurs produits.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites combien",
+        "Donnez qui ils sont",
+        "Laissez les travaux"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ils sont trois…",
+      "tip": "il veut savoir qui arrive, pas ce qui sera vendu",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ils refont toute la vitrine et le carrelage, ça devrait durer trois semaines. Ils garderont les baguettes tradition et ajouteront des pains spéciaux. Le four du fond sera changé. Réouverture prévue début octobre.",
+          "pedagogicalNote": "Vous décrivez les travaux et l'offre. Il demandait qui sont les personnes qui reprennent."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ils sont trois : un couple d'une quarantaine d'années et le frère de la femme, plus jeune. Ils tenaient déjà une boulangerie près de Tours. Ils sont venus se présenter aux commerçants la semaine dernière.",
+          "pedagogicalNote": "Effectif, âges, lien familial, expérience, démarche : le groupe est décrit et situé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ils sont trois : un couple d'une quarantaine d'années et le frère de la femme, plus jeune, qui sera au fournil. Ils tenaient déjà une boulangerie près de Tours pendant douze ans. Ils sont passés se présenter à chaque commerçant de la rue, un par un.",
+          "pedagogicalNote": "Le rôle de chacun et la démarche de présentation, faite « un par un », disent le sérieux du groupe sans le proclamer."
+        }
+      ]
+    },
+    {
+      "title": "La personne au bout du fil",
+      "context": "Votre sœur vous écrit : « Une dame a appelé chez maman en disant qu'elle te connaissait. Maman s'inquiète. Tu vois qui c'est ? Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant cette personne, pour rassurer votre mère.",
+      "uniqueCriterion": "Votre réponse décrit la personne — qui elle est, son âge, sa manière d'être — sans se contenter d'expliquer l'appel.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites qui c'est",
+        "Décrivez-la",
+        "Ne racontez pas l'appel"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est Martine…",
+      "tip": "pour rassurer, il faut un portrait, pas une explication",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah oui, elle appelait sûrement pour l'anniversaire de l'association, on m'avait dit qu'elle contacterait les familles cette semaine. Dis à maman qu'il n'y a aucune inquiétude à avoir, c'est tout à fait normal.",
+          "pedagogicalNote": "Vous expliquez le motif de l'appel. Votre mère s'inquiète de la personne : elle n'a toujours aucun visage à mettre dessus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est Martine, une amie du club de lecture. Une femme d'une soixantaine d'années, petite, avec des cheveux blancs très courts. Elle parle très vite et rit beaucoup. Maman l'a déjà vue à la fête de juin.",
+          "pedagogicalNote": "Âge, allure, manière de parler, et un souvenir commun : le portrait remplace l'inquiétude."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est Martine, du club de lecture. Une femme d'une soixantaine d'années, petite, cheveux blancs très courts et toujours une écharpe colorée. Elle parle très vite et rit au milieu de ses phrases. Maman l'a vue à la fête de juin, elle s'en souviendra.",
+          "pedagogicalNote": "« Rit au milieu de ses phrases » est un trait qui se reconnaît au téléphone : la description est adaptée au canal."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe du voyage scolaire",
+      "context": "Le responsable du centre d'hébergement vous écrit : « Bonjour, vous arrivez lundi avec une classe. Décrivez-nous le groupe : nous répartissons les chambres à l'avance. »",
+      "instruction": "Répondez-lui en décrivant votre groupe d'élèves.",
+      "uniqueCriterion": "Votre réponse décrit la composition du groupe, pas le programme du séjour ni les horaires d'arrivée.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites combien",
+        "Donnez la composition",
+        "Laissez le programme"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Le groupe compte…",
+      "tip": "ils répartissent des chambres : dites qui, pas quoi",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous arrivons lundi vers onze heures en car. Nous visitons la grotte mardi et le musée mercredi matin. Le départ est prévu jeudi après le déjeuner. Merci de prévoir des paniers-repas pour les deux sorties.",
+          "pedagogicalNote": "Vous décrivez le séjour. Ils demandaient la composition du groupe, pour répartir les chambres."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le groupe compte vingt-huit élèves de quatrième, seize filles et douze garçons, âgés de treize à quinze ans. Trois adultes les accompagnent : deux enseignantes et un parent. Deux élèves ont un traitement médical à prendre le soir.",
+          "pedagogicalNote": "Effectif, répartition, âges, encadrants, besoins particuliers : tout ce qui sert à répartir des chambres."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le groupe compte vingt-huit élèves de quatrième, seize filles et douze garçons, de treize à quinze ans. Trois adultes accompagnent : deux enseignantes et un parent, qui souhaitent des chambres réparties dans les deux étages. Deux élèves suivent un traitement à prendre le soir.",
+          "pedagogicalNote": "La demande de répartition des adultes anticipe exactement la question que le centre allait poser ensuite."
+        }
+      ]
+    },
+    {
+      "title": "L'homme du marché",
+      "context": "Une amie vous écrit : « Tu m'as dit d'aller voir un maraîcher en particulier au marché du mardi. Je ne connais pas son nom. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant ce maraîcher.",
+      "uniqueCriterion": "Votre réponse décrit la personne pour qu'elle le reconnaisse, et non son étal ni ses produits.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Décrivez l'homme",
+        "Ajoutez sa manière",
+        "Laissez l'étal"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est un homme…",
+      "tip": "elle demande une personne : l'étal viendrait trop facilement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est le stand avec la bâche bleue au bout de l'allée, il y a toujours des cagettes en bois empilées devant. Il vend surtout des légumes de saison et des œufs. Les tomates sont excellentes en ce moment.",
+          "pedagogicalNote": "Vous décrivez l'étal et les produits. Votre amie demandait à quoi ressemble le maraîcher lui-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un homme d'une soixantaine d'années, grand et sec, avec une casquette grise qu'il ne quitte jamais. Il a les mains très abîmées. Il parle peu mais il répond toujours quand on lui demande conseil.",
+          "pedagogicalNote": "Âge, silhouette, casquette, mains, manière de parler : le portrait suffit à le reconnaître."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un homme d'une soixantaine d'années, grand et sec, avec une vieille casquette grise qu'il ne quitte jamais, même en plein soleil. Ses mains sont très abîmées. Il parle peu, mais si tu lui demandes ce qui est bon aujourd'hui, il te répondra franchement.",
+          "pedagogicalNote": "La manière d'aborder la personne est indiquée, ce qui rend le portrait immédiatement utile."
+        }
+      ]
+    },
+    {
+      "title": "Les habitants de l'immeuble",
+      "context": "Une future locataire vous écrit : « Je visite un appartement dans votre immeuble jeudi. Vous y vivez depuis longtemps, je crois. Les habitants sont comment ? »",
+      "instruction": "Répondez-lui en décrivant les habitants de l'immeuble.",
+      "uniqueCriterion": "Votre réponse décrit qui habite l'immeuble et l'ambiance entre voisins, et non l'état du bâtiment.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites qui habite là",
+        "Donnez l'ambiance",
+        "Laissez le bâtiment"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous sommes huit foyers…",
+      "tip": "elle demande les gens : l'immeuble viendrait trop naturellement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "L'immeuble date des années soixante, la façade a été ravalée il y a deux ans et l'ascenseur est aux normes. Les parties communes sont nettoyées le lundi. Le chauffage est collectif et les charges restent raisonnables.",
+          "pedagogicalNote": "Vous décrivez le bâtiment. Elle demandait à quoi ressemblent les habitants."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous sommes huit foyers : trois couples de retraités installés depuis longtemps, deux familles avec enfants et trois personnes seules. Tout le monde se dit bonjour. Il y a une fête des voisins chaque année en juin.",
+          "pedagogicalNote": "Effectif, profils, relations, habitude commune : l'ambiance de l'immeuble est décrite par des faits."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous sommes huit foyers : trois couples de retraités installés depuis vingt ans, deux familles avec enfants et trois personnes seules. On se dit bonjour et on se garde les colis. La fête des voisins de juin réunit presque tout le monde, y compris le deuxième étage.",
+          "pedagogicalNote": "Se garder les colis et la participation quasi complète à la fête montrent l'entente au lieu de l'affirmer."
+        }
+      ]
+    },
+    {
+      "title": "Le jeune qui cherche un stage",
+      "context": "Une connaissance vous écrit : « Tu m'as parlé d'un jeune qui cherche un stage. Je peux peut-être le prendre. Il est comment ? Je veux savoir à qui j'aurai affaire. »",
+      "instruction": "Répondez-lui en décrivant ce jeune.",
+      "uniqueCriterion": "Votre réponse décrit la personne — son âge, sa manière d'être, son sérieux — sans se limiter à son parcours scolaire.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez son âge",
+        "Dites comment il est",
+        "Pas que le diplôme"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "C'est Yanis…",
+      "tip": "elle veut savoir qui elle accueille, pas ce qu'il a étudié",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il est en deuxième année de BTS commerce international, avec une option logistique. Il a obtenu son bac avec mention l'an dernier et il a validé tous ses modules. Il cherche un stage de huit semaines à partir de mars.",
+          "pedagogicalNote": "Le parcours scolaire est complet, mais elle demandait à qui elle aurait affaire au quotidien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est Yanis, dix-neuf ans, grand et plutôt réservé. Il écoute beaucoup avant de parler. Il arrive toujours en avance et il pose des questions quand il n'a pas compris, ce qui est rare à cet âge.",
+          "pedagogicalNote": "Âge, allure, caractère, et deux comportements observés : elle sait à qui elle aura affaire."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est Yanis, dix-neuf ans, grand et plutôt réservé : il écoute longtemps avant de parler. Il est arrivé en avance aux trois rendez-vous que je lui ai fixés. Et quand il ne comprend pas, il le dit, au lieu de faire semblant.",
+          "pedagogicalNote": "« Aux trois rendez-vous que je lui ai fixés » remplace une qualité annoncée par une preuve, et le dernier trait est décisif pour un stage."
+        }
+      ]
+    },
+    {
+      "title": "Le public du concert",
+      "context": "Un musicien ami vous écrit : « Je joue dans cette salle le mois prochain et je ne sais pas quoi préparer. Tu y vas souvent : le public est comment ? »",
+      "instruction": "Répondez-lui en décrivant le public de cette salle.",
+      "uniqueCriterion": "Votre réponse décrit le public — qui il est, comment il réagit — et non la salle ni la programmation.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites qui vient",
+        "Décrivez ses réactions",
+        "Laissez la salle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Composition",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Le public est…",
+      "tip": "il demande le public : la salle et la programmation ne sont pas lui",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La salle fait deux cents places assises, avec un balcon au fond. La sono a été refaite l'an dernier et l'acoustique est très bonne. Ils programment surtout du jazz et de la chanson, deux concerts par semaine.",
+          "pedagogicalNote": "Vous décrivez la salle et la programmation. Il demandait qui vient écouter."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le public est plutôt âgé, entre cinquante et soixante-dix ans pour la plupart, avec quelques étudiants. Ils écoutent en silence et applaudissent longtemps. Beaucoup viennent seuls et se connaissent entre eux.",
+          "pedagogicalNote": "Âges, comportement d'écoute, habitudes : le public est décrit tel qu'un musicien a besoin de le connaître."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le public est plutôt âgé, la plupart entre cinquante et soixante-dix ans, avec quelques étudiants au balcon. Ils écoutent dans un silence complet, ne parlent jamais pendant les morceaux, et applaudissent très longtemps. Beaucoup viennent seuls et se saluent avant d'entrer.",
+          "pedagogicalNote": "« Ne parlent jamais pendant les morceaux » est précisément ce qu'un musicien veut savoir avant de choisir son programme."
+        }
+      ]
+    },
+    {
+      "title": "La personne qui vous remplace",
+      "context": "Votre responsable vous écrit : « Vous partez en congé trois semaines. Décrivez-moi la personne que vous proposez pour vous remplacer, je ne la connais pas. »",
+      "instruction": "Répondez-lui en décrivant cette personne.",
+      "uniqueCriterion": "Votre réponse décrit la personne et sa façon de travailler, sans se transformer en liste de tâches à transmettre.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites qui elle est",
+        "Décrivez sa façon",
+        "Pas la liste des tâches"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et caractère",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Je propose Fatou…",
+      "tip": "il ne la connaît pas : c'est un portrait qu'il attend",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle reprendra le suivi des commandes, la relance des impayés et le point hebdomadaire du mardi. Je lui laisserai les accès au logiciel et un document récapitulatif. Les dossiers urgents sont déjà identifiés.",
+          "pedagogicalNote": "Vous listez la passation. Le responsable demandait qui est cette personne, qu'il ne connaît pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je propose Fatou, du service voisin. Elle a trente-cinq ans et dix ans de maison. Elle est très méthodique et travaille vite. Elle a déjà remplacé une collègue l'été dernier et personne n'a rien eu à reprendre.",
+          "pedagogicalNote": "Âge, ancienneté, manière de travailler, antécédent : le portrait professionnel est complet."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je propose Fatou, du service voisin : trente-cinq ans, dix ans de maison. Elle est méthodique au point de tout noter, et elle pose ses questions dès le premier jour plutôt qu'au bout d'une semaine. Elle a déjà remplacé une collègue l'été dernier, sans une seule erreur.",
+          "pedagogicalNote": "Chaque qualité est traduite en comportement observable, ce qui est exactement ce qu'un responsable peut évaluer."
+        }
+      ]
+    }
+  ],
+  "objetsAttendus": [
+    "personne",
+    "groupe"
+  ]
+}

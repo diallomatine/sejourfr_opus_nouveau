@@ -1,0 +1,11 @@
+{
+  "journeyConfigVersion": 4,
+  "maxPrioritiesPerLot": 3,
+  "lotSelectionStrategy": "TOP_SEVERITY",
+  "trainSeriesQuota": 2,
+  "examenCompletJalonCycles": 3,
+  "display": {
+    "recentCompletedVisible": 3,
+    "upcomingVisible": 5
+  }
+}

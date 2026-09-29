@@ -1,0 +1,258 @@
+package com.sejourfr.app.service.billing;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.androidpublisher.AndroidPublisher;
+import com.google.api.services.androidpublisher.AndroidPublisherScopes;
+import com.google.api.services.androidpublisher.model.ProductPurchase;
+import com.google.api.services.androidpublisher.model.ProductPurchasesAcknowledgeRequest;
+import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.sejourfr.app.config.GoogleProperties;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
+
+/**
+ * Wrapper unique sur l'API Google Play Developer (AndroidPublisher) + vérif
+ * d'authenticité des notifications Pub/Sub. Centralise :
+ * <ul>
+ *   <li>{@link #getSubscriptionV2(String)} — état autoritatif d'un achat IAP
+ *       Android (statut, expiry, auto-renew) à partir d'un {@code purchaseToken}.</li>
+ *   <li>{@link #verifyPubSubBearer(String)} — valide le JWT Bearer envoyé par
+ *       Pub/Sub dans le header {@code Authorization}. Vérifie la signature
+ *       Google, l'audience attendue, et l'email du service account.</li>
+ * </ul>
+ *
+ * <p>Si {@link GoogleProperties#isConfigured()} = false, le bean reste créé
+ * mais {@link #isReady()} renvoie false et toutes les méthodes lèvent 503.
+ * Permet à l'app de démarrer en local sans config Google.
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class GoogleStoreClient {
+
+    /**
+     * Issuer Google standard pour les ID tokens signés par un Service Account
+     * (utilisés pour signer le JWT Pub/Sub).
+     */
+    private static final String GOOGLE_ISSUER = "https://accounts.google.com";
+
+    private static final String APP_NAME = "SejourFR backend";
+
+    private final GoogleProperties properties;
+
+    private AndroidPublisher androidPublisher;
+    private GoogleIdTokenVerifier pubSubVerifier;
+
+    @PostConstruct
+    public void init() {
+        if (!properties.isConfigured()) {
+            log.warn(
+                    "Google Play non configuré (sejourfr.google.*) — endpoints IAP Android renverront 503."
+            );
+            return;
+        }
+        try {
+            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
+
+            final GoogleCredentials credentials;
+            try (InputStream sa = resolveServiceAccountJson()) {
+                credentials = GoogleCredentials
+                        .fromStream(sa)
+                        .createScoped(Collections.singletonList(AndroidPublisherScopes.ANDROIDPUBLISHER));
+            }
+
+            this.androidPublisher = new AndroidPublisher.Builder(
+                    httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
+                    .setApplicationName(APP_NAME)
+                    .build();
+
+            this.pubSubVerifier = new GoogleIdTokenVerifier.Builder(httpTransport, jsonFactory)
+                    .setAudience(Collections.singletonList(properties.getPubSubAudience()))
+                    .setIssuer(GOOGLE_ISSUER)
+                    .build();
+
+            log.info(
+                    "Google Play prêt — package={} pubSubAudience={}",
+                    properties.getPackageName(), properties.getPubSubAudience()
+            );
+        } catch (IOException | GeneralSecurityException e) {
+            // Stack trace incluse : une init qui échoue dégrade en 503 silencieux,
+            // la trace est précieuse pour diagnostiquer (clé/chemin/JSON malformé).
+            log.error("Échec init Google Play : {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Le contenu attendu est le <b>JSON brut</b> de la clé de Service Account.
+     * On tolère aussi qu'on passe un <b>chemin de fichier</b> (.json) : pratique
+     * en dev pour pointer directement la clé téléchargée sans inliner tout le
+     * JSON (et sans risquer la troncature multi-ligne du .env).
+     */
+    private InputStream resolveServiceAccountJson() throws IOException {
+        String raw = stripWrapping(properties.getServiceAccountJson().trim());
+        if (raw.startsWith("{")) {
+            return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
+        }
+        Path path = Path.of(raw);
+        if (Files.isRegularFile(path)) {
+            return Files.newInputStream(path);
+        }
+        // Ni JSON inline ni fichier existant : on laisse Gson lever une erreur
+        // explicite sur le contenu brut.
+        return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Retire un éventuel BOM UTF-8 et une paire de quotes résiduelles
+     * (simples ou doubles) qui enrobent la valeur. {@code systemd}
+     * {@code EnvironmentFile=} ne retire PAS toujours les quotes du
+     * {@code .env} (contrairement à un shell) : sans ce nettoyage, la valeur
+     * arrive sous la forme {@code '{"type":...}'} et le {@code startsWith("{")}
+     * échoue → le JSON est pris pour un chemin de fichier puis parsé tel quel
+     * (« malformed JSON at line 1 column 2 »).
+     */
+    private static String stripWrapping(String value) {
+        String out = value;
+        if (out.startsWith("\uFEFF")) {
+            out = out.substring(1).trim();
+        }
+        if (out.length() >= 2) {
+            char first = out.charAt(0);
+            char last = out.charAt(out.length() - 1);
+            if ((first == '\'' && last == '\'') || (first == '"' && last == '"')) {
+                out = out.substring(1, out.length() - 1).trim();
+            }
+        }
+        return out;
+    }
+
+    public boolean isReady() {
+        return androidPublisher != null && pubSubVerifier != null;
+    }
+
+    /**
+     * Récupère l'état autoritatif d'un achat IAP Android. Le {@code
+     * purchaseToken} sert à la fois de paramètre d'appel ET de clé de
+     * réconciliation côté backend (= {@code originalTransactionId} dans
+     * notre schéma multi-source).
+     *
+     * @throws IOException si l'appel API Play échoue.
+     */
+    public SubscriptionPurchaseV2 getSubscriptionV2(String purchaseToken) throws IOException {
+        ensureReady();
+        return androidPublisher.purchases().subscriptionsv2()
+                .get(properties.getPackageName(), purchaseToken)
+                .execute();
+    }
+
+    /**
+     * État autoritatif d'un achat de produit one-time (managed product, lot 5)
+     * via {@code purchases.products.get}. Distinct de
+     * {@link #getSubscriptionV2(String)} (abonnements). Le {@code purchaseToken}
+     * sert de clé de réconciliation ({@code originalTransactionId}).
+     *
+     * @throws IOException si l'appel API Play échoue.
+     */
+    public ProductPurchase getProduct(String productId, String purchaseToken) throws IOException {
+        ensureReady();
+        return androidPublisher.purchases().products()
+                .get(properties.getPackageName(), productId, purchaseToken)
+                .execute();
+    }
+
+    /**
+     * Acquitte un achat de produit one-time (obligatoire sous 3 jours, sinon
+     * Play rembourse). Best-effort : la consommation (pour ré-achat) est faite
+     * côté client par le plugin in_app_purchase.
+     *
+     * @throws IOException si l'appel API Play échoue.
+     */
+    public void acknowledgeProduct(String productId, String purchaseToken) throws IOException {
+        ensureReady();
+        androidPublisher.purchases().products()
+                .acknowledge(properties.getPackageName(), productId, purchaseToken,
+                        new ProductPurchasesAcknowledgeRequest())
+                .execute();
+    }
+
+    /**
+     * Valide le JWT Bearer Pub/Sub envoyé dans {@code Authorization: Bearer <jwt>}.
+     * Le JWT est signé par le Service Account configuré sur la push subscription
+     * Pub/Sub. On vérifie :
+     * <ol>
+     *   <li>Signature contre les clés publiques Google.</li>
+     *   <li>Claim {@code aud} = {@link GoogleProperties#getPubSubAudience()}.</li>
+     *   <li>Claim {@code email} = {@link GoogleProperties#getPubSubServiceAccountEmail()}.</li>
+     * </ol>
+     *
+     * @return l'email du service account (loggé pour audit).
+     * @throws ResponseStatusException 401 si une vérification échoue.
+     */
+    public String verifyPubSubBearer(String authorizationHeader) {
+        ensureReady();
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Header Authorization Bearer manquant sur webhook Google."
+            );
+        }
+        String jwt = authorizationHeader.substring("Bearer ".length()).trim();
+        try {
+            GoogleIdToken token = pubSubVerifier.verify(jwt);
+            if (token == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "JWT Pub/Sub invalide (signature, audience ou expiration)."
+                );
+            }
+            String email = (String) token.getPayload().get("email");
+            if (email == null || !email.equalsIgnoreCase(properties.getPubSubServiceAccountEmail())) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "JWT Pub/Sub : email service account inattendu (" + email + ")."
+                );
+            }
+            return email;
+        } catch (GeneralSecurityException | IOException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Échec vérification JWT Pub/Sub : " + e.getMessage(),
+                    e
+            );
+        }
+    }
+
+    private void ensureReady() {
+        if (!isReady()) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Google Play non configuré côté backend (sejourfr.google.*)."
+            );
+        }
+    }
+
+    /** Expose le package name configuré (utilisé pour les acks et logs). */
+    public String getPackageName() {
+        return properties.getPackageName();
+    }
+}

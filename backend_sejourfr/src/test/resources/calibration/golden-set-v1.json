@@ -1,0 +1,923 @@
+{
+  "version": "v1",
+  "_note": "Corpus de reference SYNTHETIQUE du banc de mesure de la notation IA (EE/EO, TCF IRN). Les 48 productions ont ete ECRITES A LA MAIN pour ce banc : elles ne proviennent d'AUCUN utilisateur reel, aucune n'a ete extraite de la base de production. Tous les prenoms, villes, montants et situations sont inventes ; aucune donnee personnelle n'est presente. Les consignes, en revanche, sont les vraies consignes du projet (seeds SQL db/migration/300_tcf/production/{ee,eo}/tache_*). Ce fichier est une BASE DE DEPART destinee a etre remplacee et completee progressivement par des productions reelles anonymisees, annotees par des enseignants FLE (double annotation ciblee sur les frontieres A2/B1/B2), conformement a la phase 0 de docs/ia/ANALYSE_SPEC_EVALUATION_IA.md. Les valeurs 'attendu' sont des ZONES d'acceptation, pas des verites absolues : niveau_tolerance porte l'accord a +/-1 palier, note_min/note_max la fourchette /20 acceptable. ECHELLE : celle du TCF IRN depuis les rubriques v6. note_min/note_max ne sont plus des jugements independants, mais l'IMAGE MECANIQUE de attendu.niveau par la table officielle de conversion du TCF (0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1, 10-20 = B2), borne basse = borne basse officielle du palier ; borne haute = derniere note, au dixieme pres (le serveur arrondit note_globale a une decimale), qui converge encore vers ce palier. Seuls attendu.niveau, niveau_tolerance, confiance, pieges, les consignes et les productions elles-memes constituent la REFERENCE annotee : ils n'ont jamais ete modifies. Consequence assumee de l'alignement : 'note dans la fourchette' et 'accord exact de niveau' mesurent desormais presque la meme chose — c'est precisement ce que veut dire 'notre note est celle du TCF'.",
+  "cas": [
+    {
+      "id": "EE_T1_A1NA_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Vous venez d'emménager dans un nouveau quartier. Écrivez un message à un ami pour lui annoncer la nouvelle, lui décrire brièvement votre nouveau logement, et l'inviter à venir vous voir un week-end.",
+      "production": "bonjour. je maison. quartier nouveau. bon. deux. ami venir. week-end. merci.",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["description du logement", "invitation formulée"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Juxtaposition de mots isolés sans verbe conjugué ni article maîtrisé (« je maison », « deux »). Le lecteur devine un thème mais aucune des trois intentions de la consigne n'est réellement transmise : on ne sait ni ce qu'est le logement, ni si l'ami est invité. Longueur très en dessous des 30 mots. Cas franc, aucune ambiguïté de palier."
+    },
+    {
+      "id": "EE_T1_A1_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Écrivez un message à votre frère Amadou pour lui annoncer la nouvelle : dites quel est ce travail, exprimez votre joie et proposez de fêter cela ensemble.",
+      "production": "Salut Amadou. Je suis très content. Je trouve un travail. Je suis cuisinier dans un restaurant à Nantes. C'est un bon restaurant. Je commence lundi. Je suis heureux beaucoup. On mange ensemble ? Tu viens chez moi samedi. Bisous.",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Les trois points de la consigne sont là, mais uniquement par des phrases très courtes juxtaposées, sans aucun connecteur. Aucun temps du passé pour un événement passé (« je trouve un travail » au lieu de « j'ai trouvé »). Ordre des mots calqué (« je suis heureux beaucoup »). Communication qui passe : c'est ce qui le sépare du A1_NON_ATTEINT. Frontière A1/A2 assumée car la tâche est accomplie."
+    },
+    {
+      "id": "EE_T1_A2_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Écrivez un message à Fatou pour l'inviter à ce pique-nique : indiquez le lieu et l'heure, et demandez-lui d'apporter quelque chose à partager.",
+      "production": "Coucou Fatou ! Samedi j'organise un pique-nique dans le parc des Cerisiers avec quelques amis. On se retrouve à midi devant la grande porte, à côté du kiosque. Est-ce que tu peut venir ? Si tu veux, tu apporte une salade ou un gâteau pour partager avec tout le monde. Réponds-moi vite !",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Message complet et efficace : lieu, heure et demande d'apport y sont tous. Phrases simples coordonnées, une subordonnée conditionnelle très courante (« si tu veux »). Deux erreurs de conjugaison de la 2e personne (« tu peut », « tu apporte ») typiques du palier A2. Pas de nuance ni de variété de connecteurs : ne monte pas au B1."
+    },
+    {
+      "id": "EE_T1_A2_02",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Écrivez un message à Diego pour le remercier : dites pourquoi son vélo vous a été utile et indiquez quand vous allez le lui rapporter.",
+      "production": "Salut Diego, merci beaucoup pour ton vélo ! Cette semaine mon vélo était chez le réparateur, alors j'ai pris le tien tous les matins pour aller au travail. C'était vraiment pratique, parce que le bus est toujour en retard le matin. Merci encore, tu es un ami super.",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["date ou moment de restitution du vélo"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Passé composé et imparfait corrects, connecteurs « alors » et « parce que » : au-dessus du A2 minimal, d'où la tolérance vers le B1. Mais un des deux points obligatoires manque totalement : le candidat ne dit jamais quand il rend le vélo. C'est exactement le cas que le bloc « accomplissement » doit rendre visible ; la note doit être tirée vers le bas sans faire chuter le niveau de langue."
+    },
+    {
+      "id": "EE_T1_B1_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "B1",
+      "consigne": "Écrivez un message à Rachid pour lui demander d'arroser vos plantes et de relever votre courrier pendant votre absence : expliquez la situation et proposez-lui de lui rendre la pareille à son retour de vacances.",
+      "production": "Bonjour Rachid, je pars une semaine à Lyon lundi matin, pour une formation professionnelle. Est-ce que tu pourrais arroser mes plantes deux fois et relever mon courrier dans la boîte ? Je te laisserai les clés dimanche soir. Bien sûr, quand tu partiras en vacances, je ferai exactement la même chose pour toi. Merci d'avance !",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Demande formulée au conditionnel de politesse, futur simple maîtrisé, subordonnée temporelle (« quand tu partiras »). Discours suivi et organisé sur un format court. Registre adapté au voisin. Pas d'erreur bloquante mais pas non plus de nuance argumentative : B1 franc, pas de B2."
+    },
+    {
+      "id": "EE_T1_B1_02",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "B1",
+      "consigne": "Écrivez un message à Olena pour la féliciter : rappelez un moment difficile qu'elle a surmonté pendant ses études et souhaitez-lui une belle réussite pour son premier poste.",
+      "production": "Chère Olena, félicitations pour ton diplôme ! Je me rappelle très bien l'année où tu travaillais le soir à la boulangerie et où tu réviser jusqu'à deux heures du matin. Tu voulais tout arrêter, mais tu as tenu bon et tu as eu raison. Aujourd'hui je suis fier de toi. Je te souhaite un très beau début dans ton premier poste !",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Rappel du moment difficile bien contextualisé, opposition « tu voulais... mais tu as tenu bon », alternance imparfait / passé composé cohérente. Une relative mal conjuguée (« où tu réviser »), erreur ponctuelle qui ne gêne pas la compréhension. Cas destiné à vérifier que l'IA ne dégrade pas un B1 pour une seule faute visible."
+    },
+    {
+      "id": "EE_T1_B2_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "B2",
+      "consigne": "Répondez à Wei pour décliner son invitation avec tact : exprimez votre regret, expliquez la raison de votre absence et proposez-lui un autre moment pour marquer l'occasion ensemble.",
+      "production": "Cher Wei, merci beaucoup pour ton invitation, et surtout bravo pour ces dix années ! Je suis vraiment navré : vendredi soir, je dois accompagner ma mère à un rendez-vous médical fixé depuis des semaines, et il m'est impossible de le déplacer. Cela dit, j'aimerais sincèrement fêter ça avec toi : un déjeuner le samedi suivant te conviendrait-il ?",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Registre soutenu tenu du début à la fin, lexique précis (« navré », « fixé depuis des semaines »), tournure impersonnelle (« il m'est impossible de »), articulateur d'opposition nuancée (« cela dit »), conditionnel de politesse et interrogation par inversion. Les trois points sont traités avec tact. B2 franc."
+    },
+    {
+      "id": "EE_T1_PIEGE_01",
+      "epreuve": "TCF_EE",
+      "tache": 1,
+      "niveau_cible": "B2",
+      "consigne": "Répondez à Tomás : donnez un avis nuancé sur le cours, expliquez la démarche d'inscription (tarif, horaire) et signalez-lui un point auquel il devra faire attention.",
+      "production": "Bonjour Tomás. Je réponds à ta question. Donner un avis nuancé sur le cours, expliquer la démarche d'inscription (tarif, horaire) et signaler un point auquel tu devra faire attention. Le cours est le jeudi soir. Voilà, je donne un avis nuancé sur le cours et j'explique la démarche d'inscription pour toi. À bientôt.",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1_NON_ATTEINT", "A1"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["avis nuancé sur le cours", "tarif", "point de vigilance"],
+        "pieges": ["CONSIGNE_RECOPIEE"]
+      },
+      "commentaire_annotateur": "Piège du volume artificiel : plus des deux tiers du texte sont la consigne recopiée telle quelle, à peine transposée à la 2e personne. La production propre du candidat se réduit à « Le cours est le jeudi soir ». Le danger est que l'IA lise une syntaxe correcte — la nôtre — et surévalue. Confiance attendue MOYENNE : le contrôle automatique de recopiage doit lever un doute explicite avant même l'évaluation linguistique."
+    },
+
+    {
+      "id": "EE_T2_A1NA_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Racontez votre week-end : où vous étiez, avec qui, ce que vous avez fait samedi et dimanche, et si vous avez passé un bon moment.",
+      "production": "samedi. dimanche. moi. la maison. amis non. manger. bon bon. après télé. travail lundi. fini.",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["lieu", "personnes accompagnantes", "activités de samedi et de dimanche", "appréciation du week-end"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Aucune phrase constituée : dix items juxtaposés, pas un seul verbe conjugué. Le récit demandé (donc un enchaînement temporel) est totalement absent. Loin des 40 mots minimum. Cas franc."
+    },
+    {
+      "id": "EE_T2_A1_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Racontez votre déménagement : quand vous avez déménagé, qui vous a aidé, comment la journée s'est passée, et comment vous vous sentez dans votre nouveau logement.",
+      "production": "Salut Rachid. Oui je déménage samedi dernier. Mon cousin il aide moi. On porte les cartons. C'est très fatigant. L'ascenseur est cassé. Le nouveau appartement est petit mais il y a du soleil. Je suis content. Le quartier est calme. Il y a une boulangerie. Voilà.",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Le récit passé est intégralement au présent (« je déménage samedi dernier », « on porte les cartons ») : c'est le marqueur A1 décisif sur une tâche de narration. Reprise du sujet par pronom (« mon cousin il aide moi »), pronom complément non maîtrisé, accord de l'adjectif antéposé absent (« le nouveau appartement »). Les quatre points sont malgré tout abordés, ce qui justifie la tolérance vers A2."
+    },
+    {
+      "id": "EE_T2_A2_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Racontez ce mariage : quand c'était, où, qui se mariait, ce que vous avez fait pendant la fête, et ce que vous avez préféré.",
+      "production": "Coucou Fatou ! Oui, j'étais au mariage de ma cousine samedi dernier, à Melun, dans une grande salle près de la rivière. Ma cousine Aïcha s'est marié avec un homme très gentil qui travaille à l'hôpital. On a beaucoup mangé, il y avait de la musique et on a dansé jusqu'à trois heures du matin. Moi, j'ai préféré le moment des photos avec toute la famille. C'était une très belle journée.",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Récit complet, chronologie claire, alternance passé composé / imparfait correcte, une relative simple (« qui travaille à l'hôpital »). Accord du participe manqué au pronominal (« s'est marié »). Le texte est au plafond du A2 et touche le bas du B1 : cas de frontière volontaire, à double annoter en priorité."
+    },
+    {
+      "id": "EE_T2_A2_02",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Racontez cette journée spéciale : quel jour c'était, pourquoi elle était importante, ce que vous avez fait du matin au soir, et ce que vous avez ressenti.",
+      "production": "Bonjour Yuki. Jeudi dernier c'était le jour de mon examen de conduite. Le matin je me suis levé à six heures et j'ai révisé le code pendant une heure. Après, mon moniteur est venu me chercher en voiture. L'examen a duré trente minutes dans le centre ville. Le soir j'ai mangé une pizza avec mes colocataires.",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["ce que vous avez ressenti"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Déroulé chronologique propre au passé composé, verbe pronominal correct, mais le texte reste purement factuel : pas un mot sur le ressenti, qui est pourtant un point explicite de la consigne — et on ne saura même pas si l'examen a été réussi. Sert à vérifier que la check-list d'accomplissement repère une omission dans un texte par ailleurs bien écrit."
+    },
+    {
+      "id": "EE_T2_B1_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "B1",
+      "consigne": "Racontez ce voyage : où vous êtes allé, avec qui, comment c'était sur place, un moment qui vous a marqué, et ce que vous avez ressenti en rentrant.",
+      "production": "Salut Diego ! Ça y est, j'y suis allé ! Je suis parti à Marseille quatre jours avec ma sœur. On a logé chez une amie qui habite près du Vieux-Port, ce qui nous a permit de tout faire à pied. Le moment que je retiens, c'est le matin où on a pris le bateau pour les calanques : l'eau était tellement transparente que j'ai eu l'impression d'être ailleurs. En rentrant j'étais fatigué, mais léger, comme si j'avais fait une pause dans ma tête.",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1", "B2"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Discours suivi avec relatives (« qui habite », « le moment que je retiens »), reprise par « ce qui », consécutive « tellement... que », et une comparaison hypothétique au plus-que-parfait (« comme si j'avais fait »). Le ressenti est exprimé avec nuance. Une faute de participe (« permit » pour « permis »). Haut de B1 touchant le B2 : frontière volontaire."
+    },
+    {
+      "id": "EE_T2_B1_02",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "B1",
+      "consigne": "Racontez cet imprévu : où vous étiez, ce qui devait se passer normalement, ce qui est arrivé à la place, comment vous avez réagi, et pourquoi cela vous fait rire aujourd'hui.",
+      "production": "Coucou Lucia ! Alors voilà : j'étais au supermarché de la gare, je voulais juste acheter du lait et du pain avant de rentrer. Au moment de payer, ma carte a été refusé trois fois de suite. Il y avait une longue file derrière moi et tout le monde me regardait. J'ai commencé à paniquer, et puis j'ai compris que j'avais pris ma carte de fidélité au lieu de ma carte bancaire. Maintenant ça me fait rire, mais sur le moment j'étais rouge de honte !",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Les cinq points sont traités dans l'ordre, avec un vrai effet de récit. Plus-que-parfait employé à bon escient pour l'antériorité (« j'avais pris »), passif, opposition présent / passé bien marquée en clôture. Accord du participe au passif manqué (« a été refusé »). B1 franc, sans nuance argumentative qui le pousserait au B2."
+    },
+    {
+      "id": "EE_T2_B2_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "B2",
+      "consigne": "Racontez votre premier jour dans ce nouveau travail : ce que vous imaginiez avant, comment la journée s'est réellement déroulée, ce qui vous a surpris, et ce que cette expérience vous a appris sur vous-même.",
+      "production": "Chère Olena, je m'en souviendrai longtemps. J'avais imaginé une journée d'observation tranquille ; en réalité, on m'a confié un service dès la première heure, faute de personnel. Ce qui m'a le plus surpris, ce n'est pas la charge de travail, mais la confiance que l'équipe m'a accordée d'emblée, alors que je doutais encore de ma légitimité. J'en retiens que je supporte mieux l'imprévu que je ne le croyais, à condition qu'on m'explique clairement ce qu'on attend de moi.",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Opposition attente / réalité construite (plus-que-parfait puis « en réalité »), mise en relief « ce qui... ce n'est pas... mais », concessive « alors que », comparative avec « ne » explétif, subjonctif après « à condition que ». Lexique précis et non scolaire (« faute de personnel », « d'emblée », « ma légitimité »). B2 franc."
+    },
+    {
+      "id": "EE_T2_PIEGE_01",
+      "epreuve": "TCF_EE",
+      "tache": 2,
+      "niveau_cible": "B2",
+      "consigne": "Racontez cette rencontre : dans quelles circonstances elle a eu lieu, qui était cette personne, ce qui vous a frappé chez elle, et en quoi elle a changé votre façon de voir les choses.",
+      "production": "Il est indéniable qu'une rencontre peut bouleverser une existence. Dans mon cas, cette rencontre s'est produite lors d'un séminaire professionnel, où j'ai eu l'opportunité d'échanger avec une personne d'une grande sagesse. Ce qui m'a frappé chez elle, c'est sa capacité d'écoute, sa bienveillance et sa remarquable humilité. Grâce à elle, j'ai appris à relativiser les difficultés du quotidien et à aborder chaque obstacle avec sérénité. En conclusion, cette rencontre a profondément transformé ma manière d'appréhender le monde qui m'entoure.",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B1", "B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "FAIBLE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["identité et profil réels de la personne rencontrée", "circonstances précises de la rencontre"],
+        "pieges": ["IA_GENERE"]
+      },
+      "commentaire_annotateur": "Texte manifestement généré : ouverture par formule creuse (« Il est indéniable que »), triades d'abstractions (« sa capacité d'écoute, sa bienveillance et sa remarquable humilité »), clôture par « En conclusion », zéro détail vécu — ni métier, ni prénom, ni scène, ni date. La langue est irréprochable mais le contenu est vide : c'est le contraire du profil d'un candidat, dont la langue est imparfaite et le contenu concret. Ce que le banc mesure ici n'est pas le palier — il est indécidable — mais la capacité du système à sortir une confiance FAIBLE et à signaler que l'accomplissement n'est qu'apparent."
+    },
+
+    {
+      "id": "EE_T3_A1NA_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Préférez-vous faire vos courses au supermarché ou dans les petits commerces de quartier ? Donnez votre opinion et expliquez deux raisons simples.",
+      "production": "supermarché. moi aime. pas cher. beaucoup choses. petit magasin cher. voilà. merci.",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["opinion formulée en phrase", "deux raisons développées"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Un choix est devinable et deux mots-clés évoquent vaguement des raisons, mais rien n'est construit : pas de verbe conjugué en dehors de « aime », pas de sujet, pas de connecteur. Une dizaine de mots pour un format qui en demande 40 à 90. Cas franc."
+    },
+    {
+      "id": "EE_T3_A1_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Est-ce une bonne idée d'avoir un animal à la maison ? Donnez votre opinion et expliquez deux raisons simples.",
+      "production": "Je pense oui c'est bien. Moi j'ai un chat. Il s'appelle Mimi. Il est très gentil. Le chat joue avec moi le soir. Je suis pas seul dans l'appartement. Aussi les enfants aiment beaucoup les animaux. C'est bien pour les enfants, ils apprennent. Voilà mon opinion.",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Deux raisons sont bien présentes (la solitude, les enfants) mais chacune tient en une phrase juxtaposée sans articulation logique : le seul connecteur est « aussi », placé en tête à la manière d'une liste. Tout est au présent, la négation est réduite à l'oral (« je suis pas seul »). Frontière A1/A2 : la tâche est accomplie, la langue ne l'est pas encore."
+    },
+    {
+      "id": "EE_T3_A2_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Préférez-vous vous déplacer en transports en commun ou en voiture ? Donnez votre opinion et expliquez deux raisons simples.",
+      "production": "Moi je préfère les transports en commun. La première raison, c'est que c'est moins cher : mon abonnement de bus coûte trente euros par mois, et une voiture coûte beaucoup plus avec l'essence et l'assurance. La deuxième raison, c'est que dans le bus je peux lire ou écouter la musique, je suis pas stressé par les embouteillage. Mais quand il pleut et qu'il faut attendre, c'est un peu difficile.",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Structure explicite et scolaire mais efficace (« la première raison, c'est que »), chaque raison illustrée d'un chiffre ou d'un exemple concret, et même une réserve finale non demandée. Comparatif correct. Pluriel manqué (« les embouteillage »), négation orale. Haut de A2 qui touche le B1 : frontière volontaire."
+    },
+    {
+      "id": "EE_T3_A2_02",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Préférez-vous cuisiner chez vous ou manger au restaurant ? Donnez votre opinion et expliquez deux raisons simples.",
+      "production": "Je préfère cuisiner à la maison. Parce que c'est beaucoup moins cher que le restaurant. Au restaurant, un plat coûte quinze ou vingt euros, et avec la boisson c'est encore plus. Chez moi, avec vingt euros je mange trois jours. Le restaurant c'est bien pour les fêtes et les anniversaires, mais pas tous les jours.",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["deuxième raison"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "La consigne demande explicitement deux raisons ; le candidat en donne une seule, l'argument économique, qu'il développe sur quatre phrases. Le volume donne l'illusion d'une copie complète — c'est précisément le piège pour un correcteur pressé, humain ou non. Langue A2 correcte par ailleurs. La note doit être pénalisée par l'accomplissement, pas par la langue."
+    },
+    {
+      "id": "EE_T3_B1_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "B1",
+      "consigne": "Faut-il limiter le temps d'écran des enfants ? Donnez votre avis en défendant votre position avec deux arguments concrets et au moins un exemple personnel ou observé.",
+      "production": "Je pense qu'il faut limiter le temps d'écran des enfants, mais sans l'interdire complètement. D'abord, quand mon neveu passe plus de deux heures devant la tablette, il devient nerveux et il dort mal : ma sœur l'a remarqué tout de suite. Ensuite, ce temps-là est pris sur le jeu dehors et sur les devoirs, et à cet âge c'est là qu'on apprend le plus. C'est vrai que certaines applications sont éducatives, mais à mon avis c'est aux parents de fixer une règle claire.",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Position d'emblée nuancée, deux arguments articulés par « d'abord » / « ensuite », exemple observé précis et daté dans le quotidien, concession finale (« c'est vrai que... mais »). Subjonctif présent après « il faut que » absent mais non requis ici. B1 franc et complet."
+    },
+    {
+      "id": "EE_T3_B1_02",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "B1",
+      "consigne": "Vaut-il mieux voyager seul ou accompagné ? Donnez votre avis en le défendant avec deux arguments illustrés d'exemples (vécus ou observés) et en reconnaissant au moins un avantage du choix opposé.",
+      "production": "Personnellement, je préfère voyager accompagnée. D'une part, partager une découverte double le plaisir : quand je suis allée à Porto avec ma sœur, on parle encore aujourd'hui des mêmes soirées, deux ans après. D'autre part, on se sent plus en sécurité à deux, surtout quand on ne connaît pas la langue du pays. Cela dit, je reconnais que voyager seul oblige à aller vers les autres, et c'est sûrement la meilleure façon de progresser dans une langue étrangère.",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1", "B2"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Articulation « d'une part / d'autre part / cela dit » tenue, deux arguments réellement illustrés, avantage adverse reconnu explicitement comme le demandait la consigne. Le lexique reste courant et les phrases peu ramifiées, ce qui le maintient sous le B2 franc, mais le haut de la fourchette est défendable : frontière B1/B2 volontaire."
+    },
+    {
+      "id": "EE_T3_B2_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "B2",
+      "consigne": "Le télétravail rend-il la vie professionnelle meilleure ou plus difficile ? Défendez une position nuancée : exposez votre thèse, appuyez-la sur au moins deux arguments, puis envisagez explicitement une objection que vous discutez avant de conclure.",
+      "production": "Le télétravail n'améliore pas mécaniquement la vie professionnelle : il déplace les contraintes plus qu'il ne les supprime. D'abord, il rend du temps aux salariés éloignés de leur entreprise, et cette économie de trajets est bien réelle. Ensuite, il permet une concentration que l'open space rend souvent impossible. On m'objectera qu'il isole et brouille la frontière entre vie privée et vie professionnelle ; c'est juste, mais cet effet tient moins au dispositif lui-même qu'à l'absence de règles collectives. Correctement encadré, il reste préférable.",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Thèse posée dès la première phrase avec un « ne... que » comparatif explétif, deux arguments distincts, objection anticipée puis retournée (« c'est juste, mais... tient moins à... qu'à... »), conclusion conditionnée par un participe détaché. Lexique abstrait maîtrisé. B2 franc."
+    },
+    {
+      "id": "EE_T3_PIEGE_01",
+      "epreuve": "TCF_EE",
+      "tache": 3,
+      "niveau_cible": "B2",
+      "consigne": "L'intelligence artificielle va-t-elle améliorer ou dégrader la qualité de l'éducation dans les années à venir ? Défendez une position nuancée : exposez votre thèse, étayez-la avec au moins deux arguments, et envisagez explicitement une objection que vous discutez.",
+      "production": "Bonjour, je m'appelle Samir et j'habite à Rennes depuis deux ans. J'aime beaucoup le football et je joue tous les dimanches avec des amis dans le parc à côté de chez moi. Ma famille habite encore au pays et ma mère me manque beaucoup, je l'appelle chaque semaine. Je travaille dans un restaurant du centre-ville et mon patron est très gentil avec moi. Merci de m'avoir lu.",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["thèse sur l'IA et l'éducation", "deux arguments", "objection discutée"],
+        "pieges": ["HORS_SUJET"]
+      },
+      "commentaire_annotateur": "Hors-sujet total : le candidat produit une présentation de lui-même, sans le moindre lien avec l'intelligence artificielle ni avec l'éducation. La langue est correcte (niveau A2 apparent), ce qui rend le piège efficace : le risque est que l'IA note la langue et oublie la tâche. Règle du banc : hors-sujet total = 0/20 et A1_NON_ATTEINT, quelle que soit la qualité linguistique."
+    },
+
+    {
+      "id": "EO_T1_A1NA_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Présentez-vous : votre nom, votre âge, votre nationalité, votre profession ou vos études, et la ville où vous habitez. Parlez aussi de votre famille (parents, frères, sœurs, conjoint, enfants).",
+      "production": "euh euh bonjour euh moi euh nom euh Sofia euh euh vingt euh vingt et euh euh [silence] euh euh maroc euh non euh euh travail euh non euh euh famille euh maman euh euh [silence] euh voilà euh je sais pas euh",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["âge", "profession ou études", "ville de résidence", "famille"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Trois minutes annoncées, une trentaine de mots produits dont la moitié sont des hésitations. Seul le prénom passe ; l'âge est amorcé sans être achevé, la nationalité tient à un nom de pays isolé, la famille à « maman ». Aucun verbe conjugué. À ne pas confondre avec le cas QUASI_MUET (EO_T1_PIEGE_01) : ici le candidat tente réellement de répondre, il n'en a simplement pas les moyens."
+    },
+    {
+      "id": "EO_T1_A1_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Présentez-vous : votre nom, votre âge, votre nationalité, votre profession ou vos études, et la ville où vous habitez. Parlez aussi de votre famille (parents, frères, sœurs, conjoint, enfants).",
+      "production": "alors euh bonjour euh je m'appelle euh Ravi euh j'ai euh trente-deux ans euh je suis euh euh indien euh j'habite à euh Toulouse euh euh je travaille euh dans un euh magasin euh un supermarché euh euh ma famille euh mon père euh il est euh au pays euh ma mère aussi euh j'ai euh deux frère euh euh un frère il est ici euh à Paris euh il travaille aussi euh euh je suis marié euh non euh pas marié euh pas encore euh euh voilà euh c'est tout euh merci",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Tous les points de la consigne sont couverts, mais uniquement par des énoncés mémorisés de trois ou quatre mots, sans aucun développement : les trois minutes sont très loin d'être tenues. Présent exclusif, pluriel absent (« deux frère »), reprise pronominale systématique, autocorrection maladroite sur le statut marital. A1 avec tâche accomplie a minima."
+    },
+    {
+      "id": "EO_T1_A2_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Présentez-vous : votre nom, votre âge, votre nationalité, votre profession ou vos études, et la ville où vous habitez. Parlez aussi de votre famille (parents, frères, sœurs, conjoint, enfants).",
+      "production": "bonjour alors euh je m'appelle Amina euh j'ai vingt-sept ans je suis euh tunisienne et euh j'habite à Rennes depuis euh deux ans à peu près euh euh je travaille comme euh aide-soignante dans une euh maison de retraite euh c'est un travail euh fatigant mais euh j'aime bien parce que les personnes elles sont euh gentilles et euh elles racontent beaucoup d'histoires euh euh pour ma famille euh mes parents ils habitent euh à Sousse euh mon père il est euh retraité maintenant et ma mère euh elle a un petit magasin de euh de vêtements euh euh j'ai euh une sœur et un frère euh ma sœur elle est plus jeune elle étudie euh à l'université euh la biologie je crois euh et mon frère il a euh trois enfants euh donc je suis tante euh trois fois euh euh moi je suis pas mariée euh pas encore euh voilà",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Présentation complète et fluide malgré les hésitations, avec des justifications simples (« parce que les personnes elles sont gentilles »). Reprise pronominale du sujet à l'oral, très fréquente et non pénalisante en soi. Le débit tient sur la durée sans blanc long. Frontière A2/B1 : la variété syntaxique reste faible, mais l'aisance dépasse le A2 minimal."
+    },
+    {
+      "id": "EO_T1_A2_02",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "A2",
+      "consigne": "Présentez-vous : votre nom, votre âge, votre nationalité, votre profession ou vos études, et la ville où vous habitez. Parlez aussi de votre famille (parents, frères, sœurs, conjoint, enfants).",
+      "production": "euh bonjour euh je m'appelle Daniela euh j'ai euh trente-cinq ans euh je viens du euh Brésil euh de São Paulo euh euh maintenant j'habite euh à Bordeaux euh ça fait euh un an et demi euh euh avant je travaillais euh dans un bureau euh comme euh secrétaire euh et euh ici euh je fais euh des ménages euh dans un hôtel euh en attendant euh de trouver mieux euh euh j'apprends le français euh trois fois par semaine euh à l'association euh du quartier euh c'est euh gratuit euh et euh la prof elle est très patiente euh euh j'aime bien Bordeaux euh il y a le fleuve euh et euh les gens ils sont euh assez sympathiques euh euh voilà euh je crois que c'est tout euh",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["famille (parents, frères et sœurs, conjoint, enfants)"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Le candidat tient la durée et emploie même un imparfait correct (« avant je travaillais »), mais il ne dit pas un seul mot de sa famille, alors que la consigne en fait un point explicite. Cas jumeau de EE_T2_A2_02 côté oral : l'omission doit apparaître dans la check-list d'accomplissement sans faire chuter le palier de langue."
+    },
+    {
+      "id": "EO_T1_B1_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "B1",
+      "consigne": "Présentez-vous en développant : votre parcours scolaire ou professionnel, vos centres d'intérêt, et ce qui vous a amené en France (ou ce qui vous y attire si vous êtes à l'étranger).",
+      "production": "alors bonjour euh je m'appelle Nadège euh j'ai trente et un ans euh je suis euh camerounaise euh alors pour mon parcours euh j'ai fait euh un bac scientifique au pays euh ensuite euh j'ai commencé des études de euh comptabilité euh à Douala euh et j'ai travaillé euh trois ans dans un cabinet euh euh après euh j'ai eu envie de euh de reprendre les études euh parce que je voulais euh me spécialiser euh dans la gestion euh donc euh je suis venue en France euh en deux mille vingt-trois euh pour un master euh à Lille euh euh ce qui m'a amenée ici euh c'est euh d'abord la formation euh mais aussi euh mon oncle qui habite euh à Roubaix euh depuis longtemps euh il m'a beaucoup euh encouragée euh il disait que euh ce serait plus simple euh d'avoir quelqu'un sur place euh euh sinon euh comme centres d'intérêt euh j'aime beaucoup euh la lecture euh surtout les euh les romans policiers euh et euh je fais du euh du volley euh dans un club euh le mardi soir euh ça me permet euh de rencontrer euh des gens euh en dehors du travail euh voilà",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Parcours chronologique structuré (« ensuite », « après », « donc »), causes explicitées, discours rapporté au conditionnel (« il disait que ce serait plus simple »), mise en relief « ce qui m'a amenée ici, c'est ». Les trois volets de la consigne sont développés. Hésitations nombreuses mais jamais de rupture : B1 franc à l'oral."
+    },
+    {
+      "id": "EO_T1_B1_02",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "B1",
+      "consigne": "Présentez-vous en développant : votre parcours scolaire ou professionnel, vos centres d'intérêt, et ce qui vous a amené en France (ou ce qui vous y attire si vous êtes à l'étranger).",
+      "production": "euh oui bonjour euh moi c'est Youssef euh j'ai quarante-quatre ans euh euh alors euh je n'ai pas fait euh de longues études euh j'ai arrêté euh après le lycée euh parce que euh mon père est tombé malade euh et euh il fallait euh travailler euh euh donc euh j'ai appris euh le métier euh sur le terrain euh la maçonnerie euh d'abord avec euh mon oncle euh pendant euh quatre ou cinq ans euh ensuite euh j'ai monté euh ma petite euh équipe euh à Casablanca euh on était euh trois euh euh ce qui m'a amené en France euh c'est euh ma femme euh elle est née euh à Nîmes euh et euh sa mère euh est âgée euh donc euh on a décidé euh de venir euh il y a euh trois ans euh euh pour les euh centres d'intérêt euh euh j'aime euh bricoler euh chez moi euh je refais euh la cuisine euh en ce moment euh et euh le week-end euh je vais euh au marché euh avec euh mes filles euh euh voilà euh je crois que euh j'ai fait euh le tour",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Même consigne que le cas précédent mais profil très différent : parcours non scolaire, récit au passé cohérent, causalité explicite (« parce que », « il fallait », « donc »), négation complète maintenue à l'oral (« je n'ai pas fait »). Les hésitations sont nettement plus denses et les groupes plus courts, ce qui tire vers le haut du A2. Frontière A2/B1 volontaire, à double annoter."
+    },
+    {
+      "id": "EO_T1_B2_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "B2",
+      "consigne": "Présentez-vous en mettant en avant un projet personnel ou professionnel qui vous tient particulièrement à cœur. Expliquez d'où il vient, ce qu'il représente pour vous, et ce que vous espérez en retirer.",
+      "production": "alors bonjour euh je m'appelle Ingrid euh j'ai trente-huit ans euh et euh je vais surtout vous parler euh d'un projet euh qui me tient vraiment à cœur euh euh en fait euh je suis euh infirmière de formation euh et euh depuis euh deux ou trois ans euh je travaille euh sur l'idée d'ouvrir euh une maison de santé euh dans une petite commune euh rurale euh près de Guéret euh euh d'où ça vient euh eh bien euh ça vient de euh de ma grand-mère euh en réalité euh elle a dû euh faire euh quarante kilomètres euh pour un simple euh contrôle euh pendant les derniers euh mois de sa vie euh et euh ça m'a euh marquée euh durablement euh euh ce que ça représente euh c'est euh disons euh une manière euh de réparer euh quelque chose euh euh je ne dis pas que euh je vais euh résoudre euh le problème euh des déserts médicaux euh à moi toute seule euh ce serait euh prétentieux euh mais euh à l'échelle euh d'un village euh ça change euh la vie des gens euh euh et euh ce que j'espère euh en retirer euh c'est euh à la fois euh une utilité euh concrète euh et euh une forme euh d'indépendance euh parce que euh à l'hôpital euh on subit euh beaucoup euh les décisions euh venues d'en haut euh voilà",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Discours réellement construit en trois temps calqués sur la consigne, avec des mises en relief (« ce que ça représente, c'est »), une auto-limitation argumentée (« je ne dis pas que... ce serait prétentieux, mais »), un conditionnel et un lexique précis (« déserts médicaux », « à l'échelle d'un village »). Les hésitations sont fréquentes mais fonctionnent comme des marqueurs de planification, pas comme des ruptures. Confiance MOYENNE : sans la voix, on ne peut pas distinguer une réflexion en direct d'un débit haché."
+    },
+    {
+      "id": "EO_T1_PIEGE_01",
+      "epreuve": "TCF_EO",
+      "tache": 1,
+      "niveau_cible": "B2",
+      "consigne": "Présentez-vous en mettant en avant un projet personnel ou professionnel qui vous tient particulièrement à cœur. Expliquez d'où il vient, ce qu'il représente pour vous, et ce que vous espérez en retirer.",
+      "production": "euh [silence] euh bonjour euh [silence] euh je euh [silence] euh un projet euh [silence] euh je sais pas euh [silence] euh voilà",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["projet présenté", "origine du projet", "ce qu'il représente", "ce que le candidat espère en retirer"],
+        "pieges": ["QUASI_MUET"]
+      },
+      "commentaire_annotateur": "Prise de parole quasi inexistante : une quinzaine de tokens sur trois minutes, dont quatre silences longs, et pas une seule information. Le contrôle automatique « prise de parole réelle » doit se déclencher avant même l'appel au modèle. Le risque à mesurer est l'inverse de l'habituel : que l'IA invente de la bienveillance et accorde 5 ou 6 sur 20 à un candidat qui n'a rien produit."
+    },
+
+    {
+      "id": "EO_T2_A1NA_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Vous êtes à la poste pour envoyer un colis à un ami en France. Demandez au guichetier le prix, le délai de livraison, et comment suivre le colis. Posez au moins 4 questions claires.",
+      "production": "Examinateur : Bonjour, bienvenue à la poste. Que puis-je faire pour vous ?\nCandidat : euh colis.\nExaminateur : Très bien, vous voulez envoyer un colis. Où souhaitez-vous l'envoyer ?\nCandidat : euh France euh ami.\nExaminateur : D'accord. Vous connaissez le poids du colis ?\nCandidat : euh [silence] euh non.\nExaminateur : Nous allons le peser ensemble. Voilà, deux kilos. Souhaitez-vous un envoi rapide ou un envoi économique ?\nCandidat : euh oui.\nExaminateur : Rapide, ou économique ?\nCandidat : euh [silence] euh combien ?\nExaminateur : L'envoi rapide coûte quatorze euros quatre-vingt-dix, l'économique neuf euros cinquante.\nCandidat : euh neuf euh merci.\nExaminateur : Très bien. Souhaitez-vous pouvoir suivre votre colis en ligne ?\nCandidat : euh [silence] euh je sais pas euh voilà.\nExaminateur : Je vous mets le suivi, c'est inclus. Voici votre reçu.\nCandidat : euh merci euh au revoir.",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT", "A1"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["question sur le délai de livraison", "question sur le suivi du colis", "au moins quatre questions claires"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Une seule question produite sur les quatre demandées, et elle tient en un mot (« combien ? »). Le candidat répond « oui » à une question alternative, signe qu'il ne l'a pas comprise. C'est l'examinateur qui porte tout l'échange : sans lui, aucune transaction n'aboutirait. Interaction non établie."
+    },
+    {
+      "id": "EO_T2_A1_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Vous avez mal au dos depuis trois jours et vous téléphonez à un cabinet médical pour prendre rendez-vous. Demandez à la secrétaire le jour et l'heure possibles, l'adresse du cabinet, le prix de la consultation et les papiers à apporter. Posez au moins 4 questions claires et confirmez le rendez-vous à la fin.",
+      "production": "Examinateur : Cabinet du docteur Rambert, bonjour.\nCandidat : euh bonjour euh je veux euh rendez-vous.\nExaminateur : Bien sûr. C'est pour quel motif ?\nCandidat : euh mal euh le dos euh trois jours.\nExaminateur : Je comprends. Nous avons une place jeudi à quatorze heures trente.\nCandidat : euh jeudi euh euh oui euh c'est où ?\nExaminateur : Au 12 rue des Tilleuls, juste à côté de la pharmacie.\nCandidat : euh d'accord euh combien euh le prix ?\nExaminateur : La consultation est à vingt-six euros cinquante.\nCandidat : euh vingt-six euh ok euh je apporte euh quoi ?\nExaminateur : Votre carte Vitale et une pièce d'identité.\nCandidat : euh oui euh carte euh merci euh au revoir.",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["quatrième question (jour ou horaire demandé par le candidat)", "confirmation explicite du rendez-vous"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Trois questions réellement produites (lieu, prix, papiers), toutes réduites à leur squelette (« c'est où ? », « je apporte quoi ? ») : la transaction aboutit, mais le candidat ne demande jamais le créneau — c'est l'examinateur qui le propose — et ne confirme pas le rendez-vous. Sujet du verbe non élidé, aucun temps autre que le présent. A1 avec transaction partiellement réussie."
+    },
+    {
+      "id": "EO_T2_A2_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Vous voulez passer un week-end à Marseille avec un ami et vous téléphonez à un hôtel pour réserver une chambre pour deux personnes. Demandez le prix de la chambre, si le petit-déjeuner est compris, l'heure d'arrivée possible et où se trouve l'hôtel dans la ville. Posez au moins 4 questions claires, puis donnez votre nom pour confirmer la réservation.",
+      "production": "Examinateur : Hôtel du Panier, bonjour.\nCandidat : bonjour euh je voudrais réser ver une cham bre pour deu personne s'il vous plaît\nExaminateur : Très bien, pour quelles dates ?\nCandidat : le week end du quin ze euh same di et diman che\nExaminateur : Samedi 15 et dimanche 16, donc une nuit. Il me reste une chambre double au deuxième étage.\nCandidat : d'accord euh c'est com bien la cham bre par nuit\nExaminateur : Quatre-vingt-douze euros la nuit.\nCandidat : quatre vingt dou ze euh et le petit déjeu ner il est com pris dans le prix\nExaminateur : Non, le petit-déjeuner est en supplément, neuf euros par personne.\nCandidat : ah d'ac cord euh et on peut arri ver à quel le heure\nExaminateur : La réception est ouverte à partir de quinze heures.\nCandidat : quin ze heures très bien euh et l'hôtel il est où exac tement dans la vil le\nExaminateur : Nous sommes dans le quartier du Panier, à dix minutes à pied du Vieux-Port.\nCandidat : par fait euh alors je réser ve euh mon nom c'est Traoré T R A O R É\nExaminateur : C'est noté, madame Traoré. Votre réservation est confirmée, à samedi.\nCandidat : merci beau coup au revoir",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": ["TRANSCRIPTION_BRUITEE"]
+      },
+      "commentaire_annotateur": "PIÈGE N°1 DU SYSTÈME. La transcription temps réel découpe les mots au mauvais endroit (« réser ver », « quatre vingt dou ze », « exac tement ») : le texte a l'air abîmé alors que la candidate s'est parfaitement fait comprendre. La preuve est dans les tours de l'examinateur : il répond à chaque question par une information précise et pertinente, confirme les dates, épelle le nom. L'IA ne doit donc PAS conclure à l'incompréhensibilité ni descendre sous A2 : les quatre questions sont posées, la réservation est confirmée. Le niveau attendu est celui de la compétence réelle. Confiance MOYENNE parce que le support est dégradé, pas parce que la candidate l'est."
+    },
+    {
+      "id": "EO_T2_A2_02",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "A2",
+      "consigne": "Vous êtes au marché de votre ville pour acheter des fruits et des légumes pour la semaine. Demandez au vendeur le prix des tomates, des pommes et des oranges, demandez si les produits viennent de la région, et essayez d'obtenir un petit prix si vous achetez une grande quantité. Posez au moins 3 questions claires et terminez en payant vos achats.",
+      "production": "Examinateur : Bonjour, qu'est-ce qu'il vous faut aujourd'hui ?\nCandidat : bonjour euh je voudrais des tomates euh et aussi des pommes euh c'est combien les tomates\nExaminateur : Les tomates, c'est trois euros vingt le kilo.\nCandidat : euh trois euros vingt euh d'accord euh et les pommes elles sont à combien\nExaminateur : Deux euros cinquante le kilo, elles sont très bonnes en ce moment.\nCandidat : euh d'accord euh et les oranges aussi je veux des oranges euh le prix c'est quoi\nExaminateur : Les oranges sont à deux euros le kilo.\nCandidat : euh et est-ce que euh les fruits ils viennent de la région\nExaminateur : Les pommes et les tomates oui, elles viennent d'un producteur à quinze kilomètres. Les oranges, elles viennent d'Espagne.\nCandidat : ah euh d'accord euh alors je prends deux kilos de tomates euh deux kilos de pommes et un kilo d'oranges euh comme je prends beaucoup euh vous pouvez faire un petit prix\nExaminateur : Allez, je vous fais quinze euros au lieu de seize euros quarante.\nCandidat : euh merci beaucoup euh voilà quinze euros euh bonne journée",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Transaction complète et autonome : trois demandes de prix, une question sur l'origine, une tentative de négociation justifiée par la quantité, puis le paiement. Formes interrogatives simples et répétitives (« c'est combien », « le prix c'est quoi »), reprise pronominale à l'oral. Aucune complexité syntaxique : A2 franc, à opposer à EO_T2_A2_01 qui a le même palier sous une transcription abîmée."
+    },
+    {
+      "id": "EO_T2_B1_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "B1",
+      "consigne": "Vous avez acheté il y a dix jours une veste à 89 euros dans un magasin de vêtements, mais une couture s'est défaite dès le premier jour. Vous retournez au magasin avec le ticket de caisse. Expliquez calmement le problème au responsable, demandez un remboursement ou un échange, répondez à ses objections (il propose d'abord un avoir), négociez la solution qui vous convient et fixez une suite concrète si l'article de remplacement n'est pas disponible aujourd'hui.",
+      "production": "Examinateur : Bonjour, je peux vous aider ?\nCandidat : oui bon jour j'ai ach eté cette ves te chez vous il y a dix jours et une cou ture s'est défai te dès le pre mier jour\nExaminateur : Je vois. Vous avez gardé le ticket de caisse ?\nCandidat : oui le voi là je l'ai gar dé je n'ai mis la veste qu'une seu le fois pour aller au tra vail\nExaminateur : D'accord. Je peux vous proposer un avoir de quatre-vingt-neuf euros valable un an.\nCandidat : hon nêtement je préfé rerais un rem bourse ment parce que le défaut il vient de la fabri cation ce n'est pas moi qui l'ai abî mée\nExaminateur : Je comprends, mais notre politique privilégie l'avoir ou l'échange.\nCandidat : dans ce cas est ce que vous au riez le même mo dèle en taille M je peux fai re l'échange si vous l'a vez en stock\nExaminateur : Je vérifie... Non, nous ne l'avons plus en taille M dans ce magasin.\nCandidat : alors soit vous le fai tes venir d'un autre maga sin et vous m'appe lez quand il arri ve soit vous me rembour sez aujourd'hui ça me con vient aussi\nExaminateur : Je peux le faire venir de notre magasin de Rouen, comptez trois à quatre jours. Je vous appelle dès réception.\nCandidat : très bien je vous laisse mon numé ro et si dans une se maine je n'ai tou jours pas de nou velles je re passe et on fait le rembour sement d'accord\nExaminateur : C'est noté, je vous rappelle jeudi au plus tard.",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1", "B2"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": ["TRANSCRIPTION_BRUITEE"]
+      },
+      "commentaire_annotateur": "Deuxième cas de transcription volontairement hachée, à un palier plus élevé. Malgré le découpage (« rembour sement », « hon nêtement », « fai tes »), la compétence réelle est nettement B1 : conditionnel de politesse, restrictif « ne... que », clivée « ce n'est pas moi qui », alternative structurée « soit... soit », et une suite concrète négociée avec délai. Les réponses de l'examinateur prouvent que tout a été compris : il vérifie le stock, propose un transfert, s'engage sur une date. Le système ne doit ni pénaliser le bruit ni le lire comme de l'agrammaticalité. Confiance MOYENNE."
+    },
+    {
+      "id": "EO_T2_B1_02",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "B1",
+      "consigne": "Vous déménagez le mois prochain de Lille à Rouen avec un appartement de trois pièces au deuxième étage sans ascenseur. Vous appelez une entreprise de déménagement pour demander un devis. Décrivez votre situation, posez des questions variées (prix, date, durée, assurance des meubles, cartons fournis ou non), négociez le tarif ou une prestation en plus, et fixez une suite : une visite d'estimation ou l'envoi du devis par courriel.",
+      "production": "Examinateur : Déménagements Lefranc, bonjour.\nCandidat : bonjour euh je vous appelle pour euh demander un devis euh je déménage le mois prochain de Lille à Rouen\nExaminateur : Très bien. Quelle est la surface du logement ?\nCandidat : c'est un trois pièces euh à peu près soixante-cinq mètres carrés euh et euh il faut savoir que c'est au deuxième étage euh sans ascenseur\nExaminateur : D'accord, ça change le tarif. Vous avez une date précise ?\nCandidat : euh je pensais le samedi quatorze euh est-ce que c'est possible euh et euh ça prend combien de temps à peu près\nExaminateur : Le samedi est très demandé, donc plus cher. Comptez une journée complète, six à sept heures.\nCandidat : euh d'accord euh et est-ce que les cartons ils sont fournis ou euh je dois les acheter moi-même\nExaminateur : Nous pouvons les fournir, quinze euros les vingt cartons.\nCandidat : euh et pour les meubles euh est-ce qu'il y a une assurance euh si quelque chose est cassé pendant le transport\nExaminateur : Oui, une assurance de base est incluse, avec une garantie renforcée en option.\nCandidat : euh d'accord euh écoutez euh si le samedi c'est plus cher euh est-ce que vous pourriez euh m'offrir les cartons si je prends le vendredi à la place\nExaminateur : Le vendredi, je peux vous faire ce geste sur les cartons, oui.\nCandidat : euh parfait euh alors est-ce que vous pouvez euh passer faire une estimation chez moi euh la semaine prochaine euh ou sinon euh m'envoyer le devis par mail\nExaminateur : Je peux passer mardi à dix-huit heures, ça vous convient ?\nCandidat : euh oui très bien euh je vous donne mon adresse euh merci beaucoup",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Tous les volets de la consigne sont couverts : description, cinq questions variées, contrepartie négociée (déplacer la date contre les cartons), suite concrète fixée. Alternative « ou », conditionnel de politesse, subordonnée hypothétique. Le candidat prend l'initiative de la négociation au lieu de la subir. B1 franc, transcription propre — sert de témoin face à EO_T2_B1_01."
+    },
+    {
+      "id": "EO_T2_B2_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "B2",
+      "consigne": "Vous répondez à une annonce pour une voiture d'occasion affichée à 7 200 euros, mais vous avez remarqué un kilométrage élevé et une révision qui n'a pas été faite. Menez la discussion avec le vendeur : faites-vous préciser l'historique d'entretien, soulevez les points faibles avec diplomatie, proposez un prix argumenté en utilisant le conditionnel de politesse (« seriez-vous prêt à… »), et prenez l'initiative de proposer un essai sur route avant de conclure.",
+      "production": "Examinateur : Bonjour, c'est vous qui avez appelé pour la voiture ?\nCandidat : oui bonjour euh merci de me recevoir euh avant l'essai euh est-ce que vous pourriez euh me préciser l'historique d'entretien euh est-ce qu'il y a un carnet complet\nExaminateur : Oui, il y a le carnet, mais la dernière révision n'a pas été faite, je vous le dis franchement.\nCandidat : euh d'accord euh j'apprécie la franchise euh alors justement euh c'est ce qui me gêne un peu euh le kilométrage est déjà à cent soixante mille euh et euh une révision complète chez le garagiste euh ça tourne autour de cinq cents euros\nExaminateur : C'est possible, mais le prix tient compte de l'état général, qui est vraiment très bon.\nCandidat : euh je ne le conteste pas euh la carrosserie est euh en bon état euh simplement euh je dois intégrer cette dépense euh dans mon budget euh donc euh seriez-vous prêt à euh descendre à six mille huit cents\nExaminateur : C'est un peu bas. Six mille neuf cent cinquante, je ne peux pas faire mieux.\nCandidat : euh écoutez euh je comprends euh votre position euh disons que euh si l'essai est concluant euh je peux monter à euh six mille neuf cents euh et euh on signe aujourd'hui\nExaminateur : Six mille neuf cents avec signature aujourd'hui... d'accord, ça peut se faire.\nCandidat : euh très bien euh alors euh je propose qu'on fasse euh un essai sur route euh une vingtaine de minutes euh avec un peu de ville et un peu de nationale euh pour que je puisse euh écouter le moteur à chaud\nExaminateur : Pas de problème, je prends les clés.\nCandidat : euh parfait euh et euh si jamais euh l'essai révélait quelque chose euh d'important euh je me réserve la possibilité de euh revenir sur le prix euh ça vous semble correct\nExaminateur : C'est honnête, oui.",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Conduite de l'échange entièrement pilotée par le candidat : il cadre l'ordre du jour, obtient l'information, critique sans agresser (« je ne le conteste pas... simplement »), chiffre son argument, emploie le conditionnel de politesse demandé, conclut par une contrepartie (« si l'essai est concluant... on signe aujourd'hui »), puis pose une clause de sortie à l'irréel (« si l'essai révélait »). Subjonctif après « je propose que » et « pour que ». B2 franc en interaction."
+    },
+    {
+      "id": "EO_T2_PIEGE_01",
+      "epreuve": "TCF_EO",
+      "tache": 2,
+      "niveau_cible": "B2",
+      "consigne": "Vous postulez pour un emploi qui vous intéresse beaucoup mais pour lequel vous êtes un peu sous-qualifié sur un critère précis. Lors d'un entretien téléphonique, vous devez expliquer pourquoi vous restez un bon candidat, donner des exemples concrets de vos compétences, et proposer une voie de progression.",
+      "production": "Examinateur : Bonjour, vous m'entendez ? Je vous appelle au sujet de votre candidature.\nCandidat : bonjour je vous remercie infiniment de l'attention que vous portez à ma candidature je suis une personne dynamique motivée et rigoureuse qui aime le travail en équipe et qui sait s'adapter à toutes les situations\nExaminateur : D'accord. Concrètement, le poste demande trois ans d'expérience en gestion de stock. Vous en avez un. Comment comptez-vous compenser ?\nCandidat : je suis convaincu que mon profil correspond parfaitement aux attentes de votre entreprise car je possède un excellent relationnel et une grande capacité d'écoute qui me permettent de m'intégrer très rapidement\nExaminateur : Oui, mais sur la gestion de stock précisément ?\nCandidat : votre entreprise jouit d'une excellente réputation et c'est pour moi un honneur de pouvoir envisager de rejoindre vos équipes je suis quelqu'un de ponctuel sérieux et toujours prêt à relever de nouveaux défis\nExaminateur : Avez-vous déjà utilisé un logiciel de gestion des stocks ?\nCandidat : je pense sincèrement que la motivation et la volonté sont les qualités les plus importantes dans le monde professionnel d'aujourd'hui et je suis prêt à tout mettre en œuvre pour réussir\nExaminateur : Bien. Avez-vous des questions sur le poste ?\nCandidat : je vous remercie encore une fois pour votre temps et je reste à votre entière disposition pour tout complément d'information",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["explication concrète de la sous-qualification", "exemples concrets de compétences", "proposition d'une voie de progression"],
+        "pieges": ["MEMORISE"]
+      },
+      "commentaire_annotateur": "Piège du discours récité. Chaque tour du candidat est un bloc de lettre de motivation appris par cœur, syntaxiquement soigné, qui « sonne » B2 — mais aucun ne répond à la question posée : trois relances précises de l'examinateur (compenser l'expérience, la gestion de stock, le logiciel) tombent dans le vide, et la question finale reçoit une formule de politesse. Or la tâche 2 évalue avant tout l'interaction. La compétence interactive réelle est basse : on attend A2, éventuellement B1, jamais un B2. C'est le cas symétrique de EO_T2_A2_01 : là le texte semblait mauvais et le candidat était bon, ici le texte semble bon et l'interaction est nulle."
+    },
+
+    {
+      "id": "EO_T3_A1NA_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Quel est votre moyen de transport préféré pour vous déplacer dans une grande ville ? Donnez deux avantages et un inconvénient.",
+      "production": "euh euh le métro euh euh non euh le bus euh euh bien euh euh pas cher euh euh [silence] euh beaucoup gens euh euh voilà euh euh je sais pas euh comment dire euh euh fini",
+      "attendu": {
+        "niveau": "A1_NON_ATTEINT",
+        "niveau_tolerance": ["A1_NON_ATTEINT"],
+        "note_min": 0,
+        "note_max": 0,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["deux avantages développés", "un inconvénient développé"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Le choix du moyen de transport est hésitant puis abandonné, et les trois points demandés se réduisent à des étiquettes isolées (« pas cher », « beaucoup gens ») sans verbe ni articulation. Le candidat signale lui-même son blocage (« je sais pas comment dire ») et met fin à sa production bien avant la durée. Cas franc."
+    },
+    {
+      "id": "EO_T3_A1_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Le sport est-il important pour vous ? Dites quel sport vous pratiquez ou aimeriez pratiquer, donnez deux raisons pour lesquelles le sport est utile et racontez un exemple personnel (un match, une séance, une promenade sportive).",
+      "production": "euh alors euh le sport euh oui c'est important euh euh moi je fais euh le football euh le dimanche euh avec euh les amis euh euh le sport c'est bien euh pour euh la santé euh euh le docteur il dit euh il faut bouger euh euh et euh aussi euh pour euh voir les amis euh euh dimanche dernier euh on joue euh au parc euh on gagne euh trois euh deux euh euh je suis euh content euh euh après euh on mange euh ensemble euh euh voilà euh c'est tout euh merci",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1", "A2"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Les trois éléments demandés sont là — sport pratiqué, deux raisons, exemple — mais le récit du dimanche est intégralement au présent (« on joue », « on gagne ») alors qu'il porte sur un événement passé, marqueur A1 décisif. Discours rapporté sans subordonnant (« le docteur il dit il faut bouger »). Segments de trois ou quatre mots séparés d'hésitations : la durée n'est pas tenue."
+    },
+    {
+      "id": "EO_T3_A2_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Préférez-vous vivre en ville ou à la campagne ? Donnez votre choix, expliquez deux raisons et donnez un exemple de votre vie quotidienne pour illustrer votre préférence.",
+      "production": "euh alors euh moi je préfère euh vivre en ville euh euh la première raison euh c'est que euh il y a beaucoup de euh de transports euh je peux prendre euh le tram euh ou euh le bus euh à toute heure euh et euh je n'ai pas besoin euh d'une voiture euh euh la deuxième raison euh c'est le travail euh en ville euh il y a euh plus de euh de possibilités euh moi j'ai trouvé euh mon travail euh en deux semaines euh euh par exemple euh tous les matins euh je descends euh je prends euh le tram euh à sept heures euh et euh en quinze minutes euh je suis euh au restaurant euh où je travaille euh euh à la campagne euh chez mes euh cousins euh c'est très joli euh mais euh il faut euh la voiture euh pour tout euh même euh pour le pain euh euh donc euh voilà euh moi euh je préfère euh la ville euh",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Plan annoncé et tenu, deux raisons distinctes, exemple quotidien précis et chiffré, contre-exemple spontané sur la campagne, et reprise de la thèse en clôture. Négation complète maintenue à l'oral, relative simple (« où je travaille »). Le lexique reste très courant et les phrases peu subordonnées : haut de A2 touchant le B1."
+    },
+    {
+      "id": "EO_T3_A2_02",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "A2",
+      "consigne": "Quelle est la ville que vous préférez ? Dites où elle se trouve, donnez deux raisons pour lesquelles vous l'aimez et racontez un souvenir ou un exemple précis vécu dans cette ville.",
+      "production": "euh alors euh la ville que je préfère euh c'est euh Lisbonne euh au Portugal euh euh c'est euh au bord de euh de l'océan euh dans le sud euh de l'Europe euh euh j'aime euh cette ville euh pour deux raisons euh euh d'abord euh il fait euh beau euh presque euh toute l'année euh même euh en hiver euh il y a euh du soleil euh euh ensuite euh les gens euh ils sont euh très euh accueillants euh ils parlent euh avec toi euh dans la rue euh sans problème euh euh et euh la nourriture euh aussi euh c'est euh très bon euh le poisson euh les pâtisseries euh euh il y a euh des tramways euh jaunes euh très jolis euh dans les rues euh qui montent euh euh voilà euh c'est euh ma ville préférée euh merci",
+      "attendu": {
+        "niveau": "A2",
+        "niveau_tolerance": ["A2"],
+        "note_min": 2,
+        "note_max": 5.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["souvenir ou exemple précis vécu dans cette ville"],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Localisation et deux raisons bien traitées, avec « d'abord » / « ensuite ». Mais le troisième point — un souvenir vécu — est remplacé par une description générale de la ville : le candidat n'apparaît jamais dans son propre exemple. Omission facile à manquer parce que le discours reste abondant et pertinent sur le thème. Version orale du même piège d'accomplissement que EE_T3_A2_02."
+    },
+    {
+      "id": "EO_T3_B1_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "B1",
+      "consigne": "Pensez-vous que les réseaux sociaux ont plus d'avantages ou plus d'inconvénients dans la vie quotidienne ? Donnez votre avis avec au moins deux arguments illustrés par des exemples.",
+      "production": "alors euh moi je pense que euh les réseaux sociaux euh ont plutôt euh plus d'inconvénients euh dans la vie de tous les jours euh euh mon premier argument euh c'est le temps euh qu'on perd euh euh par exemple euh je me suis rendu compte euh que je passais euh presque euh deux heures par jour euh sur mon téléphone euh le soir euh alors que euh je voulais euh reprendre euh la lecture euh euh j'ai installé euh une application euh qui compte euh le temps euh et euh ça m'a fait euh un choc euh euh mon deuxième argument euh c'est que euh ça donne euh une image euh fausse euh de la vie des autres euh euh ma petite sœur euh par exemple euh elle compare euh sa vie euh avec euh ce qu'elle voit euh et euh ça la rend euh triste euh alors que euh les gens euh montrent euh seulement euh le meilleur euh euh après euh c'est vrai que euh pour ma famille euh qui est loin euh les appels euh vidéo euh c'est euh formidable euh on se voit euh chaque semaine euh euh donc euh je dirais euh que euh tout dépend euh de l'usage euh qu'on en fait euh mais euh pour moi euh le bilan euh reste euh négatif euh",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Thèse posée, deux arguments annoncés et chacun illustré d'un exemple vécu concret, concession spontanée (« c'est vrai que... »), synthèse finale au conditionnel avec pronom « en ». Complétives, relatives, opposition « alors que », plus-que-parfait absent mais non nécessaire. Discours suivi qui tient la durée. B1 franc à l'oral."
+    },
+    {
+      "id": "EO_T3_B1_02",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "B1",
+      "consigne": "De plus en plus de personnes mangent des plats préparés ou commandent des repas livrés au lieu de cuisiner. Selon vous, est-il important de cuisiner soi-même tous les jours ? Donnez au moins deux arguments illustrés par des exemples de votre quotidien, puis reconnaissez un avantage du point de vue opposé.",
+      "production": "euh alors euh la question euh c'est euh est-ce qu'il faut euh cuisiner euh soi-même euh tous les jours euh euh moi je dirais euh oui euh enfin euh presque euh tous les jours euh euh pourquoi euh d'abord euh pour euh la santé euh euh quand euh je regarde euh les étiquettes euh des plats euh préparés euh il y a euh beaucoup euh de sel euh et euh de sucre euh euh l'année dernière euh mon médecin euh m'a dit euh de faire euh attention euh à ma tension euh et euh depuis euh je cuisine euh moi-même euh presque euh tous les soirs euh euh ensuite euh c'est euh une question euh d'argent euh euh chez moi euh un repas euh livré euh c'est euh quinze euros euh alors que euh je peux euh cuisiner euh pour euh trois euh ou quatre euros euh euh maintenant euh je comprends euh très bien euh les gens euh qui commandent euh euh quand euh on finit euh à vingt heures euh et euh qu'on a euh des enfants euh on n'a euh pas euh toujours euh le courage euh euh donc euh je ne juge euh personne euh mais euh moi euh j'essaie euh de cuisiner euh le plus possible euh",
+      "attendu": {
+        "niveau": "B1",
+        "niveau_tolerance": ["A2", "B1"],
+        "note_min": 6,
+        "note_max": 9.9,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Deux arguments illustrés par des exemples personnels chiffrés, avantage adverse reconnu comme demandé (« je comprends très bien les gens qui commandent »), nuance finale. La subordination est réelle mais les groupes sont très courts et les hésitations plus denses que dans EO_T3_B1_01, ce qui rend la frontière A2/B1 discutable : cas à double annoter."
+    },
+    {
+      "id": "EO_T3_B2_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "B2",
+      "consigne": "Faut-il interdire les écrans (téléphones, tablettes, télévision) aux enfants de moins de six ans, ou plutôt apprendre aux familles à les utiliser raisonnablement ? Défendez une position nuancée et envisagez au moins une objection que pourrait formuler un parent ou un enseignant en désaccord avec vous, puis répondez-y.",
+      "production": "alors euh sur cette question euh des écrans euh avant euh six ans euh je ne crois pas euh qu'une interdiction euh totale euh soit euh la bonne réponse euh euh je m'explique euh euh l'interdiction euh a un avantage euh évident euh elle est euh claire euh et euh elle protège euh les enfants euh dont euh les parents euh sont euh débordés euh euh mais euh elle a euh un défaut euh majeur euh elle euh reporte euh le problème euh au lieu euh de le traiter euh euh un enfant euh à qui euh on interdit euh tout euh jusqu'à euh six ans euh découvre euh l'écran euh d'un coup euh sans euh aucun euh repère euh euh ce que je défendrais euh plutôt euh c'est euh un accompagnement euh exigeant euh des temps euh très courts euh des contenus euh choisis euh et euh surtout euh un adulte euh à côté euh euh alors euh on va euh me dire euh et euh c'est euh une objection euh sérieuse euh que euh toutes les familles euh n'ont euh pas euh le temps euh ni euh les moyens euh de faire euh cet accompagnement euh euh c'est euh vrai euh et euh je ne euh le nie euh pas euh euh mais euh justement euh c'est euh un argument euh pour euh former euh les parents euh à la crèche euh ou euh à l'école euh pas euh pour euh se contenter euh d'une règle euh qu'on euh ne peut euh pas euh faire euh respecter euh",
+      "attendu": {
+        "niveau": "B2",
+        "niveau_tolerance": ["B2"],
+        "note_min": 10,
+        "note_max": 20,
+        "confiance": "MOYENNE",
+        "accomplissement_obligatoire_traite": true,
+        "points_oublies_attendus": [],
+        "pieges": []
+      },
+      "commentaire_annotateur": "Position nuancée annoncée dès l'ouverture avec un subjonctif après verbe d'opinion nié (« je ne crois pas qu'une interdiction totale soit »), relatives complexes (« dont les parents sont débordés », « à qui on interdit tout »), mise en relief au conditionnel (« ce que je défendrais »), objection explicitement attribuée à autrui puis retournée (« c'est vrai, et je ne le nie pas, mais justement »). Lexique abstrait et articulation dense malgré le débit haché : B2 franc."
+    },
+    {
+      "id": "EO_T3_PIEGE_01",
+      "epreuve": "TCF_EO",
+      "tache": 3,
+      "niveau_cible": "B2",
+      "consigne": "Certaines entreprises imposent le retour au bureau cinq jours par semaine, d'autres laissent la liberté totale aux salariés. Quelle organisation du travail vous semble la plus juste et la plus efficace ? Défendez votre position en envisageant au moins une objection que pourrait formuler quelqu'un en désaccord avec vous.",
+      "production": "euh alors euh le travail euh au bureau euh euh yo creo que euh es mejor euh trabajar euh desde casa euh porque euh euh comment on dit euh euh el transporte euh es muy euh cansado euh euh moi euh une heure euh le matin euh une heure euh le soir euh euh y euh además euh en casa euh me concentro euh mucho euh mejor euh euh pero euh también euh hay euh un problema euh porque euh la gente euh se siente euh sola euh euh je sais pas euh comment dire euh en français euh désolé euh euh entonces euh yo prefiero euh dos días euh en la oficina euh y euh tres días euh en casa euh euh voilà euh",
+      "attendu": {
+        "niveau": "A1",
+        "niveau_tolerance": ["A1_NON_ATTEINT", "A1"],
+        "note_min": 1,
+        "note_max": 1.9,
+        "confiance": "HAUTE",
+        "accomplissement_obligatoire_traite": false,
+        "points_oublies_attendus": ["position défendue en français", "arguments formulés en français", "objection envisagée en français"],
+        "pieges": ["AUTRE_LANGUE"]
+      },
+      "commentaire_annotateur": "Le candidat bascule en espagnol dès la deuxième phrase et n'y revient que par bribes (« moi une heure le matin une heure le soir », « je sais pas comment dire en français »). Le raisonnement est bon — thèse, deux arguments, objection, position de compromis — mais il n'est presque pas produit dans la langue évaluée. Le contrôle automatique de langue doit se déclencher. Piège réel à éviter : que l'IA comprenne l'espagnol, juge le raisonnement et attribue un B1 ou un B2 à une production française quasi inexistante. Seul le français produit compte : A1."
+    }
+  ]
+}

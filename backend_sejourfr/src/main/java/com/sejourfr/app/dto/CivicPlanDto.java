@@ -1,0 +1,334 @@
+package com.sejourfr.app.dto;
+
+import com.sejourfr.app.enums.CivicThemeState;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.PlanRecentChangesWindow;
+import com.sejourfr.app.service.plancivique.CivicEtapeEtat;
+import com.sejourfr.app.service.plancivique.CivicMaitrise;
+import com.sejourfr.app.service.plancivique.CivicPlanGrain;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * <b>Le plan civique</b> (L10, {@code 20_} §6).
+ *
+ * <h2>Ce que ce DTO sert, et ce qu'il ne sert pas</h2>
+ *
+ * <p>🛑 <b>Des FAITS, jamais des phrases.</b> Aucun {@code reason_text} n'est
+ * calcule ici, contrairement au schema de {@code 20_} §10 : les libelles vivent
+ * dans les fronts, en miroir mot pour mot l'un de l'autre, comme pour le
+ * diagnostic civique. Un texte compose serveur ne se traduit pas, ne se
+ * relit pas dans deux mises en page differentes, et se dupliquerait de toute
+ * facon des qu'un ecran voudrait le dire autrement.
+ *
+ * <p>🛑 <b>Rien n'est persiste.</b> Il n'existe ni table {@code civic_plan}, ni
+ * {@code civic_plan_item}, ni {@code user_civic_notion_progress} : tout est
+ * <b>relu</b> a chaque appel depuis l'historique des reponses. Le detail et ce
+ * que ca rapporte : {@code CivicLeitnerResolver}.
+ *
+ * <p>🛑 <b>Le freemium porte sur l'ACTION, pas sur le constat.</b> Les priorites
+ * sont servies entieres a tout le monde ({@code 20_} §6, variante non abonne) ;
+ * c'est la serie ciblee qui porte {@code locked}. Un front ne deduit jamais un
+ * verrou d'un rang.
+ *
+ * @param disponible      {@code false} quand aucun diagnostic civique n'est
+ *                        termine. Le plan ne se batit pas sur une mesure qui
+ *                        n'existe pas — l'appelant ouvre alors la seule porte
+ *                        qui debloque
+ * @param mention         la demarche sur laquelle le candidat est mesure
+ * @param resultat        la derniere mesure comparable au seuil, ou {@code null}
+ * @param prochaine       « A faire maintenant » : la cible de rang 1, ou
+ *                        {@code null} si rien n'est proposable
+ * @param prioritesVisibles       les cibles a travailler, du plus couteux au moins.
+ *                        🛑 <b>Plafond d'AFFICHAGE</b> : le moteur en a classe
+ *                        davantage, et {@code autresPriorites} les compte
+ * @param autresPriorites ce que la liste ne montre pas (« + 6 autres notions a
+ *                        consolider »)
+ * @param aRevoirVisibles         revisions d'entretien : des cibles maitrisees dont
+ *                        l'echeance est franchie. 🛑 <b>Jamais une priorite
+ *                        rouge</b> ({@code 20_} §5.2)
+ * @param solides         ce qui est acquis, dit pour ce que ca vaut : le
+ *                        candidat n'a pas besoin de tout reviser
+ * @param grain           voir {@link Grain}
+ * @param themes          <b>les cinq themes officiels, toujours les cinq</b>,
+ *                        dans l'ordre d'affichage du module : de quoi ecrire la
+ *                        ligne d'un theme sur l'ecran Reviser sans rien deduire
+ *                        des listes plafonnees juste au-dessus. Vide quand
+ *                        {@code disponible} est {@code false} — rien n'a ete
+ *                        mesure, il n'y a rien a dire. Voir {@link ThemeLigne}
+ * @param changements     ce qui a bouge depuis peu, ou {@code null} — et
+ *                        {@code null} est le <b>cas normal</b>, exactement
+ *                        comme {@code recentChanges} cote TCF. Voir
+ *                        {@link Changements}
+ */
+/**
+ * 🛑 <b>{@code prioritesVisibles} et {@code aRevoirVisibles} portent leur
+ * plafond DANS LEUR NOM</b> (2026-09-20). Elles s'appelaient {@code priorites}
+ * et {@code aRevoir}, et <b>trois tests en deux jours</b> les ont prises pour
+ * la liste complete : ils assertionnaient sur les trois premieres, donc sur un
+ * <b>classement</b> que le moteur choisit et qu'ils ne fixaient pas. Ils ont
+ * dormi jusqu'au jour ou ce classement a bouge.
+ *
+ * <p>La liste <b>complete et ordonnee</b> est
+ * {@code CivicPlanService.ordrePourLeCycle(userId).cibles()} — c'est elle que
+ * le cycle lit (D-36), et c'est elle qu'un test doit lire.
+ */
+public record CivicPlanDto(
+        boolean disponible,
+        Difficulty mention,
+        Resultat resultat,
+        Cible prochaine,
+        List<Cible> prioritesVisibles,
+        int autresPriorites,
+        List<Cible> aRevoirVisibles,
+        List<Cible> solides,
+        List<ThemeLigne> themes,
+        Grain grain,
+        Changements changements,
+        Instant calculeA
+) {
+
+    /**
+     * <b>Ce qui a bouge depuis peu</b> — le bloc « Progression detectee ».
+     *
+     * <p>🛑 <b>{@code null} est le cas NORMAL.</b> Servi seulement quand une
+     * <b>vraie</b> transition a eu lieu : le temps qui passe n'est pas un
+     * changement, et un bloc qui s'afficherait vide ne dirait rien.
+     *
+     * <p>🛑 <b>Rien n'est persiste</b>, fidele au reste du module : l'etat d'il
+     * y a une semaine se <b>rejoue</b> depuis l'historique des reponses, comme
+     * l'etat courant ({@code CivicChangementsResolver}). Aucune table de
+     * snapshot, donc le tagging reste retroactif.
+     *
+     * @param fenetre          la plus COURTE fenetre qui contienne quelque chose
+     *                         de reel. Partagee avec le TCF : une seule autorite
+     *                         sur les periodes et leurs libelles
+     * @param depuis           le debut de cette fenetre
+     * @param transitions      les cibles dont l'etat a change, de la plus
+     *                         recemment travaillee a la plus ancienne
+     * @param nouvellePriorite la cible que le plan vient de mettre en tete, ou
+     *                         {@code null} si la priorite n&deg;1 n'a pas bouge
+     */
+    public record Changements(
+            PlanRecentChangesWindow fenetre,
+            Instant depuis,
+            List<Transition> transitions,
+            CibleRef nouvellePriorite
+    ) {
+        public Changements {
+            transitions = List.copyOf(transitions);
+        }
+    }
+
+    /**
+     * Une cible dont l'etat a change sur la fenetre.
+     *
+     * @param avant    l'etat au debut de la fenetre, <b>rejoue</b>
+     * @param apres    l'etat courant
+     * @param progres  {@code true} si l'on est monte. 🛑 <b>Derive serveur</b> :
+     *                 un front ne compare jamais deux etats pedagogiques
+     * @param observeeA la derniere reponse qui a fait bouger cette cible
+     */
+    public record Transition(
+            UUID cibleId,
+            String code,
+            String label,
+            CivicPlanGrain grain,
+            CivicMaitrise avant,
+            CivicMaitrise apres,
+            boolean progres,
+            Instant observeeA
+    ) {
+    }
+
+    /** De quoi nommer une cible sans reservir toute sa mesure. */
+    public record CibleRef(UUID id, String code, String label, CivicPlanGrain grain) {
+    }
+
+    /**
+     * <b>Un theme, vu de l'ecran Reviser</b> : ou en est le candidat sur ce
+     * theme, en un coup d'oeil.
+     *
+     * <p>🛑 <b>Il existe parce qu'aucun front ne peut le calculer.</b>
+     * {@code prioritesVisibles} et {@code aRevoirVisibles} sont <b>plafonnees a
+     * l'affichage</b>
+     * (trois chacune) : compter des notions dedans, theme par theme, aurait
+     * servi un plafond d'ecran comme un budget de mesure — exactement le defaut
+     * qui a prive trois domaines sur quatre de toute action cote TCF
+     * (2026-08-25). Les compteurs ci-dessous sont donc etablis sur
+     * <b>TOUTES</b> les cibles du plan, avant toute troncature.
+     *
+     * <p>🛑 <b>Des faits, pas une phrase.</b> « 3 notions maitrisees », « En
+     * cours · Le Parlement », « Pas encore travaille » se composent dans les
+     * fronts, en miroir mot pour mot, comme tout le reste de ce DTO.
+     *
+     * @param themeId     le theme
+     * @param code        {@code CIV_PRINCIPES} … {@code CIV_SOCIETE}
+     * @param label       son libelle editorial, tel qu'il vit en base
+     * @param etat        l'etat du theme : son dernier examen blanc de theme,
+     *                    sinon sa part du dernier examen civique global, sinon
+     *                    le dernier diagnostic ({@code EtatThemeCiviqueParExamens},
+     *                    2026-09-28). 🛑
+     *                    {@code NON_EVALUE} n'est pas « faible » : c'est une
+     *                    absence de mesure
+     * @param grain       a quel grain CE theme est travaille aujourd'hui — le
+     *                    tagging se mesure theme par theme
+     * @param cibles      cibles <b>servables</b> du theme (ses notions, ou le
+     *                    theme lui-meme au grain THEME)
+     * @param maitrisees  celles que le moteur tient pour maitrisees
+     * @param travaillees celles qui portent au moins une reponse. 🛑 Un fait
+     *                    d'historique, jamais « proposable »
+     * @param enCours     la cible que le plan travaille <b>maintenant</b> sur ce
+     *                    theme, ou {@code null}. Au plus un theme la porte :
+     *                    c'est {@code prochaine}, lue chez la meme autorite —
+     *                    l'ecran Reviser et le Plan ne peuvent donc pas designer
+     *                    deux choses differentes
+     * @param evaluation  <b>l'examen blanc qui mesure ce theme</b>, servi
+     *                    exactement quand {@code etat} vaut {@code NON_EVALUE},
+     *                    {@code null} sinon (2026-09-28). C'est le « Evaluer mon
+     *                    niveau » de la carte de l'Accueil, pendant civique de
+     *                    {@code ProgressDto.Epreuve.evaluation} : le front ne
+     *                    deduit ni l'absence de mesure, ni le theme, ni le
+     *                    creneau — il relaie ce descripteur au lanceur d'examen
+     *                    de theme, le meme que l'etape du Plan
+     */
+    public record ThemeLigne(
+            UUID themeId,
+            String code,
+            String label,
+            CivicThemeState etat,
+            CivicPlanGrain grain,
+            int cibles,
+            int maitrisees,
+            int travaillees,
+            CibleRef enCours,
+            JourneyThemeExamDto evaluation) {
+    }
+
+    /**
+     * La derniere mesure <b>comparable au seuil</b>.
+     *
+     * <p>🛑 <b>C'est le diagnostic, pas une estimation courante.</b>
+     * {@code 20_} §6 bloc 1 parle d'un « resultat estime aujourd'hui » derive
+     * des « dernieres reponses » : on ne le fabrique pas. Melanger des series
+     * d'entrainement (correction immediate, questions choisies) a un examen
+     * produirait un nombre qui ressemble a un score sans en etre un. Le
+     * diagnostic, lui, pose le format entier : son score EST le resultat.
+     *
+     * @param bonnes  bonnes reponses du diagnostic
+     * @param posees  questions reellement posees
+     * @param seuil   32, la regle de l'epreuve — servi pour que l'ecran le DISE
+     *                sans le connaitre
+     * @param format  40, le format de l'epreuve
+     */
+    public record Resultat(int bonnes, int posees, int seuil, int format, Instant mesureA) {
+    }
+
+    /**
+     * L'etat du tagging, et ce qu'il autorise.
+     *
+     * <p>🛑 <b>Le grain se MESURE, il ne se decrete pas</b> ({@code 20_} §3.3).
+     * Au 2026-09-19, les cinq themes sont tagues a <b>97 — 98,6 %</b> : ils sont
+     * donc tous au grain {@code NOTION}. Le mode {@code THEME} reste servi pour
+     * un theme neuf, et l'ecran le dit — il ne fait jamais semblant de
+     * travailler par notion.
+     *
+     * @param courant         {@code NOTION} seulement quand <b>tous</b> les
+     *                        themes ont bascule. Le plan ne se dit pas plus
+     *                        precis qu'il ne l'est
+     * @param themesParNotion themes deja bascules
+     * @param themesTotal     themes civiques
+     * @param taguees         questions civiques actives deja taguees
+     * @param total           questions civiques actives
+     */
+    public record Grain(
+            CivicPlanGrain courant,
+            int themesParNotion,
+            int themesTotal,
+            long taguees,
+            long total) {
+    }
+
+    /**
+     * Une cible du plan : une <b>notion</b>, ou un <b>theme</b> tant que le
+     * tagging de ce theme n'a pas franchi le seuil.
+     *
+     * <p>🛑 <b>Tout est derive, rien n'est fige.</b> {@code boite},
+     * {@code maitrise} et {@code prochaineRevue} se replient sur l'historique
+     * des reponses a chaque lecture : le jour ou une question recoit sa notion,
+     * les reponses deja donnees comptent pour elle.
+     *
+     * @param grain             a quel grain cette cible est travaillee
+     * @param themeId           son theme, toujours present — au grain THEME,
+     *                          {@code id} et {@code themeId} sont le meme
+     * @param etatDuTheme       l'etat servi par le dernier diagnostic.
+     *                          🛑 {@code NON_EVALUE} n'est pas « faible »
+     * @param maitrise          l'etat pedagogique. 🛑 <b>Servi</b> : aucun front
+     *                          ne classe un compteur en etat
+     * @param boite             la boite Leitner (1 a 5). 🛑 <b>Ne s'affiche
+     *                          jamais</b> ({@code 30_} §510) : elle est servie
+     *                          pour l'admin et les tests. Ce que l'ecran montre,
+     *                          c'est {@code parcours}
+     * @param parcours          <b>ou en est le candidat</b>, etape par etape —
+     *                          exactement 5 etats, du premier au dernier. 🛑
+     *                          C'est ce qui rend l'effet Leitner <b>visible</b>
+     *                          sans publier un numero de boite. Les libelles des
+     *                          etapes sont geles cote front : ce DTO sert des
+     *                          faits, jamais des phrases
+     * @param reponses          reponses enregistrees sur cette cible
+     * @param correctes         dont justes
+     * @param erreursRecentes   erreurs sur 30 jours (ce que le score compte)
+     * @param derniereErreur    {@code null} s'il n'y en a jamais eu
+     * @param prochaineRevue    l'echeance Leitner. {@code null} = jamais vue,
+     *                          donc jamais « en retard »
+     * @param aRevoirVisibles           l'echeance est franchie
+     * @param score             le rang chiffre ({@code 20_} §5.3). Servi pour
+     *                          l'admin et les tests, jamais montre au candidat :
+     *                          un score de priorite invite a comparer deux
+     *                          nombres qui ne mesurent pas la meme chose
+     * @param dotation          ce que le catalogue offre sur cette cible, POUR
+     *                          SA MENTION. 🛑 <b>Trois etats, pas deux</b> :
+     *                          {@code NON_APPLICABLE} (zero question) dit que la
+     *                          notion n'est pas au programme de cette demarche,
+     *                          {@code CONTENU_INSUFFISANT} qu'elle y est mais
+     *                          qu'il manque de la matiere. Seule une cible
+     *                          {@code SERVABLE} est proposee en priorite ou en
+     *                          revision ({@code 50_} §6.1)
+     * @param questionsSerie    la taille de la serie ciblee proposee
+     * @param dureeEstimeeSec   son ordre de grandeur, <b>derive</b> de la taille
+     * @param locked            la serie est-elle reservee ? 🛑 Le constat, lui,
+     *                          n'est jamais verrouille
+     */
+    public record Cible(
+            UUID id,
+            String code,
+            String label,
+            CivicPlanGrain grain,
+            UUID themeId,
+            String themeCode,
+            String themeLabel,
+            CivicThemeState etatDuTheme,
+            CivicMaitrise maitrise,
+            int boite,
+            List<CivicEtapeEtat> parcours,
+            int reponses,
+            int correctes,
+            int erreursRecentes,
+            Instant derniereErreur,
+            Instant prochaineRevue,
+            boolean aRevoir,
+            int score,
+            /**
+             * 🛑 <b>Borne par le stock reel</b> depuis P8.2b :
+             * {@code min(questionsParSerie, questions de la cible)}. Le plan ne
+             * promet plus dix questions sur une cible qui n'en a que huit
+             * ({@code DETTE-C1}).
+             */
+            int questionsSerie,
+            int dureeEstimeeSec,
+            boolean locked
+    ) {
+    }
+}

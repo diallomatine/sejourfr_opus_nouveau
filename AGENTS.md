@@ -1,0 +1,4 @@
+- À chaque lancement, au début de chaque session et avant tout travail, lire intégralement le fichier racine `CLAUDE.md` afin de prendre connaissance du contexte, des conventions et des règles du projet.
+- `CLAUDE.md` est le fichier de référence et la source de vérité du projet.
+- Si des travaux modifient durablement le contexte, l’architecture, les conventions ou les consignes, mettre à jour `CLAUDE.md`, et non `AGENTS.md`.
+- Si un sous-projet possède son propre `CLAUDE.md`, le lire également intégralement avant d’y travailler.

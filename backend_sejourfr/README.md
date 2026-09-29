@@ -5,6 +5,7 @@ Backend Spring Boot 3.3 / Java 21 pour l'application SejourFR.
 ## Demarrage
 
 ### Prerequis
+
 - Java 21
 - PostgreSQL 14+ (local)
 - Maven 3.9+ (ou utiliser `./mvnw` si tu ajoutes le wrapper)
@@ -25,6 +26,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 L'app demarre sur `http://localhost:8080`. Flyway charge automatiquement :
+
 - `V1__schema.sql` (toutes les tables)
 - `V2__seed_reference.sql` (themes officiels + plans)
 - `V3__seed_dev.sql` (admin + utilisateurs + ~15 questions + 2 conversations de test)
@@ -83,3 +85,43 @@ Tous prefixes par `/api/admin/**`, requiert un JWT avec role ADMIN.
 Auth : `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
 
 Fichiers uploades servis sur `/files/{key}`.
+
+# Stripe
+
+stripe listen --forward-to http://localhost:8080/api/billing/webhook
+
+Nouveaux fichiers :
+
+- service/EvaluationLlmClient.java — interface (4 méthodes : evaluate, getModelName, getPromptVersion, +
+  record Outcome enrichi du costEstimateCents)
+- service/EvaluationOpenAiClient.java — impl Chat Completions + function calling, utilise le même tool schema
+  JSON que l'impl Anthropic                                   
+  (prompts/production-evaluation-tool-schema.json)
+- config/EvaluationLlmConfig.java — @Bean @Primary EvaluationLlmClient qui dispatche entre les deux beans
+  @Qualifier-és selon provider
+
+Modifs :
+
+- EvaluationAnthropicClient : implémente l'interface, @Service("evaluationAnthropicClient"), calcul du coût
+  déplacé dedans
+- AiEvaluationService : dépend de EvaluationLlmClient (l'interface), pas de l'impl Anthropic. modeleUtilise et
+  promptVersion viennent du client actif, coutEstimeCentimes
+  vient de Outcome.costEstimateCents()
+- ProductionEvaluationProperties : ajout provider (default openai) + sous-objet OpenAi (avec
+  cost-per-million-*-tokens côté chaque provider)
+- application.yaml : nouvelle section openai: sous production-evaluation:, provider: ${EVAL_LLM_PROVIDER:
+  openai} (OpenAI activé par défaut)
+
+Comment switcher :
+
+- Par défaut : OPENAI_API_KEY suffit (mutualisé avec Whisper) → gpt-4o-mini
+- Pour revenir à Claude : export EVAL_LLM_PROVIDER=anthropic + EVAL_ANTHROPIC_API_KEY configurée + restart
+- Pour ajouter un 3e provider plus tard (Mistral, Gemini, etc.) : implémenter EvaluationLlmClient,
+  l'enregistrer en @Service("xxx"), ajouter le case dans                 
+  EvaluationLlmConfig. Aucun changement à AiEvaluationService ni au mobile.
+
+Tu veux que je commit/push, ou tu veux d'abord tester avec ta clé OpenAI ?
+
+/plugin install stripe@claude-plugins-official
+
+scp target/sejourfr-backend-0.1.0-SNAPSHOT.jar root@82.223.165.43:/tmp/sejourfr-backend.jar

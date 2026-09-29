@@ -1,0 +1,172 @@
+package com.sejourfr.app.repository;
+
+import com.sejourfr.app.entity.AttemptQuestion;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface AttemptQuestionRepository extends JpaRepository<AttemptQuestion, UUID> {
+
+    List<AttemptQuestion> findByAttemptIdOrderByPositionAsc(UUID attemptId);
+
+    /**
+     * Items poses et items reussis d'un attempt, <b>ventiles par palier</b>
+     * ({@code questions.difficulty}). Une ligne par palier :
+     * {@code [Difficulty, posés, réussis]}.
+     *
+     * <p>C'est le denominateur reel du calcul de niveau du diagnostic
+     * ({@code TcfDiagnosticLevelResolver}) : le taux se lit palier par palier,
+     * jamais sur le total — 10 bonnes reponses sur 15 ne disent rien tant qu'on
+     * ignore lesquelles.
+     *
+     * <p>Une question sans reponse compte comme <b>posee et non reussie</b> :
+     * dans une section chronometree qu'on termine d'une traite, ne pas repondre
+     * est une reponse. Le {@code LEFT JOIN} le garantit — {@code COUNT(aq)} ne
+     * bouge pas, la somme ajoute zero.
+     *
+     * <p>🔴 <b>La justesse se lit sur {@code answers.is_correct}, JAMAIS sur
+     * {@code attempt_questions.is_correct}</b> (corrige le 2026-09-11). La
+     * seconde colonne existe en base mais <b>aucun code ne l'ecrit</b> : le seul
+     * point d'ecriture de la correction d'un QCM est
+     * {@code AttemptInteractionService.doSubmitAnswer}, et il pose
+     * {@code answer.setCorrect(...)}. Mesure sur la base de developpement :
+     * <b>0 ligne renseignee sur 9 441</b> cote {@code attempt_questions},
+     * 2 161 cote {@code answers}. Ces deux agregats etaient donc les
+     * <b>seuls</b> lecteurs de la colonne morte — tout le reste du depot passe
+     * deja par {@code aq.getAnswer().getCorrect()}
+     * ({@code AttemptScoringService}, {@code AttemptMapper}).
+     *
+     * <p>🛑 <b>Ce que ca cassait</b> : les trois diagnostics civiques reels de
+     * la base valaient 23, 11 et 10 bonnes reponses sur 40 — et l'ecran de
+     * resultat annoncait <b>0/40</b> aux trois, donc tous les themes
+     * {@code FAIBLE}, tous priorites, et un plan civique entierement bati sur
+     * une mesure fausse. C'est la confusion que le depot paie deja cher ailleurs
+     * (V040/V041/V042) : une absence de donnee devenue le verdict le plus bas.
+     *
+     * <p>⚠️ {@code attempt_questions.is_correct} reste en place, non ecrite et
+     * desormais non lue — regle du depot : une colonne legacy cesse d'etre
+     * ecrite et mappee, elle ne se supprime pas.
+     *
+     * <p><b>Quatrieme colonne (2026-09-13)</b> : le nombre de questions
+     * <b>REPONDUES</b>, a cote des posees et des reussies. « Posee mais sans
+     * reponse » et « jamais posee » ne sont pas la meme chose, et une epreuve
+     * ou <b>rien</b> n'a ete repondu n'a rien mesure du tout — elle ne doit pas
+     * rendre un A1 (cf. {@code TcfDiagnosticReadService.niveauComprehension}).
+     * Aucun cout : c'est la meme requete, un {@code SUM} de plus.
+     */
+    @Query("""
+            SELECT aq.question.difficulty,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id = :attemptId
+            GROUP BY aq.question.difficulty
+            """)
+    List<Object[]> aggregateByDifficulty(@Param("attemptId") UUID attemptId);
+
+    /**
+     * Agregat par THEME et par type de question, pour le diagnostic civique
+     * (L9) : {@code [themeId, QuestionType, poses, reussis]}.
+     *
+     * <p>Le type est dans le regroupement parce que 20_ §4.5 compte les
+     * <b>mises en situation a part</b> : appliquer une regle a un cas concret
+     * est une competence distincte de la restituer, et l'ecran le dit.
+     *
+     * <p>🛑 <b>Une question sans reponse compte comme posee et non reussie</b>,
+     * comme au TCF : dans un diagnostic qu'on termine d'une traite, ne pas
+     * repondre est une reponse. C'est different d'un theme jamais TIRE, qui lui
+     * n'apparait pas du tout ici et ressort « non evalue ». Le {@code LEFT JOIN}
+     * le garantit — {@code COUNT(aq)} ne bouge pas, la somme ajoute zero.
+     *
+     * <p>🔴 <b>Meme correction que {@link #aggregateByDifficulty} le
+     * 2026-09-11, et meme cause</b> : la justesse se lit sur
+     * {@code answers.is_correct}. Voir le detail la-bas.
+     */
+    @Query("""
+            SELECT aq.question.theme.id,
+                   aq.question.questionType,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id = :attemptId
+            GROUP BY aq.question.theme.id, aq.question.questionType
+            """)
+    List<Object[]> aggregateByThemeAndType(@Param("attemptId") UUID attemptId);
+
+    /**
+     * 🛑 <b>La requete UNIQUE du niveau QCM.</b> Items poses et reussis de
+     * <b>plusieurs</b> attempts d'un coup, ventiles par epreuve puis par palier :
+     * {@code [attemptId, QuestionType, Difficulty, poses, repondus, reussis]}.
+     *
+     * <p>Elle existe pour une raison precise : depuis le 2026-09-20 le niveau
+     * CECRL d'un QCM n'est plus persiste, il se <b>derive a la lecture</b> des
+     * reponses ({@code TcfLevelEstimatorService.niveauParStrates}). Sans forme
+     * groupee, chaque ecran de LISTE — historique, profil TCF, « Voir mes
+     * resultats », liste des examens blancs — aurait paye une requete par
+     * tentative affichee. Tout lecteur prend la page entiere en une passe ;
+     * {@code AttemptQuestionManager.stratesParAttempt} est son seul appelant.
+     *
+     * <p>Le regroupement porte le {@code questionType} parce qu'un attempt peut
+     * contenir <b>plusieurs epreuves</b> (diagnostic TCF sectionne CO puis CE) :
+     * le niveau se calcule par epreuve, puis on en prend le plancher. Le
+     * repliement {@code CO_IMAGE → CO} est une regle metier, il se fait chez
+     * l'estimateur, pas ici.
+     *
+     * <p>Une question sans reponse compte comme <b>posee et non reussie</b>
+     * ({@code LEFT JOIN} : {@code COUNT(aq)} ne bouge pas, la somme ajoute
+     * zero) — meme convention que {@link #aggregateByDifficulty}. La colonne
+     * {@code repondus} distingue « tout faux » d'« aucune reponse donnee » :
+     * meme verdict aujourd'hui, mais la donnee ne les confond plus.
+     *
+     * <p>🔴 La justesse se lit sur {@code answers.is_correct}, JAMAIS sur
+     * {@code attempt_questions.is_correct} : cette colonne existe en base et
+     * <b>aucun code ne l'ecrit</b> (cf. le detail sur
+     * {@link #aggregateByDifficulty}).
+     */
+    @Query("""
+            SELECT aq.attempt.id,
+                   aq.question.questionType,
+                   aq.question.difficulty,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id IN :attemptIds
+            GROUP BY aq.attempt.id, aq.question.questionType, aq.question.difficulty
+            """)
+    List<Object[]> aggregateStratesByAttempts(@Param("attemptIds") Collection<UUID> attemptIds);
+
+    /**
+     * Part de chaque THÈME dans plusieurs examens civiques, en <b>une</b>
+     * requête : {@code [attemptId, themeId, poses, reussis]}.
+     *
+     * <p>Forme groupée de {@link #aggregateByThemeAndType}, pour la liste des
+     * examens globaux de l'écran de progression civique. 🛑 <b>Tous les types
+     * de question comptent</b>, mises en situation comprises (D11, 2026-09-24) :
+     * l'arrêté les place <b>dans</b> les thématiques « Principes et valeurs » et
+     * « Droits et devoirs », et les exclure ramènerait la part de la première à
+     * 5 questions sur 11. Une question sans réponse est posée et non réussie
+     * ({@code LEFT JOIN}), comme au diagnostic.
+     */
+    @Query("""
+            SELECT aq.attempt.id,
+                   aq.question.theme.id,
+                   COUNT(aq),
+                   SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+            FROM AttemptQuestion aq
+                     LEFT JOIN aq.answer a
+            WHERE aq.attempt.id IN :attemptIds
+            GROUP BY aq.attempt.id, aq.question.theme.id
+            """)
+    List<Object[]> aggregatePartsParTheme(@Param("attemptIds") Collection<UUID> attemptIds);
+}

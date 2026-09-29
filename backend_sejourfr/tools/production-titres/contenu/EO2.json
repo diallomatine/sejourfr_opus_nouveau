@@ -1,0 +1,107 @@
+{
+  "epreuve": "TCF_EO",
+  "tacheNumero": 2,
+  "libelle": "Jeu de rôle",
+  "titres": [
+    {
+      "id": "21b1b1d9-5411-49a8-99b7-9c18b1abd8b6",
+      "titre": "Envoi d'un colis",
+      "repere": "Vous êtes à la poste pour envoyer un colis à un ami…"
+    },
+    {
+      "id": "67b1bc04-5275-4cc6-b6f3-df4f28c2a0aa",
+      "titre": "Entretien téléphonique d'embauche",
+      "repere": "Vous postulez pour un emploi… lors d'un entretien téléphonique."
+    },
+    {
+      "id": "aafce71c-0b12-4945-8a28-02f5d0f2299f",
+      "titre": "Appel au service après-vente",
+      "repere": "Vous appelez le service après-vente pour expliquer le problème…"
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000001",
+      "titre": "Visite d'un appartement",
+      "repere": "Vous visitez un logement qui vous plaît… interrogez l'agent immobilier."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000002",
+      "titre": "Achat d'une voiture d'occasion",
+      "repere": "Vous répondez à une annonce pour une voiture d'occasion…"
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000003",
+      "titre": "Rendez-vous chez le médecin",
+      "repere": "Vous téléphonez à un cabinet médical pour prendre rendez-vous."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000004",
+      "titre": "Ouverture d'un compte bancaire",
+      "repere": "Vous rencontrez un conseiller pour ouvrir un compte bancaire."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000005",
+      "titre": "Devis de déménagement",
+      "repere": "Vous appelez une entreprise de déménagement pour demander un devis."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000006",
+      "titre": "Réservation d'une chambre d'hôtel",
+      "repere": "Vous téléphonez à un hôtel pour réserver une chambre."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000007",
+      "titre": "Inscription au cours de cuisine",
+      "repere": "Vous voulez vous inscrire à un cours de cuisine dans une association."
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000008",
+      "titre": "Démarches à la mairie",
+      "repere": "Vous vous présentez à la mairie pour plusieurs démarches…"
+    },
+    {
+      "id": "88888888-2001-1000-0000-000000000009",
+      "titre": "Achats au marché",
+      "repere": "Vous êtes au marché pour acheter des fruits et des légumes."
+    },
+    {
+      "id": "88888888-2001-1000-0000-00000000000a",
+      "titre": "Échange d'une veste défectueuse",
+      "repere": "Une couture s'est défaite… vous retournez au magasin."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000001",
+      "titre": "Souscription d'une assurance habitation",
+      "repere": "Vous rencontrez un conseiller pour souscrire une assurance habitation."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000002",
+      "titre": "Abonnement à la médiathèque",
+      "repere": "Vous voulez prendre un abonnement à la médiathèque de votre quartier."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000003",
+      "titre": "Projet de formation en pâtisserie",
+      "repere": "Vous souhaitez devenir pâtissier… vous rencontrez la responsable."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000004",
+      "titre": "Traiteur pour un anniversaire",
+      "repere": "Vous organisez les 60 ans de votre tante… vous téléphonez à un traiteur."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000005",
+      "titre": "Location d'une voiture",
+      "repere": "Vous voulez louer une voiture… vous allez dans une agence."
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000006",
+      "titre": "Panne de chauffage et humidité",
+      "repere": "Le chauffage fonctionne mal et de l'humidité est apparue…"
+    },
+    {
+      "id": "88888888-2002-1000-0000-000000000007",
+      "titre": "Délai pour une facture d'électricité",
+      "repere": "Vous téléphonez au service clients pour demander un délai de paiement."
+    }
+  ]
+}

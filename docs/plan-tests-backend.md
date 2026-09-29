@@ -1,0 +1,228 @@
+# Plan — Tests backend SejourFR
+
+Branche : `test/backend-coverage` (depuis `develop`).
+
+## Objectif
+
+Couvrir **toutes** les couches du backend (managers, services, controllers + droits,
+mappers, specifications) par des tests automatisés, puis assainir l'architecture des gros
+services **sous filet de tests** (refacto sans régression).
+
+## 🛑 Un test ne dépend jamais d'un choix du moteur qu'il ne fixe pas lui-même
+
+**Règle générale, née d'un cas mesuré le 2026-09-20.**
+
+`CivicPlanServiceIT.serieCibleeAbonne` vérifiait qu'une série ciblée porte
+`cible.questionsSerie()` questions. Il prenait la cible dans
+`plan.priorites().getFirst()` — **le choix du moteur**, qu'il ne fixait pas. Il était vert parce
+que la cible que le classement mettait en tête avait assez de questions dans la mention du
+candidat. Le jour où un branchement sans rapport a changé l'ordre du classement, la première cible
+est devenue une notion à **8 questions CSP sur 26 actives**, et le test est passé au rouge — en
+révélant un vrai défaut (`DETTE-C1`) qui dormait depuis des semaines.
+
+**Ce que le test aurait dû faire** : soit **fixer** la cible (la désigner explicitement), soit
+comparer à ce que la règle **permet** (`min(quota, stock réellement servable)`), jamais à un nombre
+qui dépend d'une décision prise ailleurs.
+
+**Deux questions à se poser devant un test :**
+
+1. *« Ce que j'assertionne dépend-il d'un choix que je n'ai pas fixé ? »* — un ordre, un premier
+   élément, un tirage, un classement. Si oui : le fixer, ou assertionner la **règle** plutôt que le
+   **résultat**.
+2. *« Si le moteur change d'avis demain, ce test dira-t-il quelque chose de vrai ? »* — s'il devient
+   rouge sans qu'aucune règle n'ait bougé, il mesurait une coïncidence.
+
+⚠️ Un tel test ne **ment** pas : il **dort**. Et il se réveille au pire moment — pendant une passe
+qui parle d'autre chose, en accusant le changement en cours d'un défaut bien plus ancien.
+
+## 🛑 Attendre l'asynchrone : jamais sur les compteurs de `ThreadPoolExecutor` (2026-09-27)
+
+`getTaskCount() == getCompletedTaskCount()` est **vrai** pendant qu'un worker tient une tâche
+sortie de la file (ou reçue comme première tâche) sans l'avoir encore démarrée : le JDK compte
+« terminées + workers verrouillés + file ». Mesuré : ~1 faux « au repos » pour 2 000 soumissions
+sur une machine au calme, davantage sous la charge d'un `./mvnw verify` complet. C'était la cause
+de l'échec intermittent d'`EmailDeferredRetryIT.troisRelancesAuMaximum` : la relance suivante
+trouvait la ligne encore `PENDING`, ne la reprenait pas, et la dernière relance (SMTP rétabli)
+finissait `SENT`. Les tests d'emails attendent désormais `EmailExecutorTracker.inFlight() == 0`
+(`AbstractEmailIT.awaitEmailExecutorIdle`) : un `TaskDecorator` posé par `TestSupportConfig`
+compte la tâche **dans le thread appelant** et la décompte à la fin de son exécution. Le bean
+de production n'est pas touché ; le tracker échoue au démarrage si le décorateur ne prend pas.
+
+## Décisions structurantes
+
+| Sujet | Choix | Pourquoi |
+|-------|-------|----------|
+| DB de test | **Postgres embarqué (Zonky `embedded-postgres`)** | 221 migrations Flyway très PG-spécifiques (index partiels `WHERE`, `interval`, casts `::`, `jsonb`). H2 diverge. Testcontainers exige Docker (indisponible ici + en CI sans daemon). Zonky lance un **vrai binaire Postgres** sans Docker → parité 100 %, Flyway tourne pour de vrai, `ddl-auto: validate` devient un test gratuit du mapping JPA. |
+| Lib d'intégration | `io.zonky.test:embedded-postgres` (binaire bas-niveau) piloté nous-mêmes via `@DynamicPropertySource` | Découplé de la version Spring Boot (4.0.6 récent) — on ne dépend pas d'une auto-config tierce compatible Boot 4. |
+| Ordre tests / refacto | **Tests d'abord, refacto ensuite** | Seul ordre qui mène à une archi propre sans régression silencieuse. |
+| Découpage des suites | `*Test` = unitaire (surefire, rapide, mocks) · `*IT` = intégration (failsafe, vrai PG) | Build rapide par défaut ; l'intégration tourne en phase `integration-test`. |
+| Couverture | JaCoCo (rapport, pas de gate bloquant au début) | Mesure objective, gate à activer plus tard. |
+
+## Stratégie par couche
+
+- **Managers** (`*ManagerIT`) : intégration réelle PG. Vérifient requêtes JPA, specifications,
+  `limit`, tri, contraintes uniques, cascades. C'est là que le vrai PG paie.
+- **Services unitaires** (`*Test`) : Mockito pur (managers/clients mockés). Règles métier,
+  freemium, quotas, branches d'erreur. Rapides, majoritaires.
+- **Services d'intégration** (`*IT`) : quand le cas d'usage traverse réellement le DB
+  (transactions, état persistant, multi-manager) — ciblé, pas systématique.
+- **Controllers + droits** (`*ControllerIT`) : `@SpringBootTest` + `MockMvc`, **vrai JWT
+  Bearer** sur user seedé → exerce le filtre JWT + `SecurityConfig`. Pour chaque endpoint :
+  - anonyme → **401** (routes protégées) ou 200 (routes `permitAll`)
+  - USER sur route `/api/admin/**` → **403**
+  - rôle attendu → **200** + forme de réponse.
+- **Mappers / specifications** : unitaires purs.
+
+## Infra (mise en place)
+
+- `pom.xml` : deps test Zonky + binaires (`darwin-arm64v8` local, `linux-amd64` CI),
+  `maven-failsafe-plugin`, `jacoco-maven-plugin`.
+- `src/test/resources/application-test.yaml` : profil `test`, Flyway `classpath:db/migration`
+  uniquement (pas de seed dev), secret JWT de test, mail/rate-limit neutralisés, clés externes
+  vides (→ 503 inerte).
+- `src/test/java/.../support/` :
+  - `EmbeddedPostgresHolder` — singleton JVM (1 PG démarré, réutilisé par toutes les classes).
+  - `AbstractIntegrationTest` — `@SpringBootTest` + `@AutoConfigureMockMvc` + `@ActiveProfiles("test")`
+    + `@DynamicPropertySource`.
+  - `TestData` — fabriques d'entités (User, Theme, Question, Attempt…).
+  - `AuthTestSupport` — mint d'un access token réel + header `Authorization`.
+
+## Séquencement (pas à pas)
+
+1. **Infra + smoke test** : contexte démarre, 221 migrations passent, `validate` OK. ← risque #1
+2. **Tests de référence** (1 par couche) validés par l'utilisateur → gabarit figé.
+3. **Fan-out** : couverture complète par vagues (managers → services → controllers).
+4. **Refacto** : split des gros services (AttemptService 1252 l., FullTcfExamService, billing)
+   sous tests verts.
+
+## État
+
+- [x] Branche créée
+- [x] Infra + smoke test (PG embarqué 16.2, 221 migrations OK, `validate` OK)
+- [x] Tests de référence (UserManagerIT, ThemeServiceIT, ThemeControllerSecurityIT)
+- [x] Fan-out couverture : **858 tests verts** (424 unit + 434 IT)
+  - Managers : 23 fichiers IT (requêtes, tris, filtres, specifications, contraintes)
+  - Controllers : matrice de droits data-driven (120 tests, 3 fichiers) — tous les
+    controllers, 401/403/200 par rôle, **aucune faille trouvée**
+  - Services : ~56 services (unit Mockito + IT DB) — freemium, billing, quotas,
+    transitions de statut, mapping, RGPD, etc.
+  - Couverture JaCoCo : ~47 % instr (unit) + 40 % instr (IT), complémentaires
+- [x] Mappers (13, unitaires) + specifications (3, IT) → **929 tests verts** (473 unit + 456 IT)
+      *(chiffre de l'époque du fan-out, conservé comme repère historique — voir le décompte
+      courant ci-dessous)*
+- [x] Refacto archi : `AttemptService` 1252 → 799 l. + 3 services `service/attempt/`
+  (`AttemptScoringService`, `AttemptCompositionService`, `AttemptInteractionService`),
+  façade à API publique inchangée, 929 tests toujours verts.
+
+### Décompte courant — **2026-09-18**
+
+Recompté sur le dépôt (`find src/test -name '*Test.java' | wc -l`, idem `*IT.java`, et
+`grep -c '@Test'`) :
+
+| grandeur | valeur mesurée |
+|---|---|
+| classes de test | **396** — 257 `*Test` (surefire) + 139 `*IT` (failsafe) |
+| méthodes `@Test` | **3 848** — 2 824 unitaires + 1 024 d'intégration |
+| `@ParameterizedTest` en plus | **29** — 23 unitaires + 6 d'intégration (chacune s'exécute N fois) |
+| migrations Flyway appliquées par les `*IT` | **312** fichiers `V*.sql` |
+
+⚠️ Les « 929 tests verts » et les « 221 migrations » des sections ci-dessus datent du fan-out
+initial : ce sont des **repères historiques**, pas l'état du dépôt.
+
+## Refacto réalisé (sous filet, API publiques inchangées, 929 tests verts à l'époque)
+
+- **`AttemptService`** 1252 → 799 l. + `service/attempt/` : `AttemptScoringService` (138),
+  `AttemptCompositionService` (228), `AttemptInteractionService` (254). Façade orchestrant
+  le start/dispatch.
+- **`FullTcfExamService`** 531 → 339 l. + `FullTcfExamResponseBuilder` (222) : construction
+  des réponses + scoring CECRL extraits.
+- **Billing DRY** : emails Premium (activation/résiliation) dupliqués à l'identique dans
+  Stripe/Apple/Google (+ inline cancellation) → `SubscriptionNotificationService`
+  partagé. −64 lignes nettes.
+
+Les services billing par provider (~500 l.) restent gros mais **cohésifs** (1 intégration
+paiement chacun : verify-receipt + webhooks + mapping de statut spécifiques) — corrects
+tels quels, et couverts par des tests donc découpables sans risque si la logique grossit.
+
+## Gabarits validés (à reproduire au fan-out)
+
+- **Manager/repo** : `class XManagerIT extends AbstractIntegrationTest` + `@Autowired XManager`.
+  Tester requêtes, tris, `limit`, specifications, contraintes. Pour une violation de
+  contrainte traduite en `DataIntegrityViolationException`, passer par `repository.saveAndFlush`.
+- **Service unitaire** (défaut, rapide) : Mockito pur, pas de contexte Spring (cf.
+  `FullTcfExamServiceFreemiumTest` existant). Mocker les managers/clients.
+- **Service + DB** : `class XServiceIT extends AbstractIntegrationTest` quand le cas traverse
+  la base (transactions, état persistant).
+- **Controller + droits** : `class XControllerSecurityIT extends AbstractIntegrationTest`,
+  `@Autowired MockMvc/TestData/AuthTestSupport`. Matrice anonyme(401) / USER(403 sur admin) /
+  rôle attendu(200/201) / body invalide(400). En-tête `Authorization: auth.bearer(user)`.
+- **Contenu publié figé par un test** (gabarit nouveau, réutilisable) :
+  `SkillSeedIT` (`src/test/java/.../migration/SkillSeedIT.java`). Quand une **règle produit
+  porte sur le contenu** et non sur le code, c'est un test qui la tient — pas le DDL. Ici le
+  volume du module Compétences TCF : **8 compétences actives par tâche** (× 6 tâches = 48),
+  **5 sujets actifs par compétence** (240), **3 références par sujet** (720), une par niveau
+  `INSUFFICIENT`/`EXPECTED`/`EXCELLENT` sans niveau manquant. Il vérifie aussi **l'absence de
+  code éditorial en double** (`skills.code`, `skill_prompts.code`) et la **cohérence EE/EO** :
+  un sujet EE porte des bornes en mots et jamais une durée, un sujet EO l'inverse.
+  - **Pourquoi un test plutôt qu'une contrainte** : la contrainte
+    `display_order BETWEEN 1 AND 8` gelait le catalogue — les 8 rangs légaux étant tous
+    seedés, l'admin ne pouvait plus rien créer. Elle a été desserrée, et la règle produit vit
+    désormais ici. Une contrainte DDL dit ce qui est *possible*, un test de seed dit ce qui est
+    *publié* : ne pas confondre les deux.
+  - **Reste tolérant au seed** au sens du projet : il exclut systématiquement les codes de
+    fixtures (`TST-%`), donc les tests qui créent leurs propres compétences ne le font pas
+    tomber.
+- Données : `TestData.user()/admin()/theme()` (séquence unique). Rollback auto (`@Transactional`
+  sur la base) → pas de pollution inter-tests.
+
+## Bancs de mesure IA — opt-in strict, JAMAIS dans `./mvnw verify`
+
+Deux bancs, deux corpus, **jamais mélangés** : ils ne mesurent pas la même chose et
+leurs chiffres ne se comparent pas.
+
+| | productions complètes EE/EO | micro-sujets « Compétences TCF » |
+|---|---|---|
+| test | `CalibrationBenchTest` | `CompetenceCalibrationBenchTest` |
+| corpus | `calibration/golden-set-v1.json` (48 cas) | `calibration/golden-set-competences-v1.json` (90 cas + 33 témoins réels) |
+| mesure | note /20 + niveau CECRL | **palier** (`level_reached`) + **verdict de critère** (`status`) — aucune note |
+| versions | `-Dcalibration.rubrics` + `-Dcalibration.prompt` | `-Dcalibration.rubrics` + `-Dcalibration.schema`, **ensemble** |
+
+Communs aux deux : `@EnabledIfSystemProperty(calibration.enabled)` **plus** un
+`assumeTrue` dans la méthode ; provider et modèle lus dans la configuration du
+runtime, jamais surchargeables ; `calibration.retries` figé dans le rapport et
+`-Dcalibration.temoin=<rapport.json>` qui **fait échouer** une campagne dont le
+témoin n'a pas tourné au même nombre de réessais ; rapport JSON sous
+`target/calibration/`, avec `sorties_refusees_pct` (÷ appels) et
+`echec_production_pct` (÷ tentatives) **distincts**.
+
+🛑 **Aucune campagne sans demande explicite du propriétaire** (règle du CLAUDE.md
+racine) : ces bancs appellent un LLM payant.
+
+Spécifique au banc Compétences :
+
+- **Le corpus se déduit de traits structurels, pas d'un jugement.** Chaque cas
+  porte `traits_structurels`, lus dans `commun.niveaux` du fichier de consignes
+  actif. Un cas se conteste en montrant que le trait annoncé n'est pas dans la
+  production — pas en trouvant qu'elle « fait plutôt B1 ».
+- **6 échelles** : 5 productions du **même sujet**, une par palier. C'est le
+  matériau de la métrique de **sensibilité** (le correcteur rend-il des paliers
+  différents pour des productions inégales ?), qui n'existe pas côté productions
+  complètes et qui est la question du dossier — mesuré en base : 0 B2 sur 18
+  tentatives, et deux productions manifestement inégales notées toutes deux A2.
+- **Répartition des paliers rendus** publiée à côté du taux d'accord : un
+  correcteur peut afficher un accord honorable tout en ne produisant **jamais**
+  un palier entier. `paliers_jamais_rendus` le dit en clair.
+- **Témoins réels hors score** : les productions relevées en base vivent dans un
+  tableau `temoins_reels` séparé, portent `hors_score: true`, et
+  `CompetenceCaseRun.exploitable()` les exclut de tous les agrégats. Elles n'ont
+  aucune vérité terrain ; elles ne servent qu'à vérifier le réalisme des cas
+  synthétiques. Servies seulement avec `-Dcalibration.temoins=true`.
+- **Échantillons** pour ne pas payer les 90 cas : `-Dcalibration.echantillon=`
+  `paliers` (2 par palier, dans des tâches différentes) · `echelles` · `pieges`.
+- **Coût réel vs coût persisté** : le client arrondit chaque appel au cent
+  **supérieur**, ce qui multiplie par dix la facture affichée d'une campagne de
+  micro-analyses. Le rapport publie donc aussi `cout_reel_usd`, recalculé depuis
+  les tokens et les tarifs du provider actif — c'est ce chiffre-là qu'on cite.
+- `CompetenceGoldenSetTest` verrouille le corpus (couverture 6 tâches × 5 paliers
+  × 3, pièges structurants, échelles, séparation des témoins) **sans aucun appel
+  LLM** : celui-là tourne dans `./mvnw verify`.

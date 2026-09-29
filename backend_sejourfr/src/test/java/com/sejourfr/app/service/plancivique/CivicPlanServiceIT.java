@@ -1,0 +1,484 @@
+package com.sejourfr.app.service.plancivique;
+
+import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.CivicPlanDto;
+import com.sejourfr.app.entity.CivicDiagnosticSession;
+import com.sejourfr.app.config.CivicPlanProperties;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import com.sejourfr.app.service.diagnosticcivique.CivicDiagnosticService;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * LE PLAN CIVIQUE (L10), contre la vraie base et le vrai catalogue.
+ *
+ * <p>Ce que ce test verrouille, et pourquoi chacun compte :
+ * <ul>
+ *   <li>🛑 <b>sans diagnostic, aucune cible</b> — un plan bâti sur une mesure
+ *       qui n'existe pas serait une invention. L'écran doit savoir POURQUOI il
+ *       n'a rien à montrer, d'où {@code disponible} plutôt qu'une liste
+ *       vide ;</li>
+ *   <li>🛑 <b>le mode dégradé est le régime NORMAL au lancement</b> : 0 question
+ *       sur 1 016 est taguée, donc les cinq thèmes travaillent au grain thème
+ *       ({@code 20_} §3.3 phase 1). Si ce test tombe en NOTION, c'est que le
+ *       seuil a été contourné ;</li>
+ *   <li>🛑 <b>le grain bascule PAR THÈME</b>, et il se mesure : taguer un thème
+ *       suffit à le faire passer en notions sans toucher aux autres ;</li>
+ *   <li>🛑 <b>un thème n'est JAMAIS maîtrisé</b> — quatre bonnes réponses sur
+ *       deux cents questions ne prouvent rien, et l'annoncer acquis
+ *       reproduirait « NON FRAGILE ≠ PLUS RIEN À APPRENDRE » ;</li>
+ *   <li>🛑 <b>le verrou porte sur la SÉRIE, pas sur le constat</b>, et il est
+ *       opposable : le {@code locked} servi et le 403 sont la même règle ;</li>
+ *   <li>🛑 <b>zéro question dans la mention n'est pas « il manque de la
+ *       matière »</b> : c'est {@code NON_APPLICABLE}, la notion n'est pas au
+ *       programme de cette démarche. V058 l'a mesuré sur le corpus réel — CSP,
+ *       CR et NAT sont trois programmes différents ;</li>
+ *   <li>la série ciblée remet en tête ce qui a été <b>raté</b> : sans cet ordre,
+ *       « travailler ce point » redonnerait les questions déjà réussies.</li>
+ * </ul>
+ */
+class CivicPlanServiceIT extends AbstractIntegrationTest {
+
+    @Autowired private CivicPlanService service;
+    @Autowired private CivicDiagnosticService diagnosticService;
+    @Autowired private TestData testData;
+    @Autowired private EntityManager entityManager;
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private CivicPlanProperties props;
+
+    /** Ouvre un diagnostic, y répond faux partout, et le clôt. */
+    private CivicDiagnosticSession diagnosticTermine(User user) {
+        CivicDiagnosticSession session = diagnosticService.ouvrir(user.getId());
+        entityManager.flush();
+        repondre(session.getAttempt().getId(), false, Integer.MAX_VALUE);
+        diagnosticService.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+        return session;
+    }
+
+    /**
+     * Écrit des réponses directement, comme le runner le ferait.
+     *
+     * <p>On passe par SQL plutôt que par le service de soumission : ce test
+     * porte sur le PLAN, et faire jouer un runner entier n'ajouterait qu'un
+     * point de rupture sans rien verrouiller de plus.
+     */
+    private void repondre(UUID attemptId, boolean correcte, int combien) {
+        List<UUID> aqs = jdbc.queryForList("""
+                SELECT id FROM attempt_questions
+                WHERE attempt_id = ? ORDER BY position LIMIT ?
+                """, UUID.class, attemptId, combien);
+        for (UUID aq : aqs) {
+            jdbc.update("""
+                    INSERT INTO answers (id, attempt_question_id, user_id, selected_choice_ids,
+                                         is_correct, answered_at)
+                    SELECT gen_random_uuid(), ?, a.user_id, '[]'::jsonb, ?, now()
+                    FROM attempt_questions aq JOIN attempts a ON a.id = aq.attempt_id
+                    WHERE aq.id = ?
+                    """, aq, correcte, aq);
+        }
+    }
+
+    @Test
+    @DisplayName("🛑 Sans diagnostic terminé, le plan n'invente aucune cible")
+    void sansDiagnosticAucuneCible() {
+        User user = testData.user();
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        assertThat(plan.disponible()).isFalse();
+        assertThat(plan.prioritesVisibles()).isEmpty();
+        assertThat(plan.prochaine()).isNull();
+        assertThat(plan.resultat()).isNull();
+        // La mention est servie quand même : l'écran peut déjà dire sur quel
+        // programme le candidat sera mesuré.
+        assertThat(plan.mention()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("🛑 Au lancement, le plan travaille par THÈME — c'est le mode prévu, pas une panne")
+    void modeDegradeParTheme() {
+        remettreLeCorpusANonTague();
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        assertThat(plan.disponible()).isTrue();
+        assertThat(plan.grain().courant()).isEqualTo(CivicPlanGrain.THEME);
+        assertThat(plan.grain().themesParNotion()).isZero();
+        assertThat(plan.grain().total()).isPositive();
+        // Une cible par thème, et toutes au grain thème.
+        assertThat(plan.prioritesVisibles()).isNotEmpty();
+        assertThat(plan.prioritesVisibles()).allSatisfy(
+                c -> assertThat(c.grain()).isEqualTo(CivicPlanGrain.THEME));
+        // 🛑 Plafond d'AFFICHAGE : trois servies, le reste COMPTÉ.
+        assertThat(plan.prioritesVisibles()).hasSizeLessThanOrEqualTo(3);
+        assertThat(plan.autresPriorites()).isNotNegative();
+        assertThat(plan.prochaine()).isEqualTo(plan.prioritesVisibles().getFirst());
+    }
+
+    @Test
+    @DisplayName("🛑 Les cinq thèmes de l'écran Réviser sont servis, et leurs compteurs "
+            + "ne sortent PAS des listes plafonnées")
+    void lesCinqLignesDeThemeSontServies() {
+        remettreLeCorpusANonTague();
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // Les cinq, toujours — un thème sans cible servable reste à l'écran.
+        assertThat(plan.themes()).hasSize(5);
+        assertThat(plan.themes()).extracting(CivicPlanDto.ThemeLigne::code)
+                .containsExactlyInAnyOrder("CIV_PRINCIPES", "CIV_INSTITUTIONS",
+                        "CIV_DROITS_DEVOIRS", "CIV_HISTOIRE_GEO", "CIV_SOCIETE");
+        assertThat(plan.themes()).allSatisfy(ligne -> {
+            assertThat(ligne.label()).isNotBlank();
+            assertThat(ligne.etat()).isNotNull();
+            assertThat(ligne.grain()).isNotNull();
+            assertThat(ligne.maitrisees()).isLessThanOrEqualTo(ligne.cibles());
+            assertThat(ligne.travaillees()).isLessThanOrEqualTo(ligne.cibles());
+        });
+
+        // 🛑 Au plus UN thème porte la cible du moment, et c'est `prochaine` —
+        // l'écran Réviser et le Plan ne peuvent pas désigner deux choses.
+        List<CivicPlanDto.ThemeLigne> enCours = plan.themes().stream()
+                .filter(ligne -> ligne.enCours() != null).toList();
+        assertThat(enCours).hasSize(1);
+        assertThat(enCours.getFirst().enCours().id()).isEqualTo(plan.prochaine().id());
+        assertThat(enCours.getFirst().themeId()).isEqualTo(plan.prochaine().themeId());
+
+        // Le diagnostic a touché les cinq thèmes : ils sont tous travaillés,
+        // alors que `priorites` en montre trois. C'est bien TOUTES les cibles
+        // qui ont été comptées, pas la liste tronquée.
+        assertThat(plan.prioritesVisibles()).hasSizeLessThanOrEqualTo(3);
+        assertThat(plan.themes()).allSatisfy(
+                ligne -> assertThat(ligne.travaillees()).isEqualTo(ligne.cibles()));
+    }
+
+    @Test
+    @DisplayName("🛑 Sans diagnostic, aucune ligne de thème — rien n'a été mesuré")
+    void sansDiagnosticAucuneLigneDeTheme() {
+        User user = testData.user();
+
+        assertThat(service.plan(user.getId()).themes()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Le résultat servi est celui du diagnostic, directement comparable au seuil")
+    void resultatComparableAuSeuil() {
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        CivicPlanDto.Resultat resultat = service.plan(user.getId()).resultat();
+
+        assertThat(resultat).isNotNull();
+        assertThat(resultat.format()).isEqualTo(40);
+        assertThat(resultat.seuil()).isEqualTo(32);
+        assertThat(resultat.posees()).isPositive();
+        assertThat(resultat.bonnes()).isZero();
+    }
+
+    @Test
+    @DisplayName("🛑 Un thème n'est JAMAIS annoncé maîtrisé, même avec une série de bonnes réponses")
+    void unThemeNestJamaisMaitrise() {
+        remettreLeCorpusANonTague();
+        User user = testData.user();
+        CivicDiagnosticSession session = diagnosticService.ouvrir(user.getId());
+        entityManager.flush();
+        // Tout juste : au grain notion, ce serait MAITRISEE.
+        repondre(session.getAttempt().getId(), true, Integer.MAX_VALUE);
+        diagnosticService.cloturer(user.getId(), session.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        assertThat(plan.solides()).isEmpty();
+        assertThat(plan.prioritesVisibles()).allSatisfy(c ->
+                assertThat(c.maitrise()).isNotEqualTo(CivicMaitrise.MAITRISEE));
+    }
+
+    @Test
+    @DisplayName("🛑 Le verrou porte sur la SÉRIE : le constat reste entier pour un compte gratuit")
+    void constatGratuitSerieVerrouillee() {
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // Les priorités sont servies ENTIÈRES, avec leurs états et leurs compteurs.
+        assertThat(plan.prioritesVisibles()).isNotEmpty();
+        assertThat(plan.prioritesVisibles()).allSatisfy(c -> {
+            assertThat(c.label()).isNotBlank();
+            assertThat(c.maitrise()).isNotNull();
+            assertThat(c.locked()).isTrue();
+        });
+
+        // 🛑 Et le verrou est OPPOSABLE : le `locked` servi et ce refus sont la
+        // même règle. Un front dont le statut premium est périmé reçoit un 403.
+        UUID cible = plan.prioritesVisibles().getFirst().id();
+        assertThatThrownBy(() -> service.demarrerSerie(
+                user.getId(), cible, CivicPlanGrain.THEME))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("Un abonné ouvre sa série ciblée, et elle remet en tête ce qu'il a raté")
+    void serieCibleeAbonne() {
+        User user = testData.user();
+        testData.userSubscription(user, testData.plan());
+        CivicDiagnosticSession session = diagnosticTermine(user);
+        entityManager.flush();
+        entityManager.clear();
+
+        CivicPlanDto plan = service.plan(user.getId());
+        assertThat(plan.prioritesVisibles()).allSatisfy(c -> assertThat(c.locked()).isFalse());
+
+        CivicPlanDto.Cible cible = plan.prioritesVisibles().getFirst();
+        AttemptResponse attempt =
+                service.demarrerSerie(user.getId(), cible.id(), CivicPlanGrain.THEME);
+        entityManager.flush();
+
+        // ✅ L'ÉGALITÉ EST REVENUE, ET C'EST P8.2b QUI L'A RENDUE (2026-09-20).
+        //
+        // Ce test a porté quelques heures une borne temporaire,
+        // `min(questionsSerie, stock dans la mention)`, parce que la dotation
+        // comptait la notion entière quand le tirage filtrait encore par
+        // démarche : le plan annonçait 10 et n'en servait que 8 (`DETTE-C1`).
+        //
+        // Le filtre est parti (D-27, D-42) et `questionsSerie` vaut désormais
+        // `min(questionsParSerie, stock réel)` -- borné À LA SOURCE. Les deux
+        // nombres se rejoignent, exactement comme le commentaire de la borne
+        // l'annonçait.
+        assertThat(attempt.questions()).hasSize(cible.questionsSerie());
+        assertThat(attempt.questions()).isNotEmpty();
+        // 🛑 C'est un TRAINING : le candidat le joue dans le runner existant, et
+        // il ne consomme aucun slot d'examen blanc.
+        assertThat(attempt.type().name()).isEqualTo("TRAINING");
+
+        // 🛑 L'ordre porte l'intention du plan : les questions ratées au
+        // diagnostic reviennent d'abord. Sans ça, « travailler ce thème »
+        // redonnerait ce qui est déjà acquis.
+        List<UUID> ratees = jdbc.queryForList("""
+                SELECT aq.question_id FROM answers a
+                         JOIN attempt_questions aq ON aq.id = a.attempt_question_id
+                WHERE aq.attempt_id = ? AND a.is_correct = false
+                """, UUID.class, session.getAttempt().getId());
+        List<UUID> tirees = attempt.questions().stream()
+                .map(q -> q.question().id()).toList();
+        assertThat(tirees).anyMatch(ratees::contains);
+    }
+
+    // ⚠️ QUATRE TESTS SUPPRIMES ICI, ET C'EST VOULU (P8.2b, 2026-09-20) :
+    // « le seuil de contenu est a 5 », « le seuil configure vaut 5 », « seule
+    // une cible SERVABLE est servie » et « zero question DANS LA MENTION n'est
+    // pas un manque ». Tous portaient sur `CivicDotation` et sur le filtre de
+    // mention, retires ensemble (D-27, D-42) : sans filtre, aucun couple ne
+    // tombe sous le seuil, `NON_APPLICABLE` est impossible, et `questions-min-
+    // par-notion` n'existe plus. Les garder aurait fige des regles MORTES.
+    //
+    // 🛑 Ce qu'ils protegeaient de vrai n'est pas perdu : « le plan ne propose
+    // jamais une cible qu'il ne peut pas servir » est desormais tenu A LA
+    // SOURCE -- `questionsSerie = min(questionsParSerie, stock reel)` -- et
+    // verifie par `serieCibleeAbonne`.
+
+    @Test
+    @DisplayName("🛑 Le grain bascule PAR THÈME dès que son tagging franchit le seuil")
+    void bascuceDuGrainParTheme() {
+        remettreLeCorpusANonTague();
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        // On tague toutes les questions de CONNAISSANCE d'un seul thème, sur la
+        // première notion de ce thème. Les autres thèmes ne bougent pas.
+        String themeCode = jdbc.queryForObject("""
+                SELECT t.code FROM civic_notions n JOIN themes t ON t.code = n.theme_code
+                WHERE n.is_active = true ORDER BY n.theme_code, n.display_order LIMIT 1
+                """, String.class);
+        int taguees = taguerLesConnaissances(themeCode, premiereNotion(themeCode));
+        assertThat(taguees).isPositive();
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // 🛑 Ce thème seul est passé en notions ; le plan ne se dit pas plus
+        // précis qu'il ne l'est tant que les autres n'ont pas suivi.
+        assertThat(plan.grain().themesParNotion()).isEqualTo(1);
+        assertThat(plan.grain().courant()).isEqualTo(CivicPlanGrain.THEME);
+        assertThat(plan.grain().taguees()).isEqualTo(taguees);
+    }
+
+    @Test
+    @DisplayName("🛑 LA BASCULE NE COMPTE QUE LES CONNAISSANCE : un thème 100 % tagué "
+            + "bascule même avec ses mises en situation non taguées")
+    void laBasculeNeCompteQueLesConnaissances() {
+        remettreLeCorpusANonTague();
+        User user = testData.user();
+        diagnosticTermine(user);
+
+        // 🛑 On choisit exprès un thème que l'ANCIENNE règle n'aurait JAMAIS
+        // fait basculer : ses mises en situation pèsent assez pour le maintenir
+        // sous 80 % quand bien même 100 % de ses connaissances seraient taguées.
+        // C'est la situation mesurée sur trois thèmes sur cinq (77,9 / 77,9 /
+        // 79,0 %) : le grain notion leur était inaccessible par construction.
+        String themeCode = jdbc.queryForObject("""
+                SELECT t.code
+                FROM questions q JOIN themes t ON t.id = q.theme_id
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                GROUP BY t.code
+                HAVING COUNT(*) FILTER (WHERE q.question_type = 'CONNAISSANCE')::numeric
+                           / COUNT(*) < 0.80
+                ORDER BY t.code
+                LIMIT 1
+                """, String.class);
+        assertThat(themeCode)
+                .as("le catalogue doit contenir un thème sous 80 % de connaissances")
+                .isNotNull();
+
+        int taguees = taguerLesConnaissances(themeCode, premiereNotion(themeCode));
+
+        // Les mises en situation restent VOLONTAIREMENT non taguées : elles
+        // relèvent des domaines `sit_*` (50_ §6.2), pas des notions.
+        Long misesEnSituationNonTaguees = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions q
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                  AND q.question_type = 'MISE_SITUATION'
+                  AND q.civic_notion_id IS NULL
+                  AND q.theme_id = (SELECT id FROM themes WHERE code = ?)
+                """, Long.class, themeCode);
+        assertThat(misesEnSituationNonTaguees).isPositive();
+
+        CivicPlanDto plan = service.plan(user.getId());
+
+        // 🛑 LE test de ce lot : le thème bascule quand même. Sous l'ancienne
+        // règle il plafonnait sous 80 % et restait au grain THÈME à jamais.
+        assertThat(plan.grain().themesParNotion()).isEqualTo(1);
+        // 🛑 Et les deux métriques ne se mélangent pas : le dénominateur servi
+        // ignore les mises en situation, sinon l'écran annoncerait un chantier
+        // qui ne se termine jamais.
+        assertThat(plan.grain().taguees()).isEqualTo(taguees);
+        assertThat(plan.grain().total()).isEqualTo(totalConnaissancesCiviques());
+
+        // Et le grain bascule jusqu'au bout : les CINQ thèmes tagués sur leurs
+        // seules connaissances, le plan travaille entièrement par notion — alors
+        // que 173 mises en situation restent volontairement sans notion.
+        for (String autre : jdbc.queryForList(
+                "SELECT DISTINCT theme_code FROM civic_notions WHERE is_active = true",
+                String.class)) {
+            taguerLesConnaissances(autre, premiereNotion(autre));
+        }
+        CivicPlanDto entierementTague = service.plan(user.getId());
+
+        assertThat(entierementTague.grain().courant()).isEqualTo(CivicPlanGrain.NOTION);
+        assertThat(entierementTague.prioritesVisibles()).isNotEmpty();
+        assertThat(entierementTague.prioritesVisibles()).allSatisfy(
+                c -> assertThat(c.grain()).isEqualTo(CivicPlanGrain.NOTION));
+        assertThat(misesEnSituationNonTaguees()).isPositive();
+    }
+
+    /** Tague toutes les questions de CONNAISSANCE actives d'un thème. */
+    private int taguerLesConnaissances(String themeCode, UUID notionId) {
+        return jdbc.update("""
+                UPDATE questions SET civic_notion_id = ?
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'CONNAISSANCE'
+                  AND theme_id = (SELECT id FROM themes WHERE code = ?)
+                """, notionId, themeCode);
+    }
+
+    private UUID premiereNotion(String themeCode) {
+        return jdbc.queryForObject("""
+                SELECT id FROM civic_notions
+                WHERE theme_code = ? AND is_active = true ORDER BY display_order LIMIT 1
+                """, UUID.class, themeCode);
+    }
+
+    private long misesEnSituationNonTaguees() {
+        Long total = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'MISE_SITUATION' AND civic_notion_id IS NULL
+                """, Long.class);
+        return total == null ? 0L : total;
+    }
+
+    private long totalConnaissancesCiviques() {
+        Long total = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM questions
+                WHERE module = 'CIVIQUE' AND is_active = true
+                  AND question_type = 'CONNAISSANCE'
+                """, Long.class);
+        return total == null ? 0L : total;
+    }
+
+    private String themeAvecAssezDeQuestions(String mention) {
+        return jdbc.queryForObject("""
+                SELECT t.code
+                FROM questions q JOIN themes t ON t.id = q.theme_id
+                WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                  AND q.question_type = 'CONNAISSANCE'
+                  AND q.difficulty = CAST(? AS varchar)
+                GROUP BY t.code
+                HAVING COUNT(*) >= 6
+                ORDER BY t.code
+                LIMIT 1
+                """, String.class, mention);
+    }
+
+    /** Déplace {@code combien} questions de la mention vers une autre notion. */
+    private void deplacerVersNotion(String themeCode, String mention, UUID notionId,
+                                    int combien, int depuis) {
+        jdbc.update("""
+                UPDATE questions SET civic_notion_id = ?
+                WHERE id IN (
+                    SELECT q.id FROM questions q
+                    WHERE q.module = 'CIVIQUE' AND q.is_active = true
+                      AND q.question_type = 'CONNAISSANCE'
+                      AND q.difficulty = CAST(? AS varchar)
+                      AND q.theme_id = (SELECT id FROM themes WHERE code = ?)
+                    ORDER BY q.id LIMIT ? OFFSET ?
+                )
+                """, notionId, mention, themeCode, combien, depuis);
+    }
+
+    /** Les cibles réellement proposables : servies en priorité + celles comptées. */
+    private int proposables(CivicPlanDto plan) {
+        return plan.prioritesVisibles().size() + plan.autresPriorites();
+    }
+
+    /**
+     * 🛑 <b>Remet le corpus civique a l'etat NON TAGUE</b>, dans la transaction
+     * du test (annulee a la sortie).
+     *
+     * <p>Pourquoi ce helper existe (2026-09-19). Les tests de ce fichier
+     * verifient le <b>mode degrade par theme</b> : la bascule NOTION/THEME, le
+     * grain courant, « un theme n'est jamais maitrise ». Ils supposaient donc un
+     * corpus <b>non tague</b> -- et ils l'obtenaient <b>par accident</b>, parce
+     * que le tagging de la campagne du 2026-09-11 n'etait dans <b>aucune
+     * migration</b> (DETTE-T1). V296/V297 l'y ont mis : les cinq themes sont
+     * desormais tagues a 100 % sur une base neuve, et ces tests tombaient.
+     *
+     * <p>🛑 <b>On ne supprime pas ces tests, et on ne les reecrit pas non plus.</b>
+     * Le mode degrade <b>existe toujours en code</b> et doit rester couvert : il
+     * sert le jour ou une thematique neuve arrive avec des questions non taguees.
+     * Ce qui change, c'est que leur precondition devient <b>explicite</b> au lieu
+     * d'accidentelle -- ce qu'elle aurait toujours du etre.
+     */
+    private void remettreLeCorpusANonTague() {
+        jdbc.update("UPDATE questions SET civic_notion_id = NULL WHERE module = 'CIVIQUE'");
+    }
+}

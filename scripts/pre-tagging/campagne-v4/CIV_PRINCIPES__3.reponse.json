@@ -1,0 +1,201 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVL6zPiNf1X1U2pZ1",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01TvYXnPy55S21vaEDubVmhb",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.9,
+            "rationale": "Suffrage universel relève de la démocratie/souveraineté populaire."
+          },
+          {
+            "rang": 2,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Date historique du droit de vote des femmes → relève de hg_conquetes_droits, hors référentiel."
+          },
+          {
+            "rang": 3,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Repère historique daté (1848) → hg_conquetes_droits, hors référentiel."
+          },
+          {
+            "rang": 4,
+            "notion": "pv_republique_democratie",
+            "confiance": 0.95,
+            "rationale": "Définition de la souveraineté nationale, principe républicain."
+          },
+          {
+            "rang": 5,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Date de proclamation de la Ire République → hg_republiques, hors référentiel."
+          },
+          {
+            "rang": 6,
+            "notion": "AUCUNE",
+            "confiance": 0.65,
+            "rationale": "Chronologie des cinq républiques → hg_republiques, hors référentiel."
+          },
+          {
+            "rang": 7,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Personnage historique fondateur de la Ve République → hg_republiques, hors référentiel."
+          },
+          {
+            "rang": 8,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.9,
+            "rationale": "Présentation générale de la DDHC comme texte fondateur des libertés."
+          },
+          {
+            "rang": 9,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.9,
+            "rationale": "Parité = égalité femmes-hommes en politique."
+          },
+          {
+            "rang": 10,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.6,
+            "rationale": "Mariage pour tous relève de l'égalité/non-discrimination, mais aussi du droit civil.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 11,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.95,
+            "rationale": "Définition générale de la discrimination."
+          },
+          {
+            "rang": 12,
+            "notion": "pv_egalite_non_discrimination",
+            "confiance": 0.95,
+            "rationale": "Critères de discrimination prohibés."
+          },
+          {
+            "rang": 13,
+            "notion": "AUCUNE",
+            "confiance": 0.75,
+            "rationale": "Sanction pénale du racisme → dd_interdits_quotidien, hors référentiel."
+          },
+          {
+            "rang": 14,
+            "notion": "AUCUNE",
+            "confiance": 0.6,
+            "rationale": "Défenseur des droits, institution → hors référentiel du thème."
+          },
+          {
+            "rang": 15,
+            "notion": "AUCUNE",
+            "confiance": 0.75,
+            "rationale": "Sanction pénale de l'homophobie → dd_interdits_quotidien, hors référentiel."
+          },
+          {
+            "rang": 16,
+            "notion": "pv_laicite",
+            "confiance": 0.9,
+            "rationale": "Loi de 2004 sur signes religieux à l'école, règle de laïcité."
+          },
+          {
+            "rang": 17,
+            "notion": "pv_laicite",
+            "confiance": 0.95,
+            "rationale": "Contenu de la loi de 2004, obligation de neutralité à l'école."
+          },
+          {
+            "rang": 18,
+            "notion": "pv_laicite",
+            "confiance": 0.95,
+            "rationale": "Charte de la laïcité de 2013, explicitement dans le référentiel."
+          },
+          {
+            "rang": 19,
+            "notion": "pv_laicite",
+            "confiance": 0.9,
+            "rationale": "Exception concordataire d'Alsace-Moselle, citée explicitement."
+          },
+          {
+            "rang": 20,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.75,
+            "rationale": "Liberté de réunion comme principe.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 21,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.75,
+            "rationale": "Liberté de la presse comme principe général.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 22,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.7,
+            "rationale": "Liberté d'aller et venir comme principe.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 23,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.6,
+            "rationale": "Liberté syndicale comme principe, mais pourrait relever du régime juridique concret.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 24,
+            "notion": "pv_libertes_ddhc",
+            "confiance": 0.55,
+            "rationale": "Droit de grève encadré, frontière avec régime juridique concret.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.45
+          },
+          {
+            "rang": 25,
+            "notion": "pv_laicite",
+            "confiance": 0.9,
+            "rationale": "Financement des cultes par la loi de 1905, obligation de l'État/collectivité."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 8753,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1711,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

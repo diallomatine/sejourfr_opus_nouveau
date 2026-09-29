@@ -1,0 +1,253 @@
+package com.sejourfr.app.manager;
+
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.repository.AttemptRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Component;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Couche d'acces aux donnees pour {@link Attempt}.
+ * Seule classe autorisee a appeler {@link AttemptRepository}.
+ */
+@Component
+@RequiredArgsConstructor
+public class AttemptManager {
+
+    private final AttemptRepository repository;
+
+    public Attempt save(Attempt attempt) {
+        return repository.save(attempt);
+    }
+
+    /**
+     * Les tentatives demandées qui appartiennent <b>à ce candidat</b>, et elles
+     * seules — une requête. 🛑 Un identifiant d'un tiers est simplement absent :
+     * jamais une lecture de sa tentative.
+     */
+    public Map<UUID, Attempt> findAllOwnedBy(UUID userId, Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Map.of();
+        Map<UUID, Attempt> out = new java.util.LinkedHashMap<>();
+        for (Attempt attempt : repository.findAllById(ids)) {
+            if (attempt.getUser() != null && userId.equals(attempt.getUser().getId())) {
+                out.put(attempt.getId(), attempt);
+            }
+        }
+        return out;
+    }
+
+    public Optional<Attempt> findById(UUID id) {
+        return repository.findById(id);
+    }
+
+    public long countByUserId(UUID userId) {
+        return repository.countStandardByUserId(userId);
+    }
+
+    /** Sessions du user pour un module donne ; {@code module} null = tous modules. */
+    public long countByUserIdAndModule(UUID userId, Module module) {
+        if (module == null) return repository.countStandardByUserId(userId);
+        return repository.countStandardByUserIdAndModule(userId, module);
+    }
+
+    public long countByExamTemplateId(UUID examTemplateId) {
+        return repository.countByExamTemplateId(examTemplateId);
+    }
+
+    /** Purge tous les attempts d'un user (suppression de compte). */
+    public int deleteByUserId(UUID userId) {
+        return repository.deleteByUserId(userId);
+    }
+
+    /**
+     * Un lot d'ids d'attempts <b>invités</b> ({@code user_id IS NULL}) démarrés
+     * avant {@code cutoff}, les plus anciens d'abord.
+     */
+    public List<UUID> findGuestAttemptIdsStartedBefore(Instant cutoff, int limit) {
+        if (limit <= 0) return List.of();
+        return repository.findGuestAttemptIdsStartedBefore(cutoff, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Supprime un lot d'attempts invités. Le repository redouble la condition
+     * {@code user IS NULL} : un attempt de compte n'est jamais purgeable.
+     */
+    public int deleteGuestAttemptsByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return repository.deleteGuestAttemptsByIds(ids);
+    }
+
+    /**
+     * Lookup sécurisé d'un attempt guest : exige user IS NULL ET même IP.
+     */
+    public Optional<Attempt> findGuestByIdAndIp(UUID id, String clientIp) {
+        return repository.findByIdAndClientIpAndUserIsNull(id, clientIp);
+    }
+
+    /**
+     * Historique utilisateur filtre, plafonne par {@code limit}. Le filtre
+     * {@code moduleExamQuestionType} permet d'isoler les examens module TCF
+     * (CO ou CE) ; null pour la requete generale.
+     */
+    public List<Attempt> findByUserFiltered(
+            UUID userId,
+            AttemptType type,
+            Module module,
+            QuestionType moduleExamQuestionType,
+            UUID themeId,
+            int limit) {
+        return repository.findByUserFiltered(
+                userId, type, module, moduleExamQuestionType, themeId, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Pour un user + (module, questionType, difficulty), renvoie le dernier
+     * attempt fini par numero de lot (cle = lot_numero, valeur = attempt le
+     * plus recent). Renvoie une map vide si aucun lot n'a ete fini.
+     */
+    public Map<Integer, Attempt> findLastFinishedByLots(
+            UUID userId, Module module, QuestionType questionType, Difficulty difficulty) {
+        List<Attempt> attempts = repository.findFinishedByUserAndLot(
+                userId, module, questionType, difficulty);
+        // Repository trie par finishedAt DESC → premier rencontre pour chaque
+        // lot_numero = le plus recent. putIfAbsent garantit qu'on ne l'ecrase pas.
+        Map<Integer, Attempt> latest = new HashMap<>();
+        for (Attempt a : attempts) {
+            if (a.getLotNumero() != null) {
+                latest.putIfAbsent(a.getLotNumero(), a);
+            }
+        }
+        return latest;
+    }
+
+    /**
+     * Variante Civique : pour un user + thème, renvoie le dernier attempt
+     * fini par numéro de lot. Cle = lot_numero, valeur = attempt le plus
+     * recent. Sert à enrichir `GET /api/lots?module=CIVIQUE&themeId=...`.
+     */
+    public Map<Integer, Attempt> findLastFinishedByLotsCivique(UUID userId, UUID themeId) {
+        List<Attempt> attempts = repository.findFinishedByUserAndLotCivique(userId, themeId);
+        Map<Integer, Attempt> latest = new HashMap<>();
+        for (Attempt a : attempts) {
+            if (a.getLotNumero() != null) {
+                latest.putIfAbsent(a.getLotNumero(), a);
+            }
+        }
+        return latest;
+    }
+
+    /** Sous-attempts d'un examen blanc complet, ordre de création (= ordre des épreuves). */
+    public List<Attempt> findSubAttempts(UUID parentAttemptId) {
+        return repository.findByParentAttemptIdOrderByStartedAtAsc(parentAttemptId);
+    }
+
+    /**
+     * Sous-attempts de PLUSIEURS examens blancs, en une requête — la forme de
+     * liste (« Mes examens blancs »). Liste vide en entrée ⇒ liste vide en
+     * sortie, sans requête.
+     */
+    public List<Attempt> findSubAttempts(java.util.Collection<UUID> parentAttemptIds) {
+        if (parentAttemptIds == null || parentAttemptIds.isEmpty()) return List.of();
+        return repository.findByParentAttemptIds(parentAttemptIds);
+    }
+
+    /**
+     * Lookup avec parent eager-loaded. Utilisé hors transaction longue pour
+     * pouvoir lire {@code parentAttempt.epreuve} sans LazyInitializationException
+     * (cf. {@code ProductionEvaluationService.finishSubAttemptIfFullExam}).
+     */
+    public Optional<Attempt> findByIdWithParent(UUID id) {
+        return repository.findByIdWithParent(id);
+    }
+
+    /** Historique des examens blancs TCF complets d'un user (parent TCF_COMPLET uniquement). */
+    public List<Attempt> findByUserAndEpreuve(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findByUserAndEpreuve(userId, epreuve, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Jours d'activité distincts du user (date locale Europe/Paris), du plus
+     * récent au plus ancien. Base du calcul de streak du dashboard.
+     */
+    public List<LocalDate> findActivityDates(UUID userId) {
+        return repository.findDistinctActivityDates(userId);
+    }
+
+    /** Nb d'examens blancs (MOCK_EXAM) finis, tous modules confondus. */
+    public long countFinishedMockExams(UUID userId) {
+        return repository.countByUserIdAndTypeAndFinishedAtIsNotNull(userId, AttemptType.MOCK_EXAM);
+    }
+
+    /**
+     * Sessions d'examen blanc de production <b>soumises</b> sur une epreuve.
+     *
+     * <p>Sert au jalon du Plan a designer le prochain slot de la grille
+     * d'examens blancs de cette epreuve. 🛑 <b>Ce n'est plus un budget
+     * freemium</b> : la variante « les deux epreuves confondues, seuil 2 » est
+     * <b>supprimee</b> par D-17 (2026-09-18), qui la remplace par deux gratuites
+     * nominatives persistees ({@code free_entitlement_usage}). Compter des
+     * examens <b>demarres</b> ne savait de toute facon pas distinguer un freebie
+     * consomme d'un examen abandonne.
+     */
+    public long countProductionExamSessions(UUID userId, EpreuveType epreuve) {
+        return repository.countProductionExamSessions(userId, List.of(epreuve));
+    }
+
+    /**
+     * Épreuves QCM TCF (CO/CE) réellement passées : examen blanc fini portant
+     * au moins une réponse. Une épreuve abandonnée sans rien rendre (0 réponse)
+     * n'est jamais renvoyée — cf. le javadoc de la requête.
+     */
+    public List<Attempt> findQcmEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findQcmEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Épreuves de production TCF (EE/EO) réellement passées : session d'examen
+     * blanc terminée portant au moins une soumission, de la plus récente à la
+     * plus ancienne — cf. le javadoc de la requête.
+     */
+    public List<Attempt> findProductionEpreuvesPassees(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findProductionEpreuvesPassees(userId, epreuve, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Parmi ces sessions, lesquelles sont des <b>examens blancs</b> ? Une
+     * requete, quel que soit le nombre d'identifiants (filtre R1 du parcours).
+     */
+    public Set<UUID> findMockExamIdsAmong(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Set.of();
+        return new LinkedHashSet<>(repository.findMockExamIdsAmong(ids));
+    }
+
+    /** Cf. {@code AttemptRepository.findCivicExamensGlobauxPasses}. */
+    public List<Attempt> findCivicExamensGlobauxPasses(UUID userId, int limit) {
+        return repository.findCivicExamensGlobauxPasses(userId, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Cf. {@code AttemptRepository.findCivicExamensThemePasses}. Aucun accès
+     * base sur une liste de thèmes vide.
+     */
+    public List<Attempt> findCivicExamensThemePasses(
+            UUID userId, Collection<UUID> themeIds, int limit) {
+        if (themeIds == null || themeIds.isEmpty()) return List.of();
+        return repository.findCivicExamensThemePasses(userId, themeIds, PageRequest.of(0, limit));
+    }
+}

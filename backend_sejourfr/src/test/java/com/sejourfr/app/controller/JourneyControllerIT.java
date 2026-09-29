@@ -1,0 +1,147 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.AuthTestSupport;
+import com.sejourfr.app.support.TestData;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Le contrat servi par {@code GET /api/me/plan/journey}.
+ *
+ * <p>Ce qui est verrouille ici, ce sont les <b>faits</b> que les deux fronts
+ * lisent — et l'absence de tout {@code targetLevel} en parametre : le serveur
+ * connait le niveau vise du candidat, et l'accepter d'un client laisserait
+ * demander un parcours qui n'est pas le sien.
+ */
+class JourneyControllerIT extends AbstractIntegrationTest {
+
+    @Autowired private MockMvc mvc;
+    @Autowired private AuthTestSupport auth;
+    @Autowired private TestData data;
+
+    @Test
+    @DisplayName("Sans demarche declaree : NEEDS_OBJECTIVE, aucune etape (D-3)")
+    void sansDemarcheDeclaree() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(null);
+        user.setTargetLevel(null);
+        data.saveUser(user);
+
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("NEEDS_OBJECTIVE"))
+                // Pas de parcours, pas d'identifiant de parcours (Q8).
+                .andExpect(jsonPath("$.journeyId").doesNotExist())
+                .andExpect(jsonPath("$.targetLevel").doesNotExist())
+                .andExpect(jsonPath("$.current").doesNotExist())
+                // Aucun parcours : aucun bloc, aucun cycle.
+                .andExpect(jsonPath("$.blocs").isEmpty())
+                .andExpect(jsonPath("$.cycle").doesNotExist())
+                // 🛑 Les deux champs de transition ont DISPARU du contrat (P6) :
+                // les fronts lisent `blocs`, et « refonte = suppression
+                // immediate de l'ancien ».
+                .andExpect(jsonPath("$.steps").doesNotExist())
+                .andExpect(jsonPath("$.hiddenUpcomingCount").doesNotExist())
+                // Une suggestion n'est pas une etape : absente est le cas normal.
+                .andExpect(jsonPath("$.suggestion").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Sans evaluation : le parcours est le cycle d'examens par defaut (D-69), et sert son OBJECTIF")
+    void sansEvaluationLeParcoursEstUnCycleDExamens() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(user);
+
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("IN_PROGRESS"))
+                // `journey.id` = le plan_id du chantier Suivi (Q8), servi.
+                .andExpect(jsonPath("$.journeyId").isNotEmpty())
+                // ⚠️ `targetLevel` a ete REMPLACE par `objectif` (D-50) : un
+                // cycle civique ne pouvait pas s'exprimer dans un TargetLevel.
+                // Le contrat sert la NATURE, le CODE et le LIBELLE -- l'ecran
+                // choisit sa tournure sur la nature, jamais sur le module.
+                .andExpect(jsonPath("$.targetLevel").doesNotExist())
+                .andExpect(jsonPath("$.objectif.kind").value("NIVEAU"))
+                .andExpect(jsonPath("$.objectif.code").value("B2"))
+                .andExpect(jsonPath("$.objectif.label").value("B2"))
+                // ⚠️ D-69 (2026-09-28) : plus d'etape DIAGNOSTIC — le premier examen.
+                .andExpect(jsonPath("$.current.type").value("SECTION_EXAM"))
+                .andExpect(jsonPath("$.current.status").value("CURRENT"))
+                .andExpect(jsonPath("$.current.locked").value(false))
+                // 🛑 Le serveur sert des FAITS : aucune phrase, aucun libelle.
+                // « Faire votre diagnostic rapide » appartient aux fronts.
+                .andExpect(jsonPath("$.current.skillTitle").doesNotExist())
+                // ⚠️ `hiddenUpcomingCount` valait 0 ici jusqu'au 2026-09-18 : le
+                // champ n'existe plus, et le fenetrage d'affichage avec lui.
+                .andExpect(jsonPath("$.hiddenUpcomingCount").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("Le cycle borne est servi : quatre blocs dans l'ordre CO, CE, EO, EE (D-12)")
+    void leCycleBorneEstServi() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(user);
+
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk())
+                // 🛑 QUATRE blocs, toujours, dans l'ordre de
+                // TcfDomainProfileDto.ORDRE (D-9, D-20) — pas celui des maquettes.
+                .andExpect(jsonPath("$.blocs.length()").value(4))
+                .andExpect(jsonPath("$.blocs[0].bloc.code").value("TCF_CO"))
+                .andExpect(jsonPath("$.blocs[1].bloc.code").value("TCF_CE"))
+                .andExpect(jsonPath("$.blocs[2].bloc.code").value("TCF_EO"))
+                .andExpect(jsonPath("$.blocs[3].bloc.code").value("TCF_EE"))
+                // Aucune competence, aucune epreuve mesuree : D-69 (2026-09-28),
+                // chaque bloc porte son seul examen, et le premier mene.
+                .andExpect(jsonPath("$.blocs[0].status").value("EN_COURS"))
+                .andExpect(jsonPath("$.blocs[0].etapesRestantes").value(0))
+                .andExpect(jsonPath("$.blocs[0].exam").exists())
+                .andExpect(jsonPath("$.blocs[3].exam").exists())
+                // Le cycle : des NOMBRES, aucune phrase. « Cycle 1 » et
+                // « 0 etape sur 4 terminee » sont composes par les fronts.
+                .andExpect(jsonPath("$.cycle.numero").value(1))
+                .andExpect(jsonPath("$.cycle.etapesTotal").value(4))
+                .andExpect(jsonPath("$.cycle.etapesTerminees").value(0))
+                .andExpect(jsonPath("$.cycle.complete").value(false))
+                // Le cycle d'examens par defaut EST un cycle de mesure.
+                .andExpect(jsonPath("$.cycle.cycleDeMesure").value(true))
+                // 🛑 nextStep est null tant que le cycle n'est pas termine.
+                .andExpect(jsonPath("$.nextStep").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("POST /refresh — 409 tant que le cycle n'est pas termine")
+    void actualiserEstRefuseSurUnCycleInacheve() throws Exception {
+        User user = data.user();
+        user.setTargetProcedure(TargetProcedure.NAT);
+        user.setTargetLevel(TargetProcedure.NAT.getRequiredTcfLevel());
+        data.saveUser(user);
+        // La lecture cree le cycle : il porte son etape DIAGNOSTIC, ouverte.
+        mvc.perform(get("/api/me/plan/journey").header("Authorization", auth.bearer(user)))
+                .andExpect(status().isOk());
+
+        // Ce geste HISTORISE le cycle en cours : le laisser passer sur un cycle
+        // inacheve jetterait le plan que le candidat a sous les yeux.
+        mvc.perform(post("/api/me/plan/journey/refresh")
+                        .header("Authorization", auth.bearer(user)))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/me/plan/journey/measurement-cycle")
+                        .header("Authorization", auth.bearer(user)))
+                .andExpect(status().isConflict());
+    }
+}

@@ -1,0 +1,360 @@
+package com.sejourfr.app.service.diagnostic;
+
+import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
+import com.sejourfr.app.entity.DiagnosticSession;
+import com.sejourfr.app.entity.DiagnosticTaskSkill;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.DiagnosticSessionStatus;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
+import com.sejourfr.app.manager.DiagnosticSessionManager;
+import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyService;
+import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.service.email.DiagnosticPlanReadyNotifier;
+import com.sejourfr.app.util.ApresCommit;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/** Assemble de façon déterministe les deux sorties structurées, sans troisième appel LLM. */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DiagnosticSessionCoordinator {
+
+    private final ProductionSubmissionManager submissionManager;
+    private final DiagnosticProductionAnalysisManager analysisManager;
+    private final DiagnosticSessionManager sessionManager;
+    private final AttemptManager attemptManager;
+    private final DiagnosticTaskSkillManager taskSkillManager;
+    private final DiagnosticReconciliationMetrics metrics;
+    private final JourneyService journeyService;
+    private final DiagnosticPlanReadyNotifier planReadyNotifier;
+
+    /**
+     * Réserve atomiquement une relance. Le verrou de l'agrégat empêche deux
+     * requêtes concurrentes de consommer le même état FAILED et de déclencher
+     * chacune un nouveau pipeline payant.
+     *
+     * <p>Le caller lance les pipelines seulement après le retour de cette
+     * méthode : la transaction et le verrou sont alors terminés, et les
+     * workers async voient nécessairement l'état ANALYZING commité.</p>
+     */
+    @Transactional
+    public RetryPlan beginRetry(UUID sessionId, UUID userId, int maxRetries) {
+        DiagnosticSession session = sessionManager.findByIdForUpdate(sessionId)
+                .filter(candidate -> candidate.getUser() != null
+                        && userId.equals(candidate.getUser().getId()))
+                .orElseThrow(() -> new NotFoundException(
+                        "Diagnostic introuvable : " + sessionId));
+        if (session.getStatus() != DiagnosticSessionStatus.FAILED) {
+            throw new BusinessException("Seul un diagnostic en échec peut être relancé.");
+        }
+        if (session.getRetryCount() >= maxRetries) {
+            throw new BusinessException(
+                    "Plafond de " + maxRetries + " relances du diagnostic atteint.");
+        }
+
+        List<ProductionSubmission> submissions = submissions(session);
+        if (submissions.isEmpty()) {
+            throw new BusinessException("Aucune production diagnostic à relancer.");
+        }
+        List<UUID> failedSubmissionIds = new ArrayList<>();
+        for (ProductionSubmission submission : submissions) {
+            if (submission.getStatut() != SubmissionStatut.FAILED) continue;
+            if (submission.getRetryCount() >= maxRetries) {
+                throw new BusinessException(
+                        "Plafond de " + maxRetries + " relances atteint.");
+            }
+            failedSubmissionIds.add(submission.getId());
+        }
+
+        session.setRetryCount((short) (session.getRetryCount() + 1));
+        session.setStatus(DiagnosticSessionStatus.ANALYZING);
+        session.setSummaryJson(null);
+        session.setCompletedAt(null);
+        session.setErrorMessage(null);
+        sessionManager.save(session);
+        return new RetryPlan(failedSubmissionIds, submissions.getFirst().getId());
+    }
+
+    @Transactional
+    public void onAnalysisCompleted(UUID submissionId) {
+        ProductionSubmission trigger = submissionManager.findById(submissionId).orElse(null);
+        if (trigger == null) return;
+        DiagnosticSession found = sessionManager
+                .findByAttemptIdWithContent(trigger.getAttempt().getId()).orElse(null);
+        if (found == null) return;
+        DiagnosticSession session = sessionManager.findByIdForUpdate(found.getId()).orElse(null);
+        if (session == null || session.getStatus() == DiagnosticSessionStatus.COMPLETED) return;
+
+        // 🛑 Un diagnostic SANS étape orale (rapide, L3) n'attend rien d'oral :
+        // `attendOral` est faux, et tous les tests ci-dessous s'y adaptent. Ne
+        // jamais remplacer par « oral == null ⇒ pas encore rendu » — le
+        // diagnostic rapide resterait éternellement IN_PROGRESS.
+        boolean attendOral = session.hasOral();
+        ProductionSubmission written = onlySubmission(session.getWrittenAttempt().getId());
+        ProductionSubmission oral = attendOral
+                ? onlySubmission(session.getOralAttempt().getId()) : null;
+        if (written == null || (attendOral && oral == null)) {
+            session.setStatus(DiagnosticSessionStatus.IN_PROGRESS);
+            session.setErrorMessage(null);
+            sessionManager.save(session);
+            return;
+        }
+        // Une seconde étape peut être rendue après l'échec de la première. Ne
+        // jamais écraser alors FAILED par ANALYZING : aucune analyse ne
+        // redémarrera pour la première production avant le retry explicite.
+        if (written.getStatut() == SubmissionStatut.FAILED
+                || (oral != null && oral.getStatut() == SubmissionStatut.FAILED)) {
+            session.setStatus(DiagnosticSessionStatus.FAILED);
+            sessionManager.save(session);
+            return;
+        }
+        // Une analyse peut déjà être persistée alors que sa finalisation (par
+        // exemple l'écriture des observations du Plan) a échoué. La présence
+        // des deux JSON ne suffit donc jamais : les deux productions doivent
+        // avoir achevé toute leur finalisation avant de compléter l'agrégat.
+        if (written.getStatut() != SubmissionStatut.EVALUATED
+                || (oral != null && oral.getStatut() != SubmissionStatut.EVALUATED)) {
+            session.setStatus(DiagnosticSessionStatus.ANALYZING);
+            session.setErrorMessage(null);
+            sessionManager.save(session);
+            return;
+        }
+        DiagnosticProductionAnalysis writtenAnalysis =
+                analysisManager.findBySubmissionId(written.getId()).orElse(null);
+        DiagnosticProductionAnalysis oralAnalysis = oral == null ? null
+                : analysisManager.findBySubmissionId(oral.getId()).orElse(null);
+        if (writtenAnalysis == null || (attendOral && oralAnalysis == null)) {
+            session.setStatus(DiagnosticSessionStatus.ANALYZING);
+            session.setErrorMessage(null);
+            sessionManager.save(session);
+            return;
+        }
+
+        session.setStatus(DiagnosticSessionStatus.ANALYZING);
+        session.setSummaryJson(buildSummary(session, writtenAnalysis, oralAnalysis));
+        session.setCompletedAt(Instant.now());
+        session.setStatus(DiagnosticSessionStatus.COMPLETED);
+        session.setErrorMessage(null);
+        sessionManager.save(session);
+
+        finishAttempt(session.getWrittenAttempt());
+        if (session.hasOral()) finishAttempt(session.getOralAttempt());
+        porterAuParcours(session);
+        // Mail « votre plan est pret » si ce rapide ouvre le Plan TCF pour la
+        // premiere fois — publie ici, dans la transaction, envoye apres commit.
+        planReadyNotifier.tcfClos(session.getUser(), session.getId());
+    }
+
+    /**
+     * Ce que le <b>diagnostic rapide</b> apprend au parcours TCF (spec R11).
+     *
+     * <p>🛑 <b>Il produit des priorites mais ne MESURE aucune epreuve</b> : c'est
+     * ce qui le distingue de tout le reste dans la spec. Il ne remplace donc
+     * jamais un lot ouvert — il n'en cree que pour les epreuves qui n'en ont pas
+     * — et il ne clot aucune etape « Evaluer mon niveau ».
+     *
+     * <p>Appele <b>apres</b> l'ecriture des observations et la cloture de la
+     * session : le parcours lit ce que le correcteur a reellement designe.
+     *
+     * <p><b>Best-effort</b> : l'echec est avale. Le resultat du diagnostic est ce
+     * que le candidat attend ; le parcours se rattrape a la lecture suivante.
+     */
+    private void porterAuParcours(DiagnosticSession session) {
+        if (session.getUser() == null) return;
+        try {
+            UUID userId = session.getUser().getId();
+            JourneyEvaluation evaluation = JourneyEvaluation.diagnosticRapide(
+                    session.getId(), session.getCompletedAt());
+            // 🛑 Apres le commit de la cloture : `ApresCommit`.
+            ApresCommit.executer("Parcours TCF, diagnostic " + session.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
+        } catch (RuntimeException echec) {
+            log.warn("Parcours TCF non mis a jour pour le diagnostic {} : {}",
+                    session.getId(), echec.toString());
+        }
+    }
+
+    private ProductionSubmission onlySubmission(UUID attemptId) {
+        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
+        return submissions.isEmpty() ? null : submissions.getFirst();
+    }
+
+    private List<ProductionSubmission> submissions(DiagnosticSession session) {
+        List<ProductionSubmission> result = new ArrayList<>();
+        result.addAll(submissionManager.findByAttemptId(session.getWrittenAttempt().getId()));
+        if (session.hasOral()) {
+            result.addAll(submissionManager.findByAttemptId(session.getOralAttempt().getId()));
+        }
+        return result;
+    }
+
+    private Map<String, Object> buildSummary(
+            DiagnosticSession session,
+            DiagnosticProductionAnalysis written,
+            DiagnosticProductionAnalysis oral) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("written_submission_id", written.getSubmission().getId().toString());
+        // 🛑 La clé reste présente et vaut null quand il n'y a pas d'oral : une
+        // clé ABSENTE et une clé nulle se lisent différemment côté relecture
+        // d'un résumé ancien.
+        summary.put("oral_submission_id",
+                oral == null ? null : oral.getSubmission().getId().toString());
+
+        LinkedHashSet<String> strengths = new LinkedHashSet<>();
+        strengths.addAll(strings(written.getAnalysisJson().get("strengths")));
+        if (oral != null) strengths.addAll(strings(oral.getAnalysisJson().get("strengths")));
+        summary.put("strengths", strengths.stream().limit(3).toList());
+
+        List<Map<String, Object>> selected = mergePriorities(
+                ranked(written.getAnalysisJson(), session.getWrittenTask().getId()),
+                oral == null ? List.of()
+                        : ranked(oral.getAnalysisJson(), session.getOralTask().getId()));
+        summary.put("priority_skill_codes", selected.stream()
+                .map(item -> String.valueOf(item.get("skill_code"))).toList());
+        summary.put("main_priority_explanation", selected.isEmpty() ? null
+                : selected.getFirst().get("explanation"));
+        return summary;
+    }
+
+    /**
+     * Les priorités d'UNE production, ordonnées par la règle partagée
+     * {@link DiagnosticPriorityRanking} : confiance décroissante, puis rang de
+     * la compétence dans l'allowlist du sujet
+     * ({@code diagnostic_task_skills.display_order}).
+     *
+     * <p>Ce rang n'est pas décoratif : c'est l'ordre éditorial d'importance des
+     * huit compétences observables par ce sujet. Une compétence absente de
+     * l'allowlist — cas qui ne devrait pas exister, le validateur la refuse —
+     * passe en dernier, puis on retombe sur le code pour rester déterministe.
+     *
+     * <p><b>Une priorité se DÉRIVE quand le correcteur n'en désigne aucune.</b>
+     * Le filtre était strict sur {@code priority == true} ; or le modèle range
+     * ses faiblesses en {@code TO_REINFORCE} sans jamais poser {@code PRIORITY},
+     * et deux diagnostics réels sont sortis avec {@code priority_skill_codes: []}
+     * — Plan {@code ACTIVE}, rien à faire. On complète donc les priorités
+     * désignées par les <b>faiblesses observées</b>, les mieux classées d'abord,
+     * jusqu'au plafond par production. <b>Une priorité désignée l'emporte
+     * toujours</b> : on complète, on ne remplace jamais.
+     */
+    private List<DiagnosticPriorityRanking.Ranked> ranked(
+            Map<String, Object> analysis, UUID taskId) {
+        Map<String, Integer> order = new LinkedHashMap<>();
+        for (DiagnosticTaskSkill allowed : taskSkillManager.findActiveByTaskId(taskId)) {
+            order.put(allowed.getSkill().getCode(), (int) allowed.getDisplayOrder());
+        }
+        List<Map<String, Object>> skills = skills(analysis);
+        int plafond = DiagnosticAnalysisValidator.MAX_PRIORITIES_PER_PRODUCTION;
+        List<DiagnosticPriorityRanking.Ranked> selected = new ArrayList<>(plafond);
+        LinkedHashSet<String> retenues = new LinkedHashSet<>();
+        for (DiagnosticPriorityRanking.Ranked designee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::designee).toList(), order)) {
+            if (selected.size() >= plafond) break;
+            if (retenues.add(designee.skillCode())) selected.add(designee);
+        }
+        if (selected.size() >= plafond) return selected;
+
+        for (DiagnosticPriorityRanking.Ranked derivee : DiagnosticPriorityRanking.ranked(
+                skills.stream().filter(DiagnosticPriorityRanking::faiblesseObservee).toList(),
+                order)) {
+            if (selected.size() >= plafond) break;
+            if (!retenues.add(derivee.skillCode())) continue;
+            selected.add(derivee);
+            metrics.enregistrer(
+                    DiagnosticReconciliationMetrics.Motif.PRIORITE_DERIVEE_DE_FAIBLESSE);
+        }
+        return selected;
+    }
+
+    /**
+     * Fusionne les priorités des deux productions, au plus trois.
+     *
+     * <p><b>Pourquoi pas un tri global.</b> Le départage historique se faisait
+     * sur l'ordre alphabétique du code de compétence : « EE… » précède toujours
+     * « EO… », donc l'écrit passait mécaniquement devant l'oral et les
+     * compétences C1/C2 devant les autres. Un rang alphabétique ne dit rien de
+     * l'importance pédagogique.
+     *
+     * <p>La règle retenue, à confiance égale : le rang d'allowlist le plus bas
+     * gagne ; à rang égal, on <b>alterne</b> écrit et oral plutôt que de servir
+     * un bloc de trois priorités écrites — un plan qui ne parlerait que d'une
+     * seule épreuve serait faux, le diagnostic en observe deux. La toute
+     * première égalité parfaite revient à l'écrit, produit en premier dans le
+     * parcours. Entièrement déterministe.
+     */
+    private static List<Map<String, Object>> mergePriorities(
+            List<DiagnosticPriorityRanking.Ranked> written,
+            List<DiagnosticPriorityRanking.Ranked> oral) {
+        List<Map<String, Object>> merged = new ArrayList<>(3);
+        int w = 0;
+        int o = 0;
+        Boolean lastWasWritten = null;
+        while (merged.size() < 3 && (w < written.size() || o < oral.size())) {
+            boolean takeWritten;
+            if (o >= oral.size()) {
+                takeWritten = true;
+            } else if (w >= written.size()) {
+                takeWritten = false;
+            } else {
+                int cmp = comparePriority(written.get(w), oral.get(o));
+                takeWritten = cmp != 0 ? cmp < 0 : !Boolean.TRUE.equals(lastWasWritten);
+            }
+            merged.add(takeWritten ? written.get(w++).item() : oral.get(o++).item());
+            lastWasWritten = takeWritten;
+        }
+        return merged;
+    }
+
+    /** Négatif = la priorité écrite passe devant ; zéro = égalité résiduelle. */
+    private static int comparePriority(
+            DiagnosticPriorityRanking.Ranked written, DiagnosticPriorityRanking.Ranked oral) {
+        int byConfidence = Integer.compare(oral.confidence(), written.confidence());
+        return byConfidence != 0 ? byConfidence : Integer.compare(written.order(), oral.order());
+    }
+
+    /** Les compétences de la production, sans aucun filtre : le tri vient après. */
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> skills(Map<String, Object> analysis) {
+        if (!(analysis.get("skills") instanceof List<?> raw)) return List.of();
+        return raw.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> (Map<String, Object>) item)
+                .toList();
+    }
+
+    private static List<String> strings(Object raw) {
+        if (!(raw instanceof List<?> list)) return List.of();
+        return list.stream().filter(String.class::isInstance).map(String.class::cast).toList();
+    }
+
+    private void finishAttempt(com.sejourfr.app.entity.Attempt attempt) {
+        attempt.setFinishedAt(Instant.now());
+        attempt.setStatus(AttemptStatus.TERMINE);
+        attemptManager.save(attempt);
+    }
+
+    public record RetryPlan(
+            List<UUID> failedSubmissionIds,
+            UUID assemblyTriggerSubmissionId) {
+        public RetryPlan {
+            failedSubmissionIds = List.copyOf(failedSubmissionIds);
+        }
+    }
+}

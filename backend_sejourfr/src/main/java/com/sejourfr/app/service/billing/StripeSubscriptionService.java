@@ -1,0 +1,703 @@
+package com.sejourfr.app.service.billing;
+
+import com.sejourfr.app.config.BillingProperties;
+import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.PaymentStatus;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.PlanManager;
+import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.stripe.exception.EventDataObjectDeserializationException;
+import com.stripe.exception.StripeException;
+import com.stripe.model.BalanceTransaction;
+import com.stripe.model.Charge;
+import com.stripe.model.Dispute;
+import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.StripeObject;
+import com.stripe.model.Subscription;
+import com.stripe.model.SubscriptionItem;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.SubscriptionUpdateParams;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Logique d'application des évènements Stripe sur {@code user_subscriptions}.
+ * Symétrique à {@link AppleSubscriptionService} et
+ * {@link GoogleSubscriptionService}, sans authentification supplémentaire :
+ * la vérif signature + idempotence vivent dans {@code BillingService}, on
+ * reçoit ici un {@link Event} déjà validé.
+ *
+ * <p>Clé d'unicité : {@code (STRIPE, subscription.id)} (sub_xxx, stable sur
+ * toute la chaîne de renouvellements). Les events {@code customer.subscription.*}
+ * arrivant pour un subscription_id inconnu (= jamais initialisé via
+ * checkout.session.completed) sont logués et ignorés.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class StripeSubscriptionService {
+
+    private static final String CHECKOUT_COMPLETED = "checkout.session.completed";
+    private static final String SUBSCRIPTION_CREATED = "customer.subscription.created";
+    private static final String SUBSCRIPTION_UPDATED = "customer.subscription.updated";
+    private static final String SUBSCRIPTION_DELETED = "customer.subscription.deleted";
+    private static final String CHARGE_REFUNDED = "charge.refunded";
+    private static final String ASYNC_PAYMENT_SUCCEEDED = "checkout.session.async_payment_succeeded";
+    private static final String ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
+    private static final String DISPUTE_CLOSED = "charge.dispute.closed";
+
+    /** Seul statut de litige clos qui retire l'accès (contrôle N6). */
+    private static final String DISPUTE_LOST = "lost";
+    private static final String EUR = "eur";
+
+    /** Seule valeur de {@code Session.payment_status} qui vaille encaissement. */
+    private static final String PAYMENT_STATUS_PAID = "paid";
+
+    /** Cle de metadata qui transporte l'intention d'achat (Q12). */
+    public static final String METADATA_INTENT_ID = "intentId";
+
+    private final UserManager userManager;
+    private final PlanManager planManager;
+    private final UserSubscriptionManager userSubscriptionManager;
+    private final SubscriptionNotificationService subscriptionNotifier;
+    private final OneTimeAccessService oneTimeAccessService;
+    private final BillingProperties billingProperties;
+    private final MontantEncaisseResolver montantEncaisseResolver;
+    private final StripeFeeClient stripeFeeClient;
+    private final PaymentRefundService paymentRefundService;
+
+    /**
+     * Entrée unique appelée par {@code BillingService.handleWebhook}. L'event
+     * a déjà passé la vérif signature, l'anti-replay et l'idempotence.
+     */
+    public void dispatch(Event event) {
+        String type = event.getType();
+        switch (type) {
+            case CHECKOUT_COMPLETED, ASYNC_PAYMENT_SUCCEEDED -> handleCheckoutCompleted(event);
+            case ASYNC_PAYMENT_FAILED -> log.info(
+                    "Stripe {} : paiement différé refusé, aucun accès accordé.", type);
+            case SUBSCRIPTION_CREATED, SUBSCRIPTION_UPDATED ->
+                    handleSubscriptionUpdate(event, type);
+            case SUBSCRIPTION_DELETED -> handleSubscriptionDeleted(event);
+            case CHARGE_REFUNDED -> handleChargeRefunded(event);
+            case DISPUTE_CLOSED -> handleDisputeClosed(event);
+            default -> log.debug("Stripe event ignoré : {}", type);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Cancel à la demande de l'utilisateur (initié côté app, pas webhook)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Demande à Stripe de poser {@code cancel_at_period_end=true} sur la
+     * subscription. L'accès Premium reste ouvert jusqu'à
+     * {@code current_period_end} puis bascule EXPIRED automatiquement (Stripe
+     * envoie {@code customer.subscription.updated} immédiatement avec le flag,
+     * puis {@code customer.subscription.deleted} à la fin de période — les
+     * deux sont déjà gérés par {@link #dispatch}).
+     *
+     * <p>Idempotent côté Stripe : rappeler sur une subscription déjà annulée
+     * est un no-op (le flag reste à true).
+     */
+    public void cancelAtPeriodEnd(String stripeSubscriptionId) {
+        try {
+            Subscription subscription = Subscription.retrieve(stripeSubscriptionId);
+            subscription.update(
+                    SubscriptionUpdateParams.builder()
+                            .setCancelAtPeriodEnd(true)
+                            .build()
+            );
+            log.info("Stripe cancel_at_period_end posé sur sub={}", stripeSubscriptionId);
+        } catch (StripeException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Stripe n'a pas pu enregistrer la résiliation pour le moment. "
+                            + "Réessayez dans un instant.",
+                    e
+            );
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // checkout.session.completed — première activation (lie sub_xxx à userId)
+    // ------------------------------------------------------------------------
+
+    private void handleCheckoutCompleted(Event event) {
+        Session session = deserialize(event, Session.class);
+
+        // En mode SUBSCRIPTION, Stripe envoie cet event avec subscription posé.
+        // Pour un éventuel ancien Payment Link one-shot (mode=PAYMENT), il n'y
+        // a pas de subscription — on logue et on skip pour ne pas re-créer
+        // d'historique one-shot avec le nouveau code.
+        String subscriptionId = session.getSubscription();
+        if (subscriptionId == null || subscriptionId.isBlank()) {
+            // Pas de subscription = Checkout mode=PAYMENT. En mode passes
+            // one-time (lot 5), c'est le chemin nominal : on crédite le pass.
+            if (billingProperties.isOneTime()) {
+                handleOneTimeCheckout(session, event);
+            } else {
+                log.warn(
+                        "checkout.session.completed sans subscription (mode={}, session={}) — ignoré.",
+                        session.getMode(), session.getId());
+            }
+            return;
+        }
+
+        UUID userId = parseUserIdOrLog(session.getClientReferenceId(), session.getId());
+        if (userId == null) return;
+
+        Subscription subscription;
+        try {
+            subscription = Subscription.retrieve(subscriptionId);
+        } catch (StripeException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Impossible de récupérer la Subscription Stripe " + subscriptionId + " : " + e.getMessage(),
+                    e
+            );
+        }
+
+        boolean isNew = upsertFromSubscription(userId, subscription, session.getCustomer());
+        log.info(
+                "Stripe checkout completed user={} sub={} status={} new={}",
+                userId, subscriptionId, subscription.getStatus(), isNew
+        );
+
+        // Mail de bienvenue Premium UNIQUEMENT lors de la création initiale.
+        // Les renouvellements futurs passent par customer.subscription.updated
+        // et n'envoient pas de mail.
+        if (isNew) {
+            userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, subscriptionId)
+                    .ifPresent(subscriptionNotifier::sendActivation);
+        }
+    }
+
+    /**
+     * Checkout one-time (mode=PAYMENT, lot 5) : crédite le pass via
+     * {@link OneTimeAccessService}. Le {@code planCode} vient de la metadata
+     * posée à la création ; clé d'unicité = {@code payment_intent} (retrouvable
+     * depuis un charge pour gérer le refund). L'e-mail d'activation est envoyé
+     * par le service de grant (uniquement sur première création).
+     *
+     * <p>🛑 <b>{@code payment_status} est vérifié</b> (bug Q11) : un moyen de
+     * paiement différé (SEPA…) termine la session avec {@code unpaid} — rien
+     * n'est encore encaissé, rien n'est accordé. L'accès s'ouvre sur
+     * {@code checkout.session.async_payment_succeeded}, qui repasse ici avec
+     * {@code paid}. Depuis le contrôle B, la session n'accepte plus que la
+     * carte (voir {@code BillingService.createOneTimeCheckout}) : ce chemin ne
+     * sert plus qu'aux sessions ouvertes avant ce changement.
+     */
+    private void handleOneTimeCheckout(Session session, Event event) {
+        UUID userId = parseUserIdOrLog(session.getClientReferenceId(), session.getId());
+        if (userId == null) return;
+        if (!PAYMENT_STATUS_PAID.equals(session.getPaymentStatus())) {
+            log.info("Checkout one-time session={} payment_status={} : pas encore encaissé, "
+                    + "aucun accès accordé.", session.getId(), session.getPaymentStatus());
+            return;
+        }
+
+        String planCode = session.getMetadata() != null ? session.getMetadata().get("planCode") : null;
+        if (planCode == null || planCode.isBlank()) {
+            log.warn("Checkout one-time sans planCode metadata (session={}) — ignoré.", session.getId());
+            return;
+        }
+        Plan plan = planManager.findByCode(planCode).orElse(null);
+        if (plan == null) {
+            log.warn("Checkout one-time planCode inconnu={} (session={}) — ignoré.", planCode, session.getId());
+            return;
+        }
+        String paymentIntent = session.getPaymentIntent();
+        String originalTxn = (paymentIntent != null && !paymentIntent.isBlank())
+                ? paymentIntent : session.getId();
+        // Stripe DIT ce qu'il a prélevé : `amount_total` est en unités mineures
+        // et `currency` l'accompagne. C'est le seul chiffre qui soit un fait —
+        // il tient compte des remises, de la proration et de la devise réelle,
+        // là où `plans.price` n'est que le tarif affiché.
+        //
+        // Le frais réel (balance_transaction) est lu seulement pour un achat
+        // qui n'est pas encore en base : un webhook rejoué ne rappelle pas Stripe.
+        boolean dejaAccorde = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, originalTxn)
+                .isPresent();
+        Integer fraisReel = dejaAccorde ? null
+                : stripeFeeClient.fraisReelEurCents(paymentIntent).orElse(null);
+        String intentId = session.getMetadata().get(METADATA_INTENT_ID);
+        // Contrôle B : `purchased_at` = l'encaissement (date de l'évènement,
+        // plusieurs jours après la session pour un paiement différé), mais
+        // l'intention, posée juste avant la création de la session, se juge à
+        // la CRÉATION de la session — sinon un paiement différé sortirait
+        // toujours `UNKNOWN`.
+        oneTimeAccessService.grantOneTimeAccess(
+                userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId(),
+                montantEncaisseResolver.enUnitesMineures(
+                        session.getAmountTotal(), session.getCurrency()),
+                new ContexteAchat(fraisReel, toInstant(event.getCreated(), null), intentId,
+                        toInstant(session.getCreated(), null)));
+        log.info("Stripe one-time pass accordé user={} plan={} session={}",
+                userId, planCode, session.getId());
+    }
+
+    // ------------------------------------------------------------------------
+    // customer.subscription.created / .updated — renouvellements, annulations
+    // ------------------------------------------------------------------------
+
+    private void handleSubscriptionUpdate(Event event, String type) {
+        Subscription subscription = deserialize(event, Subscription.class);
+
+        Optional<UserSubscription> existing = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(
+                        SubscriptionSource.STRIPE, subscription.getId());
+
+        if (existing.isEmpty()) {
+            // Cas rare : event reçu avant le checkout.session.completed (race
+            // Stripe), ou subscription créée hors UI (admin, API). On log et
+            // on skip ; la prochaine update viendra avec l'historique.
+            log.warn(
+                    "Stripe {} pour sub={} : aucune UserSubscription locale, ignoré.",
+                    type, subscription.getId()
+            );
+            return;
+        }
+
+        UserSubscription sub = existing.get();
+        SubscriptionStatus oldStatus = sub.getStatus();
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        applySubscriptionState(sub, subscription);
+        if (avant.identiqueA(sub)) {
+            // Stripe émet plusieurs events pour un même cycle métier : le
+            // premier a déjà posé cet état, les suivants n'ont rien à écrire.
+            log.debug("Stripe {} sans changement d'état pour sub={} — pas de sauvegarde.",
+                    type, subscription.getId());
+        } else {
+            userSubscriptionManager.save(sub);
+            log.info(
+                    "Stripe {} appliqué user={} sub={} status={} endsAt={} autoRenew={}",
+                    type, sub.getUser().getId(), subscription.getId(),
+                    sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
+            );
+        }
+
+        // Mail de résiliation UNIQUEMENT sur transition ACTIVE-like → CANCELED.
+        // Si CANCELED → CANCELED (replay webhook ou cancel déjà initié par
+        // notre /cancel endpoint), on ne renvoie pas.
+        if (oldStatus != SubscriptionStatus.CANCELED
+                && sub.getStatus() == SubscriptionStatus.CANCELED) {
+            subscriptionNotifier.sendCancellation(sub);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // customer.subscription.deleted — expiration immédiate
+    // ------------------------------------------------------------------------
+
+    private void handleSubscriptionDeleted(Event event) {
+        Subscription subscription = deserialize(event, Subscription.class);
+        userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(
+                        SubscriptionSource.STRIPE, subscription.getId())
+                .ifPresentOrElse(
+                        sub -> {
+                            EtatAbonnement avant = EtatAbonnement.de(sub);
+                            EtatAbonnement.poser(SubscriptionStatus.EXPIRED,
+                                    sub::getStatus, sub::setStatus);
+                            EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+                            EtatAbonnement.poser(
+                                    toInstant(subscription.getCanceledAt(), sub.getEndsAt()),
+                                    sub::getEndsAt, sub::setEndsAt);
+                            if (avant.identiqueA(sub)) {
+                                log.debug("Stripe subscription deleted sub={} déjà appliqué — "
+                                        + "pas de sauvegarde.", subscription.getId());
+                                return;
+                            }
+                            userSubscriptionManager.save(sub);
+                            log.info("Stripe subscription deleted user={} sub={}",
+                                    sub.getUser().getId(), subscription.getId());
+                        },
+                        () -> log.warn(
+                                "customer.subscription.deleted pour sub={} : aucune UserSubscription locale, ignoré.",
+                                subscription.getId())
+                );
+    }
+
+    // ------------------------------------------------------------------------
+    // charge.refunded — remboursement
+    // ------------------------------------------------------------------------
+
+    private void handleChargeRefunded(Event event) {
+        Charge charge = deserialize(event, Charge.class);
+        // Pour les refunds d'abonnement, le charge porte l'invoice_id qui
+        // permet de remonter à la subscription. Stripe expose cela via le
+        // champ `invoice` sur le Charge.
+        String invoiceId = charge.getInvoice();
+        if (invoiceId == null || invoiceId.isBlank()) {
+            // Pas d'invoice = paiement one-shot (pass lot 5). On retrouve le pass
+            // par son payment_intent (= original_transaction_id côté grant).
+            String paymentIntent = charge.getPaymentIntent();
+            if (paymentIntent != null && !paymentIntent.isBlank()) {
+                userSubscriptionManager
+                        .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
+                        .ifPresent(sub -> rembourserPass(sub, charge, event, paymentIntent));
+            } else {
+                log.debug("charge.refunded sans invoice ni payment_intent (charge={}) — ignoré.",
+                        charge.getId());
+            }
+            return;
+        }
+        // On retrouve la subscription via l'API Stripe pour identifier la
+        // UserSubscription correspondante.
+        try {
+            com.stripe.model.Invoice invoice = com.stripe.model.Invoice.retrieve(invoiceId);
+            String subscriptionId = invoice.getSubscription();
+            if (subscriptionId == null || subscriptionId.isBlank()) {
+                log.debug("charge.refunded invoice {} sans subscription — ignoré.", invoiceId);
+                return;
+            }
+            userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(
+                            SubscriptionSource.STRIPE, subscriptionId)
+                    .ifPresent(sub -> appliquerRemboursement(sub, "charge", subscriptionId, true));
+        } catch (StripeException e) {
+            log.warn("Impossible de récupérer l'invoice {} pour refund : {}",
+                    invoiceId, e.getMessage());
+        }
+    }
+
+    /**
+     * Remboursement d'un pass one-time, <b>partiel ou total</b> (bug Q11 : un
+     * partiel était traité comme total et retirait l'accès).
+     *
+     * <p>{@code charge.amount_refunded} est le CUMUL rendu sur la charge. La
+     * ligne {@code payment_refunds} porte la différence avec ce qui est déjà
+     * enregistré pour cette charge, sous l'identifiant {@code <charge>:<cumul>}
+     * ({@link PaymentRefundService#enregistrerCumulStripe}). Sans montant
+     * lisible, aucune ligne — inconnu, pas zéro.
+     *
+     * <p>Contrôle A : la ligne d'achat est <b>verrouillée</b> d'abord (deux
+     * cumuls traités en parallèle ne comptent plus deux fois la même somme),
+     * l'état d'accès est posé <b>avant</b> l'écriture comptable, et celle-ci ne
+     * peut pas faire échouer la transaction (insertion idempotente, calcul
+     * gardé) : un retrait d'accès n'est jamais annulé par la comptabilité.
+     *
+     * <p>Total ⇒ accès retiré ({@code REFUNDED}). Partiel ⇒ accès conservé,
+     * {@code payment_status = PARTIALLY_REFUNDED}.
+     */
+    private void rembourserPass(UserSubscription sub, Charge charge, Event event, String paymentIntent) {
+        userSubscriptionManager.verrouiller(sub);
+        Long montant = charge.getAmount();
+        Long cumul = charge.getAmountRefunded();
+        boolean total = montant == null || cumul == null || cumul >= montant;
+        appliquerRemboursement(sub, total ? "one-time" : "one-time partiel", paymentIntent, total);
+        if (cumul != null && cumul > 0) {
+            paymentRefundService.enregistrerCumulStripe(sub, charge.getId(), cumul,
+                    charge.getCurrency(), toInstant(event.getCreated(), Instant.now()));
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // charge.dispute.closed — litige (contrôle N6)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Litige clos. Seul {@code lost} change quelque chose : l'argent contesté
+     * est reparti chez le client, l'accès est retiré comme pour un
+     * remboursement total et une ligne {@code payment_refunds}
+     * ({@code dispute:<id>}) porte le montant contesté. {@code won},
+     * {@code warning_closed} et tout autre statut ne touchent à rien.
+     *
+     * <p>Idempotent : id d'évènement ({@code processed_external_events}),
+     * identifiant de ligne unique, état d'accès déjà posé ⇒ aucune écriture.
+     * Seuls les pass one-time sont retrouvés (clé = {@code payment_intent}) ;
+     * les abonnements récurrents, dormants, ne sont pas traités.
+     */
+    private void handleDisputeClosed(Event event) {
+        Dispute dispute = deserialize(event, Dispute.class);
+        if (!DISPUTE_LOST.equals(dispute.getStatus())) {
+            log.info("Stripe litige {} clos statut={} : aucun effet.", dispute.getId(), dispute.getStatus());
+            return;
+        }
+        String paymentIntent = dispute.getPaymentIntent();
+        if (paymentIntent == null || paymentIntent.isBlank()) {
+            log.warn("Stripe litige perdu {} sans payment_intent (charge={}) — ignoré.",
+                    dispute.getId(), dispute.getCharge());
+            return;
+        }
+        userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
+                .ifPresentOrElse(
+                        sub -> appliquerLitigePerdu(sub, dispute, event),
+                        () -> log.warn("Stripe litige perdu {} : aucun achat local pour payment_intent={}.",
+                                dispute.getId(), paymentIntent));
+    }
+
+    /** Même ordre que {@link #rembourserPass} : verrou, retrait d'accès, écriture comptable. */
+    private void appliquerLitigePerdu(UserSubscription sub, Dispute dispute, Event event) {
+        userSubscriptionManager.verrouiller(sub);
+        appliquerRemboursement(sub, "litige perdu", dispute.getId(), true);
+        Long montant = dispute.getAmount();
+        if (montant != null && montant > 0) {
+            paymentRefundService.enregistrerLitigePerdu(sub, dispute.getId(), montant,
+                    dispute.getCurrency(), toInstant(event.getCreated(), Instant.now()),
+                    fraisDeLitigeEurCents(dispute));
+        }
+    }
+
+    /**
+     * Frais de litige réellement prélevés par Stripe : somme des {@code fee}
+     * des balance transactions du litige (le retrait initial les porte ; une
+     * éventuelle restitution les compenserait). {@code null} = inconnu — liste
+     * absente ou vide, frais illisible, devise autre que l'euro, ou somme
+     * négative : on n'invente pas un frais.
+     */
+    static Integer fraisDeLitigeEurCents(Dispute dispute) {
+        List<BalanceTransaction> mouvements = dispute.getBalanceTransactions();
+        if (mouvements == null || mouvements.isEmpty()) return null;
+        long total = 0;
+        for (BalanceTransaction bt : mouvements) {
+            if (bt == null || bt.getFee() == null || !EUR.equalsIgnoreCase(bt.getCurrency())) return null;
+            total += bt.getFee();
+        }
+        return total < 0 || total > Integer.MAX_VALUE ? null : (int) total;
+    }
+
+    /**
+     * Retire l'accès Premium après un remboursement total ; marque seulement
+     * l'encaissement après un partiel. Rejouable : un second
+     * {@code charge.refunded} sur une ligne déjà dans cet état n'écrit rien.
+     */
+    private void appliquerRemboursement(UserSubscription sub, String contexte, String reference,
+                                        boolean total) {
+        EtatAbonnement avant = EtatAbonnement.de(sub);
+        if (total) {
+            EtatAbonnement.poser(SubscriptionStatus.REFUNDED, sub::getStatus, sub::setStatus);
+            EtatAbonnement.poser(false, sub::isAutoRenew, sub::setAutoRenew);
+            EtatAbonnement.poser(PaymentStatus.REFUNDED, sub::getPaymentStatus, sub::setPaymentStatus);
+        } else if (sub.getPaymentStatus() != PaymentStatus.REFUNDED) {
+            EtatAbonnement.poser(PaymentStatus.PARTIALLY_REFUNDED,
+                    sub::getPaymentStatus, sub::setPaymentStatus);
+        }
+        if (avant.identiqueA(sub)) {
+            log.debug("Stripe refund {} ref={} déjà appliqué — pas de sauvegarde.",
+                    contexte, reference);
+            return;
+        }
+        userSubscriptionManager.save(sub);
+        log.info("Stripe refund {} user={} ref={}", contexte, sub.getUser().getId(), reference);
+    }
+
+    // ------------------------------------------------------------------------
+    // Helpers — upsert + état
+    // ------------------------------------------------------------------------
+
+    /**
+     * Crée la ligne {@code user_subscriptions} pour ce user + subscription
+     * Stripe, ou la rafraîchit si elle existait déjà (re-checkout). Idempotent.
+     *
+     * @return {@code true} si une ligne a été créée, {@code false} si on a
+     *         rafraîchi une ligne existante. Sert à déclencher le mail de
+     *         bienvenue UNE seule fois par souscription.
+     */
+    private boolean upsertFromSubscription(UUID userId, Subscription subscription, String customerId) {
+        UserSubscription sub = userSubscriptionManager
+                .findBySourceAndOriginalTransactionId(
+                        SubscriptionSource.STRIPE, subscription.getId())
+                .orElse(null);
+
+        boolean isNew = false;
+        if (sub == null) {
+            User user = userManager.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "User introuvable : " + userId));
+            sub = new UserSubscription();
+            sub.setUser(user);
+            sub.setSource(SubscriptionSource.STRIPE);
+            sub.setOriginalTransactionId(subscription.getId());
+            sub.setStartsAt(Instant.now());
+            isNew = true;
+        } else if (!sub.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Cette subscription Stripe est déjà rattachée à un autre compte."
+            );
+        }
+
+        EtatAbonnement avant = isNew ? null : EtatAbonnement.de(sub);
+        EtatAbonnement.poser(customerId, sub::getStripeCustomerId, sub::setStripeCustomerId);
+        EtatAbonnement.poser(subscription.getId(),
+                sub::getStripeSubscriptionId, sub::setStripeSubscriptionId);
+        applySubscriptionState(sub, subscription);
+        // Sessions EO temps réel : allocation du pass à la 1re souscription
+        // (le plan vient d'être posé par applySubscriptionState). TODO (récurrent
+        // dormant) : re-créditer à chaque renouvellement — non implémenté (mode
+        // ONE_TIME actif, cf. OneTimeAccessService).
+        if (isNew && sub.getPlan() != null) {
+            sub.setRealtimeEoSessionsRemaining(Math.max(0, sub.getPlan().getRealtimeEoSessions()));
+            // Montant figé À LA CRÉATION seulement : un renouvellement ne doit
+            // pas réécrire ce qu'a coûté le premier achat.
+            //
+            // Source : le prix affiché du plan. L'objet `Subscription` ne porte
+            // pas de montant exploitable directement (il faudrait relire
+            // l'invoice), et cette voie est DORMANTE — le produit vend des pass
+            // one-time, où le montant vient de `amount_total`, qui est un fait.
+            montantEncaisseResolver.duPlan(sub.getPlan()).appliquerA(sub);
+        }
+        // Une ligne neuve doit être écrite ; un re-checkout sur une ligne
+        // déjà à jour ne doit PAS faire avancer `updated_at`.
+        if (isNew || !avant.identiqueA(sub)) {
+            userSubscriptionManager.save(sub);
+        }
+        return isNew;
+    }
+
+    /**
+     * Synchronise les champs d'une {@code UserSubscription} avec l'état
+     * Stripe courant (status, periode, autorenew, plan via price_id,
+     * external_transaction_id).
+     */
+    private void applySubscriptionState(UserSubscription sub, Subscription subscription) {
+        Plan plan = lookupPlanFromSubscription(subscription);
+        if (plan != null) {
+            EtatAbonnement.poser(plan, sub::getPlan, sub::setPlan);
+            EtatAbonnement.poser(plan.getCode(), sub::getProductId, sub::setProductId);
+        }
+        EtatAbonnement.poser(
+                EtatAbonnement.connuOu(
+                        subscription.getLatestInvoice(), sub.getExternalTransactionId()),
+                sub::getExternalTransactionId, sub::setExternalTransactionId);
+        EtatAbonnement.poser(toInstant(subscription.getCurrentPeriodEnd(), sub.getEndsAt()),
+                sub::getEndsAt, sub::setEndsAt);
+        EtatAbonnement.poser(!Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
+                sub::isAutoRenew, sub::setAutoRenew);
+        EtatAbonnement.poser(mapStripeStatus(
+                        subscription.getStatus(),
+                        Boolean.TRUE.equals(subscription.getCancelAtPeriodEnd()),
+                        sub.getStatus()),
+                sub::getStatus, sub::setStatus);
+    }
+
+    /**
+     * Extrait le {@code stripe_price_id} du premier line item de la
+     * subscription et remonte au Plan correspondant. Lève 400 si introuvable
+     * — un attaquant ne peut pas activer un Plan inexistant.
+     */
+    private Plan lookupPlanFromSubscription(Subscription subscription) {
+        if (subscription.getItems() == null || subscription.getItems().getData() == null) {
+            return null;
+        }
+        List<SubscriptionItem> items = subscription.getItems().getData();
+        for (SubscriptionItem item : items) {
+            if (item.getPrice() == null) continue;
+            String priceId = item.getPrice().getId();
+            if (priceId == null) continue;
+            Plan plan = planManager.findByStripePriceId(priceId).orElse(null);
+            if (plan != null) return plan;
+        }
+        log.warn(
+                "Stripe subscription {} sans Plan correspondant en DB (priceIds={}) — abonnement gardé tel quel.",
+                subscription.getId(),
+                items.stream()
+                        .map(i -> i.getPrice() != null ? i.getPrice().getId() : "<null>")
+                        .toList()
+        );
+        return null;
+    }
+
+    /**
+     * Mappe le statut Stripe vers {@link SubscriptionStatus}.
+     *
+     * <ul>
+     *   <li>{@code incomplete} → PENDING (paiement en attente, SCA…)</li>
+     *   <li>{@code incomplete_expired} → EXPIRED</li>
+     *   <li>{@code trialing} → TRIAL</li>
+     *   <li>{@code active} avec cancelAtPeriodEnd → CANCELED (Premium jusqu'à
+     *       current_period_end)</li>
+     *   <li>{@code active} sans cancel → ACTIVE</li>
+     *   <li>{@code past_due} / {@code unpaid} → IN_GRACE (Stripe Smart Retries)</li>
+     *   <li>{@code canceled} → CANCELED si ends_at futur, sinon EXPIRED</li>
+     *   <li>{@code paused} → EXPIRED (Stripe Billing pause)</li>
+     * </ul>
+     */
+    private SubscriptionStatus mapStripeStatus(
+            String stripeStatus, boolean cancelAtPeriodEnd, SubscriptionStatus fallback) {
+        if (stripeStatus == null) return fallback;
+        return switch (stripeStatus) {
+            case "incomplete" -> SubscriptionStatus.PENDING;
+            case "incomplete_expired" -> SubscriptionStatus.EXPIRED;
+            case "trialing" -> SubscriptionStatus.TRIAL;
+            case "active" -> cancelAtPeriodEnd
+                    ? SubscriptionStatus.CANCELED
+                    : SubscriptionStatus.ACTIVE;
+            case "past_due", "unpaid" -> SubscriptionStatus.IN_GRACE;
+            case "canceled" -> SubscriptionStatus.CANCELED;
+            case "paused" -> SubscriptionStatus.EXPIRED;
+            default -> {
+                log.warn("Stripe status inattendu : {}", stripeStatus);
+                yield fallback;
+            }
+        };
+    }
+
+    private UUID parseUserIdOrLog(String userIdStr, String sessionId) {
+        if (userIdStr == null || userIdStr.isBlank()) {
+            log.warn("checkout.session.completed sans client_reference_id : {}", sessionId);
+            return null;
+        }
+        try {
+            return UUID.fromString(userIdStr);
+        } catch (IllegalArgumentException e) {
+            log.warn("client_reference_id mal formé : {}", userIdStr);
+            return null;
+        }
+    }
+
+    private static Instant toInstant(Long epochSeconds, Instant fallback) {
+        return epochSeconds != null ? Instant.ofEpochSecond(epochSeconds) : fallback;
+    }
+
+    /**
+     * Désérialise le payload d'un Event Stripe vers une classe précise. Le
+     * chemin nominal {@code getObject()} échoue silencieusement quand la
+     * version d'API du payload ne matche pas celle du SDK (cas courant en dev
+     * avec {@code stripe listen}). Fallback sur {@code deserializeUnsafe}
+     * qui parse le JSON brut.
+     */
+    @SuppressWarnings("unchecked")
+    private <T extends StripeObject> T deserialize(Event event, Class<T> expected) {
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        StripeObject obj = deserializer.getObject().orElse(null);
+        if (obj == null) {
+            log.debug("Stripe event API version mismatch (event={}), fallback deserializeUnsafe",
+                    event.getApiVersion());
+            try {
+                obj = deserializer.deserializeUnsafe();
+            } catch (EventDataObjectDeserializationException e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Payload Stripe non désérialisable : " + e.getMessage()
+                );
+            }
+        }
+        if (!expected.isInstance(obj)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payload Stripe : objet attendu " + expected.getSimpleName()
+                            + ", reçu " + obj.getClass().getSimpleName()
+            );
+        }
+        return (T) obj;
+    }
+}

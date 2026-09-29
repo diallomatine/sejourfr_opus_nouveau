@@ -1,0 +1,195 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiUz1zbeHvPzADR3zL",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01KJpWTi9pUTfUCVY3HvzxjA",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.95,
+            "rationale": "Définition de la pièce d'identité, document de guichet/administration."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.97,
+            "rationale": "Validité carte nationale d'identité."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.9,
+            "rationale": "Centre des impôts explicitement cité comme relevant de cette notion."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_papiers_identite",
+            "confiance": 0.95,
+            "rationale": "Démarche en cas de perte de papiers d'identité."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_urgences_secours",
+            "confiance": 0.9,
+            "rationale": "Numéro d'urgence 116 000 pour disparition d'enfant."
+          },
+          {
+            "rang": 6,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.97,
+            "rationale": "Définition du CDI, type de contrat individuel."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.97,
+            "rationale": "Définition du CDD, contrat individuel."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.85,
+            "rationale": "Cotisations sociales patronales financent la Sécurité sociale.",
+            "alternative": "vs_travail_contrat_salaire",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 9,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.9,
+            "rationale": "Distinction salaire brut/net relève du contrat individuel de travail."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.9,
+            "rationale": "URSSAF collecte cotisations, organisme de la protection sociale."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.8,
+            "rationale": "CESU est explicitement cité dans la frontière de cette notion.",
+            "alternative": "vs_emploi_formation",
+            "alternative_confiance": 0.3
+          },
+          {
+            "rang": 12,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.95,
+            "rationale": "Rupture conventionnelle est un mode de rupture du contrat individuel."
+          },
+          {
+            "rang": 13,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.95,
+            "rationale": "Préavis lors d'une démission, contrat individuel."
+          },
+          {
+            "rang": 14,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.95,
+            "rationale": "Inspection du travail explicitement citée dans cette notion collective."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_emploi_formation",
+            "confiance": 0.6,
+            "rationale": "Âge pour l'apprentissage, entre formation et statut scolaire.",
+            "alternative": "vs_ecole_scolarite",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 16,
+            "notion": "vs_emploi_formation",
+            "confiance": 0.95,
+            "rationale": "Micro-entrepreneur, création d'activité."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.95,
+            "rationale": "Institution gérant les retraites, protection sociale."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.95,
+            "rationale": "Âge de la retraite, protection sociale."
+          },
+          {
+            "rang": 19,
+            "notion": "vs_emploi_formation",
+            "confiance": 0.95,
+            "rationale": "CPF explicitement cité dans cette notion."
+          },
+          {
+            "rang": 20,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.97,
+            "rationale": "CSE, instance représentative collective explicitement citée."
+          },
+          {
+            "rang": 21,
+            "notion": "vs_travail_entreprise",
+            "confiance": 0.95,
+            "rationale": "Médecine du travail explicitement citée dans cette notion."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.85,
+            "rationale": "Arrêt maladie lié au contrat de travail individuel, cité explicitement."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.95,
+            "rationale": "Congé maternité explicitement cité dans cette notion."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.95,
+            "rationale": "Congé paternité explicitement cité dans cette notion."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.95,
+            "rationale": "Sécurité sociale, filet social, financement par cotisations."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10659,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1611,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

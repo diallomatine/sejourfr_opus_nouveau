@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SejourFR — Progression Compréhension orale</title>
+
+<style>
+:root{
+  /* Couleurs reprises du logo SejourFR */
+  --brand:#102c62;
+  --brand-2:#163878;
+  --brand-soft:#f2f5fb;
+  --red:#e2363a;
+  --red-soft:#fff2f2;
+
+  --green:#26785d;
+  --green-soft:#edf8f3;
+  --text:#19314f;
+  --muted:#758398;
+  --line:#e6ebf1;
+  --bg:#f7f8fb;
+  --white:#fff;
+  --shadow:0 16px 40px rgba(16,44,98,.07);
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+a{text-decoration:none;color:inherit}
+button{font:inherit}
+
+.app{
+  max-width:1180px;
+  margin:0 auto;
+  padding:26px 22px 60px;
+}
+
+/* HEADER */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:30px;
+}
+
+.back{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  color:var(--brand);
+  font-weight:800;
+  font-size:14px;
+}
+
+.back-icon{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:white;
+}
+
+.primary{
+  border:0;
+  border-radius:13px;
+  background:var(--brand);
+  color:white;
+  padding:13px 18px;
+  font-weight:850;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(16,44,98,.14);
+}
+
+/* INTRO */
+.intro{
+  margin-bottom:20px;
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:var(--red);
+  font-size:13px;
+  font-weight:850;
+  margin-bottom:8px;
+}
+
+.eyebrow:before{
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--red);
+}
+
+h1{
+  margin:0;
+  color:var(--brand);
+  font-size:clamp(28px,4vw,39px);
+  line-height:1.08;
+  letter-spacing:-.04em;
+}
+
+.intro p{
+  margin:9px 0 0;
+  color:var(--muted);
+  font-size:15px;
+}
+
+.card{
+  background:white;
+  border:1px solid rgba(224,231,239,.95);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+}
+
+/* KPI */
+.summary{
+  display:grid;
+  grid-template-columns:1.35fr .65fr .65fr;
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.main-score{
+  padding:24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:22px;
+}
+
+.kpi-label{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:750;
+  margin-bottom:8px;
+}
+
+.score{
+  display:flex;
+  align-items:flex-end;
+  gap:7px;
+  color:var(--brand);
+}
+
+.score strong{
+  font-size:44px;
+  line-height:1;
+  letter-spacing:-.055em;
+}
+
+.score span{
+  color:var(--muted);
+  font-size:15px;
+  font-weight:750;
+  padding-bottom:5px;
+}
+
+.meta-row{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:13px;
+}
+
+.level{
+  display:inline-flex;
+  padding:7px 11px;
+  border-radius:999px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  font-weight:900;
+  font-size:13px;
+}
+
+.trend{
+  display:inline-flex;
+  padding:7px 11px;
+  border-radius:999px;
+  background:var(--green-soft);
+  color:var(--green);
+  font-size:13px;
+  font-weight:850;
+}
+
+.target-ring{
+  width:88px;
+  height:88px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:conic-gradient(var(--red) 0 84%, #edf0f4 84%);
+  position:relative;
+  flex:0 0 auto;
+}
+
+.target-ring:after{
+  content:"";
+  width:67px;
+  height:67px;
+  border-radius:50%;
+  background:white;
+}
+
+.target-ring span{
+  position:absolute;
+  z-index:1;
+  color:var(--brand);
+  font-weight:900;
+  font-size:18px;
+}
+
+.mini{
+  padding:22px;
+  min-height:145px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.mini span{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:750;
+}
+
+.mini strong{
+  display:block;
+  color:var(--brand);
+  font-size:28px;
+  letter-spacing:-.035em;
+}
+
+.mini small{
+  display:block;
+  margin-top:5px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* GRAPH */
+.chart-card{
+  padding:24px;
+  margin-bottom:14px;
+}
+
+.section-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:14px;
+}
+
+.section-head h2{
+  margin:0;
+  color:var(--brand);
+  font-size:19px;
+  letter-spacing:-.02em;
+}
+
+.section-head p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.scale-note{
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+.chart-wrap{
+  width:100%;
+  overflow-x:auto;
+}
+
+.chart{
+  display:block;
+  width:100%;
+  min-width:720px;
+  height:315px;
+}
+
+/* Bandes de niveau */
+.band-a1{fill:#fafbfc}
+.band-a2{fill:#f6f8fb}
+.band-b1{fill:#f1f5fa}
+.band-b2{fill:#edf3fb}
+
+.grid{
+  stroke:#dfe6ee;
+  stroke-width:1;
+}
+
+.threshold{
+  stroke:#cad4df;
+  stroke-width:1;
+  stroke-dasharray:4 5;
+}
+
+.axis{
+  fill:#8390a0;
+  font-size:11px;
+}
+
+.level-label{
+  fill:#5f7084;
+  font-size:11px;
+  font-weight:800;
+}
+
+.area{
+  fill:url(#areaGradient);
+}
+
+.line{
+  fill:none;
+  stroke:var(--brand);
+  stroke-width:3.5;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.dot{
+  fill:white;
+  stroke:var(--brand);
+  stroke-width:3;
+}
+
+.dot-last{
+  fill:white;
+  stroke:var(--red);
+  stroke-width:4;
+}
+
+.value{
+  fill:var(--brand);
+  font-size:11px;
+  font-weight:850;
+}
+
+.value-last{
+  fill:var(--red);
+  font-size:12px;
+  font-weight:900;
+}
+
+/* Barème */
+.scale{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:10px;
+}
+
+.scale-item{
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:10px 12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  background:#fbfcfd;
+}
+
+.scale-item strong{
+  color:var(--brand);
+  font-size:12px;
+}
+
+.scale-item span{
+  color:var(--muted);
+  font-size:11px;
+}
+
+/* HISTORIQUE */
+.history{
+  padding:24px;
+}
+
+.exam-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:18px;
+}
+
+.exam{
+  display:grid;
+  grid-template-columns:minmax(180px,1.3fr) .6fr .5fr .6fr auto;
+  align-items:center;
+  gap:16px;
+  padding:15px 17px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  transition:.18s ease;
+}
+
+.exam:hover{
+  border-color:#cad6e2;
+  transform:translateY(-1px);
+}
+
+.exam-title{
+  color:var(--brand);
+  font-size:14px;
+  font-weight:850;
+}
+
+.exam-date{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
+
+.stat span{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  margin-bottom:3px;
+}
+
+.stat strong{
+  color:var(--text);
+  font-size:13px;
+}
+
+.level-badge{
+  min-width:45px;
+  text-align:center;
+  padding:8px 10px;
+  border-radius:10px;
+  background:var(--brand-soft);
+  color:var(--brand);
+  font-weight:900;
+  font-size:12px;
+}
+
+.level-badge.b2{
+  background:var(--red-soft);
+  color:var(--red);
+}
+
+.link{
+  color:var(--brand);
+  font-size:13px;
+  font-weight:850;
+}
+
+.footer-note{
+  margin-top:15px;
+  color:var(--muted);
+  font-size:11px;
+  text-align:center;
+}
+
+/* MOBILE */
+@media (max-width:780px){
+  .app{padding:18px 14px 42px}
+  .topbar{margin-bottom:24px}
+  .primary{padding:11px 14px}
+
+  .summary{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .main-score{
+    grid-column:1/-1;
+  }
+
+  .chart-card,.history{padding:18px}
+
+  .scale{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .exam{
+    grid-template-columns:1fr auto auto;
+  }
+
+  .stat.time,
+  .stat.progression{
+    display:none;
+  }
+
+  .link{display:none}
+}
+
+@media (max-width:470px){
+  .score strong{font-size:38px}
+  .target-ring{width:80px;height:80px}
+  .target-ring:after{width:61px;height:61px}
+  .mini{padding:17px;min-height:125px}
+  .mini strong{font-size:23px}
+}
+</style>
+</head>
+
+<body>
+<main class="app">
+
+  <header class="topbar">
+    <a class="back" href="#">
+      <span class="back-icon">←</span>
+      Compréhension orale
+    </a>
+    <button class="primary">Nouvel examen blanc</button>
+  </header>
+
+  <section class="intro">
+    <div class="eyebrow">Votre progression</div>
+    <h1>Compréhension orale</h1>
+    <p>Suivez l'évolution de votre score TCF IRN au fil de vos examens blancs.</p>
+  </section>
+
+  <section class="summary">
+
+    <article class="card main-score">
+      <div>
+        <div class="kpi-label">Dernier résultat</div>
+
+        <div class="score">
+          <strong>422</strong>
+          <span>/ 499</span>
+        </div>
+
+        <div class="meta-row">
+          <span class="level">Niveau B2</span>
+          <span class="trend">↗ +148 points depuis le début</span>
+        </div>
+      </div>
+
+      <div class="target-ring">
+        <span>B2</span>
+      </div>
+    </article>
+
+    <article class="card mini">
+      <span>Meilleur score</span>
+      <div>
+        <strong>422 / 499</strong>
+        <small>Niveau B2 · 22 septembre</small>
+      </div>
+    </article>
+
+    <article class="card mini">
+      <span>Examens réalisés</span>
+      <div>
+        <strong>7</strong>
+        <small>examens blancs terminés</small>
+      </div>
+    </article>
+
+  </section>
+
+  <section class="card chart-card">
+    <div class="section-head">
+      <div>
+        <h2>Évolution de votre score</h2>
+        <p>Chaque point correspond à un examen blanc de compréhension orale.</p>
+      </div>
+      <div class="scale-note">Score TCF IRN · /499</div>
+    </div>
+
+    <div class="chart-wrap">
+      <svg class="chart" viewBox="0 0 920 315" preserveAspectRatio="none"
+           role="img" aria-label="Évolution des scores de compréhension orale sur 499">
+
+        <defs>
+          <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#102c62" stop-opacity=".13"/>
+            <stop offset="100%" stop-color="#102c62" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Zones correspondant au barème TCF IRN -->
+        <rect class="band-b2" x="74" y="24" width="810" height="57"/>
+        <rect class="band-b1" x="74" y="81" width="810" height="57"/>
+        <rect class="band-a2" x="74" y="138" width="810" height="57"/>
+        <rect class="band-a1" x="74" y="195" width="810" height="57"/>
+
+        <!-- Seuils : 499 / 400 / 300 / 200 / 100 -->
+        <line class="grid" x1="74" y1="24" x2="884" y2="24"/>
+        <line class="threshold" x1="74" y1="81" x2="884" y2="81"/>
+        <line class="threshold" x1="74" y1="138" x2="884" y2="138"/>
+        <line class="threshold" x1="74" y1="195" x2="884" y2="195"/>
+        <line class="grid" x1="74" y1="252" x2="884" y2="252"/>
+
+        <!-- Valeurs Y -->
+        <text class="axis" x="36" y="28">499</text>
+        <text class="axis" x="36" y="85">400</text>
+        <text class="axis" x="36" y="142">300</text>
+        <text class="axis" x="36" y="199">200</text>
+        <text class="axis" x="36" y="256">100</text>
+
+        <!-- Niveaux -->
+        <text class="level-label" x="94" y="53">B2 · 400–499</text>
+        <text class="level-label" x="94" y="110">B1 · 300–399</text>
+        <text class="level-label" x="94" y="167">A2 · 200–299</text>
+        <text class="level-label" x="94" y="224">A1 · 100–199</text>
+
+        <!--
+          Scores d'exemple :
+          274, 301, 328, 356, 389, 407, 422
+        -->
+        <path class="area"
+          d="M105 153 L230 137 L355 122 L480 106 L605 87 L730 77 L855 68 L855 252 L105 252 Z"/>
+
+        <path class="line"
+          d="M105 153 L230 137 L355 122 L480 106 L605 87 L730 77 L855 68"/>
+
+        <circle class="dot" cx="105" cy="153" r="5"/>
+        <circle class="dot" cx="230" cy="137" r="5"/>
+        <circle class="dot" cx="355" cy="122" r="5"/>
+        <circle class="dot" cx="480" cy="106" r="5"/>
+        <circle class="dot" cx="605" cy="87" r="5"/>
+        <circle class="dot" cx="730" cy="77" r="5"/>
+        <circle class="dot-last" cx="855" cy="68" r="6"/>
+
+        <!-- Quelques valeurs, pour éviter de surcharger -->
+        <text class="value" x="91" y="143">274</text>
+        <text class="value" x="591" y="77">389</text>
+        <text class="value-last" x="839" y="55">422</text>
+
+        <!-- Axe X -->
+        <text class="axis" x="87" y="286">12 août</text>
+        <text class="axis" x="333" y="286">25 août</text>
+        <text class="axis" x="584" y="286">8 sept.</text>
+        <text class="axis" x="826" y="286">22 sept.</text>
+      </svg>
+    </div>
+
+    <div class="scale">
+      <div class="scale-item">
+        <strong>A1</strong><span>100–199</span>
+      </div>
+      <div class="scale-item">
+        <strong>A2</strong><span>200–299</span>
+      </div>
+      <div class="scale-item">
+        <strong>B1</strong><span>300–399</span>
+      </div>
+      <div class="scale-item">
+        <strong>B2</strong><span>400–499</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card history">
+    <div class="section-head">
+      <div>
+        <h2>Mes examens blancs</h2>
+        <p>Vos derniers résultats, du plus récent au plus ancien.</p>
+      </div>
+    </div>
+
+    <div class="exam-list">
+
+      <article class="exam">
+        <div>
+          <div class="exam-title">Examen blanc n°7</div>
+          <div class="exam-date">22 septembre 2026</div>
+        </div>
+        <div class="stat">
+          <span>Score</span>
+          <strong>422 / 499</strong>
+        </div>
+        <div class="level-badge b2">B2</div>
+        <div class="stat time">
+          <span>Temps</span>
+          <strong>18 min 42</strong>
+        </div>
+        <a class="link" href="#">Voir →</a>
+      </article>
+
+      <article class="exam">
+        <div>
+          <div class="exam-title">Examen blanc n°6</div>
+          <div class="exam-date">15 septembre 2026</div>
+        </div>
+        <div class="stat">
+          <span>Score</span>
+          <strong>407 / 499</strong>
+        </div>
+        <div class="level-badge b2">B2</div>
+        <div class="stat time">
+          <span>Temps</span>
+          <strong>19 min 10</strong>
+        </div>
+        <a class="link" href="#">Voir →</a>
+      </article>
+
+      <article class="exam">
+        <div>
+          <div class="exam-title">Examen blanc n°5</div>
+          <div class="exam-date">8 septembre 2026</div>
+        </div>
+        <div class="stat">
+          <span>Score</span>
+          <strong>389 / 499</strong>
+        </div>
+        <div class="level-badge">B1</div>
+        <div class="stat time">
+          <span>Temps</span>
+          <strong>18 min 04</strong>
+        </div>
+        <a class="link" href="#">Voir →</a>
+      </article>
+
+      <article class="exam">
+        <div>
+          <div class="exam-title">Examen blanc n°4</div>
+          <div class="exam-date">1 septembre 2026</div>
+        </div>
+        <div class="stat">
+          <span>Score</span>
+          <strong>356 / 499</strong>
+        </div>
+        <div class="level-badge">B1</div>
+        <div class="stat time">
+          <span>Temps</span>
+          <strong>19 min 31</strong>
+        </div>
+        <a class="link" href="#">Voir →</a>
+      </article>
+
+    </div>
+
+    <div class="footer-note">
+      Barème affiché pour les épreuves QCM du TCF IRN.
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

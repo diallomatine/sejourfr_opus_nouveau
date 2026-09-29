@@ -1,0 +1,141 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/models/enums.dart';
+import '../../core/models/production_models.dart';
+import 'production_catalog.dart';
+
+/// Session d'examen blanc TCF EE/EO : un attempt avec ses 3 (ou plus)
+/// soumissions. Le niveau global d'une session n'est plus dérivé ici par tâche
+/// — il est calculé côté backend et exposé via `production-bilan`.
+class ExamSession {
+  ExamSession({required this.attemptId, required this.submissions});
+
+  final String attemptId;
+  final List<ProductionSubmissionDto> submissions;
+
+  DateTime get lastSubmittedAt => submissions
+      .map((s) => s.submittedAt)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+
+  /// Toutes les soumissions ont une evaluation IA non nulle.
+  bool get isFullyEvaluated =>
+      submissions.every((s) => s.evaluation != null);
+
+  /// Moyenne des notes sur 20 (null si aucune évaluation disponible).
+  double? get avgScore {
+    final notes = submissions
+        .map((s) => s.evaluation?.noteSurVingt)
+        .whereType<double>()
+        .toList();
+    if (notes.isEmpty) return null;
+    return notes.reduce((a, b) => a + b) / notes.length;
+  }
+}
+
+/// Nombre de soumissions à partir duquel un attempt se lit comme une **session
+/// d'examen blanc** et non comme un entraînement libre.
+///
+/// Deux, et pas trois. Une épreuve complète en compte bien trois, mais ce seuil
+/// n'est pas la définition de l'épreuve : c'est un **discriminant**. Un
+/// entraînement libre n'ouvre qu'un attempt par tâche, donc ne porte jamais
+/// deux soumissions ; à l'inverse, un examen abandonné après deux tâches reste
+/// un examen — il a consommé son slot et le freebie EE/EO côté backend. Le
+/// laisser à trois le faisait disparaître de la grille alors que le serveur,
+/// lui, l'avait bien compté : le candidat voyait « examen 1 jamais fait » et se
+/// prenait un 403 en le relançant.
+///
+/// ⚠️ Miroir de `PRODUCTION_EXAM_MIN_SUBMISSIONS` (web, `production-catalog.ts`),
+/// qui valait déjà 2 : un attempt à 2 tâches apparaissait en examen sur le web
+/// et **nulle part** ici.
+const int kProductionExamMinSubmissions = 2;
+
+/// Nombre d'examens blancs proposés par épreuve EE/EO. Déclaré ici — le héros
+/// du parcours et la grille des examens l'affichaient chacun de leur côté.
+const int kProductionExamSlots = 10;
+
+/// Vue agrégée du hub : compteur de sujets par tâche et sessions d'examen blanc
+/// (≥ [kProductionExamMinSubmissions] soumissions).
+class HubData {
+  const HubData(
+      {required this.countByTache,
+      required this.doneByTache,
+      required this.exams});
+
+  final Map<int, int> countByTache;
+
+  /// Sujets **distincts déjà produits** par tâche. Calculé côté client depuis
+  /// les soumissions déjà servies par `listMine` (aucun endpoint ajouté) : un
+  /// sujet repris deux fois ne compte qu'une fois, et les soumissions faites
+  /// en examen blanc comptent comme les autres — le candidat a bien traité ce
+  /// sujet.
+  final Map<int, int> doneByTache;
+
+  /// Total des sujets de l'épreuve, toutes tâches confondues.
+  int get totalSubjects =>
+      countByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Sujets distincts déjà produits, toutes tâches confondues.
+  int get doneSubjects =>
+      doneByTache.values.fold(0, (sum, value) => sum + value);
+
+  /// Progression globale de l'épreuve, 0-100. `0` tant qu'aucun sujet n'est
+  /// publié : on n'affiche jamais une barre pleine sur un contenu vide.
+  double get percent =>
+      totalSubjects == 0 ? 0 : (doneSubjects / totalSubjects) * 100;
+
+  /// Sessions d'examen blanc, les plus récentes d'abord.
+  final List<ExamSession> exams;
+}
+
+/// Vue d'épreuve EE/EO, **dérivée sans réseau** du catalogue déjà chargé.
+/// Alimentait le hub d'épreuve (supprimé) ; sert désormais la page « Examens
+/// blancs » du parcours.
+///
+/// Provider synchrone : arriver sur le mode « Examens » depuis « Sujets » ne
+/// coûte plus les deux appels d'épreuve, ils ont déjà été payés.
+final expressionHubProvider =
+    Provider.autoDispose.family<AsyncValue<HubData>, EpreuveType>(
+  (ref, epreuve) =>
+      ref.watch(productionCatalogProvider(epreuve)).whenData(buildHubData),
+);
+
+/// Agrégation pure du catalogue d'une épreuve. Extraite du provider pour être
+/// réutilisable (les bilans d'examen en ont besoin) et testable sans réseau.
+HubData buildHubData(ProductionCatalog catalog) {
+  final tasks = catalog.tasks;
+  final countByTache = <int, int>{};
+  for (final t in tasks) {
+    countByTache[t.tacheNumero] = (countByTache[t.tacheNumero] ?? 0) + 1;
+  }
+
+  final subs = catalog.submissions;
+
+  // Sujets distincts traités, par tâche. On repart des `tasks` (et non du
+  // `tacheNumero` porté par la soumission) pour ne compter que des sujets
+  // encore publiés — sinon un sujet retiré du catalogue gonflerait le
+  // dénominateur d'un côté et le numérateur de l'autre.
+  final treatedTaskIds =
+      subs.map((s) => s.productionTaskId).whereType<String>().toSet();
+  final doneByTache = <int, int>{};
+  for (final t in tasks) {
+    if (treatedTaskIds.contains(t.id)) {
+      doneByTache[t.tacheNumero] = (doneByTache[t.tacheNumero] ?? 0) + 1;
+    }
+  }
+
+  final byAttempt = <String, List<ProductionSubmissionDto>>{};
+  for (final s in subs) {
+    final id = s.attemptId;
+    if (id == null) continue;
+    byAttempt.putIfAbsent(id, () => []).add(s);
+  }
+  final exams = <ExamSession>[];
+  for (final entry in byAttempt.entries) {
+    if (entry.value.length >= kProductionExamMinSubmissions) {
+      exams.add(ExamSession(attemptId: entry.key, submissions: entry.value));
+    }
+  }
+  exams.sort((a, b) => b.lastSubmittedAt.compareTo(a.lastSubmittedAt));
+  return HubData(
+      countByTache: countByTache, doneByTache: doneByTache, exams: exams);
+}

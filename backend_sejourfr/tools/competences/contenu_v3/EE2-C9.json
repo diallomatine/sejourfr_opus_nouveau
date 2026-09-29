@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE2-C9",
+  "rang": 4,
+  "titre": "Expliquer une action, un choix ou une réaction",
+  "critere": "Dire pourquoi on a fait cela, pourquoi c'est arrivé, ou pourquoi on a réagi ainsi.",
+  "remplace": "EE2-C4 — Introduire un événement déclencheur (15 sujets désactivés : la tâche 2 couvre aussi les activités quotidiennes, qui n'ont pas de péripétie)",
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Le train de six heures dix",
+      "context": "Vous deviez être à Nantes à onze heures. Vous avez pris le train de six heures dix, alors qu'un autre partait à huit heures et arrivait à dix heures trente.",
+      "instruction": "Expliquez en deux phrases pourquoi vous avez choisi le train de six heures dix.",
+      "uniqueCriterion": "La raison du choix est donnée, pas seulement le déroulement du voyage.",
+      "recommendedMinWords": 25,
+      "recommendedMaxWords": 55,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites pourquoi ce train",
+        "Reliez la raison au choix",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Un choix",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai pris celui de six heures dix parce que…",
+      "tip": "raconter le trajet ne répond pas à la question : dites pourquoi ce train-là",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je suis parti très tôt le matin. Le train était presque vide et je suis arrivé à Nantes vers neuf heures. Ensuite j'ai pris le tramway jusqu'au centre-ville.",
+          "pedagogicalNote": "Le voyage est raconté, mais rien ne dit pourquoi ce train plutôt que l'autre."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai pris celui de six heures dix parce que le suivant arrivait seulement à dix heures trente. Avec une demi-heure de marge, le moindre retard me faisait manquer mon rendez-vous.",
+          "pedagogicalNote": "La raison est donnée et elle explique vraiment le choix."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai pris celui de six heures dix parce que le suivant n'arrivait qu'à dix heures trente, pour un rendez-vous à onze heures. Sur cette ligne, un retard de quarante minutes arrive une fois par mois.",
+          "pedagogicalNote": "La raison est appuyée sur un risque précis : le choix devient évident."
+        }
+      ]
+    },
+    {
+      "title": "La machine s'est arrêtée",
+      "context": "Vous avez lancé une lessive et la machine s'est arrêtée au bout de dix minutes, le tambour plein d'eau.",
+      "instruction": "Expliquez en deux phrases pourquoi la machine s'est arrêtée.",
+      "uniqueCriterion": "La cause de l'arrêt est donnée, pas seulement le constat de la panne.",
+      "recommendedMinWords": 25,
+      "recommendedMaxWords": 55,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites pourquoi elle s'est arrêtée",
+        "Donnez une cause précise",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une cause",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Elle s'est arrêtée parce que…",
+      "tip": "décrire la panne n'est pas l'expliquer : dites ce qui l'a causée",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La machine s'est arrêtée au bout de dix minutes. Le tambour était plein d'eau et le voyant rouge clignotait. J'ai appuyé plusieurs fois sur le bouton mais rien ne se passait.",
+          "pedagogicalNote": "Tout est décrit, rien n'est expliqué : on ignore ce qui a causé l'arrêt."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Elle s'est arrêtée parce que le filtre était bouché par des mouchoirs oubliés dans une poche. L'eau ne pouvait plus partir, donc le programme s'est bloqué.",
+          "pedagogicalNote": "La cause est nommée et l'enchaînement rend l'arrêt compréhensible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Elle s'est arrêtée parce que le filtre était bouché : j'avais laissé des mouchoirs en papier dans une poche. Ils se sont défaits pendant le lavage, l'eau n'a plus pu partir, et la sécurité a coupé.",
+          "pedagogicalNote": "Chaque étape mène à la suivante : l'explication se suit du début à la fin."
+        }
+      ]
+    },
+    {
+      "title": "Le café refusé",
+      "context": "Un collègue vous a proposé un café à quinze heures et vous avez refusé, alors que vous en prenez un tous les matins.",
+      "instruction": "Expliquez en deux phrases pourquoi vous avez refusé ce café.",
+      "uniqueCriterion": "La raison du refus est donnée, et elle rend la réaction compréhensible.",
+      "recommendedMinWords": 25,
+      "recommendedMaxWords": 55,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites pourquoi vous avez refusé",
+        "Reliez la raison au refus",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une réaction",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai refusé parce que…",
+      "tip": "un refus s'explique en une phrase : sinon, il paraît sec",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il m'a proposé un café et j'ai dit non merci. Il en a pris un pour lui et nous avons continué à parler du planning de la semaine.",
+          "pedagogicalNote": "La scène est racontée, mais le refus reste sans explication."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai refusé parce que le café de l'après-midi m'empêche de dormir. Depuis un mois, je m'arrête au deuxième de la matinée et je dors beaucoup mieux.",
+          "pedagogicalNote": "La raison est donnée et elle explique le refus sans s'étendre."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai refusé parce qu'un café après quatorze heures me tient éveillé jusqu'à deux heures du matin. Je l'ai découvert en arrêtant pendant les vacances : je dormais enfin.",
+          "pedagogicalNote": "L'explication s'appuie sur une expérience précise : le refus devient évident."
+        }
+      ]
+    },
+    {
+      "title": "Les escaliers plutôt que l'ascenseur",
+      "context": "Au travail, vous montez toujours les quatre étages à pied, alors que l'ascenseur fonctionne très bien.",
+      "instruction": "Expliquez en deux phrases pourquoi vous prenez toujours les escaliers.",
+      "uniqueCriterion": "La raison du choix est donnée, pas seulement l'habitude constatée.",
+      "recommendedMinWords": 25,
+      "recommendedMaxWords": 55,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites pourquoi les escaliers",
+        "Donnez une raison claire",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Un choix",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je prends les escaliers parce que…",
+      "tip": "« c'est mon habitude » ne dit pas pourquoi : cherchez la vraie raison",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je monte toujours à pied. Les escaliers sont à gauche en entrant et il y a quatre étages. En général j'arrive en haut en deux minutes.",
+          "pedagogicalNote": "C'est une description de l'habitude, pas son explication."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je prends les escaliers parce que je reste assis toute la journée devant un écran. Ces quatre étages sont le seul moment où je bouge vraiment.",
+          "pedagogicalNote": "La raison est donnée et elle rend le choix compréhensible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je prends les escaliers parce que mon poste me tient assis sept heures par jour. Mon médecin m'a conseillé de marcher un peu chaque matin, et c'est le seul moment où j'y arrive sans y penser.",
+          "pedagogicalNote": "La raison est ancrée dans une situation concrète, sans devenir un discours."
+        }
+      ]
+    },
+    {
+      "title": "Le rendez-vous annulé",
+      "context": "Vous aviez rendez-vous chez le coiffeur samedi matin et vous l'avez annulé la veille au soir.",
+      "instruction": "Expliquez en deux phrases pourquoi vous avez annulé ce rendez-vous.",
+      "uniqueCriterion": "La raison de l'annulation est donnée, pas seulement le fait d'avoir annulé.",
+      "recommendedMinWords": 25,
+      "recommendedMaxWords": 55,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites pourquoi vous avez annulé",
+        "Donnez une raison précise",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une décision",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai annulé parce que…",
+      "tip": "« je ne pouvais pas venir » n'explique rien : dites ce qui vous en a empêché",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "J'ai appelé le salon vendredi soir pour annuler mon rendez-vous du samedi. La personne au téléphone a été très aimable et m'a proposé une autre date.",
+          "pedagogicalNote": "L'annulation est racontée, mais on ne sait pas ce qui l'a provoquée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai annulé parce que ma fille est tombée malade vendredi soir et que personne ne pouvait la garder. Je ne voulais pas la laisser seule avec de la fièvre.",
+          "pedagogicalNote": "La cause est nommée et elle rend l'annulation compréhensible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai annulé parce que ma fille a eu trente-neuf de fièvre vendredi soir. Ma voisine, qui la garde d'habitude, était partie pour le week-end, et mon mari travaillait samedi matin.",
+          "pedagogicalNote": "Les précisions écartent les autres solutions : l'annulation devient inévitable."
+        }
+      ]
+    },
+    {
+      "title": "L'appartement le plus cher",
+      "context": "Vous avez visité deux appartements de la même taille. Vous avez choisi celui qui coûte cent euros de plus par mois.",
+      "instruction": "Expliquez en trois phrases pourquoi vous avez choisi le plus cher.",
+      "uniqueCriterion": "La raison du choix explique pourquoi le prix plus élevé a été accepté.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 65,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites pourquoi celui-là",
+        "Expliquez le prix accepté",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Choix coûteux",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai choisi le plus cher parce que…",
+      "tip": "un choix qui coûte plus demande une raison qui pèse autant",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le premier appartement était moins cher mais le second m'a plu tout de suite. J'ai signé le bail le lendemain et j'ai emménagé deux semaines plus tard. Il est très agréable à vivre.",
+          "pedagogicalNote": "« Il m'a plu » ne dit pas ce qui a emporté la décision."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai choisi le plus cher parce qu'il est à dix minutes à pied de mon travail. L'autre était à quarante minutes de bus, avec un changement. Les cent euros de plus, je les reperdais en abonnement et en fatigue.",
+          "pedagogicalNote": "La raison est chiffrée et elle explique vraiment le surcoût accepté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai choisi le plus cher parce qu'il est à dix minutes à pied de l'atelier où je commence à six heures. L'autre était à quarante minutes, avec un bus qui ne circule pas avant cinq heures et demie. Cent euros, c'est moins que trois taxis par semaine.",
+          "pedagogicalNote": "Le surcoût est comparé à une dépense évitée : la raison tient debout toute seule."
+        }
+      ]
+    },
+    {
+      "title": "La facture a doublé",
+      "context": "Votre facture d'électricité de janvier est deux fois plus élevée que celle de novembre.",
+      "instruction": "Expliquez en trois phrases pourquoi cette facture a doublé.",
+      "uniqueCriterion": "La cause de l'augmentation est expliquée, pas seulement constatée.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 65,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites pourquoi elle a doublé",
+        "Reliez la cause au montant",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une cause",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Elle a doublé parce que…",
+      "tip": "comparer deux chiffres ne suffit pas : dites ce qui a changé entre les deux",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "En novembre j'avais payé quatre-vingts euros et en janvier cent soixante. C'est beaucoup d'argent d'un coup, et je ne m'y attendais pas en ouvrant l'enveloppe. J'ai relu la facture deux fois pour être sûr du montant.",
+          "pedagogicalNote": "L'écart est constaté, mais rien ne dit d'où il vient."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Elle a doublé parce que le chauffage électrique a tourné tous les jours en janvier. En novembre, il faisait encore doux et je ne l'allumais que le soir. Le mois de janvier a été très froid.",
+          "pedagogicalNote": "La cause est nommée et le lien avec le montant est fait."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Elle a doublé parce que janvier a été bien plus froid que novembre : le chauffage tournait du matin au soir dans les deux chambres. À cela s'ajoute une semaine de vacances scolaires, où les enfants sont restés à la maison toute la journée. Le compteur a suivi.",
+          "pedagogicalNote": "Deux causes s'additionnent et chacune est reliée à la consommation."
+        }
+      ]
+    },
+    {
+      "title": "Vous n'avez rien dit",
+      "context": "Un client s'est énervé à votre guichet devant toute la file. Vous l'avez laissé parler sans lui répondre.",
+      "instruction": "Expliquez en trois phrases pourquoi vous n'avez pas répondu.",
+      "uniqueCriterion": "La raison du silence est donnée, et elle rend la réaction compréhensible.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 65,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites pourquoi vous vous êtes tu",
+        "Reliez la raison au silence",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une réaction",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je n'ai rien répondu parce que…",
+      "tip": "ne pas réagir est aussi une décision : expliquez-la",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le client parlait très fort et tout le monde nous regardait. Je suis resté derrière mon guichet sans bouger jusqu'à ce qu'il finisse. Ensuite il est parti et la file a repris.",
+          "pedagogicalNote": "La scène est racontée ; le silence n'est jamais expliqué."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je n'ai rien répondu parce qu'il ne m'écoutait pas : chaque fois que j'ouvrais la bouche, il parlait plus fort. Répondre n'aurait servi à rien. J'ai attendu qu'il s'arrête pour lui proposer une solution.",
+          "pedagogicalNote": "La raison est donnée et elle transforme le silence en choix."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je n'ai rien répondu parce qu'il coupait chacune de mes phrases : il ne m'entendait plus. Répondre devant la file l'aurait mis en colère devant témoins, et personne n'en serait sorti. J'ai attendu qu'il souffle, puis je lui ai proposé le bureau du fond.",
+          "pedagogicalNote": "Le silence apparaît comme une décision réfléchie, pas comme une absence."
+        }
+      ]
+    },
+    {
+      "title": "Les heures supplémentaires refusées",
+      "context": "Votre responsable vous a proposé six heures supplémentaires par semaine, bien payées. Vous avez refusé.",
+      "instruction": "Expliquez en trois phrases pourquoi vous avez refusé ces heures.",
+      "uniqueCriterion": "La raison du refus explique pourquoi l'argent n'a pas suffi à convaincre.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 65,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites pourquoi vous avez refusé",
+        "Montrez ce qui pesait plus",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Refus expliqué",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "J'ai dit non parce que…",
+      "tip": "refuser de l'argent surprend : donnez la raison qui pèse plus lourd",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Mon responsable m'a proposé six heures de plus par semaine. J'ai réfléchi deux jours et je lui ai dit non. Il a compris et il a proposé ces heures à un collègue.",
+          "pedagogicalNote": "Le refus est raconté, mais sa raison n'apparaît jamais."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai dit non parce que je suis le seul à récupérer ma fille à l'école le soir. Six heures de plus, c'est rentrer à dix-neuf heures quatre jours par semaine. Aucune garde n'est possible à cette heure-là.",
+          "pedagogicalNote": "La raison est concrète et elle explique pourquoi le salaire n'a pas suffi."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai dit non parce que je récupère ma fille à seize heures trente et que personne d'autre ne le peut. Six heures de plus, c'est quatre soirs à dix-neuf heures, et le périscolaire ferme à dix-huit. L'argent aurait payé une garde que je n'ai pas trouvée.",
+          "pedagogicalNote": "La raison est chiffrée et va jusqu'à répondre à l'objection de l'argent."
+        }
+      ]
+    },
+    {
+      "title": "Le colis reparti",
+      "context": "Vous attendiez un colis mardi après-midi. Le livreur est passé, puis il est reparti avec le colis.",
+      "instruction": "Expliquez en trois phrases pourquoi le colis est reparti.",
+      "uniqueCriterion": "La cause du départ du livreur est expliquée, pas seulement le fait.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 65,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites pourquoi il est reparti",
+        "Donnez une cause précise",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une cause",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Il est reparti avec parce que…",
+      "tip": "« il n'a pas pu livrer » n'explique rien : dites ce qui l'en a empêché",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le livreur est passé mardi après-midi et il est reparti avec mon colis. J'ai reçu un message qui disait que la livraison avait échoué et qu'il fallait aller le chercher en point relais.",
+          "pedagogicalNote": "L'échec est rapporté, mais sa cause n'est jamais donnée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Il est reparti avec parce que l'interphone ne marche plus depuis quinze jours. Il a sonné en bas sans réponse, et mon numéro n'était pas sur l'étiquette. Il n'avait aucun moyen de me joindre.",
+          "pedagogicalNote": "La cause est nommée et l'enchaînement rend le départ logique."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Il est reparti avec parce que le colis demandait une signature et que personne ne pouvait lui ouvrir. L'interphone est en panne depuis quinze jours, la gardienne était en congé, et j'avais donné mon ancien numéro à la commande.",
+          "pedagogicalNote": "Trois causes s'additionnent et ferment toutes les issues : le départ s'explique seul."
+        }
+      ]
+    },
+    {
+      "title": "Vous l'avez remerciée",
+      "context": "À la caisse du supermarché, une dame est passée devant vous sans un mot. Au moment de partir, vous l'avez remerciée.",
+      "instruction": "Expliquez en trois phrases pourquoi vous l'avez remerciée, alors qu'elle était passée devant vous.",
+      "uniqueCriterion": "L'explication rend compréhensible une réaction qui, sans elle, paraît illogique.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 70,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites pourquoi ce remerciement",
+        "Levez la contradiction",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Réaction surprenante",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Je l'ai remerciée parce que…",
+      "tip": "une réaction étonnante ne s'excuse pas : elle s'explique",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle est passée devant moi sans rien dire et je ne lui ai fait aucune remarque. En sortant, je lui ai dit merci et elle a eu l'air surprise. Je crois qu'elle n'a pas compris pourquoi.",
+          "pedagogicalNote": "Le geste est raconté, la contradiction reste entière."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je l'ai remerciée parce qu'elle avait gardé ma place et surveillé mon chariot pendant que je retournais chercher du pain. Elle est passée devant moi ensuite, c'est vrai, mais sans elle j'aurais tout repris depuis le début.",
+          "pedagogicalNote": "La contradiction est levée : on comprend ce qui a motivé le merci."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je l'ai remerciée parce que c'est elle qui avait gardé ma place dans la file pendant que je retournais chercher du pain. Elle a fini par passer devant moi, ce qui est logique : j'avais mis dix minutes. Sans elle, j'aurais recommencé toute la queue.",
+          "pedagogicalNote": "La raison retourne complètement la scène et rend le merci évident."
+        }
+      ]
+    },
+    {
+      "title": "Le téléphone rendu",
+      "context": "Votre beau-frère vous a offert un téléphone neuf pour votre anniversaire. Vous le lui avez rendu deux jours plus tard.",
+      "instruction": "Expliquez en trois phrases pourquoi vous l'avez rendu, sans que votre beau-frère se sente visé.",
+      "uniqueCriterion": "La raison du refus du cadeau est donnée et elle ne met pas la personne en cause.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 70,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites pourquoi vous l'avez rendu",
+        "Ne mettez personne en cause",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans blesser",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Je le lui ai rendu parce que…",
+      "tip": "expliquer un refus, ce n'est pas reprocher : parlez de vous",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il m'a offert un téléphone très cher pour mon anniversaire et je le lui ai rendu deux jours après. Il n'a pas beaucoup apprécié et nous n'en avons plus reparlé depuis ce jour-là.",
+          "pedagogicalNote": "Le refus est raconté, mais sa raison n'est jamais donnée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je le lui ai rendu parce que je sais ce qu'il gagne et ce que coûte cet appareil. Accepter aurait voulu dire qu'il se prive pendant deux mois pour moi. Le mien fonctionne encore très bien.",
+          "pedagogicalNote": "La raison porte sur la situation, jamais sur l'intention de la personne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je le lui ai rendu parce que ce téléphone représente presque un mois de son salaire et qu'il rembourse encore sa voiture. Le mien marche très bien, je n'en avais aucun besoin. Je lui ai dit que le geste m'avait touché, et que c'était justement pour ça.",
+          "pedagogicalNote": "La raison est nette, et la dernière phrase la rend recevable sans reproche."
+        }
+      ]
+    },
+    {
+      "title": "Ce n'était pas la pluie",
+      "context": "Le match de votre fils a été annulé samedi. Tout le monde a cru que c'était à cause de la pluie, mais ce n'était pas la raison.",
+      "instruction": "Expliquez en trois phrases pourquoi le match a été annulé, en écartant la raison que tout le monde imagine.",
+      "uniqueCriterion": "La vraie cause est donnée et la cause supposée est explicitement écartée.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 70,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Écartez la cause supposée",
+        "Donnez la vraie cause",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Cause écartée",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce n'est pas la pluie qui…",
+      "tip": "écarter une fausse cause rend la vraie beaucoup plus claire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le match de samedi n'a pas eu lieu. Il pleuvait beaucoup ce matin-là et le terrain était très mouillé. Les enfants sont rentrés à la maison assez déçus de ne pas jouer.",
+          "pedagogicalNote": "La cause supposée est reprise telle quelle : rien n'est expliqué."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce n'est pas la pluie qui a fait annuler le match : le terrain est synthétique et se joue sous l'averse. C'est l'arbitre qui ne s'est pas présenté, et aucun bénévole n'avait la licence pour le remplacer.",
+          "pedagogicalNote": "La fausse cause est écartée et la vraie est donnée nettement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce n'est pas la pluie qui a fait annuler le match : le terrain est synthétique et l'entraînement de la veille s'était tenu sous l'averse. L'arbitre prévu s'est blessé le vendredi soir, et le règlement interdit de jouer sans arbitre officiel. Personne au club n'a cette licence.",
+          "pedagogicalNote": "L'écartement est argumenté, et la vraie cause s'appuie sur une règle précise."
+        }
+      ]
+    },
+    {
+      "title": "Vous avez ri",
+      "context": "Pendant une réunion, une collègue a annoncé une nouvelle difficile pour le service. Vous avez éclaté de rire.",
+      "instruction": "Expliquez en trois phrases pourquoi vous avez ri à ce moment-là.",
+      "uniqueCriterion": "L'explication rend compréhensible un rire qui, sans elle, paraît déplacé.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 70,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites pourquoi vous avez ri",
+        "Levez le malentendu",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Réaction surprenante",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "J'ai ri parce que…",
+      "tip": "ce qui paraît déplacé a souvent une raison simple : donnez-la",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ma collègue a annoncé la nouvelle et j'ai ri sans pouvoir me retenir. Tout le monde s'est tourné vers moi et j'ai été très gêné pendant tout le reste de la réunion.",
+          "pedagogicalNote": "La gêne est décrite, le rire n'est toujours pas expliqué."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "J'ai ri parce qu'elle venait d'annoncer exactement ce que j'avais prédit la veille, mot pour mot, devant deux personnes présentes dans la salle. Ce n'était pas la nouvelle qui me faisait rire, c'était la coïncidence.",
+          "pedagogicalNote": "La raison lève le malentendu : le rire ne portait pas sur la nouvelle."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "J'ai ri parce que la veille, à la pause, j'avais dit à deux collègues que le budget finirait par sauter, et ils m'avaient répondu que j'exagérais. Ces deux collègues étaient assis en face de moi. Ce n'était pas la nouvelle qui me faisait rire, c'était leur tête.",
+          "pedagogicalNote": "La scène rend le rire non seulement compréhensible, mais presque inévitable."
+        }
+      ]
+    },
+    {
+      "title": "Le retour au travail avancé",
+      "context": "Votre arrêt de travail courait encore dix jours. Vous êtes revenu travailler avant la fin, avec l'accord du médecin.",
+      "instruction": "Expliquez en trois phrases pourquoi vous êtes revenu plus tôt que prévu.",
+      "uniqueCriterion": "La raison du retour anticipé est donnée et elle ne se réduit pas à l'ennui.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 70,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Dites pourquoi ce retour",
+        "Donnez une raison solide",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Le pourquoi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Choix inattendu",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je suis revenu plus tôt parce que…",
+      "tip": "« je m'ennuyais » est un peu court : cherchez ce qui a vraiment pesé",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Mon arrêt allait jusqu'au trente mais je suis revenu le vingt. Le médecin était d'accord et mes collègues ont été contents de me revoir au bureau ce matin-là. J'ai retrouvé mes dossiers exactement comme je les avais laissés.",
+          "pedagogicalNote": "Le retour est raconté, mais aucune raison n'est avancée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je suis revenu plus tôt parce que mon indemnité ne couvrait que la moitié de mon salaire. Dix jours de plus, c'était le loyer de décembre en moins. Le médecin a accepté à condition que je reste assis.",
+          "pedagogicalNote": "La raison est concrète et elle explique vraiment la décision."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je suis revenu plus tôt parce que l'indemnité ne couvrait que la moitié de mon salaire et que je paie seul le loyer. Dix jours de plus, c'était deux cents euros que je n'avais pas. Le médecin a accepté en me limitant aux tâches assises, et mon chef a déplacé mon poste.",
+          "pedagogicalNote": "L'explication va jusqu'aux conditions du retour : la décision est entièrement éclairée."
+        }
+      ]
+    }
+  ]
+}

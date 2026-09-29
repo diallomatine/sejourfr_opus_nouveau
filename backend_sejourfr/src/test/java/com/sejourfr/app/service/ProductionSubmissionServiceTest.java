@@ -1,0 +1,475 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.CorrespondanceTcfDto;
+import com.sejourfr.app.dto.PlanChangeDto;
+import com.sejourfr.app.dto.PlanSkillRefDto;
+import com.sejourfr.app.dto.ProductionBilanResponse;
+import com.sejourfr.app.dto.ProductionSubmissionDto;
+import com.sejourfr.app.dto.SubmitProductionTextRequest;
+import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.mapper.ProductionSubmissionMapper;
+import com.sejourfr.app.mapper.ProductionTaskMapper;
+import com.sejourfr.app.ratelimit.RateLimitGuard;
+import com.sejourfr.app.security.CurrentUser;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.security.access.AccessDeniedException;
+
+/**
+ * Regles freemium EE/EO + gardes d'appartenance de
+ * {@link ProductionSubmissionService}. Unitaire pur : on pilote
+ * {@code subscriptionService.hasTcf} et l'etat des attempts pour verifier le
+ * verrou de {@code enforceQuota} (exerce via {@code submitText}).
+ */
+class ProductionSubmissionServiceTest {
+
+    private ProductionEvaluationService evaluationService;
+    private ProductionSubmissionManager submissionManager;
+    private AttemptManager attemptManager;
+    private ProductionTaskManager taskManager;
+    private ProductionSubmissionMapper mapper;
+    private ProductionTaskMapper taskMapper;
+    private CurrentUser currentUser;
+    private SubscriptionService subscriptionService;
+    private ProductionBilanService bilanService;
+    private ProductionExamCompositionService compositionService;
+    private RateLimitGuard rateLimitGuard;
+    private LearningPlanService learningPlanService;
+    private ProductionSubmissionService service;
+
+    private final UUID userId = UUID.randomUUID();
+    private final UUID taskId = UUID.randomUUID();
+    private final UUID attemptId = UUID.randomUUID();
+
+    private com.sejourfr.app.service.FreeExamEntitlementService freeExamEntitlementService;
+
+    @BeforeEach
+    void setUp() {
+        evaluationService = mock(ProductionEvaluationService.class);
+        submissionManager = mock(ProductionSubmissionManager.class);
+        attemptManager = mock(AttemptManager.class);
+        taskManager = mock(ProductionTaskManager.class);
+        mapper = mock(ProductionSubmissionMapper.class);
+        taskMapper = mock(ProductionTaskMapper.class);
+        currentUser = mock(CurrentUser.class);
+        subscriptionService = mock(SubscriptionService.class);
+        bilanService = mock(ProductionBilanService.class);
+        compositionService = mock(ProductionExamCompositionService.class);
+        rateLimitGuard = mock(RateLimitGuard.class);
+        // Quota freemium : collaborateur REEL (la regle a ete factorisee dans
+        // ProductionAccessService pour que la voie temps reel l'applique aussi).
+        freeExamEntitlementService = mock(FreeExamEntitlementService.class);
+        ProductionAccessService accessService = new ProductionAccessService(
+                subscriptionService, attemptManager, submissionManager,
+                mock(com.sejourfr.app.manager.DiagnosticSessionManager.class),
+                freeExamEntitlementService);
+        learningPlanService = mock(LearningPlanService.class);
+        when(learningPlanService.changeAfterProduction(any(), any())).thenReturn(Optional.empty());
+        service = new ProductionSubmissionService(
+                evaluationService, submissionManager, attemptManager, taskManager,
+                mapper, taskMapper, currentUser, bilanService,
+                compositionService, accessService, rateLimitGuard, learningPlanService);
+
+        when(currentUser.getId()).thenReturn(userId);
+    }
+
+    private ProductionTask eeTask() {
+        ProductionTask t = new ProductionTask();
+        t.setId(taskId);
+        t.setEpreuve(EpreuveType.TCF_EE);
+        t.setActive(true);
+        return t;
+    }
+
+    private SubmitProductionTextRequest req() {
+        return new SubmitProductionTextRequest(taskId, attemptId, "Mon texte de production.", null);
+    }
+
+    private void stubEvaluatedSubmission() {
+        when(evaluationService.submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull()))
+                .thenReturn(new ProductionSubmission());
+        when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
+    }
+
+    private Attempt attempt() {
+        Attempt a = new Attempt();
+        a.setId(attemptId);
+        return a;
+    }
+
+    // ------------------------------------------------------------------------
+    // submitText : garde de tache + quota
+    // ------------------------------------------------------------------------
+
+    @Test
+    void submitText_tache_introuvable_renvoie_404() {
+        when(taskManager.findById(taskId)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void submitText_tache_oral_refuse_sur_la_route_ecrite() {
+        ProductionTask oral = eeTask();
+        oral.setEpreuve(EpreuveType.TCF_EO);
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(oral));
+        assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void submitText_premium_passe_sans_verifier_le_quota() {
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        stubEvaluatedSubmission();
+
+        service.submitText(req());
+
+        verify(rateLimitGuard).checkProductionSubmission(userId);
+        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
+        // Premium : on ne lit meme pas le ledger des gratuites.
+        verify(freeExamEntitlementService, never())
+                .analyseOffertePossible(any(), any(), any());
+    }
+
+    /**
+     * 🛑 D-17 — l'entrainement libre EE/EO est <b>premium sans exception</b> :
+     * l'essai gratuit par epreuve ({@code FREE_TRAINING_PER_EPREUVE = 1}) est
+     * supprime, donc <b>aucun appel paye ne part</b>.
+     */
+    @Test
+    void submitText_gratuit_entrainement_libre_refuse_D17() {
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
+
+        assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
+    }
+
+    /** D-17 bis — le 1er examen blanc EE d'un compte gratuit est corrige en entier. */
+    @Test
+    void submitText_gratuit_premier_examen_blanc_passe_D17bis() {
+        Attempt examSlot = attempt();
+        examSlot.setSlotNumber(1);
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(examSlot));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(true);
+        stubEvaluatedSubmission();
+
+        service.submitText(req());
+
+        verify(evaluationService).submitAndEvaluate(eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
+    }
+
+    /**
+     * 🛑 D-17 bis — <b>le rejeu est ouvert, c'est l'ANALYSE qui est premium</b>,
+     * et le refus tombe <b>avant le pipeline</b> : ni Whisper, ni correcteur.
+     * Meme place que l'interception d'idempotence de V046.
+     */
+    @Test
+    void submitText_gratuit_rejeu_dun_examen_deja_offert_refuse_avant_le_pipeline_D17bis() {
+        Attempt rejeu = attempt();
+        rejeu.setSlotNumber(2);
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(rejeu));
+        when(freeExamEntitlementService.analyseOffertePossible(
+                userId, EpreuveType.TCF_EE, attemptId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.submitText(req()))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("déjà été corrigé");
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void submitText_gratuit_epreuve_terminee_refuse() {
+        Attempt finished = attempt();
+        finished.setFinishedAt(Instant.now());
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(false);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(finished));
+
+        assertThatThrownBy(() -> service.submitText(req())).isInstanceOf(AccessDeniedException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // lectures
+    // ------------------------------------------------------------------------
+
+    @Test
+    void lastPerTask_epreuve_qcm_refusee() {
+        assertThatThrownBy(() -> service.lastPerTask(EpreuveType.TCF_CO, "b1"))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void getOwnDetail_submission_d_autrui_renvoie_404() {
+        ProductionSubmission other = new ProductionSubmission();
+        User otherUser = new User();
+        otherUser.setId(UUID.randomUUID());
+        other.setUser(otherUser);
+        UUID subId = UUID.randomUUID();
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> service.getOwnDetail(subId)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // « Le Plan a change » : resolu a la lecture, absent sans faute
+    // ------------------------------------------------------------------------
+
+    @Test
+    void getOwnDetail_porte_le_changement_de_plan_quand_il_y_en_a_un() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        PlanChangeDto change = new PlanChangeDto(
+                new PlanSkillRefDto(UUID.randomUUID(), "EE3-C2", "Argumenter", SkillSection.EE),
+                null);
+        when(learningPlanService.changeAfterProduction(userId, subId))
+                .thenReturn(Optional.of(change));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isEqualTo(change);
+    }
+
+    @Test
+    void getOwnDetail_sans_observation_encore_ecrite_ne_porte_rien_et_ne_leve_pas() {
+        UUID subId = UUID.randomUUID();
+        stubOwnEvaluatedSubmission(subId);
+        when(learningPlanService.changeAfterProduction(userId, subId)).thenReturn(Optional.empty());
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+    }
+
+    @Test
+    void getOwnDetail_avant_evaluation_ne_consulte_meme_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATING);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATING));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    /** Le diagnostic a son propre ecran de resultat agrege : pas de bloc ici. */
+    @Test
+    void getOwnDetail_dun_sujet_de_diagnostic_ne_consulte_pas_le_plan() {
+        UUID subId = UUID.randomUUID();
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        sub.getProductionTask().setDiagnosticCode("INITIAL_TCF");
+        sub.getProductionTask().setDiagnosticVersion(1);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+
+        assertThat(service.getOwnDetail(subId).planChange()).isNull();
+        verify(learningPlanService, never()).changeAfterProduction(any(), any());
+    }
+
+    private void stubOwnEvaluatedSubmission(UUID subId) {
+        ProductionSubmission sub = ownSubmission(subId, SubmissionStatut.EVALUATED);
+        when(submissionManager.findById(subId)).thenReturn(Optional.of(sub));
+        when(mapper.toDto(sub)).thenReturn(dto(subId, SubmissionStatut.EVALUATED));
+    }
+
+    private ProductionSubmission ownSubmission(UUID subId, SubmissionStatut statut) {
+        ProductionSubmission sub = new ProductionSubmission();
+        sub.setId(subId);
+        User owner = new User();
+        owner.setId(userId);
+        sub.setUser(owner);
+        sub.setStatut(statut);
+        sub.setProductionTask(eeTask());
+        return sub;
+    }
+
+    private ProductionSubmissionDto dto(UUID subId, SubmissionStatut statut) {
+        return new ProductionSubmissionDto(
+                subId, null, taskId, (short) 1, statut, "Texte", 60, null,
+                (short) 0, null, Instant.now(), null, null, null);
+    }
+
+    @Test
+    void listMine_sans_epreuve_lit_tout_le_recent_avec_limite_bornee() {
+        when(submissionManager.findRecentByUser(eq(userId), eq(100))).thenReturn(List.of());
+        service.listMine(null, 9999); // clamp a 100
+        verify(submissionManager).findRecentByUser(userId, 100);
+        verify(submissionManager, never()).findRecentByUserAndEpreuve(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    // ------------------------------------------------------------------------
+    // bilan : gardes + entrainement (pas de niveau)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void bilan_attempt_non_production_refuse() {
+        Attempt civique = attempt();
+        User u = new User();
+        u.setId(userId);
+        civique.setUser(u);
+        civique.setEpreuve(EpreuveType.CIVIQUE);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(civique));
+
+        assertThatThrownBy(() -> service.bilan(attemptId)).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void bilan_entrainement_libre_ne_calcule_pas_de_niveau() {
+        Attempt training = attempt();
+        User u = new User();
+        u.setId(userId);
+        training.setUser(u);
+        training.setEpreuve(EpreuveType.TCF_EE); // slotNumber null + parent null → exam=false
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(training));
+        when(submissionManager.findByAttemptId(attemptId)).thenReturn(List.of());
+        // 🛑 Le verdict d'épreuve est rendu par UNE autorité, `niveauEpreuve` :
+        // en entraînement libre elle ne rend aucun palier, et c'est elle que
+        // l'écran « Voir mes résultats » interroge aussi.
+        when(bilanService.niveauEpreuve(List.of(), false, false))
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(null, false, Map.of(), null));
+        when(bilanService.moyenneNotes(any())).thenReturn(null);
+
+        ProductionBilanResponse resp = service.bilan(attemptId);
+
+        assertThat(resp.exam()).isFalse();
+        assertThat(resp.niveauGlobal()).isNull();
+        assertThat(resp.evaluatedCount()).isZero();
+        assertThat(resp.expectedCount()).isEqualTo(ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE);
+        assertThat(resp.correspondanceTcf()).isNull();
+    }
+
+    @Test
+    void bilan_examen_expose_la_correspondance_officielle_du_niveau() {
+        Attempt exam = attempt();
+        User u = new User();
+        u.setId(userId);
+        exam.setUser(u);
+        exam.setEpreuve(EpreuveType.TCF_EE);
+        exam.setSlotNumber(1);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(exam));
+        when(submissionManager.findByAttemptId(attemptId)).thenReturn(List.of());
+
+        Map<Integer, AiEvaluation> evals = Map.of(
+                1, new AiEvaluation(), 2, new AiEvaluation(), 3, new AiEvaluation());
+        CorrespondanceTcfDto correspondance = new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9);
+        when(bilanService.niveauEpreuve(List.of(), true, false))
+                .thenReturn(new ProductionBilanService.NiveauEpreuve(NiveauCecrl.B1, false, evals, null));
+        when(bilanService.moyenneNotes(any())).thenReturn(null);
+        when(bilanService.correspondanceTcf(NiveauCecrl.B1)).thenReturn(correspondance);
+
+        ProductionBilanResponse resp = service.bilan(attemptId);
+
+        assertThat(resp.niveauGlobal()).isEqualTo(NiveauCecrl.B1);
+        assertThat(resp.correspondanceTcf()).isEqualTo(correspondance);
+    }
+
+    // ------------------------------------------------------------------------
+    // Idempotence (V046) — la cle rendue par le client
+    // ------------------------------------------------------------------------
+
+    /**
+     * 🛑 Le test le plus important du lot L1. Sans lui, une perte de reseau en
+     * fin de soumission fait payer DEUX corrections pour une seule production,
+     * et vide deux fois le quota gratuit du candidat.
+     */
+    @Test
+    void une_soumission_rejouee_sous_la_meme_cle_ne_repaie_pas() {
+        UUID cle = UUID.randomUUID();
+        ProductionSubmission deja = new ProductionSubmission();
+        ProductionSubmissionDto dto = mock(ProductionSubmissionDto.class);
+        when(submissionManager.findByClientKey(userId, cle)).thenReturn(Optional.of(deja));
+        when(mapper.toDto(deja)).thenReturn(dto);
+
+        ProductionSubmissionDto resultat = service.submitText(
+                new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        assertThat(resultat).isSameAs(dto);
+        verify(evaluationService, never()).submitAndEvaluate(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Le rejeu passe AVANT le rate-limit : la seconde requete est la meme
+     * requete, la refuser en 429 rendrait la cle inutile precisement quand le
+     * client en a besoin (retry automatique apres coupure).
+     */
+    @Test
+    void un_rejeu_ne_consomme_ni_rate_limit_ni_quota() {
+        UUID cle = UUID.randomUUID();
+        when(submissionManager.findByClientKey(userId, cle))
+                .thenReturn(Optional.of(new ProductionSubmission()));
+        when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
+
+        service.submitText(new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        verify(rateLimitGuard, never()).checkProductionSubmission(any());
+        verify(taskManager, never()).findById(any());
+    }
+
+    /**
+     * Un client qui n'envoie pas de cle garde EXACTEMENT l'ancien comportement :
+     * la migration ne casse pas les applications deja installees.
+     */
+    @Test
+    void sans_cle_le_comportement_est_inchange() {
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
+        stubEvaluatedSubmission();
+
+        service.submitText(req());
+
+        // La cle nulle traverse le manager, qui rend vide sans requeter : c'est
+        // LUI qui porte cette garde, pour que tout appelant en beneficie.
+        verify(evaluationService).submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), isNull());
+    }
+
+    /** La cle voyage jusqu'au service d'evaluation, qui seul l'ecrit en base. */
+    @Test
+    void la_cle_est_transmise_au_service_devaluation() {
+        UUID cle = UUID.randomUUID();
+        when(submissionManager.findByClientKey(userId, cle)).thenReturn(Optional.empty());
+        when(taskManager.findById(taskId)).thenReturn(Optional.of(eeTask()));
+        when(subscriptionService.hasTcf(userId)).thenReturn(true);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(attempt()));
+        when(evaluationService.submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), eq(cle)))
+                .thenReturn(new ProductionSubmission());
+        when(mapper.toDto(any())).thenReturn(mock(ProductionSubmissionDto.class));
+
+        service.submitText(new SubmitProductionTextRequest(taskId, attemptId, "Mon texte.", cle));
+
+        verify(evaluationService).submitAndEvaluate(
+                eq(userId), eq(taskId), eq(attemptId), isNull(), any(), eq(cle));
+    }
+}

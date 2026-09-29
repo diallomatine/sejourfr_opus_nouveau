@@ -1,0 +1,189 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiZMSeBtBLVaJcHjxb",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01SzJYtzsSsBWL5E2EAAKyVw",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.97,
+            "rationale": "Le SMIC est un élément du salaire individuel."
+          },
+          {
+            "rang": 2,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.97,
+            "rationale": "Durée légale du travail = contrat de travail individuel."
+          },
+          {
+            "rang": 3,
+            "notion": "vs_emploi_formation",
+            "confiance": 0.96,
+            "rationale": "France Travail accompagne les chercheurs d'emploi."
+          },
+          {
+            "rang": 4,
+            "notion": "vs_travail_contrat_salaire",
+            "confiance": 0.9,
+            "rationale": "Âge minimum pour travailler, cité explicitement dans la frontière."
+          },
+          {
+            "rang": 5,
+            "notion": "vs_sante_soins",
+            "confiance": 0.96,
+            "rationale": "Remboursement des frais de santé via CPAM."
+          },
+          {
+            "rang": 6,
+            "notion": "vs_sante_soins",
+            "confiance": 0.9,
+            "rationale": "PUMA et remboursement de soins ordinaires."
+          },
+          {
+            "rang": 7,
+            "notion": "vs_sante_soins",
+            "confiance": 0.97,
+            "rationale": "Rôle du médecin traitant dans le parcours de soins."
+          },
+          {
+            "rang": 8,
+            "notion": "vs_sante_soins",
+            "confiance": 0.9,
+            "rationale": "Vaccinations obligatoires, citées explicitement."
+          },
+          {
+            "rang": 9,
+            "notion": "vs_sante_soins",
+            "confiance": 0.97,
+            "rationale": "Carte Vitale, citée explicitement dans la frontière."
+          },
+          {
+            "rang": 10,
+            "notion": "vs_sante_soins",
+            "confiance": 0.95,
+            "rationale": "Mutuelle, citée explicitement dans la frontière."
+          },
+          {
+            "rang": 11,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Obligation d'instruction jusqu'à 16 ans."
+          },
+          {
+            "rang": 12,
+            "notion": "vs_famille_etat_civil",
+            "confiance": 0.93,
+            "rationale": "Autorité parentale, citée explicitement dans la frontière."
+          },
+          {
+            "rang": 13,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Obligation d'instruction de 3 à 16 ans."
+          },
+          {
+            "rang": 14,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Baccalauréat, diplôme scolaire."
+          },
+          {
+            "rang": 15,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.97,
+            "rationale": "Cycle scolaire collège."
+          },
+          {
+            "rang": 16,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Obligation scolaire pour tous les enfants."
+          },
+          {
+            "rang": 17,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.93,
+            "rationale": "Inscription, assiduité, cantine - citées explicitement."
+          },
+          {
+            "rang": 18,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.96,
+            "rationale": "CAF, organisme de prestations sociales."
+          },
+          {
+            "rang": 19,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.96,
+            "rationale": "APL, aide au logement citée explicitement."
+          },
+          {
+            "rang": 20,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.96,
+            "rationale": "RSA, prestation sociale citée explicitement."
+          },
+          {
+            "rang": 21,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.93,
+            "rationale": "Logement social, cité explicitement dans la frontière."
+          },
+          {
+            "rang": 22,
+            "notion": "vs_protection_sociale_aides",
+            "confiance": 0.93,
+            "rationale": "HLM, cité explicitement dans la frontière."
+          },
+          {
+            "rang": 23,
+            "notion": "vs_deplacements_route",
+            "confiance": 0.97,
+            "rationale": "Permis B, âge minimum, cité explicitement."
+          },
+          {
+            "rang": 24,
+            "notion": "vs_sejour_asile",
+            "confiance": 0.97,
+            "rationale": "Titre de séjour, cité explicitement dans la frontière."
+          },
+          {
+            "rang": 25,
+            "notion": "vs_ecole_scolarite",
+            "confiance": 0.95,
+            "rationale": "Entrée au collège, cycle scolaire."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 10595,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1460,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

@@ -1,0 +1,1113 @@
+.page {
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 32px 28px 56px;
+}
+
+.pageCompact {
+  width: min(100%, 900px);
+}
+
+.backNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.backNav a,
+.backNav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.backNav button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.backNav a:hover,
+.backNav a:focus-visible,
+.backNav button:hover,
+.backNav button:focus-visible {
+  text-decoration: underline;
+}
+
+/* Retour de l'écran de compte vers l'écrit — même geste que « ← Accueil »
+   du choix d'examen (`diagnostic-choice.module.css`, `.back`). */
+.gateBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gateBack:hover,
+.gateBack:focus-visible {
+  text-decoration: underline;
+}
+
+.intro,
+.stateCard {
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-paper) 92%, var(--color-blue-light));
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 9%, transparent);
+}
+
+/* ============================================================================
+   Fil du parcours (barre numérotée de la maquette)
+   ============================================================================ */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.steps::-webkit-scrollbar {
+  display: none;
+}
+
+.steps li {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Le trait de liaison est porté par la puce suivante : pas d'élément vide dans
+   la liste, donc rien à masquer pour un lecteur d'écran. */
+.steps li + li::before {
+  content: "";
+  width: clamp(14px, 5vw, 46px);
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+
+.steps li[data-state="done"] + li::before,
+.steps li[data-state="current"] + li::before {
+  background: color-mix(in srgb, var(--color-blue) 55%, var(--color-line));
+}
+
+.stepMark {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  place-items: center;
+}
+
+.steps li[data-state="done"] .stepMark,
+.steps li[data-state="current"] .stepMark {
+  background: var(--color-blue);
+  color: var(--color-paper);
+}
+
+.stepLabel {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.steps li[data-state="done"] .stepLabel,
+.steps li[data-state="current"] .stepLabel {
+  color: var(--color-ink);
+}
+
+/* Sur un petit écran, cinq libellés ne tiennent pas sur une ligne et la barre
+   partait en défilement muet — un fil de parcours qu'il faut faire glisser
+   n'informe plus. Seule l'étape en cours garde son nom : les autres restent
+   comptées par leur pastille, ce qui suffit à situer le candidat. */
+@media (max-width: 560px) {
+  .steps li:not([data-state="current"]) .stepLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.intro {
+  max-width: 940px;
+  margin: 4vh auto 0;
+  padding: clamp(26px, 5vw, 46px);
+  text-align: center;
+}
+
+.stateIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  border-radius: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.intro h1,
+.stateCard h1,
+.exerciseHeader h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.lead {
+  max-width: 620px;
+  margin: 16px auto 0;
+  color: var(--color-muted);
+  font-size: 17px;
+}
+
+/* ============================================================================
+   Entrée du diagnostic — les deux parcours
+   ----------------------------------------------------------------------------
+   Deux cartes, jamais deux tunnels : elles ouvrent le MÊME écrit puis le même
+   oral. Seule la promesse diffère, et ce que le rapport enchaînera ensuite.
+   ============================================================================ */
+
+.choice {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 16px;
+  margin: 26px 0 0;
+  text-align: left;
+}
+
+.choiceCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: clamp(18px, 3vw, 24px);
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+/* La carte recommandée porte le bleu de marque en filigrane, comme la maquette.
+   Aucune couleur nouvelle : le dégradé part du token bleu clair. */
+.choiceCardReco {
+  border-color: color-mix(in srgb, var(--color-blue) 45%, var(--color-line));
+  background: linear-gradient(180deg, var(--color-blue-light) 0%, var(--color-paper) 62%);
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--color-blue) 14%, transparent);
+}
+
+.choiceHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.choiceHead h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 24px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.choiceBadge {
+  padding: 4px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-paper) 82%, white);
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.choiceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: -4px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.choiceMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.choiceList {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choiceList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.choiceList svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--color-blue);
+}
+
+.choiceCard .primaryButton {
+  width: 100%;
+  margin-top: auto;
+}
+
+.introBandTitle {
+  margin: 30px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 780px) {
+  .choice {
+    grid-template-columns: 1fr;
+  }
+}
+
+.introList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+@media (max-width: 620px) {
+  .introList {
+    grid-template-columns: 1fr;
+  }
+}
+
+.introList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-paper) 60%, white);
+}
+
+.introList li > div {
+  min-width: 0;
+}
+
+.introIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.introHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.introHead b {
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.introHead span {
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.introNote {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.introReassurance {
+  max-width: 560px;
+  margin: 18px auto 24px;
+  color: var(--color-ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Rayon 14 px, aligné sur le Plan : les deux écrans du parcours diagnostic →
+   plan doivent avoir exactement le même bouton. */
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  padding: 11px 20px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.primaryButton {
+  color: var(--color-paper);
+  background: var(--color-blue);
+  box-shadow: 0 9px 20px color-mix(in srgb, var(--color-blue) 20%, transparent);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+}
+
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.secondaryButton {
+  border-color: var(--color-line);
+  color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+
+.secondaryButton:hover {
+  border-color: var(--color-blue);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-blue) 35%, transparent);
+  outline-offset: 3px;
+}
+
+.disclaimer {
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.error {
+  margin: 14px 0;
+  color: var(--color-red-dark);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.stateCard {
+  position: relative;
+  max-width: 650px;
+  margin: 12vh auto 0;
+  overflow: hidden;
+  padding: clamp(30px, 6vw, 52px);
+  text-align: center;
+}
+
+.stateIcon {
+  width: 54px;
+  height: 54px;
+  margin-bottom: 18px;
+}
+
+.stateIconBusy {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+.stateCard h1 {
+  font-size: clamp(25px, 4vw, 34px);
+}
+
+.stateCard > p {
+  max-width: 510px;
+  margin: 14px auto 0;
+  color: var(--color-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 25px;
+}
+
+/* Sélecteurs qualifiés : `.stateCard > p` reprendrait sinon la main sur la
+   couleur et la marge (même convention que `.waitReassurance` plus bas). */
+
+/* L'échec de la RELANCE qu'on vient de tenter : c'est une action du candidat
+   qui n'est pas partie, donc ça se dit en rouge. */
+.stateCard > p.retryError {
+  max-width: 510px;
+  margin: 14px auto 0;
+  color: var(--color-red-dark);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+/* Explication d'un état (relances épuisées) : ni erreur, ni détail technique. */
+.stateCard > p.stateNote {
+  max-width: 510px;
+  margin: 14px auto 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Le message brut du serveur : conservé (le support s'en sert), mais en
+   second plan — il n'a pas été écrit pour un candidat. */
+.stateCard > p.stateDetail {
+  max-width: 510px;
+  margin: 20px auto 0;
+  color: var(--color-muted-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.loadingBar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-blue-light), var(--color-blue), var(--color-blue-light));
+  background-size: 200% 100%;
+  animation: loading 1.4s linear infinite;
+}
+
+/* ---------------------------------- attente : envoi puis analyse IA
+   Une carte, alignée à gauche, lue de haut en bas : kicker, titre, une
+   phrase, les étapes réelles, le temps écoulé en discret, puis ce que le
+   rapport contiendra. Miroir de `DiagnosticWaitCard` côté mobile. */
+
+.waitCard {
+  position: relative;
+  max-width: 560px;
+  margin: 8vh auto 0;
+  padding: clamp(24px, 5vw, 40px);
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+  background: var(--color-paper);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+
+.waitKicker {
+  margin: 0 0 10px;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.waitTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(26px, 4.4vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
+.waitTitle em {
+  color: var(--color-red);
+  font-style: italic;
+}
+
+.waitLead {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.waitSteps {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waitSteps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--color-muted-2);
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.waitSteps li > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--color-line);
+  border-radius: 50%;
+}
+
+.waitSteps li[data-state="done"] {
+  color: var(--color-ink);
+}
+
+.waitSteps li[data-state="done"] > span {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-green) 14%, var(--color-paper));
+  color: var(--color-green);
+}
+
+.waitSteps li[data-state="active"] {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+/* L'étape en cours : un anneau qui tourne, le seul mouvement de la carte. */
+.waitSteps li[data-state="active"] > span {
+  border-color: var(--color-blue-light);
+  border-top-color: var(--color-blue);
+  animation: spin 0.9s linear infinite;
+}
+
+.waitTimer {
+  margin: 18px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.waitTimer b {
+  color: var(--color-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.waitReassurance {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Un aléa réseau pendant l'attente n'est pas une panne : il se dit en gris,
+   jamais en rouge, et n'interrompt rien. */
+.waitTransient {
+  margin: 10px 0 0;
+  color: var(--color-muted-2);
+  font-size: 13px;
+}
+
+.stateCard > p.waitTransient {
+  max-width: 510px;
+  margin: 12px auto 0;
+}
+
+.waitOutcomes {
+  margin: 24px 0 0;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--color-blue-soft);
+}
+
+.waitOutcomesTitle {
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.waitOutcomes ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waitOutcomes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.waitOutcomes li > span {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-paper);
+  color: var(--color-blue);
+}
+
+.waitOutcomes li b {
+  display: block;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.waitOutcomes li small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.waitOutcomesNote {
+  margin: 12px 0 0;
+  color: var(--color-muted-2);
+  font-size: 12px;
+}
+
+.waitCard .actions {
+  justify-content: flex-start;
+  margin-top: 22px;
+}
+
+.exerciseHeader {
+  margin: 0 0 22px;
+}
+
+/* Titre éditorial de l'exercice : Fraunces, `<em>` rouge (charte). Déclaré
+   après la règle commune `.exerciseHeader h1` pour la remplacer. */
+.exerciseHeader .exerciseTitle {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4.4vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.exerciseTitle em {
+  color: var(--color-red);
+  font-style: italic;
+}
+
+.exerciseSub {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+}
+
+/* Rappel de conservation quand le candidat reprend là où il s'était arrêté. */
+.exerciseNote {
+  display: inline-flex;
+  align-items: center;
+  margin: 12px 0 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 10%, var(--color-paper));
+  color: var(--color-green);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Carte du sujet : liseré tricolore en tête, le titre du sujet, puis la
+   consigne servie mise en forme (paragraphes et puces), rien d'autre. */
+.prompt {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+  padding: clamp(20px, 4vw, 30px);
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: var(--color-white);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+.prompt::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-blue) 0 33.33%,
+    var(--color-line) 33.33% 66.66%,
+    var(--color-red) 66.66% 100%
+  );
+}
+
+.promptTag {
+  margin: 0;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.promptTitle {
+  margin: 8px 0 14px;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(21px, 3vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.instruction {
+  display: grid;
+  gap: 12px;
+  color: var(--color-ink-2);
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.instruction p {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.instructionList {
+  display: grid;
+  gap: 8px;
+}
+
+.instructionList .instructionLead {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+.instructionList ul,
+.instructionList ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.instructionList li {
+  position: relative;
+  padding: 10px 14px 10px 34px;
+  border-radius: 12px;
+  background: var(--color-blue-soft);
+}
+
+.instructionList li::before {
+  content: "";
+  position: absolute;
+  top: 19px;
+  left: 15px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-blue);
+}
+
+/* Liste numérotée : le rang, en mono, à la place de la pastille. */
+.instructionList ol {
+  counter-reset: consigne;
+}
+
+.instructionList ol li {
+  counter-increment: consigne;
+}
+
+.instructionList ol li::before {
+  content: counter(consigne);
+  top: 12px;
+  left: 12px;
+  width: auto;
+  height: auto;
+  background: none;
+  color: var(--color-blue);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Pourquoi un seul sujet mélangé : une ligne discrète, pas un encadré. */
+.helper {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-line-2);
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.helper svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--color-muted-2);
+}
+
+/* L'écrit du diagnostic : le champ part plus haut qu'un petit sujet (un texte
+   de 80 à 300 mots), puis grandit avec le texte (`EeWritingForm`). */
+.writing textarea {
+  min-height: 240px;
+}
+
+.constraints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.constraints span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.audioInstruction {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+
+.audioInstruction > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.audioInstruction audio {
+  width: 100%;
+}
+
+/* --------------------------------------------- reprise après inscription */
+
+.handoffNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px 17px;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 34%, var(--color-line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-amber) 9%, var(--color-paper));
+}
+
+.handoffNotice > span {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-amber-dark);
+}
+
+.handoffNotice b {
+  color: var(--color-ink);
+  font-size: 14px;
+}
+
+.handoffNotice p {
+  margin: 5px 0 0;
+  color: var(--color-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.handoffNotice button {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.skeletonHeader,
+.skeletonCard {
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--color-line), var(--color-blue-soft), var(--color-line));
+  background-size: 200% 100%;
+  animation: loading 1.4s linear infinite;
+}
+
+.skeletonHeader {
+  width: 45%;
+  height: 45px;
+  margin: 40px 0 25px;
+}
+
+.skeletonCard {
+  height: 440px;
+}
+
+@keyframes loading {
+  to { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes breathe {
+  50% { transform: scale(1.06); }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 20px 18px 40px;
+  }
+
+  .backNav > span {
+    display: none;
+  }
+
+  .intro {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .intro,
+  .stateCard,
+  .waitCard {
+    border-radius: 18px;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stateIconBusy,
+  .loadingBar,
+  .waitSteps li[data-state="active"] > span,
+  .skeletonHeader,
+  .skeletonCard {
+    animation: none;
+  }
+}
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .page {
+    padding-top: var(--app-bar-gap);
+  }
+}

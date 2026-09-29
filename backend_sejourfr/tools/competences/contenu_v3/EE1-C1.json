@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C1",
+  "rang": 2,
+  "titre": "Adapter la réponse au destinataire",
+  "critere": "Choisir le ton, le tutoiement ou le vouvoiement et les formules qui conviennent à la personne qui a écrit.",
+  "remplace": "EE1-C1 — Adapter le message au destinataire (14 sujets désactivés, S13 repris)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "La responsable de la crèche",
+      "context": "La directrice de la crèche, qui vous vouvoie depuis l'inscription, vous écrit : « Madame, nous préparons le trombinoscope des familles. Pourriez-vous nous décrire la personne autorisée à venir chercher votre fils ? »",
+      "instruction": "Répondez-lui en décrivant cette personne, dans le registre qui convient à une directrice d'établissement.",
+      "uniqueCriterion": "Votre réponse garde le vouvoiement et une ouverture polie adaptée à une directrice, tout en décrivant la personne.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Gardez le vouvoiement",
+        "Ouvrez poliment",
+        "Décrivez la personne"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre poli",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Madame, je vous remercie de votre message…",
+      "tip": "elle vous vouvoie : répondez de même, poliment et simplement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Alors c'est ma sœur Awa qui vient, elle a vingt-cinq ans, cheveux longs noirs, plutôt petite. Elle est souvent en jean et baskets. Tu la reconnaîtras facile, elle sourit tout le temps. À plus !",
+          "pedagogicalNote": "La description est juste, mais « salut », le tutoiement et « à plus » ne conviennent pas à une directrice d'établissement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, je vous remercie de votre message. Il s'agit de ma sœur Awa, vingt-cinq ans, de petite taille, avec de longs cheveux noirs. Elle porte souvent un jean et des baskets. Bien cordialement.",
+          "pedagogicalNote": "Vouvoiement, formule d'appel et formule finale : le registre convient, et la description est là."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, je vous remercie de votre message. La personne autorisée est ma sœur Awa, vingt-cinq ans, de petite taille, les cheveux noirs et longs, souvent attachés. Elle porte des lunettes rondes et vient généralement en jean et baskets. Bien cordialement.",
+          "pedagogicalNote": "Le registre est identique à celui de la réponse attendue : ce qui change, c'est la précision — cheveux attachés, lunettes rondes — qui rend la personne réellement reconnaissable."
+        }
+      ]
+    },
+    {
+      "title": "Ton frère et l'appartement",
+      "context": "Votre frère vous écrit : « Alors, t'as visité l'appart de la rue Verte ? Il est comment ? Raconte, je suis curieux ! »",
+      "instruction": "Répondez-lui en décrivant l'appartement, dans le registre qui convient à un frère.",
+      "uniqueCriterion": "Votre réponse tutoie et emploie un ton familier naturel, sans formule administrative, tout en décrivant l'appartement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Tutoyez votre frère",
+        "Restez naturel",
+        "Décrivez l'appartement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre familier",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Oui, j'y suis allée hier !…",
+      "tip": "à un frère, on écrit comme on parle : pas de « Madame, Monsieur »",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Monsieur, je me permets de vous informer que j'ai effectué la visite du logement situé rue Verte. Il comporte deux pièces lumineuses ainsi qu'une cuisine séparée. Je vous prie d'agréer mes salutations distinguées.",
+          "pedagogicalNote": "Le registre administratif est absurde entre frère et sœur : le vouvoiement et « je vous prie d'agréer » sonnent faux."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Oui, j'y suis allée hier ! C'est deux pièces, plutôt lumineuses, avec une cuisine séparée. Le salon donne sur une petite cour tranquille. Les murs sont blancs et le sol en parquet. Ça m'a plu.",
+          "pedagogicalNote": "Tutoiement, ton naturel, exclamation : le registre convient à un frère, et l'appartement est décrit."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Oui, j'y suis allée hier ! Deux pièces bien lumineuses, une cuisine séparée, et le salon donne sur une petite cour très tranquille. Parquet partout, murs blancs, une grande fenêtre côté sud. Franchement, ça m'a plu, je crois que je vais le prendre.",
+          "pedagogicalNote": "Le ton reste familier sans devenir relâché, et « franchement » place la confidence exactement là où un frère l'attend."
+        }
+      ]
+    },
+    {
+      "title": "Le voisin que vous connaissez peu",
+      "context": "Un voisin du troisième, à qui vous dites seulement bonjour dans l'escalier, glisse un mot sous votre porte : « Bonjour, je cherche à louer un garage dans le quartier. Vous m'avez dit qu'il y en avait un de libre. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant ce garage, dans le registre qui convient à un voisin peu connu.",
+      "uniqueCriterion": "Votre réponse vouvoie sans être froide, avec un ton poli de voisinage, tout en décrivant le garage.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Vouvoyez ce voisin",
+        "Restez cordial",
+        "Décrivez le garage"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre poli",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Bonjour, oui, celui du fond de la cour…",
+      "tip": "il vous vouvoie dans son mot : répondez sur le même pied",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Ouais c'est celui du fond, tu vois le grand portail vert ? Il est carrément grand, y a la place pour une voiture et des vélos. Le sol est en béton. Passe le voir quand tu veux, c'est ouvert !",
+          "pedagogicalNote": "Le tutoiement et « ouais », « carrément » sont trop familiers pour un voisin qu'on croise seulement dans l'escalier."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, oui, celui du fond de la cour. C'est un garage assez grand, avec un portail vert en métal. Il y a la place pour une voiture et quelques vélos. Le sol est en béton et il y a une prise électrique.",
+          "pedagogicalNote": "Le vouvoiement et le « bonjour » simple conviennent à un voisin : ni familier, ni administratif."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, oui, celui du fond de la cour. Un garage assez grand, fermé par un portail vert en métal. On y met une voiture et encore deux ou trois vélos le long du mur. Sol en béton, une prise électrique au fond. Il est sec, ce qui n'est pas le cas de tous.",
+          "pedagogicalNote": "Le registre de voisinage est parfaitement tenu, et la dernière remarque rend service sans familiarité déplacée."
+        }
+      ]
+    },
+    {
+      "title": "Une amie très proche",
+      "context": "Votre meilleure amie vous écrit : « Bon alors, il est comment ce fameux collègue dont tu me parles depuis trois semaines ?! Je veux tout savoir. »",
+      "instruction": "Répondez-lui en décrivant ce collègue, dans le registre qui convient à une amie très proche.",
+      "uniqueCriterion": "Votre réponse tutoie sur un ton complice et spontané, sans formule de politesse, tout en décrivant la personne.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Tutoyez votre amie",
+        "Restez complice",
+        "Décrivez le collègue"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre familier",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Alors : il a…",
+      "tip": "à une amie proche, aucune formule d'ouverture n'est nécessaire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, comme suite à votre demande, je vous informe que la personne concernée est âgée d'environ trente ans. Elle est de taille moyenne et porte des lunettes. Je reste à votre disposition pour tout complément.",
+          "pedagogicalNote": "Entre amies proches, ce registre administratif est incompréhensible : il éteint complètement la confidence demandée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Alors : il a une trentaine d'années, il est grand, brun, avec des lunettes rondes. Il parle doucement et il rit beaucoup. Il porte toujours des chemises à carreaux. Voilà, tu sais tout !",
+          "pedagogicalNote": "Tutoiement, absence de formule d'ouverture, exclamation : le ton est celui d'une amie, et la description y tient."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Alors : une trentaine d'années, grand, brun, lunettes rondes, toujours en chemise à carreaux. Il parle très doucement, tellement que je lui fais répéter, et il rit pour un rien. Voilà, tu sais tout. Tu es contente ?",
+          "pedagogicalNote": "Les phrases nominales et la relance finale sonnent exactement comme un message entre amies, sans jamais quitter la description."
+        }
+      ]
+    },
+    {
+      "title": "Le service des objets trouvés",
+      "context": "Le service des objets trouvés de la gare vous écrit : « Madame, Monsieur, suite à votre déclaration, merci de nous transmettre une description détaillée de la valise afin que nous procédions aux recherches. »",
+      "instruction": "Répondez-leur en décrivant la valise, dans le registre qui convient à un service administratif.",
+      "uniqueCriterion": "Votre réponse emploie le vouvoiement et les formules d'un courrier administratif, tout en décrivant la valise.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Reprenez leur formule",
+        "Restez formel",
+        "Décrivez la valise"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, il s'agit d'une valise…",
+      "tip": "ils écrivent « Madame, Monsieur » : restez sur ce registre, sans en rajouter",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Coucou, alors c'est une valise rigide gris foncé, taille cabine, avec quatre roulettes. Y a un ruban jaune sur la poignée et un autocollant de Lisbonne dessus. Merci de checker vite, j'en ai besoin !",
+          "pedagogicalNote": "« Coucou », « y a » et « checker » n'ont pas leur place dans une réponse à un service administratif."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, il s'agit d'une valise rigide gris foncé, de taille cabine, munie de quatre roulettes. Un ruban jaune est noué à la poignée et un autocollant de Lisbonne figure sur le dessus. Je vous en remercie par avance.",
+          "pedagogicalNote": "La formule d'appel reprend la leur, le vouvoiement est tenu, et la valise est décrite avec précision."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, il s'agit d'une valise rigide gris foncé, de taille cabine, munie de quatre roulettes dont une légèrement abîmée. Un ruban jaune est noué à la poignée et un autocollant de Lisbonne figure sur la face avant, près de la serrure.",
+          "pedagogicalNote": "Le registre ne change pas d'un mot : ce qui distingue cette réponse, c'est la roulette abîmée et la position de l'autocollant, deux détails qui permettent d'identifier la valise à coup sûr."
+        }
+      ]
+    },
+    {
+      "title": "Un ancien camarade retrouvé",
+      "context": "Un camarade de classe que vous n'avez pas vu depuis dix ans vous écrit : « Hé ! Ça fait un bail ! Tu vis toujours à Nantes ? C'est comment ton quartier maintenant ? »",
+      "instruction": "Répondez-lui en décrivant votre quartier, dans le registre qui convient à un ancien camarade.",
+      "uniqueCriterion": "Votre réponse tutoie sur un ton amical mais non intime, à la hauteur d'une relation ancienne renouée, tout en décrivant le quartier.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Tutoyez sans excès",
+        "Restez chaleureux",
+        "Décrivez le quartier"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre amical",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Salut ! Oui, toujours à Nantes…",
+      "tip": "dix ans sans se voir : amical, mais pas intime",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour Monsieur, je confirme ma résidence à Nantes. Le quartier où je réside comporte plusieurs commerces de proximité ainsi qu'un parc public. Veuillez agréer l'expression de mes sentiments les meilleurs.",
+          "pedagogicalNote": "Un camarade de classe qui reprend contact ne se vouvoie pas : ce registre le tient à distance et ferme l'échange."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Salut ! Oui, toujours à Nantes. Mon quartier a beaucoup changé : il y a un grand parc où j'emmène les enfants, deux nouvelles boulangeries et un marché le dimanche. Les immeubles ont été repeints en clair.",
+          "pedagogicalNote": "Le tutoiement et « salut » conviennent à un camarade, sans intimité excessive, et le quartier est décrit."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Salut ! Oui, toujours à Nantes. Le quartier a bien changé depuis l'époque : un grand parc a remplacé le parking, deux boulangeries ont ouvert, et il y a un marché le dimanche matin. Les immeubles ont été repeints en beige clair. Tu ne reconnaîtrais pas.",
+          "pedagogicalNote": "« depuis l'époque » et la relance finale installent la complicité d'anciens camarades sans la familiarité d'amis quotidiens."
+        }
+      ]
+    },
+    {
+      "title": "Le bailleur social",
+      "context": "Votre bailleur vous écrit : « Madame, dans le cadre de l'enquête annuelle, merci de nous décrire l'état actuel de votre salle de bains, pièce signalée lors de la dernière visite. »",
+      "instruction": "Répondez-lui en décrivant l'état de cette pièce, dans le registre qui convient à un bailleur.",
+      "uniqueCriterion": "Votre réponse emploie un registre formel et mesuré, sans familiarité ni agressivité, tout en décrivant la pièce.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Restez formel",
+        "Gardez un ton mesuré",
+        "Décrivez la pièce"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, voici l'état de la pièce…",
+      "tip": "un désaccord se dit aussi dans un ton calme et clair",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Franchement ça fait deux ans que je vous le signale et rien ne bouge ! Le mur est noir de moisissure, le joint de la douche part en morceaux et il y a de l'eau au sol. C'est inadmissible, faites quelque chose.",
+          "pedagogicalNote": "La description est exacte, mais le ton de reproche et l'exclamation quittent le registre attendu d'une réponse à un bailleur."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, voici l'état de la pièce : le mur du fond présente des traces noires de moisissure sur environ un mètre. Le joint de la douche est fendu et de l'eau stagne au sol après chaque usage. Bien cordialement.",
+          "pedagogicalNote": "Le registre reste formel et mesuré, et les faits décrits sont d'autant plus convaincants qu'ils ne sont pas criés."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, voici l'état de la pièce : le mur du fond présente des traces noires de moisissure sur environ un mètre de haut, à partir de la plinthe. Le joint de la douche est fendu sur toute sa longueur et de l'eau stagne au sol après chaque usage. Bien cordialement.",
+          "pedagogicalNote": "Mêmes formules que la réponse attendue : la différence tient à la mesure et à la localisation des dégâts, pas à un surcroît de politesse."
+        }
+      ]
+    },
+    {
+      "title": "Le groupe de parents d'élèves",
+      "context": "Sur le groupe des parents de la classe, une mère écrit : « Bonjour à tous ! Qui a déjà vu la nouvelle équipe d'animateurs du périscolaire ? Ils sont comment ? »",
+      "instruction": "Répondez sur le groupe en décrivant cette équipe, dans le registre qui convient à des parents que vous connaissez peu.",
+      "uniqueCriterion": "Votre réponse emploie un ton cordial de groupe — ni intime, ni administratif — tout en décrivant l'équipe.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Saluez le groupe",
+        "Restez cordial",
+        "Décrivez l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre cordial",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour à tous…",
+      "tip": "un groupe de parents : on salue tout le monde, on reste simple",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Coucou les filles ! Alors j'les ai vus hier, ils sont trois, super jeunes, genre vingt ans max. Ils ont l'air complètement débordés mdr. Bon après ils sont gentils hein, faut pas non plus exagérer.",
+          "pedagogicalNote": "« Coucou les filles », « mdr » et « genre » sont trop familiers pour un groupe de parents qu'on connaît peu — et exclut les pères."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour à tous, je les ai croisés hier. Ils sont trois, plutôt jeunes, autour de vingt-cinq ans. Une jeune femme brune semble diriger le groupe. Ils parlent calmement aux enfants et connaissent déjà les prénoms.",
+          "pedagogicalNote": "Le ton cordial convient à un groupe, et l'équipe est décrite par des faits observés."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour à tous, je les ai croisés hier à la sortie. Ils sont trois, autour de vingt-cinq ans. Une jeune femme brune semble mener le groupe : c'est elle qui fait l'appel. Ils parlent calmement et connaissaient déjà plusieurs prénoms dès le premier jour.",
+          "pedagogicalNote": "Le registre de groupe est tenu, et chaque trait s'appuie sur une observation vérifiable plutôt que sur une impression."
+        }
+      ]
+    },
+    {
+      "title": "Votre ancien professeur",
+      "context": "Votre ancien professeur de français, que vous avez toujours vouvoyé, vous écrit : « Bonjour, je prépare une exposition sur les parcours de mes anciens élèves. Pourriez-vous me décrire votre lieu de travail actuel ? »",
+      "instruction": "Répondez-lui en décrivant votre lieu de travail, dans le registre qui convient à un ancien professeur.",
+      "uniqueCriterion": "Votre réponse garde le vouvoiement établi, sur un ton chaleureux et sans raideur, tout en décrivant le lieu.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Vouvoyez avec respect",
+        "Évitez la raideur",
+        "Décrivez le lieu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre respectueux",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Bonjour Monsieur, quel plaisir d'avoir de vos nouvelles…",
+      "tip": "vous l'avez toujours vouvoyé : gardez cet usage, mais restez chaleureux",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Trop content de te lire. Alors je bosse dans un grand atelier avec plein de machines, c'est bruyant mais on est une bonne équipe. Viens voir quand tu veux, je te ferai visiter !",
+          "pedagogicalNote": "Le tutoiement rompt l'usage installé entre vous, et « bosse » détonne dans un échange qui est resté au vouvoiement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour Monsieur, quel plaisir d'avoir de vos nouvelles. Je travaille dans un atelier de menuiserie d'environ deux cents mètres carrés. Il y a six établis, de grandes machines au fond et une odeur de bois partout. La lumière vient de verrières.",
+          "pedagogicalNote": "Le vouvoiement est chaleureux sans raideur, et le lieu est décrit avec des détails sensibles."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour Monsieur, quel plaisir d'avoir de vos nouvelles. Je travaille dans un atelier de menuiserie d'environ deux cents mètres carrés : six établis alignés, les grandes machines au fond, et des verrières qui éclairent tout du matin au soir. Il y flotte en permanence une odeur de bois coupé.",
+          "pedagogicalNote": "La déférence et la chaleur cohabitent, et la description sollicite la vue comme l'odorat sans jamais quitter le registre."
+        }
+      ]
+    },
+    {
+      "title": "Le collègue que vous croisez peu",
+      "context": "Un collègue d'un autre service, avec qui vous échangez rarement, vous écrit : « Bonjour, je dois travailler avec l'équipe du bâtiment B le mois prochain. Vous les côtoyez souvent, je crois. Ils sont comment ? »",
+      "instruction": "Répondez-lui en décrivant cette équipe, dans le registre qui convient à un collègue peu connu.",
+      "uniqueCriterion": "Votre réponse vouvoie sur un ton professionnel simple, ni amical ni cérémonieux, tout en décrivant l'équipe.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Vouvoyez ce collègue",
+        "Restez professionnel",
+        "Décrivez l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre professionnel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, oui, je travaille souvent avec eux…",
+      "tip": "un collègue peu connu : vouvoiement simple, sans « cher monsieur »",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Hé oui je les connais par cœur ! Franchement ils sont nickel, super accueillants, tu vas voir. Par contre y en a un qui râle tout le temps, tu verras vite lequel, mais t'inquiète pas mon vieux, ça se gère.",
+          "pedagogicalNote": "« Hé », « nickel » et « mon vieux » installent une familiarité que la relation professionnelle ne justifie pas."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, oui, je travaille souvent avec eux. Ils sont quatre, tous très expérimentés, avec une dizaine d'années de maison chacun. Ils répondent vite aux demandes et documentent beaucoup. Ils préfèrent les échanges écrits aux réunions.",
+          "pedagogicalNote": "Le vouvoiement professionnel est exactement à sa place : ni distant, ni familier, et l'équipe est décrite utilement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, oui, je travaille souvent avec eux. Ils sont quatre, très expérimentés, avec une dizaine d'années de maison chacun. Ils répondent vite et documentent tout. Un conseil : ils préfèrent nettement un message écrit à une réunion improvisée.",
+          "pedagogicalNote": "Le registre professionnel est tenu et le conseil final rend service sans jamais glisser vers la connivence."
+        }
+      ]
+    },
+    {
+      "title": "La mairie et le local associatif",
+      "context": "Le service des associations de la mairie vous écrit : « Madame, Monsieur, dans le cadre du recensement des locaux, merci de nous décrire l'espace que votre association occupe au 4 rue Lamartine. »",
+      "instruction": "Répondez-leur en décrivant ce local, dans le registre qui convient à un service municipal.",
+      "uniqueCriterion": "Votre réponse emploie le registre d'un courrier à une administration, tout en décrivant le local.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Ouvrez comme eux",
+        "Restez clair",
+        "Décrivez le local"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, notre local se compose…",
+      "tip": "à une administration : clair, vouvoyé, sans formules inutiles",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, alors notre local c'est une grande pièce au rez-de-chaussée avec une cuisine à côté. On y range le matériel et on fait les réunions. Y a des toilettes aussi. Voilà, dites-nous si vous voulez autre chose.",
+          "pedagogicalNote": "Le ton est trop relâché pour une administration : « alors », « y a », et aucune formule d'ouverture ni de clôture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, le local se compose d'une salle principale d'environ soixante mètres carrés au rez-de-chaussée, d'une cuisine attenante et de sanitaires. Une réserve accueille le matériel. Nous restons à votre disposition. Bien cordialement.",
+          "pedagogicalNote": "La formule reprend la leur, le vouvoiement est tenu et le local est décrit pièce par pièce."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, le local se compose d'une salle principale d'environ soixante mètres carrés au rez-de-chaussée, éclairée par trois fenêtres sur rue, d'une cuisine attenante et de sanitaires. Une réserve d'une dizaine de mètres carrés accueille le matériel. Bien cordialement.",
+          "pedagogicalNote": "Le registre administratif est impeccable et chaque surface est chiffrée, ce qu'un recensement attend précisément."
+        }
+      ]
+    },
+    {
+      "title": "Votre belle-mère",
+      "context": "Votre belle-mère, que vous avez toujours vouvoyée, vous écrit : « Bonjour, je voudrais offrir un cadeau à votre fille pour son anniversaire mais je ne sais pas ce qui lui plairait. Elle est comment en ce moment, qu'est-ce qui l'intéresse ? »",
+      "instruction": "Répondez-lui en décrivant votre fille, dans le registre qui convient à une belle-mère.",
+      "uniqueCriterion": "Votre réponse garde le vouvoiement établi entre vous, sur un ton chaleureux, tout en décrivant l'enfant.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Restez poli et chaleureux",
+        "Ni froid ni familier",
+        "Décrivez votre fille"
+      ],
+      "constraintTags": [
+        {
+          "label": "Vouvoiement chaleureux",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, c'est très gentil d'y penser…",
+      "tip": "vous vous êtes toujours vouvoyées : gardez cet usage, sans froideur",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Madame, votre petite-fille est âgée de sept ans. Elle manifeste un intérêt pour les activités manuelles et la lecture. Je vous prie de bien vouloir agréer l'expression de mes salutations respectueuses.",
+          "pedagogicalNote": "Le registre administratif glace une relation familiale : « je vous prie d'agréer » ne correspond pas au vouvoiement chaleureux installé entre vous."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, c'est très gentil d'y penser. Elle a sept ans et elle est très curieuse en ce moment. Elle adore dessiner et elle commence à lire seule. Elle est plutôt calme et elle aime les choses qu'on fait avec les mains.",
+          "pedagogicalNote": "Le vouvoiement chaleureux convient exactement, et l'enfant est décrite en pensant à celle qui offre le cadeau."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, c'est très gentil d'y penser. Elle a sept ans et elle est d'une curiosité inépuisable en ce moment. Elle dessine des heures entières, commence à lire seule le soir, et tout ce qui se fabrique avec les mains la passionne. Elle sera très touchée.",
+          "pedagogicalNote": "La chaleur et le vouvoiement cohabitent naturellement, et la dernière phrase referme le message comme une belle-fille le ferait."
+        }
+      ]
+    },
+    {
+      "title": "Le recruteur",
+      "context": "Une recruteuse vous écrit : « Bonjour, avant l'entretien de mardi, pourriez-vous me décrire en quelques lignes l'équipe avec laquelle vous travailliez dans votre poste précédent ? »",
+      "instruction": "Répondez-lui en décrivant cette équipe, dans le registre qui convient à une recruteuse.",
+      "uniqueCriterion": "Votre réponse tient un registre professionnel soigné, sans familiarité ni jargon interne, tout en décrivant l'équipe.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Soignez le registre",
+        "Évitez le jargon",
+        "Décrivez l'équipe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre professionnel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, bien sûr…",
+      "tip": "une recruteuse ne connaît pas votre ancienne maison : pas de sigles",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour ! Alors on était six au pôle ADV, avec deux alternants qui tournaient sur le CRM et un chef de projet côté SI. Super ambiance, on se marrait bien même quand ça chauffait en fin de mois.",
+          "pedagogicalNote": "Les sigles internes sont incompréhensibles pour une recruteuse, et « on se marrait » quitte le registre professionnel."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, bien sûr. Nous étions six personnes, dont deux en alternance. L'équipe réunissait des profils commerciaux et techniques, avec des âges très variés. Nous travaillions en lien direct avec les clients, dans une ambiance coopérative.",
+          "pedagogicalNote": "Le registre professionnel est soigné, aucun sigle interne ne subsiste, et l'équipe est décrite de façon compréhensible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, bien sûr. Nous étions six, dont deux en alternance, avec des profils à la fois commerciaux et techniques et des âges allant de vingt à cinquante-cinq ans. Le contact client était quotidien, ce qui nous obligeait à nous coordonner très souvent.",
+          "pedagogicalNote": "Le registre est tenu, les âges chiffrés, et la dernière proposition décrit le fonctionnement du groupe sans employer un seul mot de jargon."
+        }
+      ]
+    },
+    {
+      "title": "L'assurance après le dégât",
+      "context": "Votre assurance vous écrit : « Madame, Monsieur, afin d'instruire votre dossier, merci de nous adresser une description du mobilier endommagé lors du sinistre du 3 mars. »",
+      "instruction": "Répondez-leur en décrivant le meuble endommagé, dans le registre qui convient à un assureur.",
+      "uniqueCriterion": "Votre réponse emploie un registre formel et factuel, sans plainte ni familiarité, tout en décrivant le meuble.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Restez formel",
+        "Restez factuel",
+        "Décrivez le meuble"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, le meuble endommagé est…",
+      "tip": "un assureur attend des faits précis, pas de l'émotion",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est vraiment une catastrophe, ce buffet venait de ma grand-mère et il est fichu. L'eau a tout gonflé, les portes ne ferment plus. J'espère que vous allez me rembourser rapidement parce que là c'est dur.",
+          "pedagogicalNote": "L'émotion prend la place des faits : l'assureur ne peut rien instruire avec « c'est fichu » et « c'est dur »."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, le meuble endommagé est un buffet en chêne massif d'environ un mètre quatre-vingts de large et un mètre de haut. Le bas a gonflé sous l'effet de l'eau et les deux portes ne ferment plus. Bien cordialement.",
+          "pedagogicalNote": "Le registre est formel, les faits sont donnés avec leurs mesures : le dossier peut être instruit."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, le meuble endommagé est un buffet ancien en chêne massif, d'environ un mètre quatre-vingts de large sur un mètre de haut. La partie basse a gonflé sur toute sa longueur et les deux portes ne ferment plus. Le plateau supérieur est intact. Bien cordialement.",
+          "pedagogicalNote": "Le registre factuel est tenu, et préciser ce qui est intact est exactement ce qu'un assureur attend d'une déclaration honnête."
+        }
+      ]
+    },
+    {
+      "title": "Le message ambigu du syndic",
+      "context": "Le syndic de votre immeuble vous écrit : « Bonjour Madame Sanchez, on m'a signalé un problème avec le vélo laissé dans le hall. Vous pouvez me dire à quoi il ressemble ? Merci d'avance. »",
+      "instruction": "Répondez-lui en décrivant ce vélo. Le message mêle deux registres : à vous de choisir celui qui convient.",
+      "uniqueCriterion": "Votre réponse tient un registre poli et professionnel du début à la fin, sans glisser vers la familiarité que le message autorise à moitié.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Choisissez un registre",
+        "Tenez-le jusqu'au bout",
+        "Décrivez le vélo"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre à trancher",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour, il s'agit d'un vélo…",
+      "tip": "un message à moitié familier ne vous autorise pas à l'être tout à fait",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour Monsieur, je me permets de vous répondre. C'est un VTT noir. Bon après franchement il gêne personne où il est, il est collé au mur ! Enfin bref, il est noir avec des autocollants. Merci d'avance à vous.",
+          "pedagogicalNote": "Le message commence dans un registre formel puis glisse vers « bon après franchement » : la rupture de ton se remarque immédiatement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, il s'agit d'un vélo tout-terrain noir, de taille adulte, avec un cadre assez épais. Le guidon porte deux autocollants blancs et le pneu arrière est légèrement dégonflé. Je reste disponible si besoin.",
+          "pedagogicalNote": "Un seul registre, poli et professionnel, tenu de la première à la dernière phrase."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, il s'agit d'un vélo tout-terrain noir de taille adulte, au cadre épais et légèrement rayé sous la selle. Deux autocollants blancs sont collés sur le guidon et le pneu arrière est un peu dégonflé. Je reste disponible si vous avez besoin d'une précision.",
+          "pedagogicalNote": "Le registre ne vacille jamais, et la description gagne en précision sans que le ton ne s'autorise la moindre familiarité."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Mobile - Entraînement Oral TCF</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{min-height:100vh;background:#eaf0f8;display:flex;align-items:center;justify-content:center;padding:24px;color:#101828}
+    .phone{width:390px;max-width:100%;height:844px;background:#f8fafc;border-radius:38px;overflow:hidden;box-shadow:0 28px 80px rgba(15,23,42,.22);border:8px solid #101828;position:relative}
+    .app{height:100%;overflow-y:auto;padding-bottom:170px;scrollbar-width:none}.app::-webkit-scrollbar{display:none}
+    .statusbar{height:34px;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:12px;font-weight:800}
+    .header{background:#fff;padding:14px 20px 18px;border-bottom:1px solid #edf0f5;position:sticky;top:0;z-index:5}
+    .header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.back{width:38px;height:38px;border-radius:14px;background:#f1f5f9;border:none;font-size:20px}.header-title{text-align:center}.header-title span{font-size:12px;color:#667085;font-weight:700}.header-title h1{font-size:17px;margin-top:2px}.ai-badge{width:38px;height:38px;border-radius:14px;background:#eef4ff;color:#1d4ed8;display:grid;place-items:center;font-weight:900;font-size:13px}
+    .global-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;background:#eff6ff;padding:5px;border-radius:17px;gap:5px;margin-bottom:12px}.global-tabs button{border:none;padding:11px 8px;border-radius:13px;font-size:13px;font-weight:900;color:#64748b;background:transparent}.global-tabs .active{background:#1d4ed8;color:#fff;box-shadow:0 8px 18px rgba(29,78,216,.24)}.step-tabs{display:grid;grid-template-columns:repeat(3,1fr);background:#f1f5f9;padding:5px;border-radius:16px;gap:4px}.step-tabs button{border:none;padding:10px 6px;border-radius:12px;font-size:12px;font-weight:900;color:#64748b;background:transparent}.step-tabs .active{background:#101828;color:#fff}
+    .content{padding:18px}.hero{background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#16a34a);border-radius:28px;padding:22px;color:#fff;margin-bottom:18px;position:relative;overflow:hidden}.hero:after{content:"";position:absolute;right:-50px;top:-45px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.15)}.hero-label{display:inline-flex;gap:6px;background:rgba(255,255,255,.18);padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:14px}.hero h2{font-size:22px;line-height:1.2;margin-bottom:10px;max-width:270px}.hero p{font-size:14px;line-height:1.5;color:rgba(255,255,255,.88);max-width:300px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.stat{background:#fff;border-radius:20px;padding:14px 10px;border:1px solid #edf0f5;text-align:center}.stat strong{display:block;font-size:18px;margin-bottom:4px}.stat span{color:#667085;font-size:11px;font-weight:700}
+    .section-head{display:flex;justify-content:space-between;align-items:center;margin:20px 2px 12px}.section-head h3{font-size:18px}.section-head a{color:#1d4ed8;text-decoration:none;font-size:13px;font-weight:900}
+    .situations{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.situations::-webkit-scrollbar{display:none}.situation-card{min-width:245px;background:#fff;border:1px solid #edf0f5;border-radius:24px;padding:16px;box-shadow:0 10px 26px rgba(15,23,42,.04)}.situation-card.active{border:2px solid #2563eb;background:#f4f8ff}.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}.card-top h4{font-size:15px;line-height:1.3}.example-chip{background:#eef4ff;color:#1d4ed8;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:900;white-space:nowrap}.situation-card p{color:#667085;font-size:13px;line-height:1.45;margin-bottom:12px}.mini-progress{height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden}.mini-progress span{display:block;height:100%;width:70%;background:#22c55e;border-radius:999px}
+    .card{background:#fff;border:1px solid #edf0f5;border-radius:26px;padding:18px;margin-top:14px}.task-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.task-title h3{font-size:18px;line-height:1.25}.duration{background:#101828;color:#fff;border-radius:14px;padding:8px 10px;font-size:12px;font-weight:900;white-space:nowrap}.card p{color:#475467;font-size:14px;line-height:1.55}.help-list{display:grid;gap:10px;margin-top:14px}.help-item{display:flex;gap:10px;background:#f8fafc;padding:12px;border-radius:16px;border:1px solid #eef2f7}.help-icon{width:34px;height:34px;border-radius:13px;background:#eef4ff;display:grid;place-items:center;flex-shrink:0}.help-item strong{display:block;font-size:13px;margin-bottom:3px}.help-item span{color:#667085;font-size:12px;line-height:1.35}
+    .example-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.example-head h3{font-size:17px}.listen{border:none;background:#eef4ff;color:#1d4ed8;border-radius:999px;padding:8px 11px;font-weight:900;font-size:12px}.example-tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none}.example-tabs::-webkit-scrollbar{display:none}.example-tab{border:none;background:#f1f5f9;color:#64748b;padding:9px 12px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap}.example-tab.active{background:#1d4ed8;color:#fff}.examples-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.examples-row::-webkit-scrollbar{display:none}.example-preview{min-width:220px;background:#f8fafc;border:1px solid #eef2f7;border-radius:20px;padding:14px}.example-preview.active{border:2px solid #2563eb;background:#f4f8ff}.example-preview-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}.example-preview h4{font-size:14px;line-height:1.3}.example-preview p{font-size:12px;color:#667085;line-height:1.4;margin-bottom:12px}.example-actions{display:flex;gap:8px}.example-actions button{border:none;border-radius:999px;padding:8px 10px;font-size:11px;font-weight:900}.open-btn{background:#1d4ed8;color:#fff}.play-btn{background:#fff;color:#1d4ed8}.example-detail{background:#fff;border-left:4px solid #2563eb;border-radius:16px;padding:14px;color:#344054;font-size:14px;line-height:1.65;margin-top:14px}.example-detail-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.example-detail-title strong{font-size:13px}.example-detail-title span{font-size:11px;color:#667085;font-weight:800}.plan{display:grid;gap:9px;margin-top:12px}.plan-row{display:flex;gap:10px;align-items:flex-start;color:#475467;font-size:13px;line-height:1.35}.check{width:20px;height:20px;border-radius:50%;background:#dcfce7;color:#15803d;display:grid;place-items:center;font-size:12px;font-weight:900;flex-shrink:0}
+    .exam-list{display:grid;gap:10px}.exam-card{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#f8fafc;border:1px solid #eef2f7;border-radius:18px;padding:13px}.exam-card h4{font-size:14px;margin-bottom:4px}.exam-card p{font-size:12px;color:#667085;line-height:1.35}.exam-card button{border:none;background:#1d4ed8;color:#fff;border-radius:999px;padding:9px 12px;font-weight:900;font-size:12px;white-space:nowrap}.correction-list{display:grid;gap:10px;margin-top:12px}.correction-item{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px;background:#f8fafc;border:1px solid #eef2f7;border-radius:18px;padding:12px}.correction-icon{width:42px;height:42px;border-radius:15px;background:#eef4ff;display:grid;place-items:center}.correction-item h4{font-size:13px;margin-bottom:3px}.correction-item p{font-size:12px;color:#667085}.correction-score{font-size:13px;font-weight:900;color:#16a34a}.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.metric{background:#f8fafc;border-radius:18px;padding:13px;border:1px solid #eef2f7}.metric span{display:block;color:#667085;font-size:11px;font-weight:800;margin-bottom:5px}.metric strong{font-size:18px}
+    .record-panel{position:absolute;left:12px;right:12px;bottom:70px;background:rgba(255,255,255,.97);backdrop-filter:blur(18px);border:1px solid #edf0f5;border-radius:24px;padding:12px;box-shadow:0 18px 40px rgba(15,23,42,.14);z-index:9}.record-inner{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px}.mic-circle{width:44px;height:44px;border-radius:16px;background:#fee2e2;color:#dc2626;display:grid;place-items:center;font-size:22px;box-shadow:0 12px 25px rgba(220,38,38,.12)}.record-panel h3{font-size:14px;margin-bottom:2px;text-align:left}.record-panel p{color:#667085;font-size:11px;line-height:1.3;text-align:left}.primary-btn{border:none;background:#1d4ed8;color:#fff;border-radius:18px;padding:13px 15px;font-weight:900;font-size:13px;box-shadow:0 14px 28px rgba(29,78,216,.25)}
+    .bottom-nav{position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-top:1px solid #edf0f5;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 8px 14px}.bottom-nav a{text-decoration:none;color:#94a3b8;text-align:center;font-size:11px;font-weight:800;line-height:1.4}.bottom-nav a.active{color:#1d4ed8}
+    @media(max-width:430px){body{padding:0;background:#f8fafc}.phone{width:100%;height:100vh;border-radius:0;border:none;box-shadow:none}}
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="app">
+      <div class="statusbar"><span>9:41</span><span>●●● 5G 🔋</span></div>
+      <header class="header">
+        <div class="header-top">
+          <button class="back">‹</button>
+          <div class="header-title"><span>TCF IRN</span><h1>Expression orale</h1></div>
+          <div class="ai-badge">IA</div>
+        </div>
+        <div class="global-tabs"><button class="active">Entraînement</button><button>Examens</button><button>Corrections</button></div>
+        <div class="step-tabs"><button class="active">Tâche 1</button><button>Tâche 2</button><button>Tâche 3</button></div>
+      </header>
+
+      <main class="content">
+        <section class="hero">
+          <div class="hero-label">🎙️ Entraînement guidé</div>
+          <h2>Apprenez à vous présenter naturellement</h2>
+          <p>Plusieurs exemples pour une même situation, puis vous enregistrez votre propre réponse.</p>
+        </section>
+
+        <section class="stats">
+          <div class="stat"><strong>7/10</strong><span>Situations</span></div>
+          <div class="stat"><strong>10</strong><span>Exemples</span></div>
+          <div class="stat"><strong>2:30</strong><span>Durée</span></div>
+        </section>
+
+        <div class="section-head"><h3>Situations</h3><a href="#">Tout voir</a></div>
+        <section class="situations">
+          <article class="situation-card active">
+            <div class="card-top"><h4>Premier jour de formation</h4><span class="example-chip">3 exemples</span></div>
+            <p>Présentez-vous devant les autres participants.</p>
+            <div class="mini-progress"><span></span></div>
+          </article>
+          <article class="situation-card">
+            <div class="card-top"><h4>Nouveau voisin</h4><span class="example-chip">2 exemples</span></div>
+            <p>Vous rencontrez une personne dans votre immeuble.</p>
+            <div class="mini-progress"><span style="width:35%"></span></div>
+          </article>
+          <article class="situation-card">
+            <div class="card-top"><h4>Rendez-vous à la mairie</h4><span class="example-chip">4 exemples</span></div>
+            <p>Un agent vous demande de parler de vous.</p>
+            <div class="mini-progress"><span style="width:10%"></span></div>
+          </article>
+        </section>
+
+        <section class="card">
+          <div class="task-title"><h3>Consigne & préparation</h3><span class="duration">2 à 3 min</span></div>
+          <p>Vous participez à une formation en France. Le formateur vous demande de vous présenter au groupe : identité, origine, travail, loisirs et projets.</p>
+          <div class="help-list">
+            <div class="help-item"><div class="help-icon">👤</div><div><strong>1. Présentez-vous</strong><span>Prénom, origine, ville actuelle.</span></div></div>
+            <div class="help-item"><div class="help-icon">💼</div><div><strong>2. Parlez de votre quotidien</strong><span>Travail, études, famille ou activités.</span></div></div>
+            <div class="help-item"><div class="help-icon">🎯</div><div><strong>3. Terminez avec votre projet</strong><span>Expliquez pourquoi vous passez le TCF.</span></div></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Exemples de réponses</h3><button class="listen">Tout voir</button></div>
+
+          <div class="examples-row">
+            <article class="example-preview active">
+              <div class="example-preview-top"><h4>Réponse courte et naturelle</h4><span class="example-chip">1</span></div>
+              <p>Une réponse simple, facile à retenir, idéale pour commencer.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+
+            <article class="example-preview">
+              <div class="example-preview-top"><h4>Réponse plus détaillée</h4><span class="example-chip">2</span></div>
+              <p>Une réponse avec plus de détails sur le travail et le projet.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+
+            <article class="example-preview">
+              <div class="example-preview-top"><h4>Réponse simple à réutiliser</h4><span class="example-chip">3</span></div>
+              <p>Un modèle court que l’utilisateur peut adapter à sa situation.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+          </div>
+
+          <div class="example-detail">
+            <div class="example-detail-title"><strong>Exemple ouvert</strong><span>Réponse 1/3</span></div>
+            Bonjour, je m’appelle Mariam. Je viens du Mali et j’habite à Lyon depuis quatre ans. Je travaille comme aide à domicile. J’aime beaucoup ce métier parce que j’aide les personnes âgées. Pendant mon temps libre, j’aime cuisiner, marcher et regarder des films. Je passe le TCF pour avancer dans mes démarches en France.
+          </div>
+
+          <div class="section-head" style="margin-top:16px;margin-bottom:10px"><h3>Plan rapide</h3></div>
+          <div class="plan">
+            <div class="plan-row"><span class="check">✓</span><span>Bonjour + prénom + origine</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Ville actuelle + depuis combien de temps</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Travail ou études</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Loisirs + objectif en France</span></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section class="record-panel">
+      <div class="record-inner">
+        <div class="mic-circle">🎙️</div>
+        <div><h3>À vous de parler</h3><p>Parlez naturellement pendant 2 à 3 minutes.</p></div>
+        <button class="primary-btn">Enregistrer</button>
+      </div>
+    </section>
+
+    <nav class="bottom-nav">
+      <a href="#">🏠<br>Accueil</a><a href="#" class="active">🎓<br>TCF</a><a href="#">📊<br>Progrès</a><a href="#">👤<br>Profil</a>
+    </nav>
+  </div>
+
+
+  <!-- PAGE 1B : ENTRAÎNEMENT TÂCHE 2 OUVERTE -->
+  <div class="phone page-preview">
+    <div class="app">
+      <div class="statusbar"><span>9:41</span><span>●●● 5G 🔋</span></div>
+      <header class="header">
+        <div class="header-top">
+          <button class="back">‹</button>
+          <div class="header-title"><span>TCF IRN</span><h1>Expression orale</h1></div>
+          <div class="ai-badge">IA</div>
+        </div>
+        <div class="global-tabs"><button class="active">Entraînement</button><button>Examens</button><button>Corrections</button></div>
+        <div class="step-tabs"><button>Tâche 1</button><button class="active">Tâche 2</button><button>Tâche 3</button></div>
+      </header>
+
+      <main class="content">
+        <section class="hero task2-hero">
+          <div class="hero-label">🎭 Jeu de rôle guidé</div>
+          <h2>Apprenez à poser les bonnes questions</h2>
+          <p>Vous jouez une situation pratique : demander des informations, réserver, louer ou expliquer un besoin.</p>
+        </section>
+
+        <section class="stats">
+          <div class="stat"><strong>6/10</strong><span>Situations</span></div>
+          <div class="stat"><strong>12</strong><span>Exemples</span></div>
+          <div class="stat"><strong>3:30</strong><span>Durée</span></div>
+        </section>
+
+        <div class="section-head"><h3>Situations</h3><a href="#">Tout voir</a></div>
+        <section class="situations">
+          <article class="situation-card active">
+            <div class="card-top"><h4>Louer un appartement</h4><span class="example-chip">4 exemples</span></div>
+            <p>Vous appelez une agence pour poser des questions sur un logement.</p>
+            <div class="mini-progress"><span style="width:60%"></span></div>
+          </article>
+          <article class="situation-card">
+            <div class="card-top"><h4>Réserver un rendez-vous</h4><span class="example-chip">3 exemples</span></div>
+            <p>Vous contactez un cabinet pour prendre un rendez-vous.</p>
+            <div class="mini-progress"><span style="width:40%"></span></div>
+          </article>
+          <article class="situation-card">
+            <div class="card-top"><h4>Demander des informations</h4><span class="example-chip">5 exemples</span></div>
+            <p>Vous demandez des renseignements dans une mairie.</p>
+            <div class="mini-progress"><span style="width:20%"></span></div>
+          </article>
+        </section>
+
+        <section class="card">
+          <div class="task-title"><h3>Consigne & rôle</h3><span class="duration">3 à 4 min</span></div>
+          <p>Vous souhaitez louer un appartement. Vous appelez une agence immobilière. Posez des questions sur le prix, la surface, le quartier, les documents demandés et la date de visite.</p>
+          <div class="role-box">
+            <div><strong>Votre rôle</strong><span>Vous êtes la personne intéressée par le logement.</span></div>
+            <div><strong>Objectif</strong><span>Obtenir assez d’informations pour décider si vous voulez visiter.</span></div>
+          </div>
+          <div class="help-list">
+            <div class="help-item"><div class="help-icon">❓</div><div><strong>1. Posez des questions</strong><span>Prix, adresse, surface, charges, documents.</span></div></div>
+            <div class="help-item"><div class="help-icon">🗣️</div><div><strong>2. Réagissez simplement</strong><span>“D’accord”, “Très bien”, “C’est possible quand ?”</span></div></div>
+            <div class="help-item"><div class="help-icon">📅</div><div><strong>3. Terminez l’échange</strong><span>Proposez une visite ou demandez la suite.</span></div></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Exemples de questions</h3><button class="listen">Tout voir</button></div>
+          <div class="examples-row">
+            <article class="example-preview active">
+              <div class="example-preview-top"><h4>Questions essentielles</h4><span class="example-chip">1</span></div>
+              <p>Les questions à poser pour réussir la situation.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+            <article class="example-preview">
+              <div class="example-preview-top"><h4>Dialogue naturel</h4><span class="example-chip">2</span></div>
+              <p>Un échange complet entre candidat et agence.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+            <article class="example-preview">
+              <div class="example-preview-top"><h4>Réponses utiles</h4><span class="example-chip">3</span></div>
+              <p>Des phrases simples pour réagir pendant le jeu de rôle.</p>
+              <div class="example-actions"><button class="open-btn">Ouvrir</button><button class="play-btn">▶ Écouter</button></div>
+            </article>
+          </div>
+          <div class="example-detail">
+            <div class="example-detail-title"><strong>Exemple ouvert</strong><span>Questions 1/4</span></div>
+            Bonjour, je vous appelle au sujet de l’appartement. Est-ce qu’il est toujours disponible ? Quel est le prix du loyer avec les charges ? Quelle est la surface du logement ? Est-ce qu’il est proche des transports ? Quels documents faut-il préparer pour le dossier ? Est-ce que je peux le visiter cette semaine ?
+          </div>
+
+          <div class="section-head" style="margin-top:16px;margin-bottom:10px"><h3>Plan rapide</h3></div>
+          <div class="plan">
+            <div class="plan-row"><span class="check">✓</span><span>Bonjour + raison de l’appel</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Questions sur le logement</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Questions sur le dossier</span></div>
+            <div class="plan-row"><span class="check">✓</span><span>Demander une visite et remercier</span></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section class="record-panel">
+      <div class="record-inner">
+        <div class="mic-circle">🎭</div>
+        <div><h3>Commencer le jeu de rôle</h3><p>Posez vos questions comme dans un vrai échange.</p></div>
+        <button class="primary-btn">Enregistrer</button>
+      </div>
+    </section>
+
+    <nav class="bottom-nav">
+      <a href="#">🏠<br>Accueil</a><a href="#" class="active">🎓<br>TCF</a><a href="#">📊<br>Progrès</a><a href="#">👤<br>Profil</a>
+    </nav>
+  </div>
+
+  <!-- PAGE 2 : EXAMENS -->
+  <div class="phone page-preview">
+    <div class="app no-fixed-action">
+      <div class="statusbar"><span>9:41</span><span>●●● 5G 🔋</span></div>
+      <header class="header">
+        <div class="header-top">
+          <button class="back">‹</button>
+          <div class="header-title"><span>TCF IRN</span><h1>Expression orale</h1></div>
+          <div class="ai-badge">IA</div>
+        </div>
+        <div class="global-tabs"><button>Entraînement</button><button class="active">Examens</button><button>Corrections</button></div>
+      </header>
+
+      <main class="content">
+        <section class="hero exam-hero">
+          <div class="hero-label">📝 Simulation officielle</div>
+          <h2>Simulez l’oral comme au vrai examen</h2>
+          <p>Pas d’exemples, pas d’aide détaillée : vous répondez directement, puis l’IA corrige.</p>
+        </section>
+
+        <section class="stats">
+          <div class="stat"><strong>3</strong><span>Tâches</span></div>
+          <div class="stat"><strong>10 min</strong><span>Durée</span></div>
+          <div class="stat"><strong>IA</strong><span>Correction</span></div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Examens disponibles</h3><button class="listen">Filtrer</button></div>
+          <div class="exam-list big-exam-list">
+            <div class="exam-card exam-main-card">
+              <div>
+                <h4>Examen oral complet</h4>
+                <p>Tâche 1, tâche 2 et tâche 3 en conditions réelles. Correction IA globale avec niveau estimé.</p>
+                <div class="exam-meta"><span>🎙️ 3 réponses</span><span>⏱️ 10 min</span><span>⭐ Recommandé</span></div>
+              </div>
+              <button>Commencer</button>
+            </div>
+            <div class="exam-card">
+              <div><h4>Simulation — Tâche 1</h4><p>Se présenter sans aide, comme devant l’examinateur.</p></div>
+              <button>Lancer</button>
+            </div>
+            <div class="exam-card">
+              <div><h4>Simulation — Tâche 2</h4><p>Jeu de rôle : poser des questions et demander des informations.</p></div>
+              <button>Lancer</button>
+            </div>
+            <div class="exam-card">
+              <div><h4>Simulation — Tâche 3</h4><p>Donner son opinion et argumenter simplement.</p></div>
+              <button>Lancer</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Derniers examens</h3><button class="listen">Tout voir</button></div>
+          <div class="correction-list">
+            <div class="correction-item"><div class="correction-icon">🎙️</div><div><h4>EO complet</h4><p>Fait aujourd’hui · niveau estimé B1</p></div><div class="correction-score">15/20</div></div>
+            <div class="correction-item"><div class="correction-icon">🎭</div><div><h4>Tâche 2 seule</h4><p>Fait hier · interaction correcte</p></div><div class="correction-score">13/20</div></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <nav class="bottom-nav"><a href="#">🏠<br>Accueil</a><a href="#" class="active">🎓<br>TCF</a><a href="#">📊<br>Progrès</a><a href="#">👤<br>Profil</a></nav>
+  </div>
+
+  <!-- PAGE 3 : CORRECTIONS -->
+  <div class="phone page-preview">
+    <div class="app no-fixed-action">
+      <div class="statusbar"><span>9:41</span><span>●●● 5G 🔋</span></div>
+      <header class="header">
+        <div class="header-top">
+          <button class="back">‹</button>
+          <div class="header-title"><span>TCF IRN</span><h1>Expression orale</h1></div>
+          <div class="ai-badge">IA</div>
+        </div>
+        <div class="global-tabs"><button>Entraînement</button><button>Examens</button><button class="active">Corrections</button></div>
+      </header>
+
+      <main class="content">
+        <section class="hero correction-hero">
+          <div class="hero-label">🤖 Historique IA</div>
+          <h2>Retrouvez toutes vos corrections</h2>
+          <p>Scores, transcription, points forts, erreurs et conseils restent disponibles à tout moment.</p>
+        </section>
+
+        <section class="stats">
+          <div class="stat"><strong>24</strong><span>Corrections</span></div>
+          <div class="stat"><strong>B1</strong><span>Niveau moyen</span></div>
+          <div class="stat"><strong>+18%</strong><span>Progrès</span></div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Filtres</h3><button class="listen">Réinitialiser</button></div>
+          <div class="filter-row">
+            <button class="filter active">Toutes</button>
+            <button class="filter">Tâche 1</button>
+            <button class="filter">Tâche 2</button>
+            <button class="filter">Tâche 3</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="example-head"><h3>Corrections récentes</h3><button class="listen">Exporter</button></div>
+          <div class="correction-list detailed-corrections">
+            <div class="correction-item correction-large">
+              <div class="correction-icon">🎙️</div>
+              <div><h4>Présentation — formation</h4><p>Aujourd’hui · transcription + réponse améliorée</p><div class="tags"><span>Clarté 14/20</span><span>Consigne 18/20</span></div></div>
+              <div class="correction-score">15/20</div>
+            </div>
+            <div class="correction-item correction-large">
+              <div class="correction-icon">🏠</div>
+              <div><h4>Jeu de rôle — logement</h4><p>Hier · questions utiles mais vocabulaire limité</p><div class="tags"><span>Interaction 13/20</span><span>Vocabulaire 12/20</span></div></div>
+              <div class="correction-score">13/20</div>
+            </div>
+            <div class="correction-item correction-large">
+              <div class="correction-icon">💬</div>
+              <div><h4>Opinion — transports</h4><p>Il y a 3 jours · argumentation simple mais claire</p><div class="tags"><span>Arguments 14/20</span><span>Fluidité 13/20</span></div></div>
+              <div class="correction-score">14/20</div>
+            </div>
+            <div class="correction-item correction-large">
+              <div class="correction-icon">👤</div>
+              <div><h4>Se présenter — voisin</h4><p>Il y a 5 jours · bonne structure générale</p><div class="tags"><span>Structure 16/20</span><span>Prononciation 13/20</span></div></div>
+              <div class="correction-score">16/20</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <nav class="bottom-nav"><a href="#">🏠<br>Accueil</a><a href="#" class="active">🎓<br>TCF</a><a href="#">📊<br>Progrès</a><a href="#">👤<br>Profil</a></nav>
+  </div>
+
+  <style>
+    body{gap:28px;flex-wrap:wrap;align-items:flex-start}.page-preview{margin-top:0}.no-fixed-action{padding-bottom:92px}.exam-hero{background:linear-gradient(135deg,#111827,#1d4ed8 55%,#7c3aed)}.correction-hero{background:linear-gradient(135deg,#0f766e,#2563eb 60%,#16a34a)}.task2-hero{background:linear-gradient(135deg,#7c3aed,#2563eb 58%,#0891b2)}.role-box{display:grid;gap:8px;margin-top:14px}.role-box div{background:#f8fafc;border:1px solid #eef2f7;border-radius:16px;padding:12px}.role-box strong{display:block;font-size:13px;margin-bottom:3px}.role-box span{font-size:12px;color:#667085;line-height:1.35}.big-exam-list{gap:12px}.exam-main-card{align-items:flex-start;flex-direction:column}.exam-main-card button{width:100%;border-radius:16px;padding:13px}.exam-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.exam-meta span{font-size:11px;font-weight:800;background:#eef4ff;color:#1d4ed8;border-radius:999px;padding:6px 8px}.filter-row{display:flex;gap:8px;overflow-x:auto}.filter{border:none;background:#f1f5f9;color:#64748b;border-radius:999px;padding:10px 13px;font-size:12px;font-weight:900;white-space:nowrap}.filter.active{background:#1d4ed8;color:#fff}.detailed-corrections .correction-item{align-items:flex-start}.correction-large{grid-template-columns:42px 1fr auto}.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tags span{font-size:10px;font-weight:900;color:#1d4ed8;background:#eef4ff;border-radius:999px;padding:5px 7px}
+    @media(max-width:430px){body{gap:0}.page-preview{margin-top:24px}}
+  </style>
+</body>
+</html>

@@ -1,0 +1,2169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>SejourFR — Mobile EO/EE v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bleu-france: #1E3A8C;
+  --bleu-france-dark: #15296B;
+  --bleu-france-light: #E8ECF8;
+  --bleu-soft: #F1F4FB;
+  --rouge-france: #E1372F;
+  --rouge-france-light: #FDECEB;
+  --encre: #0F1839;
+  --encre-soft: #4A5479;
+  --encre-mute: #7D87A8;
+  --succes: #168F5B;
+  --succes-light: #E5F4ED;
+  --ambre: #E8A317;
+  --ambre-light: #FDF3DC;
+  --violet: #7C3AED;
+  --violet-light: #F3EEFE;
+  --surface: #FFFFFF;
+  --background: #F8F9FC;
+  --border: #E1E4F0;
+  --border-soft: #EEF1F8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--background);
+  color: var(--encre);
+  padding: 32px 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.storybook-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 24px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.storybook-subtitle {
+  text-align: center;
+  color: var(--encre-soft);
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+
+.section-banner {
+  max-width: 380px;
+  margin: 56px auto 16px;
+  text-align: center;
+}
+.section-banner-icon {
+  width: 52px; height: 52px;
+  background: var(--bleu-france);
+  border-radius: 14px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+.section-banner h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--bleu-france);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.section-banner p {
+  font-size: 13px;
+  color: var(--encre-soft);
+  margin-top: 4px;
+}
+
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--encre-mute);
+  text-align: center;
+  margin: 36px auto 12px;
+  max-width: 380px;
+}
+
+/* ============== PHONE FRAME ============== */
+.phone {
+  width: 380px;
+  margin: 0 auto 24px;
+  background: var(--surface);
+  border-radius: 32px;
+  border: 8px solid var(--encre);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px -20px rgba(15, 24, 57, 0.25);
+}
+.phone-notch {
+  height: 28px;
+  background: var(--encre);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.phone-notch::before {
+  content: '';
+  width: 110px;
+  height: 18px;
+  background: black;
+  border-radius: 12px;
+}
+.statusbar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.statusbar-right { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+
+.screen {
+  background: var(--surface);
+  min-height: 720px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============== HEADER ============== */
+.app-header {
+  padding: 14px 18px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.app-header-btn {
+  width: 32px; height: 32px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--bleu-france);
+}
+.app-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--encre);
+}
+.app-header-quit {
+  background: transparent;
+  border: none;
+  color: var(--bleu-france);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ============== PROGRESS ============== */
+.progress-wrapper {
+  padding: 12px 20px 16px;
+}
+.progress-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+}
+.progress-label .sub {
+  color: var(--encre-mute);
+  font-weight: 500;
+  margin-left: 4px;
+}
+.timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bleu-soft);
+  color: var(--bleu-france);
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.timer-pill svg { width: 14px; height: 14px; }
+.level-pill {
+  display: inline-block;
+  background: var(--succes-light);
+  color: var(--succes);
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.level-pill.b1 { background: var(--bleu-france-light); color: var(--bleu-france); }
+.level-pill.b2 { background: var(--violet-light); color: var(--violet); }
+
+.progress-bar {
+  height: 4px;
+  background: var(--border-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--bleu-france);
+  border-radius: 2px;
+}
+
+/* ============== CONTENT ============== */
+.screen-content {
+  flex: 1;
+  padding: 4px 18px 20px;
+  overflow-y: auto;
+}
+
+/* ============== CARDS ============== */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--encre);
+}
+.card-title svg { width: 18px; height: 18px; color: var(--bleu-france); }
+.card-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--encre);
+}
+
+.tips-card {
+  background: var(--bleu-soft);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.tips-card .card-title { color: var(--bleu-france); }
+.tips-card .card-title svg { color: var(--bleu-france); }
+.tip-list { list-style: none; }
+.tip-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  color: var(--encre);
+}
+.tip-list li:last-child { margin-bottom: 0; }
+.tip-check {
+  width: 16px; height: 16px;
+  color: var(--succes);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.criteres-card {
+  background: var(--bleu-soft);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.criteres-card .card-title { color: var(--bleu-france); }
+.criteres-list {
+  list-style: none;
+}
+.criteres-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  padding-left: 14px;
+  position: relative;
+  color: var(--encre);
+}
+.criteres-list li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 7px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--bleu-france);
+}
+
+.mots-card {
+  background: var(--ambre-light);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mots-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mots-card-icon {
+  color: #B5780E;
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+}
+.mots-card-info {
+  font-size: 13px;
+}
+.mots-card-info strong {
+  display: block;
+  font-weight: 700;
+  color: #B5780E;
+  margin-bottom: 2px;
+}
+.mots-card-info span {
+  color: var(--encre-soft);
+  font-size: 12px;
+}
+.mots-counter {
+  background: white;
+  color: #B5780E;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid rgba(181, 120, 14, 0.3);
+}
+
+/* ============== BUTTONS ============== */
+.bottom-action {
+  padding: 14px 18px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-soft);
+}
+.btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary { background: var(--bleu-france); color: white; }
+.btn-secondary { background: var(--surface); color: var(--bleu-france); border: 1px solid var(--bleu-france); }
+.btn-ghost { background: var(--surface); color: var(--encre); border: 1px solid var(--border); }
+.btn + .btn { margin-top: 8px; }
+
+/* ============== RECORDING ============== */
+.recording-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 18px 20px;
+  text-align: center;
+}
+.recording-status-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--encre);
+  margin: 12px 0 24px;
+}
+.timer-big {
+  font-size: 64px;
+  font-weight: 700;
+  color: var(--encre);
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+.timer-max {
+  font-size: 14px;
+  color: var(--encre-mute);
+  margin-bottom: 28px;
+}
+.waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 70px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+.waveform-bar {
+  width: 3px;
+  background: var(--bleu-france);
+  border-radius: 2px;
+  animation: wave 1.2s infinite ease-in-out;
+}
+@keyframes wave {
+  0%, 100% { height: 10px; }
+  50% { height: 50px; }
+}
+.waveform-bar:nth-child(odd) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(3n) { animation-delay: 0.25s; }
+.waveform-bar:nth-child(5n) { animation-delay: 0.4s; }
+.waveform-bar:nth-child(7n) { animation-delay: 0.2s; }
+
+.rec-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--succes-light);
+  color: var(--succes);
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+.rec-status-pill-dot {
+  width: 7px; height: 7px;
+  background: var(--succes);
+  border-radius: 50%;
+  animation: pulse 1.2s infinite ease-in-out;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
+}
+
+.conseil-callout {
+  background: var(--bleu-soft);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  width: 100%;
+  margin-bottom: 28px;
+}
+.conseil-callout svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--bleu-france); margin-top: 2px; }
+.conseil-callout strong { font-weight: 700; color: var(--bleu-france); display: block; margin-bottom: 2px; }
+
+.stop-btn {
+  width: 64px; height: 64px;
+  border: 3px solid var(--rouge-france);
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.stop-btn-inner {
+  width: 20px; height: 20px;
+  background: var(--rouge-france);
+  border-radius: 3px;
+}
+.stop-btn-label {
+  font-size: 14px;
+  color: var(--encre);
+  font-weight: 600;
+}
+
+/* ============== FINISHED ============== */
+.finished-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 18px;
+}
+.finished-icon {
+  width: 80px; height: 80px;
+  background: var(--succes);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 18px;
+}
+.finished-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--encre);
+  margin-bottom: 18px;
+}
+.finished-duration-label {
+  font-size: 14px;
+  color: var(--encre-soft);
+  margin-bottom: 4px;
+}
+.finished-duration {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--encre);
+  margin-bottom: 28px;
+}
+
+.playback-card-full {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.playback-play {
+  width: 44px; height: 44px;
+  background: var(--bleu-france);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.playback-waveform {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+.playback-waveform-bar {
+  flex: 1;
+  background: var(--bleu-france);
+  opacity: 0.5;
+  border-radius: 1px;
+  min-width: 2px;
+}
+.playback-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--encre);
+}
+
+.next-info-card {
+  width: 100%;
+  background: var(--bleu-soft);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+}
+.next-info-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bleu-france);
+  margin-bottom: 6px;
+}
+.next-info-card p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--encre);
+}
+
+/* ============== RESULTS - VUE RÉSUMÉE ============== */
+.results-eval-banner {
+  background: var(--succes-light);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.results-eval-banner-icon {
+  width: 36px; height: 36px;
+  background: var(--succes);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.results-eval-banner strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--encre);
+  margin-bottom: 2px;
+}
+.results-eval-banner span {
+  font-size: 13px;
+  color: var(--encre-soft);
+}
+
+.results-summary-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.score-block-label {
+  font-size: 13px;
+  color: var(--encre-soft);
+  margin-bottom: 4px;
+}
+.score-big {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--encre);
+  line-height: 1;
+}
+.score-big-max {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--encre-mute);
+}
+.niveau-block { text-align: right; }
+.niveau-pill-big {
+  display: inline-block;
+  background: var(--bleu-france-light);
+  color: var(--bleu-france);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.cecrl-scale {
+  margin-top: 6px;
+}
+.cecrl-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--encre-mute);
+  margin-bottom: 6px;
+}
+.cecrl-scale-labels span.active {
+  color: var(--bleu-france);
+  font-weight: 700;
+}
+.cecrl-scale-track {
+  height: 6px;
+  background: linear-gradient(to right, #F87171 0%, #FB923C 20%, #FBBF24 40%, #34D399 60%, #60A5FA 80%, #A78BFA 100%);
+  border-radius: 3px;
+  position: relative;
+}
+.cecrl-scale-cursor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px; height: 14px;
+  background: white;
+  border: 3px solid var(--bleu-france);
+  border-radius: 50%;
+}
+
+/* ============== SCORES PAR CRITÈRE ============== */
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--encre);
+  margin: 18px 0 10px;
+}
+.criterion-row {
+  margin-bottom: 14px;
+}
+.criterion-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.criterion-name-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.criterion-icon-bubble {
+  width: 32px; height: 32px;
+  background: var(--bleu-soft);
+  color: var(--bleu-france);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.criterion-icon-bubble svg { width: 16px; height: 16px; }
+.criterion-icon-bubble.green { background: var(--succes-light); color: var(--succes); }
+.criterion-icon-bubble.amber { background: var(--ambre-light); color: #B5780E; }
+.criterion-icon-bubble.red { background: var(--rouge-france-light); color: var(--rouge-france); }
+.criterion-name { font-size: 14px; font-weight: 600; color: var(--encre); }
+.criterion-score {
+  font-size: 14px;
+  font-weight: 700;
+}
+.criterion-score.high { color: var(--succes); }
+.criterion-score.mid { color: var(--ambre); }
+.criterion-score.low { color: var(--rouge-france); }
+.criterion-score-max { color: var(--encre-mute); font-weight: 500; }
+.criterion-bar {
+  height: 4px;
+  background: var(--border-soft);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-left: 42px;
+}
+.criterion-bar-fill { height: 100%; border-radius: 2px; }
+.criterion-bar-fill.high { background: var(--succes); }
+.criterion-bar-fill.mid { background: var(--ambre); }
+.criterion-bar-fill.low { background: var(--rouge-france); }
+
+/* ============== TABS ============== */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 0 18px;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre-mute);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab.active {
+  color: var(--bleu-france);
+  border-bottom-color: var(--bleu-france);
+}
+
+/* ============== FEEDBACK BLOCKS ============== */
+.feedback-block {
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.feedback-block.positive { background: var(--succes-light); }
+.feedback-block.improve { background: var(--ambre-light); }
+.feedback-block.violet { background: var(--violet-light); }
+.feedback-block-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.feedback-block.positive .feedback-block-title { color: var(--succes); }
+.feedback-block.improve .feedback-block-title { color: #B5780E; }
+.feedback-block.violet .feedback-block-title { color: var(--violet); }
+.feedback-block-title svg { width: 18px; height: 18px; }
+.feedback-list { list-style: none; }
+.feedback-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  padding-left: 18px;
+  position: relative;
+  color: var(--encre);
+}
+.feedback-list li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 7px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.feedback-block.positive .feedback-list li::before { background: var(--succes); }
+.feedback-block.improve .feedback-list li::before { background: var(--ambre); }
+.feedback-block.violet .feedback-list li::before { background: var(--violet); }
+
+.violet-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--encre);
+}
+
+/* ============== CORRECTIONS ============== */
+.correction-block {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.correction-line {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.correction-line .label {
+  font-weight: 700;
+  margin-right: 4px;
+}
+.correction-line.original .label { color: var(--rouge-france); }
+.correction-line.original .txt { color: var(--encre); }
+.correction-line.corrected .label { color: var(--succes); }
+.correction-line.corrected .txt { color: var(--succes); font-weight: 600; }
+.correction-line.explain { color: var(--encre-soft); font-size: 12px; margin-top: 4px; }
+.correction-line.explain .label { color: var(--encre-soft); }
+
+/* ============== TRANSCRIPTION ============== */
+.transcription-info-banner {
+  background: var(--bleu-soft);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.transcription-info-banner svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--bleu-france); margin-top: 2px; }
+.transcription-info-banner strong { color: var(--bleu-france); display: block; margin-bottom: 2px; }
+
+.transcription-text-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--encre);
+  margin-bottom: 14px;
+}
+
+.transcription-audio-bar {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 8px 14px 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ============== PROGRESSION ============== */
+.progression-summary {
+  text-align: center;
+  padding: 12px 0 24px;
+}
+.progression-label {
+  font-size: 14px;
+  color: var(--encre-soft);
+  margin-bottom: 6px;
+}
+.progression-count {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--encre);
+  line-height: 1;
+}
+.progression-count-total {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--encre-mute);
+}
+
+.task-progress-item {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.task-progress-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--background);
+  color: var(--encre-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.task-progress-num.done {
+  background: var(--bleu-france);
+  color: white;
+}
+.task-progress-body { flex: 1; }
+.task-progress-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+}
+.task-progress-meta {
+  font-size: 12px;
+  color: var(--encre-soft);
+  margin-top: 2px;
+}
+.task-progress-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.task-progress-score {
+  color: var(--encre);
+}
+.task-progress-status-todo {
+  color: var(--encre-mute);
+  font-style: italic;
+}
+
+/* ============== BILAN GLOBAL ============== */
+.bilan-hero {
+  background: var(--bleu-france);
+  background: linear-gradient(135deg, var(--bleu-france) 0%, var(--bleu-france-dark) 100%);
+  border-radius: 16px;
+  padding: 20px;
+  color: white;
+  margin-bottom: 16px;
+}
+.bilan-hero-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.bilan-hero-label {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+.bilan-hero-score {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+}
+.bilan-hero-score-max {
+  font-size: 20px;
+  opacity: 0.6;
+  font-weight: 500;
+}
+.bilan-hero-niveau-pill {
+  background: white;
+  color: var(--bleu-france);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.bilan-hero .cecrl-scale-labels span { color: rgba(255,255,255,0.6); }
+.bilan-hero .cecrl-scale-labels span.active { color: white; }
+.bilan-hero .cecrl-scale-cursor { border-color: white; background: var(--bleu-france); }
+
+.tache-bilan-row {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tache-bilan-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--encre);
+}
+.tache-bilan-name .lvl {
+  font-size: 11px;
+  background: var(--bleu-france-light);
+  color: var(--bleu-france);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+.tache-bilan-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ============== BOTTOM NAV ============== */
+.bottom-nav {
+  display: flex;
+  background: white;
+  border-top: 1px solid var(--border-soft);
+  padding: 8px 0 16px;
+}
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--encre-mute);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px;
+}
+.bottom-nav-item.active { color: var(--bleu-france); }
+.bottom-nav-item svg { width: 22px; height: 22px; }
+
+/* ============== EE WRITING ============== */
+.writing-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.writing-counter-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.writing-counter-top-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--encre);
+}
+.writing-counter-top-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--succes);
+}
+.writing-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  background: var(--background);
+  border-radius: 10px 10px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+.writing-toolbar-btn {
+  width: 32px; height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--encre);
+  cursor: pointer;
+  font-size: 13px;
+}
+.writing-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 14px;
+  background: white;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--encre);
+  resize: none;
+  min-height: 260px;
+}
+.writing-textarea:focus { outline: none; }
+.writing-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 4px;
+  font-size: 12px;
+  color: var(--encre-soft);
+}
+.writing-bottom-row .ok {
+  color: var(--succes);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.writing-bottom-row .delete-btn {
+  background: var(--rouge-france-light);
+  color: var(--rouge-france);
+  border: none;
+  border-radius: 8px;
+  width: 28px; height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ============== DONUT ============== */
+.donut-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.donut-text-block {
+  flex: 1;
+}
+.donut-text-label {
+  font-size: 13px;
+  color: var(--encre-soft);
+  margin-bottom: 4px;
+}
+.donut-text-score {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--encre);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.donut-text-score-max {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--encre-mute);
+}
+.donut-text-niveau-pill {
+  display: inline-block;
+  background: var(--violet-light);
+  color: var(--violet);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.donut-chart {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  flex-shrink: 0;
+}
+.donut-chart svg { transform: rotate(-90deg); }
+.donut-chart-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.donut-chart-percent {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--violet);
+  line-height: 1;
+}
+.donut-chart-sub {
+  font-size: 10px;
+  color: var(--encre-soft);
+  margin-top: 2px;
+}
+
+/* ============== CONFIDENTIAL NOTE ============== */
+.confidential-note {
+  background: var(--background);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--encre-soft);
+  margin-top: 8px;
+}
+.confidential-note svg {
+  width: 16px; height: 16px;
+  color: var(--encre-mute);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ============== FOOTER FIXE ============== */
+.result-footer-link {
+  background: white;
+  border-top: 1px solid var(--border-soft);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--encre);
+}
+.result-footer-link-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.result-footer-link-left svg { color: var(--bleu-france); }
+.result-footer-link-left .label-small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--encre-soft);
+}
+
+.icon { width: 20px; height: 20px; }
+.icon-sm { width: 16px; height: 16px; }
+.icon-lg { width: 36px; height: 36px; }
+</style>
+</head>
+<body>
+
+<h1 class="storybook-title">SejourFR — Mobile · v3</h1>
+<p class="storybook-subtitle">Reproduction fidèle des références ChatGPT · EO (10 écrans) + EE (8 écrans)</p>
+
+<!-- ============================================ -->
+<!-- BLOC EXPRESSION ORALE -->
+<!-- ============================================ -->
+<div class="section-banner">
+  <div class="section-banner-icon">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+  </div>
+  <h2>Expression orale</h2>
+  <p>3 tâches • Environ 10 minutes</p>
+</div>
+
+<!-- ===== ÉCRAN 1 — Briefing Tâche 1 ===== -->
+<p class="section-label">01 · Briefing Tâche 1 — Entretien dirigé</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Expression orale</div>
+      <button class="app-header-quit">Quitter</button>
+    </div>
+    <div class="progress-wrapper">
+      <div class="progress-label-row">
+        <div class="progress-label">Tâche 1 sur 3</div>
+        <span class="level-pill">A2</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:33%"></div></div>
+    </div>
+    <div class="screen-content">
+      <div class="card">
+        <div style="font-size:18px;font-weight:700;color:var(--encre);margin-bottom:6px;">Entretien dirigé</div>
+        <div style="font-size:13px;color:var(--encre-soft);margin-bottom:14px;">Durée attendue : 2 à 3 minutes</div>
+        <div class="card-body">L'examinateur vous posera quelques questions simples pour commencer.<br><br>Parlez de vous, de votre travail ou de vos études, de votre famille, de vos loisirs et de vos projets en France.</div>
+      </div>
+
+      <div class="tips-card">
+        <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Conseils</div>
+        <ul class="tip-list">
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Répondez de manière naturelle</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Développez vos réponses</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Parlez clairement et à votre rythme</li>
+        </ul>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        Commencer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 2 — Enregistrement en cours ===== -->
+<p class="section-label">02 · Enregistrement en cours</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Expression orale</div>
+      <button class="app-header-quit">Quitter</button>
+    </div>
+    <div class="progress-wrapper">
+      <div class="progress-label-row">
+        <div class="progress-label">Tâche 1 sur 3</div>
+        <span class="level-pill">A2</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:33%"></div></div>
+    </div>
+
+    <div class="recording-content">
+      <div class="recording-status-title">Enregistrement en cours</div>
+
+      <div class="timer-big">02:18</div>
+      <div class="timer-max">/ 03:00</div>
+
+      <div class="waveform">
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+        <div class="waveform-bar"></div><div class="waveform-bar"></div><div class="waveform-bar"></div>
+      </div>
+
+      <div class="rec-status-pill"><span class="rec-status-pill-dot"></span>Enregistrement...</div>
+
+      <div class="conseil-callout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><strong>Conseil</strong>Prenez votre temps, respirez et parlez naturellement.</div>
+      </div>
+
+      <button class="stop-btn"><div class="stop-btn-inner"></div></button>
+      <div class="stop-btn-label">Terminer</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 3 — Enregistrement terminé ===== -->
+<p class="section-label">03 · Enregistrement terminé</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Expression orale</div>
+      <button class="app-header-quit">Quitter</button>
+    </div>
+    <div class="progress-wrapper">
+      <div class="progress-label-row">
+        <div class="progress-label">Tâche 1 sur 3</div>
+        <span class="level-pill">A2</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:33%"></div></div>
+    </div>
+
+    <div class="finished-content">
+      <div class="finished-icon">
+        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="finished-title">Enregistrement terminé</div>
+
+      <div class="finished-duration-label">Durée enregistrée</div>
+      <div class="finished-duration">02:27</div>
+
+      <div class="playback-card-full">
+        <button class="playback-play">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <div class="playback-waveform">
+          <div class="playback-waveform-bar" style="height:8px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:18px"></div>
+          <div class="playback-waveform-bar" style="height:22px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:20px"></div>
+          <div class="playback-waveform-bar" style="height:16px"></div>
+          <div class="playback-waveform-bar" style="height:22px"></div>
+          <div class="playback-waveform-bar" style="height:18px"></div>
+          <div class="playback-waveform-bar" style="height:12px"></div>
+          <div class="playback-waveform-bar" style="height:20px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:18px"></div>
+        </div>
+        <div class="playback-time">02:27</div>
+      </div>
+
+      <div class="next-info-card">
+        <svg style="width:16px;height:16px;color:var(--bleu-france);display:inline-block;vertical-align:middle;margin-bottom:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <strong>Que se passe-t-il maintenant ?</strong>
+        <p>Votre enregistrement va être analysé par notre IA. Vous recevrez une évaluation détaillée dans quelques secondes.</p>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn btn-primary">Voir mon évaluation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 4 — Résultats vue résumée ===== -->
+<p class="section-label">04 · Résultats — vue résumée</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Résultats</div>
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+    </div>
+
+    <div class="screen-content">
+      <div class="results-eval-banner">
+        <div class="results-eval-banner-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <strong>Évaluation terminée</strong>
+          <span>Tâche 1 sur 3 · Entretien dirigé · 2 min 27 s</span>
+        </div>
+      </div>
+
+      <div class="results-summary-card">
+        <div class="score-row">
+          <div>
+            <div class="score-block-label">Note globale</div>
+            <div class="score-big">14,5<span class="score-big-max">/20</span></div>
+          </div>
+          <div class="niveau-block">
+            <div class="score-block-label">Niveau estimé</div>
+            <div class="niveau-pill-big">B1</div>
+          </div>
+        </div>
+        <div class="cecrl-scale">
+          <div class="cecrl-scale-labels">
+            <span>A1</span><span>A2</span><span class="active">B1</span><span>B2</span><span>C1</span><span>C2</span>
+          </div>
+          <div class="cecrl-scale-track">
+            <div class="cecrl-scale-cursor" style="left:50%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Scores par critère</div>
+
+      <div class="criterion-row">
+        <div class="criterion-row-top">
+          <div class="criterion-name-with-icon">
+            <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div class="criterion-name">Pertinence du contenu</div>
+          </div>
+          <div class="criterion-score high">16<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar"><div class="criterion-bar-fill high" style="width:80%"></div></div>
+      </div>
+
+      <div class="criterion-row">
+        <div class="criterion-row-top">
+          <div class="criterion-name-with-icon">
+            <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+            <div class="criterion-name">Vocabulaire</div>
+          </div>
+          <div class="criterion-score mid">14<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar"><div class="criterion-bar-fill mid" style="width:70%"></div></div>
+      </div>
+
+      <div class="criterion-row">
+        <div class="criterion-row-top">
+          <div class="criterion-name-with-icon">
+            <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+            <div class="criterion-name">Grammaire</div>
+          </div>
+          <div class="criterion-score mid">13<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar"><div class="criterion-bar-fill mid" style="width:65%"></div></div>
+      </div>
+
+      <div class="criterion-row">
+        <div class="criterion-row-top">
+          <div class="criterion-name-with-icon">
+            <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-7h3v5zM3 19a2 2 0 0 0 2 2h1v-7H3v5z"/></svg></div>
+            <div class="criterion-name">Clarté orale</div>
+          </div>
+          <div class="criterion-score high">15<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar"><div class="criterion-bar-fill high" style="width:75%"></div></div>
+      </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-primary">Voir le détail de mon évaluation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 5 — Détail Onglet Analyse ===== -->
+<p class="section-label">05 · Détail évaluation · Onglet Analyse</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Détail de l'évaluation</div>
+      <div style="width:32px;"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">Analyse</button>
+      <button class="tab">Transcription</button>
+      <button class="tab">Conseils</button>
+    </div>
+
+    <div class="screen-content">
+      <div class="section-title" style="margin-top:0;">Analyse globale</div>
+      <p style="font-size:13px;line-height:1.55;color:var(--encre);margin-bottom:18px;">
+        Vous avez bien présenté plusieurs aspects de votre vie personnelle. Vos réponses sont pertinentes et vous vous exprimez avec clarté. Quelques erreurs grammaticales n'ont pas gêné la compréhension.
+      </p>
+
+      <div class="section-title">Scores par critère</div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="criterion-row-top">
+          <div class="criterion-name">Pertinence du contenu</div>
+          <div class="criterion-score high">16<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar" style="margin-left:0;margin-bottom:6px;"><div class="criterion-bar-fill high" style="width:80%"></div></div>
+        <p style="font-size:12px;line-height:1.45;color:var(--encre-soft);">Vous avez abordé 4 des 5 thèmes demandés.</p>
+      </div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="criterion-row-top">
+          <div class="criterion-name">Vocabulaire</div>
+          <div class="criterion-score mid">14<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar" style="margin-left:0;margin-bottom:6px;"><div class="criterion-bar-fill mid" style="width:70%"></div></div>
+        <p style="font-size:12px;line-height:1.45;color:var(--encre-soft);">Vocabulaire adapté au niveau, avec quelques expressions variées.</p>
+      </div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="criterion-row-top">
+          <div class="criterion-name">Grammaire</div>
+          <div class="criterion-score mid">13<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar" style="margin-left:0;margin-bottom:6px;"><div class="criterion-bar-fill mid" style="width:65%"></div></div>
+        <p style="font-size:12px;line-height:1.45;color:var(--encre-soft);">Quelques erreurs sur les accords et le passé composé.</p>
+      </div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="criterion-row-top">
+          <div class="criterion-name">Clarté orale</div>
+          <div class="criterion-score high">15<span class="criterion-score-max">/20</span></div>
+        </div>
+        <div class="criterion-bar" style="margin-left:0;margin-bottom:6px;"><div class="criterion-bar-fill high" style="width:75%"></div></div>
+        <p style="font-size:12px;line-height:1.45;color:var(--encre-soft);">Discours globalement fluide et compréhensible.</p>
+      </div>
+    </div>
+
+    <div style="padding:12px 18px;border-top:1px solid var(--border-soft);background:white;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+      <span style="color:var(--encre-soft);">Note globale <strong style="color:var(--encre);font-size:15px;">14,5/20</strong></span>
+      <span style="color:var(--encre-soft);">Niveau estimé <span class="level-pill b1" style="font-size:13px;">B1</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 6 — Détail Onglet Transcription ===== -->
+<p class="section-label">06 · Détail évaluation · Onglet Transcription</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Détail de l'évaluation</div>
+      <div style="width:32px;"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab">Analyse</button>
+      <button class="tab active">Transcription</button>
+      <button class="tab">Conseils</button>
+    </div>
+
+    <div class="screen-content">
+      <div class="transcription-info-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><strong>Transcription générée par IA</strong>Des erreurs peuvent subsister.</div>
+      </div>
+
+      <div class="transcription-text-card">
+        Bonjour, je m'appelle Ahmed, j'ai trente deux ans et je viens du Maroc. Je travaille dans un restaurant à Lyon comme serveur depuis deux ans. Avant, j'habitais à Casablanca et j'étais cuisinier. J'habite avec ma femme et notre fils de cinq ans. Le week-end, nous allons au parc ou nous faisons du vélo. J'aime aussi lire des livres et regarder des films. Dans deux ans, je veux passer le permis de conduire et peut-être ouvrir mon propre restaurant en France.
+      </div>
+
+      <div class="transcription-audio-bar">
+        <button class="playback-play" style="width:36px;height:36px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <div class="playback-waveform" style="height:18px;">
+          <div class="playback-waveform-bar" style="height:8px"></div>
+          <div class="playback-waveform-bar" style="height:12px"></div>
+          <div class="playback-waveform-bar" style="height:16px"></div>
+          <div class="playback-waveform-bar" style="height:10px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:18px"></div>
+          <div class="playback-waveform-bar" style="height:12px"></div>
+          <div class="playback-waveform-bar" style="height:16px"></div>
+          <div class="playback-waveform-bar" style="height:10px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:8px"></div>
+          <div class="playback-waveform-bar" style="height:14px"></div>
+          <div class="playback-waveform-bar" style="height:12px"></div>
+        </div>
+        <div class="playback-time">02:27</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 7 — Détail Onglet Conseils ===== -->
+<p class="section-label">07 · Détail évaluation · Onglet Conseils</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Détail de l'évaluation</div>
+      <div style="width:32px;"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab">Analyse</button>
+      <button class="tab">Transcription</button>
+      <button class="tab active">Conseils</button>
+    </div>
+
+    <div class="screen-content">
+      <div class="feedback-block positive">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Points forts
+        </div>
+        <ul class="feedback-list">
+          <li>Vous parlez de plusieurs aspects de votre vie</li>
+          <li>Votre discours est clair et bien organisé</li>
+          <li>Bon usage du vocabulaire du quotidien</li>
+        </ul>
+      </div>
+
+      <div class="feedback-block improve">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          À améliorer
+        </div>
+        <ul class="feedback-list">
+          <li>Accord du participe passé (ex : « j'ai travaillé »)</li>
+          <li>Utilisation des prépositions (à / au / en)</li>
+          <li>Varier davantage les structures de phrases</li>
+        </ul>
+      </div>
+
+      <div class="feedback-block violet">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          Suggestions pour progresser
+        </div>
+        <ul class="feedback-list">
+          <li>Révisez les accords du passé composé</li>
+          <li>Entraînez-vous à utiliser des connecteurs simples : et, mais, ensuite, parce que…</li>
+          <li>Élargissez votre vocabulaire sur le travail et les loisirs</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-primary">Passer à la tâche 2</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 8 — Votre progression entre les tâches ===== -->
+<p class="section-label">08 · Votre progression entre les tâches</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Expression orale</div>
+      <button class="app-header-quit">Quitter</button>
+    </div>
+
+    <div class="screen-content">
+      <div style="font-size:17px;font-weight:700;margin:8px 0 16px;">Votre progression</div>
+
+      <div class="progression-summary">
+        <div class="progression-label">Tâches complétées</div>
+        <div class="progression-count">1<span class="progression-count-total">/3</span></div>
+      </div>
+
+      <div class="task-progress-item">
+        <div class="task-progress-num done">1</div>
+        <div class="task-progress-body">
+          <div class="task-progress-name">Entretien dirigé</div>
+          <div class="task-progress-meta">Score</div>
+        </div>
+        <div class="task-progress-right">
+          <span class="level-pill" style="font-size:11px;padding:2px 8px;">A2</span>
+          <span class="task-progress-score">14<span style="color:var(--encre-mute);font-weight:500;">/20</span></span>
+          <span class="level-pill b1" style="font-size:11px;padding:2px 8px;">B1</span>
+        </div>
+      </div>
+
+      <div class="task-progress-item">
+        <div class="task-progress-num">2</div>
+        <div class="task-progress-body">
+          <div class="task-progress-name">Jeu de rôle</div>
+        </div>
+        <div class="task-progress-right">
+          <span class="level-pill b1" style="font-size:11px;padding:2px 8px;">B1</span>
+          <span class="task-progress-status-todo">À faire</span>
+        </div>
+      </div>
+
+      <div class="task-progress-item">
+        <div class="task-progress-num">3</div>
+        <div class="task-progress-body">
+          <div class="task-progress-name">Point de vue</div>
+        </div>
+        <div class="task-progress-right">
+          <span class="level-pill b2" style="font-size:11px;padding:2px 8px;">B2</span>
+          <span class="task-progress-status-todo">À faire</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-primary">Continuer l'entraînement</button>
+      <button class="btn btn-ghost">Revoir mes résultats</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ÉCRAN 9 — Bilan global Expression orale ===== -->
+<p class="section-label">09 · Bilan global Expression orale</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Résultats — Expression orale</div>
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px 18px;">
+      <div class="bilan-hero">
+        <div class="bilan-hero-row">
+          <div>
+            <div class="bilan-hero-label">Score global (moyenne)</div>
+            <div class="bilan-hero-score">15,2<span class="bilan-hero-score-max">/20</span></div>
+          </div>
+          <div style="text-align:right;">
+            <div class="bilan-hero-label">Niveau global</div>
+            <div class="bilan-hero-niveau-pill">B1</div>
+          </div>
+        </div>
+        <div class="cecrl-scale">
+          <div class="cecrl-scale-labels">
+            <span>A1</span><span>A2</span><span class="active">B1</span><span>B2</span><span>C1</span><span>C2</span>
+          </div>
+          <div class="cecrl-scale-track">
+            <div class="cecrl-scale-cursor" style="left:50%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Détail par tâche</div>
+
+      <div class="tache-bilan-row">
+        <div class="tache-bilan-name">
+          Tâche 1 — Entretien dirigé
+          <span class="lvl" style="background:var(--succes-light);color:var(--succes);">A2</span>
+        </div>
+        <div class="tache-bilan-right">
+          <span>14,5/20</span>
+          <span class="level-pill b1" style="font-size:11px;padding:2px 8px;">B1</span>
+        </div>
+      </div>
+
+      <div class="tache-bilan-row">
+        <div class="tache-bilan-name">
+          Tâche 2 — Jeu de rôle
+          <span class="lvl">B1</span>
+        </div>
+        <div class="tache-bilan-right">
+          <span>15,8/20</span>
+          <span class="level-pill b1" style="font-size:11px;padding:2px 8px;">B1</span>
+        </div>
+      </div>
+
+      <div class="tache-bilan-row">
+        <div class="tache-bilan-name">
+          Tâche 3 — Point de vue
+          <span class="lvl" style="background:var(--violet-light);color:var(--violet);">B2</span>
+        </div>
+        <div class="tache-bilan-right">
+          <span>15,3/20</span>
+          <span class="level-pill b1" style="font-size:11px;padding:2px 8px;">B1</span>
+        </div>
+      </div>
+
+      <div class="feedback-block violet" style="margin-top:16px;">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          Vos prochaines étapes
+        </div>
+        <div class="violet-text">
+          Continuez à vous entraîner régulièrement pour atteindre le niveau B2 requis pour vos démarches.
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="bottom-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        Accueil
+      </button>
+      <button class="bottom-nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        Exercices
+      </button>
+      <button class="bottom-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Résultats
+      </button>
+      <button class="bottom-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profil
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- BLOC EXPRESSION ÉCRITE -->
+<!-- ============================================ -->
+<div class="section-banner">
+  <div class="section-banner-icon">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  </div>
+  <h2>Expression écrite</h2>
+  <p>3 tâches • 30 minutes</p>
+</div>
+
+<!-- ===== EE ÉCRAN 1 — Briefing + rédaction (vue longue) ===== -->
+<p class="section-label">EE · 01 · Briefing + Rédaction</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Expression écrite</div>
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+    </div>
+    <div class="progress-wrapper">
+      <div class="progress-label-row">
+        <div class="progress-label">Tâche 2 sur 3 <span class="sub">· Récit d'expérience</span></div>
+        <span class="timer-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>30:00</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:66%"></div></div>
+      <div style="margin-top:10px;"><span class="level-pill b1">Niveau B1</span></div>
+    </div>
+
+    <div class="screen-content">
+      <div class="card">
+        <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Consigne</div>
+        <div class="card-body">
+          Racontez une expérience personnelle qui vous a marqué(e).<br><br>
+          Décrivez la situation, expliquez ce qui s'est passé, comment vous vous êtes senti(e) et ce que vous avez appris de cette expérience.<br><br>
+          <strong>Vous devez écrire entre 120 et 150 mots.</strong>
+        </div>
+      </div>
+
+      <div class="tips-card">
+        <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>Conseils pour réussir</div>
+        <ul class="tip-list">
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Racontez une expérience réelle et intéressante</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Organisez votre récit (début, événements, fin)</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Utilisez des connecteurs temporels</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Exprimez vos sentiments et vos réactions</li>
+          <li><svg class="tip-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Relisez votre texte avant de valider</li>
+        </ul>
+      </div>
+
+      <div class="mots-card">
+        <div class="mots-card-left">
+          <svg class="mots-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div class="mots-card-info">
+            <strong>Nombre de mots</strong>
+            <span>120 à 150 mots attendus</span>
+          </div>
+        </div>
+        <div class="mots-counter">132 mots</div>
+      </div>
+
+      <div class="writing-zone">
+        <div class="writing-counter-top">
+          <div class="writing-counter-top-label">Votre rédaction</div>
+          <div class="writing-counter-top-value">132 mots</div>
+        </div>
+        <div class="writing-toolbar">
+          <button class="writing-toolbar-btn"><b>B</b></button>
+          <button class="writing-toolbar-btn"><i>I</i></button>
+          <button class="writing-toolbar-btn"><u>U</u></button>
+          <button class="writing-toolbar-btn">≡</button>
+        </div>
+        <textarea class="writing-textarea">L'année dernière, j'ai participé à un échange universitaire en Espagne pendant trois mois. C'était ma première expérience à l'étranger et j'étais à la fois excité et un peu inquiet.
+
+Au début, tout était nouveau : la langue, la nourriture, les habitudes... J'ai eu quelques difficultés à comprendre les cours car le professeur parlait très vite. Mais j'ai décidé de ne pas abandonner et de travailler davantage. J'ai aussi fait des efforts pour parler espagnol avec les locaux.
+
+Au fil du temps, je me suis fait des amis et je me suis senti de plus en plus à l'aise. J'ai découvert une nouvelle culture, visité de beaux endroits et gagné en confiance.
+
+Cette expérience m'a appris à être plus autonome et à sortir de ma zone de confort. Aujourd'hui, je suis content d'avoir osé tenter cette aventure.</textarea>
+        <div class="writing-bottom-row">
+          <span>Mots : 132</span>
+          <span class="ok"><svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Dans la plage recommandée</span>
+          <button class="delete-btn"><svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        </div>
+      </div>
+
+      <div class="criteres-card">
+        <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Critères d'évaluation</div>
+        <ul class="criteres-list">
+          <li>Pertinence et développement du contenu</li>
+          <li>Organisation et cohérence du texte</li>
+          <li>Richesse et précision du vocabulaire</li>
+          <li>Correction grammaticale</li>
+          <li>Orthographe et ponctuation</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bottom-action">
+      <button class="btn btn-primary">Valider ma rédaction</button>
+      <button class="btn btn-secondary">Enregistrer le brouillon</button>
+      <div class="confidential-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div>Votre rédaction est confidentielle et sera analysée par notre IA pour vous fournir un feedback détaillé.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EE ÉCRAN 2 — Résultats EE ===== -->
+<p class="section-label">EE · 02 · Résultats</p>
+<div class="phone">
+  <div class="phone-notch"></div>
+  <div class="screen">
+    <div class="statusbar"><span>9:41</span><div class="statusbar-right">●●●● 5G ◼</div></div>
+    <div class="app-header">
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="app-header-title">Résultats</div>
+      <button class="app-header-btn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 18px 20px;">
+      <div class="results-eval-banner" style="margin-top:8px;">
+        <div class="results-eval-banner-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <strong>Évaluation terminée !</strong>
+          <span>Voici votre correction détaillée.</span>
+        </div>
+      </div>
+
+      <div class="results-summary-card">
+        <div class="score-block-label" style="margin-bottom:10px;">Score global</div>
+        <div class="donut-section">
+          <div class="donut-text-block">
+            <div class="donut-text-score">15<span class="donut-text-score-max">/20</span></div>
+            <div class="donut-text-label">Niveau estimé</div>
+            <div class="donut-text-niveau-pill">B1</div>
+          </div>
+          <div class="donut-chart">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bleu-france-light)" stroke-width="10"/>
+              <circle cx="50" cy="50" r="42" fill="none" stroke="var(--violet)" stroke-width="10" stroke-dasharray="263.9" stroke-dashoffset="65.95" stroke-linecap="round"/>
+            </svg>
+            <div class="donut-chart-text">
+              <div class="donut-chart-percent">75%</div>
+              <div class="donut-chart-sub">Bon niveau</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-summary-card">
+        <div class="section-title" style="margin-top:0;">Détail par critères</div>
+
+        <div class="criterion-row">
+          <div class="criterion-row-top">
+            <div class="criterion-name-with-icon">
+              <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <div class="criterion-name">Pertinence du contenu</div>
+            </div>
+            <div class="criterion-score high">16<span class="criterion-score-max">/20</span></div>
+          </div>
+          <div class="criterion-bar"><div class="criterion-bar-fill high" style="width:80%"></div></div>
+        </div>
+
+        <div class="criterion-row">
+          <div class="criterion-row-top">
+            <div class="criterion-name-with-icon">
+              <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+              <div class="criterion-name">Organisation et cohérence</div>
+            </div>
+            <div class="criterion-score high">15<span class="criterion-score-max">/20</span></div>
+          </div>
+          <div class="criterion-bar"><div class="criterion-bar-fill high" style="width:75%"></div></div>
+        </div>
+
+        <div class="criterion-row">
+          <div class="criterion-row-top">
+            <div class="criterion-name-with-icon">
+              <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+              <div class="criterion-name">Richesse du vocabulaire</div>
+            </div>
+            <div class="criterion-score mid">14<span class="criterion-score-max">/20</span></div>
+          </div>
+          <div class="criterion-bar"><div class="criterion-bar-fill mid" style="width:70%"></div></div>
+        </div>
+
+        <div class="criterion-row">
+          <div class="criterion-row-top">
+            <div class="criterion-name-with-icon">
+              <div class="criterion-icon-bubble"><span style="font-weight:700;font-size:13px;">Aa</span></div>
+              <div class="criterion-name">Correction grammaticale</div>
+            </div>
+            <div class="criterion-score mid">13<span class="criterion-score-max">/20</span></div>
+          </div>
+          <div class="criterion-bar"><div class="criterion-bar-fill mid" style="width:65%"></div></div>
+        </div>
+
+        <div class="criterion-row" style="margin-bottom:0;">
+          <div class="criterion-row-top">
+            <div class="criterion-name-with-icon">
+              <div class="criterion-icon-bubble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div>
+              <div class="criterion-name">Orthographe et ponctuation</div>
+            </div>
+            <div class="criterion-score high">17<span class="criterion-score-max">/20</span></div>
+          </div>
+          <div class="criterion-bar"><div class="criterion-bar-fill high" style="width:85%"></div></div>
+        </div>
+      </div>
+
+      <div class="feedback-block positive">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Points forts
+        </div>
+        <ul class="feedback-list">
+          <li>Votre récit est bien structuré avec une introduction, un développement et une conclusion clairs</li>
+          <li>Vous utilisez un vocabulaire varié et adapté au sujet</li>
+          <li>Votre texte est globalement cohérent et agréable à lire</li>
+        </ul>
+      </div>
+
+      <div class="feedback-block improve">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+          Points à améliorer
+        </div>
+        <ul class="feedback-list">
+          <li>Quelques erreurs de conjugaison au passé composé (accord avec l'auxiliaire avoir)</li>
+          <li>Variez davantage vos connecteurs temporels (pendant ce temps, ensuite, par la suite…)</li>
+          <li>Attention à l'accord des adjectifs (nouveau/nouvelle, premier/première…)</li>
+        </ul>
+      </div>
+
+      <div class="results-summary-card">
+        <div class="section-title" style="margin-top:0;display:flex;align-items:center;gap:8px;">
+          <svg style="width:18px;height:18px;color:var(--ambre);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+          Exemples et corrections
+        </div>
+
+        <div class="correction-block">
+          <div class="correction-line original"><span class="label">Original :</span><span class="txt">J'ai décidé de ne pas abandonner et de travailler davantage.</span></div>
+          <div class="correction-line corrected"><span class="label">Correction :</span><span class="txt">J'ai décidé de ne pas abandonner et de travailler davantage.</span></div>
+          <div class="correction-line explain"><span class="label">Explication :</span>Correct.</div>
+        </div>
+
+        <div class="correction-block">
+          <div class="correction-line original"><span class="label">Original :</span><span class="txt">J'ai eu quelques difficultés à comprendre les cours.</span></div>
+          <div class="correction-line corrected"><span class="label">Correction :</span><span class="txt">J'ai eu quelques difficultés à comprendre les cours.</span></div>
+          <div class="correction-line explain"><span class="label">Explication :</span>Correct.</div>
+        </div>
+
+        <div class="correction-block" style="margin-bottom:0;">
+          <div class="correction-line original"><span class="label">Original :</span><span class="txt">Cette expérience m'a appris à être plus autonome.</span></div>
+          <div class="correction-line corrected"><span class="label">Correction :</span><span class="txt">Cette expérience m'a appris à être plus autonome.</span></div>
+          <div class="correction-line explain"><span class="label">Explication :</span>Correct.</div>
+        </div>
+      </div>
+
+      <div class="feedback-block violet">
+        <div class="feedback-block-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          Suggestion globale
+        </div>
+        <div class="violet-text">
+          Continuez à pratiquer la production écrite régulièrement. Travaillez l'accord des participes passés et enrichissez vos connecteurs pour atteindre le niveau B2 !
+        </div>
+      </div>
+    </div>
+
+    <div class="result-footer-link">
+      <div class="result-footer-link-left">
+        <svg style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <div>
+          Votre rédaction
+          <span class="label-small">Relire ma rédaction</span>
+        </div>
+      </div>
+      <svg style="width:20px;height:20px;color:var(--encre-mute);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+
+    <div class="bottom-action" style="display:flex;gap:8px;padding-top:8px;border-top:none;">
+      <button class="btn btn-ghost" style="margin:0;">Voir les tâches</button>
+      <button class="btn btn-primary" style="margin:0;">Passer à la tâche 3</button>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center;color:var(--encre-mute);font-size:12px;margin-top:40px;padding-bottom:24px;">
+  SejourFR · Mockup mobile v3 · EO (9 écrans) + EE (2 écrans complets)
+</p>
+
+</body>
+</html>

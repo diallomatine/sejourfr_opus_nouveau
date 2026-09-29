@@ -1,0 +1,1065 @@
+-- ============================================================================
+-- V241 — Civique : Droits et devoirs (lot 1)
+-- ----------------------------------------------------------------------------
+-- Questions + choix. Filtre: 11111111-0000-0000-0000-000000000003 .
+-- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
+-- ============================================================================
+
+-- questions
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('f3000000-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Comment s''appelle la Constitution actuelle de la France ?',
+   'La Constitution actuelle est celle de la Ve République, adoptée le 4 octobre 1958.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Comment s''appelle le texte qui énonce les droits et devoirs des personnes résidant en France ?',
+   'La Charte des droits et devoirs du citoyen français, établie en 2012, rappelle les principes fondamentaux et les valeurs essentielles de la République.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000003', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Concernant les droits individuels, quelle proposition est correcte ?',
+   'Les droits individuels (liberté, sûreté, propriété, libre expression, etc.) sont garantis à toute personne sur le territoire français, sans discrimination.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'De quelle année date la Déclaration des droits de l''homme et du citoyen ?',
+   'La Déclaration des droits de l''homme et du citoyen a été adoptée le 26 août 1789, pendant la Révolution française. Elle a valeur constitutionnelle.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Lequel de ces droits est un droit fondamental ?',
+   'Le droit à la liberté, le droit à la sûreté, le droit à la propriété sont des droits fondamentaux inscrits dans la Déclaration de 1789.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Parmi ces textes, lequel garantit les droits et libertés en France ?',
+   'La Déclaration des droits de l''homme et du citoyen de 1789, intégrée au "bloc de constitutionnalité", garantit les droits et libertés fondamentales.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qu''est-ce que la liberté d''expression ?',
+   'La liberté d''expression est le droit de dire, écrire ou publier ses opinions, dans le respect des lois (pas d''injures, de diffamation, d''incitation à la haine).',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel droit permet à une personne de se défendre devant la justice ?',
+   'Le droit à la défense (et le droit à un avocat) est un principe fondamental. Toute personne accusée a le droit d''être défendue, présumée innocente jusqu''à preuve du contraire.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel est le texte fondateur établissant en France les droits et les devoirs de chaque citoyen ?',
+   'La Déclaration des droits de l''homme et du citoyen de 1789 est le texte fondateur des droits et libertés en France. Elle reste intégrée à la Constitution actuelle.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel texte a été adopté pendant la Révolution française ?',
+   'La Déclaration des droits de l''homme et du citoyen a été adoptée le 26 août 1789 par l''Assemblée nationale constituante, pendant la Révolution.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle liberté permet à une personne de ne pas avoir de religion ?',
+   'La liberté de conscience, garantie par la laïcité, permet de croire, de ne pas croire ou de changer de religion.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Une femme peut avorter :',
+   'Le droit à l''interruption volontaire de grossesse (IVG) est garanti depuis la loi Veil de 1975. Il est inscrit dans la Constitution depuis 2024.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Est-il toujours possible de divorcer ?',
+   'Oui, le divorce est légal en France depuis 1792. Toute personne mariée peut demander le divorce, selon des procédures définies par la loi.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'La peine de mort est :',
+   'La peine de mort a été abolie en France le 9 octobre 1981 par la loi Badinter. Son abolition est inscrite dans la Constitution depuis 2007.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Concernant les limites aux libertés individuelles, quelle proposition est correcte ?',
+   'Les libertés individuelles ne sont jamais absolues : elles s''arrêtent là où commencent celles des autres, et sont encadrées par la loi pour protéger l''ordre public et autrui.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'En France, est-il légal d''être marié à plusieurs personnes en même temps ?',
+   'Non. La polygamie est interdite en France. Le mariage est l''union de deux personnes seulement. La bigamie est un délit pénal.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Faut-il réduire ses déchets ?',
+   'Oui, la réduction des déchets est un devoir citoyen pour protéger l''environnement, prévu par le Code de l''environnement. Le tri et le recyclage sont obligatoires.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Jeter une bouteille dans la rue est :',
+   'Jeter ses déchets dans la rue est une infraction (dépôt sauvage). C''est puni par une amende pouvant aller jusqu''à 1500 euros.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Pourquoi les libertés individuelles peuvent-elles être limitées ?',
+   'Les libertés peuvent être limitées pour protéger l''ordre public, la sécurité, la santé ou les libertés d''autrui. Ces limites doivent être proportionnées et fixées par la loi.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Que doit faire une personne en cas d''accident ?',
+   'L''assistance à personne en danger est une obligation légale. Il faut prévenir les secours (15 SAMU, 17 Police, 18 Pompiers, 112 numéro européen) et aider sans se mettre en danger.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Que permet la citoyenneté française ?',
+   'La citoyenneté française donne des droits (voter, être élu, exercer certaines fonctions) et des devoirs (respecter la loi, payer ses impôts, défense, jury d''assises).',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que risque une personne qui ne respecte pas la loi ?',
+   'Selon la gravité, les sanctions vont de l''amende à la prison. Toute infraction est jugée par un tribunal et peut entraîner des conséquences pénales et civiles.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel est le rôle de la gendarmerie ?',
+   'La gendarmerie assure la sécurité publique, principalement en zone rurale et périurbaine. Elle exerce des missions de police judiciaire et administrative, sous tutelle du ministère de l''Intérieur.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel est le rôle de la police ?',
+   'La police nationale assure la sécurité des personnes et des biens, principalement en zone urbaine. Elle prévient et constate les infractions, fait respecter l''ordre public.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qu''est-ce qu''une infraction ?',
+   'Une infraction est un comportement interdit par la loi et puni. Il en existe trois catégories : contraventions (les moins graves), délits, crimes (les plus graves).',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Comment peut-on réduire ses déchets ?',
+   'On peut réduire ses déchets en triant, recyclant, compostant les déchets organiques, achetant en vrac, évitant le suremballage et réparant plutôt que jetant.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Déposer une machine à laver cassée sur le trottoir est :',
+   'Déposer un encombrant sur le trottoir sans demande préalable est interdit. Il faut prendre rendez-vous avec le service "encombrants" de la mairie ou se rendre en déchetterie.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'En quoi consiste la traite des êtres humains ?',
+   'La traite des êtres humains consiste à exploiter une personne (travail forcé, prostitution, esclavage...) par la contrainte. C''est un crime grave puni par la loi.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Que doit faire une victime de violences ?',
+   'Une victime de violences peut contacter les secours (17 Police, 15 SAMU), porter plainte au commissariat ou à la gendarmerie, et appeler le 3919 (violences conjugales) ou 119 (enfance en danger).',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000000-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est l''infraction la plus grave ?',
+   'Les infractions sont classées en trois catégories par gravité croissante : contraventions, délits, crimes. Le crime (meurtre, viol...) est l''infraction la plus grave.',
+   'true', '2026-05-27 17:40:29.759953+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel est le nom de la Constitution actuellement en vigueur en France ?',
+   'La Constitution actuelle est celle de la Ve République, adoptée en 1958 sous l''impulsion du général de Gaulle.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel document présente les droits et devoirs des personnes résidant en France ?',
+   'Le Livret du citoyen (et la Charte des droits et devoirs du citoyen français pour les naturalisations) présente les droits et devoirs essentiels des résidents en France.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000003', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Concernant les droits individuels, quelle affirmation est exacte ?',
+   'Les droits individuels (liberté, sûreté, propriété) sont reconnus à toute personne en France. Ils peuvent être limités par la loi pour protéger l''ordre public et les droits d''autrui.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'En quelle année la Déclaration des droits de l''homme et du citoyen a-t-elle été adoptée ?',
+   'La Déclaration des droits de l''homme et du citoyen a été adoptée le 26 août 1789, pendant la Révolution française.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Parmi ces droits, lequel est considéré comme un droit fondamental ?',
+   'Le droit à la vie, à la liberté et à la sûreté sont des droits fondamentaux, reconnus notamment par la Déclaration de 1789 et la Constitution.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Parmi ces textes, lequel garantit les droits et libertés en France ?',
+   'La Constitution (préambule et bloc de constitutionnalité, incluant la DDHC de 1789) garantit les droits et libertés fondamentaux.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Que signifie la liberté d''expression en France ?',
+   'La liberté d''expression permet d''exprimer ses opinions par la parole, l''écrit ou l''image, dans les limites posées par la loi (interdiction de la diffamation, de l''incitation à la haine).',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel droit permet de se défendre devant un tribunal en France ?',
+   'Le droit à un procès équitable inclut le droit à la défense : être assisté par un avocat, présenter sa version, contredire les preuves. C''est un droit fondamental.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel texte historique établit les droits et devoirs fondamentaux des citoyens en France ?',
+   'La Déclaration des droits de l''homme et du citoyen de 1789 est le texte fondateur. Elle est intégrée au bloc de constitutionnalité et a aujourd''hui valeur constitutionnelle.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel texte fondateur a été adopté pendant la Révolution française ?',
+   'La Déclaration des droits de l''homme et du citoyen, adoptée le 26 août 1789, est le texte symbole de la Révolution française.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle liberté autorise une personne à ne pratiquer aucune religion ?',
+   'La liberté de conscience inclut le droit de ne pas croire (être athée, agnostique). Personne ne peut être forcé d''adhérer à une religion.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Une femme peut-elle recourir à une interruption volontaire de grossesse (IVG) en France ?',
+   'Oui. L''IVG est légale en France depuis la loi Veil de 1975. Elle a été inscrite dans la Constitution en mars 2024 comme liberté fondamentale.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Le divorce est-il toujours possible en France ?',
+   'Oui. Le divorce est légal en France depuis 1792 (avec interruption sous la Restauration). Plusieurs procédures existent : par consentement mutuel, pour faute, pour acceptation, pour altération définitive du lien conjugal.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel est le statut de la peine de mort en France ?',
+   'La peine de mort est abolie en France depuis 1981 (loi du 9 octobre 1981, portée par Robert Badinter). L''abolition a été inscrite dans la Constitution en 2007.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que dit le droit français sur les limites possibles aux libertés individuelles ?',
+   'Les libertés individuelles ne sont pas absolues. Elles peuvent être limitées par la loi pour protéger l''ordre public, les droits d''autrui ou la sécurité nationale.',
+   'true', '2026-05-27 17:40:29.919456+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'En France, est-il légal d''être marié à plusieurs personnes simultanément ?',
+   'Non. La polygamie est interdite par la loi française. Le mariage civil n''est valable qu''entre deux personnes. La polygamie est un délit et fait obstacle à la naturalisation.',
+   'true', '2026-05-27 17:40:29.926748+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Est-il important de réduire la quantité de ses déchets au quotidien ?',
+   'Oui. Réduire ses déchets est un geste citoyen important pour protéger l''environnement et respecter le principe de développement durable, inscrit dans la Charte de l''environnement de 2004.',
+   'true', '2026-05-27 17:40:29.926748+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Jeter une bouteille dans la rue est-il autorisé en France ?',
+   'Non. Jeter des déchets sur la voie publique est une infraction, punie d''une contravention. C''est aussi un manque de respect envers l''environnement et les autres.',
+   'true', '2026-05-27 17:40:29.926748+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Pour quelles raisons les libertés individuelles peuvent-elles être encadrées par la loi ?',
+   'Les libertés individuelles peuvent être limitées pour protéger l''ordre public, la sécurité, la santé publique, les droits d''autrui ou prévenir les atteintes à la dignité.',
+   'true', '2026-05-27 17:40:29.926748+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f3000001-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Que doit faire toute personne présente sur les lieux d''un accident grave ?',
+   'Toute personne doit porter assistance à une personne en danger, ou au moins prévenir les secours (15, 17, 18, 112). Ne pas le faire constitue un délit de non-assistance à personne en danger.',
+   'true', '2026-05-27 17:40:29.926748+02', NULL, 'ACTIVE', NULL, NULL, NULL);
+
+-- choices
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('27ac48f2-88eb-4fcb-8b26-a3542e7f2105', 'f3000000-0000-0000-0000-000000000001',
+   'La Constitution de la Ve République',
+   'true', '0'),
+
+  ('533f7ec7-2490-4a9e-b6df-181393bb409e', 'f3000000-0000-0000-0000-000000000001',
+   'La Constitution de 1789',
+   'false', '1'),
+
+  ('39bb13d2-1e31-4ebd-abb4-a94b7cb1f345', 'f3000000-0000-0000-0000-000000000001',
+   'La Constitution européenne',
+   'false', '2'),
+
+  ('6f7a190d-982c-4cc4-98f1-2edd68e1a7fb', 'f3000000-0000-0000-0000-000000000001',
+   'La Constitution de l''Empire',
+   'false', '3'),
+
+  ('fde4bdb4-b11a-476b-9b2e-84a0076c91c0', 'f3000000-0000-0000-0000-000000000002',
+   'La Charte des droits et devoirs du citoyen français',
+   'true', '0'),
+
+  ('fd4ad418-897a-4777-b754-8ef3b0adead6', 'f3000000-0000-0000-0000-000000000002',
+   'Le Code civil',
+   'false', '1'),
+
+  ('bcf21979-e2e6-4c73-b549-c433b5bcedeb', 'f3000000-0000-0000-0000-000000000002',
+   'La Bible',
+   'false', '2'),
+
+  ('af8343a4-0d61-4b5f-8915-bf13a0efd4f1', 'f3000000-0000-0000-0000-000000000002',
+   'Le Code du travail',
+   'false', '3'),
+
+  ('c8ff8b6f-03b7-4f06-8cd6-ff1cfdfdd8f7', 'f3000000-0000-0000-0000-000000000003',
+   'Ils sont garantis à toute personne, sans discrimination',
+   'true', '0'),
+
+  ('72933cc6-900f-4a46-9db2-8e9f210542b5', 'f3000000-0000-0000-0000-000000000003',
+   'Ils sont réservés aux citoyens français',
+   'false', '1'),
+
+  ('0818e466-860e-4d99-9e4a-764cf2ed42cd', 'f3000000-0000-0000-0000-000000000003',
+   'Ils s''achètent par un titre de propriété',
+   'false', '2'),
+
+  ('d32a68c5-2059-480e-8ccc-1eed8d7b7ad9', 'f3000000-0000-0000-0000-000000000003',
+   'Ils dépendent de la religion',
+   'false', '3'),
+
+  ('b336f144-925c-418a-a10e-efd17b98f6dc', 'f3000000-0000-0000-0000-000000000004',
+   '1789',
+   'true', '0'),
+
+  ('b12dce32-b4e5-4266-a017-e78d6b03d953', 'f3000000-0000-0000-0000-000000000004',
+   '1848',
+   'false', '1'),
+
+  ('6590d7ec-322c-4d09-bcd7-48c95aed3523', 'f3000000-0000-0000-0000-000000000004',
+   '1905',
+   'false', '2'),
+
+  ('ef40a8fd-5446-4d52-af6a-bc25fa57659d', 'f3000000-0000-0000-0000-000000000004',
+   '1958',
+   'false', '3'),
+
+  ('751e2241-e9ca-4eb2-9f56-68ee0d3c4dac', 'f3000000-0000-0000-0000-000000000005',
+   'La liberté',
+   'true', '0'),
+
+  ('1a8df5f6-8372-40b8-9302-949849935ec7', 'f3000000-0000-0000-0000-000000000005',
+   'Le droit à la voiture',
+   'false', '1'),
+
+  ('8134e22c-d293-4259-b6cd-3cb674ae1d6b', 'f3000000-0000-0000-0000-000000000005',
+   'Le droit aux vacances',
+   'false', '2'),
+
+  ('85760768-8e33-4e4b-8464-54d537f12ed4', 'f3000000-0000-0000-0000-000000000005',
+   'Le droit à un smartphone',
+   'false', '3'),
+
+  ('df29975b-4964-4a71-8d25-fde23a7d3597', 'f3000000-0000-0000-0000-000000000006',
+   'La Déclaration des droits de l''homme et du citoyen',
+   'true', '0'),
+
+  ('71c41227-6b2b-4d35-a27d-fe51052856d3', 'f3000000-0000-0000-0000-000000000006',
+   'Le Code de la route',
+   'false', '1'),
+
+  ('a120a54c-d08e-4038-adfe-6fc6d0e05f0e', 'f3000000-0000-0000-0000-000000000006',
+   'Le manuel scolaire',
+   'false', '2'),
+
+  ('25f6e1d0-ffe8-4abb-830e-cf8285edccf5', 'f3000000-0000-0000-0000-000000000006',
+   'Le journal officiel',
+   'false', '3'),
+
+  ('89e00eee-d01d-4a3d-abf4-ff44cf7f6bf9', 'f3000000-0000-0000-0000-000000000007',
+   'Le droit d''exprimer ses opinions dans le respect de la loi',
+   'true', '0'),
+
+  ('bbae1c6c-2e57-414c-95df-08d3e2f41053', 'f3000000-0000-0000-0000-000000000007',
+   'Le droit de dire tout sans limite',
+   'false', '1'),
+
+  ('faf9e35b-aeb6-4aba-9fb6-2242df68ca1a', 'f3000000-0000-0000-0000-000000000007',
+   'L''interdiction de parler en public',
+   'false', '2'),
+
+  ('a68c7b01-c318-438f-b76b-85d193e74179', 'f3000000-0000-0000-0000-000000000007',
+   'Une liberté réservée aux journalistes',
+   'false', '3'),
+
+  ('52758665-5d51-41fe-8374-f381f29f55ba', 'f3000000-0000-0000-0000-000000000008',
+   'Le droit à la défense (et à un avocat)',
+   'true', '0'),
+
+  ('a5a54de7-42c1-4eb7-81f4-58065d6f47fe', 'f3000000-0000-0000-0000-000000000008',
+   'Le droit de vote',
+   'false', '1'),
+
+  ('2672318c-b25c-4912-9d25-5765ceb6a4c1', 'f3000000-0000-0000-0000-000000000008',
+   'Le droit de propriété',
+   'false', '2'),
+
+  ('432fe1f4-2727-4b46-8acd-915e811d353f', 'f3000000-0000-0000-0000-000000000008',
+   'Le droit à la santé',
+   'false', '3'),
+
+  ('1018c32b-ad92-4276-88bc-e61c084587c8', 'f3000000-0000-0000-0000-000000000009',
+   'La Déclaration des droits de l''homme et du citoyen (1789)',
+   'true', '0'),
+
+  ('05556167-3931-45bd-930a-6f95354f967e', 'f3000000-0000-0000-0000-000000000009',
+   'Le Code de la santé publique',
+   'false', '1'),
+
+  ('7bcffe42-f850-4ab1-93ff-db75c0e83db1', 'f3000000-0000-0000-0000-000000000009',
+   'Le Traité de Rome',
+   'false', '2'),
+
+  ('e196e5c2-b967-41d3-a497-40f1429ad758', 'f3000000-0000-0000-0000-000000000009',
+   'La Charte des Nations unies',
+   'false', '3'),
+
+  ('991ae8d3-8301-44d6-8584-a166c4adc5c6', 'f3000000-0000-0000-0000-00000000000a',
+   'La Déclaration des droits de l''homme et du citoyen',
+   'true', '0'),
+
+  ('07f6af63-f082-4dbe-a7fe-fb5ba4840007', 'f3000000-0000-0000-0000-00000000000a',
+   'Le Traité de Rome',
+   'false', '1'),
+
+  ('5174262f-92e9-4bdf-8852-2f0081628ed6', 'f3000000-0000-0000-0000-00000000000a',
+   'La Constitution de la Ve République',
+   'false', '2'),
+
+  ('38e2715e-07ed-4a7e-b39d-8bee2dd31411', 'f3000000-0000-0000-0000-00000000000a',
+   'La loi de 1905',
+   'false', '3'),
+
+  ('452d2842-ff7b-4bf6-8aa9-e7bb71dce2e8', 'f3000000-0000-0000-0000-00000000000b',
+   'La liberté de conscience',
+   'true', '0'),
+
+  ('f1a7007f-de81-4013-bc1d-f5e5085765ea', 'f3000000-0000-0000-0000-00000000000b',
+   'La liberté du commerce',
+   'false', '1'),
+
+  ('6f5a1ed6-915d-4664-a597-794cbe35d57e', 'f3000000-0000-0000-0000-00000000000b',
+   'La liberté de la presse',
+   'false', '2'),
+
+  ('d5fc742b-5845-4826-bbaa-91e135a5f526', 'f3000000-0000-0000-0000-00000000000b',
+   'La liberté de circulation',
+   'false', '3'),
+
+  ('e679d943-e15d-4648-afd7-5de2535c8096', 'f3000000-0000-0000-0000-00000000000c',
+   'C''est un droit garanti par la loi',
+   'true', '0'),
+
+  ('04056643-40ec-4417-b161-5df2d14808e8', 'f3000000-0000-0000-0000-00000000000c',
+   'C''est totalement interdit',
+   'false', '1'),
+
+  ('75f658a5-2c3a-4d48-81e9-8f5af9d4eac4', 'f3000000-0000-0000-0000-00000000000c',
+   'Uniquement avec l''accord de son mari',
+   'false', '2'),
+
+  ('dc2d2795-b8b0-4188-acac-87acbad69542', 'f3000000-0000-0000-0000-00000000000c',
+   'Uniquement avec autorisation religieuse',
+   'false', '3'),
+
+  ('cc92c508-8e2d-4eaf-ba89-28a0f50faf04', 'f3000000-0000-0000-0000-00000000000d',
+   'Oui, c''est un droit garanti par la loi',
+   'true', '0'),
+
+  ('ab2c6c34-c82a-43c3-87e6-e1f44d2020a7', 'f3000000-0000-0000-0000-00000000000d',
+   'Non, le divorce est interdit',
+   'false', '1'),
+
+  ('454b656e-2293-4f12-98a1-56039e207268', 'f3000000-0000-0000-0000-00000000000d',
+   'Seulement avec l''accord des deux familles',
+   'false', '2'),
+
+  ('b40d3840-2b5a-47ef-bacc-3cee53657671', 'f3000000-0000-0000-0000-00000000000d',
+   'Uniquement après 10 ans de mariage',
+   'false', '3'),
+
+  ('e1af5d0a-dfb6-4a62-a955-e96a16b7d503', 'f3000000-0000-0000-0000-00000000000e',
+   'Abolie en France depuis 1981',
+   'true', '0'),
+
+  ('37cfbd3c-b9ff-4636-97b7-4ba1b2791736', 'f3000000-0000-0000-0000-00000000000e',
+   'En vigueur pour les crimes graves',
+   'false', '1'),
+
+  ('38ecc43e-eb76-46fc-8ef7-832e0ddbfbc2', 'f3000000-0000-0000-0000-00000000000e',
+   'Appliquée uniquement dans certaines régions',
+   'false', '2'),
+
+  ('63ac9288-4770-4e74-85f6-a6961ec039ec', 'f3000000-0000-0000-0000-00000000000e',
+   'Prévue par la Constitution actuelle',
+   'false', '3'),
+
+  ('ec5110fd-b96a-4880-a9d3-5424878cac58', 'f3000000-0000-0000-0000-00000000000f',
+   'Les libertés ont des limites fixées par la loi',
+   'true', '0'),
+
+  ('0f684e4f-86f3-46d6-8f0f-6568a739afbb', 'f3000000-0000-0000-0000-00000000000f',
+   'Les libertés sont absolues, sans limite',
+   'false', '1'),
+
+  ('7cba081e-9f2c-46cf-88fd-e48f56aaeabc', 'f3000000-0000-0000-0000-00000000000f',
+   'Les libertés ne s''appliquent qu''au domicile privé',
+   'false', '2'),
+
+  ('ca40a8b8-8396-4085-9628-abc2bf0594df', 'f3000000-0000-0000-0000-00000000000f',
+   'Il n''existe pas de libertés individuelles en France',
+   'false', '3'),
+
+  ('4bea04e9-ae00-4654-84af-5aec23885666', 'f3000000-0000-0000-0000-000000000010',
+   'Non, la polygamie est interdite',
+   'true', '0'),
+
+  ('23d39db2-a734-47ed-83a4-cd59c89512bd', 'f3000000-0000-0000-0000-000000000010',
+   'Oui, c''est autorisé sans restriction',
+   'false', '1'),
+
+  ('f9ed14f5-7648-4719-a6d0-bf48a147aacd', 'f3000000-0000-0000-0000-000000000010',
+   'Oui, avec autorisation de la mairie',
+   'false', '2'),
+
+  ('1cc4f048-0044-410f-a6ef-32326d466767', 'f3000000-0000-0000-0000-000000000010',
+   'Oui, selon les traditions familiales',
+   'false', '3'),
+
+  ('92dbc3a9-ca9e-4725-9b76-b0e1d57671d2', 'f3000000-0000-0000-0000-000000000011',
+   'Oui, pour protéger l''environnement',
+   'true', '0'),
+
+  ('1638048e-f78a-41b0-82c8-db14082c3e7d', 'f3000000-0000-0000-0000-000000000011',
+   'Non, ce n''est pas important',
+   'false', '1'),
+
+  ('bc8a5868-0e27-49d9-8dfd-33ea16bdd38e', 'f3000000-0000-0000-0000-000000000011',
+   'Uniquement les commerces',
+   'false', '2'),
+
+  ('5c33efee-1b19-42e5-b001-408fc1c5d479', 'f3000000-0000-0000-0000-000000000011',
+   'C''est interdit par la loi',
+   'false', '3'),
+
+  ('8daa4ae1-deb1-4063-8f31-78da4b5fdf41', 'f3000000-0000-0000-0000-000000000012',
+   'Une infraction punie par la loi',
+   'true', '0'),
+
+  ('3f5868c7-d070-4367-af58-7b0d7fab550f', 'f3000000-0000-0000-0000-000000000012',
+   'Autorisé dans les grandes villes',
+   'false', '1'),
+
+  ('8794c04f-5519-4d72-be20-fa854ac5c535', 'f3000000-0000-0000-0000-000000000012',
+   'Sans conséquence si la bouteille est en verre',
+   'false', '2'),
+
+  ('2ad61f00-3ba2-49a1-89ea-f5728a16869a', 'f3000000-0000-0000-0000-000000000012',
+   'Recommandé la nuit',
+   'false', '3'),
+
+  ('083db243-5c6e-48be-b830-a1b5eacfdc8e', 'f3000000-0000-0000-0000-000000000013',
+   'Pour protéger les droits des autres et l''ordre public',
+   'true', '0'),
+
+  ('356ef2a7-9a3f-4c82-b747-73fc695e9639', 'f3000000-0000-0000-0000-000000000013',
+   'Selon le bon vouloir du président',
+   'false', '1'),
+
+  ('5b3e052e-5469-41c4-9136-524eddcf0380', 'f3000000-0000-0000-0000-000000000013',
+   'Pour favoriser une religion',
+   'false', '2'),
+
+  ('e77b689c-15bc-42b5-bfc0-dafaf1e519c3', 'f3000000-0000-0000-0000-000000000013',
+   'Pour limiter le travail des étrangers',
+   'false', '3'),
+
+  ('4d5267ed-42cd-40cf-933b-9c2653406b66', 'f3000000-0000-0000-0000-000000000014',
+   'Porter assistance et prévenir les secours',
+   'true', '0'),
+
+  ('a37c0d33-6f37-4150-bb1f-a78772ad14b8', 'f3000000-0000-0000-0000-000000000014',
+   'Partir rapidement',
+   'false', '1'),
+
+  ('03529bb7-eeb0-42e4-a473-dc8e2a7032c3', 'f3000000-0000-0000-0000-000000000014',
+   'Filmer la scène',
+   'false', '2'),
+
+  ('636a0e80-50e7-4dc1-9d44-4c961bd282c8', 'f3000000-0000-0000-0000-000000000014',
+   'Attendre que quelqu''un d''autre intervienne',
+   'false', '3'),
+
+  ('5bb96b9a-1451-42b5-b286-03d626df5528', 'f3000000-0000-0000-0000-000000000015',
+   'D''avoir des droits politiques (voter, être élu) et des devoirs',
+   'true', '0'),
+
+  ('bc2e8481-054e-4940-b248-787ec3873229', 'f3000000-0000-0000-0000-000000000015',
+   'D''être dispensé d''impôts',
+   'false', '1'),
+
+  ('437dc34d-82f2-4728-afbb-f1b7e90e2574', 'f3000000-0000-0000-0000-000000000015',
+   'D''être au-dessus des lois',
+   'false', '2'),
+
+  ('dd4ca08c-4587-45b3-b833-aaea4057a005', 'f3000000-0000-0000-0000-000000000015',
+   'De voyager partout sans visa',
+   'false', '3'),
+
+  ('1247fb58-00e4-4b57-8502-74bba1ce9339', 'f3000000-0000-0000-0000-000000000016',
+   'Une sanction (amende, prison) prononcée par un tribunal',
+   'true', '0'),
+
+  ('6219c758-5567-400e-91f6-a742823a8234', 'f3000000-0000-0000-0000-000000000016',
+   'Rien, la loi est seulement indicative',
+   'false', '1'),
+
+  ('02eff7f3-5648-48ca-b8c4-5e01068d83bd', 'f3000000-0000-0000-0000-000000000016',
+   'Une simple remontrance verbale',
+   'false', '2'),
+
+  ('269431ff-ae20-4e9c-86aa-2880200caf98', 'f3000000-0000-0000-0000-000000000016',
+   'L''expulsion automatique du territoire',
+   'false', '3'),
+
+  ('f710e7a1-e1c4-4a10-9532-ab9738fedc62', 'f3000000-0000-0000-0000-000000000017',
+   'Assurer la sécurité, principalement en zone rurale',
+   'true', '0'),
+
+  ('2022fa1d-8fb0-4b8f-9de0-fd910220b2a0', 'f3000000-0000-0000-0000-000000000017',
+   'Voter les lois',
+   'false', '1'),
+
+  ('cd39fb3f-4d79-4060-9698-c2c67af1c71a', 'f3000000-0000-0000-0000-000000000017',
+   'Éduquer les enfants',
+   'false', '2'),
+
+  ('6f7aacfe-2c74-42ba-8f10-d17ecfcf5554', 'f3000000-0000-0000-0000-000000000017',
+   'Faire la guerre à l''étranger',
+   'false', '3'),
+
+  ('71484c8e-b193-427c-b5ae-f6b8be79b582', 'f3000000-0000-0000-0000-000000000018',
+   'Assurer la sécurité et faire respecter la loi',
+   'true', '0'),
+
+  ('7075b836-2495-4968-a539-43d1f012f830', 'f3000000-0000-0000-0000-000000000018',
+   'Juger les criminels',
+   'false', '1'),
+
+  ('ab17c76b-1ca1-45f3-9059-92e05d65dfb1', 'f3000000-0000-0000-0000-000000000018',
+   'Voter les lois',
+   'false', '2'),
+
+  ('4432aca4-0da5-427c-b18d-37e274fd6714', 'f3000000-0000-0000-0000-000000000018',
+   'Éduquer les enfants',
+   'false', '3'),
+
+  ('1525c546-31e2-490c-9090-cce44394325b', 'f3000000-0000-0000-0000-000000000019',
+   'Une violation de la loi punie par celle-ci',
+   'true', '0'),
+
+  ('a28605e7-ab5f-43b3-b0f4-b3b949be925c', 'f3000000-0000-0000-0000-000000000019',
+   'Un type d''impôt',
+   'false', '1'),
+
+  ('1fcd4c73-a065-43dc-9119-f7c1b2f75eb9', 'f3000000-0000-0000-0000-000000000019',
+   'Un texte de loi',
+   'false', '2'),
+
+  ('521bb056-ccc5-4e50-9753-f355dd7b9e79', 'f3000000-0000-0000-0000-000000000019',
+   'Un titre administratif',
+   'false', '3'),
+
+  ('29d8c009-6fbb-450b-8ca8-c0452f3beb6c', 'f3000000-0000-0000-0000-00000000001a',
+   'En triant, recyclant et évitant le gaspillage',
+   'true', '0'),
+
+  ('9c0bb641-6dc3-4463-aff8-c145f6c46cf1', 'f3000000-0000-0000-0000-00000000001a',
+   'En jetant tout dans la nature',
+   'false', '1'),
+
+  ('7f8a40aa-9f0a-4572-849e-57b2eb6f2196', 'f3000000-0000-0000-0000-00000000001a',
+   'En achetant toujours plus emballé',
+   'false', '2'),
+
+  ('7d030bd6-ce57-4dda-bf0d-108e471a3760', 'f3000000-0000-0000-0000-00000000001a',
+   'En brûlant ses déchets soi-même',
+   'false', '3'),
+
+  ('2e79c4fe-6bd1-4fdf-8484-e81377ba6d09', 'f3000000-0000-0000-0000-00000000001b',
+   'Interdit : il faut prendre rendez-vous pour les encombrants ou aller en déchetterie',
+   'true', '0'),
+
+  ('1f6a29fd-019d-46b0-8bf0-c2b3204b1839', 'f3000000-0000-0000-0000-00000000001b',
+   'Autorisé tous les jours',
+   'false', '1'),
+
+  ('b8477660-659b-43db-b891-1ad4a0aef880', 'f3000000-0000-0000-0000-00000000001b',
+   'Autorisé dans les grandes villes',
+   'false', '2'),
+
+  ('7f7552c8-6784-47bf-b4f7-a569afaeb78b', 'f3000000-0000-0000-0000-00000000001b',
+   'Une bonne action écologique',
+   'false', '3'),
+
+  ('e281fa09-7557-4eeb-b260-716e2723f2b6', 'f3000000-0000-0000-0000-00000000001c',
+   'Exploiter une personne par la force (travail forcé, prostitution...)',
+   'true', '0'),
+
+  ('c581646e-553b-48eb-8d68-e0a3e4ed1c90', 'f3000000-0000-0000-0000-00000000001c',
+   'Un type de commerce légal',
+   'false', '1'),
+
+  ('a29432e0-87ab-48bc-bbee-ee170dbfeeae', 'f3000000-0000-0000-0000-00000000001c',
+   'L''immigration légale',
+   'false', '2'),
+
+  ('351a9324-ed93-41d1-874c-1f24da3f41ee', 'f3000000-0000-0000-0000-00000000001c',
+   'L''accueil des réfugiés',
+   'false', '3'),
+
+  ('d346819c-657c-4d02-a4f0-b5cc2db4898d', 'f3000000-0000-0000-0000-00000000001d',
+   'Appeler les secours, porter plainte ou contacter une association',
+   'true', '0'),
+
+  ('a4190b27-2fa1-4ef6-bc69-ebd1be6fc125', 'f3000000-0000-0000-0000-00000000001d',
+   'Garder le silence et se taire',
+   'false', '1'),
+
+  ('4bd87da2-f6de-4595-b99d-642c41b1c10d', 'f3000000-0000-0000-0000-00000000001d',
+   'Se venger soi-même',
+   'false', '2'),
+
+  ('94b7e17d-c779-4cac-a8f3-c1645181f48c', 'f3000000-0000-0000-0000-00000000001d',
+   'Déménager sans rien dire',
+   'false', '3'),
+
+  ('44f46b17-6578-4f5e-8747-97fd215a58da', 'f3000000-0000-0000-0000-00000000001e',
+   'Le crime',
+   'true', '0'),
+
+  ('655eb55e-e65e-49bb-9ccc-80bd9e094759', 'f3000000-0000-0000-0000-00000000001e',
+   'La contravention',
+   'false', '1'),
+
+  ('4a591835-31fb-4b7f-bdf9-1ef77fb001bf', 'f3000000-0000-0000-0000-00000000001e',
+   'Le délit',
+   'false', '2'),
+
+  ('10f4f077-206b-4533-a049-a65c781ac642', 'f3000000-0000-0000-0000-00000000001e',
+   'Toutes les infractions sont équivalentes',
+   'false', '3'),
+
+  ('5dbb9e78-1a89-42ec-aa26-4e4367924240', 'f3000001-0000-0000-0000-000000000001',
+   'La Constitution de 1958 (Ve République)',
+   'true', '0'),
+
+  ('42ad838a-ca99-4226-9484-3943fd43dc22', 'f3000001-0000-0000-0000-000000000001',
+   'La Constitution de 1791',
+   'false', '1'),
+
+  ('f7ef3578-6514-4157-b5a2-4c5d81730a84', 'f3000001-0000-0000-0000-000000000001',
+   'La Charte de 1830',
+   'false', '2'),
+
+  ('e35f8085-5f89-452e-af65-c1193dbaf778', 'f3000001-0000-0000-0000-000000000001',
+   'Le Code Napoléon',
+   'false', '3'),
+
+  ('31873df3-ce51-4815-89d8-7b8437e2b0ac', 'f3000001-0000-0000-0000-000000000002',
+   'Le Livret du citoyen',
+   'true', '0'),
+
+  ('84362e1d-1f92-4138-bcae-02cdeeae0a41', 'f3000001-0000-0000-0000-000000000002',
+   'Le Code de la route',
+   'false', '1'),
+
+  ('c090ed65-6bd7-4529-825e-e6eb430a3c86', 'f3000001-0000-0000-0000-000000000002',
+   'La Bible',
+   'false', '2'),
+
+  ('c743d24d-cb41-4003-b046-58c6bbf3bc05', 'f3000001-0000-0000-0000-000000000002',
+   'Le Code Napoléon',
+   'false', '3'),
+
+  ('d9d7a4ea-814e-4347-97c5-b04b183cc8f0', 'f3000001-0000-0000-0000-000000000003',
+   'Ils sont reconnus à tous, dans les limites posées par la loi',
+   'true', '0'),
+
+  ('a0db56ba-c95a-4331-9d2f-d54fb298cf5a', 'f3000001-0000-0000-0000-000000000003',
+   'Ils n''existent pas en France',
+   'false', '1'),
+
+  ('4433aad0-8f3c-4c31-90c4-7d57d18d25ea', 'f3000001-0000-0000-0000-000000000003',
+   'Ils sont réservés aux Français',
+   'false', '2'),
+
+  ('18cdc30d-adf9-4b18-bd8e-d51caa00215e', 'f3000001-0000-0000-0000-000000000003',
+   'Ils sont absolus, sans aucune limite',
+   'false', '3'),
+
+  ('2a4245cb-409e-49bf-964b-66e5fd2c0cfd', 'f3000001-0000-0000-0000-000000000004',
+   '1789',
+   'true', '0'),
+
+  ('a61d466e-7420-4076-96c8-f5186d7df654', 'f3000001-0000-0000-0000-000000000004',
+   '1789 (année de la Révolution française)',
+   'false', '1'),
+
+  ('38a0fbf7-d4c3-445a-9dfa-7cdf437b511a', 'f3000001-0000-0000-0000-000000000004',
+   '1804',
+   'false', '2'),
+
+  ('aae0b6c9-9256-44a4-a181-eff8b8220a96', 'f3000001-0000-0000-0000-000000000004',
+   '1848',
+   'false', '3'),
+
+  ('b0ff5091-6d30-4da6-86c6-1860fd0df005', 'f3000001-0000-0000-0000-000000000005',
+   'Le droit à la liberté',
+   'true', '0'),
+
+  ('77a3d560-9bbd-4155-9092-29ab853ebacb', 'f3000001-0000-0000-0000-000000000005',
+   'Le droit de gagner aux jeux d''argent',
+   'false', '1'),
+
+  ('810e3159-b22b-4543-ace9-e20925cad6e7', 'f3000001-0000-0000-0000-000000000005',
+   'Le droit de stationnement gratuit',
+   'false', '2'),
+
+  ('8c2498f6-d6df-4f9a-93db-71319d2bc37f', 'f3000001-0000-0000-0000-000000000005',
+   'Le droit d''avoir un animal exotique',
+   'false', '3'),
+
+  ('727ae8b6-872d-4859-a8ad-47ac4ea5d5d4', 'f3000001-0000-0000-0000-000000000006',
+   'La Constitution et la Déclaration de 1789',
+   'true', '0'),
+
+  ('55360b41-9647-40ae-878f-3c55700a8bb0', 'f3000001-0000-0000-0000-000000000006',
+   'Le code de la consommation',
+   'false', '1'),
+
+  ('d50f7466-2549-427f-8b0e-9e197f25bd00', 'f3000001-0000-0000-0000-000000000006',
+   'Le menu d''un restaurant',
+   'false', '2'),
+
+  ('51f56246-9bea-4939-b3c1-93f8b1a2d30e', 'f3000001-0000-0000-0000-000000000006',
+   'Le permis de conduire',
+   'false', '3'),
+
+  ('56c2e955-5ddf-4e08-a23b-74e64fa22d71', 'f3000001-0000-0000-0000-000000000007',
+   'Le droit d''exprimer ses opinions, dans les limites de la loi',
+   'true', '0'),
+
+  ('6d73afef-889a-4022-92f5-8171e42b27e7', 'f3000001-0000-0000-0000-000000000007',
+   'Le droit d''insulter qui on veut',
+   'false', '1'),
+
+  ('2407a487-85dc-4aee-b871-9ac56ceaf4ec', 'f3000001-0000-0000-0000-000000000007',
+   'Une liberté réservée aux journalistes',
+   'false', '2'),
+
+  ('b5da0d84-e51a-40c3-911b-bb5230901900', 'f3000001-0000-0000-0000-000000000007',
+   'Une liberté sans aucune limite',
+   'false', '3'),
+
+  ('e58f81ba-be8a-4e85-a066-a70990cb13ce', 'f3000001-0000-0000-0000-000000000008',
+   'Le droit à la défense (procès équitable)',
+   'true', '0'),
+
+  ('e53566f5-57aa-48b1-bbc0-74f69cf2ac5f', 'f3000001-0000-0000-0000-000000000008',
+   'Le droit à la propriété',
+   'false', '1'),
+
+  ('411ac772-c779-471b-afe5-5ca3e5213bf5', 'f3000001-0000-0000-0000-000000000008',
+   'Le droit de voter',
+   'false', '2'),
+
+  ('78c1c3bb-a280-4fca-a403-ae70a5f8e6b7', 'f3000001-0000-0000-0000-000000000008',
+   'Le droit à la santé',
+   'false', '3'),
+
+  ('978692a9-3546-481b-97d5-3169f0cea42a', 'f3000001-0000-0000-0000-000000000009',
+   'La Déclaration des droits de l''homme et du citoyen de 1789',
+   'true', '0'),
+
+  ('94d647f6-9050-4286-b445-9b119d7e1ba3', 'f3000001-0000-0000-0000-000000000009',
+   'Le Code Napoléon',
+   'false', '1'),
+
+  ('29e9e6ed-ce0f-4521-984f-cdd31d5247c1', 'f3000001-0000-0000-0000-000000000009',
+   'La Magna Carta',
+   'false', '2'),
+
+  ('709d8c0b-1b71-4dab-9de7-2f4035a26c5d', 'f3000001-0000-0000-0000-000000000009',
+   'La Charte de l''environnement',
+   'false', '3'),
+
+  ('91dfa1b6-31aa-41ad-b48b-a149e5fcb351', 'f3000001-0000-0000-0000-00000000000a',
+   'La Déclaration des droits de l''homme et du citoyen (1789)',
+   'true', '0'),
+
+  ('dd27f39a-cbef-4cf7-96aa-1740230ec1a3', 'f3000001-0000-0000-0000-00000000000a',
+   'Le Code civil',
+   'false', '1'),
+
+  ('d46fe987-e795-45f0-837f-16f693d9faa2', 'f3000001-0000-0000-0000-00000000000a',
+   'La Constitution de 1958',
+   'false', '2'),
+
+  ('864773dc-3a68-4a4d-902a-eb6fa2e0b110', 'f3000001-0000-0000-0000-00000000000a',
+   'Le Code pénal',
+   'false', '3'),
+
+  ('b1e5b316-8403-458c-95b1-9b788687a50f', 'f3000001-0000-0000-0000-00000000000b',
+   'La liberté de conscience',
+   'true', '0'),
+
+  ('8853cbfd-33fd-47fa-9ad1-29277f8c25ea', 'f3000001-0000-0000-0000-00000000000b',
+   'La liberté de circulation',
+   'false', '1'),
+
+  ('327f061d-415f-4b32-b70f-1f2b3b3331e2', 'f3000001-0000-0000-0000-00000000000b',
+   'La liberté de commerce',
+   'false', '2'),
+
+  ('cb354b99-bf96-406b-bcc6-0398f2ca7c15', 'f3000001-0000-0000-0000-00000000000b',
+   'La liberté de la presse',
+   'false', '3'),
+
+  ('baaa29a3-2d09-44be-a94e-e50864589585', 'f3000001-0000-0000-0000-00000000000c',
+   'Oui, c''est légal depuis 1975 et constitutionnel depuis 2024',
+   'true', '0'),
+
+  ('c9913cc3-3fe4-4230-a51a-c04b5ece2170', 'f3000001-0000-0000-0000-00000000000c',
+   'Non, c''est interdit',
+   'false', '1'),
+
+  ('0f5b48e1-55ce-468f-8ffa-7857aa7d3423', 'f3000001-0000-0000-0000-00000000000c',
+   'Uniquement avant 5 semaines',
+   'false', '2'),
+
+  ('c4b42d78-53be-4a95-8679-090c771ac911', 'f3000001-0000-0000-0000-00000000000c',
+   'Uniquement avec accord du conjoint',
+   'false', '3'),
+
+  ('efcfb3a3-15f4-49a6-8681-e55c2c0a63af', 'f3000001-0000-0000-0000-00000000000d',
+   'Oui, plusieurs formes de divorce existent',
+   'true', '0'),
+
+  ('02a67876-d15a-4509-aaf5-69884b32f1a8', 'f3000001-0000-0000-0000-00000000000d',
+   'Non, c''est interdit',
+   'false', '1'),
+
+  ('120074ef-d1ac-456a-8868-87964642cbd5', 'f3000001-0000-0000-0000-00000000000d',
+   'Uniquement pour les hommes',
+   'false', '2'),
+
+  ('a64994ce-4391-4080-80bb-77452fe6d4cb', 'f3000001-0000-0000-0000-00000000000d',
+   'Uniquement après 20 ans de mariage',
+   'false', '3'),
+
+  ('d57cd6c0-120f-40c3-80af-2d738f28e837', 'f3000001-0000-0000-0000-00000000000e',
+   'Abolie depuis 1981, inscrite dans la Constitution depuis 2007',
+   'true', '0'),
+
+  ('29b45c0b-00f3-4051-b533-13d5d0458931', 'f3000001-0000-0000-0000-00000000000e',
+   'Toujours en vigueur',
+   'false', '1'),
+
+  ('94201a48-2abc-452f-bb07-3784fe21adfe', 'f3000001-0000-0000-0000-00000000000e',
+   'Limitée aux crimes de guerre',
+   'false', '2'),
+
+  ('99f52964-d810-4621-812f-30a5fae965ec', 'f3000001-0000-0000-0000-00000000000e',
+   'Décidée par le maire',
+   'false', '3'),
+
+  ('01dff1be-8714-459f-9fa7-80acba13b8c4', 'f3000001-0000-0000-0000-00000000000f',
+   'Elles peuvent être limitées par la loi pour l''ordre public et les droits d''autrui',
+   'true', '0'),
+
+  ('2f8cd0d1-f700-4d7f-b04f-413732a8d9ac', 'f3000001-0000-0000-0000-00000000000f',
+   'Elles sont absolues sans limite',
+   'false', '1'),
+
+  ('05851e72-28a0-44cf-bfe8-0a52138eaf01', 'f3000001-0000-0000-0000-00000000000f',
+   'Elles n''existent pas',
+   'false', '2'),
+
+  ('bb2c3b5f-c453-4402-b9a0-c6667148badd', 'f3000001-0000-0000-0000-00000000000f',
+   'Elles dépendent du maire',
+   'false', '3'),
+
+  ('1eedee65-5839-4b29-98d5-712d985d1f70', 'f3000001-0000-0000-0000-000000000010',
+   'Non, c''est interdit par la loi française',
+   'true', '0'),
+
+  ('3510562e-4fbc-4434-8b2f-7c4f71f13fb7', 'f3000001-0000-0000-0000-000000000010',
+   'Oui, c''est libre',
+   'false', '1'),
+
+  ('4997a40d-c268-42df-a73e-d59b9d10935e', 'f3000001-0000-0000-0000-000000000010',
+   'Oui, avec accord du premier conjoint',
+   'false', '2'),
+
+  ('e6e4dde3-f105-4cdc-8d6b-119513b39566', 'f3000001-0000-0000-0000-000000000010',
+   'Uniquement pour certaines communautés',
+   'false', '3'),
+
+  ('a7505e07-71be-44d2-836c-ba8d89cf245d', 'f3000001-0000-0000-0000-000000000011',
+   'Oui, c''est un geste citoyen et écologique',
+   'true', '0'),
+
+  ('bc488a71-5471-4499-a4c2-d21d93632b67', 'f3000001-0000-0000-0000-000000000011',
+   'Non, c''est inutile',
+   'false', '1'),
+
+  ('614335e3-99e9-4758-b58c-f6df70df4d7e', 'f3000001-0000-0000-0000-000000000011',
+   'Uniquement le dimanche',
+   'false', '2'),
+
+  ('9584e89b-55bb-4677-8145-bbf77d39e825', 'f3000001-0000-0000-0000-000000000011',
+   'Uniquement les retraités',
+   'false', '3'),
+
+  ('4923b4dd-a6f3-4e4e-9d41-d05e9b4eecb9', 'f3000001-0000-0000-0000-000000000012',
+   'Non, c''est une infraction punie d''une amende',
+   'true', '0'),
+
+  ('c51f830b-9781-4f30-af2b-35a0ede7df09', 'f3000001-0000-0000-0000-000000000012',
+   'Oui, c''est libre',
+   'false', '1'),
+
+  ('18a8e8aa-2adf-4567-87fa-27b96010fa2d', 'f3000001-0000-0000-0000-000000000012',
+   'Uniquement le week-end',
+   'false', '2'),
+
+  ('eb7e0401-670b-4edb-ac89-dfcdfc96f8f8', 'f3000001-0000-0000-0000-000000000012',
+   'Uniquement les bouteilles en verre',
+   'false', '3'),
+
+  ('0ad3526f-f721-4c24-a7cb-1cc8f74d353a', 'f3000001-0000-0000-0000-000000000013',
+   'Pour protéger l''ordre public, la santé, les droits des autres',
+   'true', '0'),
+
+  ('1c767c9e-eb9f-4bb4-8418-d7705d619755', 'f3000001-0000-0000-0000-000000000013',
+   'Pour faire plaisir au gouvernement',
+   'false', '1'),
+
+  ('d0a4e86b-e357-475d-bda7-ce66f0da9c83', 'f3000001-0000-0000-0000-000000000013',
+   'Pour des raisons religieuses',
+   'false', '2'),
+
+  ('40eefb87-5ce8-4c95-a2dd-3e1a289b34fd', 'f3000001-0000-0000-0000-000000000013',
+   'Pour réduire les dépenses publiques',
+   'false', '3'),
+
+  ('a8ae68d3-7a49-43d8-8a98-7abc18ab7455', 'f3000001-0000-0000-0000-000000000014',
+   'Porter assistance ou appeler les secours (112)',
+   'true', '0'),
+
+  ('88ef0a34-2ba2-4c2a-a311-94ab96f9ed81', 'f3000001-0000-0000-0000-000000000014',
+   'Continuer son chemin sans rien faire',
+   'false', '1'),
+
+  ('19f63db2-ba89-473b-a399-234c2f0ff70c', 'f3000001-0000-0000-0000-000000000014',
+   'Filmer l''accident pour les réseaux',
+   'false', '2'),
+
+  ('3bffdfbc-62f9-47ef-9d75-e1450f8c119a', 'f3000001-0000-0000-0000-000000000014',
+   'Voler les affaires de la victime',
+   'false', '3');

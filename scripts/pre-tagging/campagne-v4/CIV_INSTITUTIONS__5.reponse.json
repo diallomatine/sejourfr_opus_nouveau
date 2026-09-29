@@ -1,0 +1,189 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVW2ANhe9WNEwRGf7",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_012trXZ6a2V7AiMcx4AaETBk",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Pouvoir présidentiel de mettre fin aux fonctions du PM."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Promulgation des lois par le président."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Pouvoir de dissolution du président."
+          },
+          {
+            "rang": 4,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Matignon = résidence du Premier ministre, gouvernement."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Siège des députés, Palais Bourbon."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Siège des sénateurs, Luxembourg."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_parlement",
+            "confiance": 0.85,
+            "rationale": "Portée nationale de la loi votée, travail parlementaire."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Vote du budget par le Parlement."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Rôle et représentation des députés."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Questions au gouvernement, travail parlementaire."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_parlement",
+            "confiance": 0.85,
+            "rationale": "Visite de l'Assemblée nationale, institution parlementaire."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Pouvoir législatif du Sénat."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Localisation des deux chambres."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_parlement",
+            "confiance": 0.9,
+            "rationale": "Motion de censure, contrôle parlementaire."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_gouvernement",
+            "confiance": 0.85,
+            "rationale": "Collecte de l'impôt par l'État, budgétisation."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Mairie, conseil municipal, commune."
+          },
+          {
+            "rang": 17,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Fonction d'état civil du maire."
+          },
+          {
+            "rang": 18,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Organisation communale, un seul maire."
+          },
+          {
+            "rang": 19,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Symbole européen, drapeau."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Nombre d'étoiles du drapeau européen."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Hymne européen, symbole UE."
+          },
+          {
+            "rang": 22,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Zone euro, vie du citoyen européen."
+          },
+          {
+            "rang": 23,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Libre circulation, Schengen."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_president",
+            "confiance": 0.9,
+            "rationale": "Rôle constitutionnel du président (article 5), pouvoirs présidentiels."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_gouvernement",
+            "confiance": 0.95,
+            "rationale": "Article 49.3, acte de l'exécutif (gouvernement)."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9840,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1305,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

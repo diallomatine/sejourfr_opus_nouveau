@@ -1,0 +1,568 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../core/analytics/analytics.dart';
+import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/enums.dart';
+import '../../core/models/full_tcf_exam.dart';
+import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/epreuve_duration.dart';
+import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/stat_value_card.dart';
+import '../tcf_production/widgets/exam_info_chips.dart';
+import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
+import 'exam_slots_data.dart';
+import 'tcf_full_exam_briefing_sheet.dart';
+import 'widgets/exam_done_sheet.dart';
+
+/// Liste des examens blancs TCF complets de l'utilisateur. Chaque examen
+/// passé est affiché avec son niveau CECRL plancher, sa date et son statut.
+/// Tap :
+/// - {@code COMPLETED} / {@code PENDING_EVALUATIONS} → petite modale
+///   (Refaire / Voir le détail), comme les examens module et les séries
+/// - {@code IN_PROGRESS} → reprend l'examen sur le hub de progression
+/// - Bouton "Lancer un nouvel examen" → briefing modal + POST `/api/full-tcf-exams`
+///
+/// **Distinction backend** : ces examens sont conceptuellement séparés des
+/// examens module (CO seul / CE seul) — `attempts.epreuve = TCF_COMPLET`
+/// vs `attempts.module_exam_question_type`. L'historique ne se mélange jamais.
+final fullExamsHistoryProvider =
+    FutureProvider.autoDispose<List<FullTcfExamSummary>>((ref) {
+  return ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 50);
+});
+
+/// 20 slots disponibles, comme un cahier d'examens blancs. Au-delà, on
+/// continue à pouvoir lancer mais on n'affiche plus de slot supplémentaire
+/// — l'historique reste consultable via les premiers slots (rotation
+/// chronologique : slot 1 = examen le plus ancien).
+const int _fullExamSlotsCount = 20;
+
+/// Nombre de slots affichés d'emblée. Au-delà, un bouton « Voir les examens
+/// X à Y » déplie le reste (même pattern que les examens blancs Civique).
+const int _visibleByDefault = 8;
+
+/// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
+/// depuis le hero Progression, l'historique, le bilan et le hero examen blanc
+/// du hub TCF (`AppRoutes.tcfFullExams`). `TcfFullExamsView` (le corps) est
+/// le bloc réutilisable des 20 slots.
+class TcfFullExamsScreen extends StatelessWidget {
+  const TcfFullExamsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+              child: _TopBar(onBack: () => _back(context)),
+            ),
+            const Expanded(child: TcfFullExamsView()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _back(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.reviser);
+    }
+  }
+}
+
+/// Corps réutilisable des 20 slots d'examens blancs TCF complets. Rendu sous
+/// la topbar de `TcfFullExamsScreen` (route `/tcf/examens-blancs`).
+class TcfFullExamsView extends ConsumerWidget {
+  const TcfFullExamsView({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(fullExamsHistoryProvider);
+    // 🛑 Le verrou de chaque slot est SERVI ([examSlotsProvider]) et opposable
+    // (403) : l'écran le lit, il ne le déduit jamais du rang. `watch` : la
+    // source se relit après un achat.
+    final grille = ref.watch(examSlotsProvider(EpreuveType.tcfComplet)).valueOrNull;
+    bool isLocked(int slot) => grille?.isLocked(slot) ?? true;
+
+    Future<void> startNew(int slot) async {
+      // Relu au moment du geste : l'accès a pu s'ouvrir depuis le dernier
+      // rendu (paywall fermé juste avant).
+      final isPremium = ref.read(accesModuleProvider(AppModule.tcf));
+      ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+      // Slot verrouillé (servi) → l'offre. Le slot offert reste rejouable
+      // (EE/EO verrouillées au refaire, géré côté backend).
+      if (isLocked(slot)) {
+        showPaywallSheet(
+          context,
+          ref: ref,
+          ctaLocation: AnalyticsCtaLocation.mockExam,
+        );
+        return;
+      }
+      showTcfFullExamBriefingSheet(
+        context,
+        slot: slot,
+        isFreeAccount: !isPremium,
+        onStart: () async {
+          try {
+            final exam = await ref
+                .read(fullTcfExamRepositoryProvider)
+                .start(slotNumber: slot);
+            if (!context.mounted) return;
+            // Force le re-fetch de l'historique quand on revient ici plus tard.
+            ref.invalidate(fullExamsHistoryProvider);
+            context.go(
+              AppRoutes.tcfFullExamProgress
+                  .replaceFirst(':parentId', exam.id),
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            // Le backend applique le verrou des slots 2+ : un 403 ouvre le
+            // paywall au lieu d'une erreur technique (statut premium périmé
+            // côté client, abonnement expiré en cours de session).
+            showPaywallOrError(context, e,
+                ctaLocation: AnalyticsCtaLocation.mockExam);
+          }
+        },
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.red,
+      onRefresh: () async {
+        ref.invalidate(fullExamsHistoryProvider);
+        await ref.read(fullExamsHistoryProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          _ResultStats(history: historyAsync.valueOrNull ?? const []),
+          const SizedBox(height: 14),
+          ExamInfoChips(
+            accent: AppColors.red,
+            soft: AppColors.redLight,
+            items: [
+              (icon: LucideIcons.zap, label: 'Simulation réelle'),
+              // Ordre de grandeur, pas un décompte : il n'y a plus d'enveloppe
+              // globale, chaque épreuve porte son propre chrono. La somme vient
+              // de `kExamenCompletSecondes`, jamais d'un chiffre écrit ici.
+              (
+                icon: LucideIcons.clock,
+                label: '≈ ${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}'
+              ),
+              (
+                icon: LucideIcons.layoutGrid,
+                label: '4 épreuves CO · CE · EE · EO'
+              ),
+              (icon: LucideIcons.graduationCap, label: 'Score final CECRL'),
+            ],
+          ),
+          const SizedBox(height: 20),
+          historyAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => _ErrorBox(
+              message: e.toString(),
+              onRetry: () => ref.invalidate(fullExamsHistoryProvider),
+            ),
+            data: (history) => _SlotsSection(
+              history: history,
+              isLocked: isLocked,
+              onTapDone: (exam) => _openExam(context, exam, startNew),
+              onTapEmpty: startNew,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openExam(
+    BuildContext context,
+    FullTcfExamSummary exam,
+    void Function(int slot) startNew,
+  ) {
+    // En cours : on reprend directement le hub de progression (ce n'est pas
+    // un examen « déjà fait »).
+    if (exam.status == FullTcfExamStatus.inProgress) {
+      context.go(
+        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+      );
+      return;
+    }
+    // Terminé / éval IA en cours : même petite modale que les examens module
+    // et les séries → Refaire (nouvelle session sur le slot) ou Voir le détail
+    // (bilan). Plus d'ouverture directe du rapport.
+    final slot = exam.slotNumber;
+    final level = exam.finalCecrlLevel;
+    final subtitle = exam.status == FullTcfExamStatus.pendingEvaluations
+        ? 'Évaluation IA en cours'
+        : (level != null
+            ? 'Dernier niveau : ${level.shortName}'
+                '${exam.finalLevelPartial ? ' (partiel)' : ''}'
+            : 'Terminé');
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: slot != null ? 'Examen blanc $slot' : 'Examen blanc',
+        subtitle: subtitle,
+        accent: AppColors.red,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          // push (pas go) : le bilan se pose au-dessus de la liste → le back
+          // du bilan revient bien à la page précédente, pas à Réviser.
+          context.push(
+            AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
+          );
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          if (slot != null) startNew(slot);
+        },
+      ),
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Material(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onBack,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.line),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(LucideIcons.chevronLeft,
+                  size: 22, color: AppColors.ink),
+            ),
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppColors.blueLight,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            'TCF IRN',
+            style: AppFonts.ui(
+              size: 12,
+              weight: FontWeight.w800,
+              color: AppColors.blue,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 3 stat cards de résultats (cf. `MExamens` maquette) : meilleur niveau,
+/// dernier examen, examens terminés. Calculées sur l'historique des examens
+/// complets évalués.
+class _ResultStats extends StatelessWidget {
+  const _ResultStats({required this.history});
+
+  final List<FullTcfExamSummary> history;
+
+  @override
+  Widget build(BuildContext context) {
+    // Un bilan PARTIEL (épreuve verrouillée par le freemium ou évaluation en
+    // échec) ne porte pas sur les 4 épreuves : il ne peut alimenter ni un
+    // « meilleur niveau », ni un « dernier examen » présentés comme des
+    // résultats d'examen complet.
+    final completed = history
+        .where((e) =>
+            e.status == FullTcfExamStatus.completed &&
+            e.finalCecrlLevel != null &&
+            !e.finalLevelPartial)
+        .toList();
+    NiveauCecrl? best;
+    for (final e in completed) {
+      final l = e.finalCecrlLevel!;
+      if (best == null || l.scaleIndex > best.scaleIndex) best = l;
+    }
+    // Historique trié chrono DESC côté backend → le premier terminé = dernier passé.
+    final last = completed.isEmpty ? null : completed.first.finalCecrlLevel;
+    final doneSlots = history.map((e) => e.slotNumber).whereType<int>().toSet();
+
+    return Row(
+      children: [
+        Expanded(
+          child: StatValueCard(
+            value: best?.shortName ?? '—',
+            label: 'Meilleur niveau',
+            color: AppColors.red,
+            valueSize: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: StatValueCard(
+            value: last?.shortName ?? '—',
+            label: 'Dernier examen',
+            valueSize: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: StatValueCard(
+            value: '${doneSlots.length}/$_fullExamSlotsCount',
+            label: 'Terminés',
+            color: AppColors.red,
+            valueSize: 20,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Section principale : 20 slots numérotés, comme l'onglet Examens du
+/// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
+/// occupe le slot 1) et remplissent les slots de gauche à droite. Les slots
+/// restants sont vides (clic = nouvelle session).
+class _SlotsSection extends StatefulWidget {
+  const _SlotsSection({
+    required this.history,
+    required this.isLocked,
+    required this.onTapDone,
+    required this.onTapEmpty,
+  });
+
+  final List<FullTcfExamSummary> history;
+  /// Le verrou SERVI d'un slot (cadenas → paywall), jamais déduit du rang.
+  final bool Function(int slot) isLocked;
+  final void Function(FullTcfExamSummary) onTapDone;
+  final void Function(int slot) onTapEmpty;
+
+  @override
+  State<_SlotsSection> createState() => _SlotsSectionState();
+}
+
+class _SlotsSectionState extends State<_SlotsSection> {
+  bool _showAll = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Group by slot_number (cf. V110) : dernier essai par slot. Refait le
+    // slot N → nouvel attempt slot_number=N qui écrase l'ancien dans la grille.
+    final bySlot = <int, FullTcfExamSummary>{};
+    for (final e in widget.history) {
+      if (e.slotNumber == null) continue;
+      bySlot.putIfAbsent(e.slotNumber!, () => e);
+    }
+
+    final visibleCount =
+        _showAll ? _fullExamSlotsCount : _visibleByDefault;
+    final hiddenCount = _fullExamSlotsCount - visibleCount;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Tes examens', style: AppFonts.display(size: 17)),
+            const Spacer(),
+            Text(
+              '$_fullExamSlotsCount disponibles',
+              style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (int i = 0; i < visibleCount; i++) ...[
+          _ExamSlotCard(
+            slot: i + 1,
+            exam: bySlot[i + 1],
+            locked: widget.isLocked(i + 1),
+            onTapDone: widget.onTapDone,
+            onTapEmpty: () => widget.onTapEmpty(i + 1),
+          ),
+          if (i != visibleCount - 1) const SizedBox(height: 10),
+        ],
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextButton.icon(
+              onPressed: () => setState(() => _showAll = true),
+              icon: Text(
+                'Voir les examens ${visibleCount + 1} à $_fullExamSlotsCount',
+                style: AppFonts.ui(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.red,
+                ),
+              ),
+              label: const Icon(LucideIcons.chevronDown,
+                  size: 16, color: AppColors.red),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Une card slot (cf. `MExamens` maquette) : chip numéro 50 px — plein
+/// accent quand l'examen est passé (rouge terminé, ambre en cours, bleu en
+/// évaluation IA) ; à droite pill « Fait », play, spinner ou cadenas.
+class _ExamSlotCard extends StatelessWidget {
+  const _ExamSlotCard({
+    required this.slot,
+    required this.exam,
+    required this.onTapDone,
+    required this.onTapEmpty,
+    this.locked = false,
+  });
+
+  final int slot;
+  final FullTcfExamSummary? exam;
+  /// Slot verrouillé (servi par le backend) : cadenas + paywall.
+  final bool locked;
+  final void Function(FullTcfExamSummary) onTapDone;
+  final VoidCallback onTapEmpty;
+
+  Color get _accent => switch (exam?.status) {
+        FullTcfExamStatus.inProgress => AppColors.amber,
+        FullTcfExamStatus.pendingEvaluations => AppColors.blue,
+        FullTcfExamStatus.completed => AppColors.red,
+        null => AppColors.inkFaint,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final done = exam != null;
+    final lockedEmpty = locked && !done;
+    final level = exam?.finalCecrlLevel;
+
+    return FullExamSlotCard(
+      slot: slot,
+      filled: done,
+      accent: _accent,
+      title: 'Examen $slot',
+      subtitle: _subtitle(lockedEmpty: lockedEmpty, level: level),
+      subtitleColor: done ? _accent : AppColors.inkFaint,
+      trailing: _trailing(lockedEmpty: lockedEmpty),
+      lockedEmpty: lockedEmpty,
+      onTap: done ? () => onTapDone(exam!) : onTapEmpty,
+    );
+  }
+
+  String _subtitle({required bool lockedEmpty, required NiveauCecrl? level}) {
+    final e = exam;
+    if (e != null) {
+      return switch (e.status) {
+        FullTcfExamStatus.inProgress => 'En cours · Reprendre',
+        FullTcfExamStatus.pendingEvaluations => 'Évaluation IA en cours',
+        // « partiel » : le niveau ne porte pas sur les 4 épreuves (une
+        // verrouillée par le freemium ou sans évaluation exploitable).
+        FullTcfExamStatus.completed => level != null
+            ? 'Dernier niveau : ${level.shortName}'
+                '${e.finalLevelPartial ? ' (partiel)' : ''}'
+            : 'Terminé',
+      };
+    }
+    if (lockedEmpty) return 'Inclus dans le pass Intégral';
+    if (slot == 1) {
+      return 'Offert · 4 épreuves, ≈ '
+          '${epreuveDurationLabel(kExamenCompletSecondes) ?? ''}';
+    }
+    return 'Pas encore fait';
+  }
+
+  Widget _trailing({required bool lockedEmpty}) {
+    final e = exam;
+    if (e == null) {
+      return Icon(
+        lockedEmpty ? LucideIcons.lock : LucideIcons.chevronRight,
+        size: 18,
+        color: AppColors.inkFaint,
+      );
+    }
+    switch (e.status) {
+      case FullTcfExamStatus.inProgress:
+        return const Icon(LucideIcons.circlePlay,
+            color: AppColors.amber, size: 24);
+      case FullTcfExamStatus.pendingEvaluations:
+        return const SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        );
+      case FullTcfExamStatus.completed:
+        return FullExamSlotCard.faitPill(AppColors.red,
+            bg: AppColors.redLight);
+    }
+  }
+}
+
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: [
+          const Icon(LucideIcons.cloudOff,
+              color: AppColors.red, size: 30),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(color: AppColors.muted, size: 12.5),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: 'Réessayer',
+            variant: AppButtonVariant.secondary,
+            fullWidth: false,
+            onPressed: onRetry,
+          ),
+        ],
+      ),
+    );
+  }
+}

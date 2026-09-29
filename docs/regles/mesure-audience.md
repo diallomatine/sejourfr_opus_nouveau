@@ -1,0 +1,511 @@
+# Mesure d'audience, funnel et analytics
+
+> **Extrait de `CLAUDE.md` racine le 2026-08-23**, lors de la restructuration du fichier
+> (343 599 chars pour une limite de 150 000, rechargé à chaque requête). **Contenu verbatim, aucune réécriture.**
+> Origine : lignes 254-276, 347-554 de l'ancien `CLAUDE.md`.
+> **Lu à la demande** — ce fichier n'est jamais chargé automatiquement.
+> Ce fichier porte la loi de ce sous-système : on l'ouvre **quand on travaille dedans**.
+> Fichier jumeau : `docs/decisions/mesure-audience.md`
+> Traçabilité complète : `docs/inventaire-claude-md.md`.
+
+---
+
+## Identité IP des appelants (rate-limits, attempts invités)
+
+Tout ce qui se compte « par IP » — rate-limits anti-abus (login, inscription,
+mot de passe oublié, contact, démo) et `attempts.client_ip` des sessions
+invitées — passe par `util/ClientIpResolver`.
+
+- **`X-Forwarded-For` / `X-Real-IP` ne sont lus que si la connexion vient d'un
+  proxy déclaré de confiance** (`sejourfr.trusted-proxies.ranges`, env
+  `TRUSTED_PROXY_RANGES`, adresses ou CIDR séparés par des virgules).
+  **Vide par défaut** → en dev et sans configuration, c'est l'IP de la socket
+  qui fait foi. Sans ce garde-fou, n'importe qui remettait ses compteurs à zéro
+  en changeant un en-tête, et un invité se fabriquait autant d'identités qu'il
+  voulait.
+- En production, y mettre les plages du reverse-proxy réel. La valeur spéciale
+  `*` fait confiance à tout appelant : à réserver aux hébergements dont le port
+  applicatif n'est joignable que par le load balancer.
+- Quand le proxy est de confiance, on retient la **dernière adresse non-proxy**
+  de la chaîne `X-Forwarded-For` (les valeurs forgées par le client sont à
+  gauche de celle ajoutée par notre proxy, donc ignorées).
+- 🛑 **Production : `server.forward-headers-strategy: native`, jamais `framework`**
+  (contrôle N8, 2026-09-25). `framework` pose le `ForwardedHeaderFilter` de Spring, qui
+  réécrit `getRemoteAddr()` avec la **première** valeur de `X-Forwarded-For` quelle que
+  soit la connexion : un client choisissait son IP, et `ClientIpResolver` ne voyait plus
+  la socket (verrouillé par `ForwardedHeadersStrategyTest`). `native` = valve RemoteIp de
+  Tomcat : l'en-tête n'est lu que depuis un proxy interne (loopback, plages privées), la
+  dernière adresse non interne est retenue. Proxy sur une adresse publique : la déclarer
+  dans `TOMCAT_TRUSTED_PROXIES`. `TRUSTED_PROXY_RANGES` reste **vide** en production
+  (l'IP est déjà résolue ; `*` rouvrirait la falsification).
+- Le rate-limit de connexion **se réinitialise sur authentification réussie**
+  (`RateLimitGuard.onLoginSuccess`) : on freine l'enchaînement d'échecs, pas
+  l'utilisateur qui se reconnecte.
+
+## Funnel d'acquisition — comptage EXACT par compte (2026-08-19)
+
+Deuxième nature de mesure, **à ne jamais mélanger** avec `page_views` : ici on
+compte des **comptes**, une fois par étape, sur les vraies tables. Le funnel
+suivi est *réseau social → inscription → diagnostic commencé → terminé → écran
+Premium affiché → clic abonnement → paiement*.
+
+- 🛑 **Tout ce qui peut se lire sur les vraies tables se lit sur les vraies
+  tables** (`users`, `diagnostic_sessions`, `user_subscriptions`). Recompter des
+  inscriptions ou des paiements par événements client aurait produit **deux
+  chiffres divergents pour la même chose**. Seules les deux étapes qui n'existent
+  QUE dans le navigateur sont enregistrées.
+- **Cohorte d'inscription** : la population est celle des comptes créés dans la
+  fenêtre (`deleted_at IS NULL`), et **chaque étape est mesurée sur ces mêmes
+  comptes**, quelle que soit la date de l'étape. C'est ce qui rend « 4 payants
+  sur 50 inscrits TikTok » vrai ; comparer des totaux journaliers ne veut rien
+  dire. `integrity`, lui, est **global** et n'est jamais filtré par la période.
+- **La provenance et la plateforme voyagent en EN-TÊTES**, résolues serveur par
+  `util/ClientContextResolver` (patron `ClientIpResolver`) : `X-Sejourfr-Source`
+  (normalisée par **`util/TrafficSource`**, autorité unique — l'ancien
+  `PageViewService`, qui en était client, est supprimé depuis le 2026-09-25) et
+  `X-Sejourfr-Client` (`web` / `mobile`, enum `ClientPlatform`).
+  Un en-tête plutôt qu'un champ de DTO : ça couvre d'un coup l'inscription
+  locale, les sign-in Google/Apple et la création de diagnostic **sans toucher
+  quatre DTO**, et chaque front n'a qu'**un seul point de câblage** (client HTTP
+  web, `BaseOptions` du Dio mobile — y compris sur les requêtes non
+  authentifiées, l'inscription en fait partie).
+- **Capté à la création seulement** : `users.signup_source` / `signup_platform`
+  sont posés à `register` et à la **première** connexion sociale, **jamais
+  réécrits** — la provenance, c'est celle du premier jour (test dédié).
+  `diagnostic_sessions.platform` répond à « qui fait son diagnostic depuis
+  l'app ». **Legacy = NULL, aucun rattrapage** : rendu `"inconnu"` /
+  `"UNKNOWN"` et **affiché en clair**, sinon les totaux ne tombent plus juste.
+- **`user_funnel_events`** (V036) : `UNIQUE (user_id, event)` — **première
+  occurrence seulement**, donc **3 lignes maximum par compte**, la table ne peut
+  pas gonfler et n'a pas besoin de rate-limit. `POST /api/me/funnel-events`
+  (authentifié) rend **204** et est idempotent par `ON CONFLICT DO NOTHING` :
+  aucun rejeu ne lève, y compris en concurrence.
+  🛑 **`CHECKOUT_STARTED` est REFUSÉ au client (422)** et posé **serveur** par
+  `BillingService` après création réelle de la Checkout Stripe : venant d'un
+  client ce serait une **intention**, pas un fait, et la dernière marche du
+  funnel ne voudrait plus rien dire. Best-effort — un échec d'enregistrement ne
+  bloque jamais un paiement.
+- **`PAYWALL_VIEWED` ≠ `SUBSCRIBE_CLICKED`** : le premier se pose à l'affichage
+  d'un écran Premium (page `/paiement` **et** `PaywallSheet`), le second
+  **uniquement sur un CTA qui engage l'achat**. Un lien de navigation vers
+  `/paiement` n'est pas un clic d'abonnement — sinon les deux étapes affichent le
+  même nombre.
+- ⚠️ **Supprimé le 2026-09-25** (chantier « Suivi », lot 1a) : plus aucun écran
+  ne l'appelait depuis que `features/audience/` a été remplacé. `AdminAudienceController`,
+  `AudienceFunnelService`/`Manager`/`Repository`, `AudienceFunnelResponse` et
+  `FunnelStage` n'existent plus ; `user_funnel_events` et `POST /api/me/funnel-events`
+  restent (écrits, et lus par l'écran Analytics). Description conservée pour l'historique :
+  **`GET /api/admin/audience/funnel`** : `stages` (ordre figé `SIGNUP` →
+  `PURCHASE`, jamais réordonné par un front), `bySource`, `byPlatform`, `daily`,
+  `integrity`. `PURCHASE` = au moins une `user_subscriptions` de statut
+  ≠ `PENDING` (un remboursement a bien été un paiement). **6 requêtes agrégées
+  bornées** (`GROUP BY` en SQL), jamais une par compte ; chaque compte
+  appartient à exactement une cellule (source × plateforme), donc les
+  sous-totaux sont additionnables.
+- **Un seul diagnostic par compte** : l'unicité réelle est
+  `(user_id, diagnostic_code, diagnostic_version)`, **pas `user_id` seul** — une
+  version 2 du diagnostic autoriserait légitimement une seconde session. C'est
+  exactement ce que surveille `integrity.accountsWithMultipleDiagnosticSessions`
+  (doit valoir 0, mesuré sur **toute la base**).
+- **Suppression de compte** : les événements de funnel sont purgés
+  **explicitement** par `AccountDeletionService` — la suppression est une
+  *anonymisation*, la ligne `users` survit, donc la cascade DB ne se déclenche
+  pas (test IT dédié).
+- ⚠️ **Conséquence légale, traitée dans la même passe** : la provenance est
+  désormais **rattachée à un compte**, ce que `/confidentialite` niait
+  implicitement. La page a une sous-section **8.3 « Mesure d'audience sans
+  traceur »** + les lignes correspondantes aux articles 3.2, 4 et 5. L'acquis
+  est intact et doit le rester : **aucun cookie, rien écrit sur le terminal,
+  aucun outil tiers, aucun bandeau de consentement**. Ne rien ajouter qui écrive
+  côté visiteur sans repasser sur cette page.
+- **Admin** *(historique : `features/audience/` a été supprimé le 2026-08-21, cf.
+  section suivante)* : `features/audience/` est scindé en **deux sections étiquetées** —
+  « comptage exact · par compte » (le funnel) puis « agrégat anonyme · par
+  page » (l'existant). Les lire comme comparables produit des conclusions
+  fausses ; l'étiquette est là pour ça. Un **filtre de période unique** en tête
+  pilote les deux (aujourd'hui / hier / cette semaine — lundi / ce mois — le 1er
+  / 7-30-90 j / une date précise), calculé côté client depuis un seul
+  `parisToday()`.
+
+## Analytics — acquisition → diagnostic → inscription → premium → paiement (2026-08-21)
+
+Chantier d'après `docs/plan/BRIEF_CLAUDE_CODE_ANALYTICS_SEJOURFR.md` (112 sections)
+et sa maquette `docs/plan/SejourFR - Analytics Autonome.html`, **source de vérité
+visuelle**. L'écran vit dans l'admin sur **`/dashboard`** (`features/analytics/`) et
+**remplace** l'ancien dashboard et `features/audience/`, supprimés. Il répond à une
+seule question : *pourquoi mes visiteurs ne deviennent-ils pas abonnés, et quel
+levier améliorer en priorité ?*
+
+### Les 5 arbitrages du propriétaire
+
+1. **`anonymous_id` autorisé, sous exemption CNIL de mesure d'audience** :
+   first-party, jamais partagé, jamais cross-site, **rétention 13 mois**, aucun
+   recoupement externe ⇒ **toujours aucun bandeau de consentement**. Révoque la
+   règle « rien n'est stocké côté visiteur » ; `/confidentialite` (art. 3.2, 4, 5
+   et tout l'article 8, désormais 8.1→8.5) a été réécrite **dans la même passe**.
+2. **Analytics remplace `/dashboard`** — pas de cohabitation.
+3. **Charte SejourFR, maquette pour tout le reste** : la maquette est hors charte
+   (Bricolage Grotesque / Hanken Grotesk, bleu `oklch` ≈ #2D5BB8) ; on reprend sa
+   mise en page, sa densité et ses libellés, **jamais ses couleurs ni ses polices**.
+4. **Pays par géo-IP embarquée** (MaxMind GeoLite2). L'IP est lue en mémoire et
+   **jamais persistée**.
+5. **Revenu = montant réellement encaissé**, figé à l'écriture.
+
+### 🛑 Aucune seconde vérité — la règle qui structure tout le modèle
+
+`USER_REGISTERED`, `PAYMENT_SUCCEEDED` et `DIAGNOSTIC_COMPLETED` **ne sont PAS des
+événements**, alors que le brief §100 les liste. Ils se lisent sur `users`,
+`user_subscriptions` et `diagnostic_sessions` — V036 l'écrivait déjà : deux
+chiffres pour la même chose sont condamnés à diverger. **Un événement n'existe que
+pour ce qui n'existe QUE dans le navigateur.** Corollaire : `CHECKOUT_STARTED` est
+déclaré au registre mais **jamais écrit** dans `analytics_event` (il est posé
+serveur par `BillingService`, qui n'a pas d'`anonymousId`) — c'est
+`user_funnel_events` (V036) qui fait foi, table **conservée et continuée**.
+
+### Schéma — `V043__analytics.sql`
+
+- **`analytics_visitor`** : une ligne par `anonymous_id`. **L'attribution vit ici,
+  pas sur l'événement** — sinon le first touch cesserait d'être premier, et
+  compter les visiteurs demanderait un `COUNT(DISTINCT)`. Le **first touch
+  n'apparaît dans aucun `SET`** de l'upsert : il ne *peut pas* être réécrit. Le
+  last touch ne l'est que sur une source explicite. Pays / device / plateforme ne
+  s'écrasent jamais avec une absence d'info.
+- **`analytics_event`** : journal comportemental, `properties jsonb` à clés
+  **allowlistées** (le §6 du brief propose du jsonb libre — écarté, l'endpoint est
+  public), `dedup_key` unique.
+- **`analytics_identity`** (`anonymous_id` ⇄ `user_id`) : une **table** et non une
+  colonne, parce qu'un appareil partagé porte deux comptes. Écrite à la connexion
+  locale et aux deux sign-in sociaux, idempotente, best-effort. Un `anonymousId`
+  inconnu **n'écrit rien au lieu de lever** — sinon la FK empoisonnerait la
+  transaction de login.
+- **`analytics_annotation`** : les repères produit / marketing de la courbe.
+- **`user_subscriptions`** gagne `amount_cents`, `currency`, `amount_eur_cents`,
+  `fx_rate_to_eur`. 🛑 **Figés à l'écriture, jamais recalculés** :
+  `plans.price` est **mutable en console** (`AdminPlanService`), donc le lire à la
+  lecture falsifierait rétroactivement le chiffre d'affaires de tout l'historique.
+  Autorité unique `MontantEncaisse` + `MontantEncaisseResolver` (taux sous
+  `sejourfr.analytics.fx-rates`, POJO ≡ YAML). Devise sans taux ⇒ `amount_eur_cents`
+  **null**, jamais une conversion inventée. Les lignes existantes restent `NULL` :
+  **aucune migration de données**.
+- ⚠️ `country_code` / `currency` sont en `varchar(2)`/`varchar(3)` et non `char` :
+  Postgres rend `bpchar`, que Hibernate refuse sous `ddl-auto: validate`.
+
+### Ingestion — `POST /api/public/analytics/events/batch`
+
+> ⚠️ L'endpoint **unitaire** `POST /api/public/analytics/events` (204, rate-limit
+> `analytics:burst` 120 / 10 min et `analytics:daily` 2000 / j de `RateLimitGuard`) a été
+> supprimé le 2026-09-25 (D88) puis **rétabli le même jour** (contrôle N1) : l'application
+> **publiée** l'utilise encore (`X-Sejourfr-Client: mobile`, sans version), et sa
+> suppression aurait produit une fausse chute des visiteurs et des sources dès le
+> déploiement du backend. Même validation que le lot (`AnalyticsEventNormalizer`) ;
+> `event_id` reste `NULL` sur ses lignes.
+>
+> 🛑 **Condition de retrait** : les événements de plateforme `MOBILE` (l'app d'avant
+> iOS / Android) passent **sous 5 % des événements de l'application** (`MOBILE` + `IOS` +
+> `ANDROID`) sur les **7 derniers jours**. Vérification, en production :
+>
+> ```sql
+> SELECT count(*) FILTER (WHERE platform = 'MOBILE')                   AS evenements_mobile,
+>        count(*) FILTER (WHERE platform IN ('MOBILE', 'IOS', 'ANDROID')) AS evenements_app,
+>        round(100.0 * count(*) FILTER (WHERE platform = 'MOBILE')
+>              / NULLIF(count(*) FILTER (WHERE platform IN ('MOBILE', 'IOS', 'ANDROID')), 0), 2)
+>                                                                     AS pct_mobile,
+>        count(*) FILTER (WHERE event_id IS NULL)                        AS recus_par_l_unitaire
+>   FROM analytics_event
+>  WHERE received_at >= now() - interval '7 days';
+> ```
+>
+> Retirer quand `pct_mobile < 5` (et `recus_par_l_unitaire` marginal) : contrôleur,
+> service, DTO, rate-limit et tests de l'unitaire, comme au commit `2988a6dd`.
+> Ce qui suit vaut pour le lot.
+
+Public, **rate-limité** par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, section
+« Ingestion en lot » plus bas). L'ancien `POST /api/public/page-views`, public et jamais
+limité, a été **supprimé le 2026-09-25** (la table `page_views` reste en base, plus
+écrite). Allowlists fermées : événement, propriétés **par événement**, chemins
+(`util/AnalyticsPaths`), toutes dans `AnalyticsEventNormalizer`. Hors allowlist ⇒
+**rejet individuel nommé**. Pays et device sont résolus **serveur** (le client les
+falsifierait) ; les UTM trop longues sont **tronquées, pas rejetées** (borne de
+stockage, pas règle métier) ; un referrer est ramené à son **hôte seul**.
+⚠️ **Ajouter un écran suivi = une ligne dans `AnalyticsPaths.KNOWN`, dans la même
+passe que le front** — un chemin non déclaré est refusé, jamais rangé en « autre ».
+
+### Le RIDEAU freemium — trois gestes, jamais fondus (2026-08-26)
+
+Posés **avant** le déploiement de la « progression par épreuve », qui fait passer le rideau du
+diagnostic de « 1 sur 5 » à « 1 sur 9 ou 12 » : mesurés après coup, ils n'auraient plus de
+point de comparaison. Signal de valeur plus fort — mais le découragement est tout aussi
+plausible, et **on ne tranche pas sur l'intuition**.
+
+| Événement | Propriétés |
+|---|---|
+| `PLAN_CURTAIN_SHOWN` | `ctaLocation`, `epreuve`, `visibleCount`, `totalCount` |
+| `PLAN_CURTAIN_EXPANDED` | `ctaLocation`, `epreuve` |
+| `PLAN_PAYWALL_VIEWED` | `ctaLocation` |
+
+- 🛑 **`PLAN_PAYWALL_VIEWED` n'est PAS `PREMIUM_CTA_CLICKED`** : une vue n'est pas une
+  intention, et c'est l'**écart entre les deux** qui répond à la question. Les fondre
+  effacerait exactement la mesure qu'on vient poser.
+- `PLAN_CURTAIN_EXPANDED` porte `epreuve` comme `SHOWN` : sans dimension commune, un taux de
+  dépliage par épreuve ne se lit pas. Seule l'**ouverture** compte — replier n'est pas vouloir
+  voir.
+- Les deux compteurs sont ceux **réellement à l'écran** (clair d'un côté, caché de l'autre),
+  jamais une longueur de liste tronquée. Émis **là où le rideau est rendu**, une fois par
+  épreuve et par affichage.
+- `epreuve` reprend `EpreuveType` tel quel ; `visibleCount` / `totalCount` passent par un
+  `Kind.COUNT` **borné à quatre chiffres** — c'est une **taille d'affichage**, jamais une donnée
+  du candidat, et la borne est ce qui empêche cette clé de devenir un champ libre numérique.
+
+### Lecture — `GET /api/admin/analytics`
+
+> ⚠️ **Supprimé le 2026-09-25** (chantier « Suivi », lot 4) : l'écran `/dashboard` est
+> remplacé par le dashboard « Suivi » (`GET /api/admin/analytics/suivi`, section « Lecture
+> du dashboard Suivi » en fin de fichier). `AdminAnalyticsController`/`Service`,
+> `AnalyticsReadRepository`/`Manager`, `AnalyticsInsightsBuilder`, `AnalyticsCalculs`,
+> `AnalyticsGrain`, `AnalyticsLibelles`, `RepartitionArrondie`, les annotations
+> (`AnalyticsAnnotation*`) et leurs tests n'existent plus ; les tables
+> (`analytics_annotation`, `user_funnel_events`…) restent en base (Q9, Q10). Description
+> conservée pour l'historique :
+
+**Un seul endpoint** et pas les cinq du brief : la maquette recalcule toutes ses
+sections depuis un même objet, cinq appels imposeraient cinq fenêtres de temps à
+tenir cohérentes. `FenetreMesure` **réutilisée telle quelle**, bornes appliquées
+rendues, 4 filtres facultatifs, cache 60 s (vidé à l'écriture d'une annotation).
+**Coût figé : 10 requêtes SQL, constantes**, vérifié par une **égalité** dans
+`AdminAnalyticsCoutIT` avec 2 puis 20 provenances — seule façon d'attraper un N+1.
+Zéro agrégation en Java.
+
+Règles de calcul : `v` compte des **visiteurs distincts**, jamais des vues ; `prem`
+des **cliqueurs uniques** (le volume brut de clics ne vit que dans la table CTA) ;
+`revEurCents` est la **somme réelle** des montants — **jamais** le `pay × 14,99` de
+la maquette ; `previous = 0` ⇒ delta **`null`** ; bucketing 1 j / 45 j → heure /
+jour / semaine ; séries **continues des deux côtés** ; **arrondi à somme conservée**
+(`util/RepartitionArrondie`) pour que la somme des lignes égale toujours le pied ;
+comptes internes exclus **en SQL** (`users.is_internal`, V074 — la liste YAML
+`sejourfr.analytics.excluded-emails` est supprimée) ;
+`direct ≠ inconnu`, et `inconnu` ne se cache jamais.
+
+⚠️ **`pay` suit la COHORTE d'inscription**, pas « premier paiement dans la
+période » : la population est celle des comptes créés dans la fenêtre, et chaque
+étape est mesurée sur ces mêmes comptes. C'est ce qui rend « 4 payants sur 50
+inscrits TikTok » vrai et les sous-totaux additionnables. **Conséquence assumée** :
+un compte inscrit avant la fenêtre qui paie pendant n'est pas compté, et le chiffre
+d'une période passée continue de monter à mesure que ses inscrits convertissent.
+« Un renouvellement n'est jamais un nouvel abonné » reste garanti.
+
+**Insights déterministes, sans LLM** (≤ 4), avec les trois seuils d'honnêteté
+hérités de l'ancien `insights.ts` : 10 inscrits pour désigner une fuite, 20 pour
+comparer les réseaux, 5 par réseau. Sous le seuil **on énonce les chiffres et on
+dit pourquoi on s'arrête là** — on masque une conclusion, jamais une donnée. Le
+classement des sources trie **payants d'abord, taux ensuite** (le taux seul
+hisserait en tête un réseau à 1 inscrit / 1 payant), `inconnu` toujours en dernier.
+
+### Limites connues — à afficher comme telles, jamais à combler par une estimation
+
+- **Le pays reste `UNKNOWN`** tant que `GeoLite2-Country.mmdb` n'est pas installée
+  (compte MaxMind requis, licence interdisant de la versionner) : poser
+  `ANALYTICS_GEOIP_DB`. Le résolveur est **inerte proprement** sans elle.
+- **Aucune provenance mobile** : ni deep link, ni install referrer, ni paramètre
+  d'URL. La plomberie est prête (un seul point de câblage) mais l'attribution
+  mobile restera « inconnu » tant qu'aucune campagne n'ouvrira l'app par un lien.
+  🛑 **Ne pas « réparer » en renvoyant `direct`** — c'était le bug d'avant. Le serveur
+  l'écrivait encore par repli jusqu'au contrôle N2 (2026-09-25) : corrigé à l'écriture
+  (`null`) et à la lecture (natif sans source brute = inconnu).
+- **`DIAGNOSTIC_CO_COMPLETED` / `_CE_COMPLETED` ne sont pas émis** : la
+  compréhension se joue dans le runner QCM ordinaire, qui ignore pourquoi il
+  s'ouvre. Les maillons `co2`/`ce2` valent **`null`, jamais 0** — un zéro se lirait
+  « tout le monde abandonne ». Réparable en marquant l'attempt à son lancement.
+- **La série n'est pas additive** pour `v` et les cliqueurs (un visiteur actif deux
+  jours compte dans deux barres) : aucune courbe d'uniques ne l'est. Les tableaux,
+  eux, somment exactement au pied.
+- ~~Un job de purge à 13 mois reste à écrire~~ → **écrit au lot 1b du chantier
+  Suivi** (`AnalyticsRetentionJob`, 395 j, cf. section ci-dessous).
+
+## Chantier « Suivi » — fondations (lot 1b, 2026-09-25)
+
+Brief `docs/admin/brief-analytics-diagnostic.md`, arbitrages et décisions
+`docs/admin/decisions-suivi.md`. Ce lot pose le socle ; les écritures métier
+(`diagnostic_run`, claim, revenu) sont au lot 2, la lecture au lot 4.
+
+- **Schéma : une seule migration, `V074`** (`diagnostic_run`, `purchase_intent`,
+  `payment_refunds`, revenu et attribution sur `user_subscriptions`, colonnes
+  d'`analytics_event`, `users.signup_*` + `is_internal`,
+  `analytics_visitor.ft_source_raw`). 🛑 Toute colonne de mesure est **nullable et
+  jamais rattrapée** : `null` = inconnu (Q16).
+- **`users.is_internal` est la seule autorité de l'exclusion** (Q6). Initialisée par
+  V074 depuis l'ancienne liste YAML (3 comptes seed), puis `migration-dev/V901` pour
+  une base de dev neuve. Pas d'écran d'édition : `UPDATE users SET is_internal = true`.
+  `analytics_event.is_internal` est **résolu à l'ingestion** (compte JWT de l'appelant,
+  ou compte lié à son `anonymousId`) et jamais réécrit : une ligne d'avant le lien reste
+  `false`.
+- **En-têtes (Q4)** : `X-Sejourfr-Client` accepte `web | ios | android` (`mobile` reste
+  lu `MOBILE`, jamais réparti), plus `X-Sejourfr-Anonymous-Id` et
+  `X-Sejourfr-App-Version`. Autorité unique : `ClientContextResolver`. Un iOS/Android
+  déclaré fixe `device_type` sans lire le user-agent.
+- **Ingestion en lot (Q17)** : `POST /api/public/analytics/events/batch`, 202 + rapport,
+  rejet individuel, idempotence sur `event_id` tiré **à la création** de l'événement,
+  horodate future ramenée à la réception (> 10 min), trop ancienne rejetée (> 168 h),
+  rate-limit par IP et par `anonymousId` (`AnalyticsBatchRateLimit`, hors
+  `RateLimitGuard`). L'unitaire reste tant que l'application publiée l'utilise
+  (contrôle N1, condition de retrait ci-dessus). Validation partagée :
+  `AnalyticsEventNormalizer` (allowlists, verrouillées par `AnalyticsEventNormalizerTest`).
+  Corps accepté en `application/json` **et en `text/plain`** (contrôle N7 : le
+  `sendBeacon` du web évite ainsi la pré-vérification CORS cross-origin) ;
+  `AnalyticsBatchTextPlainConverter`, borné à ce seul DTO, mêmes validations.
+- **Colonnes de contexte, pas des propriétés** : `diagnostic_run_id`, `diagnostic_type`,
+  `journey_id` (`plan_id` = `journey.id`, Q8) se **joignent**, donc vivent en colonnes,
+  bornées par événement (`AnalyticsEvent.Contexte`). La run citée doit exister et **son
+  type fait foi**.
+- **Événements** : `DIAGNOSTIC_REPORT_VIEWED` (étape 4) et `PLAN_OPENED` (étape 5) sont
+  **enrichis**, pas doublés ; `PLAN_UNLOCK_CLICKED` (étape 6) est nouveau
+  (`ctaLocation`, `planCode`, `displayedPriceCents`). 🛑 Pas de
+  `DIAGNOSTIC_SUBJECT_VIEWED` : l'étape 1 se lit sur `diagnostic_run` (Q3).
+- **Source déclarée brute** : `analytics_visitor.ft_source_raw` garde `ig`, que
+  `TrafficSource` range en « autre » ; le regroupement (`ig` → instagram) se fait à la
+  **lecture** par `utmSourceGroups` de la config (scénario 17).
+- **Rétention 395 j (Q5)** : `AnalyticsRetentionJob` (cron
+  `sejourfr.analytics.retention-cron`, 04:10 Paris) purge par lots les événements
+  plus vieux que `rawEventRetentionDays`, puis les visiteurs **inactifs** depuis (et
+  leurs liens `analytics_identity`). Les faits métier (`diagnostic_run`, `users`,
+  `user_subscriptions`) n'ont aucune FK vers le visiteur et ne perdent rien.
+  13 mois = durée de vie du **traceur** (condition CNIL) ; les 395 j de conservation des
+  données brutes sont notre choix, aligné. `/confidentialite` art. 5, 8.2-8.4 à jour.
+- **Configurations versionnées** : `analytics/analytics-config-v1.json` (cohorte 14 j,
+  claim 2 j ancré sur le sujet vu — 30 j avant le contrôle E —, réutilisation d'une run
+  par sa clé 24 h, seuil civique 0,8, intention 24 h, rétention, ingestion, groupes de sources, **date de début
+  de mesure par indicateur** — `null` = pas encore mesuré, l'indicateur vaut alors
+  `null`) et `billing/revenue-rules-v1.json` (`FRANCHISE_293B`, TVA store 20 %,
+  commission `MULTIPLY` 0,15 Apple et Google **à confirmer**, Stripe 1,5 % + 25 c).
+  Loaders qui échouent au boot (`AnalyticsConfigLoader`, `RevenueRulesLoader`).
+- **Liaison identité à l'auth** : `anonymousId` du corps, sinon l'en-tête ;
+  `SignupAttribution` pose la provenance à la création (autorité unique, local et
+  social) ; `AnalyticsIdentityService.onAuthenticated(user, AuthKind, anonymousId)` pose
+  le lien best-effort, le claim de la run vit à côté (lot 2a, ci-dessous).
+
+## Chantier « Suivi » — cycle de vie de `diagnostic_run`, claim, `signup_context` (lot 2a, 2026-09-25)
+
+Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
+`docs/regles/diagnostic.md` § « La trace du tunnel ».
+
+- **Étape 1 = `diagnostic_run.subject_viewed_at`**, écrite par
+  `POST /api/public/diagnostic-runs` (horloge serveur). Toujours pas d'événement
+  `DIAGNOSTIC_SUBJECT_VIEWED` (Q3). Idempotente par `(anonymous_id, client_key)` et par
+  session ; rate-limitée par IP et par identifiant (`DiagnosticRunRateLimit`, seuils
+  `diagnosticRunRateLimit` de la config ; les quatre fenêtres sont écrites une fois,
+  `IpEtIdentifiantLimites`, partagées avec l'ingestion en lot).
+- **Étape 2 (« soumis »)** : client pour le TCF rapide, serveur pour le civique et le
+  complet ; une seule fois. **Étape 3 (« rattaché »)** : soumis connecté, ou claim à
+  l'auth (`claim_kind` `SIGNUP` = « inscrit après diagnostic », `LOGIN` = « connecté après
+  diagnostic »). « Soumis anonymes jamais rattachés » = `submitted_at IS NOT NULL AND
+  user_id IS NULL` — la purge des invités n'y touche pas (scénario 19).
+- 🛑 **Le `claimToken` ne part jamais dans un événement.** Le `diagnosticRunId`, lui,
+  voyage dans `analytics_event.diagnostic_run_id` (lot 1b).
+- **`users.signup_context`** est posé à **chaque** inscription (locale, Google, Apple),
+  dans la transaction, par `SignupAttribution.stampContext`.
+- **Rétention** : au-delà de `rawEventRetentionDays`, `AnalyticsRetentionService` fait
+  oublier à la run son `anonymous_id` et sa `client_key` (D27) ; la run et ses faits
+  restent. **Suppression de compte** (contrôle N9) : `AccountDeletionService` fait de même,
+  immédiatement, sur toutes les runs du compte (`DiagnosticRunManager.forgetIdentifiersOfUser`).
+- ⚠️ **Dates de début de mesure** (Q16) : les 14 indicateurs de `measurementStart`
+  (`analytics-config-v1.json`) valent **`2026-09-28`**, jour de la mise en production de V043 et
+  V074 → V079 (D116). Une période entièrement antérieure vaut `null`, jamais 0 ; une période
+  qui la **chevauche** est servie **depuis cette date** (D117, 2026-09-29 — révoque « une
+  période qui la chevauche aussi »). Un nouvel indicateur arrive à `null` et reçoit la date de
+  SA mise en production (D28, D43).
+
+## Chantier « Suivi » — lecture du dashboard Suivi (lot 4, 2026-09-25)
+
+`GET /api/admin/analytics/suivi` (`AdminSuiviController` → `SuiviService` →
+`SuiviReadManager` → `SuiviReadRepository`, `SuiviMapper`), contrat `AdminSuiviResponse`.
+Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
+`SuiviScenariosIT` (scénarios §12), `AdminSuiviControllerIT`, `SuiviPerformanceIT`.
+
+### Règles communes
+
+- **Deux logiques, jamais mélangées.** Le **tunnel** (et « par type », et les ratios) est une
+  **cohorte** ; les KPI, revenus, inscriptions, sources et l'activité comptent ce qui s'est
+  passé **dans la période**. Bornes en jours Europe/Paris (`FenetreMesure`) ; période de
+  comparaison = même durée, juste avant.
+- 🛑 **`null` = inconnu ou pas encore mesuré, jamais 0** (Q16, D43). Chaque indicateur a une
+  date `measurementStart` (`analytics-config-v1.json`) ; `null` ou postérieure à la **fin** de
+  la période ⇒ l'indicateur vaut `null`.
+  🛑 **Période à cheval sur la date (D117, 2026-09-29)** : l'indicateur est compté **depuis
+  cette date** — chaque lecture SQL prend pour borne basse `max(début de période, date)`
+  (`SuiviMapper.Mesure.since`, `SuiviReadManager.Debuts`), jamais un fait antérieur. La
+  **période précédente** n'est lue que si elle est mesurée **de bout en bout** : sinon
+  `previous` et `deltaPct` valent `null` (une tendance sur une demi-période serait fausse).
+  Deux comptes ne se rapportent (ratio « % des visiteurs », « % des diagnostics », net après
+  remboursements) que mesurés depuis le **même** jour, sinon `null`. Une étape du tunnel n'est
+  mesurée que si sa date couvre **toute** la cohorte (premier jour de l'étape 1). La date est
+  servie (`measurementStart`) pour que l'écran dise « mesuré depuis le … ». Une étape du
+  tunnel non mesurée rend `null` **elle et toutes les suivantes** (le tunnel est séquentiel).
+  Le total des inscriptions (`signups.total`) n'a pas de date : c'est un fait de `users`,
+  compté sur toute la période ; contexte et plateforme partent de leur date. Un filtre `IOS`/`ANDROID` exige en plus
+  `SIGNUP_PLATFORM_DETAIL` pour les visiteurs, les sources et les inscriptions. Une somme
+  **mesurée** mais vide vaut 0.
+  **Profil dev seulement** : `sejourfr.analytics.measurement-start-overrides`
+  (`application-dev.yaml`) remplace ces dates pour relire l'écran sur le jeu
+  `db/migration-dev/R__seed_dev_suivi.sql` ; hors profil dev, une surcharge fait échouer le
+  démarrage (`AnalyticsConfigLoader.withMeasurementStartOverrides`). Le fichier versionné ne
+  change pas.
+- **Personne** (`pk`) = `COALESCE(run.user_id, run.anonymous_id)` ; une run sans l'un ni
+  l'autre est sa propre personne. « Tous » compte des **personnes distinctes**.
+- **Type** : TCF = `QUICK_TCF` seulement (Q2) ; `FULL_TCF` n'entre dans aucun indicateur.
+  Un achat prend le type de sa run attribuée, sinon le module de son parcours, sinon
+  `CIVIQUE` pour un pass Civique seul ; un pass Intégral non attribué n'a pas de type
+  (compté sous « Tous » seulement). Le filtre type ne s'applique ni aux visiteurs, ni aux
+  sources, ni aux inscriptions (`signups.typeFilterApplied = false`), ni au bloc « par type ».
+- **Plateforme** : celle de l'étape 1 (la run de référence) pour le tunnel et les soumissions ;
+  celle de l'événement pour les visiteurs ; `signup_platform` pour les inscriptions ; le
+  canal pour les achats (Stripe = web, Apple = iOS, Google = Android). `MOBILE`/`UNKNOWN` ne
+  sont comptés que sous « Toutes ».
+- **Source** = groupe de `utmSourceGroups` (lecture, réversible) appliqué à la source
+  first-touch **déclarée** (`ft_source_raw`, sinon `ft_source`) : visiteur de la run,
+  sinon visiteur d'inscription du compte (`signup_anonymous_id`), sinon son plus ancien
+  visiteur lié (`analytics_identity`), sinon `users.signup_source`. Aucune ⇒ inconnue,
+  comptée sous « Toutes » seulement (jamais rangée dans « autre »).
+  🛑 **Natif sans provenance = inconnu, jamais `direct`** (contrôle N2, 2026-09-25) : à
+  la lecture, un visiteur `IOS`/`ANDROID`/`MOBILE` sans `ft_source_raw`, et un compte
+  natif dont `signup_source = 'direct'`, n'ont pas de source (`SuiviReadRepository.SOURCE_V*`,
+  `SOURCE_INSCRIPTION`). **Même règle pour un client sans plateforme déclarée** (`UNKNOWN` ou
+  `NULL`, audit 2026-09-29) : en prod ce sont les connexions Google / Apple de l'application
+  publiée avant iOS / Android, écrites `UNKNOWN` / `direct` par le repli explicite
+  (`ClientContext.unknown()`), jamais un accès direct observé. À l'écriture, `ClientContext.attributedSource()` rend `null` au
+  lieu du repli `direct` pour l'app native sans provenance déclarée
+  (`analytics_visitor.ft_source`/`lt_source`, nullables depuis V076, et
+  `users.signup_source`). Le web sans provenance reste un vrai `direct`.
+- **Interne** : `users.is_internal`, ou identifiant de mesure lié à un compte interne, ou
+  `analytics_event.is_internal` ; exclu sauf `includeInternal=true`.
+- **Achats** : `user_subscriptions` datés par `purchased_at`, statut ≠ `PENDING`, remboursés
+  **inclus** (le remboursement est compté à part).
+
+### Définitions
+
+| Indicateur | Définition |
+|---|---|
+| Visiteurs uniques | `anonymous_id` distincts ayant ≥ 1 événement dans la période |
+| Diagnostics soumis (KPI = `activity.submittedFirst`) | runs soumises dans la période, 1ʳᵉ tentative par personne et par type (« Tous » = personnes distinctes) ; `submittedRaw` = toutes |
+| « % des visiteurs » | soumis / visiteurs (période) |
+| Achats | achats de la période ; « % des diagnostics » = achats / soumis |
+| Net réel estimé | Σ `net_ex_vat_cents` des achats de la période + Σ `net_ex_vat_delta_cents` des remboursements **datés** dans la période |
+| Tunnel, étape 1 | 1ʳᵉ run de la personne pour ce type (toutes dates), sujet vu dans la période, plateforme et source de **cette** run dans les filtres |
+| « Soumis » retenu | TCF rapide : `submitted_at`. Civique : `submitted_at` **et** `submitted_answered_count ≥ civicSubmittedMinAnsweredRatio × submitted_question_count` (0,8, contrôle C, V076) ; mesure absente = inconnu, non compté. Règle unique `util/SoumisRetenu` (SQL + jumeau Java, `SoumisRetenuIT`), appliquée une fois dans `RUNS` : tunnel, ratios, KPI, activité, « jamais rattachées » ; et au claim pour `signup_context` |
+| Étapes 2 → 7 | atteintes avant `subject_viewed_at + cohortWindowDays` (14 j) **et** l'étape précédente atteinte : soumis (retenu) ; rattaché (soumis connecté, ou claim) ; `DIAGNOSTIC_REPORT_VIEWED` sur la run ; `PLAN_OPENED` ; `PLAN_UNLOCK_CLICKED` ; achat attribué à la run (`origin = DIAGNOSTIC_PLAN`) |
+| Étapes 5 et 6 | l'événement se rattache à la run par son **parcours** (`v_journey_founding_run`, V075, même autorité que `DiagnosticRunManager.findFoundingRun`, Q8), sinon par la run qu'il cite |
+| Sous-lignes de l'étape 3 | déjà connecté (`submitted_authenticated`), inscrit après (`claim_kind = SIGNUP`), connecté après (`LOGIN`) ; sous « Tous », une personne n'entre que dans une sous-ligne, dans cet ordre de priorité : leur somme vaut l'étape 3 |
+| CA net cohorte | net HT des achats de l'étape 7, **tous** leurs remboursements déduits (quelle que soit leur date) ; un achat sans décomposition est compté à part (`cohortPurchasesWithoutBreakdown`), jamais à 0 |
+| « En cours » | la fenêtre d'une entrée de la période n'est pas écoulée (`fin + 14 j > maintenant`) |
+| Par type | colonnes TCF et Civique du tunnel (étapes 1, 2, 7) |
+| Runs sans identifiant (contrôle D) | `funnel.runsWithoutIdentifier` : entrées de l'étape 1 sans `user_id` ni `anonymous_id` (navigateur qui refuse `localStorage` et IndexedDB). Chacune est sa propre personne, faute d'idempotence : doublons possibles, jamais des pertes. Aucune réparation serveur (pas d'heuristique) : l'inconnu est rendu visible |
+| Revenus | brut, TVA, frais, net après frais, net HT des achats de la période (sommes des lignes **décomposées**, `purchasesWithoutBreakdown` à côté ; `grossUnknownPurchases` = achats au brut en euros inconnu, absents de `grossCents`, qui est alors partiel — contrôle N5) ; remboursements datés dans la période (nombre, montant, delta de net) ; net après remboursements = KPI |
+| Inscriptions | comptes créés dans la période, non supprimés : après / hors diagnostic (`signup_context`), TCF / Civique (`signup_diagnostic_type`), `contextUnknown` (client ancien qui ne transmet pas le contexte, D98 : en prod l'application publiée avant iOS / Android ; depuis D117 un compte antérieur à la mesure n'y entre plus), plateformes ; `loggedInAfterDiagnostic` = comptes ayant claimé une run par connexion dans la période |
+| Sources | visiteurs de la période par groupe, dans l'ordre de la config, repli en dernier ; `unknownSourceVisitors` = visiteurs sans source (natif ou plateforme non déclarée, N2), servis et affichés « Inconnue » : groupes + inconnue = KPI visiteurs (audit 2026-09-29 — la ligne était cachée, la somme des barres ne tombait pas juste) |
+| Ratios (§7.4) | sur la cohorte : 2/1 ; inscrits après / soumis anonymes (les « déjà connectés » exclus des deux termes) ; 4/3 ; 5/4 ; 6/5 ; 7/6 ; 7/2 ; CA net cohorte / étape 2 |
+| Soumis anonymes jamais rattachés | runs soumises anonymement dans la période sans claim dans les 14 j qui suivent la soumission ; `anonymousNeverAttachedOngoing` tant que J+14 n'est pas passé. La purge des invités n'y touche pas (scénario 19) |
+
+### Coût
+
+Six requêtes SQL natives, **constantes** (égalité verrouillée par `SuiviPerformanceIT`),
+calcul à la volée sans cache : ~160 ms par lecture sur un mois réaliste (3 000 comptes,
+40 000 événements, 6 000 runs, 900 achats). Vue matérialisée seulement si une lecture
+dépasse 1 s (brief §9).

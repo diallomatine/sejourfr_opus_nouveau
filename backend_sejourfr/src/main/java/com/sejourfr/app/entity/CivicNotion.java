@@ -1,0 +1,100 @@
+package com.sejourfr.app.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * Une <b>notion civique</b> du referentiel de travail (V051, lot L8).
+ *
+ * <p>🛑 <b>Referentiel de TRAVAIL, pas liste figee.</b> {@code 50_} §6.1 :
+ * les 40 notions « ne sont ni validees ni remplacees par une liste
+ * definitive » et sont « destinees a etre ajustees APRES le tagging ».
+ *
+ * <p>🛑 <b>Une notion ne se supprime pas, elle FUSIONNE.</b> A la porte de
+ * revue (§6.1.3), une notion trop peu dotee est desactivee et
+ * {@link #mergedInto} pointe vers celle qui la reprend. Les questions deja
+ * taguees gardent leur lien, et la decision reste lisible en base — supprimer
+ * la ligne effacerait a la fois le travail humain et sa raison.
+ */
+@Entity
+@Table(name = "civic_notions")
+@Getter
+@Setter
+public class CivicNotion {
+
+    @Id
+    @UuidGenerator
+    @Column(columnDefinition = "uuid")
+    private UUID id;
+
+    @Column(nullable = false, length = 64, unique = true)
+    private String code;
+
+    @Column(nullable = false, length = 200)
+    private String label;
+
+    /** Le theme par son CODE ({@code CIV_PRINCIPES}…), jamais par UUID. */
+    @Column(name = "theme_code", nullable = false, length = 64)
+    private String themeCode;
+
+    @Column(name = "display_order", nullable = false)
+    private short displayOrder;
+
+    /**
+     * La <b>frontiere</b> de la notion, en langage metier (V055).
+     *
+     * <p>Trois lecteurs doivent dire la meme chose : le prompt de pre-tagging,
+     * l'ecran d'administration et le relecteur humain. C'est pour ca qu'elle
+     * vit en base et non en constante de prompt — en constante, elle aurait
+     * diverge de l'ecran a la premiere retouche.
+     *
+     * <p>{@code null} pour une notion dont la frontiere ne pose aucun probleme :
+     * decrire ce qui ne se dispute rien ajoute du bruit au prompt.
+     */
+    @Column(columnDefinition = "text")
+    private String description;
+
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
+    /**
+     * Notion qui reprend celle-ci apres fusion. {@code null} = notion vivante.
+     * La base impose qu'une notion fusionnee soit desactivee.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "merged_into_id")
+    private CivicNotion mergedInto;
+
+    /**
+     * L'<b>unite du programme officiel</b> dont cette notion editoriale releve
+     * (V068, arrete du 10 octobre 2025 annexe I).
+     *
+     * <p>🛑 <b>Correspondance ARBITREE, pas mesuree</b> : construite a partir du
+     * {@link #label} et de la {@link #description} de chaque notion — les
+     * descriptions de V058 nomment leurs frontieres, ce qui permet de trancher.
+     * Le detail, avec les neuf rattachements discutables, vit dans
+     * {@code docs/audits/AUDIT_cycle_plan_civique_v2.md} annexe A.
+     *
+     * <p>🛑 <b>Une notion ACTIVE en porte toujours une</b>
+     * ({@code chk_civic_notion_rattachee}) : une notion active sans unite serait
+     * une notion hors programme. {@code null} sur une notion <b>desactivee</b>,
+     * qui n'est plus au programme et n'a rien a rattacher.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "official_unit_id")
+    private CivicOfficialUnit officialUnit;
+
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt = Instant.now();
+}

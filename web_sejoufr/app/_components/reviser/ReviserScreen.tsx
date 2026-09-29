@@ -1,0 +1,636 @@
+"use client";
+
+/**
+ * **L'écran « Réviser »** — la maquette du propriétaire
+ * (`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`), montée sur le KIT.
+ *
+ * L'en-tête, la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
+ * liste des **quatre épreuves** du TCF IRN — ou des cinq thèmes en civique.
+ *
+ * 🛑 **« Structure de la langue » n'est PAS une cinquième épreuve** (arbitrage
+ * du propriétaire, 2026-09-13). Le TCF IRN en comporte quatre : CO, CE, EE,
+ * EO. Elle est donc sortie de la liste et rangée dans sa propre section,
+ * « Renforcer mon français », avec une note qui le dit — l'équivalent du
+ * bandeau que le mobile posait déjà sur son écran de détail. Le backend
+ * l'excluait déjà de l'examen blanc, du Plan et du diagnostic : seul
+ * l'affichage la présentait comme un pair.
+ *
+ * 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
+ * côté TCF c'est `planNowCard` — la **même** autorité que la carte « À faire
+ * maintenant » du Plan et de l'Accueil, donc la même action, mesure de domaine
+ * prioritaire comprise —, la cible de rang 1 côté civique. Réviser ne tient
+ * aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
+ * trois choses différentes.
+ *
+ * 🛑 **Plus de porte « diagnostic » ici** (D-69, 2026-09-28) : le Plan existe
+ * pour tout compte, donc « Reprendre » annonce toujours son action — le
+ * premier examen du cycle pour un compte sans diagnostic. Un visiteur n'a pas
+ * de Plan : il garde le catalogue et son bandeau de découverte.
+ *
+ * 🛑 **Pas de bascule de parcours ICI** (arbitrage du propriétaire,
+ * 2026-09-12) : sur le web on arrive par la barre latérale, qui porte déjà ses
+ * deux entrées « TCF IRN » et « Examen civique ». Le reste est **identique au
+ * mobile**, qui garde la sienne parce que Réviser y est un onglet.
+ *
+ * 🛑 **Aucune phrase n'est composée ici** : elles vivent dans `lib/reviser.ts`,
+ * miroir mot pour mot de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.
+ *
+ * 🛑 **Colonne LARGE en desktop** (`<SejourApp wide>`), et c'est la maquette qui
+ * tranche : `grok_ecran/screenshots/reviser-hub.png` mesure 960 px de contenu à
+ * 1280 px de fenêtre — la colonne de 1080 px, exactement. Réviser est un
+ * **catalogue**, pas un écran de lecture : sa grille d'épreuves à deux colonnes
+ * tenait dans 720 px, où les titres passaient à la ligne et où le tiers droit de
+ * l'écran restait blanc.
+ */
+
+import Link from "next/link";
+import { useMemo } from "react";
+import {
+  BookOpen,
+  Compass,
+  Ear,
+  FileText,
+  Gavel,
+  Globe,
+  Info,
+  Landmark,
+  LayoutGrid,
+  Mic,
+  PenLine,
+  Scale,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  civicPlanApi,
+  dashboardApi,
+  journeyApi,
+  learningPlanApi,
+  publicThemeApi,
+} from "@/lib/api";
+import { useCachedData } from "@/lib/use-cached-data";
+import { themeSlug } from "@/lib/themes";
+import { entrainementHref } from "@/lib/module-switch";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { useCivicSerie } from "@/app/_components/plan/useCivicSerie";
+import { useCivicUniteSerie } from "@/app/_components/plan/use-civic-unite-serie";
+import { planUnlockHref } from "@/lib/plan-unlock";
+import {
+  usePlanAssessment,
+  usePlanExercise,
+} from "@/app/_components/plan/use-plan-exercise";
+import {
+  canAccessModule,
+  type AuthenticatedUser,
+  type CivicPlanCibleDto,
+  type DashboardCategoryStat,
+  type DashboardSummaryResponse,
+  type JourneyDto,
+  type LearningPlanDto,
+  type PlanDomainDto,
+  type ThemeUserResponse,
+} from "@/lib/types";
+import {
+  EE_CONFIG,
+  EO_CONFIG,
+  productionEntryHref,
+} from "@/app/_components/production/config";
+import {
+  Card,
+  Cta,
+  EpreuveRow,
+  NoteCard,
+  Pad,
+  Section,
+  SejourApp,
+  Stack,
+  Top,
+  sejourStyles,
+} from "@/app/_components/sejour/SejourKit";
+import {
+  domainForCode,
+  epreuveMeta,
+  epreuveRatio,
+  epreuveStatus,
+  REVISER_RESUME_LABEL,
+  reviserResumeCivique,
+  reviserResumeTcf,
+  reviserSectionTitle,
+  reviserSubtitle,
+  reviserTitle,
+  themeLigneFor,
+  REVISER_RENFORCER_NOTE,
+  REVISER_RENFORCER_NOTE_TITLE,
+  REVISER_RENFORCER_TITLE,
+  sectionEpreuve,
+  TCF_CODE_COMPLEMENTAIRE,
+  TCF_EPREUVES_OFFICIELLES,
+  themeStatus,
+} from "@/lib/reviser";
+import {
+  JOURNEY_NEEDS_OBJECTIVE_CTA,
+  JOURNEY_NEEDS_OBJECTIVE_TEXT,
+  JOURNEY_NEEDS_OBJECTIVE_TITLE,
+  journeyTargetPathHref,
+} from "@/lib/journey";
+import {PASS_MODULE_NAME, PASS_OFFER_PLAN, PASS_PITCH, passModuleOfExam} from "@/lib/passes";
+import styles from "./reviser.module.css";
+import { PlanRecoCard } from "@/app/_components/plan/PlanRecoCard";
+
+/** Le pictogramme rendu à la taille de la carte : `PlanRecoCard` prend un
+ *  nœud, pas un composant — ses appelants n'ont pas tous une `LucideIcon`. */
+function renderIcon(Icon: LucideIcon) {
+  return <Icon size={24} strokeWidth={2} aria-hidden />;
+}
+
+/** Pictogramme d'une catégorie — le même que sur le mobile et sur le Plan. */
+const ICONS: Record<string, LucideIcon> = {
+  TCF_CO: Ear,
+  TCF_CE: FileText,
+  TCF_STRUCTURE: LayoutGrid,
+  TCF_EE: PenLine,
+  TCF_EO: Mic,
+  CIV_PRINCIPES: Scale,
+  CIV_INSTITUTIONS: Landmark,
+  CIV_DROITS_DEVOIRS: Gavel,
+  CIV_HISTOIRE_GEO: Globe,
+  CIV_SOCIETE: Users,
+};
+
+function iconFor(code: string): LucideIcon {
+  return ICONS[code] ?? BookOpen;
+}
+
+/** Ordre canonique des **quatre** épreuves du TCF IRN — le serveur sert les
+ *  thèmes QCM puis ajoute EE/EO en synthétique.
+ *
+ *  🛑 **Structure de la langue n'y figure pas** : ce n'est pas une épreuve de
+ *  l'examen (cf. `TCF_EPREUVES_OFFICIELLES`). Elle a sa propre section, sous
+ *  les quatre, avec sa note. */
+const TCF_ORDER: readonly string[] = TCF_EPREUVES_OFFICIELLES;
+
+/** Où mène une ligne : l'écran de détail **qui existe déjà**. */
+function hrefFor(stat: DashboardCategoryStat): string {
+  switch (stat.code) {
+    case "TCF_CO":
+      return "/entrainement/tcf/co";
+    case "TCF_CE":
+      return "/entrainement/tcf/ce";
+    case "TCF_STRUCTURE":
+      return "/entrainement/tcf/structure";
+    case "TCF_EE":
+      return productionEntryHref(EE_CONFIG.base);
+    case "TCF_EO":
+      return productionEntryHref(EO_CONFIG.base);
+    default:
+      return `/entrainement/civique/${themeSlug(stat.code)}`;
+  }
+}
+
+export function ReviserScreen({
+  module,
+  user,
+}: {
+  module: "TCF" | "CIVIQUE";
+  user: AuthenticatedUser | null;
+}) {
+  const isGuest = user === null;
+  const isPremium = !isGuest && canAccessModule(user, module);
+
+  /* Un visiteur n'a ni tableau de bord ni plan : il voit le catalogue, et le
+     bandeau de découverte l'invite à créer un compte. */
+  const summary = useCachedData<DashboardSummaryResponse>(
+    isGuest ? null : "reviser:dashboard",
+    () => dashboardApi.summaryCached(),
+  );
+  const guestThemes = useCachedData<ThemeUserResponse[]>(
+    isGuest && module === "CIVIQUE" ? "reviser:themes-publics" : null,
+    () => publicThemeApi.list("CIVIQUE"),
+  );
+
+  return (
+    <SejourApp wide>
+      {/* 🛑 Le titre nomme le PARCOURS, pas l'écran (demande du propriétaire,
+          2026-09-13) — divergence voulue avec le mobile, cf. `reviserTitle`. */}
+      <Top title={reviserTitle(module)} />
+      <Pad>
+        <p className={styles.sub}>{reviserSubtitle(module)}</p>
+      </Pad>
+      {module === "TCF" ? (
+        <TcfBody
+          summary={summary.data ?? null}
+          isGuest={isGuest}
+          isPremium={isPremium}
+        />
+      ) : (
+        <CiviqueBody
+          summary={summary.data ?? null}
+          guestThemes={guestThemes.data ?? []}
+          isGuest={isGuest}
+          isPremium={isPremium}
+        />
+      )}
+    </SejourApp>
+  );
+}
+
+/* ------------------------------------------------------------------- TCF */
+
+function TcfBody({
+  summary,
+  isGuest,
+  isPremium,
+}: {
+  summary: DashboardSummaryResponse | null;
+  isGuest: boolean;
+  isPremium: boolean;
+}) {
+  const plan = useCachedData<LearningPlanDto>(
+    isGuest ? null : learningPlanApi.cacheKey,
+    () => learningPlanApi.getCached(),
+  );
+  /* 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent la
+     même carte de reprise, et n'en lire qu'un rouvrirait l'écart. */
+  const journey = useCachedData<JourneyDto>(
+    isGuest ? null : journeyApi.cacheKey,
+    () => journeyApi.getCached(),
+  );
+  /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
+     ligne de séance est un exercice **ou** une mesure de domaine, et les
+     deux savent déjà où aller. */
+  const exercise = usePlanExercise();
+  const assessment = usePlanAssessment();
+
+  /* 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
+     ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan. */
+  const resume = reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium);
+  const carte = resume?.carte ?? null;
+  const busy = exercise.starting || assessment.starting !== null;
+
+  /* 🛑 **L'autorité d'AFFICHAGE du niveau**, servie par le tableau de bord déjà
+     chargé — donc **aucun appel de plus**. C'est la même valeur que l'Accueil,
+     le Profil, l'écran Progrès et l'écran Diagnostic
+     (`TcfProfileService.levelProfileAccueil`). Réviser lisait le niveau du Plan
+     puis `stat.level` : trois autorités pour une phrase.
+     → `docs/regles/progression.md`. */
+  const profil = summary?.tcfDomainProfile ?? null;
+
+  const stats = useMemo(() => orderedTcf(summary), [summary]);
+  /* 🛑 Servie comme les autres, mais rangée à part : ce n'est pas une épreuve
+     du TCF IRN. `orderedTcf` ne la trouve plus dans son ordre canonique. */
+  const complementaire = useMemo(() => statComplementaire(summary), [summary]);
+
+  /* 🛑 **Le même geste que le bouton du Plan**, sur la **même** action : une
+     MESURE passe devant tout le reste, et c'est `planNowCard` qui l'a tranché —
+     l'écran exécute, il ne rechoisit pas. */
+  const reprendre = () => {
+    if (!carte) return;
+    if (carte.mesure) {
+      void assessment.start(carte.mesure.assessment);
+      return;
+    }
+    if (carte.exercise) void exercise.start(carte.exercise);
+  };
+
+  return (
+    <>
+      {resume ? (
+        <PlanRecoCard
+          label={REVISER_RESUME_LABEL}
+          /* Le domaine **réellement lancé** : celui de la mesure quand elle
+             passe devant, celui de la priorité sinon. */
+          icon={renderIcon(iconFor(sectionEpreuve(resume.section) ?? "TCF_CO"))}
+          title={resume.title}
+          subtitle={resume.subtitle}
+          cta={resume.cta}
+          /* 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
+             geste d'achat passe par l'écran de transition (A145), jamais par
+             le paywall d'un coup. */
+          /* 🛑 **Le geste ET sa destination viennent du Plan** : `OUVRIR_ETAPE`
+             ouvre l'écran de l'étape (ses deux séries), `LANCER` démarre
+             l'action. Aucune condition sur « est-ce une série ? » ici. */
+          {...(resume.geste === "DEBLOQUER"
+            ? {href: planUnlockHref("TCF")}
+            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+              ? {href: resume.etapeHref}
+              : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
+          tone="primary"
+        />
+      ) : null}
+      {/* 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
+          du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un
+          compte gratuit : sans cette invitation, un candidat sans démarche
+          déclarée n'apprenait nulle part qu'elle lui ouvre un parcours. Elle
+          n'enlève rien — la reprise ci-dessus reste servie, le Plan n'exige pas
+          d'objectif. */}
+      {journey.data?.state === "NEEDS_OBJECTIVE" && (
+        <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
+          <Pad>
+            <Card>
+              <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+              <Cta href={journeyTargetPathHref(entrainementHref("TCF"))}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+            </Card>
+          </Pad>
+        </Section>
+      )}
+      {/* 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
+          contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
+          avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement,
+          et ce marqueur n'existe pas — la carte relance l'action calculée à la
+          lecture, pas une tentative en cours. Un 403 y prend donc le CTA de
+          l'écran d'arrivée, sans parcours : `MOCK_EXAM` pour une mesure (les
+          grilles d'examens), `OTHER` pour un exercice — miroir du mobile. */}
+      <PaywallSheet
+        ctaLocation={assessment.paywallOpen ? "MOCK_EXAM" : "OTHER"}
+        screen="reviser"
+        journeyId={null}
+        open={exercise.paywallOpen || assessment.paywallOpen}
+        module="INTEGRAL"
+        onClose={() => {
+          exercise.closePaywall();
+          assessment.closePaywall();
+        }}
+      />
+      <DemoLink isGuest={isGuest} isPremium={isPremium} module="TCF" />
+      <Section title={reviserSectionTitle("TCF", stats.length)}>
+        <Pad>
+          <Stack className={sejourStyles.deskGrid2}>
+            {stats.map((stat) => {
+              const domain: PlanDomainDto | null = domainForCode(
+                plan.data ?? null,
+                stat.code,
+              );
+              return (
+                <EpreuveRow
+                  key={stat.code}
+                  icon={iconFor(stat.code)}
+                  title={stat.label}
+                  status={epreuveStatus(stat, domain, profil)}
+                  meta={epreuveMeta(stat)}
+                  ratio={epreuveRatio(stat)}
+                  href={hrefFor(stat)}
+                />
+              );
+            })}
+          </Stack>
+        </Pad>
+      </Section>
+      <Section title={REVISER_RENFORCER_TITLE}>
+        <Pad>
+          <Stack>
+            <EpreuveRow
+              icon={iconFor(complementaire.code)}
+              title={complementaire.label}
+              status={epreuveStatus(complementaire, null, profil)}
+              meta={epreuveMeta(complementaire)}
+              ratio={epreuveRatio(complementaire)}
+              href={hrefFor(complementaire)}
+            />
+            <NoteCard
+              variant="soft"
+              icon={Info}
+              title={REVISER_RENFORCER_NOTE_TITLE}
+            >
+              <p className={styles.sub}>{REVISER_RENFORCER_NOTE}</p>
+            </NoteCard>
+          </Stack>
+        </Pad>
+      </Section>
+    </>
+  );
+}
+
+/**
+ * Les **quatre** épreuves du TCF IRN, dans l'ordre canonique.
+ *
+ * Un visiteur n'a pas de tableau de bord : on rend le **catalogue** (les quatre
+ * épreuves, à zéro), plutôt qu'un écran vide. Rien n'y est mesuré, et chaque
+ * ligne le dit.
+ */
+function orderedTcf(
+  summary: DashboardSummaryResponse | null,
+): DashboardCategoryStat[] {
+  const byCode = new Map((summary?.tcf ?? []).map((c) => [c.code, c]));
+  return TCF_ORDER.map(
+    (code) =>
+      byCode.get(code) ?? {
+        themeId: null,
+        code,
+        label: TCF_FALLBACK_LABEL[code] ?? code,
+        percent: null,
+        answered: 0,
+        total: 0,
+        mockExams: 0,
+        bestMockScore: null,
+        level: null,
+        seriesDone: 0,
+        seriesTotal: 0,
+        subjectsDone: 0,
+        subjectsTotal: 0,
+      },
+  );
+}
+
+/**
+ * Structure de la langue, servie comme les autres mais **hors des quatre**.
+ *
+ * Même repli qu'`orderedTcf` : un visiteur la voit à zéro plutôt que pas du
+ * tout — la page reste un catalogue.
+ */
+function statComplementaire(
+  summary: DashboardSummaryResponse | null,
+): DashboardCategoryStat {
+  return (
+    (summary?.tcf ?? []).find((c) => c.code === TCF_CODE_COMPLEMENTAIRE) ?? {
+      themeId: null,
+      code: TCF_CODE_COMPLEMENTAIRE,
+      label: TCF_FALLBACK_LABEL[TCF_CODE_COMPLEMENTAIRE],
+      percent: null,
+      answered: 0,
+      total: 0,
+      mockExams: 0,
+      bestMockScore: null,
+      seriesDone: 0,
+      seriesTotal: 0,
+      subjectsDone: 0,
+      subjectsTotal: 0,
+    }
+  );
+}
+
+/** Le nom d'une épreuve quand le serveur n'a pas été appelé (visiteur). */
+const TCF_FALLBACK_LABEL: Record<string, string> = {
+  TCF_CO: "Compréhension orale",
+  TCF_CE: "Compréhension écrite",
+  TCF_STRUCTURE: "Structure de la langue",
+  TCF_EE: "Expression écrite",
+  TCF_EO: "Expression orale",
+};
+
+/* --------------------------------------------------------------- Civique */
+
+function CiviqueBody({
+  summary,
+  guestThemes,
+  isGuest,
+  isPremium,
+}: {
+  summary: DashboardSummaryResponse | null;
+  guestThemes: ThemeUserResponse[];
+  isGuest: boolean;
+  isPremium: boolean;
+}) {
+  const { enCours, erreur, paywall, setPaywall, commencer } = useCivicSerie();
+  /* 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité
+     officielle du cycle et la cible du plan dérivé sont deux routes serveur
+     distinctes. La source est **servie**, l'écran exécute. */
+  const serieUnite = useCivicUniteSerie();
+  const civicPlan = useCachedData(isGuest ? null : civicPlanApi.cacheKey, () =>
+    civicPlanApi.getCached(),
+  );
+  /* 🛑 **Le CYCLE, comme sur le Plan** : « À faire maintenant » y lit
+     `journey.current` depuis D-50 §2. Sans lui, Réviser annoncerait la cible du
+     plan dérivé pendant que le Plan annonce l'étape du cycle — deux reprises
+     différentes pour le même candidat, au même instant. */
+  const journey = useCachedData<JourneyDto>(
+    isGuest ? null : journeyApi.cacheKeyFor("CIVIQUE"),
+    () => journeyApi.getCached("CIVIQUE"),
+  );
+  const prochaine: CivicPlanCibleDto | null = civicPlan.data?.prochaine ?? null;
+  const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium);
+
+  const stats = useMemo(() => {
+    if (summary) return summary.civique;
+    return [...guestThemes]
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map<DashboardCategoryStat>((t) => ({
+        themeId: t.id,
+        code: t.code,
+        label: t.name,
+        percent: null,
+        answered: 0,
+        total: 0,
+        mockExams: 0,
+        bestMockScore: null,
+        level: null,
+        seriesDone: 0,
+        seriesTotal: 0,
+        subjectsDone: 0,
+        subjectsTotal: 0,
+      }));
+  }, [summary, guestThemes]);
+
+  return (
+    <>
+      {resume ? (
+        <PlanRecoCard
+          label={REVISER_RESUME_LABEL}
+          /* Le pictogramme du thème quand la reprise en a un ; une **unité** du
+             cycle n'en porte pas, on reprend alors la boussole du parcours. */
+          icon={renderIcon(prochaine ? iconFor(prochaine.themeCode) : Compass)}
+          title={resume.title}
+          subtitle={resume.subtitle}
+          cta={resume.cta}
+          {...(resume.geste === "DEBLOQUER"
+            ? {href: planUnlockHref("CIVIQUE")}
+            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+            ? {href: resume.etapeHref}
+            : {
+                  onClick: () => {
+                      const source = resume.source;
+                      if (!source) return;
+                      if (source.kind === "UNITE") void serieUnite.start(source.code);
+                      else void commencer(source.cible);
+                  },
+                  busy: enCours !== null || serieUnite.enCours !== null,
+                  error: erreur ?? serieUnite.erreur,
+              })}
+          error={erreur}
+          tone="blue"
+        />
+      ) : null}
+      <DemoLink isGuest={isGuest} isPremium={isPremium} module="CIVIQUE" />
+      <Section title={reviserSectionTitle("CIVIQUE", stats.length)}>
+        <Pad>
+          <Stack className={sejourStyles.deskGrid2}>
+            {stats.map((stat) => (
+              <EpreuveRow
+                key={stat.code}
+                icon={iconFor(stat.code)}
+                title={stat.label}
+                status={themeStatus(
+                  themeLigneFor(civicPlan.data?.themes, stat.themeId),
+                  stat,
+                )}
+                meta={epreuveMeta(stat)}
+                ratio={epreuveRatio(stat)}
+                href={hrefFor(stat)}
+              />
+            ))}
+          </Stack>
+        </Pad>
+      </Section>
+      {/* 🛑 La reprise civique relance l'action de `civicNowCard`, sans
+          marqueur persisté de lancement depuis le Plan : pas le Plan (D113),
+          le CTA d'une série (`OTHER`), sans parcours — miroir du mobile. */}
+      <PaywallSheet
+        ctaLocation="OTHER"
+        screen="reviser"
+        journeyId={null}
+        open={paywall || serieUnite.paywall}
+        module="CIVIQUE"
+        onClose={() => {
+          setPaywall(false);
+          serieUnite.setPaywall(false);
+        }}
+      />
+    </>
+  );
+}
+
+/* ----------------------------------------------------------- Les briques */
+
+
+/**
+ * Le bandeau de découverte, **conservé de l'ancien hub** : c'est la surface de
+ * conversion de la page, et `/entrainement` reste ouverte aux visiteurs. Il
+ * disparaît dès que le module est accessible.
+ */
+function DemoLink({
+  isGuest,
+  isPremium,
+  module,
+}: {
+  isGuest: boolean;
+  isPremium: boolean;
+  module: "TCF" | "CIVIQUE";
+}) {
+  if (isPremium) return null;
+  const quoi = module === "TCF" ? "épreuve et niveau" : "thème";
+  const passModule = passModuleOfExam(module);
+  return (
+    <Pad className={styles.demoWrap}>
+      <Link
+        href={isGuest ? "/connexion" : `/paiement?plan=${PASS_OFFER_PLAN[passModule]}`}
+        className={styles.demo}
+      >
+        <span className={styles.demoBody}>
+          <b>
+            {isGuest
+              ? `Découverte gratuite · 1 série offerte par ${quoi}`
+              : `Toutes les séries avec le pass ${PASS_MODULE_NAME[passModule]}`}
+          </b>
+          <span>
+            {isGuest
+              ? "Et le 1ᵉʳ examen blanc offert. Créez un compte gratuit pour sauvegarder vos résultats."
+              : PASS_PITCH[passModule]}
+          </span>
+        </span>
+        <span className={styles.demoArrow} aria-hidden>
+          →
+        </span>
+      </Link>
+    </Pad>
+  );
+}
+

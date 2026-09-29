@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE1-C10",
+  "rang": 4,
+  "titre": "Sélectionner les caractéristiques pertinentes",
+  "critere": "Choisir les quelques traits qui comptent pour le lecteur, plutôt que d'énumérer tout ce qu'on pourrait dire.",
+  "remplace": null,
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Un fauteuil pour une chambre d'enfant",
+      "context": "Une voisine vous écrit : « Vous donnez un fauteuil ? Je le mettrais dans la chambre de ma fille de trois ans. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant le fauteuil, en ne retenant que ce qui compte pour une chambre d'enfant.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles à son projet et laisse de côté ceux qui ne lui servent à rien.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Cherchez son projet",
+        "Gardez ce qui sert",
+        "Laissez le reste"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Pour une chambre d'enfant, il conviendra…",
+      "tip": "elle pense à une enfant de trois ans : tout ne compte pas également",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un fauteuil en tissu beige, acheté en 2015 chez un revendeur de Lyon, avec une armature en hêtre, quatre pieds tournés, un dossier haut, des accoudoirs, une assise de cinquante centimètres et une housse lavable.",
+          "pedagogicalNote": "Tout est exact, mais rien n'est choisi : l'année d'achat et l'essence du bois n'apprennent rien à qui meuble une chambre d'enfant."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour une chambre d'enfant, il conviendra : il est bas, donc elle montera dessus toute seule. La housse se lave en machine. Il n'a pas d'angle dur et il est assez léger pour être déplacé facilement.",
+          "pedagogicalNote": "Chaque trait retenu répond au projet : hauteur, lavage, sécurité, poids. Le reste est laissé de côté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour une chambre d'enfant, il conviendra : assise basse, à quarante centimètres du sol, donc elle y grimpera seule. La housse passe en machine à trente degrés. Aucun angle dur, et il pèse à peine cinq kilos, on le déplace d'une main.",
+          "pedagogicalNote": "Les mêmes traits, chiffrés : la hauteur, la température de lavage et le poids transforment un avis en information utilisable."
+        }
+      ]
+    },
+    {
+      "title": "Un quartier pour une personne âgée",
+      "context": "Un ami vous écrit : « Mes parents cherchent à s'installer près de chez toi. Mon père a quatre-vingts ans et ne conduit plus. Ton quartier, il est comment ? »",
+      "instruction": "Répondez-lui en décrivant votre quartier, en ne retenant que ce qui compte pour ses parents.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles à des personnes âgées sans voiture et laisse de côté ce qui ne les concerne pas.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez leur situation",
+        "Gardez ce qui sert",
+        "Laissez le reste"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Pour eux, l'essentiel est que…",
+      "tip": "quatre-vingts ans, pas de voiture : cela trie tout seul",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un quartier très vivant, avec trois bars à bières, une salle de concert qui programme du rock le week-end, un skatepark et beaucoup d'étudiants. Les loyers sont raisonnables et il y a un grand parking souterrain.",
+          "pedagogicalNote": "Tout est vrai, mais rien n'est trié : bars, skatepark et parking ne disent rien à un couple de quatre-vingts ans sans voiture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour eux, l'essentiel est que tout soit à pied : la pharmacie, la boulangerie et le médecin sont dans la même rue. Le bus passe toutes les dix minutes. Les trottoirs sont larges et il y a des bancs.",
+          "pedagogicalNote": "Commerces de proximité, transport, trottoirs, bancs : chaque trait retenu répond à leur situation."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour eux, l'essentiel est que tout soit à pied : pharmacie, boulangerie et médecin dans la même rue, à moins de deux cents mètres. Le bus passe toutes les dix minutes et s'arrête devant. Trottoirs larges, sans marche, et un banc tous les cinquante mètres.",
+          "pedagogicalNote": "Les distances chiffrées et « sans marche » montrent que la sélection est gouvernée par leur situation réelle."
+        }
+      ]
+    },
+    {
+      "title": "Une collègue pour un covoiturage",
+      "context": "Un ami vous écrit : « Tu m'as parlé d'une collègue qui cherche un covoiturage. Je peux la prendre, mais je pars très tôt et je n'ai qu'une place. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant cette collègue, en ne retenant que ce qui compte pour un covoiturage.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles à un trajet partagé et laisse de côté ce qui relève de la vie privée ou du travail.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez sa contrainte",
+        "Gardez ce qui sert",
+        "Laissez le privé"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Pour un trajet partagé…",
+      "tip": "il part tôt et n'a qu'une place : c'est cela qui trie",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle s'appelle Rachida, elle a deux enfants, elle est arrivée dans le service en janvier après une reconversion. Elle est très compétente sur les dossiers export et tout le monde l'apprécie beaucoup dans l'équipe.",
+          "pedagogicalNote": "Sa vie de famille et ses compétences professionnelles ne servent à rien pour décider d'un covoiturage."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour un trajet partagé, elle est parfaite : elle habite sur ta route, à Vaise. Elle commence à sept heures comme toi. Elle voyage léger, juste un sac. Et elle ne fume pas.",
+          "pedagogicalNote": "Domicile, horaire, encombrement, tabac : chaque trait pèse sur la décision, et rien d'autre n'est dit."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour un trajet partagé, elle est parfaite : elle habite à Vaise, juste sur ta route, et son arrêt est à deux minutes du rond-point. Elle commence à sept heures comme toi, voyage avec un seul sac à dos, et ne fume pas.",
+          "pedagogicalNote": "La sélection est identique mais chaque élément est situé : « deux minutes du rond-point » répond à sa vraie question, le détour."
+        }
+      ]
+    },
+    {
+      "title": "Un logement pour un étudiant",
+      "context": "Votre cousine vous écrit : « Mon fils entre à la fac en septembre, budget très serré. Tu m'as dit qu'un studio se libérait dans ton immeuble. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant ce studio, en ne retenant que ce qui compte pour un étudiant au budget serré.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles à un étudiant et laisse de côté ce qui ne pèse pas dans sa décision.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez sa contrainte",
+        "Gardez ce qui sert",
+        "Laissez le reste"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Pour un étudiant, ce qui compte…",
+      "tip": "budget serré et fac : deux filtres qui éliminent beaucoup",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un studio au quatrième étage d'un immeuble haussmannien de 1890, avec des moulures au plafond, un parquet à point de Hongrie et une belle vue sur les toits. La cage d'escalier a été refaite l'an dernier.",
+          "pedagogicalNote": "Moulures, parquet ancien et vue sont réels, mais aucun ne pèse dans la décision d'un étudiant au budget serré."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour un étudiant, ce qui compte : il est meublé, donc rien à acheter. La fac est à dix minutes à pied. Les charges comprennent le chauffage. Il y a une laverie au rez-de-chaussée et la fibre est installée.",
+          "pedagogicalNote": "Meublé, distance, charges, laverie, internet : chaque trait retenu répond au budget ou aux études."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour un étudiant, ce qui compte : il est meublé, donc rien à acheter en arrivant. La fac est à dix minutes à pied, sans bus. Le chauffage est compris dans les charges, ce qui évite les mauvaises surprises l'hiver. Laverie en bas, fibre installée.",
+          "pedagogicalNote": "« Sans bus » et « évite les mauvaises surprises l'hiver » traduisent chaque trait en économie réelle."
+        }
+      ]
+    },
+    {
+      "title": "Un groupe pour une visite guidée",
+      "context": "L'office de tourisme vous écrit : « Vous avez réservé une visite pour votre famille. Décrivez-nous votre groupe, nous adapterons le parcours et le rythme. »",
+      "instruction": "Répondez-leur en décrivant votre groupe, en ne retenant que ce qui compte pour adapter une visite.",
+      "uniqueCriterion": "Votre réponse retient les traits qui pèsent sur le parcours et le rythme, et laisse de côté ce qui n'a pas d'effet.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez leur besoin",
+        "Gardez ce qui sert",
+        "Laissez le reste"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Nous serons sept, et ce qui compte…",
+      "tip": "ils adaptent parcours et rythme : dites ce qui les y oblige",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Nous sommes une famille très unie qui se retrouve chaque été. Mon frère vient de Belgique, ma sœur est enseignante et adore l'histoire médiévale. Nous logeons à l'hôtel du Parc et nous resterons quatre jours dans la région.",
+          "pedagogicalNote": "Leur hôtel et les goûts de votre sœur ne changent ni le parcours ni le rythme. Rien n'est trié selon le besoin exprimé."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Nous serons sept, et ce qui compte : deux enfants de cinq et sept ans, et ma mère qui marche lentement et doit s'asseoir souvent. Trois adultes peuvent porter. Nous comprenons tous le français.",
+          "pedagogicalNote": "Âges, mobilité, capacité à porter, langue : chaque trait a un effet direct sur le parcours ou le rythme."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Nous serons sept, et ce qui compte : deux enfants de cinq et sept ans, et ma mère qui marche lentement et a besoin de s'asseoir toutes les vingt minutes. Trois adultes peuvent porter ou pousser. Nous comprenons tous le français, sans besoin de traduction.",
+          "pedagogicalNote": "« Toutes les vingt minutes » donne au guide une contrainte qu'il peut réellement intégrer à son parcours."
+        }
+      ]
+    },
+    {
+      "title": "Une machine à laver à reprendre",
+      "context": "Un acheteur vous écrit : « Votre machine m'intéresse. Je suis au troisième sans ascenseur et je viens en voiture. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant la machine, en ne retenant que ce qui compte pour son transport et son installation.",
+      "uniqueCriterion": "Votre réponse retient les traits qui pèsent sur le transport et l'installation, et laisse de côté les fonctions du programme.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Voyez sa contrainte",
+        "Gardez ce qui sert",
+        "Laissez les programmes"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Pour la monter, voici l'essentiel…",
+      "tip": "troisième sans ascenseur : le poids et les dimensions passent devant",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle a quinze programmes dont un programme laine et un programme rapide de trente minutes. L'essorage monte à mille quatre cents tours. Il y a un départ différé et un affichage du temps restant. Classe énergétique A.",
+          "pedagogicalNote": "Les programmes n'ont aucun rapport avec la question posée : monter la machine au troisième sans ascenseur."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour la monter, voici l'essentiel : elle pèse environ soixante-dix kilos, il faudra être deux. Elle mesure quatre-vingt-cinq centimètres de haut sur soixante de large. Le tambour se bloque avec les vis que je vous donnerai.",
+          "pedagogicalNote": "Poids, dimensions, blocage du tambour : chaque trait sert au transport, comme il a été demandé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour la monter, voici l'essentiel : environ soixante-dix kilos, donc à deux obligatoirement. Quatre-vingt-cinq centimètres de haut sur soixante de large et soixante de profondeur — mesurez votre palier. Je vous donnerai les vis de blocage du tambour, indispensables en voiture.",
+          "pedagogicalNote": "La troisième dimension et le conseil de mesurer le palier anticipent le problème réel, sans sortir du cadre demandé."
+        }
+      ]
+    },
+    {
+      "title": "Une personne à reconnaître à la gare",
+      "context": "Votre belle-sœur vous écrit : « Je récupère ton amie à la gare demain, mais je ne l'ai jamais vue et il y aura foule. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant votre amie, en ne retenant que ce qui se repère dans une gare bondée.",
+      "uniqueCriterion": "Votre réponse retient les traits visibles de loin et dans la foule, et laisse de côté ceux qui ne se voient pas.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez à la foule",
+        "Gardez ce qui se voit",
+        "Laissez le reste"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Dans la foule, tu repéreras…",
+      "tip": "dans une gare, on voit de loin et de dos : triez sur ce critère",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle a les yeux verts, un petit grain de beauté sous l'œil gauche et une voix assez grave. Elle est très drôle et un peu bavarde, tu vas l'adorer. Elle porte souvent du parfum à la vanille.",
+          "pedagogicalNote": "Yeux, grain de beauté, voix et parfum ne se perçoivent qu'à un mètre : inutilisables pour repérer quelqu'un dans une gare."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Dans la foule, tu repéreras d'abord sa taille : elle fait presque un mètre quatre-vingts. Elle a de longs cheveux gris attachés et elle portera un manteau rouge vif. Elle tire une valise jaune.",
+          "pedagogicalNote": "Taille, cheveux, couleur de manteau, valise : quatre traits visibles à vingt mètres."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Dans la foule, tu repéreras d'abord sa taille : presque un mètre quatre-vingts, elle dépasse tout le monde. Longs cheveux gris attachés, manteau rouge vif, et une valise jaune à coque rigide. Ce sont trois couleurs qu'on ne rate pas de loin.",
+          "pedagogicalNote": "Le candidat nomme le critère qui a gouverné son tri — « qu'on ne rate pas de loin » — ce qui rend la sélection explicite."
+        }
+      ]
+    },
+    {
+      "title": "Une salle pour une personne en fauteuil",
+      "context": "Une association vous écrit : « Nous voudrions louer votre salle pour une réunion. Trois de nos membres sont en fauteuil roulant. Elle est comment ? »",
+      "instruction": "Répondez-leur en décrivant la salle, en ne retenant que ce qui compte pour des personnes en fauteuil.",
+      "uniqueCriterion": "Votre réponse retient les traits qui décident de l'accessibilité et laisse de côté ce qui relève du confort ou de la décoration.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez aux fauteuils",
+        "Gardez ce qui décide",
+        "Laissez la déco"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Pour des fauteuils, voici les points décisifs…",
+      "tip": "trois fauteuils : largeur, marches, toilettes passent devant tout",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est une belle salle claire de soixante mètres carrés, repeinte l'an dernier en blanc cassé. Les chaises sont neuves et confortables, il y a un tableau blanc et une machine à café. L'acoustique est excellente.",
+          "pedagogicalNote": "Peinture, chaises et acoustique ne disent rien de l'accessibilité, seule question posée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour des fauteuils, voici les points décisifs : l'entrée est de plain-pied, sans aucune marche. La porte fait quatre-vingt-dix centimètres de large. Les toilettes sont adaptées. On peut circuler entre les tables sans les déplacer.",
+          "pedagogicalNote": "Plain-pied, largeur de porte, toilettes, circulation : chaque trait décide de l'accessibilité."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour des fauteuils, voici les points décisifs : entrée de plain-pied depuis le trottoir, sans marche ni ressaut. Porte de quatre-vingt-dix centimètres, toilettes adaptées avec barre d'appui. Entre les tables, il reste un mètre vingt, suffisant pour se croiser.",
+          "pedagogicalNote": "Chaque point est chiffré et « suffisant pour se croiser » traduit la mesure en usage réel."
+        }
+      ]
+    },
+    {
+      "title": "Une équipe pour un remplacement",
+      "context": "Un intérimaire vous écrit : « J'arrive lundi pour une semaine dans votre service. Je ne connais personne. L'équipe est comment, pour que je sache à qui m'adresser ? »",
+      "instruction": "Répondez-lui en décrivant l'équipe, en ne retenant que ce qui compte pour quelqu'un qui reste une semaine.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles à un remplaçant de courte durée et laisse de côté l'histoire du service.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez à sa semaine",
+        "Dites à qui parler",
+        "Laissez l'histoire"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "En une semaine, l'essentiel…",
+      "tip": "il reste cinq jours : il lui faut des repères, pas l'historique",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le service existe depuis 2009 et a été réorganisé deux fois, la dernière en 2021 après le départ de l'ancien responsable. L'ambiance s'est beaucoup améliorée depuis. Nous avons même reçu un prix interne l'année dernière.",
+          "pedagogicalNote": "L'histoire du service est intéressante, mais elle n'aide pas quelqu'un qui doit savoir à qui s'adresser dès lundi."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "En une semaine, l'essentiel : nous sommes six. Pour les questions techniques, voyez Salim, il est au bureau du fond. Pour les plannings, c'est Claire. Le responsable n'est là que le mardi et le jeudi.",
+          "pedagogicalNote": "Effectif, deux interlocuteurs nommés et situés, disponibilité du responsable : tout sert dès le premier jour."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "En une semaine, l'essentiel : nous sommes six. Questions techniques, voyez Salim, bureau du fond, il répond toujours. Plannings et congés, c'est Claire, à l'entrée. Le responsable ne vient que mardi et jeudi, donc gardez vos validations pour ces jours-là.",
+          "pedagogicalNote": "La dernière phrase transforme une information en conseil d'organisation, ce qui est exactement ce qu'un remplaçant peut en faire."
+        }
+      ]
+    },
+    {
+      "title": "Un appareil photo pour débuter",
+      "context": "Votre neveu vous écrit : « Tu vends ton appareil photo ? Je débute complètement, je n'y connais rien. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant l'appareil, en ne retenant que ce qui compte pour un débutant.",
+      "uniqueCriterion": "Votre réponse retient les traits parlants pour un débutant et laisse de côté les caractéristiques techniques qu'il ne peut pas interpréter.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez au débutant",
+        "Gardez ce qu'il comprend",
+        "Laissez la technique"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Pour débuter, il est très bien…",
+      "tip": "il n'y connaît rien : un chiffre qu'il ne sait pas lire ne sert à rien",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un boîtier APS-C de vingt-quatre mégapixels, avec une monture à baïonnette, un capteur stabilisé sur cinq axes, une plage ISO de 100 à 25600 et un obturateur au 1/4000. L'autofocus a 425 collimateurs.",
+          "pedagogicalNote": "Chaque chiffre est juste, et aucun ne veut rien dire pour quelqu'un qui n'y connaît rien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour débuter, il est très bien : il a un mode automatique qui décide tout à ta place. Il est léger, tu le porteras autour du cou sans fatigue. L'écran s'oriente pour viser de haut ou de bas. La batterie tient deux jours.",
+          "pedagogicalNote": "Mode automatique, poids, écran, autonomie : quatre traits qu'un débutant comprend et peut vérifier lui-même."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour débuter, il est très bien : un mode automatique décide tout à ta place, tu appuies et c'est net. Il pèse quatre cents grammes, tu l'oublieras autour du cou. L'écran s'oriente pour viser en hauteur. La batterie tient deux jours de balade.",
+          "pedagogicalNote": "« Tu appuies et c'est net », « deux jours de balade » : chaque trait est traduit en expérience concrète plutôt qu'en spécification."
+        }
+      ]
+    },
+    {
+      "title": "Un jardin pour un chien",
+      "context": "Une amie vous écrit : « On visite la maison que tu m'avais conseillée. On a un grand chien qui saute partout. Le jardin est comment ? »",
+      "instruction": "Répondez-lui en décrivant le jardin, en ne retenant que ce qui compte quand on a un grand chien.",
+      "uniqueCriterion": "Votre réponse retient les traits qui pèsent pour un chien et laisse de côté ce qui relève du jardinage d'agrément.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Pensez au chien",
+        "Gardez ce qui compte",
+        "Laissez les fleurs"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Avec un grand chien, ce qui compte…",
+      "tip": "un chien qui saute : clôture, surface, sol passent devant les massifs",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a un massif de rosiers anciens le long de la terrasse, un magnolia qui fleurit en avril et une bordure de lavandes. Le potager a été travaillé pendant des années, la terre y est excellente.",
+          "pedagogicalNote": "Rosiers, magnolia et qualité de la terre ne répondent pas à la question posée : un grand chien qui saute."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Avec un grand chien, ce qui compte : le jardin fait environ deux cents mètres carrés, entièrement clos. La clôture fait un mètre quatre-vingts, il ne sautera pas par-dessus. Le portail ferme à clé. Le sol est en herbe, pas en gravier.",
+          "pedagogicalNote": "Surface, hauteur de clôture, portail, nature du sol : tous les traits retenus concernent le chien."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Avec un grand chien, ce qui compte : deux cents mètres carrés entièrement clos, avec une clôture d'un mètre quatre-vingts qu'il ne franchira pas. Le portail ferme à clé et il n'y a aucun passage sous la haie. Sol en herbe, et un coin d'ombre sous le tilleul.",
+          "pedagogicalNote": "« Aucun passage sous la haie » anticipe le vrai défaut des jardins clos, et le coin d'ombre reste un trait utile au chien."
+        }
+      ]
+    },
+    {
+      "title": "Un artisan pour de petits travaux",
+      "context": "Un voisin vous écrit : « Tu m'avais parlé d'un artisan pour de petits travaux. J'ai juste deux prises à déplacer, rien d'énorme. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant cet artisan, en ne retenant que ce qui compte pour un petit chantier.",
+      "uniqueCriterion": "Votre réponse retient les traits qui pèsent pour un petit chantier et laisse de côté ses références sur de gros travaux.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Pensez au petit chantier",
+        "Gardez ce qui pèse",
+        "Laissez les gros travaux"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Pour deux prises, il est parfait…",
+      "tip": "deux prises, ce n'est pas un chantier : triez sur cette échelle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il a refait toute l'installation électrique d'un immeuble de douze logements l'an dernier, et il travaille aussi pour deux entreprises du bâtiment. Il a vingt ans de métier et une équipe de quatre personnes.",
+          "pedagogicalNote": "Ces références impressionnent, mais elles ne disent pas s'il acceptera un chantier de deux prises."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour deux prises, il est parfait : il accepte les petits chantiers, ce qui est rare. Il se déplace dans le quartier sans facturer le trajet. Il donne un devis par message en général le jour même, et il vient vite.",
+          "pedagogicalNote": "Acceptation des petits travaux, déplacement, devis, délai : chaque trait décide pour un chantier de cette taille."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour deux prises, il est parfait : il accepte les petits chantiers, ce qui est rare, et ne facture pas le déplacement dans le quartier. Il envoie un devis par message dans la journée et il est venu chez moi trois jours après l'appel.",
+          "pedagogicalNote": "Le délai vécu — « trois jours après l'appel » — vaut mieux que « il vient vite », et la sélection reste parfaitement ciblée."
+        }
+      ]
+    },
+    {
+      "title": "Des voisins avant d'emménager",
+      "context": "Un ami vous écrit : « On signe pour l'appartement du deuxième. On a un bébé qui pleure la nuit. Les voisins sont comment ? »",
+      "instruction": "Répondez-lui en décrivant les voisins, en ne retenant que ce qui compte quand on a un bébé.",
+      "uniqueCriterion": "Votre réponse retient les traits qui pèsent pour une famille avec un bébé et laisse de côté les portraits sans effet.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez au bébé",
+        "Gardez ce qui pèse",
+        "Laissez les portraits"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Avec un bébé, ce qui compte…",
+      "tip": "un bébé qui pleure la nuit : c'est le bruit et la tolérance qui trient",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Au premier, il y a un professeur de musique très cultivé qui a beaucoup voyagé. Au troisième, un couple de retraités charmants qui font partie du club de bridge. Tout le monde est très aimable dans l'immeuble.",
+          "pedagogicalNote": "Ces portraits sont sympathiques, mais aucun ne dit comment l'immeuble réagira à un bébé qui pleure la nuit."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Avec un bébé, ce qui compte : au-dessus de vous, il y a déjà deux enfants en bas âge, donc personne ne se plaindra. Les retraités du troisième sont un peu sourds. Les murs sont épais et l'immeuble est calme après vingt-deux heures.",
+          "pedagogicalNote": "Chaque trait est choisi pour son effet sur la question du bruit nocturne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Avec un bébé, ce qui compte : juste au-dessus, une famille a déjà deux enfants de deux et quatre ans — vous vous réveillerez mutuellement, personne ne se plaindra. Le couple du troisième entend mal. Les murs sont épais, et je n'ai jamais entendu leur télévision.",
+          "pedagogicalNote": "« Vous vous réveillerez mutuellement » et la preuve de l'isolation — n'avoir jamais entendu la télévision — remplacent utilement une affirmation."
+        }
+      ]
+    },
+    {
+      "title": "Une table pour un petit appartement",
+      "context": "Votre sœur vous écrit : « Tu donnes ta table ? Ma cuisine fait sept mètres carrés et je reçois souvent quatre personnes. Elle est comment ? »",
+      "instruction": "Répondez-lui en décrivant la table, en ne retenant que ce qui compte pour une petite cuisine.",
+      "uniqueCriterion": "Votre réponse retient les traits qui décident de la place occupée et du nombre de convives, et laisse de côté l'esthétique.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Pensez aux sept mètres",
+        "Gardez taille et places",
+        "Laissez le style"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Pour sept mètres carrés…",
+      "tip": "deux contraintes chiffrées : répondez avec des chiffres",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Elle est en chêne massif avec un très joli veinage, un plateau huilé qui a pris une belle patine avec les années et des pieds fuselés dans le style scandinave. Elle vient d'un ébéniste de Bordeaux.",
+          "pedagogicalNote": "Le style et la provenance ne disent pas si la table tient dans sept mètres carrés ni combien de personnes elle accueille."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour sept mètres carrés : elle fait cent vingt centimètres sur soixante-dix, donc elle passe. Quatre personnes tiennent à l'aise. Elle a une rallonge qui la porte à cent soixante quand tu reçois. Les pieds sont aux angles, rien ne gêne les jambes.",
+          "pedagogicalNote": "Dimensions, capacité, rallonge, position des pieds : chaque trait répond aux deux contraintes énoncées."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour sept mètres carrés : cent vingt sur soixante-dix, elle passe sans problème. Quatre personnes à l'aise, six avec la rallonge qui l'allonge à cent soixante. Les pieds sont aux quatre angles, donc personne ne se cogne les genoux, et elle se plaque contre un mur sans gêner l'ouverture du four.",
+          "pedagogicalNote": "La dernière précision anticipe un problème réel des petites cuisines, sans jamais sortir de la sélection demandée."
+        }
+      ]
+    },
+    {
+      "title": "Une chambre pour deux nuits",
+      "context": "Un collègue vous écrit : « Tu m'héberges pour le séminaire ? Je viens juste deux nuits, j'arrive tard et je pars tôt. Ta chambre d'amis est comment ? »",
+      "instruction": "Répondez-lui en décrivant la chambre, en ne retenant que ce qui compte pour deux nuits courtes.",
+      "uniqueCriterion": "Votre réponse retient les traits utiles pour deux nuits et laisse de côté ce qui ne servirait qu'à un séjour long.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Pensez aux deux nuits",
+        "Gardez ce qui sert",
+        "Laissez le superflu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Traits choisis",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Pour deux nuits, l'essentiel…",
+      "tip": "il arrive tard et part tôt : le placard ne lui servira jamais",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il y a une grande armoire de trois portes avec beaucoup de rangement, une commode, un bureau si tu as besoin de travailler et une bibliothèque bien fournie. On peut vraiment s'y installer longtemps.",
+          "pedagogicalNote": "Armoire, commode et bibliothèque servent à un long séjour. Il vient deux nuits, arrive tard et part tôt."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Pour deux nuits, l'essentiel : le lit fait cent quarante et le matelas est neuf. La chambre donne sur la cour, tu ne seras pas réveillé. La salle de bains est juste en face. Je te laisserai une clé pour rentrer tard.",
+          "pedagogicalNote": "Lit, calme, proximité de la salle de bains, autonomie : chaque trait sert exactement à deux nuits courtes."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Pour deux nuits, l'essentiel : lit en cent quarante, matelas neuf, et la fenêtre donne sur la cour — tu dormiras jusqu'à ton réveil. La salle de bains est juste en face, tu ne traverseras pas l'appartement à six heures. Tu auras une clé.",
+          "pedagogicalNote": "Chaque trait est justifié par l'usage qu'il en fera : c'est la sélection elle-même qui devient lisible."
+        }
+      ]
+    }
+  ]
+}

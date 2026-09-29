@@ -1,0 +1,38 @@
+name: sejourfr_mobile
+description: SejourFR — Préparation aux examens civique et TCF
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # HTTP
+  dio: ^5.7.0
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Stockage sécurisé tokens
+  flutter_secure_storage: ^9.2.2
+
+  # Typographie
+  google_fonts: ^6.2.1
+
+  # Médias TCF
+  just_audio: ^0.9.42
+  video_player: ^2.9.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

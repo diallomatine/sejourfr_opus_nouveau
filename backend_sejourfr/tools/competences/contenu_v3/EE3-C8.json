@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C8",
+  "rang": 8,
+  "titre": "Enchaîner ses idées de façon cohérente",
+  "critere": "Relier les idées avec des connecteurs justes ; une conclusion formelle n'est pas exigée.",
+  "remplace": "EE3-C8 — Organiser et conclure une réponse argumentée (15 sujets désactivés)",
+  "premierCodeLibre": 16,
+  "prompts": [
+    {
+      "title": "Le gymnase municipal",
+      "context": "La ville vous écrit : « Vous utilisez le gymnase chaque semaine. Merci de nous donner votre avis. »",
+      "instruction": "Donnez votre avis sur ce gymnase en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent : chacune se relie à la précédente au lieu d'être posée à côté.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce gymnase est bien tenu…",
+      "tip": "un texte qui s'enchaîne n'a pas besoin de « pour conclure »",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce gymnase est bien tenu. Le sol est refait. Les vestiaires sont propres. Le chauffage fonctionne. Les horaires sont larges. Le parking est suffisant. Les paniers sont réglables. Pour conclure, en conclusion finale, je dirais que ce gymnase est bien tenu au total.",
+          "pedagogicalNote": "Six phrases juxtaposées, puis une conclusion lourde et redondante qui ne fait que répéter la première phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce gymnase est bien tenu. Le sol a été refait l'an dernier, ce qui a supprimé les glissades dans l'angle nord. Les vestiaires suivent : ils sont nettoyés après chaque créneau. Et comme le chauffage fonctionne enfin, on n'arrive plus une heure avant pour s'échauffer.",
+          "pedagogicalNote": "« Ce qui », « suivent », « et comme » : chaque idée s'accroche à la précédente, et rien ne conclut artificiellement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce gymnase est bien tenu. Le sol refait l'an dernier a supprimé les glissades de l'angle nord, où deux joueurs s'étaient blessés. Les vestiaires suivent la même logique : nettoyage après chaque créneau, sans exception. Et depuis que le chauffage fonctionne, plus personne n'arrive une heure avant pour s'échauffer.",
+          "pedagogicalNote": "« La même logique » relie deux idées par un principe commun, ce qui est l'enchaînement le plus fort."
+        }
+      ]
+    },
+    {
+      "title": "Le grille-pain hérité",
+      "context": "Votre cousine vous écrit : « Tu gardes ce vieux grille-pain alors qu'il a vingt ans. Explique-moi ton avis. »",
+      "instruction": "Donnez votre avis sur cet objet en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, et le texte se referme sans formule de conclusion imposée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je le garde parce qu'il marche encore…",
+      "tip": "« en conclusion » en quatre-vingt-dix mots sonne faux",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je le garde parce qu'il marche encore. Il est en métal. Le fil est intact. Les ressorts fonctionnent. Il grille bien. Il est facile à nettoyer. Il a vingt ans. En conclusion pour finir, voilà pourquoi je le garde, en conclusion.",
+          "pedagogicalNote": "Six phrases sans lien, puis une conclusion doublement redondante : « en conclusion pour finir… en conclusion »."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je le garde parce qu'il marche encore. Son boîtier est en métal, donc rien ne s'est déformé avec la chaleur. Les ressorts tiennent toujours, contrairement aux modèles récents que j'ai vus casser en deux ans. Et comme il se démonte, je peux le nettoyer vraiment.",
+          "pedagogicalNote": "« Donc », « contrairement à », « et comme » : les idées se répondent et le texte s'arrête là où il a fini."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je le garde parce qu'il marche encore. Son boîtier en métal n'a pas bougé, là où le plastique se déforme en quelques années. Les ressorts tiennent toujours — j'ai vu deux modèles récents casser en moins de deux ans chez ma sœur. Et il se démonte, donc il se nettoie vraiment.",
+          "pedagogicalNote": "Chaque idée s'appuie sur la précédente par opposition ou par conséquence, et la dernière referme sans l'annoncer."
+        }
+      ]
+    },
+    {
+      "title": "L'infirmière à domicile",
+      "context": "Le cabinet vous écrit : « Vous êtes suivie par cette infirmière depuis six mois. Merci de nous donner votre avis. »",
+      "instruction": "Donnez votre avis sur cette personne en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette infirmière est excellente…",
+      "tip": "les connecteurs montrent que vous pensez, pas que vous récitez",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette infirmière est excellente. Elle arrive à l'heure. Elle prévient si elle a du retard. Elle explique les soins. Elle note tout dans le carnet. Elle est douce. Elle parle à ma mère. Pour finir en conclusion, elle est excellente comme je l'ai dit.",
+          "pedagogicalNote": "Six affirmations empilées et une conclusion qui recopie la première phrase : le texte tourne en rond."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette infirmière est excellente. Elle arrive toujours à l'heure, et quand ce n'est pas possible elle prévient la veille. Elle explique chaque soin à ma mère plutôt qu'à moi, ce qui change tout pour elle. Elle note ensuite le déroulé dans le carnet, si bien que sa remplaçante sait exactement où en est le traitement.",
+          "pedagogicalNote": "« Et quand », « ce qui », « ensuite », « si bien que » : chaque idée découle de la précédente."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette infirmière est excellente. Elle arrive à l'heure, et si ce n'est pas possible elle prévient la veille au soir. Elle explique chaque soin à ma mère plutôt qu'à moi — c'est ce qui lui a rendu confiance. Elle note ensuite tout dans le carnet, si bien que sa remplaçante n'a jamais eu à me poser une question.",
+          "pedagogicalNote": "La chaîne va jusqu'à un effet inattendu — la remplaçante n'a rien à demander — sans aucune formule de clôture."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du centre aéré",
+      "context": "La mairie vous écrit : « Votre enfant fréquente le centre aéré. Merci de nous donner votre avis sur l'équipe. »",
+      "instruction": "Donnez votre avis sur cette équipe en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe est très bien…",
+      "tip": "une idée qui explique la suivante vaut mieux qu'une liste",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe est très bien. Ils sont nombreux. Ils sont jeunes. Ils préparent des activités. Ils notent les allergies. Ils appellent en cas de souci. Ils font des photos. Pour conclure cette réponse, en résumé, cette équipe est vraiment très bien.",
+          "pedagogicalNote": "Six éléments alignés, puis une double formule de clôture qui n'ajoute rien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe est très bien. Ils sont assez nombreux pour qu'aucun enfant ne reste seul dans un coin, et cela se voit dès le premier jour. Comme ils préparent les activités à l'avance, il n'y a jamais de temps mort. Ils appellent aussi dès qu'un enfant s'est fait mal, même légèrement.",
+          "pedagogicalNote": "« Pour que », « comme », « aussi » : les idées s'articulent et le texte se referme sans l'annoncer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe est très bien. Ils sont assez nombreux pour qu'aucun enfant ne reste seul dans un coin — mon fils, qui est timide, n'a jamais mangé à l'écart. Comme les activités sont préparées la veille, il n'y a pas de temps mort après le repas, l'heure la plus difficile. Ils appellent au moindre bobo.",
+          "pedagogicalNote": "Chaque lien est justifié par un fait, et « l'heure la plus difficile » montre que le candidat sait pourquoi cela compte."
+        }
+      ]
+    },
+    {
+      "title": "Le refuge de montagne",
+      "context": "Un club vous écrit : « Vous avez dormi au refuge des Bans. Merci de nous donner votre avis pour nos adhérents. »",
+      "instruction": "Donnez votre avis sur ce refuge en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Ce refuge est une bonne étape…",
+      "tip": "reliez : ce qui précède doit expliquer ce qui suit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce refuge est une bonne étape. Les dortoirs sont petits. Le repas est copieux. L'eau est potable. Le gardien est présent. Le départ se fait tôt. Les couvertures sont fournies. Le gardien cuisine lui-même. La vue est belle. On paie en liquide. En conclusion finale pour terminer, c'est une bonne étape.",
+          "pedagogicalNote": "Six phrases sans lien et une clôture à trois formules empilées, qui ne dit rien de neuf."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce refuge est une bonne étape. Les dortoirs ne comptent que six places, si bien qu'on dort vraiment, contrairement aux grandes salles de quarante. Le repas du soir est copieux, ce qui compte quand on repart à cinq heures. Et comme les couvertures sont fournies, on porte un sac plus léger.",
+          "pedagogicalNote": "« Si bien que », « ce qui », « et comme » : chaque information découle de la précédente ou l'explique."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce refuge est une bonne étape. Les dortoirs ne comptent que six places, si bien qu'on dort réellement — ce qui n'arrive jamais dans les salles de quarante. Le repas du soir est copieux, et il le faut quand on repart à cinq heures. Les couvertures étant fournies, on monte avec deux kilos de moins.",
+          "pedagogicalNote": "Le participe et les chiffres resserrent l'enchaînement, et le texte s'arrête sur l'information la plus concrète."
+        }
+      ]
+    },
+    {
+      "title": "Le casque audio",
+      "context": "Un collègue vous écrit : « Tu utilises ce casque au bureau toute la journée. Qu'en penses-tu ? »",
+      "instruction": "Donnez votre avis sur cet objet en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Ce casque me convient très bien…",
+      "tip": "chaque phrase doit s'appuyer sur celle d'avant",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce casque me convient très bien. Il est léger. La batterie tient. Le son est bon. Il réduit le bruit. Les coussinets sont doux. Il se plie. Pour résumer en conclusion, il me convient très bien, comme je viens de le dire.",
+          "pedagogicalNote": "Six qualités juxtaposées et une clôture qui répète explicitement la première phrase."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce casque me convient très bien. Il est assez léger pour que je l'oublie au bout d'une heure, alors que l'ancien me serrait les tempes. La réduction de bruit couvre les conversations de l'open space, donc je n'ai plus besoin de monter le volume. La batterie tient deux journées entières.",
+          "pedagogicalNote": "« Alors que », « donc » : chaque qualité est reliée à un usage ou à une comparaison."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce casque me convient très bien. Il est assez léger pour que je l'oublie au bout d'une heure, là où l'ancien me serrait les tempes dès la deuxième réunion. La réduction de bruit couvre les conversations de l'open space, donc je n'ai plus à monter le volume — mes oreilles s'en portent mieux.",
+          "pedagogicalNote": "La dernière proposition tire la conséquence de la précédente : le texte finit sur un enchaînement, pas sur une formule."
+        }
+      ]
+    },
+    {
+      "title": "La libraire",
+      "context": "Un site d'avis vous écrit : « Vous êtes cliente de cette librairie. Merci de nous dire ce que vous pensez de la libraire. »",
+      "instruction": "Donnez votre avis sur cette personne en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette libraire est précieuse…",
+      "tip": "une idée qui en entraîne une autre, c'est cela enchaîner",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette libraire est précieuse. Elle lit beaucoup. Elle conseille bien. Elle commande vite. Elle connaît ses clients. Elle organise des rencontres. Elle n'impose rien. Elle emballe les cadeaux. Elle ouvre le lundi. Elle a un chat dans la vitrine. Pour finir et pour conclure, je redis qu'elle est précieuse pour le quartier.",
+          "pedagogicalNote": "Six phrases sans liaison, et une clôture qui empile deux formules pour redire la première ligne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette libraire est précieuse. Elle lit vraiment ce qu'elle vend, donc ses conseils tombent juste au lieu de suivre les listes de nouveautés. Comme elle retient ce que chacun a aimé, elle propose des choses qu'on n'aurait jamais ouvertes. Et si le livre ne plaît pas, elle le reprend.",
+          "pedagogicalNote": "« Donc », « comme », « et si » : le texte avance par conséquences, sans avoir besoin de conclure."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette libraire est précieuse. Elle lit ce qu'elle vend, donc ses conseils tombent juste au lieu de suivre les piles de nouveautés. Comme elle retient ce que chacun a aimé, elle propose des livres qu'on n'aurait jamais ouverts — c'est ainsi que j'ai découvert trois auteurs cette année. Et si cela ne plaît pas, elle reprend le livre.",
+          "pedagogicalNote": "L'enchaînement produit une preuve au milieu du texte, ce qui vaut mieux que n'importe quelle conclusion."
+        }
+      ]
+    },
+    {
+      "title": "Le collectif du local à vélos",
+      "context": "Le syndic vous écrit : « Un collectif d'habitants gère le local à vélos. Merci de nous donner votre avis sur ce groupe. »",
+      "instruction": "Donnez votre avis sur ce groupe en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce collectif fonctionne bien…",
+      "tip": "montrez comment une chose en permet une autre",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce collectif fonctionne bien. Ils sont six. Ils ont fait un planning. Ils ont acheté des outils. Ils ont posé des étiquettes. Ils font une réunion par trimestre. Ils tiennent un cahier. En conclusion pour terminer ma réponse, ce collectif fonctionne bien.",
+          "pedagogicalNote": "Six actions listées et une clôture redondante : rien ne montre pourquoi cela fonctionne."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce collectif fonctionne bien. Ils ont d'abord étiqueté chaque vélo, ce qui a permis de sortir huit épaves abandonnées depuis des années. La place ainsi libérée a suffi pour tout le monde, et personne n'a eu besoin de payer un agrandissement. Ils tiennent maintenant un cahier des entrées.",
+          "pedagogicalNote": "« Ce qui a permis », « ainsi libérée » : chaque étape rend la suivante possible, et le texte s'arrête naturellement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce collectif fonctionne bien. Ils ont commencé par étiqueter chaque vélo, ce qui a permis d'identifier huit épaves abandonnées depuis des années. Une fois celles-ci évacuées, la place a suffi pour tout le monde — l'agrandissement voté l'an dernier est devenu inutile, et son budget est resté à la copropriété.",
+          "pedagogicalNote": "La chaîne va d'une petite action jusqu'à une conséquence financière : l'enchaînement porte tout l'argument."
+        }
+      ]
+    },
+    {
+      "title": "La halte-garderie",
+      "context": "Le centre social vous écrit : « Vous déposez votre fils à la halte-garderie. Merci de nous donner votre avis sur ce lieu. »",
+      "instruction": "Donnez votre avis sur ce lieu en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette halte-garderie est bien pensée…",
+      "tip": "reliez la configuration du lieu à ce qu'elle permet",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette halte-garderie est bien pensée. La salle est grande. Il y a une baie vitrée. Le sol est souple. Les jouets sont rangés bas. Il y a un coin calme. Les toilettes sont adaptées. Pour conclure, en conclusion, elle est bien pensée.",
+          "pedagogicalNote": "Six caractéristiques posées côte à côte, puis une clôture qui répète l'ouverture mot pour mot."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette halte-garderie est bien pensée. La grande baie vitrée donne sur la cour, si bien que les enfants voient partir leurs parents jusqu'au bout. Comme les jouets sont rangés à leur hauteur, ils vont les chercher seuls dès le premier jour. Le coin calme permet ensuite de récupérer sans sortir de la salle.",
+          "pedagogicalNote": "Chaque élément du lieu est relié à ce qu'il permet, et l'ordre suit le déroulé d'une matinée."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette halte-garderie est bien pensée. La baie vitrée donne sur la cour, si bien que les enfants voient leurs parents jusqu'au portail — chez nous, cela a supprimé les pleurs en trois jours. Les jouets étant à leur hauteur, ils s'occupent seuls tout de suite. Et le coin calme permet de souffler sans quitter la salle.",
+          "pedagogicalNote": "L'enchaînement suit le vécu de l'enfant, du départ des parents au moment de fatigue : c'est une progression, pas une liste."
+        }
+      ]
+    },
+    {
+      "title": "Le four à pain du village",
+      "context": "La commune vous écrit : « Le four à pain communal a été remis en service. Merci de nous donner votre avis. »",
+      "instruction": "Donnez votre avis sur cet équipement en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "La remise en service du four est une réussite…",
+      "tip": "une réussite se démontre par une chaîne de faits",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "La remise en service du four est une réussite. Il chauffe bien. La voûte a été refaite. Le bois est fourni. Il y a un planning. Les gens viennent. On fait du pain. Pour finir ma réponse en conclusion, c'est une réussite.",
+          "pedagogicalNote": "Six phrases sans lien, une clôture qui recopie l'ouverture : rien ne démontre la réussite annoncée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La remise en service du four est une réussite. La voûte refaite tient enfin la chaleur, si bien qu'une flambée suffit pour douze fournées. Comme le bois est fourni par la commune, personne n'a d'avance à faire. Le planning affiché à la mairie s'est rempli sur trois mois dès la première semaine.",
+          "pedagogicalNote": "Technique, organisation, résultat : trois idées liées qui démontrent la réussite sans la proclamer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La remise en service du four est une réussite. La voûte refaite tient la chaleur, si bien qu'une seule flambée suffit à douze fournées — avant, il en fallait trois. Le bois étant fourni par la commune, personne n'avance d'argent. Le planning s'est rempli sur trois mois dès la première semaine d'ouverture.",
+          "pedagogicalNote": "L'enchaînement va du technique au social, et chaque maillon rend le suivant possible."
+        }
+      ]
+    },
+    {
+      "title": "Le vendeur du magasin de sport",
+      "context": "Un site d'avis vous écrit : « Vous avez été conseillé par ce vendeur. Merci de nous donner votre avis. »",
+      "instruction": "Donnez votre avis sur cette personne en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce vendeur a été très bon…",
+      "tip": "le déroulé d'un échange donne l'ordre tout seul",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce vendeur a été très bon. Il m'a écouté. Il a posé des questions. Il a mesuré mon pied. Il a proposé trois modèles. Il n'a pas insisté. Il a expliqué la différence. En conclusion et pour terminer, il a été très bon.",
+          "pedagogicalNote": "Six actions alignées dans le désordre, et une clôture doublée qui n'apporte rien."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce vendeur a été très bon. Il a commencé par demander combien de kilomètres je courais par semaine, puis il a mesuré mon pied avant de sortir quoi que ce soit. Il m'a ensuite proposé trois modèles en expliquant ce qui les distinguait. Comme j'hésitais, il m'a laissé marcher dix minutes dans le magasin.",
+          "pedagogicalNote": "« Par », « puis », « ensuite », « comme » : le déroulé de l'échange fournit un enchaînement naturel."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce vendeur a été très bon. Il a d'abord demandé combien de kilomètres je courais, puis mesuré mon pied avant de sortir la moindre boîte. Les trois modèles qu'il a proposés venaient de ces deux réponses, et il a dit lequel il déconseillait. Comme j'hésitais encore, il m'a laissé marcher dix minutes.",
+          "pedagogicalNote": "« Venaient de ces deux réponses » relie explicitement la fin de la chaîne à son début : c'est la cohérence démontrée."
+        }
+      ]
+    },
+    {
+      "title": "L'équipe du laboratoire d'analyses",
+      "context": "Le laboratoire vous écrit : « Merci de nous donner votre avis sur l'équipe qui vous a reçue. »",
+      "instruction": "Donnez votre avis sur cette équipe en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Cette équipe est efficace…",
+      "tip": "le parcours du patient donne l'ordre des idées",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette équipe est efficace. L'accueil est rapide. Les prises de sang sont indolores. Les résultats arrivent vite. Le hall est propre. Les horaires sont larges. Le personnel est aimable. Pour conclure en résumé, cette équipe est efficace comme je l'ai dit.",
+          "pedagogicalNote": "Six phrases juxtaposées et une clôture doublement redondante."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette équipe est efficace. L'accueil enregistre le dossier pendant qu'on s'assoit, si bien qu'on entre en salle sans attendre. La préleveuse prévient avant chaque geste, ce qui change tout pour les personnes qui redoutent l'aiguille. Les résultats arrivent ensuite par messagerie le soir même.",
+          "pedagogicalNote": "L'ordre suit le parcours du patient, et chaque étape explique la suivante."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette équipe est efficace. L'accueil enregistre le dossier pendant qu'on s'assoit, si bien qu'on entre en salle sans même avoir ouvert un magazine. La préleveuse prévient avant chaque geste — ma fille, qui refusait les prises de sang, n'a pas bronché. Les résultats arrivent le soir même par messagerie.",
+          "pedagogicalNote": "Chaque maillon porte une preuve, et l'enchaînement épouse exactement le déroulé de la visite."
+        }
+      ]
+    },
+    {
+      "title": "La cour intérieure de l'immeuble",
+      "context": "Le syndic vous écrit : « La cour a été réaménagée cet été. Merci de nous donner votre avis. »",
+      "instruction": "Donnez votre avis sur ce lieu en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Cette cour est transformée…",
+      "tip": "avant et après se relient tout seuls, si on les relie",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cette cour est transformée. Le sol est en gravier. Il y a des bancs. Les poubelles sont cachées. Un arbre a été planté. Les vélos ont un abri. L'éclairage est neuf. Le portail est repeint. Les murs sont propres. Il y a un robinet. En conclusion pour finir, cette cour est transformée.",
+          "pedagogicalNote": "Six éléments listés et une clôture qui ne fait que redire l'ouverture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Cette cour est transformée. Les poubelles ont été déplacées derrière un muret, ce qui a libéré tout le fond. C'est là qu'on a pu installer les bancs et planter l'arbre. Comme l'éclairage a été refait en même temps, les habitants y descendent maintenant le soir.",
+          "pedagogicalNote": "Chaque aménagement rend le suivant possible : l'enchaînement raconte la transformation au lieu de l'inventorier."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Cette cour est transformée. Les poubelles ont été déplacées derrière un muret, ce qui a libéré tout le fond — c'est là qu'on a mis les bancs et planté le tilleul. L'éclairage refait en même temps a fait le reste : depuis septembre, il y a du monde en bas tous les soirs, ce qui n'était jamais arrivé.",
+          "pedagogicalNote": "La chaîne de causes aboutit à un fait social daté, et le texte se referme dessus sans formule."
+        }
+      ]
+    },
+    {
+      "title": "La machine à coudre d'occasion",
+      "context": "Une amie vous écrit : « Tu as acheté cette machine à coudre d'occasion. Qu'est-ce que tu en penses maintenant ? »",
+      "instruction": "Donnez votre avis sur cet objet en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je suis très contente de cet achat…",
+      "tip": "raconter dans l'ordre suffit souvent à enchaîner",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Je suis très contente de cet achat. Elle est en métal. Elle coud le jean. Elle a huit points. La pédale répond bien. Elle était révisée. Elle a coûté quatre-vingts euros. Pour conclure, en conclusion finale, je suis très contente.",
+          "pedagogicalNote": "Six caractéristiques dans le désordre et une clôture à deux formules qui redit l'ouverture."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je suis très contente de cet achat. Le bâti est en métal et non en plastique, si bien qu'elle ne saute pas sur la table quand j'accélère. Elle traverse donc le jean sans forcer, ce que ma précédente ne faisait pas. Elle avait en plus été révisée avant la vente.",
+          "pedagogicalNote": "« Si bien que », « donc », « en plus » : les qualités s'enchaînent, chacune expliquant la suivante."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je suis très contente de cet achat. Le bâti est en métal, pas en plastique, si bien qu'elle ne saute pas sur la table quand j'accélère. Elle traverse donc quatre épaisseurs de jean sans forcer — ma précédente cassait une aiguille sur deux. Elle avait été révisée avant la vente, pour quatre-vingts euros.",
+          "pedagogicalNote": "La chaîne matière → stabilité → puissance est complète, et le prix arrive en dernier comme une évidence."
+        }
+      ]
+    },
+    {
+      "title": "Le conducteur du bus scolaire",
+      "context": "Le transporteur vous écrit : « Merci de nous donner votre avis sur le conducteur de la ligne scolaire de votre enfant. »",
+      "instruction": "Donnez votre avis sur cette personne en enchaînant vos idées de façon que le lecteur suive.",
+      "uniqueCriterion": "Vos idées s'enchaînent, sans juxtaposition ni conclusion plaquée.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Reliez vos idées",
+        "Pas de conclusion forcée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idées reliées",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Ce conducteur est très bien…",
+      "tip": "ce qu'il fait explique ce qui se passe dans le bus",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce conducteur est très bien. Il est ponctuel. Il connaît les enfants. Il conduit doucement. Il attend les retardataires. Il dit bonjour. Il fait respecter le calme. Il range le bus. Il porte un gilet. Il klaxonne en partant. En conclusion pour terminer cette réponse, il est très bien.",
+          "pedagogicalNote": "Six affirmations sans lien et une clôture qui répète l'ouverture : rien ne montre comment cela tient ensemble."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ce conducteur est très bien. Il connaît le prénom de chaque enfant, si bien qu'il repère tout de suite celui qui manque. Comme il attend une minute avant de partir, les petits qui courent ne restent jamais sur le trottoir. Et il ne démarre pas tant que tout le monde n'est pas assis.",
+          "pedagogicalNote": "Chaque pratique explique une conséquence pour les enfants : l'enchaînement porte l'avis."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ce conducteur est très bien. Il connaît le prénom de chaque enfant, si bien qu'il voit immédiatement qui manque — il a attendu ma fille deux minutes le jour où elle s'était trompée d'arrêt. Comme il patiente avant de partir, personne ne court après le bus. Et il ne démarre jamais debout.",
+          "pedagogicalNote": "Un fait vécu s'insère au milieu de la chaîne sans la rompre, et la dernière phrase la referme d'un trait."
+        }
+      ]
+    }
+  ]
+}

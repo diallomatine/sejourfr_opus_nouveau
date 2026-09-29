@@ -1,0 +1,3 @@
+
+Vous recevez ce conseil parce que les rappels d'entraînement sont activés sur votre compte.
+Ne plus recevoir les conseils et rappels d'entraînement : {{unsubscribeUrl}}

@@ -1,0 +1,119 @@
+import { apiRequest } from "./http";
+import type {
+  CivicNotionDto,
+  CivicTaggingGesteVerdict,
+  CivicTaggingQueue,
+  CivicTaggingQuestion,
+  CivicTaggingSuggestion,
+} from "../types/api";
+
+/**
+ * Le référentiel de notions civiques et son tagging (lot L8).
+ *
+ * 🛑 **Aucun appel LLM n'est déclenché depuis cette couche.** Les suggestions
+ * sont lues, jamais produites : les fabriquer pour 1 016 questions coûte de
+ * l'argent, et c'est une décision du propriétaire.
+ */
+
+/**
+ * Le contrat sert `explication`, `choix`, `rationale` et `reviewVerdict`, mais
+ * le backend peut être en cours de livraison : un champ absent doit produire un
+ * écran sobre, pas un écran cassé ni un « null » affiché. On normalise **ici**,
+ * une seule fois, pour que le composant n'ait aucun `??` défensif à porter.
+ */
+function normaliserSuggestion(suggestion: CivicTaggingSuggestion): CivicTaggingSuggestion {
+  return {
+    // 🛑 `null` est une INFORMATION ici — « le modèle a conclu qu'aucune notion
+    // ne convient » — et pas un champ manquant. On le laisse passer tel quel :
+    // le remplacer par une sentinelle (`"AUCUNE"`, `"—"`) rendrait ce verdict
+    // indiscernable d'un vrai code et finirait affiché à l'écran.
+    notionCode: suggestion.notionCode ?? null,
+    notionLabel: suggestion.notionLabel ?? null,
+    confidence: typeof suggestion.confidence === "number" ? suggestion.confidence : 0,
+    rationale: suggestion.rationale ?? null,
+    reviewVerdict: suggestion.reviewVerdict ?? null,
+  };
+}
+
+function normaliserQuestion(question: CivicTaggingQuestion): CivicTaggingQuestion {
+  return {
+    ...question,
+    explication: question.explication ?? null,
+    choix: (question.choix ?? []).filter((choix) => Boolean(choix?.label)),
+    // La suggestion « n°1 » est la mieux notée, jamais celle qui arrive en
+    // premier dans le tableau : c'est elle que « Valider » retient et c'est à
+    // elle que le serveur se compare pour trancher VALIDATED / CORRECTED.
+    suggestions: (question.suggestions ?? [])
+      .map(normaliserSuggestion)
+      .sort((a, b) => b.confidence - a.confidence),
+  };
+}
+
+export const civicNotionsApi = {
+  /** Le référentiel, avec la couverture **mesurée** par notion et par mention. */
+  referentiel(signal?: AbortSignal) {
+    return apiRequest<CivicNotionDto[]>("/api/admin/civic-notions", { signal });
+  },
+
+  /** La file de tagging. `tagged=false` = ce qu'il reste à faire. */
+  async file(
+    params: {
+      theme?: string;
+      tagged: boolean;
+      /**
+       * `true` = ne garder que les questions PRÉ-TAGUÉES, confiances les plus
+       * basses en tête. C'est le mode « relire une campagne » : sans lui, les
+       * 50 questions d'un pilote sont noyées dans les 215 de leur thème.
+       */
+      suggerees?: boolean;
+      limit: number;
+      offset: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<CivicTaggingQueue> {
+    const query: Record<string, string> = {
+      tagged: String(params.tagged),
+      suggerees: String(params.suggerees ?? false),
+      limit: String(params.limit),
+      offset: String(params.offset),
+    };
+    if (params.theme) query.theme = params.theme;
+    const queue = await apiRequest<CivicTaggingQueue>(
+      "/api/admin/civic-notions/questions",
+      { query, signal },
+    );
+    return {
+      resteATaguer: queue.resteATaguer ?? 0,
+      questions: (queue.questions ?? []).map(normaliserQuestion),
+    };
+  },
+
+  /**
+   * Écrit le geste du relecteur sur une question.
+   *
+   * Les gestes produisent des écritures distinctes :
+   * - valider une suggestion normale → `{notionCode: <suggestion n°1>, verdict: null}`
+   * - valider une suggestion « aucune notion » → `{notionCode: null, verdict: "CONFIRM_NONE"}`
+   * - corriger  → `{notionCode: <autre notion>, verdict: null}`
+   * - rejeter   → `{notionCode: null,           verdict: "REJECTED"}`
+   * - passer    → `{notionCode: null,           verdict: "SKIPPED"}`
+   *
+   * 🛑 **Le client n'envoie jamais `VALIDATED` ni `CORRECTED`** — le type
+   * `CivicTaggingGesteVerdict` les rend inexprimables. C'est le serveur qui
+   * compare la notion retenue à la suggestion la mieux notée : la mesure de
+   * justesse du pré-tagging ne peut pas dépendre du client, sinon elle mesure
+   * le client. `CONFIRM_NONE` est un **geste** (« je confirme le trou »), que
+   * le serveur traduit en `VALIDATED` — et refuse en 400 si la meilleure
+   * suggestion n'était pas « aucune notion ».
+   */
+  taguer(
+    questionId: string,
+    notionCode: string | null,
+    verdict: CivicTaggingGesteVerdict | null,
+  ) {
+    return apiRequest<void>(`/api/admin/civic-notions/questions/${questionId}`, {
+      method: "PUT",
+      body: { notionCode, verdict },
+    });
+  },
+};

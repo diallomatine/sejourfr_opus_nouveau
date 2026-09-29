@@ -1,0 +1,197 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cewyia66ZoLo4suXc3QC8",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01YXwHAAhwzjuFGC8GAapFyp",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "inst_president",
+            "confiance": 0.97,
+            "rationale": "Condition d'âge pour être candidat à la présidence."
+          },
+          {
+            "rang": 2,
+            "notion": "inst_president",
+            "confiance": 0.95,
+            "rationale": "Parrainages requis pour candidature présidentielle."
+          },
+          {
+            "rang": 3,
+            "notion": "inst_justice",
+            "confiance": 0.85,
+            "rationale": "Conseil d'État consulté sur les projets de loi, institution juridictionnelle administrative.",
+            "alternative": "inst_gouvernement",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 4,
+            "notion": "inst_justice",
+            "confiance": 0.97,
+            "rationale": "Plus haute juridiction administrative."
+          },
+          {
+            "rang": 5,
+            "notion": "inst_justice",
+            "confiance": 0.97,
+            "rationale": "Plus haute juridiction judiciaire."
+          },
+          {
+            "rang": 6,
+            "notion": "inst_justice",
+            "confiance": 0.97,
+            "rationale": "Juridiction jugeant les contraventions."
+          },
+          {
+            "rang": 7,
+            "notion": "inst_justice",
+            "confiance": 0.97,
+            "rationale": "Juridiction jugeant les crimes graves."
+          },
+          {
+            "rang": 8,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Commune comme échelon de base de l'organisation territoriale."
+          },
+          {
+            "rang": 9,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Nombre de régions françaises depuis 2016."
+          },
+          {
+            "rang": 10,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Direction d'une région, échelon territorial."
+          },
+          {
+            "rang": 11,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Compétences régionales (lycées, TER)."
+          },
+          {
+            "rang": 12,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Rattachement des collèges au département."
+          },
+          {
+            "rang": 13,
+            "notion": "inst_collectivites",
+            "confiance": 0.95,
+            "rationale": "Direction du conseil départemental."
+          },
+          {
+            "rang": 14,
+            "notion": "inst_elections",
+            "confiance": 0.9,
+            "rationale": "Caractère non obligatoire du vote."
+          },
+          {
+            "rang": 15,
+            "notion": "inst_elections",
+            "confiance": 0.85,
+            "rationale": "Types d'élections auxquelles un citoyen peut voter."
+          },
+          {
+            "rang": 16,
+            "notion": "inst_collectivites",
+            "confiance": 0.75,
+            "rationale": "Durée du mandat des conseillers municipaux, élections locales.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 17,
+            "notion": "inst_collectivites",
+            "confiance": 0.75,
+            "rationale": "Durée du mandat des conseillers régionaux, élections locales.",
+            "alternative": "inst_elections",
+            "alternative_confiance": 0.6
+          },
+          {
+            "rang": 18,
+            "notion": "inst_elections",
+            "confiance": 0.8,
+            "rationale": "Droit de vote et candidature des ressortissants UE aux municipales.",
+            "alternative": "inst_collectivites",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 19,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Nombre d'eurodéputés français."
+          },
+          {
+            "rang": 20,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Institution européenne votant les lois."
+          },
+          {
+            "rang": 21,
+            "notion": "inst_ue",
+            "confiance": 0.95,
+            "rationale": "Sièges du Parlement européen."
+          },
+          {
+            "rang": 22,
+            "notion": "AUCUNE",
+            "confiance": 0.7,
+            "rationale": "Traité de Rome relève de l'histoire de la construction européenne (hg_europe), hors référentiel."
+          },
+          {
+            "rang": 23,
+            "notion": "AUCUNE",
+            "confiance": 0.7,
+            "rationale": "Traité de Maastricht relève de l'histoire de la construction européenne (hg_europe), hors référentiel."
+          },
+          {
+            "rang": 24,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Espace Schengen, libre circulation, vie du citoyen européen."
+          },
+          {
+            "rang": 25,
+            "notion": "inst_ue",
+            "confiance": 0.9,
+            "rationale": "Droits liés à la citoyenneté européenne."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 9197,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 1449,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

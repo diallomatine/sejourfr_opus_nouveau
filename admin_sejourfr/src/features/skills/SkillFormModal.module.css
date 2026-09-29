@@ -1,0 +1,53 @@
+.frozen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.frozenCode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.frozenCode code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+}
+
+.frozenHint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.help {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}

@@ -1,0 +1,659 @@
+{
+  "skillCode": "EE1-C11",
+  "rang": 6,
+  "titre": "Décrire un lieu ou un objet",
+  "critere": "Situer et caractériser un lieu ou un objet : aspect, taille, matière, ambiance, usage, état.",
+  "remplace": null,
+  "objetsAttendus": [
+    "lieu",
+    "objet"
+  ],
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Le studio à louer",
+      "context": "Une étudiante répond à votre annonce : « Bonjour, votre studio est encore libre ? Les photos ne montrent qu'une pièce. Il est comment exactement ? »",
+      "instruction": "Répondez-lui en décrivant le studio.",
+      "uniqueCriterion": "Votre réponse caractérise le logement : surface, agencement, lumière, état.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez la surface",
+        "Dites l'agencement",
+        "Ajoutez la lumière"
+      ],
+      "constraintTags": [
+        {
+          "label": "Surface et agencement",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "C'est une pièce de…",
+      "tip": "un logement se décrit par ses mesures avant ses qualités",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui il est encore libre ! C'est un très bon studio, vraiment agréable à vivre et bien placé. Je pense qu'il vous plaira beaucoup. Le quartier est calme et les voisins sont sympathiques.",
+          "pedagogicalNote": "« Agréable » et « bien placé » sont des jugements, pas des caractéristiques. On ne peut pas se représenter la pièce."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est une pièce de vingt-six mètres carrés, avec un coin cuisine le long du mur et une salle d'eau séparée. La fenêtre donne sur la cour. Les murs sont blancs, le sol en parquet clair. Tout est en bon état.",
+          "pedagogicalNote": "Surface, agencement, exposition, matériaux, état : chaque élément se vérifie à la visite."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Une pièce de vingt-six mètres carrés, avec un coin cuisine le long du mur de gauche et une salle d'eau séparée derrière une cloison. L'unique fenêtre donne sur la cour, donc c'est calme mais un peu sombre le matin. Parquet clair, murs repeints l'an dernier.",
+          "pedagogicalNote": "Les positions sont données et la réserve sur la lumière rend la description crédible plutôt que vendeuse."
+        }
+      ]
+    },
+    {
+      "title": "Le sac oublié dans le bus",
+      "context": "Le service des objets trouvés vous écrit : « Bonjour, nous avons plusieurs sacs pour la ligne 12 hier. Décrivez-nous le vôtre. »",
+      "instruction": "Répondez-leur en décrivant votre sac.",
+      "uniqueCriterion": "Votre réponse caractérise l'objet : forme, taille, matière, couleur, signes particuliers.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites la forme",
+        "Donnez la matière",
+        "Ajoutez un signe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Forme et matière",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un sac…",
+      "tip": "un objet se décrit par ce qu'on en voit, pas par ce qu'il contient",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est un sac avec mes affaires de sport à l'intérieur, mes chaussures et une serviette. Il y a aussi mon badge de la salle et une gourde bleue. J'en ai vraiment besoin pour demain matin.",
+          "pedagogicalNote": "Vous décrivez le contenu. Ils doivent reconnaître le sac sans l'ouvrir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un sac de sport en toile noire, de forme allongée, environ cinquante centimètres de long. Il a une bandoulière réglable et une poche latérale à fermeture éclair. Le logo blanc est à moitié effacé.",
+          "pedagogicalNote": "Type, matière, forme, taille, détails extérieurs : le sac est identifiable de l'extérieur."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Un sac de sport en toile noire, allongé, environ cinquante centimètres, avec une bandoulière réglable et une poche latérale à fermeture éclair. Le logo blanc sur le flanc est à moitié effacé, et la fermeture principale a une attache de rechange en ficelle rouge.",
+          "pedagogicalNote": "L'attache en ficelle rouge est le genre de détail qui rend l'identification certaine parmi plusieurs sacs noirs."
+        }
+      ]
+    },
+    {
+      "title": "Le quartier depuis la fenêtre",
+      "context": "Votre sœur, installée à l'étranger, vous écrit : « Tu as déménagé et je n'ai vu aucune photo. C'est comment autour de chez toi ? »",
+      "instruction": "Répondez-lui en décrivant votre quartier.",
+      "uniqueCriterion": "Votre réponse caractérise le quartier : ce qu'on y voit, son ambiance, ce qu'on y trouve.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Dites ce qu'on voit",
+        "Donnez l'ambiance",
+        "Citez un commerce"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ambiance et repères",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "De ma fenêtre, je vois…",
+      "tip": "elle n'a aucune image : partez de ce qu'on voit",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est vraiment bien ici, je suis très contente d'avoir déménagé. Le quartier est beaucoup mieux que l'ancien, tu verras quand tu viendras. Je crois que tu vas adorer, ça te ressemble.",
+          "pedagogicalNote": "Rien n'est décrit : quatre phrases d'enthousiasme ne donnent aucune image du quartier."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "De ma fenêtre, je vois une place plantée de platanes avec un kiosque au milieu. Les immeubles autour sont bas, en pierre claire. Il y a une boulangerie à l'angle et un café avec des tables dehors. C'est très calme le soir.",
+          "pedagogicalNote": "Ce qu'on voit, les matériaux, les commerces, l'ambiance sonore : le quartier devient visible."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "De ma fenêtre, je vois une place plantée de grands platanes, avec un kiosque à musique au milieu. Les immeubles autour sont bas, en pierre claire, avec des volets bleus. Une boulangerie occupe l'angle et le café voisin sort ses tables dès qu'il fait beau. Le soir, on n'entend plus rien.",
+          "pedagogicalNote": "Les volets bleus et les tables sorties « dès qu'il fait beau » font passer d'un inventaire à une image."
+        }
+      ]
+    },
+    {
+      "title": "Le vélo volé",
+      "context": "Votre assurance vous écrit : « Madame, pour instruire votre déclaration de vol, merci de nous décrire précisément le vélo dérobé. »",
+      "instruction": "Répondez-leur en décrivant ce vélo.",
+      "uniqueCriterion": "Votre réponse caractérise le vélo : type, couleur, équipements, état, signes particuliers.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez le type",
+        "Listez les équipements",
+        "Ajoutez un signe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Équipements et état",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Il s'agit d'un vélo…",
+      "tip": "un signe particulier vaut mieux que trois adjectifs",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Madame, Monsieur, le vélo a été volé devant la gare mercredi entre dix-sept et dix-neuf heures. L'antivol a été sectionné. J'ai déposé plainte au commissariat central le lendemain matin. Bien cordialement.",
+          "pedagogicalNote": "Vous racontez les circonstances. L'assurance demandait la description du vélo lui-même."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, il s'agit d'un vélo de ville vert foncé, à cadre bas, équipé d'un porte-bagages arrière et de garde-boue. Il a sept vitesses et une sonnette argentée. La selle est en cuir brun, assez usée.",
+          "pedagogicalNote": "Type, couleur, cadre, équipements, état de la selle : le vélo est identifiable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, il s'agit d'un vélo de ville vert foncé à cadre bas, avec porte-bagages arrière, garde-boue et sept vitesses. La selle en cuir brun est très usée sur le côté droit, et le garde-boue avant porte un autocollant blanc à moitié décollé.",
+          "pedagogicalNote": "L'usure localisée et l'autocollant décollé sont deux marques uniques, bien plus utiles qu'un adjectif de plus."
+        }
+      ]
+    },
+    {
+      "title": "La chambre d'hôte",
+      "context": "Un couple vous écrit : « Bonjour, nous hésitons à réserver votre chambre. Le site ne montre qu'une photo. Elle est comment ? »",
+      "instruction": "Répondez-leur en décrivant la chambre.",
+      "uniqueCriterion": "Votre réponse caractérise la chambre : dimensions, mobilier, exposition, équipements.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez la taille",
+        "Dites le mobilier",
+        "Ajoutez l'exposition"
+      ],
+      "constraintTags": [
+        {
+          "label": "Mobilier et exposition",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La chambre fait…",
+      "tip": "une seule photo : dites ce qu'elle ne montre pas",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est une chambre très charmante, vraiment cosy, où nos hôtes se sentent toujours bien. Beaucoup nous écrivent après leur séjour pour nous dire qu'ils ont passé un excellent moment. Vous ne serez pas déçus.",
+          "pedagogicalNote": "Les avis des autres ne remplacent pas la description : on ne sait rien de la pièce."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La chambre fait dix-huit mètres carrés, avec un lit en cent soixante, une armoire ancienne et un bureau sous la fenêtre. Elle donne à l'est, donc le soleil entre le matin. La salle de bains est privative, avec une douche.",
+          "pedagogicalNote": "Surface, lit, mobilier, exposition, sanitaires : le couple peut décider."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La chambre fait dix-huit mètres carrés : un lit en cent soixante, une armoire ancienne en noyer et un bureau sous la fenêtre. Elle donne à l'est, le soleil entre dès sept heures — les rideaux sont épais. Salle de bains privative avec douche à l'italienne.",
+          "pedagogicalNote": "La précision sur l'heure du soleil et les rideaux anticipe la seule vraie objection d'une chambre à l'est."
+        }
+      ]
+    },
+    {
+      "title": "Le four à donner",
+      "context": "Une voisine vous écrit : « Vous donnez votre four ? Ma cuisine est petite et je cuisine beaucoup. Il est comment ? »",
+      "instruction": "Répondez-lui en décrivant le four.",
+      "uniqueCriterion": "Votre réponse caractérise l'appareil : dimensions, aspect, état, fonctionnement.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez les dimensions",
+        "Dites l'état",
+        "Ajoutez un défaut"
+      ],
+      "constraintTags": [
+        {
+          "label": "Dimensions et état",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un four…",
+      "tip": "un objet donné se décrit avec ses défauts, sinon la personne se déplace pour rien",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Oui je le donne, il marche encore très bien et il a fait son temps chez moi mais il peut servir des années. Venez le chercher quand vous voulez, je suis là presque tous les soirs après dix-huit heures.",
+          "pedagogicalNote": "Aucune caractéristique : ni taille, ni aspect, ni état précis. Elle ne sait pas s'il entrera dans sa cuisine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un four encastrable en inox, de soixante centimètres de large sur soixante de haut. Il a une porte vitrée et cinq programmes. Il fonctionne bien, mais le voyant de température ne s'allume plus.",
+          "pedagogicalNote": "Dimensions, matière, fonctions, et un défaut annoncé : elle peut décider en connaissance de cause."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un four encastrable en inox, soixante centimètres de large, de haut et de profondeur — mesurez votre niche. Porte vitrée, cinq programmes, chaleur tournante. Il chauffe parfaitement, mais le voyant de température ne s'allume plus et la poignée est un peu desserrée.",
+          "pedagogicalNote": "La troisième dimension et les deux défauts précis évitent un déplacement pour rien, ce que la description doit servir."
+        }
+      ]
+    },
+    {
+      "title": "La salle des fêtes",
+      "context": "Une association vous écrit : « Bonjour, on nous a conseillé la salle de votre village pour notre assemblée. Elle est comment ? »",
+      "instruction": "Répondez-leur en décrivant cette salle.",
+      "uniqueCriterion": "Votre réponse caractérise la salle : dimensions, capacité, équipements, état.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez la capacité",
+        "Dites les équipements",
+        "Ajoutez l'état"
+      ],
+      "constraintTags": [
+        {
+          "label": "Capacité et équipements",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La salle accueille…",
+      "tip": "une salle se décrit d'abord par ce qu'elle peut contenir",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est une très bonne salle, tout le village s'en sert pour les mariages et les repas. Elle est bien située à côté de la mairie et le parking est juste devant. Vous ne regretterez pas votre choix.",
+          "pedagogicalNote": "L'usage et la situation sont donnés, mais la salle elle-même n'est pas décrite : ni taille, ni capacité, ni équipement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La salle accueille cent vingt personnes assises. Elle fait environ deux cents mètres carrés, avec un parquet et de grandes fenêtres sur deux côtés. Il y a une cuisine attenante, une sono et un vidéoprojecteur. Les toilettes ont été refaites.",
+          "pedagogicalNote": "Capacité, surface, matériaux, équipements, état : l'association peut décider."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La salle accueille cent vingt personnes assises sur environ deux cents mètres carrés, avec un parquet et de grandes fenêtres sur deux côtés. Cuisine attenante équipée, sono et vidéoprojecteur fixé au plafond. Les toilettes sont neuves, mais le chauffage met une heure à monter.",
+          "pedagogicalNote": "La réserve sur le chauffage est exactement ce qu'une association a besoin de savoir avant de réserver en hiver."
+        }
+      ]
+    },
+    {
+      "title": "La montre de famille",
+      "context": "Un horloger vous écrit : « Bonjour, vous nous avez appelés pour une réparation. Avant de vous donner une estimation, décrivez-nous la montre. »",
+      "instruction": "Répondez-lui en décrivant cette montre.",
+      "uniqueCriterion": "Votre réponse caractérise l'objet : matière, taille, mécanisme visible, état, marques.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez la matière",
+        "Dites la taille",
+        "Ajoutez les marques"
+      ],
+      "constraintTags": [
+        {
+          "label": "Matière et marques",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est une montre…",
+      "tip": "un horloger estime d'après la matière et le mécanisme, pas d'après l'histoire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est la montre de mon grand-père, qui la portait tous les jours quand il travaillait à l'usine. Elle a beaucoup de valeur pour moi. Elle s'est arrêtée il y a un mois et je voudrais vraiment la faire repartir.",
+          "pedagogicalNote": "L'histoire de la montre est touchante, mais l'horloger a besoin de sa matière, de sa taille et de son mécanisme pour estimer."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est une montre mécanique à remontage manuel, avec un boîtier rond en acier d'environ trente-cinq millimètres. Le cadran est crème avec des chiffres noirs et une petite trotteuse à six heures. Le bracelet en cuir est craquelé.",
+          "pedagogicalNote": "Mécanisme, boîtier, taille, cadran, bracelet : l'horloger peut estimer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Une montre mécanique à remontage manuel, boîtier rond en acier d'environ trente-cinq millimètres, cadran crème à chiffres noirs et petite trotteuse à six heures. Le verre porte une rayure en diagonale, le bracelet en cuir est craquelé, et le remontoir tourne dans le vide.",
+          "pedagogicalNote": "« Le remontoir tourne dans le vide » est le symptôme précis dont l'horloger a besoin, ajouté sans sortir de la description."
+        }
+      ]
+    },
+    {
+      "title": "Le local commercial",
+      "context": "Une amie qui veut ouvrir un salon vous écrit : « Tu m'as parlé du local libre en bas de chez toi. Il est comment ? Je n'ose pas appeler l'agence sans savoir. »",
+      "instruction": "Répondez-lui en décrivant ce local.",
+      "uniqueCriterion": "Votre réponse caractérise le local : surface, vitrine, état, aménagement existant.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez la surface",
+        "Décrivez la vitrine",
+        "Dites l'état"
+      ],
+      "constraintTags": [
+        {
+          "label": "Surface et état",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Le local fait…",
+      "tip": "un local vide se décrit par ce qui reste, pas par ce qu'on pourrait y faire",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Il serait parfait pour un salon, franchement. Tu pourrais mettre les bacs au fond et les fauteuils devant la vitrine, et même prévoir un petit coin d'attente. Il y a largement la place, tu verrais tout de suite le potentiel.",
+          "pedagogicalNote": "Vous imaginez l'aménagement futur. Elle demandait à quoi ressemble le local aujourd'hui."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le local fait environ quarante mètres carrés, en longueur. La vitrine occupe toute la façade, sur trois mètres. Il y a un point d'eau au fond et des toilettes. Les murs sont bruts et le sol en béton ciré.",
+          "pedagogicalNote": "Surface, forme, vitrine, équipements, revêtements : le local est décrit dans son état réel."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le local fait environ quarante mètres carrés, tout en longueur, avec une vitrine de trois mètres sur toute la façade côté rue. Un point d'eau et des toilettes au fond. Les murs sont bruts, le sol en béton ciré, et le plafond monte à trois mètres cinquante.",
+          "pedagogicalNote": "La hauteur sous plafond et l'orientation de la vitrine sont précisément ce qui décide de l'usage d'un local commercial."
+        }
+      ]
+    },
+    {
+      "title": "Le meuble à restaurer",
+      "context": "Un menuisier vous écrit : « Bonjour, vous souhaitez faire restaurer un meuble. Décrivez-le-moi avant que je me déplace. »",
+      "instruction": "Répondez-lui en décrivant ce meuble.",
+      "uniqueCriterion": "Votre réponse caractérise le meuble : dimensions, bois, assemblage visible, dégâts.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez les dimensions",
+        "Dites le bois",
+        "Décrivez les dégâts"
+      ],
+      "constraintTags": [
+        {
+          "label": "Dimensions et dégâts",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est une commode…",
+      "tip": "un artisan se déplace sur une description, pas sur une intention",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est une commode ancienne à laquelle je tiens énormément et que je voudrais vraiment sauver. Elle est dans un triste état mais je suis sûr qu'elle peut être magnifique. Pouvez-vous passer voir cette semaine ?",
+          "pedagogicalNote": "Ni dimensions, ni bois, ni nature des dégâts : le menuisier ne peut rien préparer avant de venir."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est une commode en chêne de quatre-vingt-dix centimètres de haut sur un mètre de large, avec trois tiroirs. Le plateau est fendu sur toute sa longueur et un pied avant est cassé. Les poignées en laiton manquent sur deux tiroirs.",
+          "pedagogicalNote": "Essence, dimensions, structure, dégâts localisés : le menuisier peut estimer le travail."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Une commode en chêne, quatre-vingt-dix centimètres de haut sur un mètre de large et cinquante de profondeur, trois tiroirs à queues d'aronde. Le plateau est fendu sur toute sa longueur, le pied avant gauche est cassé net, et deux poignées en laiton manquent.",
+          "pedagogicalNote": "Les queues d'aronde renseignent sur la facture du meuble, et « cassé net » précise la nature de la réparation."
+        }
+      ]
+    },
+    {
+      "title": "Le jardin à entretenir",
+      "context": "Un jardinier vous écrit : « Bonjour, vous cherchez quelqu'un pour un entretien régulier. Décrivez-moi le jardin, je vous ferai un devis. »",
+      "instruction": "Répondez-lui en décrivant ce jardin.",
+      "uniqueCriterion": "Votre réponse caractérise le jardin : surface, ce qui le compose, accès, état.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez la surface",
+        "Dites ce qu'il y a",
+        "Précisez l'accès"
+      ],
+      "constraintTags": [
+        {
+          "label": "Surface et composition",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Le jardin fait…",
+      "tip": "un devis se fait sur des surfaces et des accès, pas sur des envies",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, je voudrais que tout soit bien tenu, avec la pelouse tondue régulièrement et les haies taillées deux fois par an. J'aimerais aussi qu'on s'occupe du désherbage. Pouvez-vous me dire votre tarif horaire ?",
+          "pedagogicalNote": "Vous listez vos attentes. Le jardinier demandait la description du jardin pour pouvoir chiffrer."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le jardin fait environ trois cents mètres carrés, dont deux cents de pelouse. Il y a une haie de laurier sur deux côtés, quatre arbres fruitiers et un massif le long de la maison. L'accès se fait par un portail d'un mètre vingt.",
+          "pedagogicalNote": "Surfaces, composition, linéaire de haie, accès : le jardinier peut chiffrer sans se déplacer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le jardin fait environ trois cents mètres carrés, dont deux cents de pelouse en pente douce. Haie de laurier sur deux côtés, soit une trentaine de mètres, quatre arbres fruitiers et un massif le long de la maison. L'accès se fait par un portail d'un mètre vingt, sans marche.",
+          "pedagogicalNote": "La pente, le linéaire chiffré et l'absence de marche sont les trois éléments qui font varier un devis d'entretien."
+        }
+      ]
+    },
+    {
+      "title": "L'instrument prêté",
+      "context": "Le professeur de musique vous écrit : « Bonjour, votre fils doit rapporter l'instrument prêté. Décrivez-le-moi, j'ai plusieurs retours à vérifier. »",
+      "instruction": "Répondez-lui en décrivant cet instrument.",
+      "uniqueCriterion": "Votre réponse caractérise l'instrument : type, taille, matière, état, marques.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Dites le type",
+        "Donnez la taille",
+        "Précisez l'état"
+      ],
+      "constraintTags": [
+        {
+          "label": "Type et état",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un violon…",
+      "tip": "plusieurs retours à vérifier : dites ce qui distingue celui-ci",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, mon fils le rapportera lundi avec l'archet et la housse. Il en a pris grand soin toute l'année et il a beaucoup progressé grâce à vous. Merci encore pour ce prêt, cela nous a vraiment aidés.",
+          "pedagogicalNote": "Vous parlez du retour et de l'année écoulée. Le professeur demandait à quoi ressemble l'instrument."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un violon trois quarts, avec un vernis brun foncé. La housse est noire, avec une poche avant. L'archet a une mèche claire. Il y a une petite éraflure sur la table, côté droit, qui existait déjà.",
+          "pedagogicalNote": "Type, taille, vernis, accessoires, marque préexistante : le professeur peut vérifier le retour."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un violon trois quarts, vernis brun foncé, avec une petite éraflure sur la table côté droit — elle existait déjà à la remise, c'est noté sur la fiche. La housse noire a une poche avant déchirée au coin. L'archet a une mèche claire, complète.",
+          "pedagogicalNote": "Distinguer ce qui préexistait de ce qui s'est abîmé pendant l'année est exactement ce qu'une vérification de retour demande."
+        }
+      ]
+    },
+    {
+      "title": "La cave à visiter",
+      "context": "Un acheteur potentiel vous écrit : « Bonjour, l'annonce mentionne une cave mais aucune photo. Elle est comment ? J'y stockerais du matériel. »",
+      "instruction": "Répondez-lui en décrivant cette cave.",
+      "uniqueCriterion": "Votre réponse caractérise la cave : surface, hauteur, humidité, accès, état.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez la surface",
+        "Dites la hauteur",
+        "Précisez l'humidité"
+      ],
+      "constraintTags": [
+        {
+          "label": "Surface et état",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "La cave fait…",
+      "tip": "pour stocker, l'humidité et l'accès comptent autant que la surface",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, la cave est incluse dans la vente, elle appartient au lot depuis l'origine. Elle est privative et fermée par une porte avec serrure. Vous en aurez la clé à la signature chez le notaire.",
+          "pedagogicalNote": "Vous décrivez le statut juridique. L'acheteur demandait à quoi ressemble la cave, pour savoir s'il peut y stocker."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "La cave fait environ huit mètres carrés, avec un plafond à deux mètres. Les murs sont en pierre et le sol en terre battue. Il n'y a pas de fenêtre mais une ampoule au plafond. Elle reste sèche toute l'année.",
+          "pedagogicalNote": "Surface, hauteur, matériaux, éclairage, humidité : l'acheteur sait s'il peut y entreposer du matériel."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "La cave fait environ huit mètres carrés, plafond à deux mètres, murs en pierre et sol en terre battue. Une ampoule au plafond, pas de fenêtre. Elle est restée sèche ces cinq dernières années, même en hiver. L'escalier est raide et l'ouverture de porte fait soixante-dix centimètres.",
+          "pedagogicalNote": "L'escalier raide et la largeur de porte décident de ce qui peut réellement descendre : c'est la précision utile."
+        }
+      ]
+    },
+    {
+      "title": "L'appareil en panne",
+      "context": "Le service après-vente vous écrit : « Bonjour, nous n'avons pas retrouvé votre modèle dans nos fichiers. Décrivez-nous l'appareil et son comportement. »",
+      "instruction": "Répondez-leur en décrivant l'appareil.",
+      "uniqueCriterion": "Votre réponse caractérise l'appareil : aspect, dimensions, commandes visibles, et ce qu'il fait.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Décrivez l'appareil",
+        "Dites les commandes",
+        "Ajoutez son comportement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect et fonctionnement",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "C'est un appareil…",
+      "tip": "sans référence, ce sont les commandes visibles qui identifient un modèle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, je l'ai acheté il y a environ trois ans dans un magasin qui a fermé depuis. Je n'ai plus la facture ni la boîte. Il est toujours sous garantie normalement, puisque la garantie est de cinq ans sur cette gamme.",
+          "pedagogicalNote": "Vous parlez de l'achat et de la garantie. Ils demandaient à quoi ressemble l'appareil, n'ayant pas le modèle."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "C'est un aspirateur traîneau rouge et gris, d'environ quarante centimètres de long. Il a une molette de puissance sur le dessus et deux pédales, une pour l'enrouleur et une pour l'arrêt. Il s'éteint tout seul après dix minutes.",
+          "pedagogicalNote": "Type, couleurs, taille, commandes, symptôme : le service peut identifier le modèle et la panne."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "C'est un aspirateur traîneau rouge et gris, environ quarante centimètres de long, avec une molette de puissance graduée de un à cinq sur le dessus et deux pédales à l'arrière. Il s'éteint seul au bout de dix minutes, puis refuse de redémarrer avant une heure.",
+          "pedagogicalNote": "La molette graduée identifie la gamme, et le délai avant redémarrage oriente vers une sécurité thermique."
+        }
+      ]
+    },
+    {
+      "title": "La pièce d'eau du parc",
+      "context": "Un journaliste du journal municipal vous écrit : « Bonjour, vous présidez l'association du parc. Décrivez-nous le bassin, nous préparons un article sur sa rénovation. »",
+      "instruction": "Répondez-lui en décrivant ce bassin.",
+      "uniqueCriterion": "Votre réponse caractérise le bassin : dimensions, forme, matériaux, état, environnement immédiat.",
+      "recommendedMinWords": 30,
+      "recommendedMaxWords": 60,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez les dimensions",
+        "Dites les matériaux",
+        "Décrivez l'état"
+      ],
+      "constraintTags": [
+        {
+          "label": "Forme et matériaux",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Le bassin est…",
+      "tip": "un article a besoin d'images : décrivez, ne militez pas",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ce bassin est un élément essentiel du patrimoine de notre commune et nous nous battons depuis quatre ans pour sa rénovation. Nous avons réuni plus de six cents signatures. Il est temps que la municipalité prenne ses responsabilités.",
+          "pedagogicalNote": "Vous plaidez pour la rénovation. Le journaliste demandait à quoi ressemble le bassin, pour l'écrire."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Le bassin est ovale, d'environ quinze mètres sur huit. Il est bordé de pierres de taille et le fond est en béton. Une fontaine centrale ne fonctionne plus depuis trois ans. Des saules l'entourent sur le côté ouest.",
+          "pedagogicalNote": "Forme, dimensions, matériaux, état, environnement : le journaliste a de quoi écrire."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Le bassin est ovale, environ quinze mètres sur huit, bordé de pierres de taille dont plusieurs se sont descellées. Le fond en béton est fissuré côté nord. La fontaine centrale, en fonte, ne fonctionne plus depuis trois ans. Trois saules l'ombragent à l'ouest.",
+          "pedagogicalNote": "Chaque dégradation est localisée et la matière de la fontaine est précisée : l'article peut être écrit sans revoir les lieux."
+        }
+      ]
+    }
+  ]
+}

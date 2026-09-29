@@ -1,0 +1,109 @@
+package com.sejourfr.app.service.journey;
+
+import com.sejourfr.app.dto.JourneyBlocRefDto;
+import com.sejourfr.app.enums.JourneyBlocKind;
+import com.sejourfr.app.enums.JourneyBlocStatus;
+
+/**
+ * <b>La phrase d'etat d'un bloc</b> — « 3 unites restantes · puis examen ».
+ *
+ * <h2>🛑 Pourquoi elle est SERVIE (D-50 §4, chantier {@code DETTE-P1})</h2>
+ * <p>Elle vivait <b>a la main dans les deux fronts</b> ({@code journeyBlocMeta}
+ * / {@code journeyBlocMeta}), et le mot qu'elle emploie depend du <b>grain du
+ * module</b> : « competence » cote TCF, « unite » cote civique. Un front qui
+ * choisit ce mot le choisit <b>seul</b> — et son jumeau peut en choisir un
+ * autre. C'est exactement le motif de {@code DETTE-P1}, dont la 3e occurrence a
+ * ouvert le chantier.
+ *
+ * <p>⚠️ <b>Exception assumee et bornee</b> a « le serveur sert des faits, les
+ * phrases appartiennent aux fronts ». Le motif : ce n'est pas une formulation
+ * d'ecran, c'est le <b>nom du grain</b>, et le grain appartient au referentiel
+ * (D-48). Les deux fronts n'ont plus qu'a l'afficher.
+ *
+ * <p>🛑 <b>Les phrases TCF sont INCHANGEES</b>, mot pour mot : ce composant
+ * reprend celles des deux fronts. Rien ne bouge a l'ecran cote TCF.
+ */
+final class JourneyBlocMeta {
+
+    private JourneyBlocMeta() {}
+
+    static String pour(
+            JourneyBlocRefDto bloc, JourneyBlocStatus status,
+            int restantes, boolean porteDesEtapes, boolean examenOuvert,
+            boolean affinage, boolean examenClos) {
+
+        boolean thematique = bloc.kind() == JourneyBlocKind.THEMATIQUE;
+        // « examen blanc » cote TCF ; cote civique l'examen d'un bloc est
+        // l'examen du THEME, et l'appeler « blanc » le confondrait avec
+        // l'examen complet de 40 questions.
+        String examen = thematique ? "examen" : "examen blanc";
+
+        // 🛑 CYCLE D'AFFINAGE (2026-09-27, D-64) : les competences ne precedent
+        // plus l'examen, elles sont FACULTATIVES. « 3 competences · puis
+        // examen » y serait faux — l'examen est ouvert d'emblee.
+        if (affinage && restantes > 0) {
+            String facultatives = restantes + " " + nom(thematique, restantes)
+                    + " facultative" + (restantes == 1 ? "" : "s");
+            if (examenClos) return "Examen blanc terminé · " + facultatives;
+            if (examenOuvert) return "Examen à passer · " + facultatives;
+            return facultatives;
+        }
+
+        if (status == JourneyBlocStatus.TERMINE) {
+            return porteDesEtapes
+                    ? (thematique ? "Unités travaillées · " : "Compétences travaillées · ")
+                            + examen + " terminé"
+                    : "Niveau évalué · " + examen + " terminé";
+        }
+        if (status == JourneyBlocStatus.A_EVALUER) return "Niveau à évaluer";
+
+        if (restantes > 0) {
+            String mot = restantes + " " + nom(thematique, restantes);
+            return status == JourneyBlocStatus.EN_COURS
+                    ? mot + " restante" + (restantes == 1 ? "" : "s") + " · puis examen"
+                    : mot + " · puis examen";
+        }
+        if (examenOuvert) return "Examen à passer";
+        return "Rien à travailler pour l'instant";
+    }
+
+    /**
+     * <b>La phrase d'un bloc CLOS</b> (« Mes cycles », 2026-09-27) : ce qui a
+     * ete travaille, et si l'examen a ete passe — jamais ce qui « reste ».
+     *
+     * <p>🛑 Servie pour la meme raison que {@link #pour} : le mot depend du
+     * grain du module (« compétence » / « unité », « examen blanc » /
+     * « examen »). « 1/3 compétences travaillées · examen blanc passé ».
+     */
+    static String archive(
+            JourneyBlocRefDto bloc, int faites, int nonFaites,
+            boolean examenPresent, boolean examenPasse) {
+        boolean thematique = bloc.kind() == JourneyBlocKind.THEMATIQUE;
+        java.util.List<String> parties = new java.util.ArrayList<>(2);
+        int total = faites + nonFaites;
+        if (total > 0) {
+            if (nonFaites == 0) {
+                parties.add(faites + " " + nom(thematique, faites) + " travaillée"
+                        + (faites == 1 ? "" : "s"));
+            } else if (faites == 0) {
+                parties.add(total + " " + nom(thematique, total) + " non travaillée"
+                        + (total == 1 ? "" : "s"));
+            } else {
+                parties.add(faites + "/" + total + " " + nom(thematique, total)
+                        + " travaillées");
+            }
+        }
+        if (examenPresent) {
+            String examen = thematique ? "examen" : "examen blanc";
+            parties.add(examen + (examenPasse ? " passé" : " non passé"));
+        }
+        if (parties.isEmpty()) return "Aucune étape dans ce cycle";
+        String phrase = String.join(" · ", parties);
+        return Character.toUpperCase(phrase.charAt(0)) + phrase.substring(1);
+    }
+
+    private static String nom(boolean thematique, int combien) {
+        String racine = thematique ? "unité" : "compétence";
+        return combien == 1 ? racine : racine + "s";
+    }
+}

@@ -1,0 +1,462 @@
+.frozenCode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.frozenCode code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--blue);
+}
+
+.frozenHint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.help {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ===== Critère unique : le bloc le plus visible du formulaire ===== */
+.criterionBlock {
+  margin: 22px 0;
+  padding: 18px;
+  border: 2px solid var(--blue);
+  border-radius: 4px;
+  background: rgba(30, 58, 143, 0.04);
+}
+
+.criterionEyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.criterionTitle {
+  margin: 6px 0 8px;
+  font-family: "Fraunces", serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.criterionIntro {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.criterionInput {
+  background: var(--paper);
+  border-color: var(--blue);
+}
+
+.criterionError {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--red);
+}
+
+/* ===== Guidage de l'écran de saisie ===== */
+.guidanceBlock {
+  margin: 22px 0;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-2);
+}
+
+.guidanceHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.guidanceEyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.guidanceTitle {
+  margin: 6px 0 0;
+  font-family: "Fraunces", serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.guidanceBadge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.badgeComplete {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.badgePartial {
+  border-color: var(--amber);
+  color: #8a6104;
+}
+
+.badgeAbsent {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.guidanceIntro {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+.guidanceSection {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule-2);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.counter {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.counterOver {
+  color: var(--red);
+  font-weight: 500;
+}
+
+.counterWarn {
+  color: #8a6104;
+}
+
+.warn {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--amber);
+  background: rgba(232, 163, 23, 0.09);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 72ch;
+}
+
+.emptyRow {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rowList {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.row,
+.tagRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--rule-2);
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.rowIndex {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--blue);
+  color: var(--blue);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.rowMain,
+.tagMain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rowFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.rowError {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--red);
+}
+
+.rowActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.iconBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.iconBtnDanger:hover:not(:disabled) {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.addBtn {
+  margin-top: 12px;
+  padding: 7px 12px;
+  border: 1px dashed var(--blue);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--blue);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: rgba(30, 58, 143, 0.06);
+}
+
+.addBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.addHint {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.tagLabelLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.tagLabelLine > :first-child {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.iconPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.iconChoice {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.iconChoice:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.iconChoiceOn {
+  border-color: var(--blue);
+  background: rgba(30, 58, 143, 0.08);
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.previewChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-2);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.iconHint {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.guidanceError {
+  margin-top: 14px;
+  padding: 9px 12px;
+  border-left: 2px solid var(--red);
+  background: rgba(225, 37, 44, 0.07);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--red);
+}
+
+@media (max-width: 720px) {
+  .row,
+  .tagRow {
+    flex-wrap: wrap;
+  }
+
+  .rowActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .iconChoice span {
+    display: none;
+  }
+
+  .iconChoice {
+    padding: 7px;
+  }
+}
+
+/* ===== Bornes de longueur / durée ===== */
+.boundsBlock {
+  margin: 22px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-2);
+}
+
+.boundsHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.boundsTitle {
+  margin: 0;
+  font-family: "Fraunces", serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.boundsBadge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: var(--paper);
+}

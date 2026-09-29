@@ -1,0 +1,391 @@
+package com.sejourfr.app.service.diagnostic;
+
+import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.ProductionBilanService;
+import com.sejourfr.app.service.journey.JourneyEvaluation;
+import com.sejourfr.app.service.journey.JourneyProductionBridge;
+import com.sejourfr.app.service.journey.JourneyService;
+import com.sejourfr.app.entity.DiagnosticProductionAnalysis;
+import com.sejourfr.app.entity.DiagnosticTaskSkill;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.enums.DiagnosticCommunicationStatus;
+import com.sejourfr.app.enums.ProductionEvaluabilite;
+import com.sejourfr.app.enums.DiagnosticTaskCompletion;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.LearningPlanSkillStatus;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.SkillSection;
+import com.sejourfr.app.enums.SkillTaskCode;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
+import com.sejourfr.app.manager.DiagnosticTaskSkillManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.service.AiEvaluationService;
+import com.sejourfr.app.service.EvaluationProductionSegments;
+import com.sejourfr.app.service.LearningPlanObservationService;
+import com.sejourfr.app.service.ProductionValidityService;
+import com.sejourfr.app.util.ApresCommit;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Analyse une production avec le contrat sans /20. La même voie explicite
+ * observe ensuite les productions standard pour garder le Plan vivant.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DiagnosticProductionAnalysisService {
+
+    private final ProductionSubmissionManager submissionManager;
+    private final TranscriptionManager transcriptionManager;
+    private final DiagnosticTaskSkillManager diagnosticTaskSkillManager;
+    private final SkillManager skillManager;
+    private final DiagnosticAnalysisPromptBuilder promptBuilder;
+    private final DiagnosticAnalysisLlmClient client;
+    private final DiagnosticAnalysisReconciler reconciler;
+    private final DiagnosticAnalysisValidator validator;
+    private final DiagnosticProductionAnalysisManager analysisManager;
+    private final DiagnosticRubricsProvider rubrics;
+    private final LearningPlanObservationService observationService;
+    private final DiagnosticOralArtifactFilter oralArtifactFilter;
+    private final ProductionValidityService validityService;
+    private final DiagnosticStatusDistributionMetrics statusMetrics;
+    private final ProductionBilanService bilanService;
+    private final JourneyService journeyService;
+
+    public DiagnosticProductionAnalysis analyseDiagnostic(UUID submissionId) {
+        DiagnosticProductionAnalysis existing = analysisManager.findBySubmissionId(submissionId).orElse(null);
+        ProductionSubmission submission = load(submissionId);
+        if (!submission.getProductionTask().isDiagnostic()) {
+            throw new AiEvaluationException("La submission n'appartient pas au profil diagnostic");
+        }
+        List<Skill> allowed = diagnosticTaskSkillManager
+                .findActiveByTaskId(submission.getProductionTask().getId()).stream()
+                .map(DiagnosticTaskSkill::getSkill).toList();
+        if (existing != null) {
+            finalizeDiagnostic(submission, existing, allowed);
+            return existing;
+        }
+
+        AnalysisRun run = analyse(submission, true);
+        DiagnosticProductionAnalysis entity = toEntity(submission, run);
+        try {
+            entity = analysisManager.save(entity);
+        } catch (DataIntegrityViolationException race) {
+            entity = analysisManager.findBySubmissionId(submissionId).orElseThrow(() -> race);
+        }
+        // En cas de course, la sortie persistée gagnante est la source de vérité
+        // pour le statut et les observations, pas la seconde réponse LLM locale.
+        finalizeDiagnostic(submission, entity, allowed);
+        return entity;
+    }
+
+    private void finalizeDiagnostic(
+            ProductionSubmission submission,
+            DiagnosticProductionAnalysis analysis,
+            List<Skill> allowedSkills) {
+        // EVALUATED signifie que toute la finalisation durable est terminée.
+        // Si l'observation du Plan échoue, le runner posera FAILED et un retry
+        // réutilisera l'analyse déjà persistée sans nouvel appel LLM.
+        observationService.recordProduction(
+                submission, allowedSkills, analysis.getAnalysisJson(), true);
+        submission.setStatut(SubmissionStatut.EVALUATED);
+        submission.setErreurMessage(null);
+        submissionManager.save(submission);
+    }
+
+    /**
+     * Appel best-effort après la correction TCF standard.
+     *
+     * <p><b>Plus aucune condition de diagnostic terminé</b> (levée le
+     * 2026-08-12) : un candidat qui produit sans avoir passé le diagnostic
+     * n'accumulait aucun historique, et tout son travail était perdu le jour où
+     * il le passait. Les productions d'examen blanc passent par ici comme les
+     * autres — c'est {@code LearningPlanObservationService} qui les distingue
+     * ensuite par leur source.
+     */
+    public void observeStandardProduction(UUID submissionId) {
+        ProductionSubmission submission = load(submissionId);
+        if (submission.getProductionTask().isDiagnostic()) return;
+        AnalysisRun run = analyse(submission, false);
+        observationService.recordProduction(submission, run.allowedSkills(), run.normalized(), false);
+        porterAuParcours(submission);
+    }
+
+    /**
+     * Ce qu'une production apprend au <b>parcours TCF</b> (spec §7.2).
+     *
+     * <p>🛑 <b>L'unite d'evaluation est l'EPREUVE, pas la soumission</b>
+     * (correction A11 de l'audit). Les 3 taches d'une epreuve produisent 3
+     * {@code production_submissions} ; traiter chacune comme une evaluation
+     * ferait que la tache 2 <b>remplacerait</b> (R7) le lot que la tache 1 vient
+     * de creer, puis la tache 3 celui de la tache 2. Le parcours recoit donc
+     * l'{@code attempt.id} de l'epreuve, et une seule fois.
+     *
+     * <p><b>Quand</b> : des que <b>toutes</b> les taches attendues de l'epreuve
+     * portent une evaluation. L'idempotence du parcours (R14) fait le reste — si
+     * une correction tardive rejoue le calcul, elle retombe sur l'evenement deja
+     * enregistre.
+     *
+     * <p>🛑 <b>Seul un EXAMEN entre</b> (R1, arbitrage D-6) : une production
+     * d'entrainement libre ne cree jamais d'etape. Le predicat est celui de
+     * {@code ProductionAccessService.isExamSession} — {@code slot_number} pose au
+     * demarrage, ou {@code parent_attempt_id} pour une sous-epreuve d'examen
+     * complet — jamais une seconde definition.
+     *
+     * <p><b>Best-effort</b> : l'echec est avale ici. La livraison de son
+     * evaluation au candidat ne depend pas de ce que le parcours en fait.
+     *
+     * <p>⚠️ <b>Limite connue et acceptee</b> : une epreuve <b>abandonnee</b>
+     * dont la derniere evaluation atterrit avant la cloture de la session
+     * n'ouvre pas de lot. L'epreuve reste <b>mesuree</b> (son autorite est
+     * ailleurs), et la prochaine evaluation de cette epreuve reprendra la main.
+     */
+    private void porterAuParcours(ProductionSubmission submission) {
+        Attempt attempt = submission.getAttempt();
+        if (attempt == null || submission.getUser() == null) return;
+        if (!ProductionAccessService.isExamSession(attempt)) return;
+        EpreuveType epreuve = submission.getProductionTask().getEpreuve();
+        try {
+            // 🛑 TACHES CHARGEES AVEC LEUR SOUMISSION (bug du 2026-09-27) : ce
+            // chemin tourne dans le runner ASYNC, hors de toute session.
+            // `findByAttemptId` rendait des taches LAZY, `latestEvalsByTache`
+            // lisait `getTacheNumero()` et levait LazyInitializationException —
+            // avalee ci-dessous. Aucun examen EE/EO corrige apres sa cloture
+            // n'atteignait donc le parcours (0 ligne au journal depuis le
+            // 2026-09-20).
+            Map<Integer, AiEvaluation> parTache = bilanService.latestEvalsByTache(
+                    submissionManager.findByAttemptIdsGrouped(List.of(attempt.getId()))
+                            .getOrDefault(attempt.getId(), List.of()));
+            if (parTache.size() < ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) return;
+            Instant fin = attempt.getFinishedAt() != null ? attempt.getFinishedAt() : Instant.now();
+            UUID userId = submission.getUser().getId();
+            JourneyEvaluation evaluation = new JourneyEvaluation(attempt.getId(),
+                    JourneyProductionBridge.natureDeLEvaluation(attempt), epreuve, fin);
+            // 🛑 Apres le commit de l'analyse : `ApresCommit`.
+            ApresCommit.executer("Parcours TCF, epreuve " + attempt.getId(),
+                    () -> journeyService.onAssessmentCompleted(userId, evaluation));
+        } catch (RuntimeException echec) {
+            log.warn("Parcours TCF non mis a jour pour l'epreuve {} de la session {} : {}",
+                    epreuve, attempt.getId(), echec.toString());
+        }
+    }
+
+    private AnalysisRun analyse(ProductionSubmission submission, boolean initialDiagnostic) {
+        ProductionTask task = submission.getProductionTask();
+        String production = task.getEpreuve() == EpreuveType.TCF_EO
+                ? transcriptionManager.findLatestTexteBySubmissionId(submission.getId()).orElse(null)
+                : submission.getTexteSoumis();
+        if (production == null) {
+            // Etat TECHNIQUE, pas un fait sur le candidat : la transcription
+            // manque (ligne antérieure au pipeline synchrone, ou panne). Une
+            // relance a un sens ici, donc on échoue au lieu de conclure.
+            throw new AiEvaluationException("Production diagnostic absente : " + submission.getId());
+        }
+        List<Skill> allowed = initialDiagnostic
+                ? diagnosticTaskSkillManager.findActiveByTaskId(task.getId()).stream()
+                        .map(DiagnosticTaskSkill::getSkill).toList()
+                : standardSkills(task);
+        if (allowed.isEmpty()) {
+            throw new AiEvaluationException("Allowlist de compétences vide pour la tâche " + task.getId());
+        }
+
+        // GARDE DÉTERMINISTE, AVANT tout appel payé — même patron que
+        // AiEvaluationService.evaluate côté productions standard, et que
+        // TranscriptionQualityAudit.degradee côté version ciblée : quand il n'y
+        // a rien à observer, ON N'APPELLE PAS LE MODÈLE. Le lui demander quand
+        // même ne coûterait pas que de l'argent : il nommerait un palier, et ce
+        // palier deviendrait le niveau d'un domaine entier du candidat (repli de
+        // TcfProfileService, plancher des 4 domaines). Mesuré en base : 4 s
+        // d'audio, 1 mot transcrit, verdict « A1 non atteint ».
+        ProductionValidityService.Verdict verdict = initialDiagnostic
+                ? validityService.evaluerDiagnostic(task, production)
+                : validityService.evaluer(task, production);
+        if (verdict.invalide()) {
+            log.info("Production diagnostic inexploitable submission={} — aucun appel LLM, "
+                    + "aucun niveau rendu. Motifs : {}", submission.getId(), verdict.raisons());
+            return nonEvaluable(allowed);
+        }
+
+        EvaluationProductionSegments segments = EvaluationProductionSegments.of(production, task.getEpreuve());
+        if (segments.taille() == 0) {
+            // Après un verdict VALIDE, c'est une anomalie et non une production
+            // pauvre : le contrôle de validité refuse déjà le texte blanc et le
+            // dialogue sans tour « Candidat : ».
+            throw new AiEvaluationException("Aucun segment de preuve exploitable : " + submission.getId());
+        }
+        String target = submission.getUser().getTargetLevel() == null
+                ? null : submission.getUser().getTargetLevel().name();
+        String systemPrompt = promptBuilder.buildSystemPrompt();
+        String userPrompt = promptBuilder.buildUserPrompt(
+                task, allowed, segments, target, initialDiagnostic);
+
+        DiagnosticAnalysisLlmClient.Outcome first = client.analyse(systemPrompt, userPrompt);
+        // Réconciliation AVANT validation : le validateur ne juge jamais que la
+        // sortie déjà dérivée, donc aucune réparation payée ne peut plus être
+        // dépensée pour un champ que le serveur sait recalculer.
+        Map<String, Object> analysis = reconciler.reconcile(first.analysis(), allowed);
+        List<String> violations = validator.violations(analysis, allowed, segments);
+        DiagnosticAnalysisLlmClient.Outcome accepted = first;
+        if (!violations.isEmpty()) {
+            log.warn("Sortie diagnostic invalide submission={} — réparation unique : {}",
+                    submission.getId(), violations);
+            String repair = promptBuilder.buildRepairPrompt(userPrompt, violations, analysis);
+            DiagnosticAnalysisLlmClient.Outcome second = client.analyse(systemPrompt, repair);
+            analysis = reconciler.reconcile(second.analysis(), allowed);
+            List<String> remaining = validator.violations(analysis, allowed, segments);
+            if (!remaining.isEmpty()) {
+                throw new AiEvaluationException(
+                        "Sortie diagnostic invalide après réparation : " + String.join(" ; ", remaining));
+            }
+            accepted = new DiagnosticAnalysisLlmClient.Outcome(
+                    second.analysis(), sum(first.inputTokens(), second.inputTokens()),
+                    sum(first.cachedInputTokens(), second.cachedInputTokens()),
+                    sum(first.outputTokens(), second.outputTokens()),
+                    sum(first.costEstimateMicroUsd(), second.costEstimateMicroUsd()));
+        }
+        Map<String, Object> normalized = validator.normalize(analysis, segments);
+        // CE QUE LE CORRECTEUR REND, modalite par modalite. Un compteur, rien
+        // d'autre : il ne decide de rien, il documente le desequilibre EE/EO
+        // mesure le 2026-08-26 (zero PRIORITY sur 57 observations orales) pour
+        // qu'on puisse le relire sur un echantillon reel.
+        if (normalized.get("skills") instanceof List<?> observees) {
+            for (Object raw : observees) {
+                if (!(raw instanceof Map<?, ?> competence)) continue;
+                if (!Boolean.TRUE.equals(competence.get("observed"))) continue;
+                statusMetrics.enregistrer(task.getEpreuve(), parseStatus(competence.get("status")));
+            }
+        }
+        // APRÈS le validateur, jamais dedans : une purge retire une phrase du
+        // rapport, elle ne doit pas pouvoir rendre une session FAILED. Le filtre
+        // n'agit qu'à l'ORAL et ne lève jamais (cf. DiagnosticOralArtifactFilter).
+        oralArtifactFilter.purge(normalized, task.getEpreuve(), production);
+        return new AnalysisRun(normalized, allowed, accepted, ProductionEvaluabilite.EVALUABLE);
+    }
+
+    /** {@code null} sur une valeur hors contrat : un compteur ne leve jamais. */
+    private static LearningPlanSkillStatus parseStatus(Object valeur) {
+        if (valeur == null) return null;
+        try {
+            return LearningPlanSkillStatus.valueOf(String.valueOf(valeur).trim());
+        } catch (IllegalArgumentException horsContrat) {
+            return null;
+        }
+    }
+
+    /**
+     * Ce qu'on rend quand il n'y avait rien a observer : <b>aucun verdict</b>,
+     * et une observation {@code NOT_OBSERVED} par competence de l'allowlist.
+     *
+     * <p><b>Pourquoi des observations plutot que rien.</b> Le depot tient deja
+     * qu'« une production rendue est une activite meme quand le correcteur n'a
+     * rien pu observer » (c'est ce que lit {@code lastActivityAt} de la seance
+     * du Plan, {@code NOT_OBSERVED} comprise). Elles ne peuvent rien abimer :
+     * {@code SkillMasteryEngine} ignore {@code NOT_OBSERVED} (« je n'ai pas pu
+     * observer » n'est pas « le candidat est mauvais »), une observation
+     * {@code NOT_OBSERVED} n'annule jamais la derniere observation probante
+     * d'une competence, et elle ne devient jamais une priorite. Elles servent
+     * en revanche de dernier recours a
+     * {@code DiagnosticService.recommendedAction}, qui doit designer un exercice
+     * meme lorsque les DEUX productions sont inexploitables — sinon la
+     * restitution du diagnostic leverait.
+     *
+     * <p>Aucune phrase n'est ecrite ici : le serveur expose un fait
+     * ({@code evaluabilite}), la formulation appartient aux fronts.
+     */
+    private static AnalysisRun nonEvaluable(List<Skill> allowed) {
+        List<Map<String, Object>> skills = new ArrayList<>(allowed.size());
+        for (Skill skill : allowed) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("skill_code", skill.getCode());
+            item.put("observed", false);
+            item.put("status", LearningPlanSkillStatus.NOT_OBSERVED.name());
+            item.put("confidence", ObservationConfidence.LOW.name());
+            item.put("priority", false);
+            skills.add(item);
+        }
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("skills", List.copyOf(skills));
+        json.put("strengths", List.of());
+        json.put("weaknesses", List.of());
+        return new AnalysisRun(
+                json, allowed,
+                new DiagnosticAnalysisLlmClient.Outcome(json, 0, 0, 0, 0),
+                ProductionEvaluabilite.NON_EVALUABLE);
+    }
+
+    private List<Skill> standardSkills(ProductionTask task) {
+        SkillSection section = task.getEpreuve() == EpreuveType.TCF_EO
+                ? SkillSection.EO : SkillSection.EE;
+        Short number = task.getTacheNumero();
+        if (number == null) return List.of();
+        SkillTaskCode code = SkillTaskCode.parse(section.name() + number);
+        return code == null ? List.of() : skillManager.findActiveByTaskCode(code);
+    }
+
+    private ProductionSubmission load(UUID submissionId) {
+        return submissionManager.findByIdWithTaskAndUser(submissionId)
+                .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
+    }
+
+    private DiagnosticProductionAnalysis toEntity(ProductionSubmission submission, AnalysisRun run) {
+        Map<String, Object> output = run.normalized();
+        DiagnosticProductionAnalysis entity = new DiagnosticProductionAnalysis();
+        entity.setSubmission(submission);
+        entity.setAnalysisJson(output);
+        entity.setEvaluabilite(run.evaluabilite());
+        if (run.evaluabilite() == ProductionEvaluabilite.EVALUABLE) {
+            entity.setLevelEstimate(NiveauCecrl.valueOf(output.get("level_estimate").toString()));
+            entity.setTaskCompletion(DiagnosticTaskCompletion.valueOf(
+                    output.get("task_completion").toString()));
+            entity.setCommunicationStatus(DiagnosticCommunicationStatus.valueOf(
+                    output.get("communication_status").toString()));
+            entity.setModelUsed(client.getModelName());
+            entity.setSchemaVersion(client.getToolSchemaVersion() + "/" + rubrics.version());
+        } else {
+            // Les trois verdicts restent NULL (contrainte
+            // chk_diagnostic_analysis_verdicts_si_evaluable). Le meme marqueur
+            // que la voie standard sert de modele ET de contrat : lire la ligne
+            // suffit a savoir qu'aucun appel n'a eu lieu, donc qu'aucune
+            // version de prompt n'a ete engagee.
+            entity.setModelUsed(AiEvaluationService.MODELE_VALIDATION_SERVEUR);
+            entity.setSchemaVersion(AiEvaluationService.MODELE_VALIDATION_SERVEUR);
+        }
+        entity.setTokensInput(run.outcome().inputTokens());
+        entity.setTokensInputCacheHit(run.outcome().cachedInputTokens());
+        entity.setTokensOutput(run.outcome().outputTokens());
+        entity.setCostMicroUsd(run.outcome().costEstimateMicroUsd());
+        return entity;
+    }
+
+    private static Integer sum(Integer first, Integer second) {
+        if (first == null) return second;
+        if (second == null) return first;
+        return first + second;
+    }
+
+    private record AnalysisRun(
+            Map<String, Object> normalized,
+            List<Skill> allowedSkills,
+            DiagnosticAnalysisLlmClient.Outcome outcome,
+            ProductionEvaluabilite evaluabilite) {}
+}

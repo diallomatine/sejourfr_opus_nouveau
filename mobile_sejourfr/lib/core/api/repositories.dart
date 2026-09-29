@@ -1,0 +1,109 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../auth/auth_controller.dart';
+import 'analytics_repository.dart';
+import 'attempts_repository.dart';
+import 'billing_repository.dart';
+import 'contact_repository.dart';
+import 'diagnostic_repository.dart';
+import 'civic_diagnostic_repository.dart';
+import 'civic_plan_repository.dart';
+import 'progress_repository.dart';
+import 'tcf_diagnostic_repository.dart';
+import 'full_tcf_exam_repository.dart';
+import 'funnel_repository.dart';
+import 'lots_repository.dart';
+import 'learning_plan_repository.dart';
+import 'production_repository.dart';
+import 'profile_repository.dart';
+import 'realtime_repository.dart';
+import 'skill_repository.dart';
+import 'themes_repository.dart';
+import 'user_content_repository.dart';
+
+final themesRepositoryProvider = Provider<ThemesRepository>(
+  (ref) => ThemesRepository(ref.watch(apiClientProvider)),
+);
+
+final analyticsRepositoryProvider = Provider<AnalyticsRepository>(
+  (ref) => AnalyticsRepository(ref.watch(apiClientProvider)),
+);
+
+final funnelRepositoryProvider = Provider<FunnelRepository>(
+  (ref) => FunnelRepository(ref.watch(apiClientProvider)),
+);
+
+final attemptsRepositoryProvider = Provider<AttemptsRepository>(
+  (ref) => AttemptsRepository(ref.watch(apiClientProvider)),
+);
+
+final userContentRepositoryProvider = Provider<UserContentRepository>(
+  (ref) => UserContentRepository(ref.watch(apiClientProvider)),
+);
+
+final productionRepositoryProvider = Provider<ProductionRepository>(
+  (ref) => ProductionRepository(ref.watch(apiClientProvider)),
+);
+
+final realtimeRepositoryProvider = Provider<RealtimeRepository>(
+  (ref) => RealtimeRepository(ref.watch(apiClientProvider)),
+);
+
+final skillRepositoryProvider = Provider<SkillRepository>(
+  (ref) => SkillRepository(ref.watch(apiClientProvider)),
+);
+
+final lotsRepositoryProvider = Provider<LotsRepository>(
+  (ref) => LotsRepository(ref.watch(apiClientProvider)),
+);
+
+final fullTcfExamRepositoryProvider = Provider<FullTcfExamRepository>(
+  (ref) => FullTcfExamRepository(ref.watch(apiClientProvider)),
+);
+
+final profileRepositoryProvider = Provider<ProfileRepository>(
+  (ref) => ProfileRepository(ref.watch(apiClientProvider)),
+);
+
+final contactRepositoryProvider = Provider<ContactRepository>(
+  (ref) => ContactRepository(ref.watch(apiClientProvider)),
+);
+
+final diagnosticRepositoryProvider = Provider<DiagnosticRepository>(
+  (ref) => DiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le diagnostic TCF 4 epreuves (L4), en LECTURE seule : son parcours est
+/// retire des fronts depuis le 2026-09-26, seul un resultat deja obtenu se relit.
+final tcfDiagnosticRepositoryProvider = Provider<TcfDiagnosticRepository>(
+  (ref) => TcfDiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le diagnostic CIVIQUE (L9). Un seul diagnostic cote civique, contrairement
+/// au TCF qui en a deux : le civique est du QCM deterministe et rapide, un
+/// pre-diagnostic n'y apporterait rien (arbitrage du 2026-09-10).
+final civicDiagnosticRepositoryProvider = Provider<CivicDiagnosticRepository>(
+  (ref) => CivicDiagnosticRepository(ref.watch(apiClientProvider)),
+);
+
+/// Le PLAN civique (L10). 🛑 Rien n'est persiste cote serveur : le plan se
+/// recalcule a chaque lecture depuis l'historique des reponses, ce qui rend le
+/// tagging des notions retroactif.
+final civicPlanRepositoryProvider = Provider<CivicPlanRepository>(
+  (ref) => CivicPlanRepository(ref.watch(apiClientProvider)),
+);
+
+/// L'ecran PROGRES (T28). 🛑 Rien n'est calcule cote app : ce service assemble
+/// ce que d'autres autorites servent deja (profil TCF, resolveur d'evolution,
+/// moteur de maitrise, plan civique).
+final progressRepositoryProvider = Provider<ProgressRepository>(
+  (ref) => ProgressRepository(ref.watch(apiClientProvider)),
+);
+
+final learningPlanRepositoryProvider = Provider<LearningPlanRepository>(
+  (ref) => LearningPlanRepository(ref.watch(apiClientProvider)),
+);
+
+final billingRepositoryProvider = Provider<BillingRepository>(
+  (ref) => BillingRepository(ref.watch(apiClientProvider)),
+);

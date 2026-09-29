@@ -1,0 +1,3395 @@
+{
+  "EE2-C2": {
+    "EE2-C2-S1": {
+      "instruction": "Présentez en deux phrases le début de cette soirée : avec qui vous étiez et ce que vous faisiez.",
+      "uniqueCriterion": "Le début du récit dit les personnes présentes et l'activité en cours.",
+      "checklist": [
+        "Nommez les personnes présentes",
+        "Dites ce que chacun faisait",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Qui est là",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'étais avec mes voisins et…",
+      "tip": "Deux informations suffisent : les personnes, et ce que vous faisiez.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "C'est un avis général : ni personnes, ni activité de départ."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec mes voisins et leurs enfants. Nous préparions les tables et les chaises pour le repas du soir.",
+          "pedagogicalNote": "Les personnes et l'activité suffisent à ouvrir le récit."
+        },
+        "EXCELLENT": {
+          "text": "J'étais avec ma voisine Fatou et son fils. Nous installions les tables et nous coupions des fruits pendant que la musique commençait.",
+          "pedagogicalNote": "Les prénoms et les gestes précis rendent la scène facile à imaginer."
+        }
+      }
+    },
+    "EE2-C2-S2": {
+      "instruction": "Racontez le début d'une de ces soirées en deux phrases : avec qui vous étiez et ce que vous faisiez avant le début du cours.",
+      "uniqueCriterion": "La situation de départ précise les personnes présentes et l'activité en cours.",
+      "checklist": [
+        "Dites avec qui vous êtes",
+        "Racontez ce que vous faisiez",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Autres élèves",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'étais avec cinq autres élèves…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous décrivez le cours en général, pas les personnes ni l'activité du moment."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec cinq autres élèves de mon groupe. Nous relisions nos exercices de grammaire en attendant l'arrivée de la professeure de français.",
+          "pedagogicalNote": "Le lecteur voit tout de suite avec qui vous êtes et ce que vous faites."
+        },
+        "EXCELLENT": {
+          "text": "J'étais assis avec cinq autres élèves, nos cahiers ouverts devant nous. Nous comparions nos exercices à voix basse pendant que la professeure installait le tableau.",
+          "pedagogicalNote": "Chacun a une occupation : la scène vit sans qu'on ait besoin du décor."
+        }
+      }
+    },
+    "EE2-C2-S3": {
+      "instruction": "Présentez en deux phrases la situation avant d'entrer dans le cabinet : avec qui vous étiez et ce que vous faisiez.",
+      "uniqueCriterion": "Le lecteur sait qui vous accompagne et ce que chacun fait avant l'événement.",
+      "checklist": [
+        "Dites qui vous accompagne",
+        "Précisez votre occupation",
+        "Arrêtez-vous avant la consultation"
+      ],
+      "constraintTags": [
+        {
+          "label": "Votre fille",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'attendais avec ma fille, qui…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le récit avance déjà alors que les personnes et l'activité ne sont pas posées."
+        },
+        "EXPECTED": {
+          "text": "J'attendais avec ma fille et son carnet de santé. Elle dessinait tranquillement et je remplissais un formulaire pour la mutuelle.",
+          "pedagogicalNote": "Deux personnes, deux occupations : c'est exactement la cible."
+        },
+        "EXCELLENT": {
+          "text": "J'attendais avec ma fille Awa assise sur mes genoux. Elle regardait un livre d'images et je remplissais tranquillement le formulaire de la mutuelle.",
+          "pedagogicalNote": "Chaque personne a une activité propre : la scène devient vivante."
+        }
+      }
+    },
+    "EE2-C2-S4": {
+      "instruction": "Écrivez trois phrases pour présenter le début du trajet : avec qui vous étiez et ce que vous faisiez.",
+      "uniqueCriterion": "Les trois phrases posent les personnes présentes et l'activité avant le départ.",
+      "checklist": [
+        "Présentez les autres passagers",
+        "Dites ce que vous faisiez",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Passagers présents",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Le conducteur et deux passagers m'attendaient…",
+      "tip": "Les personnes d'abord : le voyage lui-même n'est pas demandé ici.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Ces phrases racontent déjà le trajet sans présenter les personnes."
+        },
+        "EXPECTED": {
+          "text": "Le conducteur et deux autres passagers m'attendaient déjà, leurs valises à la main. Nous rangions nos sacs et nos manteaux dans le grand coffre. Personne ne se connaissait encore.",
+          "pedagogicalNote": "Les personnes et l'activité sont en place avant que le voyage ne commence."
+        },
+        "EXCELLENT": {
+          "text": "J'attendais avec mon sac à dos quand le conducteur, Marc, est arrivé. Il voyageait avec deux autres passagers, une étudiante et un retraité. Pendant que nous rangions les bagages, nous parlions de la route à faire.",
+          "pedagogicalNote": "L'activité partagée relie naturellement les personnes entre elles."
+        }
+      }
+    },
+    "EE2-C2-S5": {
+      "instruction": "Écrivez trois phrases qui présentent la situation initiale : les personnes présentes et votre activité, sans raconter encore l'incident.",
+      "uniqueCriterion": "Les trois phrases décrivent les personnes et l'activité d'avant l'incident, sans le raconter.",
+      "checklist": [
+        "Nommez votre collègue",
+        "Dites ce que vous faisiez",
+        "Ne racontez pas l'incident"
+      ],
+      "constraintTags": [
+        {
+          "label": "Collègues présents",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Ma collègue Sonia travaillait à côté de moi…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "L'incident est déjà raconté ; les personnes et l'activité restent absentes."
+        },
+        "EXPECTED": {
+          "text": "J'étais en service avec ma collègue Sonia, qui encaissait juste à côté de moi. Il y avait beaucoup de clients et nous étions toutes les deux très occupées. Nous n'avions pas eu une minute depuis le début du service.",
+          "pedagogicalNote": "Les personnes et l'activité sont complètes et l'incident n'est pas dévoilé."
+        },
+        "EXCELLENT": {
+          "text": "Ma collègue Sonia encaissait juste à côté de moi et rangeait les rayons entre deux clients. Nous travaillions vite, sans nous parler, depuis le début du service. Tout se passait normalement.",
+          "pedagogicalNote": "La dernière phrase crée une attente sans rien révéler : c'est habile."
+        }
+      }
+    },
+    "EE2-C2-S6": {
+      "instruction": "Présentez en deux phrases le début de cette matinée : avec qui vous étiez et ce que vous faisiez.",
+      "uniqueCriterion": "La situation de départ nomme les personnes présentes et votre activité.",
+      "checklist": [
+        "Nommez les amis présents",
+        "Décrivez ce que vous faisiez",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Personnes présentes",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Mes deux amis et moi, nous…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "C'est le bilan de la journée : les personnes et l'activité de départ manquent."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec deux amis, Karim et Ana, à côté de la camionnette louée. Nous descendions les premiers cartons par l'escalier.",
+          "pedagogicalNote": "Les personnes et l'activité : la situation initiale est complète."
+        },
+        "EXCELLENT": {
+          "text": "J'étais avec Karim et Ana, arrivés à huit heures pour m'aider. Nous descendions les cartons par l'escalier pendant que ma sœur surveillait les meubles.",
+          "pedagogicalNote": "Chacun a une occupation précise : la scène de départ devient vivante."
+        }
+      }
+    },
+    "EE2-C2-S7": {
+      "instruction": "Présentez en deux phrases ce qui se passait juste avant ce coup de sonnette : les personnes présentes et votre activité.",
+      "uniqueCriterion": "Les deux phrases disent avec qui vous étiez et ce que vous faisiez avant le coup de sonnette.",
+      "checklist": [
+        "Dites qui était avec vous",
+        "Racontez votre activité",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Personnes avec vous",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'étais avec ma femme et notre fils…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "L'histoire commence déjà : on ne sait pas avec qui vous étiez ni ce que vous faisiez."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec ma femme et notre fils, vers la fin du repas. Nous finissions de manger et la radio était allumée.",
+          "pedagogicalNote": "Les personnes et l'activité sont posées avant l'événement."
+        },
+        "EXCELLENT": {
+          "text": "J'étais avec ma femme et notre fils Élias, tous les trois autour de la table. Nous finissions de dîner, la radio allumée, et nous n'attendions aucune visite.",
+          "pedagogicalNote": "La dernière précision installe le calme d'avant sans rien raconter."
+        }
+      }
+    },
+    "EE2-C2-S8": {
+      "instruction": "Présentez en deux phrases la situation avant votre discussion : qui était là et ce que chacun faisait.",
+      "uniqueCriterion": "La situation initiale précise les personnes présentes et leur activité.",
+      "checklist": [
+        "Dites qui était présent",
+        "Précisez l'activité de chacun",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Gardien présent",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Le gardien triait le courrier et…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous expliquez le problème sans jamais dire qui était là ni ce que chacun faisait."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec le gardien, monsieur Vasseur, et une voisine du deuxième étage. Il triait le courrier et nous attendions tous les deux devant les boîtes aux lettres.",
+          "pedagogicalNote": "Le lecteur voit les personnes et ce que chacun fait."
+        },
+        "EXCELLENT": {
+          "text": "Je descendais mes poubelles quand j'ai croisé le gardien, monsieur Vasseur. Il triait le courrier pendant qu'une voisine du deuxième attendait son colis.",
+          "pedagogicalNote": "Trois occupations différentes rendent la situation de départ très concrète."
+        }
+      }
+    },
+    "EE2-C2-S9": {
+      "instruction": "Présentez en deux phrases la situation : les personnes présentes et ce que vous faisiez.",
+      "uniqueCriterion": "Les personnes présentes et l'activité en cours apparaissent avant tout autre détail.",
+      "checklist": [
+        "Nommez qui était présent",
+        "Dites ce que vous faisiez",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Autres habitants",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'accrochais mon cadenas pendant que…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "C'est une description générale, pas les personnes ni l'activité d'un soir précis."
+        },
+        "EXPECTED": {
+          "text": "J'étais avec un voisin du rez-de-chaussée. J'accrochais mon cadenas pendant qu'il gonflait les pneus du vélo de sa fille.",
+          "pedagogicalNote": "Le voisin et vos gestes composent une situation complète."
+        },
+        "EXCELLENT": {
+          "text": "J'accrochais mon vélo pendant que mon voisin du rez-de-chaussée gonflait les pneus de celui de sa fille. Nous parlions de la porte qui ferme mal, sans nous presser.",
+          "pedagogicalNote": "La conversation en plus des gestes ancre la scène dans un vrai moment."
+        }
+      }
+    },
+    "EE2-C2-S10": {
+      "instruction": "Présentez en deux phrases le début de cette attente : avec qui vous étiez et ce que vous faisiez.",
+      "uniqueCriterion": "Les deux phrases installent les personnes présentes et votre occupation.",
+      "checklist": [
+        "Dites qui attendait aussi",
+        "Racontez votre occupation",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Clients présents",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Deux autres clients attendaient aussi…",
+      "tip": "Ce que vous faisiez pendant l'attente compte autant que les personnes présentes.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous parlez d'une habitude au lieu d'installer les personnes et l'activité d'un moment précis."
+        },
+        "EXPECTED": {
+          "text": "J'attendais la fin de ma machine avec deux autres clients. Je lisais les annonces affichées près de la porte.",
+          "pedagogicalNote": "Les personnes et votre occupation sont données d'emblée."
+        },
+        "EXCELLENT": {
+          "text": "J'attendais assise, mon sac de linge à mes pieds, en relisant mes fiches de français. Un étudiant pliait ses draps près de la fenêtre et une dame surveillait son séchoir.",
+          "pedagogicalNote": "Chaque personne a son activité propre : l'attente devient une vraie scène."
+        }
+      }
+    },
+    "EE2-C2-S11": {
+      "instruction": "Écrivez trois phrases pour présenter cette attente : avec qui vous étiez et ce que chacun faisait.",
+      "uniqueCriterion": "Les trois phrases posent les personnes présentes et leur activité avant la suite du récit.",
+      "checklist": [
+        "Présentez les personnes autour",
+        "Dites ce que chacun faisait",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Clients autour",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Mon fils tenait la liste des courses…",
+      "tip": "Le chariot, les sacs, les voisins de queue : montrez les gestes.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous décrivez le magasin en général, pas les personnes ni ce qu'elles faisaient."
+        },
+        "EXPECTED": {
+          "text": "J'attendais avec mon fils, qui tenait la liste des courses. Mon chariot était plein et je sortais mon porte-monnaie. Derrière nous, une dame âgée posait ses articles sur le tapis.",
+          "pedagogicalNote": "Les personnes et les gestes de chacun sont bien en place."
+        },
+        "EXCELLENT": {
+          "text": "J'attendais coincée entre deux chariots pleins, mon fils Adam à côté de moi. Il rangeait nos courses dans les sacs et comptait les articles à voix haute. Derrière nous, une dame âgée cherchait sa carte de fidélité dans son porte-monnaie.",
+          "pedagogicalNote": "Les occupations de chacun donnent une scène complète."
+        }
+      }
+    },
+    "EE2-C2-S12": {
+      "instruction": "Écrivez trois phrases pour présenter le début de cette matinée : les personnes présentes et votre activité.",
+      "uniqueCriterion": "Les trois phrases décrivent les personnes présentes et ce que chacun faisait.",
+      "checklist": [
+        "Nommez votre ami",
+        "Décrivez votre travail",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Ami commerçant",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Mon ami installait la balance pendant que…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous présentez votre ami en général, pas ce que chacun faisait ce matin-là."
+        },
+        "EXPECTED": {
+          "text": "J'aidais mon ami Mehdi, qui vend des légumes. Sa femme servait les clients à côté de moi. Je remplissais les cageots de tomates et je pesais les sacs.",
+          "pedagogicalNote": "Les personnes et vos gestes forment une situation initiale nette."
+        },
+        "EXCELLENT": {
+          "text": "Mon ami Mehdi installait la balance pendant que sa femme accrochait les étiquettes de prix. Je sortais les cageots de tomates du camion, les mains déjà froides. Aucun client n'était encore arrivé.",
+          "pedagogicalNote": "Chaque personne a une tâche précise, et rien de la suite n'est raconté."
+        }
+      }
+    },
+    "EE2-C2-S13": {
+      "instruction": "Écrivez trois phrases qui présentent la situation, sans raconter la suite : les personnes présentes et leur activité.",
+      "uniqueCriterion": "Les trois phrases décrivent les personnes et leur activité sans avancer dans le récit.",
+      "checklist": [
+        "Dites qui vous accompagne",
+        "Racontez ce que chacun faisait",
+        "N'avancez pas dans l'histoire"
+      ],
+      "constraintTags": [
+        {
+          "label": "Votre fille",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "J'attendais avec ma fille, qui…",
+      "tip": "Gardez la suite pour plus tard : montrez seulement qui était là et ce que chacun faisait.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le récit avance déjà : les personnes et leur activité ne sont jamais posées."
+        },
+        "EXPECTED": {
+          "text": "J'attendais avec ma fille Lina. Cinq personnes patientaient devant nous et la vendeuse remplissait les paniers de baguettes. Nous regardions les gâteaux dans la vitrine en attendant notre tour.",
+          "pedagogicalNote": "Les personnes et leurs gestes sont complets, et rien de la suite n'est dévoilé."
+        },
+        "EXCELLENT": {
+          "text": "J'attendais avec ma fille Lina, qui serrait la monnaie dans sa main. Devant nous, un habitué discutait avec la vendeuse sans se presser. Personne ne semblait pressé d'avancer.",
+          "pedagogicalNote": "Les occupations de chacun créent une attente sans rien raconter de la suite."
+        }
+      }
+    },
+    "EE2-C2-S14": {
+      "instruction": "Écrivez trois phrases qui posent la situation de départ : les personnes présentes et votre activité.",
+      "uniqueCriterion": "La situation de départ nomme les personnes présentes et ce que chacun faisait.",
+      "checklist": [
+        "Présentez le commerçant",
+        "Dites votre activité",
+        "Écrivez trois phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Commerçant présent",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Le commerçant coupait du fromage pendant que…",
+      "tip": "Un geste, une parole, une occupation : trois détails suffisent.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Vous parlez de vos habitudes, pas des personnes ni de l'activité d'un moment précis."
+        },
+        "EXPECTED": {
+          "text": "L'épicier, monsieur Tahar, était derrière son comptoir. Deux clientes attendaient avec leurs paniers. Je choisissais des œufs et du lait pour le dîner.",
+          "pedagogicalNote": "Les personnes et votre geste installent bien la situation."
+        },
+        "EXCELLENT": {
+          "text": "Monsieur Tahar coupait du fromage derrière son comptoir, la radio allumée doucement. Deux clientes discutaient en attendant leur tour. Je remplissais mon panier d'œufs et de lait, sans me presser.",
+          "pedagogicalNote": "Les gestes de chacun donnent une scène très nette."
+        }
+      }
+    },
+    "EE2-C2-S15": {
+      "instruction": "Écrivez trois phrases sur cette attente : avec qui vous étiez et ce que vous faisiez, sans raconter la livraison.",
+      "uniqueCriterion": "Les trois phrases décrivent les personnes présentes et leur activité, sans raconter la livraison.",
+      "checklist": [
+        "Dites qui attendait avec vous",
+        "Décrivez votre occupation",
+        "Ne racontez pas la livraison"
+      ],
+      "constraintTags": [
+        {
+          "label": "Personnes présentes",
+          "icon": "PERSON"
+        },
+        {
+          "label": "Activité en cours",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Mon frère était venu m'aider et…",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La livraison est déjà racontée ; les personnes et leur activité, elles, ne le sont pas."
+        },
+        "EXPECTED": {
+          "text": "J'attendais la livraison avec mon frère, venu m'aider. Il regardait par la fenêtre pendant que je vidais la buanderie. Nous ne savions pas à quelle heure le camion passerait.",
+          "pedagogicalNote": "Les personnes et vos gestes tiennent toute l'attente."
+        },
+        "EXCELLENT": {
+          "text": "Mon frère Yacine surveillait la rue depuis la fenêtre, le téléphone posé à côté de lui. Je démontais l'ancien appareil et je poussais les cartons contre le mur. Nous nous relayions sans nous parler.",
+          "pedagogicalNote": "Deux occupations en parallèle remplissent l'attente sans jamais l'achever."
+        }
+      }
+    }
+  },
+  "EE2-C3": {
+    "EE2-C3-S1": {
+      "uniqueCriterion": "L'action terminée est racontée au passé, sans glisser vers le présent.",
+      "checklist": [
+        "Choisissez une action terminée",
+        "Racontez-la au passé",
+        "Tenez-vous à une phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Une seule action",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C3-S2": {
+      "uniqueCriterion": "Les deux actions passées sont racontées au passé, pas au présent.",
+      "checklist": [
+        "Choisissez deux faits d'hier",
+        "Racontez-les au passé",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Deux actions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Hier",
+          "icon": "TIME"
+        }
+      ]
+    },
+    "EE2-C3-S3": {
+      "uniqueCriterion": "Les temps du passé distinguent l'attente qui durait de l'action qui l'a interrompue.",
+      "checklist": [
+        "Décrivez l'attente qui durait",
+        "Introduisez l'action avec « quand »",
+        "Marquez l'action comme terminée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et action",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "« Quand »",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Ce qui durait sert de décor ; ce qui est arrivé fait avancer le récit.",
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "Le décor se distingue nettement des actions, sans jamais se confondre avec elles."
+        }
+      }
+    },
+    "EE2-C3-S4": {
+      "uniqueCriterion": "Le contexte qui durait et les actions terminées se distinguent clairement.",
+      "checklist": [
+        "Décrivez ce qui durait",
+        "Racontez la coupure",
+        "Ajoutez vos actions terminées"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Le soir",
+          "icon": "TIME"
+        }
+      ],
+      "tip": "Ce qui durait fait le décor, ce qui arrive fait avancer le récit.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le décor et les actions se distinguent clairement l'un de l'autre."
+        }
+      }
+    },
+    "EE2-C3-S5": {
+      "uniqueCriterion": "Le récit distingue le décor qui durait des actions terminées.",
+      "checklist": [
+        "Plantez le décor",
+        "Racontez vos actions terminées",
+        "Terminez par la fin du rendez-vous"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Trois étapes",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Un récit où rien ne se termine n'avance plus : ajoutez des actions achevées.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le décor reste en arrière-plan pendant que les trois actions avancent."
+        }
+      }
+    },
+    "EE2-C3-S6": {
+      "uniqueCriterion": "L'action que vous avez faite est racontée au passé, pas au présent.",
+      "checklist": [
+        "Choisissez une action terminée",
+        "Racontez-la au passé",
+        "Tenez-vous à une phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Une seule action",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C3-S7": {
+      "uniqueCriterion": "L'action de l'appel est racontée au passé, pas au présent.",
+      "checklist": [
+        "Choisissez une action de l'appel",
+        "Racontez-la au passé",
+        "Écrivez une seule phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Une seule action",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C3-S8": {
+      "uniqueCriterion": "Les deux actions passées sont racontées au passé.",
+      "checklist": [
+        "Choisissez deux actions terminées",
+        "Racontez-les au passé",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Deux actions",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C3-S9": {
+      "uniqueCriterion": "Le décor du garage qui durait se distingue de l'action terminée qui suit.",
+      "checklist": [
+        "Décrivez ce qui se passait",
+        "Ajoutez l'action terminée",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et action",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le décor dure, l'action tombe : deux rôles différents.",
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "La scène reste en arrière-plan pendant que les actions se succèdent."
+        }
+      }
+    },
+    "EE2-C3-S10": {
+      "uniqueCriterion": "Le décor de la leçon se distingue des actions que vous avez faites.",
+      "checklist": [
+        "Plantez le décor",
+        "Racontez vos actions terminées",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une leçon",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Le stress et la météo font le décor ; vos gestes font les actions.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le décor reste en arrière-plan pendant que vos gestes avancent."
+        }
+      }
+    },
+    "EE2-C3-S11": {
+      "uniqueCriterion": "Le contexte de la gare se distingue des actions menées au guichet.",
+      "checklist": [
+        "Décrivez la scène de la gare",
+        "Racontez l'échange",
+        "Ajoutez le résultat obtenu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Décor et actions",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le hall dure en arrière-plan ; vos démarches, elles, se terminent."
+    },
+    "EE2-C3-S12": {
+      "uniqueCriterion": "Le récit distingue ce qui durait ce matin-là des actions terminées.",
+      "checklist": [
+        "Décrivez la scène à l'arrêt",
+        "Racontez vos actions terminées",
+        "Terminez par votre arrivée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Contexte et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Le matin",
+          "icon": "TIME"
+        }
+      ],
+      "tip": "Alternez : ce qui dure en arrière-plan, ce qui arrive au premier plan.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le décor du matin reste en arrière-plan et chaque action se termine nettement."
+        }
+      }
+    },
+    "EE2-C3-S13": {
+      "uniqueCriterion": "Le décor reste en arrière-plan pendant que les démarches avancent et se terminent.",
+      "checklist": [
+        "Décrivez la scène de l'agence",
+        "Racontez chaque démarche",
+        "Terminez par la sortie"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Décor et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Étapes successives",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Sans action achevée, votre démarche semble ne jamais aboutir."
+    },
+    "EE2-C3-S14": {
+      "uniqueCriterion": "Le décor de l'aéroport se distingue de chaque action terminée.",
+      "checklist": [
+        "Décrivez la scène au tapis",
+        "Racontez vos démarches",
+        "Terminez par la fin de l'attente"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Décor et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Après l'arrivée",
+          "icon": "TIME"
+        }
+      ],
+      "tip": "Chaque démarche accomplie mérite d'être marquée comme terminée.",
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "Le décor de la nuit encadre des démarches toutes clairement achevées."
+        }
+      }
+    },
+    "EE2-C3-S15": {
+      "uniqueCriterion": "Le récit distingue ce qui durait dans la voiture des actions qui sont arrivées.",
+      "checklist": [
+        "Décrivez la scène dans la voiture",
+        "Racontez l'erreur",
+        "Ajoutez ce que vous avez fait"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Décor et actions",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sur la route",
+          "icon": "PLACE"
+        }
+      ],
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "L'ambiance du trajet encadre des actions toutes parfaitement terminées."
+        }
+      }
+    }
+  },
+  "EE2-C8": {
+    "EE2-C8-S1": {
+      "checklist": [
+        "Dites comment le problème s'est réglé",
+        "Refermez vraiment le récit",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat clair",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Deux phrases",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C8-S2": {
+      "instruction": "Racontez la fin de cette année en deux phrases : le résultat obtenu ou ce que cela a changé pour vous.",
+      "uniqueCriterion": "La fin donne le résultat obtenu ou ce que cette année a changé.",
+      "checklist": [
+        "Choisissez le résultat ou le changement",
+        "Rendez-le concret",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat ou changement",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Effet concret",
+          "icon": "EXAMPLE"
+        }
+      ]
+    },
+    "EE2-C8-S3": {
+      "instruction": "Racontez la fin de cette histoire en trois phrases : la réparation, puis le résultat ou ce que cela a changé pour vous.",
+      "uniqueCriterion": "Le récit se termine par un résultat net ou par ce que la situation a changé.",
+      "checklist": [
+        "Racontez la réparation",
+        "Donnez l'état final",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Fin du récit",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La réparation et son résultat referment nettement le récit."
+        }
+      }
+    },
+    "EE2-C8-S4": {
+      "instruction": "Racontez la fin de cette journée en trois phrases : comment l'incident s'est terminé, ou ce qu'il a changé ensuite.",
+      "uniqueCriterion": "La conclusion dit comment l'incident s'est terminé ou ce qu'il a changé.",
+      "checklist": [
+        "Racontez la réaction du responsable",
+        "Dites comment cela s'est terminé",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Issue de l'incident",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "La conséquence se voit concrètement dans vos habitudes."
+        }
+      }
+    },
+    "EE2-C8-S5": {
+      "instruction": "Écrivez la fin de ce récit en trois phrases : le résultat obtenu ou ce qu'il change, sans grossir le dénouement.",
+      "uniqueCriterion": "La fin referme le récit par un résultat ou un changement, sans le rendre spectaculaire.",
+      "checklist": [
+        "Annoncez le résultat obtenu",
+        "Restez fidèle aux faits",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat daté",
+          "icon": "TIME"
+        },
+        {
+          "label": "Fin sans exagération",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Une fin ordinaire, dite clairement, vaut mieux qu'un dénouement inventé.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le résultat et son effet referment le récit sans rien exagérer."
+        }
+      }
+    },
+    "EE2-C8-S6": {
+      "checklist": [
+        "Donnez le résultat obtenu",
+        "Refermez vraiment le récit",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat clair",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Deux phrases",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EE2-C8-S7": {
+      "instruction": "Écrivez la fin de ce récit en deux phrases : le soin reçu et son résultat, ou ce que cela a changé.",
+      "uniqueCriterion": "La fin donne le résultat du rendez-vous ou ce qu'il a changé.",
+      "checklist": [
+        "Dites le soin reçu",
+        "Donnez le résultat ou l'effet",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat concret",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "Le résultat est suivi d'un effet concret dans votre quotidien."
+        }
+      }
+    },
+    "EE2-C8-S8": {
+      "instruction": "Écrivez la fin de ce récit en deux phrases : la réponse reçue ou ce que cela change pour vous.",
+      "uniqueCriterion": "La réponse obtenue est donnée, ou ce qu'elle change pour vous.",
+      "checklist": [
+        "Donnez la réponse reçue",
+        "Rendez la fin concrète",
+        "Écrivez deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse obtenue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "La conséquence est concrète et la fin ne laisse rien en suspens."
+        }
+      }
+    },
+    "EE2-C8-S9": {
+      "instruction": "Racontez la fin de cette démarche en trois phrases : la décision de l'école, puis le résultat ou ce que cela a changé pour votre fils.",
+      "uniqueCriterion": "Le récit se termine par une décision claire suivie d'un résultat ou d'un effet.",
+      "checklist": [
+        "Donnez la décision de l'école",
+        "Dites le résultat ou l'effet",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Décision finale",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La décision et son effet sur votre fils referment nettement le récit."
+        }
+      }
+    },
+    "EE2-C8-S10": {
+      "instruction": "Racontez la fin de cette soirée en trois phrases : ce qui a été décidé, puis le résultat ou ce que cela a changé.",
+      "uniqueCriterion": "La conclusion présente une décision prise et le résultat ou le changement qui en découle.",
+      "checklist": [
+        "Rapportez ce qui a été décidé",
+        "Dites le résultat ou l'effet",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Décision prise",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La décision et le changement observé referment la soirée sans rien laisser ouvert."
+        }
+      }
+    },
+    "EE2-C8-S11": {
+      "instruction": "Racontez la fin de cette histoire en trois phrases : la solution trouvée, puis le résultat ou ce que cela a changé.",
+      "uniqueCriterion": "La fin donne la solution obtenue et le résultat ou l'effet concret pour vous.",
+      "checklist": [
+        "Racontez la solution trouvée",
+        "Donnez le résultat ou l'effet",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Solution obtenue",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "references": {
+        "EXCELLENT": {
+          "pedagogicalNote": "La conséquence se voit dans votre emploi du temps, pas seulement dans les mots."
+        }
+      }
+    },
+    "EE2-C8-S12": {
+      "instruction": "Racontez la fin de cette première période en trois phrases : le résultat ou ce que cela a changé pour vous deux.",
+      "uniqueCriterion": "Le récit se termine par un résultat clair ou par ce que la période a changé.",
+      "checklist": [
+        "Donnez le résultat de l'inscription",
+        "Rendez la fin concrète",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat clair",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Résultat ou effet",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "tip": "Une fin concrète vaut mieux qu'un simple « tout va bien »."
+    },
+    "EE2-C8-S13": {
+      "instruction": "Écrivez la fin de ce récit en trois phrases : le résultat obtenu ou ce qu'il change, sans grossir le dénouement.",
+      "uniqueCriterion": "La fin referme le récit par un résultat ou un changement, sans le rendre spectaculaire.",
+      "checklist": [
+        "Donnez la correction obtenue",
+        "Restez fidèle aux faits",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat daté",
+          "icon": "TIME"
+        },
+        {
+          "label": "Fin sans exagération",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Ne gonflez pas la fin : dites simplement ce qui s'est passé au bout du compte.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le résultat daté et son effet réel referment le récit sans rien exagérer."
+        }
+      }
+    },
+    "EE2-C8-S14": {
+      "instruction": "Écrivez la fin de ce récit en trois phrases : le résultat obtenu ou ce qu'il change, sans grossir le dénouement.",
+      "uniqueCriterion": "La fin referme le récit par un résultat ou un changement, sans le rendre spectaculaire.",
+      "checklist": [
+        "Dites le résultat de la demande",
+        "Restez fidèle aux faits",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat daté",
+          "icon": "TIME"
+        },
+        {
+          "label": "Fin sans exagération",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Même une issue partielle referme le récit, à condition de la dire nettement.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le résultat et son effet sur votre travail referment le récit sans rien forcer."
+        }
+      }
+    },
+    "EE2-C8-S15": {
+      "instruction": "Écrivez la fin de ce récit en trois phrases : le résultat obtenu ou ce qu'il change, sans grossir le dénouement.",
+      "uniqueCriterion": "La fin referme le récit par un résultat ou un changement, sans le rendre spectaculaire.",
+      "checklist": [
+        "Donnez la décision de la CAF",
+        "Restez fidèle aux faits",
+        "Refermez le récit"
+      ],
+      "constraintTags": [
+        {
+          "label": "Résultat daté",
+          "icon": "TIME"
+        },
+        {
+          "label": "Fin sans exagération",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Un dénouement discret suffit : ce qui compte, c'est qu'on sache où cela s'arrête.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le résultat et son effet sur votre budget referment nettement le récit."
+        }
+      }
+    }
+  },
+  "EO1-C6": {
+    "EO1-C6-S1": {
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Moment situé",
+          "icon": "TIME"
+        }
+      ]
+    },
+    "EO1-C6-S2": {
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Deux moments",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EO1-C6-S4": {
+      "constraintTags": [
+        {
+          "label": "Problème et fin",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        }
+      ],
+      "recommendedDurationSeconds": 40
+    },
+    "EO1-C6-S6": {
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Moment situé",
+          "icon": "TIME"
+        }
+      ]
+    },
+    "EO1-C6-S7": {
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Deux actions",
+          "icon": "NUMBER"
+        }
+      ]
+    },
+    "EO1-C6-S8": {
+      "constraintTags": [
+        {
+          "label": "Moment situé",
+          "icon": "TIME"
+        },
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        }
+      ]
+    },
+    "EO1-C6-S3": {
+      "instruction": "Répondez à la question : « Racontez-moi votre dernier rendez-vous chez le médecin. » Dites quand c'était et racontez l'essentiel en deux ou trois phrases, sans dérouler tout le rendez-vous.",
+      "uniqueCriterion": "Le récit reste court : le moment est situé et l'essentiel du rendez-vous est raconté dans l'ordre.",
+      "checklist": [
+        "Dites quand c'était",
+        "Racontez l'essentiel",
+        "Arrêtez-vous avant le détail"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "l'essentiel d'un rendez-vous tient en deux phrases : pourquoi, et ce qui a été dit.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment est situé et l'essentiel est raconté sans s'étendre."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le récit reste court et donne pourtant tout ce qu'il faut."
+        }
+      }
+    },
+    "EO1-C6-S5": {
+      "instruction": "Répondez à la question : « Racontez-moi votre premier jour de travail ou de formation. » Dites quand c'était et racontez-le brièvement, même si la question invite à tout raconter.",
+      "uniqueCriterion": "La réponse situe le moment et reste un récit court, sans basculer dans le récit développé.",
+      "checklist": [
+        "Dites quand c'était",
+        "Racontez-le brièvement",
+        "Ne déroulez pas toute la journée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Question ouverte",
+          "icon": "TONE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "une question large n'oblige pas à une réponse longue : choisissez ce qui compte.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Rien n'est situé ni raconté : la question reste sans réponse."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le récit est situé, ordonné, et s'arrête au bon moment."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Un seul détail bien choisi rend le récit vivant sans l'allonger."
+        }
+      }
+    },
+    "EO1-C6-S9": {
+      "instruction": "Répondez à la question : « Reprenez ce dossier depuis le début. » Dites quand vous avez commencé et résumez la démarche en deux ou trois phrases.",
+      "uniqueCriterion": "Le récit reste court : le moment est situé et la démarche est résumée dans l'ordre.",
+      "checklist": [
+        "Dites quand vous avez commencé",
+        "Résumez la démarche",
+        "Gardez l'ordre des faits"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "un dossier long se résume : le début, le moment difficile, la fin.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment est donné et la démarche est résumée sans trou."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "La difficulté retenue suffit à rendre le résumé concret."
+        }
+      }
+    },
+    "EO1-C6-S10": {
+      "instruction": "Répondez à la question : « Ce rendez-vous, il s'est passé comment ? » Situez-le dans le temps et résumez-le en deux ou trois phrases.",
+      "uniqueCriterion": "Le récit reste court : le moment est situé et l'essentiel du rendez-vous est résumé.",
+      "checklist": [
+        "Dites quand c'était",
+        "Résumez le rendez-vous",
+        "Gardez l'ordre des faits"
+      ],
+      "constraintTags": [
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Moment situé",
+          "icon": "TIME"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "ce qui a été décidé compte plus que le détail de la conversation.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment est situé et le rendez-vous tient en quelques phrases."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le résumé se termine sur la décision : c'est ce qu'on retient."
+        }
+      }
+    },
+    "EO1-C6-S11": {
+      "instruction": "Répondez à la question : « Comment l'avez-vous obtenue ? » Dites quand vous avez commencé et résumez la démarche en deux ou trois phrases.",
+      "uniqueCriterion": "Le récit reste court : le moment est situé et la démarche est résumée dans l'ordre.",
+      "checklist": [
+        "Dites quand vous avez commencé",
+        "Résumez la démarche",
+        "Suivez l'ordre réel"
+      ],
+      "constraintTags": [
+        {
+          "label": "Temps du passé",
+          "icon": "TENSE"
+        },
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "un délai dit beaucoup en peu de mots : deux semaines après, un mois plus tard.",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment est donné et la démarche est résumée clairement."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Deux dates suffisent à faire avancer le récit sans l'allonger."
+        }
+      }
+    },
+    "EO1-C6-S12": {
+      "instruction": "Répondez à la question : « Qu'avez-vous fait après ce courrier ? » Situez le moment et résumez ce que vous avez fait, en gardant l'ordre.",
+      "uniqueCriterion": "Le récit reste court : le moment est situé et les démarches sont résumées dans l'ordre.",
+      "checklist": [
+        "Dites quand c'était",
+        "Résumez ce que vous avez fait",
+        "Respectez l'ordre des faits"
+      ],
+      "constraintTags": [
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Moment situé",
+          "icon": "TIME"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Un moment situé, puis un résumé clair et dans l'ordre."
+        }
+      }
+    },
+    "EO1-C6-S13": {
+      "instruction": "Répondez à la question : « Reprenez cette histoire du début à la fin. » Dites quand c'était et racontez-la brièvement, même si la question invite à tout dérouler.",
+      "uniqueCriterion": "La réponse situe le moment et reste un récit court, sans basculer dans le récit développé.",
+      "checklist": [
+        "Dites quand c'était",
+        "Racontez-la brièvement",
+        "Ne déroulez pas toute l'histoire"
+      ],
+      "constraintTags": [
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Question ouverte",
+          "icon": "TONE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "« du début à la fin » ne veut pas dire tout dire : gardez ce qui compte.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Ni moment, ni déroulement : le récit n'existe pas."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment et l'essentiel sont là, et la réponse s'arrête à temps."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le récit reste court et se termine pourtant nettement."
+        }
+      }
+    },
+    "EO1-C6-S14": {
+      "instruction": "Répondez à la question : « Racontez-moi ce rendez-vous. » Situez le moment et racontez-le brièvement, sans dérouler toute la rencontre.",
+      "uniqueCriterion": "La réponse situe le moment et reste un récit court, sans basculer dans le récit développé.",
+      "checklist": [
+        "Dites quand c'était",
+        "Racontez-le brièvement",
+        "Ne déroulez pas toute la rencontre"
+      ],
+      "constraintTags": [
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Question ouverte",
+          "icon": "TONE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "choisissez le moment qui compte plutôt que de tout raconter.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le rendez-vous n'est ni situé ni raconté : la question reste sans réponse."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment est situé, l'essentiel est dit, et la réponse s'arrête à temps."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Un détail bien choisi remplace avantageusement dix phrases."
+        }
+      }
+    },
+    "EO1-C6-S15": {
+      "instruction": "Répondez à la question : « Que s'est-il passé, et ensuite ? » Dites quand c'était et résumez brièvement ce qui s'est passé, même si l'histoire est longue.",
+      "uniqueCriterion": "La réponse situe le moment et reste un récit court, sans basculer dans le récit développé.",
+      "checklist": [
+        "Dites quand c'était",
+        "Résumez ce qui s'est passé",
+        "Ne déroulez pas toutes les démarches"
+      ],
+      "constraintTags": [
+        {
+          "label": "Récit court",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Question ouverte",
+          "icon": "TONE"
+        }
+      ],
+      "recommendedDurationSeconds": 40,
+      "tip": "l'assurance, l'artisan, le voisin : nommez qui compte, pas tout le monde.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le problème est nommé, mais rien n'est raconté ni situé."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le moment et l'essentiel s'enchaînent sans que la réponse s'allonge."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Deux repères suffisent, et la fin reste claire."
+        }
+      }
+    }
+  },
+  "EO2-C3": {
+    "EO2-C3-S1": {
+      "title": "S'inscrire aux cours de l'association",
+      "instruction": "Demandez-lui deux choses : comment on s'inscrit et quels documents il faut apporter.",
+      "uniqueCriterion": "La façon de s'inscrire et les documents à fournir sont demandés explicitement.",
+      "checklist": [
+        "Saluez la bénévole",
+        "Demandez comment s'inscrire",
+        "Demandez les documents à apporter"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux questions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Conditions demandées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Connaître les horaires ne suffit pas : demandez ce qu'il faut pour s'inscrire.",
+      "references": {
+        "INSUFFICIENT": {
+          "text": "Bonjour madame. Je voudrais m'inscrire aux cours de français, s'il vous plaît.",
+          "pedagogicalNote": "L'intention est annoncée, mais ni la démarche ni les documents ne sont demandés."
+        },
+        "EXPECTED": {
+          "text": "Bonjour madame. Je souhaite suivre vos cours de français. Comment est-ce que je m'inscris, et quels documents dois-je apporter ?",
+          "pedagogicalNote": "Les deux conditions sont demandées clairement, dans une seule prise de parole."
+        },
+        "EXCELLENT": {
+          "text": "Bonjour madame. Je souhaite suivre vos cours de français. Faut-il s'inscrire sur place ou en ligne, quels documents dois-je apporter, et y a-t-il un test de niveau avant l'entrée en cours ?",
+          "pedagogicalNote": "Une troisième condition s'ajoute naturellement, sans alourdir la demande."
+        }
+      }
+    },
+    "EO2-C3-S5": {
+      "title": "Inscrire sa fille au centre de loisirs",
+      "instruction": "Demandez-lui quatre choses : les documents du dossier d'inscription, ce qui est compris dans la journée, ce que l'enfant doit apporter et les règles en cas d'absence.",
+      "uniqueCriterion": "Les quatre conditions — dossier, prestations comprises, affaires à apporter, règle d'absence — sont réclamées chacune explicitement.",
+      "checklist": [
+        "Saluez le directeur",
+        "Demandez les documents du dossier",
+        "Demandez ce qui est compris",
+        "Demandez la règle en cas d'absence"
+      ],
+      "constraintTags": [
+        {
+          "label": "Quatre questions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Conditions demandées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Les conditions s'oublient plus vite que les horaires : gardez-les toutes en tête.",
+      "references": {
+        "INSUFFICIENT": {
+          "text": "Bonjour monsieur. Qu'est-ce qu'il faut apporter pour inscrire ma fille cet été ?",
+          "pedagogicalNote": "Une seule condition est réclamée : trois des quatre restent inconnues."
+        },
+        "EXPECTED": {
+          "text": "Bonjour monsieur. Ma fille voudrait venir cet été. Quels documents faut-il pour le dossier, qu'est-ce qui est compris dans la journée, que doit-elle apporter, et que se passe-t-il si elle est absente un jour ?",
+          "pedagogicalNote": "Les quatre conditions sont posées clairement, sans que l'échange devienne confus."
+        },
+        "EXCELLENT": {
+          "text": "Bonjour monsieur. Ma fille a huit ans et je voudrais l'inscrire pour le mois de juillet. Quelles pièces dois-je fournir pour le dossier, le repas et les sorties sont-ils compris dans la journée, faut-il prévoir un sac avec un change et une casquette, et faut-il prévenir la veille en cas d'absence ?",
+          "pedagogicalNote": "Chaque condition est posée de façon concrète : plus rien ne restera à rappeler."
+        }
+      }
+    },
+    "EO2-C3-S6": {
+      "title": "Les règles du poste",
+      "instruction": "Demandez-lui deux choses : la tenue ou l'équipement à prévoir et ce qu'il faut faire en cas de retard.",
+      "uniqueCriterion": "Les deux conditions, l'équipement à prévoir et la règle en cas de retard, sont demandées explicitement.",
+      "checklist": [
+        "Saluez votre tuteur",
+        "Demandez la tenue à prévoir",
+        "Demandez la règle de retard"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux questions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Conditions demandées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Deux conditions à connaître avant le premier jour : la tenue et la règle de retard.",
+      "references": {
+        "INSUFFICIENT": {
+          "text": "Bonjour monsieur. Est-ce que je dois porter quelque chose de particulier ?",
+          "pedagogicalNote": "Une seule condition est demandée : la règle en cas de retard reste inconnue."
+        },
+        "EXPECTED": {
+          "text": "Bonjour monsieur. Avant de commencer : est-ce qu'il faut une tenue ou des chaussures particulières, et qui dois-je prévenir si je suis en retard ?",
+          "pedagogicalNote": "Les deux conditions sont réclamées dans une seule prise de parole."
+        },
+        "EXCELLENT": {
+          "text": "Bonjour monsieur. Pour bien démarrer : faut-il des chaussures de sécurité et une tenue fournie par le magasin, et en cas de retard ou d'absence, est-ce que je vous appelle directement ou je passe par l'accueil ?",
+          "pedagogicalNote": "Chaque condition est posée avec son cas concret : rien ne restera à demander demain."
+        }
+      }
+    },
+    "EO2-C3-S9": {
+      "title": "Les conditions pour résilier",
+      "instruction": "Demandez-lui trois choses : la démarche à suivre pour résilier, les documents à envoyer et les frais éventuels.",
+      "uniqueCriterion": "Les trois conditions, démarche, documents et frais, sont demandées chacune explicitement.",
+      "checklist": [
+        "Saluez la conseillère",
+        "Demandez la démarche à suivre",
+        "Demandez les documents à envoyer",
+        "Demandez s'il y a des frais"
+      ],
+      "constraintTags": [
+        {
+          "label": "Trois questions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Conditions demandées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Savoir qu'on peut résilier ne suffit pas : demandez comment, avec quoi, et à quel prix.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Aucune des trois conditions n'est réclamée : ni démarche, ni documents, ni frais."
+        },
+        "EXPECTED": {
+          "text": "Bonjour madame. Comment dois-je faire pour résilier, quels documents faut-il vous envoyer, et est-ce qu'il y a des frais à payer ?",
+          "pedagogicalNote": "Les trois conditions sont demandées à la suite, dans un ordre facile à suivre."
+        },
+        "EXCELLENT": {
+          "text": "Bonjour madame. Je fais le point sur mon abonnement : la résiliation se fait-elle par courrier ou depuis mon espace client, quelles pièces dois-je joindre à la demande, et reste-t-il des frais de résiliation ou un matériel à renvoyer ?",
+          "pedagogicalNote": "Chaque question est resserrée : la conseillère ne peut répondre que par des conditions précises."
+        }
+      }
+    },
+    "EO2-C3-S13": {
+      "title": "Les règles du jardin partagé",
+      "instruction": "Demandez-lui quatre choses : comment on s'inscrit, les documents à fournir, ce qui est mis à disposition sur place et les règles à respecter.",
+      "uniqueCriterion": "Les quatre conditions — inscription, documents, matériel fourni, règles — sont réclamées chacune explicitement.",
+      "checklist": [
+        "Saluez le responsable",
+        "Demandez comment s'inscrire",
+        "Demandez ce qui est fourni",
+        "Demandez les règles à respecter"
+      ],
+      "constraintTags": [
+        {
+          "label": "Quatre questions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Conditions demandées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Quatre conditions à ramener : inscription, documents, matériel, règles.",
+      "references": {
+        "INSUFFICIENT": {
+          "text": "Bonjour monsieur. Comment fait-on pour avoir un jardin ici ?",
+          "pedagogicalNote": "L'inscription est abordée, mais documents, matériel et règles restent inconnus."
+        },
+        "EXPECTED": {
+          "text": "Bonjour monsieur. Comment est-ce qu'on s'inscrit, quels documents faut-il fournir, qu'est-ce qui est mis à disposition sur place, et quelles règles faut-il respecter ?",
+          "pedagogicalNote": "Les quatre conditions sont demandées sans que la prise de parole devienne confuse."
+        },
+        "EXCELLENT": {
+          "text": "Bonjour monsieur. J'habite l'immeuble d'en face et j'aimerais cultiver quelques légumes. L'inscription se fait-elle auprès de vous ou à la mairie, quels justificatifs dois-je apporter, est-ce que l'eau et les outils sont fournis, et y a-t-il des règles sur les produits ou sur l'entretien de la parcelle ?",
+          "pedagogicalNote": "Chaque condition est posée avec son cas concret : rien n'est laissé à deviner."
+        }
+      }
+    }
+  },
+  "EO2-C7": {
+    "EO2-C7-S1": {
+      "instruction": "Interrogez-le sur ce qui distingue les deux formules, et faites-lui préciser au moins une différence qu'il n'a pas donnée.",
+      "uniqueCriterion": "Les deux formules sont interrogées et au moins une différence non annoncée est obtenue.",
+      "checklist": [
+        "Interrogez les deux formules",
+        "Faites préciser une différence",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux formules",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences explorées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le prix est déjà donné : cherchez ce qui n'a pas été dit.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "L'échange s'arrête avant d'avoir exploré quoi que ce soit."
+        },
+        "EXPECTED": {
+          "text": "Si je compare les deux formules, l'une est plus chère mais sans engagement. Est-ce que l'abonnement à l'année peut être arrêté en cours de route, et les deux donnent-ils accès aux mêmes créneaux ?",
+          "pedagogicalNote": "Les deux formules sont interrogées et deux différences nouvelles sont demandées."
+        },
+        "EXCELLENT": {
+          "text": "Si je compare les deux formules, l'écart est de dix euros par mois. Est-ce que l'abonnement annuel peut être suspendu en cas de déménagement, est-ce qu'il inclut les cours collectifs, et y a-t-il des frais d'inscription dans un cas ou dans l'autre ?",
+          "pedagogicalNote": "Trois questions différentes font sortir ce que l'annonce ne disait pas."
+        }
+      }
+    },
+    "EO2-C7-S2": {
+      "instruction": "Posez des questions sur ce qui distingue ces deux forfaits, au-delà de ce que le conseiller vient d'annoncer.",
+      "uniqueCriterion": "Les deux forfaits sont interrogés et au moins une différence non annoncée est obtenue.",
+      "checklist": [
+        "Interrogez les deux forfaits",
+        "Faites préciser une différence",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux forfaits",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences explorées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Prix et gigaoctets sont déjà dits : cherchez les conditions autour.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le forfait est pris sans qu'aucune différence ait été explorée."
+        },
+        "EXPECTED": {
+          "text": "Entre les deux forfaits, est-ce qu'il y a un engagement dans un cas et pas dans l'autre ? Et les appels vers l'étranger comprennent-ils tous les pays ?",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "Entre les deux forfaits, est-ce que l'engagement est le même ? Les appels illimités comprennent-ils le Maroc, et que se passe-t-il si je dépasse les vingt gigaoctets du premier : le débit baisse, ou c'est facturé ?",
+          "pedagogicalNote": "Chaque question porte sur un point que l'annonce laissait dans l'ombre."
+        }
+      }
+    },
+    "EO2-C7-S3": {
+      "instruction": "Interrogez la conseillère sur plusieurs différences entre les deux trajets, au-delà du temps et du prix déjà donnés.",
+      "uniqueCriterion": "Les deux trajets sont interrogés sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux trajets",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux trajets",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Le lieu d'arrivée et les bagages changent souvent plus que le prix.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Une seule donnée déjà connue est reprise : rien n'est exploré."
+        },
+        "EXPECTED": {
+          "text": "Entre le train et le bus, est-ce que le bus arrive au centre-ville ou en périphérie ? Et les bagages sont-ils inclus dans les deux cas ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Entre le train et le bus, où arrive exactement le bus, et combien de temps faut-il ensuite pour rejoindre le centre ? Les bagages sont-ils limités, et peut-on changer d'horaire dans l'un ou l'autre cas ?",
+          "pedagogicalNote": "Trois différences sortent de l'échange, dont une que personne n'avait annoncée."
+        }
+      }
+    },
+    "EO2-C7-S4": {
+      "instruction": "Posez des questions sur ces deux formules pour faire apparaître plusieurs différences que le centre n'a pas annoncées.",
+      "uniqueCriterion": "Les deux formules sont interrogées sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux formules",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux formules",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Le diplôme, le groupe, les absences : tout cela peut différer.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Une préférence est annoncée sans qu'aucune différence ait été explorée."
+        },
+        "EXPECTED": {
+          "text": "Avant de choisir, j'aimerais savoir si le contenu et le diplôme sont identiques dans les deux cas, et si les absences sont comptées de la même façon.",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "Avant de choisir, j'aimerais savoir si le contenu et le diplôme sont identiques, si les groupes ont la même taille, et ce qui se passe en cas d'absence dans chaque formule : peut-on rattraper une séance ?",
+          "pedagogicalNote": "Trois différences sortent de l'échange, dont une conséquence concrète."
+        }
+      }
+    },
+    "EO2-C7-S5": {
+      "instruction": "Posez des questions jusqu'à faire apparaître ce qui distingue vraiment ces deux contrats, au-delà du prix et de la franchise.",
+      "uniqueCriterion": "Les deux contrats sont interrogés jusqu'à obtenir des différences que l'annonce ne donnait pas.",
+      "checklist": [
+        "Interrogez les deux contrats",
+        "Cherchez ce qui n'est pas dit",
+        "Poursuivez jusqu'à une réponse utile"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux contrats",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences cachées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Ce qui est couvert compte plus que ce qui est affiché.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le prix déjà annoncé suffit à décider : rien n'est exploré."
+        },
+        "EXPECTED": {
+          "text": "Entre ces deux contrats, est-ce que le vol et le dégât des eaux sont couverts dans les deux cas ? Et la franchise s'applique-t-elle à chaque sinistre ou une fois par an ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Entre ces deux contrats, le vol et le dégât des eaux sont-ils couverts dans les deux cas ? La franchise s'applique-t-elle à chaque sinistre ? Et le remplacement à neuf vaut-il pour tous les appareils, ou seulement ceux de moins de deux ans ?",
+          "pedagogicalNote": "Chaque question resserre un point que le tarif affiché ne dit pas."
+        }
+      }
+    },
+    "EO2-C7-S6": {
+      "instruction": "Interrogez-le sur ce qui distingue ces deux livraisons, au-delà du délai et du prix déjà annoncés.",
+      "uniqueCriterion": "Les deux livraisons sont interrogées et au moins une différence non annoncée est obtenue.",
+      "checklist": [
+        "Interrogez les deux livraisons",
+        "Faites préciser une différence",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux livraisons",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences explorées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "La montée à l'étage et l'emballage ne sont presque jamais annoncés.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le choix tombe sans qu'aucune différence ait été explorée."
+        },
+        "EXPECTED": {
+          "text": "Entre les deux livraisons, est-ce que les deux montent le canapé jusqu'à l'appartement ? Et peut-on choisir un créneau horaire dans les deux cas ?",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "Entre les deux livraisons, est-ce que les deux montent le canapé à l'étage, peut-on choisir un créneau, et l'emballage est-il repris dans un cas comme dans l'autre ?",
+          "pedagogicalNote": "Trois questions font sortir ce que l'annonce passait sous silence."
+        }
+      }
+    },
+    "EO2-C7-S7": {
+      "instruction": "Posez des questions sur ce qui distingue ces deux solutions, au-delà de ce que le service client vient d'annoncer.",
+      "uniqueCriterion": "Les deux solutions sont interrogées et au moins une différence non annoncée est obtenue.",
+      "checklist": [
+        "Interrogez les deux solutions",
+        "Faites préciser une différence",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux solutions",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences explorées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le retour de l'article cassé change souvent les délais annoncés.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Une solution est prise d'emblée, sans qu'aucune différence soit explorée."
+        },
+        "EXPECTED": {
+          "text": "Entre le remboursement et l'échange, est-ce que je dois renvoyer la lampe cassée dans les deux cas ? Et qui paie le retour ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Entre le remboursement et l'échange, faut-il renvoyer la lampe cassée dans les deux cas, qui paie le retour, et le délai de huit jours court-il à partir de mon appel ou à partir de la réception du colis ?",
+          "pedagogicalNote": "Chaque question porte sur un point que l'annonce laissait imprécis."
+        }
+      }
+    },
+    "EO2-C7-S8": {
+      "instruction": "Interrogez le conseiller sur ce qui distingue ces deux solutions, au-delà du prix du déplacement.",
+      "uniqueCriterion": "Les deux solutions de réparation sont interrogées et au moins une différence non annoncée est obtenue.",
+      "checklist": [
+        "Interrogez les deux solutions",
+        "Demandez le délai de chacune",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Atelier ou domicile",
+          "icon": "PLACE"
+        },
+        {
+          "label": "Différences explorées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le délai et la garantie de la réparation ne sont pas toujours les mêmes.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La solution est prise sans que l'autre ait été examinée."
+        },
+        "EXPECTED": {
+          "text": "À domicile ou à l'atelier, quel est le délai de réparation dans chaque cas ? Et la garantie sur la réparation est-elle la même ?",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "À domicile ou à l'atelier, quel est le délai dans chaque cas, la garantie sur la réparation est-elle identique, et le devis est-il gratuit si je renonce après diagnostic ?",
+          "pedagogicalNote": "Trois questions font sortir ce qui n'était pas annoncé."
+        }
+      }
+    },
+    "EO2-C7-S9": {
+      "instruction": "Posez des questions sur ces deux écrans pour faire apparaître plusieurs différences que le réparateur n'a pas annoncées.",
+      "uniqueCriterion": "Les deux écrans sont interrogés sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux écrans",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux écrans",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "La qualité d'image et l'étendue de la garantie s'obtiennent en demandant.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le prix déjà annoncé suffit à décider : rien n'est exploré."
+        },
+        "EXPECTED": {
+          "text": "Avant de choisir, est-ce que l'écran compatible a la même qualité d'image ? Et la garantie couvre-t-elle une nouvelle casse ou seulement une panne ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Avant de choisir, est-ce que l'écran compatible a la même qualité d'image et le même tactile ? La garantie couvre-t-elle une casse ou seulement une panne, et la pose est-elle comprise dans les deux prix ?",
+          "pedagogicalNote": "Trois différences sortent de l'échange, dont le détail du prix."
+        }
+      }
+    },
+    "EO2-C7-S10": {
+      "instruction": "Interrogez-le sur ces deux jeux de pneus pour faire apparaître plusieurs différences, au-delà du prix et de la tenue sous la pluie.",
+      "uniqueCriterion": "Les deux jeux de pneus sont interrogés sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux jeux",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux jeux",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Le kilométrage et le montage sont rarement annoncés d'eux-mêmes.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le prix décide seul : aucune différence n'est explorée."
+        },
+        "EXPECTED": {
+          "text": "Entre les deux jeux de pneus, combien de kilomètres tient chaque modèle ? Et le montage et l'équilibrage sont-ils compris dans les deux prix ?",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "Entre les deux jeux de pneus, combien de kilomètres tient chaque modèle, le montage est-il compris dans les deux prix, et y a-t-il une différence de bruit ou de consommation sur autoroute ?",
+          "pedagogicalNote": "Trois questions font sortir ce que l'affichage ne dit jamais."
+        }
+      }
+    },
+    "EO2-C7-S11": {
+      "instruction": "Posez des questions sur ces deux formules pour faire apparaître plusieurs différences que l'auto-école n'a pas annoncées.",
+      "uniqueCriterion": "Les deux formules sont interrogées sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux formules",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Manuelle ou automatique",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Le passage d'un permis à l'autre et le prix de l'heure méritent d'être demandés.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Aucune différence n'est explorée : la limite du permis n'est même pas évoquée."
+        },
+        "EXPECTED": {
+          "text": "Avant de m'inscrire, j'aimerais savoir si le prix de l'heure est le même dans les deux formules, et si l'on peut passer plus tard de l'automatique à la manuelle.",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Avant de m'inscrire, j'aimerais savoir si l'heure de conduite coûte pareil dans les deux formules, si l'on peut passer ensuite de l'automatique à la manuelle, et si le délai d'obtention de l'examen est le même.",
+          "pedagogicalNote": "Trois différences sortent de l'échange, y compris le délai d'examen."
+        }
+      }
+    },
+    "EO2-C7-S12": {
+      "instruction": "Interrogez l'agent sur ces deux billets pour faire apparaître plusieurs différences, au-delà du prix et de l'échange.",
+      "uniqueCriterion": "Les deux billets sont interrogés sur au moins deux différences non annoncées.",
+      "checklist": [
+        "Interrogez les deux billets",
+        "Cherchez deux différences nouvelles",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux billets",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Deux différences",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "Les frais d'échange et la place réservée ne sont presque jamais annoncés.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le prix décide seul : aucune différence n'est explorée."
+        },
+        "EXPECTED": {
+          "text": "Entre ces deux billets, si j'échange celui à soixante-huit euros, est-ce que je paie la différence de prix ? Et la place est-elle réservée dans les deux cas ?",
+          "pedagogicalNote": "Deux différences non annoncées sont réclamées : l'échange avance vraiment."
+        },
+        "EXCELLENT": {
+          "text": "Entre ces deux billets, l'échange est-il gratuit ou faut-il payer la différence de tarif, la place est-elle réservée dans les deux cas, et le billet le moins cher donne-t-il droit à un bagage en plus ?",
+          "pedagogicalNote": "Trois questions font sortir des conditions que le guichet n'annonce pas."
+        }
+      }
+    },
+    "EO2-C7-S13": {
+      "instruction": "Posez des questions jusqu'à faire apparaître ce qui distingue vraiment ces deux titres, au-delà du prix affiché.",
+      "uniqueCriterion": "Les deux titres sont interrogés jusqu'à obtenir des différences que l'annonce ne donnait pas.",
+      "checklist": [
+        "Interrogez les deux titres",
+        "Cherchez ce qui n'est pas dit",
+        "Poursuivez jusqu'à une réponse utile"
+      ],
+      "constraintTags": [
+        {
+          "label": "Deux titres",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences cachées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le réseau couvert et la possibilité d'arrêter ne sont jamais sur l'affiche.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Aucun des deux titres n'est interrogé : rien ne sort de l'échange."
+        },
+        "EXPECTED": {
+          "text": "Entre le carnet et l'abonnement, est-ce que l'abonnement donne aussi accès au tramway ? Et un ticket du carnet permet-il de changer de ligne pendant une heure ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Entre le carnet et l'abonnement, est-ce que l'abonnement couvre aussi le tramway, peut-on l'arrêter en cours d'année en cas de déménagement, et un ticket du carnet autorise-t-il la correspondance pendant une heure ?",
+          "pedagogicalNote": "Trois questions font sortir le réseau, la souplesse et la règle de correspondance."
+        }
+      }
+    },
+    "EO2-C7-S14": {
+      "instruction": "Interrogez la conseillère sur ces trois possibilités jusqu'à faire apparaître ce qui les distingue vraiment.",
+      "uniqueCriterion": "Les trois possibilités sont interrogées jusqu'à obtenir des différences que l'annonce ne donnait pas.",
+      "checklist": [
+        "Interrogez les trois possibilités",
+        "Cherchez ce qui n'est pas dit",
+        "Poursuivez jusqu'à une réponse utile"
+      ],
+      "constraintTags": [
+        {
+          "label": "Trois possibilités",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences cachées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le calcul du tarif réduit et les justificatifs demandés s'obtiennent en demandant.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les deux autres possibilités ne sont ni interrogées ni comparées."
+        },
+        "EXPECTED": {
+          "text": "Avant de m'engager, j'aimerais comparer ces abonnements : comment le tarif selon les revenus est-il calculé, et l'abonnement annuel peut-il être résilié en cours d'année ?",
+          "pedagogicalNote": "Deux différences non annoncées sont obtenues, sur deux possibilités distinctes."
+        },
+        "EXCELLENT": {
+          "text": "Avant de m'engager, j'aimerais comparer ces trois abonnements : comment le tarif selon les revenus est-il calculé et quels justificatifs faut-il apporter, l'abonnement annuel peut-il être arrêté en cours d'année, et l'abonnement jeune s'arrête-t-il à la date d'anniversaire ou en fin d'année scolaire ?",
+          "pedagogicalNote": "Chaque possibilité est interrogée sur un point que l'affichage ne dit pas."
+        }
+      }
+    },
+    "EO2-C7-S15": {
+      "instruction": "Posez des questions jusqu'à faire apparaître ce qui distingue vraiment ces deux solutions, au-delà du prix et du délai.",
+      "uniqueCriterion": "Les deux solutions sont interrogées jusqu'à obtenir des différences que l'annonce ne donnait pas.",
+      "checklist": [
+        "Interrogez les deux possibilités",
+        "Cherchez ce qui n'est pas dit",
+        "Poursuivez jusqu'à une réponse utile"
+      ],
+      "constraintTags": [
+        {
+          "label": "Supplément ou colis",
+          "icon": "NUMBER"
+        },
+        {
+          "label": "Différences cachées",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "Le suivi, l'assurance et l'adresse de livraison ne sont pas annoncés.",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La seconde solution est écartée sans être examinée."
+        },
+        "EXPECTED": {
+          "text": "Entre le supplément et le colis, est-ce que le colis est suivi et assuré s'il se perd ? Et à quelle adresse est-il livré ?",
+          "pedagogicalNote": "Deux différences que l'annonce ne donnait pas sont obtenues."
+        },
+        "EXCELLENT": {
+          "text": "Entre le supplément et le colis, le colis est-il suivi et assuré en cas de perte, à quelle adresse est-il livré, et le supplément de soixante euros vaut-il pour le retour aussi ou seulement pour ce vol ?",
+          "pedagogicalNote": "Trois questions font sortir le risque réel et la portée du supplément."
+        }
+      }
+    }
+  },
+  "EO3-C1": {
+    "EO3-C1-S1": {
+      "instruction": "Dites si vous préférez vivre en ville ou à la campagne. Votre choix doit être clairement identifiable.",
+      "uniqueCriterion": "On sait laquelle des deux vous choisissez, sans avoir à le deviner.",
+      "checklist": [
+        "Choisissez : ville ou campagne",
+        "Nommez ce choix clairement",
+        "Tenez ce choix jusqu'au bout"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position claire",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Un seul camp",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "nommez votre choix : décrire les deux options ne répond pas à la question",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La position est nommée sans ambiguïté et elle reste la même jusqu'au bout."
+        }
+      }
+    },
+    "EO3-C1-S2": {
+      "instruction": "Dites ce que vous préférez : cuisiner vous-même ou acheter des plats préparés. Votre préférence doit être clairement identifiable.",
+      "uniqueCriterion": "On identifie votre préférence sans avoir à la deviner.",
+      "checklist": [
+        "Nommez ce que vous préférez",
+        "Dites-le sans ambiguïté",
+        "Ne décrivez pas les deux options"
+      ],
+      "constraintTags": [
+        {
+          "label": "Préférence explicite",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Ton personnel",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "une préférence se dit, elle ne se devine pas : nommez-la clairement",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La préférence est nommée sans détour, le reste vient l'appuyer."
+        }
+      }
+    },
+    "EO3-C1-S3": {
+      "instruction": "Dites si, pour vos trajets quotidiens en ville, vous choisiriez plutôt la voiture ou le vélo. Votre position doit rester identifiable même si vous reconnaissez un point à l'autre option.",
+      "uniqueCriterion": "Votre position reste identifiable, même si vous reconnaissez ensuite un point à l'autre option.",
+      "checklist": [
+        "Annoncez voiture ou vélo",
+        "Gardez la position identifiable",
+        "Concédez au plus un point"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position claire",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Concession brève",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "une concession peut s'entendre, à condition qu'on sache toujours ce que vous choisissez"
+    },
+    "EO3-C1-S4": {
+      "instruction": "Dites si vous êtes pour ou contre cette interdiction. On doit comprendre votre position sans avoir à la deviner.",
+      "uniqueCriterion": "Vous vous positionnez clairement pour ou contre, sans ambiguïté.",
+      "checklist": [
+        "Positionnez-vous : pour ou contre",
+        "Dites-le sans ambiguïté",
+        "Restez sur cette position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Pour ou contre",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Avis assumé",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "ne vous contentez pas de décrire la situation : donnez votre avis",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le « je suis pour » ne laisse aucun doute : la position est nette."
+        }
+      }
+    },
+    "EO3-C1-S6": {
+      "instruction": "Dites si un nouveau doit être accompagné pendant toute sa première journée. Votre position doit être clairement identifiable.",
+      "uniqueCriterion": "Annoncer une position claire, sans se contenter de décrire la situation.",
+      "checklist": [
+        "Tranchez : accompagné ou non",
+        "Dites-le clairement",
+        "Gardez la même position"
+      ],
+      "constraintTags": [
+        {
+          "label": "Choix annoncé",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Un seul avis",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "annoncez votre choix sans ambiguïté, les raisons viennent ensuite",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La position est posée sans ambiguïté et elle est tenue ensuite."
+        }
+      }
+    },
+    "EO3-C1-S7": {
+      "instruction": "Dites s'il vaut mieux demander ses congés par mail ou en parlant au responsable. Votre choix doit être clairement identifiable.",
+      "uniqueCriterion": "Nommer l'option choisie sans la laisser deviner.",
+      "checklist": [
+        "Choisissez : mail ou oral",
+        "Nommez-la clairement",
+        "Tenez ce choix"
+      ],
+      "constraintTags": [
+        {
+          "label": "Option nommée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Réponse directe",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "ne racontez pas la procédure : dites clairement ce que vous choisissez",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "L'option choisie est nommée sans détour."
+        }
+      }
+    },
+    "EO3-C1-S8": {
+      "instruction": "Dites si vous êtes pour ou contre cette heure sans bruit. On doit le savoir sans avoir à le deviner.",
+      "uniqueCriterion": "Se placer clairement pour ou contre, sans ambiguïté.",
+      "checklist": [
+        "Dites pour ou contre",
+        "Dites-le clairement",
+        "Ne changez pas ensuite"
+      ],
+      "constraintTags": [
+        {
+          "label": "Avis clair",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Position tenue",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "dites pour ou contre : commenter la proposition ne suffit pas",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La position est nommée sans détour : on la saisit sans effort."
+        }
+      }
+    },
+    "EO3-C1-S9": {
+      "instruction": "Dites si vous êtes favorable à ce démarrage à six heures. Votre position doit rester identifiable même si vous reconnaissez une difficulté.",
+      "uniqueCriterion": "Annoncer clairement favorable ou défavorable et s'y tenir, malgré une difficulté reconnue.",
+      "checklist": [
+        "Annoncez favorable ou non",
+        "Dites-le clairement",
+        "Gardez cet avis"
+      ],
+      "constraintTags": [
+        {
+          "label": "Avis clair",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Horaire tranché",
+          "icon": "TIME"
+        }
+      ],
+      "tip": "un oui ou un non clair, puis une phrase d'explication",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "L'avis est annoncé sans ambiguïté et il ne change pas."
+        }
+      }
+    },
+    "EO3-C1-S10": {
+      "instruction": "Dites si vous êtes pour ou contre ce partage. Votre position doit être claire, même si vous rapportez l'avis des autres.",
+      "uniqueCriterion": "Rendre sa position identifiable, sans se cacher derrière l'avis des autres.",
+      "checklist": [
+        "Tranchez : pour ou contre",
+        "Dites-le sans ambiguïté",
+        "Restez sur cette ligne"
+      ],
+      "constraintTags": [
+        {
+          "label": "Position nette",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Avis unique",
+          "icon": "NUMBER"
+        }
+      ],
+      "tip": "rapporter ce que pensent les autres ne remplace pas votre avis",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La position est nommée sans détour et reste la même jusqu'au bout."
+        }
+      }
+    },
+    "EO3-C1-S11": {
+      "instruction": "Dites si vous préférez tourner sur les postes ou garder le même. Votre préférence doit rester identifiable même si vous pesez le pour et le contre.",
+      "uniqueCriterion": "Donner une préférence claire, sans se limiter au pour et au contre.",
+      "checklist": [
+        "Choisissez tourner ou rester",
+        "Dites-le sans ambiguïté",
+        "Ne revenez pas dessus"
+      ],
+      "constraintTags": [
+        {
+          "label": "Préférence annoncée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans détour",
+          "icon": "TONE"
+        }
+      ],
+      "tip": "votre préférence doit s'entendre, pas seulement vos arguments",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La préférence est posée sans ambiguïté, le reste vient l'appuyer."
+        }
+      }
+    },
+    "EO3-C1-S12": {
+      "instruction": "Dites laquelle des deux formules vous choisiriez. Le choix doit être clairement identifiable, et ne pas changer en cours de route.",
+      "uniqueCriterion": "Nommer clairement la formule choisie et ne pas en changer ensuite.",
+      "checklist": [
+        "Choisissez une formule",
+        "Nommez-la clairement",
+        "Gardez ce choix"
+      ],
+      "constraintTags": [
+        {
+          "label": "Formule nommée",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Une seule formule",
+          "icon": "NUMBER"
+        }
+      ],
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La formule choisie est nommée sans détour et tenue jusqu'au bout."
+        }
+      }
+    }
+  },
+  "EO3-C5": {
+    "EO3-C5-S1": {
+      "instruction": "Apportez une idée nouvelle en faveur du travail en équipe. Elle doit porter sur autre chose que la rapidité.",
+      "uniqueCriterion": "L'idée apportée est nettement différente de la précédente, elle ne la reformule pas.",
+      "checklist": [
+        "Apportez une idée nouvelle",
+        "Changez de terrain",
+        "Écartez la question du temps"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Terrain différent",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Il y a autre chose encore…",
+      "tip": "redire le même argument autrement ne fait pas avancer le propos",
+      "references": {
+        "EXCELLENT": {
+          "text": "Autre chose, et ça n'a rien à voir avec le temps : la qualité. À plusieurs, chacun relit le travail de l'autre, et une erreur qui aurait coûté cher est repérée dès le début, pas à la livraison.",
+          "pedagogicalNote": "La distinction avec l'idée précédente est annoncée puis tenue."
+        }
+      }
+    },
+    "EO3-C5-S2": {
+      "instruction": "Apportez une idée nouvelle en faveur du vélo en ville, sur un autre terrain que l'argent.",
+      "uniqueCriterion": "Une idée nouvelle est apportée et elle ne parle plus du coût.",
+      "checklist": [
+        "Signalez que vous ajoutez une idée",
+        "Évitez toute question de coût",
+        "Développez cette idée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors budget",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La nouvelle idée reprend le budget, terrain déjà couvert."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "La fiabilité horaire est une idée neuve, clairement séparée."
+        },
+        "EXCELLENT": {
+          "text": "Sur un tout autre plan, maintenant : la régularité. Un trajet à vélo dure vingt minutes le lundi comme le vendredi soir, alors qu'en voiture le même trajet peut doubler. On ne parle plus de budget là, on parle de fiabilité."
+        }
+      }
+    },
+    "EO3-C5-S3": {
+      "instruction": "Apportez une idée nouvelle en faveur des sorties scolaires, différente de la motivation.",
+      "uniqueCriterion": "L'idée apportée ouvre un autre aspect que celui déjà évoqué.",
+      "checklist": [
+        "Ouvrez un aspect nouveau",
+        "Laissez de côté la motivation",
+        "Expliquez brièvement cet apport"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect nouveau",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "insister sur la motivation reviendrait à répéter ce qui a déjà été dit",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "La vie du groupe est une idée bien distincte de la précédente."
+        },
+        "EXCELLENT": {
+          "text": "Un autre aspect, qui n'a rien à voir avec l'envie d'apprendre : les relations. Dans le car et pendant le pique-nique, des élèves qui s'ignoraient se découvrent. Et cette journée-là continue de se sentir en classe pendant des semaines.",
+          "pedagogicalNote": "L'idée est neuve, située, et son effet durable est précisé."
+        }
+      }
+    },
+    "EO3-C5-S4": {
+      "instruction": "Apportez une idée nouvelle en faveur de ces rendez-vous, sur un autre aspect que le dépistage précoce.",
+      "uniqueCriterion": "L'idée apportée porte sur un aspect nouveau, sans revenir au dépistage.",
+      "checklist": [
+        "Trouvez un intérêt hors dépistage",
+        "Apportez-le comme idée nouvelle",
+        "Montrez qu'il tient seul"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors dépistage",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Un autre intérêt, très différent…",
+      "tip": "revenir au dépistage précoce annulerait l'effet de cette nouvelle idée",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le dépistage revient : c'est l'idée précédente, rien de neuf."
+        },
+        "EXCELLENT": {
+          "text": "Un autre intérêt, et il ne concerne pas la maladie : le conseil. En vingt minutes, le médecin regarde vos horaires, votre poste, votre sommeil, et il propose deux ou trois changements réalistes. C'est une consultation qui sert même quand tous les résultats sont normaux.",
+          "pedagogicalNote": "L'idée tient debout seule, y compris si rien n'est détecté."
+        }
+      }
+    },
+    "EO3-C5-S5": {
+      "instruction": "Apportez une idée nouvelle en faveur de ces outils, clairement distincte du lien familial.",
+      "uniqueCriterion": "L'idée apportée aborde un domaine différent du maintien du lien familial.",
+      "checklist": [
+        "Sortez du lien familial",
+        "Nommez un autre domaine",
+        "Illustrez-le en une phrase"
+      ],
+      "constraintTags": [
+        {
+          "label": "Autre domaine",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "changez franchement de domaine : le lien familial a déjà été dit",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "L'idée du lien familial est simplement redéveloppée, pas remplacée."
+        },
+        "EXCELLENT": {
+          "text": "Sur un terrain complètement différent, maintenant : l'organisation locale. Dans mon immeuble, le groupe de discussion règle en cinq minutes une panne d'ascenseur ou une clé perdue. Ça n'a plus rien à voir avec la famille, c'est du service entre voisins."
+        }
+      }
+    },
+    "EO3-C5-S6": {
+      "instruction": "Apportez une idée nouvelle en faveur du gardien, sur autre chose que la propreté.",
+      "uniqueCriterion": "L'idée apportée porte sur autre chose que la propreté des lieux.",
+      "checklist": [
+        "Apportez une idée nouvelle",
+        "Quittez la question de la propreté",
+        "Développez cette idée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Autre terrain",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Autre chose, tout aussi importante…",
+      "tip": "reparler de propreté ne ferait que redire ce qui a déjà été dit",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "C'est la propreté redite autrement : aucune idée nouvelle n'apparaît."
+        },
+        "EXCELLENT": {
+          "text": "Autre chose, et ça n'a rien à voir avec le ménage : la présence. L'an dernier, une fuite dans le parking a été repérée le matin même, simplement parce que le gardien passe par là tous les jours. Sans lui, on l'aurait découverte avec la facture d'eau."
+        }
+      }
+    },
+    "EO3-C5-S7": {
+      "instruction": "Apportez une idée nouvelle en faveur de ce local, sur un autre terrain que le vol.",
+      "uniqueCriterion": "L'idée apportée ne revient pas sur la question du vol.",
+      "checklist": [
+        "Signalez une idée nouvelle",
+        "Laissez le vol de côté",
+        "Expliquez cet apport"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors du vol",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le vol est simplement redéveloppé : l'idée nouvelle manque."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "L'idée change de terrain et s'appuie sur un détail vérifiable."
+        }
+      }
+    },
+    "EO3-C5-S8": {
+      "instruction": "Apportez une idée nouvelle en faveur de cette ouverture, différente des horaires de travail.",
+      "uniqueCriterion": "L'idée apportée sort de la question des horaires de travail.",
+      "checklist": [
+        "Ouvrez un autre terrain",
+        "Évitez la question des horaires",
+        "Appuyez cette idée nouvelle"
+      ],
+      "constraintTags": [
+        {
+          "label": "Autre terrain",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "revenir aux horaires ferait de votre idée une simple répétition",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les horaires de travail reviennent : c'est l'idée précédente, rien de neuf."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "L'idée est neuve, chiffrée, et la conclusion la rend évidente."
+        }
+      }
+    },
+    "EO3-C5-S9": {
+      "instruction": "Apportez une idée nouvelle contre le tout-automatique, sur un autre aspect que la difficulté d'utilisation.",
+      "uniqueCriterion": "L'idée apportée aborde un aspect nouveau, hors de la difficulté d'utilisation.",
+      "checklist": [
+        "Nommez un aspect nouveau",
+        "Écartez la difficulté d'usage",
+        "Développez cette idée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Aspect nouveau",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "revenir à la difficulté d'usage annulerait l'effet de cette idée nouvelle",
+      "references": {
+        "EXCELLENT": {
+          "text": "Ce n'est pas le seul point, et celui-ci n'a rien à voir avec les écrans : l'emploi. Dans ce magasin, la caisse est le premier travail de beaucoup de jeunes du quartier, et souvent le seul poste qui accepte un temps partiel. Remplacer six caisses, ce n'est pas moderniser, c'est supprimer six contrats.",
+          "pedagogicalNote": "La nouvelle idée est située, autonome, et clairement séparée de la précédente."
+        }
+      }
+    },
+    "EO3-C5-S10": {
+      "instruction": "Apportez une idée nouvelle pour garder le marché, en dehors de la qualité des produits.",
+      "uniqueCriterion": "L'idée apportée quitte la question de la qualité des produits.",
+      "checklist": [
+        "Sortez de la qualité",
+        "Apportez une idée nouvelle",
+        "Illustrez-la brièvement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors qualité",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Une autre idée, très différente…",
+      "references": {
+        "EXPECTED": {
+          "text": "Une autre idée, très différente : le marché fait travailler les commerces autour. Le samedi matin, le café de la place et la boulangerie voient passer la moitié de leurs clients de la semaine."
+        },
+        "EXCELLENT": {
+          "text": "Une autre idée, très différente, qui ne parle plus de ce qu'on achète : l'activité de la place. Le samedi matin, le café fait le tiers de sa semaine et la boulangerie double sa file. Supprimer le marché, ce n'est pas enlever vingt étals, c'est vider une place et fragiliser deux commerces qui, eux, restent ouverts toute l'année."
+        }
+      }
+    },
+    "EO3-C5-S11": {
+      "instruction": "Apportez une idée nouvelle en faveur de la boulangerie, hors de la question du goût.",
+      "uniqueCriterion": "L'idée apportée porte sur autre chose que le goût du pain.",
+      "checklist": [
+        "Quittez la question du goût",
+        "Apportez une idée nouvelle",
+        "Donnez-lui un contenu concret"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors goût",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Il y a un autre aspect…",
+      "tip": "le goût est traité : votre idée doit changer de terrain",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le goût est décrit plus longuement, mais reste l'idée précédente."
+        },
+        "EXPECTED": {
+          "text": "Il y a un autre aspect : la distance. La boulangerie est à trois minutes à pied, donc je ne sors pas la voiture pour une baguette, et ma voisine de quatre-vingts ans y descend seule.",
+          "pedagogicalNote": "La proximité est une idée neuve, sans lien avec la qualité du pain."
+        },
+        "EXCELLENT": {
+          "text": "Il y a un autre aspect, qui n'a rien à voir avec le goût : le déplacement. Trois minutes à pied, contre vingt minutes de voiture et de parking pour aller en grande surface. Et ce détail compte surtout pour ceux qui ne conduisent plus : ma voisine de quatre-vingts ans y descend seule chaque matin, et c'est sa sortie de la journée.",
+          "pedagogicalNote": "L'idée est neuve et son effet est montré sur une personne précise."
+        }
+      }
+    },
+    "EO3-C5-S12": {
+      "instruction": "Apportez une idée nouvelle en faveur de la boucherie, sans revenir au gaspillage.",
+      "uniqueCriterion": "L'idée apportée n'évoque plus la quantité ni le gaspillage.",
+      "checklist": [
+        "Laissez de côté le gaspillage",
+        "Apportez une idée nouvelle",
+        "Rendez-la concrète"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors gaspillage",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "reparler de quantité vous ramènerait à ce que vous avez déjà dit",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La quantité et le gaspillage reviennent : aucune idée nouvelle n'apparaît."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "L'idée neuve est illustrée par une scène précise et se suffit à elle-même."
+        }
+      }
+    },
+    "EO3-C5-S13": {
+      "instruction": "Apportez une idée nouvelle en faveur de la livraison, sans revenir au poids des courses.",
+      "uniqueCriterion": "L'idée apportée ouvre un domaine nouveau, hors du transport des sacs.",
+      "checklist": [
+        "Écartez le poids des sacs",
+        "Ouvrez un domaine nouveau",
+        "Développez-le en deux phrases"
+      ],
+      "constraintTags": [
+        {
+          "label": "Domaine nouveau",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Sur un autre plan, maintenant…",
+      "references": {
+        "EXPECTED": {
+          "text": "Sur un autre plan, maintenant : l'indépendance. Vous n'aurez plus besoin d'attendre que quelqu'un soit disponible le samedi pour vous emmener au magasin."
+        },
+        "EXCELLENT": {
+          "text": "Sur un autre plan, et ça ne concerne plus les sacs : l'autonomie. Aujourd'hui, vous attendez que votre fils ait un samedi libre, donc vos courses dépendent de son agenda. Avec la livraison, c'est vous qui choisissez le jour, l'heure et les marques. Ce n'est plus une aide qu'on vous rend, c'est vous qui décidez de nouveau.",
+          "pedagogicalNote": "Le domaine est nommé, tenu, et l'idée tient debout sans la précédente."
+        }
+      }
+    },
+    "EO3-C5-S14": {
+      "instruction": "Apportez une idée nouvelle, sur un terrain complètement différent de la responsabilité.",
+      "uniqueCriterion": "L'idée apportée change de terrain et ne reparle pas de responsabilité.",
+      "checklist": [
+        "Quittez le terrain de la responsabilité",
+        "Nommez un autre terrain",
+        "Argumentez-la clairement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Autre terrain",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Il y a un autre angle…",
+      "tip": "reparler de faute ou de responsabilité ne produit aucune idée nouvelle",
+      "references": {
+        "EXPECTED": {
+          "text": "Il y a un autre angle : l'emballage. C'est le vendeur qui choisit le carton, le calage et le transporteur, donc c'est lui, et lui seul, qui peut réellement éviter la casse."
+        },
+        "EXCELLENT": {
+          "text": "Il y a un autre angle, qui ne parle plus de faute : qui a les moyens d'agir. Le vendeur choisit le carton, le calage et le transporteur ; le client, lui, ne choisit rien du tout. Tant que la casse coûte au client, personne n'améliore l'emballage ; le jour où elle coûte au vendeur, il met du papier bulle. C'est une question d'efficacité, pas de justice."
+        }
+      }
+    },
+    "EO3-C5-S15": {
+      "instruction": "Apportez une idée nouvelle en faveur de cette obligation, hors de l'argument écologique.",
+      "uniqueCriterion": "L'idée apportée sort de l'argument écologique déjà donné.",
+      "checklist": [
+        "Sortez de l'argument écologique",
+        "Apportez une idée nouvelle",
+        "Appuyez-la sur un fait"
+      ],
+      "constraintTags": [
+        {
+          "label": "Hors écologie",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Idée nouvelle",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Autre chose, complètement indépendant de ce que j'ai dit…",
+      "tip": "reparler de déchets vous ferait redire ce que vous avez déjà donné",
+      "references": {
+        "EXPECTED": {
+          "text": "Autre chose, complètement indépendant de ce que j'ai dit : le budget des familles. Racheter un lave-vaisselle à cinq cents euros parce qu'une pièce à trente euros n'existe plus, c'est une dépense qui ne se justifie pas."
+        },
+        "EXCELLENT": {
+          "text": "Autre chose, complètement indépendant de ce que j'ai dit, et qui ne parle plus de la planète : le porte-monnaie. Une carte électronique coûte trente euros, une machine neuve en coûte cinq cents. Quand la pièce n'est plus fabriquée, la même panne est multipliée par quinze pour le client. Et ce sont les foyers les plus modestes qui paient cette différence, parce que ce sont eux qui gardent leurs appareils le plus longtemps.",
+          "pedagogicalNote": "L'idée neuve est chiffrée et tient debout même sans la précédente."
+        }
+      }
+    }
+  },
+  "EO3-C8": {
+    "EO3-C8-S1": {
+      "instruction": "Répondez d'un seul tenant, sans que la parole retombe : reliez chaque idée à la précédente.",
+      "uniqueCriterion": "Le propos est suivi : les idées sont reliées entre elles et la parole ne retombe pas.",
+      "checklist": [
+        "Enchaînez sans vous arrêter",
+        "Reliez chaque idée à la précédente",
+        "Tenez la durée demandée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "des mots comme « parce que », « du coup », « ce qui fait que » tiennent le fil",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les idées s'accumulent sans lien : le propos ne tient pas."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées s'enchaînent sans rupture et le propos tient jusqu'au bout."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque idée prépare la suivante : le propos avance sans jamais retomber."
+        }
+      }
+    },
+    "EO3-C8-S2": {
+      "instruction": "Répondez d'un seul tenant, en reliant vos idées les unes aux autres.",
+      "uniqueCriterion": "Le propos est suivi : les idées sont reliées entre elles et la parole ne retombe pas.",
+      "checklist": [
+        "Enchaînez sans vous arrêter",
+        "Reliez chaque idée à la précédente",
+        "Tenez la durée demandée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "un propos qui tient n'est pas un propos long : c'est un propos lié",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Beaucoup d'idées, aucune reliée : le propos se disperse."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "L'enchaînement est net et le propos ne retombe à aucun moment."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque idée sert la précédente : le propos avance sans changer de sujet."
+        }
+      }
+    },
+    "EO3-C8-S3": {
+      "instruction": "Répondez en une prise de parole continue et nourrie, en appuyant chaque idée sur la précédente.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Appuyez chaque idée sur la précédente",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "reprendre ce que vous venez de dire permet de repartir sans vous arrêter",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Le propos s'interrompt : aucune idée n'est reprise ni développée."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées s'enchaînent sans rupture et le propos reste nourri."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque reprise relance le propos au lieu de le répéter."
+        }
+      }
+    },
+    "EO3-C8-S4": {
+      "instruction": "Répondez d'un seul tenant, en nourrissant votre propos et en reliant chaque idée à la suivante.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Ajoutez un exemple chiffré",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Conseil assumé",
+          "icon": "TONE"
+        },
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "un exemple chiffré nourrit le propos en quelques mots",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La réponse énumère puis se dilue : le propos ne tient pas."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos avance sans rupture et reste sur le sujet du début à la fin."
+        }
+      }
+    },
+    "EO3-C8-S5": {
+      "instruction": "Répondez de manière continue et organisée : un sujet à deux faces invite à empiler les idées, organisez-les au lieu de les énumérer.",
+      "uniqueCriterion": "Le propos reste organisé au lieu de s'empiler : les idées sont liées et hiérarchisées.",
+      "checklist": [
+        "Organisez au lieu d'énumérer",
+        "Reliez les idées entre elles",
+        "Tenez le fil jusqu'au bout"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos organisé",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans accumulation",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "hiérarchisez : une idée principale tenue vaut mieux que six idées posées",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Deux listes se répondent : les idées s'empilent sans être organisées."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées sont liées et hiérarchisées : le propos reste organisé."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos progresse sans jamais se transformer en énumération."
+        }
+      }
+    },
+    "EO3-C8-S6": {
+      "instruction": "Reprenez votre réponse d'un seul tenant, en reliant chaque idée à la précédente.",
+      "uniqueCriterion": "Le propos est suivi : les idées sont reliées entre elles et la parole ne retombe pas.",
+      "checklist": [
+        "Enchaînez sans vous arrêter",
+        "Reliez chaque idée à la précédente",
+        "Tenez la durée demandée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "une phrase lâchée puis abandonnée ne fait pas un propos",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les idées s'accumulent sans lien : le propos ne tient pas."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées s'enchaînent sans rupture et le propos tient jusqu'au bout."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque idée prépare la suivante : le propos avance sans jamais retomber."
+        }
+      }
+    },
+    "EO3-C8-S7": {
+      "instruction": "Répondez en une seule prise de parole continue, en reliant clairement vos idées.",
+      "uniqueCriterion": "Le propos est suivi : les idées sont reliées entre elles et la parole ne retombe pas.",
+      "checklist": [
+        "Enchaînez sans vous arrêter",
+        "Reliez chaque idée à la précédente",
+        "Tenez la durée demandée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "annoncez vos liens : on vous suit sans effort",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Deux listes se répondent : rien ne relie les idées entre elles."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées s'enchaînent sans rupture et le propos tient jusqu'au bout."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos se déplace d'une idée à l'autre sans jamais se répéter."
+        }
+      }
+    },
+    "EO3-C8-S8": {
+      "instruction": "Répondez de façon continue, en reliant vos idées les unes aux autres.",
+      "uniqueCriterion": "Le propos est suivi : les idées sont reliées entre elles et la parole ne retombe pas.",
+      "checklist": [
+        "Enchaînez sans vous arrêter",
+        "Reliez chaque idée à la précédente",
+        "Tenez la durée demandée"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos suivi",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "reprendre votre dernier mot est la façon la plus simple de repartir",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La réponse se dilue en conditions : le propos ne tient plus."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "L'enchaînement est net et le propos ne retombe à aucun moment."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "L'exemple relance le propos au lieu de le clore trop tôt."
+        }
+      }
+    },
+    "EO3-C8-S9": {
+      "instruction": "Répondez en une prise de parole continue et nourrie, sans revenir en arrière.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Appuyez chaque idée sur la précédente",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "avancer, c'est reprendre ce qu'on vient de dire pour aller plus loin",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les idées s'empilent : le fil du propos se perd."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le fil est tenu jusqu'au bout, sans retour en arrière."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque reprise fait avancer le propos au lieu de le répéter."
+        }
+      }
+    },
+    "EO3-C8-S10": {
+      "instruction": "Répondez d'un seul tenant, en nourrissant votre propos et en le reliant d'une idée à l'autre.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Ajoutez un exemple chiffré",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Conseil assumé",
+          "icon": "TONE"
+        },
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "un chiffre bien placé nourrit le propos en une phrase",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La parole retombe : le propos s'arrête avant d'avoir tenu."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Le propos est nourri et l'exemple chiffré le relance sans rupture."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos se relance à chaque idée, sans jamais se répéter."
+        }
+      }
+    },
+    "EO3-C8-S11": {
+      "instruction": "Répondez en continu, en appuyant chaque idée sur la précédente.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Appuyez chaque idée sur la précédente",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "un exemple qui traîne casse le fil : reliez-le à ce qui précède",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "La réponse énumère des cas possibles sans jamais les relier."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées s'enchaînent proprement et le propos reste nourri."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le cas particulier devient une règle : le propos gagne en hauteur sans rupture."
+        }
+      }
+    },
+    "EO3-C8-S12": {
+      "instruction": "Répondez en une prise de parole organisée et nourrie, en reliant chaque idée à la suivante.",
+      "uniqueCriterion": "Le propos est suivi et nourri : chaque idée s'appuie sur la précédente, sans rupture.",
+      "checklist": [
+        "Enchaînez sans rupture",
+        "Appuyez chaque idée sur la précédente",
+        "Nourrissez le propos"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos nourri",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Liens explicites",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "reliez chaque idée : sans lien, la réponse ressemble à une liste",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Deux listes se suivent, sans aucun lien entre elles."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées sont reliées et le propos reste nourri jusqu'au bout."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le critère décisif émerge du propos lui-même, sans rupture."
+        }
+      }
+    },
+    "EO3-C8-S13": {
+      "instruction": "Répondez de manière continue et organisée : organisez vos idées au lieu de les énumérer.",
+      "uniqueCriterion": "Le propos reste organisé au lieu de s'empiler : les idées sont liées et hiérarchisées.",
+      "checklist": [
+        "Organisez au lieu d'énumérer",
+        "Reliez les idées entre elles",
+        "Tenez le fil jusqu'au bout"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos organisé",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans accumulation",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "une idée tenue et développée porte plus loin que quatre idées posées",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les idées sont posées côte à côte, sans hiérarchie ni lien."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Les idées sont liées et hiérarchisées : le propos reste organisé."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos monte d'un cran à chaque idée, sans jamais s'empiler."
+        }
+      }
+    },
+    "EO3-C8-S14": {
+      "instruction": "Répondez en tenant votre propos d'un bout à l'autre, sans empiler les cas possibles.",
+      "uniqueCriterion": "Le propos reste organisé au lieu de s'empiler : les idées sont liées et hiérarchisées.",
+      "checklist": [
+        "Organisez au lieu d'énumérer",
+        "Reliez les idées entre elles",
+        "Tenez le fil jusqu'au bout"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos organisé",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans accumulation",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "évitez d'empiler les cas : une idée développée tient mieux qu'une liste",
+      "references": {
+        "INSUFFICIENT": {
+          "pedagogicalNote": "Les cas s'empilent : aucune idée n'est développée ni reliée."
+        },
+        "EXPECTED": {
+          "pedagogicalNote": "Une idée développée et reliée suffit : le propos tient debout."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Le propos avance d'un cran à la fois, sans jamais revenir en arrière."
+        }
+      }
+    },
+    "EO3-C8-S15": {
+      "instruction": "Répondez d'un seul tenant, sans revenir en arrière et sans tourner en rond.",
+      "uniqueCriterion": "Le propos reste organisé au lieu de s'empiler : les idées sont liées et hiérarchisées.",
+      "checklist": [
+        "Organisez au lieu d'énumérer",
+        "Reliez les idées entre elles",
+        "Tenez le fil jusqu'au bout"
+      ],
+      "constraintTags": [
+        {
+          "label": "Propos organisé",
+          "icon": "STRUCTURE"
+        },
+        {
+          "label": "Sans accumulation",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "tip": "tourner en rond n'est pas tenir un propos : chaque phrase doit ajouter",
+      "references": {
+        "EXPECTED": {
+          "pedagogicalNote": "Le fil est tenu d'un bout à l'autre, sans répétition."
+        },
+        "EXCELLENT": {
+          "pedagogicalNote": "Chaque phrase apporte quelque chose : le propos ne piétine jamais."
+        }
+      }
+    }
+  }
+}

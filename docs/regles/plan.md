@@ -1,0 +1,2884 @@
+# Plan personnalisé et Plan adaptatif
+
+> **Extrait de `CLAUDE.md` racine le 2026-08-23**, lors de la restructuration du fichier
+> (343 599 chars pour une limite de 150 000, rechargé à chaque requête). **Contenu verbatim, aucune réécriture.**
+> Origine : lignes 814-1195, 1406-1901 de l'ancien `CLAUDE.md`.
+> **Lu à la demande** — ce fichier n'est jamais chargé automatiquement.
+> Ce fichier porte la loi de ce sous-système : on l'ouvre **quand on travaille dedans**.
+> Journal du Plan : il n'a **pas** de fichier `docs/decisions/` séparé — les révocations et
+> arbitrages datés sont restés **en place**, dans le corps des règles, parce qu'ils y sont
+> inséparables de la règle qu'ils fondent. Voir aussi `docs/decisions/diagnostic.md`
+> (V040/V041/V042) et `docs/decisions/contradictions-ouvertes.md` (#3, coût du Plan).
+> Traçabilité complète : `docs/inventaire-claude-md.md`.
+
+---
+
+- **Une étape du Plan = les 5 premiers sujets actifs de sa compétence**, par
+  `display_order` croissant (`LearningPlanStep.PROMPTS_PAR_ETAPE`, arbitré le
+  2026-08-11). **Dérivé, jamais persisté** : aucune table, aucune migration, le
+  périmètre se relit du rang d'affichage — mêmes 5 sujets pour tout le monde,
+  ils ne bougent jamais. Avant, une étape exigeait les **15** sujets (« 2/15 »),
+  que personne n'allait finir. Une compétence publiant moins de 5 sujets a une
+  étape plus courte : le périmètre vaut ce qui existe, **aucun dénominateur
+  n'est inventé**. « Tous distincts » est **acquis par construction**
+  (`latestObservedBySkill` ne garde qu'une observation par compétence) : **ne
+  jamais construire de mécanisme d'unicité inter-étapes**, il serait mort-né.
+- **Compteurs d'étape À CÔTÉ des compteurs de compétence, jamais à leur place.**
+  `LearningPlanPriorityDto` porte les deux : `promptCount`/`attemptedCount`/
+  `validatedCount` = la **compétence** (15 sujets, sémantique de `SkillDto`,
+  inchangée) ; `stepPromptCount`/`stepAttemptedCount`/`stepValidatedCount`/
+  `stepCompleted` = l'**étape** (5 sujets). C'est le second jeu que les fronts
+  affichent sur l'anneau d'une étape. Détourner le premier à 5 ferait dire
+  « /5 » au Plan et « /15 » à la fiche de compétence pour une même compétence.
+  `LearningPlanSkillDto` (compétences observées) **n'est pas une étape** et ne
+  porte que les compteurs de compétence. Un seul calcul dans
+  `SkillProgressCounter` (+ `SkillProgressTally`, `SkillStatusResolver`), **2
+  requêtes** quel que soit le nombre de compétences.
+- **Le PÉRIMÈTRE de l'étape est publié, pas redécoupé par les fronts** :
+  `LearningPlanPriorityDto.stepPromptIds` (liste ordonnée d'UUID, **jamais
+  `null`**, éventuellement vide, `display_order` croissant sur les sujets
+  actifs), dérivée de `LearningPlanStep.scope`. Invariant garanti :
+  `stepPromptIds.size() == stepPromptCount` — le compteur en est **dérivé**, ils
+  ne peuvent plus diverger. **Zéro requête ajoutée** : les sujets étaient déjà
+  chargés pour les compteurs. Motif : ouvrir une compétence **depuis le Plan**
+  affichait « 1/15 » (la fiche générique), l'étape se perdait à la navigation.
+  Les fronts servent désormais un écran **scopé aux 5 sujets** quand on vient du
+  Plan, et la fiche complète (« x/15 ») par le chemin Réviser → Compétences —
+  deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
+  « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
+  étapes différentes.
+- **UNE SEULE définition de « transfert prouvé », et elle vit chez le moteur**
+  (2026-08-16, `SkillMastery.transferProven()`) : l'état agrégé vaut `SOLID`,
+  **ou** une réussite en situation (`SOLID` issu de `PRODUCTION_EE/EO` ou
+  `MOCK_EXAM_EE/EO` — jamais un micro-entraînement, jamais le diagnostic qui est
+  la baseline) est encore dans `transfer-proof-days` **et** les fragilités
+  contextualisées récentes restent sous `fragility-tolerance`. Une compétence
+  dont le transfert est prouvé cesse d'être *actionable* : elle sort des
+  priorités et la suivante devient l'étape n°1.
+  `LearningPlanPriorityResolver.transfertProuve` ne fait que **lire** ce
+  booléen — il ne relit plus l'historique.
+  ⚠️ **Cette règle RÉVOQUE celle du 2026-08-15** (« la **dernière** observation
+  contextualisée fait foi »), qui avait une tolérance **nulle** et enfermait le
+  candidat : une seule production moins bonne révoquait trois `SOLID`
+  antérieurs, la compétence restait priorité **à vie**, et le moteur — qui la
+  jugeait déjà `SOLID` — refusait en même temps d'ouvrir la vérification
+  (`readyForReassessment` court-circuite sur `state == SOLID`). Impasse mesurée
+  en base sur `user@sejourfr.fr`/`EE1-C8`, plus 4 autres compétences du même
+  compte. Ne pas la réintroduire.
+  ⚠️ **Aligner sur le seul `state == SOLID` NE MARCHE PAS non plus** — piège
+  arithmétique, vérifié : dans le parcours normal (5 micro-sujets validés + 1
+  vérification réussie) le score plafonne à **0,679** pour un `solid-score` de
+  **0,75**, les 5 `TO_REINFORCE` ciblés à 0,5 diluant la moyenne. Les 5
+  conditions structurelles de `SOLID` sont pourtant réunies : c'est le **seuil de
+  score** qui manque. Exiger `SOLID` déplacerait donc l'impasse d'un cran et
+  imposerait une **seconde** preuve en situation, contre la décision « une
+  réussite suffit ». D'où la seconde branche. Verrou :
+  `SkillMasteryEngineTest.cinqSujetsPuisUneVerificationProuventLeTransfert`
+  (assert `transferProven()` **et** `state != SOLID`).
+  **Corollaire** : une étape franchie n'est **pas** forcément `SOLID` — sur le
+  compte réel, 1 l'est et 4 sont `CONSOLIDATING`. `PlanMilestoneSelector`
+  (≥ 2 compétences `SOLID`) est donc **inchangé**, et les fronts ne doivent
+  **jamais** conditionner la coche verte à `masteryState == SOLID` :
+  l'appartenance à `completedSteps` **est** la coche.
+  🛑 **`recentContextualProof` ne se pose que sur une contextualisée `SOLID`**
+  (corrigé le 2026-08-16) : il l'était sur tout `valeur >= 0.5`, donc une
+  production jugée **fragile** comptait comme preuve de transfert et **éteignait**
+  le signal de vérification. Ne change rien au cas ci-dessus (de vrais `SOLID`
+  existaient) ; débloque les candidats dont la seule trace en situation était une
+  fragilité.
+  ⚠️ **Le déclencheur de la vérification est INCHANGÉ** : toujours
+  `readyForReassessment` **et** `step.completed()`.
+  Conséquence sur le freemium : `SkillAccessService` ouvrant la compétence de la
+  priorité n°1, celle-ci **se déplace** avec l'enchaînement. Sans effet réel pour
+  un compte gratuit, qui plafonne à 2 sujets sur 5, ne termine jamais une étape
+  et n'obtient donc jamais cette preuve par cette voie.
+- **Une étape franchie RESTE dans le parcours, cochée** —
+  `LearningPlanDto.completedSteps` (`LearningPlanCompletedStepDto`, **jamais
+  `null`**, vide = cas normal, **bornée à 5** les plus récentes, ordre du plus
+  ancien au plus récent). Elle se lit **avant** `currentPriority` puis
+  `nextPriorities`, dans le **même parcours numéroté**. Sans elle, une compétence
+  prouvée **disparaissait** et le candidat perdait la trace de ce qu'il avait
+  franchi. Elle ne porte **ni `recommendedExercise` ni `locked`** : il n'y a rien
+  à y faire, et ce n'est pas une porte commerciale. L'historique complet reste
+  l'affaire de l'écran Progression.
+- **Achèvement d'une étape, dérivé serveur** (`LearningPlanStep.Progress
+  .completed()`, jamais persisté, jamais recalculé par un front — philosophie
+  `SkillStatusResolver` / `SituationDansNiveau`) : terminée quand ses 5 sujets
+  ont été **traités** (`status.isAttempted()`, tout sauf `TODO`). **Terminée ≠
+  tout validé** — `stepValidatedCount` reste l'information distincte. Une étape
+  sans sujet actif n'est jamais terminée. ⚠️ **Une étape terminée ne disparaît
+  pas du Plan** : les priorités ne changent qu'à l'arrivée d'une nouvelle
+  observation (`LearningPlanObservationService`), donc à la prochaine
+  production. C'est le comportement correct — aux fronts de le dire clairement.
+- **L'exercice recommandé doit faire avancer** — règle unique partagée par le
+  Plan et l'écran de résultat du diagnostic (`RecommendedExerciseSelector`, seul
+  endroit) : (1) premier sujet **jamais tenté** par `display_order` croissant,
+  (2) sinon le sujet `TO_REINFORCE` dont la dernière tentative est la plus
+  ancienne, (3) sinon le sujet tenté le plus anciennement, (4) sinon rien. Statut
+  dérivé par `SkillStatusResolver`, chargement en lot (2 requêtes quel que soit
+  le nombre de compétences). Avant, les deux appelants prenaient le sujet de rang
+  1 et le resservaient indéfiniment. **Le périmètre est celui de l'ÉTAPE** : le
+  choix se fait parmi les 5 premiers sujets actifs (`LearningPlanStep.scope`),
+  jamais sur les 15 — sinon « Continuer cette étape » enverrait hors étape et
+  l'anneau « x/5 » ne bougerait pas. Les **4 branches sont intactes**, seul
+  l'ensemble sur lequel elles s'appliquent est réduit, et la borne vaut pour les
+  **deux** appelants : le diagnostic désigne la compétence de la priorité n°1,
+  il doit pointer dans les mêmes 5. `estimatedMinutes` est **dérivé du sujet**
+  (EO : temps de parole conseillé × 3 pour lecture/préparation ; EE : milieu de
+  la fourchette de mots à 12 mots/minute ; repli 5/4 min si la donnée manque).
+- **Plan source de vérité serveur** : `GET /api/me/plan` renvoie les états
+  `NEEDS_DIAGNOSTIC`, `DIAGNOSTIC_IN_PROGRESS` ou `ACTIVE`, les priorités déjà
+  ordonnées, l'exercice recommandé et, sur chaque priorité comme sur chaque
+  compétence observée, `promptCount`/`attemptedCount`/`validatedCount` — mêmes
+  compteurs, même calcul (`SkillProgressCounter` + `SkillProgressTally`) que
+  `SkillDto` du module Compétences, jamais un second calcul parallèle (les
+  compteurs d'**étape** s'ajoutent à côté, cf. ci-dessus). `learning_plan_observations` conserve
+  `skill_id`, source typée + `source_id`, preuve, explication, confiance, date et
+  indicateur de baseline. Les fronts affichent cet ordre sans le recalculer ;
+  `NOT_OBSERVED` est conservé dans l'historique mais n'annule jamais la dernière
+  observation probante d'une compétence ;
+  l'écran historique/Progression reste secondaire et séparé.
+  **L'ordre des priorités vit dans `LearningPlanPriorityResolver`**, extrait de
+  `LearningPlanService` le 2026-08-10 parce qu'un second lecteur en dépend :
+  `SkillAccessService` ouvre la compétence de la priorité n°1 à un compte
+  gratuit. Deux copies auraient fini par désigner deux « étapes n°1 »
+  différentes.
+- **On floute l'ACTION pas encore accessible, jamais le RÉSULTAT mesuré**
+  (arbitrage du propriétaire, 2026-08-21). ⚠️ Cette règle **révoque** la
+  formulation précédente — « le Plan reste intégralement visible sans
+  abonnement, aucune priorité, aucune compétence observée, aucun compteur n'est
+  masqué ». Ne pas la réintroduire au motif qu'elle est encore écrite quelque
+  part : ce qui suit fait foi, et trois commits en dépendent.
+  - **Floutés** pour un compte gratuit, sur le Plan : les **items de la séance**
+    et les **lignes de priorité** qui sont verrouillés, plus la liste que
+    reprend la modale « Pourquoi cette séance ? ». Sur le **rapport de
+    diagnostic** : au-delà de 2 priorités, au-delà de 2 points forts, et
+    au-delà du 1er entraînement de l'aperçu de séance.
+  - **Jamais floutés, pour tout le monde** : la carte de priorité actuelle, le
+    profil TCF et ses 4 domaines, le chemin vers
+    l'objectif, « ce qui a changé », les compétences observées, les étapes
+    franchies ; et sur le diagnostic, les niveaux estimés EE/EO, l'objectif, le
+    rail, le résumé, l'`exempleCible` et le détail des deux productions.
+    **Ce sont ses productions et ses mesures.** Masquer là priverait le
+    candidat du résultat de son propre travail.
+  - 🛑 **Le contenu flouté est le VRAI, jamais un décor fabriqué**, et le bloc
+    est retiré de l'arbre d'accessibilité **et** du parcours clavier/tactile
+    (`aria-hidden` + `inert` côté web, `ExcludeSemantics` + `IgnorePointer`
+    côté mobile). Un flou qu'un lecteur d'écran traverse est un contournement
+    et un mensonge d'accessibilité. L'information nette (compteur, CTA) vit
+    **hors** du bloc flouté.
+  - 🛑 **Les compteurs « + N autres » sont VRAIS**, calculés sur ce que le
+    serveur a réellement renvoyé — jamais une constante recopiée de la
+    maquette. `N == 0` ⇒ **le bloc n'existe pas**. Corollaire découvert en
+    livrant : les listes ne doivent plus être **tronquées à la source**
+    (`slice(0,3)` / `.take(4)`), sinon le compteur est faux par construction
+    *et* un abonné perd en silence ce qui dépasse. Le seul plafond d'affichage
+    vit au point d'appel, à côté du compteur qu'il alimente.
+  - **Le floutage suit le `locked` servi par le serveur, jamais le rang de la
+    ligne.** La maquette bloque « à partir du 2ᵉ » parce que son bouchon n'a pas
+    de serveur ; or une compétence de rang 2 peut être réellement ouverte
+    (celle de la priorité n°1 l'est). Flouter par l'index cacherait du contenu
+    accessible.
+  - ⚠️ **Vérifier qu'aucune AUTRE surface de l'écran ne montre en clair ce qui
+    est flouté.** Piège rencontré trois fois : la carte de tête du rapport
+    listait les priorités en entier, la modale « Pourquoi cette séance ? » et
+    la feuille mobile équivalente réénuméraient les items de séance.
+  - L'exercice recommandé reste **désigné** même verrouillé : savoir quoi
+    travailler est ce que le Plan apporte, on ne le détourne pas vers un sujet
+    ouvert qui ne serait plus la priorité mesurée. `locked` est porté par
+    `LearningPlanPriorityDto`, `LearningPlanSkillDto`, `PlanSeanceItemDto` et
+    `PlanRecommendedExerciseDto`.
+  - **Visible ≠ finissable** : les compteurs d'étape sont servis en entier, mais
+    un compte gratuit plafonne à 2/5 (cf. § Freemium).
+- **Un encart de priorité est RÉTRACTABLE dès qu'il y en a plus d'un**
+  (2026-09-13, demande du propriétaire). Fermé, il montre **2 compétences** ;
+  l'ouverture rend **toutes** les autres. Une priorité **seule** ne se replie
+  pas — elle est l'écran. Motif : trois encarts de huit compétences empilés
+  dépliés poussent la priorité n°2 hors de vue.
+  - **Le motif vit dans les DEUX kits**, brique pour brique : `Prio` gagne
+    `details` / `moreLabel` / `lessLabel` / `defaultOpen`
+    (`web_sejoufr/app/_components/sejour/SejourKit.tsx`) et `SfPrio` devient
+    `StatefulWidget` avec les mêmes paramètres
+    (`mobile_sejourfr/lib/core/widgets/sejour/sejour_kit.dart`). Sans les deux
+    libellés, **pas de bouton** : le kit ne compose aucune phrase et ne compte
+    rien.
+  - 🛑 **Plafond d'AFFICHAGE, jamais un filtre** : le résumé de l'en-tête et la
+    barre de progression portent sur **tout** le groupe, et le compteur du
+    bouton (`planGroupMoreLabel`) est calculé sur ce qui est **réellement
+    replié** — jamais le `+ N autres` de l'autre plafond
+    (`kPlanPriorityGroupVisibleRows` / `PLAN_PRIORITY_ROWS_VISIBLE` = 6), qui
+    reste la règle de l'encart **non rétractable**.
+  - **Le contenu replié sort de l'arbre d'accessibilité** — `hidden` côté web,
+    sous-arbre non construit côté Flutter. Un contenu qu'un lecteur d'écran
+    traverse derrière un encart fermé est un mensonge d'accessibilité.
+  - **Un compte gratuit n'a rien à replier** : il ne voit aucune ligne de
+    compétence, donc aucun bouton n'apparaît.
+  - Constantes : `kPlanPriorityGroupCollapsedRows` ⇄ `PLAN_PRIORITY_ROWS_COLLAPSED`
+    (2) et `kPlanGroupLessLabel` ⇄ `PLAN_GROUP_LESS_LABEL` (« Réduire »).
+
+- 🛑 **La PRIORITÉ COURANTE est ÉPINGLÉE — une nouvelle observation ne la
+  remplace pas** (règle produit du **2026-09-13**, arbitrée par le propriétaire).
+  L'ordre des priorités se termine par la **récence** (`LearningPlanPriorityResolver
+  .actionable` : statut, puis confiance, puis `observedAt` décroissant). Une
+  production rendue sur une **autre** compétence prenait donc la première place
+  par sa seule fraîcheur, et l'étape commencée disparaissait de l'écran **au
+  milieu de son cycle**. Cas réel signalé : EE3 « Développer un argument »
+  affichée à **0/5**, remplacée par EO1 « Raconter brièvement une expérience
+  passée » dès la première production orale.
+  - **La première place est donc PERSISTÉE** — `plan_pinned_priorities` (V065),
+    **une ligne par candidat** : `user_id` (clé primaire), `skill_id`,
+    `pinned_at`. C'est la **seule** chose que le Plan écrit en dehors de ses
+    observations, et **l'exception assumée** à « un dérivé se relit, il ne se
+    persiste pas ». Motif : « quelle étape ce candidat a-t-il commencée » ne se
+    dérive de **rien** — l'étape sautait à 0/5, donc aucun sujet traité ne
+    permettait de la retrouver après coup. C'est une **désignation prise à un
+    instant**, au même titre qu'une observation.
+  - 🛑 **La FILE d'attente, elle, n'est PAS persistée et ne doit jamais l'être.**
+    `PlanActionRanker.classer` ordonne déjà le pool **entier** par score, **une
+    action par compétence** — donc sans doublon par construction — et sans
+    plafond ; seul l'affichage coupe (`plan-config`, `display.prioritiesMaxActions`
+    = 5). Une nouvelle faiblesse s'y **range à son rang** au lieu d'écraser
+    l'étape en cours. Persister cet ordre créerait une seconde autorité sur ce
+    que le moteur sait recalculer.
+  - **Où vit la règle** : `PlanFocusResolver.epingler(user, pool)`, l'autorité
+    déjà unique sur « quelle compétence occupe la première place ».
+    `LearningPlanService` lui passe le pool **déjà filtré** (fragilités
+    exécutables puis acquisitions) — épingler sur `actionable` brut désignerait
+    une compétence sans contenu publié, donc une carte que le Plan n'affiche pas
+    et un cadenas levé sur du vide.
+  - 🛑 **La LIBÉRATION n'est écrite nulle part ailleurs.** Aucune colonne
+    d'état, aucun `released_at` : la condition de sortie de cycle est déjà celle
+    de `actionable()`, qui écarte une compétence dont le **transfert est prouvé**
+    (`transferProven`) **ou** dont la **vérification a été rendue**
+    (`verificationSubmitted`). La règle entière tient en une phrase : *tant que
+    la compétence épinglée est dans le pool, elle reste première ; dès qu'elle en
+    sort, l'épingle passe à la tête du classement*. Ne jamais réécrire « 5/5 »,
+    « à vérifier » ou `SOLID` dans l'épingle.
+  - **Conséquences voulues** : (1) micro-entraînement à 3/5 et faiblesse observée
+    ailleurs ⇒ la première place **ne bouge pas** ; (2) 5/5 atteint ⇒ la carte
+    passe à `A_VERIFIER`, dont le poids de nature **tombe de 1000 à 800**, et
+    elle reste **quand même** première parce que l'épingle passe **avant** le
+    score ; (3) vérification rendue ⇒ l'épingle est libérée et la meilleure en
+    attente promue, **même si la compétence n'est pas `SOLID`** — elle reviendra
+    selon les règles du moteur, elle ne sera pas interrompue au milieu.
+  - **Le verrou commercial suit l'épingle.** `SkillAccessService` ouvre la
+    compétence de la priorité n°1 via `PlanFocusResolver.currentFocusSkillId`,
+    qui lit **la même** épingle, **en lecture seule**. S'il lisait la tête du
+    classement, un compte gratuit verrait son étape en cours **cadenassée** dès
+    la production suivante — exactement ce que cette ouverture existe pour
+    éviter.
+  - **Deux surfaces NOMMENT la priorité n°1 et doivent nommer l'épinglée** :
+    « ce qui a changé » (`PlanRecentChangesResolver`) et le retour de production
+    (`LearningPlanService.changeAfterProduction`). Elles lisaient
+    `actionable.getFirst()` en direct et auraient annoncé « nouvelle priorité :
+    EO1 » pendant que la carte montrait EE3. Elles passent désormais par
+    `PlanFocusResolver.observationDe` / `premierePlace`.
+  - ⚠️ **`GET /api/me/plan` ÉCRIT donc une ligne**, et le service n'est plus
+    `readOnly`. L'écriture est **idempotente et rare** : la ligne n'est réécrite
+    que lorsque la première place **change** réellement — sinon `pinned_at`
+    daterait la dernière consultation et chaque `GET` serait un `UPDATE`. Verrou :
+    `LearningPlanStickyPriorityIT.relireLePlanNeRedatePasLepingle`.
+  - **Coût** : **+1 requête** (lecture par clé primaire), inconditionnelle et
+    indépendante des données du candidat. Budgets mis à jour : le Plan passe de
+    **22 à 23** requêtes (`LearningPlanCycleIT`), `currentFocusSkillId` de **1 à
+    2** (`LearningPlanPriorityResolverIT`).
+  - **L'épingle est de la donnée de pratique** : `AccountDeletionService` la
+    supprime avec les observations. La cascade base ne joue pas — le compte est
+    **anonymisé**, sa ligne `users` survit.
+  - Verrous : `PlanFocusResolverTest` (la règle, sur des listes) et
+    `LearningPlanStickyPriorityIT` (le cycle complet contre la vraie base).
+
+- **Boucle de réévaluation — l'étape CHANGE DE NATURE, elle ne se dédouble pas.**
+  Quand la maîtrise pose `readyForReassessment` (moteur inchangé), la carte « À
+  faire maintenant » cesse de proposer un micro-sujet et propose une
+  **vérification en situation** : même carte, même emplacement, action
+  différente. Le sujet est une **tâche de production déjà publiée** de la
+  `SkillTaskCode` de la compétence (jamais de génération, jamais de nouvelle
+  banque, jamais d'appel LLM) ; le **diagnostic initial n'est jamais rejoué**
+  (filtre `diagnostic_code IS NULL` des deux côtés — mémorisation, biais,
+  lassitude). Autorité unique : **`ReassessmentExerciseSelector`**, jumelle de
+  `RecommendedExerciseSelector`. Règle : (1) premier sujet **jamais rendu**, (2)
+  tous rendus ⇒ le premier du même ordre en écartant la copie la plus récente,
+  (3) aucun sujet publié ⇒ rien, et l'étape retombe sur son micro-exercice —
+  cas **normal**, jamais une erreur. L'ordre est une **permutation semée** par
+  (candidat, compétence, sujet) via splitmix64 : reproductible d'un appel, d'un
+  process et d'un serveur à l'autre — jamais `Random` non semé, jamais
+  `hashCode` d'objet. Elle porte sur le pool **entier**, donc jouer un autre
+  sujet de la même tâche ne redistribue rien. Le DTO dit **quoi et où** :
+  `PlanRecommendedExerciseDto.kind` (`MICRO_TRAINING|REASSESSMENT`),
+  `skillPromptId` **xor** `productionTaskId` + `tacheNumero`, construits par
+  `microTraining(...)` / `reassessment(...)`. `estimatedMinutes` reste **dérivé
+  du sujet** (`util/ExerciseDuration`, formule partagée par les deux
+  sélecteurs). **Le verrou freemium continue de s'appliquer et ne détourne
+  rien** : un sujet verrouillé est **désigné quand même** avec son `locked`, lu
+  par `ProductionAccessService.isTrainingLocked` — même règle que
+  `enforceQuota`, en lecture (une copie aurait fini par ouvrir ce que le serveur
+  refuse). Une réévaluation est une **production standard** : elle produit ses
+  observations `PRODUCTION_EE/EO` par le pipeline existant, aucun type de source
+  dédié.
+- **La bascule vers la vérification exige DEUX conditions, pas une** (2026-08-14) :
+  le signal du moteur (`SkillMastery.readyForReassessment`) **et**
+  `LearningPlanStep.Progress.completed()` — l'**étape terminée**, ses **5** sujets
+  traités. `LearningPlanService` combine les deux **une seule fois** et sert ce
+  booléen à la fois à `LearningPlanPriorityDto.readyForReassessment` et au choix
+  de l'exercice : le DTO ne peut pas dire « prêt » pendant que la carte propose
+  un micro-sujet. Motif mesuré en base : un candidat ayant validé 2 des 5 sujets
+  se voyait proposer « Vérifier ma progression » sous un anneau à **2/5** — le
+  moteur avait raison sur le fond, l'étape n'était pas finie.
+  🛑 **Le périmètre est l'étape ENTIÈRE, pas ce que l'accès du candidat lui
+  ouvre — c'est un ARBITRAGE PRODUIT du propriétaire, pas une propriété du
+  moteur de maîtrise : la vérification de progression est PREMIUM.** Un compte
+  gratuit n'a **aucun** sujet ouvert (D-18, 2026-09-18 — avant cela il plafonnait
+  à 2 sujets sur 5, `FREE_PROMPTS_PER_SKILL`, désormais supprimé), donc il ne
+  bascule **jamais** ; aucune de ses compétences n'atteint `SOLID` (qui réclame
+  la preuve contextualisée que seule cette vérification apporte) ; et il ne voit
+  donc pas non plus les **jalons** de `PlanMilestoneSelector`, dont le
+  déclencheur d'épreuve exige ≥ 2 compétences `SOLID`. **Ces trois conséquences
+  sont voulues** : ne pas les « réparer » en comptant les sujets ouverts. Une
+  première version (livrée puis révoquée le jour même) le faisait, via un
+  `exhausted()` / `openCount` dérivé de `SkillAccess` — supprimés, ne pas les
+  réintroduire. Le seuil `readiness-targeted-subjects: 2` n'y change rien : il
+  n'a jamais gardé cette porte.
+  ⚠️ **Le seuil `readiness-targeted-score` ne se monte pas.** Une observation
+  ciblée vaut **au mieux 0,5** — `recordSkillAttempt` écrit `TO_REINFORCE` quand
+  le critère est **VALIDATED**, et **jamais `SOLID`**. Donc : `0.30` est le seul
+  réglage qui sépare « un échec ancien puis deux réussites » (0,351, à laisser
+  passer) de « deux réussites noyées dans trois échecs récents » (0,20, à
+  refuser) ; `0.50` interdit d'échouer une première fois ; au-delà le signal
+  s'**éteint** — et avec lui `SOLID`, qui réclame la preuve contextualisée que
+  seule cette vérification apporte. Même piège pour les **réussites ciblées**
+  (`SkillMasteryEngine.estReussiteCiblee`, désormais découplé du `valeur >= 0.5`
+  du score) : **ne pas la restreindre à `SOLID`**, aucune ligne ne le produit.
+  Verrou : `SkillMasteryEngineTest.leSeuilCibleResteAtteignable`.
+- **JALONS — on ESCALADE, on ne reporte pas** (`PlanMilestoneSelector`, 3ᵉ et
+  dernier sélecteur d'exercice, jumeau de `RecommendedExerciseSelector` /
+  `ReassessmentExerciseSelector` — **autorité unique**, deux copies auraient fini
+  par désigner deux jalons). Échelle : étape (5 sujets) → **vérification ciblée**
+  (débloque `SOLID`) → **examen blanc d'épreuve** (EE ou EO, 3 tâches) → **examen
+  blanc TCF complet**. Attendre « les 3 étapes finies » était inatteignable (un
+  gratuit plafonne à 2/5) et aurait figé tout le monde en `CONSOLIDATING`.
+  L'échelle est déjà **tarifée** par les poids du moteur (0,45 / 0,80 / 1,00 /
+  1,20) ; il ne manquait que le déclencheur.
+  - **Déclencheurs, dérivés serveur et jamais persistés** : jalon d'épreuve quand
+    les compétences **observées** de l'épreuve sont majoritairement **`SOLID`**
+    (`epreuve-min-solid-skills: 2` **et** `epreuve-solid-ratio: 0.5`, les deux
+    ensemble) et qu'aucun examen blanc de cette épreuve n'a été observé depuis
+    `proof-days: 45` ; jalon complet quand **les deux** épreuves ont franchi le
+    leur **et l'ont prouvé**, sauf si un `TCF_COMPLET` a démarré dans la fenêtre.
+    `SOLID` et pas le score : c'est le seul état qui exige une preuve **en
+    situation**. Tous les nombres vivent sous
+    `sejourfr.learning-plan.milestone` (+ POJO `LearningPlanProperties.Milestone`
+    aux mêmes défauts). À égalité, l'**écrit** passe devant l'oral.
+  - **Aucun contenu créé, aucune route nouvelle** : un jalon désigne un examen
+    blanc **déjà existant** par `epreuve` + `slotNumber` (le premier slot non
+    joué, plafonné à la grille). `PlanExerciseKind` gagne `EPREUVE_MOCK_EXAM` et
+    `FULL_TCF_MOCK_EXAM` ; `PlanRecommendedExerciseDto` gagne `epreuve` +
+    `slotNumber`, **mutuellement exclusifs** avec `skillPromptId` et avec
+    `productionTaskId`+`tacheNumero`. Un jalon ne porte **ni titre ni
+    compétence** : le serveur expose des faits, la phrase appartient aux fronts.
+    Servi sur `LearningPlanDto.milestone`, **à côté** des priorités (chaque étape
+    garde son propre exercice) ; `null` est le **cas normal**.
+  - **Verrou reporté, jamais appliqué à la désignation** : un jalon verrouillé
+    est **désigné quand même** avec son `locked`, lu chez l'autorité que le
+    serveur oppose au démarrage — `ProductionAccessService.isProductionExamLocked`
+    (jumelle en lecture de `assertCanStartProductionExam`, que
+    `AttemptService.startProductionAttempt` appelle désormais) et
+    `.isFullExamProductionLocked` (jumelle du calcul que `FullTcfExamService
+    .start` faisait en propre). **Jamais une copie de la règle.**
+  - **Coût** : **zéro requête** tant qu'aucun jalon n'est atteint — tout se
+    décide sur l'historique déjà chargé et les états de maîtrise déjà calculés
+    (`fromObservations` porte désormais sur **toutes** les compétences observées,
+    pas seulement celles des cartes : une compétence `SOLID` n'est jamais une
+    priorité). Quand un jalon est atteint : 2 à 3 requêtes bornées, jamais une
+    par compétence.
+- **« Le Plan a changé » après une production** : `ProductionSubmissionDto
+  .planChange` (`PlanChangeDto` = `confirmedSkill` + `newPriority`, deux
+  `PlanSkillRefDto` **indépendamment nullables**, bloc entier `null` si rien n'a
+  bougé). Une **ligne**, jamais la liste des compétences observées. « Confirmée »
+  = observation `SOLID` **contextuelle** issue de cette soumission (le diagnostic
+  est la baseline, il ne confirme jamais) ; « nouvelle priorité » = la priorité
+  n°1 courante **si c'est cette production qui l'a désignée**. Calculé
+  **serveur, à la lecture** (`LearningPlanService.changeAfterProduction`,
+  branché sur `getOwnDetail` seulement — ni liste d'historique, ni sujet de
+  diagnostic, ni avant `EVALUATED`). ⚠️ **Course assumée** : les observations
+  s'écrivent **après** la correction, best-effort et hors transaction
+  (`ProductionPipelineAsyncRunner`) — rien n'est figé à l'écriture, donc
+  l'absence du bloc est un **état normal** et la lecture suivante le rend, sans
+  erreur ni rejeu (même sursis côté fronts que le plan d'action).
+  ⚠️ **Plus affiché par aucun front depuis le 2026-09-25** (demande du
+  propriétaire : la carte « X confirmée · Voir » est retirée du rapport web et
+  mobile) ; le champ reste servi.
+  **Aucun libellé serveur** : le bloc expose des faits, la phrase appartient aux
+  fronts — et un transfert manqué ne se dit **jamais** « vous avez perdu votre
+  progression », mais « réussi en exercice ciblé, pas encore automatique en
+  production complète ».
+- **Plan vivant** : après une correction v14/v8 réussie d'une future production
+  complète standard, une observation structurée séparée utilise les skill IDs de
+  sa tâche ; son échec best-effort ne dégrade jamais la correction. Les
+  micro-exercices alimentent aussi le Plan une fois évalués, mais une réussite
+  isolée devient au mieux `TO_REINFORCE`, jamais `SOLID`. **Les productions
+  d'examen blanc EE/EO alimentent le même moteur** (V031) : elles passaient déjà
+  par le même pipeline mais étaient enregistrées comme de l'entraînement, donc
+  sous-pondérées. Une session d'examen productive porte un `slotNumber`, une
+  épreuve d'examen **complet** est un sous-attempt d'un parent `TCF_COMPLET` —
+  les deux sont sur la ligne `attempts` déjà chargée, aucune requête de plus
+  (`LearningPlanObservationService.isMockExam`, sources `MOCK_EXAM_EE/EO`).
+- **Aucun diagnostic n'est exigé pour OBSERVER** (2026-08-12). `hasActivePlan` a
+  été **supprimé** des deux producteurs (`recordSkillAttempt`,
+  `observeStandardProduction`) : un candidat qui travaillait sans passer le
+  diagnostic n'accumulait rien, et tout son travail était perdu le jour où il le
+  passait. C'est le **Plan** qui continue de réclamer un diagnostic `COMPLETED`
+  pour passer `ACTIVE` — `NEEDS_DIAGNOSTIC` / `DIAGNOSTIC_IN_PROGRESS` sont
+  inchangés. ⚠️ Conséquence de coût assumée : la voie d'observation d'une
+  production standard **appelle le LLM**, elle tourne désormais pour tout le
+  monde, plus seulement pour les comptes diagnostiqués.
+- **Moteur de maîtrise — `SkillMasteryEngine` + `SkillMasteryResolver`**, dérivé
+  à la lecture et **jamais persisté** (même philosophie que `SkillStatusResolver`
+  et `SituationDansNiveau`) : recalibrer une pondération relit tout l'historique
+  au prochain appel, sans migration ni job.
+  - **4 états agrégés, enum `SkillMasteryState`** : `PRIORITY` / `TO_REINFORCE` /
+    `CONSOLIDATING` / `SOLID` (« Priorité » / « À renforcer » / « En
+    consolidation » / « Solide », gelés par `SkillLabelsTest`, à mirrorer sur les
+    3 fronts). ⚠️ **Distinct de `LearningPlanSkillStatus`**, qui est le verdict
+    d'**une production** et reste persisté sur chaque observation : la contrainte
+    `chk_learning_plan_observation_status` n'admet toujours que
+    `NOT_OBSERVED|PRIORITY|TO_REINFORCE|SOLID`. `null` quand rien n'a été observé
+    — on n'invente pas un état. `CONSOLIDATING` existe parce que « réussi en
+    exercice ciblé » n'est ni « à renforcer » ni « maîtrisé » : c'est lui qui rend
+    la vérification en situation compréhensible.
+  - **Score interne** `poidsSource × confiance × récence`, moyenne pondérée dans
+    `[0,1]` sur une fenêtre glissante et un nombre plafonné d'observations. Il
+    **n'est exposé à aucun front** : pas de « 73 % maîtrisé ». `NOT_OBSERVED`
+    ignoré (« je n'ai pas pu observer » ≠ « le candidat est mauvais »).
+  - **L'état ne se déduit jamais du seul score.** `SOLID` exige **cinq**
+    conditions : score ≥ seuil, ≥ 2 observations positives, **≥ 1 venue d'une
+    production contextualisée** (production complète ou examen blanc — jamais un
+    micro-entraînement, ni le diagnostic qui est la baseline), sujets
+    **différents** (`learning_plan_observations.subject_id`, V031 — le sujet, pas
+    la tentative), et pas de série de fragilités récentes.
+  - **Stabilité** : une seule production moins bonne ne casse pas une compétence
+    solide — le moteur rejoue le calcul sans les fragilités récentes tant que
+    celles issues d'une production contextualisée restent sous
+    `fragility-tolerance` (2). Une fragilité en micro-exercice ne révoque jamais
+    un transfert déjà prouvé.
+  - **`readyForReassessment`** : signal **interne** (exposé sur
+    `LearningPlanPriorityDto` pour la suite du chantier) — assez de réussites
+    ciblées, sur des **sujets différents**, performance **ciblée** suffisante, et
+    pas de preuve de transfert récente. ⚠️ Le seuil porte sur la performance
+    **des seuls micro-entraînements**, pas sur le score global : la baseline du
+    diagnostic est une fragilité et un micro-exercice réussi ne vaut qu'une
+    demi-preuve, donc un seuil global serait mécaniquement hors d'atteinte et le
+    Plan proposerait des micro-exercices à l'infini.
+  - **Tous les nombres vivent dans `application.yaml`** sous
+    `sejourfr.learning-plan.mastery`, POJO `LearningPlanProperties` **aux mêmes
+    valeurs par défaut** : sources `0.45 / 0.80 / 1.00 / 1.20`
+    (micro-entraînement / diagnostic / production / examen blanc), confiances
+    `1.00 / 0.80 / 0.55`, récence `1.00` (≤ 14 j) / `0.85` (≤ 30 j) / `0.70`,
+    fenêtre 180 j, 12 observations max, seuils `0.75 / 0.50 / 0.30`. Aucune
+    constante de pondération dans le Java.
+  - **Chargement en lot obligatoire** : `SkillMasteryResolver.bySkillIds` fait
+    **une** requête pour 24 compétences (index `idx_learning_plan_user_skill_recent`,
+    posé en V029 et jusqu'ici jamais emprunté, verrouillé par
+    `SkillMasteryResolverIT` qui compte les statements) ; le Plan, lui, se branche
+    sur l'historique **déjà chargé** par `LearningPlanPriorityResolver`
+    (`fromObservations`, zéro requête de plus).
+  - **Exposition** : `masteryState` sur `SkillDto` (**c'est ce que la carte de
+    compétence affiche à la place de « 2/15 traités »** — les compteurs restent,
+    ils servent l'anneau d'étape), `LearningPlanSkillDto` et
+    `LearningPlanPriorityDto`. ⚠️ **La `trajectory` de `SkillDetailDto` a été
+    SUPPRIMÉE** le 2026-08-16 (DTO, `SkillObservationPointDto`,
+    `SkillMasteryResolver.trajectory` et les deux miroirs front) : la section
+    « Ton parcours sur cette compétence » n'apportait rien au candidat, et la
+    servir coûtait **une requête à chaque ouverture** d'une compétence. Ne pas
+    la réintroduire sans un écran qui la lise vraiment.
+  - **`LearningPlanPriorityResolver` reste l'unique autorité sur l'ordre des
+    priorités** : le moteur ne le réordonne pas, `SkillAccessService` continue
+    d'en dépendre pour ouvrir la compétence de la priorité n°1.
+  - **Aucun rattrapage** : le suivi démarre à la mise en service, le diagnostic
+    reste la baseline. V031 ne renseigne `subject_id` que par jointure SQL
+    déterministe sur des lignes existantes — aucun rejeu, aucun appel LLM.
+## Plan adaptatif — profil par domaine, cycle de palier, séance (2026-08-21)
+
+Chantier `feature/plan-adaptatif-ui`, d'après `docs/plan/BRIEF_CLAUDE_CODE_PLAN_ADAPTATIF_TCF_V2.md`
+et ses trois maquettes, versionnées au même endroit. Ce qui suit complète la section
+« Diagnostic initial TCF et Plan personnalisé » ci-dessus, il ne la remplace pas.
+
+### Le niveau par DOMAINE existe enfin côté front
+`TcfProfileService.levelProfile` calculait déjà `TcfLevelProfile{co, ce, ee, eo}` avec la
+bonne règle ; `UserDashboardService` n'en gardait que le **plancher** et **jetait les
+quatre**. `DashboardSummaryResponse.tcfDomainProfile` les publie désormais
+(`TcfDomainProfileDto{domaines[4], globalLevel, evaluated, expected, partial}` +
+`TcfDomainDto{epreuve, evaluated, niveau}`), **ordre figé serveur, aucun front ne retrie**.
+Un domaine non passé est **présent** avec `evaluated:false` / `niveau:null` — *null =
+inconnu, jamais mauvais*. Les 3 scalaires historiques (`estimatedTcfLevel*`) restent servis.
+
+🔴 **Trou corrigé au passage** : la bifurcation `production_submissions.is_diagnostic` écrit
+dans `diagnostic_production_analyses` et **jamais** dans `ai_evaluations`, seule table lue par
+le calcul. Mesuré sur la base : 16 productions de diagnostic, **0** `ai_evaluation`, et
+**8 comptes au diagnostic terminé affichaient « 0 domaine évalué sur 4 »** au sortir d'une
+évaluation portant sur deux d'entre eux. Le diagnostic est désormais un **repli** : il ne
+renseigne un domaine que si **aucune** production réelle ne l'a fait — une vraie production
+prime **toujours**, quelle que soit sa date. Même hiérarchie que les poids du moteur
+(diagnostic 0,80 · production 1,00).
+
+### Compétences de COMPRÉHENSION — 6, une par palier et par domaine
+`SkillSection` vaut maintenant `EE|EO|**CO**|**CE**` ; `skills.task_code` est **nullable**
+(une compétence de compréhension n'appartient à aucune des 6 tâches) et le palier vit sur
+`target_level`. 🛑 **`SkillTaskCode` reste les 6 tâches officielles d'expression — ne jamais y
+ajouter de valeur CO/CE.** Codes : `CO-A2`, `CO-B1`, `CO-B2`, `CE-A2`, `CE-B1`, `CE-B2`
+(V039 schéma + V318 contenu, UUID uuid5 déterministes). Trois contraintes DB rendent
+l'invariant opposable, dont un **index unique partiel** sur (section, display_order) sans
+lequel deux compétences de compréhension partageraient le même rang (Postgres tient deux
+`NULL` pour distincts).
+🛑 **Une compétence CO/CE n'a AUCUN `skill_prompt`** — le brief l'interdit, son entraînement
+est une série de 20 QCM. Les compteurs rendent 0 **sans jamais inventer de dénominateur**, et
+la console admin masque la création de sujet dessus.
+`SkillDto.taskCode` / `AdminSkillDto.taskCode` / `AdminSkillStatsDto.taskCode` sont devenus
+**nullables** ; `SkillPromptDto.taskCode` reste non-null. Le domaine se lit sur `section`, le
+palier sur `targetLevel`, **jamais** déduits de la tâche.
+⚠️ `GET /api/skills/progress?section=CO|CE` répond **422** volontairement (pas d'écran
+« choix de la tâche » en compréhension) ; le typage web l'interdit désormais en amont.
+Freemium : le **palier le plus bas encore actif** de chaque domaine est ouvert (`CO-A2`,
+`CE-A2`), B1/B2 verrouillés, plus l'exception « compétence de la priorité n°1 du Plan ».
+Autorité unique `SkillAccessService`, opposable serveur (`assertCanTrain`, 403).
+
+### Les QCM alimentent le profil — `ComprehensionObservationService`
+`LearningPlanSourceType` **déclarait** `TCF_CO`/`TCF_CE` et `SkillMasteryEngine` savait les
+pondérer, mais **aucun code ne les écrivait jamais**. Le producteur existe : un attempt TCF
+CO/CE terminé ventile ses réponses **par niveau de question** et observe la compétence
+correspondante. `CO_IMAGE` compte avec `CO` ; **STRUCTURE est hors périmètre** (aucune
+compétence, ne pas en inventer).
+Seuils **neufs et séparés** sous `sejourfr.learning-plan.comprehension` (POJO aux mêmes
+défauts que le YAML) : `solid-ratio 0.80`, `reinforce-ratio 0.65`, `min-questions 6`,
+`high-confidence-questions 12`. 🛑 **Aucun seuil de `SkillMasteryEngine` n'a bougé** (cf. le
+piège arithmétique documenté plus haut).
+Le plancher à **6** n'est pas arbitraire : avec `n` questions le taux ne prend que `n+1`
+valeurs espacées de `1/n`, et la bande intermédiaire fait 15 points — à `n=5` le pas vaut 20,
+donc l'échantillon le plus mince ne rendrait **que** les deux verdicts les plus tranchés.
+Sous le plancher : `NOT_OBSERVED`, jamais une fausse fragilité.
+
+🛑 **Le plancher se compte en RÉPONSES, jamais en questions posées** (2026-09-16). Une
+question laissée vide est écartée de la ventilation : elle ne compte ni au numérateur, ni au
+dénominateur, ni dans `min-questions`. Conséquence directe et voulue : **une épreuve terminée
+sans aucune réponse n'écrit AUCUNE observation** — ni `PRIORITY` (fausse fragilité), ni
+`NOT_OBSERVED` (faux « données insuffisantes ») ; pour la mesure de compétence, elle n'a pas
+eu lieu. L'attempt, lui, reste en base et dans l'historique du candidat : on cesse d'en tirer
+une mesure, on ne l'efface pas. Même distinction que `ReceptiveEvidenceAdapter.ReponseQcm
+.answered` et que l'`EXISTS` de `AttemptRepository.findQcmEpreuvesPassees`.
+⚠️ Ceci ne change **rien** au résultat d'**un** examen, où une épreuve abandonnée reste
+comptée `A1_NON_ATTEINT` (`FullTcfExamResponseBuilder`) : c'est le résultat de cet examen-là,
+pas le profil du candidat dans le temps.
+Le bug corrigé : `AttemptInteractionService.recordComprehension` produisait
+`correct = aq.getAnswer() != null && …`, donc une question non répondue arrivait au producteur
+indiscernable d'une réponse fausse. Mesuré en base le 2026-09-16 : sur 31 observations CO/CE
+locales, **25 provenaient de sessions à zéro réponse**, dont des `PRIORITY` à « 0 / 8 bonnes
+réponses ».
+- **`subject_id` = `attemptId`**, et `TCF_CO`/`TCF_CE` sont **`isContextual()`** : en
+  compréhension le QCM **est** le format réel de l'épreuve, il n'existe pas de version guidée
+  à lui opposer. Sans ça aucune compétence CO/CE ne pourrait jamais devenir `SOLID`. Elles ne
+  sont **pas** `isTargeted()` (ce drapeau pilote `readyForReassessment`, dont la sortie est
+  une *production*). Zéro effet sur EE/EO, verrouillé par test.
+- ⚠️ **Une seule série à 16/20 ne rend PAS `SOLID`** — `min-positive-observations = 2` et
+  `min-distinct-subjects = 2` exigent **deux sessions**. Le brief §16 dit littéralement
+  l'inverse ; **arbitrage du propriétaire (2026-08-21) : on garde deux sessions**, une série
+  se réussit par chance, deux non. Verrouillé par `deuxSeriesReussiesRendentSolide` /
+  `uneSeuleSerieNeConclutPas`.
+- **Prérequis de palier** (`ComprehensionLevelResolver`, dérivé, jamais persisté) : le niveau
+  d'un domaine est la longueur du **préfixe ininterrompu de `SOLID` en partant du bas**. Des
+  réussites en B2 ne rachètent **pas** un B1 fragile. Rien de consolidé ⇒ `Optional.empty()`,
+  jamais « A1 ».
+- Best-effort en `REQUIRES_NEW`, exception avalée : une violation d'intégrité dans la
+  transaction de correction du QCM l'aurait marquée rollback-only et fait échouer la
+  correction elle-même.
+
+### Série ciblée de 20 questions — le `skillId` suffit
+`POST /api/attempts {type:"TRAINING", module:"TCF", skillId:"<uuid CO/CE>"}`. **Le client
+n'envoie que la compétence** : `questionType`, `difficulty` et `size` sont dérivés serveur du
+référentiel — un couple reçu du client aurait pu contredire la compétence affichée et faire
+progresser une **autre** compétence. Aucune colonne « compétence visée » n'est persistée : le
+producteur rattache par le **contenu réel** des questions. Refus : 403 verrouillé, 422
+compétence d'expression, 404 inconnue. Tirage `findLeastRecentlySeen` (jamais vues d'abord,
+puis les plus anciennes) ; manque de contenu logué, jamais masqué.
+🔴 **Bug de justesse corrigé** : un compte gratuit **connecté** basculait sur
+`findDemoPool`, qui **ignore `questionType` ET `difficulty`**. Depuis que les QCM nourrissent
+le Plan, cette série hors sujet écrivait ses observations vers **d'autres compétences**. Elle
+reste **déterministe** (on n'ouvre pas la banque sans abonnement) mais porte enfin sur ce qui
+a été demandé. `findDemoPool` reste pour les **invités**, inchangé.
+⚠️ **Une série ciblée est un `TRAINING` : elle ne rend JAMAIS un domaine « évalué ».** Seul un
+**examen blanc de module** le fait. C'est `domainesAEvaluer` qui dit par quoi mesurer.
+
+### Ce que `GET /api/me/plan` sert en plus
+Quatre blocs ajoutés en fin de `LearningPlanDto`, plus un cinquième :
+`domaines` · `cycle` · `domainesAEvaluer` · `seance` · `recentChanges`.
+- **`domaines`** (`PlanDomainDto`) : les 4, **triés serveur par urgence**, avec `priority`
+  (`PlanDomainPriority`, **libellés FR gelés** par `SkillLabelsTest` : « Priorité forte » /
+  « À travailler » / « Entretien » / « Pas encore prioritaire » / « À évaluer », **l'ordre de
+  déclaration EST l'ordre d'urgence**), `consolidatedLevel`, `blockingLevel`, les 3 `paliers`
+  en CO/CE, les `taches` observées/total en EE/EO. **Depuis le 2026-08-22** il porte aussi
+  `skills` (les compétences de l'épreuve, uniforme sur les 4) et les 3 compteurs
+  `fragileSkillCount`/`solidSkillCount`/`notObservedSkillCount` — cf. la section
+  *« Mon diagnostic » se lit PAR ÉPREUVE* plus bas.
+- **`cycle`** (`PlanCycleDto`) : vise **le cran au-dessus du niveau consolidé**, jamais
+  l'objectif directement. 🛑 **L'objectif vient de `TargetProcedure.niveauVise`, jamais d'une
+  constante** — la maquette l'affiche en dur à `B2`, ce qui retirerait son A2 à un dossier
+  CSP ; `objectiveLevel` est **nullable** et aucun front n'invente « B2 » à sa place.
+  **Rien n'est persisté** : le cycle se relit de l'historique. 4 états retenus
+  (`BUILDING_BASELINE|TRAINING|READY_FOR_GATE_MOCK|TARGET_STABILIZATION`) ; 4 écartés du brief
+  avec motif — `WAITING_REASSESSMENT` doublerait le signal **par compétence** et finirait par
+  le contredire, `GATE_MOCK_IN_PROGRESS` obligerait à persister, et `LEVEL_CONFIRMED` /
+  `NOT_CONFIRMED` sont des **transitions** observables zéro seconde.
+- **Gate de palier** : un **cas de plus** de `PlanMilestoneSelector`, pas une notion
+  parallèle — même examen désigné, même verrou reporté, même garde-fou d'ancienneté. **Aucune
+  clé de configuration ajoutée** : « aucune compétence bloquante » et « toutes les priorités
+  solides » sont la **même phrase** sur notre modèle, celle que rend déjà
+  `LearningPlanPriorityResolver.actionable`. Une compétence de palier **jamais observée** ne
+  bloque **pas** le gate (la refuser enfermerait le candidat ; l'examen est précisément ce qui
+  viendrait l'observer).
+- **`domainesAEvaluer`** (`PlanDomainAssessmentDto`) : par quoi mesurer chaque domaine
+  manquant. **Vide = profil complet**, l'état visé et non une anomalie. `slotNumber` vaut
+  toujours **1** (seul slot offert et rejouable, donc mesurer un domaine ne bute jamais sur le
+  paywall).
+  ⚠️ **L'écran Plan ne le liste plus** depuis le 2026-09-13 (cf. § « Compléter son profil
+  n'a plus qu'une porte »). Le champ **reste servi et reste lu** : la fiche d'un domaine,
+  « Ma progression » et la **ligne `A_EVALUER` de la séance** s'en servent toujours, par le
+  même lanceur unique (`usePlanAssessment` ⇄ `openPlanAssessment`).
+
+  🛑 **Mesurer un domaine, c'est passer un EXAMEN BLANC — les quatre épreuves, sans
+  exception** (arbitrage du propriétaire, **2026-09-16**). `PlanDomainAssessmentKind` n'a plus
+  que **deux** natures, et `PlanDomainAssessmentResolver.pour(epreuve)` est la seule table :
+
+  | épreuve | nature | ce qui est lancé | `moduleExamQuestionType` | `slotNumber` | `estimatedMinutes` |
+  |---|---|---|---|---|---|
+  | `TCF_CO` | `MODULE_MOCK_EXAM` | `POST /api/attempts` `MOCK_EXAM` | `CO` | 1 | 20 |
+  | `TCF_CE` | `MODULE_MOCK_EXAM` | `POST /api/attempts` `MOCK_EXAM` | `CE` | 1 | 35 |
+  | `TCF_EE` | `PRODUCTION_MOCK_EXAM` | `POST /api/attempts/production` `exam=true` | `null` | 1 | 30 |
+  | `TCF_EO` | `PRODUCTION_MOCK_EXAM` | `POST /api/attempts/production` `exam=true` | `null` | 1 | **`null`** |
+
+  ⚠️ **Révoque les natures `DIAGNOSTIC` et `PRODUCTION`**, supprimées de l'enum, de leurs
+  factories et de tous les cas front. L'expression partait vers l'ancien diagnostic
+  (1 EE + 1 EO) tant qu'il restait à faire, vers l'entraînement libre sur les 3 tâches
+  ensuite : **aucun des deux ne lançait un examen blanc**, et « mesurer ce domaine » ne
+  voulait donc pas dire la même chose selon l'épreuve. C'est l'**action** qui change, pas
+  l'**affichage** — le niveau qu'un ancien diagnostic a produit continue de s'afficher
+  (`TcfProfileService`, repli inchangé).
+
+  🛑 **`estimatedMinutes` est `null` en EO**, jamais `0` : l'oral n'a pas de durée d'épreuve
+  opposable (`DureeEpreuve`), il se chronomètre tâche par tâche — on n'annonce alors aucune
+  minute plutôt qu'un chiffre faux.
+
+  🛑 **Le paramètre `diagnosticTermine` a disparu** de `pour()`, `resolve()` et
+  `indispensable()`, et de tous leurs appelants : il n'aiguillait que l'expression.
+  `ProgressService` ne lit plus `PlanFoundationResolver` — une requête de moins par lecture.
+
+  🛑 **Le démarrage d'un examen de production est celui du JALON**, extrait pour ne pas être
+  recopié : `startProductionMockExam` (`use-plan-exercise.ts`) ⇄ `startProductionExam`
+  (`screens/tcf_production/production_exam_launcher.dart`, partagé avec la grille d'examens de
+  l'épreuve). Le `slotNumber` **servi** pilote le lancement, jamais un `1` écrit côté front.
+- **`seance`** (`PlanSeanceDto`) : ≤ **3** items, **1 compétence = 1 slot**, minutes
+  **recalculées**. `PlanExerciseKind` gagne `TARGETED_QCM_SERIES` (+ `questionCount` sur
+  `PlanRecommendedExerciseDto`).
+  🛑 **La règle « sticky » n'a demandé AUCUN mécanisme** : les priorités ne trient que sur des
+  faits d'observation, une compétence n'en sort que lorsqu'elle est **réussie**, et
+  `PlanSeanceBuilder` ne reçoit ni `Clock` ni `LocalDate`. Ne pas créer de table « items du
+  jour » : elle serait une seconde source de vérité à réconcilier à chaque observation. Un
+  test **vieillit l'historique de 40 jours en base** et exige la même séance.
+  **Ce qui est COCHÉ vient pourtant du compte** (2026-08-21) : chaque item porte
+  `lastActivityAt` (`Instant` nullable, dernière ligne de
+  `learning_plan_observations` de la compétence — **`NOT_OBSERVED` comprise**, une production
+  rendue est une activité même quand le correcteur n'a rien pu observer ; autorité
+  `LearningPlanPriorityResolver.lastActivityBySkill`, **zéro requête**, l'historique est déjà
+  chargé). 🛑 **Le serveur sert un FAIT, jamais un booléen « fait aujourd'hui »** — il n'a pas
+  d'horloge ici, et un booléen figé à la lecture serait faux le lendemain : ce sont les fronts
+  qui comparent à leur journée courante en **Europe/Paris** (`planSeanceItemDone`, miroirs web
+  `lib/plan-domain.ts` ⇄ mobile `plan_seance_state.dart` — étape bouclée **ou** activité du
+  jour). Cela **révoque** les deux marqueurs locaux et éphémères (`planSeanceDoneProvider`
+  mobile, état de composant web), **supprimés** : ils s'évaporaient au rechargement et le même
+  candidat voyait deux séances différentes selon l'appareil. Ne pas les réintroduire, et ne pas
+  faire entrer de `Clock` dans `PlanSeanceBuilder` pour « finir le travail ».
+  ⚠️ **« Refaire ma séance » n'efface plus rien** : quand tout est fait, le bouton mobile
+  **relance réellement** le premier entraînement (`openPlanSeanceItem`, extrait à la 2ᵉ
+  occurrence — l'ancien chemin du bouton oubliait les **jalons** et ne faisait rien du tout
+  dessus).
+- **`recentChanges`** : transitions **réelles** de l'état agrégé, mesurées en rejouant
+  `SkillMasteryEngine` sur l'historique arrêté au début de la fenêtre. **`null` = cas
+  normal.** Une **première mesure n'est jamais une transition** (sinon le bloc serait plein le
+  jour du diagnostic) ; une compétence sans observation dans la fenêtre n'est **pas examinée**.
+  Ne double pas `PlanChangeDto` (verdict d'**une** soumission vs état **agrégé** récent) :
+  grains différents, et le seul fait commun — la priorité n°1 — vient de la même autorité.
+- 🔴 **Trou corrigé** : une priorité de compréhension ressortait avec
+  `recommendedExercise == null`, donc **une carte sans action**. `RecommendedExerciseSelector`
+  (autorité existante, **pas** un 4ᵉ sélecteur) désigne désormais la série ciblée.
+> ✅ **CONTRADICTION #3 TRANCHÉE le 2026-08-26 : c'est 21 requêtes.** Le chiffre ci-dessous
+> est l'état d'avant ; il est conservé pour la traçabilité. Voir la section
+> « Progression PAR ÉPREUVE » plus bas et `docs/decisions/contradictions-ouvertes.md`.
+
+- **Coût (état 2026-08-21, dépassé)** : le Plan complet faisait **20 requêtes, constantes** avec 2 ou 20 compétences
+  observées — verrouillé par deux tests qui comptent les statements. La passe séance +
+  changements a ajouté **zéro** requête ; la passe « à acquérir » en a ajouté **une** (le
+  référentiel du palier, chargé en un lot — cf. la section suivante).
+
+### Trois catégories, pas une : le Plan sait enfin ENSEIGNER (2026-08-21)
+
+Constat mesuré sur `billodiallo@gmail.com` : 6 compétences EE solides, 2 à renforcer,
+8 EO jamais observées, un oral inexploitable — et un Plan qui affichait **2 actions** à
+un candidat A2 qui vise le B2, donc à qui il reste **un palier entier**. Le Plan savait
+**réparer**, il ne savait pas **enseigner**.
+
+> *`NON OBSERVÉ ≠ FAIBLE`, mais aussi `NON FRAGILE ≠ PLUS RIEN À APPRENDRE`.*
+
+- **`PlanActionNature`** (enum, **dérivé, jamais persisté**, libellés FR gelés par
+  `SkillLabelsTest`, **à mirrorer sur les 3 fronts**) : `A_EVALUER` « À évaluer » ·
+  `A_RENFORCER` « À renforcer » · `A_VERIFIER` « À vérifier » · `A_ACQUERIR`
+  « À acquérir ». **L'ordre de déclaration EST l'ordre de choix** d'une séance — mesurer
+  ce qui manque, réparer ce qui est fragile, vérifier ce qui est prêt, apprendre ce qui
+  vient. Servi sur `LearningPlanPriorityDto.nature` et `PlanSeanceItemDto.nature` ; les
+  fronts lisent **cette nature**, jamais la nullité d'un autre champ.
+  🛑 **`A_ACQUERIR` ne se dit JAMAIS « à renforcer »** : renforcer suppose un constat
+  négatif, et sur une compétence jamais travaillée il n'y en a aucun.
+- **Réconciliation des vocabulaires — trois enums, trois grains, ils ne se remplacent
+  pas.** `LearningPlanSkillStatus` = le verdict d'**une production** (persisté, sans
+  libellé) · `SkillMasteryState` = l'état **agrégé** d'une compétence (dérivé, affiché sur
+  sa fiche) · `PlanActionNature` = **l'action à faire maintenant** (dérivée, affichée sur
+  la carte du Plan). `PlanActionNature.A_RENFORCER` et `SkillMasteryState.TO_REINFORCE`
+  portent **volontairement le même libellé** — quand les deux s'appliquent ils disent la
+  même chose, ils ne s'affichent simplement pas au même endroit ; idem pour « À évaluer »
+  partagé avec `PlanDomainPriority.A_EVALUER`. Ce n'est **pas** une collision à corriger,
+  et `SkillLabelsTest` fige l'égalité pour que personne ne « répare » l'un des deux.
+  `PlanDomainPriority` qualifie un **domaine**, jamais une action : « À travailler » et
+  « Entretien » restent là-bas.
+### Progression PAR ÉPREUVE, confirmation GLOBALE (2026-08-26)
+
+> *`NON FRAGILE ≠ PLUS RIEN À APPRENDRE`, et **`PLAFOND UI ≠ BUDGET PÉDAGOGIQUE`**.*
+
+Mesuré sur `billodiallo2@gmail.com` (diagnostic `fe35354d`) : **EE A2 / EO B1, objectif B2**.
+Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale affichait
+« rien à travailler » — alors que 16 de ses 24 compétences n'avaient jamais été touchées.
+**10 actions vraies existaient, 2 étaient servies.** Quatre causes, corrigées ensemble :
+
+- 🛑 **Le palier d'apprentissage est celui DU DOMAINE**, plus celui du niveau **global**
+  (le plancher des domaines évalués). `PlanDomainTargetLevelResolver`, **autorité unique** :
+  il **appelle** `ProgressionPlanBridge.prescriptionLevel` (moteur V4.2, décrit comme « le
+  seul niveau que le Plan a le droit de proposer ») et **retombe** sur « le cran au-dessus du
+  niveau du domaine, plafonné par l'objectif » quand le pont rend `empty()` — ce qui est le
+  cas aujourd'hui en `SHADOW` et hors compréhension. ⚠️ **Ne jamais écrire une seconde règle
+  de palier ailleurs** : le pont reste la porte, son extension à EE/EO est un chantier séparé.
+  Amende les **§37/§39** du brief (le palier se lisait sur le niveau global).
+  🛑 **N'amende PAS le §93**, qui interdit de faire *redescendre* un domaine avancé et n'a
+  jamais dit qu'il ne recevait rien — c'est l'implémentation qui avait durci « pas
+  prioritaire » en « zéro action ». Un domaine `PAS_ENCORE_PRIORITAIRE` reçoit ses
+  acquisitions ; il passe simplement après.
+- 🛑 **Le moteur calcule TOUT, l'affichage coupe.** `LearningPlanPriorityResolver.actionable`
+  n'a plus de plafond, et le sélecteur d'acquisitions **ne reçoit plus de budget** — la ligne
+  `MAX_PRIORITIES - actionable.size()` faisait servir un plafond d'écran de budget de
+  production aux **quatre** domaines à la fois. Ordre : pool complet → filtre de faisabilité →
+  classement → composition → troncature d'affichage.
+- 🆕 **Filtre de faisabilité — une action n'existe que si elle est EXÉCUTABLE**
+  (`PlanContentAvailability`, **2 requêtes agrégées, jamais un compte par compétence**).
+  Deux branches : expression ⇒ « ≥ 1 petit sujet actif » ; compréhension ⇒ « ≥ 1 question
+  active **à ce palier** » (la série ciblée ne tire son contenu qu'au démarrage). Il **logue
+  ce qu'il coupe** : aujourd'hui il ne coupe rien (48/48 compétences ont 15 sujets ; 134 à 214
+  questions par palier), donc **toute ligne dans les logs signale un pourrissement du
+  catalogue**. ⚠️ Le palier d'une fragilité de compréhension doit être fourni au filtre —
+  sans lui, toute compétence CO/CE serait jugée inexécutable et le Plan perdrait des
+  fragilités réelles.
+- 🆕 **Classement et composition configurables** (`PlanActionRanker`) : score additif
+  `nature + urgence du domaine + écart à l'objectif + confiance`, départages `observedAt` puis
+  code. 🛑 **Aucune horloge** — la récence est un *départage*, jamais un poids, sinon la
+  stickiness de la séance ne serait plus gratuite. **La première place est épinglée** :
+  c'est celle que le freemium ouvre (`PlanFocusResolver`), un classement qui la déplacerait
+  cadenasserait l'étape n°1. **Composition d'Aujourd'hui** : au plus
+  `display.todayMaxSecondaryDomainActions` action(s) de domaine **secondaire** dans la
+  fenêtre — un **maximum**, jamais un minimum : si tout le haut du classement est primaire, la
+  séance reste sur un seul domaine, et c'est légitime.
+- 🛑 **`plan-config-v{n}.json`, fichier DISTINCT de `progression-config`**
+  (`sejourfr.plan.config-version`). Les deux ont des cycles de vie **opposés** :
+  `progression-config` porte l'intégrité d'`engineVersion` et le **rejeu** de la maîtrise ;
+  `plan-config` ne porte que **sélection et affichage** (`display.*`, `ranking.*`) et bougera
+  souvent. **INVARIANT : `plan-config` ne peut RIEN influencer du calcul de maîtrise.**
+  ⚠️ Le mapping `nextTargetLevel` **n'y est pas** : c'est de la doctrine pédagogique
+  déterministe et testée, pas un réglage.
+- **Coût : 21 requêtes**, fixe et assumé (19 + 2 agrégées pour la faisabilité), verrouillé par
+  `LearningPlanCycleIT`. ⚠️ **Tranche la CONTRADICTION #3** (« 20, +1 ou 19 ? ») : c'est **21**.
+  L'égalité « 2 compétences observées ou 20, même coût » reste le vrai garde-fou.
+- **La carte d'épreuve ne dérive plus des cartes affichées** : `natures` est posé depuis le
+  **pool complet**, plus depuis la liste tronquée. C'était la cause directe de l'écran vide.
+- **`PlanDomainDto` sert quatre champs de plus**, tous **dérivés serveur**, mirrorés sur les
+  deux fronts : `nextTargetLevel` (le palier de **ce** domaine), `acquireCount` (compétences à
+  acquérir — **exécutables uniquement**, le compte ne promet jamais un contenu absent),
+  `readyForValidationCount`, et `notObservedWithoutActionCount` (le vrai « pas encore assez de
+  données »).
+  🛑 **Deux copies front supprimées, et elles mentaient** : `diagnosticNextLevel` (mobile) /
+  `nextLevel` (web) dérivaient « prochain palier » du seul niveau mesuré, **sans plafond par
+  l'objectif** — un candidat B1 visant le B1 lisait « prochain palier B2 » ; et le mobile
+  recomptait « pas encore assez de données » en excluant les acquisitions pendant que le
+  serveur les incluait. **Deux champs nommés distinctement** plutôt qu'une soustraction faite
+  par chaque front.
+  ⚠️ Le palier d'une compétence se lit par `planSkillTargetLevel` (`domaines[].skills[]`),
+  **jamais** par un repli sur `cycle.targetLevel` — c'est le palier **global**, et il affiche
+  un palier faux dès que deux domaines divergent.
+- **Le rideau est INSTRUMENTÉ avant d'être changé** : `PLAN_CURTAIN_SHOWN` /
+  `PLAN_CURTAIN_EXPANDED` / `PLAN_PAYWALL_VIEWED`. Le correctif fait passer le rideau de
+  « 1 sur 5 » à « 1 sur 9 ou 12 » — signal de valeur plus fort, découragement tout aussi
+  plausible. → `docs/regles/mesure-audience.md`
+- ⚠️ **« Aujourd'hui » peut légitimement rester sur un seul domaine.** Le plafond de domaines
+  secondaires est un **maximum**, pas un minimum : si le classement place trois actions
+  primaires en tête, la séance est mono-domaine, et c'est conforme. Le candidat voit ses
+  actions des autres épreuves **sur leur carte**. Poser un *plancher* de diversité serait
+  l'inverse de cette règle — décision produit non prise à ce jour.
+
+- **`PlanAcquisitionSelector`, autorité unique** de « que reste-t-il à APPRENDRE ? ».
+  Source : **`skills.target_level`, qui existait déjà** (EE 8 A2 / 11 B1 / 5 B2 · EO 8/8/8 ·
+  CO et CE 1 par palier) — **aucune migration, aucun contenu créé, aucun appel LLM**, la
+  sélection est **déterministe**. Trois conditions : (1) la compétence appartient au
+  **palier que SON DOMAINE construit** en expression (`PlanDomainTargetLevelResolver`,
+  2026-08-26 — c'était le palier du cycle **global** avant, cf. section ci-dessus), ou au
+  **palier bloquant de son domaine** en compréhension (⚠️ **les deux ne sont pas le même
+  palier, et c'est voulu** : la compréhension a une chaîne de prérequis, A2 solide avant B1) ; (2) son domaine a **déjà été mesuré** — un domaine jamais mesuré
+  se mesure d'abord, et cette porte existe déjà (`domainesAEvaluer`) ; (3) le candidat n'a
+  **aucune ligne d'historique** dessus, `NOT_OBSERVED` comprise. Ordre : urgence du domaine
+  (celle que `PlanCycleResolver` a **déjà** décidée, jamais recalculée), puis ordre des
+  épreuves, tâche, `display_order`.
+- **Les TROIS sens de `NOT_OBSERVED`, distingués** — c'est ce qui débloque le compte
+  de référence. Ces trois états ne se confondent jamais, ni dans le code, ni dans ce qui est
+  servi :
+
+  | # | Ce que ça dit | Ce qu'il faut | Qui décide |
+  |---|---|---|---|
+  | 1 | **L'épreuve n'a jamais été réalisée** (aucune ligne d'historique) | la **mesurer** | `PlanDomainAssessmentResolver.resolve` → « Compléter mon profil », `PlanAcquisitionSelector` au grain de la compétence |
+  | 2 | **Réalisée, mais pas assez de preuve** sur ce palier (moins de `min-questions` **réponses**) | **rien** — ni carte, ni invitation | `ComprehensionObservationService`, qui écrit `NOT_OBSERVED` / `observed = false` |
+  | 3 | **La production était inutilisable** (rendue, rien d'observable) | **réévaluer** | `PlanDomainAssessmentResolver.indispensable`, en tête de séance en `A_EVALUER`, **zéro requête** |
+
+  Le cas 3 se lit au grain du **domaine** (une production ratée emporte toute son épreuve),
+  le cas 1 au grain de la compétence, le cas 2 au grain du **palier**. Sans la distinction
+  1 ⇄ 3, le Plan proposait de l'écrit à l'infini à un candidat dont c'est l'oral qui manquait.
+- 🛑 **`indispensable` ne regarde QUE les sections de production** (`section.isProduction()`,
+  2026-09-16). En compréhension, `NOT_OBSERVED` n'a **jamais** le sens 3 : il ne dit que
+  « échantillon trop mince » (cas 2), et une épreuve CO/CE terminée n'a rien à repasser pour
+  autant. Sans ce filtre, un candidat qui venait de finir ses 25 items de CE se voyait
+  proposer de **refaire la CE entière** parce qu'un de ses trois paliers manquait de deux
+  réponses — et le cas était systématique tant que les questions non répondues alimentaient
+  des observations fantômes (cf. le plancher en réponses, plus haut).
+- 🛑 **`SkillMasteryEngine` n'a pas bougé d'un octet.** Une compétence à acquérir n'est
+  **pas une observation** : aucune ligne dans `learning_plan_observations`, donc ni score,
+  ni moyenne, ni fragilité. Sa carte a `status`, `explanation`, `evidence`, `confidence`,
+  `observedAt` et `masteryState` à **`null`** — *null = inconnu, jamais mauvais* — et
+  `readyForReassessment` à `false`. `NOT_OBSERVED` ne devient toujours **jamais** une
+  fragilité.
+- **Plafonds : 3 dans « Aujourd'hui », 5 dans « Mes priorités »** (`MAX_PRIORITIES` 3 → 5,
+  calibré pour un Plan qui ne savait que réparer). 🛑 **Ce sont des PLAFONDS, pas des
+  quotas** : rien n'est fabriqué pour remplir l'écran, une compétence **solide** ou **non
+  observée hors du palier visé** ne devient jamais une action, et deux actions vraies
+  rendent deux cartes. Les acquisitions arrivent **après** les fragilités — on répare ce
+  qui bloque avant d'apprendre ce qui vient — et n'en reçoivent que les places restantes.
+- **Le jalon FERME la séance**, il ne l'ouvre plus. Un examen blanc de 30 à 60 min n'a rien
+  à prouver tant qu'une mesure manque ou qu'une fragilité bloque, et à trois slots le mettre
+  en tête chassait le vrai travail de la journée. Conséquence assumée : **une journée déjà
+  pleine ne lui laisse pas de place** — il reste servi sur `LearningPlanDto.milestone`, il
+  n'est pas perdu, il n'est simplement plus prioritaire.
+- **`PlanSeanceItemDto` : `exercise` XOR `assessment`.** Un item `A_EVALUER` est le seul à
+  porter le second, et il ne porte aucune compétence. Les minutes d'une mesure sans durée
+  (production, diagnostic) comptent **zéro**, jamais un chiffre inventé.
+- **Coût : +1 requête, constante.** Le référentiel du palier se charge en **un lot**.
+  🛑 **Cette requête est INCONDITIONNELLE dès qu'un palier se construit**, y compris quand
+  les fragilités remplissent déjà les 5 places : le nombre de places restantes dépend des
+  **données du candidat**, et rendre un aller-retour en base conditionnel à cela ferait
+  varier le coût du Plan d'un compte à l'autre — donc invérifiable. C'est ce qui permet aux
+  tests de coût d'exiger une **égalité** et d'attraper vraiment un N+1. Ne pas « optimiser »
+  en remettant un retour anticipé.
+- 🛑 **Freemium — LE PLAN EST LISIBLE MAIS INEXÉCUTABLE (D-18, 2026-09-18).** Travailler
+  une compétence depuis le Plan est **premium, sans exception**.
+  - ⚠️ **La règle qui occupait cette place est RÉVOQUÉE**, verbatim : « **Freemium — LA
+    PREMIÈRE PLACE DU PLAN EST TOUJOURS OUVERTE, quelle que soit sa nature** »
+    (2026-08-21), et son arbitrage — *« un candidat non abonné pourra travailler sa
+    priorité 1, vu qu'elle est visible »*.
+  - **Ce qui reste** : `PlanFocusResolver` **demeure** l'autorité unique de la première
+    place (3ᵉ résolveur du trio, à côté de `LearningPlanPriorityResolver` et de
+    `PlanAcquisitionSelector`) — elle est **épinglée, servie et affichée**. Ce qui
+    disparaît, c'est son effet sur l'**accès** : `SkillAccessService` ne la reçoit plus,
+    et sa surcharge `resolve(userId, focusSkillId)` est **supprimée**.
+  - 🛑 **La circularité que D-1 avait résolue disparaît avec l'exemption.** L'ordre de
+    promotion de D-1 (« `CURRENT` = première étape non clôturée **et exécutable** »)
+    reste valable mot pour mot ; pour un compte gratuit il ne désigne simplement plus
+    rien. `SkillAccessService` ne coûte plus qu'**une** requête — l'abonnement —, et le
+    budget de requêtes du Plan passe de **24 à 21** (`LearningPlanCycleIT`, égalité).
+  - 🛑 **La contradiction #1 n'est PAS rouverte.** « On floute l'ACTION pas encore
+    accessible, jamais le RÉSULTAT mesuré » reste la règle : le cycle, les priorités, les
+    niveaux mesurés et les compteurs **restent lisibles et servis**. Ce qui se ferme est
+    l'**exécution**, pas l'affichage — le cycle visible est l'argument de vente.
+  - **Conséquences en cascade, déjà arbitrées et toujours vraies** : aucune étape n'est
+    finissable sans abonnement, la bascule en vérification de progression exige l'étape
+    terminée donc un compte gratuit ne la voit jamais, aucune de ses compétences
+    n'atteint `SOLID`, et il ne reçoit aucun **jalon** d'examen blanc (2026-08-14).
+  - **Ce qui reste gratuit**, et rien d'autre : le diagnostic rapide, **un** examen blanc
+    EE et **un** examen blanc EO (analyse IA complète incluse), et les examens QCM CO/CE
+    inchangés. → `docs/regles/freemium.md`
+
+### Diagnostic progressif — 0/4 → 4/4
+Le socle existait aux trois quarts. Deux trous seulement ont été comblés :
+- `evaluated:false` était un constat **sans porte de sortie** → `domainesAEvaluer` (ci-dessus).
+- 🔴 Un candidat **EE + EO solides, compréhension jamais mesurée** — le cas que le brief §77
+  nomme mot pour mot — se voyait proposer l'**examen blanc complet à 2/4**. Le cycle était
+  irréprochable ; c'est l'échelle des **jalons** qui pouvait désigner cet examen sans regarder
+  le profil. Un `FULL_TCF_MOCK_EXAM` est désormais retiré tant que `profileComplete()` est
+  faux ; le jalon d'**une épreuve** survit (il ne prétend rien du palier).
+- **La variante rapide / complet n'est PAS persistée** : la seule différence est ce que le
+  front enchaîne après l'analyse, et le profil réel se lit sur les **domaines mesurés**. Une
+  colonne aurait affirmé « complet » sur un candidat arrêté après l'oral — et au moment du
+  choix le candidat est encore **invité**, aucune ligne ne pourrait la porter.
+- 🛑 **Le parcours de l'invité ne bouge pas d'une ligne** : productions côté client → compte →
+  analyse, puis **la compréhension seulement une fois connecté**. Un attempt sans compte n'a
+  personne à qui attribuer un progrès (`ComprehensionObservationService` l'ignore déjà, et
+  `TcfProfileService` lit par `user_id`) : un QCM d'invité serait **perdu par construction**.
+  Aucune session anonyme, `diagnostic_sessions.user_id` reste `NOT NULL`, funnel intact.
+
+### « Mon diagnostic » se lit PAR ÉPREUVE (2026-08-22)
+
+Chantier d'après les maquettes `docs/plan/SejourFR - {Mobile,Web} Autonome.html` (écrans
+`MDiagBilan` ⇄ `PlanDiagScreen`). L'écran **Plan → « Mon diagnostic »** était organisé par
+**nature d'information** (niveau global → profil TCF → points forts → priorités → offre) ;
+il l'est désormais **par épreuve** : une carte dépliable par épreuve, portant son niveau
+estimé, les compétences qui l'expliquent, et l'action qui suit.
+
+**Le chemin d'accès ne bouge pas** : ligne « Mon diagnostic » du groupe de liens secondaires
+du Plan, `push('/diagnostic')` (mobile) ⇄ `/diagnostic` (web), sans cadenas — l'écran s'ouvre
+pour tout le monde.
+
+- **Ordre figé des sections, identique sur les deux fronts** : héros global (niveau estimé,
+  objectif, `N / 4 épreuves évaluées`, rail A2→B1→B2, et **4 colonnes cliquables** qui
+  déplient la carte visée) → « Mes 4 épreuves » dans l'ordre **EE · EO · CE · CO** → prochaine
+  étape (abonné) ou carte d'offre (gratuit) → note d'estimation. 🛑 L'ordre des épreuves est
+  **stable**, il ne reprend PAS l'ordre d'urgence de `LearningPlanDto.domaines` : le Plan se
+  lit par urgence, le diagnostic se lit toujours pareil. On ne retrie rien, on lit.
+- **Trois états de carte** : `ok` · **« À évaluer »** (`evaluated == false`, niveau `—`, CTA
+  vers l'assessment de `domainesAEvaluer`) · **« Évaluation incomplète »**
+  (`ProductionEvaluabilite.NON_EVALUABLE`). ⚠️ **Un domaine réellement mesuré affiche son
+  niveau** : une production inexploitable ne produit aucun niveau, mais elle n'**efface** pas
+  celui qu'une autre mesure a donné. Les deux fronts testent les états dans le **même** ordre —
+  ils divergeaient à la livraison, c'est corrigé.
+
+**Contrat serveur — `PlanDomainDto` gagne les compétences de son épreuve.**
+`PlanDomainDto.taches` ne donnait que des **compteurs**, `paliers` que 3 entrées sans titre, et
+`LearningPlanDto.observedSkills` est **plafonné à 8 toutes épreuves confondues** — une épreuve
+pouvait donc sortir vide alors qu'elle avait des compétences. Quatre champs additifs :
+`List<PlanDomainSkillDto> skills` (**jamais null**), `fragileSkillCount`, `solidSkillCount`,
+`notObservedSkillCount`. `paliers` et `taches` sont **intacts**.
+
+- **`skills` est UNIFORME sur les 4 épreuves** : les 24 compétences de l'épreuve en expression
+  (3 tâches × 8, ordre tâche puis `display_order`), les **3 compétences de palier** en
+  compréhension (A2→B1→B2). C'est ce qui donne aux fronts **une seule façon de lire une carte**.
+  🛑 La maquette invente des sous-domaines de compréhension (« Informations implicites »,
+  « Documents longs ») qui **n'existent pas** au référentiel — arbitrage du propriétaire
+  (2026-08-22) : on affiche les **3 paliers réels**, jamais un contenu fabriqué.
+- **Autorité unique `PlanDomainSkillResolver`, ZÉRO requête** — il ne décide rien : `status` et
+  `observedAt` viennent de `latestObservedBySkill`, `masteryState` de `SkillMasteryEngine`,
+  `nature` **des cartes que `LearningPlanService` vient d'empiler**, `locked` de
+  `SkillAccessService`. Jamais une copie d'une règle qui a déjà une autorité.
+- 🛑 **Rien n'est affirmé sans observation** : une compétence jamais observée sort
+  `NOT_OBSERVED` / `masteryState` **null** / `observedAt` **null** / **aucune** `nature` —
+  *null = inconnu, jamais mauvais*. Une compétence `SOLID` n'a pas de nature non plus : une
+  nature est **l'action à faire**, pas un statut.
+> ⚠ **CONTRADICTION #3** — voir `docs/decisions/contradictions-ouvertes.md`. Non tranchée.
+
+- **Coût inchangé : 19 requêtes avant, 19 après.** Le `GROUP BY` `countActiveByTaskCode` est
+  **remplacé** par un lot `findActiveExpression()` (48 lignes) : les compteurs par tâche s'en
+  dérivent en mémoire, et le même lot sert la liste des compétences. **Une requête troquée
+  contre une**, publiée par `PlanCycleResolver.Resolution.referentiel()` — la charger deux fois
+  aurait fait payer au Plan une donnée qu'il avait déjà en main. Les deux tests de coût gardent
+  leur **égalité**. `PlanAcquisitionSelector` n'est pas touché : le fusionner casserait le
+  retour anticipé de `PlanFocusResolver.currentFocusSkillId`, qui protège **tous** les écrans
+  de compétences.
+- **Invariant testé** : `fragileSkillCount + solidSkillCount + notObservedSkillCount ==
+  skills.size()`. C'est ce qui garantit qu'un front ne peut pas afficher un « + N » faux.
+- ⚠️ **La branche `NEEDS_DIAGNOSTIC` appelle désormais `accessService.resolve(userId, null)`** :
+  sans lui `locked` y valait `false` par défaut, donc **faux**. Correction, pas régression.
+
+**Freemium — on floute l'action, jamais la mesure.** Application par épreuve de la règle du
+2026-08-21 : 1 priorité + 1 compétence solide en clair, puis **un seul bloc de verrou par
+carte** portant le **vrai** libellé de la compétence suivante, flouté, et le compte exact
+(« + 3 compétences détectées · 2 déjà solides »). Compteurs calculés sur les
+`fragileSkillCount`/`solidSkillCount` **du domaine** — jamais sur `DiagnosticResultDto
+.fragileSkillCount`, qui est **global** et mentirait par épreuve. `N == 0` ⇒ **le bloc n'existe
+pas**. Le rideau est hors de l'arbre d'accessibilité (`aria-hidden` + `inert` ⇄
+`BlurredContent`), le compteur et le CTA vivent **hors** du rideau. Un seul chemin vers l'offre,
+**aucun événement d'audience ajouté**.
+⚠️ **Le compte des non observées est recalculé côté front** (`NOT_OBSERVED` **et** pas
+`A_ACQUERIR`) au lieu de lire `notObservedSkillCount` : ce dernier inclut les acquisitions,
+déjà affichées sous « À acquérir ». Les compter deux fois dirait qu'une compétence est à la
+fois à apprendre et sans données.
+
+**Aucune phrase ne vient du serveur.** Les résumés par (épreuve × palier) et l'encart
+d'explication vivent dans les fronts — `diagnostic_report_labels.dart` ⇄ les constantes de
+`DiagnosticReport.tsx`, miroirs mot pour mot — et l'explication est **composée de faits**
+(compétences observées, tâches, palier bloquant), jamais d'un jugement.
+
+**Ce que la maquette n'a pas et qu'on a gardé** : « Compléter mon profil » n'est plus une carte
+séparée, son parcours vit dans le bouton de chaque carte « À évaluer » (même
+`openPlanAssessment` / `usePlanAssessment`, autorité inchangée), avec un repli vers la fiche
+d'épreuve quand aucun assessment n'est servi. L'accès aux fiches de domaine survit en lien
+discret. **Supprimés** : `DiagnosticProfile.tsx` (web) et, des deux côtés, les blocs
+« points forts » / « priorités » plats, leur teaser et la barre d'action collante.
+
+🛑 **Piège de rendu à ne pas rejouer (mobile)** : la `Row` des 4 colonnes du résumé est
+enveloppée d'**`IntrinsicHeight`**. Sans lui, `CrossAxisAlignment.stretch` dans un
+`SingleChildScrollView` réclame une hauteur **infinie**, la `RenderFlex` reste `NEEDS-LAYOUT`,
+et `flushSemantics` — qui ignore les nœuds non mis en page — lève
+`!semantics.parentDataDirty` **à chaque frame** : écran blanc. Les asserts de sémantique
+étaient le **symptôme**, l'exception racine étant noyée sous les « Another exception was
+thrown ». Les 3 autres `Row + stretch` de l'app en sont déjà enveloppées — c'est la convention.
+⚠️ Et **ne pas « réparer » ce genre d'assert avec `excludeSemantics: true`** : il vide
+`visitChildrenForSemantics`, donc l'action `onTap` de l'`InkWell` disparaît du nœud et
+VoiceOver annonce « bouton » sans pouvoir l'activer.
+
+### L'écran Plan se lit PAR ÉPREUVE → TÂCHE (2026-08-22)
+
+Chantier d'après les maquettes `docs/plan/SejourFR - {Mobile,Web} Autonome.html` **mises à jour**
+(fichier neuf « encarts rétractables épreuve → tâche » ; l'écran Plan y **maigrit** des deux
+côtés). « Aujourd'hui » et « Mes priorités » ne sont plus des listes plates : ce sont des
+**encarts rétractables groupés par épreuve puis par tâche**. Fermé, un encart dit *où* je
+travaille ; ouvert, il déroule ses lignes.
+
+- **Clé de groupe** : la **tâche** en expression, le couple **(domaine, niveau)** en
+  compréhension. Une mesure et un jalon font chacun leur groupe. Dérivé **front**, à partir de
+  ce que `GET /api/me/plan` sert déjà — aucun champ ajouté au serveur.
+- **Résumé d'un encart** : « {titre de tâche} · 1 priorité · 2 à renforcer · 3 solides »,
+  **ordre figé** (priorité, à renforcer, à acquérir, à vérifier, solide, à évaluer). Il compte
+  **tout le groupe**, jamais les seules lignes visibles.
+- **6 statuts de ligne**, dérivés de `nature` → `masteryState` → `status` dans cet ordre. 🛑 Les
+  libellés sont **empruntés** à `PlanActionNature` et `SkillMasteryState`, jamais réécrits : ce
+  sont des enums gelées par `SkillLabelsTest`.
+- **Le titre des 6 tâches est un MIROIR de l'enum `SkillTaskCode`** (« Raconter une
+  expérience »), déclaré une fois par front et dérivé du `skillCode` servi (`EE2-C3` ⇒ `EE2`).
+  L'API ne le sert pas et **n'a pas à le servir** : c'est un référentiel officiel figé, patron
+  habituel des libellés d'enum. Il s'affiche aussi sur la fiche de domaine et « Toutes mes
+  compétences ».
+- **Pastille de tâche : bleu clair · ambre clair · bleu plein.** 🛑 **Jamais de rouge** — la
+  charte le réserve aux CTA critiques, et sur une épreuve d'expression `PlanDomainTile` **et**
+  le statut « Priorité » sont déjà rouges dans la même carte. La maquette utilise un violet qui
+  n'existe pas dans nos tokens : **ne pas le fabriquer**. La 3ᵉ teinte se distingue par le
+  **remplissage**, pas par la couleur.
+
+**« Compétences observées » n'existe plus — elle est FONDUE dans « Mes priorités »**
+(arbitrage du propriétaire, 2026-08-22 : *« il faut les combiner dans mes priorités, même si on
+n'affiche pas toute la liste, mais qu'il sache qu'il a de quoi travailler »*).
+- **Construction en deux passes** : les priorités servies **créent** les encarts (ordre serveur
+  intact) ; les compétences de **`domaines[].skills[]`** les **complètent sans en créer**. Une
+  tâche sur laquelle le Plan ne demande rien n'ouvre donc pas de carte — son contenu se relit
+  par le « + N autres » et la fiche de domaine.
+- 🛑 **La source est `domaines[].skills[]`, PAS `observedSkills`**, qui est **plafonné à 8
+  toutes épreuves confondues** (`LearningPlanService`) : construire les groupes dessus ferait
+  sortir une épreuve **vide** alors qu'elle a des compétences.
+- **Éligibilité d'une ligne** : `observedAt != null` **ou** `nature != null`. Une compétence
+  jamais observée et sans action n'est **ni une ligne ni un compté** — elle n'est ni un acquis
+  ni quelque chose à faire.
+- **6 lignes visibles au plus**, puis « + N autre(s) compétence(s) ». 🛑 **Le compteur est
+  VRAI**, dérivé du contenu réel du groupe ; `N == 0` ⇒ pas de lien.
+- Le bouton d'encart vise la première ligne **non solide** ; groupe entièrement solide ⇒ **pas
+  de bouton** (aucun repli sur la première ligne).
+- L'intertitre est **« Mes compétences »** : « Ce que je dois améliorer » est devenu faux dès
+  lors que la liste porte aussi des acquis.
+
+**Freemium — le verrou se lit, il ne se déduit pas.**
+- 🛑 **Jamais « à partir du 2ᵉ »** : la maquette le dessine ainsi parce que son bouchon n'a pas
+  de serveur. Le `locked` **servi** fait foi, et `PlanFocusResolver` ouvre réellement la
+  première place du Plan quelle que soit sa nature.
+- **Un encart est verrouillé ⇔ TOUTES ses lignes le sont** ⇒ cadenas **à la place du chevron**,
+  pas de dépliage, tap → offre. `group.locked` se recalcule **après** enrichissement.
+- **Une ligne `SOLID` n'est jamais verrouillée à l'affichage** : c'est un résultat mesuré, et
+  *on floute l'action pas encore accessible, jamais la mesure*.
+- Sur une ligne floutée, **seul le titre** passe derrière le rideau — **statut, nature et durée
+  restent nets**, sinon « à acquérir » se lirait « à renforcer ».
+- Le compteur « K entraînement(s) gratuit(s) sur M » est **compté sur les `locked` servis**,
+  **jamais posé à 1** : un compte gratuit a réellement plusieurs compétences ouvertes.
+- Rideau hors de l'arbre d'accessibilité des deux côtés, un seul chemin vers l'offre, **aucun
+  événement d'audience ajouté**.
+
+**« Toutes mes compétences » s'ouvre à TOUT LE MONDE** (arbitrage du propriétaire,
+2026-08-22). ⚠️ **Révoque** le garde web `if (!canAccessModule(user, "TCF"))` qui fermait la
+page entière. Il y avait **trois** verrous, tous retirés : la page, le lien du Plan côté web, la
+ligne du Plan côté mobile. Motif : la page n'affiche que de la **mesure** (compteurs par tâche,
+paliers, niveau du domaine) — aucun de ces DTO ne porte de `locked`, parce qu'aucun n'est une
+action. Les **destinations** gardent leur verrou servi, opposable en 403 par
+`SkillAccessService`.
+
+**Nouvel écran « Ma progression vers le {objectif} »** (`/plan/progression` des deux côtés),
+adossé au Plan. ⚠️ **À ne pas confondre avec l'écran de progression générique** (`/progress`
+mobile, `/statistiques` web) : celui-là montre les anneaux et les parcours civique/TCF, il reste
+en place avec son entrée depuis le Profil. Le nouveau détaille les **4 domaines du Plan**.
+- **Titre** : `cycle.objectiveLevel`. 🛑 **Nullable, et aucun front n'invente « B2 »** — absent
+  ⇒ « Ma progression » tout court. Un dossier CSP vise A2, une carte de résident B1.
+- Contenu : niveau estimé → objectif + rail + couverture du profil · une carte par domaine
+  (3 paliers avec leur état en compréhension, 3 tâches avec titre éditorial et compteurs en
+  expression, phrase + CTA de mesure si non évalué) · « ce qui a changé » · note.
+- 🛑 **Trois éléments de la maquette sont IMPOSSIBLES et ne se fabriquent pas** : les **barres
+  de pourcentage par palier** (le score interne du moteur n'est exposé à aucun front — règle
+  déjà écrite sur `PlanDomainLevelDto`), **« Voir mon bilan »** (l'écran n'existe ni dans l'app
+  ni au serveur) et le **compte de jours** (aucune source). Les paliers portent leur
+  `masteryState`, ce qui dit la même chose sans chiffre interdit.
+- **Aucun verrou** : l'écran n'affiche que de la mesure.
+
+⚠️ **Ce que les maquettes du Plan demandent et qu'on ne comblera PAS** : les **sous-compétences
+de compréhension** (« Informations implicites », « Documents longs »…) **n'existent pas** — le
+référentiel n'a qu'une compétence par palier (`CO-A2/B1/B2`, `CE-A2/B1/B2`). Trois blocs de
+maquette reposent dessus ; le pendant réel légitime, ce sont les **3 paliers**.
+
+### Écrans — ce qui n'a PAS été créé, et pourquoi
+La maquette appelle plusieurs écrans secondaires. **Créés** : fiche d'un domaine, « votre
+programme évolue », bilan d'une série ciblée (mobile). **Non créés, l'existant suffisait** :
+- **aucun runner de série ciblée** — c'est un `TRAINING` ordinaire, il part dans le runner QCM
+  existant (le brief interdit une seconde UX concurrente) ;
+- **aucun écran de vérification en situation** — un exercice `REASSESSMENT` porte déjà sa
+  `productionTaskId` + `tacheNumero` et réutilise le démarrage de production ;
+- les jalons ouvrent les examens blancs existants.
+⚠️ **Les écrans de résultat `AIFeedbackCard` / `MAIFeedback` de la maquette sont des
+VESTIGES** : note **/100 par critère**, critères « Prononciation » et « Fluidité ». Les
+reproduire contredirait deux règles écrites (note retirée d'une tâche isolée le 2026-08-08 ;
+interdiction de juger la prononciation depuis une transcription). La bonne référence est
+`WResultat.jsx`.
+
+
+### Le diagnostic COMPLET n'est pas un prérequis d'accès au Plan (2026-09-12)
+
+> 🛑 **Mise à jour du 2026-09-28 (D-69) — le diagnostic RAPIDE non plus.** Le Plan existe pour
+> **tout** compte : `planDisponible` vaut toujours `true`, `LearningPlanDto.state` toujours
+> `ACTIVE`. Ce qui suit reste vrai pour la **fondation** (sur quel diagnostic le Plan s'appuie
+> quand il y en a un) et pour « un Plan provisoire ne s'appuie que sur ce qui a été mesuré ».
+> Ce qui est **révoqué** : toute phrase qui fait du diagnostic une condition d'existence du Plan.
+> → § « Le Plan PAR DÉFAUT » plus bas.
+
+> 🛑 **Mise à jour du 2026-09-26 — le diagnostic complet n'AFFINE plus le Plan côté produit :
+> son parcours est retiré des fronts.** Le rapide ouvre le Plan (EE renseignée) ; **CO, CE et EO
+> se mesurent par l'EXAMEN BLANC que le Plan propose** (`PlanDomainAssessmentDto`,
+> `MODULE_MOCK_EXAM` / `PRODUCTION_MOCK_EXAM`). Ce qui reste vrai ci-dessous : `planDisponible`
+> est le fait à lire, `PlanFoundationResolver` l'autorité, un Plan provisoire ne s'appuie que sur
+> ce qui a été mesuré, et un complet **déjà clos** continue de fonder / nourrir le Plan (ses
+> résultats restent lus). Ce qui est **historique** : la carte « Affiner », les CTA « Faire le
+> diagnostic complet » / « Continuer le diagnostic » et le lien vers `/diagnostic-tcf` (redirigé
+> vers le Plan TCF). Détail : `docs/regles/diagnostic.md`, section « Le diagnostic COMPLET est
+> RETIRÉ des fronts ».
+
+🛑 **Le fait à lire est `prep.planDisponible`, jamais `etape`.** Il rend **mot pour mot** la
+condition du moteur (`LearningPlanService.get()` bascule en `ACTIVE` sur
+`findLatestCompleted`, c'est-à-dire le **rapide**). Deux lectures de « le Plan existe-t-il ? »
+auraient fini par se contredire.
+
+**Le moteur n'a jamais eu besoin du complet** — vérifié en base : des comptes sans aucune ligne
+dans `tcf_diagnostic_sessions` portent 16 à 27 `learning_plan_observations`, et
+`LearningPlanProfilProgressifIT` assertait déjà `ACTIVE` après le seul rapide. Le blocage
+vivait uniquement dans le javadoc de `ESTIMATION_FAITE` (« le Plan ne peut pas encore être
+construit »), **faux et révoqué**.
+
+Règle produit : rapide clos → **Plan disponible** · complet partiel → Plan disponible et
+enrichi au fil de l'eau · complet clos → Plan recalculé sur les 4 épreuves. Le complet
+**affine**, il n'ouvre pas.
+
+**Sur quelle mesure le Plan se fonde-t-il ?** Une seule autorité, `PlanFoundationResolver`,
+avec deux lecteurs et deux seulement : `LearningPlanService.get()` (bascule `ACTIVE`) et
+`PreparationService` (`planDisponible`). Ce dernier n'imite pas la condition du moteur, il
+l'**appelle**.
+
+| Situation | Plan |
+|---|---|
+| rapide clos | disponible |
+| complet **clos**, sans rapide | disponible (les 4 épreuves sont mesurées) |
+| complet 1/4 → 3/4, **sans rapide** | 🛑 **pas** disponible |
+| rien de clos | pas disponible |
+
+Sans rapide, `estimationSessionId` vaut `null` : ni lien « Revoir mon diagnostic rapide », ni
+rapport encastré. Rien n'est inventé. Coût : budget du Plan 21 → 22 requêtes, une lecture
+indexée inconditionnelle (`LearningPlanCycleIT` gèle l'égalité « 2 compétences observées ou
+20, même coût »).
+
+🛑 **Un Plan provisoire ne s'appuie que sur ce qui a été MESURÉ.** Une compétence que le rapide
+n'a pas observée est **inconnue** — ni faible, ni prioritaire (`PlanAcquisitionSelector` exige
+« son domaine a déjà été mesuré »). Peu de priorités, toutes vraies, est le bon résultat ; un
+Plan qui remplit ses quatre domaines en devinant est un échec. Gelé par
+`LearningPlanProfilProgressifIT.leRapideSeulDonneUnPlanSansInventerDePriorite` (rapide écrit
+seul ⇒ priorités **toutes en EE**, EO/CO/CE à `evaluated:false`, `niveau:null`).
+
+**La carte « Affiner » a trois formes**, servies par `affinerPlan()` (autorité unique,
+`lib/preparation.ts` ⇄ `preparation_labels.dart`, lue par le Plan gratuit, le Plan abonné et
+l'Accueil) :
+
+| Complet | Carte | CTA |
+|---|---|---|
+| jamais commencé | « Affiner votre Plan » — **sans afficher 0/4** | « Faire le diagnostic complet » |
+| 1/4 → 3/4 | « Diagnostic complet en cours » + « N / 4 épreuves terminées » + barre + `prochaineEpreuve` servie | « Continuer le diagnostic » |
+| 4/4 | aucune carte, aucune progression | — |
+
+Elle se place **après** le contenu principal et ne concurrence jamais le CTA d'abonnement :
+pour un non-abonné, « Débloquer mon Plan » reste l'action principale, le complet reste
+secondaire. Le freemium est inchangé — `locked` servi, opposable en 403 ; un Plan provisoire
+se verrouille exactement comme un Plan complet.
+
+**CTA du diagnostic complet — deux libellés, jamais plus** : « Faire le diagnostic complet »
+(jamais commencé) · « Continuer le diagnostic » (1/4 → 3/4) · **aucun CTA** à 4/4. La variante
+« Faire mon diagnostic complet » est supprimée. Autorité : `DIAGNOSTIC_COMPLET_CTA_START` /
+`_RESUME` ⇄ `kDiagnosticCompletCtaStart` / `…Resume`.
+
+**« Revoir mon diagnostic rapide »** est un **lien**, jamais une carte ni un bouton plein, posé
+tout en bas du Plan sous la carte « Affiner » — donc après le paywall pour un non-abonné et
+après tout le contenu pédagogique pour un abonné. Il ne concurrence ni « Débloquer mon Plan »
+ni « À faire maintenant », seuls boutons pleins de l'écran, et n'apparaît que si
+`estimationSessionId` est servi.
+
+**Le rapport du diagnostic rapide quitte la page Plan** : les priorités du Plan sont plus
+riches et plus à jour, et le garder en tête repousserait « Débloquer mon Plan » sous la ligne
+de flottaison. Le mécanisme d'encastrement (`embedded`/`closingCta` ⇄ `leading`/`trailing`)
+reste branché sur le **repli de désaccord** (`planDisponible` vrai mais `state != ACTIVE`) :
+le candidat retrouve son rapport plutôt qu'un écran muet.
+
+---
+
+## Compléter son profil n'a plus qu'une porte (2026-09-13)
+
+> ⚠️ **Historique depuis le 2026-09-26** : cette porte unique était le diagnostic complet, retiré
+> des fronts. La mesure d'un domaine non observé passe par l'**examen blanc** proposé par le Plan.
+
+🛑 **Arbitrage du propriétaire**, verbatim : « Ici l'écran plan, supprime la partie compléter
+mon profil, en y mettant le bouton faire le diagnostic complet. Bouton plus visible. »
+
+La section **« Compléter mon profil »** de l'écran Plan — celle qui listait les domaines
+jamais mesurés avec un CTA par domaine (« Passer l'examen blanc », « Faire une production ») —
+est **supprimée des deux fronts**, avec son code : `CompleterMonProfil` / `AssessmentCard`
+(`LearningPlanView.tsx`), `_assessmentSection` (`plan_tcf_view.dart`) et les deux libellés
+devenus morts (`PLAN_COMPLETE_PROFILE_TITLE` / `_TEXT` ⇄ `kPlanCompleteProfileTitle` /
+`kPlanCompleteProfileText`). `PLAN_COMPLETE_PROFILE_NOTE` reste : la fiche d'un domaine et
+« Toutes mes compétences » la lisent.
+
+🛑 **Une seule occurrence du CTA par écran.** La carte `AffinerPlanCard` prend l'emplacement
+libéré (chez l'abonné) ou reste après le paywall (compte gratuit), au lieu d'être posée une
+seconde fois en fin de page : deux invitations au même diagnostic sur le même écran, c'était
+exactement le doublon qu'on retire.
+
+**Le bouton devient PLEIN** — `blue` (Bleu France) au lieu de `line` (contour), des deux
+côtés. 🛑 **Jamais `primary`** pour autant : le rouge reste réservé au CTA critique de la
+page, « Débloquer mon plan » sur un compte gratuit. C'est ce qui permet de le rendre
+nettement plus visible sans lui faire concurrencer l'abonnement.
+
+**La carte DIT ce qui se mesure** (`affinerPlan`, autorité unique, miroirs
+`lib/preparation.ts` ⇄ `preparation_labels.dart`) : les 4 épreuves du TCF, et que
+**l'expression écrite et orale y est entièrement offerte** — c'est le fait qui décide le
+candidat, et il est vrai (cf. `docs/regles/diagnostic-tcf-4-epreuves.md`).
+
+**Ce qui ne bouge pas** : le lien « Revoir mon diagnostic rapide », les lignes d'« Aller plus
+loin » / accès secondaires, le jalon, et les **autres** portes de mesure — fiche de domaine,
+« Ma progression », ligne `A_EVALUER` de la séance —, qui gardent le lanceur unique.
+
+## Plan CIVIQUE — répétition espacée et grain mesuré (L10, 2026-09-10)
+
+🛑 **À ne pas confondre avec le Plan TCF.** Deux plans, deux moteurs, aucun effet
+croisé (`20_` §12) : le civique ne porte **aucune** métrique CECRL, et le TCF
+ignore les notions civiques. L'onglet du Plan choisit lequel s'affiche.
+
+Source : `GET /api/me/civic-plan`. Écrans : `CivicPlanPanel.tsx` ⇄
+`civic_plan_view.dart`, libellés `lib/civic-plan.ts` ⇄ `civic_plan_labels.dart`.
+
+### Ce qui n'existe pas, et pourquoi
+
+🛑 **Aucune table.** `20_` §10 prévoyait `civic_plan`, `civic_plan_item`,
+`user_civic_notion_progress` et un **job quotidien** pour les échéances. Rien de
+tout cela n'a été construit : l'état Leitner se **replie sur l'historique des
+réponses** à chaque lecture (`CivicLeitnerResolver`). Trois raisons, dans
+l'ordre de leur poids :
+
+1. 🛑 **le tagging est rétroactif.** Au lancement du lot, **0 question sur
+   1 016** est taguée. Une table de progression serait née vide et le serait
+   restée pour tout l'historique déjà produit ; avec un dérivé, le jour où une
+   question reçoit sa notion, les réponses déjà données comptent pour elle ;
+2. **recalibrer ne demande aucune migration** — changer un intervalle relit tout
+   l'historique au prochain appel (doctrine du dépôt : « un dérivé se relit, il
+   ne se persiste pas ») ;
+3. **aucun job** : une échéance calculée à la lecture se franchit toute seule.
+
+Corollaire : il n'y a **pas** de route `/recompute`. Recalculer, c'est relire.
+
+🛑 **Aucun `reason_text` servi.** `20_` §10 en prévoyait un ; les phrases vivent
+dans les deux fronts, en miroir mot pour mot. Le serveur n'expose que des faits.
+
+### Leitner (`20_` §5.1)
+
+Cinq boîtes, intervalles **0 / 1 / 3 / 7 / 21 jours**. Réponse juste ⇒ boîte + 1
+(max 5) ; 🛑 **réponse fausse ⇒ retour boîte 1, toujours**, quelle que soit la
+hauteur atteinte. L'échéance se compte depuis la **dernière** présentation.
+
+🛑 **L'ORDRE fait la boîte** : le repli rejoue les réponses triées par instant.
+Un `ORDER BY` oublié se verrait comme un plan qui change sans raison.
+
+🛑 **Toutes les sources comptent** — diagnostic, série ciblée, examen blanc
+(`20_` §8.2). Écarter une source rendrait le plan sourd à la moitié de ce que le
+candidat produit.
+
+### Le parcours d'une cible — l'effet Leitner rendu visible (2026-09-11)
+
+`30_` §510 demande deux choses en une phrase : « **l'effet Leitner doit être
+visible** — c'est ce qui rend la valeur Premium tangible » et « **ne jamais
+afficher le numéro de boîte**, seulement l'état et la prochaine échéance ».
+Longtemps, seule la seconde moitié était tenue : le plan se réordonnait en
+silence, donc il ne se distinguait pas d'une liste de thèmes.
+
+`CivicPlanDto.Cible.parcours` sert désormais **exactement 5 `CivicEtapeEtat`**
+(`FRANCHIE` / `EN_COURS` / `A_VENIR`), calculés par `CivicLeitner.parcours` :
+
+```
+boîte 1 → EN_COURS  A_VENIR  A_VENIR  A_VENIR  A_VENIR
+boîte 3 → FRANCHIE FRANCHIE  EN_COURS A_VENIR  A_VENIR
+MAITRISEE → tout FRANCHIE, aucune étape en cours
+```
+
+🛑 **Le numéro de boîte n'est jamais publié à l'écran.** Il reste sur le DTO pour
+l'admin et les tests ; le candidat voit une **position dans un parcours nommé**
+(« Étape 3 / 5 »). C'est la forme validée par la maquette du propriétaire, et
+elle honore les deux moitiés de la règle.
+
+🛑 **Les libellés des 5 étapes sont GELÉS côté front**, en miroir mot pour mot
+(`CIVIC_PATH_LABELS` dans `web_sejoufr/lib/civic-plan.ts` ⇄ `kCivicPathLabels`
+dans `mobile_sejourfr/lib/screens/plan/civic_plan_labels.dart`). Le DTO civique
+sert des **faits, jamais des phrases** — c'est la règle de tout ce module.
+
+🛑 **Aucun front ne situe le candidat.** Une première version dérivait les trois
+états depuis `boite` dans les deux fronts : c'était un front qui classe un nombre
+en état pédagogique, et deux implémentations vouées à diverger. Ne pas y revenir.
+`CivicLeitnerParcoursTest` verrouille le contrat.
+
+⚠️ **Le parcours peut RECULER** — une erreur renvoie en première étape, comme la
+boîte. C'est voulu : c'est exactement ce que le candidat doit voir. Un
+`parcours` vide (client servi par un backend antérieur au champ) n'affiche
+**aucune carte**, jamais des étapes fabriquées.
+
+### « Progression détectée » — ce qui a bougé (2026-09-11)
+
+`CivicPlanDto.changements`, pendant de `recentChanges` côté TCF. 🛑 **`null` est
+le cas NORMAL** : servi seulement quand une **vraie** transition a eu lieu.
+
+🛑 **Rien n'est persisté**, fidèle au reste du module : l'état d'il y a une
+semaine se **rejoue** depuis l'historique des réponses, exactement comme l'état
+courant (`CivicChangementsResolver`). Une table de snapshots aurait figé un état
+calculé avec le référentiel du jour et **cassé la rétroactivité du tagging**.
+
+Ce qui fait un changement, et ce qui n'en fait pas :
+
+- 🛑 **Le temps seul n'est pas un changement.** Sans réponse nouvelle dans la
+  fenêtre, une cible est ignorée — sinon une échéance Leitner qui se franchit
+  toute seule s'annoncerait comme une progression.
+- 🛑 **Le rabat au grain THÈME s'applique aux DEUX bouts.** Sans lui on
+  annoncerait « passe à Maîtrisée » sur un thème, palier que le plan lui-même
+  refuse. Une seule autorité : `CivicMaitrise.rabattueAuGrainTheme()`.
+- **Une baisse est une transition comme une autre**, servie avec
+  `progres = false`. Le plan dit ce qui s'est passé, il ne raconte pas que des
+  bonnes nouvelles.
+- La **fenêtre** retenue est la plus courte qui contienne quelque chose, et
+  c'est `PlanRecentChangesWindow`, partagée avec le TCF — une seule autorité sur
+  les trois périodes et leurs libellés.
+- **`nouvellePriorite`** n'est servie que si la cible de rang 1 vient d'être
+  travaillée : une cible en tête depuis trois semaines n'est pas une nouvelle.
+
+🛑 **`progres` est dérivé SERVEUR** : un front ne compare jamais deux états
+pédagogiques. Les fronts ne font que mettre en mots (`civicTransitionLabel` /
+`civicNextStepLabel`, miroirs). `CivicChangementsResolverTest` verrouille le tout.
+
+### État de maîtrise (`20_` §5.2)
+
+`NON_EVALUEE` (< 2 réponses) · `A_TRAVAILLER` (boîte 1-2) · `EN_PROGRESSION`
+(boîte 3) · `MAITRISEE` (boîte 4-5 **et** dernière réponse juste).
+
+🛑 **`NON_EVALUEE` n'est pas un mauvais verdict** : moins de deux réponses ne
+conclut rien. C'est l'invariant `null = inconnu`, dont la confusion inverse a
+produit les faux `A1_NON_ATTEINT` du TCF (V040/V041/V042).
+
+🛑 **Un THÈME n'est JAMAIS `MAITRISEE`.** Une notion se tient sur quelques
+questions ; un thème en porte deux cents. Quatre bonnes réponses de suite sur un
+thème ne prouvent rien, et l'annoncer acquis reproduirait « NON FRAGILE ≠ PLUS
+RIEN À APPRENDRE ». Le garde-fou **rabat** `MAITRISEE` sur `EN_PROGRESSION` au
+grain thème — il ne peut qu'abaisser, jamais relever.
+
+### Score de priorité (`20_` §5.3)
+
+```
+score = 3 × (erreur dans les 7 derniers jours)
+      + 2 × min(erreurs sur 30 jours, 3)
+      + 2 × (pointé par le diagnostic)
+      + 2 × (échéance Leitner franchie)
+      + 1 × (poids du thème : FAIBLE 2, À_RENFORCER 1, sinon 0)
+      − 3 × (maîtrisée)
+      − 10 × (dotation CONTENU_INSUFFISANT)
+```
+
+🛑 **`NON_EVALUE` pèse 0**, comme `SOLIDE` : un thème que le diagnostic n'a pas
+touché n'est pas faible.
+
+🛑 **Le malus de contenu insuffisant est écrasant (−10)**, et c'est voulu : une
+notion qui n'a pas de quoi remplir une série ne doit **jamais** remonter en
+priorité (`50_` §6.1). Un filtre en amont l'aurait rendue invisible aux mesures.
+
+🛑 **`NON_APPLICABLE` ne prend AUCUN malus** (arbitrage 2026-09-11, posé avec
+l'enum). Un score est un **rang**, pas un verdict sur la notion : −10 dit « ce
+serait un mauvais choix », or une notion absente de la mention n'est pas un
+mauvais choix, elle **n'est pas un choix du tout**. Lui coller le malus du
+manque, c'est la confusion `inconnu ⇒ mauvais` que le dépôt paie déjà cher
+(V040/V041/V042). Aucun effet observable de toute façon : le plan l'écarte par
+un **filtre**, strictement plus sévère qu'un −10 — et c'est lui, le garde-fou
+qui abaisse. Conséquence lisible en admin : une notion hors mention garde son
+score **nu**, ce qui est l'information juste.
+
+🛑 **Au grain notion, « pointé par le diagnostic » vaut toujours `false`** : le
+diagnostic mesure des **thèmes**. Le compter pour chaque notion d'un thème
+faible compterait le même signal deux fois, le poids du thème le portant déjà.
+
+### Le grain se MESURE, thème par thème (`20_` §3.3)
+
+Un thème passe au grain **notion** quand ≥ 80 % de ses questions **de
+connaissance** actives sont taguées (`sejourfr.civic-plan.seuil-tagging`).
+🛑 **Par thème, jamais globalement** : un thème tagué à 90 % n'attend pas celui
+qui est à 10 %. Un thème sans question active reste au grain thème — diviser par
+zéro pour conclure « 100 % tagué » basculerait un thème vide.
+
+🛑 **Le dénominateur ne compte QUE les `CONNAISSANCE` — c'est une règle, pas un
+réglage** (arbitrage propriétaire, 2026-09-11). Les connaissances se rattachent à
+des **notions** ; les 173 **mises en situation** relèvent d'un axe pédagogique
+distinct et seront suivies par leurs **domaines de situation** (`50_` §6.2, codes
+`sit_*`). Elles ne reçoivent donc jamais de `civic_notion_id`, et une mise en
+situation non taguée ne doit jamais empêcher l'activation du grain notion.
+**On ne mélange pas les deux métriques.** Les compter a un coût mesuré : trois
+thèmes sur cinq plafonnaient à 77,9 / 77,9 / 79,0 % et **n'auraient JAMAIS
+franchi le seuil**, même avec 100 % de leurs connaissances taguées.
+
+La même règle vaut pour les **deux autres compteurs du chantier de tagging** —
+`resteATaguer` et la file `GET /api/admin/civic-notions/questions` : ils mesurent
+l'avancement qui déclenche la bascule, ils doivent donc compter la même chose.
+⚠️ Une question **déjà taguée** reste visible dans la file quel que soit son
+type : cacher une erreur n'est pas la corriger.
+
+🛑 **En revanche, les compteurs de DOTATION ne filtrent pas** (`questionsParNotion`,
+`questionsParTheme`, `couvertureParNotionEtMention`) : ils doivent rendre
+exactement ce que le tirage de la série ciblée peut jouer, et ce tirage ne connaît
+que `civic_notion_id` / `theme_id`. Filtrer là dégraderait la `CivicDotation`
+d'une notion qui remplit pourtant sa série. **Couverture ≠ dotation.**
+
+Le DTO sert `themesParNotion / themesTotal` et l'écran **le dit** : le plan ne se
+présente jamais plus précis qu'il ne l'est. `courant = NOTION` seulement quand
+**tous** les thèmes ont basculé.
+
+### La dotation d'une cible : **trois** états, pas deux (2026-09-11)
+
+`CivicDotation` (`service/plancivique/`, servi sur `CivicPlanDto.Cible.dotation`,
+mirroré web + mobile) et sa **dérivation unique** `CivicDotation.depuis(questions,
+minimum)` — 🛑 **ni le plan ni le scorer ne recomparent un compte à un seuil.**
+
+| questions de la cible **dans la mention** | état |
+|---|---|
+| **0** | `NON_APPLICABLE` — la notion n'existe pas pour ce candidat |
+| **1 à 4** (sous `questionsMinParNotion`) | `CONTENU_INSUFFISANT` — le sujet existe, il manque de la matière |
+| **≥ 5** | `SERVABLE` |
+
+🛑 **Ce n'est pas un renommage, c'est une règle**, et le corpus l'impose
+(arbitrage du propriétaire, mesuré par V058) : **CSP, CR et NAT ne sont pas trois
+niveaux du même programme, ce sont trois programmes différents.** « Devenir
+français » porte 10 questions en NAT et **zéro** en CSP ; « Les devoirs du
+citoyen » en porte 4 en NAT. Les deux recevaient le même verdict — alors que la
+première n'a **rien à faire** chez un candidat CSP et que la seconde attend **une
+seule question**. Les confondre, c'est perdre le signal éditorial qui dit quoi
+écrire. Même invariant que `NON_EVALUEE` et que le `null = inconnu, jamais
+mauvais` du dépôt : *une absence de programme n'est pas un manque*.
+
+**Le minimum n'est pas le même aux deux grains, et c'est voulu** : une **notion**
+se compare à `questionsMinParNotion` (5, l'unité de parcours), un **thème** à
+`questionsParSerie` (10, de quoi remplir la série qu'on lui proposerait).
+
+**Seul `SERVABLE` est servi** : `proposables` **et** `aRevoir` écartent les deux
+autres états. 🛑 **Aucun front ne dérive cet état** et aucun ne fabrique de
+libellé pour lui — s'il faut un jour *dire* « pas au programme de votre
+démarche », la phrase arrive servie.
+
+`50_` §6.1 : **≥ 5** questions actives dans la mention = notion pleinement
+utilisable, éligible comme priorité ; **1 à 4** = visible en révision libre,
+**jamais** proposée en priorité (malus −10) ; **0** = pas son programme.
+🛑 **Compte PAR MENTION.**
+
+⚠️ La valeur a vécu en **trois sources et deux valeurs** — `CivicPlanProperties`
+à 4, `50_` §6.1 à 5, l'écran d'admin colorant sous 5. Tranché par le propriétaire
+le 2026-09-11 : **5 partout**, « une notion avec seulement 4 questions est trop
+fragile pour devenir une vraie unité de parcours adaptatif ». Le « < 4 » de
+`20_` §3.4 est **annulé** par `50_` §6.1 ; ce document-ci fait foi.
+
+### Relire le pré-tagging : quatre verdicts, et le serveur arbitre (V054)
+
+`question_notion_suggestions` porte désormais `prompt_version` (NOT NULL, sans
+défaut), `rationale`, `review_verdict`, `reviewed_by`, `reviewed_at`, `batch_id`.
+
+🛑 **Quatre gestes, quatre états distincts.** Avant V054, « rejeter » et
+« passer » n'écrivaient **rien** — indiscernables en base — et « valider » et
+« corriger » produisaient la **même** écriture : on ne pouvait donc pas mesurer
+si le modèle avait raison, ce qui est tout l'intérêt du pré-tagging.
+
+| geste | `civic_notion_id` | suggestions de la question |
+|---|---|---|
+| notion retenue = la **mieux notée** | posée | `VALIDATED` |
+| **autre** notion retenue | posée | `CORRECTED` |
+| aucune ne convient | intacte | `REJECTED` |
+| passer | intacte | `SKIPPED` |
+
+🛑 **Seuls `VALIDATED` et `CORRECTED` posent un tag.** 🛑 **Le serveur déduit
+`VALIDATED` vs `CORRECTED`** en comparant la notion retenue à la suggestion la
+mieux notée : c'est la métrique de qualité du modèle, et un client qui pourrait
+l'annoncer pourrait la mentir — il est **refusé** s'il l'envoie. Le verdict
+qualifie la relecture de la **question** : il est écrit sur toutes ses
+suggestions, et se mesure en `COUNT(DISTINCT question_id)`.
+
+🛑 **`prompt_version` est NOT NULL sans défaut** : même modèle + prompt différent
+= calibration différente. Deux campagnes incomparables ne doivent jamais se
+mélanger dans le même taux de `VALIDATED`.
+
+🛑 **Aucun chemin d'application automatique** : ni trigger, ni règle, ni contrainte
+ne recopie une suggestion vers `questions.civic_notion_id`. « Le job propose, un
+humain valide » (`50_` §6.1.3). Vérifié par `CivicTaggingVerdictIT`.
+
+### « Aucune notion ne convient » est un VERDICT, pas un silence (V057)
+
+Le pré-tagging peut conclure qu'**aucune notion du référentiel ne convient**
+(valeur `AUCUNE` du tool-schema). C'est l'information de **première importance**
+du chantier : c'est elle qui révèle les **trous du référentiel**. Elle était
+**perdue** — `notion_id` était `NOT NULL`, donc l'import n'écrivait pas de ligne
+et la question sortait des métriques (49 lignes pour 50 entrées au pilote).
+
+`question_notion_suggestions.notion_id` est donc **nullable** : `NULL` = le
+modèle a conclu qu'aucune notion ne convient. 🛑 **Ce n'est PAS la même chose
+que l'absence de ligne**, qui dit « cette question n'a pas été pré-taguée ».
+🛑 **Aucune notion technique « AUCUNE » n'existe dans `civic_notions`** (décision
+du propriétaire) : le référentiel ne contient que de vraies notions
+pédagogiques, et l'absence de rattachement s'écrit avec l'absence de valeur.
+
+🛑 **L'unicité tient en `UNIQUE NULLS NOT DISTINCT`** (PG 15+) : sans elle, deux
+`NULL` seraient distincts et un rejeu de lot empilerait dix lignes « aucune
+notion » sur la même question — un trou compté dix fois.
+
+🛑 **Toute lecture de cette table est en `LEFT JOIN`** : une jointure interne sur
+`civic_notions` fait disparaître ces lignes **en silence**, c'est-à-dire
+exactement celles qu'on cherche. Les tris qui départagent sur `n.code` portent un
+`NULLS LAST` explicite pour rester déterministes.
+
+**Les quatre gestes sur une suggestion « aucune notion »** :
+
+| geste du relecteur | requête | stocké | tag posé |
+|---|---|---|---|
+| **valider** (« il y a bien un trou ») | `CONFIRM_NONE` | `VALIDATED` | non |
+| **corriger** (« si, c'est cette notion-là ») | `{notionCode: X}` | `CORRECTED` | oui |
+| **rejeter** | `REJECTED` | `REJECTED` | non |
+| **passer** | `SKIPPED` | `SKIPPED` | non |
+
+🛑 **`CONFIRM_NONE` stocke `VALIDATED`** — la proposition du modèle (« aucune »)
+était juste, et c'est exactement ce qui rend la métrique mesurable. Il est
+**refusé (400)** quand la meilleure suggestion de la question n'est pas « aucune
+notion », y compris quand il n'y en a aucune : le client affirmerait quelque
+chose de faux sur la qualité du modèle. Même principe que l'interdiction
+d'annoncer `VALIDATED` soi-même. ⚠️ Corriger depuis une suggestion « aucune »
+donne bien **`CORRECTED`** : le modèle s'était trompé.
+
+⚠️ **Aucune contrainte n'interdit une ligne « aucune » à côté d'une ligne
+« notion X » sur la même question** : le tool-schema du job accepte `AUCUNE` en
+`notion` **et** en `alternative`, et sa règle 8 demande une alternative quand
+deux réponses se défendent. « Probablement rien, sinon `hg_patrimoine` » est une
+hésitation honnête, et c'est le matériau de la porte de revue ; l'interdire
+ferait taire l'une des deux moitiés. La cohérence se juge sur la **meilleure**
+suggestion, à la lecture.
+
+**Côté DTO** : `QuestionTaggingDto.Suggestion.notionCode` / `notionLabel` sont
+**nullables** — c'est ainsi que l'écran affiche « Aucune notion correspondante ».
+🛑 **Jamais de chaîne sentinelle** (`"AUCUNE"`, `"—"`) : le front a besoin du
+`null` pour distinguer sans deviner, et une sentinelle finirait par s'afficher
+telle quelle.
+
+**Contrat REST** (figé) : `PUT /api/admin/civic-notions/questions/{id}` avec
+`{notionCode, verdict}`. `verdict` nul ou `"TAG"` + `notionCode` ⇒ le serveur
+pose et déduit ; `"CONFIRM_NONE"` ⇒ le relecteur confirme qu'aucune notion ne
+convient, le serveur stocke `VALIDATED` et ne pose rien (V057) ; `"REJECTED"` /
+`"SKIPPED"` ⇒ on marque seulement, aucun `notionCode` accepté ; `notionCode` nul
+sans verdict ⇒ **effacement**, le comportement d'avant V054
+(rétrocompatibilité). `GET .../questions` sert
+l'énoncé, l'**explication**, les **propositions** et, par suggestion, sa
+`rationale` et son `reviewVerdict`.
+
+### Freemium
+
+🛑 **Le verrou porte sur la SÉRIE, jamais sur le constat** (`20_` §6, variante
+non abonné). Les priorités sont servies **entières** à tout le monde — titre,
+état, compteurs. `locked` porte sur l'action, et le **403** de
+`POST /api/me/civic-plan/cibles/{id}/serie` est la **même règle**, cette fois
+opposable : un front dont le statut premium en cache est périmé reçoit un refus
+attendu, à router vers l'offre.
+
+### La série ciblée
+
+`POST /api/me/civic-plan/cibles/{id}/serie?grain=…` crée un **`TRAINING`
+ordinaire** joué dans le runner existant — aucun écran de passation n'est créé,
+aucun slot d'examen blanc n'est consommé.
+
+🛑 **Ce n'est pas un tirage au hasard** : l'ordre porte l'intention du plan — ce
+que le candidat a **raté en dernier** vient d'abord, puis ce qu'il n'a **jamais
+vu**, puis le reste. Sans cet ordre, « travailler ce point » redonnerait les
+questions déjà réussies. `random()` départage à l'intérieur d'un rang.
+
+### Le bloc « objectif » sert le DIAGNOSTIC, pas une estimation courante
+
+`20_` §6 bloc 1 parle d'un « résultat estimé aujourd'hui » dérivé des « dernières
+réponses ». 🛑 **On ne le fabrique pas.** Mélanger des séries d'entraînement
+(correction immédiate, questions choisies par le plan) à un examen produirait un
+nombre qui ressemble à un score sans en être un. Le diagnostic, lui, pose le
+format entier : son score **est** le résultat, directement comparable au seuil.
+
+---
+
+## Ce que le Plan sert à l'écran RÉVISER (2026-09-12)
+
+L'écran **Réviser** a été refait sur la maquette du propriétaire
+(`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`). Il ne calcule rien : il
+lit le Plan et le tableau de bord, et met en mots des faits servis
+(`web_sejoufr/lib/reviser.ts` ⇄ `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`,
+miroirs mot pour mot).
+
+🛑 **Le Plan lui sert ce qui se COMPTE, jamais le NIVEAU** (2026-09-16). Réviser
+lit `PlanDomainDto` pour la **tâche courante** et les **compétences acquises** —
+et **plus du tout** pour « Niveau estimé : X », qui vient désormais de
+`DashboardSummaryResponse.tcfDomainProfile`, l'**autorité d'affichage**
+(`levelProfileAccueil`), la même que l'Accueil et le Profil. La lecture du Plan
+(`levelProfile` : le maximum, entraînements EE/EO compris) reste ce qu'elle est
+et sert le Plan ; elle ne doit simplement pas être **présentée comme un palier**
+par un écran de catalogue. → `docs/regles/progression.md`,
+`docs/decisions/diagnostic.md`.
+
+🛑 **« Reprendre là où vous vous êtes arrêté » vient du PLAN** — demande du
+propriétaire : « il faut mettre la chose actuellement à travailler maintenant
+dans le plan ». C'est `seance.items[0]` côté TCF, `prochaine` côté civique.
+Réviser ne tient **aucun** historique à lui : le Plan est l'autorité, et les
+deux écrans ne peuvent donc pas désigner deux choses différentes. Les lanceurs
+sont ceux du Plan (`usePlanExercise` / `usePlanAssessment` ⇄
+`startPlanSeanceItem`), jamais un second chemin.
+
+🛑 ~~**Sans diagnostic, aucune carte de reprise**~~ — ⚠️ **révoqué le 2026-09-28 (D-69)** : le
+Plan existe sans diagnostic (cycle d'examens par défaut), la carte de reprise lit donc toujours
+le Plan. Une carte qui inventerait un point de reprise mentirait toujours : elle ne lit que ce
+que le Plan sert.
+
+🛑 **Une action verrouillée n'est pas proposée en reprise.** Le Plan d'un compte
+sans accès est un constat (cf. §« Un compte SANS accès ne voit pas la carte d'un
+abonné ») ; sur Réviser, la carte disparaît et le candidat entre par la liste des
+épreuves — c'est exactement ce que l'arbitrage du 2026-09-12 prévoit (« on passe
+par Réviser pour voir ce qu'on peut utiliser gratuitement »).
+
+### Trois champs servis pour cet écran
+
+| champ | porté par | ce qu'il permet |
+|---|---|---|
+| `seriesDone` / `seriesTotal` | `DashboardSummaryResponse.CategoryStat` | « 2 / 10 séries » |
+| `tacheCourante` | `PlanDomainDto` | « Prochaine étape : Tâche 3 » et le « x / 8 compétences » de la bonne tâche |
+| `themes` | `CivicPlanDto` | la ligne d'un thème civique : « En cours · Le Parlement », « 3 notions maîtrisées », « À travailler » |
+
+- **`seriesDone` / `seriesTotal`** — le compte passe par `LotService`, l'autorité
+  unique du découpage en lots, et **jamais** par un second parcours du pool.
+  🛑 **Tous paliers confondus côté TCF** (A2 + B1 + B2), arbitrage du
+  propriétaire : « on compte toutes les séries, quel que soit le niveau ».
+  Une série est **terminée** quand un attempt fini existe sur ce lot — le
+  compteur dit ce qui a été parcouru, il ne juge pas. `0 / 0` en EE/EO, qui n'ont
+  pas de séries : l'écran y montre des compétences.
+- **`tacheCourante`** (`Short`, expression seulement) — la première tâche dont
+  toutes les compétences ne sont pas encore observées, la dernière quand elles le
+  sont toutes. 🛑 **Servie, pas déduite** : les deux fronts la nommaient chacun de
+  leur côté depuis la compétence prioritaire, et le domaine qui **ne** porte pas
+  la priorité n°1 n'avait alors aucune tâche courante du tout.
+- **`themes`** (`CivicPlanDto.ThemeLigne`, **les cinq, toujours**) — il existe
+  parce qu'aucun front ne peut le calculer : `priorites` et `aRevoir` sont
+  **plafonnées à l'affichage** (trois chacune), et y compter des notions thème par
+  thème aurait servi un plafond d'écran comme un budget de mesure. Ses compteurs
+  portent donc sur **toutes** les cibles du plan, avant troncature. **Vide** quand
+  `disponible` est `false` — rien n'a été mesuré, il n'y a rien à dire.
+  Au plus **un** thème porte `enCours`, et c'est `prochaine` : l'écran Réviser et
+  le Plan ne peuvent pas désigner deux notions différentes.
+
+### La bascule de parcours : mobile oui, web non
+
+🛑 Arbitrage du propriétaire (2026-09-12) : « tu ne remets pas la bascule [sur le
+web], mais quand on arrive sur TCF ou Examen civique, on a la même chose, sauf
+que la bascule n'existe pas, le reste identique ». Sur le web on arrive par la
+barre latérale, qui a déjà fait le choix ; sur mobile, Réviser est un onglet de
+la barre du bas et porte la sienne. Écart de **forme**, pas de parcours.
+
+Côté mobile, le parcours affiché est **`parcoursCiviqueProvider`**, partagé avec
+l'Accueil et le Plan — le pendant du `?module=` du web. `reviserParcoursProvider`
+est **supprimé** : deux mécaniques auraient fini par afficher deux parcours
+différents au même candidat selon l'écran.
+
+## La série de 5 se TERMINE : 5 micro-sujets → vérification → recalcul (2026-09-13)
+
+🛑 **Arbitrage du propriétaire, verbatim** : *« Après le 5ᵉ petit sujet : la série
+ciblée est terminée ; on ne renvoie surtout pas l'utilisateur dans les mêmes
+5 sujets ; « À faire maintenant » change immédiatement ; la nouvelle action devient
+une production complète de vérification de la compétence dans une vraie tâche. »*
+
+**La boucle qui était fermée.** À 5/5, la bascule vers la vérification exigeait
+**deux** conditions (2026-08-14) : `SkillMastery.readyForReassessment` **et**
+`LearningPlanStep.Progress.completed()`. Or un petit sujet n'écrit jamais `SOLID`
+(`recordSkillAttempt` : critère validé ⇒ `TO_REINFORCE`), donc le signal du moteur
+pouvait rester **faux** avec les 5 sujets traités. L'étape restait alors
+`A_RENFORCER`, et `RecommendedExerciseSelector` reservait au candidat **les cinq
+mêmes sujets**, tous déjà traités, indéfiniment : aucune observation nouvelle,
+donc aucun moyen d'en sortir.
+
+### Ce qui change, et où
+
+- 🛑 **La bascule ne dépend plus que de l'étape terminée.**
+  `LearningPlanService.get` pose `readyToVerify = progress.step().completed()`, et
+  la nature devient `A_VERIFIER` **quel que soit** le résultat des 5 sujets.
+  `readyForReassessment` **reste servi** — il nuance le texte de la carte — et
+  garde sa définition combinée (`moteur && step.completed()`), pour que le DTO ne
+  dise jamais « prêt » sous un anneau à 2/5. Il ne commande simplement plus rien.
+- **`A_VERIFIER` n'est posé que si une vérification est réellement proposable** :
+  la nature de la carte se décide avec `verifications.containsKey(skillId)`.
+  Aucun sujet de production publié sur la tâche reste un **cas normal** (règle de
+  `ReassessmentExerciseSelector`) : l'étape retombe sur son micro-exercice, et
+  elle le **dit** (`A_RENFORCER`) au lieu d'afficher « Faire la vérification »
+  sur un petit sujet.
+- 🆕 **« La vérification a été RENDUE » — un fait, pas un verdict.**
+  `SkillMasteryEngine.verificationSubmitted()`, **autorité unique**, dérivée à la
+  lecture et jamais persistée : il existe au moins un **micro-entraînement**, une
+  production **contextualisée** est venue **après** lui, et elle est encore dans
+  `transfer-proof-days`.
+  - 🛑 **Le verdict n'entre pas dans le calcul.** Une vérification jugée fragile
+    compte autant qu'une réussie : elle a eu lieu, et c'est elle — pas les
+    micro-sujets — qui apporte la preuve dont la maîtrise a besoin. La juger ici
+    rouvrirait la boucle qu'on vient de couper.
+  - 🛑 **La condition « un micro-entraînement d'abord » n'est pas décorative** :
+    sans elle, toute compétence de **compréhension** (dont les observations
+    `TCF_CO`/`TCF_CE` sont `isContextual()`) serait « vérifiée » dès sa première
+    série de QCM et sortirait des priorités.
+  - **La fenêtre n'est pas un détail non plus** : passé `transfer-proof-days`, la
+    compétence redevient une priorité ordinaire. Une vérification ancienne ne peut
+    pas écarter indéfiniment une fragilité réelle.
+- **Une étape vérifiée sort des priorités actionnables**
+  (`LearningPlanPriorityResolver.actionable`, filtre `etapeVerifiee`) **sans
+  devenir une étape franchie** : `franchies` continue de ne lire que
+  `transferProven`. Verifier n'est pas réussir, mais c'est **avancer** — le moteur
+  sert la priorité suivante, et la compétence pourra revenir si elle reste fragile.
+- 🛑 **`transferProven` / `SOLID` sont INCHANGÉS.** Aucun seuil n'a bougé, un petit
+  sujet n'écrit toujours jamais `SOLID`, et **5/5 ≠ SOLID** : c'est la production
+  contextualisée qui apporte la preuve. Seule la voie de **sortie** a changé.
+- **Aucun repli sur le catalogue** : sans fragilité et sans acquisition, la carte
+  « À faire maintenant » est **vide** (`currentPriority == null`) — on ne désigne
+  pas la première compétence du référentiel pour remplir l'écran.
+  `PlanFocusResolver.focus` et `PlanAcquisitionSelector` n'en produisent aucun :
+  le premier répond à « quelle compétence le freemium ouvre » (et rend
+  `Optional.empty()` quand il n'y a rien), le second ne rend que des compétences
+  du palier en construction jamais travaillées, triées — un ordre, pas un repli.
+
+### L'état d'étape est SERVI : `PlanSkillStepState`
+
+🛑 **Aucun front ne classe plus un compteur en état pédagogique.** Les deux le
+faisaient, et **différemment** : le web cochait sur `masteryState === "SOLID"` sans
+jamais lire `completedSteps` (en violation de la règle « l'appartenance à
+`completedSteps` **est** la coche »), le mobile sur l'un **ou** l'autre. Le même
+candidat voyait deux parcours différents selon l'appareil.
+
+Six valeurs, **libellés gelés** par `SkillLabelsTest`, l'ordre de déclaration est
+l'ordre de lecture : `ACQUIS` « Acquis » · `A_VERIFIER` « Série terminée · À
+vérifier » · `SERIE_TERMINEE` « Série terminée » · `MAINTENANT` « Maintenant » ·
+`EN_COURS` « En cours » · `A_VENIR` « À venir ».
+
+- **Autorité unique `PlanStepStateResolver`** : `transferProven` ⇒ `ACQUIS` ; sinon
+  étape terminée ⇒ `SERIE_TERMINEE` (vérification rendue) ou `A_VERIFIER` ; sinon la
+  compétence en tête ⇒ `MAINTENANT` ; sinon commencée ⇒ `EN_COURS` ; sinon
+  `A_VENIR`. Deux lecteurs, une règle : `LearningPlanPriorityDto.stepState` et
+  `PlanDomainSkillDto.stepState`.
+- 🛑 **`ACQUIS` se lit sur `SkillMastery.transferProven`, PAS sur `masteryState ==
+  SOLID`** (correctif du **2026-09-16**). C'est la **même** autorité que celle qui
+  range une étape dans `completedSteps` (`LearningPlanPriorityResolver.franchies`),
+  et `SOLID` n'en est qu'un cas particulier. Les deux avaient divergé, et le
+  parcours **normal** les sépare : cinq micro-entraînements réussis (écrits
+  `TO_REINFORCE`, valeur 0,5) puis une vérification réussie plafonnent autour de
+  0,68, donc sous `solid-score` — la compétence était **cochée** dans « Déjà
+  travaillé et validé » et affichée **cercle vide** dans « Votre parcours — Tâche N »,
+  au même moment, sur le même écran. Invariant verrouillé par
+  `LearningPlanServiceTest.uneEtapeFranchieEstAcquiseDansLeParcoursMemeSansSolid` :
+  **tout ce qui est dans `completedSteps` est `ACQUIS` dans `domaines[].skills`**.
+- 🛑 **`SERIE_TERMINEE` n'est PAS `ACQUIS`.** Cinq petits sujets traités ne prouvent
+  rien en situation : seule une **preuve de transfert** vaut « acquis », et un front
+  qui cocherait une série finie annoncerait une maîtrise que rien n'a mesurée.
+  Verrouillé par `SkillLabelsTest` (les deux libellés diffèrent) et par
+  `PlanStepStateResolverTest`.
+- 🛑 **Aucun palier CECRL ne s'y accroche** : « Acquis · B1 » n'existe pas. Le palier
+  d'une compétence est notre palier **pédagogique interne** et s'affiche à part,
+  « Niveau visé B1 ». `SkillLabelsTest` interdit `A2`/`B1`/`B2` dans ces libellés.
+- **`PlanDomainSkillDto` porte aussi `stepPromptCount` / `stepAttemptedCount`** : la
+  progression chiffrée est **servie**, les fronts composent « · 2/5 » à côté du
+  libellé (`planStepStateLabel`, miroirs web ⇄ mobile) et ne classent rien.
+- **Coût inchangé** : `SkillProgressCounter.bySkillIds` travaille en **lot** (2
+  requêtes pour 5 compétences comme pour 48), et `LearningPlanService` lui passe
+  désormais le référentiel entier. Les deux tests de coût gardent leur égalité.
+
+### Les fronts — ce qui est mirroré brique pour brique
+
+- **Le KIT gagne deux états d'étape et une pastille servie** :
+  `StepState`/`SfStepState` ajoutent `verify` (ambre, icône `badgeCheck`) et
+  `doing` ; `PathStep`/`SfPathStep` portent un `pill` **composé par l'appelant** à
+  partir du libellé servi — le kit ne compose aucune phrase.
+- **La carte de vérification est une AUTRE carte** : `NowCard`/`SfNowCard` gagnent
+  un `variant: "verify"` (fond et liseré ambre, pastille d'icône ambre). 🛑 Le nom
+  de la compétence ne change pas quand la série se termine ; si seul le bouton
+  changeait de libellé, le candidat lirait « rien n'a bougé » alors que l'action a
+  changé de nature. Titre **« Valider cette compétence »**, sous-titre
+  « <compétence> · Tâche N complète », texte « Mettez maintenant cette compétence en
+  pratique dans une réponse complète. », CTA **« Faire la vérification »**.
+- **Deux lignes, plus une phrase concaténée** (`planNowLines`, miroirs) : le
+  **constat** servi préfixé de l'état **mesuré** (« À renforcer : … » — jamais
+  « À vérifier : <une faiblesse> ») puis « **Progression : 3/5 sujets réalisés** ».
+- **Libellés** : « 5 sujets · ≈ 6 min » ⇒ « **5 petits sujets · ≈ 6 min chacun** »
+  (les minutes sont celles d'**un** sujet) ; « Petit sujet ciblé » ⇒ « **Sujets
+  ciblés** » (une étape n'est pas un sujet). CTA avant 5/5 : « Commencer » à 0/5,
+  « **Continuer** » au-delà, « Découvrir » sur une acquisition.
+- **Le nom de la compétence ne s'écrit plus trois fois** sur le même écran : une
+  seule fois, en sous-titre — et sur la vérification il reste sous un titre qui
+  nomme l'ACTION.
+- 🛑 **L'ÉPREUVE en titre, la compétence en sous-titre** (demande du propriétaire,
+  2026-09-18) : « Compréhension orale · Niveau B2 » puis « Comprendre l'implicite
+  et les nuances à l'oral ». Les deux étaient inversés — le candidat lisait
+  d'abord un intitulé de référentiel, long, sur deux lignes, et devait descendre
+  pour savoir de quelle épreuve il s'agissait. Il sait maintenant **où** il
+  travaille avant de lire **quoi**. L'identité se compose à un seul endroit
+  (`planNowIdentite`, miroirs), et **la carte de vérification est le seul cas où
+  l'ordre s'inverse** : son titre nomme l'action.
+  ⚠️ **La timeline du parcours n'est PAS concernée** : ses lignes se distinguent
+  les unes des autres par le nom de la compétence — quatre lignes titrées
+  « Compréhension orale » ne diraient plus laquelle est laquelle.
+  ⚠️ **Correctif de parité dans la même passe** : le web lisait `planSkillLevel`
+  (les paliers de compréhension seuls) et écrivait « Palier B1 », le mobile
+  `planSkillTargetLevel` et « Niveau B2 ». Deux lectures et deux mots pour la
+  ligne désormais promue au titre. Le web s'aligne sur le mobile — « Niveau » est
+  le mot du produit, « palier » celui des règles.
+- **Navigation : le CTA ouvre DIRECTEMENT le prochain petit sujet non traité**
+  (`recommendedExercise.skillPromptId`, désigné serveur). Le web ouvrait la
+  **liste des 5** (`planSkillHref(..., {planStep:true})`) là où le mobile ouvrait
+  le sujet ; il s'aligne. La liste des 5 reste accessible par « Mes priorités » et
+  par la fiche de compétence. ⚠️ **Une MESURE passe encore devant** sur le web
+  (item `A_EVALUER` de la séance) : c'est le seul cas où le bouton ne lance pas
+  l'étape, et c'est le seul chemin vers `usePlanAssessment` depuis cet écran.
+
+### Quand la mesure passe devant, la carte porte SON identité (2026-09-16)
+
+🛑 **La carte « À faire maintenant » annonce ce que son bouton LANCE.** La
+précédence de la mesure n'est pas en cause — c'est l'**identité empruntée** qui
+l'était : titre, sous-titre, pastille et constat venaient de `currentPriority`
+(« Raconter brièvement une expérience passée — Expression orale · Tâche 1 ·
+Priorité 1 ») pendant que « Compléter la mesure » ouvrait l'examen blanc de
+**compréhension orale** de la séance. Deux objets servis, légitimes tous les
+deux, et une carte qui montrait l'un pour lancer l'autre.
+
+Dès qu'une mesure prend le pas, **tout ce qui identifie la carte vient d'elle** :
+
+| élément | ce qu'il devient |
+|---|---|
+| icône | celle du **domaine mesuré** (`assessment.epreuve`) |
+| titre | `planAssessmentItemTitle` / `PLAN_ASSESSMENT_ITEM_TITLE` — « Compléter mon évaluation de compréhension orale » |
+| sous-titre | `planAssessmentNature` — le parcours réel (« Examen blanc n°1 ») |
+| pastille | la **nature servie** `A_EVALUER` (« À évaluer »), jamais « Priorité 1 » |
+| méta | les minutes de la mesure, **sans** « 5 petits sujets » ni la nature de l'exercice de la priorité |
+| constat | `PLAN_REASON_A_EVALUER` / `kPlanReasonAEvaluer`, jamais `planNowLines(priority)` |
+| variante | **jamais** `verify` : une mesure n'est pas une vérification |
+
+- **Le CTA et le lancement ne bougent pas** : « Compléter la mesure » →
+  `startPlanSeanceItem` / `usePlanAssessment`, l'autorité unique.
+- 🛑 **Le fait lu est `assessment`, jamais l'absence d'exercice.** Côté mobile,
+  un **jalon** n'a pas non plus d'`exercise` (il vit dans `milestone`) :
+  `planSeanceMesure` testait `exercise == null` et pouvait donc rendre un examen
+  blanc de jalon sous le nom d'une mesure. Le web est protégé par son union
+  discriminée (`PlanSeanceAssessmentItemDto`), le mobile par ce test.
+- **Le plan GRATUIT n'est pas concerné** : sa carte ne lance rien, elle
+  constate — elle garde l'étape nommée et ses trois bénéfices verrouillés.
+
+#### La règle vaut pour les SIX cartes, par une fonction partagée (2026-09-16)
+
+⚠️ **Elle n'avait été posée que sur les deux cartes du PLAN.** Les deux cartes
+de l'**Accueil** (`_actionTcf`, `home_screen.dart` ⇄ `ActionPrincipale`,
+`dashboard/page.tsx`) ne lisaient que `plan.currentPriority` et n'avaient jamais
+entendu parler de la séance. Constaté par le propriétaire, sur les mêmes
+données : l'Accueil annonçait « Raconter brièvement une expérience passée ·
+VOTRE PRIORITÉ DU JOUR · Continuer mon plan » pendant que le Plan, au même
+instant, annonçait « Compléter mon évaluation de compréhension écrite · À
+ÉVALUER · Compléter la mesure ». Deux « à faire maintenant » contradictoires
+pour le même candidat.
+
+Le kit garantissait déjà la parité **visuelle** des quatre cartes
+(`SfNowCard` ⇄ `NowCard`) ; ce qui manquait, c'est la parité de la **sélection
+du contenu**, dupliquée indépendamment au lieu d'être extraite.
+
+🛑 **Une seule autorité, six sites d'appel** :
+
+| | fonction partagée | sites d'appel |
+|---|---|---|
+| mobile | `planNowCard` — `screens/plan/plan_now_card.dart` | `_nowCard` (Plan) · `_actionTcf` (Accueil) · `reviserResumeTcf` (Réviser) |
+| web | `planNowCard` — `lib/plan-domain.ts` | `ActionMaintenant` (Plan) · `ActionPlanDuJour` (Accueil) · `reviserResumeTcf` (Réviser) |
+
+Elle rend l'**identité complète** de la carte — nature (`MESURE` /
+`VERIFICATION` / `ETAPE`), icône, titre, sous-titre, pastille, méta, constat,
+libellé du bouton, verrou — **plus ce qu'elle lance** (`mesure`, `exercise`).
+Les écrans assemblent le kit ; ils ne choisissent plus rien.
+
+- 🛑 **Rien n'y est décidé** : la précédence de la mesure, la nature de
+  l'action, les minutes et le verrou sont tous **servis**. La fonction choisit
+  *laquelle* des deux identités la carte porte, et le dit une seule fois.
+- **Le CTA suit la carte** : le raccourci de l'Accueil dit « Compléter la
+  mesure » quand c'est une mesure, et il part par **les lanceurs du Plan**
+  (`startPlanSeanceItem` / `usePlanAssessment` · `openPlanExercise` /
+  `usePlanExercise`), jamais par un second chemin.
+- 🛑 **L'Accueil n'a AUCUNE notion de plan gratuit**, et il n'en a pas besoin :
+  il ne teste jamais `canAccessModule`, il lit le `locked` **servi**. Le
+  masquage `free` reste donc là où il a un sens — sur le Plan, qui rend une
+  carte à part pour un compte sans accès (`_freeStepCard` côté mobile, le
+  drapeau `free` de `planNowCard` côté web, où les deux cartes partagent le même
+  `NowCard`). C'est la seule asymétrie de signature entre les deux fronts, et
+  elle est de forme, pas de règle.
+- ⚠️ **Une MESURE n'est pas une priorité.** La règle « une priorité verrouillée
+  n'est jamais nommée sur l'Accueil » (elle est floutée sur le Plan) ne s'y
+  applique pas : une mesure ne se floute nulle part et se nomme donc des deux
+  côtés. Le serveur ne pose d'ailleurs aucun verrou dessus — s'il en posait un,
+  `locked` le dirait et l'Accueil retomberait sur sa carte générique.
+- 🔴 **Parité réparée en passant** : le web annonçait « N petits sujets ·
+  ≈ X min chacun » dès que `stepPromptCount > 0`, y compris sur une **série
+  ciblée de compréhension**, qui ne contient aucun petit sujet. Il teste
+  désormais aussi `kind === "MICRO_TRAINING"`, comme le mobile le faisait déjà.
+- **Supprimé dans la foulée** : `SECTION_ICON` (local à `LearningPlanView`,
+  remplacé par `PLAN_SECTION_ICON` / `planNowIcon` dans `PlanBits.tsx`, que les
+  deux écrans lisent) et `homeExerciseMeta` (`home_labels.dart`), dont le
+  sous-titre vient maintenant de la fonction partagée.
+
+##### Le 5ᵉ et le 6ᵉ site : la carte de RÉVISER (2026-09-16, même passe)
+
+⚠️ **La migration précédente avait oublié un écran.** « Reprendre là où vous
+vous êtes arrêté » (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart` ⇄
+`lib/reviser.ts`) tenait sa **propre** sélection : `plan.seance.items.first` /
+`plan.seance?.items?.[0]`, puis repli sur `plan.currentPriority`. Elle ne
+cherchait donc **jamais** une mesure avec `planSeanceMesure` : dès que la mesure
+en attente n'était pas le **premier** item de la séance, Réviser annonçait la
+priorité pédagogique pendant que le Plan et l'Accueil annonçaient la mesure.
+Troisième écran, même contradiction, sur les mêmes données.
+
+- **`reviserResumeTcf` DÉRIVE de `planNowCard(plan)`** — elle ne lit plus ni la
+  séance ni `currentPriority`. Elle n'en garde que la mise en forme de la carte
+  de Réviser : `title`, `subtitle`, `section` (le pictogramme) et **la carte
+  elle-même**, qui porte ce qu'il y a à lancer.
+- **Le bouton « Continuer » part par les lanceurs du Plan** :
+  `startPlanSeanceItem` / `usePlanAssessment` sur une mesure, `openPlanExercise`
+  / `usePlanExercise` sinon — exactement `_nowCard` et `ActionMaintenant`. Le
+  repli « sans ligne de séance, on renvoie vers `/plan` » du web disparaît : la
+  carte sait maintenant lancer ce qu'elle nomme.
+- **`null` reste `null`** : pas de plan, aucune priorité servie (`planNowCard`
+  rend `null`), action **verrouillée**, ou **rien à lancer** (ni mesure ni
+  exercice) ⇒ la carte disparaît et l'écran ouvre sur sa liste d'épreuves, comme
+  avant. On ne rend jamais un « Continuer » qui ne mène nulle part.
+- **`PlanNowVue.section` gagne son miroir Dart** (`PlanNowCard.section`) : le
+  pictogramme de Réviser se lisait sur la section du premier item de séance, il
+  se lit désormais sur le **domaine réellement lancé** — celui de la mesure
+  quand elle passe devant. Chaque écran garde sa propre table d'icônes.
+- 🛑 **Le civique n'est PAS concerné** : `reviserResumeCivique` met en mots la
+  cible de rang 1 (`civicPlan.prochaine`), **désignée par le serveur**, et le
+  module civique n'a aucune notion de mesure de domaine — il n'y a donc aucune
+  précédence à appliquer, et rien n'y a été touché.
+- **Supprimé dans la foulée** : `_resumeSubtitle` / `reviserResumeSubtitle`
+  (le sous-titre vient de `planNowCard`) et le champ `item` de `ReviserResume`,
+  remplacé par `carte`.
+
+---
+
+## Le PARCOURS TCF — une file d'étapes pilotée par les évaluations (2026-09-17)
+
+> Spec : `docs/progression/spec-plan-tcf-parcours-evaluations-v2.md`.
+> Arbitrages du propriétaire (D-1 → D-9) : `docs/decisions/plan-parcours-tcf.md`.
+> Décisions prises en autonomie : `docs/decisions-autonomes-parcours-tcf.md`.
+> Endpoint : `GET /api/me/plan/journey`.
+
+⚠️ **Cette section prime sur les descriptions d'écran plus anciennes de ce fichier** pour tout
+ce qui touche à l'**ordre** du Plan TCF et à la carte « À faire maintenant ». Les règles
+pédagogiques (priorités, maîtrise, freemium, séance) sont **inchangées** : le parcours est une
+couche d'**orchestration**, pas un second moteur.
+
+### R1 — seules les ÉVALUATIONS alimentent la file
+
+| Peuvent **ajouter** une étape | Ne peuvent **jamais** en ajouter |
+|---|---|
+| Diagnostic rapide · diagnostic complet | Micro-entraînement (petit sujet) |
+| Examen CO / CE / EE / EO | Série ciblée de QCM CO/CE |
+| Sous-épreuves d'un examen blanc complet | Exercice de révision, feedback d'entraînement |
+
+🛑 **Le producteur d'observations ne change pas.** `AttemptInteractionService.doFinish` appelle
+`ComprehensionObservationService.record` pour **toute** session TCF terminée, entraînement
+compris — la doctrine du 2026-08-21 tient (« en compréhension, une bonne réponse est une bonne
+réponse »). C'est **la file** qui filtre, dans **une seule classe**,
+`JourneyEvaluationFilter`, partagée par l'orchestration **et** par le bootstrap :
+
+```text
+source_type ∈ { DIAGNOSTIC_EE, DIAGNOSTIC_EO, MOCK_EXAM_EE, MOCK_EXAM_EO }
+OU (source_type ∈ { TCF_CO, TCF_CE } ET l'attempt source est un MOCK_EXAM)
+```
+
+**Ce qu'un entraînement garde le droit de faire** : faire **avancer** et **clôturer** une étape
+déjà présente. Il n'en crée jamais. ⚠️ Conséquence assumée : un candidat qui ne passerait **que**
+des séries ciblées n'aurait jamais de file — R12 lui propose alors « {Épreuve} — Évaluer mon
+niveau », et c'est le sens du produit.
+
+### R2 — trois priorités par lot, et c'est un BUDGET assumé
+
+🛑 Le `CLAUDE.md` racine porte l'invariant inverse : « un plafond d'AFFICHAGE n'est jamais un
+budget PÉDAGOGIQUE ». `maxPrioritiesPerLot: 3` **en est un** — un lot ne retient que les trois
+priorités les plus graves de l'évaluation qui l'a créé.
+
+⚠️ **Amendé le 2026-09-18 (D-13).** La phrase « les priorités au-delà ne sont **ni stockées ni
+mises en attente** » est **révoquée** : ce qui dépasse le plafond part désormais dans le **cycle
+en attente**, invisible du candidat, et devient le cycle suivant à l'actualisation. **Le plafond
+lui-même ne bouge pas** (3, par épreuve) — ce qui change, c'est la **destination** de ce qui
+dépasse.
+
+🛑 **D-67 (2026-09-27) : c'est aussi le BUDGET DE COMPOSITION du cycle suivant**, et c'est
+désormais écrit comme tel — au plus 3 priorités par épreuve (TCF), au plus 3 unités par thématique
+(civique), les plus urgentes dans l'ordre du moteur. Le nombre retenu est **servi**
+(`cycle.prioritesCycleSuivant`). → § « Le budget du cycle suivant » plus bas.
+
+**Ce n'est pas l'incident du 2026-08-25**, et la différence est ce qui rend ce choix tenable :
+là-bas un plafond de 5 actions était **partagé entre 4 domaines**, et trois domaines sur quatre
+se retrouvaient sans aucune action (10 actions existaient, 2 étaient servies). Ici le plafond est
+**par épreuve** — jusqu'à 12 priorités vivantes —, aucune épreuve n'est privée, et le moteur
+continue de calculer **tout**. C'est la **file** qui borne ce qu'elle met en attente, pas l'écran
+qui borne ce que le moteur produit.
+
+⚠️ **Limite connue et acceptée** de `TOP_SEVERITY` : avec trois compétences très faibles, une
+quatrième n'apparaîtra jamais. Une stratégie de rotation pourra s'ajouter **sans changer le
+modèle** (nouvelle valeur de `lotSelectionStrategy`).
+
+### R8 — une étape se clôt par son QUOTA, et le quota n'a pas la même unité
+
+🛑 **D-65 (2026-09-27, décision du propriétaire) : « une étape exige toujours ses séries ».**
+Le titre disait « par MAÎTRISE ou par QUOTA » : la branche **maîtrise est révoquée**. Une étape
+`TRAIN_SKILL` ne se ferme comme **faite** que sur `QUOTA_REACHED` ; une maîtrise détectée
+ailleurs (examen, séries hors Plan, évaluation — `SkillMasteryEngine.transferProven`) ne la clôt
+plus. Détail, rattrapage et périmètre : § « **Une étape exige TOUJOURS ses séries** » juste en
+dessous.
+
+| Famille | Quota | Autorité **lue** |
+|---|---|---|
+| EE / EO | les **5 sujets de l'étape** traités | `LearningPlanStep.Progress.completed()` |
+| CO / CE | **2 séries réussies** — ⚠️ **le filet des 4 séries terminées est SUPPRIMÉ** (2026-09-20) | `trainSeriesQuota` (config v3) + `JourneySerieVerdict` |
+
+🛑 **D-16 (2026-09-18) révoque la ligne CO/CE précédente**, verbatim : « CO / CE — **2 séries
+ciblées** terminées depuis la création de l'étape », et avec elle la doctrine de D-5 inscrite
+dans le code (« le quota mesure le **travail fourni**, pas la réussite »).
+
+⚠️ **Et le 2026-09-20 révoque la SUITE de D-16 sur ce point** : *« l'échappatoire des 4 séries
+terminées existe pour une raison nommée : un candidat faible ne doit jamais rester bloqué sur
+une étape »* est **révoqué**, le filet est **supprimé**. La conséquence est assumée et validée
+par le propriétaire. → § « **L'ÉCRAN D'ÉTAPE** » en fin de fichier, qui prime sur ce paragraphe.
+
+🛑 **« Réussie » a changé d'autorité le 2026-09-20.** Jusque-là elle se lisait sur
+`learning_plan_observations.status = SOLID`, un statut calculé sur les **seules questions du
+palier visé** tombées dans la série. C'est désormais **littéral** : 16 bonnes réponses sur les
+20 de la série, lues sur l'attempt (`JourneySerieVerdict`). Le 16 reste **dérivé** de
+`learning-plan.comprehension.solid-ratio` × la taille de la série — **aucune 8ᵉ déclaration du
+seuil**.
+
+🛑 **Deux nombres, deux clés** : `trainSeriesQuota` garde son nom et compte les séries
+**réussies** ; `trainSeriesFallbackQuota` porte l'échappatoire. Un seul nombre pour deux sens
+est exactement ce que le dépôt paie cher ailleurs. Le loader **refuse** une échappatoire
+inférieure au quota de réussite (l'échappatoire est un filet, pas la règle).
+Fichier : `plan/tcf-journey-config-v2.json`, version pilotée par
+`sejourfr.tcf-journey.config-version` (défaut **2**). ⚠️ **v1 reste sur le disque et reste
+chargeable** : elle y porte `trainSeriesFallbackQuota = trainSeriesQuota = 2`, et comme les
+réussies sont toujours un sous-ensemble des terminées, « 2 réussies **ou** 2 terminées » **est**
+mot pour mot l'ancienne règle de D-5. Un retour arrière est donc bien une variable
+d'environnement, jamais une migration.
+
+🛑 **Aucune nouvelle valeur pour l'expression** : le quota **est**
+`LearningPlanStep.PROMPTS_PAR_ETAPE`, déjà servi aux deux fronts dans `progress.quota`. Le
+déclarer en configuration en ferait la 2ᵉ copie d'un chiffre déjà affiché.
+
+🛑 **L'unité est SERVIE** (`progress.unit` : `PROMPT` / `SERIES`). Les compétences de
+compréhension n'ont **ni tâche ni petit sujet** — la déduire de la nullité de `taskCode`
+reviendrait à recopier une règle du référentiel dans les deux fronts.
+
+🛑 **Ce que `progress` sert en compréhension : les séries RÉUSSIES, et elles seules.**
+`done` = séries réussies, `quota` = `trainSeriesQuota` ; **l'échappatoire ne s'affiche pas**.
+Trois raisons : afficher « 2 séries ratées sur 4 » invite à **échouer vite** pour se débarrasser
+d'une étape ; un filet annoncé n'en est plus un ; et un seul champ `done`/`quota` ne peut porter
+qu'**une** échelle — servir la plus exigeante ne **survend jamais** l'avancement (l'étape peut
+se clore plus tôt que le compteur ne le laisse croire, jamais plus tard). **Le DTO ne change
+pas** : aucun front n'a à apprendre un second compteur pour une règle qu'on a décidé de ne pas
+lui montrer.
+
+🛑 **Une seule autorité de quota, partagée par la lecture et par la clôture** :
+`JourneyReadService.etapesAuQuota`. Jusqu'à D-16, la clôture relisait `progress.done >=
+progress.quota` de la vue servie — un seul compteur, donc une seule règle. Avec deux compteurs
+dont un invisible, les deux lecteurs partagent la **fonction**, faute de pouvoir partager le
+**nombre**.
+
+🛑 **Une clôture ne se réouvre jamais.** Une compétence redevenue fragile ne rouvre pas son
+étape : elle reviendra par un **examen** (R7). C'est ce qui empêche le parcours de tourner en
+rond, et c'est aussi pourquoi `resolution = MASTERED` dit « le moteur concluait au transfert **à
+cette date** », jamais « acquise aujourd'hui » — cette question-là a une seule autorité,
+`SkillMasteryEngine`, et elle se relit.
+⚠️ **Une seule exception depuis D-65, et c'est une réparation** : une étape close `MASTERED` /
+`SATISFIED_BY_ASSESSMENT` sans ses séries est rouverte dans le cycle **en cours** (§ « Une
+étape exige TOUJOURS ses séries »). Une étape close `QUOTA_REACHED` ne se rouvre toujours
+jamais, et R7 tient : une fragilité revenue passe par un examen.
+
+### Une étape exige TOUJOURS ses séries (2026-09-27, D-65)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-65** · verrouillé par
+> `JourneyProgressionIT` (D-65) et `CycleDAffinageIT` (`premierCycleCompetenceRouverteResteFacultative`)
+
+**Cas réel** : `lamine12@gmail.com`, étape CO-B1 `c53a3001…`, close `MASTERED` à 11:21 à **1/2**
+séries (série 1 à 19/20) — le moteur de maîtrise concluait au transfert, et la clôture suivait.
+
+| Étape | Ce qui la ferme | Autorité |
+|---|---|---|
+| `TRAIN_SKILL` (compétence TCF, unité civique) | **`QUOTA_REACHED` seulement** (séries réussies / sujets traités) | `JourneyService.onTrainingProgress` ⇄ `JourneyReadService.etapesAuQuota` |
+| `TRAIN_SKILL` remplacée (lot en attente remplacé) | `SUPERSEDED` — inchangé | `remplacerLesLotsEnAttente` |
+| `SECTION_EXAM` (« Évaluer mon niveau », examen blanc du bloc) | `SATISFIED_BY_ASSESSMENT` par un examen — **inchangé** | `cloreLesEtapesDExamen` (002447a0, f8ae9abc) |
+| `DIAGNOSTIC` | `SATISFIED_BY_ASSESSMENT` — inchangé | `cloreLEtapeDiagnostic` |
+
+- 🛑 **`MASTERED` n'est plus écrit.** La valeur reste dans l'enum et en base pour les cycles
+  **historisés**, figés tels quels. Le moteur de maîtrise continue de décider des priorités et
+  des états servis ; il ne ferme plus d'étape.
+- **Rattrapage À LA LECTURE, sans migration** (`JourneyService.lire` →
+  `rouvrirLesEtapesCloseesSansSeries`, **avant** les deux autres filets pour que la garde D-15
+  lise la compétence redevenue due) : dans le cycle **EN COURS** seulement, une étape
+  `TRAIN_SKILL` close `MASTERED` ou `SATISFIED_BY_ASSESSMENT` est rouverte
+  (`JourneyStep.rouvrirUneClotureSansSeries`) ; si elle a **déjà** son quota, elle est aussitôt
+  refermée `QUOTA_REACHED` par la même autorité. Garde : son **lot est encore ouvert** — un lot
+  `CLOSED` a été validé par l'examen de son bloc, on n'y remet pas de travail derrière un
+  examen passé. Aucune ligne effacée ; un cycle historisé n'est jamais relu par ici.
+- **Cycle d'affinage (D-64) intact** : facultatif ≠ fermé. Une compétence rouverte reste
+  ouverte et **facultative** ; les quatre examens closent toujours le cycle. Seul effet visible :
+  une facultative rouverte ne compte plus au numérateur « N étapes sur M » (A160) — la barre
+  peut reculer **une fois**, à la réparation.
+- **Fronts** : rien à recalculer (`validee` / `resolution` servis, b7e1d491). La note « Vos
+  résultats montrent que cette compétence est acquise… » est **supprimée** (texte mort) ;
+  `journeyEtapeCloseNote` ⇄ même nom en Dart ne parle plus que de `SUPERSEDED`.
+
+### Étape EXÉCUTABLE — ce que `CURRENT` exige en plus d'être ouverte
+
+`CURRENT` est la première étape **non clôturée ET exécutable** (arbitrage D-1). « Exécutable »
+veut dire **finissable**, pas « déverrouillée » :
+
+| Étape | Verrouillée quand | Autorité |
+|---|---|---|
+| `TRAIN_SKILL` expression | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` + `LearningPlanStep` |
+| `TRAIN_SKILL` compréhension | la compétence est verrouillée — **toujours, sans accès TCF** (D-18) | `SkillAccessService` |
+| `SECTION_EXAM`, toute épreuve | une compétence du **même bloc** reste ouverte (D-15) — **jamais au cycle d'affinage** (D-64) | le cycle lui-même |
+| `SECTION_EXAM` CO / CE | **rien d'autre** — slot 1 offert et rejouable | `AttemptService.enforceMockExamSlotAccess` |
+| `SECTION_EXAM` EE / EO | la gratuité d'examen blanc **de cette épreuve** est consommée (D-17 bis : **par épreuve**, jamais un verrou global) | `ProductionAccessService` |
+
+🛑 **D-18 (2026-09-18) — conséquence voulue** : pour un compte gratuit, **aucune** étape n'est
+exécutable, donc `current = null` et `JourneyState.LOCKED` est **permanent**. La carte « À faire
+maintenant » nomme la première étape verrouillée et ouvre le paywall.
+
+**Pourquoi « finissable » et pas « ouverte »** : la distinction reste vraie et reste utile pour
+une étape d'expression **sans aucun sujet publié** — ouverte, mais impossible à clore. La
+déclarer exécutable aurait figé son
+parcours **définitivement** sur elle.
+
+🛑 **Une étape verrouillée reste affichée à sa place**, avec son cadenas et son CTA paywall —
+contradiction #1 du dépôt, tranchée le 2026-08-21. Et l'ordre de la promotion est **normatif** :
+`SkillAccessService` reçoit la **première étape non clôturée**, verrous ignorés, jamais
+`CURRENT` — lui passer `CURRENT` serait circulaire, et lui passer une étape déjà déverrouillée
+priverait le candidat gratuit de sa **vraie** priorité n°1.
+
+### Ce qui a disparu dans la même passe
+
+- le **« chemin vers l'objectif »** (`PlanCycleDto.path`, `PlanPathStep*`) — la timeline du
+  parcours le remplace (D-4). 🛑 **`PlanCycleDto` survit** : il porte l'en-tête « niveau actuel /
+  objectif » et le gate d'examen blanc complet ;
+- le bloc **« Votre parcours — Tâche X »** et ses dérivations (`parcoursDeLaTache`,
+  `planTaskPath`) ;
+- ⚠️ **`plan_pinned_priorities` NON** : elle devient le **repli** pour les candidats sans
+  objectif déclaré, qui n'ont pas de parcours. ✅ **Arbitré le 2026-09-17** : « le Plan n'exige
+  PAS d'objectif déclaré » — la suppression prévue par la spec §6 n'aura pas lieu, et l'épingle
+  est notée **dette de transition**. Cf. `docs/decisions/plan-parcours-tcf.md` (D-10) et
+  `docs/decisions-autonomes-parcours-tcf.md` (A23).
+
+### Le parcours DÉSIGNE, le Plan EXÉCUTE — et jamais autre chose
+
+`JourneyStepDto` porte l'**identité** d'une étape ; l'**action** vient du Plan. Les six cartes
+« À faire maintenant » (Plan, Accueil, Réviser, web et mobile) passent le parcours à
+`planNowCard` : l'identité vient de `journey.current`, l'action se résout à côté.
+
+| Type d'étape | Ce que la carte lance | Où elle le trouve |
+|---|---|---|
+| `TRAIN_SKILL` | le petit sujet / la série désignés | la priorité du Plan de même `skillCode`, et son `recommendedExercise` |
+| `SECTION_EXAM` | l'examen blanc de l'épreuve | la ligne de séance si elle y est, sinon **`step.assessment`** |
+| `DIAGNOSTIC` | — | rien — ⚠️ plus créée depuis D-69 (2026-09-28) |
+
+🛑 **`step.assessment` est SERVI, et il le fallait** (2026-09-17). `domainesAEvaluer` ne liste
+que les épreuves **jamais mesurées**, or le point d'étape d'un lot porte **toujours** sur une
+épreuve déjà mesurée — c'est elle qui a créé le lot. Aucune action ne s'y résolvait. Le champ est
+**relayé** de `PlanDomainAssessmentResolver.pour`, l'autorité de « par quoi mesurer ce
+domaine » : le parcours en devient le sixième lecteur, il n'écrit aucune règle.
+
+🛑 **GARDE-FOU : une carte ne lance JAMAIS autre chose que l'étape qu'elle annonce.** Quand
+l'action ne se résout pas — compétence que le Plan ne priorise plus, ou hors de la fenêtre
+d'affichage des priorités —, la carte prend la nature **`INDISPONIBLE`** : elle nomme l'étape du
+parcours, sans bouton. Elle retombait sur `plan.currentPriority`, donc annonçait une compétence
+et en ouvrait une autre.
+
+🛑 **Trois lecteurs, UNE seule « première étape d'entraînement ouverte »** : l'élection de
+`CURRENT`, l'exemption freemium (`SkillAccessService`) et la première place du Plan
+(`PlanFocusResolver`) sautent les **mêmes** étapes — celles sans contenu publié — dans le même
+ordre. Le verrou, lui, ne les sépare pas : l'exemption déverrouille l'étape qu'elle reçoit.
+
+### Sans objectif déclaré, on INVITE — on ne ferme rien
+
+⚠️ **Depuis le 2026-09-26 (demande du propriétaire), la démarche est exigée à l'ENTRÉE de
+l'app** : un compte sans elle est servi `profileIncomplete` et passe par l'écran de
+complétion (web `/completer-profil`, mobile `/target-path`) avant tout écran. Le moteur,
+lui, ne change pas : D-3 / D-10 restent vrais, et la carte « Choisir mon objectif » reste
+en place pour le cas où la démarche serait un jour effacée.
+
+Un candidat sans démarche déclarée n'a **pas** de parcours (D-3) mais a bien un **Plan**
+(D-10). La carte « Choisir mon objectif » se lit donc sur les **six** surfaces qui portent une
+carte « À faire maintenant », et **s'ajoute** à ce que l'écran affichait déjà. ⚠️ Elle ne
+remplace jamais la carte d'action : exiger un objectif pour travailler ferait du Plan l'inverse
+de ce que D-10 vient de trancher.
+
+### Le Plan PAR DÉFAUT — le cycle d'examens (D-69, 2026-09-28)
+
+> 🛑 **D-69 ter (2026-09-28, lancement) — prime sur le tableau ci-dessous.** Le cycle d'examens
+> porte **une étape ouverte par bloc** (4 en TCF, une par thématique civique), **une seule
+> nature** (« Examen blanc »), et **un examen passé AVANT sa création n'en ferme aucune** (le
+> filet R12 ne clôt que sur un examen terminé après la création du cycle). Au lancement, **tout
+> cycle vivant** (marqué par V082, `journey.reinitialiser_au_lancement`) est historisé
+> `INTERROMPU` à sa première lecture et remplacé par un cycle d'examens neuf, **une fois** ; le
+> cycle en attente est vidé ; les archives ne bougent pas. Une étape d'examen close sert son
+> `resultat` sur le Plan courant. Le rattrapage « premier cycle vide / ancienne attente du
+> diagnostic » est supprimé. Nouveaux comptes : cycle d'examens ; exception D-64 si le diagnostic
+> rapide arrive avant toute autre évaluation. → `docs/decisions/plan-parcours-tcf.md` **D-69 ter**.
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-69, D-69 bis** · autonomie **A171 → A176** ·
+> verrouillé par `PlanParDefautIT`, `JourneyServiceIT` §18-1 / §18-33, `PreparationServiceIT`.
+
+🛑 **Le Plan existe pour TOUT compte.** Le diagnostic n'est plus une porte : il **affine**.
+`prep.planDisponible` vaut toujours `true` (TCF et civique), `LearningPlanDto.state` toujours
+`ACTIVE`. ⚠️ Le diagnostic n'est **plus proposé** sur le Plan ni l'Accueil (carte « Affinez
+votre plan » retirée le 2026-09-28) ; « À faire maintenant » lit `journey.current` seul dès qu'un
+parcours existe (le repli séance / remesure / `currentPriority` ne vit que sans parcours) ; la
+ligne « Mon diagnostic » n'apparaît que si `diagnosticFait`.
+
+| Le compte, à la première lecture du parcours | Son premier cycle |
+|---|---|
+| aucun diagnostic rapide (compte neuf, séries seules, **ou examens déjà passés**) | **cycle d'examens** : les **quatre** `SECTION_EXAM` (`INITIAL_ASSESSMENT` si jamais mesurée, `REASSESS` sinon — `poserLeCycleDExamens`) ; civique : un examen par thématique (A65) — `cycleDeMesure` servi. Un examen antérieur au cycle ne ferme rien (D-69 bis) |
+| diagnostic rapide clos (avant la 1ʳᵉ lecture) | cycle d'**affinage** D-64, inchangé |
+| diagnostic arrivé sur le cycle d'examens **intact** (rang 1, rien de clos) | il l'**amorce** : lot EE sans second examen (le bloc porte déjà le sien, A173) ⇒ cycle d'affinage D-64 |
+| diagnostic arrivé **après** un examen du cycle d'examens | règle ordinaire D-13 : ses priorités vont au cycle en attente |
+| ancien cycle « Faire mon diagnostic » (une étape `DIAGNOSTIC` seule) | converti **à la lecture** : `DIAGNOSTIC` close `SUPERSEDED`, examens posés |
+| **premier** cycle **vide**, sans diagnostic rapide au journal (bug de prod du 2026-09-28) | converti **à la lecture** en cycle d'examens (même id) ; un cycle vide de rang ≥ 2 reste « à jour » |
+
+- **Création paresseuse, une seule fois.** Le cycle naît à la première lecture (Accueil, Plan,
+  Réviser), sans migration. Un verrou consultatif par (candidat, module)
+  (`JourneyManager.verrouillerLaCreation`) sérialise la création : sans lui, deux lectures
+  simultanées échouaient sur `uq_journey_en_cours`.
+- **Objectif** : lu à sa seule autorité (`TargetProcedure.niveauVise`, la mention civique). Sans
+  démarche, pas de parcours (D-3) — le profil obligatoire la demande à l'entrée de l'app.
+- **Fin du cycle d'examens** : les examens passés, « Actualiser mon plan » (D-66) ; le cycle
+  suivant porte les priorités qu'ils ont détectées (D-67).
+- **Jalon D-68** : le cycle d'examens ne compte pas comme cycle de travail (aucune `TRAIN_SKILL`).
+- **Freemium inchangé** : verrous `ACCESS` servis.
+
+---
+
+## Le CYCLE BORNÉ — le parcours a un début, une fin et une suite (2026-09-18)
+
+> Spec : `docs/progression/SPEC_cycle_plan.md` · audit : `docs/audits/AUDIT_cycle_plan.md`
+> Arbitrages du propriétaire : `docs/decisions/plan-parcours-tcf.md` **D-12 → D-24, D-17 bis**
+> Décisions autonomes : `docs/decisions-autonomes-parcours-tcf.md` **A27 → A40**
+> Endpoints : `GET /api/me/plan/journey` · `POST …/journey/refresh` ·
+> `POST …/journey/measurement-cycle` · `GET …/journey/history`
+
+⚠️ **Cette section prime sur « Le PARCOURS TCF » ci-dessus** pour tout ce qui touche au
+bornage, au verrou de l'examen et à la destination des priorités. Le reste de cette
+section-là (R1, le budget de 3, l'étape exécutable, le garde-fou de la carte) est
+**inchangé** : le cycle est une couche de **bornage**, pas un second moteur.
+
+### Changer d'objectif : UNE autorité, et tout se relit (2026-09-24)
+
+🛑 **`users.target_procedure` est l'autorité**, écrite par `PUT /api/me/target-path` et par
+lui seul (`MeService.updateTargetProcedure`). Le cycle `EN_COURS` n'en porte qu'une **copie**,
+réalignée **dans la même transaction** (`JourneyService.alignerObjectif`, A27 / D-34 : même
+id, aucun cycle créé) — et encore à la lecture par `getOrCreate`. Verrouillé par
+`JourneyServiceIT` §18-51 / §18-52.
+Côté fronts, le changement **purge tout ce qui se dérive de l'objectif** : web
+`afterObjectifWrite` (`lib/api.ts`), mobile `compteObjectifProvider` observé par chaque source
+gardée en vie. Sans ça, le Profil disait « Naturalisation » pendant que le Plan affichait
+l'ancienne démarche. L'écran de parcours s'ouvre toujours avec son retour
+(`journeyTargetPathHref(from)` ⇄ `AppRoutes.targetPathFrom(from)`).
+
+### Un bloc est une LECTURE, pas une table
+
+Un **bloc** = une épreuve. Ses étapes sont les `journey_step` du cycle qui portent cet
+`exam_type`, son examen est son `SECTION_EXAM`. 🛑 **`position` reste monotone et globale** :
+le groupement ne renumérote rien — une renumérotation ferait bouger un parcours que le
+candidat a sous les yeux. Les **quatre** blocs sont toujours servis, dans
+`TcfDomainProfileDto.ORDRE` (CO, CE, EO, EE), **non configurable** (D-9/D-20) ; un bloc sans
+étape est servi quand même. Statut dérivé : `EN_COURS` (il porte `current`) > bloc vide
+(`A_EVALUER` si l'épreuve n'a jamais été mesurée, sinon `TERMINE`) > `TERMINE` > `A_EVALUER`
+> `A_VENIR`.
+
+🛑 **Une étape `DIAGNOSTIC` n'appartient à aucun bloc** — elle ne porte pas d'épreuve. ⚠️ **Plus
+aucune n'est créée depuis D-69 (2026-09-28)** : un compte neuf reçoit le cycle d'examens par
+défaut, et les anciennes sont closes `SUPERSEDED` à la lecture (§ « Le Plan PAR DÉFAUT »). Un test le verrouille (`JourneyServiceIT` §18-32 et §18-33, lus **sur la file**).
+
+### L'examen d'un bloc est verrouillé par SON bloc (D-15)
+
+⚠️ **Sauf au cycle d'AFFINAGE** (2026-09-27, D-64) — le premier cycle, issu du diagnostic
+rapide : § « Le cycle d'AFFINAGE » juste en dessous. Ce qui suit vaut pour tous les autres.
+
+`SECTION_EXAM` est verrouillé tant qu'une `TRAIN_SKILL` du **même** bloc est ouverte ; ce
+verrou **s'ajoute** aux trois autorités déjà lues (`SkillAccessService`,
+`ProductionAccessService`, slots). Un bloc sans compétence a son examen ouvert d'emblée.
+🛑 **Révocation** : un examen passé hors du plan alors que le bloc n'est pas fini ne clôture
+plus les étapes restantes en `SUPERSEDED` — **il ne valide rien** et compte comme
+entraînement. Le travail prévu reste dû. `SUPERSEDED` garde ses autres emplois (un lot **en
+attente**, jamais montré, remplacé par une évaluation plus récente).
+
+### Le cycle d'AFFINAGE — le premier cycle sert à affiner la mesure (2026-09-27, D-64)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-64** · autonomie : **A158 → A163**
+> Autorité : `JourneyCycleAffinage` · verrouillé par `CycleDAffinageIT`
+
+**Définition (dérivée, jamais persistée)** : un cycle **TCF**, de **rang 1** (aucun cycle
+historisé du module, `JourneyCycleRank`), **amorcé par le diagnostic rapide** (un de ses lots a
+pour source le `QUICK_DIAGNOSTIC` qu'il a journalisé). Un premier cycle amorcé par un examen
+n'en est pas un (A158). Servi : `JourneyCycleDto.cycleDAffinage`.
+
+| Règle | Cycle d'affinage | Tout autre cycle |
+|---|---|---|
+| Verrou de l'examen d'un bloc | **aucun verrou `PROGRESSION`** ; `ACCESS` inchangé | D-15 : `PROGRESSION` tant qu'une compétence du bloc est ouverte |
+| Examen passé, compétences ouvertes | l'étape d'examen **se clôt** ; le lot reste ouvert (A162) | rien n'est validé (D-15) |
+| `current` (« À faire maintenant ») | le premier **examen exécutable** dans l'ordre servi des blocs (EE d'abord après le diagnostic), puis l'élection ordinaire (A159) | élection ordinaire (D-1, D-57) |
+| Compétences `TRAIN_SKILL` | **facultatives** (travaillables avec un pass, D-18 intact) | obligatoires |
+| `cycle.complete` / `CYCLE_COMPLETED` | dès que les étapes **obligatoires** (examens, diagnostic) sont closes | plus aucune étape ouverte |
+| « N étapes sur M » | M = obligatoires + facultatives **déjà faites** (A160) | toutes les étapes non obsolètes |
+| Compétence ouverte redétectée par un examen | **part** au cycle en attente (A161) | reste due, pas remise en attente |
+| Issues de fin de cycle | **actualisation seule** | **actualisation seule** depuis D-66 (l'examen complet est un jalon, D-68) |
+| Phrase de bloc servie | « Examen à passer · N compétences facultatives » / « Examen blanc terminé · N compétences facultatives » | « N compétences restantes · puis examen » |
+
+🛑 **Une seule autorité de « terminé »** : `JourneyCycleAffinage.termine`, lue par la lecture
+(`complete`, `CYCLE_COMPLETED`, statut `TERMINE` d'un bloc) **et** par le refus 409 de
+`refresh` — le bouton servi et le refus ne peuvent pas diverger. Les étapes facultatives
+restantes sont historisées telles quelles ; les priorités que les examens ont confirmées
+attendent déjà dans le cycle en attente.
+
+🛑 **Les fronts ne décident rien** : le verrou arrive servi (`lockReason`), l'étape courante
+aussi. Ils lisent `cycleDAffinage` **pour leurs phrases seulement** — la note de pied
+(`journeyCycleNote`, qui disait à tort « les examens s'ouvrent seulement quand ses étapes sont
+terminées ») et la phrase sous la barre (`journeyCycleHint`), web ⇄ mobile mot pour mot.
+
+### L'achèvement de l'étape d'examen d'un bloc : d'où qu'on lance l'examen (2026-09-26)
+
+🛑 **Aucun lien étape ⇄ session n'existe, et aucun n'est nécessaire.** L'étape
+`SECTION_EXAM` de l'épreuve X se clôt (`SATISFIED_BY_ASSESSMENT`, `resolved_by` = l'attempt)
+sur **tout examen blanc terminé de X** — lancé du Plan, de l'Accueil, de Réviser, de la liste
+Examens blancs, ou **sous-épreuve d'un examen blanc complet** (`parent_attempt_id`, nature
+`MOCK_EXAM`). Passé, pas réussi (R1) ; seulement si le bloc n'a plus de compétence due (D-15) — **ou
+si le cycle est d'affinage** (D-64).
+Un examen **commencé mais pas terminé** ne clôt rien. Un examen **antérieur au cycle** ne
+clôt rien non plus (R19 ne fabrique aucune étape « déjà faite ») : l'épreuve étant mesurée,
+le cycle ne lui pose simplement pas d'« Évaluer mon niveau » (R12).
+
+- **Point unique d'écriture** : `JourneyService.onAssessmentCompleted`, atteint par
+  `AttemptInteractionService.doFinish` (QCM, sous-épreuves comprises), `JourneyProductionBridge`
+  (EE/EO, examen complet) et les diagnostics. 🛑 **Tous l'appellent APRÈS le commit** de la
+  clôture (`util/ApresCommit`). Motif mesuré le 2026-09-26 : appelé en `REQUIRES_NEW` depuis la
+  transaction de clôture, le parcours lisait l'attempt encore `EN_COURS` ; il fermait bien
+  l'examen CO, puis R12 jugeait la CO « jamais mesurée » et **recréait** aussitôt une étape
+  « Examen à passer » CO. Le Plan semblait n'avoir rien vu, l'Accueil (lu après le commit)
+  était juste — et le journal idempotent empêchait tout rattrapage.
+- **Filet de lecture** (`JourneyService.lire`) : une étape `INITIAL_ASSESSMENT` encore ouverte
+  sur une épreuve **désormais mesurée** (`NiveauActuelEpreuveResolver.mesure`, l'unique
+  autorité) est close par cette mesure — sa prémisse « jamais mesurée » est fausse. Mêmes
+  gardes que l'écriture (D-15) ; **jamais** une étape `REASSESS`, qu'une mesure plus ancienne
+  ne peut pas satisfaire. C'est ce qui répare, à la lecture suivante, les comptes touchés avant
+  le correctif.
+- Verrouillé par `ExamenBlancHorsPlanIT`.
+- ⚠️ **2026-09-27 — examen de production (bug mesuré sur un compte réel)** : la voie de
+  l'analyse (`DiagnosticProductionAnalysisService.porterAuParcours`, runner async) lisait les
+  tâches LAZY hors session, levait, et l'exception était avalée — **aucun examen EE/EO corrigé
+  après sa clôture n'atteignait le parcours** (0 ligne au journal depuis le 2026-09-20). Trois
+  correctifs, une seule fonction de clôture (`JourneyService.cloreLesEtapesDExamen`) :
+  (1) tâches chargées avec leurs soumissions ; (2) **à la fin d'un examen de production dont
+  les corrections tournent encore, l'étape se clôt tout de suite, sans journal**
+  (`onProductionExamSubmitted` — le journal reste à l'évaluation complète, B-13) ; (3) **filet
+  de lecture des examens non signalés** : un examen qualifiant de l'épreuve, **postérieur à la
+  création du cycle** et absent du journal, clôt l'étape d'examen (INITIAL **ou** REASSESS,
+  mêmes gardes) et son signal est **rejoué après le commit** de la lecture. Enfin, 🛑 **une
+  étape close n'est jamais verrouillée** (`lockReason = null`) : un examen gratuit passé ne
+  s'affiche plus « Réservé à l'offre complète ». Verrouillé par `CycleDAffinageIT`.
+
+### L'étape d'examen d'un bloc : un rendu, et la RAISON du verrou servie (2026-09-26)
+
+Demande du propriétaire, web et mobile : l'étape d'examen de **chaque** bloc se lit
+« **Examen blanc** » / « **Évaluez vos progrès** » (vouvoiement du Plan ; le propriétaire
+avait écrit « évalue tes progrès »), avec un bouton « **Commencer** » à droite. Le nom de
+l'épreuve n'y figure plus (l'en-tête du bloc le porte) et `purpose` ne change plus le titre.
+Kit : `ExamStepAction` ⇄ `SfExamStepAction` ; libellés `JOURNEY_EXAM_*` ⇄ `kJourneyExam*`.
+
+| État servi | Rendu |
+|---|---|
+| `status` `COMPLETED` / `SKIPPED` | pastille « ✓ FAIT », aucun bouton |
+| ouvert, action résolue | « Commencer » actif — même lanceur que la carte « À faire maintenant » |
+| `lockReason = PROGRESSION` | « 🔒 Commencer » inactif + « Terminez d'abord les étapes ci-dessus. » — ⚠️ **jamais servi au cycle d'affinage** (D-64) |
+| `lockReason = ACCESS` | « 🔒 Commencer » inactif + « Réservé à l'offre complète. » + « Débloquer mon plan → » |
+
+🛑 **`JourneyStepDto.lockReason`** (`PROGRESSION` / `ACCESS`, `null` ⇔ `locked` faux) est
+calculé **au même endroit** que `locked` (`JourneyReadService.raisonDuVerrou`). Avant lui,
+l'examen de bloc cumulait sous un seul booléen le verrou D-15 et le verrou d'accès D-17 bis,
+et un front disait « terminez vos compétences » à un candidat qui n'en avait plus. Les deux
+cumulés ⇒ `PROGRESSION` (la condition à remplir d'abord). Une étape d'entraînement
+verrouillée est toujours `ACCESS`. Un front ne classe **jamais** le verrou d'après
+`etapesRestantes`. ⚠️ **« En cours / Reprendre » n'existe pas** : aucun champ ne sert une
+tentative d'examen en cours sur l'étape. L'achèvement de cette étape : § « L'achèvement de
+l'étape d'examen d'un bloc » plus haut. 🛑 **Le cycle CIVIQUE reçoit le même rendu, bouton
+compris** (2026-09-28, révoque le « sans bouton » d'A86) : l'étape d'examen d'un thème
+**sert** son action, `JourneyStepDto.examenTheme` (`JourneyThemeExamDto {themeId,
+slotNumber}`, créneau `ExamenBlancAccessService.CRENEAU_OFFERT` ; `null` hors examen de bloc
+civique et sur un cycle clos). Elle arrivait sans action (`assessment` est une table
+d'épreuves TCF), donc sans « Commencer » — un cul-de-sac sur le premier cycle d'examens
+(D-69 ter). Les fronts relaient thème et créneau au lanceur **partagé** avec la grille du
+thème : web `useMockExamLauncher` (`kind: "CIVIQUE"`) ⇄ mobile `launchCiviqueThemeExam`. Sur
+la carte « À faire maintenant », une étape d'examen civique se sous-titre « Examen blanc »
+(comme le TCF) au lieu de répéter le thème, et **porte son bouton** « Passer l'épreuve »
+(`journeyNowCta`, comme le TCF) qui lance ce même examen (`civicNowCard(…, lancerExamen)` ⇄
+`civicNowCard(lancerExamen:)`, champ `examen`, lecture unique `journeyExamenThemeLance`).
+🛑 Seul le Plan civique passe `lancerExamen` : l'Accueil et Réviser, qui n'ont pas ce lanceur,
+gardent le geste `AUCUN` sur un examen.
+
+### Trois statuts de cycle, et un seul est persisté
+
+`journey.status` ∈ `EN_COURS` / `EN_ATTENTE` / `HISTORISE`, **un seul de chaque par
+(candidat, module)** par index uniques **partiels**. 🛑 **D-7 tient** : le statut d'une
+**étape** reste dérivé à la lecture. Celui du **cycle** est une **mémoire d'ordonnancement**
+— rien ne permet de reconstituer « historisé à cette date parce que le candidat a demandé
+une actualisation », cela dépend d'un événement. Même argument que `resolution`.
+
+Le **cycle en attente** est invisible du candidat : aucun endpoint ne le sert. Une compétence
+déjà clôturée dans le cycle en cours n'y est pas recréée, **sauf** si la nouvelle observation
+est `PRIORITY` — c'est la régression mesurée, et un `TO_REINFORCE` ne rouvre rien.
+
+### Fin de cycle : l'actualisation, et elle seule (D-66, 2026-09-27)
+
+🛑 **Décision du propriétaire** : la fin de cycle ne propose **que** « Actualiser mon plan », pour
+**tous** les cycles (travail, affinage, examens). L'étape finale « Examen blanc complet » et le
+choix « Passer l'examen blanc complet / Actualiser sans examen complet » sont **supprimés** ;
+l'examen complet devient un **jalon** (§ suivant). `nextStep` ne sert plus que
+`actualisationPossible` ; `examenCompletPossible` et `cycle.finDeCycle` sont supprimés.
+
+`refresh` historise le cycle courant (`historise_at`, `exit_level`, `fin_de_cycle =
+ACTUALISATION`) et promeut le cycle en attente. Sous « Actualiser mon plan », le rail écrit
+« N priorités identifiées » — `cycle.prioritesCycleSuivant`, **servi** (D-67).
+
+### Le jalon « Faire un examen blanc complet » (D-68, 2026-09-27)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-68** · autonomie **A165 → A170** ·
+> autorité `JourneyJalonExamenComplet` · verrouillé par `JourneyJalonExamenCompletIT`,
+> `JourneyJalonObjectifIT`, `AmorceCiviqueIT`.
+
+**Fait servi** : `JourneyDto.examenComplet` = `{raison, cyclesDeTravail}`, **`null` = non
+proposé** (le cas courant). Proposé quand :
+
+| Raison | Condition | Remise à zéro |
+|---|---|---|
+| `CYCLES_DE_TRAVAIL` | `examenCompletJalonCycles` (3, config v4) cycles de **travail** terminés depuis le dernier examen complet — le cycle en cours compte s'il est terminé (A166) | un cycle historisé `INTERROMPU` / `EXAMEN_COMPLET` (le geste persisté, A167) |
+| `OBJECTIF_ATTEINT` | TCF : les **4** épreuves au palier ≥ objectif, **provenance `EXAMEN_BLANC`** (jamais le diagnostic), palier de l'Accueil. Civique : le **dernier examen de thème** de chacune des 5 thématiques réussi (seuil servi, 16/20) | pas juste après un examen complet (A169) ; l'emporte sur les cycles |
+
+🛑 « Cycle de travail » = cycle historisé portant ≥ 1 `TRAIN_SKILL` non obsolète, **jamais le
+cycle d'affinage** (A165). 🛑 **Jamais proposé sur un cycle d'examens.** 🛑 **Freemium
+inchangé** : le jalon n'a pas de verrou ; le cycle d'examens porte les verrous d'accès servis
+(`lockReason = ACCESS`).
+
+**Le geste** (`POST …/journey/measurement-cycle`, chemin inchangé, 409 si non proposé — la même
+autorité) : le cycle en cours est **historisé** avec `fin_de_cycle = INTERROMPU` (V078) s'il
+restait des étapes obligatoires ouvertes, `EXAMEN_COMPLET` s'il était terminé (A168) ; un
+**cycle d'examens** devient courant — un bloc par épreuve (TCF, `REASSESS` si mesurée sinon
+`INITIAL_ASSESSMENT`) ou par thématique (civique, `REASSESS`), chacun son seul examen, tous
+débloqués. Le cycle en attente est laissé tel quel. 🛑 **Rien à reporter à la main** : les
+priorités non terminées sont historisées telles quelles, et chaque examen du cycle d'examens
+dépose les siennes dans le cycle en attente (`mettreEnAttente`, budget D-67) ; côté civique,
+l'amorce suivante relit le plan dérivé.
+
+🛑 « **Cycle de mesure** » (= cycle d'examens) **reste DÉRIVÉ** — aucune `TRAIN_SKILL` **et** au
+moins un `SECTION_EXAM` (A33).
+
+**Fronts** : `ExamenCompletJalon` (web `app/_components/plan/` ⇄ mobile `widgets/`), composé des
+briques du kit, sous « À faire maintenant » sur le Plan TCF (abonné et gratuit) et civique ;
+confirmation (`ConfirmSheet` ⇄ `showAppSheet`), puis relecture Plan / parcours / Accueil
+(`journeyApi.measurementCycle` → `signalerPlanARelire` ⇄ `relireSourcesDuCompte`). Mots :
+`JOURNEY_JALON_*` / `journeyJalon*` ⇄ `kJourneyJalon*` / `journeyJalon*`.
+
+### Le budget du cycle suivant (D-67, 2026-09-27)
+
+Le moteur calcule **toutes** les priorités vraies ; le cycle suivant en **retient** au plus
+`maxPrioritiesPerLot` (3) par épreuve (TCF) ou par thématique (civique), les plus urgentes dans
+l'ordre du moteur. 🛑 Règle de **composition du cycle**, documentée, par épreuve — pas un
+plafond d'écran recyclé (invariant racine) : le Plan et « Débloquer mon plan » servent toujours
+tout.
+- TCF : un lot par épreuve et par évaluation, ≤ 3 (`JourneyLotBuilder`), un seul lot ouvert par
+  épreuve dans le cycle en attente (index unique) ⇒ ≤ 3 par épreuve **par construction**.
+- Civique : `JourneyCycleSuivant.unitesRetenues`, la fonction de l'amorce.
+- Servi : `cycle.prioritesCycleSuivant` (`JourneyCycleSuivant.prioritesIdentifiees`) — TCF : les
+  étapes d'entraînement ouvertes du cycle en attente ; civique : ce que l'actualisation poserait
+  maintenant. `null` en consultation d'un cycle clos.
+
+`exit_level` se lit sur la **lecture Plan** (`TcfProfileService`, D-2) et reste `null` si
+rien n'est mesuré **ou** si le niveau est sous l'A2 : `null` = inconnu, jamais mauvais, et
+jamais « A2 » par défaut (A35).
+
+### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
+
+⚠️ **Amendé le 2026-09-20** : **2 séries réussies**, et **plus aucune échappatoire** — le filet
+des 4 séries terminées est **supprimé**. `progress` sert les séries **réussies** (`done`) et
+`trainSeriesQuota` (`quota`), inchangé. Détail et conséquences : § « **L'ÉCRAN D'ÉTAPE** » en
+fin de fichier.
+
+### Ce que les fronts affichent, et ce qu'ils ne savent pas
+
+Le serveur sert `cycle` (numéro, étapes terminées / total, `complete`, `cycleDeMesure`,
+`cycleDAffinage`, `prioritesCycleSuivant`), `blocs`, `nextStep` (l'actualisation, D-66) et
+`examenComplet` (le jalon, D-68).
+
+**La timeline du cycle** (2026-09-27, demande du propriétaire). Les blocs sont posés sur un
+rail vertical étroit (rond 14 px, trait 2 px, gouttière 8 px — kit `CycleRail*` ⇄
+`SfCycleRail*`) : un rond par bloc, traduit du **statut servi** (`TERMINE` ⇒ plein coché,
+`EN_COURS` ⇒ épais, le reste ⇒ gris), puis une **dernière étape « Fin du cycle »**, rond
+étoilé.
+- 🛑 **Elle s'appelle toujours « Actualiser mon plan »** (D-66, `JOURNEY_RAIL_END_TITLE` ⇄
+  `kJourneyRailEndTitle`) : `cycle.finDeCycle` et `JourneyFinDeCycle.de` sont **supprimés**.
+  Dessous, la ligne « N priorités identifiées » (`note` de `CycleRailEnd` ⇄ `SfCycleRailEnd`)
+  lit `cycle.prioritesCycleSuivant`, **servi** (D-67).
+- « **Encore N étapes** » = `etapesTotal − etapesTerminees`, lecture arithmétique du compteur
+  servi (en affinage, `etapesTotal` exclut déjà les facultatives non faites : la différence
+  est exactement ce qui reste dû). Aucune pastille à 0.
+- Non atteinte, l'étape est un encart en pointillés, atténué ; **atteinte** (condition
+  inchangée : `CYCLE_COMPLETED` et `nextStep` servi), elle **devient** la carte de fin de
+  cycle — **une seule action**, « Actualiser mon plan » (D-66), le nombre de priorités en
+  repère — ; l'intertitre « Prochaine étape » est supprimé.
+- « Actualiser mon plan » **fait relire l'écran où l'on est** : web `journeyApi.refresh`
+  purge, range le nouveau cycle et signale `signalerPlanARelire()` ; mobile attend
+  `relireSourcesDuCompte`. Avant le 2026-09-27, le web gardait l'ancien cycle affiché
+  jusqu'au rechargement de la page. 🛑 **Des faits, pas des phrases** (B-11) :
+« 3 étapes sur 8 terminées », « 1 compétence restante · puis examen », « VERROUILLÉ » sont
+composés par les fronts. `JourneyDto.steps` et `hiddenUpcomingCount` **n'existent plus** —
+la file plate est remplacée par les blocs dépliables, et le fenêtrage `display.*` de
+`tcf-journey-config` **n'a plus de lecteur** (conservé pour que le retour arrière de version
+reste une variable d'environnement).
+
+🛑 **Le vocabulaire interne ne s'affiche jamais** (D-21) : `lot`, `step`, `journey`. « Cycle »,
+lui, **est le mot du propriétaire dans ses maquettes** — il reste à l'écran.
+
+### L'historique des cycles
+
+`GET /api/me/plan/journey/history` sert les cycles `HISTORISE` du module, du plus récent au
+plus ancien : dates, nombres de compétences et d'examens **clôturés**, compétences
+**groupées par épreuve** (titres de `skills.title`), et les deux niveaux lus **tels quels**.
+Les trois compteurs du bandeau portent sur **tous** les cycles, le cycle en cours compris —
+l'écran dit « tout ce que vous avez déjà travaillé ». Le cycle **en attente** n'y paraît
+jamais. 🛑 **Un examen = une évaluation par bloc** (2026-09-27) : deux étapes d'examen du même
+bloc closes par la même évaluation (doublon constaté en base sur une étape « Évaluer mon
+niveau » CO) ne comptent qu'**un** examen passé — le bloc reste dans la clé, un examen civique
+global qui clôt cinq thématiques compte toujours une fois par thématique.
+
+#### Un cycle clos se CONSULTE comme le Plan (2026-09-27, demande du propriétaire)
+
+Sur « Mes cycles », chaque cycle terminé est une ligne-lien (`BlocAccordion href` ⇄
+`SfBlocAccordion.lien`) vers **sa page** — `/plan/progression/cycle/{journeyId}` des deux côtés
+(`PlanCycleArchiveView` ⇄ `PlanCycleArchiveScreen`). ⚠️ **Révoque** l'accordéon déplié dans la
+liste, dont le seul contenu était une carte « Examens réalisés · NIVEAU A2 » **cadenassée** : un
+cadenas sur un cycle terminé ne voulait rien dire, et `ExamStepBox` ⇄ `SfExamStepBox` sont
+**supprimées** avec lui. Une page plutôt qu'un accordéon : à 360 px, un rail et ses blocs
+dépliables imbriqués dans une carte de liste perdaient la largeur qui rend le Plan lisible.
+
+- **Données** : `GET /api/me/plan/journey/history/{journeyId}` → `JourneyCycleArchiveDto`, qui
+  porte **les mêmes `JourneyCycleDto` et `JourneyBlocDto`** que le Plan, bâtis par les mêmes
+  règles (`JourneyBlocResolver.lireArchive`, `JourneyCycleAffinage`) sur les étapes
+  **persistées**. 🛑 **Figé = persisté** : statut d'une étape lu sur sa clôture
+  (`statutHorsPromotion`, la règle du Plan), et **rien** de ce qui se calcule sur l'état
+  d'aujourd'hui n'est rejoué — ni accès, ni verrou, ni progression, ni exercice, ni élection
+  de l'étape courante, ni « à évaluer ». Un abonnement ou un recalibrage ne change pas une ligne
+  de l'archive.
+- **La consultation est SERVIE, jamais déduite** : `locked` faux, `assessment` / `exercise` /
+  `progress` nuls ; une étape restée ouverte est **`NON_FAITE`** (jamais « à venir »), un bloc
+  dont une étape obligatoire est restée ouverte **`INACHEVE`** (jamais « en cours ») ; un bloc
+  sans étape n'est pas servi ; l'ordre est `CO, CE, EO, EE` (D-56 : plus rien « à faire »). La
+  phrase du bloc (`meta`) est servie par `JourneyBlocMeta.archive` — « 1/2 compétences
+  travaillées · examen blanc passé ».
+- **Ce que l'examen a donné** (`JourneyStepDto.resultat`, servi en consultation seulement) :
+  l'examen qui a clos l'étape (`resolved_by_assessment_id`) est relu chez **son autorité** —
+  `TcfLevelEstimatorService.niveauxQcm` (CO/CE), `EpreuvesProductionQualifiantesResolver
+  .niveauxDesSessions` (EE/EO), `score`/`max_score` d'un examen **de ce thème** (civique).
+  🛑 `null` = inconnu : diagnostic, examen d'un autre axe (examen complet, examen civique
+  global) ou tentative d'un tiers ⇒ « Passé », sans niveau.
+- **La fin du cycle** : `journey.fin_de_cycle` (**V077**) garde **le geste qui l'a clos** —
+  `ACTUALISATION` (`refresh`), `EXAMEN_COMPLET` (`measurement-cycle` sur un cycle terminé) ou
+  **`INTERROMPU`** (**V078**, D-68 : mis de côté par le jalon) —, écrit une fois à
+  l'historisation. La liste le sert aussi (`JourneyHistoryCycleDto.finDeCycle`) : pastille
+  « INTERROMPU » (`journeyHistoryPill`), et « Cycle interrompu » en consultation. Un événement, pas un dérivé (même argument que D-12 / D-14) : le cycle
+  suivant ne permet pas de le reconstituer de façon sûre. `null` = cycle clos avant V077 ⇒
+  « Cycle terminé », sans inventer l'issue. Rendu : `CycleRailEnd done` ⇄ `SfCycleRailEnd.done`
+  (encart plein + date).
+- **Écran** : les briques du Plan, **sans aucun geste** — ni « Commencer », ni « Débloquer »,
+  ni « Faire cette étape », ni cadenas. Le premier bloc est déplié. Libellés
+  `JOURNEY_ARCHIVE_*` / `journeyArchive*` ⇄ `kJourneyArchive*` / `journeyArchive*`.
+- **Barre du haut (web)** : « Mes cycles » et la page d'un cycle portent **le menu ET la
+  flèche** (`Top keepMenu`). Le mobile n'a pas de menu latéral (barre d'onglets) : rien à y
+  faire.
+- **Tests** : `JourneyCycleArchiveIT` (cycle servi avec ses étapes sans verrou ni action,
+  `NON_FAITE` / `INACHEVE`, résultats relus, isolation par candidat, rang = celui de la
+  liste, civique) ; `JourneyCycleServiceIT` (le geste est écrit).
+
+---
+
+## L'ÉCRAN D'ÉTAPE — deux séries à réussir, et plus aucun filet (2026-09-20)
+
+> Règles **arbitrées et fermées par le propriétaire**.
+> Décisions autonomes : `docs/decisions-autonomes-parcours-tcf.md` **A146 → A155**.
+> Migration : `V072__journey_step_series.sql`. Configuration : `plan/tcf-journey-config-v3.json`.
+> Endpoints : `GET /api/me/plan/journey/steps/{stepId}` · `POST …/steps/{stepId}/series/{index}`.
+
+⚠️ **Cette section prime** sur « R8 » et sur « Le quota d'une étape de compréhension » plus haut,
+pour tout ce qui touche à la clôture d'une étape de **séries** et au déblocage de l'examen de
+**fin de cycle**. Le reste (R1, le budget de 3, l'étape exécutable, le verrou de bloc) est
+inchangé.
+
+### Ce qui change, en une phrase
+
+Une étape `TRAIN_SKILL` de **compréhension** (CO/CE) et une étape **civique** ne lancent plus
+une série directement : elles ouvrent un **écran d'étape** qui montre les **2 séries à
+réussir**, leur état, leur score, et permet de les lancer ou de les **refaire**.
+
+### Les sept règles
+
+1. Une compétence CO/CE (et une unité civique) se valide par **2 séries RÉUSSIES**.
+2. Une série = **20 questions**, réussie à **16/20 minimum**.
+3. 🛑 **Le filet des 4 séries terminées est SUPPRIMÉ.** Plus aucune clôture automatique après
+   des échecs. ⚠️ **Conséquence assumée et validée** : un candidat qui ne passe jamais 16/20
+   **reste sur sa compétence**. C'était exactement ce que le filet de D-16 évitait ;
+   l'arbitrage a été rendu contre, en connaissance de cause.
+4. **La série 2 ne se débloque qu'après RÉUSSITE de la série 1** — pas « faite » : réussie.
+5. **Dès qu'une série est réussie une fois, elle est définitivement validée.** La refaire et la
+   rater ne la dévalide pas. La carte affiche toujours le **dernier** score.
+6. Le **résultat complet et corrigé** d'une série jouée reste consultable, comme les séries de
+   « Réviser » (`GET /api/attempts/{id}` révèle les corrections une fois la session terminée).
+   🛑 **C'est LE rapport de série de chaque front**, à chaud comme via « Voir mon résultat » :
+   le point de lancement pose son adresse (`?retour=` web ⇄ `?from=plan` mobile) et le bouton
+   principal du rapport est **« Continuer »**, qui y ramène. Aucune variante pour le Plan.
+7. **Pendant la série : AUCUNE correction affichée** — ni bonne réponse, ni explication. En CO,
+   **l'audio ne se joue qu'une seule fois**. C'est le comportement des examens blancs, appliqué
+   à une série d'entraînement.
+
+### « Réussie » est LITTÉRALE, et elle a UNE autorité
+
+🛑 **`JourneySerieVerdict`** : **16 bonnes réponses sur les 20 de la série**, lues sur
+l'attempt. La **lecture** (l'écran, `validee`, `progress.done`) et l'**écriture** (la clôture,
+`JourneyReadService.etapesAuQuota` → `JourneyService.onTrainingProgress`) partagent cette
+**fonction** — une étape ne se clôt jamais sur une règle différente de celle qui l'affiche.
+
+🛑 **Le 16 n'est écrit nulle part.** Il se dérive de `learning-plan.comprehension.solid-ratio`
+(0,80) × la **taille de la série** : `AttemptService.COMPREHENSION_SERIES_SIZE` (TCF) ou
+`civic-plan.questions-par-serie` (civique). Changer le ratio change le seuil servi, l'écran et
+la clôture **ensemble**.
+
+⚠️ **Le seuil porte sur la taille NOMINALE**, pas sur ce qui a été tiré : une série de 18
+questions se réussit toujours à 16, pas à 15. C'est le chiffre **servi avant de commencer**.
+
+⚠️ **Ce qu'on compte a changé d'ensemble** : les essais **lancés depuis les cartes de cette
+étape** (`journey_step_series`), et eux seuls. Une série ciblée lancée ailleurs (plan dérivé,
+« Réviser ») reste un entraînement utile qui alimente la maîtrise, mais **ne valide aucune
+carte**.
+
+### `journey_step_series` — le LIEN est persisté, jamais le verdict
+
+C'est la **troisième** exception assumée à « un dérivé se relit » (avec `plan_pinned_priorities`
+V065 et le parcours V066), et elle a le **même critère** : « le candidat a lancé la série n°2 de
+**cette** étape » est une décision prise à un instant, que rien ne permet de recalculer.
+
+- pas de colonne `reussie`, `validee` ni `score` — tout se relit sur l'attempt ;
+- **aucune unicité** sur `(step_id, series_index)` : « refaire » **ajoute** une ligne, ce qui
+  donne le dernier score et l'historique sans rien écraser ;
+- unicité sur `attempt_id` : une session appartient à **une** carte.
+
+### Ce qui est SERVI, et ce que les fronts composent
+
+`GET /api/me/plan/journey/steps/{stepId}` → `JourneyStepDetailDto` :
+`stepId`, `type`, `bloc`, `unite` *(code, label, description — `description` nulle en civique)*,
+`section`, `objectif` *(kind, code, label : un palier **ou** une mention)*, `priorite`, `quota`,
+`validees`, `validee`, `resolution` *(2026-09-27)*, `questionsParSerie`, `seuilReussite`, `dureeEstimeeMin`,
+`locked`, `series[]`.
+
+`JourneySerieDto` : `index`, `locked`, `validee`, `dernierScore`, `dernierAttemptId`,
+`dernierEssaiAt`.
+
+🛑 **`validee` et `validees` sont SERVIS.** Sans eux, un front comparerait `dernierScore` à
+`seuilReussite` — il **classerait un nombre en état pédagogique**, ce que le dépôt interdit.
+
+🛑 **Aucune phrase servie.** « À faire », « Verrouillée », « Réussie », « À refaire » se
+composent des fronts à partir de `locked`, `validee` et de la nullité de `dernierScore`.
+
+🛑 **Deux verrous distincts** : `JourneyStepDetailDto.locked` est le verrou **freemium** de
+l'étape ; `JourneySerieDto.locked` dit « réussissez d'abord la précédente ». Les fondre aurait
+empêché l'écran de dire lequel s'applique.
+
+`POST …/steps/{stepId}/series/{index}` → `AttemptResponse` (le même DTO que tous les
+lancements). **403** si l'étape ou la carte est verrouillée, **422** si l'index sort du quota ou
+si la banque ne peut rien servir, **404** sur l'étape d'un autre candidat.
+
+🛑 **Un seul endpoint pour les deux modules** : il résout TCF vs civique depuis l'étape
+(compétence XOR unité officielle) et **délègue** la composition à
+`AttemptService.demarrerSerieDeCarte` / `CivicPlanService.demarrerSerieSurUnite`.
+
+### « Pas de correction / audio une fois » est SERVI — `AttemptResponse.mode`
+
+🛑 La session reste un **`AttemptType.TRAINING`** (freemium, historique et observations
+inchangés) mais elle est posée en **`AttemptMode.EXAMEN`** :
+
+| `mode` | Pendant la session | Audio (CO) |
+|---|---|---|
+| `ENTRAINEMENT` | correction immédiate après chaque réponse | réécoutable |
+| `EXAMEN` | **aucune** correction : ni bonne réponse, ni explication | **joué une seule fois** |
+| `REVISION` | aucune correction | réécoutable |
+
+`attempts.mode` existait déjà (`NOT NULL`, dérivée du type, **lue par personne**) : elle devient
+le porteur de ce fait plutôt qu'un second champ. **La même valeur est opposée** —
+`AttemptInteractionService.doSubmitAnswer` ne renvoie la correction qu'en `ENTRAINEMENT`. Aucun
+front ne déduit ce fait d'une route ni d'un paramètre d'URL.
+
+### Composition d'une série
+
+**Priorité absolue aux questions de la compétence / de l'unité visée.** S'il n'y en a pas 20 —
+surtout en civique, où une unité officielle peut être mince — on **complète avec les questions
+de la même thématique**. Le tirage est **aléatoire**, donc **varie à chaque essai** : « refaire »
+n'est pas un rejeu à l'identique.
+
+⚠️ **Côté TCF rien n'a été ajouté** : le tirage existant sert déjà 20 questions du même domaine
+et du même palier. Compléter hors palier aurait changé ce que la série mesure.
+
+### L'examen de FIN DE CYCLE se débloque à 80 %
+
+⛔ **RÉVOQUÉ le 2026-09-27 (D-66)** : il n'y a plus d'examen de fin de cycle — l'examen blanc
+complet est un jalon (D-68). `finDeCycleExamenRatio` n'a plus de lecteur (v4 ne le porte plus).
+Ce qui suit est conservé pour mémoire.
+
+🛑 **Les 80 % portent sur l'examen qui CLÔT LE CYCLE** (`POST …/journey/measurement-cycle` et
+`nextStep.examenCompletPossible`), **jamais** sur l'examen d'épreuve à l'intérieur d'un bloc,
+qui garde son verrou (D-15).
+
+- `examenCompletPossible` devient vrai dès **80 %** des étapes du cycle terminées ;
+- `actualisationPossible` **garde sa règle** : le cycle entier. Ce geste historise et promeut le
+  suivant — l'offrir à 80 % jetterait du travail que le candidat n'a pas demandé à abandonner ;
+- `cycle.complete` **ne bouge pas** : c'est le fait « plus aucune étape ouverte », celui dont
+  l'écran tire « **Cycle entièrement travaillé** ». Le serveur sert le fait, le front la phrase.
+
+⚠️ **Règle NON FIGÉE**, annoncée comme appelée à bouger : la part vit dans
+`plan/tcf-journey-config-v3.json` (`finDeCycleExamenRatio`), **pas dans le Java**.
+
+### La configuration v3, et pourquoi v1 et v2 restent chargeables
+
+⚠️ **v4 est la version par défaut depuis le 2026-09-27** : elle **omet**
+`finDeCycleExamenRatio` (D-66) et **ajoute** `examenCompletJalonCycles: 3` (D-68). Absente
+(v1–v3), cette clé veut dire « aucun jalon au compte des cycles ». v3 reste chargeable.
+
+`TCF_JOURNEY_CONFIG_VERSION` valait **3** par défaut jusqu'au 2026-09-27. v3 **omet** `trainSeriesFallbackQuota` et
+**ajoute** `finDeCycleExamenRatio: 0.80`.
+
+🛑 **Une clé absente est une RÈGLE**, jamais un zéro silencieux : pas d'échappatoire, pas de
+déblocage anticipé. C'est ce qui permet à v1 (`fallback = 2`) et v2 (`fallback = 4`) de rester
+chargeables **à l'identique** sans être réécrites — un contrat livré ne se réécrit pas.
+
+🛑 **Et aucun nombre de repli dans le Java** : les deux absences se traduisent par un fait déjà
+calculé (`complete` pour le cycle, la seule réussite pour le quota), pas par une constante.
+
+**Le retour arrière est une variable d'environnement** : `TCF_JOURNEY_CONFIG_VERSION=2` rend le
+filet, jamais une migration.
+
+### Civique : 20 questions PARTOUT
+
+`civic-plan.questions-par-serie` passe de 10 à **20**. Lecture la plus stricte de « passer aussi
+à 20 », sans restriction : **toutes** les séries civiques, y compris celles du **plan dérivé**.
+
+⚠️ **Deux surfaces bougent en conséquence, et c'est voulu** : la taille annoncée d'une cible du
+plan civique (`CivicPlanDto.Cible.questionsSerie`, toujours `min(20, stock)`) et sa durée
+annoncée, qui s'en dérive (**12 min** au lieu de 6). Les deux sont **servies** : aucun écran n'a
+à être touché.
+
+## L'écran « Débloquer mon plan » — les priorités rangées COMME LE PLAN (2026-09-26)
+
+L'écran de transition ouvert par « Débloquer mon plan » (`/plan/debloquer`, `PlanUnlockScreen.tsx`
+⇄ `plan_unlock_screen.dart`, mots dans `lib/plan-unlock.ts` ⇄ `plan_unlock_labels.dart`) ne montre
+plus une liste plate : « Vos priorités » est un **encart rétractable par épreuve** (TCF) ou **par
+thème** (civique), sur la brique du cycle (`BlocAccordion` ⇄ `SfBlocAccordion`). Demande du
+propriétaire.
+
+- **TCF — lu sur `plan.domaines`** (les 4 épreuves du Plan, jamais `TCF_STRUCTURE`, ordre
+  d'urgence **servi**). 🛑 **Jamais sur `currentPriority` + `nextPriorities`** : vue bornée à
+  cinq lignes pour tout le Plan, et une carte d'épreuve ne dérive jamais d'une liste tronquée.
+  Lignes = les compétences dont `nature` est servie (le pool **complet**), pastille = la nature
+  servie ; en-tête = `PlanDomainPriority` servie ; « Non évaluée » = `evaluated: false` servi.
+- 🆕 **`PlanDomainSkillDto.priorityRank`** : la place de la compétence dans le classement
+  **complet** du Plan (`PlanActionRanker`, 1 = première action), `null` exactement quand `nature`
+  l'est. Posé par `PlanDomainSkillResolver` depuis l'ordre d'itération de `natures`
+  (`LinkedHashMap` bâtie dans l'ordre de `composed` — c'est une règle, pas un hasard). C'est lui
+  qui ordonne les lignes d'une épreuve : sans lui, l'ordre du Plan n'existait que dans une liste
+  déjà tronquée. Les rangs d'une épreuve ne se suivent pas (partagés entre les quatre).
+- **Civique — encarts = les 5 thèmes du diagnostic** (`themes`, `etat` servi, `NON_EVALUE` ⇒
+  « Non évalué », accordé au thème) ; lignes = les unités que le **cycle civique** garde ouvertes
+  dans ce thème (`JourneyBlocDto.steps` `UPCOMING`/`CURRENT`, non bornées). 🛑 Aucune pastille
+  par unité : l'état servi du diagnostic civique est au grain du thème, il est dans l'en-tête.
+  Parcours illisible ⇒ encarts sans lignes, et rien d'affirmé.
+- 🛑 **Au plus 5 lignes par encart — plafond d'AFFICHAGE** (`PLAN_UNLOCK_MAX_PAR_GROUPE` ⇄
+  `kPlanUnlockMaxParGroupe`), avec « + N autres … » sous la liste. Le serveur sert tout. Le
+  sous-titre (« Vos réponses font ressortir N compétences… ») et « ces N priorités » comptent le
+  **total servi** des épreuves mesurées ; le sous-titre civique reste le nombre de thématiques
+  classées par le diagnostic.
+- **Encart ouvert à l'arrivée** : le premier, dans l'ordre servi, qui a des lignes à montrer (en
+  TCF, l'épreuve la plus urgente qui a du travail). Le cycle du Plan ouvre son premier bloc ;
+  ici le premier peut être une épreuve non évaluée, sans liste.
+- Le **héros** reste lu sur un ancien diagnostic 4 épreuves s'il existe, sinon sur le Plan. Sans
+  aucune action servie (TCF) ou sans diagnostic civique clos, l'écran s'efface vers l'offre.
+- ⚠️ `prioriteLibelle` / `prioritePastille` (web) et `tcf_diagnostic_labels.dart` (mobile) sont
+  **supprimés** avec leur dernier lecteur.
+
+### L'écran d'étape se LIT d'un coup d'œil (2026-09-27)
+
+Demande du propriétaire. `PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`, mots dans
+`lib/journey-etape.ts` ⇄ `journey_etape_labels.dart`.
+
+- **Carte JOUÉE = carte COMPACTE** (variante `verdict` + `onOpen` de `SerieCard` ⇄
+  `SfSerieCard`, pas une primitive de plus) : repère à **coche verte** (réussie) ou **croix
+  rouge** (ratée), score, état, chevron. Plus de gros bouton « Refaire » : le toucher ouvre la
+  **feuille des séries d'entraînement** — web `ExamDoneSheet` (`hub/`), mobile `showAppSheet`
+  (celle des sujets déjà traités) — « Voir mon résultat » puis « Refaire la série ». Seule une
+  série **jamais jouée** garde le bouton pleine largeur « Commencer ».
+- 🛑 **Le verdict se compose sur deux faits servis** (`journeyEtapeSerieVerdict`) : `validee` ⇒
+  réussie ; score servi **et** non validée ⇒ ratée ; **jouée sans score** (session non
+  terminée) ⇒ aucun verdict, la carte reste « À refaire » avec son bouton — un score absent est
+  inconnu, jamais un échec. Le score n'est **jamais** comparé à `seuilReussite`.
+- **Deux listes** : « À faire » (non validées) puis « Réussies » (`validee`), chacune dans
+  l'ordre servi ; une liste vide n'a pas d'intertitre. « Après la série N » lit la série
+  précédente dans la liste **entière**, pas dans la section.
+- 🆕 **`JourneyStepDetailDto.validee`** — l'étape est validée **par ses séries** : ouverte et
+  rendue par `JourneyReadService.etapesAuQuota` (la fonction qui la clôt), ou close sur
+  **`QUOTA_REACHED`**, et **rien d'autre**. 🛑 Une étape close `MASTERED` (maîtrise transférée),
+  `SATISFIED_BY_ASSESSMENT` ou `SUPERSEDED` n'est **pas** validée (bug du 2026-09-27 : étape CO à
+  1/2 séries, close `MASTERED`, affichait « Étape validée »). 🛑 Aucun front ne compare
+  `validees` à `quota`. Vrai ⇒ encart vert « **Étape validée** — Passez au sujet suivant de
+  votre plan. » et bouton bleu « **Continuer mon plan** » vers le cycle (`planHref(parcours)` ⇄
+  `context.go(AppRoutes.plan)`) : aucune « prochaine étape » n'est servie sur cet écran, c'est
+  le cycle qui la désigne.
+- 🆕 **`JourneyStepDetailDto.resolution`** — pourquoi l'étape est close (`null` = ouverte).
+  Close **sans** validation ⇒ pas d'encart vert : une note neutre lue sur la résolution
+  servie (`journeyEtapeCloseNote` ⇄ même nom en Dart). ⚠️ **Depuis D-65, seul `SUPERSEDED`
+  y arrive** : « Cette étape ne fait plus partie de votre plan actuel. Vous pouvez encore y
+  faire vos séries. », puis le même bouton « Continuer mon plan ». La note « compétence
+  acquise » (`MASTERED`) est supprimée : ce cas ne se produit plus dans le cycle en cours. Les cartes restent jouables selon les règles
+  actuelles. Verrouillé par `JourneyStepSeriesIT`.
+- Le pied de l'écran (encarts, bouton, validation) prend la gouttière d'une **section** du kit
+  (22 px) : web `Section` sans intertitre, mobile `sfSectionGap`.
+

@@ -1,0 +1,107 @@
+{
+  "epreuve": "TCF_EE",
+  "tacheNumero": 3,
+  "libelle": "Avis argumenté",
+  "titres": [
+    {
+      "id": "525cc021-4103-4260-8c7b-695f152eea8b",
+      "titre": "Intelligence artificielle et éducation",
+      "repere": "L'intelligence artificielle va-t-elle améliorer ou dégrader l'éducation ?"
+    },
+    {
+      "id": "67837e55-303b-437a-a513-e8f33125de06",
+      "titre": "Le temps d'écran des enfants",
+      "repere": "Faut-il limiter le temps d'écran des enfants ?"
+    },
+    {
+      "id": "7c323ad8-639f-4122-be5c-44badb65b010",
+      "titre": "Ville ou campagne",
+      "repere": "Préférez-vous vivre en ville ou à la campagne ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000001",
+      "titre": "Supermarché ou commerces de quartier",
+      "repere": "Préférez-vous faire vos courses au supermarché ou dans les petits commerces ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000002",
+      "titre": "Les effets du télétravail",
+      "repere": "Le télétravail rend-il la vie professionnelle meilleure ou plus difficile ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000003",
+      "titre": "Transports en commun ou voiture",
+      "repere": "Préférez-vous vous déplacer en transports en commun ou en voiture ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000004",
+      "titre": "Un animal à la maison",
+      "repere": "Est-ce une bonne idée d'avoir un animal à la maison ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000005",
+      "titre": "Voyager seul ou accompagné",
+      "repere": "Vaut-il mieux voyager seul ou accompagné ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000006",
+      "titre": "Cuisiner chez soi ou sortir",
+      "repere": "Préférez-vous cuisiner chez vous ou manger au restaurant ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000007",
+      "titre": "Les réseaux sociaux au quotidien",
+      "repere": "Les réseaux sociaux améliorent-ils notre vie quotidienne ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000008",
+      "titre": "Travailler le week-end",
+      "repere": "Faut-il accepter de travailler le week-end ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-000000000009",
+      "titre": "Le vélo en ville",
+      "repere": "Le vélo est-il une bonne solution pour se déplacer en ville ?"
+    },
+    {
+      "id": "77777777-e301-1000-0000-00000000000a",
+      "titre": "Achats en ligne et magasins",
+      "repere": "Les achats en ligne vont-ils faire disparaître les magasins traditionnels ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000001",
+      "titre": "Vivre en colocation ou seul",
+      "repere": "Aimeriez-vous vivre en colocation ou préférez-vous habiter seul ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000002",
+      "titre": "Apprendre une langue à l'étranger",
+      "repere": "Faut-il partir vivre dans le pays pour apprendre une langue ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000003",
+      "titre": "Le tourisme de masse",
+      "repere": "Le tourisme de masse est-il une chance ou une menace ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000004",
+      "titre": "Le prix des produits bio",
+      "repere": "Faut-il privilégier les produits bio malgré leur prix plus élevé ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000005",
+      "titre": "Sport en salle ou dehors",
+      "repere": "Préférez-vous faire du sport dans une salle ou en plein air ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000006",
+      "titre": "Acheter neuf ou d'occasion",
+      "repere": "Préférez-vous acheter des objets neufs ou d'occasion ?"
+    },
+    {
+      "id": "77777777-e302-1000-0000-000000000007",
+      "titre": "Connaître ses voisins",
+      "repere": "Est-il important de connaître ses voisins ?"
+    }
+  ]
+}

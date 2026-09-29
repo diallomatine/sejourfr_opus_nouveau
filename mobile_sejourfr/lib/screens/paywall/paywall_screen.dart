@@ -1,0 +1,963 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/analytics/analytics.dart';
+import '../../core/analytics/funnel_events.dart';
+import '../../core/billing/billing_controller.dart';
+import '../../core/billing/iap_service.dart';
+import '../../core/models/billing_models.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/format_date.dart';
+import '../../core/widgets/app_button.dart';
+
+/// Écran paywall plein écran. Affiche un toggle mensuel/trimestriel/annuel et
+/// deux cards Civique + Intégral avec les prix réels du store (devise locale).
+///
+/// Conforme aux guidelines Apple/Google : le paiement se fait par IAP natif,
+/// pas par redirection externe. Bouton « Restaurer mes achats » obligatoire
+/// pour passage en review Apple.
+/// 🛑 **LES DEUX CARTES, TOUJOURS** (demande du propriétaire, 2026-09-20 :
+/// « des fois on masque civique ou intégral selon des conditions. Donc
+/// toujours afficher les 2 et laisser la personne choisir »). Cet écran est le
+/// seul où les deux périmètres se comparent, et c'est là que se lit « le Pass
+/// Civique n'ouvre pas le TCF ».
+///
+/// 🛑 **Leur ORDRE est fixe** : `kPassModulesInOrder`, l'Intégral d'abord.
+/// L'ancien `initialTarget` ne faisait plus qu'ordonner — il est parti avec la
+/// règle qu'il portait, jusqu'à ses appelants.
+class PaywallScreen extends ConsumerStatefulWidget {
+  const PaywallScreen({
+    super.key,
+    this.ctaLocation,
+    this.journeyId,
+  });
+
+  /// Le CTA qui a ouvert l'offre, et le parcours affiché s'il vient du Plan :
+  /// l'intention d'achat les porte (Q12). Jamais affichés. `null` = CTA
+  /// inconnu : aucune intention, achat `UNKNOWN`.
+  final AnalyticsCtaLocation? ctaLocation;
+  final String? journeyId;
+
+  @override
+  ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
+}
+
+class _PaywallScreenState extends ConsumerState<PaywallScreen> {
+  PlanPeriodicity _periodicity = PlanPeriodicity.quarterly;
+
+  @override
+  void initState() {
+    super.initState();
+    // Premier chargement async — les prix arrivent du store.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(billingControllerProvider.notifier).load();
+      // Un écran Premium **affiché**. Deux mesures, deux natures : l'étape de
+      // funnel rattachée au compte (`PAYWALL_VIEWED`, authentifiée, idempotente
+      // serveur) et la vue anonyme de la page de prix (`PRICING_VIEWED`), qui
+      // seule sait dire combien de visiteurs regardent l'offre sans jamais
+      // acheter. Le web fait exactement ça sur `/paiement`.
+      trackPaywallViewed(ref);
+      ref.read(analyticsServiceProvider).track(
+            AnalyticsEvent.pricingViewed,
+            path: AnalyticsPath.paywall,
+            once: true,
+          );
+    });
+  }
+
+  /// Le seul geste qui **engage l'achat** : il ouvre la feuille de paiement du
+  /// store. Un simple passage sur l'écran n'en est pas un — celui-là est déjà
+  /// compté à l'arrivée.
+  void _purchase(IapProduct product) {
+    trackSubscribeClicked(ref);
+    ref.read(analyticsServiceProvider).track(
+          AnalyticsEvent.pricingCtaClicked,
+          path: AnalyticsPath.paywall,
+          planCode: product.plan.code,
+        );
+    ref.read(billingControllerProvider.notifier).startPurchase(
+          product,
+          ctaLocation: widget.ctaLocation,
+          journeyId: widget.journeyId,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(billingControllerProvider);
+
+    // Ferme automatiquement le paywall après une vérif d'achat réussie qui
+    // ouvre l'accès. On se base sur l'ARRIVÉE d'une nouvelle vérification
+    // (instance de lastVerification différente) et non sur une transition
+    // non-premium→premium : le BillingController n'est pas autoDispose, donc
+    // lastVerification persiste entre deux ouvertures du paywall. Une
+    // prolongation (déjà premium), un 2e achat, ou une transaction rejouée à
+    // l'ouverture ne produisaient aucune transition → l'écran ne se fermait
+    // jamais (spinner qui s'arrête sans fermeture).
+    ref.listen<BillingState>(billingControllerProvider, (prev, next) {
+      final verified = next.lastVerification;
+      final isFreshVerification =
+          verified != null && !identical(prev?.lastVerification, verified);
+      if (isFreshVerification && verified.isPremium && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.ink,
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              _welcomeMessage(verified, next.lastVerificationOutcome),
+              style: AppFonts.ui(color: AppColors.white, size: 13),
+            ),
+          ),
+        );
+        // pop() explicite (PAS maybePop) : le PopScope ci-dessous a
+        // canPop=false tant que purchaseInProgress=true ; or ce listener
+        // s'exécute de façon synchrone au changement d'état, AVANT que le
+        // widget se reconstruise avec canPop=true → maybePop serait refusé et
+        // le paywall ne se fermerait pas. canPop()+pop() contourne ce garde-fou
+        // (qui ne doit bloquer que la fermeture MANUELLE pendant l'achat).
+        // rootNavigator: true — le paywall est poussé sur le navigator racine
+        // par showPaywallSheet ; on pop le MÊME pour revenir à la page d'où
+        // l'utilisateur venait (lot, examen, etc.).
+        final nav = Navigator.of(context, rootNavigator: true);
+        if (nav.canPop()) nav.pop();
+      }
+    });
+
+    return PopScope(
+      // Pendant la validation d'un achat (spinner), on bloque toute fermeture
+      // (geste retour / bouton système) : aucune interaction tant que le
+      // backend n'a pas confirmé. La fermeture se fait automatiquement au
+      // succès (ref.listen ci-dessus) ou redevient possible en cas d'erreur.
+      canPop: !state.purchaseInProgress,
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        appBar: AppBar(
+          backgroundColor: AppColors.bg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(LucideIcons.x, color: AppColors.ink),
+            onPressed: state.purchaseInProgress
+                ? null
+                : () => Navigator.of(context, rootNavigator: true).maybePop(),
+          ),
+        ),
+        body: SafeArea(
+          top: false,
+          child: state.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildContent(context, state),
+        ),
+      ),
+    );
+  }
+
+  /// Message de confirmation post-achat, adapté au module débloqué, à la
+  /// nature (pass one-time vs abonnement) et à l'issue : premier accès,
+  /// prolongation (durées cumulées), passage en Intégral, ou restauration
+  /// sans changement.
+  String _welcomeMessage(
+    SubscriptionStatusResponse status,
+    PurchaseOutcome? outcome,
+  ) {
+    final module = switch (status.moduleAccess) {
+      ModuleAccess.integral => 'Intégral',
+      ModuleAccess.civique => 'Civique',
+      _ => null,
+    };
+    final until = status.expiresAt != null
+        ? ' jusqu\'au ${formatLongDate(status.expiresAt!.toLocal())}'
+        : '';
+    if (module == null) {
+      return status.oneTime ? 'Accès activé. Bienvenue !' : 'Abonnement activé. Bienvenue !';
+    }
+    return switch (outcome ?? PurchaseOutcome.activated) {
+      PurchaseOutcome.activated => status.oneTime
+          ? 'Accès activé · Bienvenue dans $module !'
+          : 'Abonnement activé · Bienvenue dans $module !',
+      PurchaseOutcome.upgraded =>
+        'Vous passez en Intégral · accès ouvert$until.',
+      PurchaseOutcome.extended => status.oneTime
+          ? 'Pass prolongé · $module ouvert$until.'
+          : 'Abonnement mis à jour · $module$until.',
+      PurchaseOutcome.alreadyActive =>
+        'Votre accès $module est déjà actif$until.',
+    };
+  }
+
+  /// 🛑 **Aucun bandeau de contexte** (demande du propriétaire, 2026-09-20).
+  /// L'en-tête personnalisé était déjà parti ; les deux derniers bandeaux —
+  /// « Objectif B2 avant le … — il vous reste N jours. » et « Votre examen est
+  /// le … Le pass N couvre toute votre préparation. » — sont partis avec, et
+  /// avec eux `echeanceLine` / `passRecommande` / `paywallContext`, qui ne
+  /// servaient plus qu'à les composer. Ne pas les réintroduire : l'offre dit le
+  /// prix, pas l'échéance. Miroir web : `PaywallSheet.tsx`.
+  Widget _buildContent(BuildContext context, BillingState state) {
+    // Mode passes one-time (lot 5) : pas de toggle de périodicité, on rend une
+    // carte par module avec ses passes (durée + prix). Le mode abonnement
+    // (toggle + 2 cartes) reste disponible si le backend renvoie des plans
+    // récurrents.
+    final oneTime =
+        state.products.isNotEmpty && state.products.every((p) => p.isOneTime);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            oneTime ? 'Accès' : 'Abonnement',
+            style: AppFonts.mono(size: 11, color: AppColors.muted),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            oneTime ? 'Débloquez votre accès' : 'Choisissez votre formule',
+            textAlign: TextAlign.center,
+            style: AppFonts.display(size: 28, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            oneTime
+                ? 'Paiement unique, sans abonnement ni reconduction. '
+                    'Vous payez une fois et accédez à l\'app pour toute la durée choisie.'
+                : 'Mensuel, trimestriel ou annuel — annulable à tout moment depuis '
+                    'les Réglages de votre appareil.',
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(
+              size: 13,
+              color: AppColors.muted,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 22),
+          if (!oneTime) ...[
+            _PeriodicityToggle(
+              value: _periodicity,
+              onChanged: (v) => setState(() => _periodicity = v),
+            ),
+            const SizedBox(height: 22),
+          ],
+          if (state.error != null) ...[
+            _ErrorBanner(message: state.error!),
+            const SizedBox(height: 16),
+          ],
+          ...(oneTime ? _buildOneTimeCards(state) : _buildPlanCards(state)),
+          const SizedBox(height: 20),
+          AppButton(
+            label: 'Restaurer mes achats',
+            variant: AppButtonVariant.secondary,
+            icon: LucideIcons.rotateCcw,
+            isLoading: state.purchaseInProgress && state.purchasingSku == null,
+            onPressed: state.purchaseInProgress
+                ? null
+                : () => ref
+                    .read(billingControllerProvider.notifier)
+                    .restorePurchases(),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Déjà acheté sur un autre appareil ? Récupérez votre accès ici.',
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          _TrustRow(),
+          const SizedBox(height: 14),
+          _LegalLinks(oneTime: oneTime),
+        ],
+      ),
+    );
+  }
+
+  /// Cartes des passes one-time, groupées par module (Civique : 2 passes,
+  /// Intégral : 3). Chaque pass = durée + prix + bouton d'achat.
+  List<Widget> _buildOneTimeCards(BillingState state) {
+    final cards = <Widget>[];
+    for (final module in kPassModulesInOrder) {
+      final passes = state.products.where((p) => p.module == module).toList()
+        ..sort((a, b) => a.plan.durationDays.compareTo(b.plan.durationDays));
+      if (passes.isEmpty) continue;
+      cards.add(_OneTimeModuleCard(
+        module: module,
+        passes: passes,
+        disabled: state.purchaseInProgress || state.actionBlocked,
+        purchasingSku: state.purchasingSku,
+        onPurchase: _purchase,
+      ));
+      cards.add(const SizedBox(height: 14));
+    }
+    if (cards.isNotEmpty) cards.removeLast();
+    return cards;
+  }
+
+  List<Widget> _buildPlanCards(BillingState state) {
+    final cards = <Widget>[];
+    for (final module in kPassModulesInOrder) {
+      final product = _findProduct(state.products, module, _periodicity);
+      final loading = state.purchaseInProgress &&
+          product != null &&
+          state.purchasingSku == product.plan.code;
+      cards.add(_PlanCard(
+        module: module,
+        product: product,
+        periodicity: _periodicity,
+        disabled: state.purchaseInProgress || state.actionBlocked,
+        loading: loading,
+        onPurchase: product == null ? null : () => _purchase(product),
+      ));
+      cards.add(const SizedBox(height: 14));
+    }
+    if (cards.isNotEmpty) cards.removeLast();
+    return cards;
+  }
+
+  IapProduct? _findProduct(
+    List<IapProduct> products,
+    PlanModuleTarget module,
+    PlanPeriodicity periodicity,
+  ) {
+    for (final p in products) {
+      if (p.module == module && p.periodicity == periodicity) return p;
+    }
+    return null;
+  }
+}
+
+// ============================================================================
+// Sub-widgets
+// ============================================================================
+
+class _PeriodicityToggle extends StatelessWidget {
+  const _PeriodicityToggle({required this.value, required this.onChanged});
+
+  final PlanPeriodicity value;
+  final ValueChanged<PlanPeriodicity> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.line2,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: PlanPeriodicity.values.map((p) {
+          final active = p == value;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(p),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: AppColors.ink.withValues(alpha: 0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  p.label,
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    weight: FontWeight.w700,
+                    color: active ? AppColors.ink : AppColors.muted,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.module,
+    required this.product,
+    required this.periodicity,
+    required this.disabled,
+    required this.loading,
+    required this.onPurchase,
+  });
+
+  final PlanModuleTarget module;
+  final IapProduct? product;
+  final PlanPeriodicity periodicity;
+  final bool disabled;
+  final bool loading;
+  final VoidCallback? onPurchase;
+
+  Color get _accent =>
+      module == PlanModuleTarget.civique ? AppColors.blue : AppColors.red;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _accent.withValues(alpha: 0.25),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _accent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  module == PlanModuleTarget.civique
+                      ? 'CSP · CR · NAT'
+                      : 'CIVIQUE + TCF',
+                  style: AppFonts.mono(size: 10, color: AppColors.white),
+                ),
+              ),
+              if (module == PlanModuleTarget.integral)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.red,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    'COMPLET',
+                    style: AppFonts.mono(size: 9.5, color: AppColors.white),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            module.cardTitle,
+            style: AppFonts.display(size: 24, weight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            module.passPitch,
+            style: AppFonts.ui(
+              size: 13,
+              color: AppColors.muted,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _PriceBlock(product: product, periodicity: periodicity),
+          const SizedBox(height: 16),
+          _FeatureList(module: module),
+          const SizedBox(height: 18),
+          AppButton(
+            label: product == null
+                ? 'Indisponible sur cette plateforme'
+                : 'Souscrire ${module.label}',
+            onPressed: (disabled || onPurchase == null) ? null : onPurchase,
+            isLoading: loading,
+            variant: module == PlanModuleTarget.civique
+                ? AppButtonVariant.primary
+                : AppButtonVariant.danger,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Carte d'un module en mode passes one-time : en-tête + features + la liste
+/// des passes (durée + prix), chacun achetable. Réutilise [_FeatureList].
+class _OneTimeModuleCard extends StatelessWidget {
+  const _OneTimeModuleCard({
+    required this.module,
+    required this.passes,
+    required this.disabled,
+    required this.purchasingSku,
+    required this.onPurchase,
+  });
+
+  final PlanModuleTarget module;
+  final List<IapProduct> passes;
+  final bool disabled;
+  final String? purchasingSku;
+  final void Function(IapProduct) onPurchase;
+
+  Color get _accent =>
+      module == PlanModuleTarget.civique ? AppColors.blue : AppColors.red;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _accent.withValues(alpha: 0.25), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _accent,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  module == PlanModuleTarget.civique
+                      ? 'CSP · CR · NAT'
+                      : 'CIVIQUE + TCF',
+                  style: AppFonts.mono(size: 10, color: AppColors.white),
+                ),
+              ),
+              if (module == PlanModuleTarget.integral)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.red,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text('COMPLET',
+                      style: AppFonts.mono(size: 9.5, color: AppColors.white)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(module.cardTitle,
+              style: AppFonts.display(size: 24, weight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text(
+            module.passPitch,
+            style:
+                AppFonts.ui(size: 13, color: AppColors.muted, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          _FeatureList(module: module),
+          const SizedBox(height: 18),
+          for (final pass in passes)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _PassRow(
+                pass: pass,
+                accent: _accent,
+                disabled: disabled,
+                loading: purchasingSku == pass.plan.code,
+                onTap: () => onPurchase(pass),
+              ),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.calendarOff,
+                  size: 14, color: AppColors.green),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Paiement unique — aucun renouvellement automatique.',
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: AppColors.green,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ligne d'un pass achetable : durée (« 2 mois ») + prix store + flèche.
+/// Pass mis en avant comme « le plus populaire » (cohérent web + mobile).
+const String _popularPassCode = 'INTEGRAL_PASS_2M';
+
+class _PassRow extends StatelessWidget {
+  const _PassRow({
+    required this.pass,
+    required this.accent,
+    required this.disabled,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final IapProduct pass;
+  final Color accent;
+  final bool disabled;
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final popular = pass.plan.code == _popularPassCode;
+    // Le pass populaire est mis en avant en rouge (CTA/urgence assumé ici).
+    final c = popular ? AppColors.red : accent;
+    // Un pass se paie une fois : c'est le montant réellement débité qui est en
+    // gros. L'équivalent mensuel passe en sous-texte, pour comparer les durées
+    // entre elles — l'annoncer en principal laisserait croire à un abonnement.
+    // Parité web : /paiement (OneTimePasses) et /tarifs (PassModuleCard).
+    final monthly = pass.monthlyEquivalentLabel;
+    final priceWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          pass.localizedPrice,
+          style: AppFonts.display(size: 20, weight: FontWeight.w700, color: c),
+        ),
+        if (monthly != null)
+          Text(
+            'soit $monthly/mois',
+            style: AppFonts.mono(size: 10.5, color: AppColors.muted),
+          ),
+      ],
+    );
+    return Material(
+      color: c.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: c.withValues(alpha: popular ? 0.6 : 0.25),
+              width: popular ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (popular)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.red,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            'LE PLUS POPULAIRE',
+                            style: AppFonts.mono(
+                              size: 8.5,
+                              color: AppColors.white,
+                              letterSpacing: 1.0,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Text(
+                      pass.durationLabel,
+                      style:
+                          AppFonts.ui(size: 15, weight: FontWeight.w700),
+                    ),
+                    // Ce qui distingue vraiment deux passes Intégral, à part la
+                    // durée : le nombre de simulations orales en direct. Rien
+                    // n'est rendu sur un pass qui n'en ouvre pas (Civique).
+                    if (pass.plan.realtimeSessionsLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          pass.plan.realtimeSessionsLabel!,
+                          style: AppFonts.ui(
+                              size: 11.5, color: AppColors.muted),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              priceWidget,
+              const SizedBox(width: 10),
+              loading
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(c),
+                      ),
+                    )
+                  : Icon(LucideIcons.arrowRight, size: 18, color: c),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PriceBlock extends StatelessWidget {
+  const _PriceBlock({required this.product, required this.periodicity});
+
+  final IapProduct? product;
+  final PlanPeriodicity periodicity;
+
+  @override
+  Widget build(BuildContext context) {
+    if (product == null) {
+      return Text(
+        'Produit non encore configuré.',
+        style: AppFonts.ui(size: 13, color: AppColors.muted),
+      );
+    }
+    // Prix mis en avant au mois ; le total facturé (trimestre/année) passe en
+    // sous-texte. En mensuel, le prix store EST déjà mensuel → pas de réduction.
+    final monthly = product!.monthlyEquivalentLabel;
+    if (monthly == null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            product!.localizedPrice,
+            style: AppFonts.display(size: 32, weight: FontWeight.w700),
+          ),
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              periodicity.suffix,
+              style: AppFonts.mono(size: 11, color: AppColors.muted),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              monthly,
+              style: AppFonts.display(size: 32, weight: FontWeight.w700),
+            ),
+            const SizedBox(width: 6),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '/ mois',
+                style: AppFonts.mono(size: 11, color: AppColors.muted),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'soit ${product!.localizedPrice} ${periodicity.suffix}',
+          style: AppFonts.mono(size: 11, color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureList extends StatelessWidget {
+  const _FeatureList({required this.module});
+
+  final PlanModuleTarget module;
+
+  @override
+  Widget build(BuildContext context) {
+    final features = module.passFeatures;
+    // Pour Civique, on montre ce qui n'est PAS couvert (le TCF IRN) afin de
+    // lever toute ambiguïté avec l'offre Intégral. Vide pour Intégral.
+    final excludedLine = module.passExcluded;
+    final excluded = [if (excludedLine != null) excludedLine];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...features.map((f) => _FeatureRow(label: f, included: true)),
+        if (excluded.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'NON INCLUS',
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.red,
+              letterSpacing: 1.2,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...excluded.map((f) => _FeatureRow(label: f, included: false)),
+        ],
+      ],
+    );
+  }
+}
+
+/// Une ligne de feature : coche verte si incluse, croix grise + texte estompé
+/// barré si non incluse (utilisé pour clarifier la couverture de Civique).
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.label, required this.included});
+
+  final String label;
+  final bool included;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            included ? LucideIcons.check : LucideIcons.x,
+            size: 16,
+            color: included ? AppColors.green : AppColors.red,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppFonts.ui(
+                size: 13.5,
+                color: included ? AppColors.ink2 : AppColors.red,
+                height: 1.4,
+              ).copyWith(
+                decoration: included ? null : TextDecoration.lineThrough,
+                decorationColor: AppColors.red.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Nom du store de la plateforme courante. On n'affiche JAMAIS l'autre store —
+/// App Store Guideline 2.3.10 (aucune mention de Google Play sur iOS, et
+/// inversement).
+String get _storeName => Platform.isIOS ? 'App Store' : 'Google Play';
+
+class _TrustRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(LucideIcons.lock, size: 14, color: AppColors.muted),
+        const SizedBox(width: 6),
+        Text(
+          'Paiement sécurisé via $_storeName',
+          style: AppFonts.ui(size: 12, color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+}
+
+class _LegalLinks extends StatelessWidget {
+  const _LegalLinks({this.oneTime = false});
+
+  final bool oneTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final manageHint = Platform.isIOS
+        ? 'Réglages > Apple ID > Abonnements'
+        : 'Google Play > Abonnements';
+    return Text(
+      oneTime
+          ? 'Achat unique, sans abonnement : aucun renouvellement automatique. '
+              'L\'accès expire à la fin de la durée choisie.'
+          : 'L\'abonnement est géré par le store. Gérez le renouvellement et '
+              'annulez à tout moment dans $manageHint.',
+      textAlign: TextAlign.center,
+      style: AppFonts.ui(size: 11, color: AppColors.muted, height: 1.5),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.circleAlert,
+              size: 16, color: AppColors.red),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppFonts.ui(
+                size: 12.5,
+                color: AppColors.ink,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

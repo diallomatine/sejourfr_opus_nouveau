@@ -1,0 +1,670 @@
+{
+  "skillCode": "EO2-C9",
+  "rang": 4,
+  "titre": "Réagir à une réponse ou une contrainte imprévue",
+  "critere": "Poursuivre l'échange quand la réponse n'est pas celle attendue : insister poliment, proposer une autre solution, s'adapter.",
+  "remplace": "EO2-C4 — Demander les conditions et les modalités (15 sujets désactivés : fondue dans le rang 3, qui couvre désormais informations ET conditions)",
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Plus rien avant six semaines",
+      "context": "Vous appelez un cabinet médical pour votre fils. La secrétaire vous répond : « Je n'ai plus rien avant six semaines. »",
+      "instruction": "Ne raccrochez pas : poursuivez l'échange en relançant poliment.",
+      "uniqueCriterion": "L'échange continue après le refus : une relance polie est formulée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 30,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Restez poli",
+        "Relancez après le refus",
+        "Ne raccrochez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Échange poursuivi",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je comprends, mais est-ce que…",
+      "tip": "Un « non » n'est pas la fin de l'échange : il en ouvre la deuxième partie.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah d'accord, six semaines. Bon, tant pis alors, je vais voir ailleurs. Merci quand même, madame, au revoir.",
+          "pedagogicalNote": "L'échange s'arrête au premier refus : rien n'est tenté."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je comprends, mais est-ce que vous avez une liste d'annulation ? Si quelqu'un se décommande, je peux venir dans l'heure, j'habite juste à côté.",
+          "pedagogicalNote": "La relance est polie et donne une raison de rappeler : l'échange continue."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je comprends, six semaines, c'est ce que vous avez. Est-ce que vous notez les annulations quelque part ? Je suis disponible tous les jours et j'habite à cinq minutes. Et sinon, le docteur garde-t-il des créneaux pour les urgences du matin ?",
+          "pedagogicalNote": "Deux relances différentes suivent le refus, sans jamais le contester."
+        }
+      ]
+    },
+    {
+      "title": "La liste est complète",
+      "context": "À la piscine municipale, vous voulez inscrire votre fille au cours du samedi. L'agent vous répond : « La liste est complète pour toute l'année. »",
+      "instruction": "Poursuivez l'échange au lieu de repartir : relancez poliment.",
+      "uniqueCriterion": "L'échange continue après le refus : une relance polie est formulée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 30,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Accusez réception du refus",
+        "Relancez poliment",
+        "Ne repartez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Relance polie",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "D'accord, et est-ce qu'il y a…",
+      "tip": "Demander une liste d'attente coûte une phrase et change souvent tout.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah, c'est complet ? D'accord, ce n'est pas grave, on essaiera l'année prochaine. Merci beaucoup, bonne journée à vous.",
+          "pedagogicalNote": "Le refus est accepté tel quel : rien n'est tenté."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "D'accord, et est-ce qu'il y a une liste d'attente ? Je peux laisser mon numéro, au cas où une place se libère pendant le trimestre.",
+          "pedagogicalNote": "La relance est polie et laisse une porte ouverte."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "D'accord, la liste du samedi est complète. Est-ce qu'il existe une liste d'attente où je peux laisser mon numéro ? Et est-ce que les créneaux du mercredi après-midi sont pleins aussi, ou seulement celui du samedi ?",
+          "pedagogicalNote": "Le refus est reformulé puis contourné par deux relances utiles."
+        }
+      ]
+    },
+    {
+      "title": "Le modèle n'est plus fabriqué",
+      "context": "Vous cherchez une pièce pour votre aspirateur. Le vendeur vous dit : « Ce modèle n'est plus fabriqué, nous n'avons plus la pièce. »",
+      "instruction": "Poursuivez l'échange au lieu de repartir : relancez poliment.",
+      "uniqueCriterion": "L'échange continue après le refus : une relance polie est formulée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 30,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Restez dans l'échange",
+        "Relancez poliment",
+        "Ne repartez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Échange poursuivi",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je vois. Et est-ce que…",
+      "tip": "Même sans la pièce, le vendeur sait souvent où la trouver : demandez-lui.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah, il n'est plus fabriqué. Bon, d'accord, je vais devoir racheter un aspirateur alors. Merci monsieur, au revoir.",
+          "pedagogicalNote": "Le refus met fin à l'échange sans qu'une seule question soit posée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je vois. Et est-ce qu'une pièce d'un autre modèle peut s'adapter ? Ou est-ce que vous connaissez un réparateur qui garde des pièces anciennes ?",
+          "pedagogicalNote": "Deux relances polies prolongent l'échange au lieu de le clore."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je vois, le modèle est arrêté. Est-ce qu'une pièce équivalente d'une autre série peut s'adapter ? Sinon, connaissez-vous un réparateur du coin qui garde des stocks anciens ? J'aimerais éviter de racheter une machine qui marche.",
+          "pedagogicalNote": "Le refus est accepté, puis contourné par deux pistes concrètes."
+        }
+      ]
+    },
+    {
+      "title": "Le guichet ferme dans cinq minutes",
+      "context": "Vous arrivez à la mairie à seize heures cinquante-cinq. L'agent vous dit : « Nous fermons dans cinq minutes, revenez demain. »",
+      "instruction": "Poursuivez l'échange : relancez poliment, sans insister lourdement.",
+      "uniqueCriterion": "L'échange continue après le refus : une relance polie est formulée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 30,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Reconnaissez l'heure",
+        "Relancez poliment",
+        "N'insistez pas lourdement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Réponse imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Relance polie",
+          "icon": "TONE"
+        }
+      ],
+      "answerStarter": "Je sais qu'il est tard, mais…",
+      "tip": "Dire que votre demande est courte rend la relance beaucoup plus acceptable.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Cinq minutes, ça devrait suffire quand même, non ? J'ai fait tout le trajet pour venir et je ne vais pas repartir comme ça, franchement.",
+          "pedagogicalNote": "La relance existe, mais elle pousse : l'échange se tend au lieu d'avancer."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je sais qu'il est tard, mais ma demande tient en une minute : je viens juste retirer un document déjà prêt. Sinon je reviens demain matin sans problème.",
+          "pedagogicalNote": "La relance est brève, justifiée, et laisse le choix à l'agent."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je sais qu'il est tard et je ne veux pas vous retarder. Je viens seulement retirer un acte déjà préparé, c'est l'affaire d'une minute. Si ce n'est pas possible, dites-moi à quelle heure ouvre le guichet demain, je serai là à l'ouverture.",
+          "pedagogicalNote": "La relance est polie, courte, et prévoit déjà l'échec sans se braquer."
+        }
+      ]
+    },
+    {
+      "title": "Nous ne prenons que la carte",
+      "context": "Dans une boutique, vous voulez payer vos achats en espèces. Le vendeur vous dit : « Nous ne prenons que la carte. »",
+      "instruction": "Poursuivez l'échange au lieu de renoncer : relancez poliment.",
+      "uniqueCriterion": "L'échange continue après la contrainte : une relance polie est formulée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 30,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Restez dans l'échange",
+        "Relancez poliment",
+        "Ne renoncez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Échange poursuivi",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Ah, je n'ai que des espèces. Est-ce que…",
+      "tip": "Une contrainte se contourne souvent : demandez ce qui reste possible.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah, seulement la carte ? Bon, tant pis, je laisse tout alors. Désolé du dérangement, au revoir monsieur.",
+          "pedagogicalNote": "La contrainte met fin à l'échange sans qu'une solution soit cherchée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Ah, je n'ai que des espèces. Est-ce qu'il y a un distributeur à côté ? Ou est-ce que vous pouvez me garder les articles dix minutes, le temps que j'aille en chercher ?",
+          "pedagogicalNote": "Deux relances concrètes gardent l'échange ouvert."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Ah, je n'ai que des espèces sur moi. Est-ce qu'il y a un distributeur dans la rue ? Si oui, pouvez-vous me mettre les articles de côté dix minutes ? Et s'il est loin, est-ce que le paiement par téléphone fonctionne chez vous ?",
+          "pedagogicalNote": "Chaque relance prépare la suivante : l'échange ne retombe jamais."
+        }
+      ]
+    },
+    {
+      "title": "Il manque une pièce au dossier",
+      "context": "Au guichet de la CAF, l'agente vous dit : « Votre dossier est incomplet, il manque votre avis d'imposition. Nous ne pouvons rien traiter sans. » Vous ne l'avez pas sur vous.",
+      "instruction": "Poursuivez l'échange en proposant vous-même une autre façon de faire.",
+      "uniqueCriterion": "Une autre solution est proposée, et elle tient compte de la contrainte annoncée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 40,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Reconnaissez la contrainte",
+        "Proposez une autre solution",
+        "Vérifiez qu'elle convient"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Autre solution",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "answerStarter": "Je ne l'ai pas sur moi. Est-ce que je peux…",
+      "tip": "Proposez quelque chose de précis : « je peux l'envoyer ce soir » vaut mieux qu'un soupir.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah, je ne l'ai pas. Il faut vraiment ce document ? Bon, je reviendrai un autre jour alors, quand je l'aurai retrouvé chez moi.",
+          "pedagogicalNote": "La contrainte est subie : aucune solution n'est proposée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je ne l'ai pas sur moi. Est-ce que je peux vous l'envoyer ce soir depuis mon espace en ligne ? Ou est-ce que je peux vous montrer la version sur mon téléphone maintenant ?",
+          "pedagogicalNote": "Deux solutions concrètes sont proposées et l'échange avance."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je ne l'ai pas sur moi, je comprends que vous ne puissiez pas traiter le dossier. Je peux le télécharger depuis mon espace en ligne et vous l'envoyer ce soir. Est-ce que cela suffit pour que le reste parte dès demain, ou faut-il que je repasse au guichet ?",
+          "pedagogicalNote": "La solution est proposée puis vérifiée : c'est l'échange qui avance, pas seulement le dossier."
+        }
+      ]
+    },
+    {
+      "title": "Livraison en semaine seulement",
+      "context": "Vous achetez une machine à laver. Le vendeur vous annonce : « Nous livrons du lundi au vendredi, entre neuf heures et dix-sept heures. » Vous travaillez à ces heures-là.",
+      "instruction": "Poursuivez l'échange en proposant vous-même une autre façon de faire.",
+      "uniqueCriterion": "Une autre solution est proposée, et elle tient compte de la contrainte annoncée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 40,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Nommez votre contrainte",
+        "Proposez une autre solution",
+        "Vérifiez qu'elle convient"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Autre solution",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "answerStarter": "Je travaille à ces heures-là. Est-ce que…",
+      "tip": "Nommez votre contrainte avant de proposer : la solution paraît alors évidente.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah, seulement en semaine. C'est embêtant parce que je travaille. Je vais réfléchir et je reviendrai vous voir plus tard dans la semaine.",
+          "pedagogicalNote": "La contrainte est constatée, aucune solution n'est cherchée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je travaille à ces heures-là. Est-ce que la livraison peut se faire chez ma voisine, au rez-de-chaussée ? Elle est chez elle la journée et je peux vous laisser son nom.",
+          "pedagogicalNote": "Une solution précise est proposée, avec ce qu'il faut pour l'appliquer."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je travaille de neuf heures à dix-huit heures, donc aucun créneau ne me convient. Deux possibilités : la livraison chez ma voisine du rez-de-chaussée, qui accepte de signer, ou un samedi si vous en faites parfois. Laquelle est la plus simple pour vous ?",
+          "pedagogicalNote": "Deux solutions sont posées et le choix est renvoyé au vendeur : l'échange reste vivant."
+        }
+      ]
+    },
+    {
+      "title": "Pas avant trois semaines",
+      "context": "Une fuite coule sous votre évier. Le plombier vous répond au téléphone : « Je ne peux pas passer avant trois semaines. »",
+      "instruction": "Poursuivez l'échange en proposant vous-même une autre façon de faire.",
+      "uniqueCriterion": "Une autre solution est proposée, et elle tient compte du délai annoncé.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 40,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Reconnaissez le délai",
+        "Proposez une autre solution",
+        "Vérifiez qu'elle convient"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Autre solution",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "answerStarter": "Trois semaines, c'est long. Est-ce que…",
+      "tip": "Demandez ce que vous pouvez faire vous-même en attendant : c'est aussi une solution.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Trois semaines ? C'est vraiment très long, l'eau coule tous les jours. Bon, je vais appeler quelqu'un d'autre alors. Merci monsieur.",
+          "pedagogicalNote": "Le délai est contesté, mais rien n'est proposé pour avancer."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Trois semaines, c'est long avec une fuite. Est-ce que vous pouvez m'expliquer au téléphone comment couper l'arrivée d'eau sous l'évier ? Et je garde le rendez-vous dans trois semaines.",
+          "pedagogicalNote": "Une solution d'attente est proposée et le rendez-vous est préservé."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Trois semaines, c'est long, mais je préfère attendre quelqu'un de sérieux. Deux choses : pouvez-vous m'indiquer comment couper l'eau sous l'évier en attendant, et est-ce que vous me rappelez si un client annule ? Je suis disponible du jour au lendemain.",
+          "pedagogicalNote": "L'attente est acceptée, aménagée, et une porte reste ouverte."
+        }
+      ]
+    },
+    {
+      "title": "Le cours n'a lieu que le mardi soir",
+      "context": "Dans une association, la responsable vous dit : « Le cours de français a lieu le mardi soir, c'est le seul créneau. » Vous travaillez le mardi soir.",
+      "instruction": "Poursuivez l'échange en proposant vous-même une autre façon de faire.",
+      "uniqueCriterion": "Une autre solution est proposée, et elle tient compte de la contrainte annoncée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 40,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Nommez votre contrainte",
+        "Proposez une autre solution",
+        "Vérifiez qu'elle convient"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Autre solution",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "answerStarter": "Je travaille le mardi soir. Est-ce que…",
+      "tip": "Proposez plutôt que de demander : « est-ce que je peux… » ouvre la porte.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Le mardi soir, je travaille. C'est dommage parce que j'avais vraiment besoin de ces cours. Je verrai si je peux m'arranger plus tard dans l'année.",
+          "pedagogicalNote": "La contrainte ferme l'échange : rien n'est proposé."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je travaille le mardi soir. Est-ce que je peux suivre les cours un mardi sur deux, quand je finis plus tôt ? Ou est-ce qu'un bénévole donne parfois des cours le samedi ?",
+          "pedagogicalNote": "Deux solutions sont proposées et l'échange reste ouvert."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je travaille le mardi jusqu'à vingt heures, donc je ne peux pas être là au début du cours. Est-ce que je peux arriver en cours de séance, ou venir un mardi sur deux ? Et si un groupe du samedi ouvre un jour, pouvez-vous me prévenir ?",
+          "pedagogicalNote": "Trois pistes se suivent, de la plus simple à la plus lointaine."
+        }
+      ]
+    },
+    {
+      "title": "Trois mois de caution",
+      "context": "Dans une agence immobilière, l'agent vous annonce : « Le propriétaire demande trois mois de loyer de caution. » Vous ne pouvez pas avancer cette somme.",
+      "instruction": "Poursuivez l'échange en proposant vous-même une autre façon de faire.",
+      "uniqueCriterion": "Une autre solution est proposée, et elle tient compte de la contrainte annoncée.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 40,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Nommez votre contrainte",
+        "Proposez une autre solution",
+        "Vérifiez qu'elle convient"
+      ],
+      "constraintTags": [
+        {
+          "label": "Contrainte imprévue",
+          "icon": "TONE"
+        },
+        {
+          "label": "Autre solution",
+          "icon": "EXAMPLE"
+        }
+      ],
+      "answerStarter": "Trois mois, je ne peux pas. Est-ce que…",
+      "tip": "Une garantie, un garant, un paiement en deux fois : plusieurs solutions existent.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Trois mois de caution, c'est beaucoup trop pour moi. Je ne peux pas payer ça. Je vais continuer à chercher ailleurs, merci pour la visite.",
+          "pedagogicalNote": "La contrainte fait abandonner : aucune solution n'est envisagée."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Trois mois, je ne peux pas les avancer d'un coup. Est-ce que le propriétaire accepterait une garantie d'organisme, ou un paiement en deux fois sur deux mois ?",
+          "pedagogicalNote": "Deux solutions concrètes sont proposées, adaptées à la contrainte."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Trois mois d'un coup, je ne peux pas. Je peux en revanche présenter une garantie d'organisme, qui couvre le propriétaire mieux qu'une caution, ou fournir un garant avec ses fiches de paie. Laquelle des deux le rassurerait le plus ?",
+          "pedagogicalNote": "Les solutions répondent à l'intérêt du propriétaire, pas seulement au sien."
+        }
+      ]
+    },
+    {
+      "title": "Passé trente jours, c'est non",
+      "context": "Vous rapportez un appareil deux jours après la fin du délai de retour. Le responsable vous répond : « Passé trente jours, c'est non. C'est le règlement, je ne peux rien faire. »",
+      "instruction": "Poursuivez l'échange : adaptez votre demande au lieu d'insister sur la même.",
+      "uniqueCriterion": "La demande est adaptée à la règle annoncée, sans être répétée à l'identique.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 45,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Acceptez la règle",
+        "Changez de demande",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Refus ferme",
+          "icon": "TONE"
+        },
+        {
+          "label": "Demande adaptée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "D'accord, le remboursement n'est pas possible. Alors…",
+      "tip": "Quand une porte est fermée, cherchez-en une autre au lieu de pousser.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Deux jours, ce n'est rien du tout. Vous pourriez faire un geste quand même, je suis client ici depuis des années. Ce n'est vraiment pas normal.",
+          "pedagogicalNote": "La même demande est répétée plus fort : l'échange se bloque."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "D'accord, le remboursement n'est pas possible. Est-ce qu'un avoir reste envisageable, même partiel ? Ou est-ce que l'appareil peut passer en garantie, puisqu'il s'arrête tout seul ?",
+          "pedagogicalNote": "La demande change de nature : l'échange repart sur autre chose."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "D'accord, je comprends, trente jours c'est trente jours. Alors je change ma demande : l'appareil s'éteint tout seul au bout d'une heure, donc ce n'est pas un simple retour, c'est une panne. Est-ce qu'il peut partir en garantie ? Et sinon, un avoir serait-il possible ?",
+          "pedagogicalNote": "La règle est acceptée, puis la situation est requalifiée : l'échange rebondit."
+        }
+      ]
+    },
+    {
+      "title": "Plus de nouveaux patients",
+      "context": "Vous cherchez un médecin traitant. La secrétaire vous dit : « Le docteur ne prend plus de nouveaux patients, sans exception. »",
+      "instruction": "Poursuivez l'échange : adaptez votre demande au lieu d'insister sur la même.",
+      "uniqueCriterion": "La demande est adaptée au refus annoncé, sans être répétée à l'identique.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 45,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Acceptez le refus",
+        "Changez de demande",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Refus ferme",
+          "icon": "TONE"
+        },
+        {
+          "label": "Demande adaptée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je comprends. Dans ce cas, est-ce que…",
+      "tip": "La personne au téléphone sait souvent autre chose : demandez-lui ce qu'elle sait.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Vraiment aucune exception ? J'habite juste en face et je n'ai personne d'autre. Essayez de lui demander, s'il vous plaît, ça ne coûte rien de demander.",
+          "pedagogicalNote": "La même demande revient, plus insistante : l'échange se ferme."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je comprends. Dans ce cas, est-ce que vous connaissez un cabinet du quartier qui accepte encore des patients ? Ou est-ce qu'une liste existe quelque part à la mairie ?",
+          "pedagogicalNote": "La demande change : on ne demande plus une place, mais une piste."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je comprends, le docteur est complet. Je ne vous demande donc pas une place : savez-vous si un nouveau médecin s'installe dans le quartier cette année ? Et est-ce que le cabinet reprend parfois des patients quand un confrère part à la retraite ?",
+          "pedagogicalNote": "Le refus est explicitement mis de côté et deux questions utiles prennent sa place."
+        }
+      ]
+    },
+    {
+      "title": "Cette attestation n'est pas acceptée",
+      "context": "Au guichet, l'agent refuse votre justificatif de domicile : « Une attestation d'hébergement manuscrite, nous ne l'acceptons pas. C'est la règle. »",
+      "instruction": "Poursuivez l'échange : adaptez votre demande au lieu d'insister sur la même.",
+      "uniqueCriterion": "La demande est adaptée à la règle annoncée, sans être répétée à l'identique.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 45,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Acceptez la règle",
+        "Changez de demande",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Refus ferme",
+          "icon": "TONE"
+        },
+        {
+          "label": "Demande adaptée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "D'accord. Alors dites-moi plutôt…",
+      "tip": "Demander ce qui est accepté fait avancer plus vite que défendre ce qui ne l'est pas.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Mais c'est bien mon adresse, elle est écrite dessus et la personne a signé. Je ne vois pas ce que vous voulez de plus, honnêtement. C'est toujours compliqué ici.",
+          "pedagogicalNote": "Le document est défendu encore et encore : l'échange n'avance plus."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "D'accord. Alors dites-moi plutôt quels justificatifs vous acceptez : une facture d'électricité au nom de la personne qui m'héberge, avec sa pièce d'identité, est-ce que cela convient ?",
+          "pedagogicalNote": "La demande change de sens : on ne défend plus, on s'informe."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "D'accord, je n'insiste pas sur ce papier. Dites-moi plutôt ce qui est accepté : une facture au nom de mon hébergeant et une copie de sa carte d'identité, est-ce que cela suffit ? Et si je reviens avec ces pièces demain, faut-il reprendre un rendez-vous ?",
+          "pedagogicalNote": "La règle est acceptée, la suite est préparée : l'échange devient utile."
+        }
+      ]
+    },
+    {
+      "title": "Le poste est déjà pourvu",
+      "context": "Vous rappelez après un entretien d'embauche. Le recruteur vous annonce : « Nous avons retenu un autre candidat. »",
+      "instruction": "Poursuivez l'échange : adaptez votre demande au lieu d'insister sur la même.",
+      "uniqueCriterion": "La demande est adaptée au refus annoncé, sans être répétée à l'identique.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 45,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Acceptez la décision",
+        "Changez de demande",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Refus ferme",
+          "icon": "TONE"
+        },
+        {
+          "label": "Demande adaptée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "Je vous remercie de me le dire. Est-ce que…",
+      "tip": "Un poste perdu peut ouvrir sur le suivant : demandez ce qui reste possible.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ah bon ? Pourtant l'entretien s'était très bien passé, vous m'aviez dit que mon profil correspondait. Je ne comprends pas bien ce qui a changé depuis.",
+          "pedagogicalNote": "La décision est discutée : l'échange se referme sans rien apporter."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je vous remercie de me le dire. Est-ce que vous pouvez me dire ce qui a manqué dans mon profil ? Et est-ce que d'autres postes s'ouvrent dans les mois qui viennent ?",
+          "pedagogicalNote": "Deux demandes nouvelles remplacent la demande perdue."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je vous remercie de m'avoir rappelé. Puisque le poste est pris, deux choses : qu'est-ce qui a fait la différence, pour que je progresse ? Et si un poste similaire s'ouvre cette année, est-ce que je peux vous renvoyer ma candidature directement ?",
+          "pedagogicalNote": "Le refus est acté et l'échange se prolonge sur ce qui reste possible."
+        }
+      ]
+    },
+    {
+      "title": "Rien ne se fait par téléphone",
+      "context": "Vous appelez un service client pour corriger une erreur sur votre contrat. La conseillère vous dit : « Nous ne pouvons rien modifier par téléphone, il faut passer en agence. » L'agence est à quarante kilomètres.",
+      "instruction": "Poursuivez l'échange : adaptez votre demande au lieu d'insister sur la même.",
+      "uniqueCriterion": "La demande est adaptée à la contrainte annoncée, sans être répétée à l'identique.",
+      "recommendedMinWords": null,
+      "recommendedMaxWords": null,
+      "recommendedDurationSeconds": 45,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Acceptez la contrainte",
+        "Changez de demande",
+        "Restez dans l'échange"
+      ],
+      "constraintTags": [
+        {
+          "label": "Refus ferme",
+          "icon": "TONE"
+        },
+        {
+          "label": "Demande adaptée",
+          "icon": "STRUCTURE"
+        }
+      ],
+      "answerStarter": "D'accord, pas par téléphone. Alors est-ce que…",
+      "tip": "Si l'action est impossible, demandez ce qui la prépare : c'est déjà avancer.",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Quarante kilomètres pour une erreur que vous avez faite ? Ce n'est pas à moi de me déplacer. Vous pouvez très bien le corriger vous-même, j'en suis sûr.",
+          "pedagogicalNote": "La demande initiale est répétée sur un ton plus dur : rien n'avance."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "D'accord, pas par téléphone. Alors est-ce que je peux envoyer la correction par courrier ou depuis mon espace en ligne ? Et que dois-je joindre pour que le dossier soit complet ?",
+          "pedagogicalNote": "La demande change de canal et l'échange repart."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "D'accord, la modification se fait en agence. Alors préparons-la : quels documents dois-je apporter, et faut-il un rendez-vous ou puis-je venir sans ? Et si l'erreur me fait payer trop ce mois-ci, est-ce que le prélèvement peut être suspendu en attendant ?",
+          "pedagogicalNote": "La contrainte est acceptée et l'échange sert à préparer la suite."
+        }
+      ]
+    }
+  ]
+}

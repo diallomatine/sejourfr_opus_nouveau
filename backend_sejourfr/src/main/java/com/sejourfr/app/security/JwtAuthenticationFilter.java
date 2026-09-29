@@ -1,6 +1,6 @@
 package com.sejourfr.app.security;
 
-import com.sejourfr.app.user.AppUserDetailsService;
+import com.sejourfr.app.service.AppUserDetailsService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;

@@ -1,0 +1,107 @@
+{
+  "epreuve": "TCF_EE",
+  "tacheNumero": 2,
+  "libelle": "Récit d'expérience",
+  "titres": [
+    {
+      "id": "08e3acd5-c88e-4ba3-8166-520862865128",
+      "titre": "Une décision difficile",
+      "repere": "Racontez une situation où vous avez dû prendre une décision difficile…"
+    },
+    {
+      "id": "85ae18b5-b014-426f-a15a-059cae856f8d",
+      "titre": "Dernière sortie au restaurant",
+      "repere": "Racontez la dernière fois que vous êtes allé au restaurant ou à une fête…"
+    },
+    {
+      "id": "89436b56-7ebb-4ee9-8504-7677fe1164fe",
+      "titre": "Une expérience révélatrice",
+      "repere": "Racontez une expérience qui vous a appris quelque chose sur vous-même…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000001",
+      "titre": "Le mariage d'une cousine",
+      "repere": "Racontez ce mariage : quand c'était, où, qui se mariait…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000002",
+      "titre": "Un voyage à Marseille",
+      "repere": "Racontez ce voyage : où vous êtes allé, avec qui…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000003",
+      "titre": "Premier jour de travail",
+      "repere": "Racontez votre premier jour dans ce nouveau travail…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000004",
+      "titre": "Une rencontre marquante",
+      "repere": "Racontez cette rencontre : dans quelles circonstances elle a eu lieu…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000005",
+      "titre": "Un week-end raconté",
+      "repere": "Racontez votre week-end : où vous étiez, avec qui…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000006",
+      "titre": "Un déménagement à Lille",
+      "repere": "Racontez votre déménagement : quand vous avez déménagé…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000007",
+      "titre": "Un imprévu au supermarché",
+      "repere": "Racontez cet imprévu : où vous étiez, ce qui devait se passer…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000008",
+      "titre": "Une sortie culturelle",
+      "repere": "Racontez cette sortie : ce que vous êtes allé voir…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-000000000009",
+      "titre": "Une réussite personnelle",
+      "repere": "Racontez cette réussite : quel était votre objectif…"
+    },
+    {
+      "id": "77777777-e201-1000-0000-00000000000a",
+      "titre": "Une journée importante",
+      "repere": "Racontez cette journée spéciale : quel jour c'était…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000001",
+      "titre": "Une découverte culinaire",
+      "repere": "Racontez cette découverte : ce que vous avez découvert…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000002",
+      "titre": "Une fête de famille",
+      "repere": "Racontez cette fête de famille : quelle était l'occasion…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000003",
+      "titre": "Un objet perdu et retrouvé",
+      "repere": "Racontez cette histoire : quel objet vous avez perdu…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000004",
+      "titre": "Une panne sur la route",
+      "repere": "Racontez cet incident : où vous alliez et pourquoi…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000005",
+      "titre": "Une voisine aidée",
+      "repere": "Racontez ce moment : qui vous avez aidé, quel était son problème…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000006",
+      "titre": "Un souvenir d'enfance",
+      "repere": "Racontez ce souvenir d'enfance : le contexte de l'époque…"
+    },
+    {
+      "id": "77777777-e202-1000-0000-000000000007",
+      "titre": "Une première démarche administrative",
+      "repere": "Racontez cette première démarche : ce que vous deviez obtenir…"
+    }
+  ]
+}

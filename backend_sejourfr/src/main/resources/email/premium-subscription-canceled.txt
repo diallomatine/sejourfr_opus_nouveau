@@ -1,0 +1,11 @@
+Résiliation enregistrée
+
+{{greeting}},
+
+Nous avons bien enregistré la résiliation de votre abonnement {{offerName}}. Le renouvellement automatique est désactivé.
+
+Votre accès reste ouvert jusqu'au {{accessEndDate}}.
+
+Continuer mon entraînement : {{appUrl}}
+
+{{reactivateHint}}

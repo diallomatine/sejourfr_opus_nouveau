@@ -1,0 +1,89 @@
+package com.sejourfr.app.config;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * Reglages du <b>plan civique</b> (lot L10, spec 20_ §5 et §6).
+ *
+ * <p>🛑 <b>Les valeurs par defaut sont IDENTIQUES a celles d'application.yaml.</b>
+ * Un POJO qui diverge de son YAML ne se decouvre que le jour ou la cle
+ * disparait de la configuration — regle du depot.
+ *
+ * <p>🛑 <b>Aucune version de configuration ici, et c'est voulu.</b> Le plan est
+ * un <b>derive relu a chaque lecture</b> : rien n'est fige, donc rien ne se
+ * reinterprete retroactivement. C'est la difference avec le diagnostic, qui
+ * fige un resultat date et porte pour cette raison un {@code config-version}.
+ * Changer un reglage ici change le plan au prochain appel, sans migration.
+ */
+@Getter
+@Setter
+@ConfigurationProperties(prefix = "sejourfr.civic-plan")
+public class CivicPlanProperties {
+
+    /**
+     * Part des questions actives d'un theme qui doivent etre taguees pour que le
+     * plan y travaille <b>par notion</b> (20_ §3.3).
+     *
+     * <p>🛑 <b>La bascule est PAR THEME</b>, jamais globale : un theme tague a
+     * 90 % n'attend pas celui qui est a 10 %.
+     *
+     * <p>⚠️ <b>Etat reel au 2026-09-19</b> : la campagne de tagging du 2026-09-11
+     * a porte les cinq themes a <b>97 — 98,6 %</b> de leurs questions de
+     * connaissance. <b>Les cinq sont au grain NOTION.</b> Le commentaire
+     * precedent (« au lancement de ce lot, 0 question sur 1 016 est taguee — les
+     * cinq themes sont donc au grain THEME ») decrivait l'etat du 2026-09-10 et
+     * n'a plus cours. Le mode degrade par theme reste code, et c'est voulu : il
+     * sert si un theme neuf arrive.
+     *
+     * <p>🛑 <b>Le denominateur ne compte que les questions de CONNAISSANCE</b>
+     * ({@code CivicPlanRepository.taggageParTheme()}). Les mises en situation
+     * relevent des domaines {@code sit_*} (50_ §6.2) et ne recoivent pas de
+     * notion : les compter ici plafonnait trois themes sur cinq sous 80 %,
+     * seuil qu'ils n'auraient donc JAMAIS franchi.
+     */
+    private double seuilTagging = 0.80;
+
+        /**
+     * Priorites servies au front (20_ §5.3 : « 3 priorites visibles maximum »).
+     *
+     * <p>🛑 <b>C'est un plafond d'AFFICHAGE, jamais un budget de calcul.</b> Le
+     * moteur classe TOUTES les cibles ; le DTO en sert {@code priorites} et
+     * <b>compte</b> le reste (« + 6 autres notions a consolider »). Utiliser ce
+     * nombre pour borner la production a deja prive trois domaines sur quatre de
+     * toute action cote TCF (2026-08-25).
+     */
+    private int prioritesVisibles = 3;
+
+    /**
+     * Cibles servies dans « a revoir bientot » (20_ §6 bloc 5). Meme nature :
+     * un plafond d'affichage.
+     */
+    private int revisionsVisibles = 3;
+
+    /**
+     * Questions d'une serie ciblee — <b>20 depuis le 2026-09-20</b> (arbitrage
+     * du proprietaire : « passer aussi a 20 », sans restriction, donc partout
+     * dans le civique — les series du plan derive comprises, pas seulement
+     * celles du cycle).
+     *
+     * <p>La duree annoncee s'en <b>derive</b> ({@link #secondesParQuestion}) :
+     * raccourcir la serie raccourcit la promesse, sans qu'aucun ecran n'ait a
+     * etre touche.
+     *
+     * <p>🛑 <b>C'est aussi le denominateur du seuil de reussite</b> d'une serie
+     * d'etape du cycle : {@code learning-plan.comprehension.solid-ratio} x 20
+     * = 16 ({@code JourneySerieVerdict}). Le baisser baisse le seuil, l'ecran et
+     * la cloture <b>ensemble</b> — il n'y a pas de « 16 » ecrit ailleurs.
+     */
+    private int questionsParSerie = 20;
+
+    /**
+     * Secondes par question, pour l'ordre de grandeur annonce (« ~6 min »).
+     *
+     * <p>🛑 <b>Ordre de grandeur, jamais un chrono</b> : rien dans une serie
+     * ciblee ne chronometre le candidat sur cette valeur.
+     */
+    private int secondesParQuestion = 36;
+}

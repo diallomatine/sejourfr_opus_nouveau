@@ -1,0 +1,368 @@
+/* ==========================================================================
+   Carte de prix de la vitrine (accueil `/` + `/reussir`).
+   Peinture : tokens `globals.css` uniquement. Les ombres dérivent du bleu
+   foncé par `color-mix`, jamais d'un rgba écrit à la main.
+   ========================================================================== */
+
+.card {
+  --pc-shadow: 0 10px 30px color-mix(in srgb, var(--color-blue-dark) 5%, transparent);
+  --pc-shadow-featured: 0 24px 70px color-mix(in srgb, var(--color-blue-dark) 11%, transparent);
+
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 28px;
+  padding: 27px;
+  background: var(--color-white);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--pc-shadow);
+  color: var(--color-ink);
+}
+
+.descCompact {
+  min-height: 0;
+}
+.featuresTop {
+  margin-top: 18px;
+}
+
+.featured {
+  border-color: color-mix(in srgb, var(--color-blue) 22%, transparent);
+  background: linear-gradient(180deg, var(--color-blue-soft) 0%, var(--color-white) 46%);
+  box-shadow: var(--pc-shadow-featured);
+}
+@media (min-width: 1021px) {
+  .featured {
+    transform: translateY(-7px);
+  }
+}
+
+.ribbon {
+  position: absolute;
+  right: 20px;
+  top: 18px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: var(--color-blue);
+  color: var(--color-white);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ribbon.ribbonGreen {
+  background: var(--color-green);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+.withRibbon .kicker {
+  display: block;
+  padding-right: 130px;
+}
+.kickerAccent {
+  color: var(--color-red-dark);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 25px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 8px 0 7px;
+}
+
+.desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-muted);
+  min-height: 58px;
+  margin: 0;
+}
+
+.priceMain {
+  margin: 25px 0 7px;
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+}
+.priceMain strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 42px;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  color: var(--color-blue);
+}
+.priceSub {
+  font-size: 11px;
+  color: var(--color-muted-2);
+  min-height: 18px;
+}
+
+.rowsWrap {
+  margin: 20px 0;
+}
+.rowsLabel {
+  margin: 0 0 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-muted);
+}
+.rows {
+  display: grid;
+  gap: 8px;
+}
+
+/* Une ligne de durée : durée + prix sur la 1re ligne, la note (simulations
+   orales) en dessous sur toute la largeur — lisible à 360 px. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name price"
+    "note note";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 3px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  background: var(--color-paper);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--color-muted);
+  text-decoration: none;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+button.row {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button.row:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.rowLink:hover:not(:disabled) {
+  border-color: var(--color-blue);
+}
+.row:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+.rowHighlighted {
+  border-color: color-mix(in srgb, var(--color-blue) 22%, var(--color-line));
+  background: var(--color-blue-light);
+}
+.rowSelected {
+  border-color: var(--color-blue);
+  background: var(--color-blue-light);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-blue) 14%, transparent);
+}
+.radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-muted-2);
+  background: var(--color-white);
+  box-sizing: border-box;
+  transition: border-color 0.16s ease, border-width 0.16s ease;
+}
+.rowSelected .radio {
+  border: 5px solid var(--color-blue);
+}
+.rowName {
+  grid-area: name;
+  min-width: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink-2);
+}
+.rowBadge {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-blue);
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: var(--color-white);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 18%, transparent);
+}
+.rowPrice {
+  grid-area: price;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.rowValue {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.1;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+.rowValueSub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.rowNote {
+  grid-area: note;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+button.row .rowNote {
+  padding-left: 22px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-line);
+  margin: 2px 0 17px;
+}
+
+.features {
+  display: grid;
+  gap: 11px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.features li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.features svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--color-green);
+}
+
+.cta {
+  margin-top: auto;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.ctaBlue {
+  background: var(--color-blue);
+  color: var(--color-white);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--color-blue) 18%, transparent);
+}
+.ctaBlue:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+}
+.ctaRed {
+  background: var(--color-red);
+  color: var(--color-white);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-red) 18%, transparent);
+}
+.ctaRed:hover:not(:disabled) {
+  background: var(--color-red-dark);
+}
+.ctaLight {
+  background: var(--color-white);
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+.cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+.spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  animation: pc-spin 0.8s linear infinite;
+}
+@keyframes pc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+.ctaLight:hover {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+
+.footnote {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted-2);
+}
+
+@media (max-width: 500px) {
+  .card {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+  .withRibbon .kicker {
+    padding-right: 0;
+  }
+  .ribbon {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 12px;
+  }
+  .desc {
+    min-height: 0;
+  }
+}

@@ -1,0 +1,181 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.dto.BillingCheckoutResponse;
+import com.sejourfr.app.dto.CancelSubscriptionResponse;
+import com.sejourfr.app.dto.PlanPublicResponse;
+import com.sejourfr.app.dto.PurchaseIntentRequest;
+import com.sejourfr.app.dto.PurchaseIntentResponse;
+import com.sejourfr.app.dto.SubscriptionStatusResponse;
+import com.sejourfr.app.dto.VerifyReceiptRequest;
+import com.sejourfr.app.security.CurrentUser;
+import com.sejourfr.app.service.BillingService;
+import com.sejourfr.app.service.ReceiptVerificationService;
+import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.billing.PurchaseIntentService;
+import com.sejourfr.app.service.billing.SubscriptionCancellationService;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
+import com.sejourfr.app.util.ClientContextResolver;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/billing")
+@RequiredArgsConstructor
+public class BillingController {
+
+    private final BillingService billingService;
+    private final SubscriptionService subscriptionService;
+    private final ReceiptVerificationService receiptVerificationService;
+    private final SubscriptionCancellationService subscriptionCancellationService;
+    private final RealtimeQuotaService realtimeQuotaService;
+    private final PurchaseIntentService purchaseIntentService;
+    private final ClientContextResolver clientContextResolver;
+    private final CurrentUser currentUser;
+
+    /**
+     * Liste publique des plans actifs : prix, prix original (offre de lancement),
+     * duree, module debloque. Consomme par la section Tarifs de la landing.
+     * Pas d'auth requise — donc a whitelister dans SecurityConfig.
+     */
+    @GetMapping("/plans")
+    public List<PlanPublicResponse> listPlans() {
+        return billingService.listPublicPlans();
+    }
+
+    /**
+     * Renvoie l'URL d'une Checkout Session Stripe pour le plan demandé. Depuis
+     * le lot 4 le {@code planCode} est un identifiant libre (ex:
+     * {@code INTEGRAL_MONTHLY}) résolu en DB ; tout plan actif avec un
+     * {@code stripe_price_id} renseigné peut être acheté.
+     *
+     * <p>L'ancienne signature {@code ?plan=BillingPlan} (CIVIQUE_3MOIS /
+     * INTEGRAL_3MOIS) est supprimée — les anciens plans sont désactivés en
+     * V106 et n'apparaissent plus.
+     *
+     * <p>{@code retour} est <b>optionnel</b> : le chemin interne d'où le
+     * candidat est parti, qu'il retrouvera après le paiement au lieu de rester
+     * planté sur la page de succès. 🛑 Il n'est <b>jamais cru sur parole</b> —
+     * {@code BillingService.cheminDeRetour} le valide et l'ignore en silence
+     * s'il ne passe pas (le paiement, lui, doit rester possible). Le pourquoi
+     * de l'exception est écrit à côté de {@code checkoutCancelUrl}, qui pose la
+     * règle inverse.
+     *
+     * <p>{@code ctaLocation} / {@code journeyId} (facultatifs, Q12) : le bouton
+     * touché et le parcours affiché. Ils créent la {@code purchase_intent} qui
+     * attribuera l'achat ; absents ou illisibles, le paiement se fait quand même
+     * et l'achat est rangé {@code UNKNOWN}.
+     */
+    @GetMapping("/payment-link")
+    public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode,
+                                                  @RequestParam(value = "retour", required = false)
+                                                  String retour,
+                                                  @RequestParam(value = "ctaLocation", required = false)
+                                                  String ctaLocation,
+                                                  @RequestParam(value = "journeyId", required = false)
+                                                  String journeyId,
+                                                  HttpServletRequest http) {
+        return billingService.getPaymentLink(currentUser.getId(), planCode, retour,
+                ctaLocation, journeyId, clientContextResolver.resolve(http));
+    }
+
+    /**
+     * Intention d'achat (Q12), appelée par le mobile AVANT d'ouvrir la feuille
+     * Apple / Google. Le mobile persiste l'id rendu (indexé par
+     * {@code productId}) et le renvoie dans {@code verify-receipt}.
+     */
+    @PostMapping("/purchase-intents")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PurchaseIntentResponse createPurchaseIntent(@Valid @RequestBody PurchaseIntentRequest request,
+                                                       HttpServletRequest http) {
+        return purchaseIntentService.creer(currentUser.getId(), request,
+                clientContextResolver.resolve(http));
+    }
+
+    /**
+     * Statut Premium agrégé toutes sources confondues (Stripe + Apple + Google).
+     * Lu par les 3 fronts au démarrage et après chaque action de paiement.
+     *
+     * <p>Anti-double-paiement : un utilisateur déjà Premium via Stripe verra
+     * {@code isPremium=true} avec {@code source=STRIPE} — l'app mobile doit
+     * alors masquer le bouton d'achat IAP. Inversement après un achat sur
+     * iOS, l'app web verra {@code source=APPLE} et ne proposera plus Stripe.
+     */
+    @GetMapping("/subscription-status")
+    public SubscriptionStatusResponse getSubscriptionStatus() {
+        java.util.UUID userId = currentUser.getId();
+        RealtimeQuotaService.Quota quota = realtimeQuotaService.evaluate(userId);
+        // Solde de sessions EO temps réel : exposé UNIQUEMENT quand le pass ouvre
+        // un quota (cap > 0 = accès TCF/Intégral) ; null pour Civique/Free (non
+        // concerné) → le front n'affiche le décompte que si présent.
+        Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
+        return subscriptionService.currentSubscription(userId)
+                .map(SubscriptionStatusResponse::from)
+                .map(s -> s.withRealtimeSessionsRemaining(realtimeRemaining))
+                .orElseGet(SubscriptionStatusResponse::notPremium);
+    }
+
+    /**
+     * Validation d'un reçu d'achat IAP (Apple StoreKit ou Google Play). Appelé
+     * par l'app mobile après un achat réussi. Le backend re-valide auprès du
+     * store (jamais confiance au client) avant de marquer Premium.
+     *
+     * <p>Lot 1 = scaffold qui renvoie 501 — l'app mobile NE doit PAS encore
+     * appeler. Sera implémenté en lots 2 (Apple) et 3 (Google).
+     */
+    @PostMapping("/verify-receipt")
+    public SubscriptionStatusResponse verifyReceipt(@Valid @RequestBody VerifyReceiptRequest request) {
+        return receiptVerificationService.verify(currentUser.getId(), request);
+    }
+
+    /**
+     * Résiliation de l'abonnement Premium en cours. Le routing dépend de la
+     * source (Stripe / Apple / Google) — cf.
+     * {@link SubscriptionCancellationService}.
+     *
+     * <ul>
+     *   <li>Stripe : {@code action=DONE}, abonnement programmé pour cesser à
+     *       {@code endsAt}, Premium reste ouvert d'ici là.</li>
+     *   <li>Apple / Google : {@code action=REDIRECT} + {@code redirectUrl}
+     *       vers la page de gestion du store (les stores n'autorisent pas
+     *       l'annulation serveur, c'est l'utilisateur qui doit confirmer
+     *       dans l'app store). Le statut local sera mis à jour par le
+     *       webhook quand / si l'annulation est confirmée côté store.</li>
+     * </ul>
+     */
+    @PostMapping("/cancel")
+    public CancelSubscriptionResponse cancel() {
+        return subscriptionCancellationService.cancelForUser(currentUser.getId());
+    }
+
+    /**
+     * Endpoint signé par Stripe (vérification HMAC via Stripe-Signature).
+     * Pas d'auth utilisateur : Stripe est l'appelant, identifié par signature.
+     *
+     * <p>Body en {@code byte[]} puis décodé UTF-8 explicitement plutôt que
+     * {@code @RequestBody String} : Spring choisit le charset selon le
+     * Content-Type, et un mismatch (proxy qui reformate, charset par défaut
+     * non UTF-8) casserait la signature HMAC sur des caractères non-ASCII.
+     * Pattern recommandé par les exemples officiels Stripe Java.
+     */
+    @PostMapping("/webhook")
+    @ResponseStatus(HttpStatus.OK)
+    public void handleWebhook(
+            @RequestBody byte[] payloadBytes,
+            @RequestHeader("Stripe-Signature") String signature) {
+        String payload = new String(payloadBytes, StandardCharsets.UTF_8);
+        billingService.handleWebhook(payload, signature);
+    }
+}

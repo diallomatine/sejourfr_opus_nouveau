@@ -1,0 +1,896 @@
+/* Pages détail d'entraînement (refonte web_refonte, maquette sejour_fr.html) :
+   choix de niveau TCF, séries d'entraînement, examens blancs par catégorie.
+   Partagé via DetailParts.tsx. */
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 40px 80px;
+}
+
+/* ===== back + header ===== */
+
+/* Rendu en `<a>` par défaut, en `<button>` quand le retour doit d'abord
+   confirmer (sortie d'une épreuve d'examen complet) : les deux doivent se lire
+   pareil, d'où la remise à plat des styles natifs de bouton. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-muted);
+  text-decoration: none;
+  margin-bottom: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.back:hover {
+  color: var(--color-blue);
+}
+
+.head {
+  margin-bottom: 22px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+
+/* ===== cards de niveau (TCF) ===== */
+
+.levelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.levelCard {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+
+.levelCard:hover {
+  box-shadow: 0 6px 18px rgba(15, 24, 57, 0.08);
+  border-color: color-mix(in srgb, var(--color-blue) 30%, var(--color-line));
+}
+
+.levelTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.levelChip {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  font-size: 20px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* Tonalités du chip (caractère par tâche EE/EO : T1 bleu, T2 ambre, T3 rouge). */
+.levelChipGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
+}
+
+.levelChipAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.levelChipRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.levelTitle {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.levelDesc {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.levelFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.levelCount {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.levelArrow {
+  color: var(--color-blue);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.levelCard:hover .levelArrow {
+  transform: translateX(3px);
+}
+
+/* ===== carte de progression des séries ===== */
+
+.progressCard {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  margin-bottom: 20px;
+}
+
+.progressBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.progressLabel {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: 10px;
+}
+
+.progressTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-blue);
+}
+
+/* ===== cards de série ===== */
+
+.serieGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.serieCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+
+.serieCard:hover {
+  box-shadow: 0 6px 18px rgba(15, 24, 57, 0.08);
+  border-color: color-mix(in srgb, var(--color-blue) 30%, var(--color-line));
+}
+
+.serieCard:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.serieNum {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--color-line-2);
+  color: var(--color-muted);
+  font-size: 17px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.serieNumDone {
+  background: color-mix(in srgb, var(--color-green) 16%, #fff);
+  color: var(--color-green);
+}
+
+/* Tonalités du numéro (pages sujets EE/EO : niveau A2 vert, B1 ambre, B2 rouge). */
+.serieNumBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.serieNumGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
+}
+
+.serieNumAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.serieNumRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.serieCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.serieBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.serieTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.serieSub {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+/* ===== onglets (Sujets / Exemples) ===== */
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.tab {
+  /* Chaque onglet (Sujets / Exemples) occupe la moitié de la largeur. */
+  flex: 1 1 0;
+  text-align: center;
+  padding: 9px 18px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+
+.tabActive {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: #fff;
+}
+
+.tabActive:hover {
+  color: #fff;
+}
+
+.exampleList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.serieBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-top: 8px;
+  white-space: nowrap;
+}
+
+.serieBadgeDone {
+  background: color-mix(in srgb, var(--color-green) 13%, #fff);
+  color: var(--color-green);
+}
+
+.serieBadgeTodo {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+
+.serieBadgeLock {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+/* Badges d'une note de production, teintés par PALIER TCF (jamais par un seuil
+   « sur 20 ») : A2 ambre, B1 bleu, B2 vert = .serieBadgeDone. Pas de variante
+   rouge — aucun palier atteint ne se lit comme un échec. */
+.serieBadgeBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.serieBadgeAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+/* ===== filtre Tout / À faire / Fait (pages sujets EE/EO) ===== */
+
+.filterRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterChip:hover {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+
+.filterChipOn,
+.filterChipOn:hover {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: #fff;
+}
+
+.filterCount {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.serieAction {
+  color: var(--color-blue);
+  flex-shrink: 0;
+}
+
+/* ===== carte historique (productions EE/EO) ===== */
+
+.historyCard {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-top: 20px;
+}
+
+.historyHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.historyHead h2 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.historyLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.historyEmpty {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+
+/* ===== stat cards (page examens) ===== */
+
+.statCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px;
+  min-width: 0;
+}
+
+.statIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.statIconBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.statIconRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.statIconGreen {
+  background: color-mix(in srgb, var(--color-green) 12%, #fff);
+  color: var(--color-green);
+}
+
+.statBody {
+  min-width: 0;
+}
+
+.statValue {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  line-height: 1.15;
+}
+
+.statLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink-2);
+  margin-top: 2px;
+}
+
+.statSub {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== grille d'examens ===== */
+
+.examGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.examCard {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px 14px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  min-width: 0;
+}
+
+.examCardDone {
+  border-color: color-mix(in srgb, var(--color-blue) 35%, var(--color-line));
+  box-shadow: 0 4px 14px rgba(30, 58, 140, 0.08);
+}
+
+.examNum {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-line-2);
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.examCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.18);
+}
+
+.examCheckFail {
+  background: var(--color-red);
+}
+
+.examNumDone {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.examTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.examMeta {
+  font-size: 12.5px;
+  color: var(--color-muted-2);
+}
+
+.examMetaScore {
+  font-weight: 700;
+}
+
+.examMetaGood {
+  color: var(--color-green);
+}
+
+.examMetaLow {
+  color: var(--color-red);
+}
+
+.examBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.examBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 999px;
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.examBtn:hover {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+.examBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.examBtnLocked {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+
+.examBtnLocked:hover {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+
+.seeAll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-blue);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.seeAll:hover {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+
+/* ===== états ===== */
+
+.loading,
+.empty {
+  background: #fff;
+  border: 1px dashed var(--color-line);
+  border-radius: 14px;
+  padding: 22px;
+  font-size: 14px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.error {
+  background: var(--color-red-light);
+  border: 1px solid color-mix(in srgb, var(--color-red) 25%, transparent);
+  color: var(--color-red-dark);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+/* L'intertitre qui sépare la carte recommandée du catalogue de niveaux.
+   ⚠️ Il **remplace** le bloc `.hist*` de l'historique des examens, retiré
+   le 2026-09-20 avec sa section : elle redisait la page « Examens
+   blancs », une tuile plus loin. */
+.sectionTitle {
+  margin: 22px 0 10px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+/* ===== responsive ===== */
+
+@media (max-width: 900px) {
+  .statCards {
+    grid-template-columns: 1fr;
+  }
+
+  .serieGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .wrap {
+    padding: 20px 18px 48px;
+  }
+}
+
+/* ===== examens : passage en lignes compactes sur mobile =====
+   En dessous de 560px la grille de tuiles centrées (badge + titre + 2 boutons
+   empilés pleine largeur) devient très haute et peu scannable. On bascule en
+   liste : badge à gauche, titre + score au centre, boutons à droite. */
+@media (max-width: 560px) {
+  .examGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .examCard {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "num title btns"
+      "num meta  btns";
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: center;
+    text-align: left;
+    padding: 12px 14px;
+  }
+
+  .examNum {
+    grid-area: num;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+
+  .examTitle {
+    grid-area: title;
+    align-self: end;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .examMeta {
+    grid-area: meta;
+    align-self: start;
+    min-width: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .examBtns {
+    grid-area: btns;
+    width: auto;
+    margin-top: 0;
+    gap: 6px;
+  }
+
+  .examBtn {
+    width: auto;
+    min-width: 0;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+}
+
+/* ===== bandeau « entraînement complémentaire » =====
+   Pendant web de `QcmNoticeBanner` côté mobile, que le web n'avait pas : un
+   candidat pouvait faire toute une série de Structure de la langue sans jamais
+   lire qu'elle n'est pas au programme du TCF IRN. Bleu (information), jamais
+   ambre ni rouge : ce module n'est ni un piège ni une erreur. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 26px;
+  border: 1px solid var(--color-blue-light);
+  border-radius: 14px;
+  background: var(--color-blue-soft);
+}
+
+.noticeIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.noticeTitle {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  margin: 0 0 4px;
+}
+
+.noticeText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  margin: 0;
+}
+
+/* Coquille portant la barre « Examens blancs » collée (`ExamsActionBar`) : la
+   barre fournit elle-même la marge basse (zone sûre comprise). */
+.wrap:has(> [data-exams-bar]) {
+  padding-bottom: 0;
+}
+
+/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
+@media (max-width: 900px) {
+  :global(.app-shell--has-drawer) .wrap {
+    padding-top: var(--app-bar-gap);
+  }
+}

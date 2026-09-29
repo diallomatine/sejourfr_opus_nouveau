@@ -1,0 +1,583 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.dto.CorrespondanceTcfDto;
+import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.BandeNoteTcf;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.manager.AiEvaluationManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+
+/**
+ * Source de vérité de la math CECRL des épreuves productives (EE / EO) —
+ * pendant de {@link TcfLevelEstimatorService} pour les QCM.
+ *
+ * <p>Deux niveaux de calcul :
+ * <ul>
+ *   <li><b>Par soumission</b> ({@link #computeNiveau}) : compétence = moyenne
+ *       des critères porteurs (lexique + morphosyntaxe + cohérence) → seuils
+ *       config. Calculé et persisté par {@code AiEvaluationService} à chaque
+ *       évaluation, puis exposé par tâche comme « performance observée »,
+ *       <b>toujours avec sa confiance</b> (cf. {@code EvaluationResultDto}).
+ *       Ce n'est PAS le niveau qui fait foi.</li>
+ *   <li><b>Par épreuve en examen</b> ({@link #bilanEpreuve}) : moyenne
+ *       <b>pondérée</b> des compétences des 3 tâches (poids croissants
+ *       T1 &lt; T2 &lt; T3, cf. {@code poids-taches}) passée aux mêmes seuils.
+ *       Remplace l'ancien plancher {@code min()} : l'IA note mal une tâche
+ *       courte isolée (EE T1 = 30-60 mots), une seule éval basse ne doit pas
+ *       plafonner toute l'épreuve.</li>
+ * </ul>
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ProductionBilanService {
+
+    /** Nombre de tâches d'une épreuve productive (3 comme le vrai TCF). */
+    public static final int EXPECTED_TASKS_PER_EPREUVE = 3;
+
+    private final AiEvaluationManager aiEvaluationManager;
+    private final TcfLevelEstimatorService levelEstimator;
+    private final ProductionRubricsProvider rubrics;
+    private final ProductionEvaluationProperties props;
+
+    /**
+     * Reglages EFFECTIFS du passage note -> niveau : ceux declares par la grille
+     * active ({@code commun.niveau} des rubriques v5+), a defaut ceux de la
+     * config. Cf. {@link ProductionRubricsProvider#niveauCecrl()}.
+     */
+    private ProductionEvaluationProperties.NiveauCecrl seuils() {
+        return rubrics.niveauCecrl();
+    }
+
+    /**
+     * Dernière évaluation EVALUATED de chaque tâche d'un attempt, indexée par
+     * {@code tacheNumero} (déduplique les soumissions multiples d'une même
+     * tâche : seule la plus récente compte). Les callers doivent être
+     * transactionnels (lazy-load submission → production_task).
+     *
+     * <p><b>Une évaluation sans verdict n'entre pas</b> — production
+     * INEXPLOITABLE ({@code evaluabilite = NON_EVALUABLE} : ni note ni niveau,
+     * aucun appel LLM émis), ou ligne sans rien d'exploitable. Sa tâche est donc
+     * traitée comme <b>non rendue</b>, ce qui est exactement le comportement
+     * voulu : sur une épreuve d'examen TERMINÉE, {@link #bilanEpreuveTerminee}
+     * la compte 0 (« le reste noté 0 »), <b>comme avant</b>. Le seul changement
+     * est qu'elle ne fournit plus de niveau CECRL réutilisable ailleurs — c'est
+     * {@code TcfProfileService} qui le lisait, et qui en tirait le niveau d'un
+     * domaine entier du candidat.
+     */
+    public Map<Integer, AiEvaluation> latestEvalsByTache(List<ProductionSubmission> submissions) {
+        return latestEvalsByTache(submissions, aiEvaluationManager::findLatestBySubmissionId);
+    }
+
+    /**
+     * Le même calcul, mais la <b>dernière évaluation d'une soumission</b> est
+     * fournie par l'appelant plutôt que lue une par une.
+     *
+     * <p>🛑 Existe pour le <b>coût</b>, jamais pour la règle : le tri « la plus
+     * récente fait foi » et le rejet des lignes sans verdict restent ici, une
+     * seule fois. Un appelant qui évalue plusieurs sessions d'un coup
+     * ({@code EpreuvesProductionQualifiantesResolver}) charge ses évaluations en
+     * un lot et les passe ; il ne réimplémente rien.
+     */
+    public Map<Integer, AiEvaluation> latestEvalsByTache(
+            List<ProductionSubmission> submissions,
+            Function<UUID, Optional<AiEvaluation>> latestEval) {
+        Map<Integer, ProductionSubmission> latestSub = new HashMap<>();
+        for (ProductionSubmission s : submissions) {
+            if (s.getStatut() != SubmissionStatut.EVALUATED) continue;
+            Short numero = s.getProductionTask() != null ? s.getProductionTask().getTacheNumero() : null;
+            if (numero == null) continue;
+            Integer tache = numero.intValue();
+            ProductionSubmission prev = latestSub.get(tache);
+            if (prev == null || (s.getSubmittedAt() != null && prev.getSubmittedAt() != null
+                    && s.getSubmittedAt().isAfter(prev.getSubmittedAt()))) {
+                latestSub.put(tache, s);
+            }
+        }
+        Map<Integer, AiEvaluation> out = new LinkedHashMap<>();
+        for (Map.Entry<Integer, ProductionSubmission> e : latestSub.entrySet()) {
+            latestEval.apply(e.getValue().getId())
+                    .filter(eval -> eval.getNiveauCecrl() != null || eval.getNoteSur20() != null)
+                    .ifPresent(eval -> out.put(e.getKey(), eval));
+        }
+        return out;
+    }
+
+    /**
+     * {@link #latestEvalsByTache(List)} pour <b>plusieurs sessions d'un coup</b> :
+     * les évaluations de toutes leurs soumissions sont lues en <b>une</b>
+     * requête, puis la règle ci-dessus s'applique session par session.
+     *
+     * <p>🛑 Existe pour le coût d'une page d'examens complets (bilan, liste,
+     * écrans de progression) : la forme unitaire lit une évaluation par
+     * soumission. La règle, elle, n'est pas recopiée.
+     *
+     * @return une entrée par session reçue, jamais {@code null}
+     */
+    public Map<UUID, Map<Integer, AiEvaluation>> latestEvalsParAttempt(
+            Map<UUID, List<ProductionSubmission>> soumissionsParAttempt) {
+        if (soumissionsParAttempt == null || soumissionsParAttempt.isEmpty()) return Map.of();
+        Map<UUID, AiEvaluation> dernieres = aiEvaluationManager.findLatestBySubmissionIds(
+                soumissionsParAttempt.values().stream()
+                        .flatMap(List::stream)
+                        .map(ProductionSubmission::getId)
+                        .toList());
+        Map<UUID, Map<Integer, AiEvaluation>> out = new LinkedHashMap<>();
+        soumissionsParAttempt.forEach((attemptId, soumissions) -> out.put(attemptId,
+                latestEvalsByTache(soumissions, id -> Optional.ofNullable(dernieres.get(id)))));
+        return out;
+    }
+
+    /**
+     * Niveau CECRL global d'une épreuve productive en examen blanc :
+     * {@code competence_epreuve = Σ(competence_tache × poids) / Σ(poids)} →
+     * seuils, plafonné B2. Une tâche hors-sujet (note 0) entre avec une
+     * compétence 0 (pénalise sans annuler). Si aucune compétence n'est
+     * exploitable, fallback sur le plancher des niveaux persistés.
+     *
+     * @param evalsByTache dernière évaluation par {@code tacheNumero}
+     */
+    public NiveauCecrl bilanEpreuve(Map<Integer, AiEvaluation> evalsByTache) {
+        return compute(evalsByTache, false);
+    }
+
+    /**
+     * Variante pour une épreuve d'examen <b>terminée</b> (fin de session,
+     * chrono écoulé, abandon) : les tâches jamais rendues parmi
+     * 1..{@value #EXPECTED_TASKS_PER_EPREUVE} comptent compétence 0 dans la
+     * moyenne pondérée — le « reste noté 0 » d'un examen écourté. Aucune tâche
+     * rendue → A1_NON_ATTEINT.
+     */
+    public NiveauCecrl bilanEpreuveTerminee(Map<Integer, AiEvaluation> evalsByTache) {
+        return compute(evalsByTache, true);
+    }
+
+    /**
+     * Ce qu'une session de production <b>vaut</b> : son niveau d'épreuve, les
+     * évaluations retenues, et si les tâches manquantes ont compté 0.
+     *
+     * @param niveau          🛑 {@code null} = <b>pas encore de verdict</b> :
+     *                        entraînement libre (le produit n'y calcule aucun
+     *                        palier), évaluation IA encore en vol, ou tâche en
+     *                        échec qu'on peut relancer. Jamais
+     *                        {@code A1_NON_ATTEINT} par défaut
+     * @param manquantesAZero l'épreuve a été écourtée : les tâches jamais
+     *                        rendues ont compté 0, dans le niveau <b>et</b>
+     *                        dans la note
+     * @param competence      🛑 <b>le NOMBRE dont {@code niveau} est la
+     *                        bande</b> : la moyenne pondérée des compétences
+     *                        des 3 tâches, sur l'échelle /20 des seuils
+     *                        ({@link #niveauDepuisCompetence}), déjà ramenée
+     *                        sous le plafond de cohérence T3 quand il a joué.
+     *                        {@code null} quand aucun niveau n'est calculé, ou
+     *                        quand il vient du repli sur les niveaux persistés
+     *                        (aucune compétence exploitable). Publié pour qu'un
+     *                        lecteur puisse <b>moyenner des scores</b> plutôt
+     *                        que des labels A2/B1/B2
+     */
+    public record NiveauEpreuve(
+            NiveauCecrl niveau,
+            boolean manquantesAZero,
+            Map<Integer, AiEvaluation> evalsByTache,
+            BigDecimal competence
+    ) {
+    }
+
+    /**
+     * Bande CECRL d'une compétence /20 — <b>la table des seuils de la grille
+     * active, appelée, jamais recopiée</b> ({@link #niveauFromCompetence}).
+     *
+     * <p>Réciproque de {@link NiveauEpreuve#competence()} : un lecteur qui
+     * moyenne les compétences de plusieurs épreuves repasse par ici pour
+     * retrouver un palier. Les seuils étant des <b>bornes basses</b>
+     * ({@code >=}), une moyenne qui tombe entre deux bandes reste dans la bande
+     * <b>basse</b> — la convention du dépôt pour les notes de critère.
+     *
+     * @return {@code null} pour une compétence absente — inconnu, jamais
+     *         {@code A1_NON_ATTEINT}
+     */
+    public NiveauCecrl niveauDepuisCompetence(BigDecimal competence) {
+        if (competence == null) return null;
+        return niveauFromCompetence(competence, seuils());
+    }
+
+    /**
+     * Le niveau d'épreuve d'une session de production, <b>une seule fois pour
+     * tout le dépôt</b>.
+     *
+     * <p>Extraite le 2026-09-16 à sa 2ᵉ occurrence : le bilan d'une session
+     * ({@code ProductionSubmissionService.bilan}) et l'historique d'une épreuve
+     * ({@code ProgressionExamensService}) doivent annoncer <b>le même palier</b>
+     * pour la même session. Deux copies de cet enchaînement de conditions
+     * auraient fini par en annoncer deux.
+     *
+     * <p>Les trois règles qu'il porte, inchangées :
+     * <ul>
+     *   <li>🛑 <b>jamais de niveau en entraînement libre</b>
+     *       ({@code exam == false}) — le produit n'y calcule pas de palier, et
+     *       en inventer un ici en ferait un résultat opposable ;</li>
+     *   <li>les 3 tâches évaluées ⇒ moyenne pondérée normale ;</li>
+     *   <li>épreuve <b>terminée</b> et incomplète, sans évaluation en vol ni
+     *       tâche en échec ⇒ les manquantes comptent 0. Une évaluation encore
+     *       en vol ne rend <b>rien</b> : la compter 0 annoncerait un palier
+     *       faux que le prochain appel démentirait.</li>
+     * </ul>
+     */
+    public NiveauEpreuve niveauEpreuve(
+            List<ProductionSubmission> submissions, boolean exam, boolean finished) {
+        return niveauEpreuve(submissions, latestEvalsByTache(submissions), exam, finished);
+    }
+
+    /**
+     * Le même verdict, avec les évaluations par tâche <b>déjà résolues</b> par
+     * l'appelant (cf. {@link #latestEvalsByTache(List, Function)}).
+     * 🛑 Les trois règles ci-dessus vivent ici et nulle part ailleurs : cette
+     * surcharge ne fait que s'épargner des requêtes.
+     */
+    public NiveauEpreuve niveauEpreuve(
+            List<ProductionSubmission> submissions,
+            Map<Integer, AiEvaluation> evalsByTache,
+            boolean exam, boolean finished) {
+        boolean inFlight = false;
+        boolean anyFailed = false;
+        for (ProductionSubmission s : submissions) {
+            if (s.getStatut() == SubmissionStatut.FAILED) {
+                anyFailed = true;
+            } else if (s.getStatut() != SubmissionStatut.EVALUATED) {
+                inFlight = true;
+            }
+        }
+        if (exam && evalsByTache.size() >= EXPECTED_TASKS_PER_EPREUVE) {
+            Bilan b = computeBilan(evalsByTache, false);
+            return new NiveauEpreuve(b.niveau(), false, evalsByTache, b.competence());
+        }
+        if (exam && finished && !inFlight && !anyFailed) {
+            Bilan b = computeBilan(evalsByTache, true);
+            return new NiveauEpreuve(b.niveau(), true, evalsByTache, b.competence());
+        }
+        return new NiveauEpreuve(null, false, evalsByTache, null);
+    }
+
+    /**
+     * Le verdict d'épreuve et <b>le nombre dont il est la bande</b>, rendus
+     * ensemble parce qu'ils sont calculés ensemble : les publier séparément
+     * demanderait de repasser dans la même boucle, donc d'en tenir deux copies.
+     */
+    private record Bilan(NiveauCecrl niveau, BigDecimal competence) {
+    }
+
+    private NiveauCecrl compute(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        return computeBilan(evalsByTache, manquantesAZero).niveau();
+    }
+
+    private Bilan computeBilan(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
+        if (manquantesAZero) {
+            for (int t = 1; t <= EXPECTED_TASKS_PER_EPREUVE; t++) taches.add(t);
+        }
+        BigDecimal acc = BigDecimal.ZERO;
+        BigDecimal sumPoids = BigDecimal.ZERO;
+        NiveauCecrl floorFallback = null;
+        for (Integer tache : taches) {
+            AiEvaluation eval = evalsByTache.get(tache);
+            BigDecimal comp = eval == null ? BigDecimal.ZERO : competenceOf(eval);
+            if (comp == null) {
+                // Éval inexploitable (scores absents et note nulle) : elle ne
+                // pèse pas dans la moyenne, mais son niveau persisté reste un
+                // garde-fou si TOUTES les évals sont dans ce cas.
+                floorFallback = levelEstimator.min(floorFallback, eval.getNiveauCecrl());
+                continue;
+            }
+            BigDecimal poids = poidsTache(tache);
+            acc = acc.add(comp.multiply(poids));
+            sumPoids = sumPoids.add(poids);
+        }
+        NiveauCecrl bilan;
+        BigDecimal competence = null;
+        if (sumPoids.signum() == 0) {
+            bilan = levelEstimator.capB2(floorFallback);
+        } else {
+            competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
+            bilan = niveauFromCompetence(competence, seuils());
+        }
+        NiveauCecrl apresCoherence = appliquerCoherence(bilan, evalsByTache, manquantesAZero);
+        // 🛑 Le garde-fou de cohérence abaisse le NIVEAU ; sans cette ligne, la
+        // compétence publiée resterait au-dessus de la bande annoncée, et un
+        // lecteur qui moyenne des compétences perdrait le plafond en route. Le
+        // ramener passe par `sousPlafond`, la même autorité que le plafond de
+        // tâche — jamais une seconde table de bornes.
+        if (apresCoherence != bilan) {
+            competence = sousPlafond(competence, apresCoherence);
+        }
+        return new Bilan(apresCoherence, competence);
+    }
+
+    /**
+     * Garde-fou de cohérence du bilan : la moyenne pondérée peut donner un B2 à
+     * quelqu'un qui s'effondre sur la tâche 3 (argumentation / prise de
+     * position), portée par deux bonnes premières tâches. Quand la T3 est sous
+     * {@code tache3-niveau-min}, le bilan est plafonné à
+     * {@code plafond-si-tache3-faible}.
+     *
+     * <p>Ne fait qu'ABAISSER, jamais relever — c'est ce qui le rend sûr. Piloté
+     * par {@code sejourfr.production-evaluation.coherence-bilan.enabled},
+     * <b>true par défaut</b> : les 3 tâches ne sont pas interchangeables, la T3
+     * est la seule qui demande d'argumenter, donc la seule qui puisse démontrer
+     * un B2. Éteint, cette méthode rend le bilan inchangé, donc exactement la
+     * math historique (retour arrière en une variable).
+     *
+     * <p>Épreuve <b>en cours</b> (T3 pas encore rendue) : aucun plafond, on ne
+     * conclut pas d'une tâche absente. Épreuve <b>terminée</b> : une T3 jamais
+     * rendue vaut 0, donc sous le plancher, donc plafond.
+     */
+    private NiveauCecrl appliquerCoherence(NiveauCecrl bilan, Map<Integer, AiEvaluation> evalsByTache,
+                                           boolean manquantesAZero) {
+        ProductionEvaluationProperties.CoherenceBilan cfg = props.getCoherenceBilan();
+        if (!cfg.isEnabled() || bilan == null) return bilan;
+        NiveauCecrl plafond = cfg.getPlafondSiTache3Faible();
+        NiveauCecrl plancherT3 = cfg.getTache3NiveauMin();
+        if (plafond == null || plancherT3 == null || bilan.ordinal() <= plafond.ordinal()) return bilan;
+
+        NiveauCecrl niveauT3;
+        AiEvaluation t3 = evalsByTache.get(EXPECTED_TASKS_PER_EPREUVE);
+        if (t3 == null) {
+            if (!manquantesAZero) return bilan;
+            niveauT3 = NiveauCecrl.A1_NON_ATTEINT;
+        } else {
+            BigDecimal comp = competenceOf(t3);
+            niveauT3 = comp == null
+                ? t3.getNiveauCecrl()
+                : niveauFromCompetence(comp, seuils());
+            // T3 inexploitable : on ne plafonne pas a l'aveugle.
+            if (niveauT3 == null) return bilan;
+        }
+        if (niveauT3.ordinal() >= plancherT3.ordinal()) return bilan;
+
+        log.info("Coherence bilan : tache 3 a {} (< {}) — bilan {} plafonne a {}.",
+            niveauT3, plancherT3, bilan, plafond);
+        return plafond;
+    }
+
+    /**
+     * Fourchette de note officielle du TCF IRN correspondant à un niveau
+     * d'épreuve. Simple lecture de {@link BandeNoteTcf} — aucune conversion de
+     * note : nos notes sont sur une échelle pédagogique plus fine, seul le
+     * <b>niveau</b> est comparable à celui du TCF.
+     *
+     * <p>Null quand le niveau est inconnu (aucune tâche évaluée) ou hors
+     * échelle TCF (C1/C2) : les fronts n'affichent alors rien de plus.
+     */
+    public CorrespondanceTcfDto correspondanceTcf(NiveauCecrl niveau) {
+        BandeNoteTcf bande = BandeNoteTcf.of(niveau);
+        if (bande == null) return null;
+        return new CorrespondanceTcfDto(bande.getNiveau(), bande.getScoreMin(), bande.getScoreMax());
+    }
+
+    /** Note d'épreuve /20 des tâches rendues (cf. {@link #noteEpreuve}). */
+    public BigDecimal moyenneNotes(Map<Integer, AiEvaluation> evalsByTache) {
+        return noteEpreuve(evalsByTache, false);
+    }
+
+    /**
+     * <b>Note d'épreuve</b> /20 (1 décimale) : moyenne pondérée des notes des 3
+     * tâches, avec les mêmes poids ({@code poids-taches}, égaux depuis v5) que
+     * le niveau d'épreuve. C'est LA note de l'épreuve, celle qui se lit au bilan
+     * — et, depuis v5, celle dont le niveau d'épreuve se déduit : les deux
+     * racontent la même histoire par construction.
+     *
+     * <p>Elle ne diverge du niveau que dans un cas, volontairement : une tâche
+     * dont le niveau a été <b>plafonné</b> ({@code plafond_niveau}) entre dans
+     * le niveau avec sa compétence rabaissée, alors que la note affichée reste
+     * celle du barème. Le plafond ne peut donc qu'abaisser le niveau, jamais
+     * gonfler la note.
+     *
+     * @param manquantesAZero tâches jamais rendues parmi 1..3 comptées 0 —
+     *        symétrique de {@link #bilanEpreuveTerminee}, pour qu'une épreuve
+     *        écourtée n'affiche pas une note calculée sur les seules tâches
+     *        rendues à côté d'un niveau calculé sur les trois.
+     */
+    public BigDecimal noteEpreuve(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
+        if (manquantesAZero) {
+            for (int t = 1; t <= EXPECTED_TASKS_PER_EPREUVE; t++) taches.add(t);
+        }
+        BigDecimal acc = BigDecimal.ZERO;
+        BigDecimal sumPoids = BigDecimal.ZERO;
+        for (Integer tache : taches) {
+            AiEvaluation eval = evalsByTache.get(tache);
+            BigDecimal note = eval == null ? BigDecimal.ZERO : eval.getNoteSur20();
+            if (note == null) continue;
+            BigDecimal poids = poidsTache(tache);
+            acc = acc.add(note.multiply(poids));
+            sumPoids = sumPoids.add(poids);
+        }
+        if (sumPoids.signum() == 0) return null;
+        return acc.divide(sumPoids, 1, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Compétence d'une évaluation : moyenne des critères porteurs depuis le
+     * feedback persisté, fallback {@code note_sur_20}. Hors-sujet (note 0) →
+     * 0. Null si rien d'exploitable.
+     *
+     * <p>La compétence est ensuite RAMENÉE sous le plafond de niveau éventuel
+     * posé par {@code AiEvaluationService} (clé {@code plafond_niveau} du
+     * feedback). Sans ça, le plafond n'abaissait que le niveau affiché par
+     * tâche : le bilan d'épreuve — le seul niveau qui fait foi — repartait des
+     * {@code scores_criteres} bruts et pouvait rendre B1/B2 une tâche plafonnée
+     * A2. Aucun plafond posé (feature éteinte, évaluation antérieure) → la clé
+     * est absente → math strictement identique à l'historique.
+     */
+    private BigDecimal competenceOf(AiEvaluation eval) {
+        BigDecimal note = eval.getNoteSur20();
+        if (note != null && note.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
+        Object scores = eval.getFeedbackJson() != null
+                ? eval.getFeedbackJson().get("scores_criteres")
+                : null;
+        BigDecimal competence = competence(scores, seuils().getSourceCriteres(), note);
+        return sousPlafond(competence, plafondNiveau(eval));
+    }
+
+    /** Plafond de niveau posé à l'évaluation, ou null (clé absente / valeur inconnue). */
+    private static NiveauCecrl plafondNiveau(AiEvaluation eval) {
+        Object raw = eval.getFeedbackJson() != null
+                ? eval.getFeedbackJson().get(AiEvaluationService.PLAFOND_NIVEAU_KEY)
+                : null;
+        if (raw == null) return null;
+        try {
+            return NiveauCecrl.valueOf(raw.toString());
+        } catch (IllegalArgumentException e) {
+            log.warn("Plafond de niveau illisible dans le feedback : {}", raw);
+            return null;
+        }
+    }
+
+    /** Ramène la compétence sous la borne haute de la bande plafonnée. */
+    private BigDecimal sousPlafond(BigDecimal competence, NiveauCecrl plafond) {
+        if (competence == null || plafond == null) return competence;
+        BigDecimal max = competenceMax(plafond, seuils());
+        return (max != null && competence.compareTo(max) > 0) ? max : competence;
+    }
+
+    /**
+     * Compétence maximale qui reste dans la bande {@code niveau} — la borne de
+     * la bande supérieure, moins un epsilon (les compétences sont calculées à
+     * l'échelle 4). Null quand la bande n'a pas de borne haute exploitable
+     * (B2 est déjà le plafond du barème).
+     */
+    static BigDecimal competenceMax(NiveauCecrl niveau,
+                                    ProductionEvaluationProperties.NiveauCecrl seuils) {
+        return switch (niveau) {
+            case A1_NON_ATTEINT -> BigDecimal.ZERO;
+            case A1 -> justeSous(seuils.getSeuilA2());
+            case A2 -> justeSous(seuils.getSeuilB1());
+            case B1 -> justeSous(seuils.getSeuilB2());
+            case B2, C1, C2 -> null;
+        };
+    }
+
+    /** Plus grande valeur strictement sous {@code seuil} à l'échelle des compétences. */
+    private static BigDecimal justeSous(double seuil) {
+        return BigDecimal.valueOf(seuil).setScale(4, RoundingMode.HALF_UP)
+                .subtract(new BigDecimal("0.0001"));
+    }
+
+    /** Poids d'une tâche (index {@code tacheNumero - 1} dans {@code poids-taches}, défaut 1). */
+    private BigDecimal poidsTache(Integer tacheNumero) {
+        List<Double> poids = seuils().getPoidsTaches();
+        if (tacheNumero == null || poids == null
+                || tacheNumero < 1 || tacheNumero > poids.size()) {
+            return BigDecimal.ONE;
+        }
+        return BigDecimal.valueOf(poids.get(tacheNumero - 1));
+    }
+
+    // ------------------------------------------------------------------------
+    // Math statique par soumission (utilisée aussi par AiEvaluationService)
+    // ------------------------------------------------------------------------
+
+    /**
+     * {@code competence = moyenne(note_sur_20[source-criteres])} → bande CECRL
+     * via les seuils config (plafond B2). Hors-sujet ({@code note_globale == 0})
+     * → {@code A1_NON_ATTEINT}. Si un critere source manque, fallback sur la
+     * moyenne ponderee deja calculee ({@code note_globale}). Retourne null si
+     * rien d'exploitable. Package-private pour le test unitaire.
+     */
+    static NiveauCecrl computeNiveau(Object scoresCriteres, List<String> sourceCodes,
+                                     BigDecimal noteGlobale, ProductionEvaluationProperties.NiveauCecrl seuils) {
+        if (noteGlobale != null && noteGlobale.compareTo(BigDecimal.ZERO) == 0) {
+            return NiveauCecrl.A1_NON_ATTEINT; // hors-sujet : coherent avec note_globale = 0
+        }
+        BigDecimal competence = competence(scoresCriteres, sourceCodes, noteGlobale);
+        if (competence == null) return null;
+        return niveauFromCompetence(competence, seuils);
+    }
+
+    /**
+     * Moyenne des critères porteurs ({@code sourceCodes}) extraite de
+     * {@code scores_criteres} ; si un critère source manque, fallback
+     * {@code noteGlobale} ; null si rien d'exploitable.
+     */
+    static BigDecimal competence(Object scoresCriteres, List<String> sourceCodes, BigDecimal noteGlobale) {
+        Map<String, BigDecimal> byCode = new HashMap<>();
+        if (scoresCriteres instanceof List<?> scores) {
+            for (Object s : scores) {
+                if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number n) {
+                    byCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
+                }
+            }
+        }
+        List<BigDecimal> src = new ArrayList<>();
+        for (String code : sourceCodes) {
+            BigDecimal v = byCode.get(code);
+            if (v != null) src.add(v);
+        }
+
+        if (!sourceCodes.isEmpty() && src.size() == sourceCodes.size()) {
+            return moyenne(src);
+        }
+        if (noteGlobale != null) {
+            return noteGlobale; // fallback : moyenne ponderee des criteres presents
+        }
+        if (!src.isEmpty()) {
+            return moyenne(src);
+        }
+        return null;
+    }
+
+    /** Bande CECRL d'une compétence /20 selon les seuils config (plafond B2 inhérent). */
+    static NiveauCecrl niveauFromCompetence(BigDecimal competence,
+                                            ProductionEvaluationProperties.NiveauCecrl seuils) {
+        double c = competence.doubleValue();
+        if (c >= seuils.getSeuilB2()) return NiveauCecrl.B2; // plafond B2
+        if (c >= seuils.getSeuilB1()) return NiveauCecrl.B1;
+        if (c >= seuils.getSeuilA2()) return NiveauCecrl.A2;
+        if (c > 0) return NiveauCecrl.A1;
+        return NiveauCecrl.A1_NON_ATTEINT;
+    }
+
+    private static BigDecimal moyenne(Collection<BigDecimal> values) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal v : values) sum = sum.add(v);
+        return sum.divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
+    }
+}

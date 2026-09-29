@@ -1,0 +1,22 @@
+{
+  "epreuve": "TCF_EO",
+  "tacheNumero": 1,
+  "libelle": "Entretien dirigé",
+  "titres": [
+    {
+      "id": "1e31fd83-af31-4d93-b103-c38856b254a4",
+      "titre": "Présentation et famille",
+      "repere": "Présentez-vous… Parlez aussi de votre famille."
+    },
+    {
+      "id": "2d1bea33-2ba8-4524-948c-89595c55fea6",
+      "titre": "Parcours et centres d'intérêt",
+      "repere": "Présentez-vous en développant : votre parcours, vos centres d'intérêt…"
+    },
+    {
+      "id": "6bf79a5c-7fe1-45c5-bc93-c638e33f86e4",
+      "titre": "Un projet qui compte",
+      "repere": "Présentez-vous en mettant en avant un projet qui vous tient à cœur."
+    }
+  ]
+}

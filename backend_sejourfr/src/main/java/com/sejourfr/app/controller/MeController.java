@@ -1,0 +1,211 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.dto.AttemptSummaryResponse;
+import com.sejourfr.app.dto.ChangeEmailRequest;
+import com.sejourfr.app.dto.DashboardSummaryResponse;
+import com.sejourfr.app.dto.PreparationDto;
+import com.sejourfr.app.dto.ChangePasswordRequest;
+import com.sejourfr.app.dto.QuestionPublicResponse;
+import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.dto.UpdateExamDateRequest;
+import com.sejourfr.app.dto.UpdateProfileRequest;
+import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
+import com.sejourfr.app.dto.UserStatsResponse;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.security.CurrentUser;
+import com.sejourfr.app.service.AttemptService;
+import com.sejourfr.app.service.MeService;
+import com.sejourfr.app.service.PreparationService;
+import com.sejourfr.app.service.UserDashboardService;
+import com.sejourfr.app.service.UserProfileService;
+import com.sejourfr.app.service.email.EmailPreferenceService;
+import com.sejourfr.app.dto.EmailPreferencesDto;
+import com.sejourfr.app.dto.UpdateEmailPreferencesRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Endpoints "me" : tout ce qui depend de l'utilisateur courant.
+ * AttemptService est encore appele directement pour /attempts (listMine) :
+ * il ne s'agit pas d'un concept "me" specifique, juste d'un filtre par user.
+ */
+@RestController
+@RequestMapping("/api/me")
+@RequiredArgsConstructor
+public class MeController {
+
+    private final MeService meService;
+    private final AttemptService attemptService;
+    private final UserProfileService userProfileService;
+    private final UserDashboardService userDashboardService;
+    private final PreparationService preparationService;
+    private final CurrentUser currentUser;
+    private final EmailPreferenceService emailPreferenceService;
+
+    // ------------------------------------------------------------------------
+    // Parcours administratif vise (CSP / CR / NAT)
+    // ------------------------------------------------------------------------
+
+    @PutMapping("/target-path")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateTargetPath(@Valid @RequestBody UpdateTargetProcedureRequest req) {
+        meService.updateTargetProcedure(currentUser.getId(), req.targetProcedure());
+    }
+
+    /**
+     * Date d'examen du candidat. Route SEPAREE de {@code /target-path} : loger
+     * la date dans la mise a jour de la demarche l'effacerait a chaque
+     * changement de procedure. {@code examDate: null} efface volontairement.
+     */
+    @PutMapping("/exam-date")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateExamDate(@Valid @RequestBody UpdateExamDateRequest req) {
+        meService.updateExamDate(currentUser.getId(), req.examDate());
+    }
+
+    // ------------------------------------------------------------------------
+    // Notifications par e-mail (docs/regles/emails.md). Aucun champ REQUIRED :
+    // les mails de compte, de securite et de paiement ne se desactivent pas.
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/email-preferences")
+    public EmailPreferencesDto emailPreferences() {
+        return emailPreferenceService.get(currentUser.getId());
+    }
+
+    @PatchMapping("/email-preferences")
+    public EmailPreferencesDto updateEmailPreferences(@RequestBody UpdateEmailPreferencesRequest req) {
+        return emailPreferenceService.update(currentUser.getId(), req);
+    }
+
+    // ------------------------------------------------------------------------
+    // Profil — identité (prénom, nom)
+    // ------------------------------------------------------------------------
+
+    @PatchMapping("/profile")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
+        userProfileService.updateProfile(currentUser.getId(), req.firstName(), req.lastName());
+    }
+
+    // ------------------------------------------------------------------------
+    // Mot de passe
+    // ------------------------------------------------------------------------
+
+    @PostMapping("/change-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@Valid @RequestBody ChangePasswordRequest req) {
+        userProfileService.changePassword(
+                currentUser.getId(), req.currentPassword(), req.newPassword());
+    }
+
+    // ------------------------------------------------------------------------
+    // Email (workflow vérification : POST puis confirm via lien mail)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Demande un changement d'email. Le compte garde son email actuel tant
+     * que l'utilisateur n'a pas cliqué sur le lien envoyé au nouvel email.
+     * Le endpoint de confirmation est public : {@code GET /api/auth/confirm-email-change?token=...}.
+     */
+    @PostMapping("/change-email-request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestEmailChange(@Valid @RequestBody ChangeEmailRequest req) {
+        userProfileService.requestEmailChange(
+                currentUser.getId(), req.newEmail(), req.currentPassword());
+    }
+
+    @GetMapping("/attempts")
+    public List<AttemptSummaryResponse> attempts(
+            @RequestParam(required = false) AttemptType type,
+            @RequestParam(required = false) Module module,
+            @RequestParam(required = false) QuestionType moduleExamQuestionType,
+            @RequestParam(required = false) UUID themeId,
+            @RequestParam(defaultValue = "20") int limit) {
+        return attemptService.listMine(
+                currentUser.getId(), type, module, moduleExamQuestionType, themeId, limit);
+    }
+
+    // ------------------------------------------------------------------------
+    // Stats
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/stats")
+    public UserStatsResponse stats(@RequestParam Module module) {
+        return meService.stats(currentUser.getId(), module);
+    }
+
+    /**
+     * Agrégat unique du tableau de bord web : streak, examens blancs,
+     * réussite globale, niveau TCF estimé + stats par catégorie. Voir
+     * {@link UserDashboardService#summary}.
+     */
+    @GetMapping("/dashboard")
+    public DashboardSummaryResponse dashboard() {
+        return userDashboardService.summary(currentUser.getId());
+    }
+
+    /**
+     * <b>Ou en sont les deux preparations</b> — l'etat UNIQUE que l'Accueil, le
+     * Plan et les Examens lisent tous les trois.
+     *
+     * <p>🛑 <b>Trois portes, un seul etat.</b> L'Accueil montre la prochaine
+     * action, le Plan explique pourquoi il n'est pas encore pret, les Examens
+     * gardent le diagnostic a cote des examens blancs. Les trois ne creent pas
+     * trois parcours : ils rendent le meme fait (arbitrage du 2026-09-10).
+     *
+     * <p>🛑 <b>Le serveur expose l'ETAPE, pas la phrase.</b> « Faire mon
+     * diagnostic complet » appartient aux fronts.
+     */
+    @GetMapping("/preparation")
+    public PreparationDto preparation() {
+        return preparationService.lire(currentUser.getId());
+    }
+
+    // ------------------------------------------------------------------------
+    // Favoris
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/questions/favorites")
+    public List<QuestionPublicResponse> favorites(@RequestParam(required = false) Module module) {
+        return meService.favorites(currentUser.getId(), module);
+    }
+
+    @PostMapping("/questions/{questionId}/favorite")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addFavorite(@PathVariable UUID questionId) {
+        meService.addFavorite(currentUser.getId(), questionId);
+    }
+
+    @DeleteMapping("/questions/{questionId}/favorite")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeFavorite(@PathVariable UUID questionId) {
+        meService.removeFavorite(currentUser.getId(), questionId);
+    }
+
+    // ------------------------------------------------------------------------
+    // Revue detaillee (explication + bonnes reponses)
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/questions/{questionId}/review")
+    public QuestionReviewResponse review(@PathVariable UUID questionId) {
+        return meService.review(currentUser.getId(), questionId);
+    }
+}

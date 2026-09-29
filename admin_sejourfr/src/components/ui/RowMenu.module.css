@@ -1,0 +1,87 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.trigger {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+
+.trigger:hover {
+  background: var(--paper-2);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.triggerOpen {
+  background: var(--paper-2);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.dot {
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  min-width: 180px;
+  padding: 4px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.item {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  white-space: nowrap;
+  transition: all 0.1s;
+}
+
+.item:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.item:disabled {
+  color: var(--muted-2);
+  cursor: not-allowed;
+}
+
+.danger {
+  color: var(--red);
+}
+
+.danger:hover:not(:disabled) {
+  background: rgba(225, 37, 44, 0.08);
+  color: var(--red-dark);
+}

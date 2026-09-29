@@ -1,0 +1,3232 @@
+"use client";
+
+/**
+ * Kit « parcours » — primitives partagées par les 7 écrans de diagnostic et de
+ * plan (TCF et civique), web et miroir du kit Flutter
+ * `mobile_sejourfr/lib/core/widgets/sejour/`.
+ *
+ * 🛑 Règle d'usage : un écran de ce périmètre n'écrit PAS de CSS à lui. Il
+ * assemble ces primitives. Si un motif manque, il s'ajoute ici et dans le
+ * miroir Flutter dans la même passe — sinon les deux fronts divergent.
+ *
+ * Les libellés et les valeurs viennent TOUJOURS du serveur : aucune primitive
+ * ci-dessous ne classe un nombre en état pédagogique ni en niveau CECRL.
+ */
+
+import Link from "next/link";
+import { useAppBarBack, useAppBarTitle } from "@/app/_components/AppBarTitle";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  CircleDot,
+  Clock,
+  Info,
+  ListChecks,
+  Lock,
+  Minus,
+  Star,
+  Target,
+  AlertCircle,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import { createContext, useContext, useId, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import styles from "./sejour.module.css";
+
+export { styles as sejourStyles };
+
+/** Concatène des classes en ignorant les valeurs vides. */
+export function cx(...parts: Array<string | false | null | undefined>): string {
+  return parts.filter(Boolean).join(" ");
+}
+
+/**
+ * Ton d'état servi par le backend. `hot` = prioritaire, `warn` = à renforcer,
+ * `ok` = acquis.
+ *
+ * 🛑 `muted` = **non mesuré**, et ce n'est pas un quatrième degré de gravité :
+ * c'est l'absence de mesure. Sans lui, un thème `NON_EVALUE` retombait sur
+ * `warn` et s'affichait en ambre — le front désignait comme fragile quelque
+ * chose que le serveur n'a jamais évalué. `null = inconnu, jamais mauvais`.
+ */
+export type Tone = "ok" | "warn" | "hot" | "muted";
+
+/**
+ * État d'une étape de parcours ou d'une compétence.
+ *
+ * 🛑 **`verify` n'est pas `done`.** Une série de petits sujets terminée n'est
+ * pas une compétence acquise — c'est une preuve qui reste à faire, et elle se
+ * lit au premier coup d'œil (accent ambre, icône de validation) plutôt que
+ * comme une coche de plus. `doing` est la série commencée, distincte de `now`
+ * qui repère la compétence que le Plan travaille **maintenant**.
+ *
+ * ⚠️ Miroir de `SfStepState` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type StepState = "done" | "verify" | "doing" | "now" | "todo";
+
+const STEP_ICON: Record<StepState, LucideIcon> = {
+  done: Check,
+  verify: BadgeCheck,
+  doing: CircleDot,
+  now: ArrowRight,
+  todo: Circle,
+};
+
+const toneClass: Record<Tone, string> = {
+  ok: styles.ok,
+  warn: styles.warn,
+  hot: styles.hot,
+  muted: styles.muted,
+};
+
+/* ------------------------------------------------------------------ Shell */
+
+/**
+ * Le cadre d'un écran du kit. C'est lui qui décide la **largeur de la colonne**
+ * au palier desktop (≥ 960 px), exactement comme `.sf-main` dans la maquette :
+ *
+ * | prop | ≤ 620 px | 620 → 960 | ≥ 960 px | pour quoi |
+ * |---|---|---|---|---|
+ * | — | 560 px | 720 px | **720 px** | un écran de LECTURE (rapport de diagnostic) |
+ * | `sticky` | 560 px | 720 px | **980 px** | un écran dont l'action est une barre collée (paywall, Plan gratuit) |
+ * | `wide` | 560 px | 720 px | **1080 px** | un TABLEAU DE BORD à plusieurs colonnes (Accueil, Plan abonné) |
+ *
+ * 🛑 Le rendu ≤ 620 px est identique dans les trois cas : le desktop s'ajoute
+ * **au-dessus** de l'existant, il ne le remplace pas.
+ */
+export function SejourApp({
+  children,
+  sticky,
+  wide,
+  report,
+  className,
+}: {
+  children: ReactNode;
+  /** Réserve la place de la barre d'action collée en bas. */
+  sticky?: boolean;
+  /** Colonne large (1080 px) : l'écran dispose plusieurs colonnes en desktop. */
+  wide?: boolean;
+  /**
+   * **Écran de RAPPORT** : conteneur de 980 px, mais texte plafonné à 720 px.
+   *
+   * 🛑 C'est la quatrième *nature* d'écran, pas une quatrième borne (arbitrage
+   * du propriétaire, 2026-09-12) : un rapport a des grilles qui gagnent à
+   * s'étaler — épreuves, priorités, observations — et de la prose qui perd à
+   * s'allonger. Dedans, **tout est du texte par défaut (720 px) et seul ce qui
+   * porte une classe de grille (`deskGrid`, `deskGrid2`, `deskPair`) prend les
+   * 980 px** ; un bloc nouveau n'a donc rien de plus à déclarer que sa grille.
+   * Toute la règle vit dans `sejour.module.css`, bloc « LE PALIER DESKTOP ».
+   */
+  report?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        styles.app,
+        sticky && styles.hasSticky,
+        wide && styles.wide,
+        report && styles.report,
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Ce qui se glisse SOUS l'en-tête de page, dans TOUS les états d'un écran.
+ *
+ * 🛑 **L'ordre « eyebrow → titre → bascule de module » est posé ICI**, une
+ * seule fois : l'écran parent fournit le nœud, `Top` le pose. Sans ce relais,
+ * le parent devrait rendre la bascule lui-même — donc AVANT l'en-tête, l'ordre
+ * qu'on corrige — ou la faire descendre en prop jusqu'aux sept variantes du
+ * Plan (chargement, sans diagnostic, gratuit, abonné, TCF, civique…), chacune
+ * portant son propre `Top`. Une bascule recopiée sept fois finit toujours par
+ * diverger d'un état à l'autre.
+ *
+ * Miroir Flutter : `SfTopSlot` (`core/widgets/sejour/sejour_kit.dart`).
+ */
+const TopSlotContext = createContext<ReactNode>(null);
+
+export function TopSlot({ node, children }: { node: ReactNode; children: ReactNode }) {
+  return <TopSlotContext.Provider value={node}>{children}</TopSlotContext.Provider>;
+}
+
+/**
+ * **L'en-tête de page monte dans la barre du haut** (`AppTopBar`, ≤ 900 px).
+ *
+ * Pour un écran dont le titre est une DONNÉE (le Plan : « Mon plan du jour »,
+ * et son eyebrow « Votre parcours personnalisé vers B2 », qui change avec la
+ * bascule TCF / civique) : chaque `Top` rendu dessous donne son titre et son
+ * eyebrow à la barre (`useAppBarTitle`), et s'efface **à l'œil** sous 900 px
+ * — il reste le `<h1>` des lecteurs d'écran. Desktop : aucune barre, l'en-tête
+ * reste. Hors shell connecté (pas de barre), rien ne change.
+ *
+ * Même relais que `TopSlot`, pour la même raison : les sept variantes du Plan
+ * portent chacune leur `Top`, et aucune n'a à le déclarer.
+ *
+ * ⚠️ Pas de miroir Flutter : c'est la barre du web sous 900 px qui en a
+ * besoin, l'app Flutter a son propre en-tête d'écran.
+ */
+const TopInAppBarContext = createContext(false);
+
+export function TopInAppBar({ children }: { children: ReactNode }) {
+  return <TopInAppBarContext.Provider value>{children}</TopInAppBarContext.Provider>;
+}
+
+export function Top({
+  backTo,
+  onBack,
+  kicker,
+  title,
+  lead,
+  badge,
+}: {
+  backTo?: string;
+  onBack?: () => void;
+  kicker?: string;
+  title: string;
+  /**
+   * La phrase de cadrage sous le titre (`.hero-copy` de la maquette).
+   *
+   * 🛑 Une **variante** de l'en-tête, pas une primitive de plus : un écran qui
+   * s'annonce en trois lignes — œil-de-bœuf, titre, phrase — est le même motif
+   * que celui qui s'annonce en deux. Miroir Flutter : `SfTop.lead`.
+   */
+  lead?: string;
+  badge?: string;
+}) {
+  const slot = useContext(TopSlotContext);
+  const versLaBarre = useContext(TopInAppBarContext);
+  const dansLaBarre = useAppBarTitle(versLaBarre ? { title, subtitle: kicker } : null);
+  /* La flèche de retour monte dans la barre du haut (≤ 900 px, shell
+     connecté) — le chevron de l'en-tête s'efface alors (`in-bar-back`). */
+  const retourDansLaBarre = useAppBarBack(
+    backTo ? { fallbackHref: backTo } : onBack ? { fallbackHref: "/dashboard", onBack } : null,
+  );
+  /* 🛑 **L'en-tête est TOUJOURS aligné à gauche** (arbitrage du propriétaire,
+     2026-09-12). Il **révoque** `.topPlain`, qui centrait sous 620 px un
+     en-tête sans flèche de retour : un titre centré au-dessus d'un contenu
+     entièrement calé à gauche se lit comme un bandeau, pas comme le titre de la
+     page — et il ne s'aligne ni sur la bascule de parcours, ni sur les cartes
+     en dessous. Même retrait côté mobile (`SfTop`) dans la même passe. */
+  return (
+    <>
+      <header className={cx(styles.top, dansLaBarre && styles.topInAppBar)}>
+        {backTo ? (
+          <Link
+            href={backTo}
+            className={cx(styles.iconBtn, retourDansLaBarre && "in-bar-back")}
+            aria-label="Retour"
+          >
+            <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+          </Link>
+        ) : onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className={cx(styles.iconBtn, retourDansLaBarre && "in-bar-back")}
+            aria-label="Retour"
+          >
+            <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+        <div className={styles.topText}>
+          {kicker ? <p className={styles.kicker}>{kicker}</p> : null}
+          <h1 className={styles.title}>{title}</h1>
+          {lead ? <p className={styles.topLead}>{lead}</p> : null}
+          {badge ? <span className={styles.badge}>{badge}</span> : null}
+        </div>
+      </header>
+      {slot}
+    </>
+  );
+}
+
+/**
+ * **La tête d'un écran de transition** : une croix de fermeture à gauche, un
+ * œil-de-bœuf à droite.
+ *
+ * 🛑 **Ce n'est pas une variante de `Top`**, et c'est la différence qui compte :
+ * `Top` annonce une **page** (retour en chevron, titre en `h1`, bascule de
+ * module dans son `TopSlot`) ; celui-ci coiffe un écran **qu'on ferme** — une
+ * étape posée par-dessus, sans titre, dont le contenu commence par son héros.
+ * Les deux maquettes de l'écran de déblocage du Plan le montrent ainsi.
+ *
+ * Miroir Flutter : `SfSheetHead`.
+ */
+export function SheetHead({
+  eyebrow,
+  onClose,
+  closeLabel = "Fermer",
+}: {
+  eyebrow: string;
+  onClose: () => void;
+  closeLabel?: string;
+}) {
+  return (
+    <header className={styles.sheetHead}>
+      <button type="button" onClick={onClose} className={styles.iconBtn} aria-label={closeLabel}>
+        <X size={22} strokeWidth={2} aria-hidden />
+      </button>
+      <p className={styles.sheetEyebrow}>{eyebrow}</p>
+    </header>
+  );
+}
+
+export function Pad({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx(styles.pad, className)}>{children}</div>;
+}
+
+export function Stack({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx(styles.stack, className)}>{children}</div>;
+}
+
+export function Section({
+  title,
+  children,
+  flush,
+  mono,
+  lead,
+  action,
+}: {
+  title?: string;
+  children: ReactNode;
+  /** Titre aligné sur le contenu au lieu des marges d'écran. */
+  flush?: boolean;
+  /**
+   * L'intertitre en **petites capitales mono** (« À FAIRE »).
+   *
+   * 🛑 **Une variante, pas une primitive de plus** : c'est le même titre de
+   * section, dans le registre technique que le kit emploie déjà pour ses
+   * œils-de-bœuf. Miroir Flutter : `SfSection(mono: true)`.
+   */
+  mono?: boolean;
+  /**
+   * L'intertitre **de tête d'écran** (« Où vous en êtes ») : plus grand, pour
+   * une section qui ouvre un tableau de bord. Miroir Flutter :
+   * `SfSection(lead: true)`.
+   */
+  lead?: boolean;
+  /**
+   * Un lien discret aligné à droite du titre (« Mon plan »). 🛑 Une variante du
+   * titre, pas une seconde en-tête. Miroir Flutter : `SfSection.action`.
+   */
+  action?: { label: string; href: string } | null;
+}) {
+  const heading = title ? (
+    <h2
+      className={cx(
+        styles.sectionH,
+        flush && styles.sectionHFlush,
+        mono && styles.sectionHMono,
+        lead && styles.sectionHLead,
+      )}
+    >
+      {title}
+    </h2>
+  ) : null;
+  return (
+    <section className={cx(styles.section, flush && styles.pad)}>
+      {heading && action ? (
+        <div className={cx(styles.sectionHead, flush && styles.sectionHFlush)}>
+          {heading}
+          <Link href={action.href} className={styles.sectionAction}>
+            {action.label}
+          </Link>
+        </div>
+      ) : (
+        heading
+      )}
+      {children}
+    </section>
+  );
+}
+
+export function Card({
+  children,
+  variant,
+  padding,
+  className,
+  style,
+}: {
+  children: ReactNode;
+  variant?: "soft" | "warn" | "ok" | "hero";
+  /** `tight` pour une carte qui n'empile que des lignes séparées d'un filet. */
+  padding?: "tight" | "rows";
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const base = variant === "hero" ? styles.cardHero : styles.card;
+  return (
+    <div
+      className={cx(
+        base,
+        variant === "soft" && styles.cardSoft,
+        variant === "warn" && styles.cardWarn,
+        variant === "ok" && styles.cardOk,
+        padding === "tight" && styles.cardTight,
+        padding === "rows" && styles.cardRows,
+        className,
+      )}
+      style={style}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ Niveau */
+
+/**
+ * Piste de niveau CECRL. Les paliers, le palier courant et l'objectif sont
+ * SERVIS : ce composant ne devine ni l'ordre ni la position.
+ */
+export function LevelTrack({
+  levels,
+  currentIndex,
+  goalIndex,
+  youLabel = "Vous",
+  goalLabel = "Objectif",
+}: {
+  levels: string[];
+  currentIndex: number;
+  goalIndex: number;
+  youLabel?: string;
+  goalLabel?: string;
+}) {
+  const n = Math.max(levels.length, 1);
+  // La piste va du centre de la 1ʳᵉ colonne au centre de la dernière : 16 % de
+  // chaque côté. On remplit au prorata du palier courant.
+  const span = 100 - 16 * 2;
+  const fill = n > 1 ? (span * Math.max(currentIndex, 0)) / (n - 1) : 0;
+
+  return (
+    <div
+      className={styles.trackWrap}
+      role="img"
+      aria-label={`Vous êtes à ${levels[currentIndex] ?? "—"}, objectif ${levels[goalIndex] ?? "—"}`}
+    >
+      <div
+        className={styles.track}
+        style={
+          {
+            gridTemplateColumns: `repeat(${n}, 1fr)`,
+            "--sf-track-fill": `${fill}%`,
+          } as CSSProperties
+        }
+      >
+        {levels.map((lvl, i) => {
+          const state =
+            i === currentIndex ? styles.isNow : i === goalIndex ? styles.isGoal : i < currentIndex ? styles.isDone : "";
+          const caption = i === currentIndex ? youLabel : i === goalIndex ? goalLabel : " ";
+          return (
+            <div key={lvl} className={cx(styles.trackCol, state)}>
+              <span className={styles.dot} />
+              <span className={styles.lvl}>{lvl}</span>
+              <span className={styles.cap}>{caption}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Bandeau compact « niveau actuel → objectif ». */
+export function GoalStrip({
+  currentLabel = "Niveau actuel",
+  current,
+  goalLabel = "Objectif",
+  goal,
+}: {
+  currentLabel?: string;
+  current: string;
+  goalLabel?: string;
+  goal: string;
+}) {
+  return (
+    <Card>
+      <div className={styles.goal}>
+        <div>
+          <small>{currentLabel}</small>
+          <GoalValue value={current} />
+        </div>
+        <div className={styles.goalArrow} aria-hidden>
+          <ArrowRight size={20} strokeWidth={2} />
+        </div>
+        <div>
+          <small>{goalLabel}</small>
+          <GoalValue value={goal} />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * 🛑 **Jamais coupée au milieu d'un mot** : la taille se règle sur le **mot le
+ * plus long** (`--goal-word`, en caractères) pour qu'il tienne dans sa colonne,
+ * et le retour à la ligne ne se fait qu'entre deux mots. Sans ça,
+ * « Naturalisation » débordait de la carte à 360 px. Miroir mobile :
+ * `_SfGoalValue` (`sejour_kit.dart`).
+ */
+function GoalValue({value}: {value: string}) {
+  const word = Math.max(1, ...value.split(/\s+/).map((w) => w.length));
+  return <b style={{"--goal-word": word} as CSSProperties}>{value}</b>;
+}
+
+/* ----------------------------------------------------------------- Boutons */
+
+export function Cta({
+  href,
+  onClick,
+  children,
+  lead,
+  caption,
+  variant = "primary",
+  disabled,
+  type = "button",
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  /**
+   * La ligne **au-dessus** du bouton — ce que l'action va coûter (« À partir de
+   * 9,99 € achat unique »).
+   *
+   * 🛑 **Une variante de `caption`, pas une primitive de plus** : le même
+   * bouton, avec de quoi décider juste avant de le presser. `caption` reste ce
+   * qui se lit **après** (la nuance, la réserve). `null` ⇒ rien à sa place —
+   * c'est le rendu exact d'un catalogue injoignable. Miroir Flutter :
+   * `SfButton.lead`.
+   */
+  lead?: string | null;
+  caption?: string;
+  variant?: "primary" | "blue" | "line";
+  disabled?: boolean;
+  type?: "button" | "submit";
+}) {
+  const cls = cx(
+    styles.btn,
+    variant === "blue" && styles.btnGhost,
+    variant === "line" && styles.btnLine,
+  );
+  return (
+    <div>
+      {lead ? <p className={styles.btnLead}>{lead}</p> : null}
+      {href && !disabled ? (
+        <Link href={href} className={cls} onClick={onClick}>
+          {children}
+          <ArrowRight size={20} strokeWidth={2} aria-hidden />
+        </Link>
+      ) : (
+        <button type={type} className={cls} onClick={onClick} disabled={disabled}>
+          {children}
+          <ArrowRight size={20} strokeWidth={2} aria-hidden />
+        </button>
+      )}
+      {caption ? <p className={styles.btnCaption}>{caption}</p> : null}
+    </div>
+  );
+}
+
+export function Sticky({ children }: { children: ReactNode }) {
+  return <div className={styles.sticky}>{children}</div>;
+}
+
+/* ------------------------------------------------------- Bascule de module */
+
+/**
+ * **Le choix TCF IRN / Examen civique**, et il n'y en a qu'un.
+ *
+ * 🛑 Arbitrage du propriétaire (2026-09-12) : le menu de gauche garde ses deux
+ * entrées de parcours, et le choix TCF / civique vit dans les **deux écrans où
+ * il change ce qui est affiché** — `/dashboard` et `/plan`. Ils rendent donc
+ * **cette** brique, au même endroit (sous l'en-tête), pas deux variantes.
+ *
+ * ⚠️ Les hubs `/entrainement` ne la portent **pas** : on y arrive par le menu,
+ * qui a déjà fait le choix — « il faut afficher directement l'écran ». La prop
+ * `className` et la classe `segFlush` qui les servaient sont parties avec eux.
+ */
+export function ModuleToggle({
+  current,
+  onSelect,
+  tcfHref,
+  civicHref,
+}: {
+  current: "tcf" | "civique";
+  onSelect?: (module: "tcf" | "civique") => void;
+  tcfHref?: string;
+  civicHref?: string;
+}) {
+  const items: Array<{ id: "tcf" | "civique"; label: string; href?: string }> = [
+    { id: "tcf", label: "TCF IRN", href: tcfHref },
+    { id: "civique", label: "Examen civique", href: civicHref },
+  ];
+  return (
+    <div className={styles.segWrap}>
+      <div className={styles.seg} role="tablist" aria-label="Parcours">
+        {items.map((item) =>
+          item.href ? (
+            <Link
+              key={item.id}
+              href={item.href}
+              role="tab"
+              aria-selected={current === item.id}
+              className={current === item.id ? styles.isOn : undefined}
+            >
+              {item.label}
+            </Link>
+          ) : (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={current === item.id}
+              className={current === item.id ? styles.isOn : undefined}
+              onClick={() => onSelect?.(item.id)}
+            >
+              {item.label}
+            </button>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- Observations */
+
+export function Observation({
+  tone,
+  kicker,
+  title,
+  text,
+  icon: Icon,
+}: {
+  tone: "ok" | "up";
+  kicker: string;
+  title: string;
+  text?: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <article className={styles.obs}>
+      <div className={cx(styles.obsIco, tone === "ok" ? styles.ok : styles.up)}>
+        <Icon size={20} strokeWidth={2} aria-hidden />
+      </div>
+      <div>
+        <p className={cx(styles.obsKicker, tone === "ok" ? styles.ok : styles.up)}>{kicker}</p>
+        <strong>{title}</strong>
+        {text ? <p>{text}</p> : null}
+      </div>
+    </article>
+  );
+}
+
+/** Encart d'explication ou de réassurance : icône ronde + titre + texte. */
+export function NoteCard({
+  variant,
+  icon: Icon,
+  iconTone = "blue",
+  title,
+  children,
+  titleSize = "sm",
+}: {
+  variant?: "soft" | "ok" | "warn";
+  icon: LucideIcon;
+  iconTone?: "blue" | "ok";
+  title: string;
+  children?: ReactNode;
+  titleSize?: "sm" | "lg";
+}) {
+  return (
+    <Card variant={variant}>
+      <div className={styles.noteRow}>
+        <div
+          className={
+            iconTone === "ok" ? cx(styles.obsIco, styles.ok, styles.onWhite) : styles.examIco
+          }
+        >
+          <Icon size={20} strokeWidth={2} aria-hidden />
+        </div>
+        <div>
+          <h2 className={cx(styles.noteTitle, titleSize === "lg" && styles.noteTitleLg)}>{title}</h2>
+          {children}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ Lignes */
+
+/** Ligne d'épreuve : icône + libellé, et à droite le niveau + son état servi. */
+export function ExamRow({
+  icon: Icon,
+  title,
+  subtitle,
+  level,
+  status,
+  tone,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+  level?: string;
+  status?: string;
+  tone?: Tone;
+}) {
+  const simple = !level && !status;
+  return (
+    <div className={cx(styles.exam, simple && styles.simple)}>
+      <div className={styles.examIco}>
+        <Icon size={20} strokeWidth={2} aria-hidden />
+      </div>
+      <div>
+        <b>{title}</b>
+        {subtitle ? <small>{subtitle}</small> : null}
+      </div>
+      {simple ? null : (
+        <div className={styles.examEnd}>
+          {level ? <span className={styles.lvlChip}>{level}</span> : null}
+          {status ? (
+            <span className={cx(styles.status, tone && toneClass[tone])}>{status}</span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * **Anneau de couverture** — la part parcourue d'un ensemble, entre 0 et 1.
+ *
+ * 🛑 **Ce n'est pas une note et ce n'est pas un état pédagogique** : un seul
+ * accent de marque, jamais une rampe de seuils. Un anneau vide veut dire « pas
+ * encore commencé », jamais « mauvais ». Miroir Flutter : `ProgressRing`.
+ */
+export function Ring({ ratio, label }: { ratio: number; label?: string }) {
+  const part = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  const r = 15;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg
+      className={styles.ring}
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+    >
+      <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-line)" strokeWidth="4" />
+      <circle
+        cx="20"
+        cy="20"
+        r={r}
+        fill="none"
+        stroke={part >= 1 ? "var(--color-green)" : "var(--color-blue)"}
+        strokeWidth="4"
+        strokeDasharray={`${c * part} ${c}`}
+        strokeLinecap="round"
+        transform="rotate(-90 20 20)"
+      />
+    </svg>
+  );
+}
+
+/**
+ * **Ligne d'une épreuve ou d'un thème** sur l'écran Réviser : pictogramme,
+ * titre, ligne d'état **servie**, compteur, et à droite soit un anneau de
+ * couverture, soit un chevron.
+ *
+ * 🛑 Le `status` et le `meta` arrivent **composés** (`lib/reviser.ts` ⇄
+ * `reviser_labels.dart`) : cette brique ne classe rien et ne compte rien.
+ *
+ * Miroir Flutter : `SfEpreuveRow`.
+ */
+export function EpreuveRow({
+  icon: Icon,
+  title,
+  status,
+  meta,
+  ratio,
+  href,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  status: string;
+  meta?: string | null;
+  /** Part parcourue (0-1). Absent ⇒ un chevron prend la place de l'anneau. */
+  ratio?: number | null;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span className={styles.epreuveIco}>
+        <Icon size={22} strokeWidth={1.8} aria-hidden />
+      </span>
+      <span className={styles.epreuveBody}>
+        <b>{title}</b>
+        <span>{status}</span>
+        {meta ? <span className={styles.epreuveMeta}>{meta}</span> : null}
+      </span>
+      {typeof ratio === "number" ? (
+        <Ring ratio={ratio} />
+      ) : (
+        <span className={styles.epreuveEnd} aria-hidden>
+          <ArrowRight size={18} strokeWidth={2} />
+        </span>
+      )}
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={styles.epreuve}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={styles.epreuve} onClick={onClick}>
+      {body}
+    </button>
+  );
+}
+
+/** Ligne de thème civique : pastille d'état + nom + libellé d'état servi. */
+export function ThemeLine({
+  tone,
+  name,
+  status,
+}: {
+  tone: Tone;
+  name: string;
+  status: string;
+}) {
+  // `muted` et `warn` partagent le tiret : ce qui les distingue, c'est la
+  // couleur (neutre / ambre) et le libellé servi, jamais une icône d'alerte.
+  const Icon = tone === "ok" ? Check : tone === "hot" ? AlertCircle : Minus;
+  return (
+    <div className={styles.themeLine}>
+      <span className={cx(styles.themeMark, toneClass[tone])}>
+        <Icon size={16} strokeWidth={2} aria-hidden />
+      </span>
+      <b>{name}</b>
+      <span className={cx(styles.status, toneClass[tone])}>{status}</span>
+    </div>
+  );
+}
+
+/**
+ * Carte de priorité, avec son liseré de rang.
+ *
+ * **Rétractable dès qu'on en empile plusieurs.** `details` est le contenu que
+ * l'encart FERMÉ ne montre pas ; `children` reste toujours lisible. Sans
+ * `details`, la carte est exactement celle d'avant — c'est le cas d'une
+ * priorité seule, qu'il n'y a aucune raison de replier.
+ *
+ * 🛑 **Les deux libellés du bouton sont SERVIS** (`moreLabel` / `lessLabel`) :
+ * le kit ne compose aucune phrase et ne compte rien. Sans eux, pas de bouton —
+ * on n'affiche pas une bascule anonyme.
+ */
+export function Prio({
+  rank,
+  tag,
+  title,
+  text,
+  children,
+  details,
+  moreLabel,
+  lessLabel,
+  defaultOpen = false,
+}: {
+  rank: 1 | 2 | 3;
+  tag: string;
+  title: string;
+  text?: string;
+  children?: ReactNode;
+  details?: ReactNode;
+  moreLabel?: string;
+  lessLabel?: string;
+  defaultOpen?: boolean;
+}) {
+  const rankClass = rank === 1 ? styles.p1 : rank === 2 ? styles.p2 : styles.p3;
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+  const foldable = details != null && moreLabel != null && lessLabel != null;
+  return (
+    <article className={cx(styles.prio, rankClass)}>
+      <div className={styles.prioN}>{rank}</div>
+      <div>
+        <p className={styles.prioTag}>{tag}</p>
+        <h3>{title}</h3>
+        {text ? <p>{text}</p> : null}
+        {children}
+        {foldable ? (
+          <>
+            {/* `hidden` plutôt qu'un démontage : le contenu replié sort de
+                l'arbre d'accessibilité ET du parcours clavier, au lieu de
+                rester atteignable derrière un encart fermé. */}
+            <div id={panelId} hidden={!open}>
+              {details}
+            </div>
+            <button
+              type="button"
+              className={styles.link}
+              aria-expanded={open}
+              aria-controls={panelId}
+              onClick={() => setOpen((was) => !was)}
+            >
+              {open ? lessLabel : moreLabel}
+              <ChevronDown
+                size={15}
+                strokeWidth={2.5}
+                className={cx(styles.chevron, open && styles.chevronUp)}
+                aria-hidden
+              />
+            </button>
+          </>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Le ton du remplissage d'une jauge.
+ *
+ * 🛑 Il se **passe**, il ne se dérive d'aucun nombre : l'appelant le tient d'un
+ * état servi. Même palette que les segments de parcours — vert = tenu, bleu =
+ * en cours, ambre = à vérifier, rouge = prioritaire, neutre = non mesuré.
+ * Miroir Flutter : `SfBarTone` (`sejour_kit.dart`).
+ */
+export type BarTone = Tone | "now";
+
+/* ⚠️ **`ProgressMini` est supprimée** (2026-09-19) : la jauge continue ne
+   servait plus qu'à la ligne civique de « Où vous en êtes », qui rend désormais
+   son état servi avec le **même traité segmenté que l'échelle TCF**
+   (`LevelLadder`). Refonte = suppression de l'ancien : sa palette de
+   remplissage (`.barOk`…`.barMuted`) part avec elle, et `BarTone` reste — il
+   teinte encore la pastille de statut de `LevelCard`. Miroir Flutter :
+   `SfProgressMini`, supprimée dans la même passe. */
+
+/** Sous-ligne d'une priorité : une compétence et son état. */
+export function SkillRow({ label, state }: { label: string; state: StepState }) {
+  const Icon = STEP_ICON[state];
+  return (
+    <div
+      className={cx(
+        styles.skillMiniRow,
+        state === "done" && styles.isDone,
+        state === "now" && styles.isNow,
+      )}
+    >
+      <span>
+        <Icon size={16} strokeWidth={2} aria-hidden />
+      </span>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export function SkillList({ children }: { children: ReactNode }) {
+  return <div className={styles.skillMini}>{children}</div>;
+}
+
+/* ---------------------------------------------------------------- Parcours */
+
+/**
+ * Une étape de parcours. `pill` est **servi** par l'appelant (le libellé de
+ * l'état d'étape, « Série terminée · 5/5 »…) : le kit ne compose aucune phrase
+ * et n'en déduit aucune d'un compteur.
+ */
+export type PathStep = { label: string; state: StepState; pill?: string };
+
+/**
+ * Parcours d'une tâche / d'une notion : la barre segmentée, le compteur
+ * « Étape X / Y » et les étapes. Les états sont SERVIS.
+ */
+export function PathCard({
+  currentLabel,
+  counterLabel,
+  steps,
+}: {
+  currentLabel: string;
+  counterLabel: string;
+  steps: PathStep[];
+}) {
+  return (
+    <Card>
+      <div className={styles.progressLabel}>
+        <b>{currentLabel}</b>
+        <span>{counterLabel}</span>
+      </div>
+      <div
+        className={styles.bar}
+        style={{ gridTemplateColumns: `repeat(${steps.length}, 1fr)` }}
+        aria-hidden
+      >
+        {steps.map((s, i) => (
+          <i
+            key={`${s.label}-${i}`}
+            className={cx(
+              s.state === "done" && styles.on,
+              s.state === "verify" && styles.verifySeg,
+              (s.state === "now" || s.state === "doing") && styles.nowSeg,
+            )}
+          />
+        ))}
+      </div>
+      {steps.map((s, i) => (
+        <PathRow key={`${s.label}-${i}`} label={s.label} state={s.state} pill={s.pill} />
+      ))}
+    </Card>
+  );
+}
+
+/**
+ * Une ligne de parcours. 🛑 **Le libellé de la pastille vient de l'appelant**,
+ * jamais d'ici : il porte un état **servi**, pas une phrase du kit. Sans `pill`
+ * la ligne n'en affiche aucune.
+ */
+export function PathRow({ label, state, pill }: {
+  label: string;
+  state: StepState;
+  pill?: string;
+}) {
+  const Icon = STEP_ICON[state];
+  return (
+    <div
+      className={cx(
+        styles.step,
+        state === "done" && styles.isDone,
+        state === "verify" && styles.isVerify,
+        (state === "now" || state === "doing") && styles.isNext,
+      )}
+    >
+      <span className={styles.bullet}>
+        <Icon size={16} strokeWidth={2} aria-hidden />
+      </span>
+      {state === "todo" ? <span>{label}</span> : <b>{label}</b>}
+      {pill ? <span className={styles.nowPill}>{pill}</span> : null}
+    </div>
+  );
+}
+
+/* ⚠️ **`LockRow`, `LockItem` et `LockList` sont SUPPRIMÉES** (2026-09-20), avec
+   leurs classes `.lockRow` / `.lockN` / `.lockList` / `.lockItem` et leur miroir
+   Flutter (`SfLockRow`, `SfLockItem`).
+
+   Elles ne servaient qu'à l'**anatomie gratuite** des deux Plans : les trois
+   bénéfices verrouillés du TCF (partis avec A114) puis les cinq du civique. Les
+   deux écrans gratuits portent désormais l'anatomie de l'abonné, où le verrou se
+   dit par un **cadenas servi** et un **geste** (`JourneyRow locked` +
+   `JOURNEY_STEP_UNLOCK_LINK`) — jamais par une liste de choses qu'on n'a pas.
+   Ne pas les réintroduire. */
+
+/* ---------------------------------------------- Parcours TCF (la timeline) */
+
+/**
+ * L'état d'une étape du **parcours TCF**, tel que le serveur le sert
+ * (`JourneyStepDto.status`).
+ *
+ * 🛑 **Rien n'est déduit ici** : ni d'un compteur, ni d'une position dans la
+ * liste. `skipped` — « Déjà maîtrisée » / « Déjà travaillée » — est une nuance
+ * de rendu de `completed` que le **serveur** dérive de l'ordre de clôture, et
+ * `current` dépend du verrou du candidat. Un front qui les recalculerait
+ * finirait par désigner une autre étape que le serveur.
+ *
+ * ⚠️ **Distinct de {@link StepState}**, qui décrit une étape de *tâche* (les
+ * 5 petits sujets d'une compétence). Deux objets, deux vocabulaires : les
+ * confondre ferait cocher en vert une série finie qui n'a rien prouvé.
+ *
+ * ⚠️ Miroir de `SfJourneyState` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type JourneyState = "done" | "skipped" | "current" | "upcoming";
+
+/**
+ * La nature d'une étape, pour son marqueur.
+ *
+ * 🛑 Un **examen** porte un double cercle et non un rond plein : c'est un
+ * *checkpoint*, pas une tâche de plus — le candidat doit le repérer de loin
+ * dans la file.
+ */
+export type JourneyKind = "step" | "exam";
+
+/**
+ * **La variante de rendu d'une file d'étapes.**
+ *
+ * - `"default"` : la file de l'**Accueil** et son rail continu — le rendu
+ *   historique, intouché (D-22 : « l'Accueil ne bouge pas d'un pixel »).
+ * - `"cycle"` : le **corps déplié d'un bloc d'épreuve** du Plan, à la lettre de
+ *   `docs/progression/plan_cycle.html` — retrait de 65 px, pastilles 16 px sur
+ *   un rail segmenté, pointillés entre étapes, ligne d'action séparée.
+ *
+ * 🛑 **Elle se pose sur la LISTE, pas sur chaque ligne** : le rail, les
+ * séparateurs et la position des pastilles doivent s'accorder, et deux
+ * appelants qui répondraient différemment produiraient une file bancale.
+ * `JourneyRow` la lit par contexte — une ligne rendue hors d'une `JourneyList`
+ * (c'est le cas de l'Accueil) retombe donc sur `"default"` par construction.
+ *
+ * ⚠️ Miroir de `SfJourneyVariant` (`mobile .../core/widgets/sejour/sejour_kit.dart`).
+ */
+export type JourneyVariant = "default" | "cycle";
+
+const JourneyVariantContext = createContext<JourneyVariant>("default");
+
+/**
+ * Une ligne du parcours.
+ *
+ * @param badge  **servi par l'appelant** — « MAINTENANT », « EXAMEN », « Déjà
+ *               maîtrisée ». Le kit ne compose aucune phrase.
+ * @param locked l'étape ne peut pas être menée à son terme avec l'accès du
+ *               candidat. 🛑 **Elle reste à sa place** : on ajoute un cadenas,
+ *               on ne déplace ni ne masque rien (R16).
+ * @param actionLabel le libellé du lien d'action, **servi** (« Faire cette
+ *               étape → »). Il n'existe que dans la variante `cycle`, où la
+ *               maquette met l'action sur sa propre ligne : là, c'est **le
+ *               lien** qui est le bouton, jamais la ligne entière — un
+ *               `<button>` dans un `<button>` n'est pas du HTML valide.
+ */
+export function JourneyRow({
+  title,
+  subtitle,
+  state,
+  kind = "step",
+  badge,
+  locked,
+  actionLabel,
+  onClick,
+}: {
+  title: string;
+  subtitle?: string;
+  state: JourneyState;
+  kind?: JourneyKind;
+  badge?: string;
+  locked?: boolean;
+  actionLabel?: string;
+  onClick?: () => void;
+}) {
+  const variant = useContext(JourneyVariantContext);
+  const done = state === "done" || state === "skipped";
+  const exam = kind === "exam" && !done;
+  const Icon = done ? Check : exam ? Target : state === "current" ? ArrowRight : Circle;
+  const className = cx(
+    styles.jRow,
+    done && styles.jDone,
+    state === "current" && styles.jCurrent,
+    /* 🛑 Posée dans la SEULE variante `cycle` : elle ne sert qu'au ton du tag,
+       et l'Accueil doit rester au caractère près ce qu'il était (D-22). */
+    variant === "cycle" && state === "upcoming" && styles.jUpcoming,
+    locked && styles.jLocked,
+  );
+
+  /* La maquette du cycle : pastille de rail, titre, sous-titre, puis une ligne
+     d'action à part. 🛑 La pastille n'y porte AUCUN glyphe sauf la coche — le
+     « ◎ » de l'examen et le halo de l'étape courante sont dessinés par le CSS,
+     et une icône Lucide de 15 px dans un rond de 16 px ne serait qu'une tache. */
+  if (variant === "cycle") {
+    const action = onClick && actionLabel ? (
+      <button type="button" className={styles.jLink} onClick={onClick}>
+        {actionLabel}
+      </button>
+    ) : null;
+    const gauche = locked || badge ? (
+      <span className={styles.jActionLeft}>
+        {locked ? <Lock size={13} strokeWidth={2} aria-hidden /> : null}
+        {badge ? <span className={styles.jTag}>{badge}</span> : null}
+      </span>
+    ) : null;
+    return (
+      <div className={className}>
+        <span className={cx(styles.jBullet, exam && styles.jExam)} aria-hidden>
+          {done ? <Check size={9} strokeWidth={3.5} aria-hidden /> : null}
+        </span>
+        <span className={styles.jText}>
+          {state === "upcoming" ? <span>{title}</span> : <b>{title}</b>}
+          {subtitle ? <small>{subtitle}</small> : null}
+        </span>
+        {gauche || action ? (
+          <span className={styles.jAction}>
+            {gauche ?? <span />}
+            {action}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  const body = (
+    <>
+      <span className={cx(styles.jBullet, exam && styles.jExam)}>
+        <Icon size={15} strokeWidth={2.2} aria-hidden />
+      </span>
+      <span className={styles.jText}>
+        {state === "upcoming" ? <span>{title}</span> : <b>{title}</b>}
+        {subtitle ? <small>{subtitle}</small> : null}
+      </span>
+      {locked ? <Lock size={14} strokeWidth={2} aria-hidden className={styles.jLock} /> : null}
+      {badge ? <span className={styles.jBadge}>{badge}</span> : null}
+    </>
+  );
+  return onClick ? (
+    <button type="button" className={cx(className, styles.jRowButton)} onClick={onClick}>
+      {body}
+    </button>
+  ) : (
+    <div className={className}>{body}</div>
+  );
+}
+
+/**
+ * La file d'étapes, avec son rail vertical.
+ *
+ * 🛑 **L'ordre est celui du serveur**, jamais retrié : la position d'une étape
+ * *est* la décision d'ordonnancement que le parcours a prise, et elle ne se
+ * recalcule pas.
+ *
+ * @param exam **la dernière étape de la file** — l'`ExamStepAction` du bloc. Dans
+ *   la variante `cycle`, la maquette le range SUR le rail, avec sa pastille
+ *   « ◎ » : posé à côté de la liste il perdrait son repère de checkpoint. Il
+ *   reste servi à part par le serveur (`bloc.exam`), et le kit ne décide donc
+ *   ni de sa présence ni de son contenu.
+ */
+export function JourneyList({
+  children,
+  variant = "default",
+  exam,
+}: {
+  children?: ReactNode;
+  variant?: JourneyVariant;
+  exam?: ReactNode;
+}) {
+  return (
+    <JourneyVariantContext.Provider value={variant}>
+      <div className={cx(styles.journey, variant === "cycle" && styles.journeyCycle)}>
+        {children}
+        {exam && variant === "cycle" ? (
+          <div className={cx(styles.jRow, styles.jExamStep)}>
+            <span className={cx(styles.jBullet, styles.jExam)} aria-hidden />
+            {exam}
+          </div>
+        ) : (
+          exam ?? null
+        )}
+      </div>
+    </JourneyVariantContext.Provider>
+  );
+}
+
+/* ------------------------------------------------- « À faire maintenant » */
+
+export function NowCard({
+  icon: Icon,
+  title,
+  subtitle,
+  badge,
+  objectiveLabel,
+  objective,
+  meta,
+  children,
+  caption,
+  variant = "default",
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  objectiveLabel?: string;
+  objective?: string;
+  meta?: Array<{ icon: LucideIcon; label: string }>;
+  children?: ReactNode;
+  caption?: string;
+  /**
+   * 🛑 `"verify"` change **la carte**, pas seulement son bouton. Quand la série
+   * de petits sujets se termine, le nom de la compétence reste le même : sans
+   * accent propre, le candidat lit « rien n'a bougé » alors que l'action a
+   * changé de nature. Miroir de `SfNowCardVariant` côté mobile.
+   */
+  variant?: "default" | "verify";
+}) {
+  return (
+    <article className={cx(styles.now, variant === "verify" && styles.isVerify)}>
+      <div className={styles.nowHead}>
+        <div className={styles.nowIco}>
+          <Icon size={24} strokeWidth={2} aria-hidden />
+        </div>
+        <div>
+          <b>{title}</b>
+          {subtitle ? <span className={styles.nowSub}>{subtitle}</span> : null}
+          {badge ? <span className={styles.nowBadge}>{badge}</span> : null}
+        </div>
+      </div>
+      {objective ? (
+        <div className={styles.nowObj}>
+          {objectiveLabel ? <small>{objectiveLabel}</small> : null}
+          <p>{objective}</p>
+        </div>
+      ) : null}
+      {meta && meta.length > 0 ? (
+        <div className={styles.meta}>
+          {meta.map(({ icon: MetaIcon, label }) => (
+            <span key={label}>
+              <MetaIcon size={16} strokeWidth={2} aria-hidden />
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {children}
+      {caption ? <p className={styles.reco}>{caption}</p> : null}
+    </article>
+  );
+}
+
+/* ------------------------------------------------------------ Petites vues */
+
+export function MiniPlan({
+  rows,
+}: {
+  rows: Array<{ label: string; pill?: string; tone?: Tone }>;
+}) {
+  return (
+    <div className={styles.mini}>
+      {rows.map((row, i) => (
+        <div key={`${row.label}-${i}`} className={styles.miniRow}>
+          <span className={styles.miniN}>{i + 1}</span>
+          <span>{row.label}</span>
+          {row.pill ? (
+            <span className={cx(styles.pill, row.tone && toneClass[row.tone])}>{row.pill}</span>
+          ) : (
+            <span />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function CheckList({ items }: { items: string[] }) {
+  return (
+    <div className={styles.checks}>
+      {items.map((item) => (
+        <div key={item} className={styles.check}>
+          <span className={styles.tick}>
+            <Check size={16} strokeWidth={2} aria-hidden />
+          </span>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DoneRow({ label }: { label: string }) {
+  return (
+    <div className={styles.doneRow}>
+      <span className={cx(styles.tick, styles.tickLg)}>
+        <Check size={16} strokeWidth={2} aria-hidden />
+      </span>
+      {label}
+    </div>
+  );
+}
+
+export function PillMeta({ children }: { children: ReactNode }) {
+  return <span className={styles.pillMeta}>{children}</span>;
+}
+
+export function Pills({ children }: { children: ReactNode }) {
+  return <div className={styles.pills}>{children}</div>;
+}
+
+/** Carte de choix à cocher (démarche visée, durée de pass…). */
+export function ChoiceCard({
+  label,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cx(styles.choice, selected && styles.isOn)}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      <span className={styles.choiceRow}>
+        {label}
+        <span className={styles.choiceMark} />
+      </span>
+    </button>
+  );
+}
+
+/* 🛑 **`PassCard` est SUPPRIMÉE** (2026-09-20) avec son dernier lecteur : le
+   sélecteur de durée de pass du Plan. Le choix de la durée vit sur la page de
+   choix du pass, déjà l'autorité du catalogue — une seconde grille de durées
+   deux écrans plus tôt était le défaut constaté. Miroir Flutter : le `subtitle`
+   de `SfChoiceCard`, retiré dans la même passe. */
+
+/* ========================================================================== */
+/* Maquette « Où vous en êtes » (propriétaire, 2026-09-16) */
+/*                                                                            */
+/* ⚠️ « Où vous en êtes » a été refait deux fois : liste verticale dans une    */
+/* seule carte (v2, 2026-09-16), puis GRILLE de cartes séparées, une par       */
+/* épreuve (v3, 2026-09-24). `LevelRow`, `LevelList` et `LadderLegend` sont    */
+/* **supprimées** avec leurs classes — refonte = suppression de l'ancien.     */
+/* ========================================================================== */
+
+/**
+ * Le ton d'une **pastille de statut** — le même contrat de tons que le reste du
+ * kit, mais posé sur du texte : le rouge plein y est trop clair et `muted-2`
+ * trop pâle, d'où une table à part. Miroir Flutter : `_sfStatusColor`.
+ */
+const statusToneClass: Record<BarTone, string> = {
+  ok: styles.toneOk,
+  now: styles.toneNow,
+  warn: styles.toneWarn,
+  hot: styles.toneHot,
+  muted: styles.toneMuted,
+};
+
+/**
+ * Un cran de l'échelle CECRL, **composé par l'appelant**
+ * (`accueilEchelons`, `lib/progres.ts` ⇄ `progres_labels.dart`).
+ *
+ * 🛑 Le kit ne sait ni ce qu'est un palier, ni lequel est atteint : il reçoit
+ * des crans déjà situés, et il en rend autant qu'on lui en donne — c'est
+ * l'appelant qui décide que l'échelle s'arrête à B2. Miroir Flutter :
+ * `SfLadderStep`.
+ */
+export type LadderStep = {
+  /** Ce qui s'écrit sous le cran (« A1 »…). Décoratif : l'échelle est un `img`. */
+  label: string;
+  /** `done` = palier acquis · `target` = le cran visé · `empty` = le reste. */
+  state: "done" | "target" | "empty";
+  /** Le palier ACTUEL du candidat — au plus un cran, aucun quand rien n'est mesuré. */
+  current: boolean;
+  /** Le palier VISÉ — au plus un cran, aucun sans démarche déclarée. */
+  goal: boolean;
+};
+
+/**
+ * **L'échelle CECRL** — l'élément signature de la maquette v2 : les crans du
+ * parcours et leurs libellés, sous la ligne d'une épreuve.
+ *
+ * 🛑 **Ce n'est pas une jauge et elle n'affiche aucun chiffre** : elle situe un
+ * **palier servi** face à un **objectif servi**. Aucun pourcentage de
+ * progression vers un palier n'est calculé ni montré — la règle qui l'interdit
+ * tient toujours.
+ *
+ * 🛑 **Rendue en `role="img"`** avec un `aria-label` composé par l'appelant :
+ * les libellés sont `aria-hidden`, un lecteur d'écran n'a pas à épeler quatre
+ * crans pour comprendre « Niveau B1, objectif B2 ».
+ *
+ * ⚠️ **Elle sert aussi la ligne CIVIQUE** depuis le 2026-09-19 (« afficher le
+ * cran de la même manière que le TCF ») : trois crans au lieu de quatre, les
+ * états **mesurés** de `CivicThemeState` (`accueilEchelonsCivique`), et **aucun
+ * cran d'objectif** — le civique n'en sert pas. La piste compte ses colonnes sur
+ * les crans reçus, elle n'en présume aucun nombre.
+ *
+ * Miroir Flutter : `SfLevelLadder`.
+ */
+export function LevelLadder({
+  steps,
+  label,
+  dim,
+  labels = true,
+}: {
+  steps: LadderStep[];
+  /** Ce que l'échelle DIT. Jamais dérivé ici. */
+  label: string;
+  /**
+   * Épreuve jamais mesurée : les crans passent en contour, sans remplissage.
+   * 🛑 **Passé, jamais deviné** d'un cran vide — une épreuve `<A1` n'a elle non
+   * plus aucun cran rempli, et ce n'est pas la même chose.
+   */
+  dim?: boolean;
+  /**
+   * Les libellés sous les crans. `false` quand ils ne tiennent pas : les trois
+   * états civiques (« À renforcer ») débordent d'une demi-carte de téléphone,
+   * et la pastille de statut de la carte dit déjà l'état servi.
+   */
+  labels?: boolean;
+}) {
+  return (
+    <span className={cx(styles.ladder, dim && styles.isDim)} role="img" aria-label={label}>
+      <span className={styles.ladderTrack}>
+        {steps.map((step) => (
+          <i
+            key={step.label}
+            className={cx(
+              styles.ladderStep,
+              step.state === "done" && styles.isDone,
+              step.state === "target" && styles.isTarget,
+            )}
+          />
+        ))}
+      </span>
+      {labels ? (
+      <span className={styles.ladderLabels} aria-hidden>
+        {steps.map((step) => (
+          <span
+            key={step.label}
+            className={cx(
+              step.current && styles.isCur,
+              !step.current && step.goal && styles.isTgt,
+            )}
+          >
+            {step.label}
+          </span>
+        ))}
+      </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * **La carte d'une épreuve** — maquette « niveau par épreuve » v3 du
+ * propriétaire (2026-09-24) : repère court en pastille mono et pictogramme en
+ * tête, intitulé discret, palier en très gros, statut à pastille colorée,
+ * l'échelle et ses libellés, puis un filet et l'action, **épinglée en bas**.
+ *
+ * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
+ * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`) — palier,
+ * statut, ton, crans, CTA.
+ *
+ * ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, `level` porte
+ * le palier CECRL servi ; en civique, aucun palier n'est servi, `level` est
+ * `null` et la carte n'en montre pas — on n'en fabrique aucun.
+ *
+ * ⚠️ **Remplace `LevelRow`, `LevelList` et `LadderLegend`** (liste verticale
+ * dans une seule carte, maquette v2) — refonte = suppression de l'ancien.
+ *
+ * ⚠️ **Deux actions** (2026-09-27) : quand `evaluate` est passé — un palier
+ * existe, mais il ne vient pas d'un examen blanc —, la carte cesse d'être un
+ * seul lien. Elle porte au pied le lien de `cta` **et** le bouton plein de la
+ * mesure, empilés : deux boutons côte à côte ne tiennent pas dans une
+ * demi-carte de 360 px.
+ *
+ * Miroir Flutter : `SfLevelCard`.
+ */
+export function LevelCard({
+  mark,
+  icon: Icon,
+  title,
+  status,
+  tone,
+  level,
+  measured,
+  scale,
+  cta,
+  ctaPrimary,
+  href,
+  onClick,
+  busy,
+  evaluate,
+}: {
+  /** Repère court (« CO », ou le rang servi d'un thème). */
+  mark: string;
+  /** Le pictogramme de l'épreuve ou du thème, choisi par l'appelant. */
+  icon: LucideIcon;
+  title: string;
+  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
+  status: string | null;
+  /** Le ton de la pastille de statut. */
+  tone: BarTone;
+  /**
+   * Le palier servi, ou le mot d'une absence de mesure. `null` retire la
+   * ligne : le civique n'a aucun palier CECRL servi.
+   */
+  level: string | null;
+  /**
+   * Y a-t-il une mesure derrière `level` ?
+   *
+   * 🛑 **Passé, jamais deviné du texte** : comparer un libellé pour décider
+   * d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
+   */
+  measured: boolean;
+  /** L'échelle (`LevelLadder`). `null` quand rien ne la sert. */
+  scale?: ReactNode;
+  cta: string;
+  /** Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit. */
+  ctaPrimary?: boolean;
+  /** Où mène la carte. `null` quand elle **lance** au lieu de naviguer. */
+  href: string | null;
+  onClick?: () => void;
+  busy?: boolean;
+  /**
+   * **La mesure qui manque encore**, à côté de `cta` : le palier affiché ne
+   * vient pas d'un examen blanc (fait servi, jamais deviné). Absent, la carte
+   * reste un seul lien.
+   */
+  evaluate?: { label: string; onClick: () => void; busy?: boolean };
+}) {
+  const head = (
+    <>
+      <span className={styles.levelCardTop}>
+        <span className={styles.levelCardMark}>{mark}</span>
+        <Icon className={styles.levelCardIcon} size={24} strokeWidth={1.8} aria-hidden />
+      </span>
+      <span className={styles.levelCardName}>{title}</span>
+      {level ? (
+        <span className={cx(styles.levelCardLevel, !measured && styles.isNa)}>{level}</span>
+      ) : null}
+      {status ? (
+        <span className={cx(styles.levelCardStatus, statusToneClass[tone])}>{status}</span>
+      ) : null}
+      {scale ? <span className={styles.levelCardScale}>{scale}</span> : null}
+    </>
+  );
+  const cls = cx(styles.levelCard, !measured && styles.isTodo);
+  if (evaluate) {
+    const lien = (
+      <>
+        <span>{cta}</span>
+        <ArrowRight size={18} strokeWidth={2.2} aria-hidden />
+      </>
+    );
+    return (
+      <li className={styles.levelCardItem}>
+        <div className={cx(cls, styles.isStatic)}>
+          {head}
+          <span className={cx(styles.levelCardFoot, styles.isDouble)}>
+            {href ? (
+              <Link href={href} className={styles.levelCardCta}>
+                {lien}
+              </Link>
+            ) : (
+              <button type="button" className={styles.levelCardCta} onClick={onClick} disabled={busy}>
+                {lien}
+              </button>
+            )}
+            <button
+              type="button"
+              className={cx(styles.levelCardCta, styles.isPrimary)}
+              onClick={evaluate.onClick}
+              disabled={evaluate.busy}
+            >
+              {evaluate.label}
+            </button>
+          </span>
+        </div>
+      </li>
+    );
+  }
+  const body = (
+    <>
+      {head}
+      <span className={styles.levelCardFoot}>
+        <span className={cx(styles.levelCardCta, ctaPrimary && styles.isPrimary)}>
+          <span>{cta}</span>
+          {ctaPrimary ? null : <ArrowRight size={18} strokeWidth={2.2} aria-hidden />}
+        </span>
+      </span>
+    </>
+  );
+  return (
+    <li className={styles.levelCardItem}>
+      {href ? (
+        <Link href={href} className={cls}>
+          {body}
+        </Link>
+      ) : (
+        <button type="button" className={cls} onClick={onClick} disabled={busy}>
+          {body}
+        </button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * La grille des cartes d'épreuve — **deux colonnes** sur téléphone, une
+ * dernière carte impaire (les 5 thèmes civiques) prenant toute la rangée.
+ *
+ * ⚠️ **Plus large, elle se règle sur SA largeur, pas sur la fenêtre**
+ * (requête de conteneur) : la barre latérale du desktop mange une part
+ * variable de l'écran. Dès que la grille dispose d'environ 820 px, quatre
+ * cartes tiennent sur UNE rangée, et cinq se rangent en 3 + 2. Ce sont des
+ * règles de mise en page sur une primitive existante, **sans miroir Flutter**
+ * — l'app est en portrait téléphone et garde ses deux colonnes.
+ *
+ * Miroir Flutter : `SfLevelCardGrid`.
+ */
+export function LevelCardGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className={styles.levelCardGridWrap}>
+      <ul className={styles.levelCardGrid}>{children}</ul>
+    </div>
+  );
+}
+
+/**
+ * **Le bandeau d'objectif** — la bande bleue pleine de la maquette : cocarde,
+ * intitulé + valeur, puis le compteur « 3 / 4 » en gros et le mot qu'il
+ * compte.
+ *
+ * 🛑 `count` et `total` sont **passés**, jamais comptés ici.
+ *
+ * ⚠️ **Plus de pastilles sous le compteur** (maquette v3, 2026-09-24) : les
+ * cartes juste en dessous montrent déjà, une par une, ce qui est évalué.
+ * Miroir Flutter : `SfGoalBanner`.
+ */
+export function GoalBanner({
+  label,
+  value,
+  count,
+  total,
+  caption,
+}: {
+  label: string;
+  value: string;
+  /** Le nombre de mesures faites. `null` retire le compteur entier. */
+  count?: number | null;
+  total?: number | null;
+  caption?: string;
+}) {
+  const counted = count != null && total != null && total > 0;
+  return (
+    <div className={styles.goalBanner}>
+      <span className={styles.goalCocarde} aria-hidden />
+      <span className={styles.goalBannerBody}>
+        <small>{label}</small>
+        <b>{value}</b>
+      </span>
+      {counted ? (
+        <span className={styles.goalCount}>
+          <b>{`${count} / ${total}`}</b>
+          {caption ? <small>{caption}</small> : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * La note discrète de bas de carte (`.micro-note`) : une pastille « i » et une
+ * phrase fine. Miroir Flutter : `SfMicroNote`.
+ */
+export function MicroNote({ children }: { children: ReactNode }) {
+  return (
+    <p className={styles.microNote}>
+      <span className={styles.microNoteIco} aria-hidden>
+        <Info size={11} strokeWidth={2.6} />
+      </span>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/**
+ * L'en-tête d'un panneau : son titre, et ce qu'il contient en sous-titre.
+ *
+ * `lead` est la variante **de tête de carte** (maquette « Où vous en êtes »
+ * v2) : titre éditorial plus grand et sous-titre en phrase de cadrage, là où la
+ * variante par défaut coiffe un bloc à l'intérieur d'une page de résultats.
+ * 🛑 Une **variante**, pas une seconde primitive.
+ */
+export function PanelHead({
+  title,
+  sub,
+  lead,
+}: {
+  title: string;
+  sub?: string | null;
+  lead?: boolean;
+}) {
+  return (
+    <div className={cx(styles.panelHead, lead && styles.isLead)}>
+      <h3 className={styles.panelTitle}>{title}</h3>
+      {sub ? <p className={styles.panelSub}>{sub}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * L'encart ambre de pied de page (`.footer-info`) : ce que la liste au-dessus
+ * compte, et ce qu'elle ne compte pas.
+ *
+ * Miroir Flutter : `SfInfoNote`.
+ */
+export function InfoNote({
+  children,
+  variant,
+}: {
+  children: ReactNode;
+  /**
+   * **`check`** : l'encart de **validation** — fond bleu clair, coche à la
+   * place du « i ». Il ne signale rien à surveiller, il énonce la condition à
+   * remplir ; l'ambre du défaut se lirait comme une réserve.
+   *
+   * 🛑 **Une variante, pas une primitive de plus.** Miroir Flutter :
+   * `SfInfoNote(variant: SfInfoNoteVariant.check)`.
+   */
+  variant?: "check";
+}) {
+  const check = variant === "check";
+  return (
+    <div className={cx(styles.infoNote, check && styles.isCheck)}>
+      <span className={styles.infoNoteIco} aria-hidden>
+        {check ? (
+          <Check size={14} strokeWidth={2.8} />
+        ) : (
+          <Info size={14} strokeWidth={2.4} />
+        )}
+      </span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   Maquettes « Plan — cycle » et « Plan — fin de cycle » (propriétaire,
+   2026-09-18 ; `docs/progression/plan_cycle.html` ⇄ `cycle_termine.html`)
+
+   🛑 Miroirs de `SfCycleProgress`, `SfBlocAccordion`, `SfExamStepAction` et
+   `SfNextStepCard` côté Flutter, plus `Pill` (rattrapage web de `SfPill`). Un
+   motif qui bouge d'un côté bouge de l'autre dans la même passe.
+
+   Périmètre : la zone du Plan qui commence à « Votre parcours vers le B2 »
+   (D-22). Tout ce qui est au-dessus — en-tête, bascule de module, bloc
+   objectif, « À faire maintenant » — reste l'existant.
+   ========================================================================== */
+
+/**
+ * **Pastille d'état autonome** — fond clair, texte du même ton.
+ *
+ * 🛑 Rattrapage de parité (2026-09-18) : le mobile avait `SfPill` depuis le
+ * début, le web n'avait que des pastilles **internes** à des lignes
+ * (`MiniPlan`, `ThemeLine`). Un écran qui voulait la même pastille devait donc
+ * passer par `sejourStyles.pill` — c'est-à-dire écrire du CSS d'écran, ce que
+ * la règle du dépôt interdit sur ce périmètre.
+ *
+ * Le `label` est **servi** : cette brique ne compose et ne classe rien.
+ *
+ * ⚠️ **Brique partagée** : sa taille par défaut est celle de la maquette et
+ * plusieurs écrans l'appellent. `dense` est la seule variante — la pastille
+ * plus petite d'une ligne d'en-tête serrée, où la largeur doit aller au **nom
+ * de l'épreuve** (`BlocAccordion`, D-21). Aucun autre appelant n'est touché.
+ *
+ * Miroir Flutter : `SfPill` / `SfPill(dense: true)`.
+ */
+export function Pill({
+  label,
+  tone,
+  dense,
+}: {
+  label: string;
+  /**
+   * ⚠️ **`BarTone`, pas `Tone`** (2026-09-20) : la pastille a besoin du bleu
+   * (`now`) pour le repère de domaine d'une étape (« CO · B2 »), et la feuille
+   * de style portait déjà `.pill.now` sans qu'aucun chemin ne l'atteigne. Les
+   * appelants existants passent un `Tone`, qui est un sous-ensemble.
+   */
+  tone: BarTone;
+  /** Variante resserrée (`.status` de la maquette : 9,5 px, poids 900). */
+  dense?: boolean;
+}) {
+  return (
+    <span className={cx(styles.pill, pillToneClass[tone], dense && styles.dense)}>
+      {label}
+    </span>
+  );
+}
+
+/** Les fonds clairs de la pastille. ⚠️ Distinct de `statusToneClass`, qui ne
+ *  teinte qu'un **texte** : ici le ton porte aussi l'aplat. */
+const pillToneClass: Record<BarTone, string> = {
+  ok: styles.ok,
+  now: styles.pillNow,
+  warn: styles.warn,
+  hot: styles.hot,
+  muted: styles.muted,
+};
+
+/**
+ * **L'avancement du cycle** — le `.cycleIntro` de `plan_cycle.html`, et le
+ * `.progressBox` de `cycle_termine.html` quand il est terminé.
+ *
+ * 🛑 **Barre CONTINUE, et elle porte un chiffre.** C'est ce qui la distingue
+ * des deux briques voisines, qu'il ne faut surtout pas remplacer par elle :
+ * - `LevelLadder` a des **crans**, et aucun chiffre : elle situe un état servi ;
+ * - `PathCard` a une barre **segmentée**, un segment par étape — elle décrit un
+ *   parcours de tâche, pas l'avancement d'un cycle entier.
+ *
+ * Le pourcentage est **dérivé de `done` / `total`**, deux faits servis : ce
+ * n'est pas un état pédagogique, seulement la lecture arithmétique du compteur
+ * que `label` écrit déjà en mots.
+ *
+ * Miroir Flutter : `SfCycleProgress`.
+ */
+export function CycleProgress({
+  label,
+  done,
+  total,
+  badge,
+  hint,
+  complete,
+}: {
+  /** Le compteur en mots (« 3 étapes sur 8 terminées »), **servi**. */
+  label: string;
+  done: number;
+  total: number;
+  /** Le repère de cycle (« Cycle 2 »), **servi**. Absent ⇒ rien à droite. */
+  badge?: string;
+  /** La phrase sous la barre, **servie**. */
+  hint?: string;
+  /**
+   * L'état 100 % : la barre se termine en vert et le pourcentage prend la place
+   * du badge, comme dans `cycle_termine.html`.
+   *
+   * 🛑 **Passé, jamais déduit de `done === total`** : un cycle peut afficher
+   * « 8 sur 8 » sans être clos côté serveur (un examen reste à passer), et le
+   * kit n'a pas à en décider.
+   */
+  complete?: boolean;
+}) {
+  const ratio = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  const pct = complete && total <= 0 ? 100 : Math.round(ratio * 100);
+  return (
+    <Card>
+      <div className={styles.cycleTop}>
+        <b>{label}</b>
+        {complete ? (
+          <span className={styles.cyclePct}>{`${pct} %`}</span>
+        ) : badge ? (
+          <span className={styles.cycleBadge}>{badge}</span>
+        ) : null}
+      </div>
+      <div className={cx(styles.cycleBar, complete && styles.isDone)} aria-hidden>
+        <i style={{ width: `${complete ? 100 : pct}%` }} />
+      </div>
+      {hint ? <p className={styles.cycleHint}>{hint}</p> : null}
+    </Card>
+  );
+}
+
+/**
+ * **L'en-tête d'un bloc d'épreuve, dépliable** — le `.examGroup` de
+ * `plan_cycle.html` : repère d'épreuve, nom en clair, méta, pastille d'état, et
+ * un corps qui s'ouvre.
+ *
+ * 🛑 **L'état d'ouverture est EXTERNE** (`open` + `onToggle`), jamais interne :
+ * l'écran doit pouvoir n'en déplier **qu'un** — le bloc courant. C'est
+ * exactement ce que `Prio` ne sait pas faire (son `useState` est privé), et
+ * c'est pourquoi cette brique existe au lieu d'une variante de `Prio`.
+ *
+ * 🛑 **Le nom de l'épreuve est EN CLAIR** (D-21) : « Compréhension orale », pas
+ * « CO » seul, pas « lot », pas « step ». Le vocabulaire interne reste interne.
+ * Corollaire : il **ne se tronque jamais** et doit tenir sur une ligne. C'est
+ * la maquette qui le garantit — sous 360 px elle **masque l'état** et l'en-tête
+ * passe à deux colonnes (`.blocStatus`, `@media (max-width: 360px)`), plutôt
+ * que de rétrécir le titre. Miroir Flutter présent : 360 px est un téléphone.
+ *
+ * ⚠️ Le corps est rendu **replié, pas démonté** (`hidden`) : il sort de l'arbre
+ * d'accessibilité et du parcours clavier, comme chez `Prio`.
+ *
+ * Composition attendue : une `JourneyList` de `JourneyRow` (les étapes, avec
+ * leur rail), puis un `ExamStepAction`. Le corps ne porte donc aucun retrait de
+ * rail — c'est la liste qui a le sien.
+ *
+ * **Variante LIEN** (`href`, « Mes cycles », 2026-09-27) : le même en-tête,
+ * sans corps, qui **ouvre une page** au lieu de se déplier — le chevron pointe
+ * alors à droite. C'est ainsi que la liste des cycles terminés mène à la
+ * consultation d'un cycle : un seul motif d'en-tête, pas une carte de plus.
+ *
+ * Miroir Flutter : `SfBlocAccordion` (`onOpen`).
+ */
+export function BlocAccordion(props: BlocAccordionProps) {
+  const { mark, title, meta, status, current } = props;
+  const panelId = useId();
+  const tete = (
+    <>
+      {mark && <span className={styles.blocMark}>{mark}</span>}
+      <span className={styles.blocId}>
+        <span className={styles.blocTitle}>{title}</span>
+        <span className={styles.blocMeta}>{meta}</span>
+      </span>
+      {/* 🛑 Sous 360 px, la maquette MASQUE l'état et l'en-tête passe à deux
+          colonnes : c'est comme ça que le nom de l'épreuve tient sur une
+          ligne sur les téléphones les plus étroits. Le masquage est dans
+          `.blocStatus`, pas ici — un rendu conditionnel en JS n'a pas de
+          miroir dans une media query. */}
+      <span className={styles.blocStatus}>
+        <Pill label={status.label} tone={status.tone} dense />
+      </span>
+    </>
+  );
+  if (props.href !== undefined) {
+    return (
+      <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
+        <Link
+          href={props.href}
+          className={cx(styles.blocHead, styles.blocLink, !mark && styles.blocHeadSansMarque)}
+        >
+          {tete}
+          <ChevronRight size={18} strokeWidth={2.5} className={styles.blocChevron} aria-hidden />
+        </Link>
+      </article>
+    );
+  }
+  const { open, onToggle, children } = props;
+  return (
+    <article className={cx(styles.blocGroup, current && styles.isCurrent)}>
+      <button
+        type="button"
+        className={cx(styles.blocHead, !mark && styles.blocHeadSansMarque)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        {tete}
+        {/* La seule affordance visible qu'un bloc se déplie : la maquette compte
+            sur le curseur, qui n'existe pas au doigt. Le chevron PIVOTE, il ne
+            se remplace pas — aucun saut de largeur à l'ouverture. */}
+        <ChevronDown
+          size={18}
+          strokeWidth={2.5}
+          className={cx(styles.blocChevron, open && styles.chevronUp)}
+          aria-hidden
+        />
+      </button>
+      <div id={panelId} className={styles.blocBody} hidden={!open}>
+        {children}
+      </div>
+    </article>
+  );
+}
+
+type BlocAccordionProps = {
+  /** Le repère court de l'épreuve (« CO »), en mono : étiquette technique.
+   *
+   *  🛑 **Vide pour une THÉMATIQUE civique** : l'initiale à deux lettres
+   *  n'existe que pour une épreuve. La colonne disparaît alors, et **rien ne la
+   *  remplace** — un carré vide, un numéro de rang ou une icône choisie ici
+   *  seraient tous des inventions du front (A49). */
+  mark: string;
+  /** Le nom de l'épreuve **en clair**, servi. */
+  title: string;
+  /** « 1 compétence restante · puis examen », **servi**. */
+  meta: string;
+  /** Le libellé d'état et son ton, tous deux **servis**. */
+  status: { label: string; tone: Tone };
+  /** Le bloc courant : liseré et repère accentués. **Servi**, jamais déduit. */
+  current?: boolean;
+} & (
+  | { open: boolean; onToggle: () => void; children: ReactNode; href?: undefined }
+  /** La variante lien : l'en-tête ouvre une page, il n'a pas de corps. */
+  | { href: string; open?: undefined; onToggle?: undefined; children?: undefined }
+);
+
+/**
+ * Ce que l'étape d'examen porte **à droite** : un bouton de lancement, ou le
+ * constat qu'elle est passée.
+ *
+ * - `start` — le bouton. **Inactif sans `onClick`** ; `locked` ajoute le
+ *   cadenas. Le kit ne décide ni de l'un ni de l'autre.
+ * - `done` — une pastille cochée, sans geste.
+ */
+export type ExamStepTrailing =
+  | { kind: "start"; label: string; locked: boolean; onClick?: () => void }
+  | { kind: "done"; label: string };
+
+/**
+ * **L'étape d'examen d'un bloc de cycle** : titre et sous-titre à gauche, le
+ * bouton à droite (demande du propriétaire, 2026-09-26).
+ *
+ * 🛑 **Aucune phrase n'est écrite ici**, et aucun état n'est classé : le titre,
+ * le sous-titre, le libellé du bouton, la phrase de pied et son lien arrivent
+ * tous en props. Un bouton inactif se lit avec son cadenas **et** sa phrase de
+ * pied — jamais un bouton muet sans raison.
+ *
+ * ⚠️ Le bouton passe **sous** le texte quand la ligne ne tient plus (360 px) :
+ * `flex-wrap`, jamais une troncature.
+ *
+ * Miroir Flutter : `SfExamStepAction`. Elle sert aussi la consultation d'un
+ * cycle clos (« Mes cycles ») : sans `trailing` de lancement, elle y est
+ * inerte.
+ */
+export function ExamStepAction({
+  title,
+  subtitle,
+  trailing,
+  note,
+  noteAction,
+}: {
+  title: string;
+  subtitle: string;
+  trailing?: ExamStepTrailing;
+  /** Pourquoi le bouton est inactif, en une phrase courte. */
+  note?: string;
+  /** Le geste qui lève le verrou, sous la phrase de pied. */
+  noteAction?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className={cx(styles.examBox, styles.examAction)}>
+      <span className={styles.examActionRow}>
+        <span className={styles.examActionText}>
+          <b>{title}</b>
+          <span className={styles.examActionSub}>{subtitle}</span>
+        </span>
+        {trailing?.kind === "done" ? (
+          <span className={cx(styles.examActionDone, statusToneClass.ok)}>
+            <Check size={13} strokeWidth={2.6} aria-hidden />
+            {trailing.label}
+          </span>
+        ) : trailing ? (
+          <button
+            type="button"
+            className={styles.examActionBtn}
+            onClick={trailing.onClick}
+            disabled={!trailing.onClick}
+          >
+            {trailing.locked ? <Lock size={12} strokeWidth={2.4} aria-hidden /> : null}
+            {trailing.label}
+          </button>
+        ) : null}
+      </span>
+      {note || noteAction ? (
+        <span className={styles.examActionFoot}>
+          {note ? <span>{note}</span> : null}
+          {noteAction ? (
+            <button type="button" className={styles.jLink} onClick={noteAction.onClick}>
+              {noteAction.label}
+            </button>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Un fait de la carte de fin de cycle : une valeur et ce qu'elle nomme. */
+export type NextStepFact = { value: string; label: string };
+
+/**
+ * **La carte de fin de cycle** — le `.finalCard` de `cycle_termine.html`.
+ *
+ * ⚠️ **Une seule action depuis le 2026-09-27** (D-66) : « Actualiser mon plan ».
+ * Le second terme « Passer l'examen blanc complet » a quitté la fin de cycle —
+ * il est devenu un jalon au-dessus du Plan — et l'emplacement secondaire est
+ * supprimé avec lui (plus aucun appelant).
+ *
+ * 🛑 **Aucune phrase n'est écrite ici** : `eyebrow`, `title`, `text`, les
+ * `facts` et le libellé d'action arrivent tous en props.
+ *
+ * Miroir Flutter : `SfNextStepCard`.
+ */
+export function NextStepCard({
+  eyebrow,
+  title,
+  text,
+  facts,
+  primary,
+}: {
+  eyebrow: string;
+  title: string;
+  text: string;
+  /** Les repères de la carte. Vide ⇒ aucune grille. */
+  facts: NextStepFact[];
+  primary: { label: string; onClick: () => void };
+}) {
+  return (
+    <section className={styles.nextStep}>
+      <p className={styles.nextEyebrow}>{eyebrow}</p>
+      <h3 className={styles.nextTitle}>{title}</h3>
+      <p className={styles.nextText}>{text}</p>
+      {facts.length > 0 ? (
+        <div className={styles.nextFacts}>
+          {facts.map((fact) => (
+            <div key={fact.label} className={styles.nextFact}>
+              <b>{fact.value}</b>
+              <span>{fact.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className={styles.nextActions}>
+        {/* Le CTA rouge est celui du kit : une seule définition de bouton
+            principal, ici comme partout. */}
+        <Cta onClick={primary.onClick}>{primary.label}</Cta>
+      </div>
+    </section>
+  );
+}
+
+/* ==========================================================================
+   La timeline du cycle (demande du propriétaire, 2026-09-27)
+
+   Un rail vertical ÉTROIT à gauche des blocs : un rond par bloc, relié par un
+   trait, et une dernière étape « Fin du cycle » en bas. 🛑 Miroirs de
+   `SfCycleRail`, `SfCycleRailStep` et `SfCycleRailEnd` côté Flutter, brique
+   pour brique et au pixel près : rond 14 px, trait 2 px, gouttière 8 px — soit
+   22 px pris aux cartes, pas un de plus.
+   ========================================================================== */
+
+/**
+ * L'état d'un rond de la timeline. **Passé**, jamais déduit ici : l'écran le
+ * traduit du statut servi du bloc.
+ */
+export type RailState = "done" | "current" | "upcoming";
+
+/**
+ * **La timeline du cycle** — le conteneur du rail.
+ *
+ * Le trait est dessiné **par étape** (du haut de l'étape jusqu'à la suivante),
+ * et coupé au rond de la première et de la dernière : aucune hauteur n'est
+ * mesurée, la timeline suit ce que les cartes deviennent en se dépliant.
+ *
+ * ⚠️ **22 px de moins pour les cartes** : sous 388 px (366 + 22), l'accordéon
+ * placé dans le rail masque sa pastille d'état comme il le fait seul sous
+ * 366 px — le rond porte alors l'état, et le nom d'épreuve tient sur une ligne
+ * (D-21). Miroir Flutter : `SfCycleRail.retraitDe`.
+ *
+ * Miroir Flutter : `SfCycleRail`.
+ */
+export function CycleRail({ children }: { children: ReactNode }) {
+  return <ol className={styles.rail}>{children}</ol>;
+}
+
+/**
+ * **Une étape de la timeline** : un rond à gauche, la carte à droite, reçue
+ * **telle quelle** (`BlocAccordion` sur le Plan).
+ *
+ * - `done` — rond plein bleu, coché ;
+ * - `current` — rond épais bleu, le bloc en cours ;
+ * - `upcoming` — rond gris au trait fin.
+ *
+ * Miroir Flutter : `SfCycleRailStep`.
+ */
+export function CycleRailStep({ state, children }: { state: RailState; children: ReactNode }) {
+  return (
+    <li className={styles.railStep}>
+      <span
+        className={cx(
+          styles.railDot,
+          state === "done" && styles.railDotDone,
+          state === "current" && styles.railDotCurrent,
+        )}
+        aria-hidden
+      >
+        {state === "done" ? <Check size={9} strokeWidth={3.5} /> : null}
+      </span>
+      <div className={styles.railBody}>{children}</div>
+    </li>
+  );
+}
+
+/**
+ * **La dernière étape de la timeline** — « Fin du cycle », rond étoilé.
+ *
+ * - **Non atteinte** : un encart en pointillés, atténué — `eyebrow`, `title`
+ *   et, s'il reste des étapes, la pastille `remaining` (« Encore 4 étapes »).
+ * - **Atteinte** (`reached` + `children`) : l'encart disparaît et **l'action
+ *   prend sa place** — la carte de fin de cycle existante, jamais un second
+ *   bouton qui la dupliquerait.
+ *
+ * - **Franchie** (`done`, consultation d'un cycle clos, 2026-09-27) : l'encart
+ *   devient **plein** — ni pointillés, ni atténuation — et porte `note`
+ *   (« Le 27 sept. 2026 »). Aucun geste : un cycle clos ne se rejoue pas.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici**, et rien n'est compté : les libellés
+ * arrivent en props.
+ *
+ * Miroir Flutter : `SfCycleRailEnd`.
+ */
+export function CycleRailEnd({
+  eyebrow,
+  title,
+  remaining,
+  reached,
+  done,
+  note,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  /** « Encore N étapes ». Absent ⇒ aucune pastille. */
+  remaining?: string;
+  reached: boolean;
+  /** La fin a été franchie : l'encart est plein, et lu tel quel. */
+  done?: boolean;
+  /** La ligne sous le titre, **servie** : la date d'une fin franchie, ou
+   *  « 3 priorités identifiées » sur une fin à venir (D-67, 2026-09-27). */
+  note?: string;
+  /** L'action de fin de cycle, rendue **à la place** de l'encart une fois atteinte. */
+  children?: ReactNode;
+}) {
+  return (
+    <li className={cx(styles.railStep, styles.railEnd)}>
+      <span className={cx(styles.railDot, styles.railDotEnd)} aria-hidden>
+        <Star size={8} strokeWidth={0} fill="currentColor" />
+      </span>
+      <div className={styles.railBody}>
+        {reached && children ? (
+          children
+        ) : (
+          <div className={cx(styles.railEndBox, done && styles.railEndDone)}>
+            <span className={styles.railEndEyebrow}>{eyebrow}</span>
+            <b className={styles.railEndTitle}>{title}</b>
+            {note ? <span className={styles.railEndNote}>{note}</span> : null}
+            {remaining ? (
+              <span className={styles.railEndPill}>
+                <Pill label={remaining} tone="warn" />
+              </span>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/* ==========================================================================
+   Maquette « Ma progression — historique des cycles » (propriétaire,
+   2026-09-18 ; `docs/progression/histo_cycle.html`)
+
+   🛑 Miroirs de `SfStatGrid` et `SfHeroBanner` côté Flutter. Un motif qui
+   bouge d'un côté bouge de l'autre dans la même passe.
+   ========================================================================== */
+
+/**
+ * Une colonne de compteurs : une valeur et ce qu'elle nomme.
+ *
+ * Miroir Flutter : `SfStat`.
+ */
+export type Stat = { value: string; label: string };
+
+/**
+ * **La rangée de compteurs** — le `.stats` de `histo_cycle.html`, et le
+ * `.sf-stat-grid` des cartes d'intro.
+ *
+ * 🛑 **Le nombre de colonnes suit la liste** : un compteur que le serveur ne
+ * sert pas ne s'affiche pas plutôt que de s'inventer un zéro.
+ *
+ * 🛑 **Rien n'est compté ici.** `value` arrive déjà en texte : cette brique ne
+ * somme rien et ne classe rien.
+ *
+ * Rattrapage de parité (2026-09-18) : le mobile avait `SfStatGrid` depuis le
+ * début, le web n'avait que la classe CSS — un écran qui voulait les mêmes
+ * compteurs devait donc écrire son propre balisage, ce que la règle du dépôt
+ * interdit sur ce périmètre.
+ *
+ * Miroir Flutter : `SfStatGrid`.
+ */
+export function StatGrid({
+  stats,
+  onHero,
+  accentIndex,
+}: {
+  stats: Stat[];
+  /**
+   * Les compteurs sont posés **sur un fond de marque** (`HeroBanner`) : tuiles
+   * translucides, valeur blanche, libellé adouci. Sans lui, la rangée est nue
+   * sur fond clair, valeur bleue et texte centré.
+   */
+  onHero?: boolean;
+  /**
+   * Le compteur **accentué** de la maquette (celui du milieu). 🛑 **Passé, et
+   * c'est une décision d'ÉCRAN** : le kit n'élit pas le chiffre important.
+   */
+  accentIndex?: number;
+}) {
+  return (
+    <div className={cx(styles.statGrid, onHero && styles.isOnHero)}>
+      {stats.map((stat, index) => (
+        <div
+          key={stat.label}
+          className={cx(styles.stat, index === accentIndex && styles.isAccent)}
+        >
+          <b>{stat.value}</b>
+          <span>{stat.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * **Le bandeau de tête d'un écran d'archive** — le `.hero` de
+ * `histo_cycle.html` : fond de marque, œil-de-bœuf, titre éditorial, phrase de
+ * cadrage, puis ce que l'écran y pose (les compteurs, dans la maquette).
+ *
+ * 🛑 **Distinct des deux briques voisines**, qu'il ne faut pas remplacer par
+ * lui :
+ * - `ProgressHero` porte **un résultat** en très gros, pas une introduction ;
+ * - `NextStepCard` porte une **action** — actualiser le plan.
+ *
+ * Ce bandeau, lui, n'a **aucune action** : il présente. C'est ce qui lui évite
+ * d'être une variante de l'un ou de l'autre.
+ *
+ * 🛑 **Aucune phrase n'est écrite ici** : `eyebrow`, `title` et `text`
+ * arrivent tous en props.
+ *
+ * Miroir Flutter : `SfHeroBanner`.
+ */
+export function HeroBanner({
+  eyebrow,
+  title,
+  text,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  /** La phrase de cadrage. Absente ⇒ rien à sa place. */
+  text?: string;
+  /** Ce que l'écran pose sous la phrase. Absent ⇒ le bandeau s'arrête là. */
+  children?: ReactNode;
+}) {
+  return (
+    <section className={styles.heroBanner}>
+      <p className={styles.heroEyebrow}>
+        <i className={styles.heroDot} aria-hidden />
+        {eyebrow}
+      </p>
+      <h2 className={styles.heroTitle}>{title}</h2>
+      {text ? <p className={styles.heroText}>{text}</p> : null}
+      {children ? <div className={styles.heroBody}>{children}</div> : null}
+    </section>
+  );
+}
+
+/* ============================================================================
+   Le BANDEAU D'OBJECTIF (né avec l'ancien écran « Votre progression »,
+   2026-09-19). ⚠️ Cet écran est SUPPRIMÉ (2026-09-24) avec ses autres briques
+   (`LevelStrip`, `ChartTitle`, `ChartNote`, `EpreuveStatRow/List`) ; le
+   bandeau reste parce que l'écran de déblocage du Plan le lit.
+   Miroir Flutter : `SfGoalHero`.
+   ========================================================================== */
+
+/**
+ * **Le bandeau d'objectif d'un écran de progression** — le `.hero` du
+ * template : œil-de-bœuf, intitulé + valeur en gros, pastille d'objectif à
+ * droite, rail, ligne de mesure, puis ce que l'écran y pose (la bande des
+ * paliers).
+ *
+ * 🛑 **Distinct des trois héros voisins**, qu'il ne faut pas remplacer par lui :
+ * - `ProgressHero` porte **un résultat** — c'est une carte de tête de progression ;
+ * - `HeroBanner` **présente** un écran d'archive, sans aucun chiffre ;
+ * - `GoalBanner` est une bande **compacte**, posée DANS une carte.
+ *
+ * Celui-ci porte un **avancement** : un compteur, un rail et sa lecture en
+ * pourcentage.
+ *
+ * 🛑 `ratio` est une **part passée**, jamais dérivée ici, et le pourcentage est
+ * **écrit par l'appelant** (`metaValue`) : le kit ne convertit aucun nombre.
+ * Absents tous les deux ⇒ ni rail ni chiffre, le rendu exact d'une donnée non
+ * servie.
+ *
+ * Miroir Flutter : `SfGoalHero`.
+ */
+export function GoalHero({
+  label,
+  value,
+  pill,
+  ratio,
+  metaLabel,
+  metaValue,
+  children,
+}: {
+  /** « Vers votre objectif ». */
+  label: string;
+  /**
+   * « 2 épreuves sur 4 ». **Composé par l'appelant.** `null` quand le serveur
+   * ne sert pas de quoi l'écrire : le bandeau garde son intitulé et sa bande de
+   * paliers, mais **n'annonce aucun chiffre**.
+   */
+  value?: string | null;
+  /** « Objectif B1 ». `null` sans démarche déclarée. */
+  pill?: string | null;
+  /** Part parcourue (0-1). `null` ⇒ pas de rail. */
+  ratio?: number | null;
+  metaLabel?: string | null;
+  /** Le pourcentage, **déjà écrit**. `null` ⇒ aucun chiffre annoncé. */
+  metaValue?: string | null;
+  /** La bande des paliers. Absente ⇒ le bandeau s'arrête là. */
+  children?: ReactNode;
+}) {
+  const rail = ratio == null ? null : Math.min(Math.max(ratio, 0), 1);
+  return (
+    <section className={styles.goalHero}>
+      <div className={styles.goalHeroTop}>
+        <div className={styles.goalHeroId}>
+          <p className={styles.goalHeroLabel}>{label}</p>
+          {value ? <p className={styles.goalHeroValue}>{value}</p> : null}
+        </div>
+        {pill ? <span className={styles.goalHeroPill}>{pill}</span> : null}
+      </div>
+      {rail != null ? (
+        <span className={styles.goalHeroRail} aria-hidden>
+          <i style={{ width: `${rail * 100}%` }} />
+        </span>
+      ) : null}
+      {metaLabel || metaValue ? (
+        <p className={styles.goalHeroMeta}>
+          <span>{metaLabel}</span>
+          {metaValue ? <b>{metaValue}</b> : null}
+        </p>
+      ) : null}
+      {children ? <div className={styles.goalHeroBody}>{children}</div> : null}
+    </section>
+  );
+}
+
+/* ==========================================================================
+   Les ÉCRANS DE PROGRESSION (maquettes du propriétaire, 2026-09-24 ;
+   `docs/progression/maquettes-progression/*.html`)
+
+   TCF global, une épreuve TCF, civique global, un thème civique. Ils
+   assemblent ces briques et RIEN d'autre : intro, carte de tête,
+   compteurs, cartes d'épreuve / de thème, courbe, légende d'échelle, lignes
+   d'examen.
+
+   🛑 **Aucune ne classe quoi que ce soit.** Score, palier, état, bande, écart,
+   sens, ordinal, durée : tout arrive **écrit** par l'appelant à partir de faits
+   servis (`lib/progression.ts`). La courbe PLACE des valeurs servies sur un axe
+   dont les bornes sont servies — placer n'est pas classer.
+
+   🛑 Couleurs : la maquette met du rouge sur l'anneau, le dernier point et
+   l'œil-de-bœuf. Le rouge est réservé aux CTA critiques : l'anneau est bleu
+   (vert au seuil, sémantique de `Ring`), le dernier point est bleu foncé avec
+   un halo ; seule la pastille de l'œil-de-bœuf garde le rouge de `.heroDot`,
+   convention déjà en place dans le kit.
+
+   Miroirs Flutter (même passe, même nom, préfixe `Sf`) : `SfProgressIntro`,
+   `SfProgressHero`, `SfProgressStatTile`, `SfProgressStatGrid`, `SfProgressDomainCard`, `SfProgressChart`,
+   `SfProgressScaleLegend`, `SfProgressExamRow`, `SfProgressGlobalExamRow`.
+   ========================================================================== */
+
+/** Une pastille de la carte de tête ou d'une carte d'épreuve. */
+export type ProgressChip = { label: string; tone: BarTone };
+
+const progressChipClass: Record<BarTone, string> = {
+  ok: styles.pChipOk,
+  now: styles.pChipNow,
+  warn: styles.pChipWarn,
+  hot: styles.pChipHot,
+  muted: styles.pChipMuted,
+};
+
+function ProgressChipView({ chip }: { chip: ProgressChip }) {
+  return <span className={cx(styles.pChip, progressChipClass[chip.tone])}>{chip.label}</span>;
+}
+
+/** **L'intro** — œil-de-bœuf « Votre progression », titre, phrase de cadrage. */
+export function ProgressIntro({
+  eyebrow,
+  title,
+  lead,
+}: {
+  eyebrow: string;
+  title: string;
+  lead?: string | null;
+}) {
+  return (
+    <section className={styles.pIntro}>
+      <p className={styles.pEyebrow}>
+        <i className={styles.heroDot} aria-hidden />
+        {eyebrow}
+      </p>
+      <h1 className={styles.pTitle}>{title}</h1>
+      {lead ? <p className={styles.pLead}>{lead}</p> : null}
+    </section>
+  );
+}
+
+/**
+ * **La carte de tête** — « Dernier résultat » : le gros chiffre (ou le palier)
+ * et son unité, une rangée de pastilles (palier ou état, écart), une ligne
+ * secondaire, et l'anneau.
+ *
+ * 🛑 **L'anneau n'existe qu'en civique** (D5) : il lit le `taux` servi et
+ * `reached` (`seuilAtteint` servi) le passe au vert. Aucun anneau en TCF — un
+ * disque rempli à côté d'un palier se lirait comme un pourcentage de niveau.
+ */
+export function ProgressHero({
+  label,
+  value,
+  unit,
+  chips,
+  notes,
+  ring,
+}: {
+  label: string;
+  /** Le chiffre ou le palier, déjà écrit. « — » quand rien n'est mesuré. */
+  value: string;
+  /** « / 499 ». Absent pour un palier. */
+  unit?: string | null;
+  chips?: ProgressChip[];
+  /** Les lignes secondaires (niveau actuel estimé, verdict de seuil…). */
+  notes?: Array<string | null>;
+  ring?: { ratio: number; label: string; reached: boolean } | null;
+}) {
+  const lignes = (notes ?? []).filter((n): n is string => Boolean(n));
+  return (
+    <article className={cx(styles.pCard, styles.pHero)}>
+      <div className={styles.pHeroBody}>
+        <p className={styles.pHeroLabel}>{label}</p>
+        <p className={styles.pHeroScore}>
+          <strong>{value}</strong>
+          {unit ? <span>{unit}</span> : null}
+        </p>
+        {chips && chips.length > 0 ? (
+          <div className={styles.pChips}>
+            {chips.map((c) => (
+              <ProgressChipView key={c.label} chip={c} />
+            ))}
+          </div>
+        ) : null}
+        {lignes.map((n) => (
+          <p key={n} className={styles.pHeroNote}>{n}</p>
+        ))}
+      </div>
+      {ring ? <ProgressRing {...ring} /> : null}
+    </article>
+  );
+}
+
+function ProgressRing({ ratio, label, reached }: { ratio: number; label: string; reached: boolean }) {
+  const part = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+  const r = 44;
+  const c = 2 * Math.PI * r;
+  return (
+    <span className={styles.pRing} role="img" aria-label={label}>
+      <svg viewBox="0 0 100 100" aria-hidden>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-line)" strokeWidth="11" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          fill="none"
+          stroke={reached ? "var(--color-green)" : "var(--color-blue)"}
+          strokeWidth="11"
+          strokeDasharray={`${c * part} ${c}`}
+          transform="rotate(-90 50 50)"
+        />
+      </svg>
+      <b>{label}</b>
+    </span>
+  );
+}
+
+/** **Un compteur** : son intitulé, sa valeur, sa précision. */
+export function ProgressStatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string | null;
+}) {
+  return (
+    <div className={styles.pStat}>
+      <span className={styles.pStatLabel}>{label}</span>
+      <div>
+        <strong className={styles.pStatValue}>{value}</strong>
+        {sub ? <small className={styles.pStatSub}>{sub}</small> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * **La grille des compteurs.**
+ *
+ * - `boxed` (écrans globaux) : une carte qui range quatre encarts en 2 × 2 ;
+ * - sinon (épreuve, thème) : chaque compteur est sa propre petite carte, deux
+ *   par rangée.
+ */
+export function ProgressStatGrid({ children, boxed }: { children: ReactNode; boxed?: boolean }) {
+  return (
+    <div className={cx(styles.pStatGrid, boxed ? cx(styles.pCard, styles.isBoxed) : styles.isCards)}>
+      {children}
+    </div>
+  );
+}
+
+/** La sparkline d'une carte : au plus 7 scores servis, du plus ancien au plus récent. */
+function ProgressSparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const w = 145;
+  const h = 58;
+  const pad = 6;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const pts = values.map((v, i) => {
+    const x = pad + (i / (values.length - 1)) * (w - 2 * pad);
+    const y = hi === lo ? h / 2 : h - pad - ((v - lo) / span) * (h - 2 * pad);
+    return [x, y] as const;
+  });
+  const last = pts[pts.length - 1];
+  return (
+    <svg className={styles.pSpark} viewBox={`0 0 ${w} ${h}`} aria-hidden>
+      <path d={pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ")} />
+      <circle cx={last[0]} cy={last[1]} r="4" />
+    </svg>
+  );
+}
+
+/**
+ * **La carte d'une épreuve ou d'un thème** — pictogramme, nom, sous-titre,
+ * flèche ; puis le dernier score, sa pastille (palier ou état servi), l'écart
+ * servi et la sparkline. Toute la carte est un lien vers l'écran détaillé.
+ *
+ * `empty` remplace le chiffre quand l'épreuve n'a aucun examen : ni pastille,
+ * ni écart, ni sparkline — jamais un 0.
+ */
+export function ProgressDomainCard({
+  href,
+  icon: Icon,
+  title,
+  sub,
+  value,
+  unit,
+  pill,
+  delta,
+  serie,
+  empty,
+}: {
+  href: string;
+  icon: LucideIcon;
+  title: string;
+  sub: string;
+  value?: string | null;
+  unit?: string | null;
+  pill?: ProgressChip | null;
+  delta?: ProgressChip | null;
+  serie?: number[];
+  /** Le mot d'une absence d'examen. Prioritaire sur `value`. */
+  empty?: string | null;
+}) {
+  return (
+    <Link href={href} className={cx(styles.pCard, styles.pDomain)}>
+      <span className={styles.pDomainHead}>
+        <span className={styles.pDomainName}>
+          <span className={styles.pDomainIcon} aria-hidden>
+            <Icon size={20} strokeWidth={1.9} />
+          </span>
+          <span>
+            <b>{title}</b>
+            <small>{sub}</small>
+          </span>
+        </span>
+        <ChevronRight className={styles.pDomainArrow} size={20} strokeWidth={2} aria-hidden />
+      </span>
+      <span className={styles.pDomainMain}>
+        {empty ? (
+          <span className={styles.pDomainEmpty}>{empty}</span>
+        ) : (
+          <span className={styles.pDomainFigures}>
+            <span className={styles.pDomainScore}>
+              <strong>{value}</strong>
+              {unit ? <span> {unit}</span> : null}
+            </span>
+            {pill ? <ProgressChipView chip={pill} /> : null}
+            {delta ? (
+              <span className={cx(styles.pDelta, statusToneClass[delta.tone])}>{delta.label}</span>
+            ) : null}
+          </span>
+        )}
+        {!empty && serie ? <ProgressSparkline values={serie} /> : null}
+      </span>
+    </Link>
+  );
+}
+
+/** Une zone servie de l'axe, déjà nommée. `tone` teinte son fond, très pâle. */
+export type ProgressChartBand = { label: string; min: number; max: number; tone: BarTone };
+
+/** Un point : sa date d'axe, sa valeur servie, et ce qu'on écrit dessus. */
+export type ProgressChartPoint = { date: string; value: number; label: string };
+
+const progressBandClass: Record<BarTone, string> = {
+  ok: styles.pBandOk,
+  now: styles.pBandNow,
+  warn: styles.pBandWarn,
+  hot: styles.pBandHot,
+  muted: styles.pBandMuted,
+};
+
+/**
+ * **La courbe d'évolution** — aire, ligne, un point par examen, le dernier
+ * accentué, les repères servis sur l'axe, les dates en abscisse.
+ *
+ * 🛑 **Les bandes ne se dessinent que SERVIES** : vides en CO/CE (D2), elles
+ * n'apparaissent pas. Une bande couvre de son `min` au `min` de la suivante —
+ * les notes décimales tombent ainsi dans la bande de leur partie entière.
+ *
+ * Plus étroite que 720 px, elle défile horizontalement (maquette).
+ */
+export function ProgressChart({
+  min,
+  max,
+  reperes,
+  bands,
+  seuil,
+  seuilLabel,
+  points,
+  note,
+  ariaLabel,
+}: {
+  min: number;
+  max: number;
+  reperes: number[];
+  bands?: ProgressChartBand[];
+  seuil?: number | null;
+  seuilLabel?: string | null;
+  /** Du plus ancien au plus récent. */
+  points: ProgressChartPoint[];
+  /** Ce que mesure l'axe (« Score de progression · /499 »). */
+  note?: string | null;
+  ariaLabel: string;
+}) {
+  const gradientId = useId();
+  const span = max - min || 1;
+  const y = (v: number) => 100 - ((Math.min(Math.max(v, min), max) - min) / span) * 100;
+  const inset = 4;
+  const x = (i: number) =>
+    points.length > 1 ? inset + (i / (points.length - 1)) * (100 - 2 * inset) : 50;
+  const sorted = [...(bands ?? [])].sort((a, b) => a.min - b.min);
+  const last = points.length - 1;
+  /* Au-delà de 6 points, les dates s'écrivent une sur deux (ou moins) : le
+     défilement garde un point par examen, l'axe reste lisible. */
+  const pasDate = Math.max(1, Math.ceil(points.length / 7));
+  const coords = points.map((p, i) => `${x(i)},${y(p.value)}`);
+  return (
+    <div className={styles.pChart}>
+      {note ? <p className={styles.pChartNote}>{note}</p> : null}
+      <div className={styles.pChartScroll}>
+        <div
+          className={styles.pChartInner}
+          style={{ minWidth: `${Math.max(720, points.length * 44)}px` }}
+          role="img"
+          aria-label={ariaLabel}
+        >
+          <div className={styles.pChartPlot}>
+            {sorted.map((b, i) => {
+              const haut = i < sorted.length - 1 ? sorted[i + 1].min : max;
+              const top = y(haut);
+              const height = y(b.min) - top;
+              return (
+                <span
+                  key={`${b.label}-${b.min}`}
+                  className={cx(styles.pBand, progressBandClass[b.tone])}
+                  style={{ top: `${top}%`, height: `${height}%` }}
+                  aria-hidden
+                >
+                  {height >= 12 ? <i>{b.label}</i> : null}
+                </span>
+              );
+            })}
+            {reperes.map((r) => (
+              <span key={`g-${r}`} className={styles.pGrid} style={{ top: `${y(r)}%` }} aria-hidden>
+                <i>{r}</i>
+              </span>
+            ))}
+            {seuil != null ? (
+              <span className={styles.pSeuil} style={{ top: `${y(seuil)}%` }} aria-hidden>
+                {seuilLabel ? <i>{seuilLabel}</i> : null}
+              </span>
+            ) : null}
+            {points.length > 1 ? (
+              <svg className={styles.pChartSvg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" style={{ stopColor: "var(--color-blue)", stopOpacity: 0.13 }} />
+                    <stop offset="100%" style={{ stopColor: "var(--color-blue)", stopOpacity: 0 }} />
+                  </linearGradient>
+                </defs>
+                <polygon
+                  points={`${x(0)},100 ${coords.join(" ")} ${x(last)},100`}
+                  fill={`url(#${gradientId})`}
+                />
+                <polyline
+                  points={coords.join(" ")}
+                  fill="none"
+                  stroke="var(--color-blue)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            ) : null}
+            {points.map((p, i) => (
+              <span
+                key={`p-${i}`}
+                className={cx(styles.pDot, i === last && styles.isLast)}
+                style={{ left: `${x(i)}%`, top: `${y(p.value)}%` }}
+                aria-hidden
+              />
+            ))}
+            {points.map((p, i) =>
+              i === 0 || i === last || points.length <= 5 ? (
+                <span
+                  key={`v-${i}`}
+                  className={cx(styles.pValue, i === last && styles.isLast)}
+                  style={{ left: `${x(i)}%`, top: `${y(p.value)}%` }}
+                  aria-hidden
+                >
+                  {p.label}
+                </span>
+              ) : null,
+            )}
+            {points.map((p, i) =>
+              i % pasDate === 0 || i === last ? (
+                <span key={`d-${i}`} className={styles.pDate} style={{ left: `${x(i)}%` }} aria-hidden>
+                  {p.date}
+                </span>
+              ) : null,
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** **La légende de l'échelle** — une case par bande servie : son nom, son étendue. */
+export function ProgressScaleLegend({ items }: { items: Array<{ label: string; range: string }> }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className={styles.pScale}>
+      {items.map((it) => (
+        <li key={`${it.label}-${it.range}`} className={styles.pScaleItem}>
+          <strong>{it.label}</strong>
+          <span>{it.range}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * **La ligne d'un examen** (écran épreuve / thème) — ordinal servi et date,
+ * score, badge servi (palier ou état), durée fiable ou « — », « Voir → ».
+ *
+ * Toute la ligne est un lien vers le rapport choisi par `rapport.kind`. Sur
+ * téléphone, durée et « Voir → » s'effacent (maquette) — la ligne reste un lien.
+ */
+export function ProgressExamRow({
+  href,
+  title,
+  date,
+  score,
+  badge,
+  duration,
+  action,
+}: {
+  /** `null` ⇒ ligne sans lien (aucun rapport servi). */
+  href: string | null;
+  title: string;
+  date: string;
+  score: { label: string; value: string };
+  badge?: ProgressChip | null;
+  duration?: { label: string; value: string } | null;
+  action: string;
+}) {
+  const body = (
+    <>
+      <span className={styles.pRowId}>
+        <b>{title}</b>
+        <small>{date}</small>
+      </span>
+      <span className={styles.pRowStat}>
+        <small>{score.label}</small>
+        <b>{score.value}</b>
+      </span>
+      <span className={styles.pRowBadgeCell}>
+        {badge ? (
+          <span className={cx(styles.pRowBadge, progressChipClass[badge.tone])}>{badge.label}</span>
+        ) : null}
+      </span>
+      {duration ? (
+        <span className={cx(styles.pRowStat, styles.pRowWide)}>
+          <small>{duration.label}</small>
+          <b>{duration.value}</b>
+        </span>
+      ) : (
+        <span className={styles.pRowWide} />
+      )}
+      <span className={cx(styles.pRowAction, styles.pRowWide)}>{href ? action : null}</span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={styles.pRow}>
+      {body}
+    </Link>
+  ) : (
+    <div className={styles.pRow}>{body}</div>
+  );
+}
+
+/**
+ * **La ligne d'un examen COMPLET** (écrans globaux) — ordinal et date, une part
+ * par épreuve ou par thème, le badge global.
+ *
+ * 🛑 Les parts arrivent écrites : « 392 / 499 », « 12 / 20 », « 3 / 4 »
+ * posées (D11), « — » pour une épreuve verrouillée, jamais ouverte, ou un
+ * thème non posé — jamais « 0 ». Sur téléphone, les parts s'effacent.
+ */
+export function ProgressGlobalExamRow({
+  href,
+  title,
+  date,
+  parts,
+  badge,
+  action,
+}: {
+  href: string | null;
+  title: string;
+  date: string;
+  parts: Array<{ label: string; value: string }>;
+  badge?: ProgressChip | null;
+  action?: string | null;
+}) {
+  const body = (
+    <>
+      <span className={styles.pRowId}>
+        <b>{title}</b>
+        <small>{date}</small>
+      </span>
+      <span className={styles.pRowParts} style={{ gridTemplateColumns: `repeat(${parts.length}, minmax(0, 1fr))` }}>
+        {parts.map((p) => (
+          <span key={p.label} className={styles.pRowStat} title={p.label}>
+            <small>{p.label}</small>
+            <b>{p.value}</b>
+          </span>
+        ))}
+      </span>
+      <span className={styles.pRowEnd}>
+        {badge ? (
+          <span className={cx(styles.pRowBadge, progressChipClass[badge.tone])}>{badge.label}</span>
+        ) : null}
+        {href && action ? <span className={cx(styles.pRowAction, styles.pRowWide)}>{action}</span> : null}
+      </span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cx(styles.pRow, styles.isGlobal)}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cx(styles.pRow, styles.isGlobal)}>{body}</div>
+  );
+}
+
+/* ==========================================================================
+   Maquette « Détail d'une étape de séries » (propriétaire, 2026-09-20)
+
+   L'écran intermédiaire qui s'ouvre depuis le cycle du Plan sur une étape
+   d'entraînement de compréhension (CO/CE) ou une étape civique : le domaine et
+   la priorité en pastilles, la compétence en titre, l'avancement, puis une
+   carte par série.
+
+   🛑 Miroirs de `SfSerieProgress` et `SfSerieCard` côté Flutter. Un motif qui
+   bouge d'un côté bouge de l'autre dans la même passe.
+   ========================================================================== */
+
+/**
+ * **L'avancement d'une étape de séries** — le gros compteur à gauche, le seuil
+ * à droite, et la barre en dessous.
+ *
+ * 🛑 **Elle n'est pas `CycleProgress`**, et il ne faut pas les confondre :
+ * celle-là compte les **étapes d'un cycle** (un compteur en mots, un repère de
+ * cycle) ; celle-ci compte les **séries d'une étape**, met son chiffre en
+ * évidence et porte, en face, le seuil à tenir sur chacune. Deux échelles, deux
+ * lectures.
+ *
+ * 🛑 **Aucune phrase n'est composée ici** : `count`, `note` et `noteSub`
+ * arrivent en props, tous trois posés sur des faits servis
+ * (`quota`, `seuilReussite`, `questionsParSerie`).
+ *
+ * Miroir Flutter : `SfSerieProgress`.
+ */
+export function SerieProgress({
+  count,
+  note,
+  noteSub,
+  done,
+  total,
+}: {
+  /** « 0/2 séries », composé par l'appelant. */
+  count: string;
+  /** « 16/20 minimum ». */
+  note: string;
+  /** « sur chacune ». */
+  noteSub: string;
+  /** Les séries **validées** — un décompte de booléens servis. */
+  done: number;
+  /** Le quota **servi**. */
+  total: number;
+}) {
+  const ratio = total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  return (
+    <Card>
+      <div className={styles.serieProgTop}>
+        <b className={styles.serieProgCount}>{count}</b>
+        <span className={styles.serieProgNote}>
+          <b>{note}</b>
+          <small>{noteSub}</small>
+        </span>
+      </div>
+      <div className={styles.serieProgBar} aria-hidden>
+        <i style={{ width: `${Math.round(ratio * 100)}%` }} />
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * **La carte d'une série** — repère carré, titre, méta, badge d'état, puis le
+ * bouton pleine largeur et, si la série a déjà été jouée, l'accès à son
+ * corrigé.
+ *
+ * 🛑 **Le kit ne décide d'aucun état.** `state`, `action.disabled` et la
+ * présence de `link` sont posés par l'appelant à partir de `locked` et
+ * `validee`, **servis** — jamais d'une comparaison entre un score et un seuil.
+ *
+ * 🛑 **`locked` grise la carte, il ne la masque pas** : le repère, le titre, la
+ * méta et le bouton restent lisibles (R16 — on floute l'action, jamais le
+ * résultat). Le bouton porte alors la condition (« Après la série 1 ») et ne
+ * répond pas.
+ *
+ * **Carte JOUÉE = carte COMPACTE** (demande du propriétaire, 2026-09-27) :
+ * quand `verdict` et `onOpen` sont posés, la carte se réduit à une ligne
+ * touchable — repère à **coche verte** (`ok`) ou **croix rouge** (`fail`), le
+ * motif des cartes de séries et d'examens blancs (`serieCheck` /
+ * `examCheckFail` du hub) —, titre, score et état. Ni gros bouton ni lien :
+ * « Refaire » et le corrigé passent par la feuille que l'appelant ouvre
+ * (`ExamDoneSheet`, la même que les séries d'entraînement). 🛑 **Une variante,
+ * pas une primitive de plus.**
+ *
+ * Miroir Flutter : `SfSerieCard`.
+ */
+export function SerieCard({
+  mark,
+  title,
+  duree,
+  questions,
+  state,
+  score,
+  locked,
+  action,
+  link,
+  verdict,
+  onOpen,
+}: {
+  /** Le chiffre du carré — l'`index` **servi**, mis en texte par l'appelant. */
+  mark: string;
+  /** « Série 1 ». */
+  title: string;
+  /** « 16 min ». `null` quand la durée n'est pas servie : rien à sa place. */
+  duree: string | null;
+  /** « 20 questions ». */
+  questions: string;
+  /** Le badge d'état et son ton, **composés** par l'appelant. */
+  state: { label: string; tone: BarTone };
+  /** « Dernier score : 17/20 ». `null` tant que la série n'a pas été jouée. */
+  score: string | null;
+  locked: boolean;
+  /** Le bouton pleine largeur. Sans `onClick`, il est inerte. */
+  action: { label: string; onClick?: () => void; disabled?: boolean };
+  /** Le second accès d'une série jouée : son corrigé. */
+  link?: { label: string; href: string };
+  /**
+   * Le verdict d'une série **jouée**, composé par l'appelant sur des faits
+   * servis. Avec `onOpen`, il rend la carte compacte ; `null` = carte à faire.
+   */
+  verdict?: "ok" | "fail" | null;
+  /** Le toucher d'une carte compacte : la feuille « corrigé / refaire ». */
+  onOpen?: () => void;
+}) {
+  if (verdict && onOpen) {
+    const ok = verdict === "ok";
+    return (
+      <button
+        type="button"
+        className={cx(styles.serieCard, styles.serieCardCompact)}
+        onClick={onOpen}
+      >
+        <span className={cx(styles.serieMark, ok ? styles.isOk : styles.isFail)}>
+          {mark}
+          <span className={styles.serieMarkCheck} aria-hidden>
+            {ok ? <Check size={11} strokeWidth={3} /> : <X size={11} strokeWidth={3} />}
+          </span>
+        </span>
+        <span className={styles.serieCardText}>
+          <b>{title}</b>
+          {score ? <span className={styles.serieMeta}>{score}</span> : null}
+        </span>
+        <span className={cx(styles.serieState, statusToneClass[state.tone])}>
+          {state.label}
+        </span>
+        <ChevronRight size={16} strokeWidth={2.2} className={styles.serieChevron} aria-hidden />
+      </button>
+    );
+  }
+  const inerte = action.disabled || !action.onClick;
+  return (
+    <div className={cx(styles.serieCard, locked && styles.isLocked)}>
+      <div className={styles.serieCardTop}>
+        <span className={cx(styles.serieMark, locked && styles.isLocked)}>{mark}</span>
+        <span className={styles.serieCardText}>
+          <b>{title}</b>
+          <span className={styles.serieMeta}>
+            {duree ? (
+              <span>
+                <Clock size={13} strokeWidth={2.2} aria-hidden />
+                {duree}
+              </span>
+            ) : null}
+            <span>
+              <ListChecks size={13} strokeWidth={2.2} aria-hidden />
+              {questions}
+            </span>
+          </span>
+        </span>
+        <span className={cx(styles.serieState, statusToneClass[state.tone])}>
+          {state.label}
+          {locked ? <Lock size={12} strokeWidth={2.2} aria-hidden /> : null}
+        </span>
+      </div>
+      {score ? <p className={styles.serieScore}>{score}</p> : null}
+      <button
+        type="button"
+        className={cx(styles.serieBtn, inerte && styles.isOff)}
+        onClick={action.onClick}
+        disabled={inerte}
+      >
+        {action.label}
+        {inerte ? null : <ArrowRight size={18} strokeWidth={2} aria-hidden />}
+      </button>
+      {link ? (
+        <Link href={link.href} className={styles.serieLink}>
+          {link.label}
+          <ChevronRight size={15} strokeWidth={2.2} aria-hidden />
+        </Link>
+      ) : null}
+    </div>
+  );
+}

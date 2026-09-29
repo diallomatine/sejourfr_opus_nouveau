@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "segment_numero",
+    "texte",
+    "segments"
+  ],
+  "properties": {
+    "segment_numero": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Le NUMÉRO entre crochets de LA phrase du candidat que tu réécris — une seule, celle où la montée vers le niveau visé se voit le mieux. Tu ne recopies jamais cette phrase toi-même : le serveur la retrouve par son numéro, l'affiche telle quelle, et refuse un numéro qui n'existe pas."
+    },
+    "texte": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "LA MÊME phrase, réécrite au niveau visé. Elle garde la situation, les faits, les prénoms, les chiffres et l'intention du candidat ; seules la langue et l'organisation montent d'un cran. Une à deux phrases, longueur proche de la sienne. Texte brut recopiable tel quel : aucun titre, aucune parenthèse explicative, aucun nom de niveau (A1, A2, B1, B2), aucune note, aucun commentaire. Français entièrement accentué."
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS passages de `texte` que le front met en évidence. Chaque `extrait` est recopié CARACTÈRE POUR CARACTÈRE depuis `texte` : le serveur l'y cherche, et retire le passage qu'il ne trouve pas.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "extrait",
+          "apport"
+        ],
+        "properties": {
+          "extrait": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Un passage de `texte`, recopié EXACTEMENT tel qu'il y apparaît — mêmes mots, mêmes accents, mêmes espaces, même ponctuation. Ni reformulé, ni raccourci par des points de suspension, ni recomposé à partir de deux morceaux éloignés."
+          },
+          "apport": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "Ce que ce passage apporte, en TROIS MOTS MAXIMUM : « plus précis », « plus nuancé », « cause explicite ». Une étiquette affichée telle quelle, jamais une phrase, jamais un reproche."
+          }
+        }
+      }
+    }
+  },
+  "title": "Avant / après du diagnostic initial — TCF IRN v1",
+  "description": "Contrat strict de sortie du SECOND appel du diagnostic initial, totalement séparé de l'analyse : le numéro de la phrase écrite du candidat que l'on réécrit, cette phrase réécrite au niveau qu'il vise, et les deux ou trois passages qui font la différence. Aucune note, aucun verdict, aucun statut, aucun champ de niveau — le serveur pose lui-même `niveau_vise` et `niveau_constate`, ils ne sont jamais laissés au modèle. Tout le français produit ici est lu par une personne qui APPREND le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres »."
+}

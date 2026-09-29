@@ -1,0 +1,655 @@
+{
+  "skillCode": "EE3-C9",
+  "rang": 6,
+  "titre": "Adapter son expression au destinataire et au contexte",
+  "critere": "Choisir le ton, le niveau de politesse et le vocabulaire qui conviennent à la personne et à la situation, familière ou non.",
+  "remplace": null,
+  "premierCodeLibre": 1,
+  "prompts": [
+    {
+      "title": "Le même avis, à votre sœur",
+      "context": "Votre sœur vous écrit : « Alors, il est comment ce resto où tu es allée hier soir ? Raconte ! »",
+      "instruction": "Donnez votre avis sur ce restaurant, dans le registre qui convient à votre sœur.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton familier naturel, sans formule administrative ni distance.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Tutoyez simplement",
+        "Pas de formule"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre familier",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Franchement, on a bien mangé…",
+      "tip": "à une sœur, on écrit comme on parle",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Madame, je me permets de vous faire part de mon appréciation concernant cet établissement. La qualité des mets proposés s'est révélée satisfaisante et le service diligent. Je vous prie de bien vouloir agréer l'expression de mes salutations distinguées. Dans l'attente de votre retour, je demeure à votre entière disposition.",
+          "pedagogicalNote": "L'avis est correct, mais ce registre administratif est absurde entre sœurs : il éteint complètement l'échange."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Franchement, on a bien mangé. Les plats arrivent vite et les portions sont généreuses. Le poisson était parfait, vraiment. Par contre c'est bruyant, on a dû répéter deux fois chaque phrase. Si tu y vas, demande la petite salle du fond, c'est plus calme.",
+          "pedagogicalNote": "Tutoiement, exclamations, conseil direct : le registre convient, et l'avis y tient entièrement."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Franchement, on a bien mangé. Les plats arrivent vite, les portions sont généreuses, et le poisson était parfait. Par contre c'est bruyant à en répéter chaque phrase deux fois. Si tu y vas, demande la petite salle du fond — c'est là qu'on aurait dû se mettre.",
+          "pedagogicalNote": "Même registre, mieux tenu : les phrases se resserrent et le conseil final sonne comme un aveu, pas comme une recommandation."
+        }
+      ]
+    },
+    {
+      "title": "Le même avis, à la mairie",
+      "context": "La mairie vous écrit : « Madame, Monsieur, vous avez fréquenté la salle municipale le mois dernier. Merci de nous transmettre votre avis. »",
+      "instruction": "Donnez votre avis sur cette salle, dans le registre qui convient à un service municipal.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton clair et vouvoyé qui convient à une administration, sans familiarité.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "EASY",
+      "checklist": [
+        "Donnez votre avis",
+        "Vouvoyez",
+        "Restez clair"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, cette salle nous a…",
+      "tip": "clair et vouvoyé suffit : pas besoin de formules compliquées",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Alors franchement la salle est nickel, on a passé une super soirée. Le seul truc chiant c'est le chauffage, on se gelait au début. Sinon rien à dire, on reviendra c'est sûr. Merci les gars ! Allez, à la prochaine, et encore merci pour le coup de main sur les tables !",
+          "pedagogicalNote": "« Nickel », « chiant », « les gars » : ce registre ne convient pas à un service municipal, même si l'avis est juste."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, cette salle nous a donné entière satisfaction. L'espace est suffisant pour cinquante personnes et la cuisine attenante nous a beaucoup servi. Le chauffage met en revanche près d'une heure à monter en température. Nous la réserverons de nouveau. Bien cordialement.",
+          "pedagogicalNote": "Vouvoiement, formule d'appel reprise, réserve exprimée sans agressivité : le registre convient."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, cette salle nous a donné entière satisfaction. L'espace convient à cinquante personnes et la cuisine attenante nous a beaucoup servi. Le chauffage met près d'une heure à monter, ce qui mérite d'être signalé aux prochains utilisateurs. Nous la réserverons de nouveau. Bien cordialement.",
+          "pedagogicalNote": "La réserve est tournée comme un service rendu aux suivants : même registre, meilleure maîtrise."
+        }
+      ]
+    },
+    {
+      "title": "Le voisin qu'on connaît peu",
+      "context": "Un voisin du quatrième glisse un mot sous votre porte : « Bonjour, vous avez fait appel à ce plombier je crois. Qu'en avez-vous pensé ? »",
+      "instruction": "Donnez votre avis sur cet artisan, dans le registre qui convient à un voisin peu connu.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton poli et vouvoyé, ni familier ni cérémonieux.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Vouvoyez simplement",
+        "Restez cordial"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre poli",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, oui, nous l'avons fait venir…",
+      "tip": "il vous vouvoie dans son mot : répondez sur le même pied",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Ouais on l'a eu, il est plutôt sympa le gars. Bon il est pas donné hein, faut pas se leurrer. Mais il bosse bien et il traîne pas. Appelle-le de ma part, il te fera peut-être un geste ! Bon courage avec tes tuyaux, tiens-moi au jus de ce que ça donne chez toi.",
+          "pedagogicalNote": "Le tutoiement et « ouais », « le gars », « il bosse » sont trop familiers pour un voisin qu'on connaît à peine."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, oui, nous l'avons fait venir en mars. Il est arrivé à l'heure annoncée et a trouvé la fuite en vingt minutes. Le devis correspondait exactement à la facture. Ses tarifs ne sont pas les plus bas, mais il n'y a eu aucune mauvaise surprise. Je le recommande.",
+          "pedagogicalNote": "Vouvoiement simple, sans formule administrative : exactement le registre d'un échange entre voisins."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, oui, nous l'avons fait venir en mars. Il est arrivé à l'heure annoncée et a trouvé la fuite en vingt minutes, là où un autre avait cherché une heure. Le devis correspondait à la facture au centime près. Ses tarifs ne sont pas les plus bas, mais je le rappellerai sans hésiter.",
+          "pedagogicalNote": "Le registre ne bouge pas ; c'est la précision des faits qui distingue cette réponse."
+        }
+      ]
+    },
+    {
+      "title": "L'avis publié sur un site",
+      "context": "Un site d'avis vous écrit : « Votre commentaire sera lu par des inconnus qui hésitent à réserver ce camping. Rédigez-le. »",
+      "instruction": "Donnez votre avis sur ce camping, dans le registre qui convient à des lecteurs inconnus.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton clair et neutre, compréhensible par un lecteur qui ne vous connaît pas.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez neutre",
+        "Pensez aux inconnus"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre neutre",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Séjour de cinq nuits en août…",
+      "tip": "des inconnus vous lisent : pas d'allusion, pas de sous-entendu",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Comme d'habitude on a retrouvé la bande, et comme l'an dernier c'était nickel. Bon, sauf l'histoire du barbecue, mais ceux qui étaient là savent de quoi je parle ! Vivement l'an prochain, et Jean-Mi si tu lis ça, ramène la grande table.",
+          "pedagogicalNote": "Les allusions et l'adresse à un ami rendent ce commentaire inutilisable pour un lecteur inconnu."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Séjour de cinq nuits en août. Les emplacements sont ombragés et bien séparés par des haies. Les sanitaires étaient propres à chaque passage. L'accès au lac prend deux minutes à pied. Le seul point faible est le wifi, qui ne fonctionne qu'à l'accueil.",
+          "pedagogicalNote": "Ton neutre, informations vérifiables : un inconnu peut décider sur cette base."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Séjour de cinq nuits en août, en famille. Emplacements ombragés et séparés par de vraies haies : on n'entend pas les voisins. Sanitaires propres à chaque passage, même en pleine saison. Lac à deux minutes à pied. Wifi uniquement à l'accueil, à prévoir si vous télétravaillez.",
+          "pedagogicalNote": "Le contexte du séjour et le conseil final rendent l'avis directement exploitable, sans changer de registre."
+        }
+      ]
+    },
+    {
+      "title": "L'avis donné à un enfant",
+      "context": "Votre nièce de huit ans vous écrit : « Tonton, tu as vu mon vélo neuf ? Il est bien ? Dis-moi la vérité ! »",
+      "instruction": "Donnez votre avis sur ce vélo, dans le registre qui convient à une enfant de huit ans.",
+      "uniqueCriterion": "Votre avis est exprimé dans des mots simples et un ton adapté à une enfant, sans condescendance.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Mots simples",
+        "Ne la rabaissez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre adapté",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Oui, je l'ai vu, et je le trouve…",
+      "tip": "simple ne veut pas dire bébête : elle a huit ans, pas trois",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ton vélo présente un excellent rapport qualité-prix. Le cadre en aluminium offre une rigidité appréciable et la transmission à six vitesses conviendra parfaitement à un usage urbain. Les freins à disque constituent un atout sécuritaire non négligeable pour une utilisatrice débutante.",
+          "pedagogicalNote": "Rapport qualité-prix, rigidité, transmission : aucun de ces mots ne parle à une enfant de huit ans."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Oui, je l'ai vu, et je le trouve super. La couleur bleue est vraiment belle au soleil. Il a l'air léger, tu vas pouvoir monter la côte sans t'arrêter. Et les freins marchent bien, j'ai essayé. Tu as bien choisi.",
+          "pedagogicalNote": "Mots simples, phrases courtes, et un avis qui la prend au sérieux : le registre est juste."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Oui, je l'ai vu, et je le trouve super. Le bleu est magnifique au soleil. Il est léger : tu vas monter la côte du parc sans mettre pied à terre, tu verras. Les freins mordent bien, j'ai essayé dans l'allée. Tu as vraiment bien choisi toute seule.",
+          "pedagogicalNote": "« Tu as bien choisi toute seule » reconnaît son autonomie : c'est l'adaptation la plus fine au destinataire."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à un supérieur",
+      "context": "Votre directrice vous écrit : « Vous avez testé le nouveau logiciel avant son déploiement. J'aimerais votre avis avant la réunion de jeudi. »",
+      "instruction": "Donnez votre avis sur cet outil, dans le registre qui convient à une directrice.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton professionnel, franc mais mesuré, sans familiarité ni flatterie.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez professionnel",
+        "Ni flatterie ni familiarité"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre professionnel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Bonjour, voici mon retour après trois semaines d'essai…",
+      "tip": "un désaccord se dit aussi, calmement",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, franchement ce truc est une catastrophe, je ne sais pas qui a eu cette idée mais il faut vraiment arrêter les frais. On perd un temps fou et tout le monde râle. Si on déploie ça jeudi, je vous garantis que ça va très mal se passer.",
+          "pedagogicalNote": "L'avis est peut-être fondé, mais « ce truc », « arrêter les frais » et la menace finale ne conviennent pas à ce destinataire."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, voici mon retour après trois semaines d'essai. La saisie des commandes est plus rapide qu'avant, environ deux minutes gagnées par dossier. En revanche, l'export comptable ne fonctionne pas encore et nous devons ressaisir à la main. Je recommande de reporter le déploiement d'un mois.",
+          "pedagogicalNote": "Ton professionnel, faits chiffrés, recommandation claire : la franchise passe sans que le registre glisse."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, voici mon retour après trois semaines d'essai. La saisie des commandes gagne environ deux minutes par dossier, ce qui est réel. En revanche, l'export comptable ne fonctionne pas et nous ressaisissons à la main — le gain est donc annulé. Je recommande de reporter d'un mois.",
+          "pedagogicalNote": "« Le gain est donc annulé » rend l'argument imparable sans hausser d'un ton : c'est la maîtrise du registre qui fait la force."
+        }
+      ]
+    },
+    {
+      "title": "Un avis au groupe de la classe",
+      "context": "Sur le groupe des parents d'élèves, quelqu'un demande : « Certains ont essayé le centre de loisirs du mercredi. Vos retours ? »",
+      "instruction": "Donnez votre avis sur cette équipe d'animateurs, dans le registre qui convient à un groupe de parents.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton cordial de groupe, sans familiarité excessive ni distance.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez cordial",
+        "Pensez à tout le groupe"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre cordial",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour à tous, nous y allons depuis septembre…",
+      "tip": "un groupe se salue, et personne n'y est votre intime",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Coucou les copines ! Alors nous c'est validé à 200 %, les animateurs sont des amours, franchement on est fans. Y a juste la grande blonde qui est un peu speed mais bon, ça va, on fait avec. Bisous à toutes ! Allez, on se fait un café un de ces quatre pour en reparler entre nous !",
+          "pedagogicalNote": "« Les copines », « bisous à toutes » excluent la moitié du groupe, et la remarque sur « la grande blonde » désigne quelqu'un sans le nommer."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour à tous, nous y allons depuis septembre. L'équipe est stable, ce sont les mêmes animateurs toute l'année, et les enfants les connaissent par leur prénom. Les activités changent chaque semaine. Le seul point à savoir : il faut inscrire avant le vendredi, sinon c'est complet.",
+          "pedagogicalNote": "Salutation qui inclut tout le monde, ton cordial, information utile : le registre du groupe est respecté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour à tous, nous y allons depuis septembre. L'équipe est stable toute l'année, et les enfants appellent les animateurs par leur prénom dès octobre. Les activités changent chaque semaine sans se répéter. À savoir : les inscriptions ferment le vendredi, et c'est souvent complet dès le jeudi soir.",
+          "pedagogicalNote": "Le registre reste cordial et l'information gagne en précision, sans qu'aucune personne ne soit visée."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à un ancien professeur",
+      "context": "Votre ancienne professeure, que vous avez toujours vouvoyée, vous écrit : « Vous avez suivi la visite guidée dont je vous avais parlé. Que pensez-vous de la conférencière ? »",
+      "instruction": "Donnez votre avis sur cette personne, dans le registre qui convient à cette relation.",
+      "uniqueCriterion": "Votre avis garde le vouvoiement établi, sur un ton chaleureux et sans raideur.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Gardez le vouvoiement",
+        "Restez chaleureux"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre respectueux",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour Madame, j'ai suivi sa visite samedi…",
+      "tip": "vous l'avez toujours vouvoyée : gardez cet usage, sans froideur",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Salut ! Trop content de te lire. Alors la nana qui faisait la visite, franchement elle assurait grave, elle connaît son truc. Par contre elle parlait vite, j'ai galéré sur la fin. Merci du tuyau en tout cas, c'était top ! Faudra qu'on se capte un de ces quatre pour en discuter.",
+          "pedagogicalNote": "Le tutoiement rompt l'usage installé entre vous, et « la nana », « elle assurait grave », « j'ai galéré » détonnent complètement."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour Madame, j'ai suivi sa visite samedi et je vous remercie de me l'avoir conseillée. Elle connaît remarquablement son sujet et répond à toutes les questions sans jamais se dérober. Elle parle un peu vite dans la dernière salle, mais l'ensemble était passionnant.",
+          "pedagogicalNote": "Vouvoiement chaleureux, avis argumenté, réserve exprimée sans dureté : le registre est parfaitement tenu."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour Madame, j'ai suivi sa visite samedi et je vous remercie de me l'avoir conseillée. Elle connaît remarquablement son sujet et n'esquive aucune question, même celles qui sortent du parcours. Elle accélère un peu dans la dernière salle — sans doute l'horaire. J'y retournerais volontiers.",
+          "pedagogicalNote": "La réserve est nuancée par une explication bienveillante, et le registre ne varie pas d'un mot."
+        }
+      ]
+    },
+    {
+      "title": "Un avis dans un cadre officiel",
+      "context": "La préfecture vous écrit : « Madame, dans le cadre de l'enquête publique sur l'aménagement du square Dubois, vous pouvez déposer votre avis. »",
+      "instruction": "Donnez votre avis sur ce square, dans le registre qui convient à une enquête publique.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton formel et argumenté, sans plainte ni familiarité.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez formel",
+        "Argumentez"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre formel",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, je souhaite formuler un avis favorable…",
+      "tip": "une enquête publique se lit : la colère y pèse moins qu'un fait",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Ça fait dix ans qu'on demande et rien ne bouge ! Le square est dans un état lamentable, les bancs sont cassés et personne ne fait rien. Si vous voulez mon avis, il serait temps de vous réveiller avant qu'un enfant se blesse. C'est scandaleux.",
+          "pedagogicalNote": "Le fond est peut-être juste, mais ce ton de reproche a peu de poids dans un dossier d'enquête publique."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, je souhaite formuler un avis favorable à ce projet. Le square est aujourd'hui le seul espace vert accessible à pied depuis les immeubles de la rue Dubois. Les bancs actuels sont hors d'usage. L'ajout d'une aire ombragée répondrait à un besoin réel des familles.",
+          "pedagogicalNote": "Registre formel, avis annoncé, arguments vérifiables : le dossier peut en tenir compte."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, je souhaite formuler un avis favorable à ce projet. Le square est le seul espace vert accessible à pied depuis les immeubles de la rue Dubois, soit environ deux cents logements. Quatre des six bancs sont hors d'usage. Une aire ombragée y répondrait à un besoin quotidien.",
+          "pedagogicalNote": "Les deux chiffres transforment l'avis en contribution utilisable, sans que le registre varie d'un mot."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à quelqu'un qu'on ménage",
+      "context": "Votre belle-mère, que vous avez toujours vouvoyée, vous écrit : « J'ai choisi ce fauteuil pour votre salon. Il vous plaît vraiment ? Dites-moi franchement. »",
+      "instruction": "Donnez votre avis sur ce fauteuil, dans le registre qui convient à cette relation.",
+      "uniqueCriterion": "Votre avis est exprimé avec franchise et ménagement à la fois, en gardant le vouvoiement établi.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez franc",
+        "Gardez le vouvoiement"
+      ],
+      "constraintTags": [
+        {
+          "label": "Franchise ménagée",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Merci beaucoup, il est arrivé hier…",
+      "tip": "franc ne veut pas dire brutal, ménager ne veut pas dire mentir",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Merci beaucoup, il est magnifique, exactement ce qu'il nous fallait ! La couleur est parfaite, la taille aussi, et il va très bien avec le reste. Vraiment, vous avez eu un goût sûr, on ne pouvait pas rêver mieux pour ce salon.",
+          "pedagogicalNote": "Elle demande votre avis franc. Cet enthousiasme sans réserve ne répond pas à sa question — et sonne faux."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Merci beaucoup, il est arrivé hier. Le tissu est très agréable et la couleur s'accorde bien avec les rideaux. Il est honnêtement un peu grand pour la pièce, nous avons dû déplacer la table basse. Mais nous sommes très touchés d'y avoir pensé.",
+          "pedagogicalNote": "La réserve est dite clairement, encadrée par deux appréciations sincères : franchise et ménagement tiennent ensemble."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Merci beaucoup, il est arrivé hier. Le tissu est très agréable et la couleur s'accorde parfaitement aux rideaux. Il est honnêtement un peu grand : nous avons déplacé la table basse, et finalement le salon est mieux ainsi. Nous sommes vraiment touchés que vous y ayez pensé.",
+          "pedagogicalNote": "La réserve est maintenue mais suivie de sa résolution : rien n'est caché, et rien n'est blessant."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à un inconnu qui demande",
+      "context": "Une personne vous aborde sur un forum de quartier : « Bonjour, je viens d'emménager. Les commerçants du marché du mardi sont comment ? »",
+      "instruction": "Donnez votre avis sur ces commerçants, dans le registre qui convient à un inconnu du quartier.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton accueillant et vouvoyé, compréhensible par quelqu'un qui ne connaît personne ici.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "MEDIUM",
+      "checklist": [
+        "Donnez votre avis",
+        "Vouvoyez",
+        "Pensez au nouveau venu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre accueillant",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour et bienvenue !…",
+      "tip": "il ne connaît personne : évitez les prénoms que vous seul situez",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour ! Alors évitez le gros René, c'est plus ce que c'était depuis que Josiane est partie. Allez plutôt chez les Martin au bout, ceux qui ont repris après l'affaire du parking. Et si vous voyez Dédé, dites-lui que je passerai jeudi !",
+          "pedagogicalNote": "Les prénoms et les allusions au passé du quartier sont incompréhensibles pour quelqu'un qui vient d'arriver."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour et bienvenue ! Les commerçants du mardi sont pour la plupart des producteurs, pas des revendeurs. Ils acceptent qu'on goûte et ils disent franchement ce qui n'est pas encore de saison. Plusieurs se connaissent depuis des années et vous orientent vers le stand voisin sans problème.",
+          "pedagogicalNote": "Ton accueillant, vouvoiement, et une description du groupe utilisable par quelqu'un qui n'y a aucun repère."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour et bienvenue ! Les commerçants du mardi sont pour la plupart des producteurs, pas des revendeurs. Ils font goûter sans qu'on demande et vous disent franchement quand un produit n'est pas encore de saison. Ils s'envoient les clients d'un stand à l'autre — c'est ce qui m'a frappé en arrivant.",
+          "pedagogicalNote": "« Ce qui m'a frappé en arrivant » se met à la place du nouveau venu : l'adaptation au destinataire va jusque-là."
+        }
+      ]
+    },
+    {
+      "title": "Un avis écrit sous le coup de l'agacement",
+      "context": "Le syndic vous écrit : « Madame, vous avez signalé un problème avec l'entreprise de nettoyage. Merci de nous transmettre votre avis par écrit. »",
+      "instruction": "Donnez votre avis sur cette équipe de nettoyage, dans le registre qui convient à un syndic.",
+      "uniqueCriterion": "Votre avis critique est exprimé sur un ton mesuré et vouvoyé, sans agressivité.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez mesuré",
+        "Pas d'agressivité"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre mesuré",
+          "icon": "TONE"
+        },
+        {
+          "label": "Groupe décrit",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Madame, Monsieur, mon avis sur cette équipe est réservé…",
+      "tip": "un reproche mesuré se lit ; un reproche crié se classe",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "C'est une honte ! Ces gens ne font absolument rien, ils passent dix minutes et repartent. On paie une fortune pour un hall dégoûtant. Franchement, changez de prestataire ou remboursez-nous, parce que là c'est du vol pur et simple. J'attends une réponse rapide.",
+          "pedagogicalNote": "Le reproche est peut-être fondé, mais ce ton le rend facile à écarter : rien n'y est vérifiable."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Madame, Monsieur, mon avis sur cette équipe est réservé. Leur passage dure environ dix minutes pour six étages. Les vitres du hall n'ont pas été faites depuis janvier et l'ascenseur n'est jamais nettoyé. Le contrat prévoit pourtant deux passages complets par semaine. Bien cordialement.",
+          "pedagogicalNote": "Registre mesuré, faits datés, référence au contrat : la réserve devient opposable."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Madame, Monsieur, mon avis sur cette équipe est réservé. Leur passage dure une dizaine de minutes pour six étages. Les vitres du hall n'ont pas été faites depuis janvier, la cabine d'ascenseur jamais. Le contrat prévoyant deux passages complets par semaine, l'écart me semble important. Bien cordialement.",
+          "pedagogicalNote": "« L'écart me semble important » laisse la conclusion au destinataire : c'est plus fort qu'une accusation."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à un ami qui a fait le choix",
+      "context": "Un ami vous écrit : « J'ai enfin acheté la voiture dont je t'avais parlé. Tu la trouves comment, franchement ? »",
+      "instruction": "Donnez votre avis sur cet objet, dans le registre qui convient à un ami qui a déjà acheté.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton amical et honnête, sans complaisance ni jugement blessant.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez honnête",
+        "Ne blessez pas"
+      ],
+      "constraintTags": [
+        {
+          "label": "Franchise amicale",
+          "icon": "TONE"
+        },
+        {
+          "label": "Objet décrit",
+          "icon": "NUMBER"
+        }
+      ],
+      "answerStarter": "Je l'ai vue hier soir…",
+      "tip": "il a déjà acheté : la franchise ne sert plus à le faire changer d'avis",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Franchement ? Je l'aurais jamais prise. Le coffre est minuscule, la consommation est délirante et la revente sera catastrophique dans trois ans. Tu aurais dû m'écouter quand je te disais de regarder l'autre modèle. Enfin bon, c'est fait, on n'en parle plus.",
+          "pedagogicalNote": "L'honnêteté tourne au reproche sur un achat déjà fait : le ton ne tient pas compte de la situation."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Je l'ai vue hier soir. La position de conduite est vraiment confortable et le coffre est plus grand qu'il n'en a l'air. La finition intérieure est soignée. Elle consomme un peu plus que ce que tu espérais, mais pour tes trajets courts cela ne changera pas grand-chose.",
+          "pedagogicalNote": "La réserve est dite, puis remise à sa juste place au regard de son usage réel : honnête sans blesser."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Je l'ai vue hier soir. La position de conduite est vraiment confortable et le coffre plus grand qu'il n'en a l'air. La finition m'a surpris en bien. Elle consomme un peu plus que tu ne l'espérais — mais sur tes quinze kilomètres par jour, on parle de quelques euros par mois.",
+          "pedagogicalNote": "Le chiffrage désamorce la réserve sans la nier : c'est exactement l'adaptation au fait que l'achat est déjà fait."
+        }
+      ]
+    },
+    {
+      "title": "Un avis en tant que représentant",
+      "context": "La direction vous écrit : « Vous parlez au nom de l'équipe. Quel est l'avis collectif sur les nouveaux bureaux ? »",
+      "instruction": "Donnez l'avis de l'équipe sur ce lieu, dans le registre qui convient quand on parle pour d'autres.",
+      "uniqueCriterion": "Votre avis est exprimé au nom du groupe, sur un ton mesuré, sans se confondre avec votre avis personnel.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Parlez au nom du groupe",
+        "Restez mesuré",
+        "Pas votre avis seul"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre collectif",
+          "icon": "TONE"
+        },
+        {
+          "label": "Lieu décrit",
+          "icon": "PLACE"
+        }
+      ],
+      "answerStarter": "Bonjour, voici l'avis recueilli auprès de l'équipe…",
+      "tip": "vous parlez pour douze personnes : « je » n'est pas la bonne place",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, personnellement je déteste ces nouveaux bureaux. Je ne supporte pas l'open space, je n'arrive pas à me concentrer et j'ai mal au dos depuis qu'on a changé de chaises. J'espère qu'on va revenir en arrière rapidement, c'était mieux avant.",
+          "pedagogicalNote": "Vous parlez au nom de l'équipe et ne donnez que votre ressenti : le registre du mandat n'est pas tenu."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, voici l'avis recueilli auprès de l'équipe. La lumière naturelle et l'espace de circulation font l'unanimité. En revanche, huit personnes sur douze signalent des difficultés de concentration liées au bruit. Deux demandent des cloisons acoustiques. Personne ne souhaite revenir aux anciens locaux.",
+          "pedagogicalNote": "Chiffres, nuances, et une conclusion qui rend compte du groupe entier : le mandat est respecté."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, voici l'avis recueilli auprès de l'équipe. La lumière et l'espace de circulation font l'unanimité. Huit personnes sur douze signalent des difficultés de concentration liées au bruit, dont deux demandent des cloisons acoustiques. Personne ne souhaite revenir aux anciens locaux, y compris parmi les plus critiques.",
+          "pedagogicalNote": "« Y compris parmi les plus critiques » rend compte de la position du groupe avec une honnêteté que le registre exige."
+        }
+      ]
+    },
+    {
+      "title": "Un avis à quelqu'un qui décide",
+      "context": "La responsable du recrutement vous écrit : « Vous avez travaillé avec ce candidat. Votre avis pèsera dans la décision. »",
+      "instruction": "Donnez votre avis sur cette personne, dans le registre qui convient quand votre parole engage.",
+      "uniqueCriterion": "Votre avis est exprimé sur un ton professionnel et prudent, sans emballement ni sous-entendu.",
+      "recommendedMinWords": 40,
+      "recommendedMaxWords": 90,
+      "difficultyLevel": "HARD",
+      "checklist": [
+        "Donnez votre avis",
+        "Restez professionnel",
+        "Pas de sous-entendu"
+      ],
+      "constraintTags": [
+        {
+          "label": "Registre engageant",
+          "icon": "TONE"
+        },
+        {
+          "label": "Personne décrite",
+          "icon": "PERSON"
+        }
+      ],
+      "answerStarter": "Bonjour, j'ai travaillé six mois avec lui…",
+      "tip": "votre parole engage quelqu'un : ni emballement, ni allusion",
+      "references": [
+        {
+          "level": "INSUFFICIENT",
+          "text": "Bonjour, c'est quelqu'un de très bien, prenez-le les yeux fermés. Enfin, disons qu'il a eu quelques soucis avec l'ancienne direction mais bon, chacun sait ce qu'il en était vraiment. En tout cas moi je le recommande, il ne vous décevra pas.",
+          "pedagogicalNote": "L'allusion aux « soucis » sans rien préciser est plus nuisible qu'un reproche clair : ce registre ne convient pas à une décision."
+        },
+        {
+          "level": "EXPECTED",
+          "text": "Bonjour, j'ai travaillé six mois avec lui sur le même projet. Il tient ses délais et signale les difficultés tôt plutôt que de les laisser s'installer. Il est moins à l'aise à l'oral devant un groupe. Sur un poste technique, je le recommande sans réserve.",
+          "pedagogicalNote": "Faits, limite énoncée franchement, recommandation circonscrite : le registre convient à une parole qui engage."
+        },
+        {
+          "level": "EXCELLENT",
+          "text": "Bonjour, j'ai travaillé six mois avec lui sur le même projet. Il tient ses délais et signale les difficultés tôt, avant qu'elles ne coûtent cher. Il est moins à l'aise à l'oral devant un groupe, ce qui n'a jamais gêné notre travail. Sur un poste technique, je le recommande sans réserve.",
+          "pedagogicalNote": "La limite est située dans son contexte au lieu d'être laissée nue : l'avis engage sans desservir."
+        }
+      ]
+    }
+  ]
+}

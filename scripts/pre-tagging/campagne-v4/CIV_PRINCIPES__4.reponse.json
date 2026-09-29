@@ -1,0 +1,125 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011CewyiVGdMh2XzwmLMB3p3",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01317QspBMBDgxzJhtNz4sGa",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "AUCUNE",
+            "confiance": 0.9,
+            "rationale": "Question sur l'obligation scolaire, relève de CIV_SOCIETE (éducation), pas du référentiel symboles/valeurs."
+          },
+          {
+            "rang": 2,
+            "notion": "pv_laicite",
+            "confiance": 0.55,
+            "rationale": "École publique gratuite et laïque, mêle service public éducatif et laïcité mais surtout gratuité hors référentiel; alternative laïcité par mention du mot.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 3,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Le drapeau tricolore est un symbole explicitement listé."
+          },
+          {
+            "rang": 4,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "L'hymne La Marseillaise est un symbole listé."
+          },
+          {
+            "rang": 5,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "La devise Liberté Égalité Fraternité est explicitement dans la notion."
+          },
+          {
+            "rang": 6,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Marianne est le symbole féminin listé dans la notion."
+          },
+          {
+            "rang": 7,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.95,
+            "rationale": "Le coq gaulois est cité comme emblème animal."
+          },
+          {
+            "rang": 8,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.95,
+            "rationale": "La langue officielle (article 2) est explicitement dans le périmètre."
+          },
+          {
+            "rang": 9,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.85,
+            "rationale": "Question sur la devise malgré le lien avec 1789, la réponse porte sur la devise elle-même.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 10,
+            "notion": "pv_laicite",
+            "confiance": 0.6,
+            "rationale": "La date de la loi de 1905 est explicitement exclue vers hg_conquetes_droits selon la frontière, donc incertitude.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.5
+          },
+          {
+            "rang": 11,
+            "notion": "pv_laicite",
+            "confiance": 0.7,
+            "rationale": "Neutralité de l'école publique face aux religions, relève de la laïcité comme obligation de l'État.",
+            "alternative": "AUCUNE",
+            "alternative_confiance": 0.4
+          },
+          {
+            "rang": 12,
+            "notion": "pv_symboles_devise",
+            "confiance": 0.97,
+            "rationale": "Devise de la République, article 2 de la Constitution."
+          },
+          {
+            "rang": 13,
+            "notion": "pv_laicite",
+            "confiance": 0.95,
+            "rationale": "Définition de la séparation des Églises et de l'État, cœur de la notion laïcité."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 6231,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 996,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

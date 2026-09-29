@@ -1,0 +1,109 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "leviers",
+    "exemple_cible",
+    "a_retenir"
+  ],
+  "properties": {
+    "leviers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS leviers, ordonnés du plus rentable au moins rentable, qui séparent la production actuelle du niveau visé. Jamais un inventaire, jamais deux fois la même idée sous deux formulations.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "exemple"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 70,
+            "description": "Ce qu'il faut faire, en SIX MOTS MAXIMUM, à l'impératif deuxième personne : « Formule ta demande plus naturellement », « Relie tes deux idées ». Un verbe d'action en tête, pas de jugement, pas de « vous n'avez pas »."
+          },
+          "exemple": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Un bout de langue RÉUTILISABLE tel quel, CINQ MOTS MAXIMUM : « Serait-il possible de… », « ce qui me permettrait de ». Jamais une explication, jamais une phrase entière : le candidat doit pouvoir le recopier dans sa prochaine production."
+          }
+        }
+      }
+    },
+    "exemple_cible": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texte",
+        "segments"
+      ],
+      "description": "La réponse du candidat réécrite au niveau visé, plus les deux ou trois endroits précis où se joue la différence.",
+      "properties": {
+        "texte": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200,
+          "description": "La MÊME réponse que celle du candidat, réécrite au niveau qu'il vise. Elle garde sa situation, ses faits, ses prénoms, ses chiffres, son intention ; seules la langue et l'organisation montent d'un cran. Longueur PROCHE de la sienne. Texte brut, recopiable tel quel : aucun titre, aucune parenthèse explicative, aucun nom de niveau (A1, A2, B1, B2), aucune note. Français entièrement accentué."
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "description": "DEUX ou TROIS passages de `texte` que le front met en évidence. Chaque `extrait` est recopié CARACTÈRE POUR CARACTÈRE depuis `texte` : le serveur vérifie qu'il s'y trouve tel quel, et abandonne tout le bloc s'il n'y est pas.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "extrait",
+              "apport"
+            ],
+            "properties": {
+              "extrait": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Un passage de `texte`, recopié EXACTEMENT tel qu'il y apparaît — mêmes mots, mêmes accents, mêmes espaces, même ponctuation. Ni reformulé, ni raccourci par des points de suspension, ni recomposé à partir de deux morceaux éloignés."
+              },
+              "apport": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "Ce que ce passage apporte, en TROIS MOTS MAXIMUM : « plus naturel », « plus nuancé », « plus poli », « lien logique ». Une étiquette, jamais une phrase."
+              }
+            }
+          }
+        }
+      }
+    },
+    "a_retenir": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formule",
+        "explication"
+      ],
+      "description": "LA chose à emporter de cet exercice : une tournure réutilisable et la situation où elle sert.",
+      "properties": {
+        "formule": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 90,
+          "description": "Une tournure réutilisable, HUIT MOTS MAXIMUM, écrite comme un patron : « Serait-il possible de + infinitif », « bien que + subjonctif »."
+        },
+        "explication": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150,
+          "description": "Quand et pourquoi cette tournure sert, QUATORZE MOTS MAXIMUM. Une phrase concrète, pas une définition de grammaire."
+        }
+      }
+    }
+  },
+  "title": "Pour viser le niveau demandé — Compétences TCF IRN v1",
+  "description": "Contrat strict de sortie du SECOND appel du module Compétences, totalement séparé de l'analyse : deux ou trois leviers, la réponse du candidat réécrite au niveau qu'il vise avec les passages qui font la différence, et une tournure à retenir. Aucune note, aucun verdict, aucun champ de niveau — le serveur pose lui-même `niveau_vise` et `niveau_constate`, ils ne sont jamais laissés au modèle. Tout le français produit ici est lu par une personne qui APPREND le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres ». Seule exception : les mots du candidat repris entre guillemets se recopient tels quels, accents manquants compris."
+}

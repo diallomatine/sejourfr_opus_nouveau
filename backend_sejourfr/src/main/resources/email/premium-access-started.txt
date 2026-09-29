@@ -1,0 +1,11 @@
+Votre accès Premium est activé
+
+{{greeting}},
+
+Votre accès {{offerName}} est activé depuis le {{accessStartDate}}. Tous les contenus inclus sont débloqués sur le web et dans l'application mobile.
+
+{{accessTerms}} {{accessEndDate}}.
+
+Commencer mon entraînement : {{appUrl}}
+
+Vos progrès sont sauvegardés sur votre compte et synchronisés sur tous vos appareils.

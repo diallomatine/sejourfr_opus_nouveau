@@ -1,0 +1,2323 @@
+// Client HTTP minimal vers le backend Spring Boot.
+// Compatible Server Components et Client Components (Next 16 / App Router).
+
+import type {ParcoursModule} from "./module-switch";
+import type {
+  AnswerResultResponse,
+  ApiError,
+  AttemptResponse,
+  CivicPlanDto,
+  CivicPlanGrain,
+  ProgressDto,
+  ProgressionCiviqueDto,
+  ProgressionEpreuveDto,
+  ProgressionTcfDto,
+  ProgressionThemeDto,
+  AttemptSummaryResponse,
+  AttemptType,
+  AuthenticatedUser,
+  DashboardSummaryResponse,
+  Difficulty,
+  DiagnosticResponse,
+  EpreuveType,
+  ExamTemplateSummary,
+  FullTcfExamResponse,
+  FullTcfExamSummaryResponse,
+  GoogleSignInRequest,
+  LoginRequest,
+  LotDto,
+  LearningPlanDto,
+  Module as ModuleEnum,
+  PlanPublicResponse,
+  ProductionAttemptStartRequest,
+  ProductionBilanResponse,
+  ProductionExampleDto,
+  ProductionSubmissionDto,
+  ProductionTaskDto,
+  PublicDiagnosticResponse,
+  TcfDiagnosticDto,
+  CivicDiagnosticDto,
+  PreparationDto,
+  CivicDiagnosticResultDto,
+  TcfDiagnosticResultDto,
+  QuestionReviewResponse,
+  QuestionType,
+  RegisterRequest,
+  SkillAnalysisQuotaDto,
+  SkillAttemptDto,
+  SkillDetailDto,
+  SkillDto,
+  SkillPromptDto,
+  SkillReferenceDto,
+  SkillSection,
+  SkillSelfEvaluation,
+  SkillTaskProgressDto,
+  StartAttemptRequest,
+  SubmitAnswerRequest,
+  SubmitProductionTextRequest,
+  SubmitSkillTextRequest,
+  TargetProcedure,
+  ThemeUserResponse,
+  CivicThemeExamSlots,
+  ExamSlots,
+  TokenResponse,
+  UserStatsResponse,
+    JourneyDto,
+    JourneyHistoryDto,
+    JourneyCycleArchiveDto,
+    AuthAttributionFields,
+    DiagnosticRunCreateRequest,
+    DiagnosticRunCreatedResponse,
+    JourneyStepDetailDto,
+} from "./types";
+import {anonymousId, clientContextHeaders} from "./client-context";
+import {diagnosticRunsToClaim} from "./diagnostic-run-store";
+import type {AnalyticsCtaLocation} from "./analytics";
+import {withRetour} from "./retour";
+import {cached, clearDataCache, invalidateCache, peekCached, primeCached} from "./data-cache";
+import {requiresDiagnosticRevalidation} from "./diagnostic";
+import {signalerPlanARelire} from "./plan-relecture";
+import {PRODUCTION_PROGRESS_PREFIXES} from "./production-catalog";
+import {SKILLS_CACHE_PREFIX} from "./skill-catalog";
+
+/**
+ * Invalidation du cache mémoire (`lib/data-cache.ts`) — **le seul endroit** où
+ * elle est décidée.
+ *
+ * Le catalogue du parcours TCF EE/EO (compétences, sujets, exemples) est mis en
+ * cache pour la session : c'est du contenu éditorial, et le recharger à chaque
+ * bascule de mode ou de tâche était précisément le défaut à corriger. Mais deux
+ * données bougent avec l'usage — l'historique des soumissions et les compteurs
+ * de progression / de quota. Elles sont donc purgées **ici, à la source**,
+ * juste après l'écriture qui les rend fausses : un écran qui oublierait de le
+ * faire afficherait une progression mensongère, et c'est le seul vrai piège de
+ * ce cache.
+ */
+function invalidateProductionProgress(): void {
+    for (const prefix of PRODUCTION_PROGRESS_PREFIXES) invalidateCache(prefix);
+}
+
+export const DIAGNOSTIC_CACHE_PREFIX = "diagnostic:";
+export const LEARNING_PLAN_CACHE_PREFIX = "learning-plan:";
+
+export const PREPARATION_CACHE_PREFIX = "preparation:";
+export const PROGRESS_CACHE_PREFIX = "progress:";
+
+/** Diagnostic, Plan, préparation et progrès sont quatre vues d'une même
+ *  trajectoire. Toute production pertinente peut faire avancer l'une et
+ *  réordonner les autres — elles se vident donc **ensemble**.
+ *
+ *  🛑 C'est la contrepartie du cache : depuis que ces quatre lectures sont
+ *  mises en cache (pour que changer d'écran ou de parcours ne redemande pas ce
+ *  qu'on vient de lire), c'est **ici** que se joue leur fraîcheur. Une écriture
+ *  qui oublierait d'appeler ce helper afficherait une progression périmée. */
+function invalidateDiagnosticAndPlan(): void {
+    oublierDashboard();
+    invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
+    invalidateCache(LEARNING_PLAN_CACHE_PREFIX);
+    invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
+    invalidateCache(PREPARATION_CACHE_PREFIX);
+    invalidateCache(PROGRESS_CACHE_PREFIX);
+}
+
+/** Une production de compétence (ou son analyse) change les compteurs de
+ *  l'épreuve entière : compétences, agrégat par tâche, détail d'une compétence. */
+function invalidateSkillProgress(): void {
+    invalidateCache(SKILLS_CACHE_PREFIX);
+}
+
+/**
+ * **L'ACCÈS DU COMPTE A CHANGÉ** — le jumeau d'`invalidateDiagnosticAndPlan()`,
+ * pour un achat au lieu d'une mesure.
+ *
+ * 🛑 **Une purge ne débloque rien : elle fait RELIRE.** Tous les `locked` sont
+ * dérivés serveur, à la lecture — donc un pass civique n'ouvre que le civique
+ * et l'Intégral ouvre les deux, sans qu'aucun front n'ait à connaître la règle.
+ * Le seul défaut à corriger était que **personne ne relisait** : `refreshUser()`
+ * rafraîchissait le profil pendant que le Plan, l'Accueil, Réviser et les
+ * compétences continuaient de servir le `locked: true` mis en cache avant
+ * l'achat.
+ *
+ * **Ce qu'on purge** — tout ce qui porte un `locked`, un quota ou une
+ * progression :
+ * `diagnostic:`, `learning-plan:` (le Plan, le cycle, ses étapes, l'écran
+ * d'étape), `civic-plan:`, `preparation:`, `progress:` et `skills:`
+ * (`SkillDto.locked` est servi).
+ *
+ * ⚠️ **Ce qu'on NE purge PAS, volontairement** : `production:tasks:` et
+ * `production:examples:` — du **contenu éditorial**, sans aucun `locked` servi
+ * (`ProductionTaskDto` n'en porte pas ; le verrou des sujets et des modèles se
+ * lit sur `canAccessModule(user)`, donc il suit le contexte React sans le
+ * moindre appel). Et `production:mine:` / `production:bilan:`, qui portent des
+ * productions déjà rendues : un achat n'en change pas une ligne. Les purger
+ * coûterait des appels à chaque achat sans rien rouvrir.
+ */
+function invalidateAccesServi(): void {
+    invalidateDiagnosticAndPlan();
+    invalidateSkillProgress();
+}
+
+/**
+ * **Après un changement d'OBJECTIF** (démarche, donc palier TCF visé).
+ *
+ * 🛑 Le Plan, les deux cycles, la préparation, la progression, le diagnostic et
+ * les compétences sont calculés **à partir de l'objectif**, et mis en cache. Le
+ * changer ne rafraîchissait que le profil (`refreshUser()`) : le Profil disait
+ * « Naturalisation » pendant que le Plan affichait encore l'ancienne démarche.
+ * **Même périmètre que l'accès** — tout ce qui se dérive du compte —, d'où le
+ * même helper. Purge **après** la réponse, jamais avant (cf. `afterMeasureWrite`).
+ * Pendant mobile : `compteObjectifProvider` (`core/auth/auth_controller.dart`).
+ */
+function afterObjectifWrite<T>(res: T): T {
+    invalidateAccesServi();
+    return res;
+}
+
+/**
+ * La signature de l'accès servi : ce qui, en changeant, rouvre des surfaces.
+ *
+ * ⚠️ Ni prénom, ni objectif, ni date d'examen — un `/api/auth/me` qui rend les
+ * mêmes droits rend la même chaîne, et rien n'est purgé pour rien.
+ * ⚠️ `premiumEndsAt` **en fait partie** : un rachat qui repousse l'échéance sans
+ * changer de module reste un accès qui a changé.
+ */
+function signatureAcces(user: AuthenticatedUser | null): string {
+    if (!user) return "";
+    return [
+        user.id,
+        user.hasCivique ?? false,
+        user.hasTcf ?? false,
+        user.premiumEndsAt ?? "",
+    ].join("|");
+}
+
+/** `undefined` = on n'a encore rien lu dans cette session de navigation. */
+let dernierAccesServi: string | undefined;
+
+/**
+ * **Le seul endroit qui constate qu'un accès a changé**, appelé par
+ * `authApi.me()` — donc par **tous** les chemins qui lisent le profil : le
+ * retour Stripe de `/paiement/succes` (qui poll `refreshUser()`), la connexion,
+ * l'inscription, l'hydratation au montage.
+ *
+ * 🛑 **Aucune liste d'appelants à tenir.** Un chemin d'achat ajouté plus tard
+ * finit forcément par relire le profil — il est couvert sans rien déclarer.
+ *
+ * ⚠️ La **première** lecture ne purge rien : le cache d'une session qui
+ * commence est vide (`tokenStorage.set` / `.clear` le vident), et purger là
+ * ne ferait que jeter ce que le montage vient de charger.
+ */
+function noterAccesServi(user: AuthenticatedUser | null): void {
+    if (typeof window === "undefined") return;
+    const signature = signatureAcces(user);
+    const precedent = dernierAccesServi;
+    dernierAccesServi = signature;
+    if (precedent === undefined || precedent === signature) return;
+    invalidateAccesServi();
+}
+
+/** La session s'arrête (ou commence) : la prochaine lecture du profil est une
+ *  première lecture, pas un changement d'accès. */
+function oublierAccesServi(): void {
+    dernierAccesServi = undefined;
+}
+
+/** **Après une écriture de MESURE** — session finalisée, section de diagnostic
+ *  close, diagnostic clos, épreuve d'un examen complet fermée.
+ *
+ *  🛑 Purge **après** la réponse, jamais avant : entre l'envoi et le commit
+ *  serveur, une lecture concurrente repeuplerait le cache avec la valeur
+ *  d'avant l'écriture. Même idiome qu'`afterProductionWrite`. */
+function afterMeasureWrite<T>(res: T): T {
+    invalidateDiagnosticAndPlan();
+    return res;
+}
+
+/** **Lecture d'un examen blanc COMPLET** : le niveau final n'est posé qu'à
+ *  la fin des évaluations EE/EO, en arrière-plan, bien APRÈS le `finish` (dont
+ *  la purge a donc laissé le Plan se relire sur l'état d'avant). Le bilan
+ *  poll jusqu'à `COMPLETED` : c'est là que le Plan, le parcours et l'Accueil
+ *  redeviennent faux. Même idiome qu'`afterDiagnosticRead`. Pendant mobile :
+ *  la fin du polling de `tcf_full_exam_bilan_screen.dart`. */
+function afterFullExamRead(exam: FullTcfExamResponse): FullTcfExamResponse {
+    if (exam.status === "COMPLETED") invalidateDiagnosticAndPlan();
+    return exam;
+}
+
+/** Après une écriture de production : l'historique et les bilans sont périmés. */
+function afterProductionWrite(sub: ProductionSubmissionDto): ProductionSubmissionDto {
+    invalidateProductionProgress();
+    invalidateDiagnosticAndPlan();
+    return sub;
+}
+
+/**
+ * Pendant un polling, une production n'est vraiment « nouvelle » qu'en arrivant
+ * à son état terminal : c'est là que la note apparaît. Purger à ce moment-là
+ * évite qu'un écran des sujets, rouvert plus tard, affiche « Traité » sans note
+ * sur une production pourtant évaluée depuis longtemps.
+ */
+function afterProductionRead(sub: ProductionSubmissionDto): ProductionSubmissionDto {
+    if (sub.statut === "EVALUATED" || sub.statut === "FAILED") {
+        invalidateProductionProgress();
+        invalidateDiagnosticAndPlan();
+    }
+    return sub;
+}
+
+/** Même règle côté compétences : le statut d'un petit sujet (« Validé », « À
+ *  renforcer ») se fixe à la fin de l'analyse, pas à la soumission. */
+function afterSkillAttempt(attempt: SkillAttemptDto): SkillAttemptDto {
+    if (attempt.statut === "EVALUATED" || attempt.statut === "FAILED" || attempt.statut === "RECORDED") {
+        invalidateSkillProgress();
+        // 🛑 Le Plan n'est pas seul concerné : un micro-sujet analysé bouge
+        // aussi les compteurs de « Votre progression » et la porte de la
+        // préparation. Ne purger que `learning-plan:` laissait `progress:` et
+        // `preparation:` sur la valeur d'avant l'exercice.
+        invalidateDiagnosticAndPlan();
+    }
+    return attempt;
+}
+
+// Base URL configurable via .env.local : NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+export const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+// http://192.168.1.13:3000
+
+// ============================================================================
+// Storage du token (cookie pour SSR + localStorage pour CSR rapide)
+// ============================================================================
+
+export const ACCESS_TOKEN_KEY = "sejourfr.accessToken";
+export const REFRESH_TOKEN_KEY = "sejourfr.refreshToken";
+
+export const tokenStorage = {
+    getAccess(): string | null {
+        if (typeof window === "undefined") return null;
+        return localStorage.getItem(ACCESS_TOKEN_KEY);
+    },
+    getRefresh(): string | null {
+        if (typeof window === "undefined") return null;
+        return localStorage.getItem(REFRESH_TOKEN_KEY);
+    },
+    set(tokens: TokenResponse) {
+        if (typeof window === "undefined") return;
+        /* 🛑 **Une session qui commence part d'un cache vide.** `clear()` ne
+           couvrait que la déconnexion propre : une **connexion** ou une
+           **inscription** dans un onglet qui portait encore le cache d'un autre
+           compte servait sa progression au nouveau (constaté en recette le
+           2026-09-12 côté mobile, même défaut ici).
+
+           ⚠️ Le rafraîchissement de jeton passe aussi par ici, donc le cache se
+           vide une fois par heure environ. C'est le bon compromis : une purge
+           silencieuse coûte quelques requêtes, servir les données d'un autre
+           compte est un incident. */
+        clearDataCache();
+        oublierDashboard();
+        oublierAccesServi();
+        localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
+        localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+        // Cookie léger pour permettre au middleware/SSR de connaître l'état.
+        // `Secure` en prod (HTTPS) pour ne jamais transiter en clair ; omis en
+        // dev (http://localhost) sinon le navigateur refuse le cookie.
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${ACCESS_TOKEN_KEY}=${tokens.accessToken}; path=/; max-age=${tokens.expiresInSeconds}; SameSite=Lax${secure}`;
+    },
+    clear() {
+        if (typeof window === "undefined") return;
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
+        document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
+        // La session s'arrête ici : le cache mémoire porte la progression d'un
+        // candidat (sujets traités, notes, quotas). Le laisser en place le
+        // servirait au compte suivant ouvert dans le même onglet.
+        clearDataCache();
+        oublierDashboard();
+        oublierAccesServi();
+    },
+};
+
+// ============================================================================
+// Fetch wrapper
+// ============================================================================
+
+export class ApiException extends Error {
+    status: number;
+    payload?: ApiError;
+
+    constructor(status: number, message: string, payload?: ApiError) {
+        super(message);
+        this.status = status;
+        this.payload = payload;
+    }
+}
+
+interface FetchOptions extends RequestInit {
+    auth?: boolean; // ajouter le Bearer
+    json?: unknown; // body JSON à sérialiser
+    /** Interne : court-circuite la tentative de refresh (utilisé par /auth/refresh). */
+    skipRefresh?: boolean;
+    /**
+     * Extension Next.js : revalidation ISR (en secondes) ou tags de cache.
+     * Utilisé pour les endpoints publics qui peuvent être servis depuis le cache
+     * de la page statique (ex: /api/billing/plans sur la landing).
+     */
+    next?: { revalidate?: number | false; tags?: string[] };
+}
+
+// File d'attente partagée pour ne pas tenter plusieurs refresh en parallèle :
+// si une seconde requête prend un 401 pendant qu'on rafraîchit déjà, elle
+// attend la promesse en cours plutôt que de relancer un refresh concurrent.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+        const rt = tokenStorage.getRefresh();
+        if (!rt) return null;
+        try {
+            const tokens = await rawFetch<TokenResponse>("/api/auth/refresh", {
+                method: "POST",
+                json: {refreshToken: rt},
+                skipRefresh: true,
+            });
+            tokenStorage.set(tokens);
+            return tokens.accessToken;
+        } catch {
+            tokenStorage.clear();
+            return null;
+        } finally {
+            // Libère le slot pour les futurs refreshs.
+            setTimeout(() => {
+                refreshPromise = null;
+            }, 0);
+        }
+    })();
+
+    return refreshPromise;
+}
+
+async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+    const {auth, json, headers, skipRefresh: _skip, cache, next, ...rest} = opts;
+
+    const finalHeaders: Record<string, string> = {
+        Accept: "application/json",
+        // Contexte client (plateforme, identifiant de mesure, version,
+        // provenance) : un seul point de câblage, `lib/client-context.ts`.
+        ...clientContextHeaders(),
+        ...((headers as Record<string, string>) || {}),
+    };
+
+    if (json !== undefined) {
+        finalHeaders["Content-Type"] = "application/json";
+    }
+
+    if (auth) {
+        const t = tokenStorage.getAccess();
+        if (t) finalHeaders["Authorization"] = `Bearer ${t}`;
+    }
+
+    // Par défaut "no-store" pour ne pas servir de données utilisateur en cache.
+    // Les endpoints publics peuvent surcharger via opts.cache ou opts.next pour
+    // bénéficier du cache Next (ISR, tags) — voir billingApi.listPlans.
+    const fetchInit: RequestInit & { next?: FetchOptions["next"] } = {
+        ...rest,
+        headers: finalHeaders,
+        body: json !== undefined ? JSON.stringify(json) : rest.body,
+    };
+    if (next) {
+        fetchInit.next = next;
+    } else {
+        fetchInit.cache = cache ?? "no-store";
+    }
+
+    const res = await fetch(`${API_BASE_URL}${path}`, fetchInit);
+
+    if (!res.ok) {
+        let payload: ApiError | undefined;
+        try {
+            payload = await res.json();
+        } catch {
+            // pas de JSON
+        }
+        throw new ApiException(
+            res.status,
+            payload?.message || `HTTP ${res.status}`,
+            payload,
+        );
+    }
+
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+}
+
+/**
+ * 401 définitif (refresh KO ou pas de refresh token) : purge le storage et
+ * envoie l'utilisateur vers /connexion?next=<route courante>. Ne s'exécute
+ * pas si on est déjà sur /connexion ou /inscription (évite la boucle quand
+ * on tape de mauvais credentials).
+ */
+function redirectToLogin(): void {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (path === "/connexion" || path === "/inscription") return;
+    tokenStorage.clear();
+    // Depuis la vitrine (`/`), pas de `next` : la connexion mène au tableau de bord.
+    if (path === "/") {
+        window.location.assign("/connexion");
+        return;
+    }
+    const next = encodeURIComponent(path + window.location.search);
+    window.location.assign(`/connexion?next=${next}`);
+}
+
+async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+    try {
+        return await rawFetch<T>(path, opts);
+    } catch (err) {
+        // 401 sur endpoint protégé : tentative de refresh une fois, sinon redirect.
+        // On n'intercepte pas /api/auth/* pour ne pas casser les formulaires login/refresh.
+        if (
+            err instanceof ApiException &&
+            err.status === 401 &&
+            !opts.skipRefresh &&
+            typeof window !== "undefined" &&
+            !path.startsWith("/api/auth/")
+        ) {
+            if (tokenStorage.getRefresh()) {
+                const newToken = await refreshAccessToken();
+                if (newToken) {
+                    return rawFetch<T>(path, opts);
+                }
+            }
+            redirectToLogin();
+        }
+        throw err;
+    }
+}
+
+// ============================================================================
+// Endpoints Auth
+// ============================================================================
+
+/**
+ * **Le rattachement du parcours anonyme, posé sur chaque authentification**
+ * (chantier « Suivi », Q3) : l'identifiant de mesure et la run de diagnostic
+ * d'invité de cet appareil avec son `claimToken`. Le serveur claime dans la
+ * transaction d'auth, et un jeton faux, expiré ou déjà utilisé n'empêche
+ * jamais d'entrer (D25). Ici et pas dans les écrans : un écran d'auth ajouté
+ * plus tard est couvert sans rien déclarer.
+ */
+async function withAttribution<T extends AuthAttributionFields>(body: T): Promise<T> {
+    const runs = await diagnosticRunsToClaim().catch(() => []);
+    // Les champs uniques portent la plus récente : un serveur qui ne lit pas
+    // encore la liste rattache au moins celle-là (le serveur dédoublonne).
+    const latest = runs[0] ?? null;
+    return {
+        ...body,
+        anonymousId: anonymousId(),
+        diagnosticRunId: latest?.diagnosticRunId ?? null,
+        claimToken: latest?.claimToken ?? null,
+        claimVia: latest ? "SAME_DEVICE" : null,
+        diagnosticRunClaims: runs.length > 0
+            ? runs.map((run) => ({...run, claimVia: "SAME_DEVICE" as const}))
+            : null,
+    };
+}
+
+export const authApi = {
+    async login(body: LoginRequest): Promise<TokenResponse> {
+        const tokens = await apiFetch<TokenResponse>("/api/auth/login", {
+            method: "POST",
+            json: await withAttribution(body),
+        });
+        tokenStorage.set(tokens);
+        return tokens;
+    },
+
+    async register(body: RegisterRequest): Promise<TokenResponse> {
+        const tokens = await apiFetch<TokenResponse>("/api/auth/register", {
+            method: "POST",
+            json: await withAttribution(body),
+        });
+        tokenStorage.set(tokens);
+        return tokens;
+    },
+
+    /**
+     * Echange un ID token Google (obtenu via Google Identity Services dans le
+     * navigateur) contre une session SejourFR. Cree le compte automatiquement
+     * si l'email n'existe pas encore.
+     */
+    async google(body: GoogleSignInRequest): Promise<TokenResponse> {
+        const tokens = await apiFetch<TokenResponse>("/api/auth/google", {
+            method: "POST",
+            json: await withAttribution(body),
+        });
+        tokenStorage.set(tokens);
+        return tokens;
+    },
+
+    /**
+     * 🛑 **C'est ici que l'on constate qu'un accès a changé**, et nulle part
+     * ailleurs : toute lecture du profil passe par cette méthode — le retour
+     * Stripe, la connexion, l'inscription, l'hydratation au montage. Voir
+     * `noterAccesServi`.
+     */
+    async me(): Promise<AuthenticatedUser> {
+        const user = await apiFetch<AuthenticatedUser>("/api/auth/me", {auth: true});
+        noterAccesServi(user);
+        return user;
+    },
+
+    async refresh(): Promise<string | null> {
+        return refreshAccessToken();
+    },
+
+    async forgotPassword(email: string): Promise<void> {
+        await apiFetch<void>("/api/auth/forgot-password", {
+            method: "POST",
+            json: {email},
+        });
+    },
+
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+        await apiFetch<void>("/api/auth/reset-password", {
+            method: "POST",
+            json: {token, newPassword},
+        });
+    },
+
+    logout() {
+        // Revocation serveur best-effort du refresh token (endpoint idempotent),
+        // puis purge locale quoi qu'il arrive (réseau coupé, token déjà expiré…).
+        const rt = tokenStorage.getRefresh();
+        if (rt) {
+            void apiFetch<void>("/api/auth/logout", {
+                method: "POST",
+                json: {refreshToken: rt},
+            }).catch(() => undefined);
+        }
+        tokenStorage.clear();
+    },
+};
+
+export const accountApi = {
+    /** Supprime le compte de l'utilisateur courant (anonymisation côté serveur).
+     * Le backend identifie le user via le Bearer — aucun paramètre. */
+    async deleteAccount(): Promise<import("./types").AccountDeletionResponse> {
+        return apiFetch<import("./types").AccountDeletionResponse>("/api/account", {
+            method: "DELETE",
+            auth: true,
+        });
+    },
+
+    /** Met à jour l'identité (prénom / nom). `PATCH /api/me/profile`. */
+    updateProfile(firstName: string, lastName: string): Promise<void> {
+        return apiFetch<void>("/api/me/profile", {
+            method: "PATCH",
+            json: {firstName, lastName},
+            auth: true,
+        });
+    },
+
+    /** Change le mot de passe (compte LOCAL). `POST /api/me/change-password`. */
+    changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-password", {
+            method: "POST",
+            json: {currentPassword, newPassword},
+            auth: true,
+        });
+    },
+
+    /** Demande un changement d'email : un lien de vérification est envoyé au
+     *  nouvel email, l'ancien reste actif tant qu'il n'est pas confirmé.
+     *  `POST /api/me/change-email-request`. */
+    requestEmailChange(newEmail: string, currentPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-email-request", {
+            method: "POST",
+            json: {newEmail, currentPassword},
+            auth: true,
+        });
+    },
+
+    /** Préférences d'e-mails. `GET /api/me/email-preferences`. */
+    getEmailPreferences(): Promise<import("./types").EmailPreferences> {
+        return apiFetch<import("./types").EmailPreferences>("/api/me/email-preferences", {auth: true});
+    },
+
+    /** Met à jour les préférences d'e-mails (champ absent = inchangé).
+     *  `PATCH /api/me/email-preferences`. */
+    updateEmailPreferences(
+        patch: import("./types").UpdateEmailPreferencesRequest,
+    ): Promise<import("./types").EmailPreferences> {
+        return apiFetch<import("./types").EmailPreferences>("/api/me/email-preferences", {
+            method: "PATCH",
+            json: patch,
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Themes
+// ============================================================================
+
+export const themeApi = {
+    list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
+        return apiFetch<ThemeUserResponse[]>(`/api/themes?module=${module}`, {
+            auth: true,
+        });
+    },
+
+    /** Grille servie des examens blancs d'un thème civique (`locked` par créneau). */
+    examSlots(themeId: string): Promise<CivicThemeExamSlots> {
+        return apiFetch<CivicThemeExamSlots>(`/api/themes/${themeId}/exam-slots`, {
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Billing (Stripe Payment Links)
+// ============================================================================
+
+/**
+ * Périodicité d'un abonnement récurrent. Le {@link planCodeFor} en dérive
+ * le `planCode` à passer à {@link billingApi.getPaymentLink}.
+ */
+export type PlanPeriodicity = "monthly" | "quarterly" | "yearly";
+
+/** Module visé pour un paywall : civique seul ou intégral (civique + TCF). */
+export type PlanModuleTarget = "CIVIQUE" | "INTEGRAL";
+
+/**
+ * Dérive le `planCode` backend à partir d'un module + d'une périodicité.
+ * Doit rester synchronisé avec la table `plans` (migration V106 :
+ * CIVIQUE_MONTHLY / CIVIQUE_QUARTERLY / CIVIQUE_YEARLY + idem INTEGRAL_*).
+ */
+export function planCodeFor(
+    module: PlanModuleTarget,
+    periodicity: PlanPeriodicity,
+): string {
+    const suffix = periodicity.toUpperCase();
+    return `${module}_${suffix}`;
+}
+
+/**
+ * Mappe un `billingCycle` backend vers une {@link PlanPeriodicity} du toggle UI.
+ * Le seul cycle servant à l'achat est récurrent : MONTHLY/THREE_MONTHS/YEARLY.
+ * Renvoie {@code null} pour les autres (NONE, SIX_MONTHS).
+ */
+export function periodicityFromCycle(
+    cycle: string | null | undefined,
+): PlanPeriodicity | null {
+    switch (cycle) {
+        case "MONTHLY": return "monthly";
+        case "THREE_MONTHS": return "quarterly";
+        case "YEARLY": return "yearly";
+        default: return null;
+    }
+}
+
+export const billingApi = {
+    /**
+     * Récupère l'URL d'une Stripe Checkout Session (mode SUBSCRIPTION) pour
+     * le plan demandé. Le backend ajoute déjà `client_reference_id=<user_id>`
+     * à l'URL ; le front n'a plus qu'à rediriger vers cette URL.
+     *
+     * @param planCode code du Plan en base (ex: `INTEGRAL_MONTHLY`). Voir
+     *                 {@link planCodeFor} pour le dériver depuis le toggle UI.
+     * @param retour   chemin interne d'où le candidat est parti acheter, qu'il
+     *                 retrouvera **après** le paiement. Le serveur le valide et
+     *                 l'ignore en silence s'il ne passe pas ; absent, la
+     *                 `success_url` est exactement celle d'avant.
+     * @param origin   le CTA qui a lancé l'achat et le parcours affiché
+     *                 (`lib/purchase-origin.ts`) : le serveur en fait
+     *                 l'intention d'achat (Q12). Seul `LOCKED_PLAN` range
+     *                 l'achat dans le tunnel du diagnostic (D32).
+     */
+    getPaymentLink(
+        planCode: string,
+        retour: string | null | undefined,
+        origin: {ctaLocation: AnalyticsCtaLocation | null; journeyId: string | null},
+    ): Promise<{ url: string }> {
+        // CTA inconnu ⇒ rien n'est envoyé : pas d'intention, achat `UNKNOWN` (D33).
+        const params = new URLSearchParams({planCode});
+        if (origin.ctaLocation) params.set("ctaLocation", origin.ctaLocation);
+        if (origin.ctaLocation && origin.journeyId) params.set("journeyId", origin.journeyId);
+        const base = `/api/billing/payment-link?${params.toString()}`;
+        return apiFetch<{ url: string }>(withRetour(base, retour), {auth: true});
+    },
+
+    /**
+     * Liste publique des plans actifs (FREE + payants), avec prix actuel et prix
+     * d'origine (offre de lancement). Utilisé par la section Tarifs de la landing
+     * pour ne pas hardcoder les montants côté front.
+     *
+     * Mis en cache ISR 30 min : la landing reste statique et performante, mais
+     * les prix changeront automatiquement dans la demi-heure suivant une mise
+     * à jour côté admin (table `plans`).
+     */
+    listPlans(): Promise<PlanPublicResponse[]> {
+        return apiFetch<PlanPublicResponse[]>(`/api/billing/plans`, {
+            auth: false,
+            next: {revalidate: 1800},
+        });
+    },
+
+    /**
+     * Statut Premium agrégé toutes sources (Stripe + Apple + Google). À
+     * appeler pour afficher des détails plus précis que `AuthenticatedUser`
+     * (source, productId, autoRenew, status fin). Le statut booléen `isPremium`
+     * reste lu via `useAuth().user`.
+     */
+    getSubscriptionStatus(): Promise<import("./types").SubscriptionStatusResponse> {
+        return apiFetch<import("./types").SubscriptionStatusResponse>(
+            `/api/billing/subscription-status`,
+            {auth: true}
+        );
+    },
+
+    /**
+     * Résilie l'abonnement Premium en cours. Le backend route selon la source :
+     * - Stripe : annulation à la fin de période, réponse `action=DONE`.
+     * - Apple/Google : réponse `action=REDIRECT` avec l'URL de gestion du store
+     *   (les stores n'autorisent pas l'annulation serveur).
+     */
+    cancel(): Promise<import("./types").CancelSubscriptionResponse> {
+        return apiFetch<import("./types").CancelSubscriptionResponse>(
+            `/api/billing/cancel`,
+            {auth: true, method: "POST"}
+        );
+    },
+};
+
+// ============================================================================
+// Endpoints Newsletter (publique)
+// ============================================================================
+
+export interface NewsletterSubscribeResponse {
+    email: string;
+    alreadySubscribed: boolean;
+}
+
+export const newsletterApi = {
+    // POST /api/newsletter/subscribe — à implémenter côté Java.
+    // Tant que l'endpoint n'existe pas, le 404 est renvoyé au caller qui affiche
+    // un message "service bientôt disponible". Même pattern que billingApi.
+    subscribe(
+        email: string,
+        source?: string
+    ): Promise<NewsletterSubscribeResponse> {
+        return apiFetch<NewsletterSubscribeResponse>("/api/newsletter/subscribe", {
+            method: "POST",
+            auth: false,
+            json: {email, source},
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Contact (publique)
+// ============================================================================
+
+export interface ContactSubmitRequest {
+    /** Miroir du DTO backend `ContactRequest.name` (@NotBlank). */
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+    consent: boolean;
+    /** Honeypot anti-bot — toujours "" pour un humain. */
+    website: string;
+}
+
+export interface ContactSubmitResponse {
+    ticketId: string;
+}
+
+export const contactApi = {
+    // POST /api/contact — à implémenter côté Java.
+    // Tant que l'endpoint n'existe pas, le 404 est renvoyé au caller qui affiche
+    // un message inline "service bientôt disponible". Même pattern que
+    // newsletterApi / billingApi.
+    submit(body: ContactSubmitRequest): Promise<ContactSubmitResponse> {
+        return apiFetch<ContactSubmitResponse>("/api/contact", {
+            method: "POST",
+            auth: false,
+            json: body,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Examens blancs (vitrine publique)
+// ============================================================================
+
+export const examApi = {
+    list(module?: ModuleEnum): Promise<ExamTemplateSummary[]> {
+        const qs = module ? `?module=${module}` : "";
+        return apiFetch<ExamTemplateSummary[]>(`/api/exams${qs}`, {auth: false});
+    },
+
+    getBySlug(slug: string): Promise<ExamTemplateSummary> {
+        return apiFetch<ExamTemplateSummary>(`/api/exams/${slug}`, {auth: false});
+    },
+};
+
+// ============================================================================
+// Lots (découpage déterministe d'un thème/épreuve en séries)
+// ============================================================================
+
+export const lotApi = {
+    /** Lots civiques d'un thème (themeId obligatoire côté backend pour CIVIQUE). */
+    listCivique(themeId: string): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/lots?module=CIVIQUE&themeId=${encodeURIComponent(themeId)}`,
+            { auth: true },
+        );
+    },
+    /** Lots TCF d'une épreuve QCM (CO/CE/STRUCTURE) à un niveau (A2/B1/B2 obligatoire). */
+    listTcf(questionType: QuestionType, difficulty: Difficulty): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/lots?module=TCF&questionType=${questionType}&difficulty=${difficulty}`,
+            { auth: true },
+        );
+    },
+};
+
+/**
+ * Variante guest de `lotApi` : même découpage de séries sans les derniers
+ * scores. La série 1 est jouable sans compte via `publicAttemptApi.startDemo`
+ * (TRAINING + lotNumero=1), les séries 2+ ouvrent la GuestGateSheet.
+ */
+export const publicLotApi = {
+    listCivique(themeId: string): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=CIVIQUE&themeId=${encodeURIComponent(themeId)}`,
+        );
+    },
+    listTcf(questionType: QuestionType, difficulty: Difficulty): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=TCF&questionType=${questionType}&difficulty=${difficulty}`,
+        );
+    },
+};
+
+// ============================================================================
+// Endpoints User content (favoris, stats, target path)
+// ============================================================================
+
+export const userContentApi = {
+    favorites(module?: ModuleEnum): Promise<QuestionReviewResponse[]> {
+        const qs = module ? `?module=${module}` : "";
+        return apiFetch<QuestionReviewResponse[]>(
+            `/api/me/questions/favorites${qs}`,
+            {auth: true},
+        );
+    },
+
+    addFavorite(questionId: string): Promise<void> {
+        return apiFetch<void>(`/api/me/questions/${questionId}/favorite`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    removeFavorite(questionId: string): Promise<void> {
+        return apiFetch<void>(`/api/me/questions/${questionId}/favorite`, {
+            method: "DELETE",
+            auth: true,
+        });
+    },
+
+    /**
+     * Version détaillée d'une question (détail d'un favori) : choix résolus + explanation.
+     * Backend exige que l'utilisateur ait déjà tenté ou favorisé la question.
+     */
+    reviewQuestion(questionId: string): Promise<QuestionReviewResponse> {
+        return apiFetch<QuestionReviewResponse>(
+            `/api/me/questions/${questionId}/review`,
+            {auth: true},
+        );
+    },
+
+    /**
+     * Définit / met à jour le parcours administratif visé (CSP/CR/NAT).
+     * Le backend dérive ensuite automatiquement la difficulté.
+     */
+    updateTargetPath(procedure: TargetProcedure): Promise<void> {
+        return apiFetch<void>(`/api/me/target-path`, {
+            method: "PUT",
+            json: {targetProcedure: procedure},
+            auth: true,
+        }).then(afterObjectifWrite);
+    },
+
+    /**
+     * La date d'examen déclarée (`10_` §3.2, question 3). Format `YYYY-MM-DD`.
+     *
+     * 🛑 **Une date, pas un instant** : une convocation porte un JOUR. Envoyer
+     * un horodatage ferait basculer la date d'un fuseau à l'autre.
+     *
+     * 🛑 **Route séparée de `target-path`**, et ce n'est pas cosmétique : loger
+     * la date dans la mise à jour de la démarche l'effacerait à chaque
+     * changement de procédure. `null` efface volontairement — « pas encore de
+     * date » est une réponse, pas une absence de réponse.
+     *
+     * ⚠️ Elle n'alimente **plus** le paywall : les deux bandeaux d'échéance ont
+     * été supprimés le 2026-09-20 (demande du propriétaire), et
+     * `lib/paywall-context.ts` avec eux.
+     */
+    /**
+     * **Où en sont les deux préparations** — l'état UNIQUE.
+     *
+     * 🛑 L'Accueil, le Plan et les Examens lisent **cet** appel. Ne jamais
+     * dériver l'étape d'un module ailleurs : trois déductions finiraient par
+     * proposer trois choses différentes au même candidat.
+     */
+    preparation(): Promise<PreparationDto> {
+        return cached(`${PREPARATION_CACHE_PREFIX}current`, () =>
+            apiFetch<PreparationDto>("/api/me/preparation", {auth: true}),
+        );
+    },
+
+    updateExamDate(examDate: string | null): Promise<void> {
+        return apiFetch<void>(`/api/me/exam-date`, {
+            method: "PUT",
+            json: {examDate},
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Stats
+// ============================================================================
+
+export const statsApi = {
+    get(module: ModuleEnum): Promise<UserStatsResponse> {
+        return apiFetch<UserStatsResponse>(`/api/me/stats?module=${module}`, {
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoint Dashboard (agrégat unique : streak + stats + catégories)
+// ============================================================================
+
+function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
+    return apiFetch<DashboardSummaryResponse>("/api/me/dashboard", {auth: true});
+}
+
+// Mémo 30 s : la sidebar (streak) et la page dashboard consomment le même
+// agrégat — un seul appel réseau quand les deux montent en même temps.
+let dashboardMemo: {at: number; promise: Promise<DashboardSummaryResponse>} | null = null;
+
+/**
+ * 🛑 **Ce mémo vit HORS de `data-cache`**, donc hors de `clearDataCache()` et
+ * d'`invalidateDiagnosticAndPlan()` : il doit être oublié aux mêmes instants.
+ * Sans ça, la barre latérale le remplissait à l'inscription faite pendant le
+ * diagnostic — avant la fin de l'analyse — et le Profil affichait ensuite
+ * « — » pour le niveau estimé jusqu'au rechargement (ou le streak d'un autre
+ * compte, après un changement de session de moins de 30 s).
+ */
+function oublierDashboard(): void {
+    dashboardMemo = null;
+}
+
+export const dashboardApi = {
+    summary: fetchDashboardSummary,
+    summaryCached(): Promise<DashboardSummaryResponse> {
+        if (dashboardMemo && Date.now() - dashboardMemo.at < 30_000) {
+            return dashboardMemo.promise;
+        }
+        const promise = fetchDashboardSummary().catch((e) => {
+            dashboardMemo = null;
+            throw e;
+        });
+        dashboardMemo = {at: Date.now(), promise};
+        return promise;
+    },
+};
+
+// ============================================================================
+// Diagnostic TCF rapide + Plan personnalisé
+// ============================================================================
+
+function afterDiagnosticRead(response: DiagnosticResponse): DiagnosticResponse {
+    // Le pipeline peut faire évoluer le diagnostic sans écriture de cet onglet.
+    // Invalider l'entrée pendant que son loader est encore en vol détache le
+    // snapshot du cache sans rejeter la promesse : les appels simultanés restent
+    // mutualisés, mais le prochain lecteur relit toujours l'état serveur.
+    if (requiresDiagnosticRevalidation(response)) {
+        invalidateCache(DIAGNOSTIC_CACHE_PREFIX);
+    }
+    // À la fin de l'analyse, le Plan vient d'être construit côté serveur.
+    // 🛑 **Et pas seulement le Plan** : c'est la **préparation** qui porte la
+    // PORTE du Plan (« Faire mon diagnostic »), et les progrès qui comptent les
+    // compétences. N'invalider que le plan laissait l'écran réclamer un
+    // diagnostic que le candidat venait de terminer.
+    if (response.status === "COMPLETED" || response.status === "FAILED") {
+        invalidateDiagnosticAndPlan();
+    }
+    return response;
+}
+
+function fetchCurrentDiagnostic(): Promise<DiagnosticResponse> {
+    return apiFetch<DiagnosticResponse>("/api/diagnostics/current", {auth: true}).then(
+        afterDiagnosticRead,
+    );
+}
+
+const LEARNING_PLAN_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}current`;
+
+/**
+ * Toute lecture du Plan **range son résultat** sous la clé de cache, y compris
+ * la lecture directe de `/plan` : l'écran d'une compétence ouverte depuis le
+ * Plan y relit le périmètre de l'étape (`stepPromptIds`) **sans redemander le
+ * Plan au serveur**. Le comportement de `/plan` ne change pas pour autant — il
+ * continue d'appeler l'API à chaque montage, une analyse asynchrone ne doit
+ * jamais rester figée.
+ */
+function fetchLearningPlan(): Promise<LearningPlanDto> {
+    return apiFetch<LearningPlanDto>("/api/me/plan", {auth: true}).then((plan) => {
+        primeCached(LEARNING_PLAN_CACHE_KEY, plan);
+        return plan;
+    });
+}
+
+/**
+ * **Le parcours TCF** : la file d'étapes, l'étape courante et son verrou.
+ *
+ * 🛑 **Aucun `targetLevel` en paramètre** : le serveur connaît le niveau visé du
+ * candidat, et l'accepter d'un client laisserait demander un parcours qui n'est
+ * pas le sien.
+ *
+ * 🛑 **Pas de cache.** Une seule réponse alimente la carte « À faire
+ * maintenant » et le cycle, sur les trois écrans qui les affichent : servir
+ * deux instantanés différents au même instant rouvrirait exactement la
+ * contradiction corrigée le 2026-09-16.
+ *
+ * ⚠️ **Plus de `?expand=all`** (2026-09-18) : il ne concernait que la file
+ * plate `steps`, remplacée par les blocs — qui portent **toujours** toutes les
+ * étapes, sans plafond d'affichage donc sans repli à déplier.
+ */
+function fetchJourney(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+    /* 🛑 **`?module=` depuis P8.7** : le cycle existe pour les DEUX modules, et
+       le toggle vit déjà dans l'URL — une seule autorité de sélection. */
+    return apiFetch<JourneyDto>(`/api/me/plan/journey?module=${module}`, {auth: true});
+}
+
+const JOURNEY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey`;
+
+/** La clé du cycle de CE module. Le TCF garde la clé historique. */
+function journeyCacheKey(module: ParcoursModule): string {
+    return module === "TCF" ? JOURNEY_CACHE_KEY : `${JOURNEY_CACHE_KEY}-${module}`;
+}
+const JOURNEY_HISTORY_CACHE_KEY = `${LEARNING_PLAN_CACHE_PREFIX}journey-history`;
+
+/** La clé de l'archive de CE module. Le TCF garde la clé historique. */
+function journeyHistoryCacheKey(module: ParcoursModule): string {
+    return module === "TCF"
+        ? JOURNEY_HISTORY_CACHE_KEY
+        : `${JOURNEY_HISTORY_CACHE_KEY}-${module}`;
+}
+
+/** La clé d'UN cycle clos (« Mes cycles »). Sous le préfixe du Plan, comme
+ *  l'archive : une actualisation la purge avec elle. */
+function journeyCycleArchiveCacheKey(journeyId: string): string {
+    return `${JOURNEY_HISTORY_CACHE_KEY}-cycle-${journeyId}`;
+}
+
+/** La clé du détail d'UNE étape. Sous le préfixe du Plan : une série finie la
+ *  purge avec le cycle, jamais l'une sans l'autre. */
+function journeyStepCacheKey(stepId: string): string {
+    return `${LEARNING_PLAN_CACHE_PREFIX}journey-step-${stepId}`;
+}
+
+export const journeyApi = {
+    get: fetchJourney,
+
+    /**
+     * 🛑 **Le parcours est mis en cache sous le PRÉFIXE du Plan**, donc
+     * `invalidateDiagnosticAndPlan()` le purge avec lui. C'est ce qui garantit
+     * qu'une production rendue, une série finie ou un examen passé ne laissent
+     * jamais la carte « À faire maintenant » sur une étape périmée — les deux
+     * lectures se rafraîchissent **ensemble**, jamais l'une sans l'autre.
+     */
+    /**
+     * 🛑 **Une clé de cache PAR MODULE** : les deux cycles sont deux réponses
+     * différentes, et les servir sous la même clé aurait montré le cycle TCF
+     * sur l'onglet civique — au premier changement d'onglet.
+     */
+    getCached(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+        return cached(journeyCacheKey(module), () => fetchJourney(module));
+    },
+
+    cacheKey: JOURNEY_CACHE_KEY,
+    cacheKeyFor: journeyCacheKey,
+
+    /**
+     * **L'historique des cycles** — l'archive derrière « Voir ma progression ».
+     *
+     * 🛑 **Aucun query param** : le serveur sert les cycles du candidat
+     * authentifié, et accepter un identifiant laisserait lire l'archive d'un
+     * tiers.
+     *
+     * 🛑 **Mis en cache sous le PRÉFIXE du Plan**, comme le parcours : un cycle
+     * historisé par « Actualiser mon plan » purge les deux ensemble, donc
+     * l'archive ne peut pas rester en retard d'un cycle sur l'écran qui vient
+     * de le fermer.
+     */
+    history(module: ParcoursModule = "TCF"): Promise<JourneyHistoryDto> {
+        return cached(
+            journeyHistoryCacheKey(module),
+            () => apiFetch<JourneyHistoryDto>(
+                `/api/me/plan/journey/history?module=${module}`, {auth: true}));
+    },
+
+    historyCacheKey: JOURNEY_HISTORY_CACHE_KEY,
+
+    /**
+     * **Un cycle clos, en consultation** (« Mes cycles », 2026-09-27) — son plan
+     * tel qu'il était, sans verrou ni action. 🛑 Aucun `?module=` : le cycle
+     * porte le sien. **404** sur le cycle d'un autre ou sur un cycle non clos.
+     */
+    historyCycle(journeyId: string): Promise<JourneyCycleArchiveDto> {
+        return cached(
+            journeyCycleArchiveCacheKey(journeyId),
+            () => apiFetch<JourneyCycleArchiveDto>(
+                `/api/me/plan/journey/history/${encodeURIComponent(journeyId)}`, {auth: true}));
+    },
+
+    historyCycleCacheKey: journeyCycleArchiveCacheKey,
+
+    /** 🛑 **Une clé par module**, comme pour le cycle : les deux archives sont
+     *  deux réponses différentes. Le TCF garde la clé historique. */
+    historyCacheKeyFor: journeyHistoryCacheKey,
+
+    peekCached(module: ParcoursModule = "TCF"): JourneyDto | undefined {
+        return peekCached<JourneyDto>(journeyCacheKey(module));
+    },
+
+    /**
+     * **Actualiser mon plan** — le cycle en attente devient le cycle courant
+     * (spec §6). Rend le parcours **frais**.
+     *
+     * 🛑 **Aucun corps, aucun query param** : le serveur sait quel est le cycle
+     * en cours du candidat, et accepter un identifiant laisserait historiser
+     * celui d'un autre. **409** si le cycle n'est pas terminé.
+     *
+     * 🛑 **Une écriture de MESURE** : elle change le Plan, la préparation et les
+     * progrès autant que le parcours, d'où la purge groupée.
+     */
+    async refresh(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+        const journey = await apiFetch<JourneyDto>(
+            `/api/me/plan/journey/refresh?module=${module}`,
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        /* 🛑 **La réponse EST le nouveau cycle** : on la range pour que l'écran
+           le peigne sans second appel, puis on fait relire l'écran où l'on est
+           — c'est lui qui a cliqué, et une purge seule ne le remonte pas. */
+        primeCached(journeyCacheKey(module), journey);
+        signalerPlanARelire();
+        return journey;
+    },
+
+    /**
+     * **Faire un examen blanc complet** — le jalon (D-68) : le cycle en cours est
+     * mis de côté (« interrompu ») et un **cycle d'examens** devient le cycle
+     * courant, un bloc par épreuve ou thématique.
+     *
+     * 🛑 **Il ne démarre aucun examen** : chaque examen du cycle se lance depuis
+     * son bloc. **409** quand le jalon n'est pas proposé
+     * (`JourneyDto.examenComplet` nul) — la même autorité serveur.
+     *
+     * 🛑 **Les mêmes relectures que `refresh`** : la réponse EST le nouveau
+     * cycle — rangée, puis l'écran où l'on est se relit (Plan, Accueil).
+     */
+    async measurementCycle(module: ParcoursModule = "TCF"): Promise<JourneyDto> {
+        const journey = await apiFetch<JourneyDto>(
+            `/api/me/plan/journey/measurement-cycle?module=${module}`,
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        primeCached(journeyCacheKey(module), journey);
+        signalerPlanARelire();
+        return journey;
+    },
+
+    /**
+     * **Le détail d'une étape de séries** — l'écran intermédiaire du Plan.
+     *
+     * 🛑 **Aucun query param, aucun module** : le `stepId` désigne une étape du
+     * parcours du candidat authentifié, et le serveur sait à quel module elle
+     * appartient. Un module en paramètre aurait été une seconde autorité.
+     *
+     * 🛑 **Mis en cache sous le PRÉFIXE du Plan**, comme le cycle : une série
+     * finie purge les deux ensemble, donc l'écran ne peut pas rester sur des
+     * séries d'avant la passation.
+     */
+    stepDetail(stepId: string): Promise<JourneyStepDetailDto> {
+        return cached(
+            journeyStepCacheKey(stepId),
+            () => apiFetch<JourneyStepDetailDto>(
+                `/api/me/plan/journey/steps/${stepId}`, {auth: true}),
+        );
+    },
+
+    stepCacheKeyFor: journeyStepCacheKey,
+
+    /**
+     * **Démarrer une série de l'étape.**
+     *
+     * 🛑 **L'index est SERVI** (`JourneySerieDto.index`) : on le repasse tel
+     * quel, on ne le compte pas. Le serveur oppose le verrou — **403** sur une
+     * série fermée comme sur une étape sans accès —, et ce refus ouvre l'offre,
+     * jamais un message technique.
+     *
+     * 🛑 **Une écriture de MESURE** : la série change le Plan, le parcours et
+     * le détail de l'étape, d'où la purge groupée.
+     */
+    async startSerie(stepId: string, index: number): Promise<AttemptResponse> {
+        const attempt = await apiFetch<AttemptResponse>(
+            `/api/me/plan/journey/steps/${stepId}/series/${index}`,
+            {method: "POST", auth: true},
+        );
+        invalidateDiagnosticAndPlan();
+        return attempt;
+    },
+};
+
+/**
+ * Le diagnostic TCF **4 épreuves** (L4) — **en LECTURE seule** côté web.
+ *
+ * 🛑 Le parcours (ouvrir, lancer / clore une section, calculer le résultat) est
+ * **retiré des fronts le 2026-09-26** (décision du propriétaire) : les épreuves
+ * que le diagnostic rapide ne mesure pas se mesurent par l'examen blanc que
+ * propose le Plan. Les endpoints backend restent en place, non appelés. Seule
+ * la relecture d'un résultat DÉJÀ obtenu subsiste, parce qu'il est toujours lu
+ * (`PlanUnlockScreen`).
+ *
+ * 🛑 Distinct de `diagnosticApi`, qui porte le diagnostic **rapide**.
+ */
+export const tcfDiagnosticApi = {
+    /**
+     * Le diagnostic courant, ou `null` si le candidat n'en a jamais ouvert
+     * (**204** côté serveur). Une lecture n'ouvre jamais de diagnostic.
+     */
+    async current(): Promise<TcfDiagnosticDto | null> {
+        const res = await apiFetch<TcfDiagnosticDto | null>(
+            "/api/tcf-diagnostics/current", {auth: true},
+        );
+        return res ?? null;
+    },
+
+    /** Relit un résultat sans rien reclôturer. */
+    readResult(sessionId: string): Promise<TcfDiagnosticResultDto> {
+        return apiFetch<TcfDiagnosticResultDto>(
+            `/api/tcf-diagnostics/${sessionId}/result`, {auth: true},
+        );
+    },
+};
+
+/**
+ * Le diagnostic CIVIQUE (L9, `20_` §4).
+ *
+ * 🛑 **Distinct de l'examen blanc civique** : même format (40 questions),
+ * couverture équilibrée contre représentative, il CRÉE le plan là où l'examen
+ * blanc VÉRIFIE la préparation.
+ *
+ * 🛑 **La passation ne passe pas par ici** : les réponses vont sur
+ * `/api/attempts/{id}/answers`, exactement comme n'importe quelle série. Aucun
+ * runner n'est dupliqué.
+ *
+ * 🛑 **Aucun appel LLM** : le civique est du QCM déterministe.
+ */
+export const civicDiagnosticApi = {
+    /** Ouvre, ou rend celui en cours. **Idempotent** : pas deux tirages. */
+    open(): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>("/api/civic-diagnostics", {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /**
+     * Le diagnostic courant, ou `null` (**204**).
+     *
+     * 🛑 Une lecture n'ouvre jamais de diagnostic par effet de bord : ne pas
+     * remplacer cet appel par `open()` pour « simplifier » un écran — l'ouvrir
+     * consomme l'unique diagnostic gratuit.
+     */
+    async current(): Promise<CivicDiagnosticDto | null> {
+        const res = await apiFetch<CivicDiagnosticDto | null>(
+            "/api/civic-diagnostics/current", {auth: true},
+        );
+        return res ?? null;
+    },
+
+    /** Calcule le résultat et clôture. */
+    result(sessionId: string): Promise<CivicDiagnosticResultDto> {
+        // 🛑 C'est cet appel qui **clôture** la session : le plan civique, la
+        // préparation et les progrès changent à cet instant.
+        invalidateDiagnosticAndPlan();
+        return apiFetch<CivicDiagnosticResultDto>(
+            `/api/civic-diagnostics/${sessionId}/result`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /** Relit un résultat sans rien reclôturer. */
+    readResult(sessionId: string): Promise<CivicDiagnosticResultDto> {
+        return apiFetch<CivicDiagnosticResultDto>(
+            `/api/civic-diagnostics/${sessionId}/result`, {auth: true},
+        );
+    },
+
+    /**
+     * **Adopte** un diagnostic passé sans compte (V053).
+     *
+     * 🛑 Rien n'est rejoué : ce sont les mêmes questions, déjà corrigées. Le
+     * serveur ne fait que poser le porteur. Idempotent — un double appel
+     * pendant l'inscription rend la même session.
+     */
+    adopt(sessionId: string): Promise<CivicDiagnosticDto> {
+        // Le diagnostic change de porteur : tout ce qui décrit l'avancement du
+        // compte est à relire. 🛑 Purge **après** la réponse (`afterMeasureWrite`) :
+        // les écrans montés à l'inscription (barre latérale, Accueil) relisent
+        // pendant l'adoption, et une purge faite avant l'appel les laissait
+        // repeupler le cache avec l'état d'avant.
+        return apiFetch<CivicDiagnosticDto>(
+            `/api/civic-diagnostics/${sessionId}/adopt`,
+            {method: "POST", auth: true},
+        ).then(afterMeasureWrite);
+    },
+};
+
+/**
+ * **« Où vous en êtes »** — ce que l'Accueil lit de la progression
+ * (`GET /api/me/progress`, élagué le 2026-09-24).
+ *
+ * 🛑 **Rien n'est calculé côté front** : les paliers, les sens d'évolution et
+ * les états arrivent servis. L'Accueil met en forme.
+ */
+export const progressApi = {
+    get(): Promise<ProgressDto> {
+        return cached(`${PROGRESS_CACHE_PREFIX}current`, () =>
+            apiFetch<ProgressDto>("/api/me/progress", {auth: true}),
+        );
+    },
+};
+
+/**
+ * **Les écrans de progression** (`/api/me/progression/*`, D1–D20 du
+ * 2026-09-24) — un endpoint par écran, le même que le mobile.
+ *
+ * 🛑 **En cache sous le préfixe des progrès**, donc vidé par
+ * `invalidateDiagnosticAndPlan` (toute écriture de mesure) et par la relecture
+ * d'accès après un achat : un examen blanc qui vient d'être corrigé doit
+ * apparaître, et un `cta.locked` ne doit pas survivre à un achat.
+ */
+function progressionKey(chemin: string): string {
+    return `${PROGRESS_CACHE_PREFIX}progression:${chemin}`;
+}
+
+export const progressionApi = {
+    tcfKey(tous: boolean): string {
+        return progressionKey(`tcf:${tous}`);
+    },
+    /** TCF global : 3 derniers examens complets, ou tous (≤ 50) avec `tous`. */
+    tcf(tous: boolean): Promise<ProgressionTcfDto> {
+        return cached(progressionApi.tcfKey(tous), () =>
+            apiFetch<ProgressionTcfDto>(
+                `/api/me/progression/tcf${tous ? "?tous=true" : ""}`, {auth: true}),
+        );
+    },
+    epreuveKey(epreuve: EpreuveType): string {
+        return progressionKey(`epreuve:${epreuve}`);
+    },
+    /** Une épreuve TCF (`TCF_CO|TCF_CE|TCF_EE|TCF_EO`, sinon 400). */
+    epreuve(epreuve: EpreuveType): Promise<ProgressionEpreuveDto> {
+        return cached(progressionApi.epreuveKey(epreuve), () =>
+            apiFetch<ProgressionEpreuveDto>(
+                `/api/me/progression/tcf/${epreuve}`, {auth: true}),
+        );
+    },
+    civiqueKey(tous: boolean): string {
+        return progressionKey(`civique:${tous}`);
+    },
+    /** Civique global : 3 derniers examens globaux, ou tous avec `tous`. */
+    civique(tous: boolean): Promise<ProgressionCiviqueDto> {
+        return cached(progressionApi.civiqueKey(tous), () =>
+            apiFetch<ProgressionCiviqueDto>(
+                `/api/me/progression/civique${tous ? "?tous=true" : ""}`, {auth: true}),
+        );
+    },
+    themeKey(themeId: string): string {
+        return progressionKey(`theme:${themeId}`);
+    },
+    /** Un thème civique (404 s'il n'existe pas ou n'est pas civique). */
+    theme(themeId: string): Promise<ProgressionThemeDto> {
+        return cached(progressionApi.themeKey(themeId), () =>
+            apiFetch<ProgressionThemeDto>(
+                `/api/me/progression/civique/themes/${themeId}`, {auth: true}),
+        );
+    },
+};
+
+/**
+ * **Le plan civique** (L10, `20_` §6).
+ *
+ * 🛑 **Il n'y a pas de « recompute ».** Le plan est un dérivé relu à chaque
+ * appel côté serveur : recalculer, c'est relire. Aucune table de progression
+ * n'existe, et c'est ce qui rend le tagging rétroactif.
+ */
+export const CIVIC_PLAN_CACHE_PREFIX = "civic-plan:";
+const CIVIC_PLAN_CACHE_KEY = `${CIVIC_PLAN_CACHE_PREFIX}current`;
+
+function fetchCivicPlan(): Promise<CivicPlanDto> {
+    return apiFetch<CivicPlanDto>("/api/me/civic-plan", {auth: true}).then((plan) => {
+        // Toute lecture range son résultat, comme le Plan TCF : deux écrans du
+        // même parcours ne doivent pas payer deux appels pour la même réponse.
+        primeCached(CIVIC_PLAN_CACHE_KEY, plan);
+        return plan;
+    });
+}
+
+export const civicPlanApi = {
+    /**
+     * Le plan.
+     *
+     * 🛑 **Jamais `null`** : sans diagnostic terminé, la réponse porte
+     * `disponible: false`. L'écran a besoin de savoir *pourquoi* il n'a rien à
+     * montrer pour ouvrir la porte qui débloque.
+     */
+    get: fetchCivicPlan,
+
+    /** Le plan civique **déjà lu** s'il l'a été, sinon un appel. C'est ce que
+     *  lisent l'Accueil et le Plan : basculer de parcours ne doit rien
+     *  redemander — la réponse ne dépend pas de l'onglet ouvert. */
+    getCached(): Promise<CivicPlanDto> {
+        return cached(CIVIC_PLAN_CACHE_KEY, fetchCivicPlan);
+    },
+
+    cacheKey: CIVIC_PLAN_CACHE_KEY,
+
+    /**
+     * Ouvre la **série ciblée** d'une cible du plan.
+     *
+     * C'est un `TRAINING` ordinaire : le résultat s'ouvre dans
+     * `/sessions/{attemptId}`. 🛑 **403 sans abonnement** — même règle que le
+     * `locked` servi, cette fois opposable : à router vers l'offre par
+     * `handleStartFailure`, jamais à afficher en erreur technique.
+     */
+    serie(cibleId: string, grain: CivicPlanGrain): Promise<AttemptResponse> {
+        // 🛑 Une série ciblée fait bouger la boîte Leitner : le plan lu ensuite
+        // doit être recalculé, jamais celui d'avant la série.
+        invalidateCache(CIVIC_PLAN_CACHE_PREFIX);
+        return apiFetch<AttemptResponse>(
+            `/api/me/civic-plan/cibles/${cibleId}/serie?grain=${grain}`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /**
+     * Ouvre la série d'une **UNITÉ OFFICIELLE** — l'action d'une étape du
+     * **cycle** (D-48, P8.7).
+     *
+     * 🛑 **Par CODE** (`P2_LAICITE`), l'identifiant stable du référentiel, celui
+     * que le contrat sert déjà dans `JourneyUniteRefDto`. Deux grains, deux
+     * routes : une cible du plan est une notion, une étape du cycle est une
+     * unité de l'arrêté.
+     *
+     * 🛑 **403 sans abonnement** (D-33), à router vers l'offre.
+     */
+    serieSurUnite(uniteCode: string): Promise<AttemptResponse> {
+        // La série fait bouger le plan dérivé ET le cycle : les deux caches
+        // partent ensemble, jamais l'un sans l'autre.
+        invalidateDiagnosticAndPlan();
+        return apiFetch<AttemptResponse>(
+            `/api/me/civic-plan/unites/${uniteCode}/serie`,
+            {method: "POST", auth: true},
+        );
+    },
+};
+
+/**
+ * Le diagnostic civique **avant le compte** (`V053`).
+ *
+ * 🛑 **Aucune route de résultat ici, et c'est délibéré** : le résultat est ce
+ * qu'on échange contre le compte (arbitrage du propriétaire, 2026-09-10). La
+ * passation, elle, passe par `publicAttemptApi` — le même runner que la démo,
+ * aucun écran de passation n'est dupliqué.
+ */
+export const publicCivicDiagnosticApi = {
+    /** Tire les 40 questions et ouvre la session du visiteur. */
+    open(procedure: TargetProcedure): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>(
+            `/api/public/civic-diagnostics?procedure=${procedure}`,
+            {method: "POST"},
+        );
+    },
+
+    /** L'avancement de la session du visiteur. **404 dès qu'un compte l'a adoptée.** */
+    get(sessionId: string): Promise<CivicDiagnosticDto> {
+        return apiFetch<CivicDiagnosticDto>(`/api/public/civic-diagnostics/${sessionId}`);
+    },
+};
+
+export const diagnosticApi = {
+    current: fetchCurrentDiagnostic,
+
+    /**
+     * Sujets du diagnostic pour un **visiteur non connecté**. Aucune session
+     * n'est créée : le serveur n'a rien à rattacher tant qu'il n'y a pas de
+     * compte. Les deux sujets suffisent pour produire ; l'écrit et l'oral sont
+     * gardés sur l'appareil jusqu'à l'inscription.
+     */
+    publicCurrent(): Promise<PublicDiagnosticResponse> {
+        return apiFetch<PublicDiagnosticResponse>("/api/public/diagnostics/current", {
+            auth: false,
+        });
+    },
+
+    currentCached(): Promise<DiagnosticResponse> {
+        return cached(`${DIAGNOSTIC_CACHE_PREFIX}current`, fetchCurrentDiagnostic);
+    },
+
+    /**
+     * Ouvre la session, ou rend celle déjà commencée. **Idempotent.**
+     *
+     * `writtenTaskId` est le sujet que le candidat a réellement lu et traité
+     * (L3). Il est **facultatif** et **vérifié serveur** : un identifiant
+     * inconnu retombe sur un tirage plutôt que de bloquer un candidat dont le
+     * sujet a été désactivé entre-temps.
+     *
+     * `diagnosticRunId` : au handoff du tunnel invité, la run créée à
+     * l'affichage du sujet. Le serveur ne la lie que si elle appartient déjà
+     * au compte (claimée à l'auth) — jamais de jeton en query string (D24).
+     */
+    start(writtenTaskId?: string, diagnosticRunId?: string | null): Promise<DiagnosticResponse> {
+        invalidateDiagnosticAndPlan();
+        const params = new URLSearchParams();
+        if (writtenTaskId) params.set("writtenTaskId", writtenTaskId);
+        if (diagnosticRunId) params.set("diagnosticRunId", diagnosticRunId);
+        const encoded = params.toString();
+        const query = encoded ? `?${encoded}` : "";
+        return apiFetch<DiagnosticResponse>(`/api/diagnostics${query}`, {
+            method: "POST",
+            auth: true,
+        }).then(afterDiagnosticRead);
+    },
+
+    get(sessionId: string): Promise<DiagnosticResponse> {
+        return apiFetch<DiagnosticResponse>(`/api/diagnostics/${sessionId}`, {
+            auth: true,
+        }).then(afterDiagnosticRead);
+    },
+
+    retryAnalysis(sessionId: string): Promise<DiagnosticResponse> {
+        invalidateDiagnosticAndPlan();
+        return apiFetch<DiagnosticResponse>(
+            `/api/diagnostics/${sessionId}/retry-analysis`,
+            {method: "POST", auth: true},
+        ).then(afterDiagnosticRead);
+    },
+};
+
+/**
+ * **La trace du tunnel diagnostic** (chantier « Suivi », lot 2a). Routes
+ * publiques : un jeton, s'il existe, fait de l'appelant le porteur. Appelées
+ * par `lib/diagnostic-run.ts` seulement, jamais par un écran.
+ */
+export const diagnosticRunApi = {
+    /** À l'affichage de la 1ʳᵉ question. Idempotent : un rejeu rend la même
+     *  run et un NOUVEAU jeton. */
+    create(body: DiagnosticRunCreateRequest): Promise<DiagnosticRunCreatedResponse> {
+        return apiFetch<DiagnosticRunCreatedResponse>("/api/public/diagnostic-runs", {
+            method: "POST",
+            json: body,
+            auth: true,
+            skipRefresh: true,
+        });
+    },
+
+    /** « Soumis » du TCF rapide seulement (D23) : 204, une seule fois. */
+    submit(diagnosticRunId: string, claimToken: string | null): Promise<void> {
+        return apiFetch<void>(`/api/public/diagnostic-runs/${diagnosticRunId}/submit`, {
+            method: "POST",
+            json: {claimToken},
+            auth: true,
+            skipRefresh: true,
+        });
+    },
+};
+
+export const learningPlanApi = {
+    get: fetchLearningPlan,
+
+    getCached(): Promise<LearningPlanDto> {
+        return cached(LEARNING_PLAN_CACHE_KEY, fetchLearningPlan);
+    },
+
+    /** La clé sous laquelle le Plan est rangé, pour un écran qui veut le
+     *  brancher sur `useCachedData` : peint ce qui est déjà connu, et ne
+     *  déclenche l'appel que si le cache est **froid**. */
+    cacheKey: LEARNING_PLAN_CACHE_KEY,
+
+    /** Le Plan **déjà chargé**, sans aucun appel. `undefined` quand rien n'a
+     *  encore été lu (lien profond, rechargement de page).
+     *
+     *  ⚠️ À réserver aux **conforts d'affichage** qu'on accepte de perdre. Dès
+     *  que l'absence du Plan change la **nature** de l'écran — c'était le cas
+     *  de l'étape (`?etape=1`), qui retombait sur la fiche des 15 sujets et
+     *  renvoyait le candidat dans `/entrainement` après un simple F5 —, on passe
+     *  par `cacheKey` + `getCached()` : l'appel n'a lieu qu'à froid. */
+    peekCached(): LearningPlanDto | undefined {
+        return peekCached<LearningPlanDto>(LEARNING_PLAN_CACHE_KEY);
+    },
+};
+
+// ============================================================================
+// Endpoints Funnel (étapes purement navigateur)
+// ============================================================================
+
+/** Étapes du funnel que seul le navigateur peut constater. Le reste (compte
+ *  créé, diagnostic commencé/terminé, paiement) est déduit serveur des vraies
+ *  tables : ne rien émettre pour ces étapes-là. */
+export type FunnelEvent = "PAYWALL_VIEWED" | "SUBSCRIBE_CLICKED";
+
+export const funnelApi = {
+    /** 204. Idempotent côté serveur (première occurrence par compte). */
+    record(event: FunnelEvent): Promise<void> {
+        return apiFetch<void>("/api/me/funnel-events", {
+            method: "POST",
+            json: {event},
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Attempts
+// ============================================================================
+
+export const attemptApi = {
+    start(body: StartAttemptRequest, opts: { auth?: boolean } = {}): Promise<AttemptResponse> {
+        // Pour les visiteurs anonymes, utiliser `publicAttemptApi.startDemo` qui
+        // pointe sur /api/public/attempts/demo (gating IP + quota mensuel).
+        return apiFetch<AttemptResponse>("/api/attempts", {
+            method: "POST",
+            json: body,
+            auth: opts.auth ?? true,
+        });
+    },
+
+    /**
+     * Démarre une **série ciblée** sur une compétence de COMPRÉHENSION (CO/CE) —
+     * l'exercice que le Plan désigne sous `PlanExerciseKind.TARGETED_QCM_SERIES`.
+     *
+     * 🛑 **Seul le `skillId` part.** L'épreuve, le palier et le nombre de
+     * questions se dérivent du référentiel côté serveur : un couple
+     * (`questionType`, `difficulty`) envoyé d'ici aurait pu contredire la
+     * compétence affichée et faire progresser une **autre** compétence.
+     *
+     * Erreurs : `403` compétence verrouillée (freemium, opposable serveur) ·
+     * `422` compétence d'expression · `404` compétence inconnue.
+     *
+     * ⚠️ Ne **jamais** appeler `GET /api/skills/progress?section=CO|CE` pour
+     * préparer cet écran : le serveur répond **422** volontairement — il n'y a
+     * pas de choix de tâche en compréhension.
+     */
+    startTargetedSeries(skillId: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/attempts", {
+            method: "POST",
+            json: {type: "TRAINING", module: "TCF", skillId} satisfies StartAttemptRequest,
+            auth: true,
+        });
+    },
+
+    get(id: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>(`/api/attempts/${id}`, {auth: true});
+    },
+
+    submitAnswer(
+        attemptId: string,
+        body: SubmitAnswerRequest,
+    ): Promise<AnswerResultResponse> {
+        return apiFetch<AnswerResultResponse>(`/api/attempts/${attemptId}/answers`, {
+            method: "POST",
+            json: body,
+            auth: true,
+        });
+    },
+
+    /**
+     * 🛑 **Finaliser une session est une MESURE ÉCRITE** — examen blanc de
+     * module (CO/CE/Structure), examen civique, sous-épreuve d'un examen
+     * complet, section de diagnostic, lot, série ciblée ou entraînement. Le
+     * serveur vient de poser un score : le diagnostic, le Plan, la préparation
+     * et les progrès sont périmés.
+     *
+     * ⚠️ C'est **tout le pipeline QCM** qui était muet : un examen blanc de
+     * compréhension orale rendait B1 et « Où vous en êtes » continuait
+     * d'afficher « À évaluer » jusqu'au rechargement complet de la page.
+     *
+     * 🛑 **Purgé aussi sur ÉCHEC** : un `finish` refusé parce que le serveur a
+     * déjà clos l'examen (échéance dépassée) laisse une mesure écrite sans que
+     * la réponse le dise. Pendant mobile : `_handleTimeExpired`, qui émet
+     * `signalerMesureEcrite` quand `finish` échoue.
+     */
+    finish(attemptId: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>(`/api/attempts/${attemptId}/finish`, {
+            method: "POST",
+            auth: true,
+        }).then(afterMeasureWrite, (e: unknown) => {
+            invalidateDiagnosticAndPlan();
+            throw e;
+        });
+    },
+
+    /**
+     * Sessions de l'utilisateur, sans les questions imbriquées — juste les
+     * méta. Lu par les grilles d'examens blancs (`/examens-blancs`, examens
+     * d'un thème civique, examens d'une épreuve TCF).
+     */
+    listMine(opts: {
+        type?: AttemptType;
+        module?: ModuleEnum;
+        themeId?: string;
+        moduleExamQuestionType?: QuestionType;
+        limit?: number;
+    } = {}): Promise<AttemptSummaryResponse[]> {
+        const qs = new URLSearchParams();
+        if (opts.type) qs.set("type", opts.type);
+        if (opts.module) qs.set("module", opts.module);
+        if (opts.themeId) qs.set("themeId", opts.themeId);
+        if (opts.moduleExamQuestionType)
+            qs.set("moduleExamQuestionType", opts.moduleExamQuestionType);
+        if (opts.limit !== undefined) qs.set("limit", String(opts.limit));
+        const suffix = qs.toString() ? `?${qs.toString()}` : "";
+        return apiFetch<AttemptSummaryResponse[]>(`/api/me/attempts${suffix}`, {
+            auth: true,
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Production écrite / orale (TCF_EE / TCF_EO — évaluation IA)
+// ============================================================================
+// Tout est authentifié : le backend protège ces routes via
+// `.anyRequest().authenticated()` (le catalogue de tâches/exemples n'est PAS
+// sous /api/public/**). Après un POST, on poll getSubmission jusqu'à statut
+// EVALUATED / FAILED (le pipeline IA tourne en arrière-plan).
+
+/** Nom de fichier audio dérivé du type MIME du blob (Safari = mp4, Chrome/FF =
+ *  webm) pour que le backend/Whisper détecte le bon format. */
+function audioFilename(type: string): string {
+    if (type.includes("mp4") || type.includes("m4a")) return "audio.mp4";
+    if (type.includes("ogg")) return "audio.ogg";
+    if (type.includes("wav")) return "audio.wav";
+    if (type.includes("mpeg")) return "audio.mp3";
+    return "audio.webm";
+}
+
+export const productionApi = {
+    /** Crée un attempt vide dédié à une épreuve productive (EE/EO/COMPLET). */
+    startAttempt(body: ProductionAttemptStartRequest): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/attempts/production", {
+            method: "POST",
+            json: body,
+            auth: true,
+        });
+    },
+
+    /** Catalogue de tâches filtré. niveau / tacheNumero optionnels. */
+    listTasks(opts: {
+        epreuve: EpreuveType;
+        niveau?: string;
+        tacheNumero?: number;
+    }): Promise<ProductionTaskDto[]> {
+        const qs = new URLSearchParams({epreuve: opts.epreuve});
+        if (opts.niveau) qs.set("niveau", opts.niveau);
+        if (opts.tacheNumero !== undefined) qs.set("tacheNumero", String(opts.tacheNumero));
+        return apiFetch<ProductionTaskDto[]>(`/api/production-tasks?${qs.toString()}`, {
+            auth: true,
+        });
+    },
+
+    getTask(id: string): Promise<ProductionTaskDto> {
+        return apiFetch<ProductionTaskDto>(`/api/production-tasks/${id}`, {auth: true});
+    },
+
+    /** Composition déterministe d'un examen blanc production : exactement 3
+     *  tâches ordonnées T1, T2, T3 pour le slot de l'attempt. 400 sur un
+     *  entraînement libre. Couvre aussi les sous-attempts EE/EO d'un examen
+     *  TCF complet. */
+    getExamTasks(attemptId: string): Promise<ProductionTaskDto[]> {
+        return apiFetch<ProductionTaskDto[]>(
+            `/api/attempts/${attemptId}/production-exam-tasks`,
+            {auth: true},
+        );
+    },
+
+    /** Réponses-modèles d'une (épreuve, tâche) — onglet « Exemples ». */
+    listExamples(epreuve: EpreuveType, tacheNumero: number): Promise<ProductionExampleDto[]> {
+        return apiFetch<ProductionExampleDto[]>(
+            `/api/production-examples?epreuve=${epreuve}&tacheNumero=${tacheNumero}`,
+            {auth: true},
+        );
+    },
+
+    /** Soumet un texte EE. Renvoie la submission en statut SUBMITTED. */
+    submitText(body: SubmitProductionTextRequest): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>("/api/production-submissions", {
+            method: "POST",
+            json: body,
+            auth: true,
+        }).then(afterProductionWrite);
+    },
+
+    /** Soumet un audio EO (multipart). productionTaskId / attemptId en query
+     *  (côté backend `@RequestParam`), l'audio en part `audio`. Content-Type
+     *  multipart posé automatiquement par le navigateur. */
+    submitAudio(
+        productionTaskId: string,
+        attemptId: string,
+        audio: Blob,
+        filename?: string,
+        clientSubmissionId?: string,
+    ): Promise<ProductionSubmissionDto> {
+        const fd = new FormData();
+        fd.append("audio", audio, filename ?? audioFilename(audio.type));
+        const qs = new URLSearchParams({productionTaskId, attemptId});
+        // Idempotence : renvoyer la même clé rend la même soumission, sans
+        // repayer Whisper puis le correcteur.
+        if (clientSubmissionId) qs.set("clientSubmissionId", clientSubmissionId);
+        return apiFetch<ProductionSubmissionDto>(
+            `/api/production-submissions?${qs.toString()}`,
+            {method: "POST", body: fd, auth: true},
+        ).then(afterProductionWrite);
+    },
+
+    /** Récupère une submission (polling de l'évaluation IA). */
+    getSubmission(id: string): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>(`/api/production-submissions/${id}`, {
+            auth: true,
+        }).then(afterProductionRead);
+    },
+
+    /** Relance l'évaluation d'une submission FAILED (3 essais max). */
+    retrySubmission(id: string): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>(
+            `/api/production-submissions/${id}/retry`,
+            {method: "POST", auth: true},
+        ).then(afterProductionWrite);
+    },
+
+    /** Historique des soumissions de l'utilisateur (optionnellement par épreuve). */
+    listMine(opts: { epreuve?: EpreuveType; limit?: number } = {}): Promise<ProductionSubmissionDto[]> {
+        const qs = new URLSearchParams();
+        if (opts.epreuve) qs.set("epreuve", opts.epreuve);
+        if (opts.limit !== undefined) qs.set("limit", String(opts.limit));
+        const suffix = qs.toString() ? `?${qs.toString()}` : "";
+        return apiFetch<ProductionSubmissionDto[]>(
+            `/api/users/me/production-submissions${suffix}`,
+            {auth: true},
+        );
+    },
+
+    /** Dernière submission par tâche pour un (épreuve, niveau) — badges du hub. */
+    lastPerTask(epreuve: EpreuveType, niveau: string): Promise<ProductionSubmissionDto[]> {
+        return apiFetch<ProductionSubmissionDto[]>(
+            `/api/users/me/production-submissions/last-per-task?epreuve=${epreuve}&niveau=${niveau}`,
+            {auth: true},
+        );
+    },
+
+    /** Bilan d'épreuve (moyenne /20 + niveau global en examen blanc seulement). */
+    getBilan(attemptId: string): Promise<ProductionBilanResponse> {
+        return apiFetch<ProductionBilanResponse>(
+            `/api/attempts/${attemptId}/production-bilan`,
+            {auth: true},
+        );
+    },
+};
+
+// ============================================================================
+// COMPÉTENCES TCF — micro-exercices ciblés (voie parallèle aux productions)
+// Toutes les routes sont authentifiées : il n'existe aucun endpoint public.
+// ============================================================================
+
+export const skillApi = {
+    /** Résumé par tâche (3 entrées) pour l'écran de choix de tâche. */
+    progress(section: SkillSection): Promise<SkillTaskProgressDto[]> {
+        return apiFetch<SkillTaskProgressDto[]>(
+            `/api/skills/progress?section=${section}`,
+            {auth: true},
+        );
+    },
+
+    /** Les 8 compétences actives d'une tâche + progression du user courant.
+     *  Ne plus appeler directement depuis un écran : passer par
+     *  `loadSectionSkills` (`lib/skill-catalog.ts`), qui charge l'épreuve
+     *  entière en une fois et se sert de ceci comme repli. */
+    listSkills(taskCode: string): Promise<SkillDto[]> {
+        return apiFetch<SkillDto[]>(`/api/skills?taskCode=${taskCode}`, {auth: true});
+    },
+
+    /** Les 24 compétences d'une épreuve entière (3 tâches × 8), triées
+     *  `taskCode` puis `displayOrder`. C'est l'appel unique qui rend les
+     *  pastilles T1/T2/T3 instantanées : elles filtrent, elles ne rechargent pas. */
+    listSkillsBySection(section: SkillSection): Promise<SkillDto[]> {
+        return apiFetch<SkillDto[]>(`/api/skills?section=${section}`, {auth: true});
+    },
+
+    /** Compétence + ses 15 petits sujets avec leur statut. */
+    getSkill(skillId: string): Promise<SkillDetailDto> {
+        return apiFetch<SkillDetailDto>(`/api/skills/${skillId}`, {auth: true});
+    },
+
+    /** Sujet complet (sans les références — elles ont leur propre appel). */
+    getPrompt(promptId: string): Promise<SkillPromptDto> {
+        return apiFetch<SkillPromptDto>(`/api/skill-prompts/${promptId}`, {auth: true});
+    },
+
+    /** Les 3 références. 403 tant que le user n'a aucune tentative sur ce sujet
+     *  — c'est le garde serveur de la règle « pas de modèle avant de produire ». */
+    listReferences(promptId: string): Promise<SkillReferenceDto[]> {
+        return apiFetch<SkillReferenceDto[]>(
+            `/api/skill-prompts/${promptId}/references`,
+            {auth: true},
+        );
+    },
+
+    /** Soumet une production écrite (section EE). */
+    submitText(body: SubmitSkillTextRequest): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>("/api/skill-attempts", {
+            method: "POST",
+            json: body,
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Soumet une production orale (section EO, multipart). Les identifiants
+     *  passent en query (`@RequestParam` côté backend) : poser `json` écraserait
+     *  le boundary du FormData. */
+    submitAudio(opts: {
+        skillPromptId: string;
+        audio: Blob;
+        durationSec: number;
+        selfEvaluation?: SkillSelfEvaluation | null;
+        requestAnalysis: boolean;
+        filename?: string;
+        clientSubmissionId?: string;
+    }): Promise<SkillAttemptDto> {
+        const fd = new FormData();
+        fd.append("audio", opts.audio, opts.filename ?? audioFilename(opts.audio.type));
+        const qs = new URLSearchParams({
+            skillPromptId: opts.skillPromptId,
+            durationSec: String(opts.durationSec),
+            requestAnalysis: String(opts.requestAnalysis),
+        });
+        if (opts.selfEvaluation) qs.set("selfEvaluation", opts.selfEvaluation);
+        if (opts.clientSubmissionId) qs.set("clientSubmissionId", opts.clientSubmissionId);
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts?${qs.toString()}`, {
+            method: "POST",
+            body: fd,
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Polling du résultat. 404 (pas 403) si la tentative n'est pas au user. */
+    getAttempt(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}`, {auth: true}).then(
+            afterSkillAttempt,
+        );
+    },
+
+    /** Historique des tentatives sur un sujet, plus récente d'abord. */
+    listAttempts(promptId: string, limit = 5): Promise<SkillAttemptDto[]> {
+        return apiFetch<SkillAttemptDto[]>(
+            `/api/skill-prompts/${promptId}/attempts?limit=${limit}`,
+            {auth: true},
+        );
+    },
+
+    /** Analyses IA restantes. `remaining === -1` = illimité (jamais affiché tel quel). */
+    analysisQuota(): Promise<SkillAnalysisQuotaDto> {
+        return apiFetch<SkillAnalysisQuotaDto>("/api/skills/analysis-quota", {auth: true});
+    },
+
+    /** Demande l'analyse IA d'une tentative déjà `RECORDED` (produite sans IA).
+     *  Sert au candidat qui produit d'abord et s'abonne ensuite : la production
+     *  est déjà en base, seule l'analyse manque. Consomme un quota. */
+    requestAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/analyse`, {
+            method: "POST",
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+
+    /** Relance l'analyse d'une tentative FAILED. Ne re-consomme pas le quota. */
+    retryAnalysis(id: string): Promise<SkillAttemptDto> {
+        return apiFetch<SkillAttemptDto>(`/api/skill-attempts/${id}/retry`, {
+            method: "POST",
+            auth: true,
+        }).then(afterSkillAttempt);
+    },
+};
+
+// ============================================================================
+// Expression orale TEMPS RÉEL (examinateur IA, T1/T2 — schéma A : token éphémère)
+// ============================================================================
+// Le backend émet un token éphémère (persona verrouillée serveur), le client
+// ouvre lui-même le WebSocket vers Gemini (cf. lib/realtime/geminiLive.ts) et
+// relaie les fragments de transcript ici. La notation réutilise le pipeline EO
+// existant (submission créée à la clôture). Quota épuisé / non éligible →
+// `mode: "ASYNC_FALLBACK"` : on bascule en enregistrement classique.
+
+export const realtimeApi = {
+    /** Sessions temps réel restantes (compteur du modal de lancement). */
+    getQuota(): Promise<import("./types").RealtimeQuotaResponse> {
+        return apiFetch<import("./types").RealtimeQuotaResponse>(
+            "/api/realtime/eo/quota",
+            {auth: true},
+        );
+    },
+
+    /** Démarre une session : descripteur REALTIME (token + WS) ou ASYNC_FALLBACK. */
+    startSession(
+        body: import("./types").StartRealtimeSessionRequest,
+    ): Promise<import("./types").RealtimeSessionDescriptor> {
+        return apiFetch<import("./types").RealtimeSessionDescriptor>(
+            "/api/realtime/eo/sessions",
+            {method: "POST", json: body, auth: true},
+        );
+    },
+
+    /** Reprend une session dont le WebSocket est tombé : NOUVEAU token, MÊME
+     *  conversation, MÊME transcript, et surtout AUCUN slot de simulation
+     *  re-débité. Ne JAMAIS rappeler `startSession` après une coupure : cela
+     *  créerait une seconde session et débiterait un second slot au candidat.
+     *  Peut répondre `ASYNC_FALLBACK` ; 422 si la session est terminée, si le
+     *  plafond de reprises est atteint ou si la reprise est désactivée. */
+    resumeSession(
+        sessionId: string,
+        resumptionHandle: string | null,
+    ): Promise<import("./types").RealtimeSessionDescriptor> {
+        return apiFetch<import("./types").RealtimeSessionDescriptor>(
+            `/api/realtime/eo/sessions/${sessionId}/resume`,
+            {method: "POST", json: {resumptionHandle}, auth: true},
+        );
+    },
+
+    /** Relaie un fragment de transcript (candidat ou examinateur). 204.
+     *
+     *  `turnIndex` rend l'appel IDEMPOTENT : le serveur ignore un index déjà
+     *  appliqué, donc un réessai après coupure réseau ne duplique plus un tour.
+     *  Il doit être strictement croissant sur la session et CONSERVÉ d'un essai
+     *  à l'autre. `resumptionHandle` voyage ici plutôt que dans un appel dédié :
+     *  le client POSTe déjà toutes les 1,2 s, le serveur reste à jour sans un
+     *  aller-retour de plus. */
+    appendTranscript(
+        sessionId: string,
+        speaker: import("./types").RealtimeSpeaker,
+        text: string,
+        turnIndex?: number,
+        resumptionHandle?: string | null,
+    ): Promise<void> {
+        return apiFetch<void>(
+            `/api/realtime/eo/sessions/${sessionId}/transcript`,
+            {
+                method: "POST",
+                json: {
+                    speaker,
+                    text,
+                    ...(turnIndex === undefined ? {} : {turnIndex}),
+                    ...(resumptionHandle ? {resumptionHandle} : {}),
+                },
+                auth: true,
+            },
+        );
+    },
+
+    /** Clôture la session : crée la submission + lance la notation côté backend.
+     *  🛑 Une production vient d'être créée : même purge qu'une soumission EO
+     *  (pendant mobile : `onPlanChanged` de `RealtimeEoController`). */
+    finishSession(
+        sessionId: string,
+    ): Promise<import("./types").RealtimeSessionStateResponse> {
+        return apiFetch<import("./types").RealtimeSessionStateResponse>(
+            `/api/realtime/eo/sessions/${sessionId}/finish`,
+            {method: "POST", auth: true},
+        ).then((state) => {
+            if (state.evaluated) {
+                invalidateProductionProgress();
+                invalidateDiagnosticAndPlan();
+            }
+            return state;
+        });
+    },
+};
+
+// ============================================================================
+// Endpoints Examen blanc TCF complet (TCF_COMPLET — CO → CE → EE → EO)
+// ============================================================================
+// Le backend crée le parent + 4 sous-attempts en une transaction (start) et
+// agrège le statut (IN_PROGRESS / PENDING_EVALUATIONS / COMPLETED). Les
+// productions EE/EO sont soumises via productionApi puis évaluées en arrière-
+// plan ; `markSubDone` débloque la suite sans attendre l'IA. Premium TCF requis.
+
+export const fullTcfExamApi = {
+    /** Démarre un examen complet (crée parent TCF_COMPLET + 4 sous-attempts). */
+    start(slotNumber?: number): Promise<FullTcfExamResponse> {
+        const qs = slotNumber != null ? `?slotNumber=${slotNumber}` : "";
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams${qs}`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /** État courant (polling du bilan / refresh du hub de progression). */
+    get(id: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}`, {auth: true}).then(
+            afterFullExamRead,
+        );
+    },
+
+    /** Historique des examens complets de l'utilisateur (grille de slots). */
+    listMine(limit = 20): Promise<FullTcfExamSummaryResponse[]> {
+        return apiFetch<FullTcfExamSummaryResponse[]>(
+            `/api/me/full-tcf-exams?limit=${limit}`,
+            {auth: true},
+        );
+    },
+
+    /** Démarre le chrono PROPRE d'une épreuve au moment où le candidat la
+     *  lance, AVANT d'ouvrir l'écran de l'épreuve. **Obligatoire sur les 4** :
+     *  tant qu'il n'est pas appelé, l'épreuve n'a aucune échéance et son
+     *  `deadlineAt` reste null. Il n'y a plus de chrono global — le temps d'une
+     *  épreuve ne se reporte jamais sur la suivante. Idempotent : une reprise
+     *  ne remet rien à zéro et rend le temps réellement restant. */
+    begin(id: string, epreuve: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(
+            `/api/full-tcf-exams/${id}/begin?epreuve=${encodeURIComponent(epreuve)}`,
+            {
+                method: "POST",
+                auth: true,
+            },
+        );
+    },
+
+    /** Finalise l'examen (idempotent ; exige les 4 sous-attempts terminés). */
+    finish(id: string): Promise<FullTcfExamResponse> {
+        // Le niveau final de l'examen vient d'être posé.
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/finish`, {
+            method: "POST",
+            auth: true,
+        }).then(afterMeasureWrite);
+    },
+
+    /** Marque une sous-épreuve de production (EE/EO) terminée après la T3,
+     *  sans attendre l'évaluation IA — débloque l'épreuve suivante au hub. */
+    markSubDone(id: string, epreuve: EpreuveType): Promise<FullTcfExamResponse> {
+        // Clôturer une épreuve fige son niveau sur ce qui a été rendu.
+        return apiFetch<FullTcfExamResponse>(
+            `/api/full-tcf-exams/${id}/sub-done?epreuve=${epreuve}`,
+            {method: "POST", auth: true},
+        ).then(afterMeasureWrite);
+    },
+};
+
+// ============================================================================
+// Endpoints PUBLICS (démo guest, sans auth)
+// ============================================================================
+// La démo est illimitée et déterministe : chaque lancement renvoie la même
+// série de questions pour un module donné. Le client_ip est toujours posée
+// côté serveur (pour audit) mais aucun quota n'est appliqué.
+
+export const publicThemeApi = {
+    list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
+        return apiFetch<ThemeUserResponse[]>(
+            `/api/public/themes?module=${module}`,
+            {auth: false},
+        );
+    },
+
+    /** Grille des examens blancs d'un thème vue d'un visiteur : seul le créneau 1 est ouvert. */
+    examSlots(themeId: string): Promise<CivicThemeExamSlots> {
+        return apiFetch<CivicThemeExamSlots>(
+            `/api/public/themes/${themeId}/exam-slots`,
+            {auth: false},
+        );
+    },
+};
+
+/**
+ * La grille SERVIE des examens blancs d'une épreuve (`locked` par créneau) :
+ * compte (`/api/exam-slots`) ou visiteur (`/api/public/exam-slots`). 🛑 Le
+ * serveur décide du verrou, le 403 du démarrage lit la même règle.
+ */
+export const examSlotsApi = {
+    get(epreuve: EpreuveType, auth: boolean): Promise<ExamSlots> {
+        return apiFetch<ExamSlots>(
+            `${auth ? "/api" : "/api/public"}/exam-slots?epreuve=${epreuve}`,
+            {auth},
+        );
+    },
+};
+
+export const publicExamApi = {
+    list(module?: ModuleEnum): Promise<ExamTemplateSummary[]> {
+        const qs = module ? `?module=${module}` : "";
+        return apiFetch<ExamTemplateSummary[]>(`/api/public/exams${qs}`, {
+            auth: false,
+        });
+    },
+
+    getBySlug(slug: string): Promise<ExamTemplateSummary> {
+        return apiFetch<ExamTemplateSummary>(`/api/public/exams/${slug}`, {
+            auth: false,
+        });
+    },
+};
+
+export const publicAttemptApi = {
+    startDemo(body: StartAttemptRequest): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/public/attempts/demo", {
+            method: "POST",
+            json: body,
+            auth: false,
+        });
+    },
+
+    getById(id: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>(`/api/public/attempts/${id}`, {
+            auth: false,
+        });
+    },
+
+    submitAnswer(
+        attemptId: string,
+        body: SubmitAnswerRequest,
+    ): Promise<AnswerResultResponse> {
+        return apiFetch<AnswerResultResponse>(
+            `/api/public/attempts/${attemptId}/answers`,
+            {method: "POST", json: body, auth: false},
+        );
+    },
+
+    finish(attemptId: string): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>(
+            `/api/public/attempts/${attemptId}/finish`,
+            {method: "POST", auth: false},
+        );
+    },
+};

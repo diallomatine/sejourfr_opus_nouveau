@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SejourFR — Plan</title>
+<style>
+:root{--navy:#111b44;--blue:#203e91;--blue2:#2f55b5;--blue-soft:#f2f5fb;--blue-softer:#f7f9fd;--red:#d9483b;--red-soft:#fff3f1;--green:#16855d;--green-soft:#edf8f4;--muted:#7e88ad;--line:#e4e8f2;--bg:#f7f8fc;--white:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--navy)}.phone{width:min(100%,430px);min-height:100vh;margin:auto;padding-bottom:94px}.top{background:#fff;padding:18px;border-bottom:1px solid #eef1f7}.titleRow{display:flex;align-items:center;justify-content:space-between;gap:12px}.titleRow h1{margin:0;font-size:24px}.goal{font-size:11px;font-weight:900;color:var(--blue);background:#eef2ff;border:1px solid #e0e6fb;padding:7px 10px;border-radius:999px}.nowCard{margin-top:16px;border-radius:22px;background:linear-gradient(135deg,var(--blue),#294da5);color:#fff;padding:17px;box-shadow:0 14px 28px rgba(32,62,145,.18)}.nowEyebrow{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#cbd7ff}.nowMain{display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;margin-top:8px}.nowIcon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16);font-size:21px}.nowMain strong{display:block;font-size:15px;line-height:1.3}.nowMain span{display:block;margin-top:3px;font-size:11px;color:#d6def8}.start{border:0;color:var(--blue);background:#fff;font-weight:900;font-size:11px;padding:10px 12px;border-radius:12px;cursor:pointer}main{padding:22px 17px}.sectionHead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px}.sectionHead h2{margin:0;font-size:21px;line-height:1.1}.sectionHead small{color:var(--muted);font-size:11px}.cycleIntro{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px 15px;margin-bottom:13px}.cycleTop{display:flex;align-items:center;justify-content:space-between;gap:12px}.cycleTop strong{font-size:13px}.cycleTop span{font-size:11px;color:var(--muted)}.progress{margin-top:10px;height:7px;background:#edf0f6;border-radius:999px;overflow:hidden}.progress i{display:block;width:36%;height:100%;background:linear-gradient(90deg,var(--blue),var(--red));border-radius:999px}.cycleHint{margin-top:8px;font-size:10.5px;line-height:1.45;color:var(--muted)}.examGroup{background:#fff;border:1px solid var(--line);border-radius:20px;margin-bottom:12px;overflow:hidden;box-shadow:0 7px 20px rgba(17,27,68,.045)}.examGroup.current{border-color:#d7dff2;box-shadow:0 12px 28px rgba(17,27,68,.075)}.groupHead{width:100%;border:0;background:#fff;padding:15px;display:grid;grid-template-columns:42px 1fr auto;gap:11px;align-items:center;text-align:left;cursor:pointer}.initial{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:900;font-size:12px;color:var(--blue);background:var(--blue-soft);border:1px solid #e3e8f4}.current .initial{color:#fff;background:var(--blue);border-color:var(--blue)}.groupTitle{font-size:14px;font-weight:850}.groupMeta{margin-top:3px;color:var(--muted);font-size:10.5px}.status{font-size:9.5px;font-weight:900;padding:5px 8px;border-radius:999px;background:#f2f4f8;color:#7b84a5}.status.current{background:var(--red-soft);color:var(--red)}.groupBody{display:none;border-top:1px solid var(--line);padding:4px 15px 15px 65px}.examGroup.open .groupBody{display:block}.step{position:relative;padding:14px 0;border-bottom:1px dashed #e6e9f1}.step:last-child{border-bottom:0}.step:before{content:"";position:absolute;left:-28px;top:17px;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #cfd5e5}.step:not(:last-child):after{content:"";position:absolute;left:-20px;top:35px;width:2px;height:calc(100% - 18px);background:#e7eaf2}.step.done:before{content:"✓";display:grid;place-items:center;background:var(--green);border-color:var(--green);color:#fff;font-size:9px;font-weight:900}.step.current:before{background:var(--red);border-color:#fff;box-shadow:0 0 0 4px var(--red-soft)}.step.exam:before{content:"◎";display:grid;place-items:center;color:var(--blue);border-color:var(--blue);font-size:11px;font-weight:900}.step strong{display:block;font-size:13px;line-height:1.35}.sub{display:block;margin-top:4px;font-size:10.5px;line-height:1.4;color:var(--muted)}.rowAction{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px}.tag{font-size:9px;font-weight:900;color:var(--red);background:var(--red-soft);padding:5px 7px;border-radius:999px}.link{border:0;background:transparent;color:var(--blue);font-weight:900;font-size:10.5px;cursor:pointer;padding:0}.examBox{margin-top:2px;padding:11px 12px;background:var(--blue-softer);border:1px solid #e5eaf4;border-radius:13px}.examTop{display:flex;align-items:center;justify-content:space-between;gap:10px}.examBox b{font-size:11.5px}.examState{font-size:9px;font-weight:900;color:#9ea6bf}.examState.ready{color:var(--blue)}.examBox p{margin:5px 0 0;font-size:10px;color:var(--muted);line-height:1.4}.freedom{margin:14px 0 12px;display:flex;gap:9px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:#fff;border:1px solid var(--line);color:var(--muted);font-size:10.5px;line-height:1.45}.freedom b{width:18px;height:18px;flex:0 0 18px;border-radius:50%;display:grid;place-items:center;color:var(--blue);background:var(--blue-soft);font-size:10px}.history{margin-top:16px;width:100%;border:1px solid var(--line);border-radius:17px;background:#fff;padding:14px 15px;display:flex;align-items:center;justify-content:space-between;color:var(--navy);text-align:left;cursor:pointer}.history strong{font-size:12.5px}.history small{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:500}.history .arrow{color:var(--red);font-size:22px}.bottom{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,430px);height:78px;background:rgba(255,255,255,.97);border-top:1px solid #e8ebf2;display:grid;grid-template-columns:repeat(5,1fr)}.nav{display:grid;place-items:center;color:#9aa3bf;font-size:10px;gap:3px}.nav i{width:23px;height:23px;border:2px solid currentColor;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:11px;font-weight:900}.nav.active{color:var(--blue);font-weight:800}@media(max-width:360px){.status{display:none}.groupHead{grid-template-columns:42px 1fr}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <section class="top">
+    <div class="titleRow"><h1>Mon plan</h1><div class="goal">OBJECTIF B2</div></div>
+    <div class="nowCard">
+      <div class="nowEyebrow">À faire maintenant</div>
+      <div class="nowMain"><div class="nowIcon">→</div><div><strong>Comprendre l'implicite et les nuances à l'oral</strong><span>Compréhension orale</span></div><button class="start">Commencer</button></div>
+    </div>
+  </section>
+
+  <main>
+    <div class="sectionHead"><h2>Votre parcours vers le B2</h2><small>Cycle en cours</small></div>
+    <section class="cycleIntro">
+      <div class="cycleTop"><strong>3 étapes sur 8 terminées</strong><span>Cycle 2</span></div>
+      <div class="progress"><i></i></div>
+      <div class="cycleHint">Travaillez les priorités identifiées. Le cycle reste stable jusqu'à sa prochaine actualisation.</div>
+    </section>
+
+    <article class="examGroup current open">
+      <button class="groupHead" onclick="toggleGroup(this)"><div class="initial">CO</div><div><div class="groupTitle">Compréhension orale</div><div class="groupMeta">1 compétence restante · puis examen</div></div><span class="status current">EN COURS</span></button>
+      <div class="groupBody">
+        <div class="step done"><strong>Repérer une information précise</strong><span class="sub">Terminé</span></div>
+        <div class="step current"><strong>Comprendre l'implicite et les nuances</strong><span class="sub">Votre prochaine action recommandée.</span><div class="rowAction"><span class="tag">MAINTENANT</span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step exam"><div class="examBox"><div class="examTop"><b>Examen blanc · Compréhension orale</b><span class="examState">VERROUILLÉ</span></div><p>Disponible dès que les compétences de cette épreuve sont terminées.</p></div></div>
+      </div>
+    </article>
+
+    <article class="examGroup">
+      <button class="groupHead" onclick="toggleGroup(this)"><div class="initial">EO</div><div><div class="groupTitle">Expression orale</div><div class="groupMeta">3 compétences · puis examen</div></div><span class="status">À VENIR</span></button>
+      <div class="groupBody">
+        <div class="step"><strong>Tenir un discours continu et organisé</strong><span class="sub">Tâche 3</span><div class="rowAction"><span></span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step"><strong>Nuancer ou reconnaître une limite</strong><span class="sub">Tâche 3</span><div class="rowAction"><span></span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step"><strong>Donner un exemple concret</strong><span class="sub">Tâche 3</span><div class="rowAction"><span></span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step exam"><div class="examBox"><div class="examTop"><b>Examen blanc · Expression orale</b><span class="examState">VERROUILLÉ</span></div><p>L'examen s'ouvre après les 3 compétences recommandées.</p></div></div>
+      </div>
+    </article>
+
+    <article class="examGroup">
+      <button class="groupHead" onclick="toggleGroup(this)"><div class="initial">EE</div><div><div class="groupTitle">Expression écrite</div><div class="groupMeta">2 compétences · puis examen</div></div><span class="status">À VENIR</span></button>
+      <div class="groupBody">
+        <div class="step"><strong>Développer un argument</strong><span class="sub">Tâche 3</span><div class="rowAction"><span></span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step"><strong>Adapter sa réponse à la consigne</strong><span class="sub">Tâche 3</span><div class="rowAction"><span></span><button class="link">Faire cette étape →</button></div></div>
+        <div class="step exam"><div class="examBox"><div class="examTop"><b>Examen blanc · Expression écrite</b><span class="examState">VERROUILLÉ</span></div><p>Disponible après les compétences de cette épreuve.</p></div></div>
+      </div>
+    </article>
+
+    <article class="examGroup">
+      <button class="groupHead" onclick="toggleGroup(this)"><div class="initial">CE</div><div><div class="groupTitle">Compréhension écrite</div><div class="groupMeta">Niveau à évaluer</div></div><span class="status">À ÉVALUER</span></button>
+      <div class="groupBody">
+        <div class="step exam"><div class="examBox"><div class="examTop"><b>Évaluer mon niveau en compréhension écrite</b><span class="examState ready">DISPONIBLE</span></div><p>Ici, l'examen est directement la prochaine action de cette épreuve.</p></div></div>
+      </div>
+    </article>
+
+    <div class="freedom"><b>i</b><span>Vous pouvez travailler les compétences dans l'ordre que vous voulez. Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.</span></div>
+    <button class="history"><span><strong>Voir ma progression</strong><small>Retrouvez vos anciens cycles et les compétences déjà travaillées.</small></span><span class="arrow">›</span></button>
+  </main>
+
+  <nav class="bottom">
+    <div class="nav"><i>⌂</i><span>Accueil</span></div><div class="nav active"><i>≋</i><span>Plan</span></div><div class="nav"><i>□</i><span>Réviser</span></div><div class="nav"><i>◎</i><span>Examens</span></div><div class="nav"><i>◇</i><span>Profil</span></div>
+  </nav>
+</div>
+<script>function toggleGroup(btn){btn.closest('.examGroup').classList.toggle('open')}</script>
+</body>
+</html>

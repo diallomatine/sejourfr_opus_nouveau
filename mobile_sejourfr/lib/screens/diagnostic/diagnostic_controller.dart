@@ -1,0 +1,960 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/api/diagnostic_repository.dart';
+import '../../core/api/repositories.dart';
+import '../../core/analytics/diagnostic_run_tracker.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/diagnostic_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
+import '../plan/learning_plan_provider.dart';
+import 'diagnostic_draft_service.dart';
+import 'widgets/diagnostic_analysis_labels.dart';
+import '../../core/utils/submission_key.dart';
+
+typedef SubmitDiagnosticText = Future<void> Function({
+  required String productionTaskId,
+  required String attemptId,
+  required String texte,
+});
+
+Future<void> _defaultDiagnosticDelay(Duration duration) =>
+    Future<void>.delayed(duration);
+
+typedef SubmitDiagnosticAudio = Future<void> Function({
+  required String productionTaskId,
+  required String attemptId,
+  required File audioFile,
+  String? mimeType,
+});
+
+/// Étape du parcours **invité** : tant qu'aucun compte n'existe, il n'y a pas
+/// de session serveur, donc pas de `nextStep` à lire — c'est le contenu de la
+/// production locale qui dit où en est le visiteur.
+enum DiagnosticGuestStep { presentation, written, oral, accountRequired }
+
+/// Étape de l'envoi post-inscription. Elle n'existe que pour être **dite** au
+/// candidat : sans elle, le transfert de deux productions (dont un audio) n'est
+/// qu'un rond qui tourne pendant de longues secondes.
+enum DiagnosticSyncStage { session, written, oral, confirming }
+
+class DiagnosticFlowState {
+  const DiagnosticFlowState({
+    this.journey,
+    this.subjects,
+    this.draft,
+    this.guestStep = DiagnosticGuestStep.presentation,
+    this.syncStage = DiagnosticSyncStage.session,
+    this.isGuest = false,
+    this.isLoading = false,
+    this.isSubmitting = false,
+    this.isPolling = false,
+    this.isSyncing = false,
+    this.canRetrySync = false,
+    this.errorMessage,
+    this.noticeMessage,
+    this.isEditingWritten = false,
+  });
+
+  /// Parcours serveur (compte existant). `null` tant que le visiteur n'a pas
+  /// de session.
+  final DiagnosticJourney? journey;
+
+  /// Les deux sujets servis par la route publique, en régime invité.
+  final PublicDiagnostic? subjects;
+
+  /// Production locale du visiteur. Reste posée tant que le serveur n'a pas
+  /// accusé réception des deux soumissions.
+  final DiagnosticDraft? draft;
+
+  final DiagnosticGuestStep guestStep;
+
+  /// Où en est l'envoi quand [isSyncing] est vrai.
+  final DiagnosticSyncStage syncStage;
+
+  final bool isGuest;
+  final bool isLoading;
+  final bool isSubmitting;
+  final bool isPolling;
+
+  /// Envoi de la production locale vers la session fraîchement créée.
+  final bool isSyncing;
+
+  /// L'envoi a échoué : la production est intacte sur le téléphone et peut
+  /// être renvoyée.
+  final bool canRetrySync;
+
+  final String? errorMessage;
+
+  /// Message d'information (pas une erreur) — typiquement « ce compte a déjà
+  /// passé son diagnostic ».
+  final String? noticeMessage;
+
+  /// L'écrit a été rouvert depuis l'écran de compte pour être modifié.
+  ///
+  /// 🛑 La production enregistrée n'est PAS touchée tant que la modification
+  /// n'est pas validée : ni effacée, ni réécrite par l'autosave. « Revenir
+  /// sans modifier » ramène au compte avec le texte d'origine intact.
+  final bool isEditingWritten;
+
+  DiagnosticFlowState copyWith({
+    DiagnosticJourney? journey,
+    PublicDiagnostic? subjects,
+    DiagnosticDraft? draft,
+    DiagnosticGuestStep? guestStep,
+    DiagnosticSyncStage? syncStage,
+    bool? isGuest,
+    bool? isLoading,
+    bool? isSubmitting,
+    bool? isPolling,
+    bool? isSyncing,
+    bool? canRetrySync,
+    String? errorMessage,
+    String? noticeMessage,
+    bool? isEditingWritten,
+    bool clearError = false,
+    bool clearNotice = false,
+    bool clearDraft = false,
+  }) =>
+      DiagnosticFlowState(
+        journey: journey ?? this.journey,
+        subjects: subjects ?? this.subjects,
+        draft: clearDraft ? null : (draft ?? this.draft),
+        guestStep: guestStep ?? this.guestStep,
+        syncStage: syncStage ?? this.syncStage,
+        isGuest: isGuest ?? this.isGuest,
+        isLoading: isLoading ?? this.isLoading,
+        isSubmitting: isSubmitting ?? this.isSubmitting,
+        isPolling: isPolling ?? this.isPolling,
+        isSyncing: isSyncing ?? this.isSyncing,
+        canRetrySync: canRetrySync ?? this.canRetrySync,
+        errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+        noticeMessage:
+            clearNotice ? null : (noticeMessage ?? this.noticeMessage),
+        isEditingWritten: isEditingWritten ?? this.isEditingWritten,
+      );
+}
+
+class DiagnosticController extends StateNotifier<DiagnosticFlowState> {
+  DiagnosticController({
+    required DiagnosticGateway diagnosticRepository,
+    required SubmitDiagnosticText submitText,
+    required SubmitDiagnosticAudio submitAudio,
+    required void Function() onChanged,
+    DiagnosticDraftStore? draftStore,
+    Future<String?> Function()? handoffRunId,
+    Future<void> Function()? onPassageClosed,
+    bool isAuthenticated = true,
+    Duration pollInterval = const Duration(seconds: 3),
+    // 10 min : l'analyse tient d'ordinaire en moins de deux minutes, mais deux
+    // appels LLM peuvent traîner. À 60 (3 min) on abandonnait une analyse encore
+    // en cours et l'écran se figeait sur un bandeau rouge.
+    int maxPolls = 200,
+    Duration submissionRefreshInterval = const Duration(milliseconds: 700),
+    int maxSubmissionRefreshes = 6,
+    Future<void> Function(Duration) delay = _defaultDiagnosticDelay,
+  })  : _diagnosticRepository = diagnosticRepository,
+        _submitText = submitText,
+        _submitAudio = submitAudio,
+        _onChanged = onChanged,
+        _draftStore = draftStore ?? DiagnosticDraftStore(),
+        _handoffRunId = handoffRunId,
+        _onPassageClosed = onPassageClosed,
+        _isAuthenticated = isAuthenticated,
+        _pollInterval = pollInterval,
+        _maxPolls = maxPolls,
+        _submissionRefreshInterval = submissionRefreshInterval,
+        _maxSubmissionRefreshes = maxSubmissionRefreshes,
+        _delay = delay,
+        super(const DiagnosticFlowState());
+
+  static const _localSaveWarning =
+      'Votre réponse n’a pas pu être enregistrée sur cet appareil. '
+      'Ne fermez pas l’application avant l’analyse.';
+
+  static const _alreadyDoneNotice =
+      'Ce compte a déjà passé le diagnostic : ses réponses sont enregistrées '
+      'et chaque exercice ne s’envoie qu’une fois. Celles que vous venez de '
+      'faire n’ont donc pas été envoyées — elles restent sur votre téléphone '
+      'tant que vous ne les supprimez pas.';
+
+  static const retryFailedMessage =
+      'La relance n’a pas pu être lancée. Vérifiez votre connexion, puis '
+      'réessayez.';
+
+  final DiagnosticGateway _diagnosticRepository;
+  final SubmitDiagnosticText _submitText;
+  final SubmitDiagnosticAudio _submitAudio;
+  final void Function() _onChanged;
+  final DiagnosticDraftStore _draftStore;
+
+  /// La run du passage invité, à lier à la session au handoff (tunnel
+  /// « Suivi »). Facultatif : sans lui, le parcours est celui d'avant.
+  final Future<String?> Function()? _handoffRunId;
+
+  /// Le passage est fini (production transmise ou effacée) : la trace du
+  /// tunnel le sait, et le prochain diagnostic tirera une run neuve.
+  final Future<void> Function()? _onPassageClosed;
+  final bool _isAuthenticated;
+  final Duration _pollInterval;
+  final int _maxPolls;
+  final Duration _submissionRefreshInterval;
+  final int _maxSubmissionRefreshes;
+  final Future<void> Function(Duration) _delay;
+  int _pollGeneration = 0;
+
+  Future<void> loadCurrent() async {
+    if (state.isLoading || state.isSyncing) return;
+    state = state.copyWith(isLoading: true, clearError: true);
+    final draft = await _readDraft();
+    if (!mounted) return;
+
+    if (!_isAuthenticated) {
+      await _loadGuest(draft);
+      return;
+    }
+
+    // Compte connecté avec une production faite en invité : on l'envoie avant
+    // toute chose, c'est le seul endroit où elle peut encore être perdue.
+    if (draft != null && draft.isComplete) {
+      state = state.copyWith(draft: draft, isLoading: false, isGuest: false);
+      await syncLocalProductions();
+      return;
+    }
+
+    try {
+      final journey = await _diagnosticRepository.current();
+      if (!mounted) return;
+      state = state.copyWith(
+        journey: journey,
+        draft: draft,
+        isLoading: false,
+        isGuest: false,
+      );
+      await _loadSubjectsForPresentation(journey);
+      _pollIfNeeded(journey);
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ApiClient.toApiException(error).message,
+      );
+    }
+  }
+
+  /// Un compte sans session reçoit un parcours **sans sujets** : le serveur ne
+  /// les attache qu'à partir de `POST /api/diagnostics`. L'écran de
+  /// présentation annonce pourtant le coût en temps de chacun, mesures tirées
+  /// des sujets — on relit donc le catalogue public, la seule route qui les
+  /// sert sans session. Confort d'affichage : un échec laisse la présentation
+  /// sans chiffre, il ne bloque jamais le démarrage.
+  Future<void> _loadSubjectsForPresentation(DiagnosticJourney journey) async {
+    if (journey.nextStep != DiagnosticStep.presentation) return;
+    if (journey.written != null || state.subjects != null) return;
+    try {
+      final subjects = await _diagnosticRepository.publicCurrent();
+      if (!mounted) return;
+      state = state.copyWith(subjects: subjects);
+    } catch (_) {
+      // Sans mesure, l'écran reste utilisable : on n'affiche pas d'erreur.
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Régime invité : produire d'abord, créer le compte ensuite
+  // ---------------------------------------------------------------------------
+
+  Future<void> _loadGuest(DiagnosticDraft? draft) async {
+    try {
+      final subjects = await _diagnosticRepository.publicCurrent();
+      if (!mounted) return;
+      final usable = draft != null &&
+          draft.matches(subjects.diagnosticCode, subjects.diagnosticVersion);
+      state = state.copyWith(
+        isGuest: true,
+        subjects: subjects,
+        draft: draft,
+        guestStep: _resumeStep(usable ? draft : null, draft),
+        isEditingWritten: false,
+        isLoading: false,
+        noticeMessage: draft != null && !usable
+            ? 'Les sujets du diagnostic ont été mis à jour. Votre texte est '
+                'conservé, mais l’enregistrement est à refaire.'
+            : null,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isGuest: true,
+        draft: draft,
+        isLoading: false,
+        errorMessage: ApiClient.toApiException(error).message,
+      );
+    }
+  }
+
+  /// Étape de reprise. [usable] est la production rattachée aux sujets
+  /// courants ; [any] sert seulement à décider si le visiteur avait déjà
+  /// commencé (on ne lui réaffiche pas la présentation dans ce cas).
+  static DiagnosticGuestStep _resumeStep(
+    DiagnosticDraft? usable,
+    DiagnosticDraft? any,
+  ) {
+    if (usable == null) {
+      return any == null || any.isEmpty
+          ? DiagnosticGuestStep.presentation
+          : DiagnosticGuestStep.written;
+    }
+    // `isComplete` connaît la FORME du parcours : sur le diagnostic rapide,
+    // l'écrit seul suffit et l'étape orale n'existe pas.
+    if (usable.isComplete) return DiagnosticGuestStep.accountRequired;
+    if (usable.hasWritten) return DiagnosticGuestStep.oral;
+    return DiagnosticGuestStep.written;
+  }
+
+  void startGuest() {
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.written,
+      clearError: true,
+    );
+  }
+
+  /// Retour de l'écrit vers le choix d'examen : c'est l'écran précédent.
+  /// Miroir de `setStarted(false)` (web).
+  void backToGuestChoice() {
+    if (state.guestStep != DiagnosticGuestStep.written) return;
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.presentation,
+      clearError: true,
+    );
+  }
+
+  /// Rouvre l'écrit depuis l'écran de compte (« Modifier mon texte »). Rien
+  /// n'est effacé : l'étape reste celle du compte tant que la modification
+  /// n'est pas validée. Miroir de `openWrittenEditor` (web).
+  void editGuestWritten() {
+    if (state.guestStep != DiagnosticGuestStep.accountRequired ||
+        !(state.draft?.hasWritten ?? false)) {
+      return;
+    }
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.written,
+      isEditingWritten: true,
+      clearError: true,
+    );
+  }
+
+  /// « Revenir sans modifier » : retour au compte, production d'origine
+  /// intacte.
+  void cancelGuestEdit() {
+    if (!state.isEditingWritten) return;
+    state = state.copyWith(
+      guestStep: DiagnosticGuestStep.accountRequired,
+      isEditingWritten: false,
+      clearError: true,
+    );
+  }
+
+  /// Sauvegarde silencieuse pendant la frappe. Jamais bloquante, jamais
+  /// signalée : elle ne fait que réduire la fenêtre de perte.
+  ///
+  /// 🛑 Coupée pendant une MODIFICATION : le brouillon y est la production
+  /// déjà validée. L'écraser à chaque frappe rendrait « Revenir sans
+  /// modifier » mensonger, et un kill de l'app laisserait au compte un texte
+  /// hors bornes qui partirait tel quel à l'analyse.
+  Future<void> autosaveGuestWritten(String text) async {
+    final subjects = state.subjects;
+    if (subjects == null || text.trim().isEmpty || state.isEditingWritten) {
+      return;
+    }
+    try {
+      final draft = await _draftStore.saveWritten(
+        diagnosticCode: subjects.diagnosticCode,
+        diagnosticVersion: subjects.diagnosticVersion,
+        taskId: subjects.written.productionTaskId,
+        text: text,
+        oralRequired: subjects.oral != null,
+      );
+      if (!mounted) return;
+      state = state.copyWith(draft: draft);
+    } catch (_) {
+      // L'échec est signalé au moment de valider l'étape, pas pendant la frappe.
+    }
+  }
+
+  Future<bool> submitGuestWritten(String text) async {
+    final subjects = state.subjects;
+    if (subjects == null) return false;
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final draft = await _draftStore.saveWritten(
+        diagnosticCode: subjects.diagnosticCode,
+        diagnosticVersion: subjects.diagnosticVersion,
+        taskId: subjects.written.productionTaskId,
+        text: text,
+        oralRequired: subjects.oral != null,
+      );
+      if (!mounted) return false;
+      state = state.copyWith(
+        draft: draft,
+        isSubmitting: false,
+        guestStep: _stepAfterWritten(draft, subjects),
+        isEditingWritten: false,
+        clearError: true,
+      );
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      // Le disque a refusé, mais le texte est en mémoire : on avance en le
+      // gardant en état plutôt que de bloquer le visiteur sur son écrit. Un
+      // oral déjà enregistré (modification depuis le compte) est conservé.
+      final previous = state.draft;
+      final draft = (previous != null &&
+                  previous.matches(
+                    subjects.diagnosticCode,
+                    subjects.diagnosticVersion,
+                  )
+              ? previous
+              : DiagnosticDraft(
+                  diagnosticCode: subjects.diagnosticCode,
+                  diagnosticVersion: subjects.diagnosticVersion,
+                ))
+          .copyWith(
+        writtenTaskId: subjects.written.productionTaskId,
+        writtenText: text,
+        oralRequired: subjects.oral != null,
+      );
+      state = state.copyWith(
+        draft: draft,
+        isSubmitting: false,
+        guestStep: _stepAfterWritten(draft, subjects),
+        isEditingWritten: false,
+        errorMessage: _localSaveWarning,
+      );
+      return true;
+    }
+  }
+
+  /// Après l'écrit : le compte si tout ce que ce diagnostic demande est là
+  /// (diagnostic rapide, ou oral déjà enregistré lors d'une modification),
+  /// l'oral sinon.
+  ///
+  /// 🛑 Sans étape orale (diagnostic rapide, L3), l'écrit rendu mène
+  /// DIRECTEMENT au compte. Renvoyer vers `oral` bloquerait le visiteur sur un
+  /// écran d'enregistrement qui n'a pas de sujet.
+  static DiagnosticGuestStep _stepAfterWritten(
+    DiagnosticDraft draft,
+    PublicDiagnostic subjects,
+  ) =>
+      subjects.oral == null || draft.isComplete
+          ? DiagnosticGuestStep.accountRequired
+          : DiagnosticGuestStep.oral;
+
+  Future<bool> submitGuestOral({
+    required File audioFile,
+    String? mimeType,
+  }) async {
+    final subjects = state.subjects;
+    // Sans sujet oral, l'écran n'est pas atteignable : ce garde le dit au type
+    // comme au lecteur.
+    if (subjects?.oral == null) return false;
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final draft = await _draftStore.saveOral(
+        diagnosticCode: subjects!.diagnosticCode,
+        diagnosticVersion: subjects.diagnosticVersion,
+        taskId: subjects.oral!.productionTaskId,
+        source: audioFile,
+        mimeType: mimeType,
+      );
+      if (!mounted) return false;
+      state = state.copyWith(
+        draft: draft,
+        isSubmitting: false,
+        guestStep: DiagnosticGuestStep.accountRequired,
+        clearError: true,
+        clearNotice: true,
+      );
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: ApiClient.toApiException(error).message,
+      );
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bascule après authentification
+  // ---------------------------------------------------------------------------
+
+  /// Crée la session serveur puis envoie l'écrit, attend son enregistrement,
+  /// envoie l'oral, attend le sien — et **seulement ensuite** efface la copie
+  /// locale. Tout échec conserve la production et laisse la main.
+  Future<bool> syncLocalProductions() async {
+    if (state.isSyncing) return false;
+    final draft = state.draft ?? await _readDraft();
+    if (draft == null || !draft.isComplete) {
+      await loadCurrent();
+      return false;
+    }
+    state = state.copyWith(
+      draft: draft,
+      isSyncing: true,
+      isLoading: false,
+      canRetrySync: false,
+      syncStage: DiagnosticSyncStage.session,
+      clearError: true,
+      clearNotice: true,
+    );
+    try {
+      // 🛑 Le sujet RÉELLEMENT rédigé est renvoyé au serveur : depuis L3 il
+      // peut être tiré, et sans cet identifiant la session s'ouvrirait sur un
+      // autre énoncé que celui traité par le candidat.
+      var journey = await _diagnosticRepository.startOrResume(
+        writtenTaskId: draft.writtenTaskId,
+        diagnosticRunId: await _safeHandoffRunId(),
+      );
+      if (!mounted) return false;
+      state = state.copyWith(journey: journey);
+      _onChanged();
+
+      if (_alreadyDone(journey)) {
+        state = state.copyWith(
+          journey: journey,
+          isSyncing: false,
+          noticeMessage: _alreadyDoneNotice,
+        );
+        _pollIfNeeded(journey);
+        return false;
+      }
+
+      final written = journey.written;
+      if (written != null && written.submissionId == null) {
+        state = state.copyWith(syncStage: DiagnosticSyncStage.written);
+        await _submitText(
+          productionTaskId: written.productionTaskId,
+          attemptId: written.attemptId,
+          texte: draft.writtenText!,
+        );
+        journey = await _awaitAcknowledgement(
+              journey.sessionId,
+              DiagnosticStep.written,
+            ) ??
+            journey;
+        if (!mounted) return false;
+        state = state.copyWith(journey: journey);
+      }
+
+      final oral = journey.oral;
+      if (oral != null && oral.submissionId == null) {
+        state = state.copyWith(syncStage: DiagnosticSyncStage.oral);
+        final file = await _draftStore.audioFile(draft);
+        if (file == null) {
+          throw StateError('Enregistrement introuvable sur cet appareil.');
+        }
+        await _submitAudio(
+          productionTaskId: oral.productionTaskId,
+          attemptId: oral.attemptId,
+          audioFile: file,
+          mimeType: draft.audioMime,
+        );
+        journey = await _awaitAcknowledgement(
+              journey.sessionId,
+              DiagnosticStep.oral,
+            ) ??
+            journey;
+        if (!mounted) return false;
+      }
+
+      state = state.copyWith(syncStage: DiagnosticSyncStage.confirming);
+      if (!_serverHasAllProductions(journey)) {
+        state = state.copyWith(
+          journey: journey,
+          isSyncing: false,
+          canRetrySync: true,
+          errorMessage: diagnosticSendUnconfirmed(journey.oral != null),
+        );
+        return false;
+      }
+
+      // Accusé de réception de TOUTES les productions attendues : la copie
+      // locale n'a plus de raison d'être.
+      await _clearDraft();
+      if (!mounted) return false;
+      state = state.copyWith(
+        journey: journey,
+        isSyncing: false,
+        canRetrySync: false,
+        clearDraft: true,
+        clearError: true,
+      );
+      _onChanged();
+      _pollIfNeeded(journey);
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSyncing: false,
+        canRetrySync: true,
+        errorMessage: ApiClient.toApiException(error).message,
+      );
+      return false;
+    }
+  }
+
+  /// La session du compte a déjà consommé ses deux tâches — une tâche
+  /// n'accepte qu'une soumission, il n'y a plus rien à envoyer.
+  static bool _alreadyDone(DiagnosticJourney journey) {
+    if (journey.status == DiagnosticJourneyStatus.completed ||
+        journey.status == DiagnosticJourneyStatus.analyzing ||
+        journey.status == DiagnosticJourneyStatus.failed) {
+      return true;
+    }
+    return _serverHasAllProductions(journey);
+  }
+
+  /// Le serveur a-t-il accusé réception de TOUT ce que cette session porte ?
+  ///
+  /// 🛑 Une session sans étape orale (diagnostic rapide, L3) est complète avec
+  /// son seul écrit. Exiger un oral que le serveur n'a pas ouvert ferait
+  /// échouer un parcours réussi et afficherait un message d'erreur mensonger.
+  static bool _serverHasAllProductions(DiagnosticJourney journey) {
+    if (journey.status == DiagnosticJourneyStatus.analyzing ||
+        journey.status == DiagnosticJourneyStatus.completed) {
+      return true;
+    }
+    return journey.written?.submissionId != null &&
+        (journey.oral == null || journey.oral!.submissionId != null);
+  }
+
+  /// Efface la copie locale sur demande explicite du candidat.
+  Future<void> discardLocalProductions() async {
+    await _clearDraft();
+    if (!mounted) return;
+    state = state.copyWith(
+      clearDraft: true,
+      clearNotice: true,
+      clearError: true,
+      canRetrySync: false,
+    );
+  }
+
+  void dismissNotice() {
+    state = state.copyWith(clearNotice: true);
+  }
+
+  Future<DiagnosticDraft?> _readDraft() async {
+    try {
+      return await _draftStore.read();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    try {
+      await _draftStore.clear();
+    } catch (_) {
+      // Une clé résiduelle ne doit pas transformer un envoi réussi en échec.
+    }
+    try {
+      await _onPassageClosed?.call();
+    } catch (_) {
+      // Une mesure ne transforme jamais un envoi réussi en échec.
+    }
+  }
+
+  Future<String?> _safeHandoffRunId() async {
+    try {
+      return await _handoffRunId?.call();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Régime connecté (inchangé)
+  // ---------------------------------------------------------------------------
+
+  Future<bool> startOrResume() async {
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final journey = await _diagnosticRepository.startOrResume();
+      if (!mounted) return false;
+      state = state.copyWith(journey: journey, isSubmitting: false);
+      _onChanged();
+      _pollIfNeeded(journey);
+      return true;
+    } catch (error) {
+      _operationFailed(error);
+      return false;
+    }
+  }
+
+  Future<bool> submitWritten(String text) async {
+    final exercise = state.journey?.written;
+    if (exercise == null) return false;
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      await _submitText(
+        productionTaskId: exercise.productionTaskId,
+        attemptId: exercise.attemptId,
+        texte: text,
+      );
+      return await _reloadAfterSubmission(DiagnosticStep.written);
+    } catch (error) {
+      _operationFailed(error);
+      return false;
+    }
+  }
+
+  Future<bool> submitOral({
+    required File audioFile,
+    String? mimeType,
+  }) async {
+    final exercise = state.journey?.oral;
+    if (exercise == null) return false;
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      await _submitAudio(
+        productionTaskId: exercise.productionTaskId,
+        attemptId: exercise.attemptId,
+        audioFile: audioFile,
+        mimeType: mimeType,
+      );
+      return await _reloadAfterSubmission(DiagnosticStep.oral);
+    } catch (error) {
+      _operationFailed(error);
+      return false;
+    }
+  }
+
+  Future<void> refreshDetail() async {
+    final sessionId = state.journey?.sessionId;
+    if (sessionId == null) {
+      await loadCurrent();
+      return;
+    }
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final journey = await _diagnosticRepository.detail(sessionId);
+      if (!mounted) return;
+      state = state.copyWith(journey: journey, isLoading: false);
+      _pollIfNeeded(journey);
+    } catch (error) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: ApiClient.toApiException(error).message,
+      );
+    }
+  }
+
+  Future<bool> retryAnalysis() async {
+    final sessionId = state.journey?.sessionId;
+    if (sessionId == null) return false;
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final journey = await _diagnosticRepository.retryAnalysis(sessionId);
+      if (!mounted) return false;
+      state = state.copyWith(journey: journey, isSubmitting: false);
+      _onChanged();
+      _pollIfNeeded(journey);
+      return true;
+    } catch (error) {
+      // La relance n'est jamais partie : on le DIT. Sans ce message, le
+      // candidat cliquait, l'écran ne bougeait pas, et rien ne lui signalait
+      // qu'un 429, un 500 ou une coupure réseau avait avalé son geste.
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: _retryErrorMessage(error),
+      );
+      return false;
+    }
+  }
+
+  String _retryErrorMessage(Object error) {
+    final api = ApiClient.toApiException(error);
+    // La route de relance est rate-limitée serveur : son message brut
+    // (« Reessayez dans 573s. ») n'est pas écrit pour un candidat.
+    if (api.statusCode == 429) {
+      return diagnosticRetryRateLimited(state.journey?.oral != null);
+    }
+    return api.message.trim().isEmpty ? retryFailedMessage : api.message;
+  }
+
+  /// ⚠️ Chaque sortie **résout** `isSubmitting`. Un chargement qui ne se résout
+  /// pas est définitif ici : le bouton tourne sans fin, `PopScope` refuse le
+  /// retour et l'en-tête masque sa flèche — le candidat est enfermé sur l'écran
+  /// sans rien pouvoir faire. Ne jamais ajouter de `return` sans le lever.
+  Future<bool> _reloadAfterSubmission(DiagnosticStep submittedStep) async {
+    final sessionId = state.journey?.sessionId;
+    if (sessionId == null) {
+      _submissionUnconfirmed();
+      return false;
+    }
+    final journey = await _awaitAcknowledgement(sessionId, submittedStep);
+    if (!mounted) return false;
+    if (journey == null) {
+      _submissionUnconfirmed();
+      return false;
+    }
+    state = state.copyWith(
+      journey: journey,
+      isSubmitting: false,
+      clearError: true,
+    );
+    _onChanged();
+    _pollIfNeeded(journey);
+    return true;
+  }
+
+  /// Relit le détail jusqu'à ce que le serveur ait pris en compte la
+  /// soumission de [submittedStep].
+  Future<DiagnosticJourney?> _awaitAcknowledgement(
+    String? sessionId,
+    DiagnosticStep submittedStep,
+  ) async {
+    if (sessionId == null) return null;
+    DiagnosticJourney? journey;
+    for (var attempt = 0; attempt < _maxSubmissionRefreshes; attempt++) {
+      journey = await _diagnosticRepository.detail(sessionId);
+      final submittedExercise = submittedStep == DiagnosticStep.written
+          ? journey.written
+          : journey.oral;
+      final acknowledged =
+          journey.status != DiagnosticJourneyStatus.inProgress ||
+              journey.nextStep != submittedStep ||
+              submittedExercise?.submissionId != null;
+      if (acknowledged) break;
+      if (attempt < _maxSubmissionRefreshes - 1) {
+        await _delay(_submissionRefreshInterval);
+      }
+    }
+    return journey;
+  }
+
+  void _pollIfNeeded(DiagnosticJourney journey) {
+    if (journey.nextStep != DiagnosticStep.analysis || journey.status.isFinal) {
+      _pollGeneration++;
+      if (state.isPolling) state = state.copyWith(isPolling: false);
+      return;
+    }
+    final generation = ++_pollGeneration;
+    unawaited(_poll(generation, journey.sessionId));
+  }
+
+  Future<void> _poll(int generation, String? sessionId) async {
+    if (sessionId == null) return;
+    state = state.copyWith(isPolling: true, clearError: true);
+    for (var attempt = 0; attempt < _maxPolls; attempt++) {
+      await _delay(_pollInterval);
+      if (!mounted || generation != _pollGeneration) return;
+      try {
+        final journey = await _diagnosticRepository.detail(sessionId);
+        if (!mounted || generation != _pollGeneration) return;
+        state = state.copyWith(journey: journey, clearError: true);
+        if (journey.status.isFinal ||
+            journey.nextStep != DiagnosticStep.analysis) {
+          state = state.copyWith(isPolling: false);
+          _onChanged();
+          return;
+        }
+      } catch (_) {
+        // Une coupure ponctuelle ne doit pas abandonner une analyse serveur.
+      }
+    }
+    if (!mounted || generation != _pollGeneration) return;
+    // Aucune erreur : l'analyse n'a pas échoué, c'est notre boucle qui s'arrête.
+    // L'écran d'attente dit déjà qu'elle se poursuit côté serveur et garde son
+    // bouton « Actualiser » ; un bandeau rouge ferait croire à un échec.
+    state = state.copyWith(isPolling: false);
+  }
+
+  /// Le serveur n'a pas confirmé la soumission : on rend la main plutôt que de
+  /// laisser tourner un bouton, et on le dit.
+  void _submissionUnconfirmed() {
+    if (!mounted) return;
+    state = state.copyWith(
+      isSubmitting: false,
+      errorMessage: 'Le serveur n’a pas confirmé la réception de votre '
+          'réponse. Réessayez dans quelques instants.',
+    );
+  }
+
+  void _operationFailed(Object error) {
+    if (!mounted) return;
+    state = state.copyWith(
+      isSubmitting: false,
+      errorMessage: ApiClient.toApiException(error).message,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollGeneration++;
+    super.dispose();
+  }
+}
+
+final diagnosticControllerProvider = StateNotifierProvider.autoDispose<
+    DiagnosticController, DiagnosticFlowState>((ref) {
+  final production = ref.watch(productionRepositoryProvider);
+  // `select` : seule la bascule connecté ⇄ invité doit recréer le contrôleur.
+  // Un simple rafraîchissement du user (statut Premium, profil) ne doit pas
+  // relancer le parcours.
+  final isAuthenticated = ref.watch(
+    authControllerProvider.select((state) => state is AuthAuthenticated),
+  );
+  // Une cle par production de diagnostic. Le renvoi apres coupure — le cas le
+  // plus frequent de ce parcours, ou le compte vient d'etre cree — retrouve la
+  // soumission au lieu d'echouer sur « deja rendue ».
+  final submissionKeys = SubmissionKeys();
+  final controller = DiagnosticController(
+    diagnosticRepository: ref.watch(diagnosticRepositoryProvider),
+    draftStore: ref.watch(diagnosticDraftStoreProvider),
+    isAuthenticated: isAuthenticated,
+    submitText: ({
+      required String productionTaskId,
+      required String attemptId,
+      required String texte,
+    }) async {
+      await production.submitText(
+        productionTaskId: productionTaskId,
+        attemptId: attemptId,
+        texte: texte,
+        clientSubmissionId:
+            submissionKeys.keyFor('$attemptId:$productionTaskId'),
+      );
+    },
+    submitAudio: ({
+      required String productionTaskId,
+      required String attemptId,
+      required File audioFile,
+      String? mimeType,
+    }) async {
+      await production.submitAudio(
+        productionTaskId: productionTaskId,
+        attemptId: attemptId,
+        audioFile: audioFile,
+        mimeType: mimeType,
+        clientSubmissionId:
+            submissionKeys.keyFor('$attemptId:$productionTaskId'),
+      );
+    },
+    onChanged: () => ref.read(learningPlanRevisionProvider.notifier).state++,
+    handoffRunId: () => ref.read(diagnosticRunTrackerProvider).handoffRunId(),
+    onPassageClosed: () => ref
+        .read(diagnosticRunTrackerProvider)
+        .close(DiagnosticRunType.quickTcf),
+  );
+  unawaited(controller.loadCurrent());
+  return controller;
+});

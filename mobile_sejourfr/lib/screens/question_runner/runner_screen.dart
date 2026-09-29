@@ -1,0 +1,1117 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:sejourfr_mobile/core/router/app_router.dart';
+
+import '../../core/analytics/analytics_events.dart';
+import '../../core/analytics/diagnostic_run_tracker.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/attempt_models.dart';
+import '../../core/models/billing_models.dart';
+import '../../core/models/diagnostic_run_models.dart';
+import '../../core/models/enums.dart';
+import '../../core/models/question_models.dart';
+import '../../core/providers/lots_provider.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_tag.dart';
+import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/rich_paragraph_text.dart';
+import '../civique/civique_full_exams_screen.dart' show civiqueGlobalExamsProvider;
+import '../module_detail/civique_hub_data.dart' show civiqueThemeExamsHistoryProvider;
+import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
+import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
+import '../tcf_full_exam/full_exam_exit_labels.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
+import 'mock_exam_exit_labels.dart';
+import 'runner_controller.dart';
+import 'widgets/choice_tile.dart';
+import 'widgets/exam_timer.dart';
+import 'widgets/explanation_box.dart';
+import 'widgets/question_media_view.dart';
+import '../diagnostic_civique/civic_diagnostic_labels.dart';
+
+class RunnerScreen extends ConsumerStatefulWidget {
+  const RunnerScreen({super.key, required this.attemptId});
+
+  final String attemptId;
+
+  @override
+  ConsumerState<RunnerScreen> createState() => _RunnerScreenState();
+}
+
+class _RunnerScreenState extends ConsumerState<RunnerScreen> {
+  /// Le 422 « temps écoulé » ne se traite qu'une fois : le message serveur est
+  /// affiché, puis on bascule sur l'écran de fin.
+  bool _timeExpiredHandled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Si l'écran a été poussé depuis un tap de lot (TCF ou civique), on
+    // bascule le runner en mode "batch fixe" : pas d'extension auto, le
+    // bouton Terminer apparaît à la dernière question du lot.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final query = GoRouterState.of(context).uri.queryParameters;
+      final from = query['from'];
+      if (from == 'tcfLot' || from == 'civiqueLot') {
+        ref
+            .read(runnerControllerProvider(widget.attemptId).notifier)
+            .setFixedBatch(true);
+      }
+      // DIAGNOSTIC CIVIQUE : l'ouverture du runner est l'affichage de la
+      // première question — l'étape 1 du tunnel « Suivi », tracée sur la run
+      // (Q3), avec la session pour que le serveur la lie. Reprendre le même
+      // diagnostic ne crée rien de plus : la run est déjà connue.
+      final civicSessionId = query[kCivicDiagnosticParam];
+      if (civicSessionId != null) {
+        unawaited(ref.read(diagnosticRunTrackerProvider).subjectViewed(
+              DiagnosticRunType.civique,
+              sessionId: civicSessionId,
+            ));
+      }
+    });
+  }
+
+  /// Le backend a refusé la réponse en **422** : l'échéance de l'épreuve (plus
+  /// 60 s de grâce) est passée. Le refus porte sur **une** réponse — celles
+  /// d'avant sont conservées et l'épreuve est clôturée côté serveur. On dit
+  /// pourquoi, puis on va à l'écran de fin plutôt que de laisser le candidat
+  /// retenter une soumission qui sera toujours refusée.
+  Future<void> _handleTimeExpired(String message) async {
+    if (_timeExpiredHandled || !mounted) return;
+    _timeExpiredHandled = true;
+    final attemptId = widget.attemptId;
+    final ctrl = ref.read(runnerControllerProvider(attemptId).notifier);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.red,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+    var attempt = await ctrl.finish();
+    if (!mounted) return;
+    if (attempt == null) {
+      // `finish` peut échouer si le serveur a déjà clôturé l'épreuve : on relit
+      // l'état réel plutôt que d'afficher un score périmé.
+      // Clôturée côté serveur, pas par `finish` : son échec a déjà émis le
+      // signal (`RunnerController.finish`).
+      await ctrl.retry();
+      if (!mounted) return;
+      attempt = ref.read(runnerControllerProvider(attemptId)).valueOrNull
+          ?.activeAttempt;
+    }
+    if (attempt == null || !mounted) return;
+    _navigateToResult(context, ref, attempt);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final attemptId = widget.attemptId;
+    final state = ref.watch(runnerControllerProvider(attemptId));
+
+    ref.listen(runnerControllerProvider(attemptId), (prev, next) {
+      final was = prev?.valueOrNull?.timeExpired ?? false;
+      final now = next.valueOrNull?.timeExpired ?? false;
+      if (!was && now) {
+        _handleTimeExpired(next.valueOrNull?.errorMessage ??
+            'Le temps de cette épreuve est écoulé.');
+      }
+    });
+
+    return state.when(
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(LucideIcons.cloudOff,
+                    color: AppColors.red, size: 40),
+                const SizedBox(height: 12),
+                Text(
+                  e.toString(),
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(color: AppColors.muted),
+                ),
+                const SizedBox(height: 16),
+                AppButton(
+                  label: 'Réessayer',
+                  variant: AppButtonVariant.secondary,
+                  fullWidth: false,
+                  onPressed: () => ref
+                      .read(runnerControllerProvider(attemptId).notifier)
+                      .retry(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      data: (s) => _RunnerView(state: s, attemptId: attemptId),
+    );
+  }
+}
+
+class _RunnerView extends ConsumerWidget {
+  const _RunnerView({required this.state, required this.attemptId});
+
+  final RunnerState state;
+  final String attemptId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final question = state.current.question;
+    final isExam = state.activeAttempt.isMockExam;
+    /* 🛑 **LE RÉGIME DE PASSATION EST SERVI** (`AttemptResponse.mode`,
+       2026-09-20), et c'est LUI qui décide de ce qui se passe pendant la
+       session : correction affichée ou non, audio CO rejouable ou non, retour
+       arrière ouvert ou fermé.
+
+       ⚠️ **Il ne se déduit plus du type** : une série lancée depuis une carte
+       d'étape du Plan est un `TRAINING` — freemium, historique et observations
+       inchangés — **posée en `EXAMEN`**. C'est aussi la valeur que le serveur
+       oppose (il ne renvoie la correction qu'en `ENTRAINEMENT`), donc l'écran
+       et le refus ne peuvent pas diverger.
+
+       ⚠️ **Non-régression** : `MOCK_EXAM` est servi `EXAMEN` et `REVIEW`
+       `REVISION`, donc lots, séries de « Réviser », examens blancs et
+       sous-épreuves d'examen complet se comportent exactement comme avant. Ce
+       qui reste sur le **type** — et doit y rester — c'est ce que la session
+       **est** : la sortie destructive, le chrono et l'écran de résultat. */
+    final estEntrainement = state.activeAttempt.estEntrainement;
+    final selected = state.answersByQuestion[state.current.id] ?? const [];
+
+    final isFavorite =
+        state.favoriteQuestionIds.contains(state.current.question.id);
+
+    // Sur un **examen blanc** — épreuve d'un complet comme examen joué seul —
+    // le back système (et le geste de retour iOS) doit faire exactement ce que
+    // fait la croix : confirmer, puis clôturer. Sans cette interception, on
+    // sortait par le bas sans rien clore et l'examen se serait repris, ce que
+    // la règle interdit. Les séries d'entraînement, elles, se quittent
+    // librement : rien n'y est perdu, la correction y est immédiate.
+    return PopScope(
+      canPop: !isExam,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !isExam) return;
+        await _confirmQuit(context, ref);
+      },
+      child: _buildScaffold(context, ref, question, isExam, estEntrainement,
+          selected, isFavorite),
+    );
+  }
+
+  /// `fullExamId` **seulement** quand ce runner joue une épreuve d'examen
+  /// complet (`from=fullTcf`) — jamais sur un examen module ou une série.
+  static String? _fullExamIdOf(BuildContext context) {
+    final goState = GoRouterState.of(context);
+    return goState.uri.queryParameters['from'] == 'fullTcf'
+        ? goState.uri.queryParameters['fullExamId']
+        : null;
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    WidgetRef ref,
+    QuestionDto question,
+    bool isExam,
+    /// 🛑 Le **régime**, pas le type : voir le commentaire de `build`.
+    bool estEntrainement,
+    List<String> selected,
+    bool isFavorite,
+  ) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.x, size: 22),
+          onPressed: () => _confirmQuit(context, ref),
+        ),
+        title: _ProgressHeader(state: state),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+            icon: Icon(
+              isFavorite ? LucideIcons.bookmarkCheck : LucideIcons.bookmark,
+              size: 22,
+              color: isFavorite ? AppColors.red : AppColors.ink,
+            ),
+            onPressed: () => ref
+                .read(runnerControllerProvider(attemptId).notifier)
+                .toggleFavoriteCurrent(),
+          ),
+          if (isExam && state.activeAttempt.timeLimitSeconds != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                // `startedAt` EST l'ancre : le backend le recale sur le
+                // lancement réel de l'épreuve (`POST /begin`) dans un examen
+                // complet, et c'est le vrai début d'une session isolée.
+                child: ExamTimer.fromStart(
+                  durationSeconds: state.activeAttempt.timeLimitSeconds!,
+                  startedAt: state.activeAttempt.startedAt,
+                  onElapsed: () => _autoFinish(context, ref),
+                ),
+              ),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _ProgressBar(state: state),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                children: [
+                  _QuestionHeader(question: question),
+                  const SizedBox(height: 14),
+                  if (question.hasMedia)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      // CO : audio auto-play 0,5s à l'arrivée sur la question.
+                      // En examen, lecture unique sans pause (TCF réel) ; en
+                      // entraînement, pause et réécoute libres.
+                      child: QuestionMediaView(
+                        media: question.media!,
+                        examMode: state.activeAttempt.estExamen,
+                        autoPlay: question.isComprehensionOrale,
+                        maxPlays: state.activeAttempt.estExamen ? 1 : null,
+                      ),
+                    ),
+                  // CO_IMAGE : l'image (media) est au-dessus, l'audio qui énonce
+                  // les propositions A/B/C/D vit dans audioMedia → second player
+                  // juste en dessous. Mêmes conditions examen que le média
+                  // principal (auto-play 0,5s, lecture unique en examen module).
+                  if (question.audioMedia != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: QuestionMediaView(
+                        media: question.audioMedia!,
+                        examMode: state.activeAttempt.estExamen,
+                        autoPlay: question.isComprehensionOrale,
+                        maxPlays: state.activeAttempt.estExamen ? 1 : null,
+                      ),
+                    ),
+                  if (question.passageText != null) ...[
+                    _PassageBlock(text: question.passageText!),
+                    const SizedBox(height: 16),
+                  ],
+                  _StatementBlock(
+                    text: question.statement.trim().isEmpty &&
+                            question.questionType == QuestionType.coImage
+                        ? 'Écoutez les propositions et choisissez celle qui correspond à l\'image.'
+                        : question.statement,
+                  ),
+                  const SizedBox(height: 20),
+                  // L'ordre reçu fait foi : le serveur garantit qu'une question
+                  // à repères alphabétiques est servie dans l'ordre de ses
+                  // lettres (QuestionMapper.ordreReference). Aucun tri local.
+                  ...() {
+                    final choices = question.choices;
+                    return List.generate(choices.length, (i) {
+                      final c = choices[i];
+                      final isSelected = selected.contains(c.id);
+                      final showCorr = state.hasResult && estEntrainement;
+                      final isCorrect =
+                          state.lastResult?.correctChoiceIds.contains(c.id);
+                      return Padding(
+                        padding: EdgeInsets.only(
+                            bottom: i == choices.length - 1 ? 0 : 10),
+                        child: ChoiceTile(
+                          choice: c,
+                          index: i,
+                          selected: isSelected,
+                          showCorrection: showCorr,
+                          isCorrect: isCorrect,
+                          letterKeyMode: question.usesLetterKeyChoices,
+                          onTap: () => ref
+                              .read(
+                                  runnerControllerProvider(attemptId).notifier)
+                              .toggleChoice(c.id),
+                        ),
+                      );
+                    });
+                  }(),
+                  if (state.hasResult && estEntrainement) ...[
+                    const SizedBox(height: 20),
+                    ExplanationBox(
+                      correct: state.lastResult!.correct,
+                      explanation:
+                          state.lastResult!.explanation ?? question.explanation,
+                    ),
+                  ],
+                  if (state.errorMessage != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.redLight,
+                        border: Border.all(
+                            color: AppColors.red.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        state.errorMessage!,
+                        style: AppFonts.ui(color: AppColors.red, size: 13),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            _BottomBar(state: state, attemptId: attemptId),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
+    final isTraining = state.activeAttempt.type == AttemptType.training;
+    final isInfinite = state.isInfiniteTraining;
+    // Épreuve d'un examen blanc TCF complet : elle a été **commencée** (le hub
+    // appelle `POST /begin` avant d'ouvrir le runner), donc elle ne se reprend
+    // jamais — quitter la clôture, avec ce qui a été répondu. Les épreuves
+    // suivantes, elles, attendent le candidat.
+    final fullExamId = _fullExamIdOf(context);
+    final isFullExamEpreuve = fullExamId != null;
+    // Examen blanc joué seul (civique global ou par thème, TCF CO/CE/STRUCTURE,
+    // template) : quitter, c'est le **terminer**. Il ne se reprend plus, le
+    // candidat va droit à son résultat, et le reste est compté non répondu.
+    final isStandaloneExam =
+        state.activeAttempt.isMockExam && !isFullExamEpreuve;
+    final title = isFullExamEpreuve
+        ? kEpreuveExitTitle
+        : isStandaloneExam
+            ? kMockExamQuitTitle
+            : isInfinite
+                ? 'Terminer la session ?'
+                : 'Quitter cette session ?';
+    final message = isFullExamEpreuve
+        ? epreuveExitMessage(
+            switch (state.activeAttempt.moduleExamQuestionType) {
+              QuestionType.co || QuestionType.coImage => EpreuveType.tcfCo,
+              QuestionType.ce => EpreuveType.tcfCe,
+              _ => null,
+            },
+          )
+        : isStandaloneExam
+            ? kMockExamQuitMessage
+            : isInfinite
+                ? 'Vos réponses ont été enregistrées. Vous pourrez consulter cette session dans votre historique.'
+                : 'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.';
+    final confirmLabel = isFullExamEpreuve
+        ? kEpreuveExitConfirm
+        : isStandaloneExam
+            ? kMockExamQuitConfirm
+            : isInfinite
+                ? 'Terminer'
+                : 'Quitter';
+    final cancelLabel = isFullExamEpreuve
+        ? kEpreuveExitCancel
+        : isStandaloneExam
+            ? kMockExamQuitCancel
+            : 'Annuler';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          title,
+          style: AppFonts.display(size: 20, weight: FontWeight.w600),
+        ),
+        content: Text(
+          message,
+          style: AppFonts.ui(size: 13.5, color: AppColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(cancelLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              confirmLabel,
+              style: AppFonts.ui(
+                color: AppColors.red,
+                weight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (result != true) return;
+    if (!context.mounted) return;
+
+    // Épreuve d'un examen complet : on **clôture** (le backend compte les
+    // questions non répondues comme fausses), puis on revient au hub, qui
+    // débloque l'épreuve suivante. Aucun `finish` du parent : l'examen reste
+    // « en cours », sans résultat, tant que les 4 épreuves ne sont pas
+    // terminées.
+    if (isFullExamEpreuve) {
+      await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+      if (!context.mounted) return;
+      ref.invalidate(fullTcfExamProvider(fullExamId));
+      context.go(
+        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
+      );
+      return;
+    }
+
+    // Examen blanc joué seul : on **finalise** (le backend calcule le score sur
+    // les réponses existantes, les questions restantes demeurent non
+    // répondues), puis on va droit au résultat. L'examen est définitif : plus
+    // aucune réponse ne sera acceptée dessus. Une finalisation qui échoue
+    // (réseau) laisse le candidat sur sa question, avec le message d'erreur —
+    // on ne sort jamais en lui faisant croire que c'est fait.
+    if (isStandaloneExam) {
+      final attempt =
+          await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+      if (attempt == null || !context.mounted) return;
+      _navigateToResult(context, ref, attempt);
+      return;
+    }
+
+    // En entraînement infini, on finalise le batch courant pour que les
+    // réponses comptent dans les stats. En training non-infini, on quitte sans
+    // finaliser (resume possible).
+    if (isTraining && isInfinite) {
+      await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    }
+    if (!context.mounted) return;
+    GoRouter.of(context).pop();
+  }
+
+  Future<void> _autoFinish(BuildContext context, WidgetRef ref) async {
+    final attempt =
+        await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    if (attempt != null && context.mounted) {
+      _navigateToResult(context, ref, attempt);
+    }
+  }
+}
+
+class _ProgressHeader extends StatelessWidget {
+  const _ProgressHeader({required this.state});
+
+  final RunnerState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInfinite = state.isInfiniteTraining;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Eyebrow(
+            state.activeAttempt.isMockExam ? 'Examen blanc' : 'Entraînement'),
+        const SizedBox(height: 2),
+        Text(
+          isInfinite
+              ? 'Question ${state.currentIndex + 1}'
+              : 'Question ${state.currentIndex + 1} / ${state.activeAttempt.totalQuestions}',
+          style: AppFonts.ui(
+            size: 14,
+            weight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.state});
+
+  final RunnerState state;
+
+  @override
+  Widget build(BuildContext context) {
+    // Pas de barre déterminée en entraînement infini (pas de total).
+    if (state.isInfiniteTraining) {
+      return Container(
+        height: 5,
+        color: AppColors.line2,
+        alignment: Alignment.centerLeft,
+        child: state.extending
+            ? const LinearProgressIndicator(
+                minHeight: 5,
+                backgroundColor: AppColors.line2,
+                valueColor: AlwaysStoppedAnimation(AppColors.blue),
+              )
+            : null,
+      );
+    }
+    final value = (state.currentIndex + 1) / state.activeAttempt.totalQuestions;
+    return LinearProgressIndicator(
+      value: value,
+      minHeight: 5,
+      backgroundColor: AppColors.line2,
+      valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+    );
+  }
+}
+
+class _QuestionHeader extends StatelessWidget {
+  const _QuestionHeader({required this.question});
+
+  final QuestionDto question;
+
+  @override
+  Widget build(BuildContext context) {
+    final typeLabel = question.questionType.displayLabel;
+    // Sur les épreuves TCF le thème porte le même intitulé que le type de
+    // question (« Compréhension orale ») : on ne répète pas l'information
+    // dans un libellé de droite qui, en plus, se tronque.
+    final showTheme =
+        question.themeName.trim().toLowerCase() != typeLabel.toLowerCase();
+
+    return Row(
+      children: [
+        AppTag(label: question.difficulty.wire, tone: TagTone.red),
+        const SizedBox(width: 6),
+        AppTag(label: typeLabel, tone: TagTone.blue),
+        if (showTheme) ...[
+          const Spacer(),
+          Flexible(
+            child: Text(
+              question.themeName,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.ui(
+                size: 11,
+                weight: FontWeight.w600,
+                color: AppColors.muted,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PassageBlock extends StatelessWidget {
+  const _PassageBlock({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      color: AppColors.blueSoft,
+      border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
+      boxShadow: const [],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.bookOpen,
+                  size: 14, color: AppColors.blue),
+              const SizedBox(width: 6),
+              Text(
+                'Document à lire',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.blue,
+                  letterSpacing: 1.8,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          RichParagraphText(
+            text,
+            size: 14,
+            color: AppColors.ink2,
+            weight: FontWeight.w500,
+            height: 1.6,
+            paragraphSpacing: 12,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatementBlock extends StatelessWidget {
+  const _StatementBlock({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final paragraphs = text
+        .replaceAll('\r\n', '\n')
+        .trim()
+        .split(RegExp(r'\n\s*\n'))
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    if (paragraphs.length <= 1) {
+      return Text(
+        text.trim(),
+        style: AppFonts.display(
+          size: 19,
+          weight: FontWeight.w600,
+          height: 1.4,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < paragraphs.length; i++) ...[
+          Text(
+            paragraphs[i].trim(),
+            style: AppFonts.display(
+              size: 19,
+              weight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          if (i != paragraphs.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _BottomBar extends ConsumerWidget {
+  const _BottomBar({required this.state, required this.attemptId});
+
+  final RunnerState state;
+  final String attemptId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ctrl = ref.read(runnerControllerProvider(attemptId).notifier);
+    final selected = state.answersByQuestion[state.current.id] ?? const [];
+    final hasSelection = selected.isNotEmpty;
+    // 🛑 **Le RÉGIME, pas le type** (cf. `_RunnerView.build`) : c'est lui qui
+    // dit si le candidat valide pour voir la correction, ou s'il enchaîne.
+    final estEntrainement = state.activeAttempt.estEntrainement;
+    final isInfinite = state.isInfiniteTraining;
+    final showValidate = estEntrainement && !state.hasResult;
+    final isLast = state.isLast;
+    final waiting = state.submitting || state.extending;
+    // Pas de "Précédent" en régime d'**examen** — conditions du TCF réel : on
+    // ne revient pas en arrière. Idem en entraînement infini (avancement
+    // linéaire). Seul un entraînement borné (lot) garde l'option.
+    final canGoBack = estEntrainement && !isInfinite && state.currentIndex > 0;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
+        children: [
+          if (canGoBack) ...[
+            Expanded(
+              child: AppButton(
+                label: 'Précédent',
+                variant: AppButtonVariant.ghost,
+                onPressed: waiting ? null : ctrl.goPrevious,
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            flex: canGoBack ? 2 : 1,
+            child: showValidate
+                ? AppButton(
+                    label: 'Valider',
+                    variant: AppButtonVariant.primary,
+                    onPressed:
+                        (!hasSelection || waiting) ? null : ctrl.submitCurrent,
+                    isLoading: state.submitting,
+                  )
+                : isLast
+                    ? AppButton(
+                        label: isInfinite ? 'Terminer la session' : 'Terminer',
+                        variant: AppButtonVariant.danger,
+                        onPressed: waiting
+                            ? null
+                            : () async {
+                                // En examen, soumettre la dernière réponse
+                                // avant le finish — sans ça, le backend
+                                // marque la question comme non répondue.
+                                // En entraînement, l'utilisateur a déjà
+                                // cliqué "Valider" pour voir la correction,
+                                // donc la réponse est déjà soumise (mirror
+                                // de la logique du bouton "Suivant").
+                                if (!estEntrainement && hasSelection) {
+                                  final ok = await ctrl.submitCurrent();
+                                  // Soumission échouée (réseau) : on reste sur
+                                  // la question, l'erreur s'affiche, pas de
+                                  // finalisation avec une réponse perdue.
+                                  if (!ok) return;
+                                }
+                                final attempt = await ctrl.finish();
+                                if (attempt != null && context.mounted) {
+                                  _navigateToResult(context, ref, attempt);
+                                }
+                              },
+                        isLoading: state.submitting,
+                      )
+                    : AppButton(
+                        label: 'Suivant',
+                        variant: AppButtonVariant.primary,
+                        onPressed: ((!hasSelection && estEntrainement) || waiting)
+                            ? null
+                            : () async {
+                                if (!estEntrainement && hasSelection) {
+                                  final ok = await ctrl.submitCurrent();
+                                  // Échec réseau : on ne passe pas à la suite,
+                                  // sinon la réponse de cette question serait
+                                  // perdue. L'erreur reste affichée.
+                                  if (!ok) return;
+                                }
+                                await ctrl.goNext();
+                              },
+                        isLoading: state.extending,
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
+  // Le signal « mesure écrite » part de `RunnerController.finish`, le seul
+  // point par où passent toutes les finalisations — pas d'ici.
+
+  // Contexte examen blanc complet TCF (CO ou CE en sous-attempt) — le runner
+  // doit revenir au hub de progression pour que l'utilisateur enchaîne la
+  // prochaine épreuve, jamais au dialog d'examen standard.
+  final goState = GoRouterState.of(context);
+  final from = goState.uri.queryParameters['from'];
+  final fullExamId = goState.uri.queryParameters['fullExamId'];
+  if (from == 'fullTcf' && fullExamId != null) {
+    // Force le re-fetch côté hub : sans ça `context.go` peut réutiliser
+    // l'instance existante du progress screen avec un state périmé, et
+    // l'épreuve qu'on vient de terminer n'apparaît pas comme Done.
+    ref.invalidate(fullTcfExamProvider(fullExamId));
+    context.go(
+      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
+    );
+    return;
+  }
+
+  // DIAGNOSTIC CIVIQUE : même mécanisme, une seule différence — il n'a qu'UNE
+  // session, donc la fin mène droit au RÉSULTAT plutôt qu'à un accueil qui
+  // redemanderait un clic. Sans ce renvoi, le candidat termine ses 40 questions
+  // et atterrit sur le bilan de série générique, très loin du diagnostic qu'il
+  // vient de faire.
+  final civicId = goState.uri.queryParameters[kCivicDiagnosticParam];
+  if (civicId != null) {
+    context.go(AppRoutes.civicDiagnosticResultPath(civicId));
+    return;
+  }
+
+  if (attempt.isMockExam) {
+    // Invalide les caches d'historique AVANT le push : l'écran liste qui a
+    // lancé l'examen est encore mounted en dessous (préservé par le
+    // pushReplacement). Riverpod refetch immédiatement les providers
+    // autoDispose qui ont des listeners actifs → le nouvel attempt sera
+    // visible dès le retour à la liste sans pull-to-refresh.
+    //
+    // On invalide les 4 listes possibles (civique global, civique par thème,
+    // TCF QCM par épreuve, TCF complet). Pour les family providers, sans
+    // argument, invalide toutes les instances — on ne connaît pas la clé
+    // exacte ici (themeId / questionType).
+    ref.invalidate(civiqueGlobalExamsProvider);
+    ref.invalidate(civiqueThemeExamsHistoryProvider);
+    ref.invalidate(qcmExamsHistoryProvider);
+    ref.invalidate(fullExamsHistoryProvider);
+
+    // `pushReplacement` (et non `go`) préserve la stack précédente — la
+    // flèche back / le bouton « Retour » d'ExamResultScreen peut alors pop
+    // naturellement vers la liste d'origine, qui aura déjà été rafraîchie
+    // par les invalidations ci-dessus.
+    context.pushReplacement(
+      AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
+    );
+    return;
+  }
+
+  // Contexte de lot TCF QCM (cf. `TcfLevelLotsScreen._startLot`) — si la
+  // route du runner porte `from=tcfLot`, on push le bilan dédié plutôt que
+  // d'afficher le dialog d'entraînement standard. `pushReplacement` (au
+  // lieu de `go`) préserve l'écran lots dans la stack — la flèche arrière
+  // du bilan peut alors pop naturellement vers cet écran lots, qui à son
+  // tour conserve sa propre stack vers le détail module.
+  final moduleKey = goState.uri.queryParameters['moduleKey'];
+  final level = goState.uri.queryParameters['level'];
+  if (from == 'tcfLot' && moduleKey != null && level != null) {
+    // Comme pour les examens blancs : l'écran lots reste mounted sous le
+    // bilan (pushReplacement). On invalide AVANT le push pour que son listener
+    // actif refetch immédiatement → le score du lot qu'on vient de terminer
+    // est à jour au retour, sans pull-to-refresh. Sans argument, invalide
+    // toutes les instances du family (on ne reconstruit pas la LotsKey ici).
+    ref.invalidate(lotsProvider);
+    context.pushReplacement(
+      '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
+      '?moduleKey=$moduleKey&level=$level',
+    );
+    return;
+  }
+
+  // Contexte d'une série lancée depuis un écran qui l'attend
+  // ([AppRoutes.runnerDepuisPlan] : étape du Plan, Plan civique, Réviser) —
+  // même montage que les lots : `pushReplacement` pour que le rapport puisse
+  // dépiler vers l'écran de lancement, qui reste monté dessous et se repeint
+  // sur le signal « mesure écrite ». 🛑 **Aucun écran de rapport n'est créé** :
+  // c'est le rapport de série, bouton « Continuer » compris.
+  if (from == AppRoutes.fromPlan) {
+    context.pushReplacement(AppRoutes.examReportDepuisPlan(attempt.id));
+    return;
+  }
+
+  // Contexte de **série ciblée** du Plan (cf. `startTargetedSeries`) — même
+  // montage que les lots : `pushReplacement` pour que le bilan puisse pop vers
+  // l'écran qui a lancé la série, et propagation de la compétence travaillée
+  // (plus l'état de maîtrise affiché au lancement) pour que le bilan dise
+  // « avant → après » sans le deviner.
+  if (from == 'planSerie') {
+    final skillId = goState.uri.queryParameters['skillId'];
+    final before = goState.uri.queryParameters['avant'];
+    final base =
+        AppRoutes.planSerieResult.replaceFirst(':attemptId', attempt.id);
+    final query = <String>[
+      if (skillId != null) 'skillId=$skillId',
+      if (before != null) 'avant=$before',
+    ];
+    context.pushReplacement(
+      query.isEmpty ? base : '$base?${query.join('&')}',
+    );
+    return;
+  }
+
+  // Contexte de lot Civique (cf. `CiviqueThemeDetailScreen._startLot`) — on
+  // push le rapport d'examen détaillé (questions + corrections), qui sert
+  // de bilan de lot pour le civique. On utilise `pushReplacement` (et pas
+  // `go`) pour préserver l'entrée du détail thème dans la nav stack : la
+  // flèche arrière du bilan peut alors faire un vrai pop qui retombe pile
+  // sur la liste des lots. `from=civiqueLot&themeId` est propagé pour que
+  // l'écran adapte son titre ("Bilan du lot") et garde un fallback de back
+  // au cas où la stack a été reset par ailleurs.
+  if (from == 'civiqueLot') {
+    // Idem TCF : la liste des lots du thème (civiqueLotsProvider) reste mounted
+    // sous le rapport — on l'invalide pour rafraîchir le score du lot au retour.
+    ref.invalidate(civiqueLotsProvider);
+    final themeId = goState.uri.queryParameters['themeId'];
+    final base = AppRoutes.examReport.replaceFirst(':attemptId', attempt.id);
+    final qs = themeId == null
+        ? '?from=civiqueLot'
+        : '?from=civiqueLot&themeId=$themeId';
+    context.pushReplacement('$base$qs');
+    return;
+  }
+
+  // 🛑 **L'accès se lit PAR MODULE, jamais sur `isPremium`.** Cet agrégat vaut
+  // `true` dès qu'un pass est actif : un pass **civique** faisait afficher le
+  // pied « abonné » d'un entraînement **TCF**. Miroir web :
+  // `canAccessModule(user, attempt.module)` dans `/sessions/[attemptId]`.
+  final acces = ref.read(accesModuleProvider(attempt.module));
+  _showTrainingResultDialog(context, attempt, isPremium: acces);
+}
+
+void _showTrainingResultDialog(
+  BuildContext context,
+  Attempt attempt, {
+  required bool isPremium,
+}) {
+  final total = attempt.totalQuestions;
+  final score = attempt.score ?? 0;
+  final percent = total == 0 ? 0 : ((score / total) * 100).round();
+  // Le pass qui ouvre la suite : tout le TCF est dans l'Intégral. Le texte de
+  // l'offre est celui de `TrainingResultCard` côté web, mot pour mot.
+  final pass = passModuleOfExam(attempt.module);
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => Dialog(
+      backgroundColor: AppColors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 70,
+              height: 70,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.blueLight,
+              ),
+              child: Icon(
+                isPremium ? LucideIcons.circleCheck : LucideIcons.ticket,
+                size: 34,
+                color: AppColors.blue,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isPremium ? 'Session terminée' : kPassSeriesDoneTitle,
+              style: AppFonts.display(size: 22, weight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$score / $total bonnes réponses · $percent %',
+              style: AppFonts.ui(
+                size: 14,
+                color: AppColors.muted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (!isPremium) ...[
+              const SizedBox(height: 18),
+              Text.rich(
+                TextSpan(
+                  text: pass.offerTitleLead,
+                  children: [
+                    TextSpan(
+                      text: pass.offerTitleEm,
+                      style: const TextStyle(color: AppColors.red),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+                style: AppFonts.display(size: 19, weight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                passSeriesDoneText(pass, total),
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(
+                  size: 13,
+                  color: AppColors.muted,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final f in pass.passFeatures)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                LucideIcons.check,
+                                size: 14,
+                                color: AppColors.green,
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                f,
+                                style: AppFonts.ui(
+                                  size: 13,
+                                  color: AppColors.inkSoft,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                kPassOneTimeNote,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 11.5, color: AppColors.muted),
+              ),
+              const SizedBox(height: 16),
+              AppButton(
+                label: kPassOfferCta,
+                icon: LucideIcons.arrowRight,
+                variant: AppButtonVariant.primary,
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  if (!context.mounted) return;
+                  GoRouter.of(context).pop();
+                  if (!context.mounted) return;
+                  showPaywallSheet(
+                    context,
+                    ctaLocation: AnalyticsCtaLocation.other,
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  GoRouter.of(context).pop();
+                },
+                child: Text(
+                  kPassOfferLater,
+                  style: AppFonts.ui(
+                    size: 13,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 24),
+              AppButton(
+                label: 'Terminer',
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  GoRouter.of(context).pop();
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}

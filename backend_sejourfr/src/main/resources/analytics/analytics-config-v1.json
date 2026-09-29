@@ -1,0 +1,52 @@
+{
+  "analyticsConfigVersion": 1,
+  "timezone": "Europe/Paris",
+  "cohortWindowDays": 14,
+  "civicSubmittedMinAnsweredRatio": 0.8,
+  "claimTokenTtlDays": 2,
+  "runReuseWindowHours": 24,
+  "purchaseIntentTtlHours": 24,
+  "anonymousIdTtlDays": 395,
+  "rawEventRetentionDays": 395,
+  "purgeBatchSize": 1000,
+  "ingestion": {
+    "maxBatchSize": 50,
+    "clockSkewToleranceMinutes": 10,
+    "maxEventAgeHours": 168,
+    "rateLimit": {
+      "perIpBurst": { "max": 120, "windowSeconds": 600 },
+      "perIpDaily": { "max": 3000, "windowSeconds": 86400 },
+      "perAnonymousIdBurst": { "max": 60, "windowSeconds": 600 },
+      "perAnonymousIdDaily": { "max": 1000, "windowSeconds": 86400 }
+    }
+  },
+  "diagnosticRunRateLimit": {
+    "perIpBurst": { "max": 30, "windowSeconds": 600 },
+    "perIpDaily": { "max": 300, "windowSeconds": 86400 },
+    "perAnonymousIdBurst": { "max": 20, "windowSeconds": 600 },
+    "perAnonymousIdDaily": { "max": 100, "windowSeconds": 86400 }
+  },
+  "utmSourceGroups": {
+    "instagram": ["instagram", "ig", "insta"],
+    "tiktok": ["tiktok", "tt"],
+    "facebook": ["facebook", "fb", "meta"],
+    "direct": ["direct"]
+  },
+  "utmSourceFallbackGroup": "autre",
+  "measurementStart": {
+    "VISITORS": "2026-09-28",
+    "ACQUISITION_SOURCES": "2026-09-28",
+    "DIAGNOSTIC_SUBJECT_VIEWED": "2026-09-28",
+    "DIAGNOSTIC_SUBMITTED": "2026-09-28",
+    "ACCOUNT_ATTACHED": "2026-09-28",
+    "REPORT_VIEWED": "2026-09-28",
+    "PLAN_VIEWED": "2026-09-28",
+    "PLAN_UNLOCK_CLICKED": "2026-09-28",
+    "PURCHASES": "2026-09-28",
+    "PURCHASE_ORIGIN": "2026-09-28",
+    "REVENUE_BREAKDOWN": "2026-09-28",
+    "REFUNDS": "2026-09-28",
+    "SIGNUP_CONTEXT": "2026-09-28",
+    "SIGNUP_PLATFORM_DETAIL": "2026-09-28"
+  }
+}

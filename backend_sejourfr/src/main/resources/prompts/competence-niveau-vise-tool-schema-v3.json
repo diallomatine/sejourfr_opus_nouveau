@@ -1,0 +1,157 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "leviers",
+    "exemple_cible",
+    "a_retenir"
+  ],
+  "properties": {
+    "leviers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "description": "DEUX ou TROIS leviers, ordonnés du plus rentable au moins rentable, qui séparent la production actuelle du niveau cible. Chacun nomme un moyen de LANGUE et le déclare dans `procede` : un conseil de ton (« sois plus chaleureux ») n'est pas un levier, on peut l'être en A2. Jamais un inventaire, jamais deux fois la même idée sous deux formulations.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "exemple",
+          "procede"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 70,
+            "description": "Ce qu'il faut faire, en SIX MOTS MAXIMUM, à l'impératif deuxième personne : « Formule ta demande plus naturellement », « Relie tes deux idées ». Un verbe d'action en tête, pas de jugement, pas de « vous n'avez pas »."
+          },
+          "exemple": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Un bout de langue RÉUTILISABLE tel quel, CINQ MOTS MAXIMUM : « Serait-il possible de… », « ce qui me permettrait de ». Jamais une explication, jamais une phrase entière : le candidat doit pouvoir le recopier dans sa prochaine production."
+          },
+          "procede": {
+            "type": "string",
+            "enum": [
+              "REGISTRE_AJUSTE",
+              "ARTICULATION_LOGIQUE",
+              "SUBORDINATION",
+              "LEXIQUE_PRECIS",
+              "NUANCE",
+              "OBJECTION_TRAITEE"
+            ],
+            "description": "L'opération de LANGUE que cette action met en œuvre, dans la même liste fermée que `marqueurs_du_palier`. REGISTRE_AJUSTE et ARTICULATION_LOGIQUE relèvent de l'A2 ; SUBORDINATION et LEXIQUE_PRECIS du B1 ; NUANCE et OBJECTION_TRAITEE du B2. C'est ce champ qui rend un levier vérifiable : une action qu'aucun procédé ne porte est un effet de ton, pas un levier."
+          }
+        }
+      }
+    },
+    "exemple_cible": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texte",
+        "segments",
+        "marqueurs_du_palier"
+      ],
+      "description": "La réponse du candidat réécrite au niveau CIBLE, les deux ou trois endroits où se joue la différence, et les deux ou trois passages qui DÉMONTRENT ce niveau.",
+      "properties": {
+        "texte": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200,
+          "description": "La MÊME réponse que celle du candidat, réécrite au niveau CIBLE — le palier juste au-dessus de ce qui a été observé, jamais deux d'un coup. Elle garde sa situation, ses faits, ses prénoms, ses chiffres, son intention ; seules la langue et l'organisation montent d'un cran. Sa LONGUEUR est celle que le SUJET demande (`mots_min`, `mots_max`), pas celle de la production du candidat : le serveur la recompte et refuse le texte au-delà du maximum. Texte brut, recopiable tel quel : aucun titre, aucune parenthèse explicative, aucun nom de niveau (A1, A2, B1, B2), aucune note. Français entièrement accentué."
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "description": "DEUX ou TROIS passages de `texte` que le front met en évidence. Chaque `extrait` est recopié CARACTÈRE POUR CARACTÈRE depuis `texte` : le serveur vérifie qu'il s'y trouve tel quel, et retire le passage s'il ne l'y trouve pas.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "extrait",
+              "apport"
+            ],
+            "properties": {
+              "extrait": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Un passage de `texte`, recopié EXACTEMENT tel qu'il y apparaît — mêmes mots, mêmes accents, mêmes espaces, même ponctuation. Ni reformulé, ni raccourci par des points de suspension, ni recomposé à partir de deux morceaux éloignés."
+              },
+              "apport": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "Ce que ce passage apporte, en TROIS MOTS MAXIMUM : « plus naturel », « plus nuancé », « plus poli », « lien logique ». Une étiquette, jamais une phrase."
+              }
+            }
+          }
+        },
+        "marqueurs_du_palier": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "description": "DEUX ou TROIS passages de `texte` qui DÉMONTRENT le niveau cible, chacun avec le procédé qu'il illustre. C'est ce champ qui rend le niveau exigible au lieu de le souhaiter : écris d'abord la matière dans ton texte — une subordonnée, un terme précis, une objection traitée — puis désigne-la ici. Un texte qui n'a rien à désigner n'a pas changé de palier.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "extrait",
+              "type"
+            ],
+            "properties": {
+              "extrait": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Le passage de `texte` qui porte le procédé, recopié EXACTEMENT tel qu'il y apparaît. Le serveur le recherche dans `texte` et retire le marqueur s'il ne l'y trouve pas."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "REGISTRE_AJUSTE",
+                  "ARTICULATION_LOGIQUE",
+                  "SUBORDINATION",
+                  "LEXIQUE_PRECIS",
+                  "NUANCE",
+                  "OBJECTION_TRAITEE"
+                ],
+                "description": "Le procédé démontré par ce passage. REGISTRE_AJUSTE et ARTICULATION_LOGIQUE prouvent l'A2 ; SUBORDINATION et LEXIQUE_PRECIS prouvent le B1 ; NUANCE et OBJECTION_TRAITEE prouvent le B2. Le serveur retire tout procédé qui SUR-VEND le niveau cible : on ne démontre pas l'A2 en traitant une objection."
+              }
+            }
+          }
+        }
+      }
+    },
+    "a_retenir": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formule",
+        "explication"
+      ],
+      "description": "LA chose à emporter de cet exercice : une tournure réutilisable et la situation où elle sert.",
+      "properties": {
+        "formule": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 90,
+          "description": "Une tournure réutilisable, HUIT MOTS MAXIMUM, écrite comme un patron : « Serait-il possible de + infinitif », « bien que + subjonctif »."
+        },
+        "explication": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150,
+          "description": "Quand et pourquoi cette tournure sert, QUATORZE MOTS MAXIMUM. Une phrase concrète, pas une définition de grammaire."
+        }
+      }
+    }
+  },
+  "title": "Pour viser le niveau demandé — Compétences TCF IRN v3",
+  "description": "Contrat strict de sortie du SECOND appel du module Compétences, totalement séparé de l'analyse : deux ou trois leviers, la réponse du candidat réécrite au niveau CIBLE — le palier juste au-dessus de celui qui a été observé — avec les passages qui font la différence et ceux qui démontrent ce palier, et une tournure à retenir. Aucune note, aucun verdict, aucun champ de niveau — le serveur pose lui-même `niveau_vise` et `niveau_constate`, ils ne sont jamais laissés au modèle. Tout le français produit ici est lu par une personne qui APPREND le français : il est orthographié et ACCENTUÉ correctement (é, è, ê, à, ù, û, î, ô, ë, ï, ç). « déjà », jamais « deja » ; « très », jamais « tres ». Seule exception : les mots du candidat repris entre guillemets se recopient tels quels, accents manquants compris. Chaque levier déclare en outre le PROCÉDÉ de langue qu'il met en œuvre, dans la même liste fermée que les marqueurs du palier : un conseil de ton n'est pas un levier."
+}

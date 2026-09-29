@@ -1,0 +1,373 @@
+"use client";
+
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from "react";
+import {FileText, Lightbulb, Target} from "lucide-react";
+import type {ProductionTaskDto} from "@/lib/types";
+import {countEeWords, isEeWordCountWithinBounds} from "@/lib/ee-word-bounds";
+import {SkillAccent} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
+import {type ProductionVoice} from "./config";
+import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
+import {ProductionSplit} from "./ProductionExamRunner";
+
+const DRAFT_PREFIX = "sejourfr.ee.draft.";
+
+/** Supprime le brouillon local après soumission réussie. */
+export function clearEeDraft(taskId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(DRAFT_PREFIX + taskId);
+}
+
+/** Écrit un brouillon local. Sert à « reprendre ma réponse » côté Compétences :
+ *  le texte de la tentative précédente devient le brouillon, puis le parent
+ *  remonte le formulaire (`key`) pour qu'il le relise. */
+export function setEeDraft(taskId: string, texte: string): void {
+  if (typeof window === "undefined") return;
+  if (texte.trim()) localStorage.setItem(DRAFT_PREFIX + taskId, texte);
+  else localStorage.removeItem(DRAFT_PREFIX + taskId);
+}
+
+/** Texte grisé du champ quand le sujet ne propose pas d'amorce. Une des deux
+ *  seules phrases du formulaire écrit qui suit la voix : le reste de son chrome
+ *  est déjà neutre. */
+const DEFAULT_PLACEHOLDER: Record<ProductionVoice, string> = {
+  vouvoiement: "Rédigez votre réponse ici…",
+  tutoiement: "Écris ta réponse ici…",
+};
+
+/**
+ * Zone de production présentée en **carte** (icône + titre, champ, pied
+ * astuce / compteur), telle que la maquette client la dessine sur l'écran d'un
+ * petit sujet. Optionnelle : sans elle, le formulaire garde son en-tête
+ * historique « Votre rédaction » + compteur flottant.
+ */
+export interface AnswerCard {
+  title: string;
+  icon?: ReactNode;
+  /** Amorce grisée du champ. Absente = texte grisé neutre. */
+  placeholder?: string | null;
+  /** Rappel du geste souvent oublié, en pied de carte. Absent = seul le
+   *  compteur s'affiche, sans trou visuel. */
+  tip?: string | null;
+  /** Fourchette de mots **déjà mise en mots** par l'appelant (« 80 à 300
+   *  mots »), posée en tête de carte à côté du titre. Présente, elle est le
+   *  SEUL endroit qui la dit : le compteur passe à « N mots » et l'aide de
+   *  longueur ne la répète pas. Absente = compteur « N / max mots ». */
+  range?: string | null;
+}
+
+/**
+ * Zone de rédaction d'une tâche EE : consigne + contexte, critères, textarea
+ * avec compteur de mots live et auto-save du brouillon (localStorage, debounce
+ * ~0,8 s). Calqué sur `EeBriefingWritingScreen` mobile. La logique d'attempt /
+ * navigation reste au parent via `onSubmit(texte)`.
+ */
+export function EeWritingForm({
+  task,
+  submitting,
+  error,
+  submitLabel = "Valider",
+  consigneLabel,
+  exerciseTitle,
+  headerSlot,
+  promptSlot,
+  criteriaSlot,
+  answerCard,
+  footerSlot,
+  lengthAdvisory = false,
+  clearLabel,
+  voice = "vouvoiement",
+  rangeInPrompt = false,
+  split = false,
+  autoSubmitSignal = 0,
+  onAutoSubmit,
+  initialText,
+  onSubmit,
+}: {
+  task: ProductionTaskDto;
+  submitting: boolean;
+  error?: string | null;
+  submitLabel?: string;
+  /** Remplace « Tâche N » sur le badge de contrainte (micro-exercices :
+   *  « Petit sujet · 2/5 »). */
+  consigneLabel?: string;
+  /** Titre d'intention affiché **dans** la carte d'exercice, au-dessus de la
+   *  consigne. Absent par défaut : les micro-exercices portent déjà le leur
+   *  dans `headerSlot`, l'écrire deux fois serait une redite. */
+  exerciseTitle?: ReactNode;
+  /** Inséré tout en haut, **avant** la carte de consigne : intention de
+   *  l'exercice et critère travaillé. Rien par défaut. */
+  headerSlot?: ReactNode;
+  /** Remplace **entièrement** la carte d'exercice (badge, palier, consigne,
+   *  contexte, chips de format). Absent = carte historique. Les micro-exercices
+   *  « Compétences » y posent leur guidage : ce qu'il faut faire, la situation,
+   *  les contraintes — un écran qui fait faire au lieu d'expliquer. */
+  promptSlot?: ReactNode;
+  /** Remplace la carte de nos 4 critères. `null` la retire — les
+   *  micro-exercices « Compétences » n'évaluent QU'UN critère et affichent le
+   *  leur ici, juste au-dessus de la zone de saisie. */
+  criteriaSlot?: ReactNode;
+  /** Présente la zone de saisie en carte (icône + titre, amorce grisée, pied
+   *  astuce / compteur). Absent = en-tête « Votre rédaction » historique. */
+  answerCard?: AnswerCard;
+  /** Inséré juste au-dessus du bouton de validation (auto-évaluation, options
+   *  de soumission). Rien par défaut. */
+  footerSlot?: ReactNode;
+  /** Bornes **conseillées et non bloquantes** : la fourchette s'affiche et
+   *  l'écart s'annonce, mais la soumission reste ouverte. C'est le régime des
+   *  micro-exercices « Compétences » (spec §8 règle 15) ; les tâches TCF, elles,
+   *  gardent des bornes strictes et ce drapeau à `false`. */
+  lengthAdvisory?: boolean;
+  /** Ajoute un bouton secondaire qui vide la zone de saisie (et son brouillon).
+   *  Absent par défaut : sur une tâche d'examen, effacer n'a pas de sens. */
+  clearLabel?: string;
+  /** Voix du chrome du formulaire (texte grisé du champ, avertissement de
+   *  longueur). Vouvoiement par défaut ; le module « Compétences » tutoie. Ne
+   *  touche jamais au texte du sujet, ni à l'amorce fournie par la base. */
+  voice?: ProductionVoice;
+  /** La fourchette de mots est déjà dite par `promptSlot` (runner d'examen
+   *  blanc : « Longueur attendue : 30 à 60 mots ») : l'en-tête de la zone de
+   *  saisie et l'aide de longueur ne la répètent pas. */
+  rangeInPrompt?: boolean;
+  /** Consigne à gauche, production à droite au palier desktop
+   *  (`ProductionSplit`). Une colonne en dessous, comme l'app. */
+  split?: boolean;
+  /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
+   *  auto-soumission du texte courant si recevable. */
+  autoSubmitSignal?: number;
+  /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax]).
+   *  Au parent de décider quoi en faire (soumettre ou finir à vide). */
+  onAutoSubmit?: (texte: string, recevable: boolean) => void;
+  /** Texte de départ, **prioritaire sur le brouillon** : c'est la production
+   *  déjà validée qu'on rouvre pour la modifier (diagnostic invité). Lu au
+   *  montage seulement. Absent = le brouillon, comportement historique. */
+  initialText?: string;
+  onSubmit: (texte: string) => void;
+}) {
+  const [text, setText] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+  const draftKey = DRAFT_PREFIX + task.id;
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialTextRef = useRef(initialText);
+
+  // Charge le brouillon existant au montage / changement de tâche.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = initialTextRef.current ?? localStorage.getItem(draftKey) ?? "";
+    setText(saved);
+    setHydrated(true);
+  }, [draftKey]);
+
+  // Auto-save (debounce).
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      if (text.trim()) localStorage.setItem(draftKey, text);
+      else localStorage.removeItem(draftKey);
+    }, 800);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [text, hydrated, draftKey]);
+
+  const words = countEeWords(text);
+  const min = task.motsMin;
+  const max = task.motsMax;
+  const inRange = isEeWordCountWithinBounds(task, words);
+  const submittable = words > 0 && (lengthAdvisory || inRange);
+  const rangeLabel =
+    min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
+  // La fourchette posée en tête de carte est la seule à l'écran : rien d'autre
+  // ne la répète (compteur, aide de longueur).
+  const rangeShown = Boolean(answerCard?.range) || rangeInPrompt;
+  // Hors bornes, on AVERTIT toujours ; on ne bloque que quand les bornes sont
+  // strictes. Un avertissement muet laisserait croire que la longueur n'a
+  // aucune importance, un blocage contredirait la règle 15 de la spec.
+  const lengthHint =
+    words === 0 || inRange
+      ? null
+      : lengthAdvisory
+        ? voice === "tutoiement"
+          ? `Longueur conseillée : ${rangeLabel}. Ta réponse en compte ${words} — tu peux valider quand même.`
+          : `Longueur conseillée : ${rangeLabel}. Votre réponse en compte ${words} — vous pouvez valider quand même.`
+        : min != null && words < min
+          ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre${
+              rangeShown ? "" : ` (${min} minimum)`
+            }.`
+          : `Texte trop long de ${words - (max ?? words)} mot${
+              words - (max ?? words) > 1 ? "s" : ""
+            } : raccourcissez-le pour pouvoir soumettre${rangeShown ? "" : ` (${max} mots attendus)`}.`;
+
+  // Auto-soumission examen (chrono à 0:00). Les bornes TCF IRN sont strictes.
+  const lastSignalRef = useRef(0);
+  useEffect(() => {
+    if (autoSubmitSignal <= 0 || autoSubmitSignal === lastSignalRef.current) return;
+    lastSignalRef.current = autoSubmitSignal;
+    onAutoSubmit?.(text.trim(), isEeWordCountWithinBounds({motsMin: min, motsMax: max}, words));
+  }, [autoSubmitSignal, words, min, max, text, onAutoSubmit]);
+  const counterClass = words === 0 ? "" : inRange ? s.counterOk : s.counterWarn;
+
+  // La zone grandit avec le texte : sur téléphone, une boîte fixe qui défile
+  // en interne fait passer les dernières lignes sous le compteur et le clavier.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, [text]);
+
+  const canSubmit = submittable && !submitting;
+
+  // En carte, le compteur annonce la cible (« 12 / 35 mots ») : le candidat
+  // vise une longueur, il ne compte pas dans le vide.
+  const counterText =
+    answerCard && max != null && !rangeShown
+      ? `${words} / ${max} mots`
+      : `${words} mot${words > 1 ? "s" : ""}`;
+
+  return (
+    <SkillAccent>
+      <ProductionSplit
+        split={split}
+        aside={
+          <>
+            {headerSlot}
+
+            {/* Carte d'exercice de la maquette : badge de contrainte + repère de
+                position, titre d'intention, consigne, contexte, chips de format. */}
+            {promptSlot === undefined ? (
+              <section className={s.exercise}>
+                <div className={s.exerciseTop}>
+                  <span className={s.criterionTag}>
+                    <Target size={12} strokeWidth={2.4} aria-hidden />
+                    {consigneLabel ?? `Tâche ${task.tacheNumero}`}
+                  </span>
+                </div>
+
+                {exerciseTitle && <h2 className={s.exerciseTitle}>{exerciseTitle}</h2>}
+                <p className={s.exerciseIntro}>{task.consigne}</p>
+
+                {task.contexte && (
+                  <div className={s.context}>
+                    <span className={s.contextLabel}>Contexte</span>
+                    {task.contexte}
+                  </div>
+                )}
+
+                {rangeLabel && (
+                  <div className={s.requirements}>
+                    <span className={s.requirement}>
+                      <FileText size={11} strokeWidth={2.4} aria-hidden />
+                      {rangeLabel}
+                    </span>
+                  </div>
+                )}
+              </section>
+            ) : (
+              promptSlot
+            )}
+          </>
+        }
+      >
+        {criteriaSlot === undefined ? <ProductionCriteriaCard /> : criteriaSlot}
+
+        {answerCard ? (
+          <section className={s.answerCard}>
+            <div className={s.answerHead}>
+              {answerCard.icon && (
+                <span className={s.answerIcon} aria-hidden>
+                  {answerCard.icon}
+                </span>
+              )}
+              <h2 className={s.answerTitle}>{answerCard.title}</h2>
+              {answerCard.range && <span className={s.answerRange}>{answerCard.range}</span>}
+            </div>
+            <textarea
+              ref={textareaRef}
+              className={`${s.textarea} ${s.textareaBare}`}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={answerCard.placeholder || DEFAULT_PLACEHOLDER[voice]}
+              disabled={submitting}
+              spellCheck
+            />
+            <div className={s.answerFoot}>
+              {answerCard.tip ? (
+                <span className={s.answerTip}>
+                  <Lightbulb size={13} strokeWidth={2.2} aria-hidden />
+                  Astuce : {answerCard.tip}
+                </span>
+              ) : (
+                <span />
+              )}
+              <span className={`${s.answerCount} ${counterClass}`} aria-live="polite">
+                {counterText}
+              </span>
+            </div>
+          </section>
+        ) : (
+          <div>
+            <div className={s.editorHead}>
+              <p className={s.editorHeadTitle}>Votre rédaction</p>
+              {rangeLabel && !rangeInPrompt && (
+                <span className={s.editorHeadHint}>{rangeLabel}</span>
+              )}
+            </div>
+            <div className={s.editor}>
+              <textarea
+                ref={textareaRef}
+                className={s.textarea}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={DEFAULT_PLACEHOLDER[voice]}
+                disabled={submitting}
+                spellCheck
+              />
+              <span className={`${s.counter} ${counterClass}`} aria-live="polite">
+                {counterText}
+              </span>
+            </div>
+            <p className={s.liveStats}>Brouillon enregistré automatiquement sur cet appareil.</p>
+          </div>
+        )}
+
+        {lengthHint && (
+          <p className={s.tipline}>
+            <b>Longueur :</b>
+            <span>{lengthHint}</span>
+          </p>
+        )}
+
+        {error && <div className={s.error}>{error}</div>}
+
+        {footerSlot}
+
+        <div className={s.actionRow}>
+          <button
+            type="button"
+            className={s.primary}
+            disabled={!canSubmit}
+            onClick={() => onSubmit(text.trim())}
+          >
+            {submitting ? "Envoi en cours…" : submitLabel}
+          </button>
+          {clearLabel && (
+            <button
+              type="button"
+              className={s.secondary}
+              disabled={submitting || words === 0}
+              onClick={() => {
+                setText("");
+                if (typeof window !== "undefined") localStorage.removeItem(draftKey);
+              }}
+            >
+              {clearLabel}
+            </button>
+          )}
+        </div>
+      </ProductionSplit>
+    </SkillAccent>
+  );
+}

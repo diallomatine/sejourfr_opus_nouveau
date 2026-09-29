@@ -1,0 +1,225 @@
+"use client";
+
+import Link from "next/link";
+import {useParams, useSearchParams} from "next/navigation";
+import {useEffect, useState} from "react";
+import {ApiException, productionApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {productionActionPlanMayStillArrive} from "@/lib/production-feedback";
+import {ACTION_PLAN_GRACE_MS} from "@/app/_components/skill-ui/ActionPlan";
+import {
+  isSubmissionPending,
+  niveauViseTcf,
+  parseEeFeedback,
+  type ProductionSubmissionDto,
+} from "@/lib/types";
+import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
+import {SkillShell} from "@/app/_components/skill-ui/SkillLayout";
+import s from "@/app/_components/skill-ui/skill.module.css";
+import {EvaluationLoadingView} from "./EvaluationLoadingView";
+import {ProductionFeedbackView} from "./ProductionFeedbackView";
+import {TranscriptDialogue} from "./TranscriptDialogue";
+import {type ProductionConfig, TCF_HUB_HREF, TCF_HUB_LABEL} from "./config";
+
+const POLL_MS = 3000;
+const MAX_POLLS = 40; // ~2 min
+
+/**
+ * Feedback IA d'une production (EE/EO). Poll la submission toutes les 3 s tant
+ * que l'évaluation n'a pas abouti (EO passe par TRANSCRIBING), affiche le détail
+ * une fois EVALUATED, et propose « Réessayer » si FAILED.
+ *
+ * **L'accusé de traitement a disparu** : « Production évaluée » au-dessus d'un
+ * hero qui annonce déjà le verdict et la note ne disait rien de plus, et coûtait
+ * le premier écran. Le rapport commence donc directement par
+ * `ProductionFeedbackView`, qui porte l'écho de la production à l'écrit (dans la
+ * carte « Votre rédaction », là où se fait la comparaison). À l'oral, la
+ * transcription reste dans son dépliant ici : `ProductionSubmissionDto` ne porte
+ * pas d'URL audio, et on n'invente pas un lecteur sur une donnée que l'API ne
+ * sert pas.
+ */
+export function ProductionResults({config}: {config: ProductionConfig}) {
+  const params = useParams<{submissionId: string}>();
+  const id = params?.submissionId ?? "";
+  const searchParams = useSearchParams();
+  const {user, status} = useAuth();
+
+  // Écran d'origine (bilan d'examen `…/session/{id}`, historique…) passé en
+  // `?back=` par l'appelant — sans lui, retour au hub TCF (l'épreuve n'a pas
+  // d'écran d'accueil). On n'accepte qu'un chemin interne (pas d'open redirect).
+  const backParam = searchParams?.get("back");
+  const backHref = backParam && backParam.startsWith("/") ? backParam : TCF_HUB_HREF;
+
+  const [submission, setSubmission] = useState<ProductionSubmissionDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [pollKey, setPollKey] = useState(0);
+  const [actionPlanPending, setActionPlanPending] = useState(false);
+
+  // **Une seule boucle**, celle qui existait déjà : le sursis accordé au plan
+  // d'action ne fait que la prolonger, il n'ouvre pas un second polling.
+  //
+  // Le plan (`version_ciblee` / `niveau_vise_atteint`) vient d'un SECOND appel
+  // LLM, lancé côté serveur une fois la correction persistée et la soumission
+  // passée à `EVALUATED`. S'arrêter net sur `EVALUATED` affichait donc un
+  // rapport sans plan alors qu'il arrivait dix à quinze secondes plus tard.
+  // Règle et durée partagées avec le résultat d'un micro-exercice
+  // (`productionActionPlanMayStillArrive`, `ACTION_PLAN_GRACE_MS`) ; le budget
+  // global (`MAX_POLLS`) reste la borne dure, et rien n'est jamais affiché en
+  // erreur si le plan ne vient pas.
+  useEffect(() => {
+    if (status !== "authenticated" || !id) return;
+    let cancelled = false;
+    let polls = 0;
+    let observedInFlight = false;
+    let graceStartedAt: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    async function tick() {
+      try {
+        const sub = await productionApi.getSubmission(id);
+        if (cancelled) return;
+        setSubmission(sub);
+
+        let again = isSubmissionPending(sub);
+        // Vu en vol : la correction se termine sous les yeux du candidat, donc
+        // le second appel, lui, tourne encore. Un rapport rouvert plus tard
+        // n'entre jamais dans cette branche — un seul appel, aucun polling,
+        // aucun indicateur d'attente.
+        if (again) observedInFlight = true;
+
+        let waiting = false;
+        if (!again) {
+          const fb = sub.evaluation ? parseEeFeedback(sub.evaluation) : null;
+          const mayArrive = productionActionPlanMayStillArrive({
+            evaluated: sub.statut === "EVALUATED" && fb != null,
+            observedInFlight,
+            hasVersionCiblee: fb?.versionCiblee != null,
+            hasNiveauViseAtteint: fb?.niveauViseAtteint != null,
+          });
+          if (mayArrive) {
+            graceStartedAt ??= Date.now();
+            const withinGrace = Date.now() - graceStartedAt < ACTION_PLAN_GRACE_MS;
+            again = withinGrace;
+            waiting = withinGrace;
+          }
+        }
+
+        const continues = again && polls < MAX_POLLS;
+        // Fin du sursis sans rien : l'indicateur s'efface en silence. Il
+        // s'efface AUSSI quand c'est le budget global qui coupe la boucle —
+        // sans ce `continues`, plus aucun tirage ne viendrait le retirer et le
+        // spinner resterait à l'écran indéfiniment (miroir de
+        // `ProductionResultPollGuard`, qui remet `awaitsActionPlan` à faux dès
+        // que le budget est épuisé).
+        setActionPlanPending(waiting && continues);
+
+        if (continues) {
+          polls += 1;
+          timer = setTimeout(tick, POLL_MS);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof ApiException ? e.message : "Impossible de charger l'évaluation.");
+      }
+    }
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [status, id, pollKey]);
+
+  async function retry() {
+    if (retrying || !submission) return;
+    setError(null);
+    setRetrying(true);
+    try {
+      const sub = await productionApi.retrySubmission(submission.id);
+      setSubmission(sub);
+      setPollKey((k) => k + 1);
+    } catch (e) {
+      setError(e instanceof ApiException ? e.message : "Impossible de relancer l'évaluation.");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  if (status === "loading") return <div className={ds.gate} />;
+  if (!user) return <ModuleDetailGate next={`${config.base}/resultats/${id}`} />;
+
+  const tacheNum = submission?.tacheNumero ?? 0;
+  const pending = submission ? isSubmissionPending(submission) : true;
+  const failed = submission?.statut === "FAILED";
+
+  return (
+    <DualChromeShell>
+      <SkillShell
+        backHref={backHref}
+        backLabel={backParam ? "Retour" : TCF_HUB_LABEL}
+      >
+        {error && <div className={s.error}>{error}</div>}
+
+        {!submission ? (
+          <div className={s.pending}>
+            <div className={s.spinner} />
+            <p className={s.pendingText}>Chargement…</p>
+          </div>
+        ) : failed ? (
+          <section className={`${s.card} ${s.panel}`}>
+            <h1 className={s.resultHeading}>Évaluation échouée</h1>
+            <p className={s.verdictText}>
+              {submission.erreurMessage ??
+                "L'évaluation n'a pas pu aboutir. Vous pouvez la relancer."}
+            </p>
+            <div className={s.actionRow}>
+              {submission.retryCount < 3 && (
+                <button type="button" className={s.primary} disabled={retrying} onClick={retry}>
+                  {retrying ? "Relance…" : "Réessayer"}
+                </button>
+              )}
+              <Link href={backHref} className={s.secondary}>
+                Retour
+              </Link>
+            </div>
+          </section>
+        ) : pending ? (
+          // Même attente que le mobile (`EvaluationLoadingView`) et que la fin
+          // d'un examen blanc : une seule primitive pour « l'IA analyse ».
+          <EvaluationLoadingView includeTranscription={config.mode === "audio"} />
+        ) : submission.evaluation ? (
+          <>
+            <ProductionFeedbackView
+              evaluation={submission.evaluation}
+              isOral={config.mode === "audio"}
+              eyebrow={`${config.epreuve === "TCF_EO" ? "Expression orale" : "Expression écrite"} · Tâche ${tacheNum}`}
+              productionText={config.mode === "text" ? submission.texteSoumis : null}
+              motsCount={submission.motsCount}
+              // Palier VISÉ : la démarche fait plancher (NAT ⇒ B2, même si le
+              // compte porte un `targetLevel` plus bas). Volontairement SANS le
+              // repli « B1 » de `resolveTcfLevel` : un objectif deviné n'a rien
+              // à faire dans une phrase qui dit au candidat ce qu'il joue.
+              targetLevel={niveauViseTcf(user)}
+              // Le plan d'action arrive après la correction : tant que le
+              // sursis court, sa place porte un indicateur discret plutôt
+              // qu'un trou (cf. `ActionPlanPending`).
+              actionPlanPending={actionPlanPending}
+            />
+
+            {/* À l'oral, l'écho de la production est la transcription. */}
+            {config.mode === "audio" && submission.transcription && (
+              <details className={s.answerBox}>
+                <summary className={s.answerLabel}>Votre production · transcription</summary>
+                <div className={s.aiPanel}>
+                  <TranscriptDialogue raw={submission.transcription} />
+                </div>
+              </details>
+            )}
+          </>
+        ) : (
+          <p className={s.empty}>Évaluation indisponible.</p>
+        )}
+      </SkillShell>
+    </DualChromeShell>
+  );
+}

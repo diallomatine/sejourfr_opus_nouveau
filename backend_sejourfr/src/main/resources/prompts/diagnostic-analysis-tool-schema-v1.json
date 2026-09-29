@@ -1,0 +1,76 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "level_estimate",
+    "task_completion",
+    "communication_status",
+    "summary",
+    "strengths",
+    "weaknesses",
+    "skills"
+  ],
+  "properties": {
+    "level_estimate": {
+      "type": "string",
+      "enum": ["A1_NON_ATTEINT", "A1", "A2", "B1", "B2"],
+      "description": "Estimation prudente du niveau de cette production, jamais un niveau officiel TCF."
+    },
+    "task_completion": {
+      "type": "string",
+      "enum": ["COMPLETED", "PARTIAL", "NOT_COMPLETED"]
+    },
+    "communication_status": {
+      "type": "string",
+      "enum": ["EFFECTIVE", "PARTIAL", "INEFFECTIVE"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280
+    },
+    "strengths": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {"type": "string", "minLength": 1, "maxLength": 180}
+    },
+    "weaknesses": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {"type": "string", "minLength": 1, "maxLength": 180}
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "skill_code",
+          "observed",
+          "status",
+          "evidence_segment",
+          "explanation",
+          "confidence",
+          "priority"
+        ],
+        "properties": {
+          "skill_code": {"type": "string", "minLength": 1, "maxLength": 16},
+          "observed": {"type": "boolean"},
+          "status": {
+            "type": "string",
+            "enum": ["NOT_OBSERVED", "PRIORITY", "TO_REINFORCE", "SOLID"]
+          },
+          "evidence_segment": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "explanation": {"type": "string", "minLength": 1, "maxLength": 220},
+          "confidence": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH"]},
+          "priority": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

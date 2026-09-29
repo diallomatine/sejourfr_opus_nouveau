@@ -1,0 +1,13 @@
+Bonjour,
+
+Une nouvelle version de l'application mobile SejourFR est disponible.
+
+Mise à jour obligatoire : l'ancienne version ne fonctionne plus. Pour continuer à vous entraîner sur mobile, installez la dernière version dès maintenant.
+
+- iPhone (App Store) : https://apps.apple.com/us/app/sejourfr/id6771509569?l=fr-FR
+- Android (Google Play) : https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr
+
+Votre compte, vos résultats et vos achats sont conservés : il suffit de vous reconnecter après la mise à jour.
+
+Bonne préparation,
+L'équipe SejourFR

@@ -1,0 +1,43 @@
+/* Miroir de `FixedActionBar` + `AppButton` (primary) du mobile. */
+
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 20px;
+  padding: 14px 0 calc(18px + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    to top,
+    var(--color-paper) 62%,
+    color-mix(in srgb, var(--color-paper) 0%, transparent)
+  );
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--color-blue);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-ink) 6%, transparent);
+  transition: background-color 0.18s;
+}
+
+.btn:hover {
+  background: var(--color-blue-dark);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 3px;
+}

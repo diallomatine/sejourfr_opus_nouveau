@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SejourFR — Suivi</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;
+      --card:#ffffff;
+      --text:#172033;
+      --muted:#6f7a8c;
+      --line:#e8edf3;
+      --blue:#2759d7;
+      --blue-soft:#eef3ff;
+      --green:#1f8f63;
+      --green-soft:#edf8f3;
+      --amber:#b56b16;
+      --amber-soft:#fff6e8;
+      --shadow:0 10px 32px rgba(24,37,62,.06);
+      --radius:18px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .app{
+      min-height:100vh;
+      display:grid;
+      grid-template-columns:240px 1fr;
+    }
+
+    aside{
+      background:#111827;
+      color:#fff;
+      padding:26px 18px;
+      position:sticky;
+      top:0;
+      height:100vh;
+    }
+
+    .brand{
+      font-weight:800;
+      font-size:20px;
+      margin:0 10px 28px;
+    }
+
+    .nav a{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:#bfc7d5;
+      text-decoration:none;
+      padding:12px 14px;
+      border-radius:12px;
+      margin-bottom:6px;
+      font-size:14px;
+    }
+
+    .nav a.active{
+      background:#1d2740;
+      color:#fff;
+    }
+
+    main{
+      padding:30px 34px 50px;
+      max-width:1500px;
+      width:100%;
+      margin:0 auto;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      gap:20px;
+      align-items:flex-start;
+      margin-bottom:24px;
+    }
+
+    h1{
+      margin:0 0 6px;
+      font-size:28px;
+      letter-spacing:-.6px;
+    }
+
+    .subtitle{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .filters{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .segmented{
+      display:flex;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:4px;
+      box-shadow:0 4px 12px rgba(0,0,0,.025);
+    }
+
+    .segmented button{
+      border:0;
+      background:transparent;
+      padding:8px 12px;
+      border-radius:9px;
+      color:var(--muted);
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+    }
+
+    .segmented button.active{
+      background:var(--blue);
+      color:#fff;
+    }
+
+    .grid-kpi{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+
+    .kpi{
+      padding:19px 20px;
+    }
+
+    .kpi .label{
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:9px;
+    }
+
+    .kpi .value{
+      font-weight:800;
+      font-size:28px;
+      letter-spacing:-.5px;
+      margin-bottom:6px;
+    }
+
+    .trend{
+      font-size:12px;
+      color:var(--green);
+      font-weight:700;
+    }
+
+    .trend.neutral{color:var(--muted)}
+
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.5fr) minmax(310px,.8fr);
+      gap:18px;
+      margin-bottom:18px;
+    }
+
+    .section{
+      padding:22px;
+    }
+
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    .section h2{
+      font-size:17px;
+      margin:0 0 5px;
+    }
+
+    .section p{
+      margin:0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+    }
+
+    .badge{
+      background:var(--blue-soft);
+      color:var(--blue);
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    .funnel{
+      display:grid;
+      gap:10px;
+    }
+
+    .funnel-row{
+      display:grid;
+      grid-template-columns:155px 1fr 72px;
+      gap:12px;
+      align-items:center;
+    }
+
+    .funnel-label{
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .bar{
+      height:38px;
+      background:#f1f4f8;
+      border-radius:10px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    .fill{
+      height:100%;
+      background:linear-gradient(90deg,#2759d7,#6f8df0);
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      color:#fff;
+      font-weight:800;
+      padding-right:12px;
+      min-width:52px;
+      font-size:12px;
+    }
+
+    .rate{
+      font-size:12px;
+      color:var(--muted);
+      text-align:right;
+    }
+
+    .subline{
+      margin:-3px 0 3px 167px;
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .money{
+      padding:22px;
+      display:grid;
+      gap:14px;
+    }
+
+    .money-main{
+      background:var(--green-soft);
+      border-radius:14px;
+      padding:18px;
+    }
+
+    .money-main .small{font-size:12px;color:var(--green);font-weight:800}
+    .money-main .big{font-size:30px;font-weight:900;margin-top:5px;color:#125a3e}
+
+    .money-row{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      font-size:13px;
+      padding-bottom:11px;
+      border-bottom:1px solid var(--line);
+    }
+
+    .money-row:last-child{border-bottom:0;padding-bottom:0}
+    .money-row span:first-child{color:var(--muted)}
+    .money-row strong{font-size:13px}
+
+    .two-col{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+      margin-bottom:18px;
+    }
+
+    .stat-list{
+      display:grid;
+      gap:13px;
+    }
+
+    .stat-item{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:14px;
+      align-items:center;
+      padding:12px 0;
+      border-bottom:1px solid var(--line);
+    }
+
+    .stat-item:last-child{border-bottom:0}
+    .stat-item .name{font-size:13px;font-weight:700}
+    .stat-item .meta{font-size:11px;color:var(--muted);margin-top:3px}
+    .stat-item .number{font-size:16px;font-weight:800}
+
+    .source-bars{
+      display:grid;
+      gap:13px;
+    }
+
+    .source-row{
+      display:grid;
+      grid-template-columns:90px 1fr 50px;
+      gap:10px;
+      align-items:center;
+      font-size:12px;
+    }
+
+    .source-track{
+      height:8px;
+      background:#eef1f5;
+      border-radius:999px;
+      overflow:hidden;
+    }
+
+    .source-track span{
+      display:block;
+      height:100%;
+      background:#7b8cad;
+      border-radius:999px;
+    }
+
+    .platform-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+      margin-top:8px;
+    }
+
+    .platform{
+      border:1px solid var(--line);
+      border-radius:13px;
+      padding:14px;
+      text-align:center;
+      background:#fbfcfe;
+    }
+
+    .platform strong{
+      display:block;
+      font-size:20px;
+      margin-top:5px;
+    }
+
+    .platform span{
+      color:var(--muted);
+      font-size:11px;
+    }
+
+    .footnote{
+      margin-top:14px !important;
+      padding-top:13px;
+      border-top:1px solid var(--line);
+      font-size:11px !important;
+    }
+
+    @media (max-width:1050px){
+      .app{grid-template-columns:1fr}
+      aside{display:none}
+      .grid-kpi{grid-template-columns:repeat(2,1fr)}
+      .layout,.two-col{grid-template-columns:1fr}
+    }
+
+    @media (max-width:640px){
+      main{padding:20px 14px 36px}
+      .topbar{flex-direction:column}
+      .filters{justify-content:flex-start}
+      .grid-kpi{grid-template-columns:1fr 1fr}
+      .funnel-row{grid-template-columns:115px 1fr 52px}
+      .subline{margin-left:127px}
+      .platform-grid{grid-template-columns:1fr}
+      .kpi .value{font-size:24px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <aside>
+    <div class="brand">SejourFR</div>
+    <nav class="nav">
+      <a href="#">Vue d’ensemble</a>
+      <a class="active" href="#">Suivi</a>
+      <a href="#">Diagnostics</a>
+      <a href="#">Utilisation</a>
+      <a href="#">Achats</a>
+      <a href="#">Acquisition</a>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h1>Suivi</h1>
+        <p class="subtitle">Comprendre rapidement ce qui attire, convertit et fait travailler les candidats.</p>
+      </div>
+
+      <div class="filters">
+        <div class="segmented">
+          <button class="active">Aujourd’hui</button>
+          <button>Hier</button>
+          <button>7 jours</button>
+          <button>Mois</button>
+          <button>Personnalisé</button>
+        </div>
+        <div class="segmented">
+          <button class="active">Tous</button>
+          <button>TCF</button>
+          <button>Civique</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="grid-kpi">
+      <div class="card kpi">
+        <div class="label">Visiteurs uniques</div>
+        <div class="value">1 284</div>
+        <div class="trend">+12,4 % vs hier</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Diagnostics soumis</div>
+        <div class="value">146</div>
+        <div class="trend">11,4 % des visiteurs</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Achats</div>
+        <div class="value">18</div>
+        <div class="trend neutral">12,3 % des diagnostics</div>
+      </div>
+
+      <div class="card kpi">
+        <div class="label">Net réel estimé</div>
+        <div class="value">156,42 €</div>
+        <div class="trend">après TVA et frais</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Tunnel diagnostic</h2>
+            <p>Cohorte basée sur la première consultation du diagnostic. Fenêtre de conversion : 14 jours.</p>
+          </div>
+          <span class="badge">TCF + Civique</span>
+        </div>
+
+        <div class="funnel">
+          <div class="funnel-row">
+            <div class="funnel-label">Sujet vu</div>
+            <div class="bar"><div class="fill" style="width:100%">228</div></div>
+            <div class="rate">100 %</div>
+          </div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Soumis</div>
+            <div class="bar"><div class="fill" style="width:64%">146</div></div>
+            <div class="rate">64 %</div>
+          </div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Compte rattaché</div>
+            <div class="bar"><div class="fill" style="width:52%">118</div></div>
+            <div class="rate">81 %</div>
+          </div>
+          <div class="subline">72 inscrits après diagnostic · 46 déjà inscrits</div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Rapport vu</div>
+            <div class="bar"><div class="fill" style="width:47%">108</div></div>
+            <div class="rate">92 %</div>
+          </div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Plan consulté</div>
+            <div class="bar"><div class="fill" style="width:37%">84</div></div>
+            <div class="rate">78 %</div>
+          </div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Débloquer</div>
+            <div class="bar"><div class="fill" style="width:18%">41</div></div>
+            <div class="rate">49 %</div>
+          </div>
+
+          <div class="funnel-row">
+            <div class="funnel-label">Achat</div>
+            <div class="bar"><div class="fill" style="width:8%">18</div></div>
+            <div class="rate">44 %</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card money">
+        <div class="section-head" style="margin-bottom:0">
+          <div>
+            <h2>Revenus du jour</h2>
+            <p>Achats confirmés uniquement.</p>
+          </div>
+        </div>
+
+        <div class="money-main">
+          <div class="small">NET RÉEL ESTIMÉ</div>
+          <div class="big">156,42 €</div>
+        </div>
+
+        <div class="money-row"><span>Brut payé</span><strong>199,82 €</strong></div>
+        <div class="money-row"><span>TVA retirée</span><strong>-33,30 €</strong></div>
+        <div class="money-row"><span>Frais plateformes</span><strong>-10,10 €</strong></div>
+        <div class="money-row"><span>Stripe</span><strong>10 achats</strong></div>
+        <div class="money-row"><span>Apple</span><strong>5 achats</strong></div>
+        <div class="money-row"><span>Google</span><strong>3 achats</strong></div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Diagnostic par type</h2>
+            <p>Comparer rapidement TCF et Civique.</p>
+          </div>
+        </div>
+
+        <div class="stat-list">
+          <div class="stat-item">
+            <div>
+              <div class="name">TCF</div>
+              <div class="meta">168 sujets vus · 112 soumis</div>
+            </div>
+            <div class="number">12 achats</div>
+          </div>
+          <div class="stat-item">
+            <div>
+              <div class="name">Civique</div>
+              <div class="meta">60 sujets vus · 34 soumis</div>
+            </div>
+            <div class="number">6 achats</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Inscriptions</h2>
+            <p>Origine de la création du compte.</p>
+          </div>
+        </div>
+
+        <div class="stat-list">
+          <div class="stat-item">
+            <div>
+              <div class="name">Après diagnostic</div>
+              <div class="meta">TCF 52 · Civique 20</div>
+            </div>
+            <div class="number">72</div>
+          </div>
+          <div class="stat-item">
+            <div>
+              <div class="name">Hors diagnostic</div>
+              <div class="meta">Inscription directe</div>
+            </div>
+            <div class="number">31</div>
+          </div>
+        </div>
+
+        <div class="platform-grid">
+          <div class="platform"><span>Web</span><strong>61</strong></div>
+          <div class="platform"><span>Android</span><strong>27</strong></div>
+          <div class="platform"><span>Apple</span><strong>15</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Utilisation du plan</h2>
+            <p>Ce que les candidats font réellement après le diagnostic.</p>
+          </div>
+        </div>
+
+        <div class="stat-list">
+          <div class="stat-item">
+            <div>
+              <div class="name">Action recommandée par le plan</div>
+              <div class="meta">Accueil, Réviser, TCF ou Civique</div>
+            </div>
+            <div class="number">47</div>
+          </div>
+
+          <div class="stat-item">
+            <div>
+              <div class="name">Entraînement libre</div>
+              <div class="meta">Depuis Réviser, hors recommandation du plan</div>
+            </div>
+            <div class="number">29</div>
+          </div>
+        </div>
+
+        <p class="footnote">Une action est attribuée au plan dès lors que le contenu travaillé était recommandé par le plan, quel que soit l’écran depuis lequel il a été lancé.</p>
+      </div>
+
+      <div class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Sources d’acquisition</h2>
+            <p>Attribution first-touch conservée jusqu’au compte.</p>
+          </div>
+        </div>
+
+        <div class="source-bars">
+          <div class="source-row">
+            <div>Instagram</div>
+            <div class="source-track"><span style="width:78%"></span></div>
+            <strong>312</strong>
+          </div>
+          <div class="source-row">
+            <div>TikTok</div>
+            <div class="source-track"><span style="width:56%"></span></div>
+            <strong>224</strong>
+          </div>
+          <div class="source-row">
+            <div>Facebook</div>
+            <div class="source-track"><span style="width:31%"></span></div>
+            <strong>126</strong>
+          </div>
+          <div class="source-row">
+            <div>Direct / autre</div>
+            <div class="source-track"><span style="width:100%"></span></div>
+            <strong>622</strong>
+          </div>
+        </div>
+
+        <p class="footnote">Exemple : <strong>?utm_source=instagram</strong> est conservé du premier passage jusqu’à l’inscription et à l’achat.</p>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

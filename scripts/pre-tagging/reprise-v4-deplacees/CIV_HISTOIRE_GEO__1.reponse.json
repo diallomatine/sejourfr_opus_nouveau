@@ -1,0 +1,87 @@
+{
+  "model": "claude-sonnet-5",
+  "id": "msg_011Cex3G4ufLmU3YEWKQK2mz",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_01N42Yyxe21X34DzApA9UH5G",
+      "name": "proposer_rattachements",
+      "input": {
+        "propositions": [
+          {
+            "rang": 1,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Date de fondation de la Ve République, fait institutionnel."
+          },
+          {
+            "rang": 2,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.95,
+            "rationale": "Droit de vote des femmes = conquête sociale/droit acquis."
+          },
+          {
+            "rang": 3,
+            "notion": "hg_conquetes_droits",
+            "confiance": 0.9,
+            "rationale": "Extension du droit de vote = conquête de droit, même sous forme de date."
+          },
+          {
+            "rang": 4,
+            "notion": "hg_republiques",
+            "confiance": 0.9,
+            "rationale": "Proclamation de la Ire République, fait institutionnel de naissance de régime."
+          },
+          {
+            "rang": 5,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Décompte des républiques, cas d'école de la notion."
+          },
+          {
+            "rang": 6,
+            "notion": "hg_republiques",
+            "confiance": 0.95,
+            "rationale": "Fondateur de la Ve République, figure institutionnelle."
+          },
+          {
+            "rang": 7,
+            "notion": "hg_europe",
+            "confiance": 0.95,
+            "rationale": "Traité de Rome et CEE, construction européenne historique."
+          },
+          {
+            "rang": 8,
+            "notion": "hg_europe",
+            "confiance": 0.95,
+            "rationale": "Traité de Maastricht, étape de la construction européenne."
+          }
+        ]
+      },
+      "caller": {
+        "type": "direct"
+      }
+    }
+  ],
+  "container": null,
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "stop_details": null,
+  "usage": {
+    "input_tokens": 7049,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {
+      "ephemeral_5m_input_tokens": 0,
+      "ephemeral_1h_input_tokens": 0
+    },
+    "output_tokens": 490,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "service_tier": "batch",
+    "inference_geo": "global"
+  }
+}

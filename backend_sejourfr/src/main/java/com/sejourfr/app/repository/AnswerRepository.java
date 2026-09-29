@@ -1,0 +1,127 @@
+package com.sejourfr.app.repository;
+
+import com.sejourfr.app.entity.Answer;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.Module;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface AnswerRepository extends JpaRepository<Answer, UUID> {
+
+    /**
+     * Rattache a un compte les reponses d'un attempt joue <b>sans compte</b>
+     * (adoption d'un diagnostic civique invite, V053).
+     *
+     * <p>Les statistiques, elles, passent toutes par
+     * {@code a.attemptQuestion.attempt.user} : ce backfill ne les change pas,
+     * il evite seulement de laisser des lignes {@code answers} sans porteur
+     * alors que leur attempt en a un.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE Answer a SET a.user = :user
+        WHERE a.user IS NULL
+          AND a.attemptQuestion.id IN (
+              SELECT aq.id FROM AttemptQuestion aq WHERE aq.attempt.id = :attemptId)
+        """)
+    int rattacherAuCompte(@Param("user") User user, @Param("attemptId") UUID attemptId);
+
+    // ------------------------------------------------------------------------
+    // Stats globales utilisateur
+    // ------------------------------------------------------------------------
+
+    // Questions DISTINCTES répondues (et non lignes de réponses brutes) : refaire
+    // 2× la même question ne doit pas gonfler le compteur. Cohérent avec
+    // aggregateByTheme — la somme des `answered`/`correct` par thème égale ces
+    // totaux globaux.
+    @Query("""
+        SELECT COUNT(DISTINCT a.attemptQuestion.question.id) FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.attempt.module = :module
+        """)
+    long countAnsweredByUserAndModule(@Param("userId") UUID userId, @Param("module") Module module);
+
+    // Question comptée "correcte" si réussie au moins une fois dans le module
+    // (même sémantique distincte que aggregateByTheme).
+    @Query("""
+        SELECT COUNT(DISTINCT a.attemptQuestion.question.id) FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.attempt.module = :module
+          AND a.correct = true
+        """)
+    long countCorrectByUserAndModule(@Param("userId") UUID userId, @Param("module") Module module);
+
+    // ------------------------------------------------------------------------
+    // Stats par thème
+    // ------------------------------------------------------------------------
+
+    // On compte les questions DISTINCTES (et non les réponses brutes), pour que
+    // refaire 2× la même question ne gonfle pas artificiellement les compteurs
+    // et que le score de maîtrise (correct/total) reste plafonné par le pool du
+    // thème. Une question est considérée "correcte" si l'utilisateur l'a réussie
+    // au moins une fois dans le module.
+    @Query("""
+        SELECT a.attemptQuestion.question.theme.id,
+               a.attemptQuestion.question.theme.code,
+               a.attemptQuestion.question.theme.name,
+               COUNT(DISTINCT a.attemptQuestion.question.id),
+               COUNT(DISTINCT CASE WHEN a.correct = true THEN a.attemptQuestion.question.id END)
+        FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.attempt.module = :module
+        GROUP BY a.attemptQuestion.question.theme.id,
+                 a.attemptQuestion.question.theme.code,
+                 a.attemptQuestion.question.theme.name
+        """)
+    List<Object[]> aggregateByTheme(@Param("userId") UUID userId, @Param("module") Module module);
+
+    @Query("""
+        SELECT COUNT(a) > 0 FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.question.id = :questionId
+        """)
+    boolean hasUserAnsweredQuestion(@Param("userId") UUID userId, @Param("questionId") UUID questionId);
+
+    /**
+     * Dernière réponse de l'utilisateur sur une question, triée par
+     * {@code answeredAt DESC}. Le caller prend {@code List.first()} (vide
+     * si jamais répondu). Sert au sheet de révision pour afficher en rouge
+     * le choix incorrect que l'utilisateur avait sélectionné.
+     */
+    @Query("""
+        SELECT a FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.question.id = :questionId
+        ORDER BY a.answeredAt DESC
+        """)
+    List<Answer> findLatestByUserAndQuestion(
+            @Param("userId") UUID userId,
+            @Param("questionId") UUID questionId,
+            org.springframework.data.domain.Pageable pageable
+    );
+
+    /**
+     * Parmi ces sessions QCM, lesquelles portent au moins une réponse
+     * enregistrée ? Même définition que le {@code EXISTS} de
+     * {@code AttemptRepository.findQcmEpreuvesPassees} : « zéro réponse » =
+     * rien n'a été rendu. Sert à distinguer, sur une sous-épreuve d'examen
+     * complet, une épreuve <b>jamais ouverte</b> d'une épreuve ouverte puis
+     * écourtée — la première n'a pas de niveau, la seconde en a un.
+     *
+     * <p>🛑 <b>Forme groupée</b> : une requête pour toute une page d'examens
+     * complets, jamais une par sous-épreuve.
+     */
+    @Query("""
+        SELECT DISTINCT a.attemptQuestion.attempt.id FROM Answer a
+        WHERE a.attemptQuestion.attempt.id IN :attemptIds
+        """)
+    List<UUID> findAttemptIdsWithAnswer(@Param("attemptIds") Collection<UUID> attemptIds);
+}

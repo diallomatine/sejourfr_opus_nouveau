@@ -1,0 +1,581 @@
+
+/// **Les phrases du Plan.**
+///
+/// Le serveur expose des faits — un domaine évalué ou non, un palier qui
+/// bloque, une fenêtre de changements, une étape de chemin — et **aucun
+/// libellé** pour les domaines, le cycle, le chemin ni la séance. La phrase
+/// appartient donc au front, et elle vit ici plutôt que dans les widgets :
+/// c'est le seul moyen de garantir qu'un même fait se dise de la même façon
+/// sur le Plan, sur la fiche d'un domaine et sur le résultat d'une série.
+///
+/// 🛑 **Rien n'est déduit ici qui ne soit pas servi.** Aucun niveau n'est
+/// inventé (`objectiveLevel` est nullable et le reste), aucun pourcentage n'est
+/// fabriqué, aucun domaine n'est retrié — le serveur les trie.
+///
+/// **Vouvoiement** : le Plan vouvoie, contrairement au module « Compétences ».
+library;
+
+import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../core/models/diagnostic_models.dart';
+import '../../core/models/enums.dart';
+import '../../core/models/skill_models.dart';
+
+/* ------------------------------------------------------------- les domaines */
+
+/// Le domaine en toutes lettres. On délègue à [SkillSection.label], miroir du
+/// backend, plutôt que d'écrire une seconde table de libellés.
+String planDomainLabel(EpreuveType epreuve) =>
+    planDomainSection(epreuve)?.label ?? 'Domaine TCF';
+
+/// La section de compétences correspondant à un domaine du TCF. `null` sur une
+/// épreuve qui n'est pas un domaine du Plan (civique, structure, complet).
+SkillSection? planDomainSection(EpreuveType epreuve) => switch (epreuve) {
+      EpreuveType.tcfCo => SkillSection.co,
+      EpreuveType.tcfCe => SkillSection.ce,
+      EpreuveType.tcfEe => SkillSection.ee,
+      EpreuveType.tcfEo => SkillSection.eo,
+      _ => null,
+    };
+
+/// Icône d'un domaine — la même que celle de son hub (`TcfQcmModule`) et de son
+/// parcours, pour qu'un candidat reconnaisse le domaine d'un écran à l'autre.
+IconData planDomainIcon(EpreuveType? epreuve) => switch (epreuve) {
+      EpreuveType.tcfCo => LucideIcons.ear,
+      EpreuveType.tcfCe => LucideIcons.fileText,
+      EpreuveType.tcfEe => LucideIcons.penLine,
+      EpreuveType.tcfEo => LucideIcons.mic,
+      _ => LucideIcons.target,
+    };
+
+/// Clé de route d'un domaine (`/plan/domaine/co`). Aucune information n'y
+/// voyage au-delà du domaine : la fiche relit le Plan déjà chargé.
+String planDomainKey(EpreuveType epreuve) => switch (epreuve) {
+      EpreuveType.tcfCo => 'co',
+      EpreuveType.tcfCe => 'ce',
+      EpreuveType.tcfEe => 'ee',
+      EpreuveType.tcfEo => 'eo',
+      _ => 'co',
+    };
+
+/// Le domaine du TCF correspondant à une section de compétences — la réciproque
+/// de [planDomainSection]. C'est ce qui permet d'envoyer une priorité de
+/// **compréhension** vers la fiche de son domaine : elle n'a pas d'écran de
+/// compétence, la voie des petits sujets étant celle de l'expression.
+EpreuveType? planEpreuveOfSection(SkillSection section) => switch (section) {
+      SkillSection.co => EpreuveType.tcfCo,
+      SkillSection.ce => EpreuveType.tcfCe,
+      SkillSection.ee => EpreuveType.tcfEe,
+      SkillSection.eo => EpreuveType.tcfEo,
+    };
+
+EpreuveType? planDomainFromKey(String key) => switch (key) {
+      'co' => EpreuveType.tcfCo,
+      'ce' => EpreuveType.tcfCe,
+      'ee' => EpreuveType.tcfEe,
+      'eo' => EpreuveType.tcfEo,
+      _ => null,
+    };
+
+/// La ligne sous le nom d'un domaine, dans la liste du profil.
+///
+/// Un domaine jamais mesuré est **inconnu, jamais mauvais** : on dit comment le
+/// mesurer, on ne lui prête aucun niveau.
+String planDomainSubtitle(PlanDomain domain) {
+  if (!domain.evaluated || domain.niveau == null) {
+    return kPlanDomainNotEvaluatedShort;
+  }
+  return 'Niveau estimé ${domain.niveau!.displayName}';
+}
+
+/// L'état d'un domaine jamais mesuré, **en trois mots** — miroir mot pour mot du
+/// web (`PLAN_DOMAIN_NOT_EVALUATED`). C'est ce que porte une **ligne de liste** :
+/// le *comment le mesurer* vit juste en dessous, dans « Compléter mon profil »,
+/// des deux côtés.
+const String kPlanDomainNotEvaluatedShort = 'Pas encore évaluée';
+
+/// La forme longue, réservée aux surfaces qui ont la place d'**expliquer** : la
+/// fiche d'un domaine et son résumé. Jamais sur une ligne de liste.
+const String kPlanDomainNotEvaluated =
+    'Pas encore mesuré — votre profil se précisera à votre prochain examen '
+    'blanc de cette épreuve.';
+
+/// Ce que le Plan retient d'un domaine, sur sa fiche. Uniquement des faits
+/// servis : le palier consolidé, celui qui bloque, les compétences observées.
+String planDomainSummary(PlanDomain domain) {
+  if (!domain.evaluated) return kPlanDomainNotEvaluated;
+
+  if (domain.paliers.isNotEmpty) {
+    final blocking = domain.blockingLevel;
+    final consolidated = domain.consolidatedLevel;
+    if (blocking == null) {
+      return 'Vos trois paliers sont consolidés sur ce domaine.';
+    }
+    if (consolidated == null) {
+      return 'Le palier ${blocking.wire} n\'est pas encore consolidé : c\'est '
+          'lui qui commande la suite.';
+    }
+    return 'Palier consolidé : ${consolidated.wire}. Le ${blocking.wire} n\'est '
+        'pas encore acquis, c\'est lui qui commande la suite.';
+  }
+
+  if (domain.taches.isNotEmpty) {
+    var observed = 0;
+    var total = 0;
+    for (final task in domain.taches) {
+      observed += task.observedSkills;
+      total += task.totalSkills;
+    }
+    if (total == 0) return 'Vos tâches de ce domaine sont en cours de mesure.';
+    return '$observed compétence${observed > 1 ? 's' : ''} observée'
+        '${observed > 1 ? 's' : ''} sur $total, réparties sur '
+        '${domain.taches.length} tâche${domain.taches.length > 1 ? 's' : ''}.';
+  }
+
+  return 'Ce domaine est mesuré ; son détail arrive à votre prochaine session.';
+}
+
+/// « Tâche 1 · 3 / 8 compétences observées » — **pas une note** : une
+/// compétence non observée n'est pas une compétence ratée. Le dénominateur
+/// vient du serveur.
+String planTaskObservedLabel(PlanDomainTask task) =>
+    'Tâche ${task.tacheNumero} · ${task.observedSkills} / ${task.totalSkills} '
+    'compétences observées';
+
+/// Le titre d'une tâche d'expression : son **titre éditorial** quand son code
+/// le désigne (miroir [SkillTaskCode], gelé côté backend), « Tâche N » sinon.
+///
+/// ⚠️ On ne devine jamais une tâche : un code inattendu retombe sur son numéro,
+/// et le numéro reste par ailleurs lisible dans [planTaskObservedLabel].
+String planTaskTitle(PlanDomainTask task) =>
+    SkillTaskCode.fromSkillCode(task.taskCode)?.title ??
+    'Tâche ${task.tacheNumero}';
+
+/// « EE1 · Expression écrite » — le repère factuel sous le titre d'une
+/// compétence. Le code peut manquer : on n'affiche alors que le domaine.
+String planSkillMeta(String skillCode, SkillSection section) =>
+    skillCode.isEmpty ? section.label : '$skillCode · ${section.label}';
+
+/// Le palier travaillé par une compétence de **compréhension**, retrouvé dans
+/// les domaines **servis** — jamais dérivé de son code. `null` en expression, ou
+/// quand la compétence n'est pas dans les paliers publiés.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillLevel`, `lib/plan-domain.ts`).
+TargetLevel? planSkillLevel(LearningPlan plan, String skillId) {
+  for (final domain in plan.domaines) {
+    for (final palier in domain.paliers) {
+      if (palier.skillId == skillId) return palier.niveau;
+    }
+  }
+  return null;
+}
+
+/// **Le palier d'une compétence, retrouvé par son CODE.**
+///
+/// 🛑 Le rapprochement se fait sur `skillCode` — c'est ce que sert le parcours
+/// ([JourneyStep.skillCode]), et c'est déjà la clé de `_priorityDe`. `null` est
+/// un cas **normal** : compétence hors des domaines servis, ou étape civique.
+/// On n'invente alors aucun palier.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillTargetLevelDeCode`).
+TargetLevel? planSkillTargetLevelDeCode(LearningPlan plan, String? skillCode) {
+  if (skillCode == null) return null;
+  for (final domain in plan.domaines) {
+    for (final skill in domain.skills) {
+      if (skill.skillCode == skillCode) return skill.targetLevel;
+    }
+  }
+  return null;
+}
+
+/// Le palier que le référentiel porte sur une compétence.
+///
+/// Lu sur `domaines[].skills[]` — la liste **uniforme** des quatre domaines —,
+/// avec repli sur les paliers de compréhension. `null` quand rien ne le
+/// publie : *null = inconnu, jamais mauvais*, et aucun palier n'est fabriqué.
+///
+/// 🛑 **Jamais de repli sur `cycle.targetLevel`.** C'est le palier GLOBAL, et
+/// depuis que chaque domaine construit le sien (2026-08-26) il affiche un
+/// palier faux dès que deux domaines divergent.
+///
+/// ⚠️ Miroir mot pour mot du web (`planSkillTargetLevel`, `lib/plan-domain.ts`).
+TargetLevel? planSkillTargetLevel(LearningPlan plan, String skillId) {
+  for (final domain in plan.domaines) {
+    for (final competence in domain.skills) {
+      if (competence.skillId == skillId) return competence.targetLevel;
+    }
+  }
+  return planSkillLevel(plan, skillId);
+}
+
+const String kPlanComprehensionNote =
+    'En compréhension, une compétence se mesure sur une série complète : c\'est '
+    'ce qui permet de savoir si la difficulté est vraiment récurrente.';
+
+const String kPlanNotEvaluatedNote =
+    'Un domaine jamais mesuré n\'est pas un domaine faible : c\'est un domaine '
+    'inconnu. Tant qu\'il l\'est, le Plan ne lui prête aucun niveau.';
+
+/* ------------------------------------------------------------- les paliers  */
+
+/// La ligne d'un palier de compréhension sur la fiche d'un domaine.
+///
+/// **Aucun pourcentage** : le score interne du moteur de maîtrise n'est exposé
+/// à aucun front. `masteryState == null` veut dire « jamais observé ».
+String planLevelSubtitle(PlanDomainLevel level) {
+  if (level.blocking) return 'C\'est ce palier qui commande la suite';
+  return level.masteryState == null
+      ? 'Pas encore observé'
+      : level.masteryState!.label;
+}
+
+const String kPlanLevelBlockingTag = 'À DÉBLOQUER';
+const String kPlanSeriesCta = 'Faire une série ciblée';
+
+/* ------------------------------------------------------- l'action du jour   */
+
+const String kPlanSeanceEmpty =
+    'Rien à faire pour le moment : votre prochaine étape se décide à votre '
+    'prochaine production.';
+
+/// **Ce qu'est une action du Plan**, en une formule — déclarée ici parce que
+/// deux surfaces la demandent : une ligne de séance et la carte « À faire
+/// maintenant », qui ne porte pas de `PlanSeanceItem`. `null` quand la nature
+/// de l'exercice n'est pas connue : l'appelant dit alors autre chose plutôt
+/// qu'un libellé deviné.
+String? planExerciseKindLabel(PlanExerciseKind? kind, {int? questionCount}) =>
+    switch (kind) {
+      PlanExerciseKind.microTraining => kPlanMicroTrainingNature,
+      PlanExerciseKind.reassessment => 'Vérification en situation',
+      PlanExerciseKind.targetedQcmSeries => planSeriesLabel(questionCount),
+      // Deux jalons, deux périmètres : une épreuve (3 tâches) n'est pas un TCF
+      // complet (4 épreuves). Miroir mot pour mot du web (`planItemNature`).
+      PlanExerciseKind.epreuveMockExam => 'Examen blanc d\'épreuve',
+      PlanExerciseKind.fullTcfMockExam => 'Examen blanc TCF complet',
+      null => null,
+    };
+
+/// Ce qu'est l'entraînement d'une étape. **Au pluriel** : une étape n'est pas un
+/// sujet, c'est une série de cinq — le singulier faisait croire à une action
+/// unique là où le Plan en demande cinq. Miroir mot pour mot du web
+/// (`PLAN_MICRO_TRAINING_NATURE`).
+const String kPlanMicroTrainingNature = 'Sujets ciblés';
+
+/// La ligne qui explique une carte **à acquérir**, là où une fragilité aurait
+/// eu l'explication servie par le correcteur.
+///
+/// 🛑 Elle ne dit **jamais** qu'il y a un manque à réparer : rien n'a été
+/// observé, donc rien n'a échoué. Miroir mot pour mot du web.
+const String kPlanAcquisitionNote =
+    'Nouvelle compétence de votre palier : vous ne l\'avez encore jamais '
+    'travaillée.';
+
+/// Ce que le Plan demande d'une compétence **assez travaillée en ciblé** : il
+/// reste à le prouver en situation. Miroir mot pour mot du web
+/// (`PLAN_REASON_A_VERIFIER`).
+const String kPlanVerificationNote =
+    'Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie '
+    'tâche, en situation.';
+
+
+/// « Série de 20 questions » — la taille est **décidée serveur**. Sans elle, on
+/// ne l'invente pas.
+String planSeriesLabel(int? questionCount) => questionCount == null
+    ? 'Série ciblée de compréhension'
+    : 'Série ciblée de $questionCount questions';
+
+/// Ce qui s'affiche à la place du niveau global tant que rien n'est mesuré.
+/// *null = inconnu, jamais mauvais* : on n'écrit pas « A1 » par défaut.
+const String kPlanProgressNoLevel = '—';
+
+/// La ligne sous le nom d'un domaine sur cet écran : son niveau estimé et, en
+/// compréhension, le palier qu'il travaille. Uniquement des faits servis.
+String planDomainProgressSubtitle(PlanDomain domain) {
+  if (!domain.evaluated || domain.niveau == null) {
+    return kPlanDomainNotEvaluatedShort;
+  }
+  final blocking = domain.blockingLevel;
+  final niveau = 'Niveau estimé ${domain.niveau!.displayName}';
+  return blocking == null ? niveau : '$niveau · travaille le ${blocking.wire}';
+}
+
+/// 🛑 **Aucun pourcentage nulle part sur cet écran.** La maquette affiche une
+/// barre de maîtrise par palier ; le score interne du moteur n'est exposé à
+/// aucun front, et cette note remplace donc celle qui l'expliquait.
+const String kPlanProgressNote =
+    'Chaque domaine avance à son rythme : un palier se construit compétence par '
+    'compétence, et rien n\'est déduit d\'un domaine que vous n\'avez pas encore '
+    'mesuré.';
+
+const String kPlanProgressLevelsTitle = 'Vos paliers';
+const String kPlanProgressTasksTitle = 'Vos tâches';
+
+/* -------------------------------------------------------------- le cycle    */
+
+/// « 2 domaines sur 4 évalués ».
+String planProfileCoverage(PlanCycle? cycle, int fallbackTotal) {
+  final evaluated = cycle?.domainsEvaluated ?? 0;
+  final expected = cycle?.domainsExpected ?? fallbackTotal;
+  return '$evaluated domaine${evaluated > 1 ? 's' : ''} sur $expected '
+      'évalué${evaluated > 1 ? 's' : ''}';
+}
+
+/// **Le parcours réel** qu'ouvre une mesure, nommé tel quel — une *description*,
+/// jamais un geste. Aucun contenu n'est créé : les deux natures existent déjà.
+///
+/// 🛑 **Les quatre épreuves se mesurent par un examen blanc** (2026-09-16) :
+/// examen de module en CO/CE, examen de production en EE/EO. La phrase ne
+/// dépend donc plus que du slot servi — « Diagnostic » et « Production
+/// complète » ne désignaient aucun examen blanc, et sont supprimées.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`planAssessmentNature`).
+String planAssessmentNature(PlanDomainAssessment assessment) =>
+    assessment.slotNumber == null
+        ? 'Examen blanc'
+        : 'Examen blanc n°${assessment.slotNumber}';
+
+/// **Le geste** qui mesure ce domaine — le libellé d'un bouton, jamais d'une
+/// meta. Miroir mot pour mot du web (`planAssessmentCta`).
+///
+/// 🛑 **Le même geste sur les quatre épreuves**, parce que c'est la même chose
+/// qui se lance : un examen blanc.
+String planAssessmentCta(PlanDomainAssessment assessment) =>
+    'Passer l\'examen blanc';
+
+/// Le repère factuel d'une ligne de mesure : sa nature et sa durée quand elle en
+/// a une (l'expression orale se chronomètre tâche par tâche — on n'écrit alors
+/// aucune minute plutôt qu'un chiffre inventé).
+String planAssessmentMeta(PlanDomainAssessment assessment) {
+  final minutes = assessment.estimatedMinutes;
+  final nature = planAssessmentNature(assessment);
+  return minutes == null ? nature : '$nature · ≈ $minutes min';
+}
+
+/// **Le titre d'une mesure.** Elle ne porte aucune compétence : ce qu'on vient
+/// mesurer, c'est une **épreuve entière**, et son nom est donc celui du
+/// domaine.
+///
+/// ⚠️ **Miroir mot pour mot du web** (`PLAN_ASSESSMENT_ITEM_TITLE`,
+/// `lib/plan-domain.ts`) — ces chaînes ne transitent pas par le réseau, chaque
+/// front en tient sa copie.
+String planAssessmentItemTitle(PlanDomainAssessment assessment) =>
+    switch (assessment.epreuve) {
+      EpreuveType.tcfEe => 'Compléter mon évaluation d\'expression écrite',
+      EpreuveType.tcfEo => 'Compléter mon évaluation d\'expression orale',
+      EpreuveType.tcfCo => 'Compléter mon évaluation de compréhension orale',
+      EpreuveType.tcfCe => 'Compléter mon évaluation de compréhension écrite',
+      // Le serveur ne mesure que les quatre domaines ; une épreuve hors de
+      // cette liste se nomme sans qu'on lui invente un intitulé.
+      _ => 'Compléter mon évaluation — ${planDomainLabel(assessment.epreuve)}',
+    };
+
+/// **Pourquoi une mesure passe devant.** Miroir mot pour mot du web
+/// (`PLAN_REASON_A_EVALUER`).
+///
+/// 🛑 Elle ne nomme **aucune faute** : il manque une mesure, pas quelque chose
+/// à réparer.
+const String kPlanReasonAEvaluer =
+    'Une de vos productions n\'a pas pu être analysée : votre séance commence '
+    'par la mesurer, sinon tout ce qui suit avance à l\'aveugle.';
+
+/* ---------------------------------------------- « votre programme évolue »  */
+
+const String kPlanEvolutionTitle = 'Votre programme évolue';
+const String kPlanEvolutionCta = 'Revenir à mon plan';
+const String kPlanEvolutionNote =
+    'Le CECRL n\'est pas une progression linéaire : chaque palier se construit '
+    'compétence par compétence, et vos quatre domaines n\'avancent pas à la '
+    'même vitesse.';
+const String kPlanEvolutionEmpty =
+    'Rien n\'a bougé depuis votre dernière session. Votre programme change '
+    'quand un nouveau résultat arrive.';
+
+/* ------------------------------------------------------- la série ciblée    */
+
+const String kPlanSerieDoneTitle = 'Série terminée';
+const String kPlanSerieImpact = 'Impact sur votre maîtrise';
+const String kPlanSerieBack = 'Revenir à mon plan';
+const String kPlanSerieAgain = 'Faire une nouvelle série';
+const String kPlanSerieNext = 'À travailler ensuite';
+const String kPlanSerieConfirmed = 'Statut confirmé';
+const String kPlanSeriePending =
+    'Votre maîtrise se met à jour dès que ce résultat est pris en compte : '
+    'elle apparaîtra sur votre plan.';
+const String kPlanSerieNote =
+    'Une série ciblée entraîne une compétence ; elle ne mesure pas le domaine. '
+    'Seul un examen blanc de l\'épreuve le fait.';
+
+/* --------------------------------------------- l'écran « Mon plan » (kit)   */
+
+/// Le kicker de l'en-tête d'un compte **abonné**. L'objectif est nullable et le
+/// reste : sans démarche déclarée, la phrase ne nomme aucun palier plutôt que
+/// d'en inventer un.
+String planTopKicker(TargetLevel? objective) => objective == null
+    ? 'Votre parcours personnalisé'
+    : 'Votre parcours personnalisé vers le ${objective.wire}';
+
+/// Le kicker d'un compte **sans accès**. 🛑 Il ne dit plus « créé à partir de
+/// votre diagnostic » : depuis D-69, le Plan existe sans diagnostic.
+const String kPlanTopKickerFree = 'Votre parcours personnalisé';
+
+const String kPlanTitle = 'Mon plan du jour';
+
+/// Le titre d'un compte sans accès nomme le palier visé quand il est connu.
+String planTitleFree(TargetLevel? objective) =>
+    objective == null ? kPlanTitle : '$kPlanTitle ${objective.wire}';
+
+/// Le palier de repli du bandeau d'objectif. *null = inconnu, jamais mauvais* :
+/// on n'écrit ni A1 ni B2 par défaut.
+const String kPlanGoalUnknown = '—';
+
+/// Le **niveau actuel** du bandeau quand le serveur n'en sert aucun
+/// (`cycle.startingLevel` nul) : *inconnu*, jamais « A1 non atteint » — ce
+/// dernier est une MESURE, et il se lit par [NiveauCecrl.displayName], jamais
+/// par son code. Miroir mot pour mot de `PLAN_PROGRESS_LEVEL_UNKNOWN`
+/// (`web_sejoufr/lib/plan-domain.ts`).
+const String kPlanLevelUnknown = 'Pas encore mesuré';
+
+const String kPlanGoalPick = 'Choisir mon objectif';
+
+const String kPlanNowTitle = 'À faire maintenant';
+
+/// Ce que dit le bouton quand l'étape annoncée est **fermée** : il ne lance pas
+/// l'entraînement, il ouvre l'offre.
+///
+/// 🛑 **« Débloquer cet entraînement », pas « Débloquer mon plan »** (arbitré le
+/// 2026-09-20, quand la carte gratuite a pris l'anatomie de la carte d'un
+/// abonné) : la carte nomme **un** exercice précis, pas le plan entier ; le
+/// bouton rouge ancré en barre basse dit déjà « Débloquer mon plan {objectif} »,
+/// et deux boutons au libellé identique sur le même écran se lisent comme un
+/// doublon. Ce libellé **existe déjà**, déclaré une fois de chaque côté
+/// (`PLAN_NOW_CTA_LOCKED` côté web) — aucune chaîne neuve n'est gelée.
+///
+/// 🛑 Le bouton est **bleu** (A46) : sur un Plan gratuit, le seul CTA rouge est
+/// celui de la barre basse.
+const String kPlanNowLockedCta = 'Débloquer cet entraînement';
+
+/// Le titre de la carte quand la série est terminée. 🛑 Il nomme **l'action**,
+/// pas la compétence : c'est ce qui fait voir au premier coup d'œil que la carte
+/// a changé de nature alors que le nom de la compétence, lui, n'a pas bougé.
+/// Miroir mot pour mot du web (`PLAN_NOW_VERIFY_TITLE`).
+const String kPlanNowVerifyTitle = 'Valider cette compétence';
+const String kPlanNowVerifyText =
+    'Mettez maintenant cette compétence en pratique dans une réponse complète.';
+const String kPlanNowVerifyObjectiveLabel = 'Vérification en situation';
+
+const String kPlanNowStartCta = 'Commencer';
+const String kPlanNowContinueCta = 'Continuer';
+const String kPlanNowDiscoverCta = 'Découvrir';
+const String kPlanNowVerifyCta = 'Faire la vérification';
+
+/// 🛑 **Une MESURE passe devant tout le reste.** Le candidat a produit sur ce
+/// domaine et le correcteur n'a rien pu y observer : tant qu'on ne l'a pas
+/// mesuré, les exercices qui suivent travaillent à l'aveugle. Miroir mot pour
+/// mot du web (`PLAN_NOW_CTA_MEASURE`).
+const String kPlanNowMeasureCta = 'Compléter la mesure';
+
+/// Ce que lit le candidat quand l'action de son étape ne se résout pas.
+///
+/// 🛑 **Aucune promesse de délai** : les deux causes connues se referment à la
+/// prochaine évaluation, et c'est tout ce qu'on peut affirmer.
+///
+/// ⚠️ Miroir mot pour mot du web (`PLAN_NOW_UNAVAILABLE_TEXT`).
+/// **La carte d'action ne porte plus ni constat ni compteur** (demande du
+/// propriétaire, 2026-09-20).
+///
+/// ⚠️ **Révoque `planNowLines`**, qui posait deux lignes sous le bouton :
+/// « À renforcer : ce que le correcteur a observé » et « Progression : 0/5
+/// sujets réalisés ». Les deux racontent le **passé** sur une carte qui annonce
+/// l'**action à mener**, juste sous un bouton qui parle du présent.
+///
+/// 🛑 **Rien n'est perdu** : le constat vit sur la fiche de la compétence et sur
+/// le rapport de production, le compteur sur la fiche — chacun là où il se lit.
+/// Et la carte garde ses autres phrases, qui ne décrivent pas un passé : le
+/// motif d'une **mesure** et, sur une carte `INDISPONIBLE`, l'explication du
+/// garde-fou A25.
+const String kPlanNowUnavailableText =
+    "Cette étape n'a pas d'exercice disponible pour l'instant. Votre prochaine évaluation la remettra à jour.";
+
+/// Ce que dit le bouton de la carte d'action.
+///
+/// 🛑 **Rien n'est déduit d'un pourcentage** : la vérification se lit sur la
+/// nature **servie**, et « Commencer » / « Continuer » ne départagent qu'un
+/// compteur servi à zéro ou non — un nombre affiché, pas un état classé ici.
+///
+/// ⚠️ Miroir mot pour mot du web (`planNowCta`).
+String planNowCta(
+  LearningPlanPriority? priority, {
+  required bool verifier,
+  required bool mesure,
+}) {
+  // 🛑 **Une mesure se nomme sans aucune priorité.** Le parcours peut désigner
+  // un examen alors que le Plan n'a plus rien à prioriser — c'est même le cas
+  // quand tout a été travaillé —, et exiger une priorité ici faisait
+  // disparaître la carte.
+  if (mesure) return kPlanNowMeasureCta;
+  if (verifier) return kPlanNowVerifyCta;
+  if (priority == null) return kPlanNowStartCta;
+  if (priority.nature == PlanActionNature.aAcquerir) return kPlanNowDiscoverCta;
+  return priority.stepAttemptedCount > 0
+      ? kPlanNowContinueCta
+      : kPlanNowStartCta;
+}
+
+/// **L'identité d'une étape** : son épreuve et son repère — « Compréhension
+/// orale · Niveau B2 », « Expression écrite · Tâche 3 ».
+///
+/// 🛑 C'est le **titre** de la carte « À faire maintenant » depuis le
+/// 2026-09-18 : on dit d'abord où l'on travaille, l'intitulé de la compétence
+/// vient dessous. Sans repère servi, l'épreuve seule — jamais un « · »
+/// orphelin.
+///
+/// ⚠️ Miroir mot pour mot du web (`planNowIdentite`, `lib/plan-domain.ts`).
+String planNowIdentite({
+  required String domaine,
+  SkillTaskCode? task,
+  TargetLevel? level,
+}) {
+  if (task != null) return '$domaine · Tâche ${task.tacheNumero}';
+  return level == null ? domaine : '$domaine · Niveau ${level.wire}';
+}
+
+/// Le sous-titre de la carte de **vérification** : la compétence, et la tâche
+/// dont la série vient de se terminer.
+String planNowVerifySubtitle(String title, SkillTaskCode? task) =>
+    task == null ? title : '$title · Tâche ${task.tacheNumero} complète';
+
+const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
+
+
+
+/// Le titre d'une carte de priorité : son domaine, et sa tâche quand il y en a
+/// une.
+String planPriorityGroupTitle({
+  required EpreuveType? epreuve,
+  SkillTaskCode? task,
+  String? context,
+}) {
+  final domain = epreuve == null ? 'TCF' : planDomainLabel(epreuve);
+  if (task != null) return '$domain — Tâche ${task.tacheNumero}';
+  return context == null ? domain : '$domain — $context';
+}
+
+String planPriorityRankTag(int rank) => 'Priorité $rank';
+
+/* ----------------------------------------------- le plan d'un compte libre  */
+
+/* 🛑 **La carte bleue « Passez du diagnostic à la progression », son texte, ses
+   trois puces et le rappel sous le bouton sont SUPPRIMÉS** (demande du
+   propriétaire, 2026-09-20). La promesse vit sur l'écran de transition
+   (`plan_unlock_labels.dart`), qui la dit une fois et porte le prix servi. Ne
+   pas les réintroduire ici : elle y serait dite deux fois de suite. */
+
+/* ---------------------------------------------- les accès secondaires ----- */
+
+const String kPlanDiagnosticTitle = 'Mon diagnostic';
+const String kPlanDiagnosticSub = 'Résultat de départ et priorités initiales';
+
+const String kPlanErrorTitle = 'Votre plan n\'a pas pu être chargé';
+const String kPlanErrorRetry = 'Réessayer';
+

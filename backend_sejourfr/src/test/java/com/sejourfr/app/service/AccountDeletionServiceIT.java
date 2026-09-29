@@ -1,0 +1,265 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.dto.AccountDeletionResponse;
+import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.SubscriptionSource;
+import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.support.AbstractIntegrationTest;
+import com.sejourfr.app.support.TestData;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.persistence.EntityManager;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * IT « service + DB » : la suppression de compte (RGPD) anonymise réellement la
+ * ligne {@code users} en base et purge les données de pratique. Mocker n'aurait
+ * pas de valeur ici — on veut vérifier l'effet persistant ({@link User#anonymize()})
+ * et l'idempotence.
+ */
+class AccountDeletionServiceIT extends AbstractIntegrationTest {
+
+    @Autowired
+    private AccountDeletionService service;
+    @Autowired
+    private TestData data;
+    @Autowired
+    private UserManager userManager;
+    @Autowired
+    private AttemptManager attemptManager;
+    @Autowired
+    private UserSubscriptionManager userSubscriptionManager;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    void deleteAccount_anonymizesUser_andPurgesPractice() {
+        User user = data.user();
+        UUID id = user.getId();
+        data.attempt(user);
+        assertThat(attemptManager.countByUserId(id)).isPositive();
+
+        AccountDeletionResponse resp = service.deleteAccount(id);
+
+        assertThat(resp.deleted()).isTrue();
+        assertThat(resp.hasActiveSubscription()).isFalse();
+        assertThat(resp.subscriptionProvider()).isNull();
+        assertThat(resp.manualActionMessage()).isNull();
+
+        User reloaded = userManager.findById(id).orElseThrow();
+        assertThat(reloaded.getEmail())
+                .isEqualTo("deleted-" + id + "@anon.sejourfr");
+        assertThat(reloaded.getPasswordHash()).isEqualTo("DELETED");
+        assertThat(reloaded.getFirstName()).isNull();
+        assertThat(reloaded.getLastName()).isNull();
+        assertThat(reloaded.isActive()).isFalse();
+        assertThat(reloaded.getDeletedAt()).isNotNull();
+        assertThat(attemptManager.countByUserId(id)).isZero();
+    }
+
+    /**
+     * Arbitrage n°16 : le journal d'envoi porte l'ADRESSE REELLE. Il part avec le
+     * compte — y compris l'accuse de contact envoye a cette adresse sans compte
+     * rattache — ainsi que les preferences email. Les lignes d'autrui restent.
+     */
+    @Test
+    void deleteAccount_purgesEmailJournalAndPreferences() {
+        User user = data.user();
+        User autre = data.user();
+        entityManager.flush();
+        String insert = "INSERT INTO email_deliveries (id, user_id, email_type, category, recipient, status, "
+                + "provider, created_at) VALUES (?, ?, ?, ?, ?, 'SENT', 'SPRING_MAIL', now())";
+        jdbc.update(insert, UUID.randomUUID(), user.getId(), "WELCOME", "REQUIRED", user.getEmail());
+        jdbc.update(insert, UUID.randomUUID(), null, "CONTACT_RECEIVED", "REQUIRED", user.getEmail().toUpperCase());
+        jdbc.update(insert, UUID.randomUUID(), autre.getId(), "WELCOME", "REQUIRED", autre.getEmail());
+        jdbc.update("INSERT INTO user_email_preferences (user_id, engagement_enabled) VALUES (?, FALSE)", user.getId());
+
+        service.deleteAccount(user.getId());
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM email_deliveries WHERE user_id = ? "
+                + "OR lower(recipient) = lower(?)", Long.class, user.getId(), user.getEmail())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_email_preferences WHERE user_id = ?",
+                Long.class, user.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM email_deliveries WHERE user_id = ?",
+                Long.class, autre.getId())).isEqualTo(1);
+    }
+
+    @Test
+    void deleteAccount_isIdempotent() {
+        User user = data.user();
+        UUID id = user.getId();
+
+        service.deleteAccount(id);
+        String anonEmail = userManager.findById(id).orElseThrow().getEmail();
+
+        AccountDeletionResponse second = service.deleteAccount(id);
+
+        assertThat(second.deleted()).isTrue();
+        assertThat(second.hasActiveSubscription()).isFalse();
+        assertThat(second.subscriptionProvider()).isNull();
+        // L'email anonymisé n'est pas ré-écrasé au second passage.
+        assertThat(userManager.findById(id).orElseThrow().getEmail()).isEqualTo(anonEmail);
+    }
+
+    @Test
+    void deleteAccount_purgeSessionsAttemptsEtObservationsDiagnosticAvantAnonymisation() {
+        User user = data.user();
+        UUID id = user.getId();
+        var writtenAttempt = data.attempt(user);
+        var oralAttempt = data.attempt(user);
+        entityManager.flush();
+        jdbc.update("""
+                INSERT INTO diagnostic_sessions
+                    (id, user_id, diagnostic_code, diagnostic_version,
+                     written_task_id, oral_task_id, written_attempt_id, oral_attempt_id,
+                     status, retry_count, started_at, updated_at)
+                VALUES (?, ?, 'INITIAL_TCF', 1, ?, ?, ?, ?, 'IN_PROGRESS', 0, now(), now())
+                """, UUID.randomUUID(), id,
+                UUID.fromString("d1a60000-0000-5000-8000-000000000001"),
+                UUID.fromString("d1a60000-0000-5000-8000-000000000002"),
+                writtenAttempt.getId(), oralAttempt.getId());
+        jdbc.update("""
+                INSERT INTO learning_plan_observations
+                    (id, user_id, skill_id, source_type, source_id, observed, status,
+                     evidence, explanation, confidence, baseline, observed_at, created_at)
+                SELECT ?, ?, s.id, 'DIAGNOSTIC_EE', ?, true, 'PRIORITY',
+                       'preuve', 'explication', 'HIGH', true, now(), now()
+                FROM skills s WHERE s.code = 'EE1-C1'
+                """, UUID.randomUUID(), id, UUID.randomUUID());
+
+        assertThat(count("diagnostic_sessions", id)).isEqualTo(1);
+        assertThat(count("attempts", id)).isEqualTo(2);
+        assertThat(count("learning_plan_observations", id)).isEqualTo(1);
+
+        service.deleteAccount(id);
+
+        assertThat(count("diagnostic_sessions", id)).isZero();
+        assertThat(count("attempts", id)).isZero();
+        assertThat(count("learning_plan_observations", id)).isZero();
+        assertThat(userManager.findById(id).orElseThrow().getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void deleteAccount_appleSubscription_returnsManualMessage_andAnonymizes() {
+        User user = data.user();
+        UUID id = user.getId();
+        Plan plan = data.plan();
+
+        UserSubscription sub = new UserSubscription();
+        sub.setUser(user);
+        sub.setPlan(plan);
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setStartsAt(Instant.now());
+        sub.setEndsAt(Instant.now().plus(30, ChronoUnit.DAYS));
+        sub.setSource(SubscriptionSource.APPLE);
+        sub.setOriginalTransactionId("apple-" + UUID.randomUUID());
+        sub.setProductId(plan.getCode());
+        sub.setAutoRenew(true);
+        userSubscriptionManager.save(sub);
+
+        AccountDeletionResponse resp = service.deleteAccount(id);
+
+        assertThat(resp.deleted()).isTrue();
+        assertThat(resp.hasActiveSubscription()).isTrue();
+        assertThat(resp.subscriptionProvider()).isEqualTo("APPLE");
+        assertThat(resp.manualActionMessage()).contains("App Store");
+        assertThat(userManager.findById(id).orElseThrow().getDeletedAt()).isNotNull();
+    }
+
+    /**
+     * 🛑 La suppression de compte est une ANONYMISATION : la ligne {@code users}
+     * survit, donc ni la cascade base ni le {@code ON DELETE SET NULL} ne se
+     * declenchent d'eux-memes. Le detachement doit etre explicite, comme la
+     * purge de {@code user_funnel_events}.
+     *
+     * <p>Ce qu'on coupe, c'est le LIEN, pas la mesure : les evenements restent,
+     * anonymes. Ce sont des gestes, ils ne nomment plus personne, et les effacer
+     * fausserait retroactivement des totaux qui n'ont rien de personnel.
+     */
+    @Test
+    void lAnonymisationCoupeLeLienAnalyticsSansDetruireLaMesure() {
+        User user = data.user();
+        UUID id = user.getId();
+        UUID anonymousId = UUID.randomUUID();
+        // Les inserts bruts qui suivent portent une clé étrangère vers `users` :
+        // sans ce flush, la ligne JPA n'est pas encore en base (`save` ne flushe
+        // pas — piège documenté dans docs/plan-tests-backend.md).
+        entityManager.flush();
+
+        jdbc.update("""
+                INSERT INTO analytics_visitor (anonymous_id, first_seen_at, last_seen_at,
+                    ft_source, lt_source, lt_seen_at, device_type, platform)
+                VALUES (?, now(), now(), 'tiktok', 'tiktok', now(), 'MOBILE_WEB', 'WEB')
+                """, anonymousId);
+        jdbc.update("""
+                INSERT INTO analytics_identity (anonymous_id, user_id, linked_at)
+                VALUES (?, ?, now())
+                """, anonymousId, id);
+        jdbc.update("""
+                INSERT INTO analytics_event (id, event, occurred_at, anonymous_id, session_id,
+                    user_id, path, properties)
+                VALUES (?, 'LANDING_VIEWED', now(), ?, ?, ?, '/reussir', '{}'::jsonb)
+                """, UUID.randomUUID(), anonymousId, UUID.randomUUID(), id);
+
+        service.deleteAccount(id);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(count("analytics_identity", id)).isZero();
+        assertThat(count("analytics_event", id)).isZero();
+        // L'événement lui-même survit : il est redevenu anonyme.
+        Integer restants = jdbc.queryForObject(
+                "SELECT count(*) FROM analytics_event WHERE anonymous_id = ?",
+                Integer.class, anonymousId);
+        assertThat(restants).isEqualTo(1);
+    }
+
+    /** Controle N9 : les runs du compte oublient leur identifiant de mesure et leur cle, pas leurs faits. */
+    @Test
+    void laSuppressionFaitOublierAuxRunsLeurIdentifiantDeMesure() {
+        User user = data.user();
+        User autre = data.user();
+        entityManager.flush();
+        UUID run = UUID.randomUUID();
+        UUID runDUnAutre = UUID.randomUUID();
+        UUID anon = UUID.randomUUID();
+        for (Object[] r : new Object[][]{{run, user.getId()}, {runDUnAutre, autre.getId()}}) {
+            jdbc.update("""
+                    INSERT INTO diagnostic_run (id, diagnostic_type, anonymous_id, user_id, client_key,
+                                                subject_viewed_at, submitted_at, submitted_authenticated, updated_at)
+                    VALUES (?, 'QUICK_TCF', ?, ?, ?, now(), now(), true, now())""",
+                    r[0], anon, r[1], UUID.randomUUID());
+        }
+
+        service.deleteAccount(user.getId());
+        entityManager.flush();
+
+        var row = jdbc.queryForMap("SELECT * FROM diagnostic_run WHERE id = ?", run);
+        assertThat(row.get("anonymous_id")).isNull();
+        assertThat(row.get("client_key")).isNull();
+        assertThat(row.get("submitted_at")).isNotNull();
+        assertThat(row.get("user_id")).isEqualTo(user.getId());
+        var autreRow = jdbc.queryForMap("SELECT * FROM diagnostic_run WHERE id = ?", runDUnAutre);
+        assertThat(autreRow.get("anonymous_id")).isEqualTo(anon);
+        assertThat(autreRow.get("client_key")).isNotNull();
+    }
+
+    private int count(String table, UUID userId) {
+        Integer value = jdbc.queryForObject(
+                "SELECT count(*) FROM " + table + " WHERE user_id = ?", Integer.class, userId);
+        return value == null ? 0 : value;
+    }
+}

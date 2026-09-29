@@ -1,0 +1,51 @@
+/* L'anneau de maîtrise d'une catégorie (`ProgressDonut`), lu par
+   `DetailParts`.
+
+   ⚠️ Cette feuille portait tout le hub module — en-tête, bande de stats, carte
+   catégorie, chips, badges, CTAs. Les hubs `/entrainement` ont été refaits sur
+   la maquette (`ReviserScreen`, 2026-09-12) : ces règles n'ont plus de markup,
+   elles sont supprimées. */
+
+/* ===== donut ===== */
+
+.donut {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.donutSvg {
+  transform: rotate(-90deg);
+}
+
+.donutTrack {
+  stroke: var(--color-line-2);
+}
+
+.donutFillBlue {
+  stroke: var(--color-blue);
+}
+
+.donutFillGreen {
+  stroke: var(--color-green);
+}
+
+.donutFillAmber {
+  stroke: var(--color-amber);
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.donutValue {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 13.5px;
+  line-height: 1;
+  color: var(--color-ink);
+}

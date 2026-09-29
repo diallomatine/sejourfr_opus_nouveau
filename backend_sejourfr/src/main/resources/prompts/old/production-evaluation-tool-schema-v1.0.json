@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "required": ["note_globale", "niveau_cecrl", "scores_criteres", "points_forts", "points_a_ameliorer"],
+  "properties": {
+    "note_globale": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 20,
+      "description": "Note globale sur 20, ponderation des criteres."
+    },
+    "niveau_cecrl": {
+      "type": "string",
+      "enum": ["A1_NON_ATTEINT", "A1", "A2", "B1", "B2", "C1", "C2"],
+      "description": "Niveau CECRL atteint par la production."
+    },
+    "scores_criteres": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["code", "note_sur_20", "commentaire"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Code du critere (cf. grille passee dans le prompt)."
+          },
+          "note_sur_20": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "commentaire": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "points_forts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Vrais points forts identifies (pas de compliment de courtoisie)."
+    },
+    "points_a_ameliorer": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Faiblesses concretes a corriger pour progresser."
+    },
+    "suggestions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recommandations pedagogiques (regles a reviser, exercices)."
+    },
+    "exemples_corriges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["original", "corrige", "explication"],
+        "properties": {
+          "original": { "type": "string" },
+          "corrige": { "type": "string" },
+          "explication": { "type": "string" }
+        }
+      },
+      "description": "Citations exactes de la production avec leur correction et l'explication."
+    }
+  }
+}

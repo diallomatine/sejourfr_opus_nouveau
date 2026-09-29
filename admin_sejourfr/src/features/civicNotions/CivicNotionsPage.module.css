@@ -1,0 +1,712 @@
+/* Tokens de `styles/global.css` uniquement — aucune couleur ni police en dur.
+   ⚠️ Ce module référençait `--color-line` / `--color-blue` / `--color-muted` /
+   `--color-amber`, qui n'existent nulle part : toutes ces déclarations étaient
+   silencieusement sans effet. Les vrais tokens sont `--rule`, `--blue`,
+   `--muted`, `--amber`. */
+
+.themes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.theme,
+.themeActive {
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.themeActive {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+
+/* ---------------------------------------------------------------- raccourcis */
+
+.aideBouton {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.aide {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px 20px;
+  padding: 14px 20px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  font-size: 12.5px;
+}
+
+.aideLigne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.aideNote {
+  grid-column: 1 / -1;
+  font-size: 11.5px;
+  color: var(--muted-2);
+}
+
+.touche {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: var(--surface);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.erreur {
+  padding: 10px 20px;
+  background: var(--red-soft);
+  color: var(--red-dark);
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ------------------------------------------------------------------ fenêtre */
+
+.fenetre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--rule-2);
+  background: var(--paper-2);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fenetreEtat {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.fenetreNote {
+  flex: 1 1 240px;
+  color: var(--muted-2);
+}
+
+.fenetreBouton,
+.fenetreBoutonFort {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fenetreBoutonFort {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--blue-ink);
+}
+
+.fenetreActions {
+  display: flex;
+  justify-content: center;
+  padding: 0 20px 20px;
+}
+
+/* ------------------------------------------------------- carte de relecture */
+
+.file {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px 20px;
+}
+
+.carte {
+  border: 1px solid var(--rule-2);
+  border-left: 3px solid var(--rule-2);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* La carte sous les raccourcis clavier : elle doit être repérable sans lire. */
+.carteActive {
+  border-color: var(--blue);
+  border-left-color: var(--blue);
+  box-shadow: var(--shadow-md);
+}
+
+.carteHaut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rang,
+.mention,
+.themeCell {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.mention {
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
+
+.notionPosee {
+  font-size: 11.5px;
+  color: var(--green);
+}
+
+/* ⚠️ Ce badge est la mémoire du relecteur : sans lui, il refait l'arbitrage
+   qu'il a déjà rendu la veille. */
+.verdict {
+  font-size: 11px;
+  border: 1px solid var(--amber);
+  background: var(--amber-soft);
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 1px 7px;
+}
+
+.enonce {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------ propositions */
+
+.choix {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.choixItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+  background: var(--paper);
+}
+
+/* 🛑 Jamais distinguée par la seule couleur : glyphe ✓, graisse, et le
+   libellé « bonne réponse » écrit en toutes lettres. */
+.choixCorrect {
+  background: var(--green-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.choixMarque {
+  width: 12px;
+  text-align: center;
+  color: var(--muted-2);
+}
+
+.choixCorrect .choixMarque {
+  color: var(--green);
+}
+
+.choixLettre {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  width: 12px;
+}
+
+.choixLabel {
+  flex: 1;
+}
+
+.choixTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------- explication, suggestion */
+
+.blocTitre {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.explication {
+  border-left: 2px solid var(--rule);
+  padding-left: 10px;
+}
+
+.explicationTexte {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.suggestionBloc {
+  border: 1px solid var(--rule-2);
+  border-radius: 8px;
+  background: var(--paper);
+  padding: 10px 12px;
+}
+
+.suggestion {
+  margin-top: 5px;
+}
+
+.suggestionTete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.suggestionNotion {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.suggestionCode {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-2);
+}
+
+/* ⚠️ « Le modèle a conclu qu'AUCUNE notion ne convient » est un VERDICT, et
+   c'est ce qui révèle les trous du référentiel : il se voit. Ambre plein +
+   anatomie identique à une suggestion normale (titre, jauge, rationale), pour
+   que le relecteur n'ait pas à réapprendre à lire la carte. */
+.suggestionAucune {
+  border: 1px solid var(--amber);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--amber-soft);
+  padding: 8px 10px;
+}
+
+.aucuneNotionTitre {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.aucuneMarque {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--amber);
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.aucuneNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ⚠️ L'ABSENCE de verdict — le pré-tagging n'a rien dit. Traits pointillés,
+   aucun aplat : rien ne s'est passé, il n'y a rien à confirmer. C'est ce qui la
+   distingue au premier coup d'œil du bloc ambre ci-dessus. */
+.sansSuggestion {
+  margin-top: 5px;
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+}
+
+.sansSuggestionTitre {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.sansSuggestionTexte {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* La confiance pilote l'attention : jauge + chiffre + mot, les trois. */
+.jaugeLigne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.jaugePiste {
+  flex: 0 1 140px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.jaugeBarre {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.jaugeForte {
+  background: var(--green);
+}
+
+.jaugeMoyenne {
+  background: var(--amber);
+}
+
+.jaugeFaible {
+  background: var(--red);
+}
+
+.jaugeTexte {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.rationale {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.alternative {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule);
+}
+
+.alternativeTitre {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.alternativeNote {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.alternativeBouton {
+  margin-top: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------------ actions */
+
+ /* 🛑 En COLONNE, les boutons d'abord. Le `<select>` des notions occupait
+    l'avant-scène de chaque carte, plus large que tout le reste : l'écran
+    disait « choisis une notion » là où le pré-tagging demande « confirme ou
+    corrige ». La liste vit maintenant SOUS les boutons, et seulement quand on
+    l'ouvre. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  border-top: 1px solid var(--rule-2);
+  padding-top: 12px;
+}
+
+.correction {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.annulerCorrection {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 240px;
+}
+
+.champTitre {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.select {
+  width: 100%;
+  max-width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.boutons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+ /* « Corriger » est une action secondaire mais ATTENDUE : même taille que
+    « Valider », contour seul. Un lien discret la ferait manquer, et le
+    relecteur retomberait à chercher une liste. */
+.corriger {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--surface);
+}
+
+.valider,
+.corriger,
+.rejeter,
+.passer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.valider {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--blue-ink);
+}
+
+.valider:disabled {
+  border-color: var(--rule);
+  background: var(--surface-3);
+  color: var(--muted-2);
+  cursor: not-allowed;
+}
+
+.valider kbd {
+  border-color: var(--blue-dark);
+  background: var(--blue-dark);
+  color: var(--blue-ink);
+}
+
+.valider:disabled kbd {
+  border-color: var(--rule);
+  background: var(--surface);
+  color: var(--muted-2);
+}
+
+/* ⚠️ Confirmer un trou du référentiel n'est PAS le clic habituel : même place,
+   mais un autre libellé et une autre couleur, pour que la main ne le fasse pas
+   par réflexe. Ambre, comme partout ailleurs dans l'admin pour « regarde ça ».
+   Placé APRÈS `.valider kbd` : même spécificité, c'est l'ordre qui tranche. */
+.validerTrou {
+  border-color: var(--amber);
+  background: var(--amber);
+  color: var(--ink);
+}
+
+.validerTrou kbd {
+  border-color: var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.rejeter {
+  border-color: var(--red);
+  color: var(--red-dark);
+}
+
+/* ------------------------------------------------------------- couverture */
+
+/* Sous le seuil « pleinement utilisable » POUR CETTE MENTION : la notion reste
+   visible en révision, elle n'est simplement pas éligible comme priorité. Ce
+   n'est pas une erreur, d'où l'atténuation plutôt que l'alerte. */
+.attenue {
+  color: var(--muted);
+}
+
+/* Candidate à la fusion à la porte de revue. */
+.alerte {
+  color: var(--amber);
+}
+
+/* Une notion fusionnée reste lisible : c'est la trace de la décision. */
+.fusionnee {
+  opacity: 0.55;
+}
+
+.fusionNote {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 720px) {
+  .file {
+    padding: 12px 12px 16px;
+  }
+
+  .carte {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .enonce {
+    font-size: 14px;
+  }
+
+  .choixItem {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .choixTag {
+    width: 100%;
+    padding-left: 20px;
+  }
+
+  .actions {
+    align-items: stretch;
+  }
+
+  .boutons {
+    width: 100%;
+  }
+
+  .valider,
+  .rejeter,
+  .passer {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .jaugePiste {
+    flex: 1 1 auto;
+  }
+
+  /* Le clavier n'existe pas sur un écran de téléphone : les touches affichées
+     sur les boutons n'y sont que du bruit. */
+  .valider kbd,
+  .rejeter kbd,
+  .passer kbd,
+  .alternativeBouton kbd {
+    display: none;
+  }
+}
+
+/* Bascule « relire une campagne » ⇄ « toutes les questions ».
+   Les deux modes répondent à deux besoins qui ne se mélangent pas : relire ce
+   qu'une campagne a proposé, ou taguer à la main ce qui n'a jamais été touché. */
+.modeFile {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px 0;
+  flex-wrap: wrap;
+}
+
+.mode,
+.modeActif {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.mode:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.modeActif {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  color: var(--blue);
+}

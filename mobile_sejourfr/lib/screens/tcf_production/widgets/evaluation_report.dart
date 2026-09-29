@@ -1,0 +1,235 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/models/enums.dart';
+import '../../../core/models/production_models.dart';
+import 'action_plan.dart';
+import 'criteria_overview.dart';
+import 'evaluation_notice.dart';
+import 'production_action_plan.dart';
+import 'production_non_evaluable_card.dart';
+import 'production_text_card.dart';
+import 'results_hero.dart';
+import 'results_summary_tiles.dart';
+import 'results_section_head.dart';
+import 'target_level_reached_card.dart';
+
+/// Limite de l'evaluation orale, **mot pour mot** le seul avertissement que le
+/// serveur pose sur une production orale (`AiEvaluationService
+/// .AVERTISSEMENT_TRANSCRIPTION`, cf. `docs/notation-ia-eo-ee.md` §9). Le
+/// serveur le renvoie normalement dans `avertissements` ; ce texte est le REPLI
+/// quand la liste arrive vide sur une tache orale (evaluation anterieure) — le
+/// candidat doit savoir dans tous les cas que sa voix n'a pas ete ecoutee.
+///
+/// ⚠️ Il a remplace un pave de trois paragraphes (2026-08-17) : les deux autres
+/// avertissements annoncaient une purge, c'est-a-dire une mecanique interne dont
+/// le candidat n'a rien a faire. Le renvoi a l'examen officiel vit desormais
+/// dans la doc, pas sur une carte de resultat. Miroir web :
+/// `TRANSCRIPTION_LIMIT` de `ProductionFeedbackView.tsx`.
+const String kOralEvaluationLimitNotice =
+    'Nous analysons la transcription écrite de votre enregistrement, pas votre '
+    'voix — et la transcription peut se tromper. Dans ce cas, l\'erreur ne vous '
+    'est jamais comptée. La prononciation et l\'aisance ne sont donc pas '
+    'évaluées ici.';
+
+/// Corps commun des ecrans de resultats EE et EO : meme correction, meme ordre,
+/// un seul endroit a faire evoluer.
+///
+/// **Le contenu etait juste, sa restitution etait illisible** : le candidat
+/// traversait un bandeau « Évaluation terminée », une carte objectif, une carte
+/// note, deux blocs de puces et trois paragraphes d'explication avant le
+/// premier conseil. Personne ne lit ca. La refonte ne retire aucune
+/// information : elle **fusionne ce qui dit la meme chose** et **replie ce qui
+/// se consulte** au lieu de se lire.
+///
+/// Quatre sections, dans cet ordre :
+/// 1. **le verdict et le niveau** — un seul hero ([ProductionResultsHero]).
+///    Pas de note : sur une tache isolee, le /20 n'existe pas au TCF (cf. le
+///    widget) ;
+/// 2. **ce qui marche / a corriger en priorite** ([ResultsSummaryTiles]) : deux
+///    bandeaux pleine largeur, replies, qui ouvrent leur detail en dessous — la
+///    check-list de la consigne (points traites puis oublies) et les points
+///    forts d'un cote, la priorite complete (avec sa technique et sa
+///    reecriture) de l'autre ;
+/// 3. **le profil par critere** ([CriteriaOverview]), une carte par critere,
+///    depliable — il vivait dans le repli, donc personne ne le voyait ;
+/// 4. **la production** ([ProductionTextCard]), puis **le seul texte modele de
+///    l'ecran** ([ProductionActionPlan] : les leviers, une version plus aboutie
+///    — ou, a l'oral, des passages redits — et la tournure a retenir) ; ou,
+///    quand le palier vise est deja tenu, [TargetLevelReachedCard] qui
+///    l'annonce a sa place.
+///
+/// ⚠️ **« Voir l'analyse complète » n'existe plus (contrat v15/v9)** : le
+/// correcteur ne produit plus `exemples_corriges` ni `suggestions`, et ce repli
+/// ne restait ouvert par personne. Les deux champs restent **decodes** dans
+/// `production_models.dart` (une centaine d'evaluations en base les portent),
+/// aucun ecran candidat ne les lit. Ce qui vivait avec eux dans le repli :
+/// - **les avertissements**, ecrits par le SERVEUR (limite de l'oral, purges
+///   automatiques) : remontes en note discrete sous le hero
+///   ([EvaluationNotice]) — ils ne dependent d'aucun champ du LLM ;
+/// - **le detail de l'accomplissement** : le bandeau « Ce qui marche » de
+///   [ResultsSummaryTiles] montrait deja les points **traites** ; il montre
+///   desormais aussi les points **oublies**, faute de quoi le candidat lisait
+///   « 2/3 points traités » sans jamais savoir lequel manquait. Les pistes non
+///   abordees, qui ne coutent aucun point, ne sont plus rendues.
+///
+/// ⚠️ **`version_amelioree` n'est plus affichee nulle part (2026-08-08)** :
+/// elle reecrivait la production au niveau **deja constate**, en bascule juste
+/// sous la redaction — donc le texte le plus visible et le plus copiable de
+/// l'ecran etait celui qui ne fait pas progresser (mesure : recopie puis
+/// resoumis, meme note, meme niveau). Le champ reste servi par l'API et decode
+/// dans `production_models.dart`, aucun widget ne le lit.
+///
+/// ⚠️ **Cas a part, traite AVANT les quatre sections : la production NON
+/// EVALUABLE** (`ProductionEvaluabilite.nonEvaluable`). Rendue, mais rien a
+/// observer — vide ou quasi vide, langue non francaise, consigne recopiee. Le
+/// serveur n'y persiste plus ni note, ni niveau, ni `scores_criteres` : le
+/// rapport normal n'aurait donc qu'un bandeau « Niveau indisponible » et un bloc
+/// de criteres vide a montrer, sans jamais dire au candidat ce qui s'est passe.
+/// [ProductionNonEvaluableCard] remplace **tout le rapport**, suivie de la seule
+/// chose qui garde du sens : sa production. Sans reproche — une absence de
+/// preuve n'est pas la preuve d'un niveau.
+///
+/// 🛑 **Trois etats, pas deux** : `submission.evaluation == null` (« pas encore
+/// evaluee ») est gere par les ecrans appelants, pas ici.
+///
+/// Chaque bloc est optionnel : une evaluation ancienne n'expose ni objectif, ni
+/// niveau, ni accomplissement — les blocs concernes disparaissent et l'ecran
+/// reste coherent.
+class EvaluationReport extends StatelessWidget {
+  const EvaluationReport({
+    super.key,
+    required this.evaluation,
+    required this.isOral,
+    this.eyebrow,
+    this.productionText,
+    this.targetLevel,
+    this.actionPlanPending = false,
+  });
+
+  final EvaluationResult evaluation;
+
+  /// Tache orale : la limite de l'evaluation orale s'applique (cf.
+  /// [kOralEvaluationLimitNotice]) et aucun texte modele n'est attendu.
+  final bool isOral;
+
+  /// Situe la correction en tete du hero (« Expression écrite · Tâche 1 »).
+  final String? eyebrow;
+
+  /// Le texte rendu par le candidat. Fourni en expression ECRITE. A l'oral, la
+  /// transcription vit dans sa propre feuille (dialogue en bulles) : ce
+  /// parametre reste nul.
+  final String? productionText;
+
+  /// Palier vise par la demarche du candidat, pour le rappel d'enjeu du hero.
+  /// `null` = inconnu → aucun rappel n'est affiche.
+  final TargetLevel? targetLevel;
+
+  /// Le sursis accorde au second appel court encore : la place du plan d'action
+  /// porte [ActionPlanPending] plutot qu'un trou. Pose par l'ecran, seul a
+  /// savoir si quelque chose tourne encore (cf. [ProductionResultPollGuard]) ;
+  /// un rapport rouvert plus tard vaut toujours `false`.
+  final bool actionPlanPending;
+
+  /// Une tache orale porte toujours la limite de l'oral, meme si le correcteur
+  /// a rendu une liste vide.
+  List<String> get _avertissements {
+    final fromAi = evaluation.feedback.avertissements;
+    if (fromAi.isNotEmpty) return fromAi;
+    return isOral ? const [kOralEvaluationLimitNotice] : const [];
+  }
+
+  /// Pourquoi la production n'a pas pu etre observee. Le serveur les ecrit POUR
+  /// LE CANDIDAT (`confiance_raisons`) ; `avertissements` les reprend, precedes
+  /// des notes de service — d'ou l'ordre de lecture.
+  List<String> get _raisonsNonEvaluable {
+    final raisons = evaluation.feedback.confianceRaisons;
+    return raisons.isNotEmpty ? raisons : evaluation.feedback.avertissements;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final feedback = evaluation.feedback;
+    final priorites = feedback.pointsAAmeliorer;
+    final accomplissement = feedback.accomplissement;
+
+    final production = productionText;
+
+    // Rendue, mais RIEN a observer : ni note, ni niveau, ni critere — le
+    // serveur n'en persiste plus aucun, et le rapport normal n'aurait plus que
+    // des trous a montrer (un bandeau « Niveau indisponible » et un bloc de
+    // criteres vide, sans un mot d'explication). On dit le fait, on donne les
+    // raisons du serveur, et on rend sa production au candidat. Sans reproche :
+    // une absence de preuve n'est pas la preuve d'un niveau.
+    if (evaluation.estNonEvaluable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ProductionNonEvaluableCard(
+            eyebrow: eyebrow,
+            raisons: _raisonsNonEvaluable,
+          ),
+          if (production != null && production.isNotEmpty) ...[
+            const ResultsSectionHead(title: 'Votre rédaction'),
+            const SizedBox(height: 8),
+            ProductionTextCard(texte: production),
+          ],
+        ],
+      );
+    }
+    // Le plan d'action est servi a l'ecrit COMME a l'oral depuis le contrat
+    // v2 : ce qui change, c'est sa forme (version plus aboutie vs
+    // reformulations), et c'est le bloc lui-meme qui la porte — pas un `isOral`
+    // recopie ici.
+    final versionCiblee = feedback.versionCiblee;
+    // Exclusif du precedent, et servi par le SERVEUR : un front ne saurait pas
+    // distinguer « objectif atteint » d'un second appel LLM en echec.
+    final niveauViseAtteint =
+        versionCiblee != null ? null : feedback.niveauViseAtteint;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ProductionResultsHero(
+          evaluation: evaluation,
+          eyebrow: eyebrow,
+          targetLevel: targetLevel,
+        ),
+        // Ecrit par le SERVEUR, pas par le correcteur : la limite de l'oral et
+        // les purges automatiques se lisent juste sous le verdict, en note.
+        EvaluationNotice(avertissements: _avertissements),
+        ResultsSummaryTiles(
+          accomplissement: accomplissement,
+          priorites: priorites,
+          pointsForts: feedback.pointsForts,
+        ),
+        CriteriaOverview(criteres: feedback.scoresCriteres),
+        if (production != null && production.isNotEmpty) ...[
+          const ResultsSectionHead(title: 'Votre rédaction'),
+          const SizedBox(height: 8),
+          ProductionTextCard(
+            texte: production,
+            // La phrase visee par la priorite n° 1, surlignee dans le texte.
+            highlight: priorites.isEmpty ? null : priorites.first.exemple?.avant,
+          ),
+        ],
+        // Le plan d'action, juste sous la redaction : l'ordre de lecture est
+        // « ce que j'ai produit » → « ce qu'il faut viser, et a quoi ca
+        // ressemble ». Absent (eval anterieure, second appel en echec, oral
+        // degrade) ⇒ rien n'est rendu, et le rapport se termine sur la
+        // production : ni section vide, ni titre orphelin.
+        ProductionActionPlan(version: versionCiblee),
+        // Meme emplacement, cas exclusif : le palier vise est DEJA tenu. On
+        // l'annonce au lieu de laisser un trou — le candidat qui reussit avait
+        // un rapport plus vide que celui qui echoue.
+        TargetLevelReachedCard(atteint: niveauViseAtteint),
+        // Le second appel tourne encore : une ligne a la place du bloc, le
+        // temps du sursis. Elle s'efface en silence s'il ne vient rien, et ne
+        // bloque jamais la lecture du reste.
+        if (actionPlanPending &&
+            versionCiblee == null &&
+            niveauViseAtteint == null)
+          const ActionPlanPending(),
+      ],
+    );
+  }
+}

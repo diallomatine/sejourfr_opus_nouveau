@@ -1,0 +1,1280 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/models/enums.dart';
+import '../../core/models/production_models.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/query_propagation.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/audio_player.dart';
+import '../tcf_full_exam/full_exam_exit_labels.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
+import 'audio_recorder_service.dart';
+import 'eo_session_controller.dart';
+import 'production_exam_copy.dart';
+import 'realtime/realtime_eo_controller.dart';
+import 'realtime/realtime_launch.dart';
+import 'widgets/consigne_card.dart';
+import 'widgets/production_app_header.dart';
+import 'widgets/production_info_sheet.dart';
+import 'widgets/production_progress_strip.dart';
+import 'widgets/recording_waveform.dart';
+
+/// Écran unique EO « consigne → enregistrement → revue → envoi » : la consigne
+/// s'affiche **sans aucun décompte**, le tap sur « Je suis prêt » lance la
+/// capture **sur place**. À l'arrêt (manuel ou auto-stop à `dureeMaxSec`),
+/// l'écran passe en **revue** : réécoute du fichier LOCAL, « Recommencer »
+/// (nouvelle prise, décompte remis en entier) ou envoi par le bouton principal,
+/// qui dit l'envoi en cours. Examen : l'envoi enchaîne la tâche suivante (ou le
+/// bilan, derrière l'attente d'analyse) ; entraînement : il ouvre le résultat.
+///
+/// ⚠️ L'ancien écran « terminé » (`/t/:idx/termine`) est **supprimé** : la revue
+/// vit ici, pour l'examen comme pour l'entraînement.
+///
+/// 🛑 **L'épreuve orale n'a PAS de chrono d'épreuve** (le backend rend
+/// `timeLimitSeconds = null`, il valait 900 s). Calqué sur le vrai TCF, le temps
+/// se compte **par tâche** et ne part **qu'au moment où le candidat lance la
+/// tâche** : c'est `dureeMaxSec` (180 / 210 / 210 s) qui borne l'enregistrement,
+/// avec auto-stop à zéro puis passage à la tâche suivante. Vaut pour l'EO d'un
+/// examen blanc complet **comme** pour l'épreuve EO jouée seule.
+///
+/// L'auto-stop passe par le **flux d'état du service** d'enregistrement (`ref
+/// .listen` sur `recordingControllerProvider`), jamais par un `stop()` posé dans
+/// `start()` — c'est ce câblage qui évite une fuite du wake lock écran.
+class EoBriefingScreen extends ConsumerStatefulWidget {
+  const EoBriefingScreen({super.key, required this.taskIndex});
+
+  final int taskIndex;
+
+  @override
+  ConsumerState<EoBriefingScreen> createState() => _EoBriefingScreenState();
+}
+
+class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
+  bool _requestingPerm = false;
+  bool _navigated = false;
+
+  /// Enchaînement après une tâche rendue en TEMPS RÉEL (la soumission existe
+  /// déjà côté serveur) : loader plein écran le temps de la navigation.
+  bool _submittingExam = false;
+
+  /// Une prise a été lancée sur CET écran : sans elle, un état « terminé »
+  /// résiduel d'une tâche précédente afficherait une revue fantôme.
+  bool _hasTake = false;
+
+  /// Envoi de la prise en cours (revue) et son échec éventuel.
+  bool _sending = false;
+  String? _sendError;
+
+  /// Couvre la phase d'attente du choix de mode EO T1/T2 (quota + modal +
+  /// démarrage de la session temps réel) par un loader plein écran.
+  bool _negotiating = false;
+
+  /// Examen : timer déterministe possédé par l'écran qui force l'arrêt + la
+  /// soumission quand le temps imparti à la **tâche** est écoulé — indépendant
+  /// du ticker interne du `AudioRecorderService` et du `ref.listen` (constaté :
+  /// à la 3e tâche EO, l'auto-stop du service ne déclenchait pas la soumission).
+  /// Armé **au lancement de la tâche**, sur `dureeMaxSec`.
+  Timer? _examAutoStop;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Repart toujours d'un enregistreur au repos : évite qu'un état
+      // `finished`/`recording` résiduel d'une tâche précédente ne déclenche
+      // une navigation ou n'affiche l'UI d'enregistrement à l'ouverture.
+      ref.read(recordingControllerProvider.notifier).cancel();
+
+      // Contexte examen blanc complet : sous-attempt EO déjà créé par le
+      // backend, on le reprend au lieu d'en créer un nouveau.
+      final goState = GoRouterState.of(context);
+      final fullExamId = goState.uri.queryParameters['fullExamId'];
+      final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+      if (fullExamId != null && subAttemptId != null) {
+        ref
+            .read(eoSessionProvider.notifier)
+            .startInFullExam(subAttemptId: subAttemptId)
+            .then((_) => _reprendreALaTacheSuivante());
+      }
+      // Sinon : la session (examen module via `startExam`, ou sujet unique via
+      // `startSingle`) est déjà démarrée par l'écran appelant ; on la respecte.
+      // Aucun fallback `start()` ici — un deep-link nu sur cette route sans
+      // session active affiche l'erreur "session introuvable".
+      //
+      // Le choix du mode EO T1/T2 (temps réel vs seul) N'EST PLUS proposé ici à
+      // l'ouverture : il l'est sur « Commencer l'enregistrement » (_onStartPressed),
+      // une fois le sujet lu — pour tous les contextes (isolé, module, complet).
+    });
+  }
+
+  /// 🛑 **On ne repropose jamais une tâche déjà rendue.** L'oral se
+  /// chronomètre par tâche : arrêter une tâche la termine, et rouvrir
+  /// l'épreuve doit ouvrir la **suivante** (arbitrage du propriétaire,
+  /// 2026-09-13). Sans ce saut, on revenait sur la tâche 1 et le serveur la
+  /// refusait — une tâche ne se soumet qu'une fois par session.
+  ///
+  /// Toutes rendues : il n'y a plus rien à faire ici, on ressort.
+  void _reprendreALaTacheSuivante() {
+    if (!mounted || _navigated) return;
+    final session = ref.read(eoSessionProvider).value;
+    if (session == null || !session.isStarted) return;
+    if (!session.submissions.containsKey(widget.taskIndex)) return;
+
+    final suivante = List.generate(session.totalTasks, (i) => i)
+        .where((i) => !session.submissions.containsKey(i))
+        .firstOrNull;
+    _navigated = true;
+    if (suivante == null) {
+      context.go(_fallbackRouteFor(context));
+      return;
+    }
+    context.pushReplacement(
+      withCurrentQuery(context, '/tcf/expression-orale/t/$suivante'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _examAutoStop?.cancel();
+    super.dispose();
+  }
+
+  /// Demande la permission micro puis démarre la capture sur place.
+  Future<void> _startRecording() async {
+    final recorder = ref.read(recordingControllerProvider.notifier);
+    setState(() => _requestingPerm = true);
+    final status = await recorder.requestPermission();
+    if (!mounted) return;
+    setState(() => _requestingPerm = false);
+    if (!status.isGranted) {
+      // Refus -- 1re fois OU deja "permanently denied" : dans les deux cas on
+      // propose un detour par les Reglages systeme (sur iOS, request() ne
+      // re-pop jamais le dialog apres un premier refus).
+      _showPermissionDeniedSheet(context, status);
+      return;
+    }
+    final session = ref.read(eoSessionProvider).value;
+    final task = session?.taskAt(widget.taskIndex);
+    final maxSec = task?.dureeMaxSec ?? 180;
+    // Une nouvelle prise = une nouvelle production = une nouvelle clé.
+    ref.read(eoSessionProvider.notifier).beginTake(widget.taskIndex);
+    setState(() {
+      _hasTake = true;
+      _sendError = null;
+    });
+    await recorder.start(maxDuration: Duration(seconds: maxSec));
+    if (!mounted) return;
+    // Examen : filet déterministe. Le service auto-stoppe aussi via son ticker,
+    // mais on ne s'y fie pas — ce timer garantit l'arrêt « dès que le temps
+    // d'enregistrement finit ». L'arrêt ouvre la revue, il n'envoie rien.
+    _examAutoStop?.cancel();
+    if (session?.isExam ?? false) {
+      _examAutoStop = Timer(Duration(seconds: maxSec), () {
+        if (mounted) _forceExamStop();
+      });
+    }
+  }
+
+  Future<void> _stop() async {
+    _examAutoStop?.cancel();
+    // L'arrêt fait passer le service en `finished` → l'écran passe en revue.
+    await ref.read(recordingControllerProvider.notifier).stop();
+  }
+
+  /// Fin du temps imparti en examen : stoppe la capture si le service ne l'a
+  /// pas déjà fait. Bypasse le `ref.listen` (qui dépend du cycle de build) pour
+  /// être robuste. La revue s'ouvre ensuite, comme après un arrêt manuel.
+  Future<void> _forceExamStop() async {
+    if (_navigated || !mounted) return;
+    final rec = ref.read(recordingControllerProvider);
+    if (rec.phase == RecordingPhase.recording ||
+        rec.phase == RecordingPhase.paused) {
+      await ref.read(recordingControllerProvider.notifier).stop();
+    }
+  }
+
+  /// « Recommencer » : la prise locale est jetée (le service efface le
+  /// fichier), l'écran revient à la consigne et au « Je suis prêt ».
+  Future<void> _redo() async {
+    if (_sending) return;
+    _examAutoStop?.cancel();
+    await ref.read(recordingControllerProvider.notifier).cancel();
+    if (!mounted) return;
+    setState(() {
+      _hasTake = false;
+      _sendError = null;
+    });
+  }
+
+  /// Tap sur « Commencer l'enregistrement ». Pour une tâche EO T1/T2 (examen
+  /// module, examen complet OU entraînement isolé), on propose D'ABORD le mode
+  /// (examinateur temps réel vs enregistrement seul) — MAINTENANT que le sujet a
+  /// été lu sur ce briefing. T3 (ou négociation → classique) : capture directe.
+  Future<void> _onStartPressed() async {
+    if (_negotiating || _requestingPerm) return;
+    final session = ref.read(eoSessionProvider).value;
+    final task = session?.taskAt(widget.taskIndex);
+    final t = task?.tacheNumero;
+    if (session != null && task != null && (t == 1 || t == 2)) {
+      final handled = await _negotiateRealtime(session, task);
+      if (handled) return;
+    }
+    await _startRecording();
+  }
+
+  /// Négocie le mode (modal §2.3) sur l'attempt déjà provisionné de la session
+  /// (`startSingle` / `startExam` / `startInFullExam`). Retourne `true` si le
+  /// flux est pris en charge (temps réel lancé, ou modal annulé → on reste sur le
+  /// briefing), `false` pour retomber sur l'enregistrement classique.
+  Future<bool> _negotiateRealtime(
+      EoSessionState session, ProductionTaskDto task) async {
+    final attemptId = session.attempt?.id;
+    if (attemptId == null) return false;
+    setState(() => _negotiating = true);
+    final negotiation = await negotiateRealtimeSession(
+      context,
+      ref,
+      productionTaskId: task.id,
+      resolveAttemptId: () async => attemptId,
+    );
+    if (!mounted) return true;
+    switch (negotiation.decision) {
+      case RealtimeDecision.cancelled:
+        setState(() => _negotiating = false);
+        return true; // modal fermé sans choix → on reste sur le briefing
+      case RealtimeDecision.classic:
+        setState(() => _negotiating = false);
+        // Le candidat avait demandé l'examinateur et on n'a pas pu le lui
+        // donner : on le DIT avant de l'envoyer sur l'enregistreur seul. Sans
+        // ce message, son choix disparaissait sans trace — c'est exactement ce
+        // qui a laissé quatre jours de temps réel mort passer inaperçus.
+        final refus = negotiation.refusalMessage;
+        if (refus != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(refus),
+              backgroundColor: AppColors.ink,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return false; // → enregistrement classique (fall-through)
+      case RealtimeDecision.realtime:
+        final args = RealtimeRunnerArgs(
+          descriptor: negotiation.descriptor!,
+          task: task,
+          attemptId: attemptId,
+          // Examen : l'échange rend la main (pop true) pour enchaîner la tâche.
+          popOnDone: session.isExam,
+        );
+        if (session.isExam) {
+          final done = await context.push<bool>(
+            '/tcf/expression-orale/realtime',
+            extra: args,
+          );
+          if (!mounted) return true;
+          if (done == true) {
+            _navigated = true;
+            setState(() => _submittingExam = true);
+            await _advanceExamFlow();
+          } else {
+            // Temps réel abandonné → retour au briefing (classique possible).
+            setState(() => _negotiating = false);
+          }
+        } else {
+          // Entraînement isolé : on remplace le briefing par l'échange ; le
+          // realtime screen navigue lui-même vers le résultat (popOnDone=false).
+          context.pushReplacement(
+            '/tcf/expression-orale/realtime',
+            extra: args,
+          );
+        }
+        return true;
+    }
+  }
+
+  /// Envoi de la prise en revue. Le bouton dit l'envoi en cours ; un échec
+  /// garde l'enregistrement sur l'appareil et propose « Réessayer » (même
+  /// prise, donc même clé). Avant de conclure à l'échec, on relit la session :
+  /// une réponse perdue en route n'empêche pas la tâche d'être rendue.
+  Future<void> _submitReview() async {
+    if (_sending || _navigated) return;
+    final rec = ref.read(recordingControllerProvider);
+    final path = rec.filePath;
+    if (path == null) return;
+    final notifier = ref.read(eoSessionProvider.notifier);
+    setState(() {
+      _sending = true;
+      _sendError = null;
+    });
+    ProductionSubmissionDto? submission;
+    try {
+      submission = await notifier.submitTask(
+        taskIndex: widget.taskIndex,
+        audioFile: File(path),
+        mimeType: rec.fileMime ?? 'audio/wav',
+      );
+    } catch (e) {
+      submission = await notifier.syncTaskIfRendered(widget.taskIndex);
+      if (submission == null) {
+        if (!mounted) return;
+        final apiMessage = ApiClient.toApiException(e).message;
+        setState(() {
+          _sending = false;
+          _sendError =
+              apiMessage.isEmpty ? kProductionExamSendError : apiMessage;
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    _navigated = true;
+    // Envoyée, la prise n'a plus rien à faire sur l'appareil : le fichier
+    // local est effacé une fois l'écran quitté (jamais avant, la revue le lit).
+    final recorder = ref.read(recordingControllerProvider.notifier);
+    final session = ref.read(eoSessionProvider).value;
+    if (session != null && session.isExam) {
+      await _advanceExamFlow();
+    } else {
+      context.pushReplacement(
+        withCurrentQuery(
+          context,
+          '/tcf/expression-orale/resultats/${submission.id}?taskIndex=${widget.taskIndex}',
+        ),
+      );
+    }
+    unawaited(recorder.cancel());
+  }
+
+  /// Enchaîne après qu'une tâche d'examen a été rendue — soit par soumission
+  /// audio, soit par clôture d'une session temps réel (la submission est alors
+  /// déjà créée côté backend). Passe à la tâche suivante, ou finalise après T3.
+  Future<void> _advanceExamFlow() async {
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+    final session = ref.read(eoSessionProvider).value;
+    final hasNext =
+        session != null && widget.taskIndex + 1 < session.totalTasks;
+    if (hasNext) {
+      context.pushReplacement(
+        withCurrentQuery(
+          context,
+          '/tcf/expression-orale/t/${widget.taskIndex + 1}',
+        ),
+      );
+      return;
+    }
+    // Dernière tâche EO.
+    if (fullExamId != null) {
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEo,
+      );
+      if (!mounted) return;
+      final id = session?.attempt?.id;
+      ref.read(eoSessionProvider.notifier).reset();
+      if (id != null) ref.invalidate(fullTcfExamProvider(fullExamId));
+      context.go('/tcf/examen-blanc/$fullExamId');
+      return;
+    }
+    final attemptId = session!.attempt!.id;
+    // Le bilan s'ouvre TOUT DE SUITE, derrière l'attente d'analyse : la
+    // clôture de l'attempt part en parallèle, le polling du bilan la lira.
+    unawaited(ref.read(eoSessionProvider.notifier).finishAttemptIfExam());
+    context.pushReplacement(
+      '/tcf/expression-orale/sessions/$attemptId?live=1',
+    );
+  }
+
+  String _fallbackRouteFor(BuildContext context) {
+    final params = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = params['fullExamId'];
+    if (fullExamId != null) return '/tcf/examen-blanc/$fullExamId';
+    return '/tcf/eo';
+  }
+
+  Future<bool> _confirmQuit(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quitter l\'enregistrement ?'),
+        content: const Text(
+          'Votre enregistrement en cours sera perdu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continuer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Quitter',
+              style: AppFonts.ui(weight: FontWeight.w700, color: AppColors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _quitRecording(BuildContext context) async {
+    if (!await _confirmQuit(context)) return;
+    _examAutoStop?.cancel();
+    await ref.read(recordingControllerProvider.notifier).cancel();
+    if (!context.mounted) return;
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(_fallbackRouteFor(context));
+    }
+  }
+
+  /// Sortie confirmée d'une session d'examen EO. En **examen blanc complet**,
+  /// une épreuve commencée ne se reprend jamais : quitter la **clôture**. En
+  /// session d'examen module, on finalise l'attempt comme avant.
+  Future<void> _quitExam(BuildContext context, String fallbackRoute) async {
+    final params = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = params['fullExamId'];
+    final isFullExam = fullExamId != null;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isFullExam ? kEpreuveExitTitle : 'Quitter l\'examen ?',
+        ),
+        content: Text(
+          isFullExam
+              ? epreuveExitMessage(EpreuveType.tcfEo, perteEnregistrement: true)
+              : 'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isFullExam ? kEpreuveExitCancel : 'Continuer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              isFullExam ? kEpreuveExitConfirm : 'Quitter',
+              style: AppFonts.ui(weight: FontWeight.w700, color: AppColors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    _examAutoStop?.cancel();
+    await ref.read(recordingControllerProvider.notifier).cancel();
+    // Examen blanc complet : **quitter CLÔTURE l'épreuve**, avec ce qui a été
+    // rendu (arbitrage propriétaire du 2026-08-15, qui revient sur le correctif
+    // de la veille). La règle produit est « une épreuve commencée ne se reprend
+    // jamais » : la laisser ouverte laissait croire à une reprise qui n'existe
+    // pas. Les épreuves **jamais ouvertes**, elles, ne sont toujours touchées
+    // par aucun geste de sortie — ni ici, ni depuis le hub.
+    if (isFullExam) {
+      // Quitter CLÔT l'épreuve : son niveau se fige sur ce qui a été rendu.
+      await cloreEpreuveDuComplet(
+        ref,
+        fullExamId: fullExamId,
+        epreuve: EpreuveType.tcfEo,
+      );
+    } else {
+      await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
+    }
+    ref.read(eoSessionProvider.notifier).reset();
+    if (!context.mounted) return;
+    if (fullExamId != null) {
+      ref.invalidate(fullTcfExamProvider(fullExamId));
+    }
+    context.go(fallbackRoute);
+  }
+
+  void _showPermissionDeniedSheet(
+      BuildContext context, PermissionStatus status) {
+    final canOpenSettings =
+        status.isPermanentlyDenied || status.isDenied || status.isRestricted;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Accès au microphone requis'),
+        content: Text(
+          status.isPermanentlyDenied
+              ? "Vous avez refuse l'acces au microphone. "
+                  'Activez-le dans les Reglages > Confidentialite > Microphone > SejourFR.'
+              : "SejourFR a besoin d'acceder au microphone pour vous entrainer "
+                  "a l'expression orale.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Plus tard'),
+          ),
+          if (canOpenSettings)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref
+                    .read(recordingControllerProvider.notifier)
+                    .openSystemSettings();
+              },
+              child: const Text('Ouvrir les Reglages'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionAsync = ref.watch(eoSessionProvider);
+    final rec = ref.watch(recordingControllerProvider);
+    final isRecording = rec.phase == RecordingPhase.recording ||
+        rec.phase == RecordingPhase.paused;
+    // Revue : la prise de CET écran est terminée et son fichier est encore là.
+    final isReviewing = _hasTake && rec.isFinished;
+
+    // Capture terminée (stop manuel ou auto-stop à maxDuration) : le filet de
+    // l'examen n'a plus d'objet, l'écran passe en revue de lui-même.
+    ref.listen(recordingControllerProvider, (prev, next) {
+      if (next.phase == RecordingPhase.finished &&
+          prev?.phase != RecordingPhase.finished) {
+        _examAutoStop?.cancel();
+      }
+    });
+
+    final isExam = sessionAsync.value?.isExam ?? false;
+    final fallbackRoute = _fallbackRouteFor(context);
+
+    return PopScope(
+      // En examen, le retour confirme la sortie de l'épreuve — qui la
+      // **clôture**, examen complet compris. Hors examen, il confirme l'abandon
+      // de l'enregistrement en cours ou en revue.
+      canPop: !isRecording && !isReviewing && !isExam,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (isExam) {
+          await _quitExam(context, fallbackRoute);
+        } else {
+          await _quitRecording(context);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        appBar: ProductionAppHeader(
+          title: 'Expression orale',
+          fallbackRoute: fallbackRoute,
+          // Pendant la capture (ou en examen), la flèche retour passe par une
+          // confirmation d'abandon (sinon un pop direct perdrait l'examen /
+          // l'enregistrement).
+          onBack: isExam
+              ? () => _quitExam(context, fallbackRoute)
+              : (isRecording || isReviewing
+                  ? () => _quitRecording(context)
+                  : null),
+          rightAction: ProductionAppHeaderInfo(
+            onPressed: () =>
+                showProductionInfoSheet(context, EpreuveType.tcfEo),
+          ),
+        ),
+        body: sessionAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErrorBox(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () {
+              final goState = GoRouterState.of(context);
+              final fullExamId = goState.uri.queryParameters['fullExamId'];
+              final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+              if (fullExamId != null && subAttemptId != null) {
+                ref
+                    .read(eoSessionProvider.notifier)
+                    .startInFullExam(subAttemptId: subAttemptId);
+              }
+            },
+          ),
+          data: (session) {
+            final task = session.taskAt(widget.taskIndex);
+            if (!session.isStarted || task == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            /* 🛑 « En conditions d'examen ? » est SERVI, jamais recalculé ici —
+               la règle vit dans `ProductionExamConditions` côté serveur, et le
+               miroir web lit le même champ. Absent ⇒ oui : on n'ouvre jamais
+               par défaut. */
+            // Loader plein écran pendant l'enchaînement après le TEMPS RÉEL OU
+            // la négociation (quota + modal + démarrage de session). L'envoi
+            // d'une prise enregistrée, lui, se dit dans la revue.
+            if (_submittingExam || _negotiating) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.blue),
+              );
+            }
+            return SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  // 🛑 Aucun décompte d'épreuve ici, ni sur la consigne : le
+                  // temps de l'oral se compte **par tâche** et ne part qu'au
+                  // « Je suis prêt ». Le seul chrono visible est celui de la
+                  // capture en cours (`_TimerBig`), sur `dureeMaxSec`.
+                  ProductionProgressStrip(
+                    current: widget.taskIndex + 1,
+                    total: session.totalTasks,
+                    subtitle:
+                        session.totalTasks <= 1 ? null : task.displayTitle,
+                  ),
+                  if (isRecording)
+                    Expanded(
+                        child: _RecordingView(
+                            task: task,
+                            rec: rec,
+                            onStop: _stop,
+                            isExam: session.isExam))
+                  else if (isReviewing)
+                    Expanded(
+                      child: _ReviewView(
+                        task: task,
+                        rec: rec,
+                        isExam: session.isExam,
+                        sendError: _sendError,
+                      ),
+                    )
+                  else
+                    Expanded(child: _IdleView(task: task)),
+                  if (isReviewing)
+                    _ReviewActions(
+                      primaryLabel: session.isExam
+                          ? productionExamNextLabel(
+                              isLast: widget.taskIndex + 1 >= session.totalTasks,
+                              inFullExam: GoRouterState.of(context)
+                                      .uri
+                                      .queryParameters['fullExamId'] !=
+                                  null,
+                            )
+                          : kEoTrainingSubmitLabel,
+                      redoLabel: session.isExam
+                          ? kProductionExamRedo
+                          : kEoTrainingRedoLabel,
+                      isExam: session.isExam,
+                      sending: _sending,
+                      failed: _sendError != null,
+                      onSubmit: _submitReview,
+                      onRedo: _redo,
+                    )
+                  else if (!isRecording)
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: AppColors.white,
+                        border: Border(
+                          top: BorderSide(color: AppColors.line2, width: 1),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                      child: SafeArea(
+                        top: false,
+                        child: _MicStartButton(
+                          loading: _requestingPerm,
+                          // Le chrono de la tâche part à CE tap, pas avant :
+                          // c'est ce que le libellé annonce.
+                          // Hors conditions d'examen, on n'annonce pas un
+                          // décompte : la durée du sujet reste un repère, pas
+                          // une limite qui tombe.
+                          countdownSeconds:
+                              task.dureeMaxSec,
+                          onPressed:
+                              _requestingPerm ? null : _onStartPressed,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+}
+
+/// Entraînement libre : mêmes mots que la revue hors examen du web
+/// (`EoRecordingForm`, voix « vouvoiement »).
+const String kEoTrainingSubmitLabel = "Soumettre à l'évaluation";
+const String kEoTrainingRedoLabel = 'Refaire';
+const String kEoTrainingReviewHint =
+    "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation.";
+
+/// Phase « revue » : la prise est terminée, elle se réécoute depuis le fichier
+/// LOCAL (rien n'est envoyé pour la réécoute, rien n'est conservé après
+/// l'envoi — `docs/regles/audio-productions.md`).
+class _ReviewView extends StatelessWidget {
+  const _ReviewView({
+    required this.task,
+    required this.rec,
+    required this.isExam,
+    required this.sendError,
+  });
+
+  final ProductionTaskDto task;
+  final RecordingState rec;
+  final bool isExam;
+  final String? sendError;
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // L'arrêt venu du décompte (et non du candidat) se dit à la revue.
+    final timeUp = isExam && rec.elapsed.inSeconds >= rec.maxDuration.inSeconds;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+      children: [
+        ConsigneCard(
+          consigne: task.consigne,
+          accent: AppColors.blue,
+          soft: AppColors.blueLight,
+          maxLines: 3,
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.green,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.check, size: 30, color: AppColors.white),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            kProductionExamReviewTitle,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 17, weight: FontWeight.w700, color: AppColors.ink),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Durée enregistrée · ${_fmt(rec.elapsed)}',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 13, color: AppColors.muted),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          isExam ? productionExamReviewHint(timeUp: timeUp) : kEoTrainingReviewHint,
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.45),
+        ),
+        const SizedBox(height: 16),
+        SejourAudioPlayer(
+          url: rec.filePath!,
+          label: 'Votre réponse',
+          icon: LucideIcons.mic,
+        ),
+        if (!isExam && rec.elapsed.inSeconds < 120) ...[
+          const SizedBox(height: 12),
+          const _ShortRecordingHint(),
+        ],
+        if (sendError != null) ...[
+          const SizedBox(height: 12),
+          _InlineError(message: sendError!),
+        ],
+      ],
+    );
+  }
+}
+
+/// La barre de la revue : le bouton principal ENVOIE et dit l'envoi en cours
+/// (c'est le silence de cet instant qui figeait l'écran) ; « Recommencer »
+/// jette la prise locale. Après un échec, le bouton renvoie la MÊME prise.
+class _ReviewActions extends StatelessWidget {
+  const _ReviewActions({
+    required this.primaryLabel,
+    required this.redoLabel,
+    required this.isExam,
+    required this.sending,
+    required this.failed,
+    required this.onSubmit,
+    required this.onRedo,
+  });
+
+  final String primaryLabel;
+  final String redoLabel;
+  final bool isExam;
+  final bool sending;
+  final bool failed;
+  final VoidCallback onSubmit;
+  final VoidCallback onRedo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.line2, width: 1)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppButton(
+              label: failed ? kProductionExamRetry : primaryLabel,
+              iconRight: LucideIcons.arrowRight,
+              isLoading: sending,
+              onPressed: sending ? null : onSubmit,
+            ),
+            if (sending) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  kProductionExamSending,
+                  style: AppFonts.ui(size: 13, weight: FontWeight.w600, color: AppColors.blue),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            AppButton(
+              label: redoLabel,
+              icon: LucideIcons.rotateCcw,
+              variant: AppButtonVariant.secondary,
+              height: 46,
+              onPressed: sending ? null : onRedo,
+            ),
+            if (isExam) ...[
+              const SizedBox(height: 8),
+              Text(
+                kProductionExamRedoNote,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShortRecordingHint extends StatelessWidget {
+  const _ShortRecordingHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.lightbulb, size: 18, color: AppColors.amberDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Astuce : visez 2-3 minutes pour une meilleure note — vous pouvez tout de même envoyer.',
+              style: AppFonts.ui(size: 13, color: AppColors.ink, height: 1.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.redLight,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.red.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(LucideIcons.circleAlert, size: 18, color: AppColors.red),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Contrainte de durée en pastille courte (« 3 min », « 3 min 30 »).
+String _durationChip(int sec) {
+  final mins = sec ~/ 60;
+  final remain = sec % 60;
+  if (mins == 0) return '$sec s';
+  return remain == 0 ? '$mins min' : '$mins min $remain';
+}
+
+/// Phase « idle » : consigne complète + invite à parler. Le gros micro vit dans
+/// le panneau bas (`_MicStartButton`).
+class _IdleView extends StatelessWidget {
+  const _IdleView({required this.task});
+
+  final ProductionTaskDto task;
+
+  /// Le serveur a dit que cette tâche n'est pas en conditions d'examen : on le
+  /// DIT au candidat, sinon il se presse pour rien. Miroir du `headerSlot` du
+  /// web (`ProductionSession` → `EoRecordingForm`).
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+      children: [
+        ConsigneCard(
+          consigne: task.consigne,
+          subTitleHero: task.displayTitle,
+          // 🛑 Le temps de parole est dit UNE fois, ici — pas de pastille.
+          subtitle: productionExamConstraintLine(task),
+          accent: AppColors.blue,
+          soft: AppColors.blueLight,
+          contexte: task.contexte,
+        ),
+      ],
+    );
+  }
+}
+
+/// Phase « recording » : consigne compacte épinglée + timer + waveform + stop.
+class _RecordingView extends StatelessWidget {
+  const _RecordingView({
+    required this.task,
+    required this.rec,
+    required this.onStop,
+    required this.isExam,
+  });
+
+  final ProductionTaskDto task;
+  final RecordingState rec;
+  final VoidCallback onStop;
+
+  /// En examen, le timer décompte (`dureeMaxSec` → 0) ; en entraînement libre,
+  /// il croît (chrono indicatif).
+  final bool isExam;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Consigne complète, scrollable avec le timer/waveform — le bouton stop
+        // reste épinglé en bas pour rester toujours atteignable.
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ConsigneCard(
+                  consigne: task.consigne,
+                  accent: AppColors.blue,
+                  soft: AppColors.blueLight,
+                ),
+                const SizedBox(height: 12),
+                const RecordingPill(
+                  color: AppColors.red,
+                  background: AppColors.redLight,
+                ),
+                const SizedBox(height: 20),
+                _TimerBig(
+                  elapsed: rec.elapsed,
+                  max: rec.maxDuration,
+                  minSec: task.dureeMinSec ?? 120,
+                  countdown: isExam,
+                ),
+                const SizedBox(height: 20),
+                RecordingWaveform(
+                  amplitude: rec.lastAmplitude,
+                  color: AppColors.blue,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _StopButton(onPressed: onStop),
+              const SizedBox(height: 8),
+              Text(
+                'Terminer',
+                style: AppFonts.ui(
+                  size: 14,
+                  weight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// CTA "idle" calqué sur le studio d'enregistrement du template : gros bouton
+/// micro rond + invite à parler. Tap → demande la permission puis démarre la
+/// capture sur place.
+///
+/// **C'est ce tap qui lance le chrono de la tâche** — d'où « Je suis prêt ». Le
+/// candidat lit la consigne aussi longtemps qu'il veut avant de le presser :
+/// aucun décompte ne court tant qu'il ne l'a pas fait.
+class _MicStartButton extends StatelessWidget {
+  const _MicStartButton({
+    required this.loading,
+    required this.onPressed,
+    this.countdownSeconds,
+  });
+
+  final bool loading;
+  final VoidCallback? onPressed;
+
+  /// Temps de parole de la tâche (`dureeMaxSec`), annoncé avant le départ.
+  /// Null ⇒ on n'annonce aucune durée plutôt qu'un chiffre inventé.
+  final int? countdownSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            customBorder: const CircleBorder(),
+            child: Container(
+              width: 88,
+              height: 88,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: AppColors.red,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(color: AppColors.redLight, spreadRadius: 8),
+                ],
+              ),
+              child: loading
+                  ? const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.white),
+                      ),
+                    )
+                  : const Icon(LucideIcons.mic,
+                      size: 38, color: AppColors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Je suis prêt · Commencer la tâche',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(
+            size: 16,
+            weight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          countdownSeconds == null
+              ? 'Le chrono ne part qu\'à cet instant. Prenez le temps de lire '
+                  'la consigne.'
+              : 'Le chrono de ${_durationChip(countdownSeconds!)} ne part qu\'à '
+                  'cet instant. Prenez le temps de lire la consigne.',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 13, color: AppColors.muted, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimerBig extends StatelessWidget {
+  const _TimerBig({
+    required this.elapsed,
+    required this.max,
+    required this.minSec,
+    this.countdown = false,
+  });
+
+  final Duration elapsed;
+  final Duration max;
+
+  /// Minimum conseillé en secondes (typiquement 120 = 2 min).
+  final int minSec;
+
+  /// En examen : affiche le temps **restant** (décompte) au lieu de l'écoulé.
+  final bool countdown;
+
+  String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Duration get _remaining {
+    final r = max - elapsed;
+    return r.isNegative ? Duration.zero : r;
+  }
+
+  Color get _timerColor {
+    if (countdown) {
+      // Décompte : alerte rouge dans les 30 dernières secondes.
+      return _remaining.inSeconds <= 30 ? AppColors.red : AppColors.ink;
+    }
+    final secs = elapsed.inSeconds;
+    if (secs < minSec) return AppColors.red;
+    // `AppColors.amber` est un ambre de **remplissage**, illisible en lettres :
+    // un chrono ambre passe par `amberDark`.
+    if (secs < max.inSeconds) return AppColors.amberDark;
+    return AppColors.green;
+  }
+
+  /// Le chrono est **entouré du cadran partagé** : le nombre seul changeait une
+  /// fois par seconde alors que l'état arrive toutes les 200 ms, ce qui donnait
+  /// un écran d'apparence figée pendant qu'on parlait. L'arc, lui, bouge à
+  /// chaque tic — et en examen il **se vide**, comme les chiffres.
+  @override
+  Widget build(BuildContext context) {
+    return RecordingGauge(
+      elapsed: elapsed,
+      total: max,
+      depleting: countdown,
+      timeLabel: countdown ? _fmt(_remaining) : _fmt(elapsed),
+      sub: countdown ? 'Temps restant' : '/ ${_fmt(max)}',
+      timeColor: _timerColor,
+      size: 158,
+      timeSemantics: countdown
+          ? 'Temps restant : ${recordingSpokenDuration(_remaining)}'
+          : recordingTimeSemantics(elapsed, max),
+    );
+  }
+}
+
+class _StopButton extends StatelessWidget {
+  const _StopButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 80,
+          height: 80,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.red,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: AppColors.redLight, spreadRadius: 8),
+            ],
+          ),
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
+          const SizedBox(height: 8),
+          Text(
+            'Impossible de demarrer la session.',
+            style: AppFonts.ui(
+              size: 14,
+              weight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: 'Réessayer',
+            onPressed: onRetry,
+            icon: LucideIcons.refreshCw,
+          ),
+        ],
+      ),
+    );
+  }
+}

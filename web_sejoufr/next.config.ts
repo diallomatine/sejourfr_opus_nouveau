@@ -1,0 +1,133 @@
+import {readFileSync} from "node:fs";
+import {join} from "node:path";
+import type {NextConfig} from "next";
+
+/** Version du `package.json`, lue directement : `npm_package_version` n'existe
+ *  que sous `npm run`, et un `next build` lancé autrement partirait sans version
+ *  — le serveur classerait alors le web en client ancien (contrôle G-b). */
+function packageVersion(): string {
+    try {
+        const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as {version?: unknown};
+        return typeof pkg.version === "string" ? pkg.version : "";
+    } catch {
+        return "";
+    }
+}
+
+// En-têtes de sécurité appliqués à toutes les routes. Volontairement sans CSP
+// `script-src`/`style-src` stricte : le site utilise styled-jsx (styles inline)
+// et Google Identity Services, qu'une CSP restrictive casserait sans nonces. On
+// pose les directives CSP sûres (anti-clickjacking, blocage <base>/<object>) +
+// les en-têtes classiques. Une CSP `script-src` complète (avec nonce) reste un
+// chantier de durcissement à part.
+const securityHeaders = [
+    {key: "X-Frame-Options", value: "SAMEORIGIN"},
+    {key: "X-Content-Type-Options", value: "nosniff"},
+    {key: "Referrer-Policy", value: "strict-origin-when-cross-origin"},
+    {
+        // microphone=(self) : l'épreuve Expression orale enregistre via
+        // MediaRecorder — un blocage total ferait échouer getUserMedia avec
+        // "Permissions policy violation" quel que soit le réglage navigateur.
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
+    },
+    {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+    },
+    {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    },
+    {
+        // CSP `script-src` en **Report-Only** : n'applique RIEN (aucune
+        // régression possible), mais fait remonter dans la console ce qu'une
+        // CSP stricte bloquerait (styled-jsx inline, Google Identity…). Sert à
+        // instrumenter le chantier WEB-03 : une fois les violations
+        // cartographiées et migrées vers des nonces, basculer cette directive
+        // en `Content-Security-Policy` (enforcing). Tant que c'est Report-Only,
+        // c'est sûr en prod.
+        key: "Content-Security-Policy-Report-Only",
+        value:
+            "default-src 'self'; " +
+            "script-src 'self' https://accounts.google.com https://apis.google.com; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "img-src 'self' data: https:; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "connect-src 'self' https: wss:; " +
+            "frame-src https://accounts.google.com; " +
+            "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    },
+];
+
+const nextConfig: NextConfig = {
+    // Version déclarée au serveur (`X-Sejourfr-App-Version`, `lib/client-context.ts`).
+    // Un déploiement peut la fixer (numéro de build) ; sinon la version du
+    // `package.json`, exposée par npm à ses scripts.
+    env: {
+        NEXT_PUBLIC_APP_VERSION:
+            process.env.NEXT_PUBLIC_APP_VERSION || packageVersion(),
+    },
+    async headers() {
+        return [
+            {source: "/:path*", headers: securityHeaders},
+            // Universal links iOS (lot 3b) : Apple lit ce fichier sans extension
+            // et l'attend en JSON. Servi par `public/.well-known/`.
+            {
+                source: "/.well-known/apple-app-site-association",
+                headers: [{key: "Content-Type", value: "application/json"}],
+            },
+        ];
+    },
+    // Les anciennes adresses de progression (supprimées le 2026-09-24, D14),
+    // `/recommandations`, `/historique` (« Résultats ») et `/revision`
+    // (« Mes erreurs / Mes favoris », devenue `/favoris`) et les historiques
+    // EE/EO — écrans supprimés le 2026-09-24, décisions du propriétaire — ne
+    // servent plus d'écran : elles REDIRIGENT vers leurs équivalents, pour
+    // qu'un lien déjà partagé aboutisse. Temporaires (307) : ce ne sont pas des
+    // adresses à indexer.
+    //
+    // `/diagnostic-tcf` (hub et résultat du diagnostic COMPLET 4 épreuves) :
+    // parcours retiré des fronts le 2026-09-26 (décision du propriétaire) — les
+    // épreuves non mesurées par le diagnostic rapide se mesurent désormais par
+    // l'examen blanc que propose le Plan. Un favori ou un ancien lien d'email
+    // aboutit au Plan TCF.
+    async redirects() {
+        return [
+            {source: "/diagnostic-tcf", destination: "/plan?module=TCF", permanent: false},
+            {source: "/diagnostic-tcf/:path*", destination: "/plan?module=TCF", permanent: false},
+            {source: "/progression", destination: "/progression/tcf", permanent: false},
+            {source: "/statistiques", destination: "/progression/tcf", permanent: false},
+            {source: "/recommandations", destination: "/dashboard", permanent: false},
+            {source: "/historique", destination: "/progression/tcf", permanent: false},
+            {source: "/revision", destination: "/favoris", permanent: false},
+            {
+                source: "/entrainement/tcf/:epreuve(ee|eo)/historique",
+                destination: "/entrainement/tcf/:epreuve",
+                permanent: false,
+            },
+            {
+                source: "/historique/epreuve/:domaine",
+                destination: "/progression/tcf/:domaine",
+                permanent: false,
+            },
+            {
+                source: "/historique/theme/:theme",
+                destination: "/progression/civique/:theme",
+                permanent: false,
+            },
+        ];
+    },
+    images: {
+        remotePatterns: [
+            {protocol: "https", hostname: "images.unsplash.com"},
+        ],
+    },
+    // Autorise les requêtes cross-origin vers les ressources de dev (HMR
+    // WebSocket inclus) depuis le LAN, pour pouvoir tester sur un téléphone
+    // physique branché sur le même réseau. Sans ça, le bundle React n'hydrate
+    // pas côté mobile et le site reste statique (drawer ne s'ouvre pas, etc.).
+    allowedDevOrigins: ["192.168.1.104"],
+};
+
+export default nextConfig;
