@@ -109,7 +109,30 @@ class AnalyticsIdentity {
     }
   }
 
+  /// Tirage **sérialisé** : au premier lancement, les en-têtes des premières
+  /// requêtes et le premier `track` demandent l'identifiant en même temps. Sans
+  /// ce verrou, le second appel lisait l'identifiant déjà en cache mais pas
+  /// encore sa date, le jugeait expiré et en tirait un autre — un même appareil
+  /// comptait alors pour deux visiteurs (audit Suivi 2026-09-29). Le web n'a pas
+  /// ce risque : `localStorage` est synchrone.
+  static Future<String>? _pendingAnonymousId;
+
   Future<String> _anonymousId(SharedPreferences prefs, DateTime at) async {
+    final pending = _pendingAnonymousId;
+    if (pending != null) return pending;
+    final next = _readOrCreateAnonymousId(prefs, at);
+    _pendingAnonymousId = next;
+    try {
+      return await next;
+    } finally {
+      if (identical(_pendingAnonymousId, next)) _pendingAnonymousId = null;
+    }
+  }
+
+  Future<String> _readOrCreateAnonymousId(
+    SharedPreferences prefs,
+    DateTime at,
+  ) async {
     final existing = prefs.getString(_kAnonymousId);
     final since = DateTime.tryParse(prefs.getString(_kAnonymousIdSince) ?? '');
     final expired = since == null || at.difference(since) > retention;
