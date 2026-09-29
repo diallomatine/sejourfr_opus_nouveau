@@ -53,12 +53,23 @@ import java.util.Map;
 @Component
 public class SuiviMapper {
 
-    /** Ce qui etait mesure au debut de la periode et de la periode precedente. */
-    public record Mesure(Map<SuiviIndicator, LocalDate> starts, LocalDate from, LocalDate previousFrom,
-                         boolean needsPlatformDetail) {
+    /**
+     * Ce qui est mesure dans la periode et dans la periode precedente (D117).
+     *
+     * <p>Une periode qui <b>chevauche</b> la date de debut de mesure d'un
+     * indicateur est servie <b>depuis cette date</b> : {@link #since} rend le
+     * premier jour mesure, que la lecture SQL prend pour borne basse. Seule une
+     * periode <b>entierement</b> anterieure (ou un indicateur sans date) vaut
+     * {@code null}. La periode precedente, elle, n'est lue que si elle est
+     * mesuree <b>de bout en bout</b> ({@link #before}) : une tendance calculee
+     * sur une moitie de periode serait fausse, et un 0 invente.
+     */
+    public record Mesure(Map<SuiviIndicator, LocalDate> starts, LocalDate from, LocalDate to,
+                         LocalDate previousFrom, boolean needsPlatformDetail) {
 
-        /** Tous ces indicateurs etaient en service le {@code day}. */
+        /** Tous ces indicateurs etaient en service le {@code day} (et donc depuis). */
         public boolean at(LocalDate day, SuiviIndicator... indicators) {
+            if (day == null) return false;
             for (SuiviIndicator indicator : indicators) {
                 LocalDate start = starts.get(indicator);
                 if (start == null || start.isAfter(day)) return false;
@@ -66,12 +77,56 @@ public class SuiviMapper {
             return true;
         }
 
+        /**
+         * Premier jour de la periode ou TOUS ces indicateurs sont mesures :
+         * {@code max(from, dates)} ; {@code null} si l'un n'a pas de date ou si
+         * sa date tombe apres la fin de la periode.
+         */
+        public LocalDate since(SuiviIndicator... indicators) {
+            LocalDate since = from;
+            for (SuiviIndicator indicator : indicators) {
+                LocalDate start = starts.get(indicator);
+                if (start == null || start.isAfter(to)) return null;
+                if (start.isAfter(since)) since = start;
+            }
+            return since;
+        }
+
+        /** Mesures sur tout ou partie de la periode. */
         public boolean now(SuiviIndicator... indicators) {
+            return since(indicators) != null;
+        }
+
+        /** Mesures sur TOUTE la periode precedente. */
+        public boolean before(SuiviIndicator... indicators) {
+            return at(previousFrom, indicators);
+        }
+
+        /** Vrai si la periode entiere est mesuree pour ces indicateurs (aucune mention « depuis »). */
+        public boolean whole(SuiviIndicator... indicators) {
             return at(from, indicators);
         }
 
-        public boolean before(SuiviIndicator... indicators) {
-            return at(previousFrom, indicators);
+        /**
+         * Les indicateurs, plus la mesure iOS / Android quand le filtre plateforme
+         * l'exige : avant elle, ces lignes etaient « mobile » ou inconnues, et le
+         * filtre rendrait un 0 faux.
+         */
+        public SuiviIndicator[] withPlatform(SuiviIndicator... indicators) {
+            if (!needsPlatformDetail) return indicators;
+            SuiviIndicator[] all = java.util.Arrays.copyOf(indicators, indicators.length + 1);
+            all[indicators.length] = SuiviIndicator.SIGNUP_PLATFORM_DETAIL;
+            return all;
+        }
+
+        /**
+         * Borne basse SQL de la periode courante pour ces indicateurs : minuit
+         * (Paris) de {@link #since} ; debut de periode s'ils ne sont pas mesures
+         * (la valeur lue est alors jetee par le mapper).
+         */
+        public Instant sinceInstant(SuiviIndicator... indicators) {
+            LocalDate since = since(indicators);
+            return (since == null ? from : since).atStartOfDay(FenetreMesure.PARIS).toInstant();
         }
     }
 
@@ -90,20 +145,28 @@ public class SuiviMapper {
         FunnelRow scopeRow = funnelRows.get(scopeKey(query.type()));
         Funnel funnel = funnel(query.type(), scopeRow, mesure, windowDays, ongoing);
 
-        boolean visitorsMeasured = mesure.now(SuiviIndicator.VISITORS) && platformOk(mesure, true);
-        boolean visitorsPrevMeasured = mesure.before(SuiviIndicator.VISITORS) && platformOk(mesure, false);
+        SuiviIndicator[] visitorsIndicators = mesure.withPlatform(SuiviIndicator.VISITORS);
+        LocalDate visitorsSince = mesure.since(visitorsIndicators);
+        boolean visitorsMeasured = visitorsSince != null;
+        boolean visitorsPrevMeasured = mesure.before(visitorsIndicators);
         Long visitors = visitorsMeasured ? sumVisitors(l.visitors(), "CUR") : null;
         Long visitorsPrev = visitorsPrevMeasured ? sumVisitors(l.visitors(), "PREV") : null;
 
-        Long submitted = mesure.now(SuiviIndicator.DIAGNOSTIC_SUBMITTED) ? l.activity().getCurFirst() : null;
+        LocalDate submittedSince = mesure.since(SuiviIndicator.DIAGNOSTIC_SUBMITTED);
+        Long submitted = submittedSince != null ? l.activity().getCurFirst() : null;
         Long submittedPrev = mesure.before(SuiviIndicator.DIAGNOSTIC_SUBMITTED) ? l.activity().getPrevFirst() : null;
-        Long submittedRaw = mesure.now(SuiviIndicator.DIAGNOSTIC_SUBMITTED) ? l.activity().getCurRaw() : null;
+        Long submittedRaw = submittedSince != null ? l.activity().getCurRaw() : null;
+        LocalDate purchasesSince = mesure.since(SuiviIndicator.PURCHASES);
 
+        // Un ratio ne rapporte que deux comptes mesures sur les MEMES jours (D117).
         Kpis kpis = new Kpis(
                 new Kpi(visitors, visitorsPrev, delta(visitors, visitorsPrev), null),
-                new Kpi(submitted, submittedPrev, delta(submitted, submittedPrev), pct(submitted, visitors)),
+                new Kpi(submitted, submittedPrev, delta(submitted, submittedPrev),
+                        java.util.Objects.equals(submittedSince, visitorsSince) ? pct(submitted, visitors) : null),
                 new Kpi(revenue.purchases(), previousRevenue.purchases(),
-                        delta(revenue.purchases(), previousRevenue.purchases()), pct(revenue.purchases(), submitted)),
+                        delta(revenue.purchases(), previousRevenue.purchases()),
+                        java.util.Objects.equals(purchasesSince, submittedSince)
+                                ? pct(revenue.purchases(), submitted) : null),
                 new Kpi(revenue.netExVatAfterRefundsCents(), previousRevenue.netExVatAfterRefundsCents(),
                         delta(revenue.netExVatAfterRefundsCents(), previousRevenue.netExVatAfterRefundsCents()), null));
 
@@ -126,7 +189,7 @@ public class SuiviMapper {
                         typeRow(SuiviTypeFilter.CIVIQUE, funnelRows.get("CIVIQUE"), mesure)),
                 signups(l.signups(), l.activity().getLoggedInAfter(), mesure),
                 sources(l.visitors(), availableSources, visitorsMeasured
-                        && mesure.now(SuiviIndicator.ACQUISITION_SOURCES)),
+                        && mesure.at(visitorsSince, SuiviIndicator.ACQUISITION_SOURCES)),
                 ratios(scopeRow, funnel),
                 activity);
     }
@@ -143,14 +206,24 @@ public class SuiviMapper {
         };
     }
 
-    /** Une etape est mesuree si elle ET toutes les precedentes le sont (le tunnel est sequentiel). */
+    /** Premier jour de la cohorte : celui ou l'etape 1 est mesuree ({@code null} = tunnel non mesure). */
+    public static LocalDate cohortSince(Mesure mesure) {
+        return mesure.since(SuiviFunnelStep.SUBJECT_VIEWED.indicator());
+    }
+
+    /**
+     * Une etape est mesuree si elle ET toutes les precedentes le sont (le tunnel
+     * est sequentiel), et ce des le premier jour de la cohorte : une etape mise
+     * en service plus tard ne suivrait qu'une partie des entrees (D117).
+     */
     static boolean[] stepsMeasured(Mesure mesure) {
+        LocalDate cohortSince = cohortSince(mesure);
         SuiviFunnelStep[] steps = SuiviFunnelStep.values();
         boolean[] measured = new boolean[steps.length];
-        boolean all = true;
+        boolean all = cohortSince != null;
         for (int i = 0; i < steps.length; i++) {
-            all = all && mesure.now(steps[i].indicator());
-            if (steps[i] == SuiviFunnelStep.PURCHASED) all = all && mesure.now(SuiviIndicator.PURCHASES);
+            all = all && mesure.at(cohortSince, steps[i].indicator());
+            if (steps[i] == SuiviFunnelStep.PURCHASED) all = all && mesure.at(cohortSince, SuiviIndicator.PURCHASES);
             measured[i] = all;
         }
         return measured;
@@ -182,7 +255,8 @@ public class SuiviMapper {
                 ? new AttachedBreakdown(row == null ? 0L : row.getAttachedAlready(),
                 row == null ? 0L : row.getAttachedSignup(), row == null ? 0L : row.getAttachedLogin())
                 : new AttachedBreakdown(null, null, null);
-        boolean netMeasured = measured[6] && mesure.now(SuiviIndicator.REVENUE_BREAKDOWN, SuiviIndicator.REFUNDS);
+        boolean netMeasured = measured[6]
+                && mesure.at(cohortSince(mesure), SuiviIndicator.REVENUE_BREAKDOWN, SuiviIndicator.REFUNDS);
         Long net = netMeasured ? (row == null || row.getCohortNet() == null ? 0L : row.getCohortNet()) : null;
         Long unknown = netMeasured ? (row == null ? 0L : row.getCohortUnknown()) : null;
         Long sansIdentifiant = measured[0] ? (row == null ? 0L : row.getNoIdentifier()) : null;
@@ -221,12 +295,20 @@ public class SuiviMapper {
 
     private Revenue revenue(List<PurchaseCell> cells, List<RefundCell> refundCells, String per, Mesure mesure,
                             boolean current) {
-        boolean purchasesMeasured = current ? mesure.now(SuiviIndicator.PURCHASES)
+        // Periode courante : achats et remboursements lus depuis LEUR premier jour
+        // mesure ; la decomposition doit couvrir tous les achats lus, et le net
+        // apres remboursements ne soustrait que des remboursements lus sur les
+        // memes jours (D117). Periode precedente : mesuree de bout en bout ou rien.
+        LocalDate purchasesSince = mesure.since(SuiviIndicator.PURCHASES);
+        LocalDate refundsSince = mesure.since(SuiviIndicator.REFUNDS);
+        boolean purchasesMeasured = current ? purchasesSince != null
                 : mesure.before(SuiviIndicator.PURCHASES);
-        boolean breakdownMeasured = purchasesMeasured && (current ? mesure.now(SuiviIndicator.REVENUE_BREAKDOWN)
+        boolean breakdownMeasured = purchasesMeasured && (current
+                ? mesure.at(purchasesSince, SuiviIndicator.REVENUE_BREAKDOWN)
                 : mesure.before(SuiviIndicator.REVENUE_BREAKDOWN));
-        boolean refundsMeasured = current ? mesure.now(SuiviIndicator.REFUNDS)
+        boolean refundsMeasured = current ? refundsSince != null
                 : mesure.before(SuiviIndicator.REFUNDS);
+        boolean sameDays = !current || java.util.Objects.equals(purchasesSince, refundsSince);
 
         Map<SubscriptionSource, long[]> byProvider = new EnumMap<>(SubscriptionSource.class);
         for (SubscriptionSource source : SubscriptionSource.values()) byProvider.put(source, new long[4]);
@@ -273,7 +355,7 @@ public class SuiviMapper {
                 breakdownMeasured ? netAfterFee : null,
                 breakdownMeasured ? netExVat : null,
                 refunds,
-                breakdownMeasured && refundsMeasured ? netExVat + refundDelta : null,
+                breakdownMeasured && refundsMeasured && sameDays ? netExVat + refundDelta : null,
                 breakdownMeasured ? without : null,
                 breakdownMeasured ? estimated : null,
                 providers,
@@ -281,7 +363,7 @@ public class SuiviMapper {
     }
 
     private PurchasesByOrigin purchasesByOrigin(List<PurchaseCell> cells, Mesure mesure) {
-        if (!mesure.now(SuiviIndicator.PURCHASES, SuiviIndicator.PURCHASE_ORIGIN)) {
+        if (!mesure.at(mesure.since(SuiviIndicator.PURCHASES), SuiviIndicator.PURCHASE_ORIGIN)) {
             return new PurchasesByOrigin(null, null, null);
         }
         long plan = 0, other = 0, unknown = 0;
@@ -299,8 +381,8 @@ public class SuiviMapper {
     // ------------------------------------------------------------------------
 
     private Signups signups(SignupRow row, long loggedInAfter, Mesure mesure) {
-        boolean totalMeasured = platformOk(mesure, true);
-        boolean context = totalMeasured && mesure.now(SuiviIndicator.SIGNUP_CONTEXT);
+        boolean totalMeasured = mesure.now(mesure.withPlatform());
+        boolean context = totalMeasured && mesure.now(mesure.withPlatform(SuiviIndicator.SIGNUP_CONTEXT));
         boolean platforms = mesure.now(SuiviIndicator.SIGNUP_PLATFORM_DETAIL);
         return new Signups(
                 totalMeasured ? row.getTotal() : null,
@@ -330,17 +412,6 @@ public class SuiviMapper {
         long n = 0;
         for (VisitorCell c : cells) if (per.equals(c.getPer())) n += c.getN();
         return n;
-    }
-
-    /**
-     * Un filtre iOS / Android ne lit des faits declares par plateforme qu'a partir
-     * de la mesure iOS / Android ({@code SIGNUP_PLATFORM_DETAIL}) : avant, ces
-     * lignes etaient « mobile » ou inconnues, et le filtre rendrait un 0 faux.
-     */
-    private static boolean platformOk(Mesure mesure, boolean current) {
-        if (!mesure.needsPlatformDetail()) return true;
-        return current ? mesure.now(SuiviIndicator.SIGNUP_PLATFORM_DETAIL)
-                : mesure.before(SuiviIndicator.SIGNUP_PLATFORM_DETAIL);
     }
 
     // ------------------------------------------------------------------------

@@ -178,6 +178,31 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("D117 — « 7 jours » et « Mois » qui chevauchent la mise en production sont mesurés depuis elle ; la période précédente reste inconnue")
+    void periodesQuiChevauchentLaMiseEnProduction() throws Exception {
+        clock.set(Instant.parse("2026-09-29T10:00:00Z"));
+        for (String preset : new String[]{"LAST_7_DAYS", "MONTH"}) {
+            mvc.perform(get(URL).param("preset", preset).header("Authorization", auth.bearer(data.admin())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.measurementStart.VISITORS").value(MISE_EN_PRODUCTION))
+                    .andExpect(jsonPath("$.kpis.visitors.value").isNumber())
+                    .andExpect(jsonPath("$.kpis.visitors.previous").value(nullValue()))
+                    .andExpect(jsonPath("$.kpis.visitors.deltaPct").value(nullValue()))
+                    .andExpect(jsonPath("$.kpis.submitted.value").isNumber())
+                    .andExpect(jsonPath("$.kpis.purchases.value").isNumber())
+                    .andExpect(jsonPath("$.kpis.purchases.previous").value(nullValue()))
+                    .andExpect(jsonPath("$.kpis.netExVatCents.value").isNumber())
+                    .andExpect(jsonPath("$.funnel.steps[0].count").isNumber())
+                    .andExpect(jsonPath("$.funnel.steps[6].count").isNumber())
+                    .andExpect(jsonPath("$.revenue.refunds.count").isNumber())
+                    .andExpect(jsonPath("$.signups.outsideDiagnostic").isNumber())
+                    .andExpect(jsonPath("$.signups.byPlatform.ios").isNumber())
+                    .andExpect(jsonPath("$.sources[0].visitors").isNumber())
+                    .andExpect(jsonPath("$.activity.anonymousSubmittedNeverAttached").isNumber());
+        }
+    }
+
+    @Test
     @DisplayName("D43 — filtre iOS avant la mesure iOS/Android : visiteurs et inscriptions null, pas 0")
     void filtreIosAvantMesure() throws Exception {
         clock.set(VEILLE_MISE_EN_PRODUCTION);

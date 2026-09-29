@@ -408,9 +408,10 @@ Décisions D21 → D30 de `docs/admin/decisions-suivi.md` ; règles du tunnel :
   immédiatement, sur toutes les runs du compte (`DiagnosticRunManager.forgetIdentifiersOfUser`).
 - ⚠️ **Dates de début de mesure** (Q16) : les 14 indicateurs de `measurementStart`
   (`analytics-config-v1.json`) valent **`2026-09-28`**, jour de la mise en production de V043 et
-  V074 → V079 (D116). Avant cette date, tout indicateur vaut `null`, jamais 0 ; une période qui
-  la chevauche aussi. Un nouvel indicateur arrive à `null` et reçoit la date de SA mise en
-  production (D28, D43).
+  V074 → V079 (D116). Une période entièrement antérieure vaut `null`, jamais 0 ; une période
+  qui la **chevauche** est servie **depuis cette date** (D117, 2026-09-29 — révoque « une
+  période qui la chevauche aussi »). Un nouvel indicateur arrive à `null` et reçoit la date de
+  SA mise en production (D28, D43).
 
 ## Chantier « Suivi » — lecture du dashboard Suivi (lot 4, 2026-09-25)
 
@@ -426,10 +427,20 @@ Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
   passé **dans la période**. Bornes en jours Europe/Paris (`FenetreMesure`) ; période de
   comparaison = même durée, juste avant.
 - 🛑 **`null` = inconnu ou pas encore mesuré, jamais 0** (Q16, D43). Chaque indicateur a une
-  date `measurementStart` (`analytics-config-v1.json`) ; `null` ou postérieure au début de la
-  période ⇒ l'indicateur vaut `null`. La date est servie (`measurementStart`) pour que
-  l'écran dise « mesuré depuis le … ». Une étape du tunnel non mesurée rend `null` **elle et
-  toutes les suivantes** (le tunnel est séquentiel). Un filtre `IOS`/`ANDROID` exige en plus
+  date `measurementStart` (`analytics-config-v1.json`) ; `null` ou postérieure à la **fin** de
+  la période ⇒ l'indicateur vaut `null`.
+  🛑 **Période à cheval sur la date (D117, 2026-09-29)** : l'indicateur est compté **depuis
+  cette date** — chaque lecture SQL prend pour borne basse `max(début de période, date)`
+  (`SuiviMapper.Mesure.since`, `SuiviReadManager.Debuts`), jamais un fait antérieur. La
+  **période précédente** n'est lue que si elle est mesurée **de bout en bout** : sinon
+  `previous` et `deltaPct` valent `null` (une tendance sur une demi-période serait fausse).
+  Deux comptes ne se rapportent (ratio « % des visiteurs », « % des diagnostics », net après
+  remboursements) que mesurés depuis le **même** jour, sinon `null`. Une étape du tunnel n'est
+  mesurée que si sa date couvre **toute** la cohorte (premier jour de l'étape 1). La date est
+  servie (`measurementStart`) pour que l'écran dise « mesuré depuis le … ». Une étape du
+  tunnel non mesurée rend `null` **elle et toutes les suivantes** (le tunnel est séquentiel).
+  Le total des inscriptions (`signups.total`) n'a pas de date : c'est un fait de `users`,
+  compté sur toute la période ; contexte et plateforme partent de leur date. Un filtre `IOS`/`ANDROID` exige en plus
   `SIGNUP_PLATFORM_DETAIL` pour les visiteurs, les sources et les inscriptions. Une somme
   **mesurée** mais vide vaut 0.
   **Profil dev seulement** : `sejourfr.analytics.measurement-start-overrides`

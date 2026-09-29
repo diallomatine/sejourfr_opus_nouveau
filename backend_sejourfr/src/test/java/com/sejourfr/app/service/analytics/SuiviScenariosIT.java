@@ -438,6 +438,110 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("D117 — une période qui chevauche le début de mesure est servie depuis cette date, jamais avant ; la période précédente reste inconnue")
+    void periodeQuiChevaucheLeDebutDeMesure() {
+        LocalDate debut = D3.plusDays(1);
+        // La veille du debut de mesure : des faits reels, qui ne doivent PAS etre comptes.
+        UUID avantAnon = visitor("tiktok", paris(D3, 9));
+        event(avantAnon, "LANDING_VIEWED", paris(D3, 9), null, null);
+        UUID avantRun = run("QUICK_TCF", avantAnon, null, "WEB", paris(D3, 9));
+        submit(avantRun, paris(D3, 10), false);
+        User avant = data.userCreatedAt("tiktok", ClientPlatform.WEB, paris(D3, 11));
+        signupContext(avant, "OUTSIDE_DIAGNOSTIC", null, null);
+        UUID achatAvant = purchase(avant, data.plan(), "STRIPE", paris(D3, 12), 999, 959, null, "OTHER_CTA");
+        refund(achatAvant, "STRIPE", paris(D3, 13), 999, -999);
+        // Le jour du debut de mesure.
+        UUID anon = visitor("direct", paris(debut, 9));
+        event(anon, "LANDING_VIEWED", paris(debut, 9), null, null);
+        UUID run = run("QUICK_TCF", anon, null, "WEB", paris(debut, 9));
+        submit(run, paris(debut, 10), false);
+        User user = data.userCreatedAt("direct", ClientPlatform.WEB, paris(debut, 11));
+        claim(run, user, "SIGNUP", paris(debut, 11));
+        signupContext(user, "AFTER_DIAGNOSTIC", "QUICK_TCF", run);
+        purchase(user, data.plan(), "STRIPE", paris(debut, 12), 999, 959, null, "UNKNOWN");
+        Map<SuiviIndicator, LocalDate> starts = new EnumMap<>(SuiviIndicator.class);
+        for (SuiviIndicator indicator : SuiviIndicator.values()) starts.put(indicator, debut);
+
+        AdminSuiviResponse r = service.compute(new SuiviQuery(null, new FenetreMesure(D3, debut),
+                SuiviTypeFilter.ALL, SuiviPlatformFilter.ALL, null, false), starts);
+
+        assertThat(r.window().from()).isEqualTo(D3);
+        assertThat(r.kpis().visitors().value()).isEqualTo(1L);
+        assertThat(r.kpis().submitted().value()).isEqualTo(1L);
+        assertThat(r.kpis().submitted().ratioPct()).isEqualTo(100.0);
+        assertThat(r.kpis().purchases().value()).isEqualTo(1L);
+        assertThat(r.kpis().purchases().ratioPct()).isEqualTo(100.0);
+        // Le remboursement de la veille n'est pas lu : net = celui de l'achat du jour.
+        assertThat(r.kpis().netExVatCents().value()).isEqualTo(959L);
+        assertThat(r.revenue().refunds().count()).isZero();
+        assertThat(r.revenue().grossCents()).isEqualTo(999L);
+        // Periode precedente non mesuree : aucune tendance, jamais un 0 invente.
+        assertThat(r.kpis().visitors().previous()).isNull();
+        assertThat(r.kpis().visitors().deltaPct()).isNull();
+        assertThat(r.kpis().purchases().previous()).isNull();
+        assertThat(r.kpis().netExVatCents().previous()).isNull();
+        // Tunnel : la seule entree mesuree est celle du jour de debut.
+        assertThat(counts(r)).containsExactly(1L, 1L, 1L, 0L, 0L, 0L, 0L);
+        assertThat(r.byType().get(0).subjectViewed()).isEqualTo(1L);
+        assertThat(r.sources()).filteredOn(s -> s.group().equals("tiktok"))
+                .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(0L);
+        assertThat(r.sources()).filteredOn(s -> s.group().equals("direct"))
+                .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(1L);
+        // Inscriptions : le total est un fait de la table users (toute la periode) ;
+        // contexte et plateforme ne sont lus que depuis leur debut de mesure.
+        assertThat(r.signups().total()).isEqualTo(2L);
+        assertThat(r.signups().afterDiagnostic().total()).isEqualTo(1L);
+        assertThat(r.signups().outsideDiagnostic()).isZero();
+        assertThat(r.signups().byPlatform().web()).isEqualTo(1L);
+        assertThat(r.activity().submittedRaw()).isEqualTo(1L);
+        assertThat(r.activity().purchasesByOrigin().otherCta()).isZero();
+        assertThat(r.activity().purchasesByOrigin().unknown()).isEqualTo(1L);
+
+        // Une periode ENTIEREMENT anterieure au debut reste inconnue.
+        AdminSuiviResponse veille = service.compute(new SuiviQuery(null, jour(D3), SuiviTypeFilter.ALL,
+                SuiviPlatformFilter.ALL, null, false), starts);
+        assertThat(veille.kpis().visitors().value()).isNull();
+        assertThat(veille.kpis().purchases().value()).isNull();
+        assertThat(counts(veille)).containsOnlyNulls();
+        assertThat(veille.signups().outsideDiagnostic()).isNull();
+    }
+
+    @Test
+    @DisplayName("D117 — indicateurs mis en service à des dates différentes : jamais un ratio, un net ou une étape sur des jours qui ne se recouvrent pas")
+    void debutsDeMesureDecales() {
+        LocalDate debut = D3.plusDays(1);
+        User user = data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 8));
+        UUID anon = visitor("direct", paris(D3, 9));
+        event(anon, "LANDING_VIEWED", paris(D3, 9), null, null);
+        UUID run = run("QUICK_TCF", anon, user.getId(), "WEB", paris(D3, 9));
+        submit(run, paris(D3, 10), true);
+        UUID achat = purchase(user, data.plan(), "STRIPE", paris(D3, 12), 999, 959, null, "UNKNOWN");
+        UUID run2 = run("QUICK_TCF", null, user.getId(), "WEB", paris(debut, 9));
+        submit(run2, paris(debut, 10), true);
+        refund(achat, "STRIPE", paris(debut, 13), 999, -999);
+        Map<SuiviIndicator, LocalDate> starts = mesure();
+        starts.put(SuiviIndicator.DIAGNOSTIC_SUBMITTED, debut);
+        starts.put(SuiviIndicator.REFUNDS, debut);
+
+        AdminSuiviResponse r = service.compute(new SuiviQuery(null, new FenetreMesure(D3, debut),
+                SuiviTypeFilter.ALL, SuiviPlatformFilter.ALL, null, false), starts);
+
+        // Soumissions lues depuis leur debut (la run du 4) ; visiteurs sur toute la periode.
+        assertThat(r.kpis().visitors().value()).isEqualTo(1L);
+        assertThat(r.activity().submittedRaw()).isEqualTo(1L);
+        assertThat(r.kpis().submitted().ratioPct()).isNull();
+        assertThat(r.kpis().purchases().value()).isEqualTo(1L);
+        assertThat(r.kpis().purchases().ratioPct()).isNull();
+        // Achats du 3 et remboursements du 4 : pas de net apres remboursements, sa decomposition reste servie.
+        assertThat(r.revenue().netExVatCents()).isEqualTo(959L);
+        assertThat(r.revenue().refunds().count()).isEqualTo(1L);
+        assertThat(r.kpis().netExVatCents().value()).isNull();
+        // L'etape 2 n'est mesuree que depuis le 4 : la cohorte commencee le 3 ne peut pas la dire.
+        assertThat(counts(r).get(0)).isEqualTo(1L);
+        assertThat(counts(r).subList(1, 7)).containsOnlyNulls();
+    }
+
+    @Test
     @DisplayName("Tendance — variation par rapport à la veille ; null si la veille vaut 0")
     void tendance() {
         for (int i = 0; i < 4; i++) event(visitor("direct", paris(D3, 9)), "LANDING_VIEWED", paris(D3, 9), null, null);

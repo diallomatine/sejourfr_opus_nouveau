@@ -1,6 +1,6 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { money, pct } from "../format";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, Unmeasured } from "./Section";
 
@@ -35,6 +35,8 @@ export function RatiosCard({ data }: { data: AdminSuiviResponse }) {
       badges={
         tunnelUnknown ? (
           <Unmeasured>{unmeasuredNote(data, "DIAGNOSTIC_SUBJECT_VIEWED")}</Unmeasured>
+        ) : measuredSinceNote(data, "DIAGNOSTIC_SUBJECT_VIEWED") ? (
+          <Unmeasured>{measuredSinceNote(data, "DIAGNOSTIC_SUBJECT_VIEWED")}</Unmeasured>
         ) : undefined
       }
     >

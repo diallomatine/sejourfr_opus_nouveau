@@ -1,7 +1,7 @@
 import type { AdminSuiviResponse, SuiviFunnelStep } from "../../../types/api";
 import { DASH, int, money, pct } from "../format";
 import { SCOPE_LABELS, STEP_LABELS } from "../labels";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, Unmeasured } from "./Section";
 
@@ -14,6 +14,7 @@ import { Section, Unmeasured } from "./Section";
 export function FunnelCard({ data }: { data: AdminSuiviResponse }) {
   const { funnel } = data;
   const allUnknown = funnel.steps.every((step) => step.count == null);
+  const since = allUnknown ? null : measuredSinceNote(data, "DIAGNOSTIC_SUBJECT_VIEWED");
 
   const badges = (
     <>
@@ -26,6 +27,14 @@ export function FunnelCard({ data }: { data: AdminSuiviResponse }) {
         </span>
       )}
       <span className={styles.badge}>{SCOPE_LABELS[funnel.scope]}</span>
+      {since && (
+        <span
+          className={styles.badge}
+          title="La période commence avant la date de début de mesure : seules les entrées depuis cette date sont comptées."
+        >
+          {since}
+        </span>
+      )}
     </>
   );
 

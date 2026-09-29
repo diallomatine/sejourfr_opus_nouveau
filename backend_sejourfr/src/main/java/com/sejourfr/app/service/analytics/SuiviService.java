@@ -51,25 +51,43 @@ public class SuiviService {
     /**
      * Le calcul, dates de debut de mesure fournies. Public pour que les tests
      * d'acceptation lisent le vrai calcul sans dependre des dates de la config
-     * de production (toutes {@code null} tant que le proprietaire ne les a pas
-     * posees au deploiement).
+     * de production.
      */
     public AdminSuiviResponse compute(SuiviQuery query, Map<SuiviIndicator, LocalDate> starts) {
         FenetreMesure previous = query.previousWindow();
         int windowDays = config.cohortWindowDays();
         Instant from = query.window().startInstant();
         Instant to = query.window().endInstantExclusive();
+        SuiviMapper.Mesure mesure = new SuiviMapper.Mesure(starts, query.window().from(), query.window().to(),
+                previous.from(), SuiviMapper.needsPlatformDetail(query.platform()));
         SuiviReadManager.Lectures lectures = readManager.lire(new SuiviReadManager.Requete(
                 previous.startInstant(), from, to, to.plus(Duration.ofDays(windowDays)), windowDays,
                 query.type() == SuiviTypeFilter.ALL ? null : query.type().name(),
                 runType(query.type()),
                 query.platform() == SuiviPlatformFilter.ALL ? null : query.platform().name(),
                 query.source(), query.includeInternal(), sourceMapJson(), config.utmSourceFallbackGroup(),
-                config.civicSubmittedMinAnsweredRatio()));
-        SuiviMapper.Mesure mesure = new SuiviMapper.Mesure(starts, query.window().from(), previous.from(),
-                SuiviMapper.needsPlatformDetail(query.platform()));
+                config.civicSubmittedMinAnsweredRatio(), debuts(mesure)));
         return mapper.toResponse(query, previous, windowDays, clock.instant(), availableSources(), starts,
                 mesure, lectures);
+    }
+
+    /**
+     * Borne basse de chaque lecture de la periode courante : le premier jour ou
+     * ses indicateurs sont mesures (D117). Une periode qui chevauche une date de
+     * debut de mesure est ainsi lue depuis cette date, jamais avant.
+     */
+    static SuiviReadManager.Debuts debuts(SuiviMapper.Mesure m) {
+        return new SuiviReadManager.Debuts(
+                m.sinceInstant(m.withPlatform(SuiviIndicator.VISITORS)),
+                m.sinceInstant(SuiviIndicator.DIAGNOSTIC_SUBJECT_VIEWED),
+                m.sinceInstant(SuiviIndicator.DIAGNOSTIC_SUBMITTED),
+                m.sinceInstant(SuiviIndicator.DIAGNOSTIC_SUBMITTED, SuiviIndicator.ACCOUNT_ATTACHED),
+                m.sinceInstant(SuiviIndicator.ACCOUNT_ATTACHED),
+                m.sinceInstant(SuiviIndicator.PURCHASES),
+                m.sinceInstant(SuiviIndicator.REFUNDS),
+                m.sinceInstant(m.withPlatform()),
+                m.sinceInstant(m.withPlatform(SuiviIndicator.SIGNUP_CONTEXT)),
+                m.sinceInstant(SuiviIndicator.SIGNUP_PLATFORM_DETAIL));
     }
 
     /** Filtres valides ; {@code preset} par defaut : aujourd'hui. */

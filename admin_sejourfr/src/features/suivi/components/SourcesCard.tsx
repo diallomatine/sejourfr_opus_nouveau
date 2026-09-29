@@ -1,7 +1,7 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { int } from "../format";
 import { sourceLabel } from "../labels";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, Unmeasured } from "./Section";
 
@@ -13,6 +13,7 @@ import { Section, Unmeasured } from "./Section";
 export function SourcesCard({ data }: { data: AdminSuiviResponse }) {
   const max = Math.max(0, ...data.sources.map((row) => row.visitors ?? 0));
   const allUnknown = data.sources.every((row) => row.visitors == null);
+  const since = allUnknown ? null : measuredSinceNote(data, "ACQUISITION_SOURCES");
 
   return (
     <Section
@@ -39,6 +40,11 @@ export function SourcesCard({ data }: { data: AdminSuiviResponse }) {
         </div>
       )}
 
+      {since && (
+        <p className={styles.footnote}>
+          Visiteurs <Unmeasured>{since}</Unmeasured>.
+        </p>
+      )}
       <p className={styles.footnote}>
         Exemple : <strong>?utm_source=instagram</strong> est conservé du premier passage
         jusqu’à l’inscription et à l’achat.

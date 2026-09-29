@@ -18,7 +18,8 @@ import java.util.Map;
  *
  * <p>🛑 <b>{@code null} = inconnu ou pas encore mesure, jamais zero</b> (Q16,
  * D43). Un indicateur dont la date de debut de mesure est absente, ou posterieure
- * au debut de la periode, vaut {@code null} ; la date est servie dans
+ * a la FIN de la periode, vaut {@code null}. Une periode qui chevauche la date est
+ * comptee depuis cette date (D117) ; la date est servie dans
  * {@link #measurementStart} pour que l'ecran dise « mesuré depuis le … ».
  *
  * <p>Montants en <b>centimes d'euro</b>. Pourcentages en pourcent, une decimale

@@ -998,7 +998,8 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   N5), `byType`, `signups`, `sources`, `ratios` (§7.4),
   `activity` (§7.3). Montants en centimes, % à une décimale.
 - 🛑 `null` = inconnu ou **pas encore mesuré** (date `measurementStart` absente ou postérieure
-  au début de la période, D43), jamais 0.
+  à la FIN de la période, D43), jamais 0. Une période qui chevauche la date est servie
+  **depuis cette date** (D117) ; la période précédente n'est lue que mesurée de bout en bout.
 - Définitions de chaque indicateur : `docs/regles/mesure-audience.md` § « Lecture du
   dashboard Suivi ». Six requêtes SQL constantes, ~160 ms sur un mois réaliste
   (`SuiviPerformanceIT`), sans cache.

@@ -141,6 +141,10 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
      * Identifiants de mesure distincts ayant au moins un evenement dans la
      * periode, par groupe de source first-touch. Un visiteur appartient a un
      * seul groupe : la somme des groupes est le total.
+     *
+     * @param from    debut de la periode = fin (exclue) de la periode precedente
+     * @param curFrom debut de la lecture de la periode courante, {@code >= from}
+     *                (date de debut de mesure, D117)
      */
     @Query(value = """
             WITH ev AS (
@@ -148,7 +152,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                        CASE WHEN e.occurred_at >= :from THEN 'CUR' ELSE 'PREV' END AS per,
                        e.anonymous_id
                   FROM analytics_event e
-                 WHERE e.occurred_at >= :prevFrom AND e.occurred_at < :to
+                 WHERE ((e.occurred_at >= :prevFrom AND e.occurred_at < :from)
+                        OR (e.occurred_at >= :curFrom AND e.occurred_at < :to))
                    AND (CAST(:platform AS text) IS NULL OR e.platform = CAST(:platform AS text))
                    AND (:includeInternal OR NOT COALESCE(e.is_internal, false))
             ),
@@ -170,7 +175,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
              GROUP BY per, grp
             """, nativeQuery = true)
     List<VisitorCell> visitors(@Param("prevFrom") Instant prevFrom, @Param("from") Instant from,
-                               @Param("to") Instant to, @Param("platform") String platform,
+                               @Param("curFrom") Instant curFrom, @Param("to") Instant to, @Param("platform") String platform,
                                @Param("source") String source, @Param("includeInternal") boolean includeInternal,
                                @Param("srcMap") String srcMap, @Param("fallback") String fallback);
 
@@ -378,7 +383,11 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
      * diagnostic : comptes ayant claime une run par connexion dans la periode
      * (le filtre type ne s'y applique pas, c'est une ligne du bloc Inscriptions).
      *
-     * @param runType {@code QUICK_TCF}, {@code CIVIQUE} ou {@code NULL} (les deux)
+     * @param runType  {@code QUICK_TCF}, {@code CIVIQUE} ou {@code NULL} (les deux)
+     * @param from     fin (exclue) de la periode precedente
+     * @param subFrom  debut de la lecture des soumissions de la periode (D117)
+     * @param anonFrom idem pour les soumis anonymes jamais rattaches
+     * @param attFrom  idem pour les connexions apres diagnostic
      */
     @Query(value = "WITH " + RUNS + """
             , flt AS (
@@ -391,25 +400,27 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                  WHERE CAST(:runType AS text) IS NULL OR diagnostic_type = CAST(:runType AS text)
             )
             SELECT (SELECT count(DISTINCT pk) FROM typed
-                     WHERE submitted_at >= :from AND submitted_at < :to) AS cur_first,
+                     WHERE submitted_at >= :subFrom AND submitted_at < :to) AS cur_first,
                    (SELECT count(*) FROM typed
-                     WHERE submitted_at >= :from AND submitted_at < :to) AS cur_raw,
+                     WHERE submitted_at >= :subFrom AND submitted_at < :to) AS cur_raw,
                    (SELECT count(DISTINCT pk) FROM typed
                      WHERE submitted_at >= :prevFrom AND submitted_at < :from) AS prev_first,
                    (SELECT count(*) FROM typed
                      WHERE submitted_at >= :prevFrom AND submitted_at < :from) AS prev_raw,
                    (SELECT count(*) FROM typed
-                     WHERE submitted_at >= :from AND submitted_at < :to
+                     WHERE submitted_at >= :anonFrom AND submitted_at < :to
                        AND submitted_authenticated = false
                        AND NOT (claimed_at IS NOT NULL
                                 AND claimed_at < submitted_at
                                                  + make_interval(days => CAST(:windowDays AS int))))
                        AS anon_never_attached,
                    (SELECT count(DISTINCT user_id) FROM flt
-                     WHERE claim_kind = 'LOGIN' AND claimed_at >= :from AND claimed_at < :to)
+                     WHERE claim_kind = 'LOGIN' AND claimed_at >= :attFrom AND claimed_at < :to)
                        AS logged_in_after
             """, nativeQuery = true)
     ActivityRow activity(@Param("prevFrom") Instant prevFrom, @Param("from") Instant from,
+                         @Param("subFrom") Instant subFrom, @Param("anonFrom") Instant anonFrom,
+                         @Param("attFrom") Instant attFrom,
                          @Param("to") Instant to, @Param("windowDays") int windowDays,
                          @Param("runType") String runType, @Param("platform") String platform,
                          @Param("source") String source, @Param("includeInternal") boolean includeInternal,
@@ -486,7 +497,10 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
         long getOriginUnknown();
     }
 
-    /** Achats dates par {@code purchased_at}, par periode et par canal. Rembourses inclus. */
+    /**
+     * Achats dates par {@code purchased_at}, par periode et par canal. Rembourses
+     * inclus. Periode courante lue depuis {@code :curFrom} (D117).
+     */
     @Query(value = "WITH " + ACHATS + """
             SELECT CASE WHEN a.purchased_at >= :from THEN 'CUR' ELSE 'PREV' END AS per,
                    a.source AS provider,
@@ -503,11 +517,12 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                    count(*) FILTER (WHERE a.origin = 'OTHER_CTA') AS origin_other_cta,
                    count(*) FILTER (WHERE a.origin = 'UNKNOWN') AS origin_unknown
               FROM achats a
-             WHERE a.purchased_at >= :prevFrom AND a.purchased_at < :to
+             WHERE (a.purchased_at >= :prevFrom AND a.purchased_at < :from)
+                OR (a.purchased_at >= :curFrom AND a.purchased_at < :to)
              GROUP BY 1, 2
             """, nativeQuery = true)
     List<PurchaseCell> purchases(@Param("prevFrom") Instant prevFrom, @Param("from") Instant from,
-                                 @Param("to") Instant to, @Param("type") String type,
+                                 @Param("curFrom") Instant curFrom, @Param("to") Instant to, @Param("type") String type,
                                  @Param("platform") String platform, @Param("source") String source,
                                  @Param("includeInternal") boolean includeInternal,
                                  @Param("srcMap") String srcMap, @Param("fallback") String fallback);
@@ -524,7 +539,8 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
 
     /**
      * Remboursements dates par {@code refunded_at} (logique periode), filtres par
-     * l'achat qu'ils touchent — quelle que soit la date de cet achat.
+     * l'achat qu'ils touchent — quelle que soit la date de cet achat. Periode
+     * courante lue depuis {@code :curFrom} (D117).
      */
     @Query(value = "WITH " + ACHATS + """
             SELECT CASE WHEN pr.refunded_at >= :from THEN 'CUR' ELSE 'PREV' END AS per,
@@ -533,11 +549,12 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                    CAST(sum(pr.net_ex_vat_delta_cents) AS bigint) AS delta
               FROM payment_refunds pr
               JOIN achats a ON a.id = pr.subscription_id
-             WHERE pr.refunded_at >= :prevFrom AND pr.refunded_at < :to
+             WHERE (pr.refunded_at >= :prevFrom AND pr.refunded_at < :from)
+                OR (pr.refunded_at >= :curFrom AND pr.refunded_at < :to)
              GROUP BY 1
             """, nativeQuery = true)
     List<RefundCell> refunds(@Param("prevFrom") Instant prevFrom, @Param("from") Instant from,
-                             @Param("to") Instant to, @Param("type") String type,
+                             @Param("curFrom") Instant curFrom, @Param("to") Instant to, @Param("type") String type,
                              @Param("platform") String platform, @Param("source") String source,
                              @Param("includeInternal") boolean includeInternal,
                              @Param("srcMap") String srcMap, @Param("fallback") String fallback);
@@ -573,11 +590,13 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     /**
      * Comptes crees dans la periode ({@code users.created_at}, non supprimes),
      * par contexte d'inscription, type du diagnostic rattache et plateforme.
+     * Le total part de {@code :from} ; le contexte et la plateforme, de leur
+     * propre date de debut de mesure ({@code :ctxFrom}, {@code :pfFrom}, D117).
      */
     @Query(value = """
             WITH comptes AS (
                 SELECT x.* FROM (
-                    SELECT u.signup_context, u.signup_diagnostic_type, u.signup_platform,
+                    SELECT u.created_at, u.signup_context, u.signup_diagnostic_type, u.signup_platform,
                            """ + CLE_SOURCE_DU_COMPTE + """
              AS src_key
                       FROM users u
@@ -589,23 +608,27 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
             ) = CAST(:source AS text)
             )
             SELECT count(*) AS total,
-                   count(*) FILTER (WHERE signup_context = 'AFTER_DIAGNOSTIC') AS after_total,
-                   count(*) FILTER (WHERE signup_context = 'AFTER_DIAGNOSTIC'
+                   count(*) FILTER (WHERE created_at >= :ctxFrom
+                                      AND signup_context = 'AFTER_DIAGNOSTIC') AS after_total,
+                   count(*) FILTER (WHERE created_at >= :ctxFrom AND signup_context = 'AFTER_DIAGNOSTIC'
                                       AND signup_diagnostic_type IN ('QUICK_TCF', 'FULL_TCF')) AS after_tcf,
-                   count(*) FILTER (WHERE signup_context = 'AFTER_DIAGNOSTIC'
+                   count(*) FILTER (WHERE created_at >= :ctxFrom AND signup_context = 'AFTER_DIAGNOSTIC'
                                       AND signup_diagnostic_type = 'CIVIQUE') AS after_civique,
-                   count(*) FILTER (WHERE signup_context = 'OUTSIDE_DIAGNOSTIC') AS outside,
-                   count(*) FILTER (WHERE signup_context IS NULL) AS context_unknown,
-                   count(*) FILTER (WHERE signup_platform = 'WEB') AS web,
-                   count(*) FILTER (WHERE signup_platform = 'IOS') AS ios,
-                   count(*) FILTER (WHERE signup_platform = 'ANDROID') AS android,
-                   count(*) FILTER (WHERE signup_platform = 'MOBILE') AS mobile,
-                   count(*) FILTER (WHERE signup_platform IS NULL
-                                       OR signup_platform NOT IN ('WEB', 'IOS', 'ANDROID', 'MOBILE'))
+                   count(*) FILTER (WHERE created_at >= :ctxFrom
+                                      AND signup_context = 'OUTSIDE_DIAGNOSTIC') AS outside,
+                   count(*) FILTER (WHERE created_at >= :ctxFrom AND signup_context IS NULL) AS context_unknown,
+                   count(*) FILTER (WHERE created_at >= :pfFrom AND signup_platform = 'WEB') AS web,
+                   count(*) FILTER (WHERE created_at >= :pfFrom AND signup_platform = 'IOS') AS ios,
+                   count(*) FILTER (WHERE created_at >= :pfFrom AND signup_platform = 'ANDROID') AS android,
+                   count(*) FILTER (WHERE created_at >= :pfFrom AND signup_platform = 'MOBILE') AS mobile,
+                   count(*) FILTER (WHERE created_at >= :pfFrom
+                                      AND (signup_platform IS NULL
+                                           OR signup_platform NOT IN ('WEB', 'IOS', 'ANDROID', 'MOBILE')))
                        AS platform_unknown
               FROM comptes
             """, nativeQuery = true)
-    SignupRow signups(@Param("from") Instant from, @Param("to") Instant to,
+    SignupRow signups(@Param("from") Instant from, @Param("ctxFrom") Instant ctxFrom,
+                      @Param("pfFrom") Instant pfFrom, @Param("to") Instant to,
                       @Param("platform") String platform, @Param("source") String source,
                       @Param("includeInternal") boolean includeInternal,
                       @Param("srcMap") String srcMap, @Param("fallback") String fallback);

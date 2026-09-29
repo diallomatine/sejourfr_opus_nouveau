@@ -1,6 +1,6 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { int } from "../format";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, StatItem, Unmeasured } from "./Section";
 
@@ -13,6 +13,10 @@ export function SignupsCard({ data }: { data: AdminSuiviResponse }) {
   const { signups } = data;
   const { afterDiagnostic, byPlatform } = signups;
   const contextNote = unmeasuredNote(data, "SIGNUP_CONTEXT");
+  const contextSince =
+    afterDiagnostic.total == null ? null : measuredSinceNote(data, "SIGNUP_CONTEXT");
+  const platformSince =
+    byPlatform.web == null ? null : measuredSinceNote(data, "SIGNUP_PLATFORM_DETAIL");
   const legacyPlatforms = [
     byPlatform.mobileUnspecified != null && byPlatform.mobileUnspecified > 0
       ? `${int(byPlatform.mobileUnspecified)} mobile non ventilé (app ancienne)`
@@ -65,6 +69,13 @@ export function SignupsCard({ data }: { data: AdminSuiviResponse }) {
         </div>
       </div>
 
+      {(contextSince || platformSince) && (
+        <p className={styles.footnote}>
+          Origine et plateforme :{" "}
+          <Unmeasured>{contextSince ?? platformSince}</Unmeasured> (comptes créés avant non
+          ventilés).
+        </p>
+      )}
       {byPlatform.ios == null && byPlatform.android == null && (
         <p className={styles.footnote}>
           iOS / Android : <Unmeasured>{unmeasuredNote(data, "SIGNUP_PLATFORM_DETAIL")}</Unmeasured>

@@ -219,8 +219,11 @@ de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
   illisible ignorée). Les bornes **servies** (`window.from/to`) s'affichent,
   jamais celles demandées.
 - 🛑 **`null` = inconnu ou pas encore mesuré, jamais `0`** (Q16, D43). Rendu
-  `—` + mention « non mesuré » / « mesuré depuis le JJ/MM » tirée de
-  `measurementStart` (`measurement.ts`). Une étape de tunnel `null` n'a **pas
+  `—` + mention « non mesuré » / « mesuré à partir du JJ/MM » tirée de
+  `measurementStart` (`measurement.ts`, `unmeasuredNote`). Une période qui
+  **chevauche** la date de début est servie chiffrée depuis cette date (D117) :
+  la valeur s'affiche avec la mention « mesuré depuis le JJ/MM »
+  (`measuredSinceNote`), et sa tendance reste `—` (période précédente non mesurée). Une étape de tunnel `null` n'a **pas
   de barre** (cadre pointillé) ; tunnel entièrement inconnu = un seul encart.
 - 🛑 **Le front ne calcule AUCUN pourcentage** : taux, ratios, deltas et
   largeurs de barre du tunnel (`pctOfFirst`) sont servis. Seule exception

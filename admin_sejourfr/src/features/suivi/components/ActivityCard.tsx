@@ -1,6 +1,6 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { int } from "../format";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, StatItem, Unmeasured } from "./Section";
 
@@ -8,6 +8,7 @@ import { Section, StatItem, Unmeasured } from "./Section";
 export function ActivityCard({ data }: { data: AdminSuiviResponse }) {
   const { activity } = data;
   const origin = activity.purchasesByOrigin;
+  const since = activity.submittedRaw == null ? null : measuredSinceNote(data, "DIAGNOSTIC_SUBMITTED");
   const originUnknown =
     origin.diagnosticPlan == null && origin.otherCta == null && origin.unknown == null;
 
@@ -58,6 +59,11 @@ export function ActivityCard({ data }: { data: AdminSuiviResponse }) {
           number={int(activity.anonymousSubmittedNeverAttached)}
         />
       </div>
+      {since && (
+        <p className={styles.footnote}>
+          Activité <Unmeasured>{since}</Unmeasured>.
+        </p>
+      )}
     </Section>
   );
 }

@@ -1,7 +1,7 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { count, int } from "../format";
 import { SCOPE_LABELS } from "../labels";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, StatItem, Unmeasured } from "./Section";
 
@@ -25,6 +25,11 @@ export function ByTypeCard({ data }: { data: AdminSuiviResponse }) {
           />
         ))}
       </div>
+      {measuredSinceNote(data, "DIAGNOSTIC_SUBJECT_VIEWED") && (
+        <p className={styles.footnote}>
+          Cohorte <Unmeasured>{measuredSinceNote(data, "DIAGNOSTIC_SUBJECT_VIEWED")}</Unmeasured>.
+        </p>
+      )}
       {data.filters.type !== "ALL" && (
         <p className={styles.footnote}>Comparatif : ce bloc ignore le filtre de type.</p>
       )}

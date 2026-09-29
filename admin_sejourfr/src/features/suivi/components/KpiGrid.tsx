@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { AdminSuiviResponse, SuiviIndicator, SuiviKpi } from "../../../types/api";
 import { DASH, int, money, pct, signedPct } from "../format";
 import { comparedTo } from "../labels";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 
 interface KpiCardProps {
@@ -24,7 +24,8 @@ function KpiCard({ label, value, trend, neutral }: KpiCardProps) {
 
 /**
  * Ligne secondaire d'un KPI. Valeur inconnue : on dit pourquoi, jamais un
- * ratio ni une tendance calcules sur du vide.
+ * ratio ni une tendance calcules sur du vide. Periode a cheval sur la date de
+ * debut de mesure : la valeur part de cette date, on le dit (D117).
  */
 function secondary(
   data: AdminSuiviResponse,
@@ -33,8 +34,9 @@ function secondary(
   text: string | null,
 ): { trend: string; neutral: boolean } {
   if (kpi.value == null) return { trend: unmeasuredNote(data, indicator), neutral: true };
-  if (text == null) return { trend: DASH, neutral: true };
-  return { trend: text, neutral: false };
+  const since = measuredSinceNote(data, indicator);
+  if (text == null) return { trend: since ?? DASH, neutral: true };
+  return { trend: since == null ? text : `${text} · ${since}`, neutral: false };
 }
 
 export function KpiGrid({ data }: { data: AdminSuiviResponse }) {

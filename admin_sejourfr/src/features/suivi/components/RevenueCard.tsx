@@ -1,7 +1,7 @@
 import type { AdminSuiviResponse } from "../../../types/api";
 import { DASH, count, deduction, int, money } from "../format";
 import { PROVIDER_LABELS } from "../labels";
-import { unmeasuredNote } from "../measurement";
+import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Unmeasured } from "./Section";
 
@@ -27,10 +27,16 @@ export function RevenueCard({ data }: { data: AdminSuiviResponse }) {
       <div className={styles.moneyMain}>
         <div className={styles.moneySmall}>NET RÉEL ESTIMÉ</div>
         <div className={styles.moneyBig}>{money(revenue.netExVatAfterRefundsCents)}</div>
-        {revenue.netExVatAfterRefundsCents == null && (
+        {revenue.netExVatAfterRefundsCents == null ? (
           <div className={styles.note}>
             <Unmeasured>{unmeasuredNote(data, "REVENUE_BREAKDOWN")}</Unmeasured>
           </div>
+        ) : (
+          measuredSinceNote(data, "PURCHASES") && (
+            <div className={styles.note}>
+              <Unmeasured>{measuredSinceNote(data, "PURCHASES")}</Unmeasured>
+            </div>
+          )
         )}
       </div>
 
