@@ -1296,6 +1296,12 @@ export interface AdminSuiviResponse {
   byType: SuiviTypeRow[];
   signups: SuiviSignups;
   sources: SuiviSourceRow[];
+  /**
+   * Visiteurs sans source connue (app native ou client sans plateforme
+   * declaree, sans provenance) : groupes + inconnue = KPI visiteurs.
+   * `null` si les sources ne sont pas mesurees.
+   */
+  unknownSourceVisitors: number | null;
   ratios: SuiviRatios;
   activity: SuiviActivity;
 }

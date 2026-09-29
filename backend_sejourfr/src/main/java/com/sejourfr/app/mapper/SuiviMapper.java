@@ -152,6 +152,9 @@ public class SuiviMapper {
         Long visitors = visitorsMeasured ? sumVisitors(l.visitors(), "CUR") : null;
         Long visitorsPrev = visitorsPrevMeasured ? sumVisitors(l.visitors(), "PREV") : null;
 
+        boolean sourcesMeasured = visitorsMeasured
+                && mesure.at(visitorsSince, SuiviIndicator.ACQUISITION_SOURCES);
+
         LocalDate submittedSince = mesure.since(SuiviIndicator.DIAGNOSTIC_SUBMITTED);
         Long submitted = submittedSince != null ? l.activity().getCurFirst() : null;
         Long submittedPrev = mesure.before(SuiviIndicator.DIAGNOSTIC_SUBMITTED) ? l.activity().getPrevFirst() : null;
@@ -188,8 +191,8 @@ public class SuiviMapper {
                 List.of(typeRow(SuiviTypeFilter.TCF, funnelRows.get("QUICK_TCF"), mesure),
                         typeRow(SuiviTypeFilter.CIVIQUE, funnelRows.get("CIVIQUE"), mesure)),
                 signups(l.signups(), l.activity().getLoggedInAfter(), mesure),
-                sources(l.visitors(), availableSources, visitorsMeasured
-                        && mesure.at(visitorsSince, SuiviIndicator.ACQUISITION_SOURCES)),
+                sources(l.visitors(), availableSources, sourcesMeasured),
+                sourcesMeasured ? unknownSource(l.visitors()) : null,
                 ratios(scopeRow, funnel),
                 activity);
     }
@@ -406,6 +409,15 @@ public class SuiviMapper {
             rows.add(new SourceRow(group, measured ? n : null));
         }
         return rows;
+    }
+
+    /** Visiteurs de la periode sans groupe : source inconnue (N2), jamais « autre ». */
+    private static long unknownSource(List<VisitorCell> cells) {
+        long n = 0;
+        for (VisitorCell c : cells) {
+            if ("CUR".equals(c.getPer()) && c.getGrp() == null) n += c.getN();
+        }
+        return n;
     }
 
     private static long sumVisitors(List<VisitorCell> cells, String per) {

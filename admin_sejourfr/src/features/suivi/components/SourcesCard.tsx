@@ -11,7 +11,8 @@ import { Section, Unmeasured } from "./Section";
  * comme dans le template ; aucun pourcentage n'est affiche.
  */
 export function SourcesCard({ data }: { data: AdminSuiviResponse }) {
-  const max = Math.max(0, ...data.sources.map((row) => row.visitors ?? 0));
+  const unknown = data.unknownSourceVisitors;
+  const max = Math.max(0, unknown ?? 0, ...data.sources.map((row) => row.visitors ?? 0));
   const allUnknown = data.sources.every((row) => row.visitors == null);
   const since = allUnknown ? null : measuredSinceNote(data, "ACQUISITION_SOURCES");
 
@@ -37,7 +38,23 @@ export function SourcesCard({ data }: { data: AdminSuiviResponse }) {
               <strong>{int(row.visitors)}</strong>
             </div>
           ))}
+          {unknown != null && unknown > 0 && (
+            <div className={styles.sourceRow}>
+              <div title="Application sans provenance déclarée : ni lien de campagne, ni référent. Jamais rangée dans « Autre ».">
+                Inconnue
+              </div>
+              <div className={styles.sourceTrack}>
+                {max > 0 && <span style={{ width: `${(unknown / max) * 100}%` }} />}
+              </div>
+              <strong>{int(unknown)}</strong>
+            </div>
+          )}
         </div>
+      )}
+      {unknown != null && unknown > 0 && (
+        <p className={styles.footnote}>
+          « Inconnue » : visiteurs de l’application, qui ne transmet aucune provenance.
+        </p>
       )}
 
       {since && (

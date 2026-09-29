@@ -995,7 +995,8 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   compte ni identifiant de mesure, doublons possibles — contrôle D), `revenue` (brut, TVA,
   frais, nets, remboursements, net après remboursements, par canal,
   `grossUnknownPurchases` = achats au brut inconnu, le brut est alors partiel — contrôle
-  N5), `byType`, `signups`, `sources`, `ratios` (§7.4),
+  N5), `byType`, `signups`, `sources`, `unknownSourceVisitors` (visiteurs sans source ;
+  groupes + inconnue = KPI visiteurs), `ratios` (§7.4),
   `activity` (§7.3). Montants en centimes, % à une décimale.
 - 🛑 `null` = inconnu ou **pas encore mesuré** (date `measurementStart` absente ou postérieure
   à la FIN de la période, D43), jamais 0. Une période qui chevauche la date est servie

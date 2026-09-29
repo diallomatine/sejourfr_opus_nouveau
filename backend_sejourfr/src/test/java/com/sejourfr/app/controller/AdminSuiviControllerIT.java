@@ -147,6 +147,7 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.signups.typeFilterApplied").value(false))
                 .andExpect(jsonPath("$.sources", hasSize(5)))
                 .andExpect(jsonPath("$.sources[0].visitors").value(nullValue()))
+                .andExpect(jsonPath("$.unknownSourceVisitors").value(nullValue()))
                 .andExpect(jsonPath("$.ratios.subjectToSubmissionPct").value(nullValue()))
                 .andExpect(jsonPath("$.activity.anonymousSubmittedNeverAttached").value(nullValue()));
     }

@@ -45,6 +45,14 @@ public record AdminSuiviResponse(
         Signups signups,
         /** Groupes de la config dans leur ordre, repli ({@code autre}) en dernier. */
         List<SourceRow> sources,
+        /**
+         * Visiteurs de la periode SANS source connue (application native ou client
+         * sans plateforme declaree, sans provenance : controle N2). Comptes sous
+         * « Toutes » seulement, jamais ranges dans un groupe : c'est ce qui manque a
+         * la somme de {@link #sources} pour faire le KPI visiteurs. {@code null} si
+         * les sources ne sont pas mesurees.
+         */
+        Long unknownSourceVisitors,
         Ratios ratios,
         Activity activity
 ) {

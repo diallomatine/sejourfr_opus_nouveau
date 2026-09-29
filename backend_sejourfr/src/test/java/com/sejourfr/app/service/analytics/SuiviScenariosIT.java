@@ -638,6 +638,10 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
         assertThat(tous.kpis().visitors().value()).isEqualTo(3L);
         assertThat(tous.sources()).filteredOn(r -> r.group().equals("direct"))
                 .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(1L);
+        // Les deux natifs sans provenance sont servis a part : groupes + inconnue = KPI.
+        assertThat(tous.unknownSourceVisitors()).isEqualTo(2L);
+        assertThat(tous.sources().stream().mapToLong(AdminSuiviResponse.SourceRow::visitors).sum()
+                + tous.unknownSourceVisitors()).isEqualTo(tous.kpis().visitors().value());
         assertThat(direct.kpis().visitors().value()).isEqualTo(1L);
         assertThat(step(tous, 1).count()).isEqualTo(1L);
         assertThat(step(direct, 1).count()).isZero();
