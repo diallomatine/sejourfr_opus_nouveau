@@ -1,4 +1,4 @@
-import {API_BASE_URL} from "./api";
+import {API_BASE_URL, tokenStorage} from "./api";
 import {
   anonymousRecord,
   APP_VERSION,
@@ -425,6 +425,32 @@ function firstTouchDelivered(body: BatchBody): void {
 }
 
 /**
+ * `POST` du lot. **Jeton joint quand il existe**, comme sur mobile : le serveur
+ * rattache alors l'événement au compte (`analytics_event.user_id`) et en résout
+ * `is_internal` même sans lien `analytics_identity` (compte resté connecté
+ * depuis avant la mise en production). Un jeton périmé ne coûte jamais la
+ * mesure : le 401 est rejoué **une fois** sans jeton, sans rafraîchissement ni
+ * déconnexion (audit Suivi 2026-09-29 : 0 événement web sur 431 portait un
+ * compte, contre 97 % sur mobile).
+ */
+async function postBatch(body: string): Promise<Response> {
+  const send = (token: string | null) =>
+    fetch(`${API_BASE_URL}${BATCH_ENDPOINT}`, {
+      method: "POST",
+      headers: {
+        ...clientContextHeaders(),
+        "Content-Type": "application/json",
+        ...(token ? {Authorization: `Bearer ${token}`} : {}),
+      },
+      body,
+      keepalive: true,
+    });
+  const token = tokenStorage.getAccess();
+  const res = await send(token);
+  return token && res.status === 401 ? send(null) : res;
+}
+
+/**
  * Envoi normal, en-têtes compris. **202** : le lot est purgé, rejets
  * compris (un rejet est définitif, le renvoyer serait rejeté de nouveau, D5).
  * **400** : l'enveloppe est refusée telle quelle — la renvoyer à l'identique
@@ -442,12 +468,7 @@ async function flush(): Promise<void> {
   queue = queue.slice(batch.length);
   sending = true;
   try {
-    const res = await fetch(`${API_BASE_URL}${BATCH_ENDPOINT}`, {
-      method: "POST",
-      headers: {...clientContextHeaders(), "Content-Type": "application/json"},
-      body: JSON.stringify(body),
-      keepalive: true,
-    });
+    const res = await postBatch(JSON.stringify(body));
     if (res.ok) {
       // Le serveur ne pose l'attribution qu'avec au moins un événement
       // retenu : un lot entièrement rejeté la garde pour le suivant.
