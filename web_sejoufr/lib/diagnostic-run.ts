@@ -105,9 +105,17 @@ export function ensureDiagnosticRun(
  */
 export async function submitQuickTcfRun(sessionId: string | null = null): Promise<void> {
   try {
-    const record = await (inFlight.get("QUICK_TCF") ?? readDiagnosticRun("QUICK_TCF"));
+    let record = await (inFlight.get("QUICK_TCF") ?? readDiagnosticRun("QUICK_TCF"));
+    const mine =
+      record != null &&
+      (sessionId === null || record.sessionId === null || record.sessionId === sessionId);
+    if (mine && record?.submitted) return;
+    // Trace absente, run jamais créée (coupure au « sujet vu ») ou trace d'un
+    // autre passage : la run de CE passage est créée maintenant, comme sur
+    // mobile (`DiagnosticRunTracker.submitted`) — sans quoi les étapes 1 et 2
+    // étaient perdues (audit Suivi 2026-09-29).
+    if (!mine || !record?.diagnosticRunId) record = await ensureDiagnosticRun("QUICK_TCF", sessionId);
     if (!record?.diagnosticRunId || record.submitted) return;
-    if (sessionId !== null && record.sessionId !== null && record.sessionId !== sessionId) return;
     await diagnosticRunApi.submit(record.diagnosticRunId, record.claimToken);
     await writeDiagnosticRun({...record, submitted: true});
   } catch {
