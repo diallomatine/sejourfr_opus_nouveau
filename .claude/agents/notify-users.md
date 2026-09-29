@@ -120,15 +120,20 @@ l'architecture**. N'écris aucun code avant.
 
 ### `reprise`
 
-**Objet :** L'application SejourFR fonctionne de nouveau normalement
+**Objet :** Mise à jour obligatoire de l'application SejourFR
 
 > Bonjour,
 >
-> La mise à jour est terminée : l'application mobile SejourFR fonctionne de nouveau
-> normalement.
+> Une nouvelle version de l'application mobile SejourFR est disponible.
 >
-> Si vous rencontrez encore une erreur, installez la dernière version depuis l'App
-> Store ou Google Play.
+> Mise à jour obligatoire : l'ancienne version ne fonctionne plus. Pour continuer à
+> vous entraîner sur mobile, installez la dernière version dès maintenant.
+>
+> - iPhone (App Store) : https://apps.apple.com/us/app/sejourfr/id6771509569?l=fr-FR
+> - Android (Google Play) : https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr
+>
+> Votre compte, vos résultats et vos achats sont conservés : il suffit de vous
+> reconnecter après la mise à jour.
 >
 > Bonne préparation,
 > L'équipe SejourFR

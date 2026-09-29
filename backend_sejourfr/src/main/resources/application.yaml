@@ -197,8 +197,8 @@ sejourfr:
         preheader: "Pendant les prochains jours, l'application mobile peut rencontrer des erreurs."
         local-template: email/campaign-incident
       CAMPAIGN_REPRISE:
-        subject: "L'application SejourFR fonctionne de nouveau normalement"
-        preheader: "La mise à jour est terminée : l'application mobile SejourFR fonctionne de nouveau normalement."
+        subject: "Mise à jour obligatoire de l'application SejourFR"
+        preheader: "L'ancienne version ne fonctionne plus : installez la dernière version depuis l'App Store ou Google Play."
         local-template: email/campaign-reprise
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
