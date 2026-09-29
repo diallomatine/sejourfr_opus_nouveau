@@ -45,25 +45,37 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
     /**
      * <b>Source declaree d'un visiteur</b> (controle N2). La source
      * brute si quelqu'un l'a declaree ; sinon la source normalisee, SAUF pour
-     * l'application native (iOS, Android, « mobile ») : sans provenance declaree,
-     * le serveur y ecrivait le repli {@code direct}, qui n'a jamais ete observe —
-     * c'est une source inconnue ({@code NULL}), comptee sous « Toutes » seulement.
-     * Le web sans provenance, lui, est un vrai acces direct. Ecrite pour le
-     * visiteur {@code v} (constante d'annotation : pas de fonction possible).
+     * l'application native (iOS, Android, « mobile ») et pour un client qui n'a
+     * declare aucune plateforme ({@code UNKNOWN}, ou {@code NULL}) : sans
+     * provenance declaree, le serveur y ecrivait le repli {@code direct}, qui n'a
+     * jamais ete observe — c'est une source inconnue ({@code NULL}), comptee sous
+     * « Toutes » seulement. Le web sans provenance, lui, est un vrai acces direct.
+     * Ecrite pour le visiteur {@code v} (constante d'annotation : pas de fonction
+     * possible).
      */
     String SOURCE_V = " (CASE WHEN v.ft_source_raw IS NOT NULL THEN v.ft_source_raw"
-            + " WHEN v.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE v.ft_source END) ";
+            + " WHEN v.platform IS NULL OR v.platform IN ('IOS', 'ANDROID', 'MOBILE', 'UNKNOWN') THEN NULL"
+            + " ELSE v.ft_source END) ";
 
     /** {@link #SOURCE_V} pour le visiteur d'inscription {@code vu}. */
     String SOURCE_VU = " (CASE WHEN vu.ft_source_raw IS NOT NULL THEN vu.ft_source_raw"
-            + " WHEN vu.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE vu.ft_source END) ";
+            + " WHEN vu.platform IS NULL OR vu.platform IN ('IOS', 'ANDROID', 'MOBILE', 'UNKNOWN') THEN NULL"
+            + " ELSE vu.ft_source END) ";
 
     /** {@link #SOURCE_V} pour le visiteur de la run {@code vr}. */
     String SOURCE_VR = " (CASE WHEN vr.ft_source_raw IS NOT NULL THEN vr.ft_source_raw"
-            + " WHEN vr.platform IN ('IOS', 'ANDROID', 'MOBILE') THEN NULL ELSE vr.ft_source END) ";
+            + " WHEN vr.platform IS NULL OR vr.platform IN ('IOS', 'ANDROID', 'MOBILE', 'UNKNOWN') THEN NULL"
+            + " ELSE vr.ft_source END) ";
 
-    /** Meme regle pour {@code users.signup_source} : un {@code direct} natif est le repli, pas une source. */
-    String SOURCE_INSCRIPTION = " (CASE WHEN u.signup_platform IN ('IOS', 'ANDROID', 'MOBILE')"
+    /**
+     * Meme regle pour {@code users.signup_source} : un {@code direct} natif ou
+     * sans plateforme declaree est le repli, pas une source. En production, les
+     * inscriptions {@code UNKNOWN} / {@code direct} sont celles de l'application
+     * publiee avant iOS / Android (connexion Google / Apple sans en-tete) :
+     * « direct » n'y a jamais ete observe (audit 2026-09-29).
+     */
+    String SOURCE_INSCRIPTION = " (CASE WHEN (u.signup_platform IS NULL"
+            + " OR u.signup_platform IN ('IOS', 'ANDROID', 'MOBILE', 'UNKNOWN'))"
             + " AND u.signup_source = 'direct' THEN NULL ELSE u.signup_source END) ";
 
     /** Visiteur d'inscription ({@code vu}) et plus ancien visiteur lie ({@code vi}) du compte {@code u}. */

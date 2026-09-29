@@ -646,6 +646,25 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Audit 2026-09-29 — client sans plateforme déclarée (application d'avant iOS/Android) : le repli « direct » est une source inconnue")
+    void plateformeNonDeclareeSansProvenanceInconnue() {
+        // Connexion Google de l'app publiee : ni X-Sejourfr-Client, ni source → UNKNOWN / direct.
+        User ancien = data.userCreatedAt("direct", ClientPlatform.UNKNOWN, paris(D3, 8));
+        purchase(ancien, data.plan(), "GOOGLE", paris(D3, 10), 2999, 2124, null, "UNKNOWN");
+        User web = data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 8));
+        purchase(web, data.plan(), "STRIPE", paris(D3, 11), 999, 959, null, "UNKNOWN");
+
+        AdminSuiviResponse tous = lire(jour(D3), SuiviTypeFilter.ALL);
+        AdminSuiviResponse direct = lireSource(jour(D3), "direct");
+
+        assertThat(tous.kpis().purchases().value()).isEqualTo(2L);
+        assertThat(tous.signups().total()).isEqualTo(2L);
+        // Seul le web sans provenance est un vrai acces direct.
+        assertThat(direct.kpis().purchases().value()).isEqualTo(1L);
+        assertThat(direct.signups().total()).isEqualTo(1L);
+    }
+
+    @Test
     @DisplayName("Contrôle D — runs sans compte ni identifiant de mesure : comptées une par une, et signalées")
     void runsSansIdentifiant() {
         run("QUICK_TCF", null, null, "WEB", paris(D3, 9));

@@ -467,7 +467,10 @@ Décisions : `docs/admin/decisions-suivi.md` (§1 arbitrages, lot 4). Tests :
   🛑 **Natif sans provenance = inconnu, jamais `direct`** (contrôle N2, 2026-09-25) : à
   la lecture, un visiteur `IOS`/`ANDROID`/`MOBILE` sans `ft_source_raw`, et un compte
   natif dont `signup_source = 'direct'`, n'ont pas de source (`SuiviReadRepository.SOURCE_V*`,
-  `SOURCE_INSCRIPTION`). À l'écriture, `ClientContext.attributedSource()` rend `null` au
+  `SOURCE_INSCRIPTION`). **Même règle pour un client sans plateforme déclarée** (`UNKNOWN` ou
+  `NULL`, audit 2026-09-29) : en prod ce sont les connexions Google / Apple de l'application
+  publiée avant iOS / Android, écrites `UNKNOWN` / `direct` par le repli explicite
+  (`ClientContext.unknown()`), jamais un accès direct observé. À l'écriture, `ClientContext.attributedSource()` rend `null` au
   lieu du repli `direct` pour l'app native sans provenance déclarée
   (`analytics_visitor.ft_source`/`lt_source`, nullables depuis V076, et
   `users.signup_source`). Le web sans provenance reste un vrai `direct`.
