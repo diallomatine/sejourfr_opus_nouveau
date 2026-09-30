@@ -88,7 +88,7 @@ class EmailCampaignIT extends AbstractEmailIT {
         call("incident", "dry-run")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("DRY_RUN"))
-                .andExpect(jsonPath("$.waveSize").value(10))
+                .andExpect(jsonPath("$.waveSize").value(100))
                 .andExpect(jsonPath("$.remaining").value(org.hamcrest.Matchers.greaterThanOrEqualTo(2)));
         awaitEmailExecutorIdle();
         assertThat(mails.sent()).isEmpty();

@@ -92,6 +92,8 @@ sejourfr:
     # spring-mail aujourd'hui ; brevo demain (BrevoEmailSender + brevo-template-id).
     provider: ${EMAIL_PROVIDER:spring-mail}
     from: "SejourFR <${MAIL_FROM:no-reply@sejourfr.fr}>"
+    # Support ET Reply-To : jamais derives de MAIL_FROM (qui peut etre un
+    # no-reply). Un no-reply ici fait echouer le demarrage.
     reply-to: ${sejourfr.contact.to:support@sejourfr.fr}
     # URL absolue hebergee : un template Brevo ne sait pas faire d'image CID.
     logo-url: ${EMAIL_LOGO_URL:https://sejourfr.fr/logo_sejourFR.png}

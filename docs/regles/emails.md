@@ -112,12 +112,14 @@ donc pas « À bientôt » (`EmailType.signsItself`).
   systémique) : refus **5xx sur l'adresse** (`SMTPAddressFailedException` 550/553/501…) ou
   adresse illisible ⇒ **propre au destinataire** : `EmailOutcome.RECIPIENT_REJECTED`, sans
   relance immédiate (vaut pour tous les mails), ligne `FAILED`, la vague **continue**. Tout le
-  reste — code 4xx, statut étendu `4.x.x`, « per sender » (limite LWS `450 4.7.1`), refus de
+  reste — code 4xx, statut étendu `4.x.x`, « per sender » (limite LWS `450 4.7.1`), throttling SES `454`, refus de
   l'expéditeur, connexion, auth — est **systémique** : la vague s'arrête (`STOPPED_ON_ERROR`) et
   la tentative n'est pas imputée au compte. Garde-fou : `maxConsecutiveRecipientFailures` refus
   d'adresse d'affilée arrêtent aussi la vague.
-- **Vagues** : `email/campaigns-config-v2.json` (taille par défaut, plafond, pause conseillée —
-  180 s pour 10 mails, sous les 240 envois/h de LWS —, attente HTTP). L'envoi part sur
+- **Vagues** : `email/campaigns-config-v3.json` (taille par défaut 100, plafond 1 000, pause
+  10 s, attente HTTP), dimensionné pour **AWS SES** (14 envois/s, 50 000 / 24 h) depuis le
+  2026-09-30 ; la v2 (10 mails / 180 s) suivait les 240 envois/h de LWS. L'envoi est
+  séquentiel (un thread par vague), très en deçà des 14/s. L'envoi part sur
   `emailTaskExecutor` via `EmailService` ; la requête attend au plus `waveWaitSeconds`, puis
   répond `IN_PROGRESS`.
 - `test` : une adresse (`to`), clé `CAMPAIGN_{CODE}:TEST:{uuid}`, sans ligne de campagne.
@@ -270,6 +272,15 @@ des mails événementiels (`EmailDeferredRetryService`). **Rétention**
 L'ancien `ExpiryReminderJob` (rappel « Prolonger mon accès » vers `/paiement`, qui prévenait à
 tort un acheteur ayant prolongé) est **supprimé** ; `user_subscriptions.expiry_reminded_at`
 reste en base, plus jamais écrite (arbitrage n°6).
+
+## Adresses
+
+- **Expéditeur** `sejourfr.email.from` ← `MAIL_FROM` (peut être un no-reply, ex. `no_reply@sejourfr.fr`
+  sous SES).
+- **Support** `sejourfr.contact.to` (défaut `support@sejourfr.fr`) : pied « Écrivez-nous à … »,
+  `Reply-To` de tous les mails, destinataire du formulaire de contact. 🛑 **Jamais dérivé de
+  `MAIL_FROM`** : un no-reply ici fait échouer le démarrage
+  (`SpringMailEmailSender.verifierAdresseSupport`).
 
 ## Environnement de dev
 

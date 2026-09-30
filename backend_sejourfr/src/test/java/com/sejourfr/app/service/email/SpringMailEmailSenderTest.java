@@ -159,6 +159,32 @@ class SpringMailEmailSenderTest {
                 .hasMessageContaining("email/nexiste-pas");
     }
 
+    @Test
+    void uneAdresseDeSupportNoReplyEchoueAuDemarrage() {
+        EmailProperties props = EmailTestFixtures.properties();
+        SpringMailEmailSender s = new SpringMailEmailSender(javaMailSender, new MailTemplateRenderer(),
+                new EmailTemplateResolver(props), props, Clock.systemUTC(), "no_reply@sejourfr.fr");
+
+        assertThatThrownBy(s::verifierAdresseSupport).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no_reply@sejourfr.fr");
+    }
+
+    @Test
+    void unReplyToNoReplyEchoueAuDemarrage() {
+        EmailProperties props = EmailTestFixtures.properties();
+        props.setReplyTo("no-reply@sejourfr.fr");
+        SpringMailEmailSender s = new SpringMailEmailSender(javaMailSender, new MailTemplateRenderer(),
+                new EmailTemplateResolver(props), props, Clock.systemUTC(), "support@sejourfr.fr");
+
+        assertThatThrownBy(s::verifierAdresseSupport).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("no-reply@sejourfr.fr");
+    }
+
+    @Test
+    void lExpediteurPeutEtreUnNoReply() {
+        sender.verifierAdresseSupport();
+    }
+
     /** Revue D-17 : sans priorite, le bloc disparait ENTIER, en HTML comme en texte. */
     @Test
     void sansPrioriteLeBlocEstAbsentDesDeuxParties() {

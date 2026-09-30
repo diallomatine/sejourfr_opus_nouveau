@@ -40,6 +40,10 @@ public class SpringMailEmailSender implements EmailSender {
     private static final java.util.regex.Pattern TRANSIENT_STATUS =
             java.util.regex.Pattern.compile("(?<![\\d.])4\\.\\d{1,3}\\.\\d{1,3}(?![\\d.])");
 
+    /** Une boite qui ne lit pas ses messages : jamais adresse de support ni Reply-To. */
+    private static final java.util.regex.Pattern NO_REPLY =
+            java.util.regex.Pattern.compile("no[-_.]?reply", java.util.regex.Pattern.CASE_INSENSITIVE);
+
     private static final java.util.regex.Pattern SMTP_CODE = java.util.regex.Pattern.compile("^\\s*(\\d{3})\\b");
 
     static final String LAYOUT = "email/layout";
@@ -67,6 +71,19 @@ public class SpringMailEmailSender implements EmailSender {
     }
 
     /** Un gabarit configure dont le fichier manque echoue au demarrage, pas au premier envoi. */
+    /**
+     * L'expediteur peut etre un no-reply ; le support et le Reply-To jamais :
+     * sinon le pied « Ecrivez-nous a … » et les reponses partent dans le vide.
+     */
+    @PostConstruct
+    void verifierAdresseSupport() {
+        for (String adresse : new String[]{supportAddress, properties.getReplyTo()}) {
+            if (adresse == null || adresse.isBlank() || NO_REPLY.matcher(adresse).find()) {
+                throw new IllegalStateException("Adresse de support invalide (sejourfr.contact.to) : " + adresse);
+            }
+        }
+    }
+
     @PostConstruct
     void verifierGabarits() {
         for (String base : new String[]{LAYOUT, UNSUBSCRIBE_FRAGMENT}) {

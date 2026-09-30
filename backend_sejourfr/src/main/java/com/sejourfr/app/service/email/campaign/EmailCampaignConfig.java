@@ -9,7 +9,7 @@ import java.io.InputStream;
 
 /**
  * Les vagues des campagnes de service, lues dans
- * {@code email/campaigns-config-v2.json} (versionne, jamais en dur).
+ * {@code email/campaigns-config-v3.json} (versionne, jamais en dur).
  *
  * @param waveSize        taille de vague par defaut ({@code batch} absent)
  * @param maxWaveSize     plafond d'un {@code batch} demande
@@ -34,7 +34,7 @@ public record EmailCampaignConfig(
         int maxConsecutiveRecipientFailures
 ) {
 
-    static final int VERSION = 2;
+    static final int VERSION = 3;
     private static final String PATH = "email/campaigns-config-v" + VERSION + ".json";
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
