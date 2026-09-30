@@ -102,9 +102,6 @@ sejourfr:
       current-key-version: ${EMAIL_UNSUBSCRIBE_KEY_VERSION:1}
       keys:
         1: ${EMAIL_UNSUBSCRIBE_KEY_V1:}
-    # Liste blanche des destinataires : activee en dev (application-dev.yaml).
-    allowlist:
-      enabled: false
     automation:
       enabled: ${EMAIL_AUTOMATION_ENABLED:true}
       # Passage quotidien des scenarios ENGAGEMENT, fuseau Europe/Paris.

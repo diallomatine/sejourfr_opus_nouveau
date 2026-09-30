@@ -129,8 +129,6 @@ public class EmailCampaignService {
             EmailOutcome outcome = emailService.send(request);
             if (outcome == EmailOutcome.SENT) {
                 wave.sent++;
-            } else if (outcome == EmailOutcome.SKIPPED_ALLOWLIST) {
-                wave.skipped++;
             } else if (outcome == EmailOutcome.RECIPIENT_REJECTED) {
                 wave.rejected++;
                 wave.error = outcome.name();
@@ -191,10 +189,6 @@ public class EmailCampaignService {
                     campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.SENT, clock.instant());
                     wave.sent++;
                     consecutiveRejects = 0;
-                }
-                case SKIPPED_ALLOWLIST -> {
-                    campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.SKIPPED, clock.instant());
-                    wave.skipped++;
                 }
                 case RECIPIENT_REJECTED, EXHAUSTED -> {
                     campaigns.mark(campaign, r.getUserId(), EmailDeliveryStatus.FAILED, clock.instant());

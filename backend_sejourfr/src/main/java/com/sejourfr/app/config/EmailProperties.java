@@ -3,10 +3,8 @@ package com.sejourfr.app.config;
 import com.sejourfr.app.enums.EmailType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -44,8 +42,6 @@ public class EmailProperties {
 
     private Unsubscribe unsubscribe = new Unsubscribe();
 
-    private Allowlist allowlist = new Allowlist();
-
     private Automation automation = new Automation();
 
     private Maintenance maintenance = new Maintenance();
@@ -69,9 +65,6 @@ public class EmailProperties {
 
     public Unsubscribe getUnsubscribe() { return unsubscribe; }
     public void setUnsubscribe(Unsubscribe unsubscribe) { this.unsubscribe = unsubscribe; }
-
-    public Allowlist getAllowlist() { return allowlist; }
-    public void setAllowlist(Allowlist allowlist) { this.allowlist = allowlist; }
 
     public Automation getAutomation() { return automation; }
     public void setAutomation(Automation automation) { this.automation = automation; }
@@ -121,23 +114,6 @@ public class EmailProperties {
 
         public Map<Integer, String> getKeys() { return keys; }
         public void setKeys(Map<Integer, String> keys) { this.keys = keys; }
-    }
-
-    /**
-     * Liste blanche des destinataires (arbitrage n°11). Activee en dev : une
-     * liste VIDE bloque tout mail vers un utilisateur, et le mail bloque est
-     * trace {@code SKIPPED / ALLOWLIST}. Une entree qui commence par {@code @}
-     * autorise un domaine entier.
-     */
-    public static class Allowlist {
-        private boolean enabled = false;
-        private List<String> addresses = new ArrayList<>();
-
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-
-        public List<String> getAddresses() { return addresses; }
-        public void setAddresses(List<String> addresses) { this.addresses = addresses; }
     }
 
     /** Le passage quotidien des scenarios ENGAGEMENT. */

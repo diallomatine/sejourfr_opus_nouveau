@@ -49,7 +49,6 @@ class EmailServiceTest {
     private EmailDeliveryManager deliveries;
     private UserEmailPreferenceManager preferences;
     private EmailSender sender;
-    private EmailAllowlist allowlist;
     private final List<Duration> sleeps = new ArrayList<>();
     private TaskExecutor executor;
     private EmailService service;
@@ -62,8 +61,6 @@ class EmailServiceTest {
         preferences = mock(UserEmailPreferenceManager.class);
         sender = mock(EmailSender.class);
         when(sender.provider()).thenReturn(EmailProvider.SPRING_MAIL);
-        allowlist = mock(EmailAllowlist.class);
-        when(allowlist.allows(anyString())).thenReturn(true);
         when(preferences.find(any())).thenReturn(Optional.empty());
         when(deliveries.insertPending(any())).thenReturn(Optional.of(deliveryId));
         executor = new SyncTaskExecutor();
@@ -71,7 +68,7 @@ class EmailServiceTest {
     }
 
     private void build(EmailAutomationConfig config) {
-        service = new EmailService(deliveries, preferences, sender, config, allowlist,
+        service = new EmailService(deliveries, preferences, sender, config,
                 new UnsubscribeTokenService(EmailTestFixtures.properties()),
                 new EmailLinks("https://sejourfr.fr", "https://api.sejourfr.fr"),
                 sleeps::add, Clock.fixed(NOW, ZoneOffset.UTC), executor);
@@ -215,20 +212,6 @@ class EmailServiceTest {
 
         assertThat(service.send(request(EmailType.WELCOME, EmailRequest.Origin.DEFERRED_RETRY)))
                 .isEqualTo(EmailOutcome.SENT);
-    }
-
-    // ------------------------------------------------------------- allowlist
-
-    @Test
-    @DisplayName("Hors liste blanche de dev : SKIPPED / ALLOWLIST, rien ne part (complement G)")
-    void horsListeBlanche() {
-        when(allowlist.allows("alice@example.com")).thenReturn(false);
-
-        EmailOutcome outcome = service.send(request(EmailType.WELCOME, EmailRequest.Origin.EVENT));
-
-        assertThat(outcome).isEqualTo(EmailOutcome.SKIPPED_ALLOWLIST);
-        verify(deliveries).insertSkipped(any(), eq(EmailSkipReason.ALLOWLIST));
-        verify(sender, never()).send(any());
     }
 
     // ------------------------------------------------------ relance immediate

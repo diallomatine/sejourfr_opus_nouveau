@@ -17,8 +17,6 @@ public enum EmailOutcome {
     REJECTED,
     /** ENGAGEMENT refuse par la preference du compte. */
     SKIPPED_PREFERENCE,
-    /** Destinataire hors liste blanche de dev (ligne SKIPPED). */
-    SKIPPED_ALLOWLIST,
     /** Plafond ENGAGEMENT du jour atteint : rien d'ecrit, reevalue demain. */
     CAPPED,
     /** Cle deja occupee (PENDING, SENT ou SKIPPED) : rien d'ecrit. */

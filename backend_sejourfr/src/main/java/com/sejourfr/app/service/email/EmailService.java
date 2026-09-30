@@ -33,7 +33,6 @@ import java.util.UUID;
  *       reevalue le lendemain ; {@code DIAGNOSTIC_PLAN_READY} n'y est jamais
  *       soumis mais le consomme (arbitrage n°18) ;</li>
  *   <li>tentatives epuisees pour la cle ;</li>
- *   <li>liste blanche de dev — refus trace {@code SKIPPED / ALLOWLIST} ;</li>
  *   <li>anti-doublon : INSERT PENDING d'abord ({@code ON CONFLICT DO NOTHING}) ;</li>
  *   <li>envoi par le port, avec relance immediate (boucle + {@link Sleeper},
  *       delais de la configuration versionnee) ;</li>
@@ -55,7 +54,6 @@ public class EmailService {
     private final UserEmailPreferenceManager preferences;
     private final EmailSender sender;
     private final EmailAutomationConfig config;
-    private final EmailAllowlist allowlist;
     private final UnsubscribeTokenService unsubscribeTokens;
     private final EmailLinks links;
     private final Sleeper sleeper;
@@ -66,7 +64,6 @@ public class EmailService {
                         UserEmailPreferenceManager preferences,
                         EmailSender sender,
                         EmailAutomationConfig config,
-                        EmailAllowlist allowlist,
                         UnsubscribeTokenService unsubscribeTokens,
                         EmailLinks links,
                         Sleeper sleeper,
@@ -76,7 +73,6 @@ public class EmailService {
         this.preferences = preferences;
         this.sender = sender;
         this.config = config;
-        this.allowlist = allowlist;
         this.unsubscribeTokens = unsubscribeTokens;
         this.links = links;
         this.sleeper = sleeper;
@@ -194,13 +190,7 @@ public class EmailService {
             return refuse(EmailOutcome.EXHAUSTED, req, "tentatives epuisees");
         }
 
-        // 5. Liste blanche de dev : trace pour rester visible (complement G).
-        if (!allowlist.allows(req.recipient())) {
-            deliveries.insertSkipped(newDelivery(req), EmailSkipReason.ALLOWLIST);
-            return refuse(EmailOutcome.SKIPPED_ALLOWLIST, req, "hors liste blanche de dev");
-        }
-
-        // 6. Anti-doublon : INSERT PENDING d'abord.
+        // 5. Anti-doublon : INSERT PENDING d'abord.
         Optional<UUID> id = deliveries.insertPending(newDelivery(req));
         if (id.isEmpty()) {
             return refuse(EmailOutcome.DUPLICATE, req, "cle deja occupee");

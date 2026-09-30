@@ -7,8 +7,9 @@ package com.sejourfr.app.enums;
  *   <li>{@code PREFERENCE} — mail ENGAGEMENT evenementiel refuse par la preference
  *       du candidat (le scheduler, lui, exclut les desabonnes dans ses requetes et
  *       n'ecrit rien).</li>
- *   <li>{@code ALLOWLIST} — destinataire hors de la liste blanche de dev
- *       (arbitrage n°11, complement G) : le mail reste visible sans partir.</li>
+ *   <li>{@code ALLOWLIST} — HISTORIQUE, plus jamais ecrit : l'ancienne liste
+ *       blanche de dev est supprimee (2026-09-30). Conservee pour relire les
+ *       lignes deja tracees.</li>
  *   <li>{@code KEY_CONSUMED} — la cle est consommee sans envoi (adoption d'un
  *       diagnostic civique invite, complement C).</li>
  * </ul>

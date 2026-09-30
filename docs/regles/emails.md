@@ -134,8 +134,7 @@ donc pas « À bientôt » (`EmailType.signsItself`).
    tracé, réévalué le lendemain. `DIAGNOSTIC_PLAN_READY` n'y est jamais soumis mais le
    **consomme** (arbitrage n°18) ;
 4. tentatives épuisées pour la clé (1 + `maxDeferredAttempts` lignes) ;
-5. **liste blanche de dev** : hors liste → `SKIPPED / ALLOWLIST` (complément G) ;
-6. **anti-doublon : `INSERT PENDING` d'abord** (`ON CONFLICT DO NOTHING` sur l'index unique
+5. **anti-doublon : `INSERT PENDING` d'abord** (`ON CONFLICT DO NOTHING` sur l'index unique
    partiel `WHERE status IN ('PENDING','SENT','SKIPPED')`). Jamais « SELECT puis INSERT ».
    `FAILED` libère la clé ; `SKIPPED` l'occupe (décision D-1) ;
 7. envoi par le port, **relance immédiate** : boucle explicite, `Sleeper` injectable, délais de la
@@ -156,7 +155,7 @@ défaut.
 ## Le journal `email_deliveries` (V073)
 
 `status` ∈ `PENDING / SENT / FAILED / SKIPPED`, `skip_reason` ∈ `PREFERENCE / ALLOWLIST /
-KEY_CONSUMED`, `reference_id` (la source à relire), `occurred_at` (l'instant du fait quand aucune
+KEY_CONSUMED` (`ALLOWLIST` historique, plus jamais écrit depuis le 2026-09-30), `reference_id` (la source à relire), `occurred_at` (l'instant du fait quand aucune
 table ne le porte), `attempt_count`, `provider_message_id` (webhooks Brevo, futur). `user_id` est
 nullable (accusé de contact et réponse du support vers un visiteur sans compte).
 
@@ -275,7 +274,7 @@ reste en base, plus jamais écrite (arbitrage n°6).
 ## Environnement de dev
 
 Le dev pointe sur un **vrai SMTP** (`MAIL_HOST` de `backend_sejourfr/.env`), pas sur MailHog, et
-la base locale contient des adresses réelles de testeurs. Donc, en profil `dev` :
-`sejourfr.email.allowlist.enabled=true` avec `EMAIL_DEV_ALLOWLIST` (vide = **aucun** mail
-utilisateur ne part), et `sejourfr.email.automation.enabled=false`. Les tests n'envoient rien :
+**envoie comme la prod** : l'ancienne liste blanche de dev (`EMAIL_DEV_ALLOWLIST`) est supprimée
+le 2026-09-30 (un seul développeur). Seule différence restante :
+`sejourfr.email.automation.enabled=false` par défaut en profil `dev`. Les tests n'envoient rien :
 `RecordingEmailSender` (@Primary dans `TestSupportConfig`) remplace le port.

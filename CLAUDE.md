@@ -266,8 +266,8 @@ HTTP de chaque front. → liste complète : `docs/api-endpoints.md`
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 # DB : Postgres local, db = sejourfr_db, user = diallomatine (cf. application-dev.yaml)
 # Mail : le dev pointe sur un VRAI SMTP (MAIL_HOST, via backend_sejourfr/.env), PAS sur MailHog.
-#   Garde-fous : aucune adresse ne recoit de mail tant que EMAIL_DEV_ALLOWLIST ne la liste
-#   pas (refus trace SKIPPED), et les scenarios automatises sont eteints en dev.
+#   Envoie comme la prod (plus de liste blanche) ; seuls les scenarios automatises sont
+#   eteints en dev (EMAIL_AUTOMATION_ENABLED).
 #   MailHog reste possible : MAIL_HOST=localhost MAIL_PORT=1025 MAIL_SMTP_AUTH=false
 #   MAIL_SMTP_STARTTLS=false (UI http://localhost:8025). -> docs/regles/emails.md
 # Tests : ./mvnw verify  (unitaires *Test via surefire + intégration *IT via failsafe).
