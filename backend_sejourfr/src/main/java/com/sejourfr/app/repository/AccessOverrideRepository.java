@@ -42,6 +42,19 @@ public interface AccessOverrideRepository extends JpaRepository<AccessOverride, 
             nativeQuery = true)
     Integer verrouiller(@Param("cle") String cle);
 
+    /**
+     * Débit atomique d'UNE session EO temps réel sur un GRANT INTEGRAL COURANT,
+     * conditionné au solde &gt; 0 (patron {@code UserSubscriptionRepository
+     * .decrementRealtimeSessions}). 1 = débitée, 0 = ligne remplacée ou solde nul.
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE AccessOverride o
+               SET o.realtimeEoSessionsRemaining = o.realtimeEoSessionsRemaining - 1
+             WHERE o.id = :id AND o.supersededAt IS NULL AND o.realtimeEoSessionsRemaining > 0
+            """)
+    int decrementRealtimeSessions(@Param("id") UUID id);
+
     @Modifying
     @Query("DELETE FROM AccessOverride o WHERE o.userId = :userId")
     int deleteByUserId(@Param("userId") UUID userId);

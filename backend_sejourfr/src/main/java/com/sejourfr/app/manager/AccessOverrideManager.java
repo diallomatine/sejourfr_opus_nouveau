@@ -41,6 +41,15 @@ public class AccessOverrideManager {
         repository.verrouiller("access-override:" + userId);
     }
 
+    /**
+     * Débite une session EO temps réel d'un GRANT INTEGRAL courant. Vrai si une
+     * ligne a été débitée. 🛑 Appelé par {@code RealtimeQuotaService} seulement,
+     * sous {@link #verrouiller} (même verrou que les actions admin).
+     */
+    public boolean decrementRealtimeSessions(UUID overrideId) {
+        return repository.decrementRealtimeSessions(overrideId) > 0;
+    }
+
     public AccessOverride saveAndFlush(AccessOverride override) {
         return repository.saveAndFlush(override);
     }

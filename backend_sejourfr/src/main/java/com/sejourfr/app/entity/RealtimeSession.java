@@ -57,6 +57,15 @@ public class RealtimeSession {
     @JoinColumn(name = "subscription_id")
     private UserSubscription subscription;
 
+    /**
+     * Décision admin (GRANT INTEGRAL, V084) qui porte la session, à la place d'un
+     * achat : réservée au démarrage, réécrite au débit avec la ligne réellement
+     * débitée ({@code NULL} si aucun débit n'a pu se faire). Jamais posée en même
+     * temps que {@link #subscription} (CHECK en base).
+     */
+    @Column(name = "access_override_id", columnDefinition = "uuid")
+    private UUID accessOverrideId;
+
     /** Attempt rattache (entrainement isole ou sous-attempt d'examen complet). */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attempt_id")
@@ -148,6 +157,9 @@ public class RealtimeSession {
 
     public UserSubscription getSubscription() { return subscription; }
     public void setSubscription(UserSubscription subscription) { this.subscription = subscription; }
+
+    public UUID getAccessOverrideId() { return accessOverrideId; }
+    public void setAccessOverrideId(UUID accessOverrideId) { this.accessOverrideId = accessOverrideId; }
 
     public Attempt getAttempt() { return attempt; }
     public void setAttempt(Attempt attempt) { this.attempt = attempt; }

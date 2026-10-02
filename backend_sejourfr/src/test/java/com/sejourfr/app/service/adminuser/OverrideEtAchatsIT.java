@@ -165,7 +165,7 @@ class OverrideEtAchatsIT extends AbstractIntegrationTest {
         em.flush();
 
         assertThat(quota.evaluate(u.getId()).canStartRealtime()).isFalse();
-        assertThat(quota.evaluate(u.getId()).subscription()).isNull();
+        assertThat(quota.evaluate(u.getId()).achat()).isEmpty();
     }
 
     @Test
@@ -183,6 +183,33 @@ class OverrideEtAchatsIT extends AbstractIntegrationTest {
 
         RealtimeQuotaService.Quota q = quota.evaluate(u.getId());
         assertThat(q.remaining()).isEqualTo(4);
-        assertThat(q.subscription().getId()).isEqualTo(a.getId());
+        assertThat(q.achat().orElseThrow().getId()).isEqualTo(a.getId());
+    }
+
+    @Test
+    @DisplayName("V084 — rachat pendant un GRANT Intégral à sessions : le report ne prend QUE le solde de l'achat, le GRANT est intact")
+    void rachatPendantGrantNeReporteQueLAchat() {
+        User admin = data.admin();
+        User u = data.user();
+        fx.achatIntegral(u, SubscriptionSource.STRIPE, "pi_" + UUID.randomUUID(), 15, 3);
+        fx.agir(u, admin, AdminAccessOperationType.GRANT, ModuleAccess.INTEGRAL, null, null,
+                AccesAdminFixtures.jour(60), 5);
+        em.flush();
+        List<Map<String, Object>> decisionsAvant = decisions(u.getId());
+
+        Plan integral = fx.pass(ModuleAccess.INTEGRAL, 30);
+        integral.setRealtimeEoSessions(15);
+        planManager.save(integral);
+        UserSubscription rachat = oneTime.grantOneTimeAccess(u.getId(), integral, SubscriptionSource.STRIPE,
+                "pi_rachat_" + u.getId(), "pi_rachat");
+        em.flush();
+        em.clear();
+
+        assertThat(rachat.getRealtimeEoSessionsRemaining()).isEqualTo(3 + 15);
+        assertThat(decisions(u.getId())).isEqualTo(decisionsAvant);
+        RealtimeQuotaService.Quota q = quota.evaluate(u.getId());
+        assertThat(q.grantRemaining()).isEqualTo(5);
+        assertThat(q.achat().orElseThrow().getId()).isEqualTo(rachat.getId());
+        assertThat(q.remaining()).isEqualTo(5 + 18);
     }
 }

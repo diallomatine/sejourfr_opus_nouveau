@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.RealtimeSessionDescriptor;
 import com.sejourfr.app.dto.RealtimeSessionStateResponse;
 import com.sejourfr.app.dto.ResumeRealtimeSessionRequest;
 import com.sejourfr.app.dto.StartRealtimeSessionRequest;
+import com.sejourfr.app.entity.AccessOverride;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.RealtimeSession;
@@ -18,7 +19,6 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
-import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import com.sejourfr.app.service.SubscriptionService;
@@ -59,7 +59,6 @@ class RealtimeSessionServiceTest {
     @Mock private ProductionEvaluationService productionEvaluationService;
     @Mock private SubscriptionService subscriptionService;
     @Mock private com.sejourfr.app.manager.ProductionSubmissionManager productionSubmissionManager;
-    @Mock private UserSubscriptionManager userSubscriptionManager;
 
     private final RealtimeProperties props = new RealtimeProperties();
 
@@ -81,7 +80,7 @@ class RealtimeSessionServiceTest {
                 freeExamEntitlementService);
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
                 tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
-                accessService, userSubscriptionManager, props);
+                accessService, props);
         user = new User();
         user.setId(UUID.randomUUID());
     }
@@ -95,9 +94,72 @@ class RealtimeSessionServiceTest {
         return task;
     }
 
+    /** Un quota porté par un achat seul (comportement d'avant V084). */
     private RealtimeQuotaService.Quota quota(boolean canStart, int remaining) {
-        UserSubscription sub = canStart ? new UserSubscription() : null;
-        return new RealtimeQuotaService.Quota(sub, remaining, remaining);
+        UserSubscription sub = new UserSubscription();
+        sub.setId(UUID.randomUUID());
+        sub.setRealtimeEoSessionsRemaining(remaining);
+        return new RealtimeQuotaService.Quota(Optional.empty(), canStart ? Optional.of(sub) : Optional.empty(),
+                remaining, canStart ? remaining : 0);
+    }
+
+    private static AccessOverride grantIntegral(int granted, int remaining) {
+        AccessOverride g = new AccessOverride();
+        g.setId(UUID.randomUUID());
+        g.setRealtimeEoSessionsGranted(granted);
+        g.setRealtimeEoSessionsRemaining(remaining);
+        return g;
+    }
+
+    private void mintOk(UUID sessionId) {
+        when(productionTaskManager.findActiveById(taskId)).thenReturn(Optional.of(eoTask((short) 1)));
+        when(tokenBroker.isConfigured()).thenReturn(true);
+        when(tokenBroker.provider()).thenReturn("gemini");
+        when(personaBuilder.build(any())).thenReturn("persona");
+        when(tokenBroker.mint("persona", null))
+            .thenReturn(new RealtimeTokenBroker.MintedSession("tok", "wss://g", "model-x"));
+        when(sessionManager.save(any())).thenAnswer(inv -> {
+            RealtimeSession s = inv.getArgument(0);
+            s.setId(sessionId);
+            return s;
+        });
+    }
+
+    @Test
+    void start_reserve_le_grant_admin_d_abord_un_seul_porteur() {
+        UserSubscription achat = new UserSubscription();
+        achat.setId(UUID.randomUUID());
+        achat.setRealtimeEoSessionsRemaining(7);
+        AccessOverride grant = grantIntegral(10, 4);
+        when(quotaService.evaluate(user.getId())).thenReturn(new RealtimeQuotaService.Quota(
+                Optional.of(grant), Optional.of(achat), 25, 11));
+        mintOk(UUID.randomUUID());
+        org.mockito.ArgumentCaptor<RealtimeSession> saved = org.mockito.ArgumentCaptor.forClass(RealtimeSession.class);
+
+        RealtimeSessionDescriptor d = service.start(user, new StartRealtimeSessionRequest(taskId, null));
+
+        verify(sessionManager).save(saved.capture());
+        assertThat(saved.getValue().getAccessOverrideId()).isEqualTo(grant.getId());
+        assertThat(saved.getValue().getSubscription()).isNull();
+        assertThat(d.sessionsRemaining()).isEqualTo(10);
+        verify(quotaService, never()).debiter(any());
+    }
+
+    @Test
+    void start_grant_epuise_reserve_l_achat() {
+        UserSubscription achat = new UserSubscription();
+        achat.setId(UUID.randomUUID());
+        achat.setRealtimeEoSessionsRemaining(7);
+        when(quotaService.evaluate(user.getId())).thenReturn(new RealtimeQuotaService.Quota(
+                Optional.of(grantIntegral(10, 0)), Optional.of(achat), 25, 7));
+        mintOk(UUID.randomUUID());
+        org.mockito.ArgumentCaptor<RealtimeSession> saved = org.mockito.ArgumentCaptor.forClass(RealtimeSession.class);
+
+        service.start(user, new StartRealtimeSessionRequest(taskId, null));
+
+        verify(sessionManager).save(saved.capture());
+        assertThat(saved.getValue().getSubscription()).isSameAs(achat);
+        assertThat(saved.getValue().getAccessOverrideId()).isNull();
     }
 
     // ----- start -----
@@ -306,8 +368,8 @@ class RealtimeSessionServiceTest {
         assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.ACTIVE);
         assertThat(session.getConnectedAt()).isNotNull();
         assertThat(session.getTranscript()).isEqualTo("Candidat : Bonjour");
-        // Débit d'UNE session sur le pass, à la 1re activité (PENDING -> ACTIVE).
-        verify(userSubscriptionManager).decrementRealtimeSessions(subscription.getId());
+        // Débit d'UNE session, à la 1re activité (PENDING -> ACTIVE), par l'autorité du quota.
+        verify(quotaService).debiter(session);
         verify(sessionManager).save(session);
     }
 
@@ -326,7 +388,7 @@ class RealtimeSessionServiceTest {
         assertThat(session.getTranscript())
             .isEqualTo("Candidat : Bonjour\nExaminateur : Bonjour, presentez-vous");
         // Déjà ACTIVE : pas de nouveau débit (le débit a lieu une seule fois).
-        verify(userSubscriptionManager, never()).decrementRealtimeSessions(any());
+        verify(quotaService, never()).debiter(any());
     }
 
     @Test
@@ -373,7 +435,22 @@ class RealtimeSessionServiceTest {
         assertThat(session.getTranscript()).isEqualTo("Candidat : Bonjour");
         assertThat(session.getLastTurnIndex()).isZero();
         // L'INVARIANT du lot : un slot débité une seule fois, quoi qu'il arrive.
-        verify(userSubscriptionManager, times(1)).decrementRealtimeSessions(subscription.getId());
+        verify(quotaService, times(1)).debiter(session);
+    }
+
+    @Test
+    void appendTranscript_session_portee_par_un_grant_rejeu_ne_debite_qu_une_fois() {
+        RealtimeSession session = pendingSession(null);
+        session.setAccessOverrideId(UUID.randomUUID());
+
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("CANDIDATE", "Bonjour", 0, null));
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("CANDIDATE", "Bonjour", 0, null));
+        service.appendTranscript(user, session.getId(),
+            new AppendTranscriptRequest("EXAMINER", "Bonjour a vous", 1, null));
+
+        verify(quotaService, times(1)).debiter(session);
     }
 
     @Test
@@ -453,7 +530,7 @@ class RealtimeSessionServiceTest {
         // Le slot a déjà été débité au 1er fragment : on ne le redébite pas, et
         // on ne le retire pas une seconde fois de l'affichage.
         assertThat(d.sessionsRemaining()).isEqualTo(2);
-        verify(userSubscriptionManager, never()).decrementRealtimeSessions(any());
+        verify(quotaService, never()).debiter(any());
         assertThat(session.getResumptionCount()).isEqualTo(1);
         assertThat(session.getResumptionHandle()).isEqualTo("handle-client");
         // Le transcript n'est pas remis à zéro : la session CONTINUE.

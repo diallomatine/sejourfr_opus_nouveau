@@ -1198,6 +1198,11 @@ sejourfr:
     # Le QUOTA de sessions par pass vit désormais en base (colonne
     # plans.realtime_eo_sessions, migrations V018/V113) — éditable côté admin,
     # « adapté selon le pass ». Plus de mapping en config ici.
+    # Plafond de sécurité des sessions EO temps réel qu'une action admin peut
+    # OFFRIR sur un GRANT INTEGRAL (V084, B-1) : 0..max, 400 au-delà. Porte sur
+    # le nombre demandé par action, pas sur le solde (un report peut cumuler).
+    # Deux fois le plus gros pass (25). Même valeur que RealtimeProperties.
+    admin-grant-max-sessions: ${REALTIME_ADMIN_GRANT_MAX_SESSIONS:50}
 
   # Module « Competences TCF » : micro-entrainement EE/EO, une competence et un
   # seul critere a la fois. VOIE PARALLELE a la notation des productions

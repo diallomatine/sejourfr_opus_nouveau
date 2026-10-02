@@ -153,4 +153,164 @@ class AccessOverridePlannerTest {
                 && o.getReason().equals("Motif de test") && o.getCreatedBy().equals(ADMIN)
                 && o.getDecidedAt().equals(T));
     }
+
+    // ------------------------------------------------ sessions EO temps réel (V084)
+
+    private static AccessOverride grantIntegral(Instant debut, Instant fin, int granted, int remaining) {
+        AccessOverride o = existante(ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, debut, fin);
+        o.setRealtimeEoSessionsGranted(granted);
+        o.setRealtimeEoSessionsRemaining(remaining);
+        return o;
+    }
+
+    private static AccessOverride couvrantMaintenant(List<AccessOverride> l) {
+        return l.stream().filter(o -> o.getProduct() == ModuleAccess.INTEGRAL
+                && o.getType() == AccessOverrideType.GRANT && o.couvre(T)).findFirst().orElseThrow();
+    }
+
+    /** Invariants des CHECK V084 sur ce qui serait inséré. */
+    private static void checksV084(Plan plan) {
+        for (AccessOverride o : plan.aInserer()) {
+            assertThat(o.getRealtimeEoSessionsRemaining()).isBetween(0, o.getRealtimeEoSessionsGranted());
+            if (o.getRealtimeEoSessionsGranted() > 0) {
+                assertThat(o.getProduct()).isEqualTo(ModuleAccess.INTEGRAL);
+                assertThat(o.getType()).isEqualTo(AccessOverrideType.GRANT);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Sessions — nouvelle décision : granted = remaining = N ; REVOKE et CIVIQUE : toujours 0")
+    void nouvelleDecisionPorteN() {
+        Plan plan = AccessOverridePlanner.planifier(List.of(), List.of(
+                new Decision(ModuleAccess.CIVIQUE, AccessOverrideType.REVOKE, T, null, 7),
+                new Decision(ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, T, T.plus(JOUR.multipliedBy(30)), 10)), ctx);
+        assertThat(plan.aInserer().get(0).getRealtimeEoSessionsGranted()).isZero();
+        AccessOverride g = plan.aInserer().get(1);
+        assertThat(g.getRealtimeEoSessionsGranted()).isEqualTo(10);
+        assertThat(g.getRealtimeEoSessionsRemaining()).isEqualTo(10);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(10, 0, false, 0));
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Prolonger un GRANT à 4 restantes, sans ajout : 4 sur la nouvelle ligne, rien de perdu, l'ancienne n'est pas touchée")
+    void prolongerConserveLeSolde() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(10)), 10, 4);
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, T, T.plus(JOUR.multipliedBy(40)))), ctx);
+
+        AccessOverride courant = couvrantMaintenant(plan.aInserer());
+        assertThat(courant.getRealtimeEoSessionsRemaining()).isEqualTo(4);
+        assertThat(courant.getRealtimeEoSessionsGranted()).isEqualTo(10);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(0, 4, true, 0));
+        // La remise à 0 de l'ancienne se fait à l'écriture, jamais dans le planner (aperçu).
+        assertThat(p.getRealtimeEoSessionsRemaining()).isEqualTo(4);
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Donner Intégral +10 sur un GRANT actif à 4 : cumul 14, granted cohérent (10 + 10)")
+    void donnerMaintenantSurGrantActif() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(10)), 10, 4);
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, T, T.plus(JOUR.multipliedBy(40)), 10)), ctx);
+
+        AccessOverride courant = couvrantMaintenant(plan.aInserer());
+        assertThat(courant.getRealtimeEoSessionsRemaining()).isEqualTo(14);
+        assertThat(courant.getRealtimeEoSessionsGranted()).isEqualTo(20);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(10, 4, true, 0));
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Donner programmé par-dessus un GRANT en cours : la tête garde le solde, le futur a son N")
+    void donnerProgrammeGardeLeSoldeSurLaTeteEtNPourLeFutur() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(30)), 10, 4);
+        Instant s = T.plus(JOUR.multipliedBy(10));
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, s, T.plus(JOUR.multipliedBy(60)), 6)), ctx);
+
+        AccessOverride tete = couvrantMaintenant(plan.aInserer());
+        assertThat(tete.getReplacesOverrideId()).isEqualTo(p.getId());
+        assertThat(tete.getRealtimeEoSessionsRemaining()).isEqualTo(4);
+        assertThat(tete.getRealtimeEoSessionsGranted()).isEqualTo(10);
+        AccessOverride futur = plan.aInserer().stream().filter(o -> o.getStartsAt().equals(s)).findFirst().orElseThrow();
+        assertThat(futur.getRealtimeEoSessionsRemaining()).isEqualTo(6);
+        assertThat(futur.getRealtimeEoSessionsGranted()).isEqualTo(6);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(6, 4, false, 0));
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Raccourcir : la tête qui couvre maintenant garde le solde jusqu'à la nouvelle fin")
+    void raccourcirConserveLeSolde() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(30)), 10, 4);
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T.plus(JOUR.multipliedBy(5)), null)), ctx);
+
+        AccessOverride tete = couvrantMaintenant(plan.aInserer());
+        assertThat(tete.getEndsAt()).isEqualTo(T.plus(JOUR.multipliedBy(5)));
+        assertThat(tete.getRealtimeEoSessionsRemaining()).isEqualTo(4);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(0, 4, false, 0));
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Terminer : la tête ne couvre plus maintenant, le solde est perdu (annoncé)")
+    void terminerPerdLeSolde() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(30)), 10, 4);
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T, null)), ctx);
+
+        assertThat(plan.aInserer()).allMatch(o -> o.getRealtimeEoSessionsRemaining() == 0);
+        assertThat(plan.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(0, 0, false, 4));
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Corriger Intégral → Civique : le solde du GRANT Intégral est perdu, rien sur Civique")
+    void correctionIntegralVersCiviquePerdLeSolde() {
+        AccessOverride p = grantIntegral(T.minus(JOUR), T.plus(JOUR.multipliedBy(30)), 10, 4);
+        Plan plan = AccessOverridePlanner.planifier(List.of(p), List.of(
+                new Decision(ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T, null),
+                new Decision(ModuleAccess.CIVIQUE, AccessOverrideType.GRANT, T, T.plus(JOUR.multipliedBy(30)))), ctx);
+
+        assertThat(plan.aInserer()).allMatch(o -> o.getRealtimeEoSessionsRemaining() == 0);
+        assertThat(plan.sessionsEo().perdues()).isEqualTo(4);
+        assertThat(plan.sessionsEo().offertes()).isZero();
+        checksV084(plan);
+    }
+
+    @Test
+    @DisplayName("Sessions — Terminer un GRANT programmé : son N est perdu ; un GRANT futur tronqué garde son solde sur sa tête")
+    void grantFutur() {
+        Instant debut = T.plus(JOUR.multipliedBy(5));
+        AccessOverride futur = grantIntegral(debut, T.plus(JOUR.multipliedBy(30)), 6, 6);
+        Plan termine = AccessOverridePlanner.planifier(List.of(futur), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T, null)), ctx);
+        assertThat(termine.sessionsEo().perdues()).isEqualTo(6);
+
+        Plan tronque = AccessOverridePlanner.planifier(List.of(futur), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T.plus(JOUR.multipliedBy(10)), null)), ctx);
+        AccessOverride tete = tronque.aInserer().stream()
+                .filter(o -> futur.getId().equals(o.getReplacesOverrideId())).findFirst().orElseThrow();
+        assertThat(tete.getRealtimeEoSessionsRemaining()).isEqualTo(6);
+        assertThat(tronque.sessionsEo()).isEqualTo(new AccessOverridePlanner.SessionsEo(0, 6, false, 0));
+        checksV084(tronque);
+    }
+
+    @Test
+    @DisplayName("Sessions — une copie hérite de l'allocation, jamais d'un solde qui ne couvre pas maintenant")
+    void copiesSansSolde() {
+        AccessOverride revoke = existante(ModuleAccess.INTEGRAL, AccessOverrideType.REVOKE, T.minus(JOUR), null);
+        Plan plan = AccessOverridePlanner.planifier(List.of(revoke), List.of(new Decision(
+                ModuleAccess.INTEGRAL, AccessOverrideType.GRANT, T, T.plus(JOUR.multipliedBy(10)), 3)), ctx);
+
+        assertThat(plan.aInserer()).filteredOn(o -> o.getType() == AccessOverrideType.REVOKE)
+                .hasSize(2)
+                .allMatch(o -> o.getRealtimeEoSessionsGranted() == 0 && o.getRealtimeEoSessionsRemaining() == 0);
+        assertThat(couvrantMaintenant(plan.aInserer()).getRealtimeEoSessionsRemaining()).isEqualTo(3);
+        checksV084(plan);
+    }
 }

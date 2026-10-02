@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.adminuser;
 
+import com.sejourfr.app.config.RealtimeProperties;
 import com.sejourfr.app.dto.AdminAccessOperationRequest;
 import com.sejourfr.app.dto.AdminAccessOperationResponse;
 import com.sejourfr.app.dto.AdminUserAccessDto;
@@ -18,6 +19,7 @@ import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.access.AccesEffectifResolver;
 import com.sejourfr.app.service.access.AccesEffectifResolver.EtatProduit;
 import com.sejourfr.app.service.access.AccessOverridePlanner;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import com.sejourfr.app.util.DateMetierParis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,14 @@ import java.util.UUID;
  * </ol>
  * 🛑 Aucun achat n'est jamais touché : ni {@code user_subscriptions}, ni
  * paiement, ni montant, ni abonnement récurrent (G-12).
+ *
+ * <p>Sessions EO temps réel (V084, B-1) : Donner Intégral, Réactiver Intégral et
+ * Corriger Civique → Intégral peuvent en offrir ({@code realtimeEoSessions},
+ * 0..{@code admin-grant-max-sessions}) ; le planner reporte le solde sur la
+ * lignée ou le déclare perdu ; à l'écriture, une ligne remplacée est remise à 0
+ * avec sa supersession — sous le verrou de compte que prend aussi le débit
+ * ({@code RealtimeQuotaService.debiter}), sinon un débit concurrent serait
+ * écrasé par la réécriture de l'entité.
  */
 @Service
 @RequiredArgsConstructor
@@ -57,11 +67,15 @@ public class AdminAccessOperationService {
     static final String MSG_ETAT_PERIME =
             "L'accès de cet utilisateur a changé depuis l'ouverture de la fenêtre. Rechargez la fiche.";
 
+    static final String MSG_SESSIONS_HORS_GRANT_INTEGRAL =
+            "Les sessions EO temps réel ne s'offrent qu'en donnant, réactivant ou corrigeant vers un accès Intégral.";
+
     private final UserManager userManager;
     private final SubscriptionService subscriptionService;
     private final AccessOverrideManager accessOverrideManager;
     private final AdminAccessOperationManager operationManager;
     private final AdminUserMapper mapper;
+    private final RealtimeProperties realtimeProperties;
 
     @Transactional
     public AdminAccessOperationResponse executer(UUID userId, UUID adminId, AdminAccessOperationRequest req) {
@@ -86,10 +100,12 @@ public class AdminAccessOperationService {
         AccessOverridePlanner.Plan plan = AccessOverridePlanner.planifier(d.decisions(), t.decisions(),
                 new AccessOverridePlanner.Contexte(userId, operationId, adminId, motif, now));
         List<AccessOverride> apres = plan.appliqueA(d.decisions());
+        SubscriptionService.DonneesAcces resultat = new SubscriptionService.DonneesAcces(d.achats(), apres);
         List<EtatProduit> etatsAvant = etats(d.achats(), d.decisions(), now);
         List<EtatProduit> etatsApres = etats(d.achats(), apres, now);
-        List<Map<String, Object>> avant = mapper.snapshot(etatsAvant);
-        List<Map<String, Object>> apresSnapshot = mapper.snapshot(etatsApres);
+        RealtimeQuotaService.VueAdmin sessionsAvant = RealtimeQuotaService.vueAdmin(d, now);
+        List<Map<String, Object>> avant = mapper.snapshot(etatsAvant, sessionsAvant);
+        List<Map<String, Object>> apresSnapshot = mapper.snapshot(etatsApres, RealtimeQuotaService.vueAdmin(resultat, now));
 
         if (!req.dryRun()) {
             AdminAccessOperation op = new AdminAccessOperation();
@@ -110,6 +126,9 @@ public class AdminAccessOperationService {
             for (AccessOverride o : plan.aRemplacer()) {
                 o.setSupersededAt(now);
                 o.setSupersededByOperationId(operationId);
+                // Le solde d'une ligne remplacée a été repris par la lignée, ou
+                // il est perdu (plan.sessionsEo()) : il n'existe qu'une fois.
+                o.setRealtimeEoSessionsRemaining(0);
                 accessOverrideManager.saveAndFlush(o);
             }
             for (AccessOverride o : plan.aInserer()) {
@@ -119,31 +138,43 @@ public class AdminAccessOperationService {
                     operationId, req.operation(), userId, adminId, req.product());
         }
 
-        SubscriptionService.DonneesAcces resultat = new SubscriptionService.DonneesAcces(d.achats(), apres);
         ModuleAccess module = AccesEffectifResolver.module(d.achats(), apres, now);
         return new AdminAccessOperationResponse(
                 req.dryRun(),
                 req.dryRun() ? null : operationId,
                 req.operation(),
                 mapper.preview(req.operation(), req.product(), req.fromProduct(), t.debut(), t.fin(), t.debutImmediat(),
-                        achatResteRevoqueApresLeGrant(t, d.achats(), apres)),
+                        achatResteRevoqueApresLeGrant(t, d.achats(), apres),
+                        apercuSessions(req, t, plan.sessionsEo(), sessionsAvant)),
                 confirmationRequise(req.operation()),
                 mapper.changes(avant, apresSnapshot),
                 mapper.effective(module),
-                accesses(etatsApres, d.achats(), apres, now),
+                accesses(etatsApres, resultat, now),
                 req.dryRun() ? VersionAcces.de(d) : VersionAcces.de(resultat));
     }
 
     /** Les blocs d'accès servis à la fiche et à la réponse d'une action. */
-    List<AdminUserAccessDto> accesses(List<EtatProduit> etats, List<com.sejourfr.app.entity.UserSubscription> achats,
-                                      List<AccessOverride> decisions, Instant now) {
-        boolean integralActif = AccesEffectifResolver.acces(achats, decisions, ModuleAccess.INTEGRAL, now);
+    List<AdminUserAccessDto> accesses(List<EtatProduit> etats, SubscriptionService.DonneesAcces d, Instant now) {
+        boolean integralActif = AccesEffectifResolver.acces(d.achats(), d.decisions(), ModuleAccess.INTEGRAL, now);
+        RealtimeQuotaService.VueAdmin sessions = RealtimeQuotaService.vueAdmin(d, now);
         List<AdminUserAccessDto> out = new ArrayList<>();
         for (EtatProduit e : etats) {
             boolean terminable = !(e.produit() == ModuleAccess.CIVIQUE && integralActif);
-            out.add(mapper.access(e, OperationsDisponibles.pour(e.statut(), terminable)));
+            out.add(mapper.access(e, OperationsDisponibles.pour(e.statut(), terminable), sessions));
         }
         return out;
+    }
+
+    /** Ce que l'aperçu dit des sessions EO temps réel (V084) : plan + quota d'avant l'action. */
+    static AdminUserMapper.ApercuSessions apercuSessions(AdminAccessOperationRequest req, Traduction t,
+                                                         AccessOverridePlanner.SessionsEo s,
+                                                         RealtimeQuotaService.VueAdmin avant) {
+        boolean creeGrantIntegral = t.decisions().stream().anyMatch(AccessOverridePlanner.Decision::grantIntegral);
+        boolean prolongeIntegral = req.operation() == AdminAccessOperationType.EXTEND
+                && req.product() == ModuleAccess.INTEGRAL;
+        return new AdminUserMapper.ApercuSessions(creeGrantIntegral, s.offertes(), s.reportees(), s.cumulees(),
+                s.perdues(), avant.purchaseRemaining() != null ? avant.purchaseRemaining() : 0,
+                avant.purchaseEndsAt(), prolongeIntegral);
     }
 
     static List<EtatProduit> etats(List<com.sejourfr.app.entity.UserSubscription> achats,
@@ -195,6 +226,7 @@ public class AdminAccessOperationService {
         if (p == null || p == ModuleAccess.NONE) {
             throw badRequest("Produit invalide : CIVIQUE ou INTEGRAL.");
         }
+        int sessionsEo = sessionsEoOffertes(req);
         LocalDate aujourdhui = DateMetierParis.aujourdhui(now);
         EtatProduit etat = AccesEffectifResolver.etat(d.achats(), d.decisions(), p, now);
         return switch (req.operation()) {
@@ -216,7 +248,7 @@ public class AdminAccessOperationService {
                 Instant debut = DateMetierParis.debut(debutJour, now);
                 Instant fin = DateMetierParis.finExclusive(finJour);
                 yield new Traduction(List.of(new AccessOverridePlanner.Decision(
-                        p, AccessOverrideType.GRANT, debut, fin)), debut, fin, debut.equals(now));
+                        p, AccessOverrideType.GRANT, debut, fin, sessionsEo)), debut, fin, debut.equals(now));
             }
             case EXTEND -> {
                 exigerActif(etat, "Prolonger");
@@ -265,10 +297,36 @@ public class AdminAccessOperationService {
                 Instant fin = DateMetierParis.finExclusive(finObligatoire(req, aujourdhui));
                 yield new Traduction(List.of(
                         new AccessOverridePlanner.Decision(from, AccessOverrideType.REVOKE, now, null),
-                        new AccessOverridePlanner.Decision(p, AccessOverrideType.GRANT, now, fin)),
+                        new AccessOverridePlanner.Decision(p, AccessOverrideType.GRANT, now, fin, sessionsEo)),
                         now, fin, true);
             }
         };
+    }
+
+    /**
+     * Sessions EO temps réel offertes (V084) : absent = 0 ; négatif, au-delà du
+     * plafond configuré, ou sur une action qui ne crée pas de GRANT INTEGRAL
+     * (Donner, Réactiver, Corriger vers Intégral) : 400 — un admin ne doit jamais
+     * croire avoir offert des sessions qui n'existent pas.
+     */
+    private int sessionsEoOffertes(AdminAccessOperationRequest req) {
+        Integer n = req.realtimeEoSessions();
+        if (n == null || n == 0) return 0;
+        if (n < 0) {
+            throw badRequest("Le nombre de sessions EO temps réel offertes ne peut pas être négatif.");
+        }
+        boolean creeUnGrantIntegral = req.product() == ModuleAccess.INTEGRAL
+                && (req.operation() == AdminAccessOperationType.GRANT
+                || req.operation() == AdminAccessOperationType.REACTIVATE
+                || req.operation() == AdminAccessOperationType.CORRECT_PRODUCT);
+        if (!creeUnGrantIntegral) {
+            throw badRequest(MSG_SESSIONS_HORS_GRANT_INTEGRAL);
+        }
+        int max = realtimeProperties.getAdminGrantMaxSessions();
+        if (n > max) {
+            throw badRequest("Au plus " + max + " sessions EO temps réel peuvent être offertes par action.");
+        }
+        return n;
     }
 
     private static LocalDate finObligatoire(AdminAccessOperationRequest req, LocalDate aujourdhui) {

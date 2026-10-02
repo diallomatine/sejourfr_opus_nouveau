@@ -106,4 +106,95 @@ class AccesAdminSchemaIT extends AbstractIntegrationTest {
                         + "' a ', '[]', '[]')", UUID.randomUUID(), user.getId(), admin.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
+
+    // ------------------------------------------------ V084 : sessions EO temps réel
+
+    /** Une décision avec ses deux colonnes de sessions ; {@code remplacee} : déjà supersedée. */
+    private UUID insererSessions(String produit, String type, String fin, int offertes, int restantes,
+                                 boolean remplacee) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("INSERT INTO access_overrides (id, user_id, product, type, starts_at, ends_at, decided_at, "
+                        + "reason, created_by, operation_id, superseded_at, superseded_by_operation_id, "
+                        + "realtime_eo_sessions_granted, realtime_eo_sessions_remaining) VALUES "
+                        + "(?, ?, ?, ?, now(), now() + (?)::interval, now(), 'Motif de test', ?, ?, "
+                        + (remplacee ? "now(), ?" : "NULL, NULL") + ", ?, ?)",
+                remplacee
+                        ? new Object[]{id, user.getId(), produit, type, fin, admin.getId(), operation, operation, offertes, restantes}
+                        : new Object[]{id, user.getId(), produit, type, fin, admin.getId(), operation, offertes, restantes});
+        return id;
+    }
+
+    @Test
+    @DisplayName("V084 — un GRANT INTEGRAL courant porte un solde ≤ offertes ; défaut 0 sur une décision existante")
+    void sessionsAdmises() {
+        insererSessions("INTEGRAL", "GRANT", "10 days", 10, 4, false);
+        inserer("CIVIQUE", "GRANT", "0 days", "10 days", null);
+        assertThat(jdbc.queryForObject("SELECT realtime_eo_sessions_granted + realtime_eo_sessions_remaining "
+                + "FROM access_overrides WHERE user_id = ? AND product = 'CIVIQUE'", Integer.class, user.getId())).isZero();
+    }
+
+    @Test
+    @DisplayName("V084 — sessions sur un GRANT CIVIQUE : refusé")
+    void sessionsSurCivique() {
+        assertThatThrownBy(() -> insererSessions("CIVIQUE", "GRANT", "10 days", 5, 5, false))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — sessions sur un REVOKE : refusé")
+    void sessionsSurRevoke() {
+        assertThatThrownBy(() -> insererSessions("INTEGRAL", "REVOKE", "10 days", 5, 0, false))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — solde au-delà des sessions offertes : refusé")
+    void soldeAuDelaDesOffertes() {
+        assertThatThrownBy(() -> insererSessions("INTEGRAL", "GRANT", "10 days", 4, 5, false))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — solde négatif : refusé")
+    void soldeNegatif() {
+        assertThatThrownBy(() -> insererSessions("INTEGRAL", "GRANT", "10 days", 4, -1, false))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — une ligne remplacée ne garde jamais de solde (l'allocation, si)")
+    void ligneRemplaceeSansSolde() {
+        insererSessions("INTEGRAL", "GRANT", "10 days", 4, 0, true);
+        assertThatThrownBy(() -> insererSessions("INTEGRAL", "GRANT", "10 days", 4, 4, true))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — une session temps réel n'a jamais deux porteurs (achat ET décision admin)")
+    void sessionDeuxPorteurs() {
+        UUID grant = insererSessions("INTEGRAL", "GRANT", "10 days", 4, 4, false);
+        UUID achat = UUID.randomUUID();
+        jdbc.update("INSERT INTO user_subscriptions (id, user_id, plan_id, source, status, auto_renew, starts_at, original_transaction_id) "
+                        + "SELECT ?, ?, id, 'STRIPE', 'ACTIVE', false, now(), 'pi_schema_test' FROM plans LIMIT 1",
+                achat, user.getId());
+        assertThatThrownBy(() -> jdbc.update("INSERT INTO realtime_sessions (id, user_id, subscription_id, "
+                        + "access_override_id, epreuve, tache_numero, provider, model, status, transcript, "
+                        + "resumption_count, started_at, created_at, updated_at) VALUES (?, ?, ?, ?, 'TCF_EO', 1, "
+                        + "'gemini', 'm', 'PENDING', '', 0, now(), now(), now())",
+                UUID.randomUUID(), user.getId(), achat, grant))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("V084 — décision purgée : la session garde son historique, porteur remis à NULL (FK SET NULL)")
+    void purgeDecisionSessionConservee() {
+        UUID grant = insererSessions("INTEGRAL", "GRANT", "10 days", 4, 3, false);
+        UUID session = UUID.randomUUID();
+        jdbc.update("INSERT INTO realtime_sessions (id, user_id, access_override_id, epreuve, tache_numero, provider, "
+                + "model, status, transcript, resumption_count, started_at, created_at, updated_at) VALUES (?, ?, ?, "
+                + "'TCF_EO', 1, 'gemini', 'm', 'ACTIVE', '', 0, now(), now(), now())", session, user.getId(), grant);
+        jdbc.update("DELETE FROM access_overrides WHERE id = ?", grant);
+        assertThat(jdbc.queryForObject("SELECT access_override_id FROM realtime_sessions WHERE id = ?",
+                UUID.class, session)).isNull();
+    }
 }

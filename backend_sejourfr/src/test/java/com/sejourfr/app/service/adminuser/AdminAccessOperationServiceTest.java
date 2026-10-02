@@ -70,7 +70,7 @@ class AdminAccessOperationServiceTest {
         when(userManager.findById(userId)).thenReturn(Optional.of(u));
         when(subscriptionService.charger(userId)).thenAnswer(i -> donnees);
         service = new AdminAccessOperationService(userManager, subscriptionService, overrideManager,
-                operationManager, new AdminUserMapper());
+                operationManager, new AdminUserMapper(), new com.sejourfr.app.config.RealtimeProperties());
     }
 
     private static LocalDate aujourdhui() {
@@ -80,7 +80,7 @@ class AdminAccessOperationServiceTest {
     private AdminAccessOperationRequest req(AdminAccessOperationType op, ModuleAccess p, ModuleAccess from,
                                             LocalDate debut, LocalDate fin, String motif, boolean dryRun) {
         return new AdminAccessOperationRequest(op, p, from, debut, fin, motif, dryRun,
-                dryRun ? null : VersionAcces.de(donnees));
+                dryRun ? null : VersionAcces.de(donnees), null);
     }
 
     private static UserSubscription achat(ModuleAccess m, int joursRestants) {
@@ -143,7 +143,7 @@ class AdminAccessOperationServiceTest {
     @DisplayName("Écrire sans état attendu : 400, rien n'est écrit")
     void ecrireSansVersion() {
         AdminAccessOperationRequest r = new AdminAccessOperationRequest(AdminAccessOperationType.GRANT,
-                ModuleAccess.INTEGRAL, null, null, aujourdhui().plusDays(5), "Motif valide", false, null);
+                ModuleAccess.INTEGRAL, null, null, aujourdhui().plusDays(5), "Motif valide", false, null, null);
         assertThat(statut(() -> service.executer(userId, adminId, r))).isEqualTo(400);
         verifyNoInteractions(operationManager);
     }
@@ -202,7 +202,7 @@ class AdminAccessOperationServiceTest {
     @DisplayName("G-11 — état attendu périmé : 409, rien n'est écrit")
     void etatPerime() {
         AdminAccessOperationRequest r = new AdminAccessOperationRequest(AdminAccessOperationType.GRANT,
-                ModuleAccess.INTEGRAL, null, null, aujourdhui().plusDays(5), "Motif valide", false, "deadbeefdeadbeef");
+                ModuleAccess.INTEGRAL, null, null, aujourdhui().plusDays(5), "Motif valide", false, "deadbeefdeadbeef", null);
         assertThatThrownBy(() -> service.executer(userId, adminId, r))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("a changé");
@@ -230,7 +230,8 @@ class AdminAccessOperationServiceTest {
 
         assertThat(r.dryRun()).isTrue();
         assertThat(r.operationId()).isNull();
-        assertThat(r.preview()).isEqualTo("Vous allez donner l'accès Intégral dès maintenant, jusqu'au 31/10/2099 inclus.");
+        assertThat(r.preview()).isEqualTo("Vous allez donner l'accès Intégral dès maintenant, jusqu'au 31/10/2099 inclus. "
+                + "Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel.");
         assertThat(r.effectiveAccess().effectiveProduct()).isEqualTo(ModuleAccess.INTEGRAL);
         assertThat(r.effectiveAccess().openModulesLabel()).isEqualTo("TCF + Civique");
         assertThat(r.changes()).containsExactly("Intégral : Aucun → Actif jusqu'au 31/10/2099 inclus");
@@ -289,7 +290,7 @@ class AdminAccessOperationServiceTest {
         Instant now = Instant.now();
 
         var acces = service.accesses(AdminAccessOperationService.etats(donnees.achats(), donnees.decisions(), now),
-                donnees.achats(), donnees.decisions(), now);
+                donnees, now);
         var civiqueDto = acces.stream().filter(a -> a.product() == ModuleAccess.CIVIQUE).findFirst().orElseThrow();
 
         assertThat(civiqueDto.status()).isEqualTo(com.sejourfr.app.enums.ProductAccessStatus.REVOKED);
@@ -327,5 +328,177 @@ class AdminAccessOperationServiceTest {
                 AdminAccessOperationType.REACTIVATE, ModuleAccess.CIVIQUE, null, null, aujourdhui().plusDays(5),
                 "Réactivation", true));
         assertThat(sansAchat.preview()).doesNotContain("Attention");
+    }
+
+    // --------------------------------------------- sessions EO temps réel (V084)
+
+    private AdminAccessOperationRequest reqSessions(AdminAccessOperationType op, ModuleAccess p, ModuleAccess from,
+                                                    LocalDate fin, Integer sessions, boolean dryRun) {
+        return new AdminAccessOperationRequest(op, p, from, null, fin, "Geste support", dryRun,
+                dryRun ? null : VersionAcces.de(donnees), sessions);
+    }
+
+    private AccessOverride grantIntegralActif(int granted, int remaining) {
+        AccessOverride o = new AccessOverride();
+        o.setId(UUID.randomUUID());
+        o.setUserId(userId);
+        o.setProduct(ModuleAccess.INTEGRAL);
+        o.setType(AccessOverrideType.GRANT);
+        o.setStartsAt(Instant.now().minus(1, ChronoUnit.DAYS));
+        o.setEndsAt(Instant.now().plus(10, ChronoUnit.DAYS));
+        o.setDecidedAt(o.getStartsAt());
+        o.setReason("Geste");
+        o.setCreatedBy(adminId);
+        o.setOperationId(UUID.randomUUID());
+        o.setRealtimeEoSessionsGranted(granted);
+        o.setRealtimeEoSessionsRemaining(remaining);
+        return o;
+    }
+
+    @Test
+    @DisplayName("Sessions EO — 400 : négatif, au-delà du plafond (50), sur Prolonger / Raccourcir / Terminer, sur Civique")
+    void sessionsEo400() {
+        LocalDate fin = aujourdhui().plusDays(20);
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, -1, true)))).isEqualTo(400);
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, 51, true)))).isEqualTo(400);
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, 50, true)))).isEqualTo(200);
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.CIVIQUE, null, fin, 5, true)))).isEqualTo(400);
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.CORRECT_PRODUCT,
+                ModuleAccess.CIVIQUE, ModuleAccess.INTEGRAL, fin, 5, true)))).isEqualTo(400);
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(grantIntegralActif(10, 4)));
+        for (AdminAccessOperationType op : List.of(AdminAccessOperationType.EXTEND,
+                AdminAccessOperationType.SHORTEN, AdminAccessOperationType.END)) {
+            assertThatThrownBy(() -> service.executer(userId, adminId, reqSessions(op, ModuleAccess.INTEGRAL, null,
+                    op == AdminAccessOperationType.SHORTEN ? aujourdhui().plusDays(3) : fin, 5, true)))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .hasMessageContaining("ne s'offrent qu'en donnant, réactivant ou corrigeant vers un accès Intégral");
+        }
+        // 0 explicite = absent : accepté partout.
+        assertThat(statut(() -> service.executer(userId, adminId, reqSessions(AdminAccessOperationType.END,
+                ModuleAccess.INTEGRAL, null, null, 0, true)))).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("Sessions EO — le plafond vient de la configuration")
+    void sessionsEoPlafondConfigurable() {
+        com.sejourfr.app.config.RealtimeProperties props = new com.sejourfr.app.config.RealtimeProperties();
+        props.setAdminGrantMaxSessions(5);
+        AdminAccessOperationService bas = new AdminAccessOperationService(userManager, subscriptionService,
+                overrideManager, operationManager, new AdminUserMapper(), props);
+        LocalDate fin = aujourdhui().plusDays(20);
+        assertThat(statut(() -> bas.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, 6, true)))).isEqualTo(400);
+        assertThat(statut(() -> bas.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, 5, true)))).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("Sessions EO — aperçu du cumul : « 4 sessions restantes + 10 offertes → 14 sessions disponibles », sans 409")
+    void apercuCumul() {
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(grantIntegralActif(10, 4)));
+        AdminAccessOperationResponse r = service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, aujourdhui().plusDays(40), 10, true));
+
+        assertThat(r.preview()).contains("4 sessions restantes + 10 offertes → 14 sessions disponibles");
+        var integral = r.accesses().stream().filter(a -> a.product() == ModuleAccess.INTEGRAL).findFirst().orElseThrow();
+        assertThat(integral.realtimeEoSessions().remaining()).isEqualTo(14);
+        assertThat(integral.realtimeEoSessions().grantRemaining()).isEqualTo(14);
+        assertThat(integral.realtimeEoSessions().grantGranted()).isEqualTo(20);
+        assertThat(r.changes()).contains("Intégral — sessions EO temps réel : 4 → 14");
+    }
+
+    @Test
+    @DisplayName("Sessions EO — aperçus : sessions offertes, conservées (Prolonger), perdues (Terminer), info quand 0")
+    void apercusSessions() {
+        LocalDate fin = aujourdhui().plusDays(40);
+        assertThat(service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, 10, true)).preview())
+                .contains("Cet accès manuel offre 10 sessions EO temps réel.");
+        assertThat(service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.INTEGRAL, null, fin, null, true)).preview())
+                .contains(AdminUserMapper.INFO_SANS_SESSION_EO);
+        assertThat(service.executer(userId, adminId, reqSessions(AdminAccessOperationType.GRANT,
+                ModuleAccess.CIVIQUE, null, fin, null, true)).preview())
+                .doesNotContain("session");
+
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(grantIntegralActif(10, 4)));
+        assertThat(service.executer(userId, adminId, reqSessions(AdminAccessOperationType.EXTEND,
+                ModuleAccess.INTEGRAL, null, fin, null, true)).preview())
+                .contains("Les 4 sessions EO temps réel restantes de l'accès manuel sont conservées.");
+        assertThat(service.executer(userId, adminId, reqSessions(AdminAccessOperationType.END,
+                ModuleAccess.INTEGRAL, null, null, null, true)).preview())
+                .isEqualTo("Cet utilisateur perdra immédiatement son accès Intégral. Les 4 sessions EO temps réel "
+                        + "restantes de l'accès manuel seront perdues. Continuer ?");
+    }
+
+    @Test
+    @DisplayName("Sessions EO — Prolonger un Intégral ACHETÉ : aucune session transférée, l'aperçu dit jusqu'à quand restent celles de l'achat")
+    void prolongerAchatGardeSesSessions() {
+        UserSubscription integral = achat(ModuleAccess.INTEGRAL, 5);
+        integral.getPlan().setRealtimeEoSessions(15);
+        integral.setRealtimeEoSessionsRemaining(3);
+        donnees = new SubscriptionService.DonneesAcces(List.of(integral), List.of());
+        AdminAccessOperationResponse r = service.executer(userId, adminId, reqSessions(AdminAccessOperationType.EXTEND,
+                ModuleAccess.INTEGRAL, null, aujourdhui().plusDays(40), null, true));
+
+        assertThat(r.preview()).contains(AdminUserMapper.INFO_SANS_SESSION_EO)
+                .contains("Les 3 sessions EO temps réel de l'achat restent utilisables jusqu'au");
+        var dto = r.accesses().stream().filter(a -> a.product() == ModuleAccess.INTEGRAL).findFirst().orElseThrow()
+                .realtimeEoSessions();
+        assertThat(dto.purchaseRemaining()).isEqualTo(3);
+        assertThat(dto.grantGranted()).isZero();
+        assertThat(dto.grantRemaining()).isZero();
+        assertThat(dto.remaining()).isEqualTo(3);
+        assertThat(dto.info()).isEqualTo(AdminUserMapper.INFO_SANS_SESSION_EO);
+        assertThat(integral.getRealtimeEoSessionsRemaining()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("Sessions EO — écriture : la ligne remplacée est remise à 0 avec sa supersession, la nouvelle porte le report")
+    void ecritureRemetLAncienneAZero() {
+        AccessOverride p = grantIntegralActif(10, 4);
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(p));
+        when(operationManager.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+        when(overrideManager.saveAndFlush(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.executer(userId, adminId, reqSessions(AdminAccessOperationType.EXTEND,
+                ModuleAccess.INTEGRAL, null, aujourdhui().plusDays(40), null, false));
+
+        assertThat(p.getSupersededAt()).isNotNull();
+        assertThat(p.getRealtimeEoSessionsRemaining()).isZero();
+        org.mockito.ArgumentCaptor<AccessOverride> ecrits = org.mockito.ArgumentCaptor.forClass(AccessOverride.class);
+        verify(overrideManager, org.mockito.Mockito.atLeastOnce()).saveAndFlush(ecrits.capture());
+        assertThat(ecrits.getAllValues()).filteredOn(o -> o.getSupersededAt() == null && o.couvre(Instant.now()))
+                .singleElement()
+                .satisfies(o -> {
+                    assertThat(o.getRealtimeEoSessionsRemaining()).isEqualTo(4);
+                    assertThat(o.getRealtimeEoSessionsGranted()).isEqualTo(10);
+                });
+    }
+
+    @Test
+    @DisplayName("Sessions EO — fiche : la carte Civique n'a pas de bloc, la carte Intégral a la phrase info si 0 offerte")
+    void ficheSessions() {
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(grantIntegralActif(0, 0)));
+        Instant now = Instant.now();
+        var acces = service.accesses(AdminAccessOperationService.etats(donnees.achats(), donnees.decisions(), now),
+                donnees, now);
+        var civique = acces.stream().filter(a -> a.product() == ModuleAccess.CIVIQUE).findFirst().orElseThrow();
+        var integral = acces.stream().filter(a -> a.product() == ModuleAccess.INTEGRAL).findFirst().orElseThrow();
+        assertThat(civique.realtimeEoSessions()).isNull();
+        assertThat(integral.realtimeEoSessions().info())
+                .isEqualTo("Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel.");
+
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(grantIntegralActif(10, 4)));
+        var avecSessions = service.accesses(AdminAccessOperationService.etats(donnees.achats(), donnees.decisions(), now),
+                donnees, now).stream().filter(a -> a.product() == ModuleAccess.INTEGRAL).findFirst().orElseThrow()
+                .realtimeEoSessions();
+        assertThat(avecSessions.info()).isNull();
+        assertThat(avecSessions.label()).isEqualTo("4 sessions restantes — accès manuel : 4 sur 10");
+        assertThat(avecSessions.purchaseRemaining()).isNull();
     }
 }

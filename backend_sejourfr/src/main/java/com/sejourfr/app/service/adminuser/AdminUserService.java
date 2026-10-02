@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.adminuser;
 
+import com.sejourfr.app.config.RealtimeProperties;
 import com.sejourfr.app.dto.AdminAccessHistoryEntryDto;
 import com.sejourfr.app.dto.AdminAccessProductDto;
 import com.sejourfr.app.dto.AdminUserDetailDto;
@@ -72,9 +73,10 @@ public class AdminUserService {
     private final AdminUserReadManager readManager;
     private final AdminUserMapper mapper;
     private final AdminAccessOperationService operationService;
+    private final RealtimeProperties realtimeProperties;
 
     public List<AdminAccessProductDto> products() {
-        return mapper.products();
+        return mapper.products(realtimeProperties.getAdminGrantMaxSessions());
     }
 
     public PageResponse<AdminUserListItemDto> list(String q, AdminUserFilter filter, int page, int size) {
@@ -134,7 +136,7 @@ public class AdminUserService {
                 mapper.account(user),
                 mapper.effective(AccesEffectifResolver.module(d.achats(), d.decisions(), now)),
                 readManager.findLastActivity(List.of(userId)).get(userId),
-                operationService.accesses(etats, d.achats(), d.decisions(), now),
+                operationService.accesses(etats, d, now),
                 achats,
                 progression(userId),
                 historique(userId),

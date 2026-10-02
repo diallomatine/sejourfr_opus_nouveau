@@ -17,7 +17,8 @@ import java.util.List;
  * {@code endLabel} l'écrit avec l'heure. {@code defaultEndDateInclusive} est la
  * valeur que la modale pré-remplit dans « Fin (incluse) » (date incluse d'une
  * fin admin, sinon jour Paris de la fin d'achat). Le front affiche, il ne
- * convertit rien.
+ * convertit rien. {@code realtimeEoSessions} : sessions EO temps réel (carte
+ * INTEGRAL seulement, {@code null} pour CIVIQUE).
  */
 public record AdminUserAccessDto(
         ModuleAccess product,
@@ -33,5 +34,6 @@ public record AdminUserAccessDto(
         AccessOrigin origin,
         String originLabel,
         List<AdminAccessAlertDto> alerts,
-        List<AdminAccessOperationOptionDto> availableOperations
+        List<AdminAccessOperationOptionDto> availableOperations,
+        AdminRealtimeEoSessionsDto realtimeEoSessions
 ) {}

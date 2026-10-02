@@ -109,9 +109,22 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
         jdbc.update("INSERT INTO access_overrides (id, user_id, product, type, starts_at, ends_at, decided_at, reason, "
                 + "created_by, operation_id) VALUES (?, ?, 'CIVIQUE', 'GRANT', now(), now() + interval '9 days', now(), "
                 + "'Geste support', ?, ?)", UUID.randomUUID(), user.getId(), admin.getId(), op);
+        // V084 : une session temps réel débitée sur un GRANT INTEGRAL ne bloque pas la purge (FK SET NULL).
+        UUID grantIntegral = UUID.randomUUID();
+        jdbc.update("INSERT INTO access_overrides (id, user_id, product, type, starts_at, ends_at, decided_at, reason, "
+                + "created_by, operation_id, realtime_eo_sessions_granted, realtime_eo_sessions_remaining) VALUES "
+                + "(?, ?, 'INTEGRAL', 'GRANT', now(), now() + interval '9 days', now(), 'Geste support', ?, ?, 5, 4)",
+                grantIntegral, user.getId(), admin.getId(), op);
+        UUID session = UUID.randomUUID();
+        jdbc.update("INSERT INTO realtime_sessions (id, user_id, access_override_id, epreuve, tache_numero, provider, "
+                + "model, status, transcript, resumption_count) VALUES (?, ?, ?, 'TCF_EO', 1, 'gemini', 'm', "
+                + "'COMPLETED', '', 0)", session, user.getId(), grantIntegral);
 
         service.deleteAccount(user.getId());
         entityManager.flush();
+
+        assertThat(jdbc.queryForList("SELECT access_override_id FROM realtime_sessions WHERE id = ?",
+                UUID.class, session)).allMatch(java.util.Objects::isNull);
 
         // G-8 (option 2) : decisions et journal suivent la purge du compte.
         assertThat(jdbc.queryForObject("SELECT count(*) FROM access_overrides WHERE user_id = ?",

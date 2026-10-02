@@ -119,6 +119,15 @@ class AccesEffectifNonRegressionIT extends AbstractIntegrationTest {
             return c.getEndsAt().isAfter(i.getEndsAt());
         }
 
+        /** {@code GET /api/realtime/eo/quota} d'avant V084 : le solde et l'allocation de l'achat courant. */
+        static java.util.Map<String, Integer> quota(List<UserSubscription> subs, Instant now) {
+            return meilleure(subs, now)
+                    .map(sub -> java.util.Map.of(
+                            "remaining", Math.max(0, sub.getRealtimeEoSessionsRemaining()),
+                            "cap", Math.max(0, sub.getPlan().getRealtimeEoSessions())))
+                    .orElse(java.util.Map.of("remaining", 0, "cap", 0));
+        }
+
         /** {@code BillingController.getSubscriptionStatus} d'avant V083. */
         static SubscriptionStatusResponse statut(List<UserSubscription> subs, Instant now) {
             return meilleure(subs, now).map(sub -> {
@@ -212,7 +221,35 @@ class AccesEffectifNonRegressionIT extends AbstractIntegrationTest {
             // verify-receipt rend la même construction après l'achat (ReceiptVerificationService.buildResponse).
             assertThat(om.valueToTree(statusService.statusFor(u.getId())).equals(attenduStatut))
                     .as("verify-receipt — %s", sc.nom()).isTrue();
+
+            // V084 : sans décision, le quota EO temps réel est celui d'avant (forme et valeurs).
+            JsonNode quota = getJson("/api/realtime/eo/quota", u);
+            assertThat(quota).as("realtime/eo/quota — %s", sc.nom())
+                    .isEqualTo(om.valueToTree(Historique.quota(subs, now)));
         }
+    }
+
+    @Test
+    @DisplayName("V084 — GRANT Intégral avec 10 sessions offertes : même FORME pour le mobile, valeurs du GRANT")
+    void grantAvecSessionsFormeInchangee() throws Exception {
+        User admin = data.admin();
+        User u = data.user();
+        fx.agir(u, admin, AdminAccessOperationType.GRANT, ModuleAccess.INTEGRAL, null, null,
+                AccesAdminFixtures.jour(20), 10);
+        em.flush();
+
+        JsonNode quota = getJson("/api/realtime/eo/quota", u);
+        assertThat(quota.propertyNames()).containsExactlyInAnyOrder("remaining", "cap");
+        assertThat(quota.get("remaining").asInt()).isEqualTo(10);
+        assertThat(quota.get("cap").asInt()).isEqualTo(10);
+
+        JsonNode statut = getJson("/api/billing/subscription-status", u);
+        assertThat(statut.get("realtimeSessionsRemaining").asInt()).isEqualTo(10);
+        assertThat(statut.get("moduleAccess").asString()).isEqualTo("INTEGRAL");
+        // Aucun champ nouveau : les clés servies sont un sous-ensemble de celles du DTO d'avant.
+        JsonNode reference = om.valueToTree(new SubscriptionStatusResponse(true, SubscriptionSource.STRIPE, "p",
+                Instant.now(), SubscriptionStatus.ACTIVE, ModuleAccess.INTEGRAL, false, true, 1));
+        assertThat(reference.propertyNames()).containsAll(statut.propertyNames());
     }
 
     @Test

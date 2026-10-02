@@ -484,6 +484,110 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
         assertThat(grande).isEqualTo(petite);
     }
 
+    // ------------------------------------------------ sessions EO temps réel (V084)
+
+    private ResultActions posterSessions(User u, String op, String produit, String depuis, LocalDate fin,
+                                         Object sessions, boolean dryRun) throws Exception {
+        String version = dryRun ? null : detail(u).get("accessVersion").asString();
+        Map<String, Object> c = corps(op, produit, depuis, null, fin, "Motif support", dryRun, version);
+        c.put("realtimeEoSessions", sessions);
+        return poster(u, c);
+    }
+
+    private JsonNode sessionsEo(JsonNode accesses) {
+        return acces(accesses, "INTEGRAL").get("realtimeEoSessions");
+    }
+
+    @Test
+    @DisplayName("V084 — les 3 opérations qui créent un GRANT Intégral offrent des sessions : Donner, Réactiver, Corriger Civique → Intégral")
+    void sessionsEoTroisOperations() throws Exception {
+        User donne = data.user();
+        JsonNode r1 = json(posterSessions(donne, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(29), 10, false)
+                .andExpect(status().isOk()));
+        assertThat(sessionsEo(r1.get("accesses")).get("grantRemaining").asInt()).isEqualTo(10);
+        assertThat(sessionsEo(r1.get("accesses")).get("grantGranted").asInt()).isEqualTo(10);
+        assertThat(sessionsEo(r1.get("accesses")).get("remaining").asInt()).isEqualTo(10);
+        assertThat(sessionsEo(r1.get("accesses")).get("info").isNull()).isTrue();
+        assertThat(r1.get("preview").asString()).contains("Cet accès manuel offre 10 sessions EO temps réel.");
+
+        User reactive = data.user();
+        achat(reactive, ModuleAccess.INTEGRAL, Instant.now().minus(JOUR.multipliedBy(40)), Instant.now().minus(JOUR.multipliedBy(10)));
+        JsonNode r2 = json(posterSessions(reactive, "REACTIVATE", "INTEGRAL", null, AccesAdminFixtures.jour(59), 5, false)
+                .andExpect(status().isOk()));
+        assertThat(sessionsEo(r2.get("accesses")).get("grantRemaining").asInt()).isEqualTo(5);
+
+        User corrige = data.user();
+        achat(corrige, ModuleAccess.CIVIQUE, Instant.now().minus(JOUR), Instant.now().plus(JOUR.multipliedBy(60)));
+        JsonNode r3 = json(posterSessions(corrige, "CORRECT_PRODUCT", "INTEGRAL", "CIVIQUE", AccesAdminFixtures.jour(60), 7, false)
+                .andExpect(status().isOk()));
+        assertThat(sessionsEo(r3.get("accesses")).get("grantRemaining").asInt()).isEqualTo(7);
+        assertThat(acces(r3.get("accesses"), "CIVIQUE").get("realtimeEoSessions").isNull()).isTrue();
+
+        // L'historique de la fiche dit le changement de solde, depuis le journal (snapshot).
+        JsonNode historique = detail(donne).get("history").get(0);
+        assertThat(historique.get("changes").toString()).contains("Intégral — sessions EO temps réel : 0 → 10");
+        Integer snapshot = jdbc.queryForObject("SELECT (e->>'realtimeEoSessions')::int FROM admin_access_operations o, "
+                + "jsonb_array_elements(o.after_state) e WHERE o.user_id = ? AND e->>'product' = 'INTEGRAL'",
+                Integer.class, donne.getId());
+        assertThat(snapshot).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("V084 — cumul : Donner Intégral +10 sur un GRANT Intégral à 4, sans 409 ; l'aperçu annonce 4 + 10 → 14")
+    void sessionsEoCumul() throws Exception {
+        User u = data.user();
+        posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(20), 4, false).andExpect(status().isOk());
+
+        JsonNode apercu = json(posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(40), 10, true)
+                .andExpect(status().isOk()));
+        assertThat(apercu.get("preview").asString())
+                .contains("4 sessions restantes + 10 offertes → 14 sessions disponibles");
+        JsonNode r = json(posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(40), 10, false)
+                .andExpect(status().isOk()));
+        assertThat(sessionsEo(r.get("accesses")).get("grantRemaining").asInt()).isEqualTo(14);
+        assertThat(sessionsEo(r.get("accesses")).get("grantGranted").asInt()).isEqualTo(14);
+        assertThat(sessionsEo(detail(u).get("accesses")).get("label").asString())
+                .isEqualTo("14 sessions restantes — accès manuel : 14 sur 14");
+    }
+
+    @Test
+    @DisplayName("V084 — 400 : négatif, au-delà de 50, sur Prolonger, sur Civique ; rien n'est écrit")
+    void sessionsEo400() throws Exception {
+        User u = data.user();
+        posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(20), -1, false)
+                .andExpect(status().isBadRequest());
+        JsonNode trop = json(posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(20), 51, false)
+                .andExpect(status().isBadRequest()));
+        assertThat(trop.get("message").asString()).contains("50");
+        posterSessions(u, "GRANT", "CIVIQUE", null, AccesAdminFixtures.jour(20), 5, false)
+                .andExpect(status().isBadRequest());
+        assertThat(fx.decisionsCourantes(u.getId())).isZero();
+
+        posterSessions(u, "GRANT", "INTEGRAL", null, AccesAdminFixtures.jour(20), null, false).andExpect(status().isOk());
+        JsonNode prolonger = json(posterSessions(u, "EXTEND", "INTEGRAL", null, AccesAdminFixtures.jour(40), 5, false)
+                .andExpect(status().isBadRequest()));
+        assertThat(prolonger.get("message").asString())
+                .isEqualTo("Les sessions EO temps réel ne s'offrent qu'en donnant, réactivant ou corrigeant vers un accès Intégral.");
+        assertThat(fx.decisionsCourantes(u.getId())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("V084 — fiche : un accès manuel Intégral sans session porte la phrase d'information ; produits : plafond servi")
+    void sessionsEoFicheEtProduits() throws Exception {
+        User u = data.user();
+        agir(u, "GRANT", "INTEGRAL", null, null, AccesAdminFixtures.jour(20));
+        JsonNode bloc = sessionsEo(detail(u).get("accesses"));
+        assertThat(bloc.get("info").asString())
+                .isEqualTo("Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel.");
+        assertThat(bloc.get("remaining").asInt()).isZero();
+        assertThat(bloc.get("purchaseRemaining").isNull()).isTrue();
+
+        JsonNode p = json(mvc.perform(get("/api/admin/access-products").header(HttpHeaders.AUTHORIZATION, bearer))
+                .andExpect(status().isOk()));
+        assertThat(p.get(0).get("maxRealtimeEoSessions").isNull()).isTrue();
+        assertThat(p.get(1).get("maxRealtimeEoSessions").asInt()).isEqualTo(50);
+    }
+
     @FunctionalInterface
     private interface Appel {
         void run() throws Exception;

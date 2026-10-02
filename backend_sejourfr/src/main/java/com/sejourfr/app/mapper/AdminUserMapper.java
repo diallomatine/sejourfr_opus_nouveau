@@ -5,6 +5,7 @@ import com.sejourfr.app.dto.AdminAccessHistoryEntryDto;
 import com.sejourfr.app.dto.AdminAccessOperationOptionDto;
 import com.sejourfr.app.dto.AdminAccessProductDto;
 import com.sejourfr.app.dto.AdminEffectiveAccessDto;
+import com.sejourfr.app.dto.AdminRealtimeEoSessionsDto;
 import com.sejourfr.app.dto.AdminUserAccessBadgeDto;
 import com.sejourfr.app.dto.AdminUserAccessDto;
 import com.sejourfr.app.dto.AdminUserAccountDto;
@@ -27,6 +28,7 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.AdminUserReadRepository;
 import com.sejourfr.app.service.access.AccesEffectifResolver;
 import com.sejourfr.app.service.access.AccesEffectifResolver.EtatProduit;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import com.sejourfr.app.util.DateMetierParis;
 import com.sejourfr.app.util.ReferenceExterne;
 import org.springframework.stereotype.Component;
@@ -45,6 +47,10 @@ import java.util.Objects;
  */
 @Component
 public class AdminUserMapper {
+
+    /** Phrase servie quand l'accès manuel Intégral n'offre aucune session (arbitrage n°3, B-1). */
+    public static final String INFO_SANS_SESSION_EO =
+            "Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel.";
 
     // ------------------------------------------------------------- libellés
 
@@ -75,9 +81,11 @@ public class AdminUserMapper {
         return String.join(" + ", modules.stream().map(this::moduleLabel).toList());
     }
 
-    public List<AdminAccessProductDto> products() {
+    /** @param maxSessionsEo plafond configuré des sessions EO temps réel offertes par action */
+    public List<AdminAccessProductDto> products(int maxSessionsEo) {
         return AccesEffectifResolver.PRODUITS.stream()
-                .map(p -> new AdminAccessProductDto(p, productLabel(p), modulesDe(p), modulesLabel(modulesDe(p))))
+                .map(p -> new AdminAccessProductDto(p, productLabel(p), modulesDe(p), modulesLabel(modulesDe(p)),
+                        p == ModuleAccess.INTEGRAL ? maxSessionsEo : null))
                 .toList();
     }
 
@@ -88,7 +96,12 @@ public class AdminUserMapper {
 
     // ---------------------------------------------------------------- accès
 
-    public AdminUserAccessDto access(EtatProduit e, List<AdminAccessOperationType> operations) {
+    /**
+     * @param sessions la vue du quota EO servie par l'autorité ; lue pour la carte
+     *                 INTEGRAL seulement
+     */
+    public AdminUserAccessDto access(EtatProduit e, List<AdminAccessOperationType> operations,
+                                     RealtimeQuotaService.VueAdmin sessions) {
         return new AdminUserAccessDto(
                 e.produit(), productLabel(e.produit()),
                 e.statut(), e.statut().label(),
@@ -99,7 +112,36 @@ public class AdminUserMapper {
                 DateMetierParis.finProposee(finParDefaut(e)).orElse(null),
                 e.origine(), e.origine() != null ? e.origine().label() : null,
                 e.alertes().stream().map(this::alerte).toList(),
-                operations.stream().map(o -> new AdminAccessOperationOptionDto(o, o.label())).toList());
+                operations.stream().map(o -> new AdminAccessOperationOptionDto(o, o.label())).toList(),
+                e.produit() == ModuleAccess.INTEGRAL && sessions != null ? sessionsEo(sessions) : null);
+    }
+
+    /** « 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 » : des libellés, aucun calcul. */
+    public AdminRealtimeEoSessionsDto sessionsEo(RealtimeQuotaService.VueAdmin v) {
+        List<String> details = new ArrayList<>();
+        if (v.grantGranted() != null) {
+            details.add("accès manuel : " + v.grantRemaining() + " sur " + v.grantGranted());
+        }
+        if (v.purchaseRemaining() != null) {
+            details.add("achat : " + v.purchaseRemaining());
+        }
+        if (v.scheduledGrantGranted() != null) {
+            details.add("accès programmé : " + sessions(v.scheduledGrantGranted()) + " "
+                    + accord(v.scheduledGrantGranted(), "offerte"));
+        }
+        String label = sessions(v.remaining()) + " " + accord(v.remaining(), "restante")
+                + (details.isEmpty() ? "" : " — " + String.join(" ; ", details));
+        return new AdminRealtimeEoSessionsDto(v.remaining(), v.grantGranted(), v.grantRemaining(),
+                v.purchaseRemaining(), v.scheduledGrantGranted(), label,
+                v.sansSessionOfferte() ? INFO_SANS_SESSION_EO : null);
+    }
+
+    private static String sessions(int n) {
+        return n + (n > 1 ? " sessions" : " session");
+    }
+
+    private static String accord(int n, String mot) {
+        return n > 1 ? mot + "s" : mot;
     }
 
     /**
@@ -254,8 +296,12 @@ public class AdminUserMapper {
 
     // ----------------------------------------------------------- historique
 
-    /** Photo d'état pour le journal (jsonb) : des chaînes, jamais relues pour calculer un accès. */
-    public List<Map<String, Object>> snapshot(List<EtatProduit> etats) {
+    /**
+     * Photo d'état pour le journal (jsonb) : des chaînes, jamais relues pour
+     * calculer un accès. La carte INTEGRAL porte aussi le total des sessions EO
+     * temps réel consommables ({@code realtimeEoSessions}, V084).
+     */
+    public List<Map<String, Object>> snapshot(List<EtatProduit> etats, RealtimeQuotaService.VueAdmin sessions) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (EtatProduit e : etats) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -264,10 +310,15 @@ public class AdminUserMapper {
             m.put("endsAt", e.fin() != null ? e.fin().toString() : null);
             m.put("origin", e.origine() != null ? e.origine().name() : null);
             m.put("summary", resume(e));
+            if (e.produit() == ModuleAccess.INTEGRAL && sessions != null) {
+                m.put(CLE_SESSIONS_EO, sessions.remaining());
+            }
             out.add(m);
         }
         return out;
     }
+
+    private static final String CLE_SESSIONS_EO = "realtimeEoSessions";
 
     /** Une phrase par produit dont le résumé a changé : « Civique : Actif jusqu'au … → Révoqué depuis le … ». */
     public List<String> changes(List<Map<String, Object>> avant, List<Map<String, Object>> apres) {
@@ -277,9 +328,16 @@ public class AdminUserMapper {
             Map<String, Object> b = avant.stream().filter(m -> Objects.equals(m.get("product"), produit))
                     .findFirst().orElse(Map.of());
             Object resumeAvant = b.getOrDefault("summary", "Aucun");
+            String libelle = productLabel(ModuleAccess.valueOf(String.valueOf(produit)));
             if (!Objects.equals(resumeAvant, a.get("summary"))) {
-                out.add(productLabel(ModuleAccess.valueOf(String.valueOf(produit))) + " : "
-                        + resumeAvant + " → " + a.get("summary"));
+                out.add(libelle + " : " + resumeAvant + " → " + a.get("summary"));
+            }
+            // Une entrée de journal d'avant V084 n'a pas la clé : rien à comparer.
+            Object sessionsAvant = b.get(CLE_SESSIONS_EO);
+            Object sessionsApres = a.get(CLE_SESSIONS_EO);
+            if (sessionsAvant != null && sessionsApres != null
+                    && !String.valueOf(sessionsAvant).equals(String.valueOf(sessionsApres))) {
+                out.add(libelle + " — sessions EO temps réel : " + sessionsAvant + " → " + sessionsApres);
             }
         }
         return out;
@@ -310,13 +368,73 @@ public class AdminUserMapper {
      *                          produit restera révoqué (la queue du REVOKE survit,
      *                          D-02) : la phrase le dit à l'admin (D-34).
      */
+    /**
+     * Le devenir des sessions EO temps réel annoncé dans l'aperçu (V084, B-1),
+     * calculé par le planner et l'autorité du quota.
+     *
+     * @param creeGrantIntegral l'action pose une nouvelle décision GRANT INTEGRAL
+     * @param achatRestant      solde de l'achat Intégral qui compte (avant l'action)
+     * @param achatFin          fin de cet achat : son solde n'est utilisable que jusque-là
+     * @param prolongeIntegral  l'action prolonge l'accès Intégral
+     */
+    public record ApercuSessions(boolean creeGrantIntegral, int offertes, int reportees, boolean cumulees,
+                                 int perdues, int achatRestant, Instant achatFin, boolean prolongeIntegral) {
+        public static final ApercuSessions AUCUNE = new ApercuSessions(false, 0, 0, false, 0, 0, null, false);
+    }
+
     public String preview(AdminAccessOperationType op, ModuleAccess product, ModuleAccess fromProduct,
-                          Instant debut, Instant fin, boolean debutImmediat, boolean achatResteRevoque) {
+                          Instant debut, Instant fin, boolean debutImmediat, boolean achatResteRevoque,
+                          ApercuSessions sessions) {
         String phrase = phrase(op, product, fromProduct, debut, fin, debutImmediat);
+        List<String> phrasesSessions = phrasesSessions(sessions);
+        if (!phrasesSessions.isEmpty()) {
+            String suite = String.join(" ", phrasesSessions);
+            phrase = op == AdminAccessOperationType.END
+                    ? phrase.replace(" Continuer ?", " " + suite + " Continuer ?")
+                    : phrase + " " + suite;
+        }
         if (!achatResteRevoque || fin == null) return phrase;
         return phrase + " Attention : l'achat " + productLabel(product)
                 + " révoqué ne sera pas rétabli. À partir du " + DateMetierParis.jour(fin)
                 + ", l'accès " + productLabel(product) + " sera de nouveau fermé.";
+    }
+
+    /** « 4 sessions restantes + 10 offertes → 14 sessions disponibles », « … seront perdues »… */
+    private static List<String> phrasesSessions(ApercuSessions a) {
+        List<String> out = new ArrayList<>();
+        if (a == null) return out;
+        String conservees = a.reportees() == 1
+                ? "La session EO temps réel restante de l'accès manuel est conservée."
+                : "Les " + a.reportees() + " sessions EO temps réel restantes de l'accès manuel sont conservées.";
+        if (a.creeGrantIntegral()) {
+            if (a.offertes() > 0 && a.cumulees() && a.reportees() > 0) {
+                int total = a.reportees() + a.offertes();
+                out.add("Sessions EO temps réel : " + sessions(a.reportees()) + " " + accord(a.reportees(), "restante")
+                        + " + " + a.offertes() + " " + accord(a.offertes(), "offerte")
+                        + " → " + sessions(total) + " " + accord(total, "disponible") + ".");
+            } else if (a.offertes() > 0) {
+                out.add("Cet accès manuel offre " + sessions(a.offertes()) + " EO temps réel.");
+                if (a.reportees() > 0) out.add(conservees);
+            } else if (a.reportees() > 0) {
+                out.add(conservees);
+            } else {
+                out.add(INFO_SANS_SESSION_EO);
+            }
+        } else if (a.reportees() > 0) {
+            out.add(conservees);
+        }
+        if (a.perdues() > 0) {
+            out.add(a.perdues() == 1
+                    ? "La session EO temps réel restante de l'accès manuel sera perdue."
+                    : "Les " + a.perdues() + " sessions EO temps réel restantes de l'accès manuel seront perdues.");
+        }
+        if (a.prolongeIntegral() && a.achatRestant() > 0 && a.achatFin() != null) {
+            out.add((a.achatRestant() == 1
+                    ? "La session EO temps réel de l'achat reste utilisable"
+                    : "Les " + a.achatRestant() + " sessions EO temps réel de l'achat restent utilisables")
+                    + " jusqu'au " + DateMetierParis.libelleFin(a.achatFin()) + ".");
+        }
+        return out;
     }
 
     private String phrase(AdminAccessOperationType op, ModuleAccess product, ModuleAccess fromProduct,

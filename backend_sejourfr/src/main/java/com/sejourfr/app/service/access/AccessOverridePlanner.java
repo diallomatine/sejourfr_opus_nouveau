@@ -36,16 +36,58 @@ import java.util.UUID;
  * nouvelle action et {@code replacesOverrideId} = l'ancienne. Par construction
  * les fenêtres courantes ne se chevauchent jamais (la contrainte d'exclusion
  * V083 le vérifie en filet).
+ *
+ * <p><b>Sessions EO temps réel d'un GRANT INTEGRAL</b> (V084, B-1) — le solde
+ * suit l'instant présent par la lignée :
+ * <ol>
+ *   <li>nouvelle décision GRANT INTEGRAL : {@code granted = remaining = N} (N = 0
+ *       pour toute autre décision) ;</li>
+ *   <li>copie (tête ou queue) : {@code granted = source.granted}, {@code remaining = 0} ;</li>
+ *   <li>report : le solde d'un GRANT INTEGRAL remplacé qui couvre MAINTENANT passe
+ *       sur le GRANT INTEGRAL inséré qui couvre maintenant (prolonger 4 → 4,
+ *       raccourcir, donner programmé : la tête) ; si celui-ci est une nouvelle
+ *       décision, son {@code granted} reçoit aussi celui de l'ancien (cumul
+ *       « 4 restantes + 10 offertes → 14 ») ; le solde d'un GRANT FUTUR remplacé
+ *       passe sur sa propre tête s'il en a une ;</li>
+ *   <li>sinon le solde est <b>perdu</b> (terminer, corriger vers Civique) : le plan
+ *       le dit ({@link SessionsEo#perdues()}), l'aperçu l'annonce.</li>
+ * </ol>
+ * 🛑 Le planner ne touche JAMAIS une décision existante (entités gérées : en
+ * aperçu, une écriture serait flushée) : la remise à 0 du solde d'une ligne
+ * remplacée se fait à l'écriture, avec {@code supersededAt}.
  */
 public final class AccessOverridePlanner {
 
     private AccessOverridePlanner() {}
 
-    /** Une décision à poser : {@code fin} exclusive, {@code null} = sans fin (REVOKE seulement). */
-    public record Decision(ModuleAccess produit, AccessOverrideType type, Instant debut, Instant fin) {}
+    /**
+     * Une décision à poser : {@code fin} exclusive, {@code null} = sans fin (REVOKE
+     * seulement). {@code sessionsEo} : sessions EO temps réel offertes, lues pour
+     * un GRANT INTEGRAL seulement (0 ailleurs, validé en amont).
+     */
+    public record Decision(ModuleAccess produit, AccessOverrideType type, Instant debut, Instant fin,
+                           int sessionsEo) {
+        public Decision(ModuleAccess produit, AccessOverrideType type, Instant debut, Instant fin) {
+            this(produit, type, debut, fin, 0);
+        }
+
+        public boolean grantIntegral() {
+            return produit == ModuleAccess.INTEGRAL && type == AccessOverrideType.GRANT;
+        }
+    }
+
+    /**
+     * Le devenir des sessions EO temps réel des GRANT INTEGRAL touchés.
+     *
+     * @param offertes   sessions offertes par les nouvelles décisions
+     * @param reportees  solde des lignes remplacées repris par la lignée
+     * @param cumulees   le report s'est fait sur la NOUVELLE décision (cumul)
+     * @param perdues    solde des lignes remplacées qui n'est repris nulle part
+     */
+    public record SessionsEo(int offertes, int reportees, boolean cumulees, int perdues) {}
 
     /** Ce qu'il faut écrire : les décisions à remplacer, puis celles à insérer, dans cet ordre. */
-    public record Plan(List<AccessOverride> aRemplacer, List<AccessOverride> aInserer) {
+    public record Plan(List<AccessOverride> aRemplacer, List<AccessOverride> aInserer, SessionsEo sessionsEo) {
 
         /** Les décisions courantes telles qu'elles seront après l'écriture (simulation de l'aperçu). */
         public List<AccessOverride> appliqueA(List<AccessOverride> courants) {
@@ -92,7 +134,47 @@ public final class AccessOverridePlanner {
             etat.add(nouvelle);
             aInserer.add(nouvelle);
         }
-        return new Plan(List.copyOf(aRemplacer), List.copyOf(aInserer));
+        int offertes = decisions.stream().filter(Decision::grantIntegral).mapToInt(d -> Math.max(0, d.sessionsEo())).sum();
+        return new Plan(List.copyOf(aRemplacer), List.copyOf(aInserer),
+                reporterLesSessions(aRemplacer, aInserer, offertes, ctx.maintenant()));
+    }
+
+    /** Règle 3 / 4 de la classe : le solde des GRANT INTEGRAL remplacés suit la lignée, ou est perdu. */
+    private static SessionsEo reporterLesSessions(List<AccessOverride> aRemplacer, List<AccessOverride> aInserer,
+                                                  int offertes, Instant maintenant) {
+        AccessOverride courantApres = aInserer.stream()
+                .filter(o -> estGrantIntegral(o) && o.couvre(maintenant))
+                .findFirst().orElse(null);
+        int reportees = 0;
+        int perdues = 0;
+        boolean cumulees = false;
+        for (AccessOverride o : aRemplacer) {
+            int solde = Math.max(0, o.getRealtimeEoSessionsRemaining());
+            if (!estGrantIntegral(o) || solde == 0) continue;
+            AccessOverride cible = o.couvre(maintenant)
+                    ? courantApres
+                    : aInserer.stream()
+                            .filter(c -> estGrantIntegral(c) && o.getId().equals(c.getReplacesOverrideId()))
+                            .findFirst().orElse(null);
+            if (cible == null) {
+                perdues += solde;
+                continue;
+            }
+            cible.setRealtimeEoSessionsRemaining(cible.getRealtimeEoSessionsRemaining() + solde);
+            if (cible.getReplacesOverrideId() == null) {
+                // Nouvelle décision : l'allocation reprend aussi celle de l'ancienne
+                // (remaining <= granted tient : solde <= o.granted).
+                cible.setRealtimeEoSessionsGranted(cible.getRealtimeEoSessionsGranted()
+                        + Math.max(0, o.getRealtimeEoSessionsGranted()));
+                cumulees = true;
+            }
+            reportees += solde;
+        }
+        return new SessionsEo(offertes, reportees, cumulees, perdues);
+    }
+
+    private static boolean estGrantIntegral(AccessOverride o) {
+        return o.getProduct() == ModuleAccess.INTEGRAL && o.getType() == AccessOverrideType.GRANT;
     }
 
     /** Les fenêtres {@code [a, b)} et {@code [c, d)} se recoupent-elles ? ({@code null} = +∞) */
@@ -115,6 +197,9 @@ public final class AccessOverridePlanner {
         o.setCreatedBy(ctx.adminId());
         o.setCreatedAt(ctx.maintenant());
         o.setOperationId(ctx.operationId());
+        int sessions = d.grantIntegral() ? Math.max(0, d.sessionsEo()) : 0;
+        o.setRealtimeEoSessionsGranted(sessions);
+        o.setRealtimeEoSessionsRemaining(sessions);
         return o;
     }
 
@@ -133,6 +218,8 @@ public final class AccessOverridePlanner {
         o.setCreatedAt(ctx.maintenant());
         o.setOperationId(ctx.operationId());
         o.setReplacesOverrideId(original);
+        o.setRealtimeEoSessionsGranted(source.getRealtimeEoSessionsGranted());
+        o.setRealtimeEoSessionsRemaining(0);
         return o;
     }
 }

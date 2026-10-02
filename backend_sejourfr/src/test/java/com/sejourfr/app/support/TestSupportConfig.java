@@ -128,9 +128,10 @@ public class TestSupportConfig {
                                                  com.sejourfr.app.manager.UserSubscriptionManager subscriptionManager,
                                                  com.sejourfr.app.service.adminuser.AdminUserService adminUserService,
                                                  com.sejourfr.app.service.adminuser.AdminAccessOperationService operationService,
+                                                 com.sejourfr.app.manager.RealtimeSessionManager realtimeSessionManager,
                                                  org.springframework.jdbc.core.JdbcTemplate jdbc) {
         return new AccesAdminFixtures(testData, planManager, subscriptionManager, adminUserService,
-                operationService, jdbc);
+                operationService, realtimeSessionManager, jdbc);
     }
 
     /**

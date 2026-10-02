@@ -29,6 +29,14 @@ public class RealtimeProperties {
     /** Version du gabarit de persona charge par {@code RealtimePersonaBuilder}. */
     private String personaVersion = "v1";
 
+    /**
+     * Plafond de sécurité des sessions EO temps réel qu'une action admin peut
+     * offrir sur un GRANT INTEGRAL (V084) : au-delà, 400. S'applique au nombre
+     * DEMANDÉ par action, pas au solde (un report peut cumuler). Même valeur
+     * que {@code application.yaml}.
+     */
+    private int adminGrantMaxSessions = 50;
+
     private Gemini gemini = new Gemini();
     private Audio audio = new Audio();
 
@@ -37,6 +45,9 @@ public class RealtimeProperties {
 
     public String getPersonaVersion() { return personaVersion; }
     public void setPersonaVersion(String personaVersion) { this.personaVersion = personaVersion; }
+
+    public int getAdminGrantMaxSessions() { return adminGrantMaxSessions; }
+    public void setAdminGrantMaxSessions(int adminGrantMaxSessions) { this.adminGrantMaxSessions = adminGrantMaxSessions; }
 
     public Gemini getGemini() { return gemini; }
     public void setGemini(Gemini gemini) { this.gemini = gemini; }

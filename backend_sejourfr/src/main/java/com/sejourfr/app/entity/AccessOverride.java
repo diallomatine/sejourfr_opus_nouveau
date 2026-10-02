@@ -83,6 +83,22 @@ public class AccessOverride {
     @Column(name = "superseded_by_operation_id", columnDefinition = "uuid")
     private UUID supersededByOperationId;
 
+    /**
+     * Sessions EO temps réel offertes par ce GRANT INTEGRAL (V084) : l'allocation,
+     * copiée sur la lignée. 0 pour CIVIQUE et REVOKE (CHECK en base).
+     * 🛑 Lu seulement par {@code RealtimeQuotaService} et {@code AccessOverridePlanner}.
+     */
+    @Column(name = "realtime_eo_sessions_granted", nullable = false)
+    private int realtimeEoSessionsGranted;
+
+    /**
+     * Solde débitable (V084) — porté par une ligne COURANTE seulement : une ligne
+     * remplacée est remise à 0 (CHECK en base). Débité par
+     * {@code RealtimeQuotaService} seulement, par un UPDATE conditionnel.
+     */
+    @Column(name = "realtime_eo_sessions_remaining", nullable = false)
+    private int realtimeEoSessionsRemaining;
+
     /** Vrai si la fenêtre de cette décision couvre {@code t} (début inclus, fin exclue). */
     public boolean couvre(Instant t) {
         return !startsAt.isAfter(t) && (endsAt == null || endsAt.isAfter(t));

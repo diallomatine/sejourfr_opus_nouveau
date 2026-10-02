@@ -6,11 +6,11 @@ import com.sejourfr.app.dto.RealtimeSessionDescriptor;
 import com.sejourfr.app.dto.RealtimeSessionStateResponse;
 import com.sejourfr.app.dto.ResumeRealtimeSessionRequest;
 import com.sejourfr.app.dto.StartRealtimeSessionRequest;
+import com.sejourfr.app.entity.AccessOverride;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.RealtimeSession;
 import com.sejourfr.app.entity.User;
-import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import com.sejourfr.app.exception.BusinessException;
@@ -18,7 +18,6 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
-import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.ProductionAccessService;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +64,6 @@ public class RealtimeSessionService {
     private final AttemptManager attemptManager;
     private final ProductionEvaluationService productionEvaluationService;
     private final ProductionAccessService accessService;
-    private final UserSubscriptionManager userSubscriptionManager;
     private final RealtimeProperties props;
 
     @Transactional
@@ -106,7 +104,10 @@ public class RealtimeSessionService {
 
         RealtimeSession session = new RealtimeSession();
         session.setUser(user);
-        session.setSubscription(quota.subscription());
+        // Un seul porteur réservé : le GRANT INTEGRAL admin d'abord, sinon l'achat
+        // (RealtimeQuotaService). Le débit, lui, n'a lieu qu'à la connexion.
+        session.setSubscription(quota.achatPorteur().orElse(null));
+        session.setAccessOverrideId(quota.grantPorteur().map(AccessOverride::getId).orElse(null));
         session.setAttempt(attempt);
         session.setProductionTask(task);
         session.setEpreuve(EpreuveType.TCF_EO);
@@ -196,16 +197,14 @@ public class RealtimeSessionService {
         }
         if (session.getStatus() == RealtimeSessionStatus.PENDING) {
             // Premiere activite reelle : connexion etablie -> debit d'UNE session
-            // sur le solde du pass. Transition PENDING->ACTIVE unique (garde du
-            // if + verrou de ligne), donc debit exactement une fois par session ;
-            // le debit est lui-meme conditionne au solde > 0. Une session jamais
+            // sur le porteur reserve (achat ou GRANT INTEGRAL admin), par l'unique
+            // autorite du quota. Transition PENDING->ACTIVE unique (garde du if +
+            // verrou de ligne), donc debit exactement une fois par session ; le
+            // debit est lui-meme conditionne au solde > 0. Une session jamais
             // connectee (PENDING) ou en echec sans connexion ne consomme rien.
             session.setStatus(RealtimeSessionStatus.ACTIVE);
             session.setConnectedAt(Instant.now());
-            UserSubscription subscription = session.getSubscription();
-            if (subscription != null) {
-                userSubscriptionManager.decrementRealtimeSessions(subscription.getId());
-            }
+            quotaService.debiter(session);
         }
         if (req.turnIndex() != null) {
             session.setLastTurnIndex(req.turnIndex());
