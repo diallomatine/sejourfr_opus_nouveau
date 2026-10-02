@@ -588,6 +588,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 ### D-35 — Palette : les tokens globaux réalignés sur l'identité visuelle
 
+> ✅ **Validée par le propriétaire le 2026-10-02.**
+
 - **Contexte** : l'admin portait des teintes à part (bleu `#1E3A8F`, rouge `#E1252C`, gris chauds
   `--rule` / `--muted`), la maquette des teintes voisines (`#21469A`, `#EA3430`…).
 - **Choix retenu** : `styles/global.css` reprend les valeurs de `docs/identite-visuelle.md`
@@ -602,6 +604,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 ### D-36 — Titres en Inter gras (maquette), primitives restylées une fois pour toutes les pages
 
+> ✅ **Validée par le propriétaire le 2026-10-02.**
+
 - **Contexte** : la maquette titre en Inter 800 ; l'admin titrait en Fraunces.
 - **Choix retenu** : `PageHeader`, `Panel`, `Modal` titrent en `--font-ui` 800 ; l'`emphasis`
   reste rouge (non italique). `PageHeader` gagne `description`, `Modal` gagne `description`,
@@ -614,6 +618,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 - **Réversibilité** : facile.
 
 ### D-37 — Coquille : trois paliers et tiroir burger
+
+> ✅ **Validée par le propriétaire le 2026-10-02.**
 
 - **Choix retenu** : ≥ 1180 px barre latérale complète (marque, sections, icônes, carte admin
   + déconnexion) ; 721–1179 px barre réduite aux icônes (libellés masqués visuellement mais
@@ -629,6 +635,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 ### D-38 — Fiche : deux colonnes ≥ 1180 px, carte dégradée = accès effectif servi
 
+> ✅ **Validée par le propriétaire le 2026-10-02.**
+
 - **Contexte** : D-26 (deux routes) maintenu ; la maquette juxtapose liste et fiche.
 - **Choix retenu** : la fiche reproduit la sensation du panneau sur deux colonnes ≥ 1180 px
   (gauche : héros, carte d'accès, cartes produit ; droite : achats, progression, compte,
@@ -643,12 +651,15 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 ### D-39 — Écarts assumés avec la maquette
 
+> ✅ **Validée par le propriétaire le 2026-10-02.** Nuance : la colonne « Inscription » est rétablie par D-53 (la colonne « Compte » reste retirée).
+
 - Pas de tuiles de statistiques (D-27) : seul `totalElements` est servi, il est dans le
   sous-titre du panneau.
 - Pas de select de statut en plus des puces : l'API n'a qu'un paramètre `filter`, déjà exposé
   en puces (un select dupliquerait le même contrôle).
 - Colonnes « Inscription » et « Compte » retirées de la liste (la maquette ne les a pas) : un
   compte non actif garde une pastille rouge sous son nom ; l'inscription est dans la fiche.
+  ⚠️ « Inscription » rétablie par D-53 ; « Compte » reste retirée.
 - Confirmation : bouton « Confirmer » contouré rouge (`danger`, maquette) au lieu du rouge plein.
 - Mobile : tableau → cartes empilées (`cardTable`), bouton « Ouvrir la fiche » pleine largeur ;
   modale pleine largeur, boutons empilés ; toasts pleine largeur.
@@ -734,6 +745,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 ### D-43 — Le solde suit la lignée ; cumul « 4 + 10 → 14 » ; perdu à la fin
 
+> ✅ **Validée par le propriétaire le 2026-10-02.** Cumul et report du solde d'un GRANT programmé tronqué compris.
+
 - **Contexte** : arbitrage n°3 (prolongation sans perte, fin ⇒ perdu), n°4 §2 (cumul, `granted`
   cohérent, pas de 409), §6.
 - **Options envisagées** pour l'allocation de la nouvelle décision lors d'un cumul : (a)
@@ -780,7 +793,7 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
   INTEGRAL seulement, `null` pour CIVIQUE) : `remaining` (total), `grantGranted` /
   `grantRemaining` (`null` sans GRANT applicable), `purchaseRemaining` (`null` sans achat qui
   compte), `scheduledGrantGranted` (GRANT INTEGRAL programmé, `null` sinon), `label`
-  (« 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 »), `info` (« Cet accès
+  (« 14 sessions restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0 » — libellé révisé par D-54 ; à l'origine « 14 sur 20 »), `info` (« Cet accès
   manuel n'ajoute pas actuellement de sessions EO temps réel. » quand l'accès manuel affiché — le
   GRANT applicable, sinon le prochain programmé — a `granted = 0`). `AdminAccessProductDto.
   maxRealtimeEoSessions` (50 pour INTEGRAL, `null` pour CIVIQUE) : la modale affiche le champ
@@ -882,6 +895,8 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
   « Accès manuel (restantes / offertes) » = `grantRemaining / grantGranted`, « Accès programmé
   (offertes) » = `scheduledGrantGranted` s'il est servi, et `info` en note ambre. `null` ⇒ « — »,
   jamais 0. `remaining` (total) n'est pas réaffiché à part : il est dans `label`.
+  ⚠️ Libellés révisés par D-54 : « Accès manuel : 14 restantes sur 20 accordées », « Accès
+  programmé : 10 accordées », « Achat : 3 restantes ».
 - **Réversibilité** : facile.
 
 ### D-52 — Réactiver : « Fin » pré-remplie avec la valeur servie (D-34)
@@ -895,6 +910,41 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 Maquette `maquette-admin-utilisateurs-mvp.html` mise à jour : champ de sessions (plafond servi,
 mêmes conditions), bloc sessions des cartes Intégral, fin pré-remplie pour Réactiver, phrases
 d'aperçu mimées.
+
+## Ajustements finaux du propriétaire (2026-10-02)
+
+### D-53 — Liste : date d'inscription rétablie
+
+- **Contexte** : demande du propriétaire (révise D-39 pour cette seule colonne).
+- **Choix retenu** : `AdminUserListItemDto.createdAt` était déjà servi (`users.created_at`) :
+  aucun changement backend. Colonne « Inscription » (JJ/MM/AAAA, `formatParisDate`) après
+  « Dernière activité » sur desktop et tablette ; ≤ 720 px, pas de ligne à part dans la carte :
+  « Inscrit le … » sous l'email. La colonne « Compte » n'est pas rétablie. Maquette alignée.
+- **Réversibilité** : facile.
+
+### D-54 — Sessions : « restantes sur N accordées », jamais « offertes » pour le total de la lignée
+
+- **Contexte** : « 14 sur 20 » laissait lire 20 comme disponible ; 20 est le total accordé sur
+  la lignée (D-43 (b)), pas un solde.
+- **Choix retenu** : corrigé à la source, `AdminUserMapper.sessionsEo` : `label` = « 14 sessions
+  restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0 », accès programmé
+  « 10 sessions accordées » (accord singulier pour 0 et 1). La phrase d'aperçu du cumul
+  (« + 10 offertes → 14 disponibles ») est inchangée : 10 y désigne les sessions offertes PAR
+  CETTE ACTION, qui s'ajoutent bien au disponible. Carte Intégral du front : « Accès manuel :
+  14 restantes sur 20 accordées », « Accès programmé : 10 accordées », « Achat : 3 restantes ».
+  Le champ de la modale reste « offertes par cet accès manuel » (nombre de l'action).
+- **Impact** : `AdminUserMapper`, Javadoc `AdminRealtimeEoSessionsDto`, commentaire `api.ts`,
+  `docs/api-endpoints.md`. Tests mis à jour : `AdminUserControllerIT.sessionsEoCumul`,
+  `AdminAccessOperationServiceTest.ficheSessions`. Forme du DTO inchangée ; DTO admin seulement.
+- **Réversibilité** : facile.
+
+### D-55 — ESLint : trois erreurs préexistantes, hors de ce chantier
+
+- `react-refresh/only-export-components` sur `components/ui/Toast.tsx` (`useToast` exporté avec
+  le provider) et `react-hooks/set-state-in-effect` sur `components/ui/MediaPicker.tsx` et
+  `components/ui/PassagePicker.tsx`. Antérieures à la console Utilisateurs, **non corrigées** à
+  la demande du propriétaire ; `tsc` et le build n'en dépendent pas. Les fichiers créés ou
+  refaits ici passent ESLint.
 
 ## Écarts avec la spec
 

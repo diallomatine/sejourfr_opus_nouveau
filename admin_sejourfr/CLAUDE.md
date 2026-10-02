@@ -160,6 +160,8 @@ Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives)
   complet —, filtre `filter` en puces : Tous / Accès TCF actif / Accès Civique actif / Sans
   accès actif / Expiré / Accès manuel ; état dans l'URL via `useUserListParams`) et
   `/users/:id` (fiche). Entrée de nav « Support › Utilisateurs ».
+  Colonnes de la liste : Utilisateur, Accès, Produit effectif, Prochaine fin, Dernière activité,
+  Inscription (`createdAt` servi ; en carte ≤ 720 px, « Inscrit le … » sous l'email — D-53).
 - **Produits réels** `CIVIQUE` / `INTEGRAL` (jamais « TCF ») ; la liste vient de
   `GET /api/admin/access-products`, jamais codée en dur. L'écran affiche toujours le couple
   **produit effectif / modules ouverts** servi (`effectiveAccess`).
@@ -178,7 +180,8 @@ Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives)
   Réactiver / Corriger vers un produit dont `maxRealtimeEoSessions` est servi (INTEGRAL), 0 …
   plafond, envoyé en aperçu et en écriture ; le cumul et la phrase « n'ajoute pas » sont dans
   `preview`. La carte Intégral affiche `realtimeEoSessions` (phrase `label`, soldes achat /
-  accès manuel / programmé, `info`) — le front n'additionne rien.
+  accès manuel / programmé, `info`) — le front n'additionne rien. Le total de la lignée se dit
+  « accordées », jamais « offertes » (D-54).
 - **Une seule modale** (`components/AccessOperationModal.tsx`) pour GRANT / EXTEND / SHORTEN /
   END / REACTIVATE / CORRECT_PRODUCT : motif 3–500 ; aperçu = `dryRun: true` (debounce 400 ms,
   `expectedVersion` déjà envoyé) ; « Enregistrer » actif seulement sur un aperçu à jour ; seconde

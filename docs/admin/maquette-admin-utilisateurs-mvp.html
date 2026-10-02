@@ -412,6 +412,7 @@
     .toast span { opacity: .78; }
 
     .mobile-back { display: none; }
+    .signup-inline { display: none !important; }
 
     @media (max-width: 1180px) {
       .app { grid-template-columns: 82px 1fr; }
@@ -454,6 +455,8 @@
       .modal-foot { flex-direction: column-reverse; }
       .modal-foot .btn { width: 100%; }
       .toast { right: 12px; left: 12px; bottom: 12px; max-width: none; }
+      .col-signup { display: none; }
+      .signup-inline { display: block !important; }
     }
 
     /* ---- Phase 3 : accès par produit, résumé, aperçu serveur ---- */
@@ -588,6 +591,7 @@
                     <th>Produit effectif</th>
                     <th>Prochaine fin</th>
                     <th>Dernière activité</th>
+                    <th class="col-signup">Inscription</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -780,7 +784,7 @@
         accesses: [
           { product: 'CIVIQUE', status: 'REVOKED', summary: 'Révoqué depuis le 25/09/2026', start: '25/09/2026', end: '—', origin: 'Admin (accès retiré)', alerts: ['Civique reste ouvert via Intégral'], ops: ['REACTIVATE'] },
           { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 25/12/2026 inclus", start: '25/09/2026', end: '25/12/2026 inclus', defaultEnd: '2026-12-25', origin: 'Admin (accès accordé)', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'],
-            sessions: { label: '14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0', purchase: null, grantGranted: 20, grantRemaining: 14, scheduled: null, info: null } }
+            sessions: { label: '14 sessions restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0', purchase: null, grantGranted: 20, grantRemaining: 14, scheduled: null, info: null } }
         ],
         purchases: [{ product: 'Civique', plan: 'Civique — pass 3 mois', amount: '9,99 €', date: '25/09/2026 à 15:16', provider: 'Stripe', status: 'Actif · Payé', end: '25/12/2026 à 15:16', ref: 'cs_live_…a91c' }],
         progress: [
@@ -798,7 +802,7 @@
         accesses: [
           none('CIVIQUE'),
           { product: 'INTEGRAL', status: 'SCHEDULED', summary: 'Programmé du 15/10/2026 au 14/11/2026 inclus', start: '15/10/2026', end: '14/11/2026 inclus', defaultEnd: '2026-11-14', origin: 'Admin (accès accordé)', alerts: ['Accès programmé du 15/10/2026 au 14/11/2026 inclus'], ops: ['GRANT', 'END'],
-            sessions: { label: '0 session restante — accès programmé : 10 offertes', purchase: null, grantGranted: null, grantRemaining: null, scheduled: 10, info: null } }
+            sessions: { label: '0 session restante — accès programmé : 10 sessions accordées', purchase: null, grantGranted: null, grantRemaining: null, scheduled: 10, info: null } }
         ],
         purchases: [],
         progress: [
@@ -816,7 +820,7 @@
         accesses: [
           { product: 'CIVIQUE', status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: ['Civique reste ouvert via Intégral'], ops: ['GRANT'] },
           { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 31/10/2026 inclus", start: '24/09/2026', end: '31/10/2026 inclus', defaultEnd: '2026-10-31', origin: 'Admin (accès accordé)', alerts: ['Achat remboursé'], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'],
-            sessions: { label: '0 session restante — accès manuel : 0 sur 0', purchase: null, grantGranted: 0, grantRemaining: 0, scheduled: null, info: "Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel." } }
+            sessions: { label: '0 session restante — accès manuel : 0 restante sur 0 accordée', purchase: null, grantGranted: 0, grantRemaining: 0, scheduled: null, info: "Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel." } }
         ],
         purchases: [{ product: 'Intégral', plan: 'Intégral — pass 1 mois', amount: '19,99 €', date: '20/09/2026 à 11:00', provider: 'Stripe', status: 'Remboursé · Remboursé', end: '20/10/2026 à 11:00', ref: 'cs_live_…77d0' }],
         progress: [
@@ -849,6 +853,7 @@
     const productLabel = code => PRODUCTS.find(p => p.code === code).label;
     const modulesLabel = code => PRODUCTS.find(p => p.code === code).modulesLabel;
     const currentUser = () => users.find(u => u.id === selectedUserId) || users[0];
+    const pl = (n, word) => n > 1 ? word + 's' : word;
     const badge = (status, text) => `<span class="badge ${STATUS_BADGE[status]}">${escapeHtml(text)}</span>`;
 
     function renderUsers(list) {
@@ -858,18 +863,19 @@
           <td>
             <div class="user-cell">
               <div class="avatar">${escapeHtml(user.initials)}</div>
-              <div class="user-main"><strong>${escapeHtml(user.name)}</strong><span>${escapeHtml(user.email)}</span></div>
+              <div class="user-main"><strong>${escapeHtml(user.name)}</strong><span>${escapeHtml(user.email)}</span><span class="signup-inline">Inscrit le ${escapeHtml(user.createdAt)}</span></div>
             </div>
           </td>
           <td><div class="badges">${user.accesses.map(a => badge(a.status, `${productLabel(a.product)} · ${STATUS_LABEL[a.status]}`)).join('')}</div></td>
           <td><strong>${escapeHtml(user.effective.product)}</strong><br><span class="date-muted">Modules : ${escapeHtml(user.effective.modules)}</span>${user.manual ? '<br><span class="badge badge-blue" style="margin-top:4px">Accès manuel</span>' : ''}</td>
           <td class="date-muted">${escapeHtml(user.nextEnd)}</td>
           <td class="date-muted">${escapeHtml(user.lastActivity)}</td>
+          <td class="date-muted col-signup">${escapeHtml(user.createdAt)}</td>
           <td><button class="row-action" onclick="event.stopPropagation(); selectUser('${user.id}')" aria-label="Ouvrir la fiche">›</button></td>
         </tr>`).join('');
       document.getElementById('resultsCount').textContent = `${list.length} utilisateur${list.length > 1 ? 's' : ''}`;
       if (!list.length) {
-        body.innerHTML = '<tr><td colspan="6"><div class="empty"><strong>Aucun utilisateur ne correspond</strong>Modifiez la recherche ou le filtre.</div></td></tr>';
+        body.innerHTML = '<tr><td colspan="7"><div class="empty"><strong>Aucun utilisateur ne correspond</strong>Modifiez la recherche ou le filtre.</div></td></tr>';
       }
     }
 
@@ -917,9 +923,9 @@
             <div class="sessions-head">Sessions EO temps réel</div>
             <p class="sessions-label">${escapeHtml(a.sessions.label)}</p>
             <div class="sessions-facts">
-              <div><span>Achat (restantes)</span><strong>${a.sessions.purchase ?? '—'}</strong></div>
-              <div><span>Accès manuel (restantes / offertes)</span><strong>${a.sessions.grantGranted === null ? '—' : `${a.sessions.grantRemaining} / ${a.sessions.grantGranted}`}</strong></div>
-              ${a.sessions.scheduled !== null ? `<div><span>Accès programmé (offertes)</span><strong>${a.sessions.scheduled}</strong></div>` : ''}
+              <div><span>Achat</span><strong>${a.sessions.purchase === null ? '—' : `${a.sessions.purchase} ${pl(a.sessions.purchase, 'restante')}`}</strong></div>
+              <div><span>Accès manuel</span><strong>${a.sessions.grantGranted === null ? '—' : `${a.sessions.grantRemaining} ${pl(a.sessions.grantRemaining, 'restante')} sur ${a.sessions.grantGranted} ${pl(a.sessions.grantGranted, 'accordée')}`}</strong></div>
+              ${a.sessions.scheduled !== null ? `<div><span>Accès programmé</span><strong>${a.sessions.scheduled} ${pl(a.sessions.scheduled, 'accordée')}</strong></div>` : ''}
             </div>
             ${a.sessions.info ? `<p class="sessions-info">${escapeHtml(a.sessions.info)}</p>` : ''}
           </div>` : ''}
