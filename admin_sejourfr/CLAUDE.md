@@ -36,6 +36,9 @@ src/
 │   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
+│   ├── users/               Console « Utilisateurs » : liste `/users`, fiche
+│   │                        `/users/:id`, modale unique des actions d'accès.
+│   │                        Détail dans la section « Utilisateurs » plus bas.
 │   ├── suivi/               L'écran « Suivi » (tunnel diagnostic → achat), monté
 │   │                        sur `/dashboard`. Un SEUL appel serveur, lecture
 │   │                        seule. Détail dans la section « Suivi » plus bas.
@@ -62,7 +65,13 @@ src/
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
 │                            EO (Expression Orale) — Azure Speech + R2 réutilisés
+├── hooks/
+│   ├── useDebouncedValue.ts
+│   └── useUrlListState.ts   État d'une liste paginée serveur dans l'URL (page,
+│                            taille, filtres, recherche debouncée, recalage de
+│                            page) — partagé par `subscriptions/` et `users/`
 ├── lib/
+│   ├── dates.ts             Affichage d'un instant servi en heure de Paris
 │   └── queryClient.ts       Config TanStack Query
 ├── pages/
 │   └── LoginPage.tsx        Page hors layout, accessible publiquement
@@ -129,10 +138,46 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/production-tasks?epreuve=…&tacheNumero=…` +
   `PATCH /api/admin/production-tasks/{id}/titre` (feature `productionTasks/` —
   intitulés éditoriaux des sujets EE/EO)
+- `GET /api/admin/users?q=&filter=&page=&size=`, `GET /api/admin/users/{id}`,
+  `GET /api/admin/access-products`, `POST /api/admin/users/{id}/access-operations`
+  (feature `users/`, contrat complet : `docs/api-endpoints.md` § « Admin — Utilisateurs »)
 - `GET /api/admin/civic-notions`,
   `GET /api/admin/civic-notions/questions?theme=…&tagged=false&limit=&offset=`,
   `PUT /api/admin/civic-notions/questions/{questionId}`
   `{notionCode, verdict}` (feature `civicNotions/`)
+
+### Utilisateurs (`features/users/`)
+
+Retrouver, comprendre et dépanner un compte (spec `docs/admin/spec-admin-utilisateurs-v2.md`,
+GO du propriétaire, décisions `docs/admin/decisions-gestion-utilisateurs.md` D-01 → D-29).
+Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives).
+
+- **Routes** : `/users` (liste paginée serveur, recherche `q` debouncée — email, nom ou UUID
+  complet —, filtre `filter` en puces : Tous / Accès TCF actif / Accès Civique actif / Sans
+  accès actif / Expiré / Accès manuel ; état dans l'URL via `useUserListParams`) et
+  `/users/:id` (fiche). Entrée de nav « Support › Utilisateurs ».
+- **Produits réels** `CIVIQUE` / `INTEGRAL` (jamais « TCF ») ; la liste vient de
+  `GET /api/admin/access-products`, jamais codée en dur. L'écran affiche toujours le couple
+  **produit effectif / modules ouverts** servi (`effectiveAccess`).
+- **Fiche, dans l'ordre §5** : résumé (inscription, dernière activité, produit effectif,
+  `summary` + origine par produit) → une carte par produit (statut, début, fin incluse
+  `endLabel`, origine, alertes, boutons = `availableOperations`) → achats en lecture seule →
+  progression → compte → historique admin (une entrée par action, `changes` servis, motif).
+- 🛑 **Le front ne recalcule RIEN** : statut, module ouvert, date de fin, inclusive/exclusive,
+  disponibilité d'une action, phrase d'aperçu — tout est servi. Les seules dates manipulées
+  sont la mise en forme d'un instant servi (`lib/dates.ts`) et le pré-remplissage du champ de
+  fin avec `defaultEndDateInclusive` (servi). Début vide = « maintenant » (D-23).
+- **Une seule modale** (`components/AccessOperationModal.tsx`) pour GRANT / EXTEND / SHORTEN /
+  END / REACTIVATE / CORRECT_PRODUCT : motif 3–500 ; aperçu = `dryRun: true` (debounce 400 ms,
+  `expectedVersion` déjà envoyé) ; « Enregistrer » actif seulement sur un aperçu à jour ; seconde
+  étape si `confirmationRequired` ; `expectedVersion` = `accessVersion` lue à l'ouverture ;
+  409 ⇒ « l'état a changé, rechargez la fiche », 400 ⇒ message serveur.
+- **`queryKey`** : `["adminUsers", "list", filters]`, `["adminUsers", "detail", id]`,
+  `["adminAccessProducts"]`, `["adminUserAccessPreview", id, requête]`. Une action réussie
+  invalide le préfixe `["adminUsers"]` (liste + fiche) ; l'aperçu a sa propre clé pour ne pas
+  être rejoué.
+- Aucun achat n'est modifiable ici ; la console `/subscriptions` reste l'écran transverse des
+  achats (résiliation, solde de sessions EO) — pas un doublon (D-28).
 
 ### Compétences TCF EE/EO (`features/skills/`)
 
@@ -396,7 +441,7 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
 - **Pagination** : `components/ui/Pagination.tsx` (« x–y sur N », précédent/suivant,
   numéros avec « … », sélecteur de taille, repli « n / N » sous 720 px). Page
   indexée à 0 comme le `PageResponse` ; ne s'affiche pas sur une liste vide. Utilisée
-  par `/subscriptions` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
+  par `/subscriptions` et `/users` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
   précédent/suivant maison, à migrer au prochain passage.
 - Les couleurs sont dans `:root` de `styles/global.css`. **Ne jamais hardcoder une couleur** dans un module — toujours utiliser `var(--blue)`, `var(--red)`, `var(--ink)`, etc.
 - Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
@@ -437,7 +482,7 @@ Comptes admin (en dev, ils sont dans le seed Flyway du backend) :
 ## Roadmap (ce qui n'est pas encore branché)
 
 Pas encore d'API côté backend, donc pas implémenté ici :
-- **Clients / utilisateurs** : liste, détail, désactivation
+- **Utilisateurs** : désactivation / blocage de compte (hors MVP, la notion n'existe pas)
 - **Upload de médias** dans le formulaire de question : l'endpoint `/api/admin/media/upload` existe côté backend mais pas encore intégré dans le formulaire. À ajouter quand on aura des questions avec audio/image (TCF compréhension orale notamment).
 - **Statistiques par utilisateur** : taux de réussite, progression, etc.
 
@@ -476,7 +521,6 @@ Pas encore d'API côté backend, donc pas implémenté ici :
 
 ## Pistes d'évolution
 
-- Quand l'écran **clients** sera ajouté, créer `features/users/` sur le même modèle (`features/subscriptions/` existe depuis le lot 4c).
 - Pour l'upload de médias dans le formulaire question : ajouter un composant `MediaPicker` qui appelle `POST /api/admin/media/upload` (multipart) ou `POST /api/admin/media/from-url`, puis remplit `mediaId` dans le `QuestionWriteRequest`.
 - Si la pagination des questions devient lourde, envisager un `useInfiniteQuery` plutôt que des boutons précédent/suivant.
 - 🛑 **Tests : on n'en écrit PAS sur ce sous-projet** (règle posée le 2026-08-09, cf. § Tests du `CLAUDE.md` racine). Ni Vitest, ni React Testing Library, ni test de libellé. La vérification d'un changement admin, c'est `npx tsc --noEmit` + le build. Toute la couverture de règles métier vit côté backend, d'où elle protège les trois fronts d'un seul endroit.

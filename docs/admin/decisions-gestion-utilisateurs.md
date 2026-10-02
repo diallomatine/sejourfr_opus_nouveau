@@ -1,4 +1,4 @@
-# Décisions — Admin / Gestion des utilisateurs (phase 2 : backend, migrations, tests)
+# Décisions — Admin / Gestion des utilisateurs (phase 2 : backend, migrations, tests ; phase 3 : front admin)
 
 > Mode autonome (GO du propriétaire du 2026-10-02, §19). Sources : `spec-admin-utilisateurs-v2.md`,
 > `audit-admin-utilisateurs.md`, GO du propriétaire (prime sur les deux). Chaque décision suit le
@@ -310,9 +310,115 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
   local : seul `FREE` est `NONE`) ; divergence théorique seulement.
 - **Réversibilité** : facile.
 
+## Phase 3 — front admin
+
+> Console `admin_sejourfr/src/features/users/` (routes `/users`, `/users/:id`). Aucune de ces
+> décisions ne touche le schéma, un DTO lu par le mobile, le calcul d'accès effectif, les achats
+> ou les emails. B-1 inchangé : la fiche affiche ce que le serveur sert.
+
+### D-22 — Pré-remplissage de « Fin (incluse) » servi par le backend
+
+- **Contexte** : spec §2.6 (« la date de fin proposée par défaut est celle de A »), D-03 (« le
+  front pré-remplit la fin de A, servie »). Or `endDateInclusive` n'est servie que pour une fin
+  admin ; une fin d'achat (« 21/12/2026 à 10:14 ») n'a pas de date incluse, et la déduire dans le
+  navigateur serait une conversion de date côté front (interdite).
+- **Options envisagées** : (a) champ vide pour un achat (l'admin retape la date) ; (b) convertir
+  `endsAt` en date de Paris dans le front ; (c) champ admin servi `defaultEndDateInclusive`.
+- **Choix retenu** : (c). `AdminUserAccessDto.defaultEndDateInclusive` = date incluse d'une fin
+  admin, sinon jour (Paris) de la fin d'achat — même convention que `cas2CorrectionDeProduit`.
+  Calcul unique dans `DateMetierParis.finProposee`. La modale l'utilise pour Prolonger,
+  Raccourcir et Corriger ; Donner / Réactiver partent d'un champ vide.
+- **Impact** : DTO **admin** seulement (aucun DTO mobile), `AdminUserMapper`, tests
+  `DateMetierParisTest.finProposee…`, `AdminUserControllerIT.fiche` / `cas1DonnerUnAcces`,
+  `docs/api-endpoints.md`, miroir `admin_sejourfr/src/types/api.ts`.
+- **Réversibilité** : facile — retirer le champ et laisser le champ de date vide.
+
+### D-23 — Début « aujourd'hui » = champ vide, jamais une date calculée par le navigateur
+
+- **Contexte** : spec §6 (« Début : par défaut aujourd'hui »). Le jour du navigateur peut
+  différer du jour de Paris (admin à l'étranger, autour de minuit) ; un début « hier » est refusé
+  en 400.
+- **Options envisagées** : (a) pré-remplir avec la date locale du navigateur ; (b) champ vide,
+  `startDate` absent ⇒ le serveur prend « maintenant ».
+- **Choix retenu** : (b), libellé « Vide : dès maintenant. Une date future programme l'accès. »
+  Le champ n'est affiché que pour Donner / Réactiver (seules opérations où l'API le lit).
+- **Impact** : `AccessOperationModal`.
+- **Réversibilité** : facile.
+
+### D-24 — Une seule modale, aperçu `dryRun` automatique, écriture conditionnée à un aperçu à jour
+
+- **Contexte** : spec §6, §8 ; GO §14.
+- **Options envisagées** : (a) bouton « Prévisualiser » explicite ; (b) aperçu automatique
+  (`dryRun: true`, debounce 400 ms) dès que les champs exigés sont remplis.
+- **Choix retenu** : (b). L'aperçu porte déjà `expectedVersion` (l'`accessVersion` lue à
+  l'ouverture, figée dans la modale) : un état périmé se voit avant même d'écrire. « Enregistrer »
+  n'est actif que si l'aperçu correspond aux champs actuels ; la seconde étape (« Confirmer »)
+  n'apparaît que si `confirmationRequired` est servi, avec la phrase `preview` et les `changes`
+  servis. Les champs affichés dépendent de l'opération (contrat de la requête), jamais du statut.
+  Le produit est figé pour une action de carte ; on ne le choisit que pour « Donner un accès »
+  global et pour la cible d'une correction (produits servis moins le produit corrigé).
+  Après succès : invalidation du préfixe `["adminUsers"]` (liste + fiche).
+- **Impact** : `AccessOperationModal` ; aperçu en `queryKey` séparée
+  (`["adminUserAccessPreview", …]`) pour ne pas être rejoué par l'invalidation.
+- **Réversibilité** : facile.
+
+### D-25 — 409 et 400 dans la modale
+
+- **Contexte** : spec §6, GO §14.
+- **Choix retenu** : 409 à l'écriture ⇒ message fixe « L'état de cet utilisateur a changé depuis
+  l'ouverture de la fenêtre. Rechargez la fiche avant de recommencer. » + bouton « Recharger la
+  fiche » (invalide et ferme) ; 409 à l'aperçu (précondition ou état périmé) ⇒ message serveur +
+  même bouton ; 400 ⇒ message serveur tel quel. Aucune validation métier dupliquée côté front
+  (seul le motif 3–500 conditionne l'appel, pour ne pas déclencher un aperçu voué au 400).
+- **Réversibilité** : facile.
+
+### D-26 — Deux routes (liste, fiche) plutôt que le panneau scindé de la maquette
+
+- **Contexte** : maquette (liste + fiche côte à côte), spec §4/§5 (routes indicatives
+  `/admin/users`, `/admin/users/{id}`), conventions admin (`/skills`, `/skills/:id`).
+- **Options envisagées** : (a) panneau scindé ; (b) deux routes.
+- **Choix retenu** : (b) `/users` et `/users/:id` : fiche partageable par lien, place pour les
+  six blocs du §5, repli mobile trivial. Le retour à la liste conserve recherche, filtre et page
+  (la query string est passée en `state` du lien).
+- **Impact** : `App.tsx`, entrée de nav « Support › Utilisateurs ».
+- **Réversibilité** : facile.
+
+### D-27 — Pas de bandeau de statistiques
+
+- **Contexte** : la maquette initiale affichait 4 compteurs (utilisateurs, accès actifs, TCF
+  actifs, expirent sous 7 j) ; aucun endpoint ne les sert et le §13 sort les statistiques du MVP.
+- **Choix retenu** : retirés de l'écran et de la maquette, plutôt que de les calculer sur une
+  page de liste (faux) ou d'ajouter un endpoint d'agrégats.
+- **Réversibilité** : facile (endpoint d'agrégats + bandeau).
+
+### D-28 — `/subscriptions` conservée : pas de doublon
+
+- **Contexte** : « refonte = suppression de l'ancien » si un écran concurrent existe.
+- **Choix retenu** : la console Abonnements est une vue **transverse des achats** (filtre par
+  source, statut, mois d'achat ; résiliation ; solde de sessions EO — seule compensation possible
+  de B-1, option 1). La fiche utilisateur montre les achats **d'un** compte en lecture seule.
+  Aucun recouvrement d'action : conservée. Leur mécanique commune est mutualisée (2ᵉ occurrence) :
+  état de liste dans l'URL et recherche debouncée (`hooks/useUrlListState.ts`), message d'erreur
+  HTTP (`httpErrorMessage`, `api/http.ts`), dates de Paris (`lib/dates.ts`).
+- **Réversibilité** : facile.
+
+### D-29 — Couleur des statuts : simple correspondance d'un enum servi
+
+- **Contexte** : « le front ne recalcule jamais un statut ».
+- **Choix retenu** : `AccessStatusBadge` associe une couleur à `ProductAccessStatus` (Actif vert,
+  Programmé bleu, Révoqué rouge, Expiré ambre, Aucun gris) et affiche le **libellé servi**. Les
+  boutons d'une carte sont exactement `availableOperations` (libellés servis), leur ton suit le
+  code d'opération. Aucun seuil, aucune date, aucune déduction.
+- **Réversibilité** : facile.
+
 ## Écarts avec la spec
 
 - Produits `CIVIQUE` / `INTEGRAL` (GO §1) : la correction « Civique → TCF » est « Civique →
   Intégral ». Les modules ouverts sont servis à côté (GO §2) ; la maquette est mise à jour en phase 3.
 - Pas de statut de compte « bloqué » (n'existe pas). Pas de dernière activité par module.
 - Quota EO d'un GRANT Intégral nu : voir B-1.
+- Phase 3 : pas de filtre « Compte bloqué » (la notion n'existe pas). Pas de bouton générique
+  « Modifier l'accès » : chaque carte propose exactement les actions servies (Prolonger,
+  Raccourcir, Terminer, Corriger le produit, Donner un accès, Réactiver). « Donner un accès »
+  apparaît aussi sur une carte active (programmer une décision future, GO §4). Pas de
+  statistiques (D-27). Liste et fiche sur deux routes (D-26).

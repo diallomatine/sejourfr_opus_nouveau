@@ -357,6 +357,7 @@ on est tenté de modifier un seuil, un contrat, une consigne ou une règle produ
 | `docs/decisions/mesure-audience.md` | L'ancien système `page_views`, legacy, conservé comme archive. |
 | `docs/decisions-autonomes-chantier-tcf-irn.md` | Le chantier **taxonomie V3** mené en autonomie (2026-09-13) : D01 à D05, sources, arbitrages et niveaux de confiance. |
 | `docs/decisions-autonomes-parcours-tcf.md` | Les décisions prises **en autonomie** sur le parcours TCF puis le cycle civique : **A1 → A54**, chacune avec son motif et ce qu'il faudrait changer si l'arbitrage était autre. |
+| `docs/admin/decisions-gestion-utilisateurs.md` | Le chantier **console admin « Utilisateurs »** (2026-10-02) : accès effectif = achats + décisions admin GRANT/REVOKE (V083), **B-1 bloquant** (sessions EO d'un Intégral accordé), décisions **D-01 → D-29** (phase 2 backend, phase 3 front). |
 | `docs/admin/decisions-suivi.md` | Le chantier **dashboard admin « Suivi »** (2026-09-25) : arbitrages STOP 0 du propriétaire, décisions **D1 → D88**, état des 20 scénarios, points ouverts et actions du propriétaire (taux stores, dates de début de mesure, liens app). Brief, template et audit dans `docs/admin/`. |
 
 ## Documentation de référence (inchangée)
