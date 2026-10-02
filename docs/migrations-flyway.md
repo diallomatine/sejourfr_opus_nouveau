@@ -109,10 +109,16 @@ db/migration/
 │   │                                             d'examen complet, D-68)
 │   ├── V080-V081                                campagnes de service incident/reprise
 │   │                                             (unicité campagne × compte ; V081 attempt_count)
-│   └── V082__journey_reinitialisation_lancement  marqueur `journey.reinitialiser_au_lancement`
-│                                                 posé une fois sur les cycles vivants (D-69 ter,
-│                                                 lu à la première lecture ; sentinelle testée
-│                                                 par PlanParDefautIT)
+│   ├── V082__journey_reinitialisation_lancement  marqueur `journey.reinitialiser_au_lancement`
+│   │                                             posé une fois sur les cycles vivants (D-69 ter,
+│   │                                             lu à la première lecture ; sentinelle testée
+│   │                                             par PlanParDefautIT)
+│   └── V083__schema_acces_admin.sql             décisions admin GRANT/REVOKE (`access_overrides`)
+│                                                 et leur journal (`admin_access_operations`).
+│                                                 🛑 CREATE EXTENSION btree_gist : la contrainte
+│                                                 d'EXCLUSION interdit deux décisions courantes
+│                                                 qui se chevauchent (AccesAdminSchemaIT).
+│                                                 Les achats (`user_subscriptions`) ne sont pas touchés
 │
 ├── 100_reference/                   V100-V199   données de référence (fixes, prod + dev)
 │   ├── V100__ref_plans.sql                      catalogue plans (abonnements dormants + passes one-time)
@@ -242,7 +248,7 @@ postérieures alimentent se numérote APRÈS elles.**
   `V075`/`V076` (Suivi) puis **`V077__journey_fin_de_cycle.sql`** (le geste qui a clos un
   cycle, « Mes cycles ») sont pris, puis **`V078__journey_fin_de_cycle_interrompu.sql`**
   (2026-09-27, D-68 : `INTERROMPU` admis par `chk_journey_fin_de_cycle`, cycle mis de côté par
-  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → **le prochain est `V082`**. Seed dev : `V901`
+  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → V082 (marqueur de réinitialisation au lancement) → **V083** (`access_overrides` + `admin_access_operations` + extension `btree_gist`, 2026-10-02) → **le prochain est `V084`**. Seed dev : `V901`
   (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
