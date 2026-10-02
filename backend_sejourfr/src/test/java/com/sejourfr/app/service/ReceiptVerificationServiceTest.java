@@ -9,12 +9,11 @@ import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.service.billing.AppleSubscriptionService;
 import com.sejourfr.app.service.billing.GoogleSubscriptionService;
-import com.sejourfr.app.service.realtime.RealtimeQuotaService;
+import com.sejourfr.app.service.billing.SubscriptionStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,8 +33,7 @@ class ReceiptVerificationServiceTest {
 
     private AppleSubscriptionService appleSubscriptionService;
     private GoogleSubscriptionService googleSubscriptionService;
-    private SubscriptionService subscriptionService;
-    private RealtimeQuotaService realtimeQuotaService;
+    private SubscriptionStatusService subscriptionStatusService;
     private ReceiptVerificationService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -44,13 +42,9 @@ class ReceiptVerificationServiceTest {
     void setUp() {
         appleSubscriptionService = mock(AppleSubscriptionService.class);
         googleSubscriptionService = mock(GoogleSubscriptionService.class);
-        subscriptionService = mock(SubscriptionService.class);
-        realtimeQuotaService = mock(RealtimeQuotaService.class);
-        when(realtimeQuotaService.evaluate(userId))
-                .thenReturn(new RealtimeQuotaService.Quota(null, 10, 4));
+        subscriptionStatusService = mock(SubscriptionStatusService.class);
         service = new ReceiptVerificationService(
-                appleSubscriptionService, googleSubscriptionService, subscriptionService,
-                realtimeQuotaService,
+                appleSubscriptionService, googleSubscriptionService, subscriptionStatusService,
                 new com.sejourfr.app.service.billing.MontantEncaisseResolver(
                         new com.sejourfr.app.config.AnalyticsProperties()));
     }
@@ -68,7 +62,11 @@ class ReceiptVerificationServiceTest {
 
     @Test
     void apple_delegue_puisRenvoieStatutPremium() {
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(premiumSub()));
+        // La réponse EST celle de /subscription-status (GO §16) : une seule construction.
+        SubscriptionStatusResponse statut = SubscriptionStatusResponse
+                .from(ModuleAccess.INTEGRAL, null, premiumSub())
+                .withRealtimeSessionsRemaining(4);
+        when(subscriptionStatusService.statusFor(userId)).thenReturn(statut);
         VerifyReceiptRequest req = new VerifyReceiptRequest(
                 SubscriptionSource.APPLE, "jws-receipt", "integral_monthly", null, null);
 
@@ -80,15 +78,15 @@ class ReceiptVerificationServiceTest {
                 org.mockito.ArgumentMatchers.eq("jws-receipt"),
                 org.mockito.ArgumentMatchers.any());
         verifyNoInteractions(googleSubscriptionService);
+        assertThat(res).isSameAs(statut);
         assertThat(res.isPremium()).isTrue();
         assertThat(res.source()).isEqualTo(SubscriptionSource.APPLE);
-        // Pass à quota (cap 10 > 0) → solde temps réel exposé.
         assertThat(res.realtimeSessionsRemaining()).isEqualTo(4);
     }
 
     @Test
     void google_delegue_etRenvoieNotPremiumSiAucunAbo() {
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
+        when(subscriptionStatusService.statusFor(userId)).thenReturn(SubscriptionStatusResponse.notPremium());
         VerifyReceiptRequest req = new VerifyReceiptRequest(
                 SubscriptionSource.GOOGLE, "purchase-token", "civique_monthly", null, null);
 
@@ -152,7 +150,7 @@ class ReceiptVerificationServiceTest {
     /** L'intention voyage jusqu'au service store, telle que reçue (validée à l'octroi). */
     @Test
     void intentionTransmiseAuxServicesStore() {
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
+        when(subscriptionStatusService.statusFor(userId)).thenReturn(SubscriptionStatusResponse.notPremium());
         String intent = UUID.randomUUID().toString();
 
         service.verify(userId, new VerifyReceiptRequest(
@@ -178,6 +176,6 @@ class ReceiptVerificationServiceTest {
                 .isEqualTo(400);
 
         verifyNoInteractions(appleSubscriptionService, googleSubscriptionService);
-        verify(subscriptionService, never()).currentSubscription(userId);
+        verify(subscriptionStatusService, never()).statusFor(userId);
     }
 }

@@ -6,7 +6,7 @@ import com.sejourfr.app.service.billing.AppleSubscriptionService;
 import com.sejourfr.app.service.billing.GoogleSubscriptionService;
 import com.sejourfr.app.service.billing.MontantEncaisse;
 import com.sejourfr.app.service.billing.MontantEncaisseResolver;
-import com.sejourfr.app.service.realtime.RealtimeQuotaService;
+import com.sejourfr.app.service.billing.SubscriptionStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -34,8 +34,7 @@ public class ReceiptVerificationService {
 
     private final AppleSubscriptionService appleSubscriptionService;
     private final GoogleSubscriptionService googleSubscriptionService;
-    private final SubscriptionService subscriptionService;
-    private final RealtimeQuotaService realtimeQuotaService;
+    private final SubscriptionStatusService subscriptionStatusService;
     private final MontantEncaisseResolver montantEncaisseResolver;
 
     public SubscriptionStatusResponse verify(UUID userId, VerifyReceiptRequest request) {
@@ -66,14 +65,8 @@ public class ReceiptVerificationService {
         return montantEncaisseResolver.duStore(request.rawPrice(), request.currencyCode());
     }
 
+    /** Même statut que {@code /subscription-status} : une seule construction (GO §16). */
     private SubscriptionStatusResponse buildResponse(UUID userId) {
-        RealtimeQuotaService.Quota quota = realtimeQuotaService.evaluate(userId);
-        // Cohérent avec /subscription-status : solde temps réel exposé seulement
-        // pour un pass à quota (cap > 0 = TCF/Intégral), null sinon.
-        Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
-        return subscriptionService.currentSubscription(userId)
-                .map(SubscriptionStatusResponse::from)
-                .map(s -> s.withRealtimeSessionsRemaining(realtimeRemaining))
-                .orElseGet(SubscriptionStatusResponse::notPremium);
+        return subscriptionStatusService.statusFor(userId);
     }
 }

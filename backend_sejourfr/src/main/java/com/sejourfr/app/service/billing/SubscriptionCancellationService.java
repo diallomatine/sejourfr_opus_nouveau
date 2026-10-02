@@ -61,7 +61,7 @@ public class SubscriptionCancellationService {
 
     @Transactional
     public CancelSubscriptionResponse cancelForUser(UUID userId) {
-        UserSubscription sub = subscriptionService.currentSubscription(userId)
+        UserSubscription sub = subscriptionService.currentPurchase(userId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "Aucun abonnement actif à résilier."

@@ -46,17 +46,38 @@ public record SubscriptionStatusResponse(
                 false, null, null, null, null, ModuleAccess.NONE, false, false, null);
     }
 
-    public static SubscriptionStatusResponse from(UserSubscription sub) {
-        boolean oneTime = sub.getPlan() != null
-                && sub.getPlan().getPurchaseType() == PlanPurchaseType.ONE_TIME;
+    /**
+     * Statut d'un accès EFFECTIF (achats + décisions admin, {@code SubscriptionService.accesEffectif}).
+     * Forme inchangée pour le mobile (GO §6, §16) :
+     * <ul>
+     *   <li>{@code moduleAccess} et {@code expiresAt} sont ceux de l'accès effectif ;</li>
+     *   <li>{@code source}, {@code productId}, {@code status}, {@code autoRenew},
+     *       {@code oneTime} viennent de l'achat qui compte s'il y en a un — sans
+     *       achat (accès accordé par l'admin) : {@code source}/{@code productId}
+     *       absents, {@code ACTIVE}, pas de renouvellement, {@code oneTime}.</li>
+     * </ul>
+     * Aucune valeur nouvelle : l'origine « admin » n'est visible que dans l'admin.
+     * Sans décision admin, la réponse est identique à l'historique
+     * ({@code expiresAt} = fin de l'achat qui compte).
+     */
+    public static SubscriptionStatusResponse from(ModuleAccess module, Instant expiresAt, UserSubscription achat) {
+        if (module == null || module == ModuleAccess.NONE) {
+            return notPremium();
+        }
+        if (achat == null) {
+            return new SubscriptionStatusResponse(
+                    true, null, null, expiresAt, SubscriptionStatus.ACTIVE, module, false, true, null);
+        }
+        boolean oneTime = achat.getPlan() != null
+                && achat.getPlan().getPurchaseType() == PlanPurchaseType.ONE_TIME;
         return new SubscriptionStatusResponse(
                 true,
-                sub.getSource(),
-                sub.getProductId(),
-                sub.getEndsAt(),
-                sub.getStatus(),
-                sub.getPlan().getModuleAccess(),
-                sub.isAutoRenew(),
+                achat.getSource(),
+                achat.getProductId(),
+                expiresAt,
+                achat.getStatus(),
+                module,
+                achat.isAutoRenew(),
                 oneTime,
                 null
         );

@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.AccessOverrideManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,11 @@ class SubscriptionServiceTest {
     @BeforeEach
     void setUp() {
         userSubscriptionManager = mock(UserSubscriptionManager.class);
-        service = new SubscriptionService(userSubscriptionManager);
+        // Aucune décision admin : ces tests verrouillent le calcul historique,
+        // qui doit rester identique sans override (GO §16).
+        AccessOverrideManager accessOverrideManager = mock(AccessOverrideManager.class);
+        when(accessOverrideManager.findCurrentByUserId(userId)).thenReturn(List.of());
+        service = new SubscriptionService(userSubscriptionManager, accessOverrideManager);
     }
 
     private static Plan plan(String code, ModuleAccess access, int durationDays) {

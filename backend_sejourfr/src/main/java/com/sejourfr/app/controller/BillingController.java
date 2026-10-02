@@ -10,10 +10,9 @@ import com.sejourfr.app.dto.VerifyReceiptRequest;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
 import com.sejourfr.app.service.ReceiptVerificationService;
-import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.billing.PurchaseIntentService;
 import com.sejourfr.app.service.billing.SubscriptionCancellationService;
-import com.sejourfr.app.service.realtime.RealtimeQuotaService;
+import com.sejourfr.app.service.billing.SubscriptionStatusService;
 import com.sejourfr.app.util.ClientContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -37,10 +36,9 @@ import java.util.List;
 public class BillingController {
 
     private final BillingService billingService;
-    private final SubscriptionService subscriptionService;
     private final ReceiptVerificationService receiptVerificationService;
     private final SubscriptionCancellationService subscriptionCancellationService;
-    private final RealtimeQuotaService realtimeQuotaService;
+    private final SubscriptionStatusService subscriptionStatusService;
     private final PurchaseIntentService purchaseIntentService;
     private final ClientContextResolver clientContextResolver;
     private final CurrentUser currentUser;
@@ -115,16 +113,7 @@ public class BillingController {
      */
     @GetMapping("/subscription-status")
     public SubscriptionStatusResponse getSubscriptionStatus() {
-        java.util.UUID userId = currentUser.getId();
-        RealtimeQuotaService.Quota quota = realtimeQuotaService.evaluate(userId);
-        // Solde de sessions EO temps réel : exposé UNIQUEMENT quand le pass ouvre
-        // un quota (cap > 0 = accès TCF/Intégral) ; null pour Civique/Free (non
-        // concerné) → le front n'affiche le décompte que si présent.
-        Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
-        return subscriptionService.currentSubscription(userId)
-                .map(SubscriptionStatusResponse::from)
-                .map(s -> s.withRealtimeSessionsRemaining(realtimeRemaining))
-                .orElseGet(SubscriptionStatusResponse::notPremium);
+        return subscriptionStatusService.statusFor(currentUser.getId());
     }
 
     /**

@@ -132,10 +132,14 @@ public class OneTimeAccessService {
                         HttpStatus.NOT_FOUND, "User introuvable : " + userId));
 
         Instant now = Instant.now();
-        // Prolongation par module : on repart de la fin d'un accès existant de
+        // Prolongation par module : on repart de la fin d'un accès EFFECTIF de
         // module >= celui acheté (cf. currentEndForAtLeast). Ainsi un upgrade
         // Civique→Intégral repart de maintenant (le reste Civique est crédité
         // via la proration Stripe), tandis qu'un re-achat même module cumule.
+        // G-5 : un achat révoqué par l'admin ne prolonge rien (on repart de
+        // maintenant) ; un accès accordé par l'admin prolonge depuis sa fin.
+        // Les décisions admin sont LUES ici, jamais écrites : le client reçoit
+        // toujours la durée qu'il vient d'acheter.
         Instant currentEnd =
                 subscriptionService.currentEndForAtLeast(userId, plan.getModuleAccess());
         boolean extension = currentEnd != null && currentEnd.isAfter(now);

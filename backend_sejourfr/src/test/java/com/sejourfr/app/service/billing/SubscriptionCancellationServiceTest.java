@@ -75,7 +75,7 @@ class SubscriptionCancellationServiceTest {
 
     @Test
     void cancelForUser_aucunAbo_renvoie404() {
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
+        when(subscriptionService.currentPurchase(userId)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.cancelForUser(userId))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
@@ -85,7 +85,7 @@ class SubscriptionCancellationServiceTest {
     @Test
     void cancelForUser_stripe_annuleServeur_done_etMarqueLocalCanceled() {
         UserSubscription s = sub(SubscriptionSource.STRIPE, SubscriptionStatus.ACTIVE, "sub_123");
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(s));
+        when(subscriptionService.currentPurchase(userId)).thenReturn(Optional.of(s));
         when(userSubscriptionManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CancelSubscriptionResponse res = service.cancelForUser(userId);
@@ -103,7 +103,7 @@ class SubscriptionCancellationServiceTest {
     @Test
     void cancelForUser_apple_redirect_statutLocalInchange_aucunAppelStripe() {
         UserSubscription s = sub(SubscriptionSource.APPLE, SubscriptionStatus.ACTIVE, "orig_apple");
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(s));
+        when(subscriptionService.currentPurchase(userId)).thenReturn(Optional.of(s));
 
         CancelSubscriptionResponse res = service.cancelForUser(userId);
 
@@ -118,7 +118,7 @@ class SubscriptionCancellationServiceTest {
     @Test
     void cancelForUser_google_redirectVersPlayStore() {
         UserSubscription s = sub(SubscriptionSource.GOOGLE, SubscriptionStatus.ACTIVE, "token_g");
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(s));
+        when(subscriptionService.currentPurchase(userId)).thenReturn(Optional.of(s));
 
         CancelSubscriptionResponse res = service.cancelForUser(userId);
 
@@ -166,7 +166,7 @@ class SubscriptionCancellationServiceTest {
     @Test
     void cancelStripe_sansOriginalTransactionId_renvoie500() {
         UserSubscription s = sub(SubscriptionSource.STRIPE, SubscriptionStatus.ACTIVE, null);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(s));
+        when(subscriptionService.currentPurchase(userId)).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.cancelForUser(userId))
                 .isInstanceOf(ResponseStatusException.class)

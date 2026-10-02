@@ -20,6 +20,14 @@ import java.util.UUID;
  *
  * <p>Un plan sans acces TCF (Civique, Free) porte 0 → aucun solde crédité → le
  * candidat fait l'epreuve en async (jamais bloque).
+ *
+ * <p>Le pass porteur du solde est l'achat qui compte de l'accès EFFECTIF
+ * ({@code SubscriptionService.currentSubscription}) : un achat que l'admin a
+ * révoqué ne laisse plus consommer de session. ⚠️ Un accès Intégral ACCORDÉ par
+ * l'admin sans achat Intégral couvrant n'a pas de ligne porteuse, donc aucun
+ * solde : décision ouverte, consignée en « Bloquant » dans
+ * docs/admin/decisions-gestion-utilisateurs.md (GO §7). Le débit reste unique
+ * ({@code UserSubscriptionManager.decrementRealtimeSessions}).
  */
 @Service
 @Transactional(readOnly = true)

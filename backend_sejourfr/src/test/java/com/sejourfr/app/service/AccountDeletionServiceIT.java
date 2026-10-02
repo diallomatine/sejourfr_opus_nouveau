@@ -98,6 +98,29 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void deleteAccount_purgesAdminAccessDecisionsAndJournal() {
+        User user = data.user();
+        User admin = data.admin();
+        entityManager.flush();
+        UUID op = UUID.randomUUID();
+        jdbc.update("INSERT INTO admin_access_operations (id, user_id, admin_user_id, operation, product, reason, "
+                + "before_state, after_state) VALUES (?, ?, ?, 'GRANT', 'CIVIQUE', 'Geste support', '[]', '[]')",
+                op, user.getId(), admin.getId());
+        jdbc.update("INSERT INTO access_overrides (id, user_id, product, type, starts_at, ends_at, decided_at, reason, "
+                + "created_by, operation_id) VALUES (?, ?, 'CIVIQUE', 'GRANT', now(), now() + interval '9 days', now(), "
+                + "'Geste support', ?, ?)", UUID.randomUUID(), user.getId(), admin.getId(), op);
+
+        service.deleteAccount(user.getId());
+        entityManager.flush();
+
+        // G-8 (option 2) : decisions et journal suivent la purge du compte.
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM access_overrides WHERE user_id = ?",
+                Integer.class, user.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM admin_access_operations WHERE user_id = ?",
+                Integer.class, user.getId())).isZero();
+    }
+
+    @Test
     void deleteAccount_isIdempotent() {
         User user = data.user();
         UUID id = user.getId();

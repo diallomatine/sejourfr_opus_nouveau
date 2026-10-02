@@ -1,20 +1,37 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.entity.AccessOverride;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.AccessOverrideManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.access.AccesEffectifResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Toutes les methodes publiques lisent des relations lazy (Plan via
+ * 🛑 <b>L'autorité de l'accès EFFECTIF</b> (GO §17) : ce qu'un compte peut
+ * réellement utiliser, calculé à la lecture à partir des ACHATS
+ * ({@code user_subscriptions}, jamais modifiés ici) et des DÉCISIONS admin
+ * courantes ({@code access_overrides}, V083). La règle elle-même vit dans
+ * {@link AccesEffectifResolver} ; ce service charge les deux sources et la lui
+ * applique. Tous les verrous ({@code hasCivique}/{@code hasTcf}), {@code /me},
+ * {@code subscription-status}, {@code verify-receipt}, le quota EO temps réel et
+ * la base de prolongation d'un pass passent par ici. Sans aucune décision admin,
+ * chaque méthode rend exactement ce qu'elle rendait avant V083.
+ *
+ * <p>Toutes les methodes publiques lisent des relations lazy (Plan via
  * UserSubscription). Avec {@code open-in-view: false}, il faut une session
  * Hibernate ouverte pendant l'execution. On annote au niveau classe pour que
  * chaque entry point ouvre sa propre transaction read-only — l'annotation sur
@@ -32,146 +49,172 @@ public class SubscriptionService {
     private static final String FREE_PLAN_CODE = "FREE";
 
     private final UserSubscriptionManager userSubscriptionManager;
+    private final AccessOverrideManager accessOverrideManager;
+
+    /** Les deux sources de l'accès d'un compte : ses achats et ses décisions admin courantes. */
+    public record DonneesAcces(List<UserSubscription> achats, List<AccessOverride> decisions) {
+        public static final DonneesAcces VIDE = new DonneesAcces(List.of(), List.of());
+    }
 
     /**
-     * Renvoie true si l'utilisateur a au moins un abonnement payant ACTIVE
-     * non expire, quel que soit le module. Conserve pour compat : equivaut a
-     * hasCivique(userId) || hasTcf(userId).
+     * L'accès effectif servi à {@code subscription-status} / {@code verify-receipt} :
+     * le module effectif, sa fin ({@code null} = sans fin), et l'achat « qui
+     * compte » de ce module s'il y en a un (vide pour un accès accordé par
+     * l'admin sans achat correspondant).
+     */
+    public record AccesEffectif(ModuleAccess module, Instant expiresAt, Optional<UserSubscription> achat) {}
+
+    /**
+     * Renvoie true si l'utilisateur a un acces effectif, quel que soit le module.
+     * Conserve pour compat : equivaut a hasCivique(userId) || hasTcf(userId).
      */
     public boolean isPremium(UUID userId) {
         return effectiveModuleAccess(userId) != ModuleAccess.NONE;
     }
 
-    /** Acces au module Civique (CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
+    /** Acces au module Civique (pass Civique ou Integral effectif). */
     public boolean hasCivique(UUID userId) {
         return effectiveModuleAccess(userId).hasCivique();
     }
 
-    /** Acces au module TCF (INTEGRAL_3MOIS actif uniquement). */
+    /** Acces au module TCF (Integral effectif uniquement). */
     public boolean hasTcf(UUID userId) {
         return effectiveModuleAccess(userId).hasTcf();
     }
 
-    /**
-     * Calcule le niveau d'acces effectif : on prend le plus permissif parmi
-     * les souscriptions ACTIVE non expirees. INTEGRAL gagne sur CIVIQUE.
-     */
+    /** Le module effectif : INTEGRAL gagne sur CIVIQUE. */
     public ModuleAccess effectiveModuleAccess(UUID userId) {
         return currentAccess(userId).module();
     }
 
     /**
-     * Renvoie l'acces courant : (module le plus permissif, date de fin la
-     * plus tardive parmi les souscriptions actives le couvrant). endsAt est
-     * null si l'utilisateur n'a aucun acces payant.
+     * Renvoie l'acces courant : (module effectif, fin de l'acces effectif tous
+     * modules). endsAt est null si l'utilisateur n'a aucun acces. Sans decision
+     * admin : la fin d'achat la plus tardive parmi les souscriptions couvrantes
+     * (calcul historique inchange).
      */
     public CurrentAccess currentAccess(UUID userId) {
-        Instant now = Instant.now();
-        ModuleAccess best = ModuleAccess.NONE;
-        Instant latestEnd = null;
-        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
-            if (!isCovering(s, now)) continue;
+        return currentAccess(charger(userId), Instant.now());
+    }
 
-            ModuleAccess access = s.getPlan().getModuleAccess();
-            // INTEGRAL gagne toujours, CIVIQUE remplace NONE.
-            if (access == ModuleAccess.INTEGRAL
-                    || (access == ModuleAccess.CIVIQUE && best == ModuleAccess.NONE)) {
-                best = access;
-            }
-            Instant endsAt = s.getEndsAt();
-            if (endsAt != null && (latestEnd == null || endsAt.isAfter(latestEnd))) {
-                latestEnd = endsAt;
-            }
-        }
-        return new CurrentAccess(best, latestEnd);
+    public CurrentAccess currentAccess(DonneesAcces d, Instant now) {
+        ModuleAccess module = AccesEffectifResolver.module(d.achats(), d.decisions(), now);
+        return new CurrentAccess(module, finConventionHistorique(d, ModuleAccess.CIVIQUE, now));
     }
 
     public record CurrentAccess(ModuleAccess module, Instant endsAt) {}
 
     /**
-     * Fin d'accès la plus tardive parmi les souscriptions couvrantes dont le
-     * module est AU MOINS {@code minModule} (ordre NONE &lt; CIVIQUE &lt;
-     * INTEGRAL). Sert au calcul de prolongation d'un pass one-time :
+     * Fin de l'accès EFFECTIF continu à un module AU MOINS {@code minModule}
+     * (ordre NONE &lt; CIVIQUE &lt; INTEGRAL). Base de prolongation d'un pass
+     * one-time (G-5) :
      * <ul>
      *   <li>acheter un pass CIVIQUE prolonge depuis la fin d'un accès CIVIQUE
-     *       ou INTEGRAL existant ;</li>
+     *       ou INTEGRAL effectif ;</li>
      *   <li>acheter un pass INTEGRAL ne prolonge que depuis un accès INTEGRAL
-     *       existant — un reste CIVIQUE n'est pas cumulé (il est crédité via la
-     *       proration côté Stripe lors de l'upgrade).</li>
+     *       effectif — un reste CIVIQUE n'est pas cumulé (il est crédité via la
+     *       proration côté Stripe lors de l'upgrade) ;</li>
+     *   <li>un achat révoqué par l'admin ne prolonge rien (on repart de
+     *       maintenant) ; un accès accordé par l'admin prolonge depuis sa fin.</li>
      * </ul>
-     * Renvoie {@code null} si aucun accès couvrant de ce niveau.
+     * Lecture seule des décisions : le flux d'achat n'en écrit jamais.
+     * Renvoie {@code null} si aucun accès effectif de ce niveau.
      */
     public Instant currentEndForAtLeast(UUID userId, ModuleAccess minModule) {
-        Instant now = Instant.now();
-        Instant latest = null;
-        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
-            if (!isCovering(s, now)) continue;
-            if (s.getPlan().getModuleAccess().ordinal() < minModule.ordinal()) continue;
-            Instant endsAt = s.getEndsAt();
-            if (endsAt != null && (latest == null || endsAt.isAfter(latest))) {
-                latest = endsAt;
-            }
-        }
-        return latest;
+        return finConventionHistorique(charger(userId), minModule, Instant.now());
     }
 
     /**
-     * Retourne la souscription "qui compte" pour ce user — celle qui ouvre
-     * l'accès Premium visible côté app. Critères de sélection :
+     * L'achat "qui compte" de l'accès EFFECTIF — celui qui porte le solde EO
+     * temps réel et la source affichée. Critères :
      *
      * <ol>
-     *   <li>Statut "couvrant" (cf. {@link #isCovering}) : ACTIVE / TRIAL /
-     *       IN_GRACE, ou CANCELED tant que {@code endsAt} est dans le futur.</li>
-     *   <li>Accès le plus permissif (INTEGRAL &gt; CIVIQUE).</li>
-     *   <li>À niveau égal, {@code endsAt} le plus tardif.</li>
+     *   <li>il appartient au module effectif ({@link #effectiveModuleAccess}) ;</li>
+     *   <li>il couvre maintenant ({@link #covers}) et, si l'admin a retiré ce
+     *       produit, il est postérieur à la décision ;</li>
+     *   <li>à module égal, {@code endsAt} le plus tardif (une ligne sans fin
+     *       l'emporte).</li>
      * </ol>
-     *
-     * <p>Sert au endpoint {@code GET /api/billing/subscription-status} : l'app
-     * mobile NE doit PAS proposer d'IAP si une souscription Stripe est encore
-     * active, et inversement. C'est ici qu'on tranche.
+     * Vide si l'accès effectif ne repose sur aucun achat de ce module (accès
+     * accordé par l'admin) ou s'il n'y a pas d'accès. Sans décision admin :
+     * exactement la sélection historique (INTEGRAL &gt; CIVIQUE, puis fin la
+     * plus tardive).
      */
     public Optional<UserSubscription> currentSubscription(UUID userId) {
+        DonneesAcces d = charger(userId);
+        return AccesEffectifResolver.achatRepresentatif(d.achats(), d.decisions(), Instant.now());
+    }
+
+    /**
+     * La ligne d'ACHAT couvrante « qui compte », sans tenir compte des décisions
+     * admin. Réservée aux gestes qui portent sur l'achat lui-même (résilier un
+     * renouvellement, prévenir à la suppression du compte) : un REVOKE admin ne
+     * doit pas empêcher de couper un prélèvement récurrent.
+     */
+    public Optional<UserSubscription> currentPurchase(UUID userId) {
         Instant now = Instant.now();
-        UserSubscription best = null;
-        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
-            if (!isCovering(s, now)) continue;
-            if (best == null || isBetter(s, best)) {
-                best = s;
+        return AccesEffectifResolver.meilleur(userSubscriptionManager.findByUserId(userId).stream()
+                .filter(s -> covers(s, now))
+                .toList());
+    }
+
+    /** L'accès effectif complet, pour {@code subscription-status} et {@code verify-receipt}. */
+    public AccesEffectif accesEffectif(UUID userId) {
+        DonneesAcces d = charger(userId);
+        Instant now = Instant.now();
+        ModuleAccess module = AccesEffectifResolver.module(d.achats(), d.decisions(), now);
+        if (module == ModuleAccess.NONE) {
+            return new AccesEffectif(ModuleAccess.NONE, null, Optional.empty());
+        }
+        AccesEffectifResolver.Fin fin = AccesEffectifResolver.fin(d.achats(), d.decisions(), module, now);
+        return new AccesEffectif(module, fin.instant(),
+                AccesEffectifResolver.achatRepresentatif(d.achats(), d.decisions(), now));
+    }
+
+    /** Achats et décisions courantes d'un compte. */
+    public DonneesAcces charger(UUID userId) {
+        return new DonneesAcces(
+                userSubscriptionManager.findByUserId(userId),
+                accessOverrideManager.findCurrentByUserId(userId));
+    }
+
+    /** Achats et décisions courantes d'une page de comptes, en deux requêtes. */
+    public Map<UUID, DonneesAcces> charger(Collection<UUID> userIds) {
+        Map<UUID, List<UserSubscription>> achats = new HashMap<>();
+        Map<UUID, List<AccessOverride>> decisions = new HashMap<>();
+        if (!userIds.isEmpty()) {
+            for (UserSubscription s : userSubscriptionManager.findByUserIds(userIds)) {
+                achats.computeIfAbsent(s.getUser().getId(), k -> new java.util.ArrayList<>()).add(s);
+            }
+            for (AccessOverride o : accessOverrideManager.findCurrentByUserIds(userIds)) {
+                decisions.computeIfAbsent(o.getUserId(), k -> new java.util.ArrayList<>()).add(o);
             }
         }
-        return Optional.ofNullable(best);
+        Map<UUID, DonneesAcces> out = new HashMap<>();
+        for (UUID id : userIds) {
+            out.put(id, new DonneesAcces(achats.getOrDefault(id, List.of()),
+                    decisions.getOrDefault(id, List.of())));
+        }
+        return out;
     }
 
     /**
-     * Vrai si {@code candidate} doit l'emporter sur {@code incumbent} pour
-     * l'affichage du statut Premium. INTEGRAL gagne sur CIVIQUE ; à module
-     * égal, la date de fin la plus tardive l'emporte ; une souscription sans
-     * date de fin (cas seed / lifetime) bat toute date finie.
+     * Fin effective, avec la convention historique pour un accès sans fin (la
+     * fin d'achat finie la plus tardive parmi les achats qui comptent).
      */
-    private boolean isBetter(UserSubscription candidate, UserSubscription incumbent) {
-        ModuleAccess candidateAccess = candidate.getPlan().getModuleAccess();
-        ModuleAccess incumbentAccess = incumbent.getPlan().getModuleAccess();
-        if (candidateAccess == ModuleAccess.INTEGRAL && incumbentAccess != ModuleAccess.INTEGRAL) {
-            return true;
+    private static Instant finConventionHistorique(DonneesAcces d, ModuleAccess min, Instant now) {
+        AccesEffectifResolver.Fin fin = AccesEffectifResolver.fin(d.achats(), d.decisions(), min, now);
+        if (fin.sansFin()) {
+            return AccesEffectifResolver.derniereFinFinie(d.achats(), d.decisions(), min, now);
         }
-        if (candidateAccess != ModuleAccess.INTEGRAL && incumbentAccess == ModuleAccess.INTEGRAL) {
-            return false;
-        }
-        Instant candidateEnd = candidate.getEndsAt();
-        Instant incumbentEnd = incumbent.getEndsAt();
-        if (candidateEnd == null) return incumbentEnd != null;
-        if (incumbentEnd == null) return false;
-        return candidateEnd.isAfter(incumbentEnd);
-    }
-
-    private boolean isCovering(UserSubscription s, Instant now) {
-        return covers(s, now);
+        return fin.instant();
     }
 
     /**
-     * 🛑 <b>LA regle « cette ligne ouvre-t-elle un acces a cet instant ? »</b>,
-     * exposee pour les scenarios d'emails de fin d'acces (docs/regles/emails.md) :
-     * ils l'appellent au lieu de la reecrire en SQL. Une seule autorite.
+     * 🛑 <b>LA regle « cette ligne d'ACHAT ouvre-t-elle un acces a cet instant ? »</b>,
+     * appelee par {@link AccesEffectifResolver} et par les scenarios d'emails de
+     * fin d'acces (docs/regles/emails.md) au lieu de la reecrire en SQL. Une
+     * seule autorite.
      */
     public static boolean covers(UserSubscription s, Instant now) {
         SubscriptionStatus status = s.getStatus();

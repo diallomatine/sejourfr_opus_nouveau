@@ -4,6 +4,8 @@ import com.sejourfr.app.dto.AccountDeletionResponse;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.manager.AccessOverrideManager;
+import com.sejourfr.app.manager.AdminAccessOperationManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ConversationManager;
 import com.sejourfr.app.manager.DiagnosticRunManager;
@@ -72,6 +74,8 @@ public class AccountDeletionService {
     private final RefreshTokenManager refreshTokenManager;
     private final EmailDeliveryManager emailDeliveryManager;
     private final UserEmailPreferenceManager userEmailPreferenceManager;
+    private final AccessOverrideManager accessOverrideManager;
+    private final AdminAccessOperationManager adminAccessOperationManager;
 
     @Transactional
     public AccountDeletionResponse deleteAccount(UUID userId) {
@@ -84,7 +88,7 @@ public class AccountDeletionService {
 
         // 1. Abonnement couvrant ? On coupe le renouvellement quand on peut, et
         //    on prépare le message d'action manuelle sinon.
-        UserSubscription sub = subscriptionService.currentSubscription(userId).orElse(null);
+        UserSubscription sub = subscriptionService.currentPurchase(userId).orElse(null);
         boolean hasActive = sub != null;
         String provider = sub != null ? sub.getSource().name() : null;
         String manualMessage = null;
@@ -153,6 +157,12 @@ public class AccountDeletionService {
         // joue pas.
         emailDeliveryManager.deleteForAccount(userId, user.getEmail());
         userEmailPreferenceManager.deleteByUserId(userId);
+        // Decisions admin sur les acces et leur journal (G-8, option 2) : ils
+        // nomment CETTE personne (motifs, dates) et suivent la meme purge que le
+        // reste. Les decisions d'abord : elles referencent le journal. Les
+        // ACHATS (user_subscriptions) restent, anonymises avec le compte.
+        accessOverrideManager.deleteByUserId(userId);
+        adminAccessOperationManager.deleteByUserId(userId);
 
         // 3. Révocation de toutes les sessions (refresh tokens).
         refreshTokenManager.revokeAllForUser(userId);

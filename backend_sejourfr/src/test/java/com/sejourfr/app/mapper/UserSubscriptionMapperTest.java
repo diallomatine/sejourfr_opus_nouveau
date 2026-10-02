@@ -51,7 +51,7 @@ class UserSubscriptionMapperTest {
         sub.setSource(SubscriptionSource.STRIPE);
         sub.setStatus(SubscriptionStatus.ACTIVE);
         sub.setExternalTransactionId("sub_ext_1");
-        sub.setOriginalTransactionId("sub_orig_1");
+        sub.setOriginalTransactionId("GPA.purchase-token-tres-long-abcdef123456");
         sub.setProductId("civique_quarterly");
         sub.setAutoRenew(true);
         sub.setStartsAt(starts);
@@ -67,8 +67,9 @@ class UserSubscriptionMapperTest {
         assertThat(dto.userLastName()).isEqualTo("Test");
         assertThat(dto.source()).isEqualTo(SubscriptionSource.STRIPE);
         assertThat(dto.status()).isEqualTo(SubscriptionStatus.ACTIVE);
-        assertThat(dto.externalTransactionId()).isEqualTo("sub_ext_1");
-        assertThat(dto.originalTransactionId()).isEqualTo("sub_orig_1");
+        // Identifiants de paiement TRONQUÉS (spec admin §9) : jamais le jeton complet.
+        assertThat(dto.externalTransactionId()).isEqualTo("sub_…");
+        assertThat(dto.originalTransactionId()).isEqualTo("GPA.purc…3456");
         assertThat(dto.productId()).isEqualTo("civique_quarterly");
         assertThat(dto.autoRenew()).isTrue();
         assertThat(dto.startsAt()).isEqualTo(starts);

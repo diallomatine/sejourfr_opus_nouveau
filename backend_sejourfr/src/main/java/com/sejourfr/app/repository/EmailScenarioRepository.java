@@ -23,6 +23,14 @@ import java.util.UUID;
  * <p>🛑 Ces requetes ne font que BORNER les candidats. La regle de couverture
  * d'un acces (« couvrant », « prolonge au-dela ») n'est pas ecrite ici : elle
  * est appliquee en Java par {@code SubscriptionService.covers}, sa seule autorite.
+ *
+ * <p>🛑 G-6 (GO §9) : les scenarios PREMIUM bases sur les seuls ACHATS
+ * ({@code NO_PREMIUM_AFTER_7_DAYS}, {@code PREMIUM_INACTIVE_2_DAYS},
+ * {@code PREMIUM_ENDING_*}, {@code PREMIUM_ENDED}) EXCLUENT tout compte qui
+ * porte une decision admin courante ({@code access_overrides}) : un compte a
+ * qui l'admin a accorde ou retire un acces ne doit pas recevoir un message
+ * manifestement faux (« jamais Premium », « votre acces se termine »). Le moteur
+ * d'emails n'est pas rebranche sur l'acces effectif (option 1 du MVP).
  */
 public interface EmailScenarioRepository extends Repository<User, UUID> {
 
@@ -51,6 +59,8 @@ public interface EmailScenarioRepository extends Repository<User, UUID> {
                AND NOT EXISTS (SELECT 1 FROM user_subscriptions s JOIN plans pl ON pl.id = s.plan_id
                                 WHERE s.user_id = u.id AND pl.code <> 'FREE'
                                   AND pl.module_access <> 'NONE' AND s.status <> 'PENDING')
+               AND NOT EXISTS (SELECT 1 FROM access_overrides o
+                                WHERE o.user_id = u.id AND o.superseded_at IS NULL)
                AND u.id > :after
              ORDER BY u.id
              LIMIT :limit
@@ -89,6 +99,8 @@ public interface EmailScenarioRepository extends Repository<User, UUID> {
                AND EXISTS (SELECT 1 FROM user_subscriptions s JOIN plans pl ON pl.id = s.plan_id
                             WHERE s.user_id = u.id AND pl.code <> 'FREE' AND pl.module_access <> 'NONE'
                               AND (s.ends_at IS NULL OR s.ends_at > :now))
+               AND NOT EXISTS (SELECT 1 FROM access_overrides o
+                                WHERE o.user_id = u.id AND o.superseded_at IS NULL)
                AND u.id > :after
              ORDER BY u.id
              LIMIT :limit
@@ -112,6 +124,8 @@ public interface EmailScenarioRepository extends Repository<User, UUID> {
                AND pl.purchase_type = 'ONE_TIME' AND NOT s.auto_renew
                AND pl.code <> 'FREE' AND pl.module_access <> 'NONE'
                AND s.ends_at > :from AND s.ends_at <= :to
+               AND NOT EXISTS (SELECT 1 FROM access_overrides o
+                                WHERE o.user_id = u.id AND o.superseded_at IS NULL)
                AND s.id > :after
              ORDER BY s.id
              LIMIT :limit

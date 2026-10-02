@@ -242,9 +242,16 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // l'historique du candidat. 🛑 C'est exactement ce que l'assertion
         // suivante prouve : `grand == petit`. Une boucle sur les sessions aurait
         // fait exploser ce chiffre avec l'historique.
+        // 24 depuis le 2026-10-02 (V083) : l'acces lu est l'acces EFFECTIF —
+        // achats + DECISIONS ADMIN courantes (`access_overrides`). Une lecture
+        // indexee de plus (`idx_access_overrides_user_courants`), faite par
+        // l'autorite `SubscriptionService` a cote des achats, INCONDITIONNELLE et
+        // independante des donnees du candidat. Sans elle, un acces accorde ou
+        // retire par l'admin ne serait pas oppose ici
+        // (docs/admin/decisions-gestion-utilisateurs.md, D-20).
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
-                .isEqualTo(23);
+                .isEqualTo(24);
         assertThat(grand)
                 .as("le Plan se charge en lot : 2 competences observees ou 20, meme cout")
                 .isEqualTo(petit);
