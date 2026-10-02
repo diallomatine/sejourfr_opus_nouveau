@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 /**
  * Couvre l'agrégation Premium de {@link SubscriptionService} : la fonction
  * {@code isCovering} (statut × plan FREE × date de fin) et le départage
- * {@code currentSubscription}/{@code isBetter} (INTEGRAL &gt; CIVIQUE, puis
+ * {@code effectiveAccess().achat()}/{@code meilleurQue} (INTEGRAL &gt; CIVIQUE, puis
  * {@code endsAt} le plus tardif). Test unitaire pur : on mocke uniquement le
  * manager et on lui fait renvoyer des entités construites à la main.
  */
@@ -127,37 +127,37 @@ class SubscriptionServiceTest {
     }
 
     @Test
-    void currentSubscription_integralBatCivique_memeSiFinPlusProche() {
+    void effectiveAccessAchat_integralBatCivique_memeSiFinPlusProche() {
         UserSubscription civique = sub(plan("CIVIQUE_3MOIS", ModuleAccess.CIVIQUE, 90),
                 SubscriptionStatus.ACTIVE, future.plus(60, ChronoUnit.DAYS));
         UserSubscription integral = sub(plan("INTEGRAL", ModuleAccess.INTEGRAL, 90),
                 SubscriptionStatus.ACTIVE, future);
         givenSubs(civique, integral);
 
-        Optional<UserSubscription> best = service.currentSubscription(userId);
+        Optional<UserSubscription> best = service.effectiveAccess(userId).achat();
         assertThat(best).containsSame(integral);
     }
 
     @Test
-    void currentSubscription_aModuleEgal_finLaPlusTardiveGagne() {
+    void effectiveAccessAchat_aModuleEgal_finLaPlusTardiveGagne() {
         UserSubscription early = sub(plan("CIVIQUE_3MOIS", ModuleAccess.CIVIQUE, 90),
                 SubscriptionStatus.ACTIVE, future);
         UserSubscription late = sub(plan("CIVIQUE_1AN", ModuleAccess.CIVIQUE, 365),
                 SubscriptionStatus.ACTIVE, future.plus(100, ChronoUnit.DAYS));
         givenSubs(early, late);
 
-        assertThat(service.currentSubscription(userId)).containsSame(late);
+        assertThat(service.effectiveAccess(userId).achat()).containsSame(late);
     }
 
     @Test
-    void currentSubscription_finNull_batDateFinie_aModuleEgal() {
+    void effectiveAccessAchat_finNull_batDateFinie_aModuleEgal() {
         UserSubscription finite = sub(plan("INTEGRAL_3MOIS", ModuleAccess.INTEGRAL, 90),
                 SubscriptionStatus.ACTIVE, future);
         UserSubscription lifetime = sub(plan("INTEGRAL_LIFE", ModuleAccess.INTEGRAL, 0),
                 SubscriptionStatus.ACTIVE, null);
         givenSubs(finite, lifetime);
 
-        assertThat(service.currentSubscription(userId)).containsSame(lifetime);
+        assertThat(service.effectiveAccess(userId).achat()).containsSame(lifetime);
     }
 
     @Test

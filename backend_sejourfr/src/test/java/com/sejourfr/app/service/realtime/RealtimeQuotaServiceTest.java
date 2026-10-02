@@ -2,6 +2,7 @@ package com.sejourfr.app.service.realtime;
 
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,12 @@ class RealtimeQuotaServiceTest {
         service = new RealtimeQuotaService(subscriptionService);
     }
 
+    /** Le droit effectif servi par l'autorité ; seul l'achat qui le porte compte pour le quota. */
+    private static SubscriptionService.AccesEffectif acces(Optional<UserSubscription> achat) {
+        return new SubscriptionService.AccesEffectif(
+                achat.isPresent() ? ModuleAccess.INTEGRAL : ModuleAccess.NONE, null, achat);
+    }
+
     private UserSubscription subscription(int planCap, int remaining) {
         Plan plan = new Plan();
         plan.setRealtimeEoSessions(planCap);
@@ -47,7 +54,7 @@ class RealtimeQuotaServiceTest {
 
     @Test
     void evaluate_sans_pass_eligible_renvoie_quota_vide() {
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.empty());
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.empty()));
 
         RealtimeQuotaService.Quota quota = service.evaluate(userId);
 
@@ -60,7 +67,7 @@ class RealtimeQuotaServiceTest {
     @Test
     void evaluate_pass_sans_acces_tcf_solde_zero() {
         UserSubscription sub = subscription(0, 0);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(sub));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.of(sub)));
 
         RealtimeQuotaService.Quota quota = service.evaluate(userId);
 
@@ -73,7 +80,7 @@ class RealtimeQuotaServiceTest {
     @Test
     void evaluate_lit_le_solde_stocke_sur_la_souscription() {
         UserSubscription sub = subscription(5, 3);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(sub));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.of(sub)));
 
         RealtimeQuotaService.Quota quota = service.evaluate(userId);
 
@@ -85,7 +92,7 @@ class RealtimeQuotaServiceTest {
     @Test
     void evaluate_solde_epuise_bloque() {
         UserSubscription sub = subscription(5, 0);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(sub));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.of(sub)));
 
         RealtimeQuotaService.Quota quota = service.evaluate(userId);
 
@@ -96,7 +103,7 @@ class RealtimeQuotaServiceTest {
     @Test
     void evaluate_solde_negatif_clamp_a_zero() {
         UserSubscription sub = subscription(5, -2);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(sub));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.of(sub)));
 
         assertThat(service.evaluate(userId).remaining()).isZero();
     }
@@ -104,7 +111,7 @@ class RealtimeQuotaServiceTest {
     @Test
     void remaining_delegue_a_evaluate() {
         UserSubscription sub = subscription(4, 3);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(sub));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(acces(Optional.of(sub)));
 
         assertThat(service.remaining(userId)).isEqualTo(3);
     }

@@ -22,7 +22,7 @@ import java.util.UUID;
  * candidat fait l'epreuve en async (jamais bloque).
  *
  * <p>Le pass porteur du solde est l'achat qui compte de l'accès EFFECTIF
- * ({@code SubscriptionService.currentSubscription}) : un achat que l'admin a
+ * ({@code SubscriptionService.effectiveAccess(..).achat()}) : un achat que l'admin a
  * révoqué ne laisse plus consommer de session. ⚠️ Un accès Intégral ACCORDÉ par
  * l'admin sans achat Intégral couvrant n'a pas de ligne porteuse, donc aucun
  * solde : décision ouverte, consignée en « Bloquant » dans
@@ -50,7 +50,7 @@ public class RealtimeQuotaService {
     }
 
     public Quota evaluate(UUID userId) {
-        Optional<UserSubscription> sub = subscriptionService.currentSubscription(userId);
+        Optional<UserSubscription> sub = subscriptionService.effectiveAccess(userId).achat();
         if (sub.isEmpty()) {
             return new Quota(null, 0, 0);
         }

@@ -4,10 +4,11 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.EmailType;
 import com.sejourfr.app.manager.EmailDeliveryManager;
 import com.sejourfr.app.manager.EmailScenarioManager;
-import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.repository.EmailScenarioRepository.AccessCandidate;
 import com.sejourfr.app.repository.EmailScenarioRepository.UserCandidate;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.SubscriptionService.DonneesAcces;
+import com.sejourfr.app.service.access.AccesEffectifResolver;
 import com.sejourfr.app.service.email.EmailAutomationConfig;
 import com.sejourfr.app.service.email.EmailAutomationConfig.ScenarioWindow;
 import com.sejourfr.app.service.email.EmailFormats;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * <b>Le passage quotidien des scenarios ENGAGEMENT</b> (brief §7).
@@ -47,6 +47,14 @@ import java.util.stream.Collectors;
  * <p>Episodes d'inactivite : la cle porte la date qui a ouvert l'episode, donc au
  * plus un mail par type et par episode ; une nouvelle activite ouvre un nouvel
  * episode. Premium : J+2 puis J+7 ; non Premium : J+7 seul.
+ *
+ * <p>🛑 Décisions admin (D-32, révise D-09) : les scénarios Premium fondés sur
+ * les ACHATS ({@code NO_PREMIUM_AFTER_7_DAYS}, {@code PREMIUM_INACTIVE_2_DAYS},
+ * {@code PREMIUM_ENDING_*}, {@code PREMIUM_ENDED}) écartent un compte seulement
+ * si une décision admin rend l'accès effectif différent de celui des seuls
+ * achats, maintenant ou d'ici la date que le message annonce
+ * ({@link AccesEffectifResolver#decisionsChangentLAcces}). Le SQL ne fait que
+ * borner les candidats ; la décision est prise ici, par l'autorité de l'accès.
  */
 @Service
 @RequiredArgsConstructor
@@ -63,7 +71,7 @@ public class EmailAutomationService {
             EmailType.NO_PREMIUM_AFTER_7_DAYS);
 
     private final EmailScenarioManager scenarios;
-    private final UserSubscriptionManager subscriptions;
+    private final SubscriptionService subscriptions;
     private final EmailDeliveryManager deliveries;
     private final EmailService emailService;
     private final EngagementEmailComposer composer;
@@ -110,17 +118,22 @@ public class EmailAutomationService {
             case NO_PREMIUM_AFTER_7_DAYS -> pageUsers(counts,
                     after -> scenarios.neverPremiumCreatedBetween(startOf(today.minusDays(w.maxDays())),
                             startOf(today.minusDays(w.minDays() - 1L)), after, config.batchSize()),
+                    now,
                     c -> Optional.of(composer.noPremiumAfter7Days(c.getUserId(), c.getEmail(), c.getFirstName())));
             case NO_TRAINING_7_DAYS -> pageUsers(counts,
                     after -> scenarios.lastActivityBetween(startOf(today.minusDays(w.maxDays())),
                             startOf(today.minusDays(w.minDays() - 1L)), after, config.batchSize()),
+                    null,
                     c -> Optional.of(composer.noTraining7Days(c.getUserId(), c.getEmail(), c.getFirstName(),
                             LocalDate.ofInstant(c.getAt(), EmailFormats.PARIS))));
             case PREMIUM_INACTIVE_2_DAYS -> premiumInactive(now, today, w, counts);
             case PREMIUM_ENDING_7_DAYS, PREMIUM_ENDING_2_DAYS -> accesses(counts,
                     now.plus(w.minDays(), ChronoUnit.DAYS), now.plus(w.maxDays(), ChronoUnit.DAYS),
-                    (access, all, c) -> {
+                    (access, acces, c) -> {
+                        List<UserSubscription> all = acces.achats();
                         if (!endResolver.seTermineSansRelais(access, all, now)) return Optional.empty();
+                        // « Se termine le … » : faux si une décision change l'accès d'ici là.
+                        if (decisionsChangentLAcces(acces, now, access.getEndsAt())) return Optional.empty();
                         if (access.getStartsAt() != null && access.getStartsAt()
                                 .isAfter(now.minus(w.minAccessAgeDays(), ChronoUnit.DAYS))) return Optional.empty();
                         if (w.minAccessDurationDays() > 0 && (access.getStartsAt() == null
@@ -131,10 +144,19 @@ public class EmailAutomationService {
                     });
             case PREMIUM_ENDED -> accesses(counts,
                     now.minus(w.maxDays(), ChronoUnit.DAYS).minusMillis(1), now,
-                    (access, all, c) -> endResolver.estTermineSansRelais(access, all, now)
-                            ? Optional.of(composer.premiumEnded(access, c.getEmail(), c.getFirstName(),
-                                    endResolver.wording(access, all, now)))
-                            : Optional.empty());
+                    (access, acces, c) -> {
+                        List<UserSubscription> all = acces.achats();
+                        // Le message dit « s'est terminé le … » : la fenêtre part de l'instant
+                        // juste avant cette fin, quand l'achat couvrait encore.
+                        if (access.getEndsAt() == null
+                                || decisionsChangentLAcces(acces, access.getEndsAt().minusMillis(1), now)) {
+                            return Optional.empty();
+                        }
+                        return endResolver.estTermineSansRelais(access, all, now)
+                                ? Optional.of(composer.premiumEnded(access, c.getEmail(), c.getFirstName(),
+                                        endResolver.wording(access, all, now)))
+                                : Optional.empty();
+                    });
             default -> throw new IllegalArgumentException(type + " n'est pas un scenario");
         }
     }
@@ -149,9 +171,11 @@ public class EmailAutomationService {
         while (true) {
             List<UserCandidate> page = scenarios.withOpenPaidAccess(now, after, config.batchSize());
             if (page.isEmpty()) return;
-            Map<UUID, List<UserSubscription>> subs = subsOf(page.stream().map(UserCandidate::getUserId).toList());
+            Map<UUID, DonneesAcces> acces = accesOf(page.stream().map(UserCandidate::getUserId).toList());
             for (UserCandidate c : page) {
-                Optional<Instant> debut = subs.getOrDefault(c.getUserId(), List.of()).stream()
+                DonneesAcces d = acces.getOrDefault(c.getUserId(), DonneesAcces.VIDE);
+                if (decisionsChangentLAcces(d, now, now)) continue;
+                Optional<Instant> debut = d.achats().stream()
                         .filter(s -> SubscriptionService.covers(s, now))
                         .map(UserSubscription::getStartsAt)
                         .max(Instant::compareTo);
@@ -169,13 +193,23 @@ public class EmailAutomationService {
         }
     }
 
+    /**
+     * @param premiumAt {@code null} pour un scénario sans rapport avec l'accès ;
+     *                  sinon l'instant où le message parle de l'accès : un compte
+     *                  dont une décision admin change l'accès à cet instant est écarté.
+     */
     private void pageUsers(Map<EmailOutcome, Integer> counts,
                            Function<UUID, List<UserCandidate>> fetch,
+                           Instant premiumAt,
                            Function<UserCandidate, Optional<EmailRequest>> compose) {
         UUID after = EmailScenarioManager.FIRST;
         while (true) {
             List<UserCandidate> page = fetch.apply(after);
+            Map<UUID, DonneesAcces> acces = premiumAt == null || page.isEmpty()
+                    ? Map.of() : accesOf(page.stream().map(UserCandidate::getUserId).toList());
             for (UserCandidate c : page) {
+                if (premiumAt != null && decisionsChangentLAcces(
+                        acces.getOrDefault(c.getUserId(), DonneesAcces.VIDE), premiumAt, premiumAt)) continue;
                 compose.apply(c).ifPresent(r -> tally(counts, emailService.sendAsync(r)));
             }
             if (page.size() < config.batchSize()) return;
@@ -185,7 +219,7 @@ public class EmailAutomationService {
 
     @FunctionalInterface
     private interface AccessRule {
-        Optional<EmailRequest> apply(UserSubscription access, List<UserSubscription> all, AccessCandidate c);
+        Optional<EmailRequest> apply(UserSubscription access, DonneesAcces acces, AccessCandidate c);
     }
 
     private void accesses(Map<EmailOutcome, Integer> counts, Instant from, Instant to, AccessRule rule) {
@@ -193,11 +227,11 @@ public class EmailAutomationService {
         while (true) {
             List<AccessCandidate> page = scenarios.oneTimeAccessEndingBetween(from, to, after, config.batchSize());
             if (page.isEmpty()) return;
-            Map<UUID, List<UserSubscription>> subs = subsOf(page.stream().map(AccessCandidate::getUserId).toList());
+            Map<UUID, DonneesAcces> acces = accesOf(page.stream().map(AccessCandidate::getUserId).toList());
             for (AccessCandidate c : page) {
-                List<UserSubscription> all = subs.getOrDefault(c.getUserId(), List.of());
-                all.stream().filter(s -> s.getId().equals(c.getAccessId())).findFirst()
-                        .flatMap(access -> rule.apply(access, all, c))
+                DonneesAcces d = acces.getOrDefault(c.getUserId(), DonneesAcces.VIDE);
+                d.achats().stream().filter(s -> s.getId().equals(c.getAccessId())).findFirst()
+                        .flatMap(access -> rule.apply(access, d, c))
                         .ifPresent(r -> tally(counts, emailService.sendAsync(r)));
             }
             if (page.size() < config.batchSize()) return;
@@ -205,10 +239,16 @@ public class EmailAutomationService {
         }
     }
 
-    /** Tous les acces de la page en UNE requete (pas de N+1), plan charge. */
-    private Map<UUID, List<UserSubscription>> subsOf(List<UUID> userIds) {
-        return subscriptions.findByUserIds(userIds.stream().distinct().toList()).stream()
-                .collect(Collectors.groupingBy(s -> s.getUser().getId()));
+    /**
+     * Achats et décisions admin courantes de la page, en deux requêtes (pas de
+     * N+1), chargés par l'autorité de l'accès.
+     */
+    private Map<UUID, DonneesAcces> accesOf(List<UUID> userIds) {
+        return subscriptions.charger(userIds.stream().distinct().toList());
+    }
+
+    private static boolean decisionsChangentLAcces(DonneesAcces d, Instant de, Instant a) {
+        return AccesEffectifResolver.decisionsChangentLAcces(d.achats(), d.decisions(), de, a);
     }
 
     private static Instant startOf(LocalDate day) {

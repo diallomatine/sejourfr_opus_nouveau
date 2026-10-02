@@ -265,4 +265,67 @@ class AdminAccessOperationServiceTest {
         assertThat(r.accessVersion()).isNotEqualTo(VersionAcces.de(new SubscriptionService.DonneesAcces(
                 List.of(), List.of())));
     }
+
+    // ------------------------------------------------------ D-34 (révise D-02)
+
+    private AccessOverride revokeOuvert(ModuleAccess p) {
+        AccessOverride o = new AccessOverride();
+        o.setId(UUID.randomUUID());
+        o.setUserId(userId);
+        o.setProduct(p);
+        o.setType(AccessOverrideType.REVOKE);
+        o.setStartsAt(Instant.now().minus(1, ChronoUnit.HOURS));
+        o.setDecidedAt(o.getStartsAt());
+        o.setReason("Erreur");
+        o.setCreatedBy(adminId);
+        return o;
+    }
+
+    @Test
+    @DisplayName("D-34 — achat révoqué : la fiche propose la fin de l'ACHAT comme fin par défaut de « Réactiver »")
+    void reactiverProposeLaFinDeLAchat() {
+        UserSubscription civique = achat(ModuleAccess.CIVIQUE, 40);
+        donnees = new SubscriptionService.DonneesAcces(List.of(civique), List.of(revokeOuvert(ModuleAccess.CIVIQUE)));
+        Instant now = Instant.now();
+
+        var acces = service.accesses(AdminAccessOperationService.etats(donnees.achats(), donnees.decisions(), now),
+                donnees.achats(), donnees.decisions(), now);
+        var civiqueDto = acces.stream().filter(a -> a.product() == ModuleAccess.CIVIQUE).findFirst().orElseThrow();
+
+        assertThat(civiqueDto.status()).isEqualTo(com.sejourfr.app.enums.ProductAccessStatus.REVOKED);
+        assertThat(civiqueDto.defaultEndDateInclusive()).isEqualTo(DateMetierParis.aujourdhui(civique.getEndsAt()));
+    }
+
+    @Test
+    @DisplayName("D-34 — Réactiver jusqu'AVANT la fin de l'achat : l'aperçu dit que l'achat restera révoqué ensuite")
+    void reactiverAvantLaFinSignaleLAchatRevoque() {
+        donnees = new SubscriptionService.DonneesAcces(List.of(achat(ModuleAccess.CIVIQUE, 40)),
+                List.of(revokeOuvert(ModuleAccess.CIVIQUE)));
+        LocalDate fin = aujourdhui().plusDays(10);
+
+        AdminAccessOperationResponse r = service.executer(userId, adminId, req(AdminAccessOperationType.REACTIVATE,
+                ModuleAccess.CIVIQUE, null, null, fin, "Réactivation", true));
+
+        assertThat(r.preview()).startsWith("Vous allez réactiver l'accès Civique dès maintenant, jusqu'au ")
+                .endsWith(" Attention : l'achat Civique révoqué ne sera pas rétabli. À partir du "
+                        + DateMetierParis.jour(fin.plusDays(1)) + ", l'accès Civique sera de nouveau fermé.");
+    }
+
+    @Test
+    @DisplayName("D-34 — Réactiver jusqu'à la fin de l'achat (ou au-delà), ou sans achat révoqué : aucun avertissement")
+    void reactiverJusquALaFinNeSignaleRien() {
+        UserSubscription civique = achat(ModuleAccess.CIVIQUE, 40);
+        donnees = new SubscriptionService.DonneesAcces(List.of(civique), List.of(revokeOuvert(ModuleAccess.CIVIQUE)));
+        LocalDate finAchat = DateMetierParis.aujourdhui(civique.getEndsAt());
+
+        AdminAccessOperationResponse r = service.executer(userId, adminId, req(AdminAccessOperationType.REACTIVATE,
+                ModuleAccess.CIVIQUE, null, null, finAchat, "Réactivation", true));
+        assertThat(r.preview()).doesNotContain("Attention");
+
+        donnees = new SubscriptionService.DonneesAcces(List.of(), List.of(revokeOuvert(ModuleAccess.CIVIQUE)));
+        AdminAccessOperationResponse sansAchat = service.executer(userId, adminId, req(
+                AdminAccessOperationType.REACTIVATE, ModuleAccess.CIVIQUE, null, null, aujourdhui().plusDays(5),
+                "Réactivation", true));
+        assertThat(sansAchat.preview()).doesNotContain("Attention");
+    }
 }

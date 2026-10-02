@@ -350,4 +350,97 @@ class AccesEffectifResolverTest {
             assertThat(AccesEffectifResolver.acces(List.of(), d, ModuleAccess.CIVIQUE, parisLe(10, 25, 0, 1))).isFalse();
         }
     }
+
+    // --------------------------------------------- D-32 (révise D-09) / D-34
+
+    @Nested
+    @DisplayName("Emails : les décisions changent-elles l'accès par rapport aux seuls achats ?")
+    class DecisionsEtEmails {
+
+        @Test
+        @DisplayName("Sans décision, ou GRANT terminé depuis longtemps : non")
+        void sansEffet() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(20)), T.plus(JOUR));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass), List.of(), T, T.plus(JOUR)))
+                    .isFalse();
+            AccessOverride ancien = grant(ModuleAccess.INTEGRAL, T.minus(JOUR.multipliedBy(200)),
+                    T.minus(JOUR.multipliedBy(100)));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass), List.of(ancien), T, T.plus(JOUR)))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("GRANT en cours ou REVOKE en cours : oui, dès maintenant")
+        void decisionEnCours() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(20)), T.plus(JOUR));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(),
+                    List.of(grant(ModuleAccess.CIVIQUE, T.minus(JOUR), T.plus(JOUR))), T, T)).isTrue();
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass),
+                    List.of(revoke(ModuleAccess.CIVIQUE, T.minus(JOUR), T.minus(JOUR))), T, T)).isTrue();
+        }
+
+        @Test
+        @DisplayName("GRANT programmé qui prolonge au-delà de la fin annoncée : oui, à la date annoncée seulement")
+        void grantProgramme() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(20)), T.plus(JOUR));
+            List<AccessOverride> d = List.of(grant(ModuleAccess.CIVIQUE, T.plus(JOUR), T.plus(JOUR.multipliedBy(20))));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass), d, T, T)).isFalse();
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass), d, T, T.plus(JOUR))).isTrue();
+        }
+
+        @Test
+        @DisplayName("REVOKE programmé entre maintenant et la fin annoncée : oui (borne intérieure)")
+        void revokeProgrammeAvantLaFin() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(20)), T.plus(JOUR.multipliedBy(5)));
+            List<AccessOverride> d = List.of(revoke(ModuleAccess.CIVIQUE, T.plus(JOUR.multipliedBy(2)), T.minus(JOUR)));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(pass), d, T,
+                    T.plus(JOUR.multipliedBy(5)))).isTrue();
+        }
+
+        @Test
+        @DisplayName("REVOKE ouvert puis rachat postérieur : non — le rachat se termine comme un achat")
+        void revokePuisRachat() {
+            UserSubscription revoque = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(70)),
+                    T.minus(JOUR.multipliedBy(35)));
+            UserSubscription rachat = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(30)), T.plus(JOUR));
+            List<AccessOverride> d = List.of(revoke(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(40)),
+                    T.minus(JOUR.multipliedBy(40))));
+            assertThat(AccesEffectifResolver.decisionsChangentLAcces(List.of(revoque, rachat), d, T, T.plus(JOUR)))
+                    .isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("Achat révoqué : fin proposée et achat qui reste révoqué (D-34)")
+    class AchatRevoque {
+
+        @Test
+        @DisplayName("Statut Révoqué : finAchatRevoque = fin de l'achat neutralisé ; un rachat n'en est pas un")
+        void finAchatRevoque() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(10)), T.plus(JOUR.multipliedBy(30)));
+            List<AccessOverride> d = List.of(revoke(ModuleAccess.CIVIQUE, T.minus(JOUR), T.minus(JOUR)));
+            EtatProduit e = AccesEffectifResolver.etat(List.of(pass), d, ModuleAccess.CIVIQUE, T);
+            assertThat(e.statut()).isEqualTo(ProductAccessStatus.REVOKED);
+            assertThat(e.finAchatRevoque()).isEqualTo(pass.getEndsAt());
+
+            EtatProduit actif = AccesEffectifResolver.etat(List.of(pass), List.of(), ModuleAccess.CIVIQUE, T);
+            assertThat(actif.finAchatRevoque()).isNull();
+        }
+
+        @Test
+        @DisplayName("GRANT sur REVOKE : à la fin du GRANT, l'achat reste révoqué tant qu'il aurait couvert")
+        void achatResteRevoque() {
+            UserSubscription pass = achat(ModuleAccess.CIVIQUE, T.minus(JOUR.multipliedBy(10)), T.plus(JOUR.multipliedBy(30)));
+            List<AccessOverride> d = List.of(
+                    revoke(ModuleAccess.CIVIQUE, T.minus(JOUR), T.minus(JOUR)),
+                    grant(ModuleAccess.CIVIQUE, T, T.plus(JOUR.multipliedBy(10))));
+            List<AccessOverride> apres = List.of(
+                    d.get(1),
+                    revoke(ModuleAccess.CIVIQUE, T.plus(JOUR.multipliedBy(10)), T.minus(JOUR)));
+            assertThat(AccesEffectifResolver.achatResteRevoque(List.of(pass), apres, ModuleAccess.CIVIQUE,
+                    T.plus(JOUR.multipliedBy(10)))).isTrue();
+            assertThat(AccesEffectifResolver.achatResteRevoque(List.of(pass), apres, ModuleAccess.CIVIQUE,
+                    T.plus(JOUR.multipliedBy(31)))).isFalse();
+        }
+    }
 }

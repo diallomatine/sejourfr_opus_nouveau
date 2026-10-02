@@ -22,10 +22,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * G-6 (GO §9) : un compte qui porte une décision admin courante est exclu des
- * scénarios Premium fondés sur les seuls achats — il ne reçoit ni « jamais
- * Premium », ni « votre accès se termine ». Le témoin sans décision, lui, les
- * reçoit (même fenêtre, même horloge).
+ * G-6 (GO §9), règle D-32 (révise D-09) : un compte n'est exclu d'un scénario
+ * Premium fondé sur les seuls achats que si une décision admin rend son accès
+ * effectif différent de celui des achats, maintenant ou d'ici la date annoncée
+ * par le message. Une décision ancienne, terminée, ne l'exclut plus. Le témoin
+ * sans décision reçoit les scénarios (même fenêtre, même horloge).
  */
 class EmailOverrideExclusionIT extends AbstractEmailIT {
 
@@ -105,5 +106,49 @@ class EmailOverrideExclusionIT extends AbstractEmailIT {
 
         assertThat(recu(temoin, EmailType.PREMIUM_ENDING_2_DAYS)).isTrue();
         assertThat(rowsOf(revoque)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("D-32 — GRANT terminé depuis longtemps : le compte retrouve PREMIUM_ENDING_2_DAYS")
+    void grantAncienRetablitLesScenarios() {
+        User ancien = compte(T.minus(JOUR.multipliedBy(300)));
+        pass(ancien, T.minus(JOUR.multipliedBy(30)), T.plus(JOUR));
+        decision(ancien, "GRANT", T.minus(JOUR.multipliedBy(200)), T.minus(JOUR.multipliedBy(100)));
+
+        passage(T);
+
+        assertThat(recu(ancien, EmailType.PREMIUM_ENDING_2_DAYS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("D-32 — REVOKE ouvert puis rachat : l'email de fin part pour le nouvel achat")
+    void revokePuisRachatEnvoieLaFin() {
+        User u = compte(T.minus(JOUR.multipliedBy(100)));
+        pass(u, T.minus(JOUR.multipliedBy(70)), T.minus(JOUR.multipliedBy(35)));
+        decision(u, "REVOKE", T.minus(JOUR.multipliedBy(40)), null);
+        UserSubscription rachat = pass(u, T.minus(JOUR.multipliedBy(30)), T.plus(JOUR));
+
+        passage(T);
+
+        assertThat(rowsOf(u, EmailType.PREMIUM_ENDING_2_DAYS))
+                .anySatisfy(d -> {
+                    assertThat(d.getStatus()).isEqualTo(com.sejourfr.app.enums.EmailDeliveryStatus.SENT);
+                    assertThat(d.getReferenceId()).isEqualTo(rachat.getId());
+                });
+    }
+
+    @Test
+    @DisplayName("D-32 — GRANT programmé qui prolonge au-delà de la fin annoncée : pas de PREMIUM_ENDING_2_DAYS")
+    void grantProgrammeQuiProlongeExclut() {
+        User temoin = compte(T.minus(JOUR.multipliedBy(40)));
+        User prolonge = compte(T.minus(JOUR.multipliedBy(40)));
+        pass(temoin, T.minus(JOUR.multipliedBy(30)), T.plus(JOUR));
+        pass(prolonge, T.minus(JOUR.multipliedBy(30)), T.plus(JOUR));
+        decision(prolonge, "GRANT", T.plus(JOUR), T.plus(JOUR.multipliedBy(20)));
+
+        passage(T);
+
+        assertThat(recu(temoin, EmailType.PREMIUM_ENDING_2_DAYS)).isTrue();
+        assertThat(recu(prolonge, EmailType.PREMIUM_ENDING_2_DAYS)).isFalse();
     }
 }

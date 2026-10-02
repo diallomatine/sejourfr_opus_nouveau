@@ -73,6 +73,8 @@ class OneTimeAccessServiceTest {
         civiquePass.setDurationDays(90);
 
         when(userManager.findById(userId)).thenReturn(Optional.of(user));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(
+                new SubscriptionService.AccesEffectif(ModuleAccess.NONE, null, Optional.empty()));
         when(userSubscriptionManager.save(any(UserSubscription.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
     }
@@ -195,7 +197,8 @@ class OneTimeAccessServiceTest {
                 SubscriptionSource.STRIPE, "pi_rt2")).thenReturn(Optional.empty());
         when(subscriptionService.currentEndForAtLeast(userId, ModuleAccess.INTEGRAL))
                 .thenReturn(currentEnd);
-        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(covering));
+        when(subscriptionService.effectiveAccess(userId)).thenReturn(
+                new SubscriptionService.AccesEffectif(ModuleAccess.INTEGRAL, currentEnd, Optional.of(covering)));
 
         UserSubscription sub = service.grantOneTimeAccess(
                 userId, integral, SubscriptionSource.STRIPE, "pi_rt2", "pi_rt2");

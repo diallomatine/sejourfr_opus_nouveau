@@ -19,6 +19,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.AdminAccessOperationType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.ProductAccessStatus;
 import com.sejourfr.app.enums.PaymentStatus;
 import com.sejourfr.app.enums.PlanPurchaseType;
 import com.sejourfr.app.enums.SubscriptionSource;
@@ -95,10 +96,19 @@ public class AdminUserMapper {
                 e.debut(), e.fin(),
                 DateMetierParis.finIncluse(e.fin()).orElse(null),
                 e.fin() != null ? DateMetierParis.libelleFin(e.fin()) : null,
-                DateMetierParis.finProposee(e.fin()).orElse(null),
+                DateMetierParis.finProposee(finParDefaut(e)).orElse(null),
                 e.origine(), e.origine() != null ? e.origine().label() : null,
                 e.alertes().stream().map(this::alerte).toList(),
                 operations.stream().map(o -> new AdminAccessOperationOptionDto(o, o.label())).toList());
+    }
+
+    /**
+     * La fin que la modale pré-remplit : celle de l'accès, ou, pour un produit
+     * révoqué, celle de l'achat révoqué — « Réactiver » rend alors l'accès
+     * jusqu'à la fin de ce que le client a payé (D-34, révise D-02).
+     */
+    private static Instant finParDefaut(EtatProduit e) {
+        return e.statut() == ProductAccessStatus.REVOKED ? e.finAchatRevoque() : e.fin();
     }
 
     public AdminUserAccessBadgeDto badge(EtatProduit e) {
@@ -295,7 +305,21 @@ public class AdminUserMapper {
      * @param fin        fin EXCLUSIVE retenue ({@code null} si sans objet)
      * @param debutImmediat le début est « maintenant »
      */
+    /**
+     * @param achatResteRevoque vrai si, à la fin du GRANT posé, un achat de ce
+     *                          produit restera révoqué (la queue du REVOKE survit,
+     *                          D-02) : la phrase le dit à l'admin (D-34).
+     */
     public String preview(AdminAccessOperationType op, ModuleAccess product, ModuleAccess fromProduct,
+                          Instant debut, Instant fin, boolean debutImmediat, boolean achatResteRevoque) {
+        String phrase = phrase(op, product, fromProduct, debut, fin, debutImmediat);
+        if (!achatResteRevoque || fin == null) return phrase;
+        return phrase + " Attention : l'achat " + productLabel(product)
+                + " révoqué ne sera pas rétabli. À partir du " + DateMetierParis.jour(fin)
+                + ", l'accès " + productLabel(product) + " sera de nouveau fermé.";
+    }
+
+    private String phrase(AdminAccessOperationType op, ModuleAccess product, ModuleAccess fromProduct,
                           Instant debut, Instant fin, boolean debutImmediat) {
         String p = productLabel(product);
         String jusquau = fin != null ? DateMetierParis.libelleFin(fin) : null;

@@ -125,7 +125,8 @@ public class AdminAccessOperationService {
                 req.dryRun(),
                 req.dryRun() ? null : operationId,
                 req.operation(),
-                mapper.preview(req.operation(), req.product(), req.fromProduct(), t.debut(), t.fin(), t.debutImmediat()),
+                mapper.preview(req.operation(), req.product(), req.fromProduct(), t.debut(), t.fin(), t.debutImmediat(),
+                        achatResteRevoqueApresLeGrant(t, d.achats(), apres)),
                 confirmationRequise(req.operation()),
                 mapper.changes(avant, apresSnapshot),
                 mapper.effective(module),
@@ -150,6 +151,18 @@ public class AdminAccessOperationService {
         return AccesEffectifResolver.PRODUITS.stream()
                 .map(p -> AccesEffectifResolver.etat(achats, decisions, p, now))
                 .toList();
+    }
+
+    /**
+     * D-34 : à la fin d'un GRANT posé par cette action, l'achat du même produit
+     * reste-t-il révoqué ? (La queue d'un REVOKE survit au GRANT, D-02.) Lu par
+     * l'autorité sur l'état d'APRÈS l'action, à la borne de fin du GRANT.
+     */
+    static boolean achatResteRevoqueApresLeGrant(Traduction t, List<com.sejourfr.app.entity.UserSubscription> achats,
+                                                 List<AccessOverride> apres) {
+        return t.decisions().stream()
+                .filter(g -> g.type() == AccessOverrideType.GRANT && g.fin() != null)
+                .anyMatch(g -> AccesEffectifResolver.achatResteRevoque(achats, apres, g.produit(), g.fin()));
     }
 
     static boolean confirmationRequise(AdminAccessOperationType op) {

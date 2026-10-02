@@ -6,7 +6,6 @@ import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
-import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.manager.PlanManager;
@@ -14,6 +13,7 @@ import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.PlanMapper;
 import com.sejourfr.app.enums.FunnelEvent;
+import com.sejourfr.app.service.billing.CreditProration;
 import com.sejourfr.app.service.billing.PurchaseIntentService;
 import com.sejourfr.app.service.billing.StripeSubscriptionService;
 import com.sejourfr.app.util.ClientContext;
@@ -38,7 +38,6 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -385,30 +384,23 @@ public class BillingService {
 
     /**
      * Montant à facturer en centimes. Cas nominal = prix plein du plan. Cas
-     * upgrade Civique→Intégral avec un accès Civique encore valide : on crédite
-     * la valeur restante du pass Civique (prix × joursRestants / durée) et on ne
-     * facture que la différence (plancher {@link #MIN_CHARGE_CENTS}). La
-     * proration ne vit QUE côté Stripe : Apple/Google vendent à prix fixe.
+     * upgrade Civique→Intégral avec un pass Civique PAYÉ encore valide : on
+     * crédite la valeur restante du pass Civique (prix × joursRestants / durée)
+     * et on ne facture que la différence (plancher {@link #MIN_CHARGE_CENTS}).
+     * Le crédit se lit sur les ACHATS, pas sur l'accès effectif
+     * ({@link CreditProration}, D-31). La proration ne vit QUE côté Stripe :
+     * Apple/Google vendent à prix fixe.
      */
-    private long computeOneTimeAmountCents(UUID userId, Plan plan) {
+    long computeOneTimeAmountCents(UUID userId, Plan plan) {
         long full = toCents(plan.getPrice());
         if (plan.getModuleAccess() != ModuleAccess.INTEGRAL) {
             return full;
         }
-        UserSubscription current = subscriptionService.currentSubscription(userId).orElse(null);
-        if (current == null || current.getPlan() == null
-                || current.getPlan().getModuleAccess() != ModuleAccess.CIVIQUE) {
-            return full; // déjà Intégral, ou aucun accès Civique à créditer
+        SubscriptionService.DonneesAcces d = subscriptionService.charger(userId);
+        BigDecimal credit = CreditProration.creditCivique(d.achats(), d.decisions(), Instant.now()).orElse(null);
+        if (credit == null) {
+            return full; // déjà Intégral payé, ou aucun Civique payé à créditer
         }
-        Instant end = current.getEndsAt();
-        int civiqueDuration = current.getPlan().getDurationDays();
-        if (end == null || !end.isAfter(Instant.now()) || civiqueDuration <= 0) {
-            return full;
-        }
-        long remainingDays = Math.max(0, ChronoUnit.DAYS.between(Instant.now(), end));
-        BigDecimal credit = current.getPlan().getPrice()
-                .multiply(BigDecimal.valueOf(remainingDays))
-                .divide(BigDecimal.valueOf(civiqueDuration), 2, RoundingMode.HALF_UP);
         long amount = full - toCents(credit);
         log.info("Upgrade proraté user={} plan={} plein={}cts crédit={}cts → {}cts",
                 userId, plan.getCode(), full, toCents(credit), Math.max(amount, MIN_CHARGE_CENTS));

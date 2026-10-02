@@ -150,9 +150,10 @@ public class OneTimeAccessService {
         // cours + allocation du nouveau pass = plans.realtime_eo_sessions). Un
         // premier achat repart de 0 + allocation. Le report ne vient que si l'accès
         // en cours couvre au moins le module acheté (extension), auquel cas
-        // currentSubscription est bien le pass qu'on prolonge (Intégral pour l'EO).
+        // l'achat qui porte le droit effectif est bien le pass qu'on prolonge
+        // (Intégral pour l'EO).
         int carriedRealtime = extension
-                ? subscriptionService.currentSubscription(userId)
+                ? subscriptionService.effectiveAccess(userId).achat()
                         .map(UserSubscription::getRealtimeEoSessionsRemaining)
                         .orElse(0)
                 : 0;

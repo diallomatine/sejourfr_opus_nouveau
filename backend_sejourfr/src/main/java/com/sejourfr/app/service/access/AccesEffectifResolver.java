@@ -60,14 +60,20 @@ public final class AccesEffectifResolver {
         static final Fin SANS_FIN = new Fin(null, true);
     }
 
-    /** Ce que l'admin voit pour un produit (spec §2.4) ; dérivé, jamais persisté. */
+    /**
+     * Ce que l'admin voit pour un produit (spec §2.4) ; dérivé, jamais persisté.
+     * {@code finAchatRevoque} : pour un produit RÉVOQUÉ, la fin de l'achat que la
+     * révocation neutralise (fin la plus tardive ; {@code null} sinon) — la fin
+     * que « Réactiver » propose par défaut (D-34).
+     */
     public record EtatProduit(
             ModuleAccess produit,
             ProductAccessStatus statut,
             Instant debut,
             Instant fin,
             AccessOrigin origine,
-            List<Alerte> alertes) {}
+            List<Alerte> alertes,
+            Instant finAchatRevoque) {}
 
     public enum CodeAlerte {
         ACHAT_REMBOURSE,
@@ -116,6 +122,32 @@ public final class AccesEffectifResolver {
             out.add(s);
         }
         return out;
+    }
+
+    /**
+     * Les achats de {@code p} valides à {@code t} qu'un REVOKE applicable à
+     * {@code t} neutralise (achat antérieur à la décision) : ce que l'admin a
+     * révoqué et qui, sans la décision, ouvrirait l'accès.
+     */
+    public static List<UserSubscription> achatsRevoques(
+            List<UserSubscription> achats, List<AccessOverride> decisions, ModuleAccess p, Instant t) {
+        Optional<AccessOverride> d = decisionApplicable(decisions, p, t)
+                .filter(o -> o.getType() == AccessOverrideType.REVOKE);
+        if (d.isEmpty()) return List.of();
+        return achats.stream()
+                .filter(s -> produitDe(s) == p && SubscriptionService.covers(s, t))
+                .filter(s -> !dateAchat(s).isAfter(d.get().getDecidedAt()))
+                .toList();
+    }
+
+    /**
+     * Vrai si, à {@code t}, l'accès à {@code p} est fermé ALORS qu'un achat le
+     * couvrirait : l'achat reste révoqué. C'est ce que signale l'aperçu d'un GRANT
+     * à sa fin (D-34) — la queue d'un REVOKE survit au GRANT (D-02).
+     */
+    public static boolean achatResteRevoque(List<UserSubscription> achats, List<AccessOverride> decisions,
+                                            ModuleAccess p, Instant t) {
+        return !acces(achats, decisions, p, t) && !achatsRevoques(achats, decisions, p, t).isEmpty();
     }
 
     public static boolean acces(List<UserSubscription> achats, List<AccessOverride> decisions,
@@ -199,7 +231,7 @@ public final class AccesEffectifResolver {
     /**
      * Vrai si {@code candidate} doit l'emporter sur {@code incumbent} : INTEGRAL
      * &gt; CIVIQUE ; à produit égal, la fin la plus tardive ; une ligne sans fin
-     * bat toute date finie. (Départage historique de {@code currentSubscription}.)
+     * bat toute date finie. (Départage historique de l'achat courant.)
      */
     public static boolean meilleurQue(UserSubscription candidate, UserSubscription incumbent) {
         ModuleAccess c = candidate.getPlan().getModuleAccess();
@@ -229,6 +261,36 @@ public final class AccesEffectifResolver {
     public static boolean aDecisionOuverte(List<AccessOverride> decisions, Instant t) {
         return decisions.stream().anyMatch(o -> o.estCourante()
                 && (o.getEndsAt() == null || o.getEndsAt().isAfter(t)));
+    }
+
+    /**
+     * Vrai si, à un instant de {@code [de, a]}, les décisions admin font différer
+     * le module effectif de celui que donneraient les seuls ACHATS. C'est le
+     * critère d'exclusion des scénarios d'emails Premium fondés sur les achats
+     * (D-32, révise D-09) : un message « jamais Premium » / « votre accès se
+     * termine » n'est faux que si une décision change l'accès maintenant ou
+     * d'ici la date que le message annonce. Un GRANT terminé depuis longtemps ne
+     * change plus rien : le compte retrouve ses scénarios.
+     *
+     * <p>Le module n'évolue qu'aux bornes des décisions et aux fins d'achat : on
+     * compare aux deux extrémités et à chaque borne intérieure.
+     */
+    public static boolean decisionsChangentLAcces(List<UserSubscription> achats, List<AccessOverride> decisions,
+                                                  Instant de, Instant a) {
+        if (decisions.stream().noneMatch(AccessOverride::estCourante)) return false;
+        TreeSet<Instant> instants = new TreeSet<>(List.of(de, a));
+        for (AccessOverride d : decisions) {
+            if (!d.estCourante()) continue;
+            ajouterSiDans(instants, d.getStartsAt(), de, a);
+            ajouterSiDans(instants, d.getEndsAt(), de, a);
+        }
+        for (UserSubscription s : achats) {
+            ajouterSiDans(instants, s.getEndsAt(), de, a);
+        }
+        for (Instant t : instants) {
+            if (module(achats, decisions, t) != module(achats, List.of(), t)) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------ vue admin
@@ -300,8 +362,11 @@ public final class AccesEffectifResolver {
             fin = derniere;
             origine = passe ? derniereOrigine : null;
         }
+        Instant finAchatRevoque = statut == ProductAccessStatus.REVOKED
+                ? meilleur(achatsRevoques(achats, decisions, p, t)).map(UserSubscription::getEndsAt).orElse(null)
+                : null;
         return new EtatProduit(p, statut, debut, fin, origine,
-                alertes(achats, decisions, p, t, statut, d, grantsFuturs));
+                alertes(achats, decisions, p, t, statut, d, grantsFuturs), finAchatRevoque);
     }
 
     private static Fin finDuProduit(List<UserSubscription> achats, List<AccessOverride> decisions,
@@ -359,8 +424,12 @@ public final class AccesEffectifResolver {
     }
 
     /** Date d'un achat pour la règle « postérieur au REVOKE » : {@code purchased_at}, sinon son début. */
-    private static Instant dateAchat(UserSubscription s) {
+    public static Instant dateAchat(UserSubscription s) {
         return s.getPurchasedAt() != null ? s.getPurchasedAt() : s.getStartsAt();
+    }
+
+    private static void ajouterSiDans(TreeSet<Instant> bornes, Instant b, Instant de, Instant a) {
+        if (b != null && b.isAfter(de) && b.isBefore(a)) bornes.add(b);
     }
 
     private static void ajouterSiApres(TreeSet<Instant> bornes, Instant b, Instant t) {

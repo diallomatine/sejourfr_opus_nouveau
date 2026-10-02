@@ -31,6 +31,11 @@ import java.util.UUID;
  * la base de prolongation d'un pass passent par ici. Sans aucune décision admin,
  * chaque méthode rend exactement ce qu'elle rendait avant V083.
  *
+ * <p>🛑 Deux mots, deux notions (D-30) : {@link #currentPurchase} = l'ACHAT
+ * courant (historique commercial, décisions ignorées) ; {@link #effectiveAccess}
+ * = le DROIT effectif (achats + décisions). Il n'existe plus de
+ * {@code currentSubscription}, qui laissait croire que l'un valait l'autre.
+ *
  * <p>Toutes les methodes publiques lisent des relations lazy (Plan via
  * UserSubscription). Avec {@code open-in-view: false}, il faut une session
  * Hibernate ouverte pendant l'execution. On annote au niveau classe pour que
@@ -125,31 +130,13 @@ public class SubscriptionService {
     }
 
     /**
-     * L'achat "qui compte" de l'accès EFFECTIF — celui qui porte le solde EO
-     * temps réel et la source affichée. Critères :
-     *
-     * <ol>
-     *   <li>il appartient au module effectif ({@link #effectiveModuleAccess}) ;</li>
-     *   <li>il couvre maintenant ({@link #covers}) et, si l'admin a retiré ce
-     *       produit, il est postérieur à la décision ;</li>
-     *   <li>à module égal, {@code endsAt} le plus tardif (une ligne sans fin
-     *       l'emporte).</li>
-     * </ol>
-     * Vide si l'accès effectif ne repose sur aucun achat de ce module (accès
-     * accordé par l'admin) ou s'il n'y a pas d'accès. Sans décision admin :
-     * exactement la sélection historique (INTEGRAL &gt; CIVIQUE, puis fin la
-     * plus tardive).
-     */
-    public Optional<UserSubscription> currentSubscription(UUID userId) {
-        DonneesAcces d = charger(userId);
-        return AccesEffectifResolver.achatRepresentatif(d.achats(), d.decisions(), Instant.now());
-    }
-
-    /**
-     * La ligne d'ACHAT couvrante « qui compte », sans tenir compte des décisions
-     * admin. Réservée aux gestes qui portent sur l'achat lui-même (résilier un
-     * renouvellement, prévenir à la suppression du compte) : un REVOKE admin ne
-     * doit pas empêcher de couper un prélèvement récurrent.
+     * 🛑 <b>ACHAT courant</b> — jamais un droit. La ligne d'ACHAT couvrante « qui
+     * compte » (INTEGRAL &gt; CIVIQUE, puis fin la plus tardive), sans tenir
+     * compte des décisions admin. Réservée aux gestes qui portent sur l'achat
+     * lui-même (résilier un renouvellement, prévenir à la suppression du
+     * compte) : un REVOKE admin ne doit pas empêcher de couper un prélèvement
+     * récurrent. Ce que le compte peut UTILISER se lit sur
+     * {@link #effectiveAccess} (D-05, révisé par D-30).
      */
     public Optional<UserSubscription> currentPurchase(UUID userId) {
         Instant now = Instant.now();
@@ -158,8 +145,15 @@ public class SubscriptionService {
                 .toList());
     }
 
-    /** L'accès effectif complet, pour {@code subscription-status} et {@code verify-receipt}. */
-    public AccesEffectif accesEffectif(UUID userId) {
+    /**
+     * 🛑 <b>DROIT effectif</b> — ce que le compte peut utiliser maintenant :
+     * module, fin, et l'achat qui porte ce droit ({@link AccesEffectif#achat()},
+     * vide pour un accès accordé par l'admin sans achat de ce module). Lu par
+     * {@code subscription-status}, {@code verify-receipt}, le quota EO temps réel
+     * et le report du solde EO à la prolongation. Ne pas confondre avec
+     * {@link #currentPurchase} (l'achat, sans les décisions admin).
+     */
+    public AccesEffectif effectiveAccess(UUID userId) {
         DonneesAcces d = charger(userId);
         Instant now = Instant.now();
         ModuleAccess module = AccesEffectifResolver.module(d.achats(), d.decisions(), now);

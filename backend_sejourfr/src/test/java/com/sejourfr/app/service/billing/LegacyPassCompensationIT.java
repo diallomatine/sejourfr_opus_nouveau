@@ -237,7 +237,7 @@ class LegacyPassCompensationIT extends AbstractIntegrationTest {
     @Test
     void leGesteEstPoseSurLaSouscriptionQueLApplicationLira() {
         // Vieux sprint + pass récent du nouveau catalogue : le solde lu par
-        // RealtimeQuotaService vient de currentSubscription(), donc de la
+        // RealtimeQuotaService vient de effectiveAccess().achat(), donc de la
         // souscription au ends_at le plus tardif. Créditer le vieux sprint serait
         // invisible dans l'app.
         User acheteur = acheteurEnBase("mixte@sejourfr.fr");

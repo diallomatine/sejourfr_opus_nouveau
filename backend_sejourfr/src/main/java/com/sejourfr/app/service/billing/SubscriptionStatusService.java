@@ -29,7 +29,7 @@ public class SubscriptionStatusService {
         // un quota (cap > 0 = accès TCF/Intégral) ; null pour Civique/Free (non
         // concerné) → le front n'affiche le décompte que si présent.
         Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
-        SubscriptionService.AccesEffectif acces = subscriptionService.accesEffectif(userId);
+        SubscriptionService.AccesEffectif acces = subscriptionService.effectiveAccess(userId);
         SubscriptionStatusResponse status = SubscriptionStatusResponse.from(
                 acces.module(), acces.expiresAt(), acces.achat().orElse(null));
         return status.isPremium() ? status.withRealtimeSessionsRemaining(realtimeRemaining) : status;
