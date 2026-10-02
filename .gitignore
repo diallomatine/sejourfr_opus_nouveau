@@ -91,3 +91,10 @@ temp/
 .cache/
 
 /opt/homebrew/share/flutter/*
+# =========================
+# Benchmark JEV local (tools/jev-benchmark) : clé API, SQLite, venv
+# =========================
+tools/jev-benchmark/.env
+tools/jev-benchmark/data/
+tools/jev-benchmark/.venv/
+tools/jev-benchmark/**/__pycache__/

@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SejourFR — Admin utilisateurs</title>
+  <style>
+    :root {
+      --blue-950: #102a63;
+      --blue-900: #173b82;
+      --blue-800: #21469a;
+      --blue-700: #2e56ad;
+      --blue-100: #e9eefb;
+      --blue-50: #f4f7fd;
+      --red-600: #ea3430;
+      --red-100: #fde8e6;
+      --green-700: #16825c;
+      --green-100: #e6f5ef;
+      --amber-700: #9d6411;
+      --amber-100: #fff2d9;
+      --ink: #101a35;
+      --muted: #7d89aa;
+      --muted-2: #aab4ce;
+      --line: #e8edf6;
+      --surface: #ffffff;
+      --bg: #f6f8fc;
+      --shadow: 0 12px 32px rgba(25, 54, 118, 0.08);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: 246px 1fr; }
+
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid var(--line);
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px 22px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 20px;
+    }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      position: relative;
+      background: #fff;
+      border: 7px solid var(--blue-800);
+      box-shadow: 0 4px 16px rgba(33,70,154,.14);
+    }
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border-radius: 50%;
+      background: var(--red-600);
+    }
+    .brand-name { font-weight: 800; font-size: 21px; letter-spacing: -.4px; }
+    .brand-name b { color: var(--red-600); }
+
+    .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .11em; color: var(--muted-2); font-weight: 800; padding: 0 12px 8px; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #667398;
+      padding: 11px 12px;
+      border-radius: 12px;
+      font-weight: 650;
+      font-size: 14px;
+    }
+    .nav-item svg { width: 19px; height: 19px; stroke-width: 1.9; }
+    .nav-item.active { background: var(--blue-50); color: var(--blue-800); }
+    .nav-item:hover { background: #f8faff; color: var(--blue-800); }
+
+    .admin-card {
+      margin-top: auto;
+      border: 1px solid var(--line);
+      background: #fafbfe;
+      border-radius: 15px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--blue-800);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+    .admin-meta { min-width: 0; }
+    .admin-meta strong { display: block; font-size: 13px; }
+    .admin-meta span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; }
+
+    .workspace { min-width: 0; }
+    .topbar {
+      height: 72px;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.94);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 9;
+    }
+    .breadcrumb { color: var(--muted); font-size: 13px; }
+    .breadcrumb strong { color: var(--ink); }
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      min-height: 40px;
+      padding: 0 15px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 750;
+      font-size: 13px;
+      transition: .18s ease;
+      white-space: nowrap;
+    }
+    .btn svg { width: 16px; height: 16px; }
+    .btn-primary { background: var(--blue-800); color: white; box-shadow: 0 7px 16px rgba(33,70,154,.18); }
+    .btn-primary:hover { background: var(--blue-900); transform: translateY(-1px); }
+    .btn-secondary { background: white; color: var(--blue-800); border: 1px solid #dce3f2; }
+    .btn-secondary:hover { background: var(--blue-50); }
+    .btn-danger { background: white; color: #c62e2a; border: 1px solid #f0c5c3; }
+    .btn-danger:hover { background: #fff6f5; }
+    .btn-ghost { background: transparent; color: #6e7a9b; border: 1px solid transparent; }
+    .btn-ghost:hover { background: #f5f7fb; color: var(--ink); }
+    .btn-sm { min-height: 34px; padding: 0 11px; border-radius: 10px; font-size: 12px; }
+
+    main { padding: 30px; max-width: 1600px; margin: 0 auto; }
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+    .page-head h1 { margin: 0; font-size: clamp(25px, 2vw, 34px); letter-spacing: -.7px; }
+    .page-head p { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      box-shadow: 0 6px 20px rgba(25,54,118,.035);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .stat-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--blue-50); color: var(--blue-800); }
+    .stat-icon.red { color: var(--red-600); background: #fff1f0; }
+    .stat-icon.green { color: var(--green-700); background: var(--green-100); }
+    .stat-icon.amber { color: var(--amber-700); background: var(--amber-100); }
+    .stat-icon svg { width: 19px; height: 19px; }
+    .stat strong { display: block; font-size: 22px; letter-spacing: -.4px; }
+    .stat span { color: var(--muted); font-size: 12px; margin-top: 2px; display: block; }
+
+    .admin-grid { display: grid; grid-template-columns: minmax(570px, 1.12fr) minmax(470px, .88fr); gap: 20px; align-items: start; }
+    .panel {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-head { padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+    .panel-head-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+    .panel-title { margin: 0; font-size: 16px; }
+    .panel-subtitle { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .toolbar { padding: 14px 18px; display: grid; grid-template-columns: minmax(200px,1fr) auto; gap: 10px; border-bottom: 1px solid var(--line); background: #fbfcfe; }
+    .search { position: relative; }
+    .search svg { width: 17px; height: 17px; position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+    .input, .select, .textarea {
+      width: 100%;
+      border: 1px solid #dfe5f1;
+      background: white;
+      border-radius: 11px;
+      color: var(--ink);
+      outline: 0;
+      transition: .18s ease;
+    }
+    .input, .select { min-height: 40px; padding: 0 12px; }
+    .search .input { padding-left: 40px; }
+    .textarea { resize: vertical; min-height: 86px; padding: 11px 12px; }
+    .input:focus, .select:focus, .textarea:focus { border-color: #9fb0d9; box-shadow: 0 0 0 3px rgba(33,70,154,.08); }
+
+    .filters { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+    .chip {
+      min-height: 31px;
+      border-radius: 999px;
+      border: 1px solid #e0e6f2;
+      color: #6d7896;
+      background: white;
+      padding: 0 11px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .chip.active { background: var(--blue-50); color: var(--blue-800); border-color: #cbd6ee; }
+
+    .table-wrap { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th { text-align: left; padding: 11px 15px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #98a2bd; background: #fbfcfe; border-bottom: 1px solid var(--line); }
+    td { padding: 14px 15px; border-bottom: 1px solid #eff2f7; font-size: 12px; vertical-align: middle; }
+    tbody tr { transition: .14s ease; }
+    tbody tr:hover { background: #fafcff; }
+    tbody tr.selected { background: var(--blue-50); box-shadow: inset 3px 0 0 var(--blue-800); }
+    .user-cell { display: flex; gap: 10px; align-items: center; min-width: 210px; }
+    .user-cell .avatar { width: 34px; height: 34px; font-size: 11px; }
+    .user-main strong { font-size: 12px; display: block; }
+    .user-main span { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .badge-blue { color: var(--blue-800); background: var(--blue-100); }
+    .badge-green { color: var(--green-700); background: var(--green-100); }
+    .badge-red { color: #bf2e2a; background: var(--red-100); }
+    .badge-gray { color: #7f8aa5; background: #f0f2f7; }
+    .badge-amber { color: var(--amber-700); background: var(--amber-100); }
+    .date-muted { color: var(--muted); }
+    .row-action { width: 30px; height: 30px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: #8994af; display: grid; place-items: center; }
+    .row-action:hover { border-color: #dae1ef; background: white; color: var(--blue-800); }
+
+    .table-footer { min-height: 52px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; background: #fbfcfe; }
+    .pager { display: flex; gap: 6px; }
+    .pager button { width: 30px; height: 30px; border: 1px solid #dfe5f1; border-radius: 9px; background: white; color: #687493; }
+
+    .detail { position: sticky; top: 92px; }
+    .detail-hero { padding: 20px; background: linear-gradient(145deg, #f7f9fe 0%, #fff 72%); border-bottom: 1px solid var(--line); }
+    .detail-user { display: flex; align-items: center; gap: 12px; }
+    .detail-user .avatar { width: 48px; height: 48px; font-size: 14px; }
+    .detail-user h2 { font-size: 18px; margin: 0; }
+    .detail-user p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .hero-meta { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .section { padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .section:last-child { border-bottom: 0; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .section-head h3 { margin: 0; font-size: 13px; }
+    .section-head span { color: var(--muted); font-size: 11px; }
+
+    .access-card {
+      border-radius: 18px;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--blue-900), var(--blue-700));
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .access-card::after {
+      content: "";
+      position: absolute;
+      width: 140px; height: 140px;
+      border-radius: 50%;
+      border: 25px solid rgba(255,255,255,.055);
+      right: -54px; top: -65px;
+    }
+    .access-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; position: relative; z-index: 1; }
+    .access-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; opacity: .67; font-weight: 800; }
+    .access-product { font-size: 21px; font-weight: 850; margin-top: 4px; }
+    .access-status { padding: 5px 8px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; }
+    .access-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #65e5af; }
+    .access-grid { margin-top: 17px; display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; position: relative; z-index: 1; }
+    .access-grid div { border-left: 1px solid rgba(255,255,255,.2); padding-left: 10px; }
+    .access-grid div:first-child { border-left: 0; padding-left: 0; }
+    .access-grid span { font-size: 10px; display: block; opacity: .67; }
+    .access-grid strong { display: block; font-size: 12px; margin-top: 4px; }
+
+    .actions-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .actions-row .btn { flex: 1; }
+
+    .info-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+    .info-item { border: 1px solid #edf0f6; background: #fbfcfe; border-radius: 12px; padding: 11px 12px; }
+    .info-item span { color: var(--muted); display: block; font-size: 10px; }
+    .info-item strong { display: block; margin-top: 4px; font-size: 12px; }
+
+    .timeline { display: grid; gap: 0; }
+    .timeline-item { display: grid; grid-template-columns: 18px 1fr; gap: 10px; position: relative; padding-bottom: 14px; }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-item::before { content: ""; position: absolute; left: 8px; top: 17px; bottom: 0; width: 1px; background: #e1e6f0; }
+    .timeline-item:last-child::before { display: none; }
+    .dot { width: 17px; height: 17px; border-radius: 50%; border: 5px solid #e4eafb; background: var(--blue-800); margin-top: 2px; z-index: 1; }
+    .timeline-item.red .dot { background: var(--red-600); border-color: #fde4e2; }
+    .timeline-content strong { display: block; font-size: 11px; }
+    .timeline-content p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+
+    .purchase { border: 1px solid #e9edf5; border-radius: 13px; padding: 11px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .purchase-left { display: flex; gap: 10px; align-items: center; }
+    .purchase-icon { width: 35px; height: 35px; border-radius: 10px; display: grid; place-items: center; background: var(--red-100); color: var(--red-600); }
+    .purchase-icon svg { width: 17px; }
+    .purchase strong { display: block; font-size: 11px; }
+    .purchase span { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+    .purchase-price { text-align: right; }
+    .purchase-price strong { font-size: 12px; }
+
+    .progress-box { border: 1px solid #e9edf5; border-radius: 13px; padding: 12px; display: grid; gap: 12px; }
+    .progress-line { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+    .progress-line strong { font-size: 11px; }
+    .progress-line span { color: var(--muted); font-size: 10px; }
+    .bar { grid-column: 1 / -1; height: 6px; background: #edf0f6; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 42%; background: var(--blue-800); border-radius: inherit; }
+
+    .empty { padding: 50px 20px; text-align: center; color: var(--muted); }
+    .empty strong { color: var(--ink); display: block; margin-bottom: 4px; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 20, 48, .45);
+      backdrop-filter: blur(3px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(540px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      background: white;
+      border-radius: 22px;
+      box-shadow: 0 26px 80px rgba(11, 28, 66, .23);
+      animation: modalIn .17s ease-out;
+    }
+    @keyframes modalIn { from { transform: translateY(8px) scale(.985); opacity: .5; } to { transform: none; opacity: 1; } }
+    .modal-head { padding: 20px 22px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .modal-head h3 { margin: 0; font-size: 17px; }
+    .modal-head p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .icon-btn { width: 34px; height: 34px; border: 1px solid #e3e8f2; background: white; border-radius: 10px; color: #7d89a7; display: grid; place-items: center; }
+    .modal-body { padding: 20px 22px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 13px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { font-size: 11px; font-weight: 750; color: #505d7d; }
+    .field small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .helper { margin-top: 14px; border-radius: 12px; padding: 11px 12px; background: var(--blue-50); color: #4b5d88; font-size: 10px; line-height: 1.45; }
+    .helper.warning { background: #fff8eb; color: #835a19; }
+    .helper.danger { background: #fff2f1; color: #a73734; }
+    .modal-foot { padding: 15px 22px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      background: #102a63;
+      color: white;
+      border-radius: 13px;
+      padding: 12px 14px;
+      min-width: 260px;
+      max-width: 360px;
+      box-shadow: 0 18px 45px rgba(16,42,99,.25);
+      z-index: 100;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      font-size: 12px;
+    }
+    .toast.show { transform: none; opacity: 1; }
+    .toast strong { display: block; margin-bottom: 2px; }
+    .toast span { opacity: .78; }
+
+    .mobile-back { display: none; }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 82px 1fr; }
+      .sidebar { padding-inline: 10px; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand-name, .nav-label, .nav-item span, .admin-meta { display: none; }
+      .nav-item { justify-content: center; padding: 12px 0; }
+      .admin-card { justify-content: center; padding: 8px; }
+      .admin-grid { grid-template-columns: 1fr; }
+      .detail { position: static; }
+      .stats { grid-template-columns: repeat(2,1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .app { display: block; }
+      .sidebar { display: none; }
+      .topbar { height: 62px; padding: 0 16px; }
+      .topbar .btn-secondary { display: none; }
+      main { padding: 18px 12px 40px; }
+      .page-head { align-items: center; }
+      .page-head p { font-size: 12px; }
+      .stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .stat { padding: 12px; border-radius: 14px; }
+      .stat-icon { width: 34px; height: 34px; }
+      .stat strong { font-size: 18px; }
+      .admin-grid { display: block; }
+      .detail { display: none; }
+      .admin-grid.show-detail .users-panel { display: none; }
+      .admin-grid.show-detail .detail { display: block; }
+      .mobile-back { display: inline-flex; margin-bottom: 10px; }
+      .panel { border-radius: 18px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .filters { overflow: auto; flex-wrap: nowrap; padding-bottom: 10px; }
+      .chip { flex: 0 0 auto; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .access-grid { grid-template-columns: 1fr 1fr; }
+      .access-grid div:nth-child(3) { grid-column: 1 / -1; border-left: 0; padding-left: 0; }
+      .info-grid { grid-template-columns: 1fr; }
+      .modal-foot { flex-direction: column-reverse; }
+      .modal-foot .btn { width: 100%; }
+      .toast { right: 12px; left: 12px; bottom: 12px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-name">Sejour<b>FR</b></div>
+      </div>
+
+      <div class="nav-label">Administration</div>
+      <nav class="nav">
+        <a class="nav-item" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg>
+          <span>Vue d'ensemble</span>
+        </a>
+        <a class="nav-item active" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Utilisateurs</span>
+        </a>
+        <a class="nav-item" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+          <span>Achats</span>
+        </a>
+        <a class="nav-item" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+          <span>Activité</span>
+        </a>
+        <a class="nav-item" href="#">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1v.1H9.6V21a1.7 1.7 0 0 0-1.05-1.57 1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.18 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1-.4H2.5V9.6h.1A1.7 1.7 0 0 0 4.16 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.6 3.73l.06.06A1.7 1.7 0 0 0 8.54 4.1a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1V2.4h4v.1a1.7 1.7 0 0 0 1.05 1.57 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 8.5c.21.35.33.74.36 1.15h.1v4h-.1c-.03.4-.15.8-.36 1.15Z"/></svg>
+          <span>Paramètres</span>
+        </a>
+      </nav>
+
+      <div class="admin-card">
+        <div class="avatar">AD</div>
+        <div class="admin-meta">
+          <strong>Administrateur</strong>
+          <span>admin@sejourfr.fr</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="breadcrumb">Admin&nbsp; / &nbsp;<strong>Utilisateurs</strong></div>
+        <div class="top-actions">
+          <button class="btn btn-secondary" onclick="showToast('Actualisé', 'Les données utilisateurs ont été rafraîchies.')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 6v6h-6M4 18v-6h6"/><path d="M6.5 9A7 7 0 0 1 18.4 6.6L20 8M4 16l1.6 1.4A7 7 0 0 0 17.5 15"/></svg>
+            Actualiser
+          </button>
+          <button class="btn btn-primary" onclick="openAccessModal('grant')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Donner un accès
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-head">
+          <div>
+            <h1>Gestion des utilisateurs</h1>
+            <p>Rechercher un utilisateur, vérifier son état et gérer son accès TCF ou Civique.</p>
+          </div>
+        </section>
+
+        <section class="stats" aria-label="Statistiques utilisateurs">
+          <div class="stat">
+            <div class="stat-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
+            <div><strong>1 284</strong><span>Utilisateurs</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon green"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div><strong>327</strong><span>Accès actifs</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon red"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 19V5M4 5h11l-1 4 1 4H4"/></svg></div>
+            <div><strong>84</strong><span>TCF actifs</span></div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon amber"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div><strong>19</strong><span>Expirent sous 7 j</span></div>
+          </div>
+        </section>
+
+        <section class="admin-grid" id="adminGrid">
+          <div class="panel users-panel">
+            <div class="panel-head">
+              <div class="panel-head-row">
+                <div>
+                  <h2 class="panel-title">Utilisateurs</h2>
+                  <div class="panel-subtitle" id="resultsCount">6 utilisateurs affichés</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="toolbar">
+              <label class="search" aria-label="Rechercher un utilisateur">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input class="input" id="searchInput" placeholder="Nom, email ou identifiant…" oninput="applyFilters()" />
+              </label>
+              <select class="select" id="statusSelect" onchange="applyFilters()" aria-label="Filtrer par statut">
+                <option value="all">Tous les statuts</option>
+                <option value="active">Accès actif</option>
+                <option value="expired">Accès expiré</option>
+                <option value="none">Sans accès</option>
+              </select>
+            </div>
+
+            <div class="filters" id="productFilters">
+              <button class="chip active" data-filter="all" onclick="setProductFilter('all', this)">Tous</button>
+              <button class="chip" data-filter="TCF" onclick="setProductFilter('TCF', this)">TCF</button>
+              <button class="chip" data-filter="Civique" onclick="setProductFilter('Civique', this)">Civique</button>
+              <button class="chip" data-filter="none" onclick="setProductFilter('none', this)">Sans accès</button>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Utilisateur</th>
+                    <th>Accès</th>
+                    <th>Statut</th>
+                    <th>Fin</th>
+                    <th>Dernière activité</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+              </table>
+            </div>
+
+            <div class="table-footer">
+              <span>Affichage des données du prototype MVP</span>
+              <div class="pager"><button aria-label="Page précédente">‹</button><button aria-label="Page suivante">›</button></div>
+            </div>
+          </div>
+
+          <div class="detail" id="detailPanel"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessModalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="accessModalTitle">Modifier l'accès</h3>
+          <p id="accessModalSubtitle">Définissez l'accès effectif de l'utilisateur.</p>
+        </div>
+        <button class="icon-btn" onclick="closeModal('accessModal')" aria-label="Fermer">×</button>
+      </div>
+      <form id="accessForm" onsubmit="saveAccess(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="accessUser">Utilisateur</label>
+              <input class="input" id="accessUser" readonly />
+            </div>
+            <div class="field full">
+              <label for="accessType">Produit / type d'accès</label>
+              <select class="select" id="accessType" required>
+                <option value="TCF">TCF</option>
+                <option value="Civique">Civique</option>
+              </select>
+              <small>Cette valeur modifie le droit d'accès effectif, pas l'achat d'origine.</small>
+            </div>
+            <div class="field">
+              <label for="startDate">Date de début</label>
+              <input class="input" type="date" id="startDate" required />
+            </div>
+            <div class="field">
+              <label for="endDate">Date de fin</label>
+              <input class="input" type="date" id="endDate" required />
+            </div>
+            <div class="field full">
+              <label for="reason">Motif administratif</label>
+              <textarea class="textarea" id="reason" placeholder="Ex. erreur de produit lors de l'achat, geste commercial…" required></textarea>
+            </div>
+          </div>
+          <div class="helper" id="accessHelper">
+            L'historique commercial reste inchangé. Cette action ne déclenche aucun paiement et crée uniquement un accès administrativement géré.
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('accessModal')">Annuler</button>
+          <button type="submit" class="btn btn-primary">Confirmer la modification</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirmModal" role="dialog" aria-modal="true">
+    <div class="modal" style="width:min(460px,100%)">
+      <div class="modal-head">
+        <div>
+          <h3 id="confirmTitle">Confirmer</h3>
+          <p id="confirmSubtitle">Cette action aura un effet immédiat.</p>
+        </div>
+        <button class="icon-btn" onclick="closeModal('confirmModal')" aria-label="Fermer">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="helper danger" id="confirmText"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Annuler</button>
+        <button class="btn btn-danger" id="confirmAction">Confirmer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><strong id="toastTitle"></strong><span id="toastText"></span></div>
+
+  <script>
+    const todayISO = '2026-09-30';
+    let productFilter = 'all';
+    let selectedUserId = 1;
+    let accessMode = 'edit';
+
+    const users = [
+      {
+        id: 1, initials: 'JM', name: 'Jean Martin', email: 'jean.martin@gmail.com', createdAt: '2026-09-21',
+        access: { product: 'Civique', status: 'active', startsAt: '2026-09-21', endsAt: '2026-10-30', origin: 'Achat' },
+        lastActivity: 'Aujourd’hui, 14:32', accountStatus: 'Actif',
+        purchase: { product: 'Pass Civique', amount: '29,99 €', date: '21/09/2026', provider: 'Stripe', status: 'Payé' },
+        progress: { diagnostic: 'Terminé', level: '—', plan: 'Civique · Institutions', percent: 36 },
+        logs: [
+          { date: '21/09/2026 · 10:14', title: 'Achat confirmé', text: 'Pass Civique · Stripe · 29,99 €', type: 'normal' },
+          { date: '21/09/2026 · 10:15', title: 'Accès activé automatiquement', text: 'Civique jusqu’au 30/10/2026', type: 'normal' }
+        ]
+      },
+      {
+        id: 2, initials: 'SB', name: 'Sarah Benali', email: 'sarah.benali@gmail.com', createdAt: '2026-09-12',
+        access: { product: 'TCF', status: 'active', startsAt: '2026-09-12', endsAt: '2026-10-12', origin: 'Achat' },
+        lastActivity: 'Aujourd’hui, 09:10', accountStatus: 'Actif',
+        purchase: { product: 'Pass TCF', amount: '39,99 €', date: '12/09/2026', provider: 'Stripe', status: 'Payé' },
+        progress: { diagnostic: 'Terminé', level: 'B1', plan: 'Expression écrite · cycle 1', percent: 61 },
+        logs: [{ date: '12/09/2026 · 17:42', title: 'Accès activé automatiquement', text: 'TCF jusqu’au 12/10/2026', type: 'normal' }]
+      },
+      {
+        id: 3, initials: 'MO', name: 'Mamadou Oumar', email: 'm.oumar@email.fr', createdAt: '2026-08-03',
+        access: { product: 'TCF', status: 'expired', startsAt: '2026-08-03', endsAt: '2026-09-03', origin: 'Achat' },
+        lastActivity: '03/09/2026', accountStatus: 'Actif',
+        purchase: { product: 'Pass TCF', amount: '39,99 €', date: '03/08/2026', provider: 'Stripe', status: 'Payé' },
+        progress: { diagnostic: 'Terminé', level: 'A2', plan: 'Compréhension orale · cycle 2', percent: 48 },
+        logs: [{ date: '03/09/2026 · 23:59', title: 'Accès expiré', text: 'Fin du pass TCF', type: 'red' }]
+      },
+      {
+        id: 4, initials: 'CL', name: 'Chloé Laurent', email: 'chloe.laurent@outlook.fr', createdAt: '2026-09-29',
+        access: null,
+        lastActivity: 'Hier, 18:54', accountStatus: 'Actif',
+        purchase: null,
+        progress: { diagnostic: 'Non commencé', level: '—', plan: 'Aucun plan actif', percent: 0 },
+        logs: [{ date: '29/09/2026 · 18:52', title: 'Compte créé', text: 'Inscription utilisateur', type: 'normal' }]
+      },
+      {
+        id: 5, initials: 'AK', name: 'Amine Khelifi', email: 'amine.khelifi@gmail.com', createdAt: '2026-09-16',
+        access: { product: 'Civique', status: 'active', startsAt: '2026-09-16', endsAt: '2026-11-16', origin: 'Admin' },
+        lastActivity: '28/09/2026', accountStatus: 'Actif',
+        purchase: null,
+        progress: { diagnostic: 'Terminé', level: '—', plan: 'Civique · Valeurs de la République', percent: 27 },
+        logs: [{ date: '16/09/2026 · 11:20', title: 'Accès accordé par Admin', text: 'Civique jusqu’au 16/11/2026 · Geste commercial', type: 'normal' }]
+      },
+      {
+        id: 6, initials: 'LN', name: 'Lina Nguyen', email: 'lina.nguyen@gmail.com', createdAt: '2026-07-28',
+        access: { product: 'TCF', status: 'active', startsAt: '2026-09-25', endsAt: '2026-10-25', origin: 'Admin' },
+        lastActivity: '27/09/2026', accountStatus: 'Actif',
+        purchase: { product: 'Pass Civique', amount: '29,99 €', date: '25/09/2026', provider: 'Stripe', status: 'Payé' },
+        progress: { diagnostic: 'Terminé', level: 'B1', plan: 'Compréhension écrite · cycle 1', percent: 42 },
+        logs: [
+          { date: '25/09/2026 · 15:16', title: 'Achat confirmé', text: 'Pass Civique · Stripe · 29,99 €', type: 'normal' },
+          { date: '25/09/2026 · 16:03', title: 'Civique → TCF', text: 'Modification Admin · erreur de produit lors de l’achat', type: 'red' }
+        ]
+      }
+    ];
+
+    function escapeHtml(str = '') {
+      return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const [y,m,d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function accessBadge(user) {
+      if (!user.access) return '<span class="badge badge-gray">Aucun</span>';
+      return user.access.product === 'TCF'
+        ? '<span class="badge badge-blue">TCF</span>'
+        : '<span class="badge badge-red">Civique</span>';
+    }
+
+    function statusBadge(user) {
+      if (!user.access) return '<span class="badge badge-gray">Sans accès</span>';
+      if (user.access.status === 'expired') return '<span class="badge badge-amber">Expiré</span>';
+      return '<span class="badge badge-green">Actif</span>';
+    }
+
+    function renderUsers(list) {
+      const body = document.getElementById('usersBody');
+      body.innerHTML = list.map(user => `
+        <tr class="${user.id === selectedUserId ? 'selected' : ''}" onclick="selectUser(${user.id})">
+          <td>
+            <div class="user-cell">
+              <div class="avatar">${escapeHtml(user.initials)}</div>
+              <div class="user-main">
+                <strong>${escapeHtml(user.name)}</strong>
+                <span>${escapeHtml(user.email)}</span>
+              </div>
+            </div>
+          </td>
+          <td>${accessBadge(user)}</td>
+          <td>${statusBadge(user)}</td>
+          <td class="date-muted">${user.access ? formatDate(user.access.endsAt) : '—'}</td>
+          <td class="date-muted">${escapeHtml(user.lastActivity)}</td>
+          <td><button class="row-action" onclick="event.stopPropagation(); selectUser(${user.id})" aria-label="Ouvrir l'utilisateur">›</button></td>
+        </tr>`).join('');
+
+      document.getElementById('resultsCount').textContent = `${list.length} utilisateur${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''}`;
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="6"><div class="empty"><strong>Aucun utilisateur</strong>Modifiez la recherche ou les filtres.</div></td></tr>';
+      }
+    }
+
+    function applyFilters() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const status = document.getElementById('statusSelect').value;
+      const filtered = users.filter(user => {
+        const searchable = `${user.name} ${user.email} ${user.id}`.toLowerCase();
+        const queryOk = !query || searchable.includes(query);
+        const productOk = productFilter === 'all'
+          || (productFilter === 'none' && !user.access)
+          || (user.access && user.access.product === productFilter);
+        const statusOk = status === 'all'
+          || (status === 'none' && !user.access)
+          || (user.access && user.access.status === status);
+        return queryOk && productOk && statusOk;
+      });
+      renderUsers(filtered);
+    }
+
+    function setProductFilter(value, el) {
+      productFilter = value;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      applyFilters();
+    }
+
+    function selectUser(id) {
+      selectedUserId = id;
+      applyFilters();
+      renderDetail();
+      if (window.innerWidth <= 720) document.getElementById('adminGrid').classList.add('show-detail');
+    }
+
+    function backToList() {
+      document.getElementById('adminGrid').classList.remove('show-detail');
+    }
+
+    function renderDetail() {
+      const user = users.find(u => u.id === selectedUserId) || users[0];
+      const access = user.access;
+      const purchaseHtml = user.purchase ? `
+        <div class="purchase">
+          <div class="purchase-left">
+            <div class="purchase-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+            <div><strong>${escapeHtml(user.purchase.product)}</strong><span>${user.purchase.provider} · ${user.purchase.date} · ${user.purchase.status}</span></div>
+          </div>
+          <div class="purchase-price"><strong>${user.purchase.amount}</strong><span>Achat réel</span></div>
+        </div>` : '<div class="info-item"><span>Achat enregistré</span><strong>Aucun achat payant</strong></div>';
+
+      const accessHtml = access ? `
+        <div class="access-card">
+          <div class="access-top">
+            <div><div class="access-label">Accès effectif actuel</div><div class="access-product">${escapeHtml(access.product)}</div></div>
+            <span class="access-status">${access.status === 'active' ? 'Actif' : 'Expiré'}</span>
+          </div>
+          <div class="access-grid">
+            <div><span>Début</span><strong>${formatDate(access.startsAt)}</strong></div>
+            <div><span>Fin</span><strong>${formatDate(access.endsAt)}</strong></div>
+            <div><span>Origine</span><strong>${escapeHtml(access.origin)}</strong></div>
+          </div>
+        </div>
+        <div class="actions-row">
+          <button class="btn btn-primary btn-sm" onclick="openAccessModal('edit')">Modifier l'accès</button>
+          <button class="btn btn-secondary btn-sm" onclick="openAccessModal('extend')">Modifier la date</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmTerminate()">Terminer</button>
+        </div>` : `
+        <div class="info-item" style="padding:16px">
+          <span>Accès effectif actuel</span>
+          <strong style="font-size:14px">Aucun accès actif</strong>
+          <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="openAccessModal('grant')">Donner un accès</button></div>
+        </div>`;
+
+      const logsHtml = user.logs.slice(0,4).map(log => `
+        <div class="timeline-item ${log.type === 'red' ? 'red' : ''}">
+          <div class="dot"></div>
+          <div class="timeline-content"><strong>${escapeHtml(log.title)}</strong><p>${escapeHtml(log.date)}<br>${escapeHtml(log.text)}</p></div>
+        </div>`).join('');
+
+      document.getElementById('detailPanel').innerHTML = `
+        <button class="btn btn-secondary btn-sm mobile-back" onclick="backToList()">← Retour aux utilisateurs</button>
+        <div class="panel">
+          <div class="detail-hero">
+            <div class="detail-user">
+              <div class="avatar">${escapeHtml(user.initials)}</div>
+              <div><h2>${escapeHtml(user.name)}</h2><p>${escapeHtml(user.email)}</p></div>
+            </div>
+            <div class="hero-meta">
+              <span class="badge badge-green">Compte ${escapeHtml(user.accountStatus)}</span>
+              <span class="badge badge-gray">Inscrit le ${formatDate(user.createdAt)}</span>
+              <span class="badge badge-gray">ID #${user.id}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Accès / abonnement</h3><span>Droit réellement appliqué dans l'application</span></div></div>
+            ${accessHtml}
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Historique commercial</h3><span>Lecture seule — ne pas modifier depuis cette fiche</span></div></div>
+            ${purchaseHtml}
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Progression</h3><span>Informations déjà disponibles</span></div></div>
+            <div class="info-grid" style="margin-bottom:10px">
+              <div class="info-item"><span>Diagnostic</span><strong>${escapeHtml(user.progress.diagnostic)}</strong></div>
+              <div class="info-item"><span>Niveau estimé</span><strong>${escapeHtml(user.progress.level)}</strong></div>
+            </div>
+            <div class="progress-box">
+              <div class="progress-line"><strong>${escapeHtml(user.progress.plan)}</strong><span>${user.progress.percent}%</span><div class="bar"><i style="width:${user.progress.percent}%"></i></div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Compte</h3><span>État général</span></div></div>
+            <div class="info-grid">
+              <div class="info-item"><span>Créé le</span><strong>${formatDate(user.createdAt)}</strong></div>
+              <div class="info-item"><span>Dernière activité</span><strong>${escapeHtml(user.lastActivity)}</strong></div>
+              <div class="info-item"><span>Statut compte</span><strong>${escapeHtml(user.accountStatus)}</strong></div>
+              <div class="info-item"><span>Identifiant</span><strong>#${user.id}</strong></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Historique administratif</h3><span>Actions et changements sensibles</span></div></div>
+            <div class="timeline">${logsHtml}</div>
+          </div>
+        </div>`;
+    }
+
+    function openAccessModal(mode) {
+      accessMode = mode;
+      const user = users.find(u => u.id === selectedUserId) || users[0];
+      const modal = document.getElementById('accessModal');
+      const title = document.getElementById('accessModalTitle');
+      const subtitle = document.getElementById('accessModalSubtitle');
+      const type = document.getElementById('accessType');
+      const start = document.getElementById('startDate');
+      const end = document.getElementById('endDate');
+      const reason = document.getElementById('reason');
+      const helper = document.getElementById('accessHelper');
+
+      document.getElementById('accessUser').value = `${user.name} — ${user.email}`;
+      reason.value = '';
+      type.disabled = false;
+      start.disabled = false;
+
+      if (mode === 'grant') {
+        title.textContent = 'Donner un accès';
+        subtitle.textContent = 'Accorder manuellement un accès à cet utilisateur.';
+        type.value = user.access?.product || 'TCF';
+        start.value = todayISO;
+        end.value = '2026-10-30';
+        helper.className = 'helper';
+        helper.textContent = "L'historique commercial reste inchangé. Cette action ne crée aucune transaction Stripe.";
+      } else if (mode === 'extend') {
+        title.textContent = 'Modifier la date de fin';
+        subtitle.textContent = 'Prolonger ou raccourcir l’accès actuel.';
+        type.value = user.access?.product || 'TCF';
+        type.disabled = true;
+        start.value = user.access?.startsAt || todayISO;
+        start.disabled = true;
+        end.value = user.access?.endsAt || '2026-10-30';
+        helper.className = 'helper warning';
+        helper.textContent = 'Si la nouvelle date est antérieure à la date actuelle de fin, une confirmation supplémentaire sera demandée.';
+      } else {
+        title.textContent = 'Modifier l’accès';
+        subtitle.textContent = 'Changer le produit ou les dates appliqués à cet utilisateur.';
+        type.value = user.access?.product || 'TCF';
+        start.value = user.access?.startsAt || todayISO;
+        end.value = user.access?.endsAt || '2026-10-30';
+        helper.className = 'helper';
+        helper.textContent = 'Exemple : corriger Civique → TCF sans modifier l’achat réel enregistré.';
+      }
+      modal.classList.add('open');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    function saveAccess(event) {
+      event.preventDefault();
+      const user = users.find(u => u.id === selectedUserId) || users[0];
+      const newProduct = document.getElementById('accessType').value;
+      const newStart = document.getElementById('startDate').value;
+      const newEnd = document.getElementById('endDate').value;
+      const reason = document.getElementById('reason').value.trim();
+      if (!newEnd || !reason) return;
+      if (newEnd < newStart) {
+        showToast('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
+        return;
+      }
+
+      const oldAccess = user.access ? { ...user.access } : null;
+      const isProductChange = oldAccess && oldAccess.product !== newProduct;
+      const isReduction = oldAccess && newEnd < oldAccess.endsAt;
+
+      if (isProductChange || isReduction) {
+        closeModal('accessModal');
+        const messages = [];
+        if (isProductChange) messages.push(`remplacer l’accès ${oldAccess.product} par ${newProduct}`);
+        if (isReduction) messages.push(`réduire la date de fin du ${formatDate(oldAccess.endsAt)} au ${formatDate(newEnd)}`);
+        openConfirm(
+          'Confirmer la modification',
+          `Vous allez ${messages.join(' et ')} pour ${user.name}. L’effet sera immédiat.`,
+          () => commitAccess(user, newProduct, newStart, newEnd, reason, oldAccess)
+        );
+      } else {
+        closeModal('accessModal');
+        commitAccess(user, newProduct, newStart, newEnd, reason, oldAccess);
+      }
+    }
+
+    function commitAccess(user, product, start, end, reason, oldAccess) {
+      user.access = { product, startsAt: start, endsAt: end, status: end < todayISO ? 'expired' : 'active', origin: 'Admin' };
+      const title = oldAccess ? `${oldAccess.product} → ${product}` : `Accès ${product} accordé`;
+      user.logs.unshift({
+        date: '30/09/2026 · 16:21',
+        title,
+        text: `${formatDate(start)} → ${formatDate(end)} · ${reason}`,
+        type: oldAccess && oldAccess.product !== product ? 'red' : 'normal'
+      });
+      renderDetail();
+      applyFilters();
+      closeModal('confirmModal');
+      showToast('Accès mis à jour', `${user.name} dispose maintenant de l’accès ${product} jusqu’au ${formatDate(end)}.`);
+    }
+
+    function confirmTerminate() {
+      const user = users.find(u => u.id === selectedUserId);
+      if (!user?.access) return;
+      openConfirm(
+        'Terminer l’accès',
+        `${user.name} perdra immédiatement son accès ${user.access.product}. L’achat d’origine restera inchangé dans l’historique commercial.`,
+        () => {
+          const old = { ...user.access };
+          user.access = null;
+          user.logs.unshift({ date: '30/09/2026 · 16:21', title: `Accès ${old.product} terminé`, text: 'Action Admin · fin manuelle de l’accès', type: 'red' });
+          renderDetail();
+          applyFilters();
+          closeModal('confirmModal');
+          showToast('Accès terminé', `L’accès ${old.product} de ${user.name} a été retiré.`);
+        }
+      );
+    }
+
+    function openConfirm(title, text, callback) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmText').textContent = text;
+      document.getElementById('confirmAction').onclick = callback;
+      document.getElementById('confirmModal').classList.add('open');
+    }
+
+    let toastTimer;
+    function showToast(title, text) {
+      clearTimeout(toastTimer);
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastText').textContent = text;
+      const toast = document.getElementById('toast');
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) backdrop.classList.remove('open');
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+    });
+
+    renderUsers(users);
+    renderDetail();
+  </script>
+</body>
+</html>
