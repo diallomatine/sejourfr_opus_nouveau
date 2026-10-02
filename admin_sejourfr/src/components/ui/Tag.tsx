@@ -1,7 +1,13 @@
 import type { ReactNode } from "react";
 import styles from "./Tag.module.css";
 
-type TagTone =
+/** Tons génériques (`info`…`neutral`) + tons historiques des écrans de contenu. */
+export type TagTone =
+  | "info"
+  | "success"
+  | "danger"
+  | "warning"
+  | "neutral"
   | "csp"
   | "cr"
   | "nat"
@@ -21,9 +27,11 @@ type TagTone =
 
 interface TagProps {
   tone: TagTone;
+  /** Pastille de couleur devant le libellé (statuts). */
+  dot?: boolean;
   children: ReactNode;
 }
 
-export function Tag({ tone, children }: TagProps) {
-  return <span className={`${styles.tag} ${styles[tone]}`}>{children}</span>;
+export function Tag({ tone, dot = false, children }: TagProps) {
+  return <span className={`${styles.tag} ${styles[tone]} ${dot ? styles.dot : ""}`}>{children}</span>;
 }

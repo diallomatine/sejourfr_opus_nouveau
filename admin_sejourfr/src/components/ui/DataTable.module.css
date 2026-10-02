@@ -1,31 +1,36 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--paper);
+  background: var(--surface);
 }
 
 .table th {
   text-align: left;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: var(--muted-2);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 12px 20px;
+  padding: 11px 15px;
   border-bottom: 1px solid var(--rule);
-  background: var(--paper-2);
-  font-weight: 500;
+  background: var(--surface-2);
+  white-space: nowrap;
 }
 
 .table td {
-  padding: 14px 20px;
+  padding: 14px 15px;
   border-bottom: 1px solid var(--rule-2);
-  vertical-align: top;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background 0.14s ease;
 }
 
 .table tbody tr:hover td {
-  background: rgba(30, 58, 143, 0.025);
-  cursor: default;
+  background: var(--surface-2);
 }
 
 .table tbody tr:last-child td {
@@ -44,7 +49,7 @@
   color: var(--muted);
   font-size: 11px;
   margin-top: 4px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
 }
 
 .rowActions {
@@ -54,26 +59,37 @@
 }
 
 .iconBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 3px;
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 9px;
   color: var(--muted);
   font-size: 12px;
-  font-family: "Inter", sans-serif;
-  transition: all 0.15s;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .iconBtn:hover {
-  background: var(--paper-2);
-  color: var(--ink);
-  border-color: var(--rule);
+  background: var(--surface);
+  color: var(--blue);
+  border-color: var(--rule-strong);
+}
+
+.iconBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--blue);
 }
 
 .iconBtn.danger:hover {
-  color: var(--red);
-  border-color: var(--red);
+  color: var(--red-dark);
+  border-color: var(--red-line);
 }
 
 /* Conteneur de défilement : les Panel ont `overflow: hidden`, sans lui une
@@ -100,13 +116,26 @@
     display: none;
   }
 
+  .cardTable.cardTable tbody {
+    padding: 10px;
+    background: var(--surface-2);
+  }
+
   .cardTable.cardTable tbody tr {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--rule);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-tile);
   }
 
   .cardTable.cardTable tbody tr:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .cardTable.cardTable tbody tr:hover td {
+    background: transparent;
   }
 
   .cardTable.cardTable tbody td {
@@ -114,19 +143,23 @@
     align-items: baseline;
     justify-content: space-between;
     gap: 14px;
-    padding: 4px 0;
+    padding: 5px 0;
     border-bottom: none;
     text-align: right;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .cardTable.cardTable tbody td::before {
     content: attr(data-label);
     flex: 0 0 auto;
-    font-family: "JetBrains Mono", monospace;
+    max-width: 45%;
+    font-family: var(--font-ui);
     font-size: 10px;
-    letter-spacing: 0.1em;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--muted-2);
     text-align: left;
   }
 
@@ -134,7 +167,9 @@
   .cardTable.cardTable tbody td:first-child {
     display: block;
     text-align: left;
-    padding-bottom: 8px;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--rule-2);
   }
 
   .cardTable.cardTable tbody td:first-child::before {

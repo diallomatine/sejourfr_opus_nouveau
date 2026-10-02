@@ -1,62 +1,153 @@
+/* `margin: auto` sur la modale plutôt que `align-items: center` : une modale
+   plus haute que l'écran reste lisible depuis son haut en faisant défiler le
+   voile, au lieu d'être rognée. */
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(30, 58, 143, 0.35);
-  backdrop-filter: blur(2px);
+  z-index: 100;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 60px 20px;
-  z-index: 100;
+  padding: 20px;
   overflow-y: auto;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
 }
 
 .modal {
-  background: var(--paper);
-  border: 1px solid var(--blue);
-  border-top: 4px solid var(--red);
-  border-radius: 8px;
   width: 100%;
-  max-width: 640px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  max-width: 540px;
+  margin: auto;
+  background: var(--surface);
+  border-radius: 22px;
+  box-shadow: var(--shadow-modal);
+  animation: modalIn 0.17s ease-out;
+  outline: none;
 }
 
-.modal.lg {
+.sm {
+  max-width: 460px;
+}
+
+.md {
+  max-width: 640px;
+}
+
+.lg {
   max-width: 880px;
 }
 
+@keyframes modalIn {
+  from {
+    transform: translateY(8px) scale(0.985);
+    opacity: 0.5;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 .header {
-  padding: 22px 28px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 22px 16px;
   border-bottom: 1px solid var(--rule);
 }
 
+.heading {
+  min-width: 0;
+}
+
 .eyebrow {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  color: var(--red);
-  letter-spacing: 0.15em;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--muted-2);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
+  overflow-wrap: anywhere;
 }
 
 .title {
-  font-family: "Fraunces", serif;
-  font-size: 24px;
-  font-weight: 500;
-  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  font-weight: 800;
   letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.description {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  transition: color 0.15s, background 0.15s;
+}
+
+.close:hover {
+  color: var(--ink);
+  background: var(--blue-50);
+}
+
+.close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--blue);
 }
 
 .body {
-  padding: 22px 28px;
+  padding: 20px 22px;
 }
 
 .footer {
-  padding: 16px 28px 22px;
-  border-top: 1px solid var(--rule);
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
-  background: var(--paper-2);
-  border-radius: 0 0 8px 8px;
+  padding: 15px 22px 20px;
+  border-top: 1px solid var(--rule);
+}
+
+@media (max-width: 720px) {
+  .backdrop {
+    padding: 12px;
+  }
+
+  .modal {
+    border-radius: var(--radius-lg);
+  }
+
+  .header {
+    padding: 16px 16px 14px;
+  }
+
+  .body {
+    padding: 16px;
+  }
+
+  .footer {
+    flex-direction: column-reverse;
+    padding: 14px 16px 16px;
+  }
+
+  .footer > * {
+    width: 100%;
+  }
 }

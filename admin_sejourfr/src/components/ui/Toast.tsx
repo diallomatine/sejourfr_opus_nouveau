@@ -5,11 +5,12 @@ import styles from "./Toast.module.css";
 interface Toast {
   id: number;
   message: string;
+  detail?: string;
   tone: "info" | "success" | "error";
 }
 
 interface ToastContextValue {
-  show: (message: string, tone?: Toast["tone"]) => void;
+  show: (message: string, tone?: Toast["tone"], detail?: string) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -17,9 +18,9 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const show = useCallback((message: string, tone: Toast["tone"] = "info") => {
+  const show = useCallback((message: string, tone: Toast["tone"] = "info", detail?: string) => {
     const id = Date.now() + Math.random();
-    setToasts((current) => [...current, { id, message, tone }]);
+    setToasts((current) => [...current, { id, message, detail, tone }]);
     setTimeout(() => {
       setToasts((current) => current.filter((t) => t.id !== id));
     }, 3500);
@@ -30,10 +31,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className={styles.container}>
+      <div className={styles.container} role="status" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`${styles.toast} ${styles[t.tone]}`}>
-            {t.message}
+            <strong className={styles.message}>{t.message}</strong>
+            {t.detail && <span className={styles.detail}>{t.detail}</span>}
           </div>
         ))}
       </div>
