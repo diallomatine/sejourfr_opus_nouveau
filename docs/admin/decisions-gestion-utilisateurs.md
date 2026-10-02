@@ -557,6 +557,80 @@ leur texte d'origine est conservé tel quel ci-dessous.
   `AccesEffectifResolverTest.AchatRevoque` (2).
 - **Réversibilité** : facile.
 
+## Phase 3 bis — refonte visuelle de l'admin (2026-10-02)
+
+> Retour du propriétaire : « adapter l'existant au template, beaucoup plus premium ; écrans
+> fonctionnels sur mobile ; menu via un burger ». La maquette
+> `docs/admin/maquette-admin-utilisateurs-mvp.html` fait foi pour le DESIGN ; les données restent
+> celles du backend. Aucun DTO, endpoint ni calcul touché.
+
+### D-35 — Palette : les tokens globaux réalignés sur l'identité visuelle
+
+- **Contexte** : l'admin portait des teintes à part (bleu `#1E3A8F`, rouge `#E1252C`, gris chauds
+  `--rule` / `--muted`), la maquette des teintes voisines (`#21469A`, `#EA3430`…).
+- **Choix retenu** : `styles/global.css` reprend les valeurs de `docs/identite-visuelle.md`
+  (bleu `#1E3A8C`, dark `#15296B`, light `#E8ECF8`, soft `#F4F6FC` ; rouge `#E1372F` ; ink
+  `#0F1839` ; muted `#6B7299` / `#9CA2BD` ; lignes `#E4E7F2` / `#EEF0F8` ; vert `#168F5B`). Les
+  usages de la maquette sans équivalent deviennent des tokens : `--bg`, `--surface-2`,
+  `--rule-strong`, `--blue-line`, `--red-line`, `--green-line`, `--amber-ink`, `--blue-bright`
+  (second arrêt du dégradé), `--on-dark-*`, rayons `--radius-*`, ombres `--shadow-panel|tile|
+  button|modal|toast|drawer`, `--focus-ring`. Aucun nom existant supprimé : toutes les pages
+  héritent de la palette sans être réécrites.
+- **Réversibilité** : facile (valeurs de tokens).
+
+### D-36 — Titres en Inter gras (maquette), primitives restylées une fois pour toutes les pages
+
+- **Contexte** : la maquette titre en Inter 800 ; l'admin titrait en Fraunces.
+- **Choix retenu** : `PageHeader`, `Panel`, `Modal` titrent en `--font-ui` 800 ; l'`emphasis`
+  reste rouge (non italique). `PageHeader` gagne `description`, `Modal` gagne `description`,
+  un bouton de fermeture, `role="dialog"`, focus posé/rendu et défilement bloqué
+  (`hooks/useBodyScrollLock`). `Tag` devient la pastille de la maquette (tons génériques
+  `info|success|danger|warning|neutral` + `dot`) et remplace `AccessStatusBadge` (supprimé ;
+  correspondance d'enum D-29 dans `features/users/accessTones.ts`). Nouveaux : `Icon` (SVG
+  locaux, aucune dépendance), `Avatar` (initiales d'affichage), `Chips`. Pas de `StatTile`
+  (D-27 tient, aucun chiffre servi à y mettre).
+- **Réversibilité** : facile.
+
+### D-37 — Coquille : trois paliers et tiroir burger
+
+- **Choix retenu** : ≥ 1180 px barre latérale complète (marque, sections, icônes, carte admin
+  + déconnexion) ; 721–1179 px barre réduite aux icônes (libellés masqués visuellement mais
+  lus, infobulle `title`, compteurs en pastille sur l'icône) ; ≤ 720 px barre retirée, bouton
+  burger dans la topbar ouvrant la même barre en tiroir (voile, fermeture par voile / Échap /
+  bouton / lien / changement de route / retour en palier large, focus piégé puis rendu au
+  burger, `aria-expanded` + `aria-controls`, défilement bloqué). Les entrées vivent dans
+  `components/layout/navigation.ts` (barre, tiroir et fil d'Ariane lisent la même liste) ;
+  aucune route retirée. Topbar : fil d'Ariane (dernier segment « Fiche » sur `/users/:id`) et
+  « Actualiser » global = relecture des requêtes actives. « Donner un accès » n'est pas dans la
+  topbar : il exige un compte, il reste dans le héros de la fiche.
+- **Réversibilité** : facile.
+
+### D-38 — Fiche : deux colonnes ≥ 1180 px, carte dégradée = accès effectif servi
+
+- **Contexte** : D-26 (deux routes) maintenu ; la maquette juxtapose liste et fiche.
+- **Choix retenu** : la fiche reproduit la sensation du panneau sur deux colonnes ≥ 1180 px
+  (gauche : héros, carte d'accès, cartes produit ; droite : achats, progression, compte,
+  historique), une seule en dessous. La carte dégradée affiche `effectiveAccess`
+  (produit effectif + « Modules ouverts ») puis, par produit, le `summary` et l'`originLabel`
+  servis, et la dernière activité. Le « Ouvre : TCF + Civique » d'une carte produit est le
+  `modulesLabel` de `GET /api/admin/access-products` (lookup d'affichage). La barre de
+  progression de la maquette n'est **pas** reprise : sa largeur serait un pourcentage calculé
+  dans le front. Le bouton « Retour aux utilisateurs » reste visible à tous les paliers (il
+  conserve recherche, filtre et page, ce que le fil d'Ariane ne fait pas).
+- **Réversibilité** : facile.
+
+### D-39 — Écarts assumés avec la maquette
+
+- Pas de tuiles de statistiques (D-27) : seul `totalElements` est servi, il est dans le
+  sous-titre du panneau.
+- Pas de select de statut en plus des puces : l'API n'a qu'un paramètre `filter`, déjà exposé
+  en puces (un select dupliquerait le même contrôle).
+- Colonnes « Inscription » et « Compte » retirées de la liste (la maquette ne les a pas) : un
+  compte non actif garde une pastille rouge sous son nom ; l'inscription est dans la fiche.
+- Confirmation : bouton « Confirmer » contouré rouge (`danger`, maquette) au lieu du rouge plein.
+- Mobile : tableau → cartes empilées (`cardTable`), bouton « Ouvrir la fiche » pleine largeur ;
+  modale pleine largeur, boutons empilés ; toasts pleine largeur.
+
 ## Écarts avec la spec
 
 - Produits `CIVIQUE` / `INTEGRAL` (GO §1) : la correction « Civique → TCF » est « Civique →

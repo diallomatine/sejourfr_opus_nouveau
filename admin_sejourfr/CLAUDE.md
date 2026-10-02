@@ -12,7 +12,7 @@ Ce projet est l'espace d'administration web de **SejourFR**, une plateforme d'en
 - **React Hook Form** pour les formulaires
 - **CSS Modules** vanilla — **pas de Tailwind, pas de CSS-in-JS, pas d'UI kit**
 
-La palette de couleurs et la typographie reprennent l'identité SejourFR : bleu France (`#1E3A8F`), rouge France (`#E1252C`), polices Fraunces (titres) / Inter (corps) / JetBrains Mono (labels techniques).
+La palette reprend `docs/identite-visuelle.md` (bleu France `#1E3A8C`, rouge France `#E1372F`, ink `#0F1839`…) et le design suit la maquette `docs/admin/maquette-admin-utilisateurs-mvp.html` (refonte du 2026-10-02, D-35 → D-39) : Inter partout (titres en 800), JetBrains Mono pour les identifiants techniques.
 
 ## Architecture
 
@@ -33,8 +33,10 @@ src/
 │   ├── AuthContext.tsx      Provider + hook useAuth()
 │   └── tokenStorage.ts      Persistance localStorage des tokens
 ├── components/
-│   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
-│   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
+│   ├── layout/AppLayout.*   Coquille : barre latérale, topbar, tiroir burger, outlet
+│   ├── layout/navigation.ts L'unique liste des entrées de menu (barre, tiroir, fil d'Ariane)
+│   └── ui/                  Primitives réutilisables (Button, Modal, Tag, Icon, Avatar,
+│                            Chips, Panel, Pagination, Toast, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
 │   ├── users/               Console « Utilisateurs » : liste `/users`, fiche
 │   │                        `/users/:id`, modale unique des actions d'accès.
@@ -66,6 +68,7 @@ src/
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
 │                            EO (Expression Orale) — Azure Speech + R2 réutilisés
 ├── hooks/
+│   ├── useBodyScrollLock.ts Bloque le défilement de la page (modale, tiroir), compté
 │   ├── useDebouncedValue.ts
 │   └── useUrlListState.ts   État d'une liste paginée serveur dans l'URL (page,
 │                            taille, filtres, recherche debouncée, recalage de
@@ -149,7 +152,8 @@ Endpoints utilisés actuellement :
 ### Utilisateurs (`features/users/`)
 
 Retrouver, comprendre et dépanner un compte (spec `docs/admin/spec-admin-utilisateurs-v2.md`,
-GO du propriétaire, décisions `docs/admin/decisions-gestion-utilisateurs.md` D-01 → D-29).
+GO du propriétaire, décisions `docs/admin/decisions-gestion-utilisateurs.md` D-01 → D-39 ;
+refonte visuelle D-35 → D-39).
 Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives).
 
 - **Routes** : `/users` (liste paginée serveur, recherche `q` debouncée — email, nom ou UUID
@@ -159,8 +163,10 @@ Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives)
 - **Produits réels** `CIVIQUE` / `INTEGRAL` (jamais « TCF ») ; la liste vient de
   `GET /api/admin/access-products`, jamais codée en dur. L'écran affiche toujours le couple
   **produit effectif / modules ouverts** servi (`effectiveAccess`).
-- **Fiche, dans l'ordre §5** : résumé (inscription, dernière activité, produit effectif,
-  `summary` + origine par produit) → une carte par produit (statut, début, fin incluse
+- **Fiche, dans l'ordre §5** (deux colonnes ≥ 1180 px, une seule en dessous — D-38) : héros
+  (avatar, compte, inscription, « Donner un accès ») → carte dégradée de l'accès effectif
+  (produit effectif, modules ouverts, `summary` + origine par produit, dernière activité) →
+  une carte par produit (« Ouvre : … » = `modulesLabel` de `/access-products`) (statut, début, fin incluse
   `endLabel`, origine, alertes, boutons = `availableOperations`) → achats en lecture seule →
   progression → compte → historique admin (une entrée par action, `changes` servis, motif).
 - 🛑 **Le front ne recalcule RIEN** : statut, module ouvert, date de fin, inclusive/exclusive,
@@ -443,9 +449,25 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   indexée à 0 comme le `PageResponse` ; ne s'affiche pas sur une liste vide. Utilisée
   par `/subscriptions` et `/users` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
   précédent/suivant maison, à migrer au prochain passage.
-- Les couleurs sont dans `:root` de `styles/global.css`. **Ne jamais hardcoder une couleur** dans un module — toujours utiliser `var(--blue)`, `var(--red)`, `var(--ink)`, etc.
-- Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
-- Le style général s'inspire du template `admin__1_.html` fourni en début de projet — typographique, fait main, sans framework UI.
+- Les couleurs sont dans `:root` de `styles/global.css`, alignées sur `docs/identite-visuelle.md`
+  (D-35). **Ne jamais hardcoder une couleur, une ombre, un rayon ni une police** dans un module —
+  toujours `var(--blue)`, `var(--ink)`, `var(--rule-strong)`, `var(--surface-2)`,
+  `var(--radius-lg)`, `var(--shadow-panel)`, `var(--font-ui)`, etc. Teinte manquante ⇒ nouveau
+  token dans `global.css`, jamais un hex local. Sur fond bleu : `--on-dark-*`.
+- Référence visuelle : `docs/admin/maquette-admin-utilisateurs-mvp.html` (cartes rayon 24, ombre
+  douce, fond `--bg` bleu très clair, titres Inter 800, pastilles à point). `Fraunces` n'est plus
+  utilisé par les primitives ; `JetBrains Mono` reste pour les identifiants (UUID, références).
+- **Coquille (`components/layout/`, D-37)** : ≥ 1180 px barre latérale complète ; 721–1179 px
+  barre réduite aux icônes (libellés masqués visuellement mais lus) ; ≤ 720 px barre retirée,
+  **bouton burger** dans la topbar qui ouvre la même barre en tiroir (voile, Échap, lien,
+  changement de route ⇒ fermeture ; focus piégé puis rendu au burger ; défilement bloqué).
+  Ajouter une page = une route dans `App.tsx` **et** une entrée dans `navigation.ts` (icône du
+  jeu `components/ui/Icon.tsx` — ajouter le SVG au jeu s'il manque, jamais de librairie).
+- **Primitives** : `Button` (`primary` | `default` contour bleu | `ghost` | `danger` contour rouge
+  | `red` CTA critique), `Tag` (pastille ; tons `info|success|danger|warning|neutral`, `dot`),
+  `Modal` (`title`, `description`, `size`, pied empilé pleine largeur en mobile), `Toast`
+  (`show(titre, ton, détail?)`), `Panel`, `PageHeader` (`description`), `Chips` (filtre exclusif,
+  défilement horizontal en mobile), `Avatar` (initiales), `Icon`.
 - **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
   ajouter `tableStyles.cardTable` à la table, tous deux dans
   `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les
