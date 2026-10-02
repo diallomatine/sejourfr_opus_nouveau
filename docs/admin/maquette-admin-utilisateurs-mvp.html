@@ -455,6 +455,31 @@
       .modal-foot .btn { width: 100%; }
       .toast { right: 12px; left: 12px; bottom: 12px; max-width: none; }
     }
+
+    /* ---- Phase 3 : accès par produit, résumé, aperçu serveur ---- */
+    .summary { padding: 14px 16px; border-radius: 14px; background: var(--blue-50); border: 1px solid #dbe4f7; font-size: 12px; line-height: 1.6; }
+    .summary .effective { font-size: 13px; margin: 2px 0 6px; }
+    .summary .effective b { color: var(--blue-800); }
+    .summary .muted { color: var(--muted); }
+    .products { display: grid; gap: 12px; }
+    .product-card { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fff; }
+    .product-card.is-active { border-color: #b9e2d1; box-shadow: inset 4px 0 0 var(--green-700); }
+    .product-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .product-name { font-size: 17px; font-weight: 850; }
+    .product-modules { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .product-summary { margin: 8px 0 0; font-size: 12px; }
+    .facts { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .facts span { display: block; color: var(--muted); font-size: 10px; }
+    .facts strong { display: block; font-size: 11.5px; margin-top: 3px; }
+    .alerts { margin: 10px 0 0; padding: 8px 10px 8px 24px; border-radius: 10px; background: var(--amber-100); color: var(--amber-700); font-size: 11px; }
+    .product-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .badges { display: flex; flex-wrap: wrap; gap: 5px; }
+    .readonly-note { font-size: 10px; color: var(--muted); }
+    .preview { margin-top: 14px; border-radius: 12px; padding: 11px 12px; border: 1px dashed #c5d2ee; background: #fbfcff; font-size: 11px; line-height: 1.5; }
+    .preview strong { display: block; color: var(--blue-800); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .counter { text-align: right; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    @media (max-width: 720px) { .facts { grid-template-columns: 1fr 1fr; } .facts div:last-child { grid-column: 1 / -1; } }
   </style>
 </head>
 <body>
@@ -502,41 +527,21 @@
       <header class="topbar">
         <div class="breadcrumb">Admin&nbsp; / &nbsp;<strong>Utilisateurs</strong></div>
         <div class="top-actions">
-          <button class="btn btn-secondary" onclick="showToast('Actualisé', 'Les données utilisateurs ont été rafraîchies.')">
+          <button class="btn btn-secondary" onclick="showToast('Actualisé', 'La liste et la fiche sont relues sur le serveur.')">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 6v6h-6M4 18v-6h6"/><path d="M6.5 9A7 7 0 0 1 18.4 6.6L20 8M4 16l1.6 1.4A7 7 0 0 0 17.5 15"/></svg>
             Actualiser
           </button>
-          <button class="btn btn-primary" onclick="openAccessModal('grant')">
+          <button class="btn btn-primary" onclick="openAccessModal('GRANT', null)">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             Donner un accès
           </button>
         </div>
       </header>
-
       <main>
         <section class="page-head">
           <div>
             <h1>Gestion des utilisateurs</h1>
-            <p>Rechercher un utilisateur, vérifier son état et gérer son accès TCF ou Civique.</p>
-          </div>
-        </section>
-
-        <section class="stats" aria-label="Statistiques utilisateurs">
-          <div class="stat">
-            <div class="stat-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
-            <div><strong>1 284</strong><span>Utilisateurs</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-icon green"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-            <div><strong>327</strong><span>Accès actifs</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-icon red"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 19V5M4 5h11l-1 4 1 4H4"/></svg></div>
-            <div><strong>84</strong><span>TCF actifs</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-icon amber"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-            <div><strong>19</strong><span>Expirent sous 7 j</span></div>
+            <p>Retrouver un compte, comprendre son accès effectif (produits Civique et Intégral) et le dépanner. Les achats restent en lecture seule.</p>
           </div>
         </section>
 
@@ -546,29 +551,25 @@
               <div class="panel-head-row">
                 <div>
                   <h2 class="panel-title">Utilisateurs</h2>
-                  <div class="panel-subtitle" id="resultsCount">6 utilisateurs affichés</div>
+                  <div class="panel-subtitle" id="resultsCount">8 utilisateurs</div>
                 </div>
               </div>
             </div>
 
-            <div class="toolbar">
+            <div class="toolbar" style="grid-template-columns: 1fr">
               <label class="search" aria-label="Rechercher un utilisateur">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input class="input" id="searchInput" placeholder="Nom, email ou identifiant…" oninput="applyFilters()" />
+                <input class="input" id="searchInput" placeholder="Email, nom ou identifiant complet…" oninput="applyFilters()" />
               </label>
-              <select class="select" id="statusSelect" onchange="applyFilters()" aria-label="Filtrer par statut">
-                <option value="all">Tous les statuts</option>
-                <option value="active">Accès actif</option>
-                <option value="expired">Accès expiré</option>
-                <option value="none">Sans accès</option>
-              </select>
             </div>
 
-            <div class="filters" id="productFilters">
-              <button class="chip active" data-filter="all" onclick="setProductFilter('all', this)">Tous</button>
-              <button class="chip" data-filter="TCF" onclick="setProductFilter('TCF', this)">TCF</button>
-              <button class="chip" data-filter="Civique" onclick="setProductFilter('Civique', this)">Civique</button>
-              <button class="chip" data-filter="none" onclick="setProductFilter('none', this)">Sans accès</button>
+            <div class="filters" id="accessFilters">
+              <button class="chip active" onclick="setAccessFilter('ALL', this)">Tous</button>
+              <button class="chip" onclick="setAccessFilter('TCF_ACTIVE', this)">Accès TCF actif</button>
+              <button class="chip" onclick="setAccessFilter('CIVIQUE_ACTIVE', this)">Accès Civique actif</button>
+              <button class="chip" onclick="setAccessFilter('NO_ACTIVE_ACCESS', this)">Sans accès actif</button>
+              <button class="chip" onclick="setAccessFilter('EXPIRED', this)">Expiré</button>
+              <button class="chip" onclick="setAccessFilter('MANUAL_ACCESS', this)">Accès manuel</button>
             </div>
 
             <div class="table-wrap">
@@ -577,8 +578,8 @@
                   <tr>
                     <th>Utilisateur</th>
                     <th>Accès</th>
-                    <th>Statut</th>
-                    <th>Fin</th>
+                    <th>Produit effectif</th>
+                    <th>Prochaine fin</th>
                     <th>Dernière activité</th>
                     <th></th>
                   </tr>
@@ -588,7 +589,7 @@
             </div>
 
             <div class="table-footer">
-              <span>Affichage des données du prototype MVP</span>
+              <span>1–8 sur 8 utilisateurs · pagination serveur</span>
               <div class="pager"><button aria-label="Page précédente">‹</button><button aria-label="Page suivante">›</button></div>
             </div>
           </div>
@@ -603,46 +604,45 @@
     <div class="modal">
       <div class="modal-head">
         <div>
-          <h3 id="accessModalTitle">Modifier l'accès</h3>
-          <p id="accessModalSubtitle">Définissez l'accès effectif de l'utilisateur.</p>
+          <h3 id="accessModalTitle">Donner un accès</h3>
+          <p id="accessModalSubtitle"></p>
         </div>
         <button class="icon-btn" onclick="closeModal('accessModal')" aria-label="Fermer">×</button>
       </div>
       <form id="accessForm" onsubmit="saveAccess(event)">
         <div class="modal-body">
           <div class="form-grid">
-            <div class="field full">
-              <label for="accessUser">Utilisateur</label>
-              <input class="input" id="accessUser" readonly />
+            <div class="field full" id="currentField">
+              <label>Produit concerné</label>
+              <input class="input" id="currentProduct" readonly />
+            </div>
+            <div class="field full" id="productField">
+              <label for="accessProduct" id="accessProductLabel">Produit</label>
+              <select class="select" id="accessProduct" onchange="refreshPreview()"></select>
+              <small>Produits servis par le serveur (jamais codés dans l'écran). Intégral ouvre TCF + Civique.</small>
+            </div>
+            <div class="field" id="startField">
+              <label for="startDate">Début</label>
+              <input class="input" type="date" id="startDate" oninput="refreshPreview()" />
+              <small>Vide : dès maintenant. Une date future programme l'accès.</small>
+            </div>
+            <div class="field" id="endField">
+              <label for="endDate">Fin (incluse)</label>
+              <input class="input" type="date" id="endDate" oninput="refreshPreview()" />
+              <small>Dernier jour d'accès, heure de Paris.</small>
             </div>
             <div class="field full">
-              <label for="accessType">Produit / type d'accès</label>
-              <select class="select" id="accessType" required>
-                <option value="TCF">TCF</option>
-                <option value="Civique">Civique</option>
-              </select>
-              <small>Cette valeur modifie le droit d'accès effectif, pas l'achat d'origine.</small>
-            </div>
-            <div class="field">
-              <label for="startDate">Date de début</label>
-              <input class="input" type="date" id="startDate" required />
-            </div>
-            <div class="field">
-              <label for="endDate">Date de fin</label>
-              <input class="input" type="date" id="endDate" required />
-            </div>
-            <div class="field full">
-              <label for="reason">Motif administratif</label>
-              <textarea class="textarea" id="reason" placeholder="Ex. erreur de produit lors de l'achat, geste commercial…" required></textarea>
+              <label for="reason">Motif</label>
+              <textarea class="textarea" id="reason" maxlength="500" placeholder="Ex. erreur de produit lors de l'achat, geste commercial…" oninput="refreshPreview()"></textarea>
+              <small class="counter" id="reasonCounter">0 / 500 — au moins 3 caractères, sans donnée personnelle inutile.</small>
             </div>
           </div>
-          <div class="helper" id="accessHelper">
-            L'historique commercial reste inchangé. Cette action ne déclenche aucun paiement et crée uniquement un accès administrativement géré.
-          </div>
+          <div class="preview" id="previewBox"><strong>Aperçu</strong><span id="previewText">Renseignez la date de fin et le motif pour obtenir l'aperçu calculé par le serveur.</span></div>
+          <div class="helper">L'achat d'origine reste intact : aucune transaction, aucun paiement, aucun montant n'est modifié.</div>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn btn-secondary" onclick="closeModal('accessModal')">Annuler</button>
-          <button type="submit" class="btn btn-primary">Confirmer la modification</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Enregistrer</button>
         </div>
       </form>
     </div>
@@ -652,8 +652,8 @@
     <div class="modal" style="width:min(460px,100%)">
       <div class="modal-head">
         <div>
-          <h3 id="confirmTitle">Confirmer</h3>
-          <p id="confirmSubtitle">Cette action aura un effet immédiat.</p>
+          <h3>Confirmation</h3>
+          <p>Seconde étape demandée par le serveur (correction, raccourcissement, fin immédiate).</p>
         </div>
         <button class="icon-btn" onclick="closeModal('confirmModal')" aria-label="Fermer">×</button>
       </div>
@@ -662,7 +662,7 @@
       </div>
       <div class="modal-foot">
         <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Annuler</button>
-        <button class="btn btn-danger" id="confirmAction">Confirmer</button>
+        <button class="btn btn-danger" onclick="commitAccess()">Confirmer</button>
       </div>
     </div>
   </div>
@@ -670,136 +670,199 @@
   <div class="toast" id="toast"><strong id="toastTitle"></strong><span id="toastText"></span></div>
 
   <script>
-    const todayISO = '2026-09-30';
-    let productFilter = 'all';
-    let selectedUserId = 1;
-    let accessMode = 'edit';
+    // Maquette : données FICTIVES. L'écran réel lit tout au backend
+    // (GET /api/admin/users, /users/{id}, /access-products ; POST /users/{id}/access-operations).
+    // Statuts, résumés, fins incluses, actions proposées et aperçus y sont SERVIS.
+
+    const PRODUCTS = [
+      { code: 'CIVIQUE', label: 'Civique', modulesLabel: 'Civique' },
+      { code: 'INTEGRAL', label: 'Intégral', modulesLabel: 'TCF + Civique' }
+    ];
+    const OP_LABEL = { GRANT: 'Donner un accès', EXTEND: 'Prolonger', SHORTEN: 'Raccourcir', END: 'Terminer', REACTIVATE: 'Réactiver', CORRECT_PRODUCT: 'Corriger le produit' };
+    const STATUS_BADGE = { ACTIVE: 'badge-green', SCHEDULED: 'badge-blue', REVOKED: 'badge-red', EXPIRED: 'badge-amber', NONE: 'badge-gray' };
+    const STATUS_LABEL = { ACTIVE: 'Actif', SCHEDULED: 'Programmé', REVOKED: 'Révoqué', EXPIRED: 'Expiré', NONE: 'Aucun' };
+
+    const none = (product) => ({ product, status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: [], ops: ['GRANT'] });
 
     const users = [
       {
-        id: 1, initials: 'JM', name: 'Jean Martin', email: 'jean.martin@gmail.com', createdAt: '2026-09-21',
-        access: { product: 'Civique', status: 'active', startsAt: '2026-09-21', endsAt: '2026-10-30', origin: 'Achat' },
-        lastActivity: 'Aujourd’hui, 14:32', accountStatus: 'Actif',
-        purchase: { product: 'Pass Civique', amount: '29,99 €', date: '21/09/2026', provider: 'Stripe', status: 'Payé' },
-        progress: { diagnostic: 'Terminé', level: '—', plan: 'Civique · Institutions', percent: 36 },
-        logs: [
-          { date: '21/09/2026 · 10:14', title: 'Achat confirmé', text: 'Pass Civique · Stripe · 29,99 €', type: 'normal' },
-          { date: '21/09/2026 · 10:15', title: 'Accès activé automatiquement', text: 'Civique jusqu’au 30/10/2026', type: 'normal' }
+        id: '3f2a9c1e-7b41-4d6a-9e2f-1c8b5a7d0e11', initials: 'JM', name: 'Jean Martin', email: 'jean.martin@exemple.fr', createdAt: '21/09/2026',
+        lastActivity: '02/10/2026 à 14:32', lastLogin: '02/10/2026 à 14:05', accountStatus: 'Actif', manual: false,
+        effective: { product: 'Civique', modules: 'Civique' }, nextEnd: '21/12/2026 à 10:14',
+        accesses: [
+          { product: 'CIVIQUE', status: 'ACTIVE', summary: "Actif jusqu'au 21/12/2026 à 10:14", start: '21/09/2026', end: '21/12/2026 à 10:14', defaultEnd: '2026-12-21', origin: 'Achat Stripe', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] },
+          none('INTEGRAL')
+        ],
+        purchases: [{ product: 'Civique', plan: 'Civique — pass 3 mois', amount: '9,99 €', date: '21/09/2026 à 10:14', provider: 'Stripe', status: 'Actif · Payé', end: '21/12/2026 à 10:14', ref: 'cs_live_…8f2a' }],
+        progress: [
+          { module: 'TCF', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 },
+          { module: 'Civique', diagnostic: 'Fait le 21/09/2026', cycle: 'Depuis le 21/09/2026', entry: '—', steps: '3 / 8', historised: 0 }
+        ],
+        history: []
+      },
+      {
+        id: '8c41e2b7-0d5f-4a3e-b6c9-2e7f1a9d4b22', initials: 'SB', name: 'Sarah Benali', email: 'sarah.benali@exemple.fr', createdAt: '12/09/2026',
+        lastActivity: '02/10/2026 à 09:10', lastLogin: '01/10/2026 à 21:40', accountStatus: 'Actif', manual: false,
+        effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '12/10/2026 à 17:42',
+        accesses: [
+          { product: 'CIVIQUE', status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: ['Civique reste ouvert via Intégral'], ops: ['GRANT'] },
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 12/10/2026 à 17:42", start: '12/09/2026', end: '12/10/2026 à 17:42', defaultEnd: '2026-10-12', origin: 'Achat Apple', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+        ],
+        purchases: [{ product: 'Intégral', plan: 'Intégral — pass 1 mois', amount: '19,99 €', date: '12/09/2026 à 17:42', provider: 'Apple', status: 'Actif · Payé', end: '12/10/2026 à 17:42', ref: '20000071…3391' }],
+        progress: [
+          { module: 'TCF', diagnostic: 'Fait le 12/09/2026', cycle: 'Depuis le 13/09/2026', entry: 'B1', steps: '5 / 9', historised: 1 },
+          { module: 'Civique', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 }
+        ],
+        history: []
+      },
+      {
+        id: 'b7d93f04-6e2a-41c8-8f5b-9a0c3e6d2f33', initials: 'MO', name: 'Mamadou Oumar', email: 'm.oumar@exemple.fr', createdAt: '03/08/2026',
+        lastActivity: '09/08/2026 à 20:11', lastLogin: '09/08/2026 à 19:58', accountStatus: 'Actif', manual: false,
+        effective: { product: 'Aucun', modules: 'Aucun' }, nextEnd: '—',
+        accesses: [
+          none('CIVIQUE'),
+          { product: 'INTEGRAL', status: 'EXPIRED', summary: 'Expiré depuis le 10/08/2026', start: '03/08/2026', end: '10/08/2026 à 11:20', origin: 'Achat Google Play', alerts: [], ops: ['REACTIVATE'] }
+        ],
+        purchases: [{ product: 'Intégral', plan: 'Intégral — pass 7 jours', amount: '9,99 €', date: '03/08/2026 à 11:20', provider: 'Google Play', status: 'Expiré · Payé', end: '10/08/2026 à 11:20', ref: 'GPA.3312…8841' }],
+        progress: [
+          { module: 'TCF', diagnostic: 'Fait le 03/08/2026', cycle: 'Depuis le 03/08/2026', entry: 'A2', steps: '2 / 9', historised: 0 },
+          { module: 'Civique', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 }
+        ],
+        history: []
+      },
+      {
+        id: 'e1a6c8d2-3b9f-47e0-a2d4-5f8b7c1e9a44', initials: 'CL', name: 'Chloé Laurent', email: 'chloe.laurent@exemple.fr', createdAt: '29/09/2026',
+        lastActivity: '01/10/2026 à 18:54', lastLogin: '29/09/2026 à 18:52', accountStatus: 'Actif', manual: false,
+        effective: { product: 'Aucun', modules: 'Aucun' }, nextEnd: '—',
+        accesses: [none('CIVIQUE'), none('INTEGRAL')],
+        purchases: [],
+        progress: [
+          { module: 'TCF', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 },
+          { module: 'Civique', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 }
+        ],
+        history: []
+      },
+      {
+        id: '5d2f7a19-c4e8-4b06-9d3a-7e1c2b8f6a55', initials: 'AK', name: 'Amine Khelifi', email: 'amine.khelifi@exemple.fr', createdAt: '16/09/2026',
+        lastActivity: '28/09/2026 à 08:03', lastLogin: '28/09/2026 à 07:59', accountStatus: 'Actif', manual: true,
+        effective: { product: 'Civique', modules: 'Civique' }, nextEnd: '16/11/2026 inclus',
+        accesses: [
+          { product: 'CIVIQUE', status: 'ACTIVE', summary: "Actif jusqu'au 16/11/2026 inclus", start: '16/09/2026', end: '16/11/2026 inclus', defaultEnd: '2026-11-16', origin: 'Admin (accès accordé)', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] },
+          none('INTEGRAL')
+        ],
+        purchases: [],
+        progress: [
+          { module: 'TCF', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 },
+          { module: 'Civique', diagnostic: 'Fait le 16/09/2026', cycle: 'Depuis le 16/09/2026', entry: '—', steps: '2 / 8', historised: 0 }
+        ],
+        history: [
+          { date: '16/09/2026 11:20', admin: 'admin@sejourfr.fr', title: 'Donner un accès : Civique', changes: ["Civique : Aucun → Actif jusqu'au 16/11/2026 inclus"], reason: 'Geste commercial après incident de paiement' }
         ]
       },
       {
-        id: 2, initials: 'SB', name: 'Sarah Benali', email: 'sarah.benali@gmail.com', createdAt: '2026-09-12',
-        access: { product: 'TCF', status: 'active', startsAt: '2026-09-12', endsAt: '2026-10-12', origin: 'Achat' },
-        lastActivity: 'Aujourd’hui, 09:10', accountStatus: 'Actif',
-        purchase: { product: 'Pass TCF', amount: '39,99 €', date: '12/09/2026', provider: 'Stripe', status: 'Payé' },
-        progress: { diagnostic: 'Terminé', level: 'B1', plan: 'Expression écrite · cycle 1', percent: 61 },
-        logs: [{ date: '12/09/2026 · 17:42', title: 'Accès activé automatiquement', text: 'TCF jusqu’au 12/10/2026', type: 'normal' }]
+        id: '9a7e3c52-1f6b-4d8a-b0e4-3c9d2f5a7b66', initials: 'LN', name: 'Lina Nguyen', email: 'lina.nguyen@exemple.fr', createdAt: '28/07/2026',
+        lastActivity: '30/09/2026 à 21:15', lastLogin: '30/09/2026 à 21:02', accountStatus: 'Actif', manual: true,
+        effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '25/12/2026 inclus',
+        accesses: [
+          { product: 'CIVIQUE', status: 'REVOKED', summary: 'Révoqué depuis le 25/09/2026', start: '25/09/2026', end: '—', origin: 'Admin (accès retiré)', alerts: ['Civique reste ouvert via Intégral'], ops: ['REACTIVATE'] },
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 25/12/2026 inclus", start: '25/09/2026', end: '25/12/2026 inclus', defaultEnd: '2026-12-25', origin: 'Admin (accès accordé)', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+        ],
+        purchases: [{ product: 'Civique', plan: 'Civique — pass 3 mois', amount: '9,99 €', date: '25/09/2026 à 15:16', provider: 'Stripe', status: 'Actif · Payé', end: '25/12/2026 à 15:16', ref: 'cs_live_…a91c' }],
+        progress: [
+          { module: 'TCF', diagnostic: 'Fait le 26/09/2026', cycle: 'Depuis le 26/09/2026', entry: 'B1', steps: '1 / 9', historised: 0 },
+          { module: 'Civique', diagnostic: 'Fait le 25/09/2026', cycle: 'Depuis le 25/09/2026', entry: '—', steps: '4 / 8', historised: 0 }
+        ],
+        history: [
+          { date: '25/09/2026 16:03', admin: 'admin@sejourfr.fr', title: 'Corriger le produit : Civique → Intégral', changes: ["Civique : Actif jusqu'au 25/12/2026 à 15:16 → Révoqué depuis le 25/09/2026", "Intégral : Aucun → Actif jusqu'au 25/12/2026 inclus"], reason: "Erreur de produit lors de l'achat (voulait le TCF)" }
+        ]
       },
       {
-        id: 3, initials: 'MO', name: 'Mamadou Oumar', email: 'm.oumar@email.fr', createdAt: '2026-08-03',
-        access: { product: 'TCF', status: 'expired', startsAt: '2026-08-03', endsAt: '2026-09-03', origin: 'Achat' },
-        lastActivity: '03/09/2026', accountStatus: 'Actif',
-        purchase: { product: 'Pass TCF', amount: '39,99 €', date: '03/08/2026', provider: 'Stripe', status: 'Payé' },
-        progress: { diagnostic: 'Terminé', level: 'A2', plan: 'Compréhension orale · cycle 2', percent: 48 },
-        logs: [{ date: '03/09/2026 · 23:59', title: 'Accès expiré', text: 'Fin du pass TCF', type: 'red' }]
+        id: '2c8b6e41-9d3a-4f7c-a5e1-8b2d0f4c6e77', initials: 'HP', name: 'Hugo Petit', email: 'hugo.petit@exemple.fr', createdAt: '30/09/2026',
+        lastActivity: '—', lastLogin: '30/09/2026 à 12:01', accountStatus: 'Actif', manual: true,
+        effective: { product: 'Aucun', modules: 'Aucun' }, nextEnd: '—',
+        accesses: [
+          none('CIVIQUE'),
+          { product: 'INTEGRAL', status: 'SCHEDULED', summary: 'Programmé du 15/10/2026 au 14/11/2026 inclus', start: '15/10/2026', end: '14/11/2026 inclus', defaultEnd: '2026-11-14', origin: 'Admin (accès accordé)', alerts: ['Accès programmé du 15/10/2026 au 14/11/2026 inclus'], ops: ['GRANT', 'END'] }
+        ],
+        purchases: [],
+        progress: [
+          { module: 'TCF', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 },
+          { module: 'Civique', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 }
+        ],
+        history: [
+          { date: '30/09/2026 12:30', admin: 'admin@sejourfr.fr', title: 'Donner un accès : Intégral', changes: ['Intégral : Aucun → Programmé du 15/10/2026 au 14/11/2026 inclus'], reason: 'Partenariat association, début de session le 15/10' }
+        ]
       },
       {
-        id: 4, initials: 'CL', name: 'Chloé Laurent', email: 'chloe.laurent@outlook.fr', createdAt: '2026-09-29',
-        access: null,
-        lastActivity: 'Hier, 18:54', accountStatus: 'Actif',
-        purchase: null,
-        progress: { diagnostic: 'Non commencé', level: '—', plan: 'Aucun plan actif', percent: 0 },
-        logs: [{ date: '29/09/2026 · 18:52', title: 'Compte créé', text: 'Inscription utilisateur', type: 'normal' }]
-      },
-      {
-        id: 5, initials: 'AK', name: 'Amine Khelifi', email: 'amine.khelifi@gmail.com', createdAt: '2026-09-16',
-        access: { product: 'Civique', status: 'active', startsAt: '2026-09-16', endsAt: '2026-11-16', origin: 'Admin' },
-        lastActivity: '28/09/2026', accountStatus: 'Actif',
-        purchase: null,
-        progress: { diagnostic: 'Terminé', level: '—', plan: 'Civique · Valeurs de la République', percent: 27 },
-        logs: [{ date: '16/09/2026 · 11:20', title: 'Accès accordé par Admin', text: 'Civique jusqu’au 16/11/2026 · Geste commercial', type: 'normal' }]
-      },
-      {
-        id: 6, initials: 'LN', name: 'Lina Nguyen', email: 'lina.nguyen@gmail.com', createdAt: '2026-07-28',
-        access: { product: 'TCF', status: 'active', startsAt: '2026-09-25', endsAt: '2026-10-25', origin: 'Admin' },
-        lastActivity: '27/09/2026', accountStatus: 'Actif',
-        purchase: { product: 'Pass Civique', amount: '29,99 €', date: '25/09/2026', provider: 'Stripe', status: 'Payé' },
-        progress: { diagnostic: 'Terminé', level: 'B1', plan: 'Compréhension écrite · cycle 1', percent: 42 },
-        logs: [
-          { date: '25/09/2026 · 15:16', title: 'Achat confirmé', text: 'Pass Civique · Stripe · 29,99 €', type: 'normal' },
-          { date: '25/09/2026 · 16:03', title: 'Civique → TCF', text: 'Modification Admin · erreur de produit lors de l’achat', type: 'red' }
+        id: '7f4d1b83-2a6e-4c9b-8d0f-6e3a9c2b1d88', initials: 'PD', name: 'Paul Durand', email: 'paul.durand@exemple.fr', createdAt: '20/09/2026',
+        lastActivity: '01/10/2026 à 10:41', lastLogin: '01/10/2026 à 10:37', accountStatus: 'Actif', manual: true,
+        effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '31/10/2026 inclus',
+        accesses: [
+          { product: 'CIVIQUE', status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: ['Civique reste ouvert via Intégral'], ops: ['GRANT'] },
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 31/10/2026 inclus", start: '24/09/2026', end: '31/10/2026 inclus', defaultEnd: '2026-10-31', origin: 'Admin (accès accordé)', alerts: ['Achat remboursé'], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+        ],
+        purchases: [{ product: 'Intégral', plan: 'Intégral — pass 1 mois', amount: '19,99 €', date: '20/09/2026 à 11:00', provider: 'Stripe', status: 'Remboursé · Remboursé', end: '20/10/2026 à 11:00', ref: 'cs_live_…77d0' }],
+        progress: [
+          { module: 'TCF', diagnostic: 'Fait le 20/09/2026', cycle: 'Depuis le 21/09/2026', entry: 'A2', steps: '4 / 9', historised: 0 },
+          { module: 'Civique', diagnostic: 'Non fait', cycle: 'Aucun cycle', entry: '—', steps: '—', historised: 0 }
+        ],
+        history: [
+          { date: '24/09/2026 09:12', admin: 'admin@sejourfr.fr', title: 'Prolonger : Intégral', changes: ["Intégral : Actif jusqu'au 20/10/2026 à 11:00 → Actif jusqu'au 31/10/2026 inclus"], reason: 'Compensation panne examinateur vocal du 23/09' }
         ]
       }
     ];
 
+    // Les filtres sont SERVEUR dans l'écran réel ; la maquette les mime sur ses données.
+    const FILTERS = {
+      ALL: () => true,
+      TCF_ACTIVE: u => u.effective.modules.includes('TCF'),
+      CIVIQUE_ACTIVE: u => u.effective.modules.includes('Civique'),
+      NO_ACTIVE_ACCESS: u => u.effective.product === 'Aucun',
+      EXPIRED: u => u.effective.product === 'Aucun' && (u.purchases.length > 0 || u.history.length > 0) && !u.accesses.some(a => a.status === 'SCHEDULED'),
+      MANUAL_ACCESS: u => u.manual
+    };
+
+    let accessFilter = 'ALL';
+    let selectedUserId = users[0].id;
+    let modalState = null;
+
     function escapeHtml(str = '') {
       return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
-
-    function formatDate(iso) {
-      if (!iso) return '—';
-      const [y,m,d] = iso.split('-');
-      return `${d}/${m}/${y}`;
-    }
-
-    function accessBadge(user) {
-      if (!user.access) return '<span class="badge badge-gray">Aucun</span>';
-      return user.access.product === 'TCF'
-        ? '<span class="badge badge-blue">TCF</span>'
-        : '<span class="badge badge-red">Civique</span>';
-    }
-
-    function statusBadge(user) {
-      if (!user.access) return '<span class="badge badge-gray">Sans accès</span>';
-      if (user.access.status === 'expired') return '<span class="badge badge-amber">Expiré</span>';
-      return '<span class="badge badge-green">Actif</span>';
-    }
+    const productLabel = code => PRODUCTS.find(p => p.code === code).label;
+    const modulesLabel = code => PRODUCTS.find(p => p.code === code).modulesLabel;
+    const currentUser = () => users.find(u => u.id === selectedUserId) || users[0];
+    const badge = (status, text) => `<span class="badge ${STATUS_BADGE[status]}">${escapeHtml(text)}</span>`;
 
     function renderUsers(list) {
       const body = document.getElementById('usersBody');
       body.innerHTML = list.map(user => `
-        <tr class="${user.id === selectedUserId ? 'selected' : ''}" onclick="selectUser(${user.id})">
+        <tr class="${user.id === selectedUserId ? 'selected' : ''}" onclick="selectUser('${user.id}')">
           <td>
             <div class="user-cell">
               <div class="avatar">${escapeHtml(user.initials)}</div>
-              <div class="user-main">
-                <strong>${escapeHtml(user.name)}</strong>
-                <span>${escapeHtml(user.email)}</span>
-              </div>
+              <div class="user-main"><strong>${escapeHtml(user.name)}</strong><span>${escapeHtml(user.email)}</span></div>
             </div>
           </td>
-          <td>${accessBadge(user)}</td>
-          <td>${statusBadge(user)}</td>
-          <td class="date-muted">${user.access ? formatDate(user.access.endsAt) : '—'}</td>
+          <td><div class="badges">${user.accesses.map(a => badge(a.status, `${productLabel(a.product)} · ${STATUS_LABEL[a.status]}`)).join('')}</div></td>
+          <td><strong>${escapeHtml(user.effective.product)}</strong><br><span class="date-muted">Modules : ${escapeHtml(user.effective.modules)}</span>${user.manual ? '<br><span class="badge badge-blue" style="margin-top:4px">Accès manuel</span>' : ''}</td>
+          <td class="date-muted">${escapeHtml(user.nextEnd)}</td>
           <td class="date-muted">${escapeHtml(user.lastActivity)}</td>
-          <td><button class="row-action" onclick="event.stopPropagation(); selectUser(${user.id})" aria-label="Ouvrir l'utilisateur">›</button></td>
+          <td><button class="row-action" onclick="event.stopPropagation(); selectUser('${user.id}')" aria-label="Ouvrir la fiche">›</button></td>
         </tr>`).join('');
-
-      document.getElementById('resultsCount').textContent = `${list.length} utilisateur${list.length > 1 ? 's' : ''} affiché${list.length > 1 ? 's' : ''}`;
+      document.getElementById('resultsCount').textContent = `${list.length} utilisateur${list.length > 1 ? 's' : ''}`;
       if (!list.length) {
-        body.innerHTML = '<tr><td colspan="6"><div class="empty"><strong>Aucun utilisateur</strong>Modifiez la recherche ou les filtres.</div></td></tr>';
+        body.innerHTML = '<tr><td colspan="6"><div class="empty"><strong>Aucun utilisateur ne correspond</strong>Modifiez la recherche ou le filtre.</div></td></tr>';
       }
     }
 
     function applyFilters() {
       const query = document.getElementById('searchInput').value.toLowerCase().trim();
-      const status = document.getElementById('statusSelect').value;
-      const filtered = users.filter(user => {
-        const searchable = `${user.name} ${user.email} ${user.id}`.toLowerCase();
-        const queryOk = !query || searchable.includes(query);
-        const productOk = productFilter === 'all'
-          || (productFilter === 'none' && !user.access)
-          || (user.access && user.access.product === productFilter);
-        const statusOk = status === 'all'
-          || (status === 'none' && !user.access)
-          || (user.access && user.access.status === status);
-        return queryOk && productOk && statusOk;
-      });
-      renderUsers(filtered);
+      renderUsers(users.filter(u => (!query || `${u.name} ${u.email} ${u.id}`.toLowerCase().includes(query)) && FILTERS[accessFilter](u)));
     }
 
-    function setProductFilter(value, el) {
-      productFilter = value;
+    function setAccessFilter(value, el) {
+      accessFilter = value;
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       el.classList.add('active');
       applyFilters();
@@ -817,45 +880,56 @@
     }
 
     function renderDetail() {
-      const user = users.find(u => u.id === selectedUserId) || users[0];
-      const access = user.access;
-      const purchaseHtml = user.purchase ? `
-        <div class="purchase">
+      const user = currentUser();
+      const summaryLines = user.accesses.map(a =>
+        `<div><b>${productLabel(a.product)}</b> : ${escapeHtml(a.summary)}${a.origin !== '—' ? ` <span class="muted">(${escapeHtml(a.origin)})</span>` : ''}</div>`).join('');
+
+      const productCards = user.accesses.map(a => `
+        <div class="product-card ${a.status === 'ACTIVE' ? 'is-active' : ''}">
+          <div class="product-top">
+            <div><div class="product-name">${productLabel(a.product)}</div><div class="product-modules">Ouvre : ${modulesLabel(a.product)}</div></div>
+            ${badge(a.status, STATUS_LABEL[a.status])}
+          </div>
+          <p class="product-summary">${escapeHtml(a.summary)}</p>
+          <div class="facts">
+            <div><span>Début</span><strong>${escapeHtml(a.start)}</strong></div>
+            <div><span>Fin incluse</span><strong>${escapeHtml(a.end)}</strong></div>
+            <div><span>Origine</span><strong>${escapeHtml(a.origin)}</strong></div>
+          </div>
+          ${a.alerts.length ? `<ul class="alerts">${a.alerts.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : ''}
+          <div class="product-actions">
+            ${a.ops.map(op => `<button class="btn btn-sm ${op === 'END' ? 'btn-danger' : (op === 'EXTEND' || op === 'REACTIVATE') ? 'btn-primary' : op === 'GRANT' ? 'btn-ghost' : 'btn-secondary'}" onclick="openAccessModal('${op}', '${a.product}')">${OP_LABEL[op]}</button>`).join('')}
+          </div>
+        </div>`).join('');
+
+      const purchasesHtml = user.purchases.length ? user.purchases.map(p => `
+        <div class="purchase" style="margin-bottom:8px">
           <div class="purchase-left">
             <div class="purchase-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
-            <div><strong>${escapeHtml(user.purchase.product)}</strong><span>${user.purchase.provider} · ${user.purchase.date} · ${user.purchase.status}</span></div>
+            <div><strong>${escapeHtml(p.plan)}</strong><span>${escapeHtml(p.provider)} · ${escapeHtml(p.date)} · ${escapeHtml(p.status)}</span><span>Fin : ${escapeHtml(p.end)} · Réf. ${escapeHtml(p.ref)}</span></div>
           </div>
-          <div class="purchase-price"><strong>${user.purchase.amount}</strong><span>Achat réel</span></div>
-        </div>` : '<div class="info-item"><span>Achat enregistré</span><strong>Aucun achat payant</strong></div>';
+          <div class="purchase-price"><strong>${escapeHtml(p.amount)}</strong><span class="readonly-note">Lecture seule</span></div>
+        </div>`).join('') : '<div class="info-item"><span>Achats</span><strong>Aucun achat payant</strong></div>';
 
-      const accessHtml = access ? `
-        <div class="access-card">
-          <div class="access-top">
-            <div><div class="access-label">Accès effectif actuel</div><div class="access-product">${escapeHtml(access.product)}</div></div>
-            <span class="access-status">${access.status === 'active' ? 'Actif' : 'Expiré'}</span>
+      const progressHtml = user.progress.map(p => `
+        <div class="progress-box" style="margin-bottom:10px">
+          <strong>${p.module}</strong>
+          <div class="info-grid">
+            <div class="info-item"><span>Diagnostic</span><strong>${escapeHtml(p.diagnostic)}</strong></div>
+            <div class="info-item"><span>Cycle en cours</span><strong>${escapeHtml(p.cycle)}</strong></div>
+            <div class="info-item"><span>Niveau d'entrée</span><strong>${escapeHtml(p.entry)}</strong></div>
+            <div class="info-item"><span>Étapes closes</span><strong>${escapeHtml(p.steps)}</strong></div>
+            <div class="info-item"><span>Cycles historisés</span><strong>${p.historised}</strong></div>
           </div>
-          <div class="access-grid">
-            <div><span>Début</span><strong>${formatDate(access.startsAt)}</strong></div>
-            <div><span>Fin</span><strong>${formatDate(access.endsAt)}</strong></div>
-            <div><span>Origine</span><strong>${escapeHtml(access.origin)}</strong></div>
-          </div>
-        </div>
-        <div class="actions-row">
-          <button class="btn btn-primary btn-sm" onclick="openAccessModal('edit')">Modifier l'accès</button>
-          <button class="btn btn-secondary btn-sm" onclick="openAccessModal('extend')">Modifier la date</button>
-          <button class="btn btn-danger btn-sm" onclick="confirmTerminate()">Terminer</button>
-        </div>` : `
-        <div class="info-item" style="padding:16px">
-          <span>Accès effectif actuel</span>
-          <strong style="font-size:14px">Aucun accès actif</strong>
-          <div style="margin-top:10px"><button class="btn btn-primary btn-sm" onclick="openAccessModal('grant')">Donner un accès</button></div>
-        </div>`;
-
-      const logsHtml = user.logs.slice(0,4).map(log => `
-        <div class="timeline-item ${log.type === 'red' ? 'red' : ''}">
-          <div class="dot"></div>
-          <div class="timeline-content"><strong>${escapeHtml(log.title)}</strong><p>${escapeHtml(log.date)}<br>${escapeHtml(log.text)}</p></div>
         </div>`).join('');
+
+      const historyHtml = user.history.length ? user.history.map(h => `
+        <div class="timeline-item ${h.title.startsWith('Corriger') || h.title.startsWith('Terminer') ? 'red' : ''}">
+          <div class="dot"></div>
+          <div class="timeline-content"><strong>${escapeHtml(h.title)}</strong>
+            <p>${escapeHtml(h.date)} — ${escapeHtml(h.admin)}<br>${h.changes.map(escapeHtml).join('<br>')}<br>Motif : ${escapeHtml(h.reason)}</p>
+          </div>
+        </div>`).join('') : '<div class="empty" style="padding:16px">Aucune action administrative sur ce compte.</div>';
 
       document.getElementById('detailPanel').innerHTML = `
         <button class="btn btn-secondary btn-sm mobile-back" onclick="backToList()">← Retour aux utilisateurs</button>
@@ -866,95 +940,104 @@
               <div><h2>${escapeHtml(user.name)}</h2><p>${escapeHtml(user.email)}</p></div>
             </div>
             <div class="hero-meta">
-              <span class="badge badge-green">Compte ${escapeHtml(user.accountStatus)}</span>
-              <span class="badge badge-gray">Inscrit le ${formatDate(user.createdAt)}</span>
-              <span class="badge badge-gray">ID #${user.id}</span>
+              <span class="badge badge-green">Compte ${escapeHtml(user.accountStatus.toLowerCase())}</span>
+              <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openAccessModal('GRANT', null)">+ Donner un accès</button>
             </div>
           </div>
 
           <div class="section">
-            <div class="section-head"><div><h3>Accès / abonnement</h3><span>Droit réellement appliqué dans l'application</span></div></div>
-            ${accessHtml}
-          </div>
-
-          <div class="section">
-            <div class="section-head"><div><h3>Historique commercial</h3><span>Lecture seule — ne pas modifier depuis cette fiche</span></div></div>
-            ${purchaseHtml}
-          </div>
-
-          <div class="section">
-            <div class="section-head"><div><h3>Progression</h3><span>Informations déjà disponibles</span></div></div>
-            <div class="info-grid" style="margin-bottom:10px">
-              <div class="info-item"><span>Diagnostic</span><strong>${escapeHtml(user.progress.diagnostic)}</strong></div>
-              <div class="info-item"><span>Niveau estimé</span><strong>${escapeHtml(user.progress.level)}</strong></div>
-            </div>
-            <div class="progress-box">
-              <div class="progress-line"><strong>${escapeHtml(user.progress.plan)}</strong><span>${user.progress.percent}%</span><div class="bar"><i style="width:${user.progress.percent}%"></i></div></div>
+            <div class="summary">
+              <div class="muted">Inscrit le ${escapeHtml(user.createdAt)} · Dernière activité : ${escapeHtml(user.lastActivity)}</div>
+              <div class="effective">Produit effectif : <b>${escapeHtml(user.effective.product)}</b> · Modules ouverts : <b>${escapeHtml(user.effective.modules)}</b></div>
+              ${summaryLines}
             </div>
           </div>
 
           <div class="section">
-            <div class="section-head"><div><h3>Compte</h3><span>État général</span></div></div>
+            <div class="section-head"><div><h3>Accès</h3><span>Un bloc par produit vendu — droit réellement appliqué dans l'application</span></div></div>
+            <div class="products">${productCards}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Achats</h3><span>Historique commercial réel — lecture seule, jamais modifié depuis cette fiche</span></div></div>
+            ${purchasesHtml}
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Progression</h3><span>Données déjà enregistrées, lues sans effet de bord</span></div></div>
+            ${progressHtml}
+          </div>
+
+          <div class="section">
+            <div class="section-head"><div><h3>Compte</h3><span>Lecture seule</span></div></div>
             <div class="info-grid">
-              <div class="info-item"><span>Créé le</span><strong>${formatDate(user.createdAt)}</strong></div>
-              <div class="info-item"><span>Dernière activité</span><strong>${escapeHtml(user.lastActivity)}</strong></div>
-              <div class="info-item"><span>Statut compte</span><strong>${escapeHtml(user.accountStatus)}</strong></div>
-              <div class="info-item"><span>Identifiant</span><strong>#${user.id}</strong></div>
+              <div class="info-item"><span>Identifiant</span><strong style="word-break:break-all">${escapeHtml(user.id)}</strong></div>
+              <div class="info-item"><span>Inscription</span><strong>${escapeHtml(user.createdAt)}</strong></div>
+              <div class="info-item"><span>Dernière connexion</span><strong>${escapeHtml(user.lastLogin)}</strong></div>
+              <div class="info-item"><span>Statut</span><strong>${escapeHtml(user.accountStatus)}</strong></div>
             </div>
           </div>
 
           <div class="section">
-            <div class="section-head"><div><h3>Historique administratif</h3><span>Actions et changements sensibles</span></div></div>
-            <div class="timeline">${logsHtml}</div>
+            <div class="section-head"><div><h3>Historique administratif</h3><span>Une entrée par action admin, avec son motif</span></div></div>
+            <div class="timeline">${historyHtml}</div>
           </div>
         </div>`;
     }
 
-    function openAccessModal(mode) {
-      accessMode = mode;
-      const user = users.find(u => u.id === selectedUserId) || users[0];
-      const modal = document.getElementById('accessModal');
-      const title = document.getElementById('accessModalTitle');
-      const subtitle = document.getElementById('accessModalSubtitle');
-      const type = document.getElementById('accessType');
-      const start = document.getElementById('startDate');
-      const end = document.getElementById('endDate');
-      const reason = document.getElementById('reason');
-      const helper = document.getElementById('accessHelper');
+    function openAccessModal(op, product) {
+      const user = currentUser();
+      const access = product ? user.accesses.find(a => a.product === product) : null;
+      modalState = { op, product, user };
+      const isCorrection = op === 'CORRECT_PRODUCT';
+      const choose = isCorrection || product === null;
+      document.getElementById('accessModalTitle').textContent = OP_LABEL[op];
+      document.getElementById('accessModalSubtitle').textContent = user.email;
+      document.getElementById('currentField').style.display = access ? '' : 'none';
+      document.getElementById('currentProduct').value = access ? `${productLabel(access.product)} — ${access.summary}` : '';
+      document.getElementById('productField').style.display = choose ? '' : 'none';
+      document.getElementById('accessProductLabel').textContent = isCorrection ? 'Nouveau produit' : 'Produit';
+      document.getElementById('accessProduct').innerHTML = PRODUCTS
+        .filter(p => !isCorrection || p.code !== product)
+        .map(p => `<option value="${p.code}">${p.label} — modules : ${p.modulesLabel}</option>`).join('');
+      document.getElementById('startField').style.display = (op === 'GRANT' || op === 'REACTIVATE') ? '' : 'none';
+      document.getElementById('endField').style.display = op === 'END' ? 'none' : '';
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = ['EXTEND', 'SHORTEN', 'CORRECT_PRODUCT'].includes(op) && access ? (access.defaultEnd || '') : '';
+      document.getElementById('reason').value = '';
+      refreshPreview();
+      document.getElementById('accessModal').classList.add('open');
+    }
 
-      document.getElementById('accessUser').value = `${user.name} — ${user.email}`;
-      reason.value = '';
-      type.disabled = false;
-      start.disabled = false;
+    function fr(iso) { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; }
 
-      if (mode === 'grant') {
-        title.textContent = 'Donner un accès';
-        subtitle.textContent = 'Accorder manuellement un accès à cet utilisateur.';
-        type.value = user.access?.product || 'TCF';
-        start.value = todayISO;
-        end.value = '2026-10-30';
-        helper.className = 'helper';
-        helper.textContent = "L'historique commercial reste inchangé. Cette action ne crée aucune transaction Stripe.";
-      } else if (mode === 'extend') {
-        title.textContent = 'Modifier la date de fin';
-        subtitle.textContent = 'Prolonger ou raccourcir l’accès actuel.';
-        type.value = user.access?.product || 'TCF';
-        type.disabled = true;
-        start.value = user.access?.startsAt || todayISO;
-        start.disabled = true;
-        end.value = user.access?.endsAt || '2026-10-30';
-        helper.className = 'helper warning';
-        helper.textContent = 'Si la nouvelle date est antérieure à la date actuelle de fin, une confirmation supplémentaire sera demandée.';
-      } else {
-        title.textContent = 'Modifier l’accès';
-        subtitle.textContent = 'Changer le produit ou les dates appliqués à cet utilisateur.';
-        type.value = user.access?.product || 'TCF';
-        start.value = user.access?.startsAt || todayISO;
-        end.value = user.access?.endsAt || '2026-10-30';
-        helper.className = 'helper';
-        helper.textContent = 'Exemple : corriger Civique → TCF sans modifier l’achat réel enregistré.';
-      }
-      modal.classList.add('open');
+    // Dans l'écran réel, cette phrase est la réponse dryRun:true du serveur (jamais construite par le front).
+    function refreshPreview() {
+      if (!modalState) return;
+      const { op, product } = modalState;
+      const target = (op === 'CORRECT_PRODUCT' || product === null) ? document.getElementById('accessProduct').value : product;
+      const end = document.getElementById('endDate').value;
+      const start = document.getElementById('startDate').value;
+      const reason = document.getElementById('reason').value.trim();
+      document.getElementById('reasonCounter').textContent = `${reason.length} / 500 — au moins 3 caractères, sans donnée personnelle inutile.`;
+      const ready = reason.length >= 3 && (op === 'END' || end);
+      const text = document.getElementById('previewText');
+      const submit = document.getElementById('submitBtn');
+      submit.disabled = !ready;
+      if (!ready) { text.textContent = "Renseignez la date de fin et le motif pour obtenir l'aperçu calculé par le serveur."; return; }
+      const p = productLabel(target);
+      const sentences = {
+        GRANT: start ? `Vous allez donner l'accès ${p} du ${fr(start)} au ${fr(end)} inclus.` : `Vous allez donner l'accès ${p} dès maintenant, jusqu'au ${fr(end)} inclus.`,
+        REACTIVATE: `Vous allez réactiver l'accès ${p} dès maintenant, jusqu'au ${fr(end)} inclus.`,
+        EXTEND: `Vous allez prolonger l'accès ${p} jusqu'au ${fr(end)} inclus.`,
+        SHORTEN: `Vous allez raccourcir l'accès ${p} : il restera ouvert jusqu'au ${fr(end)} inclus, puis sera révoqué.`,
+        END: `Cet utilisateur perdra immédiatement son accès ${p}. Continuer ?`,
+        CORRECT_PRODUCT: `Vous allez retirer l'accès ${product ? productLabel(product) : ''} et donner l'accès ${p} jusqu'au ${fr(end)} inclus.`
+      };
+      modalState.sentence = sentences[op];
+      modalState.confirm = ['CORRECT_PRODUCT', 'SHORTEN', 'END'].includes(op);
+      text.textContent = sentences[op];
+      submit.textContent = modalState.confirm ? 'Continuer' : 'Enregistrer';
     }
 
     function closeModal(id) {
@@ -963,75 +1046,19 @@
 
     function saveAccess(event) {
       event.preventDefault();
-      const user = users.find(u => u.id === selectedUserId) || users[0];
-      const newProduct = document.getElementById('accessType').value;
-      const newStart = document.getElementById('startDate').value;
-      const newEnd = document.getElementById('endDate').value;
-      const reason = document.getElementById('reason').value.trim();
-      if (!newEnd || !reason) return;
-      if (newEnd < newStart) {
-        showToast('Dates invalides', 'La date de fin doit être postérieure à la date de début.');
-        return;
-      }
-
-      const oldAccess = user.access ? { ...user.access } : null;
-      const isProductChange = oldAccess && oldAccess.product !== newProduct;
-      const isReduction = oldAccess && newEnd < oldAccess.endsAt;
-
-      if (isProductChange || isReduction) {
-        closeModal('accessModal');
-        const messages = [];
-        if (isProductChange) messages.push(`remplacer l’accès ${oldAccess.product} par ${newProduct}`);
-        if (isReduction) messages.push(`réduire la date de fin du ${formatDate(oldAccess.endsAt)} au ${formatDate(newEnd)}`);
-        openConfirm(
-          'Confirmer la modification',
-          `Vous allez ${messages.join(' et ')} pour ${user.name}. L’effet sera immédiat.`,
-          () => commitAccess(user, newProduct, newStart, newEnd, reason, oldAccess)
-        );
+      if (!modalState || !modalState.sentence) return;
+      closeModal('accessModal');
+      if (modalState.confirm) {
+        document.getElementById('confirmText').textContent = modalState.sentence;
+        document.getElementById('confirmModal').classList.add('open');
       } else {
-        closeModal('accessModal');
-        commitAccess(user, newProduct, newStart, newEnd, reason, oldAccess);
+        commitAccess();
       }
     }
 
-    function commitAccess(user, product, start, end, reason, oldAccess) {
-      user.access = { product, startsAt: start, endsAt: end, status: end < todayISO ? 'expired' : 'active', origin: 'Admin' };
-      const title = oldAccess ? `${oldAccess.product} → ${product}` : `Accès ${product} accordé`;
-      user.logs.unshift({
-        date: '30/09/2026 · 16:21',
-        title,
-        text: `${formatDate(start)} → ${formatDate(end)} · ${reason}`,
-        type: oldAccess && oldAccess.product !== product ? 'red' : 'normal'
-      });
-      renderDetail();
-      applyFilters();
+    function commitAccess() {
       closeModal('confirmModal');
-      showToast('Accès mis à jour', `${user.name} dispose maintenant de l’accès ${product} jusqu’au ${formatDate(end)}.`);
-    }
-
-    function confirmTerminate() {
-      const user = users.find(u => u.id === selectedUserId);
-      if (!user?.access) return;
-      openConfirm(
-        'Terminer l’accès',
-        `${user.name} perdra immédiatement son accès ${user.access.product}. L’achat d’origine restera inchangé dans l’historique commercial.`,
-        () => {
-          const old = { ...user.access };
-          user.access = null;
-          user.logs.unshift({ date: '30/09/2026 · 16:21', title: `Accès ${old.product} terminé`, text: 'Action Admin · fin manuelle de l’accès', type: 'red' });
-          renderDetail();
-          applyFilters();
-          closeModal('confirmModal');
-          showToast('Accès terminé', `L’accès ${old.product} de ${user.name} a été retiré.`);
-        }
-      );
-    }
-
-    function openConfirm(title, text, callback) {
-      document.getElementById('confirmTitle').textContent = title;
-      document.getElementById('confirmText').textContent = text;
-      document.getElementById('confirmAction').onclick = callback;
-      document.getElementById('confirmModal').classList.add('open');
+      showToast(`${OP_LABEL[modalState.op]} : action enregistrée.`, "Maquette : l'écran réel recharge la fiche et la liste depuis le serveur.");
     }
 
     let toastTimer;
