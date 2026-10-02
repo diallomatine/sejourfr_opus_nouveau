@@ -547,9 +547,32 @@ décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
   décision). Un Intégral payé ⇒ aucun crédit. Un GRANT (geste) ne retire jamais le crédit d'un
   Civique payé ; après Corriger Civique → Intégral ou Terminer, plus de crédit ; un REVOKE
   programmé (Raccourcir) arrête les jours crédités à son début.
-- **Quota EO temps réel** : porté par l'achat Intégral qui compte. Un achat révoqué ne laisse
-  plus consommer ; un GRANT Intégral SANS achat Intégral couvrant n'a pas de solde — point
-  ouvert, « Bloquant » du fichier de décisions.
+- 🛑 **Quota EO temps réel : deux SOURCES, une seule AUTORITÉ** (V084, B-1 résolu en MVP le
+  2026-10-02, D-40 → D-49). `service/realtime/RealtimeQuotaService.evaluer` est la seule règle :
+  affichage (`/api/realtime/eo/quota`, `subscription-status`), démarrage, débit et fiche admin.
+  1. **Sessions offertes par l'admin** : le GRANT INTEGRAL applicable maintenant
+     (`access_overrides.realtime_eo_sessions_granted` / `_remaining`) — choisies dans la modale
+     (Donner Intégral, Réactiver Intégral, Corriger Civique → Intégral ; 0 par défaut, 0..50,
+     `sejourfr.realtime.admin-grant-max-sessions`). Consommées **en premier**.
+  2. **Sessions achetées** : l'achat Intégral qui porte l'accès effectif
+     (`user_subscriptions.realtime_eo_sessions_remaining`). Consommées ensuite.
+  - Le mobile reçoit la même forme : `remaining` = somme des soldes, `cap` = somme des
+    allocations (un GRANT épuisé garde `cap > 0` : pas de paywall). Sans décision, valeurs
+    identiques à avant (`AccesEffectifNonRegressionIT`).
+  - **Jamais de transfert** entre les deux : un rachat ne reporte que le solde de l'achat ; une
+    prolongation admin d'un Intégral ACHETÉ laisse ses sessions à l'achat (utilisables jusqu'à
+    sa fin) ; un GRANT ne reçoit des sessions que si l'admin les saisit.
+  - Le solde d'un GRANT **suit la lignée** (Prolonger 4 → 4 ; Donner +10 sur 4 → 14 ; Raccourcir
+    le garde jusqu'à la nouvelle fin) et il est **perdu** à la fin du GRANT (expiration,
+    Terminer, Corriger vers Civique) — annoncé dans l'aperçu.
+  - Débit : à la connexion (`PENDING → ACTIVE`), une fois par session, sur le porteur réservé
+    au démarrage ; `realtime_sessions.access_override_id` trace la ligne de GRANT débitée (et,
+    par `operation_id`, l'action admin), sous le même verrou de compte que les actions admin.
+  - 🛑 **Remboursement total d'un achat** : l'achat et son quota sortent ; un GRANT indépendant
+    et ses sessions restent intacts — un webhook ne lit ni n'écrit jamais une décision admin
+    (`RemboursementEtGrantIT` Stripe / Apple / Google, `QuotaEoAutoriteUniqueTest`). Un
+    remboursement **partiel** laisse l'achat et son quota (comportement inchangé).
+  - Ledger unique de quota : **REPORTÉ** (`docs/admin/proposition-ledger-quota-eo.md`).
 - **Emails** (G-6, D-32) : un compte n'est écarté d'un scénario Premium fondé sur les achats que
   si une décision admin change son accès effectif par rapport aux seuls achats, maintenant ou
   d'ici la date annoncée (`AccesEffectifResolver.decisionsChangentLAcces`, appelé par

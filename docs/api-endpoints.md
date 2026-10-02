@@ -804,7 +804,9 @@ le client ouvre lui-même le WebSocket du fournisseur sur l'endpoint **contraint
 — il ne peut donc poser **aucun** champ de setup. Tous ces endpoints sont
 **authentifiés**.
 
-- `GET /api/realtime/eo/quota` → `{remaining, cap}`.
+- `GET /api/realtime/eo/quota` → `{remaining, cap}` — sommes des deux sources (sessions offertes
+  par un GRANT INTEGRAL admin, puis sessions de l'achat Intégral ; V084), calculées par
+  `RealtimeQuotaService.evaluer`. Forme inchangée ; sans décision admin, valeurs d'avant.
 - `POST /api/realtime/eo/sessions` → `RealtimeSessionDescriptor`. `mode=REALTIME`
   (token + endpoint WS) ou `ASYNC_FALLBACK` (quota épuisé, pass non éligible,
   temps réel non configuré, mint en échec) — le candidat n'est jamais bloqué.
@@ -1077,16 +1079,22 @@ recalcule rien.
   admin, sinon jour Paris de la fin d'achat ; pour un produit RÉVOQUÉ, jour Paris de la fin de
   l'achat révoqué — `DateMetierParis.finProposee`, D-22 / D-34), `origin`
   `PURCHASE_STRIPE|PURCHASE_APPLE|PURCHASE_GOOGLE|ADMIN_GRANT|ADMIN_REVOKE` + label,
-  `alerts[] {code, label}`, `availableOperations[] {code, label}`), `purchases[]`
+  `alerts[] {code, label}`, `availableOperations[] {code, label}`, `realtimeEoSessions` —
+  carte INTEGRAL seulement, `null` pour CIVIQUE : `{remaining, grantGranted, grantRemaining,
+  purchaseRemaining, scheduledGrantGranted, label, info}`, servis par l'autorité du quota ; `info`
+  = « Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel. » quand l'accès manuel
+  affiché n'en offre aucune), `purchases[]`
   (`externalReference` : identifiant d'origine, entier sauf purchaseToken Google tronqué ;
   `recurring`), `progression[]` (TCF puis Civique :
   diagnostic clos + date, cycle en cours, cycles historisés — lecture en tables, jamais
   `JourneyService.lire()`), `history[]` (une entrée par action, `changes[]` en phrases),
   `accessVersion`. Inconnu ⇒ 404.
 - `GET /api/admin/access-products` → `AdminAccessProductDto[]` : `CIVIQUE` (Civique) puis
-  `INTEGRAL` (TCF + Civique). Pas de produit « TCF » seul.
+  `INTEGRAL` (TCF + Civique). Pas de produit « TCF » seul. `maxRealtimeEoSessions` : plafond des
+  sessions EO offertes par action (INTEGRAL : 50 par défaut, config ; CIVIQUE : `null`).
 - `POST /api/admin/users/{userId}/access-operations` `AdminAccessOperationRequest`
-  `{operation, product, fromProduct?, startDate?, endDateInclusive?, reason, dryRun, expectedVersion?}`
+  `{operation, product, fromProduct?, startDate?, endDateInclusive?, reason, dryRun, expectedVersion?,
+  realtimeEoSessions?}`
   → `AdminAccessOperationResponse {dryRun, operationId, operation, preview,
   confirmationRequired, changes[], effectiveAccess, accesses[], accessVersion}`.
   - `operation` : `GRANT` · `EXTEND` · `SHORTEN` · `END` · `REACTIVATE` · `CORRECT_PRODUCT`
@@ -1095,12 +1103,24 @@ recalcule rien.
     début « aujourd'hui » = maintenant, futur = 00:00 Paris.
   - `dryRun: true` : aperçu + état résultant, rien n'est écrit. `dryRun: false` exige
     `expectedVersion` (= `accessVersion` de la fiche).
+  - `realtimeEoSessions` (V084, absent = 0) : sessions EO temps réel offertes ; > 0 accepté
+    seulement pour `GRANT` / `REACTIVATE` INTEGRAL et `CORRECT_PRODUCT` vers INTEGRAL, au plus
+    `maxRealtimeEoSessions`. Sur un GRANT INTEGRAL actif, elles **s'ajoutent** à son solde (pas
+    de 409).
+  - `preview` annonce le devenir des sessions EO : « Cet accès manuel offre N sessions… »,
+    « Sessions EO temps réel : 4 sessions restantes + 10 offertes → 14 sessions disponibles. »,
+    « Les N sessions … restantes de l'accès manuel sont conservées. » / « … seront perdues. »,
+    la phrase d'information quand l'accès manuel posé n'en offre aucune, et pour Prolonger un
+    Intégral acheté « Les N sessions EO temps réel de l'achat restent utilisables jusqu'au … ».
+    `changes[]` ajoute « Intégral — sessions EO temps réel : 4 → 14 ».
   - `preview` (phrase serveur) : quand un GRANT posé par l'action laisse, à sa fin, un achat du
     même produit révoqué, la phrase se termine par « Attention : l'achat X révoqué ne sera pas
     rétabli. À partir du JJ/MM/AAAA, l'accès X sera de nouveau fermé. » (D-34).
   - 400 : motif hors 3–500 caractères, produit `NONE`/inconnu, fin manquante ou passée, fin <
     début, début passé, `fromProduct` manquant ou égal, sens de date incohérent
-    (Prolonger vers plus tôt, Raccourcir vers plus tard), `expectedVersion` absent à l'écriture.
+    (Prolonger vers plus tôt, Raccourcir vers plus tard), `expectedVersion` absent à l'écriture,
+    `realtimeEoSessions` négatif, au-delà du plafond, ou > 0 hors des trois opérations qui créent
+    un GRANT INTEGRAL.
   - 409 : état changé depuis la lecture (`expectedVersion` périmé), précondition
     (Prolonger/Raccourcir un accès non actif, Réactiver un accès non expiré/révoqué, Corriger un
     produit inactif, Terminer sans accès), « Terminer Civique » isolé sous un Intégral actif.

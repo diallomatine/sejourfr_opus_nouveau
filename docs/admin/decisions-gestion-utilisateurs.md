@@ -8,7 +8,21 @@
 
 ## Bloquant — décision requise
 
+Aucun. B-1 est résolu en MVP (V084, 2026-10-02) — texte d'origine conservé ci-dessous.
+
+## Résolu
+
 ### B-1 — Simulations orales temps réel d'un Intégral ACCORDÉ sans achat Intégral (GO §7)
+
+> **Résolu en MVP le 2026-10-02** (arbitrages n°3 et n°4 du propriétaire, « B-1 modifié ») :
+> ni l'option 2 ni l'option 3 telles quelles. L'admin choisit le nombre de sessions EO temps réel
+> offertes quand il crée un GRANT INTEGRAL ; le solde vit sur la décision
+> (`access_overrides.realtime_eo_sessions_granted` / `_remaining`, V084) et
+> `realtime_sessions.access_override_id` trace le débit. Il y a deux lieux de stockage mais **une
+> seule règle** (`RealtimeQuotaService.evaluer`) et **un seul point de débit**
+> (`RealtimeQuotaService.debiter`) — verrouillé par `QuotaEoAutoriteUniqueTest`. Voir **D-40 →
+> D-49**. Le **ledger** (option 2) reste **REPORTÉ** : `proposition-ledger-quota-eo.md`. Le texte
+> ci-dessous est celui d'origine, conservé tel quel.
 
 - **Constat vérifié dans le code** : un achat Intégral reçoit `plans.realtime_eo_sessions`
   sessions (5 pour 7 j, 15 pour 1 mois, 25 pour 2 mois ; Civique 0), posées sur **sa ligne**
@@ -48,6 +62,11 @@ les achats, change un prix Stripe), **D-32** (emails : exclusion seulement si un
 l'accès), **D-30** (vocabulaire achat / droit), **D-34** (Réactiver un achat révoqué), **D-33**
 (identifiants de paiement entiers dans l'admin). D-02, D-05, D-07, D-09 et D-12 sont **révisées** ;
 leur texte d'origine est conservé tel quel ci-dessous.
+
+Sessions EO temps réel du GRANT INTEGRAL (B-1 résolu, V084), à relire d'abord : **D-40** (schéma
+V084), **D-41** (une seule règle de quota ; valeurs — pas la forme — lues par le mobile qui
+changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, perte), **D-48**
+(remboursements). D-08 est **révisée** par D-41.
 
 ---
 
@@ -169,6 +188,9 @@ leur texte d'origine est conservé tel quel ci-dessous.
 - **Réversibilité** : facile (lire `currentPurchase` dans la proration).
 
 ### D-08 — Quota EO temps réel sur l'achat qui compte de l'accès effectif
+
+> **Révisée par D-41** (2026-10-02, V084) : le quota lit d'abord le GRANT INTEGRAL admin, puis
+> l'achat qui compte ; un GRANT Intégral nu n'est plus à 0 session si l'admin en a offert.
 
 - **Contexte** : GO §7 ; voir **B-1**.
 - **Options envisagées** : voir B-1.
@@ -631,12 +653,213 @@ leur texte d'origine est conservé tel quel ci-dessous.
 - Mobile : tableau → cartes empilées (`cardTable`), bouton « Ouvrir la fiche » pleine largeur ;
   modale pleine largeur, boutons empilés ; toasts pleine largeur.
 
+## Sessions EO temps réel du GRANT INTEGRAL (B-1 modifié, V084, 2026-10-02)
+
+> Arbitrages n°3 (« B-1 modifié ») et n°4 (« reco partout », avec précisions) du propriétaire ;
+> schéma validé avant écriture. Lignes rouges tenues : `user_subscriptions` et les écritures des
+> webhooks non touchées, aucune forme de DTO lu par le mobile modifiée, migration additive, pas de
+> reprise de données, pas de ledger. Règle résultante : `docs/regles/paiements.md` § « Quota EO
+> temps réel : deux SOURCES, une seule AUTORITÉ ».
+
+### D-40 — Schéma V084 : deux colonnes sur la décision, un porteur sur la session
+
+- **Contexte** : arbitrage n°3 (« colonne du type `realtime_eo_sessions_remaining` »), point ouvert
+  n°2 du schéma ; validé par l'arbitrage n°4 §1.
+- **Options envisagées** : (a) une seule colonne de solde (un GRANT épuisé rend `cap = 0` ⇒ le
+  mobile ouvre le paywall, `realtime_launch_sheet.dart:48`) ; (b) `granted` (allocation, pendant de
+  `plans.realtime_eo_sessions`) + `remaining` ; (c) ledger (reporté).
+- **Choix retenu** : (b). `V084__sessions_eo_acces_admin.sql` : `access_overrides.
+  realtime_eo_sessions_granted` / `_remaining` (`INT NOT NULL DEFAULT 0`, métadonnée seule) +
+  4 CHECK (positifs ; `remaining <= granted` ; sessions seulement sur GRANT INTEGRAL ; ligne
+  remplacée ⇒ `remaining = 0`) ; `realtime_sessions.access_override_id` (FK `ON DELETE SET NULL`
+  pour la purge G-8) + CHECK « un seul porteur » + index partiel. Aucun UPDATE ni INSERT. Le
+  plafond (50) vit en configuration (`sejourfr.realtime.admin-grant-max-sessions` ⇄
+  `RealtimeProperties`), pas en base : un cumul peut légitimement le dépasser.
+- **Impact** : entités `AccessOverride`, `RealtimeSession`. Tests : `AccesAdminSchemaIT` (8 cas
+  V084), `AccountDeletionServiceIT.deleteAccount_purgesAdminAccessDecisionsAndJournal` (purge avec
+  une session débitée sur un GRANT).
+- **Réversibilité** : moyenne — colonnes laissées à 0 si on revient en arrière ; une migration
+  additive les rendrait inertes, aucune donnée existante n'a été touchée.
+
+### D-41 — Une seule règle : `RealtimeQuotaService.evaluer` (révise D-08)
+
+- **Contexte** : arbitrage n°3 (« RealtimeQuotaService reste l'UNIQUE autorité »), n°4 §5
+  (priorité GRANT puis achat).
+- **Options envisagées** : (a) deux calculs (GRANT côté admin, achat côté candidat) ; (b) une
+  méthode pure qui choisit les deux porteurs en réutilisant `AccesEffectifResolver`.
+- **Choix retenu** : (b). `evaluer(DonneesAcces, t)` : GRANT = `decisionApplicable(INTEGRAL)` de
+  type GRANT ; achat = `achatRepresentatif` (inchangé). `remaining` = somme des soldes, `cap` =
+  somme des allocations ; `grantPorteur()` puis `achatPorteur()`. `evaluate(userId)` charge par
+  `SubscriptionService.charger` (même coût qu'avant : deux requêtes). Fiche admin :
+  `vueAdmin(d, t)` sur la même règle. `QuotaEoAutoriteUniqueTest` interdit tout autre lecteur du
+  solde d'une décision et tout autre appelant des débits.
+- **Impact** : 🛑 **DTO lus par le mobile et le web : forme inchangée, VALEURS modifiées** pour
+  un compte sous GRANT INTEGRAL avec N > 0 : `/api/realtime/eo/quota` `{remaining, cap}`,
+  `SubscriptionStatusResponse.realtimeSessionsRemaining` (servi dès `cap > 0`),
+  `RealtimeSessionDescriptor.sessionsRemaining`, `RealtimeSessionStateResponse.sessionsRemaining`.
+  Sans décision : identiques (`AccesEffectifNonRegressionIT.sansDecisionReponsesIdentiques`
+  compare aussi le quota au calcul d'avant ; `grantAvecSessionsFormeInchangee`). **Mobile : 0
+  fichier, web : 0 fichier** — le déploiement est à annoncer comme D-04. Tests :
+  `RealtimeQuotaServiceTest` (priorité, sommes, cap d'un GRANT épuisé, GRANT sans session,
+  GRANT expiré / programmé, achat remboursé, lignée 4 → 4, cumul, fin ⇒ perdu).
+- **Réversibilité** : facile — `evaluer` redevient « achat seul ».
+
+### D-42 — Débit : porteur réservé au démarrage, relu et débité sous le verrou du compte
+
+- **Contexte** : arbitrage n°3 (« traçable, impossible à débiter deux fois ») ; l'action admin
+  réécrit l'entité entière à la supersession (`saveAndFlush`, sans `@DynamicUpdate`).
+- **Options envisagées** : (a) débiter la ligne réservée au démarrage ; (b) relire le GRANT
+  applicable sous le verrou consultatif `access-override:<userId>` (celui des actions admin) puis
+  `UPDATE … WHERE id = :id AND superseded_at IS NULL AND remaining > 0` ; (c) en cas d'échec,
+  basculer sur l'achat.
+- **Choix retenu** : (b), sans (c). Au démarrage, `RealtimeSessionService.start` pose
+  `subscription_id` **ou** `access_override_id` (jamais les deux). À la transition
+  `PENDING → ACTIVE` (déjà unique : verrou de ligne + garde), `RealtimeSessionService` appelle
+  `RealtimeQuotaService.debiter(session)` et ne dépend plus de `UserSubscriptionManager`. Achat :
+  même SQL qu'avant. GRANT : la ligne réellement débitée est réécrite sur la session (une
+  prolongation a pu déplacer le solde), `null` si aucun débit (course perdue, GRANT terminé) — la
+  session continue sans débit, comme un achat à 0. Pas de bascule vers l'achat : course de
+  quelques secondes, et une session n'a qu'un porteur. Ordre des verrous : ligne de session puis
+  compte ; l'admin ne prend que le compte ⇒ pas d'interblocage.
+- **Impact** : `RealtimeSessionService`, `RealtimeQuotaService`, `AccessOverrideManager` /
+  `AccessOverrideRepository.decrementRealtimeSessions`. Traçabilité : `access_override_id` →
+  `operation_id` → `admin_access_operations`. Tests : `RealtimeGrantQuotaIT` (vraies transactions :
+  `debitIdempotentEtTrace`, `deuxConnexionsConcurrentesUnSeulDebit`, `debitPendantUnProlonger`,
+  `grantTermineAvantConnexion`), `RealtimeSessionServiceTest`
+  (`start_reserve_le_grant_admin_d_abord_un_seul_porteur`, `start_grant_epuise_reserve_l_achat`,
+  `appendTranscript_session_portee_par_un_grant_rejeu_ne_debite_qu_une_fois`),
+  `RealtimeQuotaServiceTest` (débit achat inchangé, ordre verrou → relecture → débit, GRANT
+  disparu).
+- **Réversibilité** : facile.
+
+### D-43 — Le solde suit la lignée ; cumul « 4 + 10 → 14 » ; perdu à la fin
+
+- **Contexte** : arbitrage n°3 (prolongation sans perte, fin ⇒ perdu), n°4 §2 (cumul, `granted`
+  cohérent, pas de 409), §6.
+- **Options envisagées** pour l'allocation de la nouvelle décision lors d'un cumul : (a)
+  `granted = P.remaining + N` (14 sur 14) ; (b) `granted = P.granted + N` (total offert sur la
+  lignée). Pour un GRANT FUTUR tronqué : (c) solde perdu ; (d) solde reporté sur sa propre tête.
+- **Choix retenu** : (b) et (d). Dans `AccessOverridePlanner` (pur, même plan pour l'aperçu et
+  l'écriture) : nouvelle décision GRANT INTEGRAL ⇒ `granted = remaining = N` ; copie ⇒ `granted`
+  de la source, `remaining = 0` ; le solde du GRANT INTEGRAL remplacé qui couvre MAINTENANT passe
+  sur le GRANT INTEGRAL inséré qui couvre maintenant (si c'est une nouvelle décision, son
+  `granted` reçoit aussi celui de l'ancien : « Conserver le nombre initialement offert », §1, et
+  `remaining <= granted` tient) ; celui d'un GRANT futur remplacé passe sur sa tête ; sinon il est
+  **perdu** et le plan le compte (`SessionsEo.perdues`). À l'écriture seulement
+  (`AdminAccessOperationService`), chaque ligne remplacée reçoit `remaining = 0` avec
+  `superseded_at` — jamais dans le planner (entités gérées, un aperçu serait flushé). Résultats :
+  Prolonger 4 → 4 ; Donner +10 sur 4 → 14 (sur 10 + 10 offertes) ; Raccourcir garde le solde
+  jusqu'à la nouvelle fin ; Donner programmé : la tête garde le solde jusqu'au début, le futur a
+  son N ; Terminer / Corriger vers Civique / Terminer un GRANT programmé ⇒ perdu ; fin naturelle
+  ⇒ inutilisable (jamais transféré).
+- **Impact** : `AccessOverridePlanner` (`Decision.sessionsEo`, `Plan.sessionsEo`). Tests :
+  `AccessOverridePlannerTest` (9 cas « Sessions — … »), `RealtimeGrantQuotaIT.prolongerDeBoutEnBout`.
+- **Réversibilité** : facile — (a) est une ligne du planner.
+
+### D-44 — `realtimeEoSessions` : 400 plutôt qu'ignoré, plafond configurable
+
+- **Contexte** : arbitrage n°3 (« ≥ 0 + plafond de sécurité »), n°4 §1 (50 pour le MVP).
+- **Options envisagées** : (a) ignorer la valeur hors des opérations concernées ; (b) 400.
+- **Choix retenu** : (b) — un admin ne doit jamais croire avoir offert des sessions qui n'existent
+  pas. Absent ou 0 ⇒ accepté partout. > 0 seulement pour `GRANT`/`REACTIVATE` INTEGRAL et
+  `CORRECT_PRODUCT` vers INTEGRAL (message : « Les sessions EO temps réel ne s'offrent qu'en
+  donnant, réactivant ou corrigeant vers un accès Intégral. »). Négatif ⇒ 400 (`@PositiveOrZero`
+  côté HTTP, contrôle répété dans le service) ; > `admin-grant-max-sessions` (50) ⇒ 400. Le
+  plafond porte sur le nombre DEMANDÉ par action, pas sur le solde cumulé. Pas de 409 quand un
+  GRANT INTEGRAL est déjà actif (cumul, D-43).
+- **Impact** : `AdminAccessOperationRequest`, `AdminAccessOperationService.sessionsEoOffertes`,
+  `RealtimeProperties`, `application.yaml`. Tests : `AdminAccessOperationServiceTest.sessionsEo400`,
+  `sessionsEoPlafondConfigurable`, `AdminUserControllerIT.sessionsEo400`.
+- **Réversibilité** : facile.
+
+### D-45 — Fiche admin : un bloc servi, le front n'additionne rien
+
+- **Contexte** : mission (« sessions offertes / restantes du GRANT et sessions de l'achat servies
+  séparément ») ; arbitrage n°3 (phrase quand 0).
+- **Choix retenu** : `AdminUserAccessDto.realtimeEoSessions` (`AdminRealtimeEoSessionsDto`, carte
+  INTEGRAL seulement, `null` pour CIVIQUE) : `remaining` (total), `grantGranted` /
+  `grantRemaining` (`null` sans GRANT applicable), `purchaseRemaining` (`null` sans achat qui
+  compte), `scheduledGrantGranted` (GRANT INTEGRAL programmé, `null` sinon), `label`
+  (« 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 »), `info` (« Cet accès
+  manuel n'ajoute pas actuellement de sessions EO temps réel. » quand l'accès manuel affiché — le
+  GRANT applicable, sinon le prochain programmé — a `granted = 0`). `AdminAccessProductDto.
+  maxRealtimeEoSessions` (50 pour INTEGRAL, `null` pour CIVIQUE) : la modale affiche le champ
+  pour ce produit et les trois opérations seulement. Le mapper ne lit aucune colonne : il formate
+  `RealtimeQuotaService.VueAdmin`.
+- **Impact** : DTO **admin** seulement ; miroir `admin_sejourfr/src/types/api.ts` (`tsc` OK) ; la
+  modale et la carte restent à faire (finalisation du front). Tests :
+  `AdminAccessOperationServiceTest.ficheSessions`, `AdminUserControllerIT.sessionsEoFicheEtProduits`.
+- **Réversibilité** : facile.
+
+### D-46 — Aperçu : le devenir des sessions, dit par le serveur
+
+- **Contexte** : arbitrage n°4 §2 (phrase du cumul imposée), §3, §6 ; schéma point ouvert n°3.
+- **Choix retenu** : la phrase `preview` (chaîne, forme inchangée) ajoute, après la phrase de
+  l'action : « Cet accès manuel offre N sessions EO temps réel. » ; « Sessions EO temps réel :
+  4 sessions restantes + 10 offertes → 14 sessions disponibles. » (cumul sur la nouvelle
+  décision) ; « Les N sessions EO temps réel restantes de l'accès manuel sont conservées. »
+  (Prolonger, Raccourcir, Donner programmé) ; « … seront perdues. » (Terminer, Corriger vers
+  Civique ; insérée avant « Continuer ? ») ; la phrase d'information quand le GRANT INTEGRAL posé
+  n'offre rien (y compris Prolonger un Intégral acheté) ; et, pour Prolonger un Intégral acheté,
+  « Les N sessions EO temps réel de l'achat restent utilisables jusqu'au … » (§3 : aucun
+  transfert achat → GRANT). Accord au singulier pour 0 et 1.
+- **Impact** : `AdminUserMapper.preview` / `ApercuSessions`. Tests :
+  `AdminAccessOperationServiceTest.apercuCumul`, `apercusSessions`,
+  `prolongerAchatGardeSesSessions`, `dryRunNEcritRien` (mis à jour : phrase d'information),
+  `AdminUserControllerIT.sessionsEoCumul`.
+- **Réversibilité** : facile.
+
+### D-47 — Historique : le total de sessions dans la photo du journal
+
+- **Contexte** : schéma §6 (« Sessions EO : 4 → 14 »).
+- **Choix retenu** : la photo `before_state` / `after_state` de la carte INTEGRAL porte
+  `realtimeEoSessions` (total consommable, contenu JSONB, pas de schéma) ; `changes` ajoute
+  « Intégral — sessions EO temps réel : 4 → 14 » quand il change. Une entrée d'avant V084 n'a pas
+  la clé : rien n'est comparé (pas de fausse ligne).
+- **Impact** : `AdminUserMapper.snapshot` / `changes`. Tests : `AdminUserControllerIT.
+  sessionsEoTroisOperations` (historique + photo en base), `AdminAccessOperationServiceTest.apercuCumul`.
+- **Réversibilité** : facile.
+
+### D-48 — Remboursements : vrais traitements, seules les vérifications de signature simulées
+
+- **Contexte** : arbitrage n°4 §4 (tests OBLIGATOIRES), mission (« pas d'écriture SQL directe »).
+- **Options envisagées** : (a) simuler le remboursement par écriture de la ligne (comme
+  `OverrideEtAchatsIT.cas11`) ; (b) passer par `StripeSubscriptionService.dispatch`
+  (`charge.refunded`), `AppleSubscriptionService.handleNotification` (`REFUND`, vérification JWS
+  simulée par `@MockitoBean AppleStoreClient`) et `GoogleSubscriptionService.handleNotification`
+  (`voidedPurchaseNotification`, jeton Pub/Sub simulé par `@MockitoBean GoogleStoreClient`).
+- **Choix retenu** : (b), `RemboursementEtGrantIT` : pour chaque fournisseur, achat Intégral
+  (7 sessions) + GRANT INTEGRAL indépendant (5) ⇒ après remboursement total : quota = 5 (achat
+  plus « qui compte »), décisions et journal identiques colonne par colonne, rejeu sans aucune
+  écriture (achat, `payment_refunds`, décisions, journal), connexion suivante débitée sur le
+  GRANT. Variantes : total sans GRANT (Stripe, Apple, Google : `cap = 0`) ; partiel (Stripe,
+  Apple — Google n'a pas de partiel pour un pass) : l'achat et ses 7 sessions restent. Filet
+  structurel : `QuotaEoAutoriteUniqueTest.paiementsSansDecisionAdmin` (aucun service ni contrôleur
+  de paiement ne référence une décision admin, `CreditProration` exceptée, D-31). Fin d'un GRANT
+  ⇒ achat intact : `RealtimeGrantQuotaIT.finDuGrantNeModifieJamaisLAchat` ; rachat pendant un
+  GRANT ⇒ report du seul achat : `OverrideEtAchatsIT.rachatPendantGrantNeReporteQueLAchat`.
+- **Impact** : tests seulement ; aucun code de paiement modifié.
+- **Réversibilité** : sans objet.
+
+### D-49 — `accessVersion` ne hache pas le solde
+
+- **Contexte** : G-11 (D-11), débit concurrent d'une modale ouverte.
+- **Options envisagées** : (a) inclure le solde dans l'empreinte ; (b) non.
+- **Choix retenu** : (b). Un débit ne change aucun identifiant de décision : pas de faux 409 si
+  le candidat s'entraîne pendant que la modale est ouverte (le débit d'achat ne le faisait pas
+  non plus). Contrepartie assumée : le solde de l'aperçu peut retarder d'une session ; l'écriture
+  relit sous verrou et reporte le vrai solde, et la réponse de l'action est exacte.
+- **Impact** : `VersionAcces` inchangé. Test : `RealtimeGrantQuotaIT.debitIdempotentEtTrace`.
+- **Réversibilité** : facile.
+
 ## Écarts avec la spec
 
 - Produits `CIVIQUE` / `INTEGRAL` (GO §1) : la correction « Civique → TCF » est « Civique →
   Intégral ». Les modules ouverts sont servis à côté (GO §2) ; la maquette est mise à jour en phase 3.
 - Pas de statut de compte « bloqué » (n'existe pas). Pas de dernière activité par module.
-- Quota EO d'un GRANT Intégral nu : voir B-1.
+- Quota EO d'un GRANT Intégral nu : résolu par V084 (B-1, D-40 → D-49) — sessions saisies par
+  l'admin à la création du GRANT ; pas de « sessions supplémentaires » sur un GRANT existant hors
+  cumul par « Donner » (futur explicite, arbitrage n°3).
 - Phase 3 : pas de filtre « Compte bloqué » (la notion n'existe pas). Pas de bouton générique
   « Modifier l'accès » : chaque carte propose exactement les actions servies (Prolonger,
   Raccourcir, Terminer, Corriger le produit, Donner un accès, Réactiver). « Donner un accès »

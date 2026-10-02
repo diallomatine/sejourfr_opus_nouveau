@@ -248,7 +248,7 @@ postérieures alimentent se numérote APRÈS elles.**
   `V075`/`V076` (Suivi) puis **`V077__journey_fin_de_cycle.sql`** (le geste qui a clos un
   cycle, « Mes cycles ») sont pris, puis **`V078__journey_fin_de_cycle_interrompu.sql`**
   (2026-09-27, D-68 : `INTERROMPU` admis par `chk_journey_fin_de_cycle`, cycle mis de côté par
-  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → V082 (marqueur de réinitialisation au lancement) → **V083** (`access_overrides` + `admin_access_operations` + extension `btree_gist`, 2026-10-02) → **le prochain est `V084`**. Seed dev : `V901`
+  le jalon d'examen complet) → V079 (date d'achat par défaut, 2026-09-27) → V080 (`email_campaign_log`, 2026-09-28) → V081 (`attempt_count`, 2026-09-28) → V082 (marqueur de réinitialisation au lancement) → **V083** (`access_overrides` + `admin_access_operations` + extension `btree_gist`, 2026-10-02) → **V084** (sessions EO temps réel d'un GRANT INTEGRAL : `access_overrides.realtime_eo_sessions_granted/remaining` + `realtime_sessions.access_override_id`, 2026-10-02) → **le prochain est `V085`**. Seed dev : `V901`
   (comptes seed internes) suit `V900`.
   ⚠️ `V059` n'existe pas : trou assumé, `out-of-order: true` le rend sans conséquence.
   ⚠️ **Un backfill de CONTENU seedé ne peut pas vivre en `00_schema`** : l'ordre suit le
