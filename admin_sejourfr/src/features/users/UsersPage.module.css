@@ -49,7 +49,7 @@
 }
 
 .table {
-  min-width: 860px;
+  min-width: 940px;
 }
 
 .row {
@@ -120,6 +120,11 @@
   color: var(--muted);
   font-size: 12.5px;
   white-space: nowrap;
+}
+
+/* Inscription : colonne sur desktop et tablette ; en carte (≤ 720 px), ligne sous l'email. */
+.signupInline {
+  display: none;
 }
 
 .actionCell {
@@ -194,6 +199,15 @@
 
   .table {
     min-width: 0;
+  }
+
+  /* Spécificité au-dessus de `.cardTable.cardTable tbody td` (DataTable). */
+  .table.table tbody td.signupCol {
+    display: none;
+  }
+
+  .signupInline {
+    display: block;
   }
 
   .userCell {

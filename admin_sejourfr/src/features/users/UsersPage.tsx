@@ -14,7 +14,7 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
-import { formatParisDateTime } from "../../lib/dates";
+import { formatParisDate, formatParisDateTime } from "../../lib/dates";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import type { AdminUserFilter } from "../../types/api";
 import { ACCESS_STATUS_TONE } from "./accessTones";
@@ -149,6 +149,7 @@ export function UsersPage() {
                     <th>Produit effectif</th>
                     <th>Prochaine fin</th>
                     <th>Dernière activité</th>
+                    <th className={styles.signupCol}>Inscription</th>
                     <th>
                       <span className="visually-hidden">Ouvrir</span>
                     </th>
@@ -165,6 +166,9 @@ export function UsersPage() {
                               {u.displayName ?? u.email}
                             </Link>
                             {u.displayName && <span className={styles.subLine}>{u.email}</span>}
+                            <span className={`${styles.subLine} ${styles.signupInline}`}>
+                              Inscrit le {formatParisDate(u.createdAt)}
+                            </span>
                             {u.accountStatus !== "ACTIVE" && (
                               <span className={styles.accountTag}>
                                 <Tag tone="danger">Compte {u.accountStatusLabel.toLowerCase()}</Tag>
@@ -200,6 +204,9 @@ export function UsersPage() {
                       </td>
                       <td data-label="Dernière activité" className={styles.muted}>
                         {formatParisDateTime(u.lastActivityAt)}
+                      </td>
+                      <td data-label="Inscription" className={`${styles.muted} ${styles.signupCol}`}>
+                        {formatParisDate(u.createdAt)}
                       </td>
                       <td className={styles.actionCell}>
                         <Link
