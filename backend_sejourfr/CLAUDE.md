@@ -195,6 +195,7 @@ main. Un libellé qui bouge, ce sont quatre fichiers dans la même passe.
 | une soumission orale, Whisper, R2 | `docs/regles/audio-productions.md` |
 | l'analytics, le funnel, un rate-limit par IP | `docs/regles/mesure-audience.md` |
 | `user_subscriptions`, un webhook store, un plan | `docs/regles/paiements.md` |
+| l'accès effectif (achats + décisions admin `access_overrides`, `AccesEffectifResolver`), la console admin « Utilisateurs » | `docs/regles/paiements.md` § « Accès effectif », `docs/admin/decisions-gestion-utilisateurs.md` |
 | un email, un gabarit, `email_deliveries`, le désabonnement, le scheduler d'engagement | `docs/regles/emails.md` |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
 

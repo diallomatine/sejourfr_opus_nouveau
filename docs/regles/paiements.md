@@ -501,3 +501,47 @@ la décomposition de l'achat est inconnue.
 - **V079** : les souscriptions antérieures à la mesure (sans `purchased_at`) ont reçu
   `updated_at` comme date d'achat par défaut (décision du propriétaire), pour entrer
   dans le filtre « Achats du mois » de l'admin. Leurs champs de revenu restent NULL.
+
+## Accès effectif = achats + décisions admin (V083, 2026-10-02)
+
+Spec : `docs/admin/spec-admin-utilisateurs-v2.md` · GO propriétaire du 2026-10-02 ·
+décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
+
+- 🛑 **Achat ≠ accès.** `user_subscriptions` reste l'historique commercial **immuable** (Stripe,
+  Apple, Google) : aucune colonne ajoutée, aucun webhook modifié. Une correction admin vit dans
+  `access_overrides` (décisions `GRANT` / `REVOKE` sur `[starts_at, ends_at)`, produit
+  `CIVIQUE` ou `INTEGRAL` — jamais un « TCF » seul) et chaque action dans
+  `admin_access_operations` (journal : admin lu du contexte de sécurité, motif 3–500,
+  photo avant/après, un `operation_id` par action).
+- **Une autorité** : `SubscriptionService` charge achats + décisions courantes et applique
+  `service/access/AccesEffectifResolver` (pur). Tous les verrous (`hasCivique`/`hasTcf`),
+  `/me`, `subscription-status`, `verify-receipt` (même construction :
+  `SubscriptionStatusService`), le quota EO temps réel, la proration Stripe et la base de
+  prolongation d'un pass passent par elle. Personne ne recopie la règle ; l'admin la lit,
+  ne la recalcule pas.
+- **Règle à l'instant t, par produit** : la décision courante dont la fenêtre couvre t (au plus
+  une : contrainte d'EXCLUSION gist) — `GRANT` ⇒ ouvert ; `REVOKE` ⇒ ouvert seulement par un
+  achat **postérieur à la décision** (`purchased_at` > `decided_at`) ; aucune ⇒ achat couvrant
+  (`covers`). Une décision future n'a aucun effet avant son début. INTEGRAL ouvre Civique + TCF.
+- **Sans décision admin, tout est identique à avant** (verrouillé par
+  `AccesEffectifNonRegressionIT` contre une copie figée du calcul historique).
+- **Ce que voit le mobile** : forme inchangée, aucune valeur nouvelle de `ModuleAccess` ni de
+  `source`. Accès accordé sans achat ⇒ `isPremium`, `moduleAccess` effectif, `expiresAt` = fin
+  effective, `source`/`productId` absents, `ACTIVE`, `oneTime`. L'app ne relit l'accès qu'au
+  démarrage (ou après un achat) : un GRANT s'y voit après relance, un REVOKE est opposé en 403
+  dès l'appel suivant.
+- **Les webhooks n'écrivent jamais une décision.** Le seul flux d'achat qui les LIT est la
+  base de prolongation (G-5) : rachat après REVOKE ⇒ repart de maintenant ; rachat pendant un
+  GRANT ⇒ prolonge depuis la fin du GRANT. Le client reçoit toujours la durée achetée ; la
+  ligne d'achat n'est écrite qu'à sa création, comme avant.
+- **Résilier / supprimer le compte** lisent l'ACHAT (`currentPurchase`) : un REVOKE admin
+  n'empêche jamais de couper un prélèvement récurrent.
+- **Quota EO temps réel** : porté par l'achat Intégral qui compte. Un achat révoqué ne laisse
+  plus consommer ; un GRANT Intégral SANS achat Intégral couvrant n'a pas de solde — point
+  ouvert, « Bloquant » du fichier de décisions.
+- **Emails** (G-6) : un compte qui porte une décision courante est exclu des scénarios Premium
+  fondés sur les achats (`EmailScenarioRepository`).
+- **Suppression de compte** (G-8) : décisions et journal sont purgés avec le reste.
+- Dates : fin admin saisie « jusqu'au JJ/MM inclus » = borne exclusive au lendemain 00:00
+  Europe/Paris (`util/DateMetierParis`, seul convertisseur) ; une fin d'achat reste à l'heure
+  réelle de l'achat et n'est jamais réécrite.

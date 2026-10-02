@@ -303,6 +303,12 @@ deux droits EE/EO nominatifs) est consignée en **D-46** — elle ne vivait jusq
 
 ---
 
+## L'accès lu est l'accès EFFECTIF (V083, 2026-10-02)
+
+`hasCivique` / `hasTcf` ne lisent plus les seuls achats : ils incluent les décisions admin
+(GRANT / REVOKE). Rien ne change pour un compte sans décision. Règle et autorité :
+`docs/regles/paiements.md` § « Accès effectif = achats + décisions admin ».
+
 ## L'accès se lit PAR MODULE, jamais sur `isPremium` (2026-09-20)
 
 🛑 **`user.isPremium` est un AGRÉGAT** — « un pass quelconque est actif ». Il ne dit pas **lequel**.

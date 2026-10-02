@@ -912,6 +912,13 @@ Règle complète : `docs/regles/paiements.md` § « Revenus nets, remboursements
 d'achat ». Seuls les ajouts du lot 2b sont décrits ici ; les autres routes billing
 (`/plans`, `/subscription-status`, `/cancel`, webhooks) sont inchangées.
 
+🛑 Depuis V083 (2026-10-02), `/subscription-status` et la réponse de `/verify-receipt` sont
+construites par **un seul** service (`SubscriptionStatusService`) sur l'**accès effectif**
+(achats + décisions admin) — le même que `/api/auth/me`. Forme inchangée, aucune valeur
+nouvelle ; sans décision admin, la réponse est identique à avant
+(`AccesEffectifNonRegressionIT`). Accès accordé par l'admin sans achat : `source` /
+`productId` absents, `status = ACTIVE`, `oneTime = true`.
+
 - `GET /api/billing/payment-link?planCode=&retour=&ctaLocation=&journeyId=` — authentifié.
   **Nouveaux paramètres facultatifs** `ctaLocation` (valeur de `AnalyticsCtaLocation` :
   `DIAGNOSTIC_REPORT | LOCKED_PLAN | PRICING | AI_CORRECTION | MOCK_EXAM | HERO | MIDDLE |
@@ -1035,6 +1042,61 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   (`DONE` Stripe / `REDIRECT` Apple-Google).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` → `AdminSubscriptionDto`.
   Écriture ciblée (UPDATE en masse) : **ne fait pas avancer `updatedAt`**. Inconnue ⇒ 404.
+- 🛑 `originalTransactionId` / `externalTransactionId` sont **tronqués** depuis le 2026-10-02
+  (`util/ReferenceExterne`, « 8 premiers…4 derniers ») : un purchaseToken Google ou un id
+  Stripe complet ne sort plus vers l'admin. Forme (chaîne) inchangée.
+
+### Admin — Utilisateurs (console « Utilisateurs », V083, 2026-10-02)
+
+Règle : `docs/regles/paiements.md` § « Accès effectif = achats + décisions admin ».
+Décisions : `docs/admin/decisions-gestion-utilisateurs.md`. Miroir TS : `admin_sejourfr/src/types/api.ts`.
+Tout est calculé serveur (statuts, dates incluses, libellés, actions proposées) : le front n'en
+recalcule rien.
+
+- `GET /api/admin/users?q=&filter=&page=&size=` → `PageResponse<AdminUserListItemDto>`
+  (`id`, `displayName`, `email`, `createdAt`, `effectiveAccess {effectiveProduct, …Label,
+  openModules, openModulesLabel}`, `accesses[] {product, productLabel, status, statusLabel}`
+  — un badge par produit CIVIQUE / INTEGRAL —, `nextEndsAt` / `nextEndDateInclusive` /
+  `nextEndLabel` (fin la plus proche parmi les produits actifs), `lastActivityAt` (vue V073),
+  `accountStatus` `ACTIVE|DELETED` + label, `manualAccess`).
+  - `q` : UUID complet ⇒ égalité d'id ; sinon « contient », sans casse, email / prénom / nom /
+    « prénom nom », jokers échappés.
+  - `filter` : `ALL` (défaut) · `TCF_ACTIVE` · `CIVIQUE_ACTIVE` (Civique ouvert, Intégral compris) ·
+    `NO_ACTIVE_ACCESS` · `EXPIRED` (au moins un achat ou GRANT, aucun accès actif) ·
+    `MANUAL_ACCESS` (décision admin courante non terminée). Valeur inconnue ⇒ 400.
+  - `page` indexée à 0, `size` défaut 25, bornée `[1, 100]`. Tri `createdAt` DESC, `id` DESC.
+  - Coût constant par page (sur-ensemble SQL résolu en Java, puis pagination) — verrouillé par
+    égalité dans `AdminUserControllerIT`.
+- `GET /api/admin/users/{userId}` → `AdminUserDetailDto` : `account` (sans hash ni jeton),
+  `effectiveAccess`, `lastActivityAt`, `accesses[]` (`AdminUserAccessDto` : `status`
+  `ACTIVE|SCHEDULED|REVOKED|EXPIRED|NONE` + label, `summary`, `startsAt`, `endsAt` (borne
+  exclusive), `endDateInclusive` (seulement pour une fin posée par l'admin), `endLabel`
+  (« 31/10/2026 inclus » ou « 01/11/2026 à 14:37 » pour un achat), `origin`
+  `PURCHASE_STRIPE|PURCHASE_APPLE|PURCHASE_GOOGLE|ADMIN_GRANT|ADMIN_REVOKE` + label,
+  `alerts[] {code, label}`, `availableOperations[] {code, label}`), `purchases[]`
+  (référence externe **tronquée**, `recurring`), `progression[]` (TCF puis Civique :
+  diagnostic clos + date, cycle en cours, cycles historisés — lecture en tables, jamais
+  `JourneyService.lire()`), `history[]` (une entrée par action, `changes[]` en phrases),
+  `accessVersion`. Inconnu ⇒ 404.
+- `GET /api/admin/access-products` → `AdminAccessProductDto[]` : `CIVIQUE` (Civique) puis
+  `INTEGRAL` (TCF + Civique). Pas de produit « TCF » seul.
+- `POST /api/admin/users/{userId}/access-operations` `AdminAccessOperationRequest`
+  `{operation, product, fromProduct?, startDate?, endDateInclusive?, reason, dryRun, expectedVersion?}`
+  → `AdminAccessOperationResponse {dryRun, operationId, operation, preview,
+  confirmationRequired, changes[], effectiveAccess, accesses[], accessVersion}`.
+  - `operation` : `GRANT` · `EXTEND` · `SHORTEN` · `END` · `REACTIVATE` · `CORRECT_PRODUCT`
+    (`fromProduct` → `product`, une seule opération atomique).
+  - Dates `yyyy-MM-dd`, jours Europe/Paris : fin incluse ⇒ borne `lendemain 00:00 Paris` ;
+    début « aujourd'hui » = maintenant, futur = 00:00 Paris.
+  - `dryRun: true` : aperçu + état résultant, rien n'est écrit. `dryRun: false` exige
+    `expectedVersion` (= `accessVersion` de la fiche).
+  - 400 : motif hors 3–500 caractères, produit `NONE`/inconnu, fin manquante ou passée, fin <
+    début, début passé, `fromProduct` manquant ou égal, sens de date incohérent
+    (Prolonger vers plus tôt, Raccourcir vers plus tard), `expectedVersion` absent à l'écriture.
+  - 409 : état changé depuis la lecture (`expectedVersion` périmé), précondition
+    (Prolonger/Raccourcir un accès non actif, Réactiver un accès non expiré/révoqué, Corriger un
+    produit inactif, Terminer sans accès), « Terminer Civique » isolé sous un Intégral actif.
+  - 401 / 403 / 404 conformes. Aucun achat, paiement, montant ni abonnement récurrent n'est touché.
 
 ### Admin — Campagnes de service (`incident`, `reprise`, 2026-09-28)
 
