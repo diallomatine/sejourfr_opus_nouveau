@@ -67,9 +67,9 @@ class UserSubscriptionMapperTest {
         assertThat(dto.userLastName()).isEqualTo("Test");
         assertThat(dto.source()).isEqualTo(SubscriptionSource.STRIPE);
         assertThat(dto.status()).isEqualTo(SubscriptionStatus.ACTIVE);
-        // Identifiants de paiement TRONQUÉS (spec admin §9) : jamais le jeton complet.
-        assertThat(dto.externalTransactionId()).isEqualTo("sub_…");
-        assertThat(dto.originalTransactionId()).isEqualTo("GPA.purc…3456");
+        // D-33 : identifiants Stripe ENTIERS (clés de rapprochement, pas des secrets).
+        assertThat(dto.externalTransactionId()).isEqualTo("sub_ext_1");
+        assertThat(dto.originalTransactionId()).isEqualTo("GPA.purchase-token-tres-long-abcdef123456");
         assertThat(dto.productId()).isEqualTo("civique_quarterly");
         assertThat(dto.autoRenew()).isTrue();
         assertThat(dto.startsAt()).isEqualTo(starts);
@@ -80,6 +80,35 @@ class UserSubscriptionMapperTest {
         assertThat(dto.planName()).isEqualTo("Civique trimestriel");
         assertThat(dto.moduleAccess()).isEqualTo(ModuleAccess.CIVIQUE);
         assertThat(dto.planPrice()).isEqualByComparingTo("9.99");
+    }
+
+    @Test
+    void toAdminDto_identifiants_appleEntiers_seulLePurchaseTokenGoogleTronque() {
+        UserSubscription apple = new UserSubscription();
+        apple.setId(UUID.randomUUID());
+        apple.setUser(user(UUID.randomUUID()));
+        apple.setSource(SubscriptionSource.APPLE);
+        apple.setStatus(SubscriptionStatus.ACTIVE);
+        apple.setOriginalTransactionId("2000000123456789");
+        apple.setExternalTransactionId("2000000987654321");
+        apple.setStartsAt(Instant.parse("2026-01-01T00:00:00Z"));
+
+        AdminSubscriptionDto a = mapper.toAdminDto(apple);
+        assertThat(a.originalTransactionId()).isEqualTo("2000000123456789");
+        assertThat(a.externalTransactionId()).isEqualTo("2000000987654321");
+
+        UserSubscription google = new UserSubscription();
+        google.setId(UUID.randomUUID());
+        google.setUser(user(UUID.randomUUID()));
+        google.setSource(SubscriptionSource.GOOGLE);
+        google.setStatus(SubscriptionStatus.ACTIVE);
+        google.setOriginalTransactionId("opaque-purchase-token-google-0123456789abcdef");
+        google.setExternalTransactionId("GPA.3312-1234-5678-90123");
+        google.setStartsAt(Instant.parse("2026-01-01T00:00:00Z"));
+
+        AdminSubscriptionDto g = mapper.toAdminDto(google);
+        assertThat(g.originalTransactionId()).isEqualTo("opaque-p…cdef");
+        assertThat(g.externalTransactionId()).isEqualTo("GPA.3312-1234-5678-90123");
     }
 
     @Test

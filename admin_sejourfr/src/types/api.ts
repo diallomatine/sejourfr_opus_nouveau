@@ -659,9 +659,9 @@ export interface AdminSubscriptionDto {
   userLastName: string | null;
   source: SubscriptionSource;
   status: SubscriptionStatus;
-  /** Référence TRONQUÉE (« abcd1234…wxyz ») : jamais l'identifiant de paiement complet. */
+  /** Identifiant de transaction entier (id Stripe, transaction Apple, orderId Google). */
   externalTransactionId: string | null;
-  /** Référence TRONQUÉE (purchaseToken Google, id Stripe) : jamais l'identifiant complet. */
+  /** Identifiant d'origine : entier pour Stripe et Apple ; purchaseToken Google TRONQUÉ (« abcd1234…wxyz »). */
   originalTransactionId: string;
   productId: string | null;
   autoRenew: boolean;
@@ -835,7 +835,7 @@ export interface AdminUserPurchaseDto {
   endLabel: string | null;
   /** Abonnement auto-renouvelable : lecture seule pour toute opération commerciale. */
   recurring: boolean;
-  /** Référence de paiement TRONQUÉE. */
+  /** Identifiant d'origine de l'achat : entier pour Stripe et Apple ; purchaseToken Google TRONQUÉ. */
   externalReference: string | null;
 }
 

@@ -403,9 +403,8 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
         assertThat(d.get("effectiveAccess").get("effectiveProductLabel").asString()).isEqualTo("Intégral");
         JsonNode achat = d.get("purchases").get(0);
         assertThat(achat.get("sourceLabel").asString()).isEqualTo("Stripe");
-        assertThat(achat.get("externalReference").asString()).doesNotContain(a.getOriginalTransactionId())
-                .contains("…");
-        assertThat(d.toString()).doesNotContain(a.getOriginalTransactionId());
+        // D-33 : un identifiant Stripe sort entier (seul le purchaseToken Google est tronqué).
+        assertThat(achat.get("externalReference").asString()).isEqualTo(a.getOriginalTransactionId());
         assertThat(d.get("progression")).hasSize(2);
         assertThat(d.get("progression").get(0).get("diagnosticDone").asBoolean()).isFalse();
         assertThat(d.get("accessVersion").asString()).hasSize(16);

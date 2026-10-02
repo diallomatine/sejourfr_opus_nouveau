@@ -197,7 +197,7 @@ public class AdminUserMapper {
                 s.getPurchasedAt(), s.getStartsAt(), s.getEndsAt(),
                 s.getEndsAt() != null ? DateMetierParis.libelleFin(s.getEndsAt()) : null,
                 recurring,
-                ReferenceExterne.tronquer(s.getOriginalTransactionId()));
+                ReferenceExterne.identifiantOrigine(s.getSource(), s.getOriginalTransactionId()));
     }
 
     private static String sourceLabel(SubscriptionSource source) {

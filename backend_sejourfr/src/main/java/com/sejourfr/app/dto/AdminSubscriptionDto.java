@@ -11,9 +11,9 @@ import java.util.UUID;
 /**
  * Vue admin enrichie d'une UserSubscription : agrège user (email, nom), Plan
  * (code, name, moduleAccess, price) et les champs de la souscription
- * (status, dates, source, ids store TRONQUÉS — jamais un identifiant de paiement
- * complet, cf. {@code ReferenceExterne}). Sert au tableau admin et au modal de
- * détail.
+ * (status, dates, source, identifiants de paiement — Stripe et Apple entiers,
+ * purchaseToken Google tronqué, cf. {@code ReferenceExterne}). Sert au tableau
+ * admin et au modal de détail.
  */
 public record AdminSubscriptionDto(
         UUID id,

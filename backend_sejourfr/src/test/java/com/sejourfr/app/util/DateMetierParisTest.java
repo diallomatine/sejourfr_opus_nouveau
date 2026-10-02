@@ -64,4 +64,18 @@ class DateMetierParisTest {
         assertThat(ReferenceExterne.tronquer("abc")).isEqualTo("a…");
         assertThat(ReferenceExterne.tronquer(null)).isNull();
     }
+
+    @Test
+    void referenceExterne_seulLePurchaseTokenGoogleEstTronque() {
+        assertThat(ReferenceExterne.identifiantOrigine(com.sejourfr.app.enums.SubscriptionSource.GOOGLE,
+                "opaque-purchase-token-google-0123456789abcdef")).isEqualTo("opaque-p…cdef");
+        assertThat(ReferenceExterne.identifiantOrigine(com.sejourfr.app.enums.SubscriptionSource.STRIPE,
+                "cs_live_a1B2c3D4e5F6g7H8i9J0")).isEqualTo("cs_live_a1B2c3D4e5F6g7H8i9J0");
+        assertThat(ReferenceExterne.identifiantOrigine(com.sejourfr.app.enums.SubscriptionSource.APPLE,
+                "2000000123456789")).isEqualTo("2000000123456789");
+        assertThat(ReferenceExterne.identifiantTransaction("GPA.3312-1234-5678-90123"))
+                .isEqualTo("GPA.3312-1234-5678-90123");
+        assertThat(ReferenceExterne.identifiantOrigine(com.sejourfr.app.enums.SubscriptionSource.STRIPE, " "))
+                .isNull();
+    }
 }

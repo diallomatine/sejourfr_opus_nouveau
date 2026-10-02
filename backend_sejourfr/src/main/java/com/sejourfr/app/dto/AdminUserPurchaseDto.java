@@ -9,9 +9,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Un achat réel (spec §5.3), lecture seule. {@code externalReference} est
- * TRONQUÉE : un identifiant de paiement complet (purchaseToken Google, id de
- * session Stripe) ne sort jamais vers l'admin. {@code recurring} : abonnement
+ * Un achat réel (spec §5.3), lecture seule. {@code externalReference} :
+ * identifiant d'origine de l'achat — Stripe et Apple entiers, purchaseToken
+ * Google tronqué (D-33, {@code ReferenceExterne}). {@code recurring} : abonnement
  * auto-renouvelable, en lecture seule pour toute opération commerciale (G-12).
  */
 public record AdminUserPurchaseDto(
