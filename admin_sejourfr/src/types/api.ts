@@ -725,6 +725,11 @@ export interface AdminAccessProductDto {
   label: string;
   modules: Module[];
   modulesLabel: string;
+  /**
+   * Plafond des sessions EO temps réel qu'une action peut offrir (INTEGRAL seulement, null pour
+   * CIVIQUE). Le champ ne s'affiche que pour Donner, Réactiver et Corriger vers ce produit.
+   */
+  maxRealtimeEoSessions: number | null;
 }
 
 /** « Produit effectif : Intégral / Modules ouverts : TCF + Civique ». */
@@ -738,6 +743,26 @@ export interface AdminEffectiveAccessDto {
 export interface AdminAccessAlertDto {
   code: string;
   label: string;
+}
+
+/**
+ * Sessions EO temps réel de la carte Intégral (V084), servies par l'autorité du quota.
+ * Le front affiche, il n'additionne rien.
+ */
+export interface AdminRealtimeEoSessionsDto {
+  /** Total consommable maintenant (ce que voit le candidat). */
+  remaining: number;
+  /** Sessions offertes / restantes de l'accès manuel applicable ; null sans lui. */
+  grantGranted: number | null;
+  grantRemaining: number | null;
+  /** Solde de l'achat qui porte l'accès ; null sans achat. */
+  purchaseRemaining: number | null;
+  /** Sessions offertes par l'accès manuel programmé ; null sans lui. */
+  scheduledGrantGranted: number | null;
+  /** Phrase servie, ex. « 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 ». */
+  label: string;
+  /** « Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel. » ou null. */
+  info: string | null;
 }
 
 export interface AdminAccessOperationOptionDto {
@@ -763,6 +788,8 @@ export interface AdminUserAccessDto {
   originLabel: string | null;
   alerts: AdminAccessAlertDto[];
   availableOperations: AdminAccessOperationOptionDto[];
+  /** Carte INTEGRAL seulement ; null pour CIVIQUE. */
+  realtimeEoSessions: AdminRealtimeEoSessionsDto | null;
 }
 
 export interface AdminUserAccessBadgeDto {
@@ -901,6 +928,11 @@ export interface AdminAccessOperationRequest {
   dryRun: boolean;
   /** Obligatoire si dryRun = false ; 409 si l'accès a changé depuis. */
   expectedVersion?: string;
+  /**
+   * Sessions EO temps réel offertes (absent = 0). > 0 seulement pour GRANT / REACTIVATE INTEGRAL
+   * et CORRECT_PRODUCT vers INTEGRAL, au plus maxRealtimeEoSessions ; 400 sinon.
+   */
+  realtimeEoSessions?: number;
 }
 
 export interface AdminAccessOperationResponse {
