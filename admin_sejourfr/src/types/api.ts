@@ -659,7 +659,9 @@ export interface AdminSubscriptionDto {
   userLastName: string | null;
   source: SubscriptionSource;
   status: SubscriptionStatus;
+  /** Référence TRONQUÉE (« abcd1234…wxyz ») : jamais l'identifiant de paiement complet. */
   externalTransactionId: string | null;
+  /** Référence TRONQUÉE (purchaseToken Google, id Stripe) : jamais l'identifiant complet. */
   originalTransactionId: string;
   productId: string | null;
   autoRenew: boolean;
@@ -686,6 +688,229 @@ export interface AdminSubscriptionFilters {
   purchasedMonth?: string;
   page?: number;
   size?: number;
+}
+
+// ============================================================================
+// Utilisateurs (console admin, V083) — miroir de dto/AdminUser*, dto/AdminAccess*
+// Tout est calculé serveur : statuts, dates incluses, libellés, actions proposées.
+// ============================================================================
+
+export type ProductAccessStatus = "ACTIVE" | "SCHEDULED" | "REVOKED" | "EXPIRED" | "NONE";
+export type AccessOrigin =
+  | "PURCHASE_STRIPE"
+  | "PURCHASE_APPLE"
+  | "PURCHASE_GOOGLE"
+  | "ADMIN_GRANT"
+  | "ADMIN_REVOKE";
+export type AdminAccessOperationType =
+  | "GRANT"
+  | "EXTEND"
+  | "SHORTEN"
+  | "END"
+  | "REACTIVATE"
+  | "CORRECT_PRODUCT";
+export type AdminUserFilter =
+  | "ALL"
+  | "TCF_ACTIVE"
+  | "CIVIQUE_ACTIVE"
+  | "NO_ACTIVE_ACCESS"
+  | "EXPIRED"
+  | "MANUAL_ACCESS";
+export type AdminPaymentStatus = "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED";
+export type AdminUserAuthProvider = "LOCAL" | "GOOGLE" | "APPLE";
+
+/** GET /api/admin/access-products — produits réellement vendus. */
+export interface AdminAccessProductDto {
+  code: ModuleAccess;
+  label: string;
+  modules: Module[];
+  modulesLabel: string;
+}
+
+/** « Produit effectif : Intégral / Modules ouverts : TCF + Civique ». */
+export interface AdminEffectiveAccessDto {
+  effectiveProduct: ModuleAccess;
+  effectiveProductLabel: string;
+  openModules: Module[];
+  openModulesLabel: string;
+}
+
+export interface AdminAccessAlertDto {
+  code: string;
+  label: string;
+}
+
+export interface AdminAccessOperationOptionDto {
+  code: AdminAccessOperationType;
+  label: string;
+}
+
+/** Accès à UN produit. endsAt = borne exclusive ; endDateInclusive seulement pour une fin posée par l'admin. */
+export interface AdminUserAccessDto {
+  product: ModuleAccess;
+  productLabel: string;
+  status: ProductAccessStatus;
+  statusLabel: string;
+  summary: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  /** yyyy-MM-dd, « jusqu'au … inclus ». */
+  endDateInclusive: string | null;
+  endLabel: string | null;
+  origin: AccessOrigin | null;
+  originLabel: string | null;
+  alerts: AdminAccessAlertDto[];
+  availableOperations: AdminAccessOperationOptionDto[];
+}
+
+export interface AdminUserAccessBadgeDto {
+  product: ModuleAccess;
+  productLabel: string;
+  status: ProductAccessStatus;
+  statusLabel: string;
+}
+
+/** Ligne de GET /api/admin/users. */
+export interface AdminUserListItemDto {
+  id: string;
+  displayName: string | null;
+  email: string;
+  createdAt: string;
+  effectiveAccess: AdminEffectiveAccessDto;
+  accesses: AdminUserAccessBadgeDto[];
+  nextEndsAt: string | null;
+  nextEndDateInclusive: string | null;
+  nextEndLabel: string | null;
+  /** Dernière activité d'entraînement (vue V073) ; null si aucune. */
+  lastActivityAt: string | null;
+  accountStatus: "ACTIVE" | "DELETED";
+  accountStatusLabel: string;
+  manualAccess: boolean;
+}
+
+export interface AdminUserFilters {
+  q?: string;
+  filter?: AdminUserFilter;
+  page?: number;
+  size?: number;
+}
+
+export interface AdminUserAccountDto {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  createdAt: string;
+  /** Dernière authentification par identifiants ou social (un refresh ne la met pas à jour). */
+  lastLoginAt: string | null;
+  accountStatus: "ACTIVE" | "DELETED";
+  accountStatusLabel: string;
+  role: Role;
+  authProvider: AdminUserAuthProvider;
+  internal: boolean;
+  targetProcedure: TargetProcedure | null;
+  targetLevel: TargetLevel | null;
+}
+
+export interface AdminUserPurchaseDto {
+  id: string;
+  product: ModuleAccess | null;
+  productLabel: string | null;
+  planCode: string | null;
+  planName: string | null;
+  source: SubscriptionSource;
+  sourceLabel: string;
+  status: SubscriptionStatus;
+  statusLabel: string;
+  paymentStatus: AdminPaymentStatus | null;
+  paymentStatusLabel: string | null;
+  amountCents: number | null;
+  currency: string | null;
+  purchasedAt: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  endLabel: string | null;
+  /** Abonnement auto-renouvelable : lecture seule pour toute opération commerciale. */
+  recurring: boolean;
+  /** Référence de paiement TRONQUÉE. */
+  externalReference: string | null;
+}
+
+export interface AdminUserCycleDto {
+  status: string;
+  entryLevel: string | null;
+  targetLevel: string | null;
+  targetProcedure: string | null;
+  startedAt: string;
+  stepsClosed: number;
+  stepsTotal: number;
+}
+
+export interface AdminUserProgressionDto {
+  module: Module;
+  moduleLabel: string;
+  diagnosticDone: boolean;
+  diagnosticCompletedAt: string | null;
+  currentCycle: AdminUserCycleDto | null;
+  historisedCycles: number;
+}
+
+export interface AdminAccessHistoryEntryDto {
+  operationId: string;
+  createdAt: string;
+  adminId: string;
+  adminEmail: string | null;
+  operation: AdminAccessOperationType;
+  operationLabel: string;
+  product: ModuleAccess;
+  productLabel: string;
+  fromProduct: ModuleAccess | null;
+  fromProductLabel: string | null;
+  reason: string;
+  /** Une phrase par produit dont l'état a changé. */
+  changes: string[];
+}
+
+/** GET /api/admin/users/{id}. accessVersion = expectedVersion à renvoyer avec une action. */
+export interface AdminUserDetailDto {
+  account: AdminUserAccountDto;
+  effectiveAccess: AdminEffectiveAccessDto;
+  lastActivityAt: string | null;
+  accesses: AdminUserAccessDto[];
+  purchases: AdminUserPurchaseDto[];
+  progression: AdminUserProgressionDto[];
+  history: AdminAccessHistoryEntryDto[];
+  accessVersion: string;
+}
+
+/** POST /api/admin/users/{id}/access-operations. Dates yyyy-MM-dd (jours Paris). */
+export interface AdminAccessOperationRequest {
+  operation: AdminAccessOperationType;
+  product: ModuleAccess;
+  /** Obligatoire pour CORRECT_PRODUCT (produit retiré). */
+  fromProduct?: ModuleAccess;
+  /** GRANT / REACTIVATE seulement ; défaut aujourd'hui. */
+  startDate?: string;
+  /** Obligatoire sauf END. */
+  endDateInclusive?: string;
+  /** 3 à 500 caractères, sans donnée personnelle inutile. */
+  reason: string;
+  dryRun: boolean;
+  /** Obligatoire si dryRun = false ; 409 si l'accès a changé depuis. */
+  expectedVersion?: string;
+}
+
+export interface AdminAccessOperationResponse {
+  dryRun: boolean;
+  operationId: string | null;
+  operation: AdminAccessOperationType;
+  preview: string;
+  confirmationRequired: boolean;
+  changes: string[];
+  effectiveAccess: AdminEffectiveAccessDto;
+  accesses: AdminUserAccessDto[];
+  accessVersion: string;
 }
 
 /** Réponse de POST /api/billing/cancel et /api/admin/subscriptions/{id}/cancel.

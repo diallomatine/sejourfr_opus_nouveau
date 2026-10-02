@@ -122,6 +122,17 @@ public class TestSupportConfig {
         return new AuthTestSupport(jwtService);
     }
 
+    @Bean
+    public AccesAdminFixtures accesAdminFixtures(TestData testData,
+                                                 com.sejourfr.app.manager.PlanManager planManager,
+                                                 com.sejourfr.app.manager.UserSubscriptionManager subscriptionManager,
+                                                 com.sejourfr.app.service.adminuser.AdminUserService adminUserService,
+                                                 com.sejourfr.app.service.adminuser.AdminAccessOperationService operationService,
+                                                 org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        return new AccesAdminFixtures(testData, planManager, subscriptionManager, adminUserService,
+                operationService, jdbc);
+    }
+
     /**
      * 🛑 Le port d'envoi de TOUS les tests d'integration : il enregistre, il
      * n'envoie jamais. Aucun test ne peut atteindre un SMTP ni une vraie adresse.

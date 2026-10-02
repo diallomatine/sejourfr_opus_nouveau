@@ -13,11 +13,8 @@ import com.sejourfr.app.util.FenetreMesure;
 
 import java.time.Instant;
 import java.time.YearMonth;
-import java.util.Locale;
 
 public final class UserSubscriptionSpecifications {
-
-    private static final char LIKE_ESCAPE = '\\';
 
     private UserSubscriptionSpecifications() {}
 
@@ -44,16 +41,16 @@ public final class UserSubscriptionSpecifications {
     public static Specification<UserSubscription> userSearch(String search) {
         return (root, q, cb) -> {
             if (search == null || search.isBlank()) return null;
-            String like = "%" + escapeLike(search.trim().toLowerCase(Locale.ROOT)) + "%";
+            String like = LikePattern.contient(search);
             Path<User> user = root.get("user");
             Expression<String> firstName = cb.coalesce(user.get("firstName"), "");
             Expression<String> lastName = cb.coalesce(user.get("lastName"), "");
             Expression<String> fullName = cb.concat(cb.concat(firstName, " "), lastName);
             return cb.or(
-                    cb.like(cb.lower(user.get("email")), like, LIKE_ESCAPE),
-                    cb.like(cb.lower(user.get("firstName")), like, LIKE_ESCAPE),
-                    cb.like(cb.lower(user.get("lastName")), like, LIKE_ESCAPE),
-                    cb.like(cb.lower(fullName), like, LIKE_ESCAPE));
+                    cb.like(cb.lower(user.get("email")), like, LikePattern.ESCAPE),
+                    cb.like(cb.lower(user.get("firstName")), like, LikePattern.ESCAPE),
+                    cb.like(cb.lower(user.get("lastName")), like, LikePattern.ESCAPE),
+                    cb.like(cb.lower(fullName), like, LikePattern.ESCAPE));
         };
     }
 
@@ -71,9 +68,5 @@ public final class UserSubscriptionSpecifications {
             Path<Instant> purchasedAt = root.get("purchasedAt");
             return cb.and(cb.greaterThanOrEqualTo(purchasedAt, debut), cb.lessThan(purchasedAt, fin));
         };
-    }
-
-    private static String escapeLike(String raw) {
-        return raw.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

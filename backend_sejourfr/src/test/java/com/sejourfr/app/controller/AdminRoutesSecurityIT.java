@@ -114,6 +114,12 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.PUT, "/api/admin/themes/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PATCH, "/api/admin/plans/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PATCH, "/api/admin/subscriptions/" + RANDOM_ID + "/realtime-sessions"),
+                // Console « Utilisateurs » : lecture des comptes et ÉCRITURE des accès.
+                Arguments.of(HttpMethod.GET, "/api/admin/users"),
+                Arguments.of(HttpMethod.GET, "/api/admin/users?q=x&filter=MANUAL_ACCESS"),
+                Arguments.of(HttpMethod.GET, "/api/admin/users/" + RANDOM_ID),
+                Arguments.of(HttpMethod.GET, "/api/admin/access-products"),
+                Arguments.of(HttpMethod.POST, "/api/admin/users/" + RANDOM_ID + "/access-operations"),
                 Arguments.of(HttpMethod.DELETE, "/api/admin/questions/" + RANDOM_ID));
     }
 

@@ -1,0 +1,66 @@
+package com.sejourfr.app.controller;
+
+import com.sejourfr.app.dto.AdminAccessOperationRequest;
+import com.sejourfr.app.dto.AdminAccessOperationResponse;
+import com.sejourfr.app.dto.AdminAccessProductDto;
+import com.sejourfr.app.dto.AdminUserDetailDto;
+import com.sejourfr.app.dto.AdminUserListItemDto;
+import com.sejourfr.app.dto.PageResponse;
+import com.sejourfr.app.enums.AdminUserFilter;
+import com.sejourfr.app.security.CurrentUser;
+import com.sejourfr.app.service.adminuser.AdminAccessOperationService;
+import com.sejourfr.app.service.adminuser.AdminUserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Console admin « Utilisateurs » : retrouver, comprendre et dépanner un compte
+ * (spec admin utilisateurs V2). Sécurité : {@code /api/admin/**} → ROLE_ADMIN
+ * (SecurityConfig) ; l'admin auteur d'une action est lu dans le contexte de
+ * sécurité, jamais dans la requête.
+ */
+@RestController
+@RequestMapping("/api/admin")
+@RequiredArgsConstructor
+public class AdminUserController {
+
+    private final AdminUserService adminUserService;
+    private final AdminAccessOperationService accessOperationService;
+    private final CurrentUser currentUser;
+
+    @GetMapping("/users")
+    public PageResponse<AdminUserListItemDto> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) AdminUserFilter filter,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return adminUserService.list(q, filter, page, size);
+    }
+
+    @GetMapping("/users/{userId}")
+    public AdminUserDetailDto detail(@PathVariable UUID userId) {
+        return adminUserService.detail(userId);
+    }
+
+    @GetMapping("/access-products")
+    public List<AdminAccessProductDto> products() {
+        return adminUserService.products();
+    }
+
+    @PostMapping("/users/{userId}/access-operations")
+    public AdminAccessOperationResponse accessOperation(
+            @PathVariable UUID userId,
+            @Valid @RequestBody AdminAccessOperationRequest request) {
+        return accessOperationService.executer(userId, currentUser.getId(), request);
+    }
+}

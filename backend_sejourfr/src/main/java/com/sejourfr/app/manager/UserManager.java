@@ -4,8 +4,13 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,5 +47,15 @@ public class UserManager {
 
     public long count() {
         return repository.count();
+    }
+
+    /** Recherche paginée de la console admin « Utilisateurs ». */
+    public Page<User> findAll(Specification<User> spec, Pageable pageable) {
+        return repository.findAll(spec, pageable);
+    }
+
+    public List<User> findAllById(Collection<UUID> ids) {
+        if (ids.isEmpty()) return List.of();
+        return repository.findAllById(ids);
     }
 }
