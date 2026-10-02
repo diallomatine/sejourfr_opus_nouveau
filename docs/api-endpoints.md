@@ -1042,9 +1042,10 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   (`DONE` Stripe / `REDIRECT` Apple-Google).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` → `AdminSubscriptionDto`.
   Écriture ciblée (UPDATE en masse) : **ne fait pas avancer `updatedAt`**. Inconnue ⇒ 404.
-- 🛑 `originalTransactionId` / `externalTransactionId` sont **tronqués** depuis le 2026-10-02
-  (`util/ReferenceExterne`, « 8 premiers…4 derniers ») : un purchaseToken Google ou un id
-  Stripe complet ne sort plus vers l'admin. Forme (chaîne) inchangée.
+- 🛑 Identifiants de paiement (`util/ReferenceExterne`, D-33) : Stripe et Apple **entiers** ;
+  seul l'`originalTransactionId` d'un achat Google (= purchaseToken) est **tronqué**
+  (« 8 premiers…4 derniers »). `externalTransactionId` (dont l'orderId Google) est entier.
+  Forme (chaîne) inchangée.
 
 ### Admin — Utilisateurs (console « Utilisateurs », V083, 2026-10-02)
 
@@ -1073,10 +1074,12 @@ recalcule rien.
   exclusive), `endDateInclusive` (seulement pour une fin posée par l'admin), `endLabel`
   (« 31/10/2026 inclus » ou « 01/11/2026 à 14:37 » pour un achat), `defaultEndDateInclusive`
   (`yyyy-MM-dd`, valeur que la modale pré-remplit dans « Fin (incluse) » : date incluse d'une fin
-  admin, sinon jour Paris de la fin d'achat — `DateMetierParis.finProposee`, D-22), `origin`
+  admin, sinon jour Paris de la fin d'achat ; pour un produit RÉVOQUÉ, jour Paris de la fin de
+  l'achat révoqué — `DateMetierParis.finProposee`, D-22 / D-34), `origin`
   `PURCHASE_STRIPE|PURCHASE_APPLE|PURCHASE_GOOGLE|ADMIN_GRANT|ADMIN_REVOKE` + label,
   `alerts[] {code, label}`, `availableOperations[] {code, label}`), `purchases[]`
-  (référence externe **tronquée**, `recurring`), `progression[]` (TCF puis Civique :
+  (`externalReference` : identifiant d'origine, entier sauf purchaseToken Google tronqué ;
+  `recurring`), `progression[]` (TCF puis Civique :
   diagnostic clos + date, cycle en cours, cycles historisés — lecture en tables, jamais
   `JourneyService.lire()`), `history[]` (une entrée par action, `changes[]` en phrases),
   `accessVersion`. Inconnu ⇒ 404.
@@ -1092,6 +1095,9 @@ recalcule rien.
     début « aujourd'hui » = maintenant, futur = 00:00 Paris.
   - `dryRun: true` : aperçu + état résultant, rien n'est écrit. `dryRun: false` exige
     `expectedVersion` (= `accessVersion` de la fiche).
+  - `preview` (phrase serveur) : quand un GRANT posé par l'action laisse, à sa fin, un achat du
+    même produit révoqué, la phrase se termine par « Attention : l'achat X révoqué ne sera pas
+    rétabli. À partir du JJ/MM/AAAA, l'accès X sera de nouveau fermé. » (D-34).
   - 400 : motif hors 3–500 caractères, produit `NONE`/inconnu, fin manquante ou passée, fin <
     début, début passé, `fromProduct` manquant ou égal, sens de date incohérent
     (Prolonger vers plus tôt, Raccourcir vers plus tard), `expectedVersion` absent à l'écriture.

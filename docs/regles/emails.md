@@ -253,6 +253,15 @@ manqué et n'envoient rien rétroactivement au premier déploiement :
   nouvelle ligne qui chevauche l'ancienne). La **couverture** se lit sur
   `SubscriptionService.covers`, l'autorité unique : le SQL ne fait que borner les candidats
   (décision D-25). Un pass remboursé ne « se termine » pas.
+- 🛑 **Décisions admin** (accès accordés / retirés, `access_overrides` ; D-32 de
+  `docs/admin/decisions-gestion-utilisateurs.md`) : les scénarios Premium fondés sur les achats
+  (`NO_PREMIUM_AFTER_7_DAYS`, `PREMIUM_INACTIVE_2_DAYS`, `PREMIUM_ENDING_*`, `PREMIUM_ENDED`)
+  écartent un compte **seulement** si une décision rend son accès effectif différent de celui des
+  seuls achats **maintenant ou d'ici la date annoncée** par le message
+  (`AccesEffectifResolver.decisionsChangentLAcces`, appelé par `EmailAutomationService`). Le SQL
+  ne lit pas `access_overrides` : il borne, Java décide. Une décision terminée (ex. GRANT fini
+  depuis longtemps) ne retire plus aucun scénario ; un rachat après un REVOKE reçoit sa fin
+  d'accès normalement. `NO_TRAINING_7_DAYS` n'est jamais concerné.
 - **Libellé selon le module** (`PremiumAccessEndResolver`, complément F) : « Votre pass
   Intégral », « Votre accès Civique », ou « Votre accès TCF » + « Votre accès Civique reste actif
   jusqu'au … » quand un Civique survit à l'Intégral. Variables plates, aucune condition dans le

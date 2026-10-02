@@ -43,6 +43,12 @@
 Touchent le schéma, les DTO lus par le mobile, le calcul d'accès effectif, les flux d'achat ou les
 emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
 
+Arbitrages du propriétaire du 2026-10-02 (relecture), à relire d'abord : **D-31** (proration sur
+les achats, change un prix Stripe), **D-32** (emails : exclusion seulement si une décision change
+l'accès), **D-30** (vocabulaire achat / droit), **D-34** (Réactiver un achat révoqué), **D-33**
+(identifiants de paiement entiers dans l'admin). D-02, D-05, D-07, D-09 et D-12 sont **révisées** ;
+leur texte d'origine est conservé tel quel ci-dessous.
+
 ---
 
 ### D-01 — Modèle des décisions : fenêtres non chevauchantes tenues par EXCLUDE gist
@@ -65,6 +71,9 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
   `DROP CONSTRAINT` dans une nouvelle version) et garder le verrou.
 
 ### D-02 — Troncature : la queue d'un REVOKE survit à un GRANT, la queue d'un GRANT jamais
+
+> **Révisée par D-34** (2026-10-02) : la règle de troncature est conservée ; « Réactiver » propose
+> désormais la fin de l'achat révoqué, et l'aperçu signale l'achat qui restera révoqué.
 
 - **Contexte** : GO §18 (« tronque à new.starts_at », « un REVOKE à fin ouverte est tronqué de la
   même façon par tout GRANT ultérieur ») ne dit pas ce qui suit la fin du nouveau GRANT.
@@ -118,6 +127,9 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
 
 ### D-05 — `currentSubscription` devient effectif ; `currentPurchase` pour résilier / supprimer
 
+> **Révisée par D-30** (2026-10-02) : `currentSubscription` est supprimé ; `currentPurchase` (achat)
+> et `effectiveAccess` (droit) sont les deux seuls noms.
+
 - **Contexte** : audit A.4 (7 appelants lisant une ligne d'achat).
 - **Options envisagées** : (a) un seul `currentSubscription` effectif partout ; (b) effectif pour
   l'accès, achat brut pour les gestes sur l'achat.
@@ -144,6 +156,9 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
 
 ### D-07 — Proration Stripe Civique → Intégral : seul un Civique effectif est crédité
 
+> **Révisée par D-31** (2026-10-02) : le crédit se lit sur les achats payés, non remboursés, non
+> neutralisés par un REVOKE — plus sur l'accès effectif.
+
 - **Contexte** : audit C.4 / G-5 (`BillingService.computeOneTimeAmountCents`).
 - **Options envisagées** : (a) créditer le Civique acheté même révoqué ; (b) ne créditer qu'un
   Civique effectif.
@@ -164,6 +179,9 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
 - **Réversibilité** : facile.
 
 ### D-09 — Emails G-6 : exclusion des comptes sous décision courante
+
+> **Révisée par D-32** (2026-10-02) : exclusion seulement si une décision change l'accès effectif
+> par rapport aux achats, maintenant ou d'ici la date annoncée ; plus aucune exclusion en SQL.
 
 - **Contexte** : GO §9, option 1.
 - **Options envisagées** : (a) exclure les comptes ayant une décision non terminée ; (b) toute
@@ -187,6 +205,10 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
   fois en superutilisateur. Sans cela, V083 échoue au démarrage (aucune donnée touchée).
 - **Impact** : déploiement.
 - **Réversibilité** : moyenne (voir D-01).
+- **Arbitrage du 2026-10-02** : principe accepté sous réserve de compatibilité production. Le
+  **propriétaire vérifie lui-même** en production la disponibilité de `btree_gist` et les droits de
+  l'utilisateur Flyway, et donne le résultat. **Aucune implémentation de repli n'est préparée**
+  d'ici là (consigne explicite).
 
 ### D-11 — État attendu (G-11) : empreinte des décisions + achats, obligatoire pour écrire
 
@@ -201,6 +223,9 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
 - **Réversibilité** : facile.
 
 ### D-12 — `AdminSubscriptionDto` : identifiants de paiement tronqués
+
+> **Révisée par D-33** (2026-10-02) : Stripe et Apple entiers ; seul le purchaseToken Google
+> reste tronqué.
 
 - **Contexte** : audit A.12, spec §9.
 - **Options envisagées** : (a) retirer les champs (casse le front admin) ; (b) les tronquer, même
@@ -409,6 +434,127 @@ emails : **D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10.**
   Programmé bleu, Révoqué rouge, Expiré ambre, Aucun gris) et affiche le **libellé servi**. Les
   boutons d'une carte sont exactement `availableOperations` (libellés servis), leur ton suit le
   code d'opération. Aucun seuil, aucune date, aucune déduction.
+- **Réversibilité** : facile.
+
+## Arbitrages du propriétaire du 2026-10-02 (relecture des décisions)
+
+> Source : arbitrages verbatim du propriétaire, § 7 « Précisions complémentaires » prioritaire.
+> B-1 (ledger de quota EO) est traité à part et n'est pas couvert ici. D-01, D-03 et le modèle
+> des fenêtres d'override sont confirmés tels quels.
+
+### D-30 — Vocabulaire : `currentPurchase` (achat) / `effectiveAccess` (droit) — révise D-05
+
+- **Contexte** : arbitrage §4 / §7 — `currentSubscription` avait changé de sens (achat → achat
+  qui porte le droit effectif) ; risque qu'un développeur confonde achat et entitlement.
+- **Options envisagées** : (a) garder `currentSubscription` effectif (D-05) ; (b) le supprimer,
+  deux noms seulement.
+- **Choix retenu** : (b). `SubscriptionService.currentSubscription` est **supprimé**. Il reste :
+  `currentPurchase(userId)` = l'ACHAT courant (décisions ignorées : résilier, supprimer le
+  compte) ; `effectiveAccess(userId)` (ex-`accesEffectif`) = le DROIT effectif (module, fin, et
+  `achat()` qui le porte). Chaque appelant, selon son intention : `subscription-status` /
+  `verify-receipt` → `effectiveAccess` ; quota EO temps réel et report du solde EO à la
+  prolongation → `effectiveAccess(..).achat()` (même sélection qu'avant, aucun changement de
+  quota ni de débit : B-1 inchangé) ; proration → les achats (`CreditProration`, D-31).
+- **Impact** : `SubscriptionService`, `SubscriptionStatusService`, `RealtimeQuotaService` (appel
+  seulement), `OneTimeAccessService`, `BillingService`. Tests adaptés : `SubscriptionServiceTest`
+  (`effectiveAccessAchat_*`), `RealtimeQuotaServiceTest`, `OneTimeAccessServiceTest`. Aucun DTO,
+  aucun endpoint, aucune réponse mobile ne change (`AccesEffectifNonRegressionIT` vert).
+- **Réversibilité** : facile (renommage).
+
+### D-31 — Proration : crédit calculé sur les achats payés, pas sur l'accès effectif — révise D-07
+
+- **Contexte** : arbitrage §2 / §7 — les overrides disent ce que l'utilisateur peut utiliser,
+  les achats ce qu'il a payé. D-07 faisait perdre le crédit Civique à un compte sous GRANT
+  Intégral.
+- **Options envisagées** : (a) accès effectif (D-07) ; (b) achats seuls ; (c) achats payés, non
+  remboursés, non neutralisés par un REVOKE applicable (règle du §7).
+- **Choix retenu** : (c), dans `service/billing/CreditProration` (pur, seule autorité ;
+  `BillingService.computeOneTimeAmountCents` l'appelle). Un achat est créditable s'il est valide
+  (`covers`), payé et non remboursé, et non neutralisé par un REVOKE courant applicable
+  maintenant (achat antérieur à la décision — même lecture que l'accès effectif ; un rachat
+  postérieur au REVOKE reste créditable). Puis meilleur achat au sens historique : un Intégral
+  payé ⇒ pas de crédit. Trois choix faits en autonomie, les plus sûrs :
+  1. **Origine du REVOKE non lue** : le journal ne la donne pas directement — une copie tronquée
+     (D-02) porte l'`operation_id` de l'action qui l'a tronquée, l'origine ne se retrouve qu'en
+     remontant la chaîne `replaces_override_id` à travers les lignes supersédées. Inutile :
+     un REVOKE ne naît que de Terminer, Raccourcir ou Corriger le produit. **Tout REVOKE
+     applicable neutralise** ; Raccourcir est donc traité comme Terminer une fois sa date
+     atteinte (la valeur coupée par l'admin n'est pas créditée). Aucun schéma nouveau.
+  2. **REVOKE programmé** (Raccourcir) : l'achat reste créditable, mais les jours crédités
+     s'arrêtent au début de la révocation.
+  3. **Remboursement partiel** (`PARTIALLY_REFUNDED`) : **pas de crédit** (« non remboursés »).
+     C'est le seul écart sans aucune décision admin par rapport au calcul d'avant (qui le
+     créditait) — à confirmer. Statut de paiement `null` (achat antérieur à la mesure) = payé.
+- **Impact** : **prix Stripe** d'un upgrade Civique → Intégral (Apple / Google : prix fixe,
+  inchangé). Civique payé + GRANT Intégral ⇒ crédit conservé (D-07 le perdait). Tests :
+  `CreditProrationTest` (7) ; `ProrationAchatsIT` (7, actions admin réelles) :
+  `grantIntegralConserveLeCredit`, `correctionDeProduitSupprimeLeCredit`, `achatRembourse`,
+  `achatPartiellementRembourse`, `terminerSupprimeLeCredit`, `raccourcirLimiteLeCredit`,
+  `temoinSansDecision`.
+- **Réversibilité** : facile (une classe pure ; le partiel tient en une ligne).
+
+### D-32 — Emails : exclusion seulement si une décision change l'accès — révise D-09
+
+- **Contexte** : arbitrage §3 / §7 — D-09 excluait à vie tout compte ayant une décision non
+  remplacée, même un GRANT terminé depuis longtemps.
+- **Options envisagées** : (a) D-09 (toute décision courante, en SQL) ; (b) décisions non
+  terminées, en SQL (recopie partielle de la règle) ; (c) SQL borne, Java décide via le resolver.
+- **Choix retenu** : (c). Les trois `NOT EXISTS access_overrides` sont retirés
+  d'`EmailScenarioRepository` (il borne seulement). `EmailAutomationService` charge achats +
+  décisions de la page par l'autorité (`SubscriptionService.charger`, deux requêtes par page, pas
+  de N+1) et écarte un compte si `AccesEffectifResolver.decisionsChangentLAcces` : le module
+  effectif diffère de celui des seuls achats à un instant de la fenêtre dont parle le message —
+  `NO_PREMIUM_AFTER_7_DAYS` et `PREMIUM_INACTIVE_2_DAYS` : maintenant ; `PREMIUM_ENDING_*` :
+  de maintenant à la fin annoncée ; `PREMIUM_ENDED` : de juste avant la fin annoncée à
+  maintenant. On compare aux extrémités et à chaque borne intérieure (début / fin de décision,
+  fin d'achat). Le moteur d'emails n'est pas rebranché sur l'accès effectif (MVP conservé).
+  Choix fait : la comparaison porte sur le **module** effectif (un GRANT Intégral sur un Civique
+  acheté change le module ⇒ exclu ; un REVOKE Civique sous un Intégral acheté ne le change pas ⇒
+  non exclu).
+- **Impact** : `EmailScenarioRepository`, `EmailAutomationService`, `AccesEffectifResolver`.
+  Comptes retrouvant leurs scénarios : décision terminée ou sans effet sur l'accès. Tests :
+  `EmailOverrideExclusionIT` — `grantAncienRetablitLesScenarios`, `revokePuisRachatEnvoieLaFin`,
+  `grantProgrammeQuiProlongeExclut`, + `grantExclutJamaisPremium`, `revokeExclutFinDAcces`
+  (existants, toujours verts) ; `AccesEffectifResolverTest.DecisionsEtEmails` (5).
+- **Réversibilité** : facile.
+
+### D-33 — Identifiants de paiement : Stripe et Apple entiers, purchaseToken Google tronqué — révise D-12
+
+- **Contexte** : arbitrage §7 — la console Abonnements doit montrer les identifiants Stripe et
+  Apple en entier.
+- **Options envisagées** : (a) console Abonnements seulement ; (b) même règle pour la fiche
+  utilisateur (`AdminUserPurchaseDto.externalReference`).
+- **Choix retenu** : (b), une seule règle dans `util/ReferenceExterne` :
+  `identifiantOrigine(source, ref)` tronque le seul `original_transaction_id` d'un achat GOOGLE
+  (= purchaseToken) ; `identifiantTransaction(ref)` rend l'`external_transaction_id` entier
+  (id Stripe, transaction Apple, orderId Google « GPA.… »). Montrer un même identifiant Stripe
+  entier dans une console et tronqué dans l'autre n'aurait aucun sens.
+- **Impact** : DTO **admin** seulement (forme inchangée). `UserSubscriptionMapper`,
+  `AdminUserMapper`. Front admin : libellés inchangés, commentaires de `api.ts` corrigés,
+  `tsc` OK. Tests : `UserSubscriptionMapperTest` (`…seulLePurchaseTokenGoogleTronque`),
+  `DateMetierParisTest.referenceExterne_seulLePurchaseTokenGoogleEstTronque`,
+  `AdminUserControllerIT.fiche` (référence Stripe entière).
+- **Réversibilité** : facile.
+
+### D-34 — Réactiver un achat révoqué : fin proposée = fin de l'achat, aperçu explicite — révise D-02
+
+- **Contexte** : arbitrage §7 — avec D-02, un GRANT de réactivation plus court que l'achat laisse
+  l'achat révoqué ensuite, sans que l'admin le voie.
+- **Options envisagées** : (a) inchangé ; (b) fin par défaut = fin de l'achat + avertissement
+  dans la phrase d'aperçu serveur.
+- **Choix retenu** : (b). `EtatProduit.finAchatRevoque` (resolver) = fin de l'achat que le REVOKE
+  applicable neutralise ; pour un produit Révoqué, `defaultEndDateInclusive` = jour (Paris) de
+  cette fin (même convention que D-22). L'aperçu (`dryRun` et écriture) ajoute à la phrase :
+  « Attention : l'achat Civique révoqué ne sera pas rétabli. À partir du JJ/MM/AAAA, l'accès
+  Civique sera de nouveau fermé. » dès qu'à la fin d'un GRANT posé par l'action un achat du
+  produit couvrirait encore mais reste révoqué (`AccesEffectifResolver.achatResteRevoque`, lu sur
+  l'état d'après l'action). Vaut pour toute action qui pose un GRANT. Aucun champ de DTO ajouté.
+  ⚠️ Le front admin (D-22) laisse aujourd'hui « Fin » vide pour Réactiver : la valeur servie
+  sera reprise à la finalisation du front.
+- **Impact** : `AccesEffectifResolver`, `AdminUserMapper`, `AdminAccessOperationService`. Tests :
+  `AdminAccessOperationServiceTest` — `reactiverProposeLaFinDeLAchat`,
+  `reactiverAvantLaFinSignaleLAchatRevoque`, `reactiverJusquALaFinNeSignaleRien` ;
+  `AccesEffectifResolverTest.AchatRevoque` (2).
 - **Réversibilité** : facile.
 
 ## Écarts avec la spec

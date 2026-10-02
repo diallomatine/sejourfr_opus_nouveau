@@ -33,9 +33,11 @@ renouvellement update la ligne existante, ne crée pas de doublon. Combiné avec
 `processed_external_events` (provider, event_id), c'est la double défense contre
 les replays.
 
-**Agrégation Premium** : `SubscriptionService.currentSubscription(userId)` retourne
-la souscription "qui compte" en cas de cumul — INTEGRAL > CIVIQUE, puis date de
-fin la plus tardive. Exposée via `GET /api/billing/subscription-status`.
+**Agrégation Premium** : en cas de cumul, l'achat "qui compte" est INTEGRAL > CIVIQUE,
+puis date de fin la plus tardive (`AccesEffectifResolver.meilleur`). L'ACHAT courant se lit
+par `SubscriptionService.currentPurchase(userId)`, le DROIT effectif (achats + décisions
+admin) par `SubscriptionService.effectiveAccess(userId)`, exposé via
+`GET /api/billing/subscription-status` (§ « Accès effectif » ci-dessous, D-30).
 
 **Anti-double-paiement** : un user déjà Premium via Stripe télécharge l'app →
 `subscription-status` renvoie `isPremium=true, source=STRIPE` → l'app mobile
@@ -516,9 +518,11 @@ décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
 - **Une autorité** : `SubscriptionService` charge achats + décisions courantes et applique
   `service/access/AccesEffectifResolver` (pur). Tous les verrous (`hasCivique`/`hasTcf`),
   `/me`, `subscription-status`, `verify-receipt` (même construction :
-  `SubscriptionStatusService`), le quota EO temps réel, la proration Stripe et la base de
-  prolongation d'un pass passent par elle. Personne ne recopie la règle ; l'admin la lit,
-  ne la recalcule pas.
+  `SubscriptionStatusService`), le quota EO temps réel et la base de prolongation d'un pass
+  passent par elle. Personne ne recopie la règle ; l'admin la lit, ne la recalcule pas.
+- 🛑 **Deux noms, deux notions** (D-30) : `SubscriptionService.currentPurchase` = l'ACHAT
+  courant (décisions ignorées) ; `SubscriptionService.effectiveAccess` = le DROIT effectif
+  (module, fin, achat qui le porte). Il n'y a plus de `currentSubscription`.
 - **Règle à l'instant t, par produit** : la décision courante dont la fenêtre couvre t (au plus
   une : contrainte d'EXCLUSION gist) — `GRANT` ⇒ ouvert ; `REVOKE` ⇒ ouvert seulement par un
   achat **postérieur à la décision** (`purchased_at` > `decided_at`) ; aucune ⇒ achat couvrant
@@ -536,11 +540,20 @@ décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
   ligne d'achat n'est écrite qu'à sa création, comme avant.
 - **Résilier / supprimer le compte** lisent l'ACHAT (`currentPurchase`) : un REVOKE admin
   n'empêche jamais de couper un prélèvement récurrent.
+- 🛑 **Proration Stripe Civique → Intégral : sur les ACHATS, pas sur l'accès effectif** (D-31).
+  Autorité : `service/billing/CreditProration`. Crédit = valeur restante du meilleur achat
+  valide, **payé, non remboursé** (ni `REFUNDED` ni `PARTIALLY_REFUNDED` ; `null` = ancien achat,
+  tenu pour payé), **non neutralisé par un REVOKE admin applicable** (achat antérieur à la
+  décision). Un Intégral payé ⇒ aucun crédit. Un GRANT (geste) ne retire jamais le crédit d'un
+  Civique payé ; après Corriger Civique → Intégral ou Terminer, plus de crédit ; un REVOKE
+  programmé (Raccourcir) arrête les jours crédités à son début.
 - **Quota EO temps réel** : porté par l'achat Intégral qui compte. Un achat révoqué ne laisse
   plus consommer ; un GRANT Intégral SANS achat Intégral couvrant n'a pas de solde — point
   ouvert, « Bloquant » du fichier de décisions.
-- **Emails** (G-6) : un compte qui porte une décision courante est exclu des scénarios Premium
-  fondés sur les achats (`EmailScenarioRepository`).
+- **Emails** (G-6, D-32) : un compte n'est écarté d'un scénario Premium fondé sur les achats que
+  si une décision admin change son accès effectif par rapport aux seuls achats, maintenant ou
+  d'ici la date annoncée (`AccesEffectifResolver.decisionsChangentLAcces`, appelé par
+  `EmailAutomationService` ; le SQL ne lit pas `access_overrides`). → `docs/regles/emails.md`
 - **Suppression de compte** (G-8) : décisions et journal sont purgés avec le reste.
 - Dates : fin admin saisie « jusqu'au JJ/MM inclus » = borne exclusive au lendemain 00:00
   Europe/Paris (`util/DateMetierParis`, seul convertisseur) ; une fin d'achat reste à l'heure
