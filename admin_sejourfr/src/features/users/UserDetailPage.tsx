@@ -13,6 +13,7 @@ import { Tag } from "../../components/ui/Tag";
 import { formatParisDate, formatParisDateTime } from "../../lib/dates";
 import type {
   AdminAccessProductDto,
+  AdminRealtimeEoSessionsDto,
   AdminUserAccessDto,
   AdminUserDetailDto,
   AdminUserProgressionDto,
@@ -292,6 +293,7 @@ function ProductCard({
           <dd>{a.originLabel ?? "—"}</dd>
         </div>
       </dl>
+      {a.realtimeEoSessions && <RealtimeSessions sessions={a.realtimeEoSessions} />}
       {a.alerts.length > 0 && (
         <ul className={styles.alerts}>
           {a.alerts.map((al) => (
@@ -314,6 +316,40 @@ function ProductCard({
         </div>
       )}
     </article>
+  );
+}
+
+/**
+ * Sessions EO temps réel de la carte Intégral (D-45) : la phrase et chaque
+ * solde sont servis séparément (achat, accès manuel, accès programmé) ; rien
+ * n'est additionné ici.
+ */
+function RealtimeSessions({ sessions: s }: { sessions: AdminRealtimeEoSessionsDto }) {
+  return (
+    <div className={styles.sessions}>
+      <div className={styles.sessionsHead}>
+        <Icon name="mic" size={15} />
+        <span>Sessions EO temps réel</span>
+      </div>
+      <p className={styles.sessionsLabel}>{s.label}</p>
+      <dl className={styles.sessionsFacts}>
+        <div>
+          <dt>Achat (restantes)</dt>
+          <dd>{s.purchaseRemaining ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Accès manuel (restantes / offertes)</dt>
+          <dd>{s.grantGranted === null ? "—" : `${s.grantRemaining ?? "—"} / ${s.grantGranted}`}</dd>
+        </div>
+        {s.scheduledGrantGranted !== null && (
+          <div>
+            <dt>Accès programmé (offertes)</dt>
+            <dd>{s.scheduledGrantGranted}</dd>
+          </div>
+        )}
+      </dl>
+      {s.info && <p className={styles.sessionsInfo}>{s.info}</p>}
+    </div>
   );
 }
 

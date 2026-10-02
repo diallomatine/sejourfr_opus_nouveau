@@ -322,6 +322,57 @@
   overflow-wrap: anywhere;
 }
 
+.sessions {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.sessionsHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+.sessionsLabel {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sessionsFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.sessionsFacts dt {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.sessionsFacts dd {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sessionsInfo {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--amber-ink);
+}
+
 .alerts {
   margin: 10px 0 0;
   padding: 8px 10px 8px 24px;

@@ -172,7 +172,13 @@ Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives)
 - 🛑 **Le front ne recalcule RIEN** : statut, module ouvert, date de fin, inclusive/exclusive,
   disponibilité d'une action, phrase d'aperçu — tout est servi. Les seules dates manipulées
   sont la mise en forme d'un instant servi (`lib/dates.ts`) et le pré-remplissage du champ de
-  fin avec `defaultEndDateInclusive` (servi). Début vide = « maintenant » (D-23).
+  fin avec `defaultEndDateInclusive` (servi, Réactiver compris — D-52). Début vide = « maintenant »
+  (D-23).
+- **Sessions EO temps réel** (D-50, D-51) : champ de la modale affiché seulement pour Donner /
+  Réactiver / Corriger vers un produit dont `maxRealtimeEoSessions` est servi (INTEGRAL), 0 …
+  plafond, envoyé en aperçu et en écriture ; le cumul et la phrase « n'ajoute pas » sont dans
+  `preview`. La carte Intégral affiche `realtimeEoSessions` (phrase `label`, soldes achat /
+  accès manuel / programmé, `info`) — le front n'additionne rien.
 - **Une seule modale** (`components/AccessOperationModal.tsx`) pour GRANT / EXTEND / SHORTEN /
   END / REACTIVATE / CORRECT_PRODUCT : motif 3–500 ; aperçu = `dryRun: true` (debounce 400 ms,
   `expectedVersion` déjà envoyé) ; « Enregistrer » actif seulement sur un aperçu à jour ; seconde

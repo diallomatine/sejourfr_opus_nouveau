@@ -478,6 +478,13 @@
     .preview { margin-top: 14px; border-radius: 12px; padding: 11px 12px; border: 1px dashed #c5d2ee; background: #fbfcff; font-size: 11px; line-height: 1.5; }
     .preview strong { display: block; color: var(--blue-800); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
     .counter { text-align: right; }
+    .sessions { margin-top: 10px; padding: 10px 12px; border: 1px solid #edf0f6; border-radius: 12px; background: #fbfcfe; }
+    .sessions-head { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--blue-800); }
+    .sessions-label { margin: 6px 0 0; font-size: 12px; font-weight: 700; }
+    .sessions-facts { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+    .sessions-facts span { display: block; color: var(--muted); font-size: 10px; }
+    .sessions-facts strong { display: block; font-size: 11.5px; margin-top: 3px; }
+    .sessions-info { margin: 8px 0 0; font-size: 11px; color: var(--amber-700); }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     @media (max-width: 720px) { .facts { grid-template-columns: 1fr 1fr; } .facts div:last-child { grid-column: 1 / -1; } }
   </style>
@@ -631,6 +638,11 @@
               <input class="input" type="date" id="endDate" oninput="refreshPreview()" />
               <small>Dernier jour d'accès, heure de Paris.</small>
             </div>
+            <div class="field full" id="sessionsField">
+              <label for="sessions">Sessions EO temps réel</label>
+              <input class="input" type="number" id="sessions" min="0" max="50" step="1" value="0" style="max-width:160px" oninput="refreshPreview()" />
+              <small id="sessionsHelp">Offertes par cet accès manuel : nombre entier de 0 à 50 (plafond servi). Le total disponible après l'action est indiqué dans l'aperçu.</small>
+            </div>
             <div class="field full">
               <label for="reason">Motif</label>
               <textarea class="textarea" id="reason" maxlength="500" placeholder="Ex. erreur de produit lors de l'achat, geste commercial…" oninput="refreshPreview()"></textarea>
@@ -675,8 +687,8 @@
     // Statuts, résumés, fins incluses, actions proposées et aperçus y sont SERVIS.
 
     const PRODUCTS = [
-      { code: 'CIVIQUE', label: 'Civique', modulesLabel: 'Civique' },
-      { code: 'INTEGRAL', label: 'Intégral', modulesLabel: 'TCF + Civique' }
+      { code: 'CIVIQUE', label: 'Civique', modulesLabel: 'Civique', maxRealtimeEoSessions: null },
+      { code: 'INTEGRAL', label: 'Intégral', modulesLabel: 'TCF + Civique', maxRealtimeEoSessions: 50 }
     ];
     const OP_LABEL = { GRANT: 'Donner un accès', EXTEND: 'Prolonger', SHORTEN: 'Raccourcir', END: 'Terminer', REACTIVATE: 'Réactiver', CORRECT_PRODUCT: 'Corriger le produit' };
     const STATUS_BADGE = { ACTIVE: 'badge-green', SCHEDULED: 'badge-blue', REVOKED: 'badge-red', EXPIRED: 'badge-amber', NONE: 'badge-gray' };
@@ -706,7 +718,8 @@
         effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '12/10/2026 à 17:42',
         accesses: [
           { product: 'CIVIQUE', status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: ['Civique reste ouvert via Intégral'], ops: ['GRANT'] },
-          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 12/10/2026 à 17:42", start: '12/09/2026', end: '12/10/2026 à 17:42', defaultEnd: '2026-10-12', origin: 'Achat Apple', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 12/10/2026 à 17:42", start: '12/09/2026', end: '12/10/2026 à 17:42', defaultEnd: '2026-10-12', origin: 'Achat Apple', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'],
+            sessions: { label: '3 sessions restantes — achat : 3', purchase: 3, grantGranted: null, grantRemaining: null, scheduled: null, info: null } }
         ],
         purchases: [{ product: 'Intégral', plan: 'Intégral — pass 1 mois', amount: '19,99 €', date: '12/09/2026 à 17:42', provider: 'Apple', status: 'Actif · Payé', end: '12/10/2026 à 17:42', ref: '20000071…3391' }],
         progress: [
@@ -721,7 +734,8 @@
         effective: { product: 'Aucun', modules: 'Aucun' }, nextEnd: '—',
         accesses: [
           none('CIVIQUE'),
-          { product: 'INTEGRAL', status: 'EXPIRED', summary: 'Expiré depuis le 10/08/2026', start: '03/08/2026', end: '10/08/2026 à 11:20', origin: 'Achat Google Play', alerts: [], ops: ['REACTIVATE'] }
+          { product: 'INTEGRAL', status: 'EXPIRED', summary: 'Expiré depuis le 10/08/2026', start: '03/08/2026', end: '10/08/2026 à 11:20', defaultEnd: '2026-08-10', origin: 'Achat Google Play', alerts: [], ops: ['REACTIVATE'],
+            sessions: { label: '0 session restante', purchase: null, grantGranted: null, grantRemaining: null, scheduled: null, info: null } }
         ],
         purchases: [{ product: 'Intégral', plan: 'Intégral — pass 7 jours', amount: '9,99 €', date: '03/08/2026 à 11:20', provider: 'Google Play', status: 'Expiré · Payé', end: '10/08/2026 à 11:20', ref: 'GPA.3312…8841' }],
         progress: [
@@ -765,7 +779,8 @@
         effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '25/12/2026 inclus',
         accesses: [
           { product: 'CIVIQUE', status: 'REVOKED', summary: 'Révoqué depuis le 25/09/2026', start: '25/09/2026', end: '—', origin: 'Admin (accès retiré)', alerts: ['Civique reste ouvert via Intégral'], ops: ['REACTIVATE'] },
-          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 25/12/2026 inclus", start: '25/09/2026', end: '25/12/2026 inclus', defaultEnd: '2026-12-25', origin: 'Admin (accès accordé)', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 25/12/2026 inclus", start: '25/09/2026', end: '25/12/2026 inclus', defaultEnd: '2026-12-25', origin: 'Admin (accès accordé)', alerts: [], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'],
+            sessions: { label: '14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0', purchase: null, grantGranted: 20, grantRemaining: 14, scheduled: null, info: null } }
         ],
         purchases: [{ product: 'Civique', plan: 'Civique — pass 3 mois', amount: '9,99 €', date: '25/09/2026 à 15:16', provider: 'Stripe', status: 'Actif · Payé', end: '25/12/2026 à 15:16', ref: 'cs_live_…a91c' }],
         progress: [
@@ -782,7 +797,8 @@
         effective: { product: 'Aucun', modules: 'Aucun' }, nextEnd: '—',
         accesses: [
           none('CIVIQUE'),
-          { product: 'INTEGRAL', status: 'SCHEDULED', summary: 'Programmé du 15/10/2026 au 14/11/2026 inclus', start: '15/10/2026', end: '14/11/2026 inclus', defaultEnd: '2026-11-14', origin: 'Admin (accès accordé)', alerts: ['Accès programmé du 15/10/2026 au 14/11/2026 inclus'], ops: ['GRANT', 'END'] }
+          { product: 'INTEGRAL', status: 'SCHEDULED', summary: 'Programmé du 15/10/2026 au 14/11/2026 inclus', start: '15/10/2026', end: '14/11/2026 inclus', defaultEnd: '2026-11-14', origin: 'Admin (accès accordé)', alerts: ['Accès programmé du 15/10/2026 au 14/11/2026 inclus'], ops: ['GRANT', 'END'],
+            sessions: { label: '0 session restante — accès programmé : 10 offertes', purchase: null, grantGranted: null, grantRemaining: null, scheduled: 10, info: null } }
         ],
         purchases: [],
         progress: [
@@ -799,7 +815,8 @@
         effective: { product: 'Intégral', modules: 'TCF + Civique' }, nextEnd: '31/10/2026 inclus',
         accesses: [
           { product: 'CIVIQUE', status: 'NONE', summary: 'Aucun', start: '—', end: '—', origin: '—', alerts: ['Civique reste ouvert via Intégral'], ops: ['GRANT'] },
-          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 31/10/2026 inclus", start: '24/09/2026', end: '31/10/2026 inclus', defaultEnd: '2026-10-31', origin: 'Admin (accès accordé)', alerts: ['Achat remboursé'], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'] }
+          { product: 'INTEGRAL', status: 'ACTIVE', summary: "Actif jusqu'au 31/10/2026 inclus", start: '24/09/2026', end: '31/10/2026 inclus', defaultEnd: '2026-10-31', origin: 'Admin (accès accordé)', alerts: ['Achat remboursé'], ops: ['EXTEND', 'SHORTEN', 'END', 'CORRECT_PRODUCT', 'GRANT'],
+            sessions: { label: '0 session restante — accès manuel : 0 sur 0', purchase: null, grantGranted: 0, grantRemaining: 0, scheduled: null, info: "Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel." } }
         ],
         purchases: [{ product: 'Intégral', plan: 'Intégral — pass 1 mois', amount: '19,99 €', date: '20/09/2026 à 11:00', provider: 'Stripe', status: 'Remboursé · Remboursé', end: '20/10/2026 à 11:00', ref: 'cs_live_…77d0' }],
         progress: [
@@ -896,6 +913,16 @@
             <div><span>Fin incluse</span><strong>${escapeHtml(a.end)}</strong></div>
             <div><span>Origine</span><strong>${escapeHtml(a.origin)}</strong></div>
           </div>
+          ${a.sessions ? `<div class="sessions">
+            <div class="sessions-head">Sessions EO temps réel</div>
+            <p class="sessions-label">${escapeHtml(a.sessions.label)}</p>
+            <div class="sessions-facts">
+              <div><span>Achat (restantes)</span><strong>${a.sessions.purchase ?? '—'}</strong></div>
+              <div><span>Accès manuel (restantes / offertes)</span><strong>${a.sessions.grantGranted === null ? '—' : `${a.sessions.grantRemaining} / ${a.sessions.grantGranted}`}</strong></div>
+              ${a.sessions.scheduled !== null ? `<div><span>Accès programmé (offertes)</span><strong>${a.sessions.scheduled}</strong></div>` : ''}
+            </div>
+            ${a.sessions.info ? `<p class="sessions-info">${escapeHtml(a.sessions.info)}</p>` : ''}
+          </div>` : ''}
           ${a.alerts.length ? `<ul class="alerts">${a.alerts.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>` : ''}
           <div class="product-actions">
             ${a.ops.map(op => `<button class="btn btn-sm ${op === 'END' ? 'btn-danger' : (op === 'EXTEND' || op === 'REACTIVATE') ? 'btn-primary' : op === 'GRANT' ? 'btn-ghost' : 'btn-secondary'}" onclick="openAccessModal('${op}', '${a.product}')">${OP_LABEL[op]}</button>`).join('')}
@@ -1003,7 +1030,8 @@
       document.getElementById('startField').style.display = (op === 'GRANT' || op === 'REACTIVATE') ? '' : 'none';
       document.getElementById('endField').style.display = op === 'END' ? 'none' : '';
       document.getElementById('startDate').value = '';
-      document.getElementById('endDate').value = ['EXTEND', 'SHORTEN', 'CORRECT_PRODUCT'].includes(op) && access ? (access.defaultEnd || '') : '';
+      document.getElementById('endDate').value = ['EXTEND', 'SHORTEN', 'CORRECT_PRODUCT', 'REACTIVATE'].includes(op) && access ? (access.defaultEnd || '') : '';
+      document.getElementById('sessions').value = '0';
       document.getElementById('reason').value = '';
       refreshPreview();
       document.getElementById('accessModal').classList.add('open');
@@ -1019,6 +1047,11 @@
       const end = document.getElementById('endDate').value;
       const start = document.getElementById('startDate').value;
       const reason = document.getElementById('reason').value.trim();
+      // Champ visible seulement pour une opération qui pose un GRANT sur un produit à plafond servi (INTEGRAL).
+      const targetProduct = PRODUCTS.find(p => p.code === target);
+      const offers = ['GRANT', 'REACTIVATE', 'CORRECT_PRODUCT'].includes(op) && targetProduct && targetProduct.maxRealtimeEoSessions !== null;
+      document.getElementById('sessionsField').style.display = offers ? '' : 'none';
+      const sessions = offers ? Number(document.getElementById('sessions').value || 0) : 0;
       document.getElementById('reasonCounter').textContent = `${reason.length} / 500 — au moins 3 caractères, sans donnée personnelle inutile.`;
       const ready = reason.length >= 3 && (op === 'END' || end);
       const text = document.getElementById('previewText');
@@ -1034,6 +1067,17 @@
         END: `Cet utilisateur perdra immédiatement son accès ${p}. Continuer ?`,
         CORRECT_PRODUCT: `Vous allez retirer l'accès ${product ? productLabel(product) : ''} et donner l'accès ${p} jusqu'au ${fr(end)} inclus.`
       };
+      // Phrases servies par le serveur (D-46) : la maquette les mime.
+      const current = user => (user.accesses.find(a => a.product === 'INTEGRAL') || {}).sessions;
+      const before = current(modalState.user);
+      const remaining = before && before.grantRemaining ? before.grantRemaining : 0;
+      if (offers && sessions > 0 && remaining > 0) {
+        sentences[op] += ` Sessions EO temps réel : ${remaining} sessions restantes + ${sessions} offertes → ${remaining + sessions} sessions disponibles.`;
+      } else if (offers && sessions > 0) {
+        sentences[op] += ` Cet accès manuel offre ${sessions} sessions EO temps réel.`;
+      } else if (offers) {
+        sentences[op] += " Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel.";
+      }
       modalState.sentence = sentences[op];
       modalState.confirm = ['CORRECT_PRODUCT', 'SHORTEN', 'END'].includes(op);
       text.textContent = sentences[op];

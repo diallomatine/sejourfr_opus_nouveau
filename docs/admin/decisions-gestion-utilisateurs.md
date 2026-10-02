@@ -852,6 +852,50 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 - **Impact** : `VersionAcces` inchangé. Test : `RealtimeGrantQuotaIT.debitIdempotentEtTrace`.
 - **Réversibilité** : facile.
 
+## Phase 3 ter — front des sessions EO et de Réactiver (2026-10-02)
+
+> Branche le front admin sur D-34 et D-44 → D-46. Aucun DTO ni endpoint touché ; tout ce qui
+> s'affiche est servi.
+
+### D-50 — Champ « Sessions EO temps réel » : visibilité par le contrat D-44 + le plafond servi
+
+- **Contexte** : aucune donnée servie ne dit « cette opération pose un GRANT » ; le contrat de la
+  requête (D-44) refuse en 400 une valeur > 0 hors de `GRANT` / `REACTIVATE` / `CORRECT_PRODUCT`
+  vers INTEGRAL.
+- **Options envisagées** : (a) produit cible codé en dur (`=== "INTEGRAL"`) ; (b) liste des trois
+  opérations (contrat) × produit cible dont `maxRealtimeEoSessions` est servi non nul.
+- **Choix retenu** : (b). `AccessOperationModal` : `POSES_GRANT = [GRANT, REACTIVATE,
+  CORRECT_PRODUCT]`, champ affiché si l'opération en fait partie et que le produit cible (figé par
+  la carte, ou choisi) porte `maxRealtimeEoSessions`. Défaut 0, entier 0 … plafond servi ; hors
+  bornes ⇒ aucun aperçu ni écriture (le serveur reste l'autorité, 400 affiché tel quel). La valeur
+  part dans l'aperçu `dryRun` **et** l'écriture ; absent quand le champ est masqué. Le cumul
+  (« 4 sessions restantes + 10 offertes → 14 sessions disponibles ») et la phrase « Cet accès
+  manuel n'ajoute pas actuellement de sessions EO temps réel. » sont lus dans `preview`, jamais
+  construits.
+- **Réversibilité** : facile — si le serveur sert un jour « opérations à sessions », remplacer
+  `POSES_GRANT` par ce champ.
+
+### D-51 — Carte Intégral : soldes servis côte à côte, aucune somme
+
+- **Choix retenu** : bloc « Sessions EO temps réel » sur la carte dont `realtimeEoSessions` n'est
+  pas `null` (INTEGRAL) : la phrase `label`, puis « Achat (restantes) » = `purchaseRemaining`,
+  « Accès manuel (restantes / offertes) » = `grantRemaining / grantGranted`, « Accès programmé
+  (offertes) » = `scheduledGrantGranted` s'il est servi, et `info` en note ambre. `null` ⇒ « — »,
+  jamais 0. `remaining` (total) n'est pas réaffiché à part : il est dans `label`.
+- **Réversibilité** : facile.
+
+### D-52 — Réactiver : « Fin » pré-remplie avec la valeur servie (D-34)
+
+- **Choix retenu** : `REACTIVATE` rejoint Prolonger / Raccourcir / Corriger dans le
+  pré-remplissage par `defaultEndDateInclusive` (révise la note de D-34 « champ vide »). Le
+  « Début » reste vide (D-23). L'avertissement « l'achat … révoqué ne sera pas rétabli » vient de
+  la phrase d'aperçu servie.
+- **Réversibilité** : facile.
+
+Maquette `maquette-admin-utilisateurs-mvp.html` mise à jour : champ de sessions (plafond servi,
+mêmes conditions), bloc sessions des cartes Intégral, fin pré-remplie pour Réactiver, phrases
+d'aperçu mimées.
+
 ## Écarts avec la spec
 
 - Produits `CIVIQUE` / `INTEGRAL` (GO §1) : la correction « Civique → TCF » est « Civique →

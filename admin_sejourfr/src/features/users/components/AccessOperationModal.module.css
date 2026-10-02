@@ -35,6 +35,14 @@
   color: var(--muted);
 }
 
+.hintError {
+  color: var(--red-dark);
+}
+
+.sessionsInput {
+  max-width: 160px;
+}
+
 .counter {
   text-align: right;
 }

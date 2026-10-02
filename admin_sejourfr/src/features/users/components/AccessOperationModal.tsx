@@ -40,7 +40,9 @@ const REASON_MAX = 500;
 
 /** Champs que l'API lit selon l'opération (contrat de `AdminAccessOperationRequest`). */
 const READS_START: readonly AdminAccessOperationType[] = ["GRANT", "REACTIVATE"];
-const PREFILLS_END: readonly AdminAccessOperationType[] = ["EXTEND", "SHORTEN", "CORRECT_PRODUCT"];
+const PREFILLS_END: readonly AdminAccessOperationType[] = ["EXTEND", "SHORTEN", "CORRECT_PRODUCT", "REACTIVATE"];
+/** Opérations qui posent un GRANT sur le produit cible : seules à accepter des sessions EO (D-44, sinon 400). */
+const POSES_GRANT: readonly AdminAccessOperationType[] = ["GRANT", "REACTIVATE", "CORRECT_PRODUCT"];
 
 /**
  * La modale UNIQUE des actions d'accès (spec §6). Rien n'y est décidé : les
@@ -90,9 +92,17 @@ export function AccessOperationModal({
     ? chosenProduct || choosableProducts[0]?.code || ""
     : (intent.product ?? "");
 
+  const [sessionsInput, setSessionsInput] = useState("0");
+  const maxSessions = products.find((p) => p.code === product)?.maxRealtimeEoSessions ?? null;
+  const offersSessions = POSES_GRANT.includes(operation) && maxSessions !== null;
+  const sessions = Number(sessionsInput);
+  const sessionsValid =
+    !offersSessions ||
+    (sessionsInput.trim() !== "" && Number.isInteger(sessions) && sessions >= 0 && sessions <= (maxSessions ?? 0));
+
   const trimmedReason = reason.trim();
   const reasonValid = trimmedReason.length >= REASON_MIN && trimmedReason.length <= REASON_MAX;
-  const complete = product !== "" && reasonValid && (!readsEnd || endDate !== "");
+  const complete = product !== "" && reasonValid && sessionsValid && (!readsEnd || endDate !== "");
 
   const request = useMemo<AdminAccessOperationRequest | null>(() => {
     if (!complete) return null;
@@ -103,6 +113,7 @@ export function AccessOperationModal({
       startDate: readsStart && startDate ? startDate : undefined,
       endDateInclusive: readsEnd ? endDate : undefined,
       reason: trimmedReason,
+      realtimeEoSessions: offersSessions ? sessions : undefined,
       dryRun: true,
       expectedVersion,
     };
@@ -117,6 +128,8 @@ export function AccessOperationModal({
     readsEnd,
     endDate,
     trimmedReason,
+    offersSessions,
+    sessions,
     expectedVersion,
   ]);
 
@@ -275,6 +288,30 @@ export function AccessOperationModal({
               </div>
             )}
 
+            {offersSessions && (
+              <div className={`${styles.field} ${styles.full}`}>
+                <label className={styles.label} htmlFor="access-sessions">
+                  Sessions EO temps réel
+                </label>
+                <Input
+                  id="access-sessions"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={maxSessions ?? undefined}
+                  step={1}
+                  value={sessionsInput}
+                  onChange={(e) => setSessionsInput(e.target.value)}
+                  aria-invalid={!sessionsValid}
+                  className={styles.sessionsInput}
+                />
+                <small className={`${styles.hint} ${sessionsValid ? "" : styles.hintError}`}>
+                  Offertes par cet accès manuel : nombre entier de 0 à {maxSessions}. Le total
+                  disponible après l'action est indiqué dans l'aperçu.
+                </small>
+              </div>
+            )}
+
             <div className={`${styles.field} ${styles.full}`}>
               <label className={styles.label} htmlFor="access-reason">
                 Motif
@@ -297,7 +334,9 @@ export function AccessOperationModal({
             <div className={styles.previewTitle}>Aperçu</div>
             {!request ? (
               <p className={styles.previewMuted}>
-                Renseignez {readsEnd ? "la date de fin et " : ""}le motif pour obtenir l'aperçu calculé par le serveur.
+                {sessionsValid
+                  ? `Renseignez ${readsEnd ? "la date de fin et " : ""}le motif pour obtenir l'aperçu calculé par le serveur.`
+                  : `Indiquez un nombre de sessions entre 0 et ${maxSessions} pour obtenir l'aperçu.`}
               </p>
             ) : !previewIsCurrent || previewQuery.isFetching ? (
               <p className={styles.previewMuted}>Calcul de l'aperçu…</p>
