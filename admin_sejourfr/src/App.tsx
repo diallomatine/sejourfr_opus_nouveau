@@ -22,6 +22,8 @@ import { SkillsPage } from "./features/skills/SkillsPage";
 import { SkillsStatsPage } from "./features/skills/SkillsStatsPage";
 import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
 import { SuiviPage } from "./features/suivi/SuiviPage";
+import { UserDetailPage } from "./features/users/UserDetailPage";
+import { UsersPage } from "./features/users/UsersPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
 import { LoginPage } from "./pages/LoginPage";
@@ -45,6 +47,8 @@ export function App() {
               >
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<SuiviPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/users/:id" element={<UserDetailPage />} />
                 <Route
                   path="/questions"
                   element={<Navigate to="/questions/civique" replace />}

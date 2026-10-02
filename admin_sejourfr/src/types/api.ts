@@ -757,6 +757,8 @@ export interface AdminUserAccessDto {
   /** yyyy-MM-dd, « jusqu'au … inclus ». */
   endDateInclusive: string | null;
   endLabel: string | null;
+  /** yyyy-MM-dd : valeur que la modale pré-remplit dans « Fin (incluse) » (servie, jamais convertie ici). */
+  defaultEndDateInclusive: string | null;
   origin: AccessOrigin | null;
   originLabel: string | null;
   alerts: AdminAccessAlertDto[];

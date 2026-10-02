@@ -95,6 +95,7 @@ public class AdminUserMapper {
                 e.debut(), e.fin(),
                 DateMetierParis.finIncluse(e.fin()).orElse(null),
                 e.fin() != null ? DateMetierParis.libelleFin(e.fin()) : null,
+                DateMetierParis.finProposee(e.fin()).orElse(null),
                 e.origine(), e.origine() != null ? e.origine().label() : null,
                 e.alertes().stream().map(this::alerte).toList(),
                 operations.stream().map(o -> new AdminAccessOperationOptionDto(o, o.label())).toList());

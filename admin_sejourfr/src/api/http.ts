@@ -159,3 +159,9 @@ export async function apiRequest<T>(
 export function apiBaseUrl(): string {
     return API_BASE;
 }
+
+/** Message lisible d'une erreur d'appel : celui du serveur s'il en a servi un. */
+export function httpErrorMessage(error: unknown): string {
+    if (error instanceof HttpError) return error.payload?.message ?? error.message;
+    return error instanceof Error ? error.message : "erreur inconnue";
+}

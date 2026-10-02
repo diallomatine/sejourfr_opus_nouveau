@@ -1071,7 +1071,9 @@ recalcule rien.
   `effectiveAccess`, `lastActivityAt`, `accesses[]` (`AdminUserAccessDto` : `status`
   `ACTIVE|SCHEDULED|REVOKED|EXPIRED|NONE` + label, `summary`, `startsAt`, `endsAt` (borne
   exclusive), `endDateInclusive` (seulement pour une fin posée par l'admin), `endLabel`
-  (« 31/10/2026 inclus » ou « 01/11/2026 à 14:37 » pour un achat), `origin`
+  (« 31/10/2026 inclus » ou « 01/11/2026 à 14:37 » pour un achat), `defaultEndDateInclusive`
+  (`yyyy-MM-dd`, valeur que la modale pré-remplit dans « Fin (incluse) » : date incluse d'une fin
+  admin, sinon jour Paris de la fin d'achat — `DateMetierParis.finProposee`, D-22), `origin`
   `PURCHASE_STRIPE|PURCHASE_APPLE|PURCHASE_GOOGLE|ADMIN_GRANT|ADMIN_REVOKE` + label,
   `alerts[] {code, label}`, `availableOperations[] {code, label}`), `purchases[]`
   (référence externe **tronquée**, `recurring`), `progression[]` (TCF puis Civique :

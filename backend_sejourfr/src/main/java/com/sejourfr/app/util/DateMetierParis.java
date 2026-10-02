@@ -56,6 +56,17 @@ public final class DateMetierParis {
         return Optional.of(z.toLocalDate().minusDays(1));
     }
 
+    /**
+     * La date que la modale admin propose par défaut dans « Fin (incluse) » pour
+     * cette borne : la date incluse d'une fin admin, sinon le jour (Paris) où
+     * finit l'achat — même convention que « fin actuelle de A » d'une correction
+     * de produit (spec §2.6). Valeur de pré-remplissage seulement.
+     */
+    public static Optional<LocalDate> finProposee(Instant finExclusive) {
+        if (finExclusive == null) return Optional.empty();
+        return finIncluse(finExclusive).or(() -> Optional.of(aujourdhui(finExclusive)));
+    }
+
     /** « 31/10/2026 inclus » pour une fin admin, « 01/11/2026 à 14:37 » pour une fin d'achat. */
     public static String libelleFin(Instant finExclusive) {
         return finIncluse(finExclusive)

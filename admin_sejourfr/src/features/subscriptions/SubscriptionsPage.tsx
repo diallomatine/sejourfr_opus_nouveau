@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useMutation,
   useQuery,
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
-import { HttpError } from "../../api/http";
+import { HttpError, httpErrorMessage as errorMessage } from "../../api/http";
 import { subscriptionsApi } from "../../api/subscriptionsApi";
 import { Button } from "../../components/ui/Button";
 import { Input, Select } from "../../components/ui/Form";
@@ -15,6 +15,8 @@ import { PageHeader } from "../../components/ui/PageHeader";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
+import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
+import { formatParisDateTime } from "../../lib/dates";
 import type {
   AdminSubscriptionDto,
   CancelSubscriptionResponse,
@@ -30,11 +32,6 @@ import {
 } from "./useSubscriptionListParams";
 
 const NUMBER_FORMAT = new Intl.NumberFormat("fr-FR");
-
-function errorMessage(error: unknown): string {
-  if (error instanceof HttpError) return error.payload?.message ?? error.message;
-  return error instanceof Error ? error.message : "erreur inconnue";
-}
 
 const SOURCE_LABEL: Record<SubscriptionSource, string> = {
   STRIPE: "Stripe (web)",
@@ -97,17 +94,7 @@ function formatDateTime(iso: string | null | undefined): string {
 const PARIS = "Europe/Paris";
 
 /** Date d'achat lue en heure de Paris : le filtre mensuel du serveur découpe les mois ainsi. */
-function formatPurchase(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("fr-FR", {
-    timeZone: PARIS,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+const formatPurchase = formatParisDateTime;
 
 const MONTH_OPTIONS_COUNT = 24;
 
@@ -154,26 +141,12 @@ function fullName(sub: AdminSubscriptionDto): string {
 export function SubscriptionsPage() {
   const { filters, hasActiveFilter, setFilter, setPage, setSize, resetFilters } =
     useSubscriptionListParams();
-  const urlSearch = filters.search ?? "";
-  const [searchInput, setSearchInput] = useState(urlSearch);
-  const [syncedSearch, setSyncedSearch] = useState(urlSearch);
+  const commitSearch = useCallback(
+    (value: string | undefined) => setFilter("search", value, { replace: true }),
+    [setFilter],
+  );
+  const [searchInput, setSearchInput] = useUrlSearchInput(filters.search ?? "", commitSearch);
   const [detail, setDetail] = useState<AdminSubscriptionDto | null>(null);
-
-  // L'URL fait foi : un retour arrière ou un lien partagé repose le champ.
-  // La comparaison sur la valeur rognée évite d'effacer l'espace que l'on tape.
-  if (syncedSearch !== urlSearch) {
-    setSyncedSearch(urlSearch);
-    if (searchInput.trim() !== urlSearch) setSearchInput(urlSearch);
-  }
-
-  // Recherche debouncée (300 ms), écrite en `replace` : une frappe n'est pas
-  // une entrée d'historique.
-  useEffect(() => {
-    const typed = searchInput.trim();
-    if (typed === urlSearch) return;
-    const t = setTimeout(() => setFilter("search", typed || undefined, { replace: true }), 300);
-    return () => clearTimeout(t);
-  }, [searchInput, urlSearch, setFilter]);
 
   const subscriptionsQuery = useQuery({
     queryKey: ["adminSubscriptions", filters],
@@ -184,13 +157,7 @@ export function SubscriptionsPage() {
   const data = subscriptionsQuery.data;
   const isStale = subscriptionsQuery.isPlaceholderData;
 
-  // Page devenue hors bornes (lien ancien, résiliation qui vide la dernière
-  // page) : on se recale sur la dernière page existante au lieu d'un faux vide.
-  useEffect(() => {
-    if (!data || isStale) return;
-    const lastPage = Math.max(0, data.totalPages - 1);
-    if (filters.page > lastPage) setPage(lastPage, { replace: true });
-  }, [data, isStale, filters.page, setPage]);
+  useClampPage(data?.totalPages, isStale, filters.page, setPage);
 
   const handleReset = () => {
     setSearchInput("");

@@ -145,6 +145,7 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
         assertThat(integral.get("status").asString()).isEqualTo("ACTIVE");
         assertThat(integral.get("origin").asString()).isEqualTo("ADMIN_GRANT");
         assertThat(integral.get("endDateInclusive").asString()).isEqualTo(fin.toString());
+        assertThat(integral.get("defaultEndDateInclusive").asString()).isEqualTo(fin.toString());
         assertThat(r.get("effectiveAccess").get("openModulesLabel").asString()).isEqualTo("TCF + Civique");
 
         JsonNode me = json(mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, auth.bearer(u)))
@@ -383,9 +384,18 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
     @DisplayName("Fiche : compte, accès par produit, achats tronqués, progression, version")
     void fiche() throws Exception {
         User u = data.user();
-        UserSubscription a = achat(u, ModuleAccess.INTEGRAL, Instant.now().minus(JOUR), Instant.now().plus(JOUR.multipliedBy(20)));
+        Instant finAchat = Instant.now().plus(JOUR.multipliedBy(20));
+        UserSubscription a = achat(u, ModuleAccess.INTEGRAL, Instant.now().minus(JOUR), finAchat);
 
         JsonNode d = detail(u);
+
+        // Fin d'achat (heure réelle) : pas de date incluse, mais la valeur de pré-remplissage
+        // de la modale est servie (jour Paris de la fin), le front ne convertit rien.
+        JsonNode integral = acces(d.get("accesses"), "INTEGRAL");
+        assertThat(integral.get("endDateInclusive").isNull()).isTrue();
+        assertThat(integral.get("defaultEndDateInclusive").asString())
+                .isEqualTo(DateMetierParis.aujourdhui(finAchat).toString());
+        assertThat(acces(d.get("accesses"), "CIVIQUE").get("defaultEndDateInclusive").isNull()).isTrue();
 
         assertThat(d.get("account").get("email").asString()).isEqualTo(u.getEmail());
         assertThat(d.get("account").toString()).doesNotContain("password").doesNotContain("Hash");

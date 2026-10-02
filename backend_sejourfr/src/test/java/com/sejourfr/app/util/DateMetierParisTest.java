@@ -40,6 +40,17 @@ class DateMetierParisTest {
     }
 
     @Test
+    void finProposee_dateIncluseDUneFinAdmin_sinonJourParisDeLaFinDAchat() {
+        assertThat(DateMetierParis.finProposee(DateMetierParis.finExclusive(LocalDate.of(2026, 10, 31))))
+                .contains(LocalDate.of(2026, 10, 31));
+        assertThat(DateMetierParis.finProposee(NOW)).contains(LocalDate.of(2026, 10, 2));
+        // 23:30 UTC le 31/10 = 00:30 Paris le 01/11 (heure d'hiver) : le jour Paris fait foi.
+        assertThat(DateMetierParis.finProposee(Instant.parse("2026-10-31T23:30:00Z")))
+                .contains(LocalDate.of(2026, 11, 1));
+        assertThat(DateMetierParis.finProposee(null)).isEmpty();
+    }
+
+    @Test
     void libelleDeFin_dateIncluseOuHeureReelleDeLAchat() {
         assertThat(DateMetierParis.libelleFin(DateMetierParis.finExclusive(LocalDate.of(2026, 10, 31))))
                 .isEqualTo("31/10/2026 inclus");

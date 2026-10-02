@@ -60,6 +60,9 @@ export function AppLayout() {
         <div className={styles.navSection}>Pilotage</div>
         <NavItem to="/dashboard">↳ Suivi</NavItem>
 
+        <div className={styles.navSection}>Support</div>
+        <NavItem to="/users">↳ Utilisateurs</NavItem>
+
         <div className={styles.navSection}>Contenu</div>
         <NavItem
           to="/questions/civique"

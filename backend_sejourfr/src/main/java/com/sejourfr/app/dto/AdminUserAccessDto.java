@@ -14,7 +14,10 @@ import java.util.List;
  * <p>Dates (G-7) : {@code endsAt} est la borne EXCLUSIVE ; {@code endDateInclusive}
  * n'est présente que si cette borne tombe à minuit Paris (fin posée par l'admin,
  * « 31/10/2026 inclus ») — une fin d'achat garde son heure réelle et
- * {@code endLabel} l'écrit avec l'heure. Le front affiche, il ne convertit rien.
+ * {@code endLabel} l'écrit avec l'heure. {@code defaultEndDateInclusive} est la
+ * valeur que la modale pré-remplit dans « Fin (incluse) » (date incluse d'une
+ * fin admin, sinon jour Paris de la fin d'achat). Le front affiche, il ne
+ * convertit rien.
  */
 public record AdminUserAccessDto(
         ModuleAccess product,
@@ -26,6 +29,7 @@ public record AdminUserAccessDto(
         Instant endsAt,
         LocalDate endDateInclusive,
         String endLabel,
+        LocalDate defaultEndDateInclusive,
         AccessOrigin origin,
         String originLabel,
         List<AdminAccessAlertDto> alerts,
