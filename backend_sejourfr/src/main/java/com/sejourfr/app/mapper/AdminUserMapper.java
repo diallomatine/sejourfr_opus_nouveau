@@ -116,18 +116,23 @@ public class AdminUserMapper {
                 e.produit() == ModuleAccess.INTEGRAL && sessions != null ? sessionsEo(sessions) : null);
     }
 
-    /** « 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 » : des libellés, aucun calcul. */
+    /**
+     * « 14 sessions restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0 » : des
+     * libellés, aucun calcul. « accordées » (total de la lignée), jamais « offertes » : 20 ne doit
+     * pas se lire comme disponible (D-54).
+     */
     public AdminRealtimeEoSessionsDto sessionsEo(RealtimeQuotaService.VueAdmin v) {
         List<String> details = new ArrayList<>();
-        if (v.grantGranted() != null) {
-            details.add("accès manuel : " + v.grantRemaining() + " sur " + v.grantGranted());
+        if (v.grantGranted() != null && v.grantRemaining() != null) {
+            details.add("accès manuel : " + v.grantRemaining() + " " + accord(v.grantRemaining(), "restante")
+                    + " sur " + v.grantGranted() + " " + accord(v.grantGranted(), "accordée"));
         }
         if (v.purchaseRemaining() != null) {
             details.add("achat : " + v.purchaseRemaining());
         }
         if (v.scheduledGrantGranted() != null) {
             details.add("accès programmé : " + sessions(v.scheduledGrantGranted()) + " "
-                    + accord(v.scheduledGrantGranted(), "offerte"));
+                    + accord(v.scheduledGrantGranted(), "accordée"));
         }
         String label = sessions(v.remaining()) + " " + accord(v.remaining(), "restante")
                 + (details.isEmpty() ? "" : " — " + String.join(" ; ", details));

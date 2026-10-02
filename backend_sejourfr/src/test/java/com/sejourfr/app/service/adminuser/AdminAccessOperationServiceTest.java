@@ -498,7 +498,7 @@ class AdminAccessOperationServiceTest {
                 donnees, now).stream().filter(a -> a.product() == ModuleAccess.INTEGRAL).findFirst().orElseThrow()
                 .realtimeEoSessions();
         assertThat(avecSessions.info()).isNull();
-        assertThat(avecSessions.label()).isEqualTo("4 sessions restantes — accès manuel : 4 sur 10");
+        assertThat(avecSessions.label()).isEqualTo("4 sessions restantes — accès manuel : 4 restantes sur 10 accordées");
         assertThat(avecSessions.purchaseRemaining()).isNull();
     }
 }

@@ -24,6 +24,11 @@ import { AccessOperationModal } from "./components/AccessOperationModal";
 import type { AccessOperationIntent } from "./components/AccessOperationModal";
 import styles from "./UserDetailPage.module.css";
 
+/** Accord d'affichage (0 et 1 au singulier, comme les phrases servies). */
+function plural(n: number, word: string): string {
+  return n > 1 ? `${word}s` : word;
+}
+
 function money(cents: number | null, currency: string | null): string {
   if (cents == null) return "—";
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: currency ?? "EUR" }).format(cents / 100);
@@ -334,17 +339,25 @@ function RealtimeSessions({ sessions: s }: { sessions: AdminRealtimeEoSessionsDt
       <p className={styles.sessionsLabel}>{s.label}</p>
       <dl className={styles.sessionsFacts}>
         <div>
-          <dt>Achat (restantes)</dt>
-          <dd>{s.purchaseRemaining ?? "—"}</dd>
+          <dt>Achat</dt>
+          <dd>
+            {s.purchaseRemaining === null ? "—" : `${s.purchaseRemaining} ${plural(s.purchaseRemaining, "restante")}`}
+          </dd>
         </div>
         <div>
-          <dt>Accès manuel (restantes / offertes)</dt>
-          <dd>{s.grantGranted === null ? "—" : `${s.grantRemaining ?? "—"} / ${s.grantGranted}`}</dd>
+          <dt>Accès manuel</dt>
+          <dd>
+            {s.grantGranted === null || s.grantRemaining === null
+              ? "—"
+              : `${s.grantRemaining} ${plural(s.grantRemaining, "restante")} sur ${s.grantGranted} ${plural(s.grantGranted, "accordée")}`}
+          </dd>
         </div>
         {s.scheduledGrantGranted !== null && (
           <div>
-            <dt>Accès programmé (offertes)</dt>
-            <dd>{s.scheduledGrantGranted}</dd>
+            <dt>Accès programmé</dt>
+            <dd>
+              {s.scheduledGrantGranted} {plural(s.scheduledGrantGranted, "accordée")}
+            </dd>
           </div>
         )}
       </dl>

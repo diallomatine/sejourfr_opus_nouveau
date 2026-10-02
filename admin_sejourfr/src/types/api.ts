@@ -759,7 +759,7 @@ export interface AdminRealtimeEoSessionsDto {
   purchaseRemaining: number | null;
   /** Sessions offertes par l'accès manuel programmé ; null sans lui. */
   scheduledGrantGranted: number | null;
-  /** Phrase servie, ex. « 14 sessions restantes — accès manuel : 14 sur 20 ; achat : 0 ». */
+  /** Phrase servie, ex. « 14 sessions restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0 ». */
   label: string;
   /** « Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel. » ou null. */
   info: string | null;

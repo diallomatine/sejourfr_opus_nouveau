@@ -547,7 +547,7 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
         assertThat(sessionsEo(r.get("accesses")).get("grantRemaining").asInt()).isEqualTo(14);
         assertThat(sessionsEo(r.get("accesses")).get("grantGranted").asInt()).isEqualTo(14);
         assertThat(sessionsEo(detail(u).get("accesses")).get("label").asString())
-                .isEqualTo("14 sessions restantes — accès manuel : 14 sur 14");
+                .isEqualTo("14 sessions restantes — accès manuel : 14 restantes sur 14 accordées");
     }
 
     @Test

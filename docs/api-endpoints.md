@@ -1081,7 +1081,9 @@ recalcule rien.
   `PURCHASE_STRIPE|PURCHASE_APPLE|PURCHASE_GOOGLE|ADMIN_GRANT|ADMIN_REVOKE` + label,
   `alerts[] {code, label}`, `availableOperations[] {code, label}`, `realtimeEoSessions` —
   carte INTEGRAL seulement, `null` pour CIVIQUE : `{remaining, grantGranted, grantRemaining,
-  purchaseRemaining, scheduledGrantGranted, label, info}`, servis par l'autorité du quota ; `info`
+  purchaseRemaining, scheduledGrantGranted, label, info}`, servis par l'autorité du quota ; `label`
+  ex. « 14 sessions restantes — accès manuel : 14 restantes sur 20 accordées ; achat : 0 » (le
+  total de la lignée se dit « accordées », jamais « offertes », D-54) ; `info`
   = « Cet accès manuel n'ajoute pas actuellement de sessions EO temps réel. » quand l'accès manuel
   affiché n'en offre aucune), `purchases[]`
   (`externalReference` : identifiant d'origine, entier sauf purchaseToken Google tronqué ;
