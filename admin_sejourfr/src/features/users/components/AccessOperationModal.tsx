@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HttpError, httpErrorMessage } from "../../../api/http";
 import { usersApi } from "../../../api/usersApi";
 import { Button } from "../../../components/ui/Button";
-import { FormRow, Input, Select, Textarea } from "../../../components/ui/Form";
+import { Input, Select, Textarea } from "../../../components/ui/Form";
 import { Modal } from "../../../components/ui/Modal";
 import { Spinner } from "../../../components/ui/Spinner";
 import { useToast } from "../../../components/ui/Toast";
@@ -168,16 +168,16 @@ export function AccessOperationModal({
   const footer =
     step === "confirm" ? (
       <>
-        <Button variant="ghost" onClick={() => setStep("form")} disabled={busy}>
+        <Button variant="default" onClick={() => setStep("form")} disabled={busy}>
           Annuler
         </Button>
-        <Button variant="red" onClick={submit} disabled={busy || !preview}>
+        <Button variant="danger" onClick={submit} disabled={busy || !preview}>
           {busy ? "Enregistrement…" : "Confirmer"}
         </Button>
       </>
     ) : (
       <>
-        <Button variant="ghost" onClick={onClose} disabled={busy}>
+        <Button variant="default" onClick={onClose} disabled={busy}>
           Annuler
         </Button>
         <Button variant="primary" onClick={submit} disabled={busy || !preview}>
@@ -186,11 +186,21 @@ export function AccessOperationModal({
       </>
     );
 
+  const confirming = step === "confirm" && preview !== null;
+
   return (
-    <Modal open onClose={busy ? () => undefined : onClose} title={intent.label} eyebrow={userLabel} footer={footer}>
-      {step === "confirm" && preview ? (
+    <Modal
+      open
+      onClose={busy ? () => undefined : onClose}
+      title={confirming ? "Confirmation" : intent.label}
+      description={
+        confirming ? `${intent.label} — ${userLabel}. Seconde étape demandée par le serveur.` : userLabel
+      }
+      size={confirming ? "sm" : "md"}
+      footer={footer}
+    >
+      {confirming ? (
         <div className={styles.confirm}>
-          <div className={styles.confirmTitle}>Confirmation</div>
           <p className={styles.confirmText}>{preview.preview}</p>
           {preview.changes.length > 0 && (
             <ul className={styles.changes}>
@@ -203,78 +213,85 @@ export function AccessOperationModal({
         </div>
       ) : (
         <>
-          {sourceAccess && (
-            <div className={styles.current}>
-              <span className={styles.currentLabel}>
-                {isCorrection ? "Produit à corriger" : "Produit"} · {sourceAccess.productLabel}
-              </span>
-              <span>{sourceAccess.summary}</span>
+          <div className={styles.formGrid}>
+            {sourceAccess && (
+              <div className={`${styles.field} ${styles.full}`}>
+                <span className={styles.label}>{isCorrection ? "Produit à corriger" : "Produit concerné"}</span>
+                <div className={styles.current}>
+                  <strong>{sourceAccess.productLabel}</strong> — {sourceAccess.summary}
+                </div>
+              </div>
+            )}
+
+            {needsProductChoice && (
+              <div className={`${styles.field} ${styles.full}`}>
+                <label className={styles.label} htmlFor="access-product">
+                  {isCorrection ? "Nouveau produit" : "Produit"}
+                </label>
+                {productsQuery.isPending ? (
+                  <Spinner label="Chargement des produits…" />
+                ) : productsQuery.isError ? (
+                  <p className={styles.error}>{httpErrorMessage(productsQuery.error)}</p>
+                ) : (
+                  <Select
+                    id="access-product"
+                    value={product}
+                    onChange={(e) => setChosenProduct(e.target.value as ModuleAccess)}
+                  >
+                    {choosableProducts.map((p) => (
+                      <option key={p.code} value={p.code}>
+                        {p.label} — modules : {p.modulesLabel}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <small className={styles.hint}>Produits servis par le serveur, jamais codés dans l'écran.</small>
+              </div>
+            )}
+
+            {readsStart && (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="access-start">
+                  Début
+                </label>
+                <Input id="access-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <small className={styles.hint}>Vide : dès maintenant. Une date future programme l'accès.</small>
+              </div>
+            )}
+
+            {readsEnd && (
+              <div className={`${styles.field} ${readsStart ? "" : styles.full}`}>
+                <label className={styles.label} htmlFor="access-end">
+                  Fin (incluse)
+                </label>
+                <Input
+                  id="access-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+                <small className={styles.hint}>Dernier jour d'accès, heure de Paris.</small>
+              </div>
+            )}
+
+            <div className={`${styles.field} ${styles.full}`}>
+              <label className={styles.label} htmlFor="access-reason">
+                Motif
+              </label>
+              <Textarea
+                id="access-reason"
+                value={reason}
+                maxLength={REASON_MAX}
+                placeholder="Ex. erreur de produit lors de l'achat, geste commercial…"
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <small className={`${styles.hint} ${styles.counter}`}>
+                {trimmedReason.length} / {REASON_MAX} — au moins {REASON_MIN} caractères, sans donnée personnelle
+                inutile.
+              </small>
             </div>
-          )}
-
-          {needsProductChoice && (
-            <FormRow label={isCorrection ? "Nouveau produit" : "Produit"} htmlFor="access-product">
-              {productsQuery.isPending ? (
-                <Spinner label="Chargement des produits..." />
-              ) : productsQuery.isError ? (
-                <div className={styles.error}>{httpErrorMessage(productsQuery.error)}</div>
-              ) : (
-                <Select
-                  id="access-product"
-                  value={product}
-                  onChange={(e) => setChosenProduct(e.target.value as ModuleAccess)}
-                >
-                  {choosableProducts.map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.label} — modules : {p.modulesLabel}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </FormRow>
-          )}
-
-          {(readsStart || readsEnd) && (
-            <div className={styles.dates}>
-              {readsStart && (
-                <FormRow label="Début" htmlFor="access-start">
-                  <Input
-                    id="access-start"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                  <span className={styles.hint}>Vide : dès maintenant. Une date future programme l'accès.</span>
-                </FormRow>
-              )}
-              {readsEnd && (
-                <FormRow label="Fin (incluse)" htmlFor="access-end">
-                  <Input
-                    id="access-end"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    required
-                  />
-                  <span className={styles.hint}>Dernier jour d'accès, heure de Paris.</span>
-                </FormRow>
-              )}
-            </div>
-          )}
-
-          <FormRow label="Motif" htmlFor="access-reason">
-            <Textarea
-              id="access-reason"
-              value={reason}
-              maxLength={REASON_MAX}
-              placeholder="Ex. erreur de produit lors de l'achat, geste commercial…"
-              onChange={(e) => setReason(e.target.value)}
-            />
-            <span className={styles.hint}>
-              {trimmedReason.length} / {REASON_MAX} — au moins {REASON_MIN} caractères, sans donnée
-              personnelle inutile.
-            </span>
-          </FormRow>
+          </div>
 
           <div className={styles.preview} aria-live="polite">
             <div className={styles.previewTitle}>Aperçu</div>
@@ -319,7 +336,7 @@ export function AccessOperationModal({
       )}
       {conflict && (
         <div className={styles.reload}>
-          <Button variant="ghost" size="sm" onClick={reloadAndClose}>
+          <Button variant="default" size="sm" onClick={reloadAndClose}>
             Recharger la fiche
           </Button>
         </div>

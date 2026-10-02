@@ -1,18 +1,23 @@
 import { useCallback } from "react";
+import type { MouseEvent } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { httpErrorMessage } from "../../api/http";
 import { usersApi } from "../../api/usersApi";
+import { Avatar } from "../../components/ui/Avatar";
 import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Form";
+import { Chips } from "../../components/ui/Chips";
+import { Icon } from "../../components/ui/Icon";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { Pagination } from "../../components/ui/Pagination";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
+import { Tag } from "../../components/ui/Tag";
 import { useClampPage, useUrlSearchInput } from "../../hooks/useUrlListState";
-import { formatParisDate, formatParisDateTime } from "../../lib/dates";
+import { formatParisDateTime } from "../../lib/dates";
 import tableStyles from "../../components/ui/DataTable.module.css";
-import { AccessStatusBadge } from "./components/AccessStatusBadge";
+import type { AdminUserFilter } from "../../types/api";
+import { ACCESS_STATUS_TONE } from "./accessTones";
 import { PAGE_SIZE_OPTIONS, USER_FILTERS, useUserListParams } from "./useUserListParams";
 import styles from "./UsersPage.module.css";
 
@@ -27,6 +32,7 @@ const NUMBER_FORMAT = new Intl.NumberFormat("fr-FR");
 export function UsersPage() {
   const { filters, hasActiveFilter, setFilter, setPage, setSize, resetFilters } = useUserListParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const commitSearch = useCallback(
     (value: string | undefined) => setFilter("q", value, { replace: true }),
@@ -44,88 +50,89 @@ export function UsersPage() {
   const isStale = usersQuery.isPlaceholderData;
   useClampPage(data?.totalPages, isStale, filters.page, setPage);
 
-  const activeFilter = filters.filter ?? "ALL";
+  const activeFilter: AdminUserFilter = filters.filter ?? "ALL";
+  const listState = { listSearch: location.search };
 
   const handleReset = () => {
     setSearchInput("");
     resetFilters();
   };
 
+  const openRow = (id: string) => (e: MouseEvent<HTMLTableRowElement>) => {
+    if (e.target instanceof Element && e.target.closest("a, button")) return;
+    navigate(`/users/${id}`, { state: listState });
+  };
+
+  const count = data
+    ? `${NUMBER_FORMAT.format(data.totalElements)} utilisateur${data.totalElements > 1 ? "s" : ""}`
+    : undefined;
+
   return (
     <>
-      <PageHeader eyebrow="§ 01 — Support" title="Utilis" emphasis="ateurs" />
+      <PageHeader
+        title="Gestion des utilisateurs"
+        description="Retrouver un compte, comprendre son accès effectif (produits Civique et Intégral) et le dépanner. Les achats restent en lecture seule."
+      />
 
-      <Panel noPadding>
+      <Panel
+        title="Utilisateurs"
+        sub={count}
+        actions={
+          usersQuery.isFetching && data ? (
+            <span className={styles.refreshing} role="status">
+              Mise à jour…
+            </span>
+          ) : undefined
+        }
+        noPadding
+      >
         <div className={styles.toolbar}>
-          <label className={styles.filterLabel} htmlFor="users-search">
-            Recherche (email, nom ou identifiant)
+          <label className={styles.search}>
+            <span className="visually-hidden">Rechercher un utilisateur (email, nom ou identifiant)</span>
+            <Icon name="search" size={17} className={styles.searchIcon} />
+            <input
+              type="search"
+              className={styles.searchInput}
+              placeholder="Email, nom ou identifiant complet…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
           </label>
-          <Input
-            id="users-search"
-            type="search"
-            placeholder="jean@exemple.fr, Dupont ou identifiant complet"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+        </div>
+
+        <div className={styles.filters}>
+          <Chips
+            label="Filtrer par accès"
+            options={USER_FILTERS}
+            value={activeFilter}
+            onChange={(value) => setFilter("filter", value === "ALL" ? undefined : value)}
           />
         </div>
-        <div className={styles.chips} role="group" aria-label="Filtrer par accès">
-          {USER_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              className={`${styles.chip} ${activeFilter === f.value ? styles.chipActive : ""}`}
-              aria-pressed={activeFilter === f.value}
-              onClick={() => setFilter("filter", f.value === "ALL" ? undefined : f.value)}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </Panel>
 
-      {usersQuery.isPending && <Spinner label="Chargement..." />}
+        {usersQuery.isPending && (
+          <div className={styles.loading}>
+            <Spinner label="Chargement des utilisateurs…" />
+          </div>
+        )}
 
-      {usersQuery.isError && !data && (
-        <Panel>
-          <div className={styles.error}>
-            <span>Impossible de charger les utilisateurs : {httpErrorMessage(usersQuery.error)}</span>
-            <Button variant="ghost" size="sm" onClick={() => usersQuery.refetch()}>
+        {usersQuery.isError && (
+          <div className={styles.inlineError} role="alert">
+            <span>
+              {data ? "Actualisation impossible" : "Impossible de charger les utilisateurs"} :{" "}
+              {httpErrorMessage(usersQuery.error)}
+            </span>
+            <Button variant="default" size="sm" onClick={() => usersQuery.refetch()}>
               Réessayer
             </Button>
           </div>
-        </Panel>
-      )}
+        )}
 
-      {data && (
-        <Panel
-          title="Comptes"
-          sub={`${NUMBER_FORMAT.format(data.totalElements)} résultat${data.totalElements > 1 ? "s" : ""}`}
-          actions={
-            usersQuery.isFetching ? (
-              <span className={styles.refreshing} role="status">
-                Mise à jour…
-              </span>
-            ) : undefined
-          }
-          noPadding
-        >
-          {usersQuery.isError && (
-            <div className={styles.inlineError} role="alert">
-              <span>Actualisation impossible : {httpErrorMessage(usersQuery.error)}</span>
-              <Button variant="ghost" size="sm" onClick={() => usersQuery.refetch()}>
-                Réessayer
-              </Button>
-            </div>
-          )}
-
-          {data.totalElements === 0 ? (
+        {data &&
+          (data.totalElements === 0 ? (
             hasActiveFilter ? (
               <div className={styles.emptyWithAction}>
-                <EmptyState
-                  title="Aucun utilisateur ne correspond"
-                  description="Modifiez la recherche ou le filtre."
-                />
-                <Button variant="ghost" size="sm" onClick={handleReset}>
+                <EmptyState title="Aucun utilisateur ne correspond" description="Modifiez la recherche ou le filtre." />
+                <Button variant="default" size="sm" onClick={handleReset}>
                   Réinitialiser
                 </Button>
               </div>
@@ -134,7 +141,7 @@ export function UsersPage() {
             )
           ) : (
             <div className={`${tableStyles.tableWrap} ${isStale ? styles.stale : ""}`} aria-busy={isStale}>
-              <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+              <table className={`${tableStyles.table} ${tableStyles.cardTable} ${styles.table}`}>
                 <thead>
                   <tr>
                     <th>Utilisateur</th>
@@ -142,78 +149,77 @@ export function UsersPage() {
                     <th>Produit effectif</th>
                     <th>Prochaine fin</th>
                     <th>Dernière activité</th>
-                    <th>Inscription</th>
-                    <th>Compte</th>
-                    <th></th>
+                    <th>
+                      <span className="visually-hidden">Ouvrir</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.content.map((u) => (
-                    <tr key={u.id}>
+                    <tr key={u.id} className={styles.row} onClick={openRow(u.id)}>
                       <td>
-                        <Link
-                          to={`/users/${u.id}`}
-                          state={{ listSearch: location.search }}
-                          className={styles.userLink}
-                        >
-                          <strong>{u.displayName ?? u.email}</strong>
-                          {u.displayName && <span className={styles.subLine}>{u.email}</span>}
-                        </Link>
+                        <div className={styles.userCell}>
+                          <Avatar name={u.displayName} email={u.email} size="sm" />
+                          <div className={styles.userMain}>
+                            <Link to={`/users/${u.id}`} state={listState} className={styles.userLink}>
+                              {u.displayName ?? u.email}
+                            </Link>
+                            {u.displayName && <span className={styles.subLine}>{u.email}</span>}
+                            {u.accountStatus !== "ACTIVE" && (
+                              <span className={styles.accountTag}>
+                                <Tag tone="danger">Compte {u.accountStatusLabel.toLowerCase()}</Tag>
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td data-label="Accès">
                         <div className={styles.badges}>
                           {u.accesses.map((a) => (
-                            <AccessStatusBadge
-                              key={a.product}
-                              status={a.status}
-                              label={`${a.productLabel} · ${a.statusLabel}`}
-                            />
+                            <Tag key={a.product} tone={ACCESS_STATUS_TONE[a.status]} dot>
+                              {a.productLabel} · {a.statusLabel}
+                            </Tag>
                           ))}
                         </div>
                       </td>
                       <td data-label="Produit effectif">
-                        <div>
+                        <div className={styles.effective}>
                           <strong>{u.effectiveAccess.effectiveProductLabel}</strong>
-                          <div className={styles.subLine}>
-                            Modules : {u.effectiveAccess.openModulesLabel}
-                          </div>
+                          <span className={styles.subLine}>Modules : {u.effectiveAccess.openModulesLabel}</span>
+                          {u.manualAccess && (
+                            <span className={styles.manual}>
+                              <Tag tone="info" dot>
+                                Accès manuel
+                              </Tag>
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td data-label="Prochaine fin" className={styles.dateCell}>
+                      <td data-label="Prochaine fin" className={styles.muted}>
                         {u.nextEndLabel ?? "—"}
                       </td>
-                      <td data-label="Dernière activité" className={styles.dateCell}>
+                      <td data-label="Dernière activité" className={styles.muted}>
                         {formatParisDateTime(u.lastActivityAt)}
                       </td>
-                      <td data-label="Inscription" className={styles.dateCell}>
-                        {formatParisDate(u.createdAt)}
-                      </td>
-                      <td data-label="Compte">
-                        <div className={styles.accountCell}>
-                          <span className={u.accountStatus === "DELETED" ? styles.deleted : ""}>
-                            {u.accountStatusLabel}
-                          </span>
-                          {u.manualAccess && <span className={styles.manual}>Accès manuel</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <div className={tableStyles.rowActions}>
-                          <Link
-                            to={`/users/${u.id}`}
-                            state={{ listSearch: location.search }}
-                            className={tableStyles.iconBtn}
-                          >
-                            Ouvrir →
-                          </Link>
-                        </div>
+                      <td className={styles.actionCell}>
+                        <Link
+                          to={`/users/${u.id}`}
+                          state={listState}
+                          className={styles.rowAction}
+                          aria-label={`Ouvrir la fiche de ${u.displayName ?? u.email}`}
+                        >
+                          <span className={styles.rowActionText}>Ouvrir la fiche</span>
+                          <Icon name="chevronRight" size={16} />
+                        </Link>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
+          ))}
 
+        {data && (
           <Pagination
             page={data.page}
             size={data.size}
@@ -225,8 +231,8 @@ export function UsersPage() {
             busy={usersQuery.isFetching}
             itemLabel="utilisateurs"
           />
-        </Panel>
-      )}
+        )}
+      </Panel>
     </>
   );
 }

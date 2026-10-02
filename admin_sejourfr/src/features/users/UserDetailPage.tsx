@@ -4,32 +4,24 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { HttpError, httpErrorMessage } from "../../api/http";
 import { usersApi } from "../../api/usersApi";
+import { Avatar } from "../../components/ui/Avatar";
 import { Button } from "../../components/ui/Button";
+import { Icon } from "../../components/ui/Icon";
 import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
+import { Tag } from "../../components/ui/Tag";
 import { formatParisDate, formatParisDateTime } from "../../lib/dates";
-import tableStyles from "../../components/ui/DataTable.module.css";
 import type {
-  AdminAccessOperationType,
+  AdminAccessProductDto,
   AdminUserAccessDto,
   AdminUserDetailDto,
   AdminUserProgressionDto,
   AdminUserPurchaseDto,
 } from "../../types/api";
+import { ACCESS_STATUS_TONE, OPERATION_VARIANT, RESTRICTIVE_OPERATIONS } from "./accessTones";
 import { AccessOperationModal } from "./components/AccessOperationModal";
 import type { AccessOperationIntent } from "./components/AccessOperationModal";
-import { AccessStatusBadge } from "./components/AccessStatusBadge";
 import styles from "./UserDetailPage.module.css";
-
-/** Ton du bouton selon l'opération servie (le serveur décide lesquelles existent). */
-const OPERATION_VARIANT: Record<AdminAccessOperationType, "primary" | "default" | "danger" | "ghost"> = {
-  EXTEND: "primary",
-  REACTIVATE: "primary",
-  SHORTEN: "default",
-  CORRECT_PRODUCT: "default",
-  GRANT: "ghost",
-  END: "danger",
-};
 
 function money(cents: number | null, currency: string | null): string {
   if (cents == null) return "—";
@@ -37,10 +29,12 @@ function money(cents: number | null, currency: string | null): string {
 }
 
 /**
- * Fiche d'un utilisateur (spec §5), dans l'ordre : résumé lisible en 5 s,
- * accès par produit, achats (lecture seule), progression, compte, historique
- * admin. Tout est servi par `GET /api/admin/users/{id}` : statuts, dates
- * incluses, libellés, actions proposées (`availableOperations`).
+ * Fiche d'un utilisateur (spec §5), dans l'ordre : identité et accès effectif
+ * lisibles en 5 s, accès par produit, achats (lecture seule), progression,
+ * compte, historique admin. Tout est servi par `GET /api/admin/users/{id}` :
+ * statuts, dates incluses, libellés, actions proposées (`availableOperations`).
+ * ≥ 1180 px la fiche se lit sur deux colonnes (accès | dossier), comme le
+ * panneau de la maquette ; en dessous, une seule.
  */
 export function UserDetailPage() {
   const { id = "" } = useParams<{ id: string }>();
@@ -54,9 +48,16 @@ export function UserDetailPage() {
     enabled: id !== "",
   });
 
+  const productsQuery = useQuery({
+    queryKey: ["adminAccessProducts"],
+    queryFn: () => usersApi.products(),
+    staleTime: 5 * 60_000,
+  });
+
   const back = (
     <Link to={`/users${listSearch}`} className={styles.back}>
-      ← Utilisateurs
+      <Icon name="arrowLeft" size={15} />
+      Retour aux utilisateurs
     </Link>
   );
 
@@ -64,7 +65,11 @@ export function UserDetailPage() {
     return (
       <>
         {back}
-        <Spinner label="Chargement de la fiche..." />
+        <Panel>
+          <div className={styles.loading}>
+            <Spinner label="Chargement de la fiche…" />
+          </div>
+        </Panel>
       </>
     );
   }
@@ -78,9 +83,9 @@ export function UserDetailPage() {
           {notFound ? (
             <EmptyState title="Utilisateur introuvable" description="Ce compte n'existe pas." />
           ) : (
-            <div className={styles.error}>
+            <div className={styles.error} role="alert">
               <span>Impossible de charger la fiche : {httpErrorMessage(detailQuery.error)}</span>
-              <Button variant="ghost" size="sm" onClick={() => detailQuery.refetch()}>
+              <Button variant="default" size="sm" onClick={() => detailQuery.refetch()}>
                 Réessayer
               </Button>
             </div>
@@ -92,76 +97,105 @@ export function UserDetailPage() {
 
   const d = detailQuery.data;
   const name = d.account.displayName ?? d.account.email;
+  const grant = () => setIntent({ operation: "GRANT", product: null, label: "Donner un accès" });
 
   return (
     <>
       {back}
 
-      <header className={styles.hero}>
-        <div className={styles.heroMain}>
-          <div className={styles.eyebrow}>Fiche utilisateur</div>
-          <h1 className={styles.name}>{name}</h1>
-          {d.account.displayName && <div className={styles.email}>{d.account.email}</div>}
-          <div className={styles.heroTags}>
-            <span className={d.account.accountStatus === "DELETED" ? styles.tagDanger : styles.tag}>
-              Compte {d.account.accountStatusLabel.toLowerCase()}
-            </span>
-            {d.account.role === "ADMIN" && <span className={styles.tag}>Administrateur</span>}
-            {d.account.internal && <span className={styles.tag}>Compte interne</span>}
-          </div>
+      <div className={styles.layout}>
+        <div className={styles.column}>
+          <Panel>
+            <header className={styles.hero}>
+              <div className={styles.identity}>
+                <Avatar name={d.account.displayName} email={d.account.email} size="lg" />
+                <div className={styles.identityText}>
+                  <h1 className={styles.name}>{name}</h1>
+                  {d.account.displayName && <p className={styles.email}>{d.account.email}</p>}
+                </div>
+              </div>
+              <div className={styles.heroMeta}>
+                <Tag tone={d.account.accountStatus === "DELETED" ? "danger" : "success"} dot>
+                  Compte {d.account.accountStatusLabel.toLowerCase()}
+                </Tag>
+                {d.account.role === "ADMIN" && <Tag tone="info">Administrateur</Tag>}
+                {d.account.internal && <Tag tone="neutral">Compte interne</Tag>}
+                <span className={styles.heroDate}>Inscrit le {formatParisDate(d.account.createdAt)}</span>
+                <div className={styles.heroActions}>
+                  {detailQuery.isFetching && (
+                    <span className={styles.refreshing} role="status">
+                      Mise à jour…
+                    </span>
+                  )}
+                  <Button variant="primary" size="sm" onClick={grant}>
+                    <Icon name="plus" size={15} />
+                    Donner un accès
+                  </Button>
+                </div>
+              </div>
+            </header>
+
+            <Section>
+              <EffectiveAccessCard detail={d} />
+            </Section>
+
+            <Section title="Accès" subtitle="Un bloc par produit vendu — droit réellement appliqué dans l'application">
+              <div className={styles.products}>
+                {d.accesses.map((a) => (
+                  <ProductCard
+                    key={a.product}
+                    access={a}
+                    product={productsQuery.data?.find((p) => p.code === a.product)}
+                    onAction={setIntent}
+                  />
+                ))}
+              </div>
+            </Section>
+          </Panel>
         </div>
-        <div className={styles.heroActions}>
-          <Button variant="primary" onClick={() => setIntent({ operation: "GRANT", product: null, label: "Donner un accès" })}>
-            + Donner un accès
-          </Button>
-          {detailQuery.isFetching && <span className={styles.refreshing}>Mise à jour…</span>}
+
+        <div className={styles.column}>
+          <Panel>
+            <Section
+              title="Achats"
+              subtitle="Historique commercial réel — lecture seule, jamais modifié depuis cette fiche"
+            >
+              <Purchases purchases={d.purchases} />
+            </Section>
+
+            <Section title="Progression" subtitle="Données déjà enregistrées, lues sans effet de bord">
+              <div className={styles.stack}>
+                {d.progression.map((p) => (
+                  <ProgressionBox key={p.module} progression={p} />
+                ))}
+              </div>
+            </Section>
+
+            <Section title="Compte" subtitle="Lecture seule">
+              <dl className={styles.infoGrid}>
+                <Info label="Identifiant" wide>
+                  <code className={styles.code}>{d.account.id}</code>
+                </Info>
+                <Info label="Email">{d.account.email}</Info>
+                <Info label="Prénom / nom">
+                  {[d.account.firstName, d.account.lastName].filter(Boolean).join(" ") || "—"}
+                </Info>
+                <Info label="Inscription">{formatParisDateTime(d.account.createdAt)}</Info>
+                <Info label="Dernière connexion">{formatParisDateTime(d.account.lastLoginAt)}</Info>
+                <Info label="Statut">{d.account.accountStatusLabel}</Info>
+                <Info label="Connexion via">{d.account.authProvider}</Info>
+                <Info label="Démarche / niveau visés" wide>
+                  {[d.account.targetProcedure, d.account.targetLevel].filter(Boolean).join(" · ") || "—"}
+                </Info>
+              </dl>
+            </Section>
+
+            <Section title="Historique administratif" subtitle="Une entrée par action admin, avec son motif">
+              <History detail={d} />
+            </Section>
+          </Panel>
         </div>
-      </header>
-
-      <Summary detail={d} />
-
-      <Panel title="Accès" sub="Droit réellement appliqué dans l'application, par produit vendu">
-        <div className={styles.accessGrid}>
-          {d.accesses.map((a) => (
-            <AccessCard key={a.product} access={a} onAction={setIntent} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel title="Achats" sub="Historique commercial réel — lecture seule" noPadding>
-        <Purchases purchases={d.purchases} />
-      </Panel>
-
-      <Panel title="Progression" sub="Données déjà enregistrées, lues sans effet de bord">
-        <div className={styles.progressGrid}>
-          {d.progression.map((p) => (
-            <ProgressionCard key={p.module} progression={p} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel title="Compte" sub="Lecture seule">
-        <dl className={styles.infoGrid}>
-          <Info label="Identifiant">
-            <code className={styles.code}>{d.account.id}</code>
-          </Info>
-          <Info label="Email">{d.account.email}</Info>
-          <Info label="Prénom / nom">
-            {[d.account.firstName, d.account.lastName].filter(Boolean).join(" ") || "—"}
-          </Info>
-          <Info label="Inscription">{formatParisDateTime(d.account.createdAt)}</Info>
-          <Info label="Dernière connexion">{formatParisDateTime(d.account.lastLoginAt)}</Info>
-          <Info label="Statut">{d.account.accountStatusLabel}</Info>
-          <Info label="Connexion via">{d.account.authProvider}</Info>
-          <Info label="Démarche / niveau visés">
-            {[d.account.targetProcedure, d.account.targetLevel].filter(Boolean).join(" · ") || "—"}
-          </Info>
-        </dl>
-      </Panel>
-
-      <Panel title="Historique administratif" sub="Une entrée par action admin, avec son motif">
-        <History detail={d} />
-      </Panel>
+      </div>
 
       {intent && (
         <AccessOperationModal
@@ -178,48 +212,73 @@ export function UserDetailPage() {
   );
 }
 
-function Summary({ detail: d }: { detail: AdminUserDetailDto }) {
+function Section({ title, subtitle, children }: { title?: string; subtitle?: string; children: ReactNode }) {
   return (
-    <section className={styles.summary} aria-label="Résumé">
-      <p className={styles.summaryMeta}>
-        Inscrit le {formatParisDate(d.account.createdAt)} · Dernière activité :{" "}
-        {d.lastActivityAt ? formatParisDateTime(d.lastActivityAt) : "aucune"}
-      </p>
-      <p className={styles.summaryEffective}>
-        Produit effectif : <strong>{d.effectiveAccess.effectiveProductLabel}</strong>
-        <span className={styles.sep}>·</span>
-        Modules ouverts : <strong>{d.effectiveAccess.openModulesLabel}</strong>
-      </p>
-      <ul className={styles.summaryLines}>
-        {d.accesses.map((a) => (
-          <li key={a.product}>
-            <strong>{a.productLabel}</strong> : {a.summary}
-            {a.originLabel && <span className={styles.origin}> ({a.originLabel})</span>}
-          </li>
-        ))}
-      </ul>
+    <section className={styles.section}>
+      {title && (
+        <div className={styles.sectionHead}>
+          <h2>{title}</h2>
+          {subtitle && <span>{subtitle}</span>}
+        </div>
+      )}
+      {children}
     </section>
   );
 }
 
-function AccessCard({
+/** Carte dégradée : le couple servi « produit effectif / modules ouverts », puis l'état de chaque produit. */
+function EffectiveAccessCard({ detail: d }: { detail: AdminUserDetailDto }) {
+  const hasAccess = d.effectiveAccess.effectiveProduct !== "NONE";
+  return (
+    <div className={styles.accessCard}>
+      <div className={styles.accessTop}>
+        <div>
+          <div className={styles.accessLabel}>Produit effectif</div>
+          <div className={styles.accessProduct}>{d.effectiveAccess.effectiveProductLabel}</div>
+        </div>
+        <span className={`${styles.accessModules} ${hasAccess ? styles.accessModulesOpen : ""}`}>
+          Modules ouverts : {d.effectiveAccess.openModulesLabel}
+        </span>
+      </div>
+      <dl className={styles.accessGrid}>
+        {d.accesses.map((a) => (
+          <div key={a.product}>
+            <dt>{a.productLabel}</dt>
+            <dd>{a.summary}</dd>
+            {a.originLabel && <dd className={styles.accessOrigin}>{a.originLabel}</dd>}
+          </div>
+        ))}
+        <div>
+          <dt>Dernière activité</dt>
+          <dd>{d.lastActivityAt ? formatParisDateTime(d.lastActivityAt) : "Aucune"}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function ProductCard({
   access: a,
+  product,
   onAction,
 }: {
   access: AdminUserAccessDto;
+  product: AdminAccessProductDto | undefined;
   onAction: (intent: AccessOperationIntent) => void;
 }) {
   return (
-    <article className={`${styles.accessCard} ${a.status === "ACTIVE" ? styles.accessCardActive : ""}`}>
-      <div className={styles.accessTop}>
-        <div>
-          <div className={styles.accessLabel}>Produit</div>
-          <div className={styles.accessProduct}>{a.productLabel}</div>
+    <article className={`${styles.productCard} ${a.status === "ACTIVE" ? styles.productCardActive : ""}`}>
+      <div className={styles.productTop}>
+        <div className={styles.productHeading}>
+          <h3 className={styles.productName}>{a.productLabel}</h3>
+          {product && <div className={styles.productModules}>Ouvre : {product.modulesLabel}</div>}
         </div>
-        <AccessStatusBadge status={a.status} label={a.statusLabel} />
+        <Tag tone={ACCESS_STATUS_TONE[a.status]} dot>
+          {a.statusLabel}
+        </Tag>
       </div>
-      <p className={styles.accessSummary}>{a.summary}</p>
-      <dl className={styles.accessFacts}>
+      <p className={styles.productSummary}>{a.summary}</p>
+      <dl className={styles.facts}>
         <div>
           <dt>Début</dt>
           <dd>{formatParisDate(a.startsAt)}</dd>
@@ -241,7 +300,7 @@ function AccessCard({
         </ul>
       )}
       {a.availableOperations.length > 0 && (
-        <div className={styles.accessActions}>
+        <div className={styles.productActions}>
           {a.availableOperations.map((op) => (
             <Button
               key={op.code}
@@ -260,67 +319,63 @@ function AccessCard({
 
 function Purchases({ purchases }: { purchases: AdminUserPurchaseDto[] }) {
   if (purchases.length === 0) {
-    return <EmptyState title="Aucun achat" description="Ce compte n'a jamais payé." />;
+    return (
+      <div className={styles.infoItem}>
+        <span>Achats</span>
+        <strong>Aucun achat payant</strong>
+      </div>
+    );
   }
   return (
-    <div className={tableStyles.tableWrap}>
-      <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th>Montant</th>
-            <th>Date</th>
-            <th>Plateforme</th>
-            <th>Statut</th>
-            <th>Fin</th>
-            <th>Référence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {purchases.map((p) => (
-            <tr key={p.id}>
-              <td>
-                <strong>{p.productLabel ?? "—"}</strong>
-                <div className={styles.subLine}>{p.planName ?? p.planCode ?? ""}</div>
-                {p.recurring && <div className={styles.recurring}>Abonnement récurrent</div>}
-              </td>
-              <td data-label="Montant">{money(p.amountCents, p.currency)}</td>
-              <td data-label="Date" className={styles.mono}>
-                {formatParisDateTime(p.purchasedAt ?? p.startsAt)}
-              </td>
-              <td data-label="Plateforme">{p.sourceLabel}</td>
-              <td data-label="Statut">
-                <div>
-                  {p.statusLabel}
-                  {p.paymentStatusLabel && <div className={styles.subLine}>{p.paymentStatusLabel}</div>}
-                </div>
-              </td>
-              <td data-label="Fin" className={styles.mono}>
-                {p.endLabel ?? "—"}
-              </td>
-              <td data-label="Référence">
-                <code className={styles.code}>{p.externalReference ?? "—"}</code>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ul className={styles.stack}>
+      {purchases.map((p) => (
+        <li key={p.id} className={styles.purchase}>
+          <div className={styles.purchaseLeft}>
+            <span className={styles.purchaseIcon} aria-hidden="true">
+              <Icon name="card" size={17} />
+            </span>
+            <div className={styles.purchaseText}>
+              <strong>{p.planName ?? p.productLabel ?? p.planCode ?? "—"}</strong>
+              <span>
+                {p.sourceLabel} · {formatParisDateTime(p.purchasedAt ?? p.startsAt)} · {p.statusLabel}
+                {p.paymentStatusLabel && ` · ${p.paymentStatusLabel}`}
+              </span>
+              <span>
+                Fin : {p.endLabel ?? "—"}
+                {p.externalReference && (
+                  <>
+                    {" "}
+                    · Réf. <code className={styles.ref}>{p.externalReference}</code>
+                  </>
+                )}
+              </span>
+              {p.recurring && (
+                <span className={styles.recurring}>
+                  <Tag tone="warning">Abonnement récurrent</Tag>
+                </span>
+              )}
+            </div>
+          </div>
+          <div className={styles.purchasePrice}>
+            <strong>{money(p.amountCents, p.currency)}</strong>
+            <span>Lecture seule</span>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-function ProgressionCard({ progression: p }: { progression: AdminUserProgressionDto }) {
+function ProgressionBox({ progression: p }: { progression: AdminUserProgressionDto }) {
   const c = p.currentCycle;
   return (
-    <article className={styles.progressCard}>
+    <article className={styles.progressBox}>
       <h3 className={styles.progressTitle}>{p.moduleLabel}</h3>
       <dl className={styles.infoGrid}>
         <Info label="Diagnostic">
           {p.diagnosticDone ? `Fait le ${formatParisDate(p.diagnosticCompletedAt)}` : "Non fait"}
         </Info>
-        <Info label="Cycle en cours">
-          {c ? `Depuis le ${formatParisDate(c.startedAt)}` : "Aucun cycle"}
-        </Info>
+        <Info label="Cycle en cours">{c ? `Depuis le ${formatParisDate(c.startedAt)}` : "Aucun cycle"}</Info>
         {c && (
           <>
             <Info label="Niveau d'entrée">{c.entryLevel ?? "—"}</Info>
@@ -338,37 +393,41 @@ function ProgressionCard({ progression: p }: { progression: AdminUserProgression
 
 function History({ detail: d }: { detail: AdminUserDetailDto }) {
   if (d.history.length === 0) {
-    return <p className={styles.muted}>Aucune action administrative sur ce compte.</p>;
+    return <p className={styles.emptyNote}>Aucune action administrative sur ce compte.</p>;
   }
   return (
     <ol className={styles.timeline}>
       {d.history.map((h) => (
-        <li key={h.operationId} className={styles.timelineItem}>
-          <div className={styles.timelineHead}>
-            <span className={styles.mono}>{formatParisDateTime(h.createdAt)}</span>
-            <span className={styles.muted}> — {h.adminEmail ?? h.adminId}</span>
+        <li
+          key={h.operationId}
+          className={`${styles.timelineItem} ${RESTRICTIVE_OPERATIONS.includes(h.operation) ? styles.timelineRed : ""}`}
+        >
+          <span className={styles.dot} aria-hidden="true" />
+          <div className={styles.timelineContent}>
+            <strong>
+              {h.operationLabel} : {h.fromProductLabel ? `${h.fromProductLabel} → ${h.productLabel}` : h.productLabel}
+            </strong>
+            <p>
+              {formatParisDateTime(h.createdAt)} — {h.adminEmail ?? h.adminId}
+            </p>
+            {h.changes.length > 0 && (
+              <ul className={styles.changes}>
+                {h.changes.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            )}
+            <p className={styles.reason}>Motif : {h.reason}</p>
           </div>
-          <div className={styles.timelineTitle}>
-            {h.operationLabel} :{" "}
-            {h.fromProductLabel ? `${h.fromProductLabel} → ${h.productLabel}` : h.productLabel}
-          </div>
-          {h.changes.length > 0 && (
-            <ul className={styles.timelineChanges}>
-              {h.changes.map((c) => (
-                <li key={c}>{c}</li>
-              ))}
-            </ul>
-          )}
-          <div className={styles.timelineReason}>Motif : {h.reason}</div>
         </li>
       ))}
     </ol>
   );
 }
 
-function Info({ label, children }: { label: string; children: ReactNode }) {
+function Info({ label, children, wide = false }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <div className={styles.info}>
+    <div className={`${styles.infoItem} ${wide ? styles.infoWide : ""}`}>
       <dt>{label}</dt>
       <dd>{children}</dd>
     </div>
