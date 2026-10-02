@@ -233,6 +233,7 @@ export function CalibrationPage() {
 
         {!isLoading && rows.length > 0 && (
           <>
+            <div className={tableStyles.tableWrap}>
             <table className={`${tableStyles.table} ${styles.table}`}>
               <thead>
                 <tr>
@@ -277,6 +278,7 @@ export function CalibrationPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <ul className={styles.cards}>
               {rows.map((row) => (

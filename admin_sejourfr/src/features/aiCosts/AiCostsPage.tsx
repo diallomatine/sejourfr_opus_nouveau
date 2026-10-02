@@ -125,6 +125,7 @@ function Tableau({ titre, lignes }: { titre: string; lignes: AiCostLigne[] }) {
   }
   return (
     <Panel title={titre} noPadding>
+      <div className={tableStyles.tableWrap}>
       <table className={tableStyles.table}>
         <thead>
           <tr>
@@ -155,6 +156,7 @@ function Tableau({ titre, lignes }: { titre: string; lignes: AiCostLigne[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </Panel>
   );
 }
