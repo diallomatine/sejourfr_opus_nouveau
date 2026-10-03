@@ -367,52 +367,25 @@ export function journeyEtapeSuivanteCta(step: JourneyStepDto): string {
 
    🛑 Miroir mot pour mot de `mobile .../screens/plan/journey_labels.dart`.
 
-   ⚠️ **Le mot « cycle » est celui de la maquette validée**, et il est écrit
-   ici — une seule fois pour tout le front. D-21 interdit le vocabulaire
-   INTERNE à l'écran (`lot`, `step`, `journey`) ; le propriétaire a lui-même
-   écrit « Cycle 2 » / « Cycle terminé » dans ses deux maquettes, et c'est ce
-   qu'on rend. Le jour où il préfère « Parcours 2 », ce sont ces trois
-   fonctions qui changent, et elles seules.
+   ⚠️ **À l'écran, un cycle s'appelle un « plan »** (demande du propriétaire,
+   2026-10-03 : « Plan 2 », « Plan terminé », « Mes plans ») ; le code, les
+   types, les routes et les DTO gardent « cycle ». Le mot est écrit ici — une
+   seule fois pour tout le front. D-21 interdit le vocabulaire INTERNE à
+   l'écran (`lot`, `step`, `journey`).
+   🛑 **Plus de phrase sous la barre de la carte** (2026-10-03) : l'ancien
+   `journeyCycleHint` est supprimé, ne pas le réintroduire.
    ========================================================================== */
 
 /** Le compteur du cycle, en mots. Terminé, il dit l'état plutôt que le compte. */
 export function journeyCycleLabel(cycle: JourneyCycleDto): string {
-    if (cycle.complete) return "Cycle terminé";
+    if (cycle.complete) return "Plan terminé";
     return `${cycle.etapesTerminees} étape${cycle.etapesTerminees === 1 ? "" : "s"} sur ${cycle.etapesTotal} terminée${cycle.etapesTerminees === 1 ? "" : "s"}`;
 }
 
 /** Le repère de cycle, à droite du compteur. `undefined` sur un cycle terminé —
  *  la brique y met le pourcentage à sa place. */
 export function journeyCycleBadge(cycle: JourneyCycleDto): string | undefined {
-    return cycle.complete ? undefined : `Cycle ${cycle.numero}`;
-}
-
-/** Un cycle d'examens terminé (affinage D-64 ou mesure D-69) : actualiser. */
-const JOURNEY_EXAMENS_FAITS_HINT =
-    "Les examens blancs de toutes les épreuves sont faits. Actualisez votre plan pour recevoir les priorités qu'ils ont identifiées.";
-
-/** La phrase sous la barre. */
-export function journeyCycleHint(cycle: JourneyCycleDto): string {
-    /* 🛑 **Cycle d'affinage** (D-64) : lu sur le fait SERVI `cycleDAffinage`,
-       jamais déduit du numéro du cycle. Ses compétences sont facultatives —
-       « toutes les compétences sont terminées » y serait faux. */
-    if (cycle.cycleDAffinage) {
-        return cycle.complete
-            ? JOURNEY_EXAMENS_FAITS_HINT
-            : "Premier cycle : passez l'examen blanc de chaque épreuve pour affiner votre plan. Les compétences détectées par le diagnostic restent disponibles.";
-    }
-    /* 🛑 **Cycle de mesure terminé** (D-69) : le compte sans diagnostic a passé
-       ses examens — ce sont eux qui fondent ses priorités, pas des compétences. */
-    if (cycle.cycleDeMesure && cycle.complete) {
-        return JOURNEY_EXAMENS_FAITS_HINT;
-    }
-    if (cycle.complete) {
-        return "Toutes les compétences et tous les examens d'épreuve prévus dans ce cycle sont terminés.";
-    }
-    if (cycle.cycleDeMesure) {
-        return "Passez les épreuves dans l'ordre que vous voulez : ce cycle mesure votre niveau, il ne demande aucun entraînement.";
-    }
-    return "Travaillez les priorités identifiées. Le cycle reste stable jusqu'à sa prochaine actualisation.";
+    return cycle.complete ? undefined : `Plan ${cycle.numero}`;
 }
 
 /** Le repère court d'une épreuve, en étiquette technique. 🛑 Une seule table. */
@@ -508,7 +481,7 @@ export function journeyBlocRailState(status: JourneyBlocStatus): RailState {
 /** « Priorités actuelles » — le cycle en blocs (Navigation v2). Miroir : `kJourneyPrioritesTitle`. */
 export const JOURNEY_PRIORITES_TITLE = "Priorités actuelles";
 
-export const JOURNEY_RAIL_END_EYEBROW = "Fin du cycle";
+export const JOURNEY_RAIL_END_EYEBROW = "Fin du plan";
 export const JOURNEY_RAIL_END_TITLE = "Actualiser mon plan";
 
 /**
@@ -652,7 +625,7 @@ export const JOURNEY_LOCKED_BADGE = "Verrouillé";
  */
 export function journeyCycleNote(cycle: JourneyCycleDto): string {
     return cycle.cycleDAffinage
-        ? "Dans ce premier cycle, les examens blancs sont ouverts d'emblée. " +
+        ? "Dans ce premier plan, les examens blancs sont ouverts d'emblée. " +
               "Travailler les compétences détectées par le diagnostic est facultatif."
         : "Vous pouvez travailler les compétences dans l'ordre que vous voulez. " +
               "Les examens d'une épreuve s'ouvrent seulement quand ses étapes sont terminées.";
@@ -663,10 +636,10 @@ export function journeyCycleNote(cycle: JourneyCycleDto): string {
 /* 🛑 **Une seule issue** (décision du propriétaire, 2026-09-27) : « Actualiser
  * mon plan ». Le choix « Passer l'examen blanc complet / Actualiser sans examen
  * complet » est SUPPRIMÉ de la carte, avec ses repères et sa note. */
-export const JOURNEY_NEXT_STEP_EYEBROW = "Cycle terminé";
-export const JOURNEY_NEXT_STEP_HEADLINE = "Passez au cycle suivant";
+export const JOURNEY_NEXT_STEP_EYEBROW = "Plan terminé";
+export const JOURNEY_NEXT_STEP_HEADLINE = "Passez au plan suivant";
 export const JOURNEY_NEXT_STEP_TEXT =
-    "Vous avez terminé ce cycle. Actualisez votre plan pour travailler les " +
+    "Vous avez terminé ce plan. Actualisez-le pour travailler les " +
     "priorités que vos évaluations ont identifiées.";
 
 /** Le repère de la carte : le nombre servi de priorités du cycle suivant. */
@@ -675,7 +648,7 @@ export function journeyNextStepFacts(cycle: JourneyCycleDto): NextStepFact[] {
     if (n === null || n === undefined) return [];
     return [{
         value: String(n),
-        label: `priorité${n === 1 ? "" : "s"} identifiée${n === 1 ? "" : "s"} pour le prochain cycle`,
+        label: `priorité${n === 1 ? "" : "s"} identifiée${n === 1 ? "" : "s"} pour le prochain plan`,
     }];
 }
 
@@ -711,13 +684,13 @@ export function journeyJalonText(jalon: JourneyExamenCompletDto, module: Parcour
                   "Confirmez-le dans les conditions de l'examen.";
     }
     const n = jalon.cyclesDeTravail;
-    return `Vous avez terminé ${n} cycle${n === 1 ? "" : "s"} de travail depuis votre ` +
+    return `Vous avez terminé ${n} plan${n === 1 ? "" : "s"} de travail depuis votre ` +
         "dernier examen blanc complet. Mesurez où vous en êtes " +
         (module === "CIVIQUE" ? "sur toutes les thématiques." : "sur les quatre épreuves.");
 }
 
 export const JOURNEY_JALON_CONFIRM_TITLE = "Faire un examen blanc complet ?";
-export const JOURNEY_JALON_CONFIRM_CTA = "Commencer le cycle d'examens";
+export const JOURNEY_JALON_CONFIRM_CTA = "Commencer le plan d'examens";
 export const JOURNEY_JALON_CONFIRM_CANCEL = "Annuler";
 
 /**
@@ -730,10 +703,10 @@ export function journeyJalonConfirmMessage(cycleTermine: boolean, module: Parcou
         ? "un examen par thématique"
         : "un examen blanc par épreuve";
     const debut = cycleTermine
-        ? "Votre cycle terminé sera archivé dans « Mes cycles »."
-        : "Votre cycle en cours sera mis de côté : il apparaîtra dans « Mes cycles » " +
+        ? "Votre plan terminé sera archivé dans « Mes plans »."
+        : "Votre plan en cours sera mis de côté : il apparaîtra dans « Mes plans » " +
             "comme interrompu.";
-    return `${debut} Un cycle d'examens le remplace, avec ${examens}. Vos priorités ` +
+    return `${debut} Un plan d'examens le remplace, avec ${examens}. Vos priorités ` +
         "non terminées ne sont pas perdues : les résultats de ces examens les recalculeront.";
 }
 
@@ -765,8 +738,8 @@ function tacheLabel(taskCode: SkillTaskCode): string {
 
    🛑 Miroir mot pour mot de `mobile .../screens/plan/journey_labels.dart`.
 
-   ⚠️ **Le mot « cycle » est celui de la maquette validée** — même raison
-   qu'au-dessus : le propriétaire a écrit « Cycle 2 » / « TERMINÉ » lui-même.
+   ⚠️ **À l'écran, « cycle » se dit « plan »** — même raison qu'au-dessus
+   (2026-10-03).
    `lot`, `step` et `journey` n'apparaissent nulle part (D-21).
    ========================================================================== */
 
@@ -802,12 +775,12 @@ function uniteMot(module: ParcoursModule, n: number): string {
 }
 
 /** Le titre de l'écran, et le libellé du lien qui l'ouvre. */
-export const JOURNEY_HISTORY_TITLE = "Mes cycles";
+export const JOURNEY_HISTORY_TITLE = "Mes plans";
 
 /** Le sous-titre du lien, sur le Plan : ce que l'écran **contient**.
  *  Miroir de `journeyHistorySub` (`journey_labels.dart`). */
 export function journeyHistorySub(module: ParcoursModule = "TCF"): string {
-    return `Vos cycles terminés et les ${uniteMot(module, 2)} travaillées`;
+    return `Vos plans terminés et les ${uniteMot(module, 2)} travaillées`;
 }
 
 /** Le lien « Mon diagnostic » du Plan. Miroir de `kPlanDiagnosticTitle` /
@@ -818,7 +791,7 @@ export const PLAN_DIAGNOSTIC_SUB = "Résultat de départ et priorités initiales
 export const JOURNEY_HISTORY_EYEBROW = "Votre parcours";
 export const JOURNEY_HISTORY_HEADLINE = "Tout ce que vous avez déjà travaillé";
 export const JOURNEY_HISTORY_LEAD =
-    "Vos anciens cycles restent ici, même lorsque votre plan évolue.";
+    "Vos anciens plans restent ici, même lorsque votre plan en cours évolue.";
 
 /** Les libellés des trois compteurs. 🛑 **Le nombre vient du serveur** : ces
  *  fonctions ne posent que l'accord. */
@@ -831,10 +804,10 @@ export function journeyHistoryStatExams(n: number): string {
 }
 
 export function journeyHistoryStatCycles(n: number): string {
-    return `cycle${n === 1 ? "" : "s"} terminé${n === 1 ? "" : "s"}`;
+    return `plan${n === 1 ? "" : "s"} terminé${n === 1 ? "" : "s"}`;
 }
 
-export const JOURNEY_HISTORY_SECTION_TITLE = "Cycles terminés";
+export const JOURNEY_HISTORY_SECTION_TITLE = "Plans terminés";
 export const JOURNEY_HISTORY_SECTION_SUB = "Du plus récent au plus ancien";
 
 /** La pastille d'un cycle archivé : « INTERROMPU » quand le jalon d'examen
@@ -852,10 +825,10 @@ export function journeyHistoryPill(
  * compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
  * n'y a rien à lancer d'ici.
  */
-export const JOURNEY_HISTORY_EMPTY_TITLE = "Aucun cycle terminé pour l'instant";
+export const JOURNEY_HISTORY_EMPTY_TITLE = "Aucun plan terminé pour l'instant";
 
 export function journeyHistoryEmptyText(module: ParcoursModule = "TCF"): string {
-    return "Votre cycle en cours apparaîtra ici dès qu'il sera terminé, avec les "
+    return "Votre plan en cours apparaîtra ici dès qu'il sera terminé, avec les "
         + `${uniteMot(module, 2)} que vous y aurez travaillées et les examens que `
         + "vous y aurez passés.";
 }
@@ -870,13 +843,13 @@ export const JOURNEY_HISTORY_RETRY = "Réessayer";
 export const JOURNEY_HISTORY_FOOT_LEAD = "Rien n'est perdu :";
 
 export function journeyHistoryFootText(module: ParcoursModule = "TCF"): string {
-    return " lorsqu'un nouveau plan est généré, vos cycles terminés et les "
+    return " lorsqu'un nouveau plan est généré, vos plans terminés et les "
         + `${uniteMot(module, 2)} travaillées restent visibles ici.`;
 }
 
 /** Le titre d'un cycle archivé, et le repère de sa pastille ronde. */
 export function journeyHistoryCycleTitle(numero: number): string {
-    return `Cycle ${numero}`;
+    return `Plan ${numero}`;
 }
 
 export function journeyHistoryCycleMark(numero: number): string {
@@ -975,7 +948,7 @@ export function journeyArchiveHref(journeyId: string, module: ParcoursModule): s
 }
 
 /** L'œil-de-bœuf de la page d'un cycle clos. */
-export const JOURNEY_ARCHIVE_KICKER = "Cycle terminé";
+export const JOURNEY_ARCHIVE_KICKER = "Plan terminé";
 
 /** La pastille d'une étape restée ouverte dans un cycle clos. */
 export const JOURNEY_ARCHIVE_STEP_NOT_DONE = "Non travaillée";
@@ -992,7 +965,7 @@ export function journeyArchiveHint(
 
 /** La note de pied : ce que la page est, et où est le plan en cours. */
 export const JOURNEY_ARCHIVE_NOTE =
-    "Ce cycle est terminé : il se consulte tel qu'il était à sa clôture. "
+    "Ce plan est terminé : il se consulte tel qu'il était à sa clôture. "
     + "Votre plan en cours est sur l'écran Plan.";
 
 /**
@@ -1036,9 +1009,9 @@ export function journeyArchiveEndTitle(fin: JourneyFinDeCycle | null): string {
         case "EXAMEN_COMPLET":
             return "Examen blanc complet";
         case "INTERROMPU":
-            return "Cycle interrompu";
+            return "Plan interrompu";
         default:
-            return "Cycle terminé";
+            return "Plan terminé";
     }
 }
 
@@ -1048,7 +1021,7 @@ export function journeyArchiveEndNote(fin: string): string {
 }
 
 export const JOURNEY_ARCHIVE_ERROR =
-    "Ce cycle n'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.";
+    "Ce plan n'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.";
 
 /**
  * L'intervalle d'un cycle — « 4–16 sept. 2026 », « 28 août – 3 sept. 2026 »,

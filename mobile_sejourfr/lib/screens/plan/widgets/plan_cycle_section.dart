@@ -73,8 +73,9 @@ class PlanCycleSection extends ConsumerStatefulWidget {
   });
 
   /// `false` ⇒ la carte « Cycle » ([PlanCycleCard]) est posée ailleurs par
-  /// l'écran — le Plan TCF l'ouvre, comme la maquette (Navigation v2) —, la
-  /// section ne rend plus que « Priorités actuelles ».
+  /// l'écran — le Plan TCF la pose sous « À faire maintenant » et le jalon,
+  /// avec ses états de lecture —, la section ne rend plus que « Priorités
+  /// actuelles ».
   final bool carteDeCycle;
 
   /// Le Plan TCF, **seulement** pour résoudre l'action d'une étape TCF.
@@ -574,9 +575,9 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
 }
 
 /// **La carte « Cycle »** (Navigation v2, `.card.card-pad` de « Mon plan ») :
-/// « Cycle 2 », « Votre parcours vers le B2 », le compteur servi, la barre et
-/// la phrase du cycle — tout est **servi** (`JourneyCycle`), mis en mots par
-/// `journey_labels.dart`.
+/// « Plan 2 », « Votre parcours vers le B2 », le compteur servi et la barre —
+/// tout est **servi** (`JourneyCycle`), mis en mots par `journey_labels.dart`.
+/// 🛑 Plus de phrase sous la barre (demande du propriétaire, 2026-10-03).
 ///
 /// Rien à rendre sans cycle ouvert (parcours non lu, sans objectif, à jour) :
 /// [PlanCycleSection] porte alors l'état du parcours.
@@ -602,7 +603,6 @@ class PlanCycleCard extends StatelessWidget {
       done: cycle.etapesTerminees,
       total: cycle.etapesTotal,
       badge: journeyCycleBadge(cycle),
-      hint: journeyCycleHint(cycle),
       // 🛑 **Servi, jamais déduit de `done == total`** : un cycle peut
       // afficher « 8 sur 8 » sans être clos côté serveur.
       complete: cycle.complete,

@@ -22,7 +22,7 @@ import {
   COMPTE_PASSWORD_TITLE,
 } from "./compte";
 import {FAVORIS_TITLE} from "./favoris";
-import {JOURNEY_HISTORY_TITLE} from "./journey";
+import {JOURNEY_ARCHIVE_KICKER, JOURNEY_HISTORY_TITLE} from "./journey";
 import {questionTypeLabel, SKILL_SECTION_LABEL} from "./types";
 
 export interface AppBarInfo {
@@ -37,7 +37,7 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
 
   ["/plan", {title: "Plan"}],
   ["/plan/progression", {title: JOURNEY_HISTORY_TITLE}],
-  ["/plan/progression/cycle", {title: "Cycle terminé"}],
+  ["/plan/progression/cycle", {title: JOURNEY_ARCHIVE_KICKER}],
 
   ["/progression/tcf", {title: "Progression"}],
   ["/progression/civique", {title: "Progression"}],

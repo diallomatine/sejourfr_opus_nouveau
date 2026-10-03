@@ -343,8 +343,8 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
             {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses blocs et
                 toutes leurs étapes sont affichés à leur place, avec leur
                 cadenas — c'est la contradiction #1 du dépôt, tranchée le
-                2026-08-21. Ordre (parité mobile) : carte Cycle → « À faire
-                maintenant » → jalon → « Priorités actuelles ». */}
+                2026-08-21. Ordre (parité mobile, 2026-10-03) : « À faire
+                maintenant » → jalon → carte Cycle → « Priorités actuelles ». */}
             <PlanCycleSection
               journey={journey}
               plan={plan}

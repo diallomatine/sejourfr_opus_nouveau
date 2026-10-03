@@ -32,7 +32,6 @@ import {
     journeyBlocStatus,
     journeyBlocTitle,
     journeyCycleBadge,
-    journeyCycleHint,
     journeyCycleNote,
     journeyCycleLabel,
     JOURNEY_EXAM_START,
@@ -85,16 +84,17 @@ import {ClosedExamStep} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /**
- * **Le cycle du Plan** (TCF et civique) — la carte Cycle puis « Priorités
- * actuelles ». Miroir : `plan_cycle_section.dart`.
+ * **Le cycle du Plan** (TCF et civique) — `avantPriorites`, la carte Cycle
+ * puis « Priorités actuelles ». Miroir : `plan_cycle_section.dart`.
  *
  * Navigation v2 (2026-10-03, maquette `#tcf-plan`) : le même contenu que la
  * timeline du 2026-09-27 (D-22), en-têtes de bloc au format `.info-card`.
  *
- * 1. la **carte Cycle** (`CycleProgress title`) — `Cycle {numero}`, « Votre
- *    parcours vers le {objectif} », compteur, barre et phrase servis ;
- * 2. `avantPriorites` — ce que l'écran pose entre les deux (Plan TCF :
- *    « À faire maintenant » et le jalon) ;
+ * 1. `avantPriorites` — ce que l'écran pose en tête (Plan TCF : « À faire
+ *    maintenant » et le jalon), demande du propriétaire du 2026-10-03 ;
+ * 2. la **carte Cycle** (`CycleProgress title`) — « Plan {numero} », « Votre
+ *    parcours vers le {objectif} », compteur et barre servis (plus de phrase
+ *    sous la barre, 2026-10-03) ;
  * 3. **« Priorités actuelles »** : la timeline (`CycleRail`), un bloc par entrée
  *    de `blocs` (`BlocAccordion icon`), **dans l'ordre servi**, le premier seul
  *    déplié — dedans les lignes d'étape (`JourneyRow`) puis l'encart d'examen
@@ -137,9 +137,9 @@ export function PlanCycleSection({
     /** 🛑 **Le module du cycle affiché** (D-50) : cette section est COMMUNE aux
      *  deux, et c'est le module qui dit où repartir après une fin de cycle. */
     module?: ParcoursModule;
-    /** Ce que l'écran pose ENTRE la carte Cycle et « Priorités actuelles »
+    /** Ce que l'écran pose AVANT la carte Cycle et « Priorités actuelles »
      *  (Plan TCF : « À faire maintenant » et le jalon — ordre du mobile).
-     *  Sans cycle, il est rendu seul, en tête. */
+     *  Sans cycle, il est rendu seul. */
     avantPriorites?: ReactNode;
 }) {
     if (!journey) return <>{avantPriorites}</>;
@@ -390,9 +390,14 @@ function CycleBody({journey, plan, module, avantPriorites}: {
 
     return (
         <>
+            {/* Demande du propriétaire (2026-10-03) : « À faire maintenant »
+                et le jalon passent AVANT la carte du cycle. */}
+            {avantPriorites}
+
             {/* **La carte Cycle** (maquette `#tcf-plan`) : numéro, objectif,
-                compteur, barre et phrase servis. `complete` est SERVI, jamais
-                déduit de `done === total`. */}
+                compteur et barre servis — sans phrase sous la barre
+                (2026-10-03). `complete` est SERVI, jamais déduit de
+                `done === total`. */}
             <Pad>
                 <CycleProgress
                     module={tone}
@@ -401,12 +406,9 @@ function CycleBody({journey, plan, module, avantPriorites}: {
                     title={journeyTitle(journey.objectif)}
                     done={cycle.etapesTerminees}
                     total={cycle.etapesTotal}
-                    hint={journeyCycleHint(cycle)}
                     complete={cycle.complete}
                 />
             </Pad>
-
-            {avantPriorites}
 
             {/* **« Priorités actuelles » = le cycle EXISTANT, restylé**
                 (en-têtes `.info-card`) — pas une liste de plus (brief §5). */}

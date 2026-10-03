@@ -311,12 +311,13 @@ JourneyStep? journeyNowStep(Journey journey) {
 //
 // 🛑 Miroir mot pour mot de `web_sejoufr/lib/journey.ts`.
 //
-// ⚠️ **Le mot « cycle » est celui de la maquette validée**, et il est écrit
-// ici — une seule fois pour tout le front. D-21 interdit le vocabulaire
-// INTERNE à l'écran (`lot`, `step`, `journey`) ; le propriétaire a lui-même
-// écrit « Cycle 2 » / « Cycle terminé » dans ses deux maquettes, et c'est ce
-// qu'on rend. Le jour où il préfère « Parcours 2 », ce sont ces trois
-// fonctions qui changent, et elles seules.
+// ⚠️ **À l'écran, un cycle s'appelle un « plan »** (demande du propriétaire,
+// 2026-10-03 : « Plan 2 », « Plan terminé », « Mes plans ») ; le code, les
+// types, les routes et les DTO gardent « cycle ». Le mot est écrit ici — une
+// seule fois pour tout le front. D-21 interdit le vocabulaire INTERNE à
+// l'écran (`lot`, `step`, `journey`).
+// 🛑 **Plus de phrase sous la barre de la carte** (2026-10-03) : l'ancien
+// `journeyCycleHint` est supprimé, ne pas le réintroduire.
 // ===========================================================================
 
 /// L'intertitre des blocs du cycle (Navigation v2, maquette « Mon plan ») —
@@ -325,7 +326,7 @@ const String kJourneyPrioritesTitle = 'Priorités actuelles';
 
 /// Le compteur du cycle, en mots. Terminé, il dit l'état plutôt que le compte.
 String journeyCycleLabel(JourneyCycle cycle) {
-  if (cycle.complete) return 'Cycle terminé';
+  if (cycle.complete) return 'Plan terminé';
   final s = cycle.etapesTerminees == 1 ? '' : 's';
   return '${cycle.etapesTerminees} étape$s sur ${cycle.etapesTotal} terminée$s';
 }
@@ -333,38 +334,7 @@ String journeyCycleLabel(JourneyCycle cycle) {
 /// Le repère de cycle, à droite du compteur. `null` sur un cycle terminé — la
 /// brique y met le pourcentage à sa place.
 String? journeyCycleBadge(JourneyCycle cycle) =>
-    cycle.complete ? null : 'Cycle ${cycle.numero}';
-
-/// La phrase sous la barre.
-String journeyCycleHint(JourneyCycle cycle) {
-  // 🛑 **Cycle d'affinage** (D-64) : lu sur le fait SERVI `cycleDAffinage`,
-  // jamais déduit du numéro du cycle. Ses compétences sont facultatives —
-  // « toutes les compétences sont terminées » y serait faux.
-  if (cycle.cycleDAffinage) {
-    return cycle.complete
-        ? 'Les examens blancs de toutes les épreuves sont faits. Actualisez '
-            'votre plan pour recevoir les priorités qu\'ils ont identifiées.'
-        : 'Premier cycle : passez l\'examen blanc de chaque épreuve pour '
-            'affiner votre plan. Les compétences détectées par le diagnostic '
-            'restent disponibles.';
-  }
-  // 🛑 **Cycle d'examens d'un compte sans diagnostic** (D-69) : il ne porte
-  // aucune compétence — « toutes les compétences… » y serait faux.
-  if (cycle.cycleDeMesure && cycle.complete) {
-    return 'Les examens blancs de toutes les épreuves sont faits. Actualisez '
-        'votre plan pour recevoir les priorités qu\'ils ont identifiées.';
-  }
-  if (cycle.complete) {
-    return 'Toutes les compétences et tous les examens d\'épreuve prévus dans '
-        'ce cycle sont terminés.';
-  }
-  if (cycle.cycleDeMesure) {
-    return 'Passez les épreuves dans l\'ordre que vous voulez : ce cycle '
-        'mesure votre niveau, il ne demande aucun entraînement.';
-  }
-  return 'Travaillez les priorités identifiées. Le cycle reste stable '
-      'jusqu\'à sa prochaine actualisation.';
-}
+    cycle.complete ? null : 'Plan ${cycle.numero}';
 
 /// Le repère court d'un bloc, en étiquette technique. 🛑 Une seule table.
 ///
@@ -433,7 +403,7 @@ SfRailState journeyBlocRailState(JourneyBlocStatus status) => switch (status) {
 // cycle (il devient un jalon, `kJourneyJalon*`). La fin s'appelle donc toujours
 // « Actualiser mon plan ».
 
-const String kJourneyRailEndEyebrow = 'Fin du cycle';
+const String kJourneyRailEndEyebrow = 'Fin du plan';
 const String kJourneyRailEndTitle = 'Actualiser mon plan';
 
 /// « 3 priorités identifiées » — le nombre **servi** de priorités que le cycle
@@ -569,7 +539,7 @@ const String kJourneyLockedBadge = 'Verrouillé';
 /// cycle, les examens sont ouverts d'emblée — dire qu'ils attendent les étapes
 /// serait faux. Miroir de `journeyCycleNote` (`web_sejoufr/lib/journey.ts`).
 String journeyCycleNote(JourneyCycle cycle) => cycle.cycleDAffinage
-    ? 'Dans ce premier cycle, les examens blancs sont ouverts d\'emblée. '
+    ? 'Dans ce premier plan, les examens blancs sont ouverts d\'emblée. '
         'Travailler les compétences détectées par le diagnostic est facultatif.'
     : 'Vous pouvez travailler les compétences dans l\'ordre que vous voulez. '
         'Les examens d\'une épreuve s\'ouvrent seulement quand ses étapes sont '
@@ -580,10 +550,10 @@ String journeyCycleNote(JourneyCycle cycle) => cycle.cycleDAffinage
 // mon plan ». Le choix « Passer l'examen blanc complet / Actualiser sans examen
 // complet » est SUPPRIMÉ de la carte, avec ses repères et sa note.
 
-const String kJourneyNextStepEyebrow = 'Cycle terminé';
-const String kJourneyNextStepHeadline = 'Passez au cycle suivant';
+const String kJourneyNextStepEyebrow = 'Plan terminé';
+const String kJourneyNextStepHeadline = 'Passez au plan suivant';
 const String kJourneyNextStepText =
-    'Vous avez terminé ce cycle. Actualisez votre plan pour travailler les '
+    'Vous avez terminé ce plan. Actualisez-le pour travailler les '
     'priorités que vos évaluations ont identifiées.';
 
 /// Le repère de la carte : le nombre servi de priorités du cycle suivant.
@@ -594,7 +564,7 @@ List<SfNextStepFact> journeyNextStepFacts(JourneyCycle cycle) {
     (
       value: '$n',
       label: 'priorité${n == 1 ? '' : 's'} identifiée${n == 1 ? '' : 's'} '
-          'pour le prochain cycle',
+          'pour le prochain plan',
     ),
   ];
 }
@@ -634,13 +604,13 @@ String journeyJalonText(JourneyExamenComplet jalon, AppModule module) {
             'épreuves. Confirmez-le dans les conditions de l\'examen.';
   }
   final n = jalon.cyclesDeTravail;
-  return 'Vous avez terminé $n cycle${n == 1 ? '' : 's'} de travail depuis '
+  return 'Vous avez terminé $n plan${n == 1 ? '' : 's'} de travail depuis '
       'votre dernier examen blanc complet. Mesurez où vous en êtes '
       '${civique ? 'sur toutes les thématiques.' : 'sur les quatre épreuves.'}';
 }
 
 const String kJourneyJalonConfirmTitle = 'Faire un examen blanc complet ?';
-const String kJourneyJalonConfirmCta = 'Commencer le cycle d\'examens';
+const String kJourneyJalonConfirmCta = 'Commencer le plan d\'examens';
 const String kJourneyJalonConfirmCancel = 'Annuler';
 
 /// Ce que le geste fait, **avant** de le faire. 🛑 Sur un cycle **terminé**
@@ -650,10 +620,10 @@ String journeyJalonConfirmMessage(bool cycleTermine, AppModule module) {
       ? 'un examen par thématique'
       : 'un examen blanc par épreuve';
   final debut = cycleTermine
-      ? 'Votre cycle terminé sera archivé dans « Mes cycles ».'
-      : 'Votre cycle en cours sera mis de côté : il apparaîtra dans « Mes '
-          'cycles » comme interrompu.';
-  return '$debut Un cycle d\'examens le remplace, avec $examens. Vos priorités '
+      ? 'Votre plan terminé sera archivé dans « Mes plans ».'
+      : 'Votre plan en cours sera mis de côté : il apparaîtra dans « Mes '
+          'plans » comme interrompu.';
+  return '$debut Un plan d\'examens le remplace, avec $examens. Vos priorités '
       'non terminées ne sont pas perdues : les résultats de ces examens les '
       'recalculeront.';
 }
@@ -707,18 +677,18 @@ String journeyEtapeSuivanteCta(JourneyStep step) =>
 
    🛑 Miroir mot pour mot de la même section de `web_sejoufr/lib/journey.ts`.
 
-   ⚠️ **Le mot « cycle » est celui de la maquette validée** — même raison
-   qu'au-dessus : le propriétaire a écrit « Cycle 2 » / « TERMINÉ » lui-même.
+   ⚠️ **À l'écran, « cycle » se dit « plan »** — même raison qu'au-dessus
+   (2026-10-03).
    `lot`, `step` et `journey` n'apparaissent nulle part (D-21).
    ========================================================================== */
 
 /// Le titre de l'écran, et le libellé du lien qui l'ouvre.
-const String kJourneyHistoryTitle = 'Mes cycles';
+const String kJourneyHistoryTitle = 'Mes plans';
 
 /// Le sous-titre du lien, sur le Plan. 🛑 Il dit ce que l'écran **contient**,
 /// pas ce qu'il prétend expliquer.
 String journeyHistorySub([AppModule module = AppModule.tcf]) =>
-    'Vos cycles terminés et les ${_uniteMot(module, 2)} travaillées';
+    'Vos plans terminés et les ${_uniteMot(module, 2)} travaillées';
 
 /// **Le mot de l'unité travaillable, par parcours** (D-48).
 ///
@@ -732,7 +702,7 @@ String _uniteMot(AppModule module, int n) => module == AppModule.civique
 const String kJourneyHistoryEyebrow = 'Votre parcours';
 const String kJourneyHistoryHeadline = 'Tout ce que vous avez déjà travaillé';
 const String kJourneyHistoryLead =
-    'Vos anciens cycles restent ici, même lorsque votre plan évolue.';
+    'Vos anciens plans restent ici, même lorsque votre plan en cours évolue.';
 
 /// Les libellés des trois compteurs. 🛑 **Le nombre vient du serveur** : ces
 /// fonctions ne posent que l'accord.
@@ -743,9 +713,9 @@ String journeyHistoryStatExams(int n) =>
     'examen${n == 1 ? '' : 's'} passé${n == 1 ? '' : 's'}';
 
 String journeyHistoryStatCycles(int n) =>
-    'cycle${n == 1 ? '' : 's'} terminé${n == 1 ? '' : 's'}';
+    'plan${n == 1 ? '' : 's'} terminé${n == 1 ? '' : 's'}';
 
-const String kJourneyHistorySectionTitle = 'Cycles terminés';
+const String kJourneyHistorySectionTitle = 'Plans terminés';
 const String kJourneyHistorySectionSub = 'Du plus récent au plus ancien';
 
 /// La pastille d'un cycle archivé : « INTERROMPU » quand le jalon d'examen
@@ -759,9 +729,9 @@ const String kJourneyHistorySectionSub = 'Du plus récent au plus ancien';
 /// 🛑 **`cycles` vide est un ÉTAT D'ÉCRAN, pas une erreur** : le bandeau et ses
 /// compteurs restent vrais, et l'écran dit ce qui manque — sans bouton mort, il
 /// n'y a rien à lancer d'ici.
-const String kJourneyHistoryEmptyTitle = 'Aucun cycle terminé pour l\'instant';
+const String kJourneyHistoryEmptyTitle = 'Aucun plan terminé pour l\'instant';
 String journeyHistoryEmptyText([AppModule module = AppModule.tcf]) =>
-    'Votre cycle en cours apparaîtra ici dès qu\'il sera terminé, avec les '
+    'Votre plan en cours apparaîtra ici dès qu\'il sera terminé, avec les '
     '${_uniteMot(module, 2)} que vous y aurez travaillées et les examens que '
     'vous y aurez passés.';
 
@@ -774,11 +744,11 @@ const String kJourneyHistoryRetry = 'Réessayer';
 
 const String kJourneyHistoryFootLead = 'Rien n\'est perdu :';
 String journeyHistoryFootText([AppModule module = AppModule.tcf]) =>
-    ' lorsqu\'un nouveau plan est généré, vos cycles terminés et les '
+    ' lorsqu\'un nouveau plan est généré, vos plans terminés et les '
     '${_uniteMot(module, 2)} travaillées restent visibles ici.';
 
 /// Le titre d'un cycle archivé, et le repère de sa pastille ronde.
-String journeyHistoryCycleTitle(int numero) => 'Cycle $numero';
+String journeyHistoryCycleTitle(int numero) => 'Plan $numero';
 
 String journeyHistoryCycleMark(int numero) => '$numero';
 
@@ -849,7 +819,7 @@ String? journeyArchiveLevel(
    ========================================================================== */
 
 /// L'œil-de-bœuf de la page d'un cycle clos.
-const String kJourneyArchiveKicker = 'Cycle terminé';
+const String kJourneyArchiveKicker = 'Plan terminé';
 
 /// La pastille d'une étape restée ouverte dans un cycle clos.
 const String kJourneyArchiveStepNotDone = 'Non travaillée';
@@ -866,7 +836,7 @@ String journeyArchiveHint(
 
 /// La note de pied : ce que la page est, et où est le plan en cours.
 const String kJourneyArchiveNote =
-    'Ce cycle est terminé : il se consulte tel qu\'il était à sa clôture. '
+    'Ce plan est terminé : il se consulte tel qu\'il était à sa clôture. '
     'Votre plan en cours est sur l\'écran Plan.';
 
 /// Le sous-titre d'un examen lu sans geste — « Passé le 26 sept. 2026 ». Sert
@@ -899,8 +869,8 @@ String? journeyArchiveExamResult(JourneyStep exam) {
 String journeyArchiveEndTitle(JourneyFinDeCycle? fin) => switch (fin) {
       JourneyFinDeCycle.actualisation => 'Plan actualisé',
       JourneyFinDeCycle.examenComplet => 'Examen blanc complet',
-      JourneyFinDeCycle.interrompu => 'Cycle interrompu',
-      null => 'Cycle terminé',
+      JourneyFinDeCycle.interrompu => 'Plan interrompu',
+      null => 'Plan terminé',
     };
 
 /// « Le 27 sept. 2026 » — la date de clôture, sous le titre de la fin.
@@ -908,7 +878,7 @@ String journeyArchiveEndNote(DateTime fin) =>
     'Le ${formatLongDate(fin.toLocal())}';
 
 const String kJourneyArchiveError =
-    'Ce cycle n\'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.';
+    'Ce plan n\'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.';
 
 // ⚠️ `_initialeEpreuve` A ÉTÉ SUPPRIMÉE (P8.9, 2026-09-20) : l'historique lit
 // désormais le bloc SERVI, donc `journeyBlocMark` — qui rend une chaîne vide

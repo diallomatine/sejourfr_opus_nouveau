@@ -100,7 +100,6 @@ class PlanTcfView extends ConsumerWidget {
   /* ------------------------------------------------------------- abonné --- */
 
   List<Widget> _premium(BuildContext context, WidgetRef ref) {
-
     return <Widget>[
       const SizedBox(height: 14),
       ..._enTete(context, ref),
@@ -113,9 +112,12 @@ class PlanTcfView extends ConsumerWidget {
       // 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
       // au-dessus du cycle — servi, jamais décidé ici.
       ExamenCompletJalon(journey: journey, module: AppModule.tcf),
+      // La carte « Cycle » sous « À faire maintenant » et le jalon (demande du
+      // propriétaire, 2026-10-03).
+      ..._carteDuCycle(ref),
       // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
-      // (« Actualiser mon plan », D-66). Sa carte « Cycle » est en tête.
+      // (« Actualiser mon plan », D-66).
       PlanCycleSection(plan: plan, journey: journey, carteDeCycle: false),
       _links(context),
       const SizedBox(height: 28),
@@ -153,6 +155,7 @@ class PlanTcfView extends ConsumerWidget {
         // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
         // ouvre porte, lui, les verrous d'accès servis de chaque examen.
         ExamenCompletJalon(journey: journey, module: AppModule.tcf),
+        ..._carteDuCycle(ref),
         // 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
         // toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
         // masquer priverait le candidat de l'information la plus utile qu'il
@@ -176,9 +179,9 @@ class PlanTcfView extends ConsumerWidget {
 
   /* ------------------------------------------------------------ blocs ----- */
 
-  /// **La tête du Plan TCF** (Navigation v2, maquette « Mon plan ») : la
-  /// carte « Cycle » ([PlanCycleCard]), puis, sans objectif déclaré, l'accès
-  /// au choix de la démarche.
+  /// **La tête du Plan TCF** (Navigation v2, maquette « Mon plan ») : sans
+  /// objectif déclaré, l'accès au choix de la démarche. La carte « Cycle »
+  /// est passée sous « À faire maintenant » ([_carteDuCycle], 2026-10-03).
   ///
   /// ⚠️ **Le bandeau « Niveau actuel → Objectif » (`SfGoalStrip`) est retiré**
   /// (Navigation v2, phase 4) : la carte « Ma progression » de l'en-tête du module dit déjà
@@ -186,9 +189,27 @@ class PlanTcfView extends ConsumerWidget {
   /// actuel » (le niveau de départ du cycle). Le bouton « Choisir mon
   /// objectif » qu'il portait reste.
   ///
+  List<Widget> _enTete(BuildContext context, WidgetRef ref) {
+    return <Widget>[
+      if (objective == null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, sfGap, 16, 0),
+          child: SfButton(
+            label: kPlanGoalPick,
+            variant: SfButtonVariant.line,
+            onPressed: () =>
+                context.push(AppRoutes.targetPathFrom(AppRoutes.tcfPlan)),
+          ),
+        ),
+    ];
+  }
+
+  /// **La carte « Cycle »** ([PlanCycleCard]), sous « À faire maintenant » et
+  /// le jalon (demande du propriétaire, 2026-10-03).
+  ///
   /// 🛑 **Le parcours a ses états** (brief §7) : lecture en cours ⇒ squelette
   /// de la carte, échec ⇒ erreur + « Réessayer » dans le bloc.
-  List<Widget> _enTete(BuildContext context, WidgetRef ref) {
+  List<Widget> _carteDuCycle(WidgetRef ref) {
     final etat = ref.watch(journeyProvider);
     final parcours = journey;
     final Widget? carte = parcours != null
@@ -203,16 +224,10 @@ class PlanTcfView extends ConsumerWidget {
                 ? const SfBlockSkeleton(height: 150, radius: AppRadii.lg)
                 : null;
     return <Widget>[
-      if (carte != null) Padding(padding: sfGutter, child: carte),
-      if (objective == null)
+      if (carte != null)
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, sfGap, 16, 0),
-          child: SfButton(
-            label: kPlanGoalPick,
-            variant: SfButtonVariant.line,
-            onPressed: () =>
-                context.push(AppRoutes.targetPathFrom(AppRoutes.tcfPlan)),
-          ),
+          padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
+          child: carte,
         ),
     ];
   }

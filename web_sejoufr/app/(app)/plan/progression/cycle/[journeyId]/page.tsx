@@ -2,8 +2,8 @@ import type {Metadata} from "next";
 import {PlanCycleArchiveView} from "@/app/_components/plan/PlanCycleArchiveView";
 
 export const metadata: Metadata = {
-  title: "Cycle terminé — SejourFR",
-  description: "Le plan d'un cycle terminé, tel qu'il était : ses épreuves, ses étapes et ses examens.",
+  title: "Plan terminé — SejourFR",
+  description: "Un plan terminé, tel qu'il était : ses épreuves, ses étapes et ses examens.",
 };
 
 /**
