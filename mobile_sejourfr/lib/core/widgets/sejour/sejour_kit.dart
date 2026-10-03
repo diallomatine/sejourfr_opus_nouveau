@@ -4825,50 +4825,57 @@ class SfNextStepCard extends StatelessWidget {
                 ),
                 if (facts.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var i = 0; i < facts.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color:
-                                  AppColors.white.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(13),
-                              border: Border.all(
+                  // 🛑 `IntrinsicHeight` est OBLIGATOIRE : la carte vit dans une liste
+                  // qui défile (hauteur non bornée), et une `Row` `stretch` y lève
+                  // « BoxConstraints forces an infinite height ». En release, la carte
+                  // entière disparaissait, bouton « Actualiser mon plan » compris
+                  // (prod, 2026-10-03). Même garde que les autres rangées du kit.
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < facts.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 8),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
                                 color:
                                     AppColors.white.withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(13),
+                                border: Border.all(
+                                  color:
+                                      AppColors.white.withValues(alpha: 0.10),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    facts[i].value,
+                                    style: AppFonts.ui(
+                                      size: 12.5,
+                                      weight: FontWeight.w700,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    facts[i].label,
+                                    style: AppFonts.ui(
+                                      size: 10.5,
+                                      color: AppColors.white
+                                          .withValues(alpha: 0.78),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  facts[i].value,
-                                  style: AppFonts.ui(
-                                    size: 12.5,
-                                    weight: FontWeight.w700,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  facts[i].label,
-                                  style: AppFonts.ui(
-                                    size: 10.5,
-                                    color: AppColors.white
-                                        .withValues(alpha: 0.78),
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 15),
