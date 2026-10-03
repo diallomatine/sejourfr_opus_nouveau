@@ -3,8 +3,7 @@
 import {type ReactNode, useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
 import {journeyApi} from "@/lib/api";
-import {PLAN_PRIORITES_ACTION} from "@/lib/module-ecrans";
-import {entrainementHref, planHref, type ParcoursModule} from "@/lib/module-switch";
+import {planHref, type ParcoursModule} from "@/lib/module-switch";
 import {situationIcon} from "@/lib/situation-icons";
 import {planSkillTargetLevelDeCode, planStepAction, planStepActionLocked} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
@@ -413,7 +412,6 @@ function CycleBody({journey, plan, module, avantPriorites}: {
                 (en-têtes `.info-card`) — pas une liste de plus (brief §5). */}
             <Section
                 title={JOURNEY_PRIORITES_TITLE}
-                action={{label: PLAN_PRIORITES_ACTION, href: entrainementHref(module)}}
             >
                 <Pad>
                     <Stack>

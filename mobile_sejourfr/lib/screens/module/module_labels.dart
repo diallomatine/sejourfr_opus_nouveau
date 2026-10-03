@@ -34,9 +34,6 @@ String moduleSegmentLabel(ModuleSegment segment) => switch (segment) {
 
 /* ----------------------------------------------- carte « Ma progression » --- */
 
-/// Le lien de tête de « Priorités actuelles » (Plan des deux modules) vers le
-/// segment Entraînement. Miroir de `PLAN_PRIORITES_ACTION` (web).
-const String kPlanPrioritesAction = 'Tout l\'entraînement';
 
 const String kModuleProgressLabel = 'Ma progression';
 const String kModuleProgressAction = 'Voir le détail';

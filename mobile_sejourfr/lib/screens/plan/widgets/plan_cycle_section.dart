@@ -9,11 +9,9 @@ import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/router/app_router.dart';
-import '../../../core/router/shell_navigation.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/dashboard_targets.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
-import '../../module/module_labels.dart';
 import '../../module_detail/civique_theme_exam_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
@@ -206,13 +204,6 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
         SfSection(
           title: kJourneyPrioritesTitle,
           lead: true,
-          // Le lien « Tout l'entraînement » du web (même destination : le
-          // segment Entraînement du module).
-          action: SfSectionAction(
-            label: kPlanPrioritesAction,
-            onTap: () => context.go(
-                ModuleSegment.entrainement.path(civique: civique)),
-          ),
           child: SfStack(
             children: [
               // 🛑 **L'ordre servi est l'autorité** : aucun tri, aucun filtre —

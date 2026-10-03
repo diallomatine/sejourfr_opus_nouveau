@@ -44,7 +44,6 @@ export function planTcfChipObjectif(cible: TargetLevel): string {
     return `Objectif · ${cible}`;
 }
 
-export const PLAN_PRIORITES_ACTION = "Tout l'entraînement";
 
 export const PLAN_TCF_HERO_LABEL = "Ma progression";
 
