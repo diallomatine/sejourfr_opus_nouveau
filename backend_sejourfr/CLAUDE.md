@@ -193,7 +193,7 @@ main. Un libellé qui bouge, ce sont quatre fichiers dans la même passe.
 | un score QCM, un niveau dérivé, l'ordre des propositions | `docs/regles/qcm.md` |
 | un chrono, `DureeEpreuve`, `deadlineAt`, la clôture d'une épreuve | `docs/regles/examens-temps.md` |
 | une soumission orale, Whisper, R2 | `docs/regles/audio-productions.md` |
-| l'analytics, le funnel, un rate-limit par IP | `docs/regles/mesure-audience.md` |
+| l'analytics, le funnel, un rate-limit par IP, l'activité des comptes (présence, connexions `user_login_event`, écrans `SCREEN_VIEWED`, purge `refresh_tokens`) | `docs/regles/mesure-audience.md` § « Activité des utilisateurs » |
 | `user_subscriptions`, un webhook store, un plan | `docs/regles/paiements.md` |
 | l'accès effectif (achats + décisions admin `access_overrides`, `AccesEffectifResolver`), la console admin « Utilisateurs » | `docs/regles/paiements.md` § « Accès effectif », `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` |
 | un email, un gabarit, `email_deliveries`, le désabonnement, le scheduler d'engagement | `docs/regles/emails.md` |

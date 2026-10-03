@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Routes publiques de diagnostic_run : par IP et par identifiant, seuils de la config versionnée. */
 class DiagnosticRunRateLimitTest {
 
-    private static final AnalyticsConfig CONFIG = AnalyticsConfigLoader.load(1);
+    private static final AnalyticsConfig CONFIG = AnalyticsConfigLoader.load(2);
 
     private static DiagnosticRunRateLimit guard(boolean enabled) {
         RateLimitProperties props = new RateLimitProperties();

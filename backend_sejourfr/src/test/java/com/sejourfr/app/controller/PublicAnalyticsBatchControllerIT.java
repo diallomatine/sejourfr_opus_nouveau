@@ -211,6 +211,7 @@ class PublicAnalyticsBatchControllerIT extends AbstractIntegrationTest {
     void rejetPartiel() throws Exception {
         UUID anon = UUID.randomUUID();
         String valide = id();
+        String cheminInconnu = id();
         envoyer(lot(anon, null,
                         evt(valide, "DIAGNOSTIC_CTA_CLICKED",
                                 "\"path\":\"/reussir\",\"properties\":{\"ctaLocation\":\"hero\"}"),
@@ -218,23 +219,25 @@ class PublicAnalyticsBatchControllerIT extends AbstractIntegrationTest {
                         evt(id(), "LANDING_VIEWED", "\"properties\":{\"email\":\"a@b.fr\"}"),
                         evt(null, "PRICING_VIEWED", null),
                         evt(id(), "CHECKOUT_STARTED", null),
-                        evt(id(), "LANDING_VIEWED", "\"path\":\"/admin/secret\""),
+                        evt(cheminInconnu, "LANDING_VIEWED", "\"path\":\"/admin/secret\""),
                         evt("pas-un-uuid", "PRICING_VIEWED", null)),
                 "web")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.received").value(7))
-                .andExpect(jsonPath("$.accepted").value(1))
-                .andExpect(jsonPath("$.rejected.length()").value(6))
+                .andExpect(jsonPath("$.accepted").value(2))
+                .andExpect(jsonPath("$.rejected.length()").value(5))
                 .andExpect(jsonPath("$.rejected[0].index").value(1))
                 .andExpect(jsonPath("$.rejected[0].reason", containsString("event")))
                 .andExpect(jsonPath("$.rejected[1].reason", containsString("email")))
                 .andExpect(jsonPath("$.rejected[2].reason", containsString("eventId")))
                 .andExpect(jsonPath("$.rejected[3].reason", containsString("posé par le serveur")))
-                .andExpect(jsonPath("$.rejected[4].reason", containsString("path")))
-                .andExpect(jsonPath("$.rejected[5].eventId").value("pas-un-uuid"));
+                .andExpect(jsonPath("$.rejected[4].eventId").value("pas-un-uuid"));
 
-        assertThat(eventManager.countForVisitor(anon)).isEqualTo(1);
+        assertThat(eventManager.countForVisitor(anon)).isEqualTo(2);
         assertThat(ligne(valide).getProperties()).containsEntry("ctaLocation", "HERO");
+        // Chemin hors allowlist : l'evenement est garde, le chemin n'est pas ecrit
+        // (chantier « Activite » : un front plus recent ne perd pas ses evenements).
+        assertThat(ligne(cheminInconnu).getPath()).isNull();
     }
 
     @Test

@@ -41,6 +41,8 @@ sejourfr:
   security:
     jwt:
       secret: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVm"
+      # Purge des refresh tokens : les tests appellent le service directement.
+      refresh-token-purge-cron: "-"
   # Rate-limit désactivé : on teste la logique métier, pas les seuils anti-abus
   # (ceux-ci ont leurs propres tests ciblés).
   rate-limit:

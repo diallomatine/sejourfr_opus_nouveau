@@ -25,11 +25,12 @@ class AnalyticsConfigLoaderTest {
               "DIAGNOSTIC_SUBJECT_VIEWED":null,"DIAGNOSTIC_SUBMITTED":null,"ACCOUNT_ATTACHED":null,
               "REPORT_VIEWED":null,"PLAN_VIEWED":null,"PLAN_UNLOCK_CLICKED":null,"PURCHASES":null,
               "PURCHASE_ORIGIN":null,"REVENUE_BREAKDOWN":null,"REFUNDS":null,"SIGNUP_CONTEXT":null,
-              "SIGNUP_PLATFORM_DETAIL":null}""";
+              "SIGNUP_PLATFORM_DETAIL":null,"ACTIVE_USERS":null,"LOGINS":null,"SCREEN_VIEWS_WEB":null,
+              "SCREEN_VIEWS_APP":null}""";
 
     private static String json(String timezone, String groupes, String debuts) {
         return """
-                {"analyticsConfigVersion":1,"timezone":"%s","cohortWindowDays":14,"claimTokenTtlDays":2,
+                {"analyticsConfigVersion":2,"timezone":"%s","cohortWindowDays":14,"claimTokenTtlDays":2,
                  "civicSubmittedMinAnsweredRatio":0.8,"runReuseWindowHours":24,
                  "purchaseIntentTtlHours":24,"anonymousIdTtlDays":395,"rawEventRetentionDays":395,
                  "purgeBatchSize":1000,
@@ -43,6 +44,8 @@ class AnalyticsConfigLoaderTest {
                                 "perAnonymousIdBurst":{"max":20,"windowSeconds":600},
                                 "perAnonymousIdDaily":{"max":100,"windowSeconds":86400}},
                  "utmSourceGroups":%s,"utmSourceFallbackGroup":"autre",
+                 "activity":{"retentionDays":365,"writeIntervalSeconds":60,"onlineWindowSeconds":180,
+                   "screenTopLimit":20,"screenViewRetentionDays":365},
                  %s}
                 """.formatted(timezone, groupes, debuts);
     }
@@ -53,13 +56,13 @@ class AnalyticsConfigLoaderTest {
 
     private static AnalyticsConfig parse(String json) throws Exception {
         return AnalyticsConfigLoader.parse(
-                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)), 1, "test.json");
+                new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8)), 2, "test.json");
     }
 
     @Test
     @DisplayName("La version livrée se charge, avec les arbitrages du propriétaire")
     void laVersionLivreeSeCharge() {
-        AnalyticsConfig config = AnalyticsConfigLoader.load(1);
+        AnalyticsConfig config = AnalyticsConfigLoader.load(2);
 
         assertThat(config.rawEventRetentionDays()).isEqualTo(395);
         assertThat(config.anonymousIdTtlDays()).isEqualTo(395);
@@ -73,19 +76,32 @@ class AnalyticsConfigLoaderTest {
         assertThat(config.diagnosticRunRateLimit().perIpBurst().max()).isEqualTo(30);
         assertThat(config.diagnosticRunRateLimit().perAnonymousIdDaily().max()).isEqualTo(100);
         assertThat(config.claimTokenTtl()).isEqualTo(java.time.Duration.ofDays(2));
-        // D43 : tous les indicateurs datent de la mise en production du 2026-09-28
+        // D43 : les indicateurs du Suivi datent de la mise en production du 2026-09-28
         // (V043 a V079 appliquees le 2026-09-28 a 00:09, heure de Paris).
         LocalDate miseEnProduction = LocalDate.of(2026, 9, 28);
+        java.util.Set<SuiviIndicator> activite = java.util.EnumSet.of(SuiviIndicator.ACTIVE_USERS,
+                SuiviIndicator.LOGINS, SuiviIndicator.SCREEN_VIEWS_WEB, SuiviIndicator.SCREEN_VIEWS_APP);
         for (SuiviIndicator indicator : SuiviIndicator.values()) {
+            if (activite.contains(indicator)) continue;
             assertThat(config.measurementStartOf(indicator)).as(indicator.name()).contains(miseEnProduction);
         }
+        // Activite des comptes (v2) : pas encore mesuree, la date se pose au deploiement (D43, N4).
+        for (SuiviIndicator indicator : activite) {
+            assertThat(config.measurementStartOf(indicator)).as(indicator.name()).isEmpty();
+        }
+        assertThat(config.activity().retentionDays()).isEqualTo(365);
+        assertThat(config.activity().writeIntervalSeconds()).isEqualTo(60);
+        assertThat(config.activity().onlineWindowSeconds()).isEqualTo(180);
+        assertThat(config.activity().screenTopLimit()).isEqualTo(20);
+        assertThat(config.activity().screenViewRetentionDays()).isEqualTo(365);
+        assertThat(config.ingestion().rateLimit().perAnonymousIdBurst().max()).isEqualTo(120);
     }
 
     /** Scenario 17 : {@code ig} se range sous instagram, a la lecture. */
     @Test
     @DisplayName("Les sources déclarées se regroupent, le reste tombe dans « autre »")
     void regroupementDesSources() {
-        AnalyticsConfig config = AnalyticsConfigLoader.load(1);
+        AnalyticsConfig config = AnalyticsConfigLoader.load(2);
 
         assertThat(config.groupOfSource("IG")).isEqualTo("instagram");
         assertThat(config.groupOfSource(" tt ")).isEqualTo("tiktok");
@@ -173,6 +189,19 @@ class AnalyticsConfigLoaderTest {
     }
 
     @Test
+    @DisplayName("Sans section activity, ou avec une fenêtre « en ligne » trop courte, le démarrage échoue")
+    void activiteObligatoire() {
+        String json = json("Europe/Paris", GROUPES, DEBUTS);
+        String sans = json.substring(0, json.indexOf("\"activity\""))
+                + json.substring(json.indexOf("\"measurementStart\""));
+        assertThatThrownBy(() -> parse(sans)).hasMessageContaining("activity");
+        String courte = json.replace("\"onlineWindowSeconds\":180", "\"onlineWindowSeconds\":90");
+        assertThatThrownBy(() -> parse(courte))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("onlineWindowSeconds");
+    }
+
+    @Test
     @DisplayName("Seuil civique hors ]0, 1] : le démarrage échoue")
     void seuilCiviqueHorsBornes() {
         for (String seuil : new String[]{"0", "1.2", "-0.5"}) {
@@ -198,7 +227,7 @@ class AnalyticsConfigLoaderTest {
     @Test
     @DisplayName("Sans surcharge, les dates restent celles du fichier versionné, profil dev ou non")
     void sansSurchargeLesDatesDuFichier() {
-        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(2);
 
         for (boolean dev : new boolean[]{true, false}) {
             AnalyticsConfig config = AnalyticsConfigLoader.withMeasurementStartOverrides(
@@ -213,7 +242,7 @@ class AnalyticsConfigLoaderTest {
     @Test
     @DisplayName("Une surcharge hors profil dev fait échouer le démarrage")
     void surchargeHorsDevRefusee() {
-        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(2);
 
         assertThatThrownBy(() -> AnalyticsConfigLoader.withMeasurementStartOverrides(
                 fichier, surcharge("2026-01-01"), false))
@@ -224,7 +253,7 @@ class AnalyticsConfigLoaderTest {
     @Test
     @DisplayName("En profil dev, seules les dates surchargées changent, le reste de la config est intact")
     void surchargeEnDev() {
-        AnalyticsConfig fichier = AnalyticsConfigLoader.load(1);
+        AnalyticsConfig fichier = AnalyticsConfigLoader.load(2);
 
         AnalyticsConfig dev = AnalyticsConfigLoader.withMeasurementStartOverrides(
                 fichier, surcharge("2026-01-01"), true);
@@ -244,7 +273,7 @@ class AnalyticsConfigLoaderTest {
     @DisplayName("Une date surchargée illisible est refusée")
     void surchargeIllisible() {
         assertThatThrownBy(() -> AnalyticsConfigLoader.withMeasurementStartOverrides(
-                AnalyticsConfigLoader.load(1), surcharge("01/01/2026"), true))
+                AnalyticsConfigLoader.load(2), surcharge("01/01/2026"), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("measurement-start-overrides");
     }

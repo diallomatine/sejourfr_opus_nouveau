@@ -37,5 +37,13 @@ public enum SuiviIndicator {
     /** {@code users.signup_context} / {@code signup_diagnostic_type}. */
     SIGNUP_CONTEXT,
     /** {@code users.signup_platform} ventile iOS / Android. */
-    SIGNUP_PLATFORM_DETAIL
+    SIGNUP_PLATFORM_DETAIL,
+    /** Presence des comptes connectes ({@code user_activity_day}, V087) : actifs et en ligne. */
+    ACTIVE_USERS,
+    /** Ouvertures de session ({@code user_login_event}, V087). */
+    LOGINS,
+    /** {@code SCREEN_VIEWED} du web (deploiement web du lot 3). */
+    SCREEN_VIEWS_WEB,
+    /** {@code SCREEN_VIEWED} de l'application (sortie store du lot 3). */
+    SCREEN_VIEWS_APP
 }

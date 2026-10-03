@@ -18,12 +18,23 @@ import java.util.Locale;
  * ne sait pas le systeme, jamais une repartition devinee entre les deux.
  */
 public enum ClientPlatform {
-    WEB,
-    IOS,
-    ANDROID,
+    WEB("Web"),
+    IOS("iOS"),
+    ANDROID("Android"),
     /** Application, systeme non declare (clients anterieurs a iOS / Android). */
-    MOBILE,
-    UNKNOWN;
+    MOBILE("App — système inconnu"),
+    UNKNOWN("Non déclarée");
+
+    /** Libelle servi aux ecrans admin (D12, N6), gele par {@code AnalyticsLabelsTest}. */
+    private final String label;
+
+    ClientPlatform(String label) {
+        this.label = label;
+    }
+
+    public String getLabel() {
+        return label;
+    }
 
     /** Plateforme declaree par un client, {@link #UNKNOWN} pour tout le reste. */
     public static ClientPlatform parse(String raw) {

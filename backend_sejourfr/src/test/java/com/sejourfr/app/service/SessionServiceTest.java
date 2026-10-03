@@ -35,13 +35,17 @@ class SessionServiceTest {
 
     private JwtService jwtService;
     private RefreshTokenManager refreshTokenManager;
+    private com.sejourfr.app.service.activity.UserLoginEventService loginEvents;
     private SessionService service;
+    private static final Instant NOW = Instant.parse("2026-10-03T08:00:00Z");
 
     @BeforeEach
     void setUp() {
         jwtService = mock(JwtService.class);
         refreshTokenManager = mock(RefreshTokenManager.class);
-        service = new SessionService(jwtService, refreshTokenManager);
+        loginEvents = mock(com.sejourfr.app.service.activity.UserLoginEventService.class);
+        service = new SessionService(jwtService, refreshTokenManager, loginEvents,
+                java.time.Clock.fixed(NOW, java.time.ZoneOffset.UTC));
 
         when(jwtService.refreshTokenTtl()).thenReturn(Duration.ofDays(30));
         when(jwtService.generateAccessToken(any())).thenReturn("access");
@@ -61,7 +65,7 @@ class SessionServiceTest {
     void openSession_persistsRefreshTokenAndSignsBoth() {
         User u = activeUser();
 
-        SessionService.IssuedTokens tokens = service.openSession(u, "ua", "ip");
+        SessionService.IssuedTokens tokens = service.openSession(u, "ua", "ip", null);
 
         assertThat(tokens.accessToken()).isEqualTo("access");
         assertThat(tokens.refreshToken()).isEqualTo("refresh");
@@ -72,6 +76,32 @@ class SessionServiceTest {
         assertThat(rt.getJti()).isEqualTo(tokens.jti());
         assertThat(rt.getUser()).isSameAs(u);
         assertThat(rt.getExpiresAt()).isAfter(Instant.now());
+    }
+
+    private static final SessionService.SessionOrigin ORIGINE = new SessionService.SessionOrigin(
+            com.sejourfr.app.enums.AuthKind.LOGIN, com.sejourfr.app.enums.AuthProvider.GOOGLE,
+            com.sejourfr.app.enums.ClientPlatform.IOS);
+
+    @Test
+    void openSession_journaliseLaConnexion_sansTransaction_toutDeSuite() {
+        User u = activeUser();
+
+        service.openSession(u, "ua", "ip", ORIGINE);
+
+        verify(loginEvents).record(u.getId(), com.sejourfr.app.enums.AuthKind.LOGIN,
+                com.sejourfr.app.enums.AuthProvider.GOOGLE, com.sejourfr.app.enums.ClientPlatform.IOS, NOW);
+    }
+
+    @Test
+    void openSession_unEchecDuJournal_nEmpechePasLaConnexion() {
+        User u = activeUser();
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException("boom"))
+                .when(loginEvents).record(any(), any(), any(), any(), any());
+
+        SessionService.IssuedTokens tokens = service.openSession(u, "ua", "ip", ORIGINE);
+
+        assertThat(tokens.accessToken()).isEqualTo("access");
+        verify(refreshTokenManager).save(any(RefreshToken.class));
     }
 
     // ------------------------------------------------------------------ rotate (refus)
@@ -170,6 +200,8 @@ class SessionServiceTest {
         assertThat(tokens.accessToken()).isEqualTo("access");
         // save() appelé deux fois : nouveau token + ancien marqué révoqué.
         verify(refreshTokenManager, times(2)).save(any());
+        // D4 : un refresh n'est jamais une connexion.
+        org.mockito.Mockito.verifyNoInteractions(loginEvents);
     }
 
     // ------------------------------------------------------------------ closeSession

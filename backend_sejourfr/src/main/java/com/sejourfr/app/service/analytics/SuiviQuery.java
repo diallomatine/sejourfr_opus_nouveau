@@ -16,6 +16,6 @@ public record SuiviQuery(SuiviPeriodPreset preset, FenetreMesure window, SuiviTy
 
     /** La periode de comparaison : meme duree, juste avant (aujourd'hui → hier). */
     public FenetreMesure previousWindow() {
-        return new FenetreMesure(window.from().minusDays(window.days()), window.from().minusDays(1));
+        return window.precedente();
     }
 }

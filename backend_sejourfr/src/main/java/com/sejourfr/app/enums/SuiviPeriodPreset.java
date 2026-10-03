@@ -1,5 +1,8 @@
 package com.sejourfr.app.enums;
 
+import com.sejourfr.app.util.FenetreMesure;
+
+import java.time.LocalDate;
 import java.util.Locale;
 
 /**
@@ -14,8 +17,24 @@ public enum SuiviPeriodPreset {
     YESTERDAY,
     /** Les 7 derniers jours, aujourd'hui compris. */
     LAST_7_DAYS,
+    /** Les 30 derniers jours, aujourd'hui compris (D10, chantier « Activite »). */
+    LAST_30_DAYS,
     /** Du 1er du mois en cours a aujourd'hui. */
     MONTH;
+
+    /**
+     * Les jours couverts, {@code today} etant aujourd'hui a Paris. <b>Autorite
+     * unique</b> de la table des presets, lue par Suivi et par Activite.
+     */
+    public FenetreMesure window(LocalDate today) {
+        return switch (this) {
+            case TODAY -> new FenetreMesure(today, today);
+            case YESTERDAY -> new FenetreMesure(today.minusDays(1), today.minusDays(1));
+            case LAST_7_DAYS -> new FenetreMesure(today.minusDays(6), today);
+            case LAST_30_DAYS -> new FenetreMesure(today.minusDays(29), today);
+            case MONTH -> new FenetreMesure(today.withDayOfMonth(1), today);
+        };
+    }
 
     /**
      * @throws IllegalArgumentException (→ 400) valeur inconnue, avec un message nomme
@@ -26,6 +45,6 @@ public enum SuiviPeriodPreset {
             if (preset.name().equals(value)) return preset;
         }
         throw new IllegalArgumentException("Valeur invalide pour « preset » : « " + raw
-                + " ». Attendu : TODAY, YESTERDAY, LAST_7_DAYS ou MONTH.");
+                + " ». Attendu : TODAY, YESTERDAY, LAST_7_DAYS, LAST_30_DAYS ou MONTH.");
     }
 }

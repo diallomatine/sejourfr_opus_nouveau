@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.RefreshToken;
 import com.sejourfr.app.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -28,5 +29,11 @@ public class RefreshTokenManager {
 
     public int revokeAllForUser(UUID userId) {
         return repository.revokeAllForUser(userId, Instant.now());
+    }
+
+    /** Un lot de purge, dans sa propre transaction. */
+    @Transactional
+    public int deleteExpiredBefore(Instant cutoff, int batchSize) {
+        return repository.deleteExpiredBefore(cutoff, batchSize);
     }
 }

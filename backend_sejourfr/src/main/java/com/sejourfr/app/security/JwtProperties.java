@@ -10,6 +10,22 @@ public class JwtProperties {
     private int accessTokenTtlMinutes = 60;
     private int refreshTokenTtlDays = 30;
 
+    /**
+     * Purge de {@code refresh_tokens} ({@code RefreshTokenPurgeJob}, Europe/Paris).
+     * {@code "-"} l'eteint (profil de test). Apres la purge analytics de 04:10.
+     */
+    private String refreshTokenPurgeCron = "0 25 4 * * *";
+
+    /**
+     * Une ligne est purgee ce nombre de jours apres son {@code expires_at},
+     * revoquee ou non. Une ligne revoquee NON expiree reste : elle sert a la
+     * detection de reutilisation. Vie maximale d'une ligne : TTL + marge (37 j).
+     */
+    private int refreshTokenPurgeGraceDays = 7;
+
+    /** Lignes supprimees par transaction de purge. */
+    private int refreshTokenPurgeBatchSize = 1000;
+
     public String getIssuer() { return issuer; }
     public void setIssuer(String issuer) { this.issuer = issuer; }
 
@@ -21,4 +37,17 @@ public class JwtProperties {
 
     public int getRefreshTokenTtlDays() { return refreshTokenTtlDays; }
     public void setRefreshTokenTtlDays(int refreshTokenTtlDays) { this.refreshTokenTtlDays = refreshTokenTtlDays; }
+
+    public String getRefreshTokenPurgeCron() { return refreshTokenPurgeCron; }
+    public void setRefreshTokenPurgeCron(String refreshTokenPurgeCron) { this.refreshTokenPurgeCron = refreshTokenPurgeCron; }
+
+    public int getRefreshTokenPurgeGraceDays() { return refreshTokenPurgeGraceDays; }
+    public void setRefreshTokenPurgeGraceDays(int refreshTokenPurgeGraceDays) {
+        this.refreshTokenPurgeGraceDays = refreshTokenPurgeGraceDays;
+    }
+
+    public int getRefreshTokenPurgeBatchSize() { return refreshTokenPurgeBatchSize; }
+    public void setRefreshTokenPurgeBatchSize(int refreshTokenPurgeBatchSize) {
+        this.refreshTokenPurgeBatchSize = refreshTokenPurgeBatchSize;
+    }
 }

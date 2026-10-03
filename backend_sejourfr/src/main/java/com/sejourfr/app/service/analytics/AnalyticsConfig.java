@@ -41,6 +41,8 @@ import java.util.Optional;
  *                               Une run sans mesure n'est jamais comptee
  * @param runReuseWindowHours    age maximal d'une run rendue par sa
  *                               {@code clientKey} (controle F2) ; au-dela, run neuve
+ * @param activity               activite des comptes connectes (presence,
+ *                               connexions, ecrans ; chantier « Activite »)
  */
 @JsonIgnoreProperties(ignoreUnknown = false)
 public record AnalyticsConfig(
@@ -58,8 +60,51 @@ public record AnalyticsConfig(
         String utmSourceFallbackGroup,
         Map<SuiviIndicator, String> measurementStart,
         double civicSubmittedMinAnsweredRatio,
-        int runReuseWindowHours
+        int runReuseWindowHours,
+        Activity activity
 ) {
+
+    /**
+     * Activite des comptes connectes ({@code user_activity_day},
+     * {@code user_login_event}, ecrans {@code SCREEN_VIEWED}).
+     *
+     * @param retentionDays        conservation de {@code user_login_event} et
+     *                             {@code user_activity_day} (12 mois, D6)
+     * @param writeIntervalSeconds au plus une ecriture de presence par compte,
+     *                             plateforme et jour sur cet intervalle
+     * @param onlineWindowSeconds  « en ligne » = derniere activite de moins de
+     *                             cette duree. Superieure a deux battements
+     *                             (60 s) : avec une ecriture par minute au plus,
+     *                             une fenetre de 120 s ferait clignoter un compte
+     *                             present
+     * @param screenTopLimit       lignes d'ecran servies avant « Autres ecrans
+     *                             suivis »
+     * @param screenViewRetentionDays conservation des {@code SCREEN_VIEWED}
+     *                             (12 mois : « pages et ecrans consultes » font
+     *                             partie de l'historique d'activite annonce par
+     *                             {@code /confidentialite}). Les autres evenements
+     *                             gardent {@code rawEventRetentionDays}
+     */
+    @JsonIgnoreProperties(ignoreUnknown = false)
+    public record Activity(int retentionDays, int writeIntervalSeconds, int onlineWindowSeconds,
+                           int screenTopLimit, int screenViewRetentionDays) {
+
+        public Duration retention() {
+            return Duration.ofDays(retentionDays);
+        }
+
+        public Duration writeInterval() {
+            return Duration.ofSeconds(writeIntervalSeconds);
+        }
+
+        public Duration screenViewRetention() {
+            return Duration.ofDays(screenViewRetentionDays);
+        }
+
+        public Duration onlineWindow() {
+            return Duration.ofSeconds(onlineWindowSeconds);
+        }
+    }
 
     /**
      * @param maxBatchSize              evenements au plus par lot (au-dela : 400)

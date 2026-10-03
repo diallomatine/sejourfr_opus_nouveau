@@ -80,6 +80,24 @@ class SuiviScenariosIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("D8 — des SCREEN_VIEWED ne font ni un visiteur ni une source de plus")
+    void vuesDEcranHorsVisiteurs() {
+        UUID landing = visitor("tiktok", paris(D3, 9));
+        event(landing, "LANDING_VIEWED", paris(D3, 9), null, null);
+        UUID ecransSeuls = visitor("instagram", paris(D3, 10));
+        for (int i = 0; i < 5; i++) event(ecransSeuls, "SCREEN_VIEWED", paris(D3, 10 + i), null, null);
+        event(landing, "SCREEN_VIEWED", paris(D3, 11), null, null);
+
+        AdminSuiviResponse r = lire(jour(D3), SuiviTypeFilter.ALL);
+
+        assertThat(r.kpis().visitors().value()).isEqualTo(1L);
+        assertThat(r.sources()).filteredOn(s -> "instagram".equals(s.group()))
+                .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(0L);
+        assertThat(r.sources()).filteredOn(s -> "tiktok".equals(s.group()))
+                .extracting(AdminSuiviResponse.SourceRow::visitors).containsExactly(1L);
+    }
+
+    @Test
     @DisplayName("Scénario 2 — Ahmed fait TCF et Civique : Tous = 1, TCF = 1, Civique = 1 à chaque étape")
     void scenario2PersonneDistincte() {
         User ahmed = data.userCreatedAt("direct", ClientPlatform.WEB, paris(D3, 8));

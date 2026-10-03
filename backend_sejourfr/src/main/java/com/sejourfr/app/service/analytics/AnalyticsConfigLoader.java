@@ -74,6 +74,7 @@ public final class AnalyticsConfigLoader {
             throw new IllegalStateException("civicSubmittedMinAnsweredRatio doit etre dans ]0, 1] dans " + path);
         }
         verifierIngestion(config.ingestion(), path);
+        verifierActivite(config.activity(), path);
         verifierFenetres(config.diagnosticRunRateLimit(), "diagnosticRunRateLimit", path);
         verifierGroupes(config, path);
         verifierDebutsDeMesure(config.measurementStart(), path);
@@ -111,7 +112,7 @@ public final class AnalyticsConfigLoader {
                 config.claimTokenTtlDays(), config.purchaseIntentTtlHours(), config.anonymousIdTtlDays(),
                 config.rawEventRetentionDays(), config.purgeBatchSize(), config.ingestion(),
                 config.diagnosticRunRateLimit(), config.utmSourceGroups(), config.utmSourceFallbackGroup(),
-                debuts, config.civicSubmittedMinAnsweredRatio(), config.runReuseWindowHours());
+                debuts, config.civicSubmittedMinAnsweredRatio(), config.runReuseWindowHours(), config.activity());
     }
 
     private static void verifierIngestion(AnalyticsConfig.Ingestion ingestion, String path) {
@@ -122,6 +123,21 @@ public final class AnalyticsConfigLoader {
         positif(ingestion.clockSkewToleranceMinutes(), "ingestion.clockSkewToleranceMinutes", path);
         positif(ingestion.maxEventAgeHours(), "ingestion.maxEventAgeHours", path);
         verifierFenetres(ingestion.rateLimit(), "ingestion.rateLimit", path);
+    }
+
+    private static void verifierActivite(AnalyticsConfig.Activity activity, String path) {
+        if (activity == null) {
+            throw new IllegalStateException("Section activity absente de " + path);
+        }
+        positif(activity.retentionDays(), "activity.retentionDays", path);
+        positif(activity.writeIntervalSeconds(), "activity.writeIntervalSeconds", path);
+        positif(activity.onlineWindowSeconds(), "activity.onlineWindowSeconds", path);
+        positif(activity.screenTopLimit(), "activity.screenTopLimit", path);
+        positif(activity.screenViewRetentionDays(), "activity.screenViewRetentionDays", path);
+        if (activity.onlineWindowSeconds() < 2 * activity.writeIntervalSeconds()) {
+            throw new IllegalStateException("activity.onlineWindowSeconds doit valoir au moins deux"
+                    + " writeIntervalSeconds dans " + path + " (sinon un compte present clignote)");
+        }
     }
 
     private static void verifierFenetres(AnalyticsConfig.RateLimit rl, String section, String path) {

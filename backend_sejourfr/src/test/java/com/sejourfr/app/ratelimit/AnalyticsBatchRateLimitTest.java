@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class AnalyticsBatchRateLimitTest {
 
-    private static final AnalyticsConfig CONFIG = AnalyticsConfigLoader.load(1);
+    private static final AnalyticsConfig CONFIG = AnalyticsConfigLoader.load(2);
 
     private static AnalyticsBatchRateLimit guard(boolean enabled) {
         RateLimitProperties props = new RateLimitProperties();

@@ -248,6 +248,13 @@ sejourfr:
       issuer: sejourfr-backend
       access-token-ttl-minutes: 60
       refresh-token-ttl-days: 30
+      # Purge de refresh_tokens (RefreshTokenPurgeJob, Europe/Paris), apres la
+      # purge analytics de 04:10. Une ligne part 7 j apres son expires_at,
+      # revoquee ou non (vie maximale : TTL + 7 j = 37 j). Memes valeurs que
+      # JwtProperties. "-" eteint le job.
+      refresh-token-purge-cron: "0 25 4 * * *"
+      refresh-token-purge-grace-days: 7
+      refresh-token-purge-batch-size: 1000
   # --------------------------------------------------------------------------
   # OAuth / OIDC providers externes (Google web + Android, Apple iOS).
   # --------------------------------------------------------------------------
@@ -350,10 +357,11 @@ sejourfr:
       CHF: 1.05
       CAD: 0.68
     # Version de analytics/analytics-config-v{n}.json (retention 395 j, cohorte,
-    # ingestion en lot, groupes de sources, debuts de mesure). Les comptes exclus
+    # ingestion en lot, groupes de sources, debuts de mesure, activite des
+    # comptes — v2, chantier « Activite utilisateurs »). Les comptes exclus
     # des statistiques sont desormais users.is_internal (V074), plus une liste
     # d'adresses ici.
-    config-version: ${ANALYTICS_CONFIG_VERSION:1}
+    config-version: ${ANALYTICS_CONFIG_VERSION:2}
     # Purge des evenements bruts et des visiteurs inactifs au-dela de la retention
     # de la config (condition de l'exemption CNIL). Quotidienne, Europe/Paris.
     retention-cron: "0 10 4 * * *"

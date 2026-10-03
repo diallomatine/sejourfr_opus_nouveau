@@ -15,6 +15,8 @@ import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.PlanPinnedPriorityManager;
 import com.sejourfr.app.manager.RefreshTokenManager;
+import com.sejourfr.app.manager.UserActivityManager;
+import com.sejourfr.app.manager.UserLoginEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.AnalyticsEventManager;
 import com.sejourfr.app.manager.AnalyticsIdentityManager;
@@ -72,6 +74,8 @@ public class AccountDeletionService {
     private final AnalyticsEventManager analyticsEventManager;
     private final DiagnosticRunManager diagnosticRunManager;
     private final RefreshTokenManager refreshTokenManager;
+    private final UserLoginEventManager userLoginEventManager;
+    private final UserActivityManager userActivityManager;
     private final EmailDeliveryManager emailDeliveryManager;
     private final UserEmailPreferenceManager userEmailPreferenceManager;
     private final AccessOverrideManager accessOverrideManager;
@@ -145,6 +149,11 @@ public class AccountDeletionService {
         // ON DELETE SET NULL de la base ne se déclenchent d'eux-mêmes.
         analyticsIdentityManager.deleteByUserId(userId);
         analyticsEventManager.detachUser(userId);
+        // Activite du compte (V087) : historique de connexions et jours de
+        // presence nomment CETTE personne. Explicite, la ligne `users` survivant
+        // a l'anonymisation : la cascade base ne joue pas.
+        userLoginEventManager.deleteByUserId(userId);
+        userActivityManager.deleteByUserId(userId);
         // Meme geste sur la trace du tunnel (controle N9) : les runs du compte
         // oublient leur identifiant de mesure et leur cle d'appareil. La run et
         // ses faits restent comptes ; elle ne relie plus le compte a un traceur.

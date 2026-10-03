@@ -2,9 +2,14 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.RefreshToken;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AuthKind;
+import com.sejourfr.app.enums.AuthProvider;
+import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.RefreshTokenManager;
 import com.sejourfr.app.security.JwtService;
+import com.sejourfr.app.service.activity.UserLoginEventService;
+import com.sejourfr.app.util.ApresCommit;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +38,8 @@ public class SessionService {
 
     private final JwtService jwtService;
     private final RefreshTokenManager refreshTokenManager;
+    private final UserLoginEventService userLoginEventService;
+    private final Clock clock;
 
     /**
      * Couple access + refresh fraîchement émis. {@code jti} retourné pour
@@ -41,11 +49,23 @@ public class SessionService {
     public record IssuedTokens(String accessToken, String refreshToken, UUID jti, User user) {}
 
     /**
-     * Démarre une nouvelle session — appelé par login (LOCAL ou social).
-     * Crée une row {@code refresh_tokens} et signe le JWT correspondant.
+     * Ce qu'est cette ouverture de session, vue de la mesure : inscription ou
+     * connexion, par quelle methode (celle de CETTE connexion, pas
+     * {@code users.auth_provider}), depuis quelle plateforme.
+     */
+    public record SessionOrigin(AuthKind kind, AuthProvider method, ClientPlatform platform) {}
+
+    /**
+     * Démarre une nouvelle session — appelé par login et inscription (LOCAL ou
+     * social). Crée une row {@code refresh_tokens} et signe le JWT correspondant.
+     *
+     * <p><b>Seul point d'écriture de {@code user_login_event}</b> : ouvrir une
+     * session, c'est une connexion ; {@link #rotate} (le refresh) n'en écrit
+     * jamais (D4). L'écriture part après le commit, dans sa propre transaction :
+     * un échec n'empêche jamais la connexion.
      */
     @Transactional
-    public IssuedTokens openSession(User user, String userAgent, String ipAddress) {
+    public IssuedTokens openSession(User user, String userAgent, String ipAddress, SessionOrigin origin) {
         UUID jti = UUID.randomUUID();
         RefreshToken rt = new RefreshToken();
         rt.setJti(jti);
@@ -54,6 +74,13 @@ public class SessionService {
         rt.setUserAgent(truncate(userAgent, 500));
         rt.setIpAddress(truncate(ipAddress, 64));
         refreshTokenManager.save(rt);
+
+        if (origin != null) {
+            UUID userId = user.getId();
+            Instant occurredAt = clock.instant();
+            ApresCommit.executer("Journal des connexions", () -> userLoginEventService.record(
+                    userId, origin.kind(), origin.method(), origin.platform(), occurredAt));
+        }
 
         String access = jwtService.generateAccessToken(user);
         String refresh = jwtService.generateRefreshToken(user, jti);

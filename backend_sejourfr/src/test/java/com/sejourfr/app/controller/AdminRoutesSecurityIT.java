@@ -74,6 +74,11 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/ai-costs?days=7"),
                 // Dashboard « Suivi » (lot 4) : un seul endpoint de lecture.
                 Arguments.of(HttpMethod.GET, "/api/admin/analytics/suivi"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/suivi?preset=LAST_30_DAYS"),
+                // Ecran « Activite » (chantier activite, lot 4) : periode et direct.
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/activity"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/activity?preset=LAST_30_DAYS&includeInternal=true"),
+                Arguments.of(HttpMethod.GET, "/api/admin/analytics/activity/live"),
                 Arguments.of(HttpMethod.GET, "/api/admin/analytics/suivi?preset=LAST_7_DAYS&type=TCF"),
                 Arguments.of(HttpMethod.GET,
                         "/api/admin/analytics/suivi?from=2026-08-18&to=2026-08-18&platform=IOS"

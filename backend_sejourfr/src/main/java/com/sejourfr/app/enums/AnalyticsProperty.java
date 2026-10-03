@@ -121,6 +121,11 @@ public enum AnalyticsProperty {
         return key;
     }
 
+    /** Vrai si la valeur est un chemin de l'allowlist {@code AnalyticsPaths}. */
+    public boolean isPath() {
+        return kind == Kind.PATH;
+    }
+
     /**
      * Valeur normalisee, prete a etre persistee.
      *

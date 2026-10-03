@@ -45,7 +45,7 @@ sejourfr:
     # Relecture de l'ecran « Suivi » sur le jeu de donnees dev
     # (db/migration-dev/R__seed_dev_suivi.sql) : tous les indicateurs mesures
     # depuis le 1er janvier 2026. Reserve au profil dev (refuse ailleurs au
-    # demarrage) ; la config versionnee analytics-config-v1.json ne change pas.
+    # demarrage) ; la config versionnee analytics-config-v2.json ne change pas.
     measurement-start-overrides:
       VISITORS: "2026-01-01"
       ACQUISITION_SOURCES: "2026-01-01"
@@ -61,6 +61,10 @@ sejourfr:
       REFUNDS: "2026-01-01"
       SIGNUP_CONTEXT: "2026-01-01"
       SIGNUP_PLATFORM_DETAIL: "2026-01-01"
+      ACTIVE_USERS: "2026-01-01"
+      LOGINS: "2026-01-01"
+      SCREEN_VIEWS_WEB: "2026-01-01"
+      SCREEN_VIEWS_APP: "2026-01-01"
   cors:
     # Web Next.js (3000) + Admin Vite (5173)
     allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.104:3000

@@ -97,6 +97,32 @@ class AccountDeletionServiceIT extends AbstractIntegrationTest {
                 Long.class, autre.getId())).isEqualTo(1);
     }
 
+    /**
+     * Activite (V087) : l'historique de connexions et les jours de presence
+     * nomment la personne, ils partent avec le compte. Ceux d'autrui restent.
+     */
+    @Test
+    void deleteAccount_purgesLoginHistoryAndActivity() {
+        User user = data.user();
+        User autre = data.user();
+        entityManager.flush();
+        for (User u : new User[]{user, autre}) {
+            jdbc.update("INSERT INTO user_login_event (id, user_id, occurred_at, kind, auth_method, platform) "
+                    + "VALUES (?, ?, now(), 'LOGIN', 'LOCAL', 'WEB')", UUID.randomUUID(), u.getId());
+            jdbc.update("INSERT INTO user_activity_day (user_id, day, platform, first_seen_at, last_seen_at) "
+                    + "VALUES (?, current_date, 'IOS', now(), now())", u.getId());
+        }
+
+        service.deleteAccount(user.getId());
+
+        for (String table : new String[]{"user_login_event", "user_activity_day"}) {
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE user_id = ?",
+                    Long.class, user.getId())).as(table).isZero();
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM " + table + " WHERE user_id = ?",
+                    Long.class, autre.getId())).as(table).isEqualTo(1);
+        }
+    }
+
     @Test
     void deleteAccount_purgesAdminAccessDecisionsAndJournal() {
         User user = data.user();

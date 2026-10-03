@@ -54,6 +54,8 @@ class AuthenticatedRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.DELETE, "/api/account"),
                 // MeController
                 Arguments.of(HttpMethod.GET, "/api/me/dashboard"),
+                // Heartbeat de presence (chantier activite, lot 2).
+                Arguments.of(HttpMethod.POST, "/api/me/presence"),
                 Arguments.of(HttpMethod.GET, "/api/me/stats"),
                 Arguments.of(HttpMethod.GET, "/api/me/attempts"),
                 // ProgressionController — les 4 écrans de progression (2026-09-24).

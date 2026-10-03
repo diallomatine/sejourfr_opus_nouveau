@@ -67,6 +67,12 @@ public class AnalyticsEventManager {
         return repository.deleteOlderThan(cutoff, limit);
     }
 
+    /** Un lot de purge de retention d'un seul type d'evenement. */
+    @Transactional
+    public int deleteEventOlderThan(com.sejourfr.app.enums.AnalyticsEvent event, Instant cutoff, int limit) {
+        return repository.deleteEventOlderThan(event.name(), cutoff, limit);
+    }
+
     @Transactional(readOnly = true)
     public long countForVisitor(UUID anonymousId) {
         return repository.countByAnonymousId(anonymousId);

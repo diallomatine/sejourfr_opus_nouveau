@@ -145,8 +145,8 @@ public class AnalyticsBatchIngestionService {
 
         Candidat c = new Candidat(index, eventId, event);
         c.occurredAt = horodate(raw.occurredAt(), receivedAt);
-        c.path = normalizer.path(raw.path());
-        c.propertiesJson = normalizer.toJson(normalizer.properties(event, raw.properties()));
+        c.path = normalizer.pathOrNull(raw.path());
+        c.propertiesJson = normalizer.toJson(normalizer.properties(event, raw.properties(), true));
         c.dedupKey = normalizer.dedupKey(raw.dedupKey());
 
         AnalyticsEvent.Contexte contexte = event.getContexte();

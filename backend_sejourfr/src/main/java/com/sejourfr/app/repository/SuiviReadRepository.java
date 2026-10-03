@@ -151,7 +151,9 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
 
     /**
      * Identifiants de mesure distincts ayant au moins un evenement dans la
-     * periode, par groupe de source first-touch. Un visiteur appartient a un
+     * periode, par groupe de source first-touch. {@code SCREEN_VIEWED} n'en fait
+     * pas un visiteur (D8, chantier « Activite ») : une vue d'ecran d'un compte
+     * deja inscrit n'est pas de l'acquisition. Un visiteur appartient a un
      * seul groupe : la somme des groupes est le total.
      *
      * @param from    debut de la periode = fin (exclue) de la periode precedente
@@ -166,6 +168,7 @@ public interface SuiviReadRepository extends Repository<DiagnosticRun, UUID> {
                   FROM analytics_event e
                  WHERE ((e.occurred_at >= :prevFrom AND e.occurred_at < :from)
                         OR (e.occurred_at >= :curFrom AND e.occurred_at < :to))
+                   AND e.event <> 'SCREEN_VIEWED'
                    AND (CAST(:platform AS text) IS NULL OR e.platform = CAST(:platform AS text))
                    AND (:includeInternal OR NOT COALESCE(e.is_internal, false))
             ),

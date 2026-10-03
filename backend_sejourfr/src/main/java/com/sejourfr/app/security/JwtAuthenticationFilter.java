@@ -16,12 +16,20 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String HEADER = "Authorization";
     private static final String PREFIX = "Bearer ";
+
+    /**
+     * Attribut de requete pose quand un jeton d'acces valide a authentifie la
+     * requete : l'id du compte ({@code sub}). Lu par
+     * {@code UserActivityInterceptor} (activite, D1) sans requete SQL de plus.
+     */
+    public static final String ATTR_USER_ID = "sejourfr.userId";
 
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
@@ -57,6 +65,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         userDetails, null, userDetails.getAuthorities());
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                UUID userId = userIdOf(claims);
+                if (userId != null) request.setAttribute(ATTR_USER_ID, userId);
             }
         } catch (JwtException | UsernameNotFoundException ex) {
             // Token invalide ou utilisateur inexistant : on laisse passer sans authentification.
@@ -65,5 +75,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    private static UUID userIdOf(Claims claims) {
+        try {
+            return claims.getSubject() == null ? null : UUID.fromString(claims.getSubject());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

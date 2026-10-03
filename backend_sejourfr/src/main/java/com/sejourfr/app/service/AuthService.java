@@ -8,6 +8,7 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AuthKind;
+import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
@@ -94,7 +95,8 @@ public class AuthService {
         // et ne fait que qualifier un claim que le jeton seul autorise.
         diagnosticRunClaimService.onAuthenticated(u, kind, ctx, DiagnosticRunClaimService.candidates(
                 req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
-        return buildTokenResponse(u, userAgent, ipAddress);
+        return buildTokenResponse(u, userAgent, ipAddress,
+                new SessionService.SessionOrigin(kind, AuthProvider.LOCAL, ctx.platform()));
     }
 
     public TokenResponse refresh(RefreshRequest req, String userAgent, String ipAddress) {
@@ -239,8 +241,9 @@ public class AuthService {
     // Helpers
     // ------------------------------------------------------------------------
 
-    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {
-        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress);
+    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress,
+                                             SessionService.SessionOrigin origin) {
+        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress, origin);
         return tokenResponseFrom(tokens);
     }
 

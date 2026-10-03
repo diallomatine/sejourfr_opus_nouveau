@@ -90,7 +90,7 @@ class AuthServiceTest {
     }
 
     private void stubSessionFor(User u) {
-        when(sessionService.openSession(any(), any(), any()))
+        when(sessionService.openSession(any(), any(), any(), any()))
                 .thenReturn(new SessionService.IssuedTokens("acc", "ref", UUID.randomUUID(), u));
     }
 
@@ -125,6 +125,9 @@ class AuthServiceTest {
 
         assertThat(resp.accessToken()).isEqualTo("acc");
         assertThat(resp.refreshToken()).isEqualTo("ref");
+        verify(sessionService).openSession(any(), any(), any(), org.mockito.ArgumentMatchers.eq(
+                new SessionService.SessionOrigin(com.sejourfr.app.enums.AuthKind.SIGNUP,
+                        com.sejourfr.app.enums.AuthProvider.LOCAL, com.sejourfr.app.enums.ClientPlatform.WEB)));
         org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(userManager).save(captor.capture());
         User saved = captor.getValue();
@@ -279,6 +282,10 @@ class AuthServiceTest {
         assertThat(resp.tokenType()).isEqualTo("Bearer");
         assertThat(resp.expiresInSeconds()).isEqualTo(3600L);
         assertThat(resp.user().email()).isEqualTo("ok@test.fr");
+        // Journal des connexions : un login local, plateforme non declaree.
+        verify(sessionService).openSession(any(), any(), any(), org.mockito.ArgumentMatchers.eq(
+                new SessionService.SessionOrigin(com.sejourfr.app.enums.AuthKind.LOGIN,
+                        com.sejourfr.app.enums.AuthProvider.LOCAL, com.sejourfr.app.enums.ClientPlatform.UNKNOWN)));
     }
 
     // ------------------------------------------------------------------ me

@@ -206,4 +206,46 @@ class AnalyticsEventNormalizerTest {
         assertThat(normalizer.attribution(firstTouch("tiktok", null, null, "??? pas un hôte"), WEB_DIRECT, null)
                 .referrerHost()).isNull();
     }
+
+    // ------------------------------------------------------------------------
+    // SCREEN_VIEWED et tolerance de l'ingestion en lot (chantier « Activite »)
+    // ------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("SCREEN_VIEWED : émis par le client, sans propriété ; gabarit accepté, chemin absent = non déclaré")
+    void screenViewed() {
+        AnalyticsEvent event = normalizer.parseEvent("SCREEN_VIEWED");
+        normalizer.refuseEvenementServeur(event);
+        assertThat(normalizer.properties(event, Map.of())).isEmpty();
+        assertThatThrownBy(() -> normalizer.properties(event, Map.of("ctaLocation", "HERO")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(normalizer.path("/plan/etape/:id")).isEqualTo("/plan/etape/:id");
+        assertThat(normalizer.path("/tcf/examen-blanc/:id/bilan")).isEqualTo("/tcf/examen-blanc/:id/bilan");
+        assertThat(normalizer.path(null)).isNull();
+        assertThat(normalizer.pathOrNull(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("URL concrète avec identifiant : refusée en strict, jamais stockée en lot (chemin mis à null)")
+    void urlConcreteJamaisStockee() {
+        String concrete = "/plan/etape/3f2a9c1e-0000-4000-8000-000000000000";
+        assertThatThrownBy(() -> normalizer.path(concrete)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(normalizer.pathOrNull(concrete)).isNull();
+        assertThat(normalizer.pathOrNull("/Plan/Etape/:ID/")).isEqualTo("/plan/etape/:id");
+    }
+
+    @Test
+    @DisplayName("En lot, un landingPath hors liste est omis ; toute autre faute de propriété reste un refus")
+    void proprietesCheminsTolerantes() {
+        assertThat(normalizer.properties(AnalyticsEvent.LANDING_VIEWED,
+                Map.of("landingPath", "/une-landing-inconnue"), true)).isEmpty();
+        assertThat(normalizer.properties(AnalyticsEvent.LANDING_VIEWED,
+                Map.of("landingPath", "/reussir"), true)).containsEntry("landingPath", "/reussir");
+        assertThatThrownBy(() -> normalizer.properties(AnalyticsEvent.LANDING_VIEWED,
+                Map.of("landingPath", "/une-landing-inconnue"), false))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> normalizer.properties(AnalyticsEvent.LANDING_VIEWED,
+                Map.of("email", "a@b.fr"), true))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

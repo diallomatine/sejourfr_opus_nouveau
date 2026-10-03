@@ -79,7 +79,7 @@ public class SocialAuthService {
         // appareil rejoint le compte. Idempotent et best-effort.
         onAuthenticated(r, client, req.anonymousId(), DiagnosticRunClaimService.candidates(
                 req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
-        return buildTokenResponse(r.user(), userAgent, ipAddress);
+        return buildTokenResponse(r.user(), userAgent, ipAddress, origin(r, identity, client));
     }
 
     public TokenResponse loginWithApple(AppleSignInRequest req, String userAgent,
@@ -89,7 +89,7 @@ public class SocialAuthService {
                 req.anonymousId());
         onAuthenticated(r, client, req.anonymousId(), DiagnosticRunClaimService.candidates(
                 req.diagnosticRunId(), req.claimToken(), req.claimVia(), req.diagnosticRunClaims()));
-        return buildTokenResponse(r.user(), userAgent, ipAddress);
+        return buildTokenResponse(r.user(), userAgent, ipAddress, origin(r, identity, client));
     }
 
     public boolean isGoogleConfigured() {
@@ -174,8 +174,16 @@ public class SocialAuthService {
         return new Resolution(saved, true);
     }
 
-    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {
-        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress);
+    /** La methode de CETTE connexion ({@code identity.provider()}), pas {@code users.auth_provider}. */
+    private static SessionService.SessionOrigin origin(Resolution r, SocialIdentity identity, ClientContext client) {
+        ClientContext ctx = client == null ? ClientContext.unknown() : client;
+        return new SessionService.SessionOrigin(r.created() ? AuthKind.SIGNUP : AuthKind.LOGIN,
+                identity.provider(), ctx.platform());
+    }
+
+    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress,
+                                             SessionService.SessionOrigin origin) {
+        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress, origin);
         SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
         return TokenResponse.of(tokens.accessToken(), tokens.refreshToken(),
                 jwtService.accessTokenTtlSeconds(),

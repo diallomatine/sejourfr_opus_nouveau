@@ -74,7 +74,7 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
 - `POST /api/public/analytics/events/batch` → **202** `AnalyticsBatchResponse
   {received, accepted, duplicates, rejected:[{index, eventId, reason}]}`. Public,
   rate-limité par IP **et** par `anonymousId` (seuils `ingestion.rateLimit` de
-  `analytics/analytics-config-v1.json`). `Content-Type` : `application/json` **ou
+  `analytics/analytics-config-v2.json`, `perAnonymousIdBurst` 120 / 10 min). `Content-Type` : `application/json` **ou
   `text/plain`** (contrôle N7, `sendBeacon` sans pré-vérification CORS ; même corps JSON,
   mêmes validations). Corps `AnalyticsBatchRequest` :
   `{anonymousId, sessionId, client?, appVersion?, firstTouch?, events:[…]}` ;
@@ -90,8 +90,15 @@ Lus par `util/ClientContextResolver`, **déclaratifs** (n'ouvrent aucun droit) :
     allowlist ou `referrerHost` illisible → `null` (inconnu), UTM trop longues tronquées.
   - **Le visiteur et son first touch sont enregistrés dès que l'enveloppe est valide**,
     même si tous les événements du lot sont rejetés (le first touch n'est jamais réécrit).
-  - **Rejet individuel** : nom hors registre, événement serveur, propriété ou chemin
-    hors allowlist, `eventId` absent, `occurredAt` illisible ou de plus de 168 h, run
+  - **Chemin hors allowlist : jamais un rejet** (chantier « Activité », 2026-10-03) :
+    `path` hors liste ⇒ `null` (événement gardé), propriété `landingPath` hors liste ⇒
+    omise. Allowlist : `AnalyticsPaths.KNOWN` = les gabarits de `enums/TrackedScreen`
+    (36 écrans, web et app, `:param` en minuscules) + `/competences`, `/target-path`, `/paywall`.
+  - **`SCREEN_VIEWED`** (lot 2) : un écran affiché, `path` = gabarit (ou `null` = écran
+    non déclaré), **aucune propriété**, aucun contexte. Exclu des visiteurs et sources de
+    Suivi (D8), purgé à 365 j. Contrat : `docs/admin/activites/decisions-implementation.md`.
+  - **Rejet individuel** : nom hors registre, événement serveur, propriété hors
+    allowlist, `eventId` absent, `occurredAt` illisible ou de plus de 168 h, run
     ou parcours inexistant, contexte non admis par l'événement. Les autres sont écrits.
   - **Idempotent** sur `eventId` (et `dedupKey`) : `ON CONFLICT DO NOTHING`, un rejeu
     compte en `duplicates`. Le client purge sa file de tout sauf 400/429/5xx.
@@ -219,6 +226,14 @@ servie seulement avec un `cecrlLevel`.
 Cf. `exams-tcf.md`.
 
 ## Me / utilisateur
+
+- `POST /api/me/presence` → **204**, sans corps (401 sans jeton) — **heartbeat de premier
+  plan** (chantier « Activité », D2) : web et app l'appellent toutes les 60 s, compte connecté
+  et écran visible seulement. Aucune logique propre : toute requête authentifiée est comptée
+  comme activité (`UserActivityInterceptor`, au plus une écriture par minute, par compte,
+  plateforme `X-Sejourfr-Client` et jour de Paris), sauf `/api/auth/**`,
+  `/api/public/analytics/**`, `/files/**`, `/actuator/**`. `docs/regles/mesure-audience.md`
+  § « Activité des utilisateurs ».
 
 - `GET /api/me/email-preferences` → `{ "engagementEnabled": true, "marketingEnabled": false }`
   (valeurs par défaut quand le compte n'a jamais rien changé — aucune ligne n'est écrite à la
@@ -1038,7 +1053,7 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 `/dashboard`), **supprimés** (404) ; les tables `analytics_annotation`, `analytics_event`,
 `analytics_visitor` restent. `ROLE_ADMIN` (401 / 403 sinon).
 
-- Paramètres, tous facultatifs : `preset=TODAY|YESTERDAY|LAST_7_DAYS|MONTH` (défaut `TODAY`,
+- Paramètres, tous facultatifs : `preset=TODAY|YESTERDAY|LAST_7_DAYS|LAST_30_DAYS|MONTH` (défaut `TODAY`,
   jours Europe/Paris, `MONTH` = du 1er à aujourd'hui) **ou** `from`/`to` (`yyyy-MM-dd`,
   bornes incluses, les deux ou aucun, 365 j max) — `preset` avec `from`/`to` → **400** ;
   `type=ALL|TCF|CIVIQUE` (TCF = `QUICK_TCF`) ; `platform=ALL|WEB|IOS|ANDROID` ;
@@ -1060,7 +1075,33 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
   **depuis cette date** (D117) ; la période précédente n'est lue que mesurée de bout en bout.
 - Définitions de chaque indicateur : `docs/regles/mesure-audience.md` § « Lecture du
   dashboard Suivi ». Six requêtes SQL constantes, ~160 ms sur un mois réaliste
-  (`SuiviPerformanceIT`), sans cache.
+  (`SuiviPerformanceIT`), sans cache. Le KPI visiteurs et les sources **ignorent
+  `SCREEN_VIEWED`** (D8). `measurementStart` porte aussi `ACTIVE_USERS`, `LOGINS`,
+  `SCREEN_VIEWS_WEB`, `SCREEN_VIEWS_APP` (écran « Activité »).
+
+### Admin — Activité (`/api/admin/analytics/activity`, chantier « Activité », 2026-10-03)
+
+`ROLE_ADMIN` (401 / 403 sinon). Contrat TypeScript complet :
+`docs/admin/activites/decisions-implementation.md` § Contrat. Définitions :
+`docs/regles/mesure-audience.md` § « Activité des utilisateurs ».
+
+- `GET /api/admin/analytics/activity/live?includeInternal=false` →
+  `AdminActivityLiveResponse {at, windowSeconds (180), includeInternal, measurementStart,
+  total, multiPlatformUsers, byPlatform[5]}` — comptes connectés actifs depuis moins de
+  `windowSeconds` (D3, D11 : l'admin le relit toutes les 30 s). Une requête SQL.
+- `GET /api/admin/analytics/activity` — mêmes `preset` (dont `LAST_30_DAYS`) / `from`+`to`
+  que Suivi, mêmes 400, `includeInternal=false` → `AdminActivityResponse {window,
+  includeInternal, measurementStart (4 indicateurs), activeUsers {measuredSince, total
+  {value, previous, deltaPct}, multiPlatformUsers, daily[]}, logins {measuredSince,
+  uniqueUsers (KPI), total, signups, byMethod[LOCAL, GOOGLE, APPLE]}, platforms[5]
+  {activeUsers, loggedInUsers, logins}, screens {web, app} (top 20 + « autres écrans
+  suivis » + « non déclarés » + total ; vues, visiteurs uniques, comptes uniques partiels ;
+  iOS / Android / app inconnue sur l'onglet App)}`. Trois requêtes SQL constantes
+  (`ActivityPerformanceIT`).
+- Plateformes toujours dans l'ordre `WEB, IOS, ANDROID, MOBILE, UNKNOWN`, avec `label` servi
+  (« App — système inconnu » pour `MOBILE`, l'ancienne app) et `displayed` (`UNKNOWN`
+  seulement avec `includeInternal`, N6). 🛑 `null` = non mesuré, jamais 0 ; règle D117 de
+  Suivi.
 
 ### Admin — Abonnements (`/subscriptions`)
 

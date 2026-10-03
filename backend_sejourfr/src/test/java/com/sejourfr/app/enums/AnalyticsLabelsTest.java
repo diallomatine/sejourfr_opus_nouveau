@@ -43,6 +43,31 @@ class AnalyticsLabelsTest {
     }
 
     @Test
+    @DisplayName("Plateformes et méthodes de connexion (écran « Activité ») : libellés gelés")
+    void plateformesEtMethodes() {
+        assertThat(labels(ClientPlatform.class, ClientPlatform::getLabel))
+                .containsExactly(
+                        Map.entry("WEB", "Web"),
+                        Map.entry("IOS", "iOS"),
+                        Map.entry("ANDROID", "Android"),
+                        Map.entry("MOBILE", "App — système inconnu"),
+                        Map.entry("UNKNOWN", "Non déclarée"));
+        assertThat(labels(AuthProvider.class, AuthProvider::getLabel))
+                .containsExactly(
+                        Map.entry("LOCAL", "E-mail"),
+                        Map.entry("GOOGLE", "Google"),
+                        Map.entry("APPLE", "Apple"));
+    }
+
+    @Test
+    @DisplayName("Écrans de référence : quelques libellés gelés (la liste complète vit dans le contrat)")
+    void ecrans() {
+        assertThat(TrackedScreen.ACCUEIL.getLabel()).isEqualTo("Accueil");
+        assertThat(TrackedScreen.REVISER.getLabel()).isEqualTo("Réviser");
+        assertThat(TrackedScreen.EXAMEN_TCF_BILAN.getLabel()).isEqualTo("Bilan d'examen blanc");
+    }
+
+    @Test
     @DisplayName("Aucun libelle n'est vide : un emplacement sans nom serait illisible dans la table")
     void aucunLibelleVide() {
         for (AnalyticsCtaLocation location : AnalyticsCtaLocation.values()) {

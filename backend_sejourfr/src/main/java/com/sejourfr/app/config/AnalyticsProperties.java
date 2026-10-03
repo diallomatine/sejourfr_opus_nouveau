@@ -50,7 +50,7 @@ public class AnalyticsProperties {
      * <p>Les comptes exclus des statistiques ne sont plus une liste d'adresses
      * ici : c'est {@code users.is_internal} (V074, arbitrage Q6), seule autorite.
      */
-    private int configVersion = 1;
+    private int configVersion = 2;
 
     /**
      * Cron de la purge de retention ({@code AnalyticsRetentionJob}), fuseau

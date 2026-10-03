@@ -91,6 +91,11 @@ public record FenetreMesure(LocalDate from, LocalDate to) {
         return new FenetreMesure(appliedFrom, appliedTo);
     }
 
+    /** La période de comparaison : même durée, juste avant (aujourd'hui → hier). */
+    public FenetreMesure precedente() {
+        return new FenetreMesure(from.minusDays(days()), from.minusDays(1));
+    }
+
     /** Nombre de jours réellement couverts, bornes incluses. Vaut 1 sur une journée. */
     public int days() {
         return (int) (ChronoUnit.DAYS.between(from, to) + 1);

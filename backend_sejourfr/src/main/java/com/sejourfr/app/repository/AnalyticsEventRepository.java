@@ -74,6 +74,19 @@ public interface AnalyticsEventRepository extends JpaRepository<AnalyticsEventRe
             """, nativeQuery = true)
     int deleteOlderThan(@Param("cutoff") Instant cutoff, @Param("limit") int limit);
 
+    /**
+     * Purge de retention propre a UN evenement ({@code SCREEN_VIEWED} : 365 j,
+     * historique d'activite, quand les autres evenements vivent 395 j).
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            DELETE FROM analytics_event
+             WHERE id IN (SELECT id FROM analytics_event
+                           WHERE event = :event AND occurred_at < :cutoff LIMIT :limit)
+            """, nativeQuery = true)
+    int deleteEventOlderThan(@Param("event") String event, @Param("cutoff") Instant cutoff,
+                             @Param("limit") int limit);
+
     Optional<AnalyticsEventRecord> findByEventId(UUID eventId);
 
     /**

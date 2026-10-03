@@ -224,11 +224,14 @@ Public, **rate-limité** par IP et par `anonymousId` (`AnalyticsBatchRateLimit`,
 limité, a été **supprimé le 2026-09-25** (la table `page_views` reste en base, plus
 écrite). Allowlists fermées : événement, propriétés **par événement**, chemins
 (`util/AnalyticsPaths`), toutes dans `AnalyticsEventNormalizer`. Hors allowlist ⇒
-**rejet individuel nommé**. Pays et device sont résolus **serveur** (le client les
+**rejet individuel nommé** — sauf un **chemin**, qui en lot n'est jamais un rejet
+(2026-10-03) : `path` hors liste ⇒ `null`, propriété `landingPath` hors liste ⇒ omise
+(`pathOrNull`, propriétés « chemins tolérants »). Pays et device sont résolus **serveur** (le client les
 falsifierait) ; les UTM trop longues sont **tronquées, pas rejetées** (borne de
 stockage, pas règle métier) ; un referrer est ramené à son **hôte seul**.
-⚠️ **Ajouter un écran suivi = une ligne dans `AnalyticsPaths.KNOWN`, dans la même
-passe que le front** — un chemin non déclaré est refusé, jamais rangé en « autre ».
+⚠️ **Ajouter un écran suivi = une constante dans `enums/TrackedScreen` (qui alimente
+`AnalyticsPaths.KNOWN`), dans la même passe que le front** — un chemin non déclaré n'est
+jamais rangé en « autre » : il est écrit `null` (« écran non déclaré »).
 
 ### Le RIDEAU freemium — trois gestes, jamais fondus (2026-08-26)
 
@@ -509,3 +512,47 @@ Six requêtes SQL natives, **constantes** (égalité verrouillée par `SuiviPerf
 calcul à la volée sans cache : ~160 ms par lecture sur un mois réaliste (3 000 comptes,
 40 000 événements, 6 000 runs, 900 achats). Vue matérialisée seulement si une lecture
 dépasse 1 s (brief §9).
+
+## Activité des utilisateurs (chantier « Activité », 2026-10-03)
+
+Plan : `docs/admin/activites/plan-technique-activite.md` ; contrat et journal :
+`docs/admin/activites/decisions-implementation.md`. Écran admin `/dashboard/activity`
+(`GET /api/admin/analytics/activity` et `/live`).
+
+### Quatre sources, une autorité chacune
+
+| Table | Rôle | Écrite par | Rétention |
+|---|---|---|---|
+| `refresh_tokens` | **technique** (sessions, rotation, réutilisation). Jamais un historique de connexions | `SessionService` | ligne purgée **7 j après `expires_at`**, révoquée ou non (`RefreshTokenPurgeJob`, 04:25 Paris ; `sejourfr.security.jwt.refresh-token-purge-*`). IP et User-Agent vivent donc au plus TTL + 7 j = 37 j |
+| `user_login_event` (V087) | **connexions** : une ligne par ouverture de session (login ou inscription ; locale, Google, Apple ; plateforme). Sans IP, sans User-Agent | `SessionService.openSession`, **après commit**, `REQUIRES_NEW` (`util/ApresCommit`) : un échec n'empêche jamais un login | 365 j |
+| `user_activity_day` (V087) | **présence** : compte × jour (Paris) × plateforme, `first_seen_at` / `last_seen_at` | `UserActivityInterceptor` sur toute requête authentifiée (heartbeat `POST /api/me/presence` compris), au plus une écriture par minute | 365 j |
+| `analytics_event` `SCREEN_VIEWED` | **écrans** : gabarit de `TrackedScreen` (`null` = non déclaré) | ingestion en lot existante | **365 j** (`activity.screenViewRetentionDays`) ; les autres événements 395 j |
+
+Rétentions : config `analytics-config-v2.json`, section `activity` ; purge dans la passe
+quotidienne `AnalyticsRetentionJob` (04:10), service `AccountActivityRetentionService`.
+Suppression de compte : connexions et jours d'activité supprimés explicitement
+(`AccountDeletionService`), les `SCREEN_VIEWED` détachés comme les autres événements.
+
+### Définitions
+
+| Indicateur | Définition |
+|---|---|
+| **Actif** (D1) | compte ayant fait au moins une requête API authentifiée (jeton d'accès valide) ou un heartbeat. Sauf `/api/auth/**` (login, refresh, logout, `me`), `/api/public/analytics/**` (vidage de file en arrière-plan), `/files/**`, `/actuator/**`, `/error`, `OPTIONS`. Les invités ne sont jamais « actifs » |
+| **En ligne** (D3) | compte dont `last_seen_at` date de moins de `activity.onlineWindowSeconds` (**180 s**, servi). 180 et non 120 : une écriture par minute au plus et un battement toutes les 60 s laissent jusqu'à ~120 s entre deux écritures |
+| **Connexion** (D4) | ouverture de session : login local, inscription, sign-in Google / Apple (création ⇒ `SIGNUP`). Méthode = celle de CETTE connexion. **Un refresh n'est jamais une connexion** |
+| Actifs de la période | comptes distincts ayant une ligne `user_activity_day` dans la période ; par plateforme ; « multi-plateforme » = vus sur ≥ 2 plateformes ; série journalière non additive |
+| Comptes connectés | comptes distincts avec ≥ 1 connexion ; total, dont inscriptions, par méthode et par plateforme |
+| Écrans | `SCREEN_VIEWED` de la période : onglet Web (`platform = WEB`), onglet App (`IOS`, `ANDROID`, `MOBILE`) ; vues, `anonymous_id` distincts, comptes distincts (**partiel** : un lot sans jeton n'a pas de compte) ; top 20 + « autres écrans suivis » calculés en SQL |
+| Plateforme | `X-Sejourfr-Client` (`ClientContextResolver`) : `mobile` = ancienne app ⇒ « App — système inconnu » (D12) ; sans en-tête ⇒ « Non déclarée », affichée seulement avec les comptes internes (N6) |
+| Internes | `users.is_internal` exclus sauf `includeInternal` ; pour les écrans, même règle que les visiteurs de Suivi |
+
+🛑 `null` = **non mesuré** : dates `ACTIVE_USERS`, `LOGINS`, `SCREEN_VIEWS_WEB`,
+`SCREEN_VIEWS_APP` dans `measurementStart` (posées au déploiement, D43, N4). Règle D117 de
+Suivi (`SuiviMapper.Mesure`). `SCREEN_VIEWED` est **exclu** du KPI « Visiteurs » et des
+sources de Suivi (D8). Période : mêmes presets que Suivi, `LAST_30_DAYS` compris
+(`SuiviPeriodPreset.window`, `util/PeriodeAdmin`).
+
+Limites connues : l'ancienne app (`mobile`) n'envoie ni heartbeat ni écran — sa présence est
+sous-estimée entre deux requêtes, jamais comblée. La limitation d'écriture est en mémoire
+(mono-instance). Coût : trois requêtes constantes par période, une pour le direct
+(`ActivityPerformanceIT`, ~0,2 s sur un mois de 2 000 comptes et 60 000 vues).

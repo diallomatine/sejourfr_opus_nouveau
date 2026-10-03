@@ -71,6 +71,22 @@ public enum AnalyticsEvent {
     /** Clic sur « Se connecter ». */
     LOGIN_CLICKED(Origine.CLIENT),
 
+    // ------------------------------------------------------------------------
+    // Ecrans (chantier « Activite utilisateurs », D7)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Un ecran a ete affiche (web : changement de route ; app : route go_router).
+     *
+     * <p><b>Sans propriete.</b> L'ecran est la colonne {@code path}, un
+     * <b>gabarit</b> de {@code TrackedScreen} ; {@code path} absent = « ecran non
+     * declare ». 🛑 <b>Exclu du KPI « Visiteurs » et des sources de Suivi</b>
+     * (D8) : une vue d'ecran d'un compte deja inscrit n'est pas de l'acquisition.
+     * Ce n'est pas une seconde verite de l'activite : la presence se lit sur
+     * {@code user_activity_day}, cet evenement ne dit que QUEL ecran.
+     */
+    SCREEN_VIEWED(Origine.CLIENT),
+
     /**
      * Le formulaire d'inscription a ete ouvert / commence. L'inscription
      * <i>reussie</i>, elle, se lit sur {@code users}.

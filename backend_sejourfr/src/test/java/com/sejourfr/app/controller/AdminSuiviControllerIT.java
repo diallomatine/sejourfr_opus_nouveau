@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AdminSuiviControllerIT extends AbstractIntegrationTest {
 
     private static final String URL = "/api/admin/analytics/suivi";
-    /** Date posee pour tous les indicateurs dans {@code analytics-config-v1.json} (D43). */
+    /** Date posee pour tous les indicateurs dans {@code analytics-config-v2.json} (D43). */
     private static final String MISE_EN_PRODUCTION = "2026-09-28";
     private static final Instant VEILLE_MISE_EN_PRODUCTION = Instant.parse("2026-09-27T10:00:00Z");
     private static final Instant JOUR_MISE_EN_PRODUCTION = Instant.parse("2026-09-28T10:00:00Z");
@@ -71,6 +71,12 @@ class AdminSuiviControllerIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.window.to").value("2026-09-26"))
                 .andExpect(jsonPath("$.window.previousFrom").value("2026-09-13"))
                 .andExpect(jsonPath("$.window.previousTo").value("2026-09-19"));
+        mvc.perform(get(URL).param("preset", "LAST_30_DAYS").header("Authorization", auth.bearer(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.window.preset").value("LAST_30_DAYS"))
+                .andExpect(jsonPath("$.window.from").value("2026-08-28"))
+                .andExpect(jsonPath("$.window.to").value("2026-09-26"))
+                .andExpect(jsonPath("$.window.previousFrom").value("2026-07-29"));
         mvc.perform(get(URL).param("preset", "month").header("Authorization", auth.bearer(admin)))
                 .andExpect(jsonPath("$.window.from").value("2026-09-01"));
         mvc.perform(get(URL).param("preset", "YESTERDAY").header("Authorization", auth.bearer(admin)))

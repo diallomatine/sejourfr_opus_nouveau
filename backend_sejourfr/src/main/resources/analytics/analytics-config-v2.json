@@ -1,5 +1,5 @@
 {
-  "analyticsConfigVersion": 1,
+  "analyticsConfigVersion": 2,
   "timezone": "Europe/Paris",
   "cohortWindowDays": 14,
   "civicSubmittedMinAnsweredRatio": 0.8,
@@ -16,7 +16,7 @@
     "rateLimit": {
       "perIpBurst": { "max": 120, "windowSeconds": 600 },
       "perIpDaily": { "max": 3000, "windowSeconds": 86400 },
-      "perAnonymousIdBurst": { "max": 60, "windowSeconds": 600 },
+      "perAnonymousIdBurst": { "max": 120, "windowSeconds": 600 },
       "perAnonymousIdDaily": { "max": 1000, "windowSeconds": 86400 }
     }
   },
@@ -33,6 +33,13 @@
     "direct": ["direct"]
   },
   "utmSourceFallbackGroup": "autre",
+  "activity": {
+    "retentionDays": 365,
+    "writeIntervalSeconds": 60,
+    "onlineWindowSeconds": 180,
+    "screenTopLimit": 20,
+    "screenViewRetentionDays": 365
+  },
   "measurementStart": {
     "VISITORS": "2026-09-28",
     "ACQUISITION_SOURCES": "2026-09-28",
@@ -47,6 +54,10 @@
     "REVENUE_BREAKDOWN": "2026-09-28",
     "REFUNDS": "2026-09-28",
     "SIGNUP_CONTEXT": "2026-09-28",
-    "SIGNUP_PLATFORM_DETAIL": "2026-09-28"
+    "SIGNUP_PLATFORM_DETAIL": "2026-09-28",
+    "ACTIVE_USERS": null,
+    "LOGINS": null,
+    "SCREEN_VIEWS_WEB": null,
+    "SCREEN_VIEWS_APP": null
   }
 }

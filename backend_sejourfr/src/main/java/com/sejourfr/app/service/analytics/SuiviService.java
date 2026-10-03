@@ -2,12 +2,12 @@ package com.sejourfr.app.service.analytics;
 
 import com.sejourfr.app.dto.AdminSuiviResponse;
 import com.sejourfr.app.enums.SuiviIndicator;
-import com.sejourfr.app.enums.SuiviPeriodPreset;
 import com.sejourfr.app.enums.SuiviPlatformFilter;
 import com.sejourfr.app.enums.SuiviTypeFilter;
 import com.sejourfr.app.manager.SuiviReadManager;
 import com.sejourfr.app.mapper.SuiviMapper;
 import com.sejourfr.app.util.FenetreMesure;
+import com.sejourfr.app.util.PeriodeAdmin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -93,15 +93,9 @@ public class SuiviService {
     /** Filtres valides ; {@code preset} par defaut : aujourd'hui. */
     public SuiviQuery query(String preset, String from, String to, String type, String platform,
                             String source, boolean includeInternal) {
-        boolean custom = !blank(from) || !blank(to);
-        if (custom && !blank(preset)) {
-            throw new IllegalArgumentException(
-                    "Indiquez soit « preset », soit « from » et « to », pas les deux.");
-        }
-        SuiviPeriodPreset appliedPreset = custom ? null
-                : blank(preset) ? SuiviPeriodPreset.TODAY : SuiviPeriodPreset.parse(preset);
-        FenetreMesure window = custom ? FenetreMesure.resolve(from, to, 1) : window(appliedPreset);
-        return new SuiviQuery(appliedPreset, window, SuiviTypeFilter.parse(type),
+        PeriodeAdmin periode = PeriodeAdmin.resolve(preset, from, to,
+                LocalDate.ofInstant(clock.instant(), FenetreMesure.PARIS));
+        return new SuiviQuery(periode.preset(), periode.window(), SuiviTypeFilter.parse(type),
                 SuiviPlatformFilter.parse(platform), source(source), includeInternal);
     }
 
@@ -112,16 +106,6 @@ public class SuiviService {
             starts.put(indicator, config.measurementStartOf(indicator).orElse(null));
         }
         return starts;
-    }
-
-    private FenetreMesure window(SuiviPeriodPreset preset) {
-        LocalDate today = LocalDate.ofInstant(clock.instant(), FenetreMesure.PARIS);
-        return switch (preset) {
-            case TODAY -> new FenetreMesure(today, today);
-            case YESTERDAY -> new FenetreMesure(today.minusDays(1), today.minusDays(1));
-            case LAST_7_DAYS -> new FenetreMesure(today.minusDays(6), today);
-            case MONTH -> new FenetreMesure(today.withDayOfMonth(1), today);
-        };
     }
 
     private static String runType(SuiviTypeFilter type) {

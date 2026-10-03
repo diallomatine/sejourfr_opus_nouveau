@@ -66,7 +66,7 @@ class SocialAuthServiceTest {
         when(subscriptionService.currentAccess(any()))
                 .thenReturn(new SubscriptionService.CurrentAccess(ModuleAccess.NONE, null));
         when(userManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(sessionService.openSession(any(), any(), any())).thenAnswer(inv ->
+        when(sessionService.openSession(any(), any(), any(), any())).thenAnswer(inv ->
                 new SessionService.IssuedTokens("acc", "ref", UUID.randomUUID(), inv.getArgument(0)));
     }
 
@@ -111,6 +111,10 @@ class SocialAuthServiceTest {
 
         // auth_provider reste celui de la création initiale (immutable ici).
         assertThat(local.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
+        // Mais la connexion est journalisee avec la methode de CETTE connexion.
+        verify(sessionService).openSession(any(), any(), any(), org.mockito.ArgumentMatchers.eq(
+                new SessionService.SessionOrigin(com.sejourfr.app.enums.AuthKind.LOGIN, AuthProvider.GOOGLE,
+                        ClientPlatform.MOBILE)));
         assertThat(local.getLastLoginAt()).isNotNull();
         verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
@@ -137,6 +141,9 @@ class SocialAuthServiceTest {
         assertThat(created.getSignupPlatform()).isEqualTo(ClientPlatform.MOBILE);
         verify(eventPublisher).publishEvent(
                 new com.sejourfr.app.service.email.event.AccountCreatedEvent(created.getId(), "new@test.fr"));
+        verify(sessionService).openSession(any(), any(), any(), org.mockito.ArgumentMatchers.eq(
+                new SessionService.SessionOrigin(com.sejourfr.app.enums.AuthKind.SIGNUP, AuthProvider.GOOGLE,
+                        ClientPlatform.MOBILE)));
     }
 
     /**

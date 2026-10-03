@@ -90,6 +90,17 @@ public class AnalyticsEventNormalizer {
     }
 
     /**
+     * Chemin de l'ingestion EN LOT : dans l'allowlist, sinon {@code null}
+     * (« ecran non declare »), jamais un rejet. Un front plus recent que le
+     * serveur, ou une route oubliee dans {@code TrackedScreen}, ne doit pas faire
+     * perdre l'evenement : seul le chemin, qui est hors liste, n'est pas ecrit
+     * (chantier « Activite », retour du lot 3).
+     */
+    public String pathOrNull(String raw) {
+        return AnalyticsPaths.isKnown(raw) ? AnalyticsPaths.normalizeOrThrow(raw) : null;
+    }
+
+    /**
      * Proprietes normalisees : cles admises <b>par cet evenement</b>, valeurs
      * admises par chaque propriete.
      *
@@ -100,6 +111,17 @@ public class AnalyticsEventNormalizer {
      * l'autre.
      */
     public Map<String, String> properties(AnalyticsEvent event, Map<String, String> raw) {
+        return properties(event, raw, false);
+    }
+
+    /**
+     * @param cheminsTolerants vrai pour l'ingestion en lot : une propriete de
+     *                         type chemin hors allowlist est OMISE au lieu de
+     *                         faire rejeter l'evenement (meme regle que
+     *                         {@link #pathOrNull}). Toute autre faute reste un refus.
+     */
+    public Map<String, String> properties(AnalyticsEvent event, Map<String, String> raw,
+                                          boolean cheminsTolerants) {
         Map<String, String> normalized = new TreeMap<>();
         if (raw == null || raw.isEmpty()) return normalized;
 
@@ -115,6 +137,7 @@ public class AnalyticsEventNormalizer {
                         "Propriété « " + key + " » non autorisée sur l'événement "
                                 + event.name() + ". Propriétés acceptées : " + event.allowedKeys() + ".");
             }
+            if (cheminsTolerants && property.isPath() && !AnalyticsPaths.isKnown(entry.getValue())) continue;
             normalized.put(property.getKey(), property.normalizeOrThrow(entry.getValue()));
         }
         return normalized;

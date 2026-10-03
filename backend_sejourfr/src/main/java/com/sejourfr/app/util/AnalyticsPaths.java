@@ -1,5 +1,7 @@
 package com.sejourfr.app.util;
 
+import com.sejourfr.app.enums.TrackedScreen;
+
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -24,41 +26,29 @@ import java.util.Set;
 public final class AnalyticsPaths {
 
     /**
-     * Les ecrans suivis, exactement.
-     *
-     * <p>Web d'abord (c'est la ou se joue l'acquisition), puis les quelques
-     * routes mobiles qui participent au meme entonnoir. Les deux fronts
-     * partagent volontairement la meme dimension : « combien ont vu le
-     * paywall » doit se lire d'un seul cote du tableau.
+     * Chemins historiques (evenements d'entonnoir, avant {@code SCREEN_VIEWED})
+     * qui ne sont pas des ecrans de reference : toujours admis.
      */
-    public static final Set<String> KNOWN = Set.of(
-            // Accueil et landings de campagne
-            "/",
-            "/reussir",
-            // Diagnostic
-            "/diagnostic",
-            "/diagnostic/resultat",
-            "/diagnostic-civique",
-            "/diagnostic-civique/resultat",
-            // Plan personnalise
-            "/plan",
-            "/plan/debloquer",
-            // Prix et paiement
-            "/tarifs",
-            "/paiement",
-            // Compte
-            "/connexion",
-            "/inscription",
-            // Produit
-            "/dashboard",
-            "/entrainement",
-            "/examens-blancs",
+    private static final Set<String> HISTORIQUES = Set.of(
             "/competences",
-            "/profil",
             // Mobile (go_router)
-            "/home",
             "/target-path",
             "/paywall");
+
+    /**
+     * Les ecrans suivis, exactement : les ecrans de reference
+     * ({@link TrackedScreen}, chemins web et app, gabarits {@code :param}) plus
+     * quelques chemins historiques. Les deux fronts partagent volontairement la
+     * meme dimension : « combien ont vu le paywall » doit se lire d'un seul cote
+     * du tableau.
+     */
+    public static final Set<String> KNOWN = known();
+
+    private static Set<String> known() {
+        Set<String> paths = new LinkedHashSet<>(TrackedScreen.allPaths());
+        paths.addAll(HISTORIQUES);
+        return Set.copyOf(paths);
+    }
 
     private AnalyticsPaths() {
     }

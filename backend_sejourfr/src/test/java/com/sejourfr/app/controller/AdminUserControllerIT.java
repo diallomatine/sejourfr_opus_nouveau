@@ -48,6 +48,8 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
     private static final Duration JOUR = Duration.ofDays(1);
 
     @Autowired private MockMvc mvc;
+
+    @Autowired private com.sejourfr.app.service.activity.UserActivityService activityService;
     @Autowired private TestData data;
     @Autowired private AuthTestSupport auth;
     @Autowired private ObjectMapper om;
@@ -596,6 +598,11 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
     private long requetes(Appel appel) throws Exception {
         em.flush();
         em.clear();
+        // Toute requete authentifiee entretient la presence (chantier « Activite »,
+        // une ecriture par minute au plus) : on rend cette ecriture SYSTEMATIQUE
+        // pour que chaque mesure la compte une fois, quel que soit l'ecart entre
+        // deux appels.
+        activityService.resetThrottle();
         Statistics stats = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
         stats.setStatisticsEnabled(true);
         stats.clear();
