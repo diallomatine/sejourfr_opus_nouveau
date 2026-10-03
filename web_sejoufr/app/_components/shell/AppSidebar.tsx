@@ -9,7 +9,6 @@ import type {ParcoursModule} from "@/lib/module-switch";
 import {passAccessName} from "@/lib/passes";
 import {
     SHELL_BRAND_TAG,
-    SHELL_GROUP_ACCOUNT,
     SHELL_GROUP_OVERVIEW,
     SHELL_MODULE_ITEMS,
     SHELL_MODULE_TITLE,
@@ -40,8 +39,8 @@ import styles from "./shell.module.css";
  * **La barre latérale de l'espace connecté** — maquette « Navigation v2 ».
  *
  * Marque (cocarde + « Sejour**FR** », FR rouge) · « Vue d'ensemble » (Accueil)
- * · bloc TCF IRN · bloc Examen civique (sous-menus en escalier) · « Compte »
- * (Profil) · carte utilisateur vers `/profil`.
+ * · bloc TCF IRN · bloc Examen civique (sous-menus en escalier) · carte
+ * utilisateur vers `/profil` (seule entrée du Profil, 2026-10-03).
  *
  * 🛑 **Une seule instance par écran** : au-dessus de 1024 px elle est fixe,
  * en dessous la MÊME barre devient le tiroir (`open`) — desktop et tiroir
@@ -142,17 +141,14 @@ function SidebarBody({
 
                 <ModuleBlock module="TCF" sub={nav.tcfSub} tails={nav.tails.TCF} active={active} />
                 <ModuleBlock module="CIVIQUE" sub={nav.civiqueSub} tails={nav.tails.CIVIQUE} active={active} />
-
-                <div className={styles.group}>
-                    <p className={styles.groupLabel}>{SHELL_GROUP_ACCOUNT}</p>
-                    <NavItem href="/profil" active={active.item === "profil"} icon={<IconUser />}>
-                        Profil
-                    </NavItem>
-                </div>
             </nav>
 
             {user ? (
-                <Link href="/profil" className={styles.user}>
+                <Link
+                    href="/profil"
+                    className={styles.user}
+                    aria-current={active.item === "profil" ? "page" : undefined}
+                >
                     <span className={styles.avatar} aria-hidden>
                         {shellInitials(user.firstName, user.lastName, user.email)}
                     </span>
