@@ -31,7 +31,7 @@ import {SejourApp, sejourStyles} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleDeLUrl, type ParcoursModule} from "@/lib/module-switch";
-import {diagnosticFait, moduleParDefaut} from "@/lib/preparation";
+import {diagnosticFait, diagnosticTcfHref, moduleParDefaut} from "@/lib/preparation";
 import {canAccessModule, type PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
 import {CivicPlanPanel} from "./CivicPlanPanel";
@@ -107,7 +107,7 @@ export function PlanModules() {
     return (
         <SejourApp sticky={!abonne} className={sejourStyles.home}>
             {affiche === "TCF" ? (
-                <LearningPlanView diagnosticFait={diagnosticFait(prep?.tcf ?? null, "TCF")} />
+                <LearningPlanView diagnosticHref={diagnosticTcfHref(prep?.tcf ?? null)} />
             ) : (
                 /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
                    L10) : c'est un moteur, plus un écho du diagnostic. */

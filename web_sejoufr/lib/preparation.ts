@@ -24,14 +24,26 @@ import type {ModulePreparation, PreparationDto, TargetProcedure} from "./types";
 export const PREPARATION_TITLE = "Ma préparation";
 
 /**
- * Où se relit le diagnostic RAPIDE déjà passé.
+ * L'entrée du diagnostic RAPIDE : le faire, le reprendre, ou relire le rapport
+ * de la session COURANTE.
  *
- * 🛑 **Aucun écran de rapport n'est recréé** : `/diagnostic` sert déjà le
- * rapport quand la session est `COMPLETED` (web `DiagnosticView`, mobile
- * `DiagnosticScreen`). Une seconde route vers le même contenu aurait fini par
- * en montrer une version qui ne bouge plus.
+ * ⚠️ **Pas pour relire un diagnostic clos désigné par le serveur** : cette
+ * route lit la session courante (`GET /api/diagnostics/current`), qui peut être
+ * un rapide commencé APRÈS un diagnostic clos d'un autre code. Pour relire,
+ * c'est `diagnosticRapportHref`.
  */
 export const DIAGNOSTIC_RAPIDE_HREF = "/diagnostic";
+
+/**
+ * **La relecture d'un diagnostic TCF CLOS, par son identifiant** — la
+ * destination de « Mon diagnostic » du Plan, avec `estimationSessionId` servi.
+ * Lecture seule, montée sur le même `DiagnosticReport` que `/diagnostic`.
+ *
+ * Miroir mobile : `AppRoutes.diagnosticRapportPath`.
+ */
+export function diagnosticRapportHref(sessionId: string): string {
+    return `${DIAGNOSTIC_RAPIDE_HREF}/rapport/${encodeURIComponent(sessionId)}`;
+}
 
 /**
  * **Le marqueur « lance-le tout de suite »** de `/diagnostic`.
@@ -182,6 +194,19 @@ export function diagnosticFait(
 ): boolean {
     if (!m) return false;
     return module === "TCF" ? m.estimationSessionId !== null : m.etape === "PLAN_PRET";
+}
+
+/**
+ * **Où mène « Mon diagnostic » sur le Plan TCF** : le rapport du diagnostic
+ * clos que le serveur désigne (`estimationSessionId`), ou `null` — ligne
+ * masquée — tant que `diagnosticFait` ne le dit pas.
+ *
+ * Miroir mobile : `PlanTcfView.diagnosticSessionId` (`plan_body.dart`) +
+ * `AppRoutes.diagnosticRapportPath`.
+ */
+export function diagnosticTcfHref(m: ModulePreparation | null): string | null {
+    if (!m || !diagnosticFait(m, "TCF") || m.estimationSessionId === null) return null;
+    return diagnosticRapportHref(m.estimationSessionId);
 }
 
 /** Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire. */

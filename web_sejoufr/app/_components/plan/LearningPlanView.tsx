@@ -101,7 +101,7 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /* ------------------------------------------------------------------ racine */
 
-export function LearningPlanView({diagnosticFait}: {diagnosticFait: boolean}) {
+export function LearningPlanView({diagnosticHref}: {diagnosticHref: string | null}) {
   const {status: authStatus, user} = useAuth();
   const [plan, setPlan] = useState<LearningPlanDto | null>(null);
   /* 🛑 Le parcours est chargé **en parallèle** du Plan, jamais après : les deux
@@ -199,7 +199,7 @@ export function LearningPlanView({diagnosticFait}: {diagnosticFait: boolean}) {
     <TcfPlan
       plan={plan}
       journey={journey}
-      diagnosticFait={diagnosticFait}
+      diagnosticHref={diagnosticHref}
       free={!canAccessModule(user, "TCF")}
       cible={user.targetLevel ?? null}
     />
@@ -276,10 +276,12 @@ function TcfPlanSquelette({cible}: {cible: TargetLevel | null}) {
  * accès lit exactement le même plan, cadenas compris, et la barre « Débloquer
  * mon plan » reste la seule action dominante de l'écran.
  */
-function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
+function TcfPlan({plan, journey, diagnosticHref, free, cible}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  diagnosticFait: boolean;
+  /** « Mon diagnostic » : le rapport du diagnostic clos (`diagnosticTcfHref`),
+   *  `null` ⇒ ligne masquée. */
+  diagnosticHref: string | null;
   free: boolean;
   cible: TargetLevel | null;
 }) {
@@ -346,7 +348,7 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
           <>
             {/* ✅ **Visible aussi sans accès** (demande du propriétaire,
                 2026-09-20) : ce sont deux **constats**, rien ne s'y travaille. */}
-            <AllerPlusLoin diagnosticFait={diagnosticFait} />
+            <AllerPlusLoin diagnosticHref={diagnosticHref} />
           </>
         }
       />
@@ -526,6 +528,9 @@ function ActionMaintenant({plan, journey, free}: {
  *
  *  Les deux accès se rangent en ligne au palier desktop (`deskGrid`) : empilés
  *  sur 1 080 px de colonne, ils faisaient une carte haute et vide. */
-function AllerPlusLoin({diagnosticFait}: {diagnosticFait: boolean}) {
-  return <PlanLinks module="TCF" diagnosticHref={diagnosticFait ? "/diagnostic" : null}/>;
+function AllerPlusLoin({diagnosticHref}: {diagnosticHref: string | null}) {
+  /* 🛑 Le RAPPORT du diagnostic clos, jamais `/diagnostic` : celle-ci lit la
+     session COURANTE, qui peut être un rapide commencé après coup — le lien
+     invitait alors à reprendre au lieu de relire. */
+  return <PlanLinks module="TCF" diagnosticHref={diagnosticHref}/>;
 }

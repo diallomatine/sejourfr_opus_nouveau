@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/diagnostic_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 
 // ---------------------------------------------------------------------------
@@ -541,6 +542,51 @@ class DiagnosticErrorBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Le chargement d'une session de diagnostic, puis son échec avec
+/// « Réessayer ». Partagé par le parcours (`DiagnosticScreen`) et la relecture
+/// d'un diagnostic clos (`DiagnosticRapportScreen`).
+class DiagnosticLoadState extends StatelessWidget {
+  const DiagnosticLoadState({
+    super.key,
+    required this.isLoading,
+    required this.onRetry,
+    this.errorMessage,
+  });
+
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading && errorMessage == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.blue),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        AppCard(
+          child: Column(
+            children: [
+              if (errorMessage != null)
+                DiagnosticErrorBanner(message: errorMessage!),
+              const SizedBox(height: 14),
+              AppButton(
+                label: 'Réessayer',
+                variant: AppButtonVariant.soft,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : onRetry,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

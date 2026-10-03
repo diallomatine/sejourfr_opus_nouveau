@@ -66,6 +66,7 @@ import type {
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
 import {DiagnosticChoice} from "./DiagnosticChoice";
 import {demarrageDirectDemande} from "@/lib/preparation";
+import {planHref} from "@/lib/module-switch";
 import {DiagnosticIntro} from "./DiagnosticIntro";
 import {DIAGNOSTIC_REPORT_BACK_HREF} from "./report-labels";
 import {DiagnosticReport} from "./DiagnosticReport";
@@ -165,6 +166,143 @@ export function DiagnosticView() {
       ) : (
         <GuestDiagnostic onStartTcf={commencerTcf} />
       )}
+    </DualChromeShell>
+  );
+}
+
+// ============================================================================
+// RELECTURE d'un diagnostic clos, par son identifiant (`/diagnostic/rapport/…`)
+// ============================================================================
+
+/** Le texte servi quand la session désignée n'a pas (ou plus) de rapport. */
+const DIAGNOSTIC_RAPPORT_INDISPONIBLE =
+  "Ce diagnostic n'a pas de rapport à relire pour l'instant.";
+
+/**
+ * **La relecture d'un diagnostic TCF CLOS**, désigné par son identifiant —
+ * la destination de « Mon diagnostic » du Plan (`diagnosticRapportHref`).
+ *
+ * 🛑 **Jamais `/diagnostic` pour relire.** Cette route-là lit la session
+ * COURANTE (`GET /api/diagnostics/current`, la version de diagnostic servie
+ * aujourd'hui) : un compte qui a clos un diagnostic d'un autre code, puis
+ * commencé le rapide sans le finir, y voyait l'invitation à REPRENDRE au lieu
+ * de son rapport. Ici, la session est celle que le serveur désigne
+ * (`estimationSessionId`), lue par `GET /api/diagnostics/{sessionId}`.
+ *
+ * 🛑 **Lecture seule** : aucun démarrage, aucune soumission, aucune relance.
+ * Une session sans rapport ne propose jamais de faire le diagnostic — elle le
+ * dit, et rend la main au Plan.
+ *
+ * Le rendu est le MÊME `DiagnosticReport` que celui de `/diagnostic` : aucun
+ * second écran de rapport. Miroir mobile : `DiagnosticRapportScreen`.
+ */
+export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
+  const {status, user} = useAuth();
+  const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      setDiagnostic(await diagnosticApi.get(sessionId));
+    } catch (cause) {
+      setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let annule = false;
+    diagnosticApi.get(sessionId).then(
+      (fresh) => {
+        if (!annule) setDiagnostic(fresh);
+      },
+      (cause: unknown) => {
+        if (!annule) setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+      },
+    ).finally(() => {
+      if (!annule) setLoading(false);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [status, sessionId]);
+
+  const rapport =
+    diagnostic?.result != null
+    && (diagnostic.status === "COMPLETED" || diagnostic.nextStep === "RESULT");
+
+  useEffect(() => {
+    if (rapport && diagnostic?.sessionId) {
+      trackDiagnosticReportViewed("QUICK_TCF", diagnostic.sessionId);
+    }
+  }, [rapport, diagnostic?.sessionId]);
+
+  if (status === "loading") return <DiagnosticSkeleton />;
+
+  if (status !== "authenticated" || !user) {
+    const retour = `/diagnostic/rapport/${encodeURIComponent(sessionId)}`;
+    return (
+      <DualChromeShell>
+        <DiagnosticShell guest>
+          <StateCard
+            icon={<Info size={26} />}
+            title="Connectez-vous pour relire votre diagnostic"
+            text="Votre rapport est rattaché à votre compte."
+          >
+            <Link
+              className={styles.primaryButton}
+              href={`/connexion?next=${encodeURIComponent(retour)}`}
+            >
+              Se connecter
+            </Link>
+          </StateCard>
+        </DiagnosticShell>
+      </DualChromeShell>
+    );
+  }
+
+  if (loading && !diagnostic) {
+    return (
+      <DualChromeShell>
+        <DiagnosticSkeleton />
+      </DualChromeShell>
+    );
+  }
+
+  if (!diagnostic || !rapport) {
+    return (
+      <DualChromeShell>
+        <DiagnosticShell>
+          <StateCard
+            icon={<RotateCcw size={26} />}
+            title={diagnostic ? "Rapport indisponible" : "Le diagnostic n'a pas pu être chargé"}
+            text={diagnostic ? DIAGNOSTIC_RAPPORT_INDISPONIBLE : error ?? "Réessayez dans un instant."}
+            role="alert"
+          >
+            {!diagnostic && (
+              <button className={styles.primaryButton} type="button" onClick={() => void load()}>
+                Réessayer
+              </button>
+            )}
+            <Link className={styles.secondaryButton} href={planHref("TCF")}>Retour au plan</Link>
+          </StateCard>
+        </DiagnosticShell>
+      </DualChromeShell>
+    );
+  }
+
+  return (
+    <DualChromeShell>
+      <DiagnosticReport
+        diagnostic={diagnostic}
+        targetLevel={user.targetLevel ?? null}
+        backTo={planHref("TCF")}
+      />
     </DualChromeShell>
   );
 }

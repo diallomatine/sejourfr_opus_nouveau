@@ -22,7 +22,12 @@ par thématique civique). `prep.planDisponible` vaut **toujours** `true`, `Learn
 mobile ; `diagnosticAAffiner` / `DiagnosticAffinerCard` supprimés). Sur le Plan : « À faire
 maintenant » (= `journey.current`, rien d'autre) et le cycle. La ligne « Mon diagnostic » des
 liens du Plan ne s'affiche que si le diagnostic a été fait — `diagnosticFait` (TCF :
-`estimationSessionId != null` ; civique : `etape == PLAN_PRET`), web ⇄ mobile. L'Accueil garde
+`estimationSessionId != null` ; civique : `etape == PLAN_PRET`), web ⇄ mobile. 🛑 **Elle ouvre le
+RAPPORT de la session désignée, jamais `/diagnostic`** (2026-10-03) : TCF →
+`/diagnostic/rapport/{estimationSessionId}` (`GET /api/diagnostics/{id}`, lecture seule, même
+`DiagnosticReport` ⇄ `DiagnosticResultView`) ; civique → `/diagnostic-civique/{id}/resultat`.
+`/diagnostic` lit la session COURANTE (code servi aujourd'hui) : un compte au diagnostic clos
+d'un autre code (`INITIAL_TCF`) avec un rapide commencé y voyait « reprendre ». L'Accueil garde
 les cartes « Reprendre mon diagnostic » / « Votre analyse est en préparation » d'un diagnostic
 **commencé**. **Le parcours invité → compte → analyse garde son cycle d'affinage** : l'analyse
 qui arrive sur le cycle d'examens encore intact l'amorce (D-64 tenu). Les écrans-portes

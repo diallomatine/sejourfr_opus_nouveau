@@ -54,15 +54,15 @@ class PlanTcfView extends ConsumerWidget {
     required this.plan,
     this.journey,
     required this.objective,
-    this.diagnosticFait = false,
+    this.diagnosticSessionId,
   });
 
   final LearningPlan plan;
 
-  /// Un diagnostic **clos** existe-t-il à relire ? Décidé par `diagnosticFait`
-  /// (`preparation_labels.dart`), jamais ici : sans lui, la ligne « Mon
-  /// diagnostic » est masquée.
-  final bool diagnosticFait;
+  /// Le diagnostic **clos** à relire (`estimationSessionId` servi), retenu
+  /// par `diagnosticFait` (`preparation_labels.dart`), jamais ici. `null` ⇒ la
+  /// ligne « Mon diagnostic » est masquée.
+  final String? diagnosticSessionId;
 
   /// **Le parcours TCF**, quand il est chargé.
   ///
@@ -357,14 +357,18 @@ class PlanTcfView extends ConsumerWidget {
                 context.push(AppRoutes.planProgressPath(civique: false)),
           ),
           // 🛑 **Seulement s'il y a un diagnostic CLOS à relire** : le
-          // diagnostic n'est plus proposé sur le Plan.
-          if (diagnosticFait)
+          // diagnostic n'est plus proposé sur le Plan. Et c'est SON rapport
+          // qui s'ouvre, jamais `/diagnostic` : celle-ci lit la session
+          // COURANTE, qui peut être un rapide commencé après coup.
+          if (diagnosticSessionId != null)
             SfInfoCard(
               icon: LucideIcons.clipboardCheck,
               title: kPlanDiagnosticTitle,
               meta: kPlanDiagnosticSub,
               trailing: const SfChevron(),
-              onTap: () => context.push(AppRoutes.diagnostic),
+              onTap: () => context.push(
+                AppRoutes.diagnosticRapportPath(diagnosticSessionId!),
+              ),
             ),
         ],
       ),

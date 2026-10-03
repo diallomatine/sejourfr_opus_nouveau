@@ -10,6 +10,7 @@ import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/diagnostic/diagnostic_rapport_screen.dart';
 import '../../screens/diagnostic/diagnostic_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
@@ -188,6 +189,14 @@ class AppRoutes {
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
   static const diagnostic = '/diagnostic';
+
+  /// **La relecture d'un diagnostic TCF CLOS**, par son identifiant — la
+  /// destination de « Mon diagnostic » du Plan. Jamais [diagnostic], qui lit
+  /// la session COURANTE. Miroir web : `diagnosticRapportHref`.
+  static const diagnosticRapport = '/diagnostic/rapport/:sessionId';
+
+  static String diagnosticRapportPath(String sessionId) =>
+      '/diagnostic/rapport/${Uri.encodeComponent(sessionId)}';
 
   /// **Le lien « Continuer sur l'application »** du diagnostic web (lot 3b) :
   /// universal link iOS / App Link Android, `#run=…&token=…`. Jamais un
@@ -1020,6 +1029,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.diagnostic,
         builder: (_, __) => const DiagnosticScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.diagnosticRapport,
+        builder: (_, state) => DiagnosticRapportScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.civicDiagnostic,

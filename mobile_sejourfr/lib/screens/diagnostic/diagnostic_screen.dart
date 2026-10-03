@@ -15,8 +15,6 @@ import '../../core/models/enums.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import 'diagnostic_controller.dart';
@@ -489,7 +487,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
 
     final journey = state.journey;
     if (journey == null) {
-      return _InitialState(
+      return DiagnosticLoadState(
         isLoading: state.isLoading,
         errorMessage: state.errorMessage,
         onRetry: () => unawaited(_controller.loadCurrent()),
@@ -550,7 +548,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
           result: journey.result!,
           objective: objective,
         ),
-      _ => _InitialState(
+      _ => DiagnosticLoadState(
           isLoading: state.isLoading,
           errorMessage:
               state.errorMessage ?? 'Cette étape n’est pas encore disponible.',
@@ -567,7 +565,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   }) {
     final subjects = state.subjects;
     if (subjects == null) {
-      return _InitialState(
+      return DiagnosticLoadState(
         isLoading: state.isLoading,
         errorMessage: state.errorMessage,
         onRetry: () => unawaited(_controller.loadCurrent()),
@@ -746,45 +744,4 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         DiagnosticStep.result => kDiagnosticReportKicker,
         DiagnosticStep.presentation => 'Présentation',
       };
-}
-
-class _InitialState extends StatelessWidget {
-  const _InitialState({
-    required this.isLoading,
-    required this.onRetry,
-    this.errorMessage,
-  });
-
-  final bool isLoading;
-  final String? errorMessage;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading && errorMessage == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.blue),
-      );
-    }
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        AppCard(
-          child: Column(
-            children: [
-              if (errorMessage != null)
-                DiagnosticErrorBanner(message: errorMessage!),
-              const SizedBox(height: 14),
-              AppButton(
-                label: 'Réessayer',
-                variant: AppButtonVariant.soft,
-                isLoading: isLoading,
-                onPressed: isLoading ? null : onRetry,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }

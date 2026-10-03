@@ -103,7 +103,7 @@ class _PlanBodyState extends ConsumerState<PlanBody> with RouteAware {
           // retarde pas le Plan d'une seconde.
           journey: ref.watch(journeyProvider).valueOrNull,
           objective: objective,
-          diagnosticFait: fait,
+          diagnosticSessionId: fait ? modulePrep.estimationSessionId : null,
         ),
       ),
     );
