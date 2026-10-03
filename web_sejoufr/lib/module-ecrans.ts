@@ -92,15 +92,6 @@ export const ENTRAINEMENT_TCF_BADGE = `${MODULE_TCF_NB_EPREUVES} épreuves`;
 
 export const ENTRAINEMENT_METRIC_CTA = "S'entraîner";
 
-/** Hero « Entretien en temps réel » (D3-B) : texte statique de la maquette. */
-export const ENTRETIEN_SECTION_TITLE = "Entretien en temps réel";
-export const ENTRETIEN_LABEL = "Simulation d'entretien · IA";
-export const ENTRETIEN_TITLE = "Entraînez-vous comme à l'examen";
-export const ENTRETIEN_SUB =
-    "Répondez à des consignes et des relances dans un format vivant : réactivité, aisance, confiance.";
-export const ENTRETIEN_STAT = {value: "EO", label: "expression orale"} as const;
-export const ENTRETIEN_CTA = "Lancer une simulation";
-
 /** Le sous-titre civique, avec le nombre de thèmes servi (inconnu ⇒ sans nombre). */
 export function entrainementCiviqueSubtitle(nbThemes: number | null): string {
     const themes = nbThemes && nbThemes > 0 ? `les ${nbThemes} thèmes officiels` : "les thèmes officiels";

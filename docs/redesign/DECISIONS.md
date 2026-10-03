@@ -306,3 +306,14 @@
 - Choix : section supprimée des deux Plans TCF, avec ce qui n'avait plus de lecteur (web `PlanMilestoneCard.tsx`, libellés et `planMilestoneTitle/Text/Meta` ; mobile `plan_milestone_labels.dart`, `_milestoneSection`). Conservés : le DTO `milestone` (miroir backend), le lanceur `startPlanMilestone` (encore lu par la séance et l'exercice recommandé) et la pastille `PLAN_MILESTONE_PILL` (lue par `plan-domain.ts`). L'examen reste accessible par TCF · Examens blancs ; le jalon d'examen complet (`ExamenCompletJalon`, D-68) n'est pas concerné.
 - Fichiers impactés : `LearningPlanView.tsx`, `lib/diagnostic.ts`, `plan_tcf_view.dart`, `diagnostic_models.dart` (commentaire)
 - Réversibilité : facile (historique git)
+
+### DEC-39 — Retraits demandés par le propriétaire après relecture à l'écran
+- Phase : 4 (retours du propriétaire)
+- Contexte : relecture sur téléphone.
+- Options envisagées : — (demandes explicites)
+- Choix, web et mobile :
+  - Plan TCF et civique : lien « Tout l'entraînement » de « Priorités actuelles » retiré ; « À faire maintenant » passe avant la carte du plan, dont la phrase d'explication est retirée ; côté utilisateur, « cycle » se dit « plan » (« Plan N », « Mes plans »).
+  - Plan civique : carte « Examen blanc civique » retirée (l'accès reste par Civique · Examens).
+  - TCF · Entraînement : hero « Entretien en temps réel » retiré (D3-B révoqué pour ce bloc ; la simulation reste accessible depuis le hub de l'expression orale).
+- Fichiers impactés : `PlanCycleSection.tsx`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `ReviserScreen.tsx`, `lib/module-ecrans.ts`, `lib/journey.ts`, `plan_cycle_section.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`, `civic_plan_labels.dart`, `reviser_body.dart`, `module_labels.dart`, `journey_labels.dart`
+- Réversibilité : facile (historique git)

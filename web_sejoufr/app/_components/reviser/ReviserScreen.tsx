@@ -8,9 +8,7 @@
  * TCF : `PageHead` (« 4 épreuves »), la carte « Recommandé par votre plan »
  * (`ActionCard`), une `Metric` par épreuve officielle (niveau servi, état servi
  * `StatutObjectif`, compteur, CTA plein sur l'épreuve de l'étape courante du
- * parcours), le bandeau « Entretien en temps réel » (lien vers le hub EO,
- * D3-B), puis « Renforcer mon français » — ordre de la maquette, le même sur
- * le mobile. Civique : `PageHead` (thèmes, séries), la carte
+ * parcours), puis « Renforcer mon français » — le même ordre sur le mobile. Civique : `PageHead` (thèmes, séries), la carte
  * de reprise, une `ThemeCard` par thème (anneau = `avancementSeriesCivique`
  * du thème, description servie). « Statistiques par thème » de la maquette
  * est **masqué** : rien ne le sert.
@@ -112,7 +110,6 @@ import {
   Card,
   Cta,
   Grid,
-  Hero,
   InfoCard,
   Metric,
   Pad,
@@ -154,12 +151,6 @@ import {
   ENTRAINEMENT_TCF_SUBTITLE,
   ENTRAINEMENT_THEME_CTA,
   ENTRAINEMENT_TITLE,
-  ENTRETIEN_CTA,
-  ENTRETIEN_LABEL,
-  ENTRETIEN_SECTION_TITLE,
-  ENTRETIEN_STAT,
-  ENTRETIEN_SUB,
-  ENTRETIEN_TITLE,
   entrainementCiviqueSubtitle,
   entrainementSeriesBadge,
   entrainementThemesBadge,
@@ -456,22 +447,6 @@ function TcfBody({
               })}
             </Grid>
           )}
-        </Pad>
-      </Section>
-      {/* **Entretien en temps réel** (D3-B) : le hub de l'expression orale, où
-          vit l'examinateur vocal. Texte statique de la maquette, aucune donnée
-          — le quota de simulations se lit là-bas. */}
-      <Section title={ENTRETIEN_SECTION_TITLE}>
-        <Pad>
-          <Hero
-            module="tcf"
-            icon={<Sparkles />}
-            label={ENTRETIEN_LABEL}
-            title={ENTRETIEN_TITLE}
-            sub={ENTRETIEN_SUB}
-            stat={ENTRETIEN_STAT}
-            cta={{ label: ENTRETIEN_CTA, href: productionEntryHref(EO_CONFIG.base) }}
-          />
         </Pad>
       </Section>
       <Section title={REVISER_RENFORCER_TITLE}>

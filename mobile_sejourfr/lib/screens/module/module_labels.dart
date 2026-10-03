@@ -34,7 +34,6 @@ String moduleSegmentLabel(ModuleSegment segment) => switch (segment) {
 
 /* ----------------------------------------------- carte « Ma progression » --- */
 
-
 const String kModuleProgressLabel = 'Ma progression';
 const String kModuleProgressAction = 'Voir le détail';
 
@@ -68,17 +67,6 @@ const String kModuleThemeCta = 'Continuer';
 /// `avancementSeriesCivique` (jamais recompté ici).
 String moduleCiviqueSeriesBadge(int terminees, int total) =>
     '$terminees/$total séries';
-
-/// Le hero « Entretien en temps réel » (D3 B) : texte éditorial de la
-/// maquette, il mène au hub de l'expression orale — aucune donnée inventée.
-const String kModuleRealtimeTitle = 'Entretien en temps réel';
-const String kModuleRealtimeLabel = "Simulation d'entretien · IA";
-const String kModuleRealtimeHeadline = "Entraînez-vous comme à l'examen";
-const String kModuleRealtimeSub =
-    'Répondez à des consignes et des relances dans un format vivant : '
-    'réactivité, aisance, confiance.';
-const String kModuleRealtimeStat = 'expression orale';
-const String kModuleRealtimeCta = 'Lancer une simulation';
 
 /* ------------------------------------------------------ états de bloc --- */
 

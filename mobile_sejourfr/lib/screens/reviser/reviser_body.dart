@@ -11,7 +11,6 @@ import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/progress_models.dart';
 import '../../core/models/question_models.dart' show ThemeDto;
-import '../../core/models/skill_models.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/progress_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -187,24 +186,6 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
           ],
         ),
       ),
-      // Le hero « Entretien en temps réel » (D3 B) : un lien vers le hub de
-      // l'expression orale, où la simulation se lance sur une tâche. Ordre de
-      // la maquette (et du web) : grille → hero → « Renforcer mon français ».
-      SfSection(
-        title: kModuleRealtimeTitle,
-        flush: true,
-        lead: true,
-        child: SfHero(
-          civique: false,
-          icon: LucideIcons.sparkles,
-          label: kModuleRealtimeLabel,
-          title: kModuleRealtimeHeadline,
-          sub: kModuleRealtimeSub,
-          stat: (value: SkillSection.eo.wire, label: kModuleRealtimeStat),
-          cta: kModuleRealtimeCta,
-          onPressed: () => context.push(AppRoutes.tcfEoEntry),
-        ),
-      ),
       // 🛑 Structure de la langue n'est PAS une cinquième épreuve du TCF IRN :
       // elle sort de la grille et prend sa propre section, avec la note qui le
       // dit. Miroir web : ReviserScreen, section « Renforcer mon français ».
@@ -296,9 +277,8 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
       fill: true,
       code: planDomainSection(epreuve)?.wire ?? stat.label,
       value: niveau?.shortName ?? kModuleProgressUnknown,
-      state: servie == null
-          ? null
-          : etatEpreuveTcf(servie.status, servie.niveau),
+      state:
+          servie == null ? null : etatEpreuveTcf(servie.status, servie.niveau),
       meta: [
         stat.label,
         epreuveMeta(stat),
