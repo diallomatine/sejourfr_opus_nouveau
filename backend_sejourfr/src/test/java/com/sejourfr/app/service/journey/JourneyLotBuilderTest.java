@@ -247,6 +247,66 @@ class JourneyLotBuilderTest {
      * son <b>attempt</b> —, et c'est {@link JourneyObservationSources} qui fait
      * le lien, seul et pour tout le monde.
      */
+    // ------------------------------------------------------------- D-70
+
+    @Test
+    @DisplayName("D-70 — CO a A1 sous un objectif B2 : les paliers A2, B1, B2, dans cet ordre")
+    void unDomaineSousLObjectifRecoitSesPaliers() {
+        List<Skill> referentiel = referentielComprehension();
+        UUID examen = UUID.randomUUID();
+
+        JourneyLotBuilder.Lot lot = builder.versLObjectif(EpreuveType.TCF_CO, examen,
+                NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of());
+
+        assertThat(lot.epreuve()).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(lot.sourceAssessmentId()).isEqualTo(examen);
+        assertThat(lot.priorites().stream().map(p -> p.skill().getCode()))
+                .containsExactly("CO-A2", "CO-B1", "CO-B2");
+    }
+
+    @Test
+    @DisplayName("D-70 — seuls les paliers STRICTEMENT au-dessus du niveau et jusqu'a "
+            + "l'objectif ; une competence prouvee aujourd'hui n'y entre pas")
+    void seulsLesPaliersQuiSeparentDeLObjectif() {
+        List<Skill> referentiel = referentielComprehension();
+        Skill ceB1 = referentiel.stream().filter(s -> s.getCode().equals("CE-B1")).findFirst()
+                .orElseThrow();
+
+        assertThat(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.A2, TargetLevel.B1, referentiel, Set.of())
+                .priorites().stream().map(p -> p.skill().getCode()))
+                .containsExactly("CE-B1");
+        assertThat(builder.versLObjectif(EpreuveType.TCF_CE, UUID.randomUUID(),
+                NiveauCecrl.A1_NON_ATTEINT, TargetLevel.B2, referentiel, Set.of(ceB1.getId()))
+                .priorites().stream().map(p -> p.skill().getCode()))
+                .containsExactly("CE-A2", "CE-B2");
+    }
+
+    @Test
+    @DisplayName("D-70 — rien a proposer : objectif atteint, niveau INCONNU, expression")
+    void rienAProposerDonneNull() {
+        List<Skill> referentiel = referentielComprehension();
+        assertThat(builder.versLObjectif(EpreuveType.TCF_CO, UUID.randomUUID(),
+                NiveauCecrl.B2, TargetLevel.B2, referentiel, Set.of())).isNull();
+        // 🛑 null = inconnu, jamais « A1 » : aucun palier n'est fabrique.
+        assertThat(builder.versLObjectif(EpreuveType.TCF_CO, UUID.randomUUID(),
+                null, TargetLevel.B2, referentiel, Set.of())).isNull();
+        assertThat(builder.versLObjectif(EpreuveType.TCF_EE, UUID.randomUUID(),
+                NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of())).isNull();
+    }
+
+    private static List<Skill> referentielComprehension() {
+        List<Skill> referentiel = new ArrayList<>();
+        for (SkillSection section : List.of(SkillSection.CO, SkillSection.CE)) {
+            for (String palier : List.of("B2", "A2", "B1")) {
+                Skill skill = comprehension(section, section.name() + "-" + palier);
+                skill.setTargetLevel(palier);
+                referentiel.add(skill);
+            }
+        }
+        return referentiel;
+    }
+
     private static JourneyObservationSources.Sources sources(UUID evaluation) {
         return new JourneyObservationSources.Sources(evaluation, Set.of(evaluation));
     }

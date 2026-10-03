@@ -2280,7 +2280,8 @@ ligne « Mon diagnostic » n'apparaît que si `diagnosticFait`.
 - **Objectif** : lu à sa seule autorité (`TargetProcedure.niveauVise`, la mention civique). Sans
   démarche, pas de parcours (D-3) — le profil obligatoire la demande à l'entrée de l'app.
 - **Fin du cycle d'examens** : les examens passés, « Actualiser mon plan » (D-66) ; le cycle
-  suivant porte les priorités qu'ils ont détectées (D-67).
+  suivant porte les priorités qu'ils ont détectées (D-67), et **aucun bloc vide** (D-70 : les
+  paliers jusqu'à l'objectif en CO/CE, sinon un examen blanc).
 - **Jalon D-68** : le cycle d'examens ne compte pas comme cycle de travail (aucune `TRAIN_SKILL`).
 - **Freemium inchangé** : verrous `ACCESS` servis.
 
@@ -2322,6 +2323,9 @@ candidat a sous les yeux. Les **quatre** blocs sont toujours servis, dans
 étape est servi quand même. Statut dérivé : `EN_COURS` (il porte `current`) > bloc vide
 (`A_EVALUER` si l'épreuve n'a jamais été mesurée, sinon `TERMINE`) > `TERMINE` > `A_EVALUER`
 > `A_VENIR`.
+🛑 **D-70 (2026-10-03)** : un cycle de rang ≥ 2 n'a plus de bloc vide (§ « Aucun bloc ne reste
+vide » plus bas) — le « bloc vide ⇒ `TERMINE` » ne se lit plus que sur un cycle qui n'a pas
+encore été complété (il l'est à la lecture suivante).
 
 🛑 **Une étape `DIAGNOSTIC` n'appartient à aucun bloc** — elle ne porte pas d'épreuve. ⚠️ **Plus
 aucune n'est créée depuis D-69 (2026-09-28)** : un compte neuf reçoit le cycle d'examens par
@@ -2531,6 +2535,46 @@ tout.
 `exit_level` se lit sur la **lecture Plan** (`TcfProfileService`, D-2) et reste `null` si
 rien n'est mesuré **ou** si le niveau est sous l'A2 : `null` = inconnu, jamais mauvais, et
 jamais « A2 » par défaut (A35).
+
+### Aucun bloc ne reste vide (D-70, 2026-10-03)
+
+> Arbitrage : `docs/decisions/plan-parcours-tcf.md` **D-70** · autorité
+> `JourneyService.completerLesBlocsVides` + `JourneyLotBuilder.versLObjectif` · verrouillé par
+> `ActualisationApresExamensIT`, `JourneyLotBuilderTest` (D-70).
+
+🛑 **Décision du propriétaire, verbatim** : « Même en CO et CE, si le plan est fini et qu'on n'a
+rien trouvé à travailler, toujours proposer des examens blancs, mais ici, on a eu A1, donc il
+devrait proposer des séances en A2, B1, et même B2. »
+
+**Constat (prod, `user@sejourfr.fr`)** : cycle d'examens fini, « Actualiser mon plan », et un
+cycle suivant qui ne portait que des lots EO et EE. CO et CE, **sans aucune étape**, étaient
+servis `TERMINE` — « terminés » sans rien y avoir fait, à A1 sous un objectif B2. Deux causes :
+l'examen CO n'observait aucun palier (trop peu de réponses, `NOT_OBSERVED`), donc aucune priorité
+(R9) ; l'examen CE en avait trois, perdues par la comparaison R14 « plus ancien que lui-même »
+(corrigée : la dernière mesure exclut l'évaluation jugée).
+
+**La règle.** Dans un cycle TCF **de rang ≥ 2**, chaque épreuve sans aucune étape (obsolètes
+exclues) reçoit, dans l'ordre du TCF :
+
+| L'épreuve | Ce que le bloc reçoit |
+|---|---|
+| CO / CE **mesurée** (`NiveauActuelEpreuveResolver.mesure`), niveau du domaine (lecture Plan, D-2) **sous** l'objectif | la compétence de compréhension de **chaque palier strictement au-dessus du niveau et jusqu'à l'objectif** (A1 → A2, B1, B2 pour un objectif B2), du plus bas au plus haut, ≤ `maxPrioritiesPerLot` (D-67), puis son examen blanc `REASSESS` (R3). Une compétence au transfert prouvé aujourd'hui n'y entre pas. |
+| tout autre cas — expression, objectif atteint, niveau inconnu | un **examen blanc** seul : `REASSESS` si l'épreuve est mesurée, `INITIAL_ASSESSMENT` sinon (R12) |
+
+- **Quand** : à l'actualisation (`JourneyCycleService.actualiser`) **et à la lecture**
+  (`JourneyService.lire`, dernier filet) — c'est la lecture qui répare, sans migration, les
+  cycles promus avant la règle. Sérialisé par le verrou consultatif du parcours ; idempotent
+  (un bloc complété n'est plus vide).
+- **Pas au premier cycle** : il a sa composition (cycle d'examens D-69, affinage D-64), qui pose
+  déjà un examen par bloc.
+- 🛑 **`null` = inconnu** : un niveau inconnu ne fabrique aucun palier, il donne un examen.
+- 🛑 **Un examen antérieur au cycle ne ferme aucune de ces étapes** (D-69 ter, inchangé).
+- **« NON FRAGILE ≠ PLUS RIEN À APPRENDRE »** est la doctrine appliquée : un examen sans
+  fragilité ne dit pas qu'un palier est acquis, le niveau du domaine le dit.
+- Conséquence assumée : le cycle « vide » promu (`UP_TO_DATE`) n'existe plus en TCF au rang ≥ 2 ;
+  un cycle en cours dont des blocs étaient vides **s'allonge** à la lecture suivante (barre
+  « N étapes sur M »).
+- Civique : **non concerné** (blocs par thématique, amorce civique distincte).
 
 ### Le quota d'une étape de compréhension (D-16, révoque D-5 sur ce point)
 

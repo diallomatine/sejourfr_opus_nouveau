@@ -3505,3 +3505,43 @@ Verrouillé par `PlanParDefautIT` (`lancementReinitialiseUneSeuleFois`,
 
 **Si l'arbitrage changeait** : ne plus lire le marqueur (`cycleEnCoursOuVerrou`) suffit à
 arrêter toute réinitialisation ; les cycles déjà remplacés restent des cycles valides.
+
+## D-70 — Aucun bloc d'un cycle de travail ne reste vide (2026-10-03)
+
+**Décision du propriétaire, verbatim** (signalement de prod, 2026-10-03 vers 01:48 Paris) :
+« Bug sur mobile, j'ai fini le plan et le bouton actualiser mon plan ne s'affiche pas.
+Finalement, j'ai pu actualiser côté web, mais le nouveau plan créé avec CO et CE vide. Sur web
+desktop, ils sont mentionnés terminés. Alors qu'on ne voit même pas l'examen fait. Alors que le
+plan précédent j'avais un niveau A1 avec ces 2 épreuves. Même en CO et CE, si le plan fini et
+qu'on a rien trouvé à travailler, toujours proposer des examens blancs, mais ici, on a eu A1,
+donc il devrait proposer des séances en A2, B1, et même B2. »
+
+**Constat (base de prod, lecture seule, `user@sejourfr.fr`).** Cycle d'examens `6aacf4f0…`
+fini à 23:47 UTC ; actualisé côté web à 23:49 ; cycle promu `16bf2d8c…` : lots EO (3 + examen)
+et EE (3 + examen), **rien** en CO ni en CE.
+- **CO** : examen du 2026-09-28, CO-A2 `NOT_OBSERVED` (sous `min-questions` réponses) ⇒ zéro
+  priorité, légitime au sens de R9 — mais le bloc vide était servi `TERMINE`.
+- **CE** : examen du 2026-10-02 23:29, CE-A2/B1/B2 **PRIORITY** ; log
+  « ignoree pour anciennete — 23:29:07.331182712Z < 23:29:07.331183Z ». R14 comparait la fin
+  Java (ns) au MAX du journal où **la même évaluation** venait d'être écrite, arrondie à la µs par
+  `timestamptz`. Corrigé : la dernière mesure **exclut l'évaluation jugée** (bugfix, pas une
+  règle).
+- **Mobile** : la carte de fin de cycle (`SfNextStepCard`) levait « BoxConstraints forces an
+  infinite height » (rangée `stretch` sans `IntrinsicHeight` dans une liste qui défile) et
+  disparaissait en release — le fait servi (`nextStep`) était bien là. Corrigé dans le kit.
+
+**Ce que la décision COMPLÈTE** (ce n'était pas la règle) : R9 tenait qu'un examen sans fragilité
+ne crée rien, et `JourneyBlocResolver` qu'un bloc vide d'une épreuve mesurée est `TERMINE`. La
+règle nouvelle : dans un cycle TCF de rang ≥ 2, un bloc sans étape reçoit — CO/CE mesurée sous
+l'objectif : les compétences des paliers strictement au-dessus du niveau du domaine (lecture Plan,
+D-2) jusqu'à l'objectif, ≤ 3 (D-67), puis l'examen blanc ; sinon un examen blanc seul
+(`REASSESS` / `INITIAL_ASSESSMENT`). Appliquée à l'actualisation **et** à la lecture (réparation
+sans script), sérialisée, idempotente. → `docs/regles/plan.md` § « Aucun bloc ne reste vide ».
+
+**Ce qui ne change pas.** R9 (le lot d'une évaluation ne retient que les fragilités observées ;
+`NOT_OBSERVED` = inconnu) ; D-69 ter (un examen antérieur au cycle ne ferme rien) ; le premier
+cycle (D-64 / D-69) ; le civique.
+
+**Si l'arbitrage changeait** : ne plus appeler `completerLesBlocsVides` (lecture et
+actualisation) ; les étapes déjà posées restent des étapes valides.
+

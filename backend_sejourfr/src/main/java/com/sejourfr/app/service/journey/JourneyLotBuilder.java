@@ -7,6 +7,7 @@ import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.service.journey.JourneyObservationSources.Sources;
@@ -20,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -140,6 +142,71 @@ public class JourneyLotBuilder {
             if (priorites != null) lots.add(new Lot(epreuve, reference.evaluation(), priorites));
         });
         return ordonner(lots, objectif, profil);
+    }
+
+    // ------------------------------------------------------------- D-70
+
+    /**
+     * <b>D-70 — un bloc de compréhension VIDE sous l'objectif reçoit les paliers
+     * qui le séparent de l'objectif</b> (décision du propriétaire, 2026-10-03 :
+     * « on a eu A1, donc il devrait proposer des séances en A2, B1, et même
+     * B2 »).
+     *
+     * <p>🛑 <b>« Non fragile » n'est pas « plus rien à apprendre »</b> (invariant
+     * racine) : un examen qui ne désigne aucune fragilité — trop peu de réponses
+     * pour observer un palier, ou une priorité perdue — ne dit pas que le palier
+     * est acquis. Le niveau du DOMAINE, lui, le dit : tout palier strictement
+     * au-dessus de lui et jusqu'à l'objectif reste à acquérir, et la compétence
+     * de compréhension de ce palier est son entraînement (une par palier et par
+     * domaine).
+     *
+     * <p>Budget de composition D-67 inchangé : au plus
+     * {@code maxPrioritiesPerLot}, du palier le plus bas au plus haut — c'est
+     * l'ordre dans lequel on les acquiert. Une compétence dont le transfert est
+     * prouvé aujourd'hui n'y entre jamais.
+     *
+     * @param niveau le niveau de l'épreuve, <b>lecture Plan</b> (D-2). 🛑
+     *               {@code null} = inconnu : aucun palier n'est fabriqué, le
+     *               bloc reçoit un examen blanc.
+     * @return {@code null} quand il n'y a rien à proposer (expression, niveau
+     *         inconnu, objectif atteint, paliers prouvés) — l'appelant pose
+     *         alors l'examen blanc seul.
+     */
+    public Lot versLObjectif(
+            EpreuveType epreuve, UUID sourceAssessmentId, NiveauCecrl niveau,
+            TargetLevel objectif, List<Skill> comprehension, Set<UUID> maitriseesCeJour) {
+        NiveauCecrl cible = TcfDomaine.niveau(objectif);
+        SkillSection domaine = TcfDomaine.section(epreuve);
+        if (niveau == null || cible == null || sourceAssessmentId == null) return null;
+        if (domaine != SkillSection.CO
+                && domaine != SkillSection.CE) {
+            return null;
+        }
+        if (niveau.ordinal() >= cible.ordinal()) return null;
+        Map<NiveauCecrl, Skill> parPalier = new TreeMap<>();
+        for (Skill skill : comprehension) {
+            if (skill.getSection() != domaine || maitriseesCeJour.contains(skill.getId())) continue;
+            NiveauCecrl palier = palier(skill.getTargetLevel());
+            if (palier == null) continue;
+            if (palier.ordinal() <= niveau.ordinal() || palier.ordinal() > cible.ordinal()) continue;
+            parPalier.putIfAbsent(palier, skill);
+        }
+        List<Priorite> priorites = new ArrayList<>();
+        parPalier.values().stream()
+                .limit(config.maxPrioritiesPerLot())
+                .forEach(skill -> priorites.add(new Priorite(skill, priorites.size())));
+        if (priorites.isEmpty()) return null;
+        return new Lot(epreuve, sourceAssessmentId, List.copyOf(priorites));
+    }
+
+    /** Le palier d'une compétence de compréhension ({@code skills.target_level}). */
+    private static NiveauCecrl palier(String targetLevel) {
+        if (targetLevel == null) return null;
+        try {
+            return TcfDomaine.niveau(TargetLevel.valueOf(targetLevel));
+        } catch (IllegalArgumentException inconnu) {
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------ R2

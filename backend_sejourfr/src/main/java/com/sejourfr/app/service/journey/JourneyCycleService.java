@@ -86,10 +86,11 @@ public class JourneyCycleService {
      * un niveau passe.
      *
      * <p><b>Cas vide</b> : s'il n'y a rien en attente, un cycle neuf est
-     * ouvert — il portera les examens des epreuves non mesurees (R12), et rien
-     * du tout si elles le sont toutes. L'etat servi est alors le
-     * {@code UP_TO_DATE} existant, « plus rien a faire » ; 🛑 aucun second etat
-     * n'a ete invente pour dire la meme chose.
+     * ouvert. 🛑 <b>D-70 (2026-10-03)</b> : aucun de ses blocs ne reste vide —
+     * une comprehension mesuree sous l'objectif recoit les paliers qui l'en
+     * separent, toute autre epreuve son examen blanc
+     * ({@code JourneyService.completerLesBlocsVides}). Un bloc vide se lisait
+     * « termine » sans qu'on y ait rien fait.
      */
     @Transactional
     public JourneyDto actualiser(UUID userId, Module module) {
@@ -109,6 +110,9 @@ public class JourneyCycleService {
         // priorite n'a peuples. Le cycle promu ne portait jusqu'ici que des
         // lots : il lui manquait ses « Évaluer mon niveau ».
         journeyService.ajouterLesEpreuvesNonMesurees(suivant, userId);
+        // D-70 — aucun bloc ne reste vide : la comprehension sous l'objectif
+        // recoit ses paliers, toute autre epreuve son examen blanc.
+        journeyService.completerLesBlocsVides(suivant, stepManager.findAll(suivant.getId()));
 
         log.info("Cycle {} historise (sortie={}), cycle {} promu en cours",
                 enCours.getId(), sortie, suivant.getId());

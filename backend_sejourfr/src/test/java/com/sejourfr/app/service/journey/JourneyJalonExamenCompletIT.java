@@ -298,6 +298,9 @@ class JourneyJalonExamenCompletIT extends AbstractIntegrationTest {
                 .as("deux cycles de travail depuis l'examen complet")
                 .isNull();
 
+        // ⚠️ D-70 (2026-10-03) : la lecture a complete ses blocs vides (un examen
+        // blanc par epreuve sans etape) ; ils se passent avant d'actualiser.
+        cloreToutesLesEtapes(courant);
         // Un cycle de travail de plus : le jalon revient.
         cycleService.actualiser(user.getId(), Module.TCF);
         assertThat(journeys.findById(courant.getId()).orElseThrow().getStatus())

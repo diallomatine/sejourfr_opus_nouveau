@@ -24,6 +24,7 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanSourceType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.entity.Attempt;
@@ -34,6 +35,7 @@ import com.sejourfr.app.util.ApresCommit;
 import com.sejourfr.app.manager.JourneyManager;
 import com.sejourfr.app.manager.JourneyStepManager;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.manager.SkillManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.SkillMasteryEngine;
@@ -134,6 +136,7 @@ public class JourneyService {
     private final SkillMasteryResolver masteryResolver;
     private final TcfProfileService profileService;
     private final NiveauActuelEpreuveResolver mesureResolver;
+    private final SkillManager skillManager;
     private final UserManager userManager;
     // ⚠️ Cote civique : l'ordre des priorites est LU chez le plan derive (D-36),
     // les unites chez le referentiel (D-48), les thematiques chez `themes`.
@@ -168,6 +171,8 @@ public class JourneyService {
         boolean relire = rouvrirLesEtapesCloseesSansSeries(courant, etapes);
         relire |= rattraperLesEvaluationsInitiales(courant, etapes);
         relire |= rattraperLesExamensNonSignales(courant, etapes);
+        // 🛑 EN DERNIER : un bloc vide se juge sur la file deja reparee.
+        relire |= completerLesBlocsVides(courant, etapes);
         if (relire) {
             etapes = stepManager.findAll(courant.getId());
         }
@@ -1691,6 +1696,112 @@ public class JourneyService {
             checkpoint.setSourceAssessmentId(prevu.sourceAssessmentId());
             ajouter(journey, checkpoint);
         }
+    }
+
+    /**
+     * <b>D-70 — aucun bloc d'un cycle de travail ne reste VIDE</b> (decision du
+     * proprietaire, 2026-10-03 : « si le plan est fini et qu'on n'a rien trouve
+     * a travailler, toujours proposer des examens blancs ; ici on a eu A1, donc
+     * il devrait proposer des seances en A2, B1, et meme B2 »).
+     *
+     * <p>Constat de prod ({@code user@sejourfr.fr}) : le cycle actualise ne
+     * portait que des lots EO et EE ; les blocs CO et CE, sans aucune etape,
+     * etaient servis {@code TERMINE} — « termines » sans qu'on y ait rien fait,
+     * pour une epreuve a A1 sous un objectif B2.
+     *
+     * <p>Pour chaque epreuve sans AUCUNE etape (obsoletes exclues), dans
+     * l'ordre du TCF :
+     * <ol>
+     *   <li><b>comprehension mesuree sous l'objectif</b> : la competence de
+     *       chaque palier entre le niveau du domaine (lecture Plan, D-2) et
+     *       l'objectif ({@link JourneyLotBuilder#versLObjectif}), puis son
+     *       examen blanc (R3) ;</li>
+     *   <li><b>sinon</b> — expression, objectif atteint, niveau inconnu — un
+     *       <b>examen blanc</b> seul : {@code REASSESS} si l'epreuve est mesuree,
+     *       {@code INITIAL_ASSESSMENT} sinon (R12).</li>
+     * </ol>
+     *
+     * <p>🛑 <b>Cycles de rang ≥ 2 seulement</b> : le premier cycle a sa propre
+     * composition (cycle d'examens D-69, affinage D-64), qui pose deja un examen
+     * par bloc. Appele a l'actualisation ET a la lecture : c'est la lecture qui
+     * repare, sans migration, les cycles promus avant cette regle.
+     *
+     * <p>🛑 Rien d'anterieur ne ferme ces etapes : un examen passe avant la
+     * creation du cycle ne clot jamais une de ses etapes (D-69 ter).
+     *
+     * @return {@code true} si des etapes ont ete ajoutees
+     */
+    boolean completerLesBlocsVides(Journey journey, List<JourneyStep> etapes) {
+        if (journey.getModule() != Module.TCF
+                || journey.getStatus() != JourneyStatus.EN_COURS) return false;
+        if (blocsVides(etapes).isEmpty()) return false;
+        UUID userId = journey.getUser().getId();
+        if (journeyManager.compterHistorises(userId, Module.TCF) == 0) return false;
+
+        // Deux lectures simultanees ne completent pas deux fois : la seconde
+        // attend, relit la file, et n'y trouve plus de bloc vide.
+        journeyManager.verrouillerLaCreation(userId, Module.TCF);
+        Journey verrouille = journeyManager.findForUpdate(journey.getId()).orElse(null);
+        if (verrouille == null) return false;
+        Set<EpreuveType> vides = blocsVides(stepManager.findAll(verrouille.getId()));
+        if (vides.isEmpty()) return false;
+
+        TargetLevel cible = verrouille.getTargetLevel();
+        TcfLevelProfile profil = profileService.levelProfile(userId);
+        List<LearningPlanObservation> tout = observationManager.findAllByUserWithSkill(userId);
+        Set<UUID> maitrisees = maitriseesCeJour(tout, evaluationFilter.retenir(tout));
+        List<Skill> comprehension = skillManager.findActiveComprehension();
+
+        List<JourneyLotBuilder.Lot> lots = new ArrayList<>();
+        Map<EpreuveType, Boolean> examensSeuls = new LinkedHashMap<>();
+        for (EpreuveType epreuve : TcfDomainProfileDto.ORDRE) {
+            if (!vides.contains(epreuve)) continue;
+            NiveauActuelEpreuveResolver.Mesure mesure = mesureResolver.mesure(userId, epreuve);
+            JourneyLotBuilder.Lot lot = mesure.mesuree()
+                    ? lotBuilder.versLObjectif(epreuve, mesure.attemptId(),
+                            niveauDuDomaine(profil, epreuve), cible, comprehension, maitrisees)
+                    : null;
+            if (lot != null) lots.add(lot);
+            else examensSeuls.put(epreuve, mesure.mesuree());
+        }
+        creerLots(verrouille, lotBuilder.ordonner(lots, cible, profil));
+        examensSeuls.forEach((epreuve, mesuree) -> {
+            JourneyStep examen = new JourneyStep();
+            examen.setJourney(verrouille);
+            examen.setType(JourneyStepType.SECTION_EXAM);
+            examen.setPurpose(mesuree
+                    ? JourneyStepPurpose.REASSESS : JourneyStepPurpose.INITIAL_ASSESSMENT);
+            examen.setExamType(epreuve);
+            ajouter(verrouille, examen);
+        });
+        journeyManager.save(verrouille);
+        log.info("Parcours {} : blocs vides completes (D-70) — paliers {}, examens seuls {}",
+                verrouille.getId(), lots.stream().map(JourneyLotBuilder.Lot::epreuve).toList(),
+                examensSeuls.keySet());
+        return true;
+    }
+
+    /** Les epreuves dont le cycle ne porte AUCUNE etape (obsoletes exclues). */
+    private static Set<EpreuveType> blocsVides(List<JourneyStep> etapes) {
+        Set<EpreuveType> vides = new LinkedHashSet<>(TcfDomainProfileDto.ORDRE);
+        for (JourneyStep step : etapes) {
+            if (step.getResolution() == JourneyStepResolution.SUPERSEDED) continue;
+            if (step.getExamType() != null) vides.remove(step.getExamType());
+        }
+        return vides;
+    }
+
+    /** Le niveau du DOMAINE, lecture Plan (D-2) — celle qui ordonne deja les lots. */
+    private static NiveauCecrl niveauDuDomaine(
+            TcfLevelProfile profil, EpreuveType epreuve) {
+        if (profil == null) return null;
+        return switch (epreuve) {
+            case TCF_CO -> profil.co();
+            case TCF_CE -> profil.ce();
+            case TCF_EE -> profil.ee();
+            case TCF_EO -> profil.eo();
+            default -> null;
+        };
     }
 
     /**
