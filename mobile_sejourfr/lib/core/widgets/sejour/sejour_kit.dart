@@ -142,7 +142,7 @@ class SfSectionTitle extends StatelessWidget {
       style: mono
           ? AppFonts.label(size: 11, color: AppColors.muted)
           : lead
-              ? AppFonts.ui(size: 24, weight: FontWeight.w800, height: 1.15)
+              ? AppFonts.ui(size: 20, weight: FontWeight.w800, height: 1.15)
               : AppFonts.display(size: 16, weight: FontWeight.w700),
     );
     final lien = action;
@@ -3477,7 +3477,7 @@ class SfCycleProgress extends StatelessWidget {
                     Text(
                       titre,
                       style: AppFonts.display(
-                          size: 18, weight: FontWeight.w700, height: 1.2),
+                          size: 16, weight: FontWeight.w700, height: 1.2),
                     ),
                   ],
                 ),
@@ -3486,7 +3486,7 @@ class SfCycleProgress extends StatelessWidget {
               Text(
                 '$done/$total',
                 style: AppFonts.display(
-                    size: 20, weight: FontWeight.w800, height: 1),
+                    size: 18, weight: FontWeight.w800, height: 1),
               ),
             ],
           ),
@@ -3502,7 +3502,7 @@ class SfCycleProgress extends StatelessWidget {
             Text(
               hint!,
               style:
-                  AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+                  AppFonts.ui(size: 13, color: AppColors.muted, height: 1.35),
             ),
           ],
         ],
@@ -3884,8 +3884,7 @@ class SfExamStepAction extends StatelessWidget {
             ),
           ],
         ),
-      final SfExamStepStart start =>
-        _SfExamStepButton(start, civique: civique),
+      final SfExamStepStart start => _SfExamStepButton(start, civique: civique),
       null => null,
     };
     final pied = note != null || noteAction != null;
@@ -6653,7 +6652,7 @@ class SfModuleHeader extends StatelessWidget {
         Text(
           title,
           style:
-              AppFonts.display(size: 32, weight: FontWeight.w800, height: 1.05),
+              AppFonts.display(size: 28, weight: FontWeight.w800, height: 1.05),
         ),
         if (lead != null) ...[
           const SizedBox(height: 8),
@@ -6697,7 +6696,7 @@ class SfProgressSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = AppColors.module(civique: civique);
-    final big = AppFonts.display(size: 26, weight: FontWeight.w800, height: 1);
+    final big = AppFonts.display(size: 22, weight: FontWeight.w800, height: 1);
     return Material(
       color: AppColors.white,
       borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -6731,7 +6730,7 @@ class SfProgressSummary extends StatelessWidget {
                           Text(
                             '→',
                             style: AppFonts.display(
-                              size: 22,
+                              size: 19,
                               weight: FontWeight.w800,
                               height: 1,
                             ),
@@ -6900,14 +6899,14 @@ class SfObjectiveRow extends StatelessWidget {
                   Text(
                     title,
                     style: AppFonts.display(
-                        size: 18, weight: FontWeight.w700, height: 1.2),
+                        size: 16, weight: FontWeight.w700, height: 1.2),
                   ),
                   if (meta != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       meta!,
                       style: AppFonts.ui(
-                          size: 14, color: AppColors.muted, height: 1.35),
+                          size: 13, color: AppColors.muted, height: 1.35),
                     ),
                   ],
                 ],
@@ -7046,14 +7045,14 @@ class SfActionCard extends StatelessWidget {
                     Text(
                       title,
                       style: AppFonts.display(
-                          size: 19, weight: FontWeight.w700, height: 1.2),
+                          size: 17, weight: FontWeight.w700, height: 1.2),
                     ),
                     if (meta != null) ...[
                       const SizedBox(height: 4),
                       Text(
                         meta!,
                         style: AppFonts.ui(
-                            size: 14, color: AppColors.muted, height: 1.35),
+                            size: 13, color: AppColors.muted, height: 1.35),
                       ),
                     ],
                   ],
@@ -7491,7 +7490,7 @@ class SfHero extends StatelessWidget {
                             Text(
                               title,
                               style: AppFonts.display(
-                                size: 28,
+                                size: 24,
                                 weight: FontWeight.w800,
                                 color: AppColors.white,
                                 height: 1.05,
@@ -7516,7 +7515,7 @@ class SfHero extends StatelessWidget {
                             Text(
                               chiffre.value,
                               style: AppFonts.display(
-                                size: 28,
+                                size: 24,
                                 weight: FontWeight.w800,
                                 color: AppColors.white,
                                 height: 1,
@@ -7741,14 +7740,14 @@ class SfInfoCard extends StatelessWidget {
                 Text(
                   title,
                   style: AppFonts.display(
-                      size: 18, weight: FontWeight.w700, height: 1.2),
+                      size: 16, weight: FontWeight.w700, height: 1.2),
                 ),
                 if (meta != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     meta!,
                     style: AppFonts.ui(
-                        size: 14, color: AppColors.muted, height: 1.35),
+                        size: 13, color: AppColors.muted, height: 1.35),
                   ),
                 ],
               ],
@@ -7828,7 +7827,7 @@ class SfMetric extends StatelessWidget {
           Text(
             value,
             style:
-                AppFonts.display(size: 28, weight: FontWeight.w800, height: 1),
+                AppFonts.display(size: 24, weight: FontWeight.w800, height: 1),
           ),
           if (etat != null) ...[
             const SizedBox(height: 8),
@@ -7938,7 +7937,7 @@ class SfLevelRow extends StatelessWidget {
                 Text(
                   value,
                   style: AppFonts.display(
-                      size: 18, weight: FontWeight.w800, height: 1.1),
+                      size: 16, weight: FontWeight.w800, height: 1.1),
                 ),
                 if (etat != null) ...[
                   const SizedBox(height: 3),
@@ -8062,7 +8061,7 @@ class SfTimeline extends StatelessWidget {
             Text(
               caption!,
               style:
-                  AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+                  AppFonts.ui(size: 13, color: AppColors.muted, height: 1.35),
             ),
           ],
         ],
@@ -8181,7 +8180,7 @@ class SfThemeCard extends StatelessWidget {
                           Text(
                             title,
                             style: AppFonts.display(
-                                size: 17, weight: FontWeight.w700, height: 1.2),
+                                size: 16, weight: FontWeight.w700, height: 1.2),
                           ),
                           if (description != null) ...[
                             const SizedBox(height: 4),
@@ -8362,7 +8361,7 @@ class SfProgressionHead extends StatelessWidget {
     final second = secondary;
     final part = progress;
     final grand =
-        AppFonts.display(size: 31, weight: FontWeight.w800, height: 1);
+        AppFonts.display(size: 26, weight: FontWeight.w800, height: 1);
     final micro = AppFonts.ui(size: 12, color: AppColors.muted, height: 1.35);
 
     final Widget corps;
@@ -8528,7 +8527,7 @@ class SfExamRow extends StatelessWidget {
                   Text(
                     title,
                     style: AppFonts.display(
-                        size: 17, weight: FontWeight.w700, height: 1.2),
+                        size: 16, weight: FontWeight.w700, height: 1.2),
                   ),
                   if (meta != null) ...[
                     const SizedBox(height: 4),
