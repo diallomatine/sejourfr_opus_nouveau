@@ -747,7 +747,7 @@ class PlanRecommendedExercise {
 /// Il ne désigne **aucun contenu nouveau** — juste une session d'examen blanc
 /// déjà existante, par son [epreuve] et son [slotNumber]. D'où l'absence
 /// assumée de titre, de compétence et de section : le serveur expose des faits,
-/// la phrase appartient aux fronts (`plan_milestone_labels.dart`), exactement
+/// la phrase appartient aux fronts, exactement
 /// comme pour `PlanChange`.
 ///
 /// Deux natures : un examen blanc d'épreuve ([PlanExerciseKind.epreuveMockExam],

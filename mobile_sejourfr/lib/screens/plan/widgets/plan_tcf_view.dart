@@ -18,8 +18,6 @@ import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
 import '../plan_cta.dart';
 import '../plan_labels.dart';
-import '../plan_milestone_labels.dart';
-import '../plan_milestone_launcher.dart';
 import '../plan_now_card.dart';
 import 'examen_complet_jalon.dart';
 import 'plan_cycle_section.dart';
@@ -102,7 +100,6 @@ class PlanTcfView extends ConsumerWidget {
   /* ------------------------------------------------------------- abonné --- */
 
   List<Widget> _premium(BuildContext context, WidgetRef ref) {
-    final milestone = plan.milestone;
 
     return <Widget>[
       const SizedBox(height: 14),
@@ -120,7 +117,6 @@ class PlanTcfView extends ConsumerWidget {
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
       // (« Actualiser mon plan », D-66). Sa carte « Cycle » est en tête.
       PlanCycleSection(plan: plan, journey: journey, carteDeCycle: false),
-      if (milestone != null) _milestoneSection(context, ref, milestone),
       _links(context),
       const SizedBox(height: 28),
     ];
@@ -324,43 +320,6 @@ class PlanTcfView extends ConsumerWidget {
   /// Le **jalon** : un examen blanc que le serveur juge mérité. Il n'a aucun
   /// équivalent dans la maquette, et il porte une information qu'elle ne couvre
   /// pas — d'où sa place, en fin d'écran.
-  Widget _milestoneSection(
-    BuildContext context,
-    WidgetRef ref,
-    PlanMilestone milestone,
-  ) {
-    return SfSection(
-      title: kPlanMilestoneSectionTitle,
-      flush: true,
-      lead: true,
-      child: SfNoteCard(
-        icon: LucideIcons.graduationCap,
-        title: milestone.displayTitle,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SfTiny(milestone.displayText),
-            const SizedBox(height: 4),
-            SfTiny(milestone.displayMeta),
-            const SizedBox(height: 12),
-            SfButton(
-              label: milestone.locked
-                  ? kPlanMilestoneLockedCta
-                  : kPlanMilestoneCta,
-              variant: SfButtonVariant.blue,
-              onPressed: () => unawaited(
-                milestone.locked
-                    ? Future.sync(() => _versEcranDeDeblocage(context))
-                    : startPlanMilestone(context, ref, milestone,
-                        origine: PlanOrigine.plan),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Les accès secondaires du Plan.
   ///
   /// 🛑 **Deux accès au plus** (arbitrage du propriétaire,

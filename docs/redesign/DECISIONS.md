@@ -298,3 +298,11 @@
 - Choix : B, web et mobile : `NowCard.module` ⇄ `SfNowCard.civique` (pastille d'icône), boutons TCF en variante `tcf`. Corollaire de X1 / DEC-26.
 - Fichiers impactés : `SejourKit.tsx`, `sejour.module.css`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `sejour_kit.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`
 - Réversibilité : facile
+
+### DEC-38 — Section « Votre prochain jalon » retirée du Plan TCF (demande du propriétaire)
+- Phase : 4 (retour du propriétaire)
+- Contexte : le propriétaire demande de retirer cette section du Plan TCF, web et mobile.
+- Options envisagées : — (demande explicite)
+- Choix : section supprimée des deux Plans TCF, avec ce qui n'avait plus de lecteur (web `PlanMilestoneCard.tsx`, libellés et `planMilestoneTitle/Text/Meta` ; mobile `plan_milestone_labels.dart`, `_milestoneSection`). Conservés : le DTO `milestone` (miroir backend), le lanceur `startPlanMilestone` (encore lu par la séance et l'exercice recommandé) et la pastille `PLAN_MILESTONE_PILL` (lue par `plan-domain.ts`). L'examen reste accessible par TCF · Examens blancs ; le jalon d'examen complet (`ExamenCompletJalon`, D-68) n'est pas concerné.
+- Fichiers impactés : `LearningPlanView.tsx`, `lib/diagnostic.ts`, `plan_tcf_view.dart`, `diagnostic_models.dart` (commentaire)
+- Réversibilité : facile (historique git)

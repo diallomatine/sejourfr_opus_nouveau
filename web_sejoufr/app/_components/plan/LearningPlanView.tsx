@@ -75,7 +75,6 @@ import {
 } from "@/app/_components/sejour/SejourKit";
 import {planNowIcon} from "./PlanBits";
 import {PlanPaywall} from "./PlanPaywallCard";
-import {PlanMilestoneCard} from "./PlanMilestoneCard";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
@@ -360,11 +359,6 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
               }
             />
 
-            {/* ⚠️ Bloc conservé hors maquette : il porte une information
-                qu'elle ne couvre pas — un examen blanc mérité. */}
-            {!free && plan.milestone && (
-              <PlanMilestoneCard milestone={plan.milestone} journeyId={journey?.journeyId ?? null} />
-            )}
           </>
         }
         side={

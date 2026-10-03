@@ -41,6 +41,9 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
   `ProgressionHead`, `ExamRow` (refait), `Badge`, `Split`/`Grid` (mise en page web seule).
   Supprimées : `ModuleToggle`, `TopSlot`, `TopInAppBar`, `LevelLadder`, `LevelCard(Grid)`,
   `GoalBanner`, `EpreuveRow`. Miroirs `Sf*` côté Flutter, mêmes noms.
+- **Plan TCF** : la section « Votre prochain jalon » est **retirée** (DEC-38, demande du
+  propriétaire) — `PlanMilestoneCard` / `plan_milestone_labels.dart` n'existent plus ; les
+  mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.
 - **Écrans** : Accueil = kicker / « Bonjour » / À faire maintenant (2 cartes) / Mes objectifs
   (2 `ObjCard`) ; Plan, Entraînement, Examens, Progression et Profil suivent la maquette
   `docs/redesign/sejourfr-navigation-web.html`, blocs existants gardés en dessous.

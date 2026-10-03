@@ -40,6 +40,9 @@ conditions réelles.
   web. **États servis** : `etatEpreuveTcf` / `etatThemeCivique` (`progres_labels.dart`).
   **Gestes** : `screens/plan/now_card_gestes.dart` (Accueil + Progression). **Pass** :
   `passAccessName` (`billing_models.dart`).
+- **Plan TCF** : la section « Votre prochain jalon » est **retirée** (DEC-38, demande du
+  propriétaire) — `PlanMilestoneCard` / `plan_milestone_labels.dart` n'existent plus ; les
+  mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.
 - **Kit** : `SfModuleHeader`, `SfProgressSummary`, `SfBackLink`, `SfActionCard`,
   `SfObjectivesCard`/`SfObjectiveRow`, `SfBlockSkeleton`/`SfBlockError`, `SfHero`
   (ex-`SfHeroBanner`), `SfInfoCard`, `SfMetric`, `SfLevelList`/`SfLevelRow`, `SfTimeline`,
