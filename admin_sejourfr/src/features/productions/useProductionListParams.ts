@@ -14,8 +14,8 @@ import type { PeriodChoice } from "./productionLabels";
 
 export { PAGE_SIZE_OPTIONS } from "../../hooks/useUrlListState";
 
-/** F-9 : 50 par page, comme le défaut du serveur. */
-export const PRODUCTIONS_PAGE_SIZE = 50;
+/** 25 par page, comme le défaut du serveur (F-9 révisé le 2026-10-03). */
+export const PRODUCTIONS_PAGE_SIZE = 25;
 
 const DEFAULT_SORT: AdminProductionTri = "DATE_DESC";
 const PERIODES: readonly AdminProductionPeriode[] = ["TODAY", "LAST_7_DAYS", "LAST_30_DAYS"];

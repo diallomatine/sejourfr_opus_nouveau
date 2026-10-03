@@ -395,7 +395,7 @@ Contrôler une production EE/EO corrigée par IA : **repérer → ouvrir → com
 
 - **Routes** : `/productions-ia` (liste) et `/productions-ia/:id` (fiche). Entrée de nav
   « Génération IA › Productions IA » (F-8).
-- **Liste** : pagination serveur **50** (F-9, `useUrlListState(50)`), état dans l'URL
+- **Liste** : pagination serveur **25** par défaut (F-9 révisé, `useUrlListState(25)`, sélecteur en bas), état dans l'URL
   (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&periode|from+to&internes&sort&page&size`),
   comptes internes exclus par défaut (case « Inclure les comptes internes », F-7). Plage
   personnalisée = `from`/`to` posés ensemble (aujourd'hui Paris par défaut), jamais avec

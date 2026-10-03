@@ -989,7 +989,7 @@ Audit : `docs/admin/productions_corrections/audit-admin-productions-ia.md` ; dé
 aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le front ne recalcule rien.
 
 - `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=&from=&to=&includeInternal=&sort=&page=&size=`
-  → `PageResponse<AdminProductionListItemDto>` (`page` indexée à 0, `size` défaut **50**, bornée
+  → `PageResponse<AdminProductionListItemDto>` (`page` indexée à 0, `size` défaut **25**, bornée
   `[1, 100]`).
   - `q` : UUID complet ⇒ id de production **ou** id utilisateur ; sinon email « contient »,
     sans casse, `%`/`_` échappés.

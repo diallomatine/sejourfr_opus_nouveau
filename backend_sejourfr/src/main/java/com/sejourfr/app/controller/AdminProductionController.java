@@ -61,7 +61,7 @@ public class AdminProductionController {
             @RequestParam(defaultValue = "false") boolean includeInternal,
             @RequestParam(defaultValue = "DATE_DESC") AdminProductionTri sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "25") int size) {
         return productionService.list(
                 new AdminProductionService.Filtres(q, epreuve, tache, niveau, statut, signalement, annotation,
                         periode, from, to, includeInternal),

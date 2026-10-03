@@ -224,6 +224,9 @@ n'existait dans `admin_sejourfr/`). Aucun bug backend bloquant rencontré : back
   `from`/`to` d'un coup — deux écritures successives enverraient une requête invalide (400).
 - **Change** : `useProductionListParams` ; aucun changement de comportement pour Utilisateurs /
   Abonnements.
+- **Révision du 2026-10-03 (propriétaire)** : la liste Productions IA passe à **25 par défaut**
+  (serveur `AdminProductionController` et front `PRODUCTIONS_PAGE_SIZE`), modifiable par le
+  sélecteur en bas de liste (10 / 25 / 50 / 100). F-9 révisé.
 
 ### DI-24 — Période : `periode` OU `from`+`to`, jamais complétée
 - **Décision** : « Personnalisée » pose `from = to = aujourd'hui (Paris)` ; une plage illisible

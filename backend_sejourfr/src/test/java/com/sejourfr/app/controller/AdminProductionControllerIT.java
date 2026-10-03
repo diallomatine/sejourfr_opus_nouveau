@@ -122,7 +122,7 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
         JsonNode page = list();
 
         assertThat(ids(page)).containsExactly(recente.getId().toString(), egales.get(0), egales.get(1));
-        assertThat(page.get("size").asInt()).isEqualTo(50);
+        assertThat(page.get("size").asInt()).isEqualTo(25);
         assertThat(page.get("page").asInt()).isZero();
         assertThat(page.get("totalElements").asLong()).isEqualTo(3);
     }
