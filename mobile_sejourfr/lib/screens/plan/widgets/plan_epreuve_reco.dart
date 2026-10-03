@@ -54,7 +54,6 @@ class PlanEpreuveReco extends ConsumerWidget {
       ref.watch(learningPlanProvider).valueOrNull,
       ref.watch(journeyProvider).valueOrNull,
       blocCode,
-      free: !auth.user.hasTcf,
     );
     if (carte == null) return const SizedBox.shrink();
     // 🛑 La carte porte **sa** marge basse et **aucune** marge latérale : les

@@ -528,6 +528,43 @@ export const JOURNEY_EXAM_NOTE_PROGRESSION = "Terminez d'abord les étapes ci-de
 /** Verrou `ACCESS` — suivi du lien « Débloquer mon plan → ». */
 export const JOURNEY_EXAM_NOTE_ACCESS = "Réservé à l'offre complète.";
 
+/* --------------------------------- « Mesurer mon niveau » (cycle de mesure) ---
+ * Sur un cycle d'EXAMENS (`cycle.cycleDeMesure` servi, D-69), la carte
+ * « À faire maintenant » dit ce que l'examen fait pour le candidat : il mesure
+ * son niveau, et le plan suivant se construit dessus. Seuls les mots changent :
+ * le lanceur et le créneau restent ceux de la ligne du cycle.
+ *
+ * 🛑 « Premier examen » se lit sur `purpose === "INITIAL_ASSESSMENT"` servi
+ * (l'épreuve n'a jamais été mesurée), jamais sur un rang de cycle.
+ *
+ * Miroir mot pour mot de `kJourneyMesure*` (`journey_labels.dart`).
+ */
+export const JOURNEY_MESURE_KIND = "Mesurer mon niveau";
+export const JOURNEY_MESURE_NOTE_TCF =
+    "Premier examen : il mesure votre niveau de départ, votre plan se construit sur ses résultats.";
+export const JOURNEY_MESURE_NOTE_CIVIQUE =
+    "Premier examen de ce thème : il mesure votre niveau de départ, votre plan se construit sur ses résultats.";
+export const JOURNEY_MESURE_NOTE_REMESURE =
+    "Cet examen mesure votre niveau actuel : votre prochain plan se construit sur ses résultats.";
+
+/** Les mots d'un examen de cycle de mesure, `null` hors de ce cas. */
+export interface JourneyMesureMots {
+    kind: string;
+    note: string;
+}
+
+export function journeyMesureMots(
+    journey: JourneyDto | null,
+    etape: JourneyStepDto,
+    module: ParcoursModule,
+): JourneyMesureMots | null {
+    if (etape.type !== "SECTION_EXAM" || journey?.cycle?.cycleDeMesure !== true) return null;
+    const note = etape.purpose !== "INITIAL_ASSESSMENT"
+        ? JOURNEY_MESURE_NOTE_REMESURE
+        : module === "CIVIQUE" ? JOURNEY_MESURE_NOTE_CIVIQUE : JOURNEY_MESURE_NOTE_TCF;
+    return {kind: JOURNEY_MESURE_KIND, note};
+}
+
 /** Ce que le lanceur d'examen de thème civique reçoit (`useMockExamLauncher`,
  *  `kind: "CIVIQUE"`). */
 export interface JourneyExamenThemeLance {

@@ -24,10 +24,10 @@ import 'plan_seance_state.dart';
 /// ⚠️ La carte de reprise de Réviser en dérivait aussi, pour la même raison ;
 /// elle est **retirée** de l'écran Entraînement (2026-10-03).
 ///
-/// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`), drapeau
-/// `free` compris : depuis le 2026-09-20, les deux fronts rendent le plan
-/// gratuit et le plan abonné avec la **même** carte, et `free` n'y décide que
-/// le geste.
+/// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`) : les
+/// deux fronts rendent le plan gratuit et le plan abonné avec la **même**
+/// carte, et le geste suit le verrou SERVI de l'étape, jamais l'abonnement
+/// (2026-10-04).
 enum PlanNowNature {
   /// Une **mesure de domaine** de la séance : le candidat a produit et le
   /// correcteur n'a rien pu observer. 🛑 **Seulement sans parcours** — avec un
@@ -103,6 +103,7 @@ class PlanNowCard {
     required this.minutesLabel,
     required this.kindLabel,
     required this.lines,
+    this.note,
     required this.cta,
     required this.locked,
   });
@@ -174,6 +175,10 @@ class PlanNowCard {
   /// Le constat, ligne par ligne — jamais concaténé.
   final List<String> lines;
 
+  /// **La ligne discrète d'un examen de cycle de MESURE** (`cycle.cycleDeMesure`
+  /// servi), `null` partout ailleurs — cf. [journeyMesureMots].
+  final String? note;
+
   /// Ce que dit le bouton de la carte : « Compléter la mesure », « Faire la
   /// vérification », « Découvrir », « Continuer » ou « Commencer ».
   final String cta;
@@ -185,6 +190,9 @@ class PlanNowCard {
   bool get estVerification => nature == PlanNowNature.verification;
   bool get estIndisponible => nature == PlanNowNature.indisponible;
   bool get estADebloquer => geste == PlanNowGeste.debloquer;
+
+  /// Les lignes sous la carte du Plan : le constat, puis la [note] de mesure.
+  List<String> get captionLines => [...lines, if (note != null) note!];
 }
 
 /// **Ce qu'une ligne du cycle LANCE** — l'action de l'étape, résolue par les
@@ -309,9 +317,8 @@ class PlanEpreuveCarte {
 PlanEpreuveCarte? planEpreuveCarte(
   LearningPlan? plan,
   Journey? journey,
-  String blocCode, {
-  bool free = false,
-}) {
+  String blocCode,
+) {
   JourneyBloc? bloc;
   for (final b in journey?.blocs ?? const <JourneyBloc>[]) {
     if (b.bloc.code == blocCode) {
@@ -333,7 +340,9 @@ PlanEpreuveCarte? planEpreuveCarte(
   final exam = bloc.exam;
   step ??= exam != null && ouverte(exam) ? exam : null;
   if (step == null) return null;
-  final locked = free || step.locked;
+  // 🛑 Le verrou SERVI de l'étape, jamais déduit de l'abonnement : celui que lit
+  // la ligne du cycle (D-69 : l'examen blanc n°1 est offert).
+  final locked = step.locked;
   final action = locked || plan == null ? null : planStepAction(plan, step);
   // 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
   // jamais un bouton mort (garde-fou A25, transposé).
@@ -369,19 +378,11 @@ PlanEpreuveCarte? planEpreuveCarte(
 /// le verrou sont tous **servis**. Cette fonction ne fait que choisir quelle
 /// identité la carte porte, et le dire une seule fois pour les six surfaces.
 ///
-/// 🛑 **[free] ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
-/// « faire en sorte qu'un non abonné voie également le "à faire maintenant"
-/// d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
-/// Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
-/// titre, pastille « Priorité n°1 », métas, explication du correcteur,
-/// progression — et son bouton ouvre l'**offre** au lieu de lancer.
-///
-/// ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12
-/// (`_freeStepCard` et ses trois bénéfices verrouillés, « aucun geste ne part
-/// de cette carte »). **Ce qui TIENT** : « dans le plan, on ne travaille rien
-/// si on n'est pas abonné » — [free] force [PlanNowGeste.debloquer]
-/// **inconditionnellement**, et `_nowCard` ne branche que sur `geste`, donc
-/// aucun lanceur n'est joignable depuis un plan gratuit.
+/// 🛑 **Le geste suit le verrou SERVI, jamais l'abonnement** (2026-10-04 :
+/// « s'il peut cliquer là-bas, il peut cliquer ici, et ça ouvre la même
+/// chose »). Un compte sans accès reçoit **exactement** la carte d'un abonné ;
+/// le serveur ferme toute étape d'entraînement sans accès (D-18), et l'examen
+/// blanc n°1, offert (D-69), reste lançable — comme sur la ligne du cycle.
 ///
 /// 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
 /// la progression et les compteurs sont des **résultats mesurés**. On floute
@@ -389,7 +390,6 @@ PlanEpreuveCarte? planEpreuveCarte(
 PlanNowCard? planNowCard(
   LearningPlan plan, {
   Journey? journey,
-  bool free = false,
 }) {
   // 🛑 **UN PARCOURS EST SERVI ⇒ LA CARTE EST SON ÉTAPE COURANTE, ET RIEN
   // D'AUTRE** (2026-09-28). « À faire maintenant » est la première action du
@@ -406,11 +406,11 @@ PlanNowCard? planNowCard(
   // que le web.
   if (journey != null && journey.state != JourneyState.needsObjective) {
     final etape = journeyNowStep(journey);
-    return etape == null ? null : _carteDuParcours(plan, etape, free);
+    return etape == null ? null : _carteDuParcours(plan, etape, journey);
   }
   // Pas de parcours (non servi, ou aucun objectif déclaré) : le Plan dérivé
   // reste la seule source — une mesure passe devant, sinon la priorité n°1.
-  return _carteDuPlan(plan, free);
+  return _carteDuPlan(plan);
 }
 
 /// **La carte de l'étape que le parcours a désignée.**
@@ -426,51 +426,49 @@ PlanNowCard? planNowCard(
 PlanNowCard _carteDuParcours(
   LearningPlan plan,
   JourneyStep etape,
-  bool free,
+  Journey journey,
 ) {
   final mesure = _mesureDe(etape);
-  if (mesure != null) return _carteExamen(etape, mesure, free);
+  if (mesure != null) return _carteExamen(etape, mesure, journey);
   final priority = _priorityDe(plan, etape);
   if (priority != null) {
-    return _cartePriorite(plan, priority, etape: etape, free: free);
+    return _cartePriorite(plan, priority, etape: etape);
   }
   // 🛑 **L'exercice SERVI sur l'étape ferme le cul-de-sac** : hors de la
   // fenêtre des 5 priorités, la priorité est introuvable alors que l'étape a
   // bel et bien une action. La carte la lance, en nommant **cette étape-là**.
   final exerciceServi = etape.exercise;
   return exerciceServi == null
-      ? _carteIndisponible(etape, free)
-      : _carteEtapeServie(etape, exerciceServi, free);
+      ? _carteIndisponible(etape)
+      : _carteEtapeServie(etape, exerciceServi);
 }
 
 /// **La carte SANS parcours** — le Plan dérivé : une mesure de la séance passe
 /// devant tout le reste, sinon la priorité n°1. `null` quand il n'y a ni l'une
 /// ni l'autre (l'écran affiche alors son état vide).
-PlanNowCard? _carteDuPlan(LearningPlan plan, bool free) {
+PlanNowCard? _carteDuPlan(LearningPlan plan) {
   final mesure = planSeanceMesure(plan);
   final assessment = mesure?.assessment;
   if (mesure != null && assessment != null) {
-    return _carteMesure(plan, mesure, assessment, free);
+    return _carteMesure(plan, mesure, assessment);
   }
   final priority = plan.currentPriority;
   if (priority == null) return null;
-  return _cartePriorite(plan, priority, free: free);
+  return _cartePriorite(plan, priority);
 }
 
 /// **La carte d'une MESURE de la séance** — seulement sans parcours.
 ///
 /// 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
-/// D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre** ; `free`
-/// court-circuite tout, avant même le `locked` servi, et n'entre **pas** dans
-/// `locked`, qui reste le verrou **servi** et rien d'autre.
+/// D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre** — sur le
+/// verrou **servi**, et rien d'autre.
 PlanNowCard _carteMesure(
   LearningPlan plan,
   PlanSeanceItem mesure,
   PlanDomainAssessment assessment,
-  bool free,
 ) {
   final verrou = planSeanceItemLocked(mesure);
-  final offre = free || verrou;
+  final offre = verrou;
   final priority = plan.currentPriority;
   return PlanNowCard(
     nature: PlanNowNature.mesure,
@@ -508,12 +506,20 @@ PlanNowCard _carteMesure(
 /// appartient à la séance du Plan dérivé, pas au cycle.
 ///
 /// L'action est l'`assessment` **servi** sur l'étape ; le verrou est celui de
-/// l'étape **ou** de ce qu'elle lance, et `free` ne décide que du geste.
-PlanNowCard _carteExamen(JourneyStep etape, PlanSeanceItem mesure, bool free) {
+/// l'étape **ou** de ce qu'elle lance — le même que la ligne du cycle.
+///
+/// Sur un cycle de MESURE (servi), seuls les mots changent : « Mesurer mon
+/// niveau » et la ligne [PlanNowCard.note] ([journeyMesureMots]).
+PlanNowCard _carteExamen(
+  JourneyStep etape,
+  PlanSeanceItem mesure,
+  Journey journey,
+) {
   final assessment = mesure.assessment!;
   final verrou = etape.locked || planSeanceItemLocked(mesure);
-  final offre = free || verrou;
+  final offre = verrou;
   final meta = journeyNowMeta(etape);
+  final mots = journeyMesureMots(journey, etape, civique: false);
   return PlanNowCard(
     nature: PlanNowNature.etape,
     geste: offre ? PlanNowGeste.debloquer : PlanNowGeste.lancer,
@@ -529,8 +535,9 @@ PlanNowCard _carteExamen(JourneyStep etape, PlanSeanceItem mesure, bool free) {
     objectiveLabel: null,
     objective: null,
     minutesLabel: _minutes(assessment.estimatedMinutes),
-    kindLabel: planAssessmentNature(assessment),
+    kindLabel: mots?.kind ?? planAssessmentNature(assessment),
     lines: meta == null ? const <String>[] : [meta],
+    note: mots?.note,
     // Même libellé que le web (`journeyNowCta(etape, verrou)`).
     cta: journeyNowCta(etape, offre),
     locked: verrou,
@@ -543,7 +550,6 @@ PlanNowCard _cartePriorite(
   LearningPlan plan,
   LearningPlanPriority priority, {
   JourneyStep? etape,
-  required bool free,
 }) {
   final exercise = priority.recommendedExercise;
 
@@ -574,10 +580,11 @@ PlanNowCard _cartePriorite(
   final epreuve = planEpreuveOfSection(priority.section);
   final task = SkillTaskCode.fromSkillCode(priority.skillCode);
   final level = planSkillTargetLevel(plan, priority.skillId);
-  // 🛑 `locked` reste le verrou **servi** ; `free` ne s'y mêle pas et ne
-  // gouverne que le geste.
-  final verrou = priority.locked || (exercise?.locked ?? false);
-  final offre = free || verrou;
+  // 🛑 Le verrou **servi** — celui de l'étape désignée compris (miroir web).
+  final verrou = (etape?.locked ?? false) ||
+      priority.locked ||
+      (exercise?.locked ?? false);
+  final offre = verrou;
 
   return PlanNowCard(
     nature: verifier ? PlanNowNature.verification : PlanNowNature.etape,
@@ -607,9 +614,8 @@ PlanNowCard _cartePriorite(
             task: task,
             level: level,
           ),
-    subtitle: verifier
-        ? planNowVerifySubtitle(priority.title, task)
-        : priority.title,
+    subtitle:
+        verifier ? planNowVerifySubtitle(priority.title, task) : priority.title,
     badge: planPriorityRankTag(1),
     objectiveLabel: verifier ? kPlanNowVerifyObjectiveLabel : null,
     objective: verifier ? kPlanNowVerifyText : null,
@@ -709,11 +715,10 @@ PlanSeanceItem? _mesureDe(JourneyStep etape) {
 PlanNowCard _carteEtapeServie(
   JourneyStep etape,
   PlanRecommendedExercise exercise,
-  bool free,
 ) {
   final epreuve = _epreuveDuBloc(etape);
   final verrou = etape.locked || exercise.locked;
-  final offre = free || verrou;
+  final offre = verrou;
   final sujets = etape.progress?.quota ?? 0;
   final minutes = exercise.estimatedMinutes;
   // 🛑 **Une étape de SÉRIES ouvre son écran, elle ne lance plus rien** — la
@@ -764,13 +769,12 @@ PlanNowCard _carteEtapeServie(
 /// Le titre et le sous-titre viennent des **libellés du parcours**
 /// (`journey_labels.dart`), la même autorité que la timeline : la carte et la
 /// ligne de la timeline disent donc mot pour mot la même chose.
-PlanNowCard _carteIndisponible(JourneyStep etape, bool free) {
+PlanNowCard _carteIndisponible(JourneyStep etape) {
   final epreuve = _epreuveDuBloc(etape);
-  // 🛑 Un compte **sans accès** n'a rien à lancer de toute façon : le geste est
-  // l'offre, même quand l'action de l'étape ne se résout pas. Sinon, une étape
-  // ouverte mais sans action reste **sans geste** — on ne lui fait pas ouvrir
-  // un paywall qui ne la débloquerait pas.
-  final offre = free || etape.locked;
+  // 🛑 Le verrou SERVI de l'étape, et lui seul. Une étape ouverte mais sans
+  // action reste **sans geste** — on ne lui fait pas ouvrir un paywall qui ne
+  // la débloquerait pas.
+  final offre = etape.locked;
   return PlanNowCard(
     nature: PlanNowNature.indisponible,
     // ⚠️ **`ouvrirEtape` ne s'applique PAS ici** : rien ne se résout, la carte

@@ -131,8 +131,10 @@ class PlanTcfView extends ConsumerWidget {
   /// 🛑 **La carte « À faire maintenant » est celle d'un abonné** (demande du
   /// propriétaire, 2026-09-20) — même titre de section, même pastille de
   /// priorité, mêmes métas, même explication du correcteur, même progression.
-  /// Seul le **geste** change, et il vient de [planNowCard] : `free: true` y
-  /// force [PlanNowGeste.debloquer], donc aucun lanceur n'est joignable d'ici.
+  /// Le **geste** vient de [planNowCard], sur le verrou SERVI de l'étape
+  /// (2026-10-04) : le serveur ferme toute étape d'entraînement sans accès,
+  /// et l'examen blanc n°1, offert (D-69), se lance comme depuis la ligne du
+  /// cycle.
   /// 🛑 **Depuis le Plan, TOUT chemin vers le paywall passe par l'ÉCRAN DE
   /// TRANSITION** (demande du propriétaire, 2026-09-20, TCF **et** civique) :
   /// il dit au candidat ce qu'il achète — ses priorités, son écart à
@@ -150,7 +152,7 @@ class PlanTcfView extends ConsumerWidget {
           title: kPlanNowTitle,
           flush: true,
           lead: true,
-          child: _nowCard(context, ref, free: true),
+          child: _nowCard(context, ref),
         ),
         // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
         // ouvre porte, lui, les verrous d'accès servis de chaque examen.
@@ -241,14 +243,13 @@ class PlanTcfView extends ConsumerWidget {
   /// 🛑 **Son contenu ET son geste sont décidés par [planNowCard], pas ici** —
   /// la même autorité que l'Accueil (`_actionTcf`) et que les deux cartes du
   /// web. L'écran assemble le kit, il ne choisit ni l'identité de la carte ni
-  /// ce qu'elle lance. Il n'y a donc **aucun `if (free)` ici** : le drapeau est
-  /// passé tel quel et ne sert qu'à l'autorité.
+  /// ce qu'elle lance — et aucun abonnement n'y est lu.
   /// La porte unique vers l'offre, depuis le Plan TCF.
   void _versEcranDeDeblocage(BuildContext context) =>
       context.push(AppRoutes.planUnlockPath(civique: false));
 
-  Widget _nowCard(BuildContext context, WidgetRef ref, {bool free = false}) {
-    final carte = planNowCard(plan, journey: journey, free: free);
+  Widget _nowCard(BuildContext context, WidgetRef ref) {
+    final carte = planNowCard(plan, journey: journey);
     if (carte == null) {
       return const SfNoteCard(
         icon: LucideIcons.circleCheck,
@@ -328,7 +329,8 @@ class PlanTcfView extends ConsumerWidget {
       // Deux lignes DISTINCTES : ce que le correcteur a constaté, et où en est
       // la série. Concaténées, la seconde se lisait comme la suite de la
       // première phrase.
-      caption: carte.lines.isEmpty ? null : carte.lines.join('\n'),
+      caption:
+          carte.captionLines.isEmpty ? null : carte.captionLines.join('\n'),
     );
   }
 

@@ -284,9 +284,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return const SfBlockSkeleton(height: 160);
     }
 
-    final compte = ref.watch(authControllerProvider);
-    final free = !(compte is AuthAuthenticated && compte.user.hasTcf);
-    final carte = planNowCard(plan, journey: parcours, free: free);
+    final carte = planNowCard(plan, journey: parcours);
 
     // Plus d'étape à faire (cycle terminé, parcours à jour) : la carte le dit
     // et mène au Plan, où se trouve « Actualiser mon plan ».
@@ -311,6 +309,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         carte.kindLabel ?? carte.subtitle,
         carte.minutesLabel,
       ]),
+      note: carte.note,
       cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeTcfCta,
       onPressed: gesteEtapeTcf(context, ref, carte, lancer: _lancer),
     );
@@ -346,12 +345,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return const SfBlockSkeleton(height: 160);
     }
 
-    final compte = ref.watch(authControllerProvider);
-    final free = !(compte is AuthAuthenticated && compte.user.hasCivique);
     final carte = civicNowCard(
       plan,
       journey: parcours,
-      free: free,
       lancerExamen: true,
     );
 
@@ -373,6 +369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       label: kHomeCiviqueLabel,
       title: carte.title,
       meta: homeActionMeta([carte.subtitle, carte.meta]),
+      note: carte.note,
       cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeCiviqueCta,
       onPressed: gesteEtapeCivique(context, ref, carte, lancer: _lancer),
     );

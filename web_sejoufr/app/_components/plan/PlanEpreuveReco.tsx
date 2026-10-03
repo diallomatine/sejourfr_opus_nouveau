@@ -26,7 +26,6 @@ import {useRouter} from "next/navigation";
 import {journeyApi, learningPlanApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {useCachedData} from "@/lib/use-cached-data";
-import {canAccessModule} from "@/lib/types";
 import type {JourneyDto, LearningPlanDto} from "@/lib/types";
 import {planEpreuveCarte, planStepActionLocked} from "@/lib/plan-domain";
 import {REVISER_RESUME_LABEL} from "@/lib/reviser";
@@ -44,7 +43,7 @@ import {usePlanJourneyId} from "./use-plan-journey-id";
  * la même clé de cache ne coûtent qu'un appel.
  */
 export function usePlanEpreuveCarte(blocCode: string) {
-    const {status, user} = useAuth();
+    const {status} = useAuth();
     const connecte = status === "authenticated";
     const plan = useCachedData<LearningPlanDto>(
         connecte ? learningPlanApi.cacheKey : null,
@@ -55,9 +54,7 @@ export function usePlanEpreuveCarte(blocCode: string) {
         () => journeyApi.getCached(),
     );
     if (!connecte) return null;
-    return planEpreuveCarte(plan.data ?? null, journey.data ?? null, blocCode, {
-        free: !canAccessModule(user, "TCF"),
-    });
+    return planEpreuveCarte(plan.data ?? null, journey.data ?? null, blocCode);
 }
 
 export function PlanEpreuveReco({

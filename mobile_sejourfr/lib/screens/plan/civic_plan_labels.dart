@@ -162,15 +162,13 @@ const String kCivicPlanUnlockCta = 'Débloquer mon plan';
 /// se passe-t-il quand on la touche ».
 ///
 /// 🛑 **Un écran ne redéduit jamais ce geste d'un `locked` ni d'un statut
-/// d'abonnement.** C'est la transposition exacte de [planNowCard] (A114) : le
-/// drapeau `free` **court-circuite avant** le verrou servi, donc aucun écran ne
-/// peut faire partir une série pour un compte sans accès — et c'est le seul
-/// endroit à relire pour s'en assurer (D-33, que `CivicPlanService` oppose déjà
-/// en 403).
+/// d'abonnement.** Il suit le verrou SERVI de la cible (`locked`, posé par
+/// `CivicPlanService` pour tout compte sans accès — D-33, opposé en 403), et
+/// lui seul (2026-10-04, transposition de [planNowCard]).
 ///
 /// ⚠️ Miroir mot pour mot du web (`civicCibleGeste`, `lib/civic-plan.ts`).
-PlanNowGeste civicCibleGeste(CivicPlanCible cible, {bool free = false}) =>
-    free || cible.locked ? PlanNowGeste.debloquer : PlanNowGeste.lancer;
+PlanNowGeste civicCibleGeste(CivicPlanCible cible) =>
+    cible.locked ? PlanNowGeste.debloquer : PlanNowGeste.lancer;
 
 /// Ce que la carte « À faire maintenant » civique **lance**.
 sealed class CivicNowSource {
@@ -205,6 +203,7 @@ class CivicNowCard {
     required this.objectiveLabel,
     required this.objective,
     required this.meta,
+    this.note,
     required this.cta,
     required this.locked,
   });
@@ -234,6 +233,10 @@ class CivicNowCard {
   /// La ligne de méta, **sans son icône** : celle-ci appartient à l'écran.
   final String? meta;
 
+  /// La ligne discrète d'un examen de cycle de MESURE (servi), `null` ailleurs
+  /// — cf. [journeyMesureMots].
+  final String? note;
+
   final String cta;
 
   /// Le verrou **lu**, jamais déduit d'un rang ni d'un abonnement.
@@ -258,17 +261,16 @@ class CivicNowCard {
 /// TCF gratuit. Sans repli, la carte **disparaîtrait** le jour où le verrou est
 /// servi, et l'écran gratuit perdrait ce que le propriétaire demande d'y voir.
 ///
-/// 🛑 **`free` ne décide QUE du geste** (A114, transposée) : un compte sans
-/// accès reçoit **exactement** la carte d'un abonné — titre, bloc, méta, constat
-/// du correcteur — et son bouton ouvre l'**offre** au lieu de lancer. La
-/// contradiction #1 reste fermée : on floute l'action, jamais le résultat
+/// 🛑 **Le geste suit le verrou SERVI, jamais l'abonnement** (2026-10-04) : un
+/// compte sans accès reçoit **exactement** la carte d'un abonné, et le même
+/// geste que la ligne du cycle — l'examen de thème n°1, offert (D-69), se
+/// lance. La contradiction #1 reste fermée : on floute l'action, jamais le résultat
 /// mesuré.
 ///
 /// ⚠️ Miroir mot pour mot du web (`civicNowCard`, `lib/civic-plan.ts`).
 CivicNowCard? civicNowCard(
   CivicPlan plan, {
   Journey? journey,
-  bool free = false,
   // 🛑 **L'appelant porte-t-il le lanceur d'examen de thème ?** Le Plan
   // civique, oui : son étape d'examen reçoit alors [PlanNowGeste.lancer] et
   // l'examen servi. Les autres surfaces (Accueil, Réviser) gardent `aucun` sur
@@ -282,7 +284,8 @@ CivicNowCard? civicNowCard(
     // lui, se résout par `examenTheme` (plus bas). Rien ne se résout ⇒ aucun
     // geste (garde-fou du 2026-09-17).
     final resoluble = unite != null && etape.type == JourneyStepType.trainSkill;
-    final verrou = free || etape.locked;
+    // 🛑 Le verrou SERVI de l'étape — celui de la ligne du cycle.
+    final verrou = etape.locked;
     // 🛑 **UNE UNITÉ CIVIQUE OUVRE SON ÉCRAN, elle ne lance plus sa série**
     // (demande du propriétaire, 2026-09-20) — la même règle et le **même
     // prédicat** que le TCF ([journeyEtapeASeries]), lus ici pour que le bouton
@@ -297,6 +300,8 @@ CivicNowCard? civicNowCard(
     // lanceur que la ligne du cycle — sur le Plan seulement.
     final examenLance =
         examen && lancerExamen ? journeyExamenThemeLance(etape) : null;
+    // « Mesurer mon niveau » sur un cycle de MESURE (servi).
+    final mots = journeyMesureMots(journey, etape, civique: true);
     return CivicNowCard(
       geste: verrou
           ? PlanNowGeste.debloquer
@@ -309,13 +314,15 @@ CivicNowCard? civicNowCard(
       source: resoluble ? CivicNowUnite(unite.code) : null,
       examen: examenLance,
       title: journeyStepTitle(etape),
-      subtitle: examen ? journeyStepSubtitle(etape) : etape.bloc?.label,
+      subtitle:
+          examen ? mots?.kind ?? journeyStepSubtitle(etape) : etape.bloc?.label,
       badge: etape.locked ? kJourneyLockedBadge : null,
       objectiveLabel: null,
       objective: null,
       // `journeyStepSubtitle` peut ne rien avoir à dire : on n'affiche alors
       // aucune méta plutôt qu'une ligne vide.
       meta: examen ? null : journeyStepSubtitle(etape),
+      note: mots?.note,
       // Un examen se dit comme au TCF ([journeyNowCta] : « Passer l'épreuve »,
       // « Débloquer cette étape ») — ce n'est pas une série.
       cta: examen
@@ -331,7 +338,7 @@ CivicNowCard? civicNowCard(
   // 🛑 `null` est un cas NORMAL : plus rien à faire. La carte disparaît, elle
   // n'affiche jamais un squelette.
   if (cible == null) return null;
-  final geste = civicCibleGeste(cible, free: free);
+  final geste = civicCibleGeste(cible);
   return CivicNowCard(
     geste: geste,
     // Une cible du plan **dérivé** n'est pas une étape du cycle : elle n'a pas

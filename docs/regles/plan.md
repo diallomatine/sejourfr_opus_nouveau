@@ -1926,13 +1926,23 @@ Les écrans assemblent le kit ; ils ne choisissent plus rien.
   mesure » quand c'est une mesure, et il part par **les lanceurs du Plan**
   (`startPlanSeanceItem` / `usePlanAssessment` · `openPlanExercise` /
   `usePlanExercise`), jamais par un second chemin.
-- 🛑 **L'Accueil n'a AUCUNE notion de plan gratuit**, et il n'en a pas besoin :
-  il ne teste jamais `canAccessModule`, il lit le `locked` **servi**. Le
-  masquage `free` reste donc là où il a un sens — sur le Plan, qui rend une
-  carte à part pour un compte sans accès (`_freeStepCard` côté mobile, le
-  drapeau `free` de `planNowCard` côté web, où les deux cartes partagent le même
-  `NowCard`). C'est la seule asymétrie de signature entre les deux fronts, et
-  elle est de forme, pas de règle.
+- 🛑 **Aucune surface n'a de notion de plan gratuit** (2026-10-04) : ni
+  l'Accueil, ni le Plan, ni Réviser, ni la carte d'épreuve ne testent
+  `canAccessModule` pour décider du geste. `planNowCard` / `civicNowCard` /
+  `civicCibleGeste` / `planEpreuveCarte` n'ont **plus de paramètre `free`** (web
+  et mobile) : le geste suit le `locked` **servi** de l'étape (et de son action),
+  exactement comme la ligne du cycle. Le drapeau `free` court-circuitait le
+  verrou servi et rendait « Débloquer cette étape » sur l'examen blanc n°1
+  OFFERT d'un cycle d'examens (D-69), pendant que la ligne du cycle disait
+  « Commencer ». Le serveur ferme déjà toute étape d'entraînement sans accès
+  (D-18, `JourneyReadService` §5 bis) : rien ne s'ouvre en trop.
+- **« Mesurer mon niveau »** (2026-10-04) : sur un cycle de mesure
+  (`cycle.cycleDeMesure` servi), l'étape d'examen de la carte « À faire
+  maintenant » dit « Mesurer mon niveau » (méta TCF / sous-titre civique) et
+  porte une ligne `note` (« Premier examen : … » sur `purpose =
+  INITIAL_ASSESSMENT`, « Cet examen mesure votre niveau actuel : … » sinon).
+  Autorité : `journeyMesureMots` (`lib/journey.ts` ⇄ `journey_labels.dart`).
+  Seuls les mots changent — même lanceur, même créneau que la ligne du cycle.
 - ⚠️ **Une MESURE n'est pas une priorité.** La règle « une priorité verrouillée
   n'est jamais nommée sur l'Accueil » (elle est floutée sur le Plan) ne s'y
   applique pas : une mesure ne se floute nulle part et se nomme donc des deux

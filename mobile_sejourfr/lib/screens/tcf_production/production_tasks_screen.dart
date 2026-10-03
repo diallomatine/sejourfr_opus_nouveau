@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/skill_models.dart';
 import '../../core/providers/target_level_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -63,12 +62,10 @@ class ProductionTasksScreen extends ConsumerWidget {
     // tête (demande du propriétaire, 2026-09-20). ⚠️ Elle **remplace**
     // `recommandationDuPlan`, qui lisait les priorités : deux autorités pour la
     // même question, donc deux réponses possibles selon l'écran.
-    final auth = ref.watch(authControllerProvider);
     final carte = planEpreuveCarte(
       ref.watch(learningPlanProvider).valueOrNull,
       ref.watch(journeyProvider).valueOrNull,
       module.epreuve.wire,
-      free: !(auth is AuthAuthenticated && auth.user.hasTcf),
     );
 
     return Scaffold(
@@ -113,7 +110,8 @@ class ProductionTasksScreen extends ConsumerWidget {
                         skills: _skillsOf(n, skills),
                         active:
                             carte?.step.taskCode?.wire == _section.taskCode(n),
-                        onTap: () => context.push(productionTaskPath(module, n)),
+                        onTap: () =>
+                            context.push(productionTaskPath(module, n)),
                       ),
                       const SizedBox(height: 11),
                     ],

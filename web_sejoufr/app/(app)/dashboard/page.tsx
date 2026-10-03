@@ -81,7 +81,6 @@ import {DIAGNOSTIC_RAPIDE_START_HREF, objectifKicker} from "@/lib/preparation";
 import {progressionHref} from "@/lib/progression";
 import {avancementSeriesCivique} from "@/lib/reviser";
 import {
-    canAccessModule,
     type CivicPlanDto,
     type DashboardSummaryResponse,
     type DiagnosticResponse,
@@ -194,12 +193,10 @@ export default function DashboardPage() {
                         <ActionTcf
                             plan={plan}
                             journey={journeyTcf}
-                            free={!canAccessModule(user, "TCF")}
                         />
                         <ActionCivique
                             plan={civicPlan}
                             journey={journeyCivique}
-                            free={!canAccessModule(user, "CIVIQUE")}
                         />
                     </div>
                 </Pad>
@@ -307,10 +304,9 @@ function reessayer(sources: Array<Source<unknown>>): () => void {
  * `usePlanExercise`), `OUVRIR_ETAPE` ouvre l'écran de l'étape servi,
  * `DEBLOQUER` l'écran de transition, `AUCUN` rien — carte neutre, sans bouton.
  */
-function ActionTcf({plan, journey, free}: {
+function ActionTcf({plan, journey}: {
     plan: Source<LearningPlanDto>;
     journey: Source<JourneyDto>;
-    free: boolean;
 }) {
     const geste = useGesteEtapeTcf("dashboard");
 
@@ -320,7 +316,7 @@ function ActionTcf({plan, journey, free}: {
         return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([plan, journey])}/>;
     }
 
-    const vue = planNowCard(plan.data, {free, journey: journey.data ?? null});
+    const vue = planNowCard(plan.data, {journey: journey.data ?? null});
     if (!vue) return <CarteFinDeCycle module="tcf"/>;
 
     /* 🛑 Le libellé suit le droit réel : un verrou se DIT (« Débloquer cette
@@ -343,6 +339,7 @@ function ActionTcf({plan, journey, free}: {
                 {vue.geste === "AUCUN" && vue.lines[0] ? (
                     <p className={sejourStyles.actionNote}>{vue.lines[0]}</p>
                 ) : null}
+                {vue.note ? <p className={sejourStyles.actionNote}>{vue.note}</p> : null}
                 {erreur ? <p className={sejourStyles.actionNote} role="alert">{erreur}</p> : null}
             </ActionCard>
             {geste.paywall(journey.data?.journeyId)}
@@ -360,10 +357,9 @@ function ActionTcf({plan, journey, free}: {
  * du plan dérivé mène au Plan civique, seul porteur de son lanceur de série
  * (le « Continuer » de l'ancien Accueil).
  */
-function ActionCivique({plan, journey, free}: {
+function ActionCivique({plan, journey}: {
     plan: Source<CivicPlanDto>;
     journey: Source<JourneyDto>;
-    free: boolean;
 }) {
     const geste = useGesteEtapeCivique("dashboard");
 
@@ -373,7 +369,7 @@ function ActionCivique({plan, journey, free}: {
         return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([plan, journey])}/>;
     }
 
-    const carte = civicNowCard(plan.data, {journey: journey.data ?? null, free, lancerExamen: true});
+    const carte = civicNowCard(plan.data, {journey: journey.data ?? null, lancerExamen: true});
     if (!carte) return <CarteFinDeCycle module="civique"/>;
 
     const cta = geste.cta(carte);
@@ -389,7 +385,9 @@ function ActionCivique({plan, journey, free}: {
                 badge={carte.badge}
                 cta={cta}
                 block
-            />
+            >
+                {carte.note ? <p className={sejourStyles.actionNote}>{carte.note}</p> : null}
+            </ActionCard>
             {geste.paywall(journey.data?.journeyId)}
         </>
     );

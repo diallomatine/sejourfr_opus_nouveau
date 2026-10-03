@@ -334,3 +334,12 @@
 - Effet de bord assumé : un invité qui vient de créer son compte pendant l'analyse ne voit plus « Analyse en cours » sur l'Accueil — il la voit déjà sur l'écran `/diagnostic` qui l'a fait passer, et le rapport reste accessible par « Mon diagnostic » sur le Plan.
 - Fichiers impactés : `web_sejoufr/app/(app)/dashboard/page.tsx`, `mobile_sejourfr/lib/screens/home/home_screen.dart`
 - Réversibilité : facile (un booléen par front)
+
+### DEC-41 — « À faire maintenant » suit le verrou servi de l'étape + « Mesurer mon niveau » au premier plan (web + mobile)
+- Phase : 4 (demande du propriétaire, capture d'un compte neuf gratuit)
+- Contexte : l'Accueil et le Plan (TCF, civique) affichaient « Débloquer cette étape » sur l'examen n°1, gratuit, alors que la ligne du cycle juste en dessous était « EN COURS » et lançable. Cause : les fonctions de carte décidaient du geste sur l'abonnement du compte (`free || locked`) avant de lire le verrou servi de l'étape.
+- Choix : le paramètre `free` est retiré de `planNowCard`, `civicNowCard`, `civicCibleGeste`, `planEpreuveCarte` (web ⇄ mobile). Le geste ne lit plus que le `locked` servi de l'étape et de son action, comme la ligne du cycle, et lance le même lanceur (feuille d'information puis examen). Le serveur verrouille déjà les étapes d'entraînement d'un compte sans accès (`JourneyReadService.verrouDAcces`) : rien de plus ne s'ouvre.
+- Libellé : dans un cycle de mesure servi (`cycle.cycleDeMesure`), une étape d'examen se dit « Mesurer mon niveau » (au lieu de « Examen blanc ») + une ligne « Premier examen : il mesure votre niveau de départ… » (`purpose = INITIAL_ASSESSMENT` servi ; sinon « Cet examen mesure votre niveau actuel… »). Une autorité par front : `journeyMesureMots` (`lib/journey.ts` ⇄ `journey_labels.dart`). C'est toujours le même examen blanc qui se lance.
+- Effet de bord assumé : Réviser web, carte civique « Recommandé par votre plan » sur une étape d'examen disparaît pour un compte gratuit (comme pour un abonné : Réviser n'a pas de lanceur d'examen de thème).
+- Fichiers impactés : `lib/plan-domain.ts`, `lib/civic-plan.ts`, `lib/reviser.ts`, `lib/journey.ts`, `dashboard/page.tsx`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `PlanEpreuveReco.tsx`, `ReviserScreen.tsx` ; `plan_now_card.dart`, `civic_plan_labels.dart`, `journey_labels.dart`, `home_screen.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`, `plan_epreuve_reco.dart`, `production_tasks_screen.dart`, `sejour_kit.dart` (`SfActionCard.note`) ; `docs/regles/plan.md`
+- Réversibilité : facile (historique git)

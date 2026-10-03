@@ -98,8 +98,10 @@ import {PlanPaywall} from "./PlanPaywallCard";
  * 🛑 **Ce qui TIENT** : « dans le plan, on ne travaille rien si on n'est pas
  * abonné » (D-33, que `CivicPlanService` oppose déjà en **403**). La garantie
  * n'est pas dans cet écran — `civicNowCard` / `civicCibleGeste` rendent
- * `geste === "DEBLOQUER"` dès que `free`, et les lanceurs ne sont attachés
- * qu'à la branche `LANCER`.
+ * `geste === "DEBLOQUER"` sur le verrou SERVI (le serveur ferme les séries
+ * d'un compte sans accès ; l'examen de thème n°1, offert, reste lançable,
+ * comme sur la ligne du cycle), et les lanceurs ne sont attachés qu'à la
+ * branche `LANCER`.
  *
  * 🛑 **La contradiction #1 reste fermée** : le nom de l'étape, l'état de
  * maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
@@ -217,7 +219,7 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
   const launchExam = useMockExamLauncher();
   const [examPaywall, setExamPaywall] = useState(false);
 
-  const carte = civicNowCard(plan, {journey, free, lancerExamen: true});
+  const carte = civicNowCard(plan, {journey, lancerExamen: true});
   const grainNote = civicPlanGrainNote(plan.grain);
   const erreur = serieCible.erreur ?? serieUnite.erreur;
 
@@ -256,6 +258,7 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
                   objective={carte.objective ?? undefined}
                   meta={carte.meta ? [{icon: ListChecks, label: carte.meta}] : undefined}
                 >
+                  {carte.note && <p className={sejourStyles.tiny}>{carte.note}</p>}
                   {/* 🛑 **Le geste vient de `civicNowCard`, il ne se redéduit pas
                       ici.** `AUCUN` ⇒ aucun bouton (garde-fou du 2026-09-17) ;
                       `DEBLOQUER` ⇒ l'offre, jamais un lanceur. En **rouge**
@@ -323,7 +326,7 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
           <Pad>
             <Stack>
               {plan.aRevoirVisibles.map((cible) => {
-                const geste = civicCibleGeste(cible, {free});
+                const geste = civicCibleGeste(cible);
                 const revue = civicRevueLabel(cible, maintenant);
                 return (
                   <InfoCard

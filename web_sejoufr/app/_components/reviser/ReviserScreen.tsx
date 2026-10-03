@@ -304,7 +304,7 @@ function TcfBody({
 
   /* 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
      ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan. */
-  const resume = reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium);
+  const resume = reviserResumeTcf(plan.data ?? null, journey.data ?? null);
   const carte = resume?.carte ?? null;
   const busy = exercise.starting || assessment.starting !== null;
 
@@ -576,7 +576,7 @@ function CiviqueBody({
     () => themeApi.list("CIVIQUE"),
   );
   const prochaine: CivicPlanCibleDto | null = civicPlan.data?.prochaine ?? null;
-  const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium);
+  const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null);
 
   const stats = useMemo(() => {
     if (summary.data) return summary.data.civique;

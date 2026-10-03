@@ -6919,12 +6919,17 @@ class SfActionCard extends StatelessWidget {
     required this.title,
     this.meta,
     this.badge,
+    this.note,
     this.cta,
     this.onPressed,
   });
 
   final bool civique;
   final IconData icon;
+
+  /// Une ligne discrète sous l'en-tête, avant le bouton — le pendant du
+  /// `children` de `ActionCard` web (`.actionNote`). `null` ⇒ rien.
+  final String? note;
 
   /// Le nom du module (« TCF IRN », « Examen civique »).
   final String label;
@@ -7012,6 +7017,14 @@ class SfActionCard extends StatelessWidget {
               ],
             ],
           ),
+          if (note != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              note!,
+              style:
+                  AppFonts.ui(size: 13, color: AppColors.muted, height: 1.45),
+            ),
+          ],
           if (actif) ...[
             const SizedBox(height: 16),
             SfButton(

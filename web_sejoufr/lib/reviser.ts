@@ -101,13 +101,12 @@ export const REVISER_RESUME_LABEL = "Recommandé par votre plan";
 export function reviserResumeTcf(
     plan: LearningPlanDto | null,
     journey: JourneyDto | null = null,
-    free = false,
 ): ReviserResume | null {
     if (!plan) return null;
     /* 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
        la règle du Plan pendant que le Plan suivrait le parcours — la même
        contradiction, à un troisième écran. */
-    const carte = planNowCard(plan, {journey, free});
+    const carte = planNowCard(plan, {journey});
     if (!carte || carte.geste === "AUCUN") return null;
     return {
         title: carte.title,
@@ -146,10 +145,9 @@ export interface ReviserResume {
 export function reviserResumeCivique(
     plan: CivicPlanDto | null,
     journey: JourneyDto | null = null,
-    free = false,
 ): CivicNowVue | null {
     if (!plan) return null;
-    const carte = civicNowCard(plan, {journey, free});
+    const carte = civicNowCard(plan, {journey});
     return carte && carte.geste !== "AUCUN" ? carte : null;
 }
 

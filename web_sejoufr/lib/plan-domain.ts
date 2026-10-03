@@ -26,6 +26,7 @@ import {
 import {
     journeyEtapeASeries,
     journeyEtapeHref,
+    journeyMesureMots,
     journeyNowCta,
     journeyNowMeta,
     journeyNowStep,
@@ -568,6 +569,12 @@ export interface PlanNowVue {
      *  à `PLAN_NOW_UNAVAILABLE_TEXT`). Restent le motif d'une **mesure** et
      *  l'explication d'une carte `INDISPONIBLE`. */
     lines: string[];
+    /**
+     * **La ligne discrète d'un examen de cycle de MESURE** (`cycle.cycleDeMesure`
+     * servi) — « Premier examen : il mesure votre niveau de départ… ». `null`
+     * partout ailleurs. Lue par l'Accueil et le Plan, sous la méta.
+     */
+    note: string | null;
     cta: string;
     /** Le verrou **lu**, jamais déduit d'un rang. */
     locked: boolean;
@@ -585,12 +592,11 @@ export interface PlanNowVue {
  * (`lib/journey.ts`), la même autorité que la timeline : la carte et la ligne
  * de la timeline disent donc mot pour mot la même chose.
  */
-function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
-    /* 🛑 Un compte **sans accès** n'a rien à lancer de toute façon : le geste
-       est l'offre, même quand l'action de l'étape ne se résout pas. Sinon, une
-       étape ouverte mais sans exercice reste **sans geste** — on ne lui fait
-       pas ouvrir un paywall qui ne la débloquerait pas. */
-    const verrou = free || etape.locked;
+function carteIndisponible(etape: JourneyStepDto): PlanNowVue {
+    /* 🛑 Le verrou est celui SERVI sur l'étape, et lui seul. Une étape ouverte
+       mais sans exercice reste **sans geste** — on ne lui fait pas ouvrir un
+       paywall qui ne la débloquerait pas. */
+    const verrou = etape.locked;
     return {
         nature: "INDISPONIBLE",
         /* ⚠️ **`OUVRIR_ETAPE` ne s'applique PAS ici** : rien ne se résout, la
@@ -617,6 +623,7 @@ function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
         minutesLabel: null,
         kindLabel: null,
         lines: [PLAN_NOW_UNAVAILABLE_TEXT],
+        note: null,
         cta: verrou ? PLAN_NOW_CTA_LOCKED : PLAN_NOW_CTA_START,
         /* Le verrou **servi** de l'étape, pas une déduction : une étape
            indisponible peut être verrouillée par ailleurs, et l'écran doit
@@ -645,9 +652,8 @@ function carteIndisponible(etape: JourneyStepDto, free: boolean): PlanNowVue {
 function carteEtapeServie(
     etape: JourneyStepDto,
     exercise: PlanSkillExerciseDto,
-    free: boolean,
 ): PlanNowVue {
-    const verrou = free || etape.locked || exercise.locked;
+    const verrou = etape.locked || exercise.locked;
     const sujets = etape.progress?.quota ?? 0;
     /* 🛑 **Une étape de SÉRIES ouvre son écran, elle ne lance plus rien**
        (demande du propriétaire, 2026-09-20) — la même règle que la ligne du
@@ -673,10 +679,7 @@ function carteEtapeServie(
         badge: null,
         objectiveLabel: null,
         objective: null,
-        /* 🛑 **`free` ne retire plus rien du contenu** (2026-09-20) : un compte
-           sans accès reçoit la **même** carte qu'un abonné, et seul `geste`
-           change. Les métas sont des faits servis, pas une récompense
-           d'abonnement. */
+        /* Les métas sont des faits servis, pas une récompense d'abonnement. */
         minutesLabel: sujets > 0 && exercise.kind === "MICRO_TRAINING"
             ? `${sujets} petits sujets · ≈ ${exercise.estimatedMinutes} min chacun`
             : `≈ ${exercise.estimatedMinutes} min`,
@@ -685,6 +688,7 @@ function carteEtapeServie(
             exercise.kind === "TARGETED_QCM_SERIES" ? exercise.questionCount : null,
         ),
         lines: [],
+        note: null,
         cta: verrou ? PLAN_NOW_CTA_LOCKED : planNowCta(null, false, false),
         locked: etape.locked || exercise.locked,
     };
@@ -902,14 +906,15 @@ export function planEpreuveCarte(
     plan: LearningPlanDto | null,
     journey: JourneyDto | null,
     blocCode: string,
-    {free = false}: {free?: boolean} = {},
 ): PlanEpreuveCarte | null {
     const bloc = journey?.blocs.find((b) => b.bloc.code === blocCode) ?? null;
     if (!bloc) return null;
     const ouverte = (s: JourneyStepDto) => s.status === "CURRENT" || s.status === "UPCOMING";
     const step = bloc.steps.find(ouverte) ?? (bloc.exam && ouverte(bloc.exam) ? bloc.exam : null);
     if (!step) return null;
-    const locked = free || step.locked;
+    /* 🛑 Le verrou SERVI de l'étape, jamais déduit de l'abonnement : c'est celui
+       que lit la ligne du cycle (D-69 : l'examen blanc n°1 est offert). */
+    const locked = step.locked;
     const action = locked || !plan ? null : planStepAction(plan, step);
     /* 🛑 Rien à lancer et pas de verrou à lever ⇒ **pas de carte** : on ne pose
        jamais un bouton mort (garde-fou A25, transposé). */
@@ -952,31 +957,23 @@ export function planEpreuveCarte(
  * l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
  * fait que choisir *laquelle* des deux identités la carte porte.
  *
- * 🛑 **`free` ne décide QUE du geste** (demande du propriétaire, 2026-09-20 :
- * « faire en sorte qu'un non abonné voie également le "à faire maintenant"
- * d'un abonné, seulement au lieu du bouton commencer, mettre débloquer »).
- * Un compte sans accès reçoit donc **exactement** la carte d'un abonné —
- * titre, pastille « Priorité n°1 », métas, explication du correcteur,
- * progression — et son bouton ouvre l'**offre** au lieu de lancer.
- *
- * ⚠️ **Ce que ça révoque** : l'anatomie distincte du 2026-09-12 (« un compte
- * sans accès ne voit pas la carte d'un abonné », ses trois bénéfices
- * verrouillés, et « aucun geste ne part de cette carte »). **Ce qui TIENT** :
- * « dans le plan, on ne travaille rien si on n'est pas abonné » — `free`
- * force `geste === "DEBLOQUER"` **inconditionnellement**, donc aucun appelant
- * ne peut faire partir un entraînement d'ici.
+ * 🛑 **Un compte sans accès reçoit EXACTEMENT la carte d'un abonné** (demande
+ * du propriétaire, 2026-09-20) — titre, métas, constat, progression — et son
+ * geste suit le **verrou SERVI** de l'étape, rien d'autre (2026-10-04 : « s'il
+ * peut cliquer là-bas, il peut cliquer ici, et ça ouvre la même chose »). Le
+ * serveur ferme toute étape d'entraînement sans accès (D-18) ; l'examen blanc
+ * n°1, offert (D-69), reste lançable — comme sur la ligne du cycle.
  *
  * 🛑 **La contradiction #1 reste fermée** (D-18) : l'explication du correcteur,
  * la progression et les compteurs sont des **résultats mesurés**. On floute
  * l'action pas encore accessible, jamais le résultat mesuré — les montrer est
  * exactement ce que la règle demande.
  *
- * ⚠️ Miroir mot pour mot du mobile (`planNowCard`, `plan_now_card.dart`), qui
- * porte désormais le même paramètre `free`.
+ * ⚠️ Miroir mot pour mot du mobile (`planNowCard`, `plan_now_card.dart`).
  */
 export function planNowCard(
     plan: LearningPlanDto,
-    {free = false, journey = null}: {free?: boolean; journey?: JourneyDto | null} = {},
+    {journey = null}: {journey?: JourneyDto | null} = {},
 ): PlanNowVue | null {
     /* 🛑 **LE PARCOURS DÉCIDE QUELLE ÉTAPE, LE PLAN FOURNIT COMMENT LA LANCER**
        (décision A18, `docs/decisions-autonomes-parcours-tcf.md`).
@@ -1019,8 +1016,8 @@ export function planNowCard(
     const exerciceServi = etape?.exercise ?? null;
     if (etape && !duParcours && !mesure) {
         return exerciceServi
-            ? carteEtapeServie(etape, exerciceServi, free)
-            : carteIndisponible(etape, free);
+            ? carteEtapeServie(etape, exerciceServi)
+            : carteIndisponible(etape);
     }
 
     const priority = etape ? duParcours : plan.currentPriority;
@@ -1036,11 +1033,12 @@ export function planNowCard(
     /* 🛑 **Le geste, décidé une seule fois pour les six surfaces** (spec §7,
        D-18) : une étape fermée ne se lance pas, elle **ouvre l'offre**.
 
-       🛑 **C'est ICI que tient « dans le plan, on ne travaille rien si on n'est
-       pas abonné »** : `free` court-circuite tout, avant même de regarder le
-       `locked` servi. Les écrans ne branchent que sur `geste`, donc aucun
-       d'eux ne peut faire partir un entraînement pour un compte sans accès —
-       et c'est le seul endroit à relire pour s'en assurer. */
+       🛑 **Le verrou est EXCLUSIVEMENT celui servi** (2026-10-04) — le même
+       que lit la ligne du cycle (`step.locked`, verrou de l'action). Le
+       serveur ferme déjà toute étape d'entraînement d'un compte sans accès
+       (D-18) ; l'en déduire ici de l'abonnement fermait aussi l'examen blanc
+       n°1, OFFERT (D-69) : la carte disait « Débloquer cette étape » pendant
+       que la ligne du cycle, juste en dessous, disait « Commencer ». */
     /* 🛑 **UNE ÉTAPE DE SÉRIES OUVRE SON ÉCRAN, ELLE NE LANCE PLUS RIEN**
        (demande du propriétaire, 2026-09-20). Compréhension CO/CE et civique :
        le candidat voit d'abord ce que l'étape demande — la compétence ou
@@ -1057,7 +1055,7 @@ export function planNowCard(
        parcours désigne une étape d'examen, `etape` n'est pas de séries. */
     const serie = etape !== null && journeyEtapeASeries(etape);
     const etapeHref = serie ? journeyEtapeHref(etape!.id, "TCF") : null;
-    const geste: PlanNowGeste = free || locked
+    const geste: PlanNowGeste = locked
         ? "DEBLOQUER"
         : serie
             ? "OUVRIR_ETAPE"
@@ -1111,6 +1109,9 @@ export function planNowCard(
        `journeyNowMeta` / `journeyNowCta`), jamais la nature `A_EVALUER` ni le
        motif de remesure de la séance, qui décrivent une autre action. */
     if (mesure && etape) {
+        /* « Mesurer mon niveau » sur un cycle de MESURE (servi) : seuls les
+           mots changent, le lanceur reste celui de la ligne du cycle. */
+        const mots = journeyMesureMots(journey, etape, "TCF");
         return {
             nature: "MESURE",
             geste,
@@ -1126,8 +1127,9 @@ export function planNowCard(
             objectiveLabel: null,
             objective: null,
             minutesLabel,
-            kindLabel: planAssessmentNature(mesure.assessment),
+            kindLabel: mots?.kind ?? planAssessmentNature(mesure.assessment),
             lines: [journeyNowMeta(etape)].filter((l): l is string => Boolean(l)),
+            note: mots?.note ?? null,
             cta: journeyNowCta(etape, geste === "DEBLOQUER"),
             locked,
         };
@@ -1155,6 +1157,7 @@ export function planNowCard(
             /* Sur une mesure, le constat de la priorité parlerait d'une AUTRE
                compétence que celle que le bouton ouvre. */
             lines: [PLAN_REASON_A_EVALUER],
+            note: null,
             cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, false, true),
             locked,
         };
@@ -1202,6 +1205,7 @@ export function planNowCard(
            sur un compte gratuit floutait un résultat, ce que la contradiction
            #1 interdit explicitement (D-18). */
         lines: [],
+        note: null,
         cta: geste === "DEBLOQUER" ? PLAN_NOW_CTA_LOCKED : planNowCta(priority, verifier, false),
         locked,
     };

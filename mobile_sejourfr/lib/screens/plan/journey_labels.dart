@@ -453,6 +453,51 @@ const String kJourneyExamNoteProgression =
 /// Verrou `access` — suivi du lien « Débloquer mon plan → ».
 const String kJourneyExamNoteAccess = 'Réservé à l\'offre complète.';
 
+/* ------------------------- « Mesurer mon niveau » (cycle de mesure) --- */
+// Sur un cycle d'EXAMENS (`cycle.cycleDeMesure` servi, D-69), la carte
+// « À faire maintenant » dit ce que l'examen fait pour le candidat : il mesure
+// son niveau, et le plan suivant se construit dessus. Seuls les mots changent :
+// le lanceur et le créneau restent ceux de la ligne du cycle.
+//
+// 🛑 « Premier examen » se lit sur `purpose == initialAssessment` servi
+// (l'épreuve n'a jamais été mesurée), jamais sur un rang de cycle.
+//
+// Miroir mot pour mot de `JOURNEY_MESURE_*` (`web_sejoufr/lib/journey.ts`).
+
+const String kJourneyMesureKind = 'Mesurer mon niveau';
+const String kJourneyMesureNoteTcf =
+    'Premier examen : il mesure votre niveau de départ, votre plan se construit sur ses résultats.';
+const String kJourneyMesureNoteCivique =
+    'Premier examen de ce thème : il mesure votre niveau de départ, votre plan se construit sur ses résultats.';
+const String kJourneyMesureNoteRemesure =
+    'Cet examen mesure votre niveau actuel : votre prochain plan se construit sur ses résultats.';
+
+/// Les mots d'un examen de cycle de mesure, `null` hors de ce cas.
+class JourneyMesureMots {
+  const JourneyMesureMots({required this.kind, required this.note});
+
+  final String kind;
+  final String note;
+}
+
+/// Miroir de `journeyMesureMots` (`web_sejoufr/lib/journey.ts`).
+JourneyMesureMots? journeyMesureMots(
+  Journey? journey,
+  JourneyStep etape, {
+  required bool civique,
+}) {
+  if (etape.type != JourneyStepType.sectionExam ||
+      journey?.cycle?.cycleDeMesure != true) {
+    return null;
+  }
+  final note = etape.purpose != JourneyStepPurpose.initialAssessment
+      ? kJourneyMesureNoteRemesure
+      : civique
+          ? kJourneyMesureNoteCivique
+          : kJourneyMesureNoteTcf;
+  return JourneyMesureMots(kind: kJourneyMesureKind, note: note);
+}
+
 /// L'examen est-il passé ? Lu sur le statut **servi**.
 /// Ce que le lanceur d'examen de thème civique reçoit
 /// (`launchCiviqueThemeExam`).

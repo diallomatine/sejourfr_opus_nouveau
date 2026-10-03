@@ -333,7 +333,7 @@ function TcfPlan({plan, journey, diagnosticHref, free, cible}: {
               plan={plan}
               avantPriorites={
                 <>
-                  <ActionMaintenant plan={plan} journey={journey} free={free} />
+                  <ActionMaintenant plan={plan} journey={journey} />
                   {/* 🛑 **Le jalon d'examen complet** (D-68) : servi, jamais
                       décidé ici. Il ne porte aucun verrou : le cycle d'examens
                       qu'il ouvre porte les verrous d'accès servis. */}
@@ -384,10 +384,9 @@ function TcfPlan({plan, journey, diagnosticHref, free, cible}: {
  * jamais déduit d'un rang : la première place du Plan est ouverte à un compte
  * gratuit, et c'est pour ça qu'un vrai CTA s'y affiche.
  */
-function ActionMaintenant({plan, journey, free}: {
+function ActionMaintenant({plan, journey}: {
   plan: LearningPlanDto;
   journey: JourneyDto | null;
-  free?: boolean;
 }) {
   const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
   const assessments = usePlanAssessment();
@@ -404,7 +403,7 @@ function ActionMaintenant({plan, journey, free}: {
      même autorité que l'Accueil (`ActionPrincipale`) et que les deux cartes du
      mobile. C'est elle qui applique « une MESURE passe devant tout le reste »,
      et qui garantit que les deux écrans annoncent la même action. */
-  const vue = planNowCard(plan, {free, journey});
+  const vue = planNowCard(plan, {journey});
   if (!vue) return null;
 
   const {mesure, exercise, lines} = vue;
@@ -435,12 +434,10 @@ function ActionMaintenant({plan, journey, free}: {
      constat du correcteur et la progression, tous des **résultats mesurés**
      que la contradiction #1 demande justement de montrer.
 
-     🛑 **AUCUN ENTRAÎNEMENT ne part d'ici** — l'arbitrage du 2026-09-12 qui
-     TIENT (« dans le plan, on ne travaille rien si on n'est pas abonné ; on
-     passe par Réviser »). La garantie n'est pas dans cet écran : `planNowCard`
-     rend `geste === "DEBLOQUER"` dès que `free`, et le seul rendu attaché à ce
-     geste ci-dessous est `setUnlockOpen(true)`. Aucun lanceur n'y est
-     joignable. */
+     🛑 **Le geste suit le verrou SERVI** (2026-10-04) : le serveur ferme toute
+     étape d'entraînement d'un compte sans accès, donc aucun entraînement ne
+     part d'ici sans abonnement ; l'examen blanc n°1, offert (D-69), se lance
+     comme depuis la ligne du cycle. La garantie n'est pas dans cet écran. */
   return (
     <Section title="À faire maintenant">
       <Pad>
@@ -461,6 +458,7 @@ function ActionMaintenant({plan, journey, free}: {
           {lines.map((line: string) => (
             <p className={sejourStyles.tiny} key={line}>{line}</p>
           ))}
+          {vue.note && <p className={sejourStyles.tiny}>{vue.note}</p>}
           {/* 🛑 **Le bouton dit ce que le geste FAIT**, et son libellé vient
               lui aussi de `planNowCard` : `PLAN_NOW_CTA_LOCKED` sur un verrou
               (son motif est écrit à sa déclaration), l'action sinon. À la

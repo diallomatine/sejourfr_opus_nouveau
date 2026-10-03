@@ -70,8 +70,10 @@ import 'widgets/examen_complet_jalon.dart';
 /// 🛑 **Ce qui TIENT** : « dans le plan, on ne travaille rien si on n'est pas
 /// abonné » (D-33, que `CivicPlanService` oppose déjà en **403**). La garantie
 /// n'est pas dans cet écran — [civicNowCard] et [civicCibleGeste] rendent
-/// [PlanNowGeste.debloquer] dès que `free`, et les lanceurs ne sont attachés
-/// qu'à la branche [PlanNowGeste.lancer].
+/// [PlanNowGeste.debloquer] sur le verrou SERVI (le serveur ferme les séries
+/// d'un compte sans accès ; l'examen de thème n°1, offert, reste lançable,
+/// comme sur la ligne du cycle), et les lanceurs ne sont attachés qu'à la
+/// branche [PlanNowGeste.lancer].
 ///
 /// 🛑 **La contradiction #1 reste fermée** : le nom de l'étape, l'état de
 /// maîtrise, les compteurs et les échéances sont des **résultats mesurés** — ils
@@ -140,7 +142,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         children: <Widget>[
           const SizedBox(height: 14),
           if (plan != null)
-            ..._ecran(plan, free: free)
+            ..._ecran(plan)
           else if (async.hasError)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 24),
@@ -190,7 +192,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
 
   /* ------------------------------------------------------------ l'écran --- */
 
-  List<Widget> _ecran(CivicPlan plan, {required bool free}) {
+  List<Widget> _ecran(CivicPlan plan) {
     final maintenant = DateTime.now();
     // 🛑 Le parcours est **observé**, jamais attendu : son absence ne retarde pas
     // le plan d'une seconde, et un backend antérieur à `?module=` garde un écran
@@ -220,7 +222,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
       // plan dérivé quand `current` est nul ([civicNowCard]). Le contenu est
       // identique pour les deux accès ; seul le geste change.
-      _actionMaintenant(plan, parcours, free: free),
+      _actionMaintenant(plan, parcours),
 
       // 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
       // servi, jamais décidé ici. En civique, le cycle d'examens porte un examen
@@ -234,7 +236,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       PlanCycleSection(
           plan: null, journey: parcours, module: AppModule.civique),
 
-      ..._reviewSection(plan, maintenant, free: free),
+      ..._reviewSection(plan, maintenant),
 
       // 🛑 **La carte bleue « Passez du diagnostic à la progression » ET le
       // sélecteur de pass sont SUPPRIMÉS** (demande du propriétaire,
@@ -322,20 +324,14 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   ///
   /// 🛑 **Son contenu ET son geste sont décidés par [civicNowCard], pas ici** :
   /// l'écran assemble le kit, il ne choisit ni l'identité de la carte ni ce
-  /// qu'elle lance. Il n'y a donc **aucun `if (free)` ici** — le drapeau est
-  /// passé tel quel et ne sert qu'à l'autorité.
+  /// qu'elle lance, et aucun abonnement n'y est lu.
   ///
   /// 🛑 `null` est un cas NORMAL : plus rien à faire. La carte disparaît, elle
   /// n'affiche jamais un squelette.
-  Widget _actionMaintenant(
-    CivicPlan plan,
-    Journey? parcours, {
-    required bool free,
-  }) {
+  Widget _actionMaintenant(CivicPlan plan, Journey? parcours) {
     final carte = civicNowCard(
       plan,
       journey: parcours,
-      free: free,
       lancerExamen: true,
     );
     return SfSection(
@@ -409,8 +405,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
                     : () => unawaited(_lancer(source)),
               ),
       },
-      caption:
-          carte.geste == PlanNowGeste.debloquer ? kCivicPlanLockedNote : null,
+      caption: carte.geste == PlanNowGeste.debloquer
+          ? kCivicPlanLockedNote
+          : carte.note,
     );
   }
 
@@ -454,9 +451,8 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// qu'on entretient — et **jamais** la boîte Leitner.
   List<Widget> _reviewSection(
     CivicPlan plan,
-    DateTime maintenant, {
-    required bool free,
-  }) {
+    DateTime maintenant,
+  ) {
     if (plan.aRevoirVisibles.isEmpty) return const <Widget>[];
     final note = civicPlanGrainNote(plan.grain);
     return <Widget>[
@@ -469,7 +465,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
             // maîtrise et l'échéance servis, le geste en badge, la ligne
             // entière ouvre la série — ou l'offre ([civicCibleGeste]).
             for (final cible in plan.aRevoirVisibles)
-              _reviewRow(cible, maintenant, free: free),
+              _reviewRow(cible, maintenant),
             // 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3), et il
             // le dit **ici** : c'est la dernière surface qui montre des cibles
             // du plan dérivé, donc la seule que cette note qualifie encore. Elle
@@ -487,10 +483,9 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// d'action** ([civicCibleGeste]).
   Widget _reviewRow(
     CivicPlanCible cible,
-    DateTime maintenant, {
-    required bool free,
-  }) {
-    final geste = civicCibleGeste(cible, free: free);
+    DateTime maintenant,
+  ) {
+    final geste = civicCibleGeste(cible);
     final revue = civicRevueLabel(cible, maintenant);
     return SfInfoCard(
       civique: true,
