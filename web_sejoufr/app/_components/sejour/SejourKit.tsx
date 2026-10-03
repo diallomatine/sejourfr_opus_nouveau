@@ -3845,7 +3845,8 @@ export function ExamRow({
  * 1 180 px de fenêtre, empilées en dessous. Une règle de mise en page : pas
  * de miroir Flutter (le mobile empile).
  */
-export function Split({ main, side }: { main: ReactNode; side: ReactNode }) {
+export function Split({ main, side }: { main: ReactNode; side?: ReactNode }) {
+  if (side == null) return <>{main}</>;
   return (
     <div className={styles.split}>
       <div className={styles.splitMain}>{main}</div>

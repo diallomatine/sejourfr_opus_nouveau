@@ -17,7 +17,6 @@ import '../progres/progres_labels.dart';
 import '../reviser/reviser_labels.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
-import 'widgets/prochaine_etape_hero.dart';
 import 'widgets/progression_page.dart';
 
 /// **La progression globale civique** — Navigation v2 (phase 4b) : maquette
@@ -101,7 +100,6 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
               caption: civiqueMeilleurScore(meilleur) ?? kCiviqueListeVide,
             ),
           ),
-          const ProchaineEtapeHero(civique: true),
           SfProgressHero(
             label: kCiviqueHeroLabel,
             value: progressionValeur(dernier?.score),

@@ -94,7 +94,6 @@ import {situationIcon} from "@/lib/situation-icons";
 import type {ProgressDto, ProgressionTcfDto, TargetLevel} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
 import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
-import {ProchaineEtapeTcf} from "./ProchaineEtape";
 
 /**
  * **La progression globale TCF** — Navigation v2, phase 4 (maquette
@@ -192,11 +191,6 @@ function TcfScoped() {
                                 </Pad>
                             )}
                         </>
-                    )}
-                    side={(
-                        <Pad>
-                            <ProchaineEtapeTcf/>
-                        </Pad>
                     )}
                 />
             </div>

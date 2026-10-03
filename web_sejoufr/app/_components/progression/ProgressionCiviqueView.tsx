@@ -91,7 +91,6 @@ import {themeSlug} from "@/lib/themes";
 import type {DashboardCategoryStat, DashboardSummaryResponse, ProgressionCiviqueDto, ProgressionMesureDto} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
 import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
-import {ProchaineEtapeCivique} from "./ProchaineEtape";
 
 /**
  * **La progression civique globale** — Navigation v2, phase 4 (maquette
@@ -207,7 +206,6 @@ function CiviqueScoped() {
                         <Pad>
                             <div className={sejourStyles.splitSide}>
                                 {dto ? <EvolutionScore dto={dto}/> : null}
-                                <ProchaineEtapeCivique/>
                             </div>
                         </Pad>
                     )}

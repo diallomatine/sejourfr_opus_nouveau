@@ -19,7 +19,6 @@ import '../plan/plan_labels.dart';
 import '../progres/progres_labels.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
-import 'widgets/prochaine_etape_hero.dart';
 import 'widgets/progression_page.dart';
 
 /// **La progression globale TCF** — Navigation v2 (phase 4b) : maquette
@@ -109,7 +108,6 @@ class ProgressionTcfScreen extends ConsumerWidget {
             title: kTcfEvolutionTitle,
             child: _evolution(data),
           ),
-          const ProchaineEtapeHero(civique: false),
           SfProgressHero(
             label: kTcfHeroLabel,
             value: progressionPalier(niveau),

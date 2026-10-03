@@ -584,7 +584,3 @@ String? civiqueMeilleurScore(ProgressionMesure? meilleur) {
       ? 'Meilleur score : $taux · vous êtes au-dessus du seuil de réussite.'
       : 'Meilleur score : $taux';
 }
-
-/* ------------------------------------------------------ prochaine étape */
-
-const String kProchaineEtapeLabel = 'Prochaine étape';
