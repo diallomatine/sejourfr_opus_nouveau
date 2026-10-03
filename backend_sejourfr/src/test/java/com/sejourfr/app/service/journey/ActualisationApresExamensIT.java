@@ -36,6 +36,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,13 +67,28 @@ class ActualisationApresExamensIT extends AbstractIntegrationTest {
     @Autowired private SkillManager skillManager;
     @Autowired private TestData data;
     @Autowired private AccountDeletionService accountDeletionService;
+    @Autowired private JdbcTemplate jdbc;
 
     private final List<UUID> candidats = new ArrayList<>();
 
     @AfterEach
     void menage() {
+        // 🛑 Ce test n'est pas transactionnel : les items QCM fabriques par
+        // `examenQcmTcfPasse` (une thematique chacun) survivraient a la classe
+        // et fausseraient les tests qui comptent les cinq thematiques civiques.
+        List<UUID> themes = candidats.isEmpty() ? List.of() : jdbc.queryForList("""
+                SELECT DISTINCT q.theme_id FROM attempt_questions aq
+                JOIN attempts a ON a.id = aq.attempt_id
+                JOIN questions q ON q.id = aq.question_id
+                WHERE a.user_id IN (:ids)
+                """.replace(":ids", String.join(",",
+                        candidats.stream().map(id -> "'" + id + "'").toList())), UUID.class);
         candidats.forEach(id -> accountDeletionService.deleteAccount(id));
         candidats.clear();
+        for (UUID theme : themes) {
+            jdbc.update("DELETE FROM questions WHERE theme_id = ?", theme);
+            jdbc.update("DELETE FROM themes WHERE id = ?", theme);
+        }
     }
 
     // =====================================================================
