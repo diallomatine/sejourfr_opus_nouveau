@@ -1949,10 +1949,10 @@ Les écrans assemblent le kit ; ils ne choisissent plus rien.
 
 ##### Le 5ᵉ et le 6ᵉ site : la carte de RÉVISER (2026-09-16, même passe)
 
-> ⚠️ **Retiré le 2026-10-03 (navigation v2, demande du propriétaire)** : l'écran Entraînement
-> (ex-Réviser) n'a plus de carte de reprise — le Plan est l'onglet voisin. `reviserResumeTcf` /
-> `reviserResumeCivique` n'existent plus ; ce qui suit, et les mentions « Réviser » du tableau
-> ci-dessus, sont historiques.
+> ⚠️ **Écart web ⇄ mobile ASSUMÉ (2026-10-03, navigation v2, demande du propriétaire)** : sur le
+> MOBILE, l'écran Entraînement n'a plus de carte de reprise (le Plan est le segment voisin) et
+> `reviserResumeTcf` / `reviserResumeCivique` n'y existent plus. Le WEB garde la carte et ses
+> fonctions (`lib/reviser.ts`) : ce qui suit ne vaut plus que pour le web.
 
 ⚠️ **La migration précédente avait oublié un écran.** « Reprendre là où vous
 vous êtes arrêté » (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart` ⇄

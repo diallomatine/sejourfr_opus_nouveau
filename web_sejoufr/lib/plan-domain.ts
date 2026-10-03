@@ -943,8 +943,10 @@ export function planEpreuveCarte(
  * écrite · À ÉVALUER » : deux « à faire maintenant » contradictoires pour le
  * même candidat, au même instant.
  *
- * ⚠️ La carte de reprise de Réviser en dérivait aussi, pour la même raison ;
- * elle est **retirée** de l'écran Entraînement (2026-10-03).
+ * ⚠️ **La carte « Reprendre là où vous vous êtes arrêté » de Réviser en dérive
+ * aussi** (`reviserResumeTcf`, `lib/reviser.ts`) : elle lisait
+ * `seance.items[0]` puis retombait sur `currentPriority`, donc une mesure qui
+ * n'ouvrait pas la séance lui échappait — troisième écran, même contradiction.
  *
  * 🛑 **Rien n'est décidé ici** : la précédence de la mesure, la nature de
  * l'action, les minutes et le verrou sont tous **servis**. Cette fonction ne
