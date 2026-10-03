@@ -54,6 +54,13 @@ import 'widgets/home_blocks.dart';
 ///
 /// 🛑 **[_IndependenceNote] ne se touche pas** : exigence de conformité store
 /// (Misleading Claims).
+/// 🛑 **Carte « Reprenez votre diagnostic » MASQUÉE pour tous** (2026-10-03,
+/// décision du propriétaire) : une fois le compte créé, le diagnostic, ce sont
+/// les examens blancs du premier cycle du Plan (D-69). Le diagnostic rapide se
+/// passe AVANT le compte, depuis le web. Code gardé : repasser à `true` suffit.
+/// Miroir web : `ACCUEIL_SHOW_DIAGNOSTIC_CARD`.
+const bool kHomeShowDiagnosticCard = false;
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -211,6 +218,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// préparation — **au-dessus** de « À faire maintenant », et seulement quand
   /// elle existe. Chargement ou erreur : rien (c'est un bloc facultatif).
   List<Widget> _diagnosticEnCours(BuildContext context) {
+    if (!kHomeShowDiagnosticCard) return const <Widget>[];
     final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
     if (journey == null ||
         journey.status == DiagnosticJourneyStatus.notStarted ||

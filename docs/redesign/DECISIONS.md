@@ -325,3 +325,12 @@
   - TCF · Entraînement : hero « Entretien en temps réel » retiré (D3-B révoqué pour ce bloc ; la simulation reste accessible depuis le hub de l'expression orale).
 - Fichiers impactés : `PlanCycleSection.tsx`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `ReviserScreen.tsx`, `lib/module-ecrans.ts`, `lib/journey.ts`, `plan_cycle_section.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`, `civic_plan_labels.dart`, `reviser_body.dart`, `module_labels.dart`, `journey_labels.dart`
 - Réversibilité : facile (historique git)
+
+### DEC-40 — Carte « Reprenez votre diagnostic » masquée sur l'Accueil (web + mobile)
+- Phase : 4 (décision du propriétaire)
+- Contexte : avec deux diagnostics (TCF et civique) on ne sait pas lequel afficher, et une fois le compte créé le diagnostic de la personne, ce sont les examens blancs du premier cycle du Plan (D-69). Le diagnostic rapide reste le parcours d'AVANT le compte (`/`, `/reussir`, `/diagnostic`).
+- Options envisagées : A supprimer la carte · B la masquer pour tous, code gardé · C ne l'afficher qu'aux comptes sans aucun examen blanc
+- Choix : B — drapeau `ACCUEIL_SHOW_DIAGNOSTIC_CARD` (web) ⇄ `kHomeShowDiagnosticCard` (mobile) à `false`. C reste la cible si la carte revient (« compte neuf, aucun examen passé »), mais exigerait un fait servi « au moins un examen blanc » que l'Accueil ne lit pas aujourd'hui.
+- Effet de bord assumé : un invité qui vient de créer son compte pendant l'analyse ne voit plus « Analyse en cours » sur l'Accueil — il la voit déjà sur l'écran `/diagnostic` qui l'a fait passer, et le rapport reste accessible par « Mon diagnostic » sur le Plan.
+- Fichiers impactés : `web_sejoufr/app/(app)/dashboard/page.tsx`, `mobile_sejourfr/lib/screens/home/home_screen.dart`
+- Réversibilité : facile (un booléen par front)

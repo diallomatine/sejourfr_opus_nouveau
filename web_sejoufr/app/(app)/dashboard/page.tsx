@@ -91,6 +91,15 @@ import {
 } from "@/lib/types";
 
 /**
+ * 🛑 **Carte « Reprenez votre diagnostic » MASQUÉE pour tous** (2026-10-03,
+ * décision du propriétaire) : une fois le compte créé, le diagnostic, ce sont
+ * les examens blancs du premier cycle du Plan (D-69). Le diagnostic rapide se
+ * passe AVANT le compte (`/`, `/reussir`, `/diagnostic`). Code gardé : repasser à
+ * `true` suffit. Miroir mobile : `kHomeShowDiagnosticCard`.
+ */
+const ACCUEIL_SHOW_DIAGNOSTIC_CARD = false;
+
+/**
  * **L'Accueil** de l'espace connecté — Navigation v2, phase 3 (2026-10-03).
  *
  * Maquette : `docs/redesign/sejourfr-navigation-web.html`, écran `#accueil`.
@@ -103,8 +112,9 @@ import {
  * barre latérale porte les deux modules ; un `?module=` dans l'adresse est
  * ignoré), « Où vous en êtes » (remplacé par « Mes objectifs »), les CTA
  * secondaires de la carte d'action. **Ce qui reste** : la carte de diagnostic
- * en cours (au-dessus de « À faire maintenant », seulement quand elle existe)
- * et l'invitation à choisir son objectif.
+ * en cours (au-dessus de « À faire maintenant », MASQUÉE pour tous depuis le
+ * 2026-10-03, cf. `ACCUEIL_SHOW_DIAGNOSTIC_CARD`) et l'invitation à choisir son
+ * objectif.
  *
  * 🛑 **Chaque bloc charge, échoue et se réessaie SEUL** (brief §7) : un
  * squelette aux dimensions de sa carte, puis un message + « Réessayer » à sa
@@ -114,6 +124,7 @@ import {
  * LANCER, OUVRIR_ETAPE, DEBLOQUER ou AUCUN — l'Accueil ne redéduit ni un
  * verrou d'un rang ni une adresse.
  */
+
 export default function DashboardPage() {
     const {user, status} = useAuth();
     const actif = status === "authenticated" && Boolean(user);
@@ -171,7 +182,7 @@ export default function DashboardPage() {
 
             {/* Le diagnostic en cours vit AU-DESSUS de « À faire maintenant » : le
                 titre reste collé aux deux cartes de module, comme sur le mobile. */}
-            {diagnostic.data && (
+            {ACCUEIL_SHOW_DIAGNOSTIC_CARD && diagnostic.data && (
                 <Pad className={sejourStyles.pageBody}>
                     <CarteDiagnostic diagnostic={diagnostic.data}/>
                 </Pad>
