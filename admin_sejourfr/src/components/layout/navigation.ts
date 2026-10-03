@@ -10,6 +10,8 @@ export interface NavEntry {
   badge?: NavBadge;
   /** Libellé du dernier segment du fil d'Ariane sur une route plus profonde (`/users/:id`). */
   detailLabel?: string;
+  /** Route conservée (URL directe, fil d'Ariane) mais absente du menu. */
+  hidden?: boolean;
 }
 
 export interface NavSection {
@@ -32,10 +34,10 @@ export const NAVIGATION: readonly NavSection[] = [
     items: [
       { to: "/questions/civique", label: "Questions · Civique", icon: "landmark", badge: "questionsCivique" },
       { to: "/questions/tcf", label: "Questions · TCF", icon: "language", badge: "questionsTcf" },
-      { to: "/themes", label: "Thématiques", icon: "tag" },
-      { to: "/skills", label: "Compétences EE/EO", icon: "target" },
-      { to: "/production-titles", label: "Titres sujets EE/EO", icon: "heading" },
-      { to: "/exams", label: "Examens blancs", icon: "clipboard" },
+      { to: "/themes", label: "Thématiques", icon: "tag", hidden: true },
+      { to: "/skills", label: "Compétences EE/EO", icon: "target", hidden: true },
+      { to: "/production-titles", label: "Titres sujets EE/EO", icon: "heading", hidden: true },
+      { to: "/exams", label: "Examens blancs", icon: "clipboard", hidden: true },
     ],
   },
   {
@@ -46,9 +48,9 @@ export const NAVIGATION: readonly NavSection[] = [
       { to: "/audio-questions/logs", label: "Audit générations", icon: "history" },
       { to: "/example-audio/review", label: "Audios exemples EO", icon: "volume", badge: "exampleAudio" },
       { to: "/productions-ia", label: "Productions IA", icon: "sparkles", detailLabel: "Production" },
-      { to: "/calibration", label: "Calibration notation", icon: "sliders" },
-      { to: "/couts-ia", label: "Coût de l'IA", icon: "coins" },
-      { to: "/notions-civiques", label: "Notions civiques", icon: "book" },
+      { to: "/calibration", label: "Calibration notation", icon: "sliders", hidden: true },
+      { to: "/couts-ia", label: "Coût de l'IA", icon: "coins", hidden: true },
+      { to: "/notions-civiques", label: "Notions civiques", icon: "book", hidden: true },
     ],
   },
   {

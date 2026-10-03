@@ -15,6 +15,11 @@ import { NAVIGATION, navEntryFor } from "./navigation";
 import type { NavBadge, NavEntry } from "./navigation";
 import styles from "./AppLayout.module.css";
 
+const MENU = NAVIGATION.map((section) => ({
+  ...section,
+  items: section.items.filter((item) => !item.hidden),
+})).filter((section) => section.items.length > 0);
+
 /** Palier du tiroir : au-dessous, la barre latérale disparaît derrière le bouton burger. */
 const DRAWER_QUERY = "(max-width: 720px)";
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -170,7 +175,7 @@ export function AppLayout() {
         </div>
 
         <nav className={styles.nav}>
-          {NAVIGATION.map((section) => (
+          {MENU.map((section) => (
             <div key={section.label} className={styles.navSection}>
               <div className={styles.navLabel}>{section.label}</div>
               <div className={styles.navItems}>
