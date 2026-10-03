@@ -33,15 +33,6 @@ import 'plan_now_card.dart';
 /// Bloc 2 — à faire maintenant.
 const String kCivicPlanNowTitle = 'À faire maintenant';
 
-/* ------------------------------- Navigation v2 — hero et examen blanc --- */
-
-/// Le hero rouge du Plan civique (X8 A) : l'avancement en séries
-/// (`avancementSeriesCivique`, la fonction unique), même valeur que les autres
-/// emplacements du % civique. Textes éditoriaux de la maquette (R8).
-const String kCivicPlanHeroLabel = 'Progression globale';
-const String kCivicPlanHeroSub = 'Votre parcours avance thème par thème.';
-const String kCivicPlanHeroStat = 'du parcours';
-
 /// Le geste d'une action **fermée** — la série, pas le plan entier.
 ///
 /// 🛑 **Aucune chaîne neuve n'est gelée** : elle existait déjà ici et n'avait

@@ -12,11 +12,8 @@ import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/providers/dashboard_provider.dart';
 import '../../core/utils/civique_examen.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../module/module_labels.dart';
-import '../reviser/reviser_labels.dart' show avancementSeriesCivique;
 import 'plan_labels.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/civic_diagnostic_models.dart';
@@ -142,7 +139,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       child: ListView(
         children: <Widget>[
           const SizedBox(height: 14),
-          const Padding(padding: sfGutter, child: _HeroCivique()),
           if (plan != null)
             ..._ecran(plan, free: free)
           else if (async.hasError)
@@ -512,44 +508,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
           : () => unawaited(geste == PlanNowGeste.debloquer
               ? _ouvrirOffre()
               : _lancer(CivicNowCible(cible))),
-    );
-  }
-}
-
-/// **Le hero rouge du Plan civique** (X8 A, maquette `.hero.red`) : les séries
-/// terminées, le pourcentage du parcours et sa barre — la même valeur que la
-/// carte « Ma progression », l'Accueil et la barre latérale web, par la
-/// fonction unique [avancementSeriesCivique]. Le cycle reste dans ses blocs.
-///
-/// États du bloc (brief §7) : squelette, erreur + « Réessayer ».
-class _HeroCivique extends ConsumerWidget {
-  const _HeroCivique();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tableau = ref.watch(dashboardProvider);
-    final themes = tableau.valueOrNull?.civique;
-    if (themes == null) {
-      if (tableau.hasError) {
-        return SfBlockError(
-          message: kModuleBlockError,
-          retryLabel: kModuleRetry,
-          onRetry: () => ref.invalidate(dashboardProvider),
-        );
-      }
-      return const SfBlockSkeleton(height: 172);
-    }
-    final avancement = avancementSeriesCivique(themes);
-    return SfHero(
-      civique: true,
-      label: kCivicPlanHeroLabel,
-      title: moduleCiviqueProgressMeta(avancement.terminees),
-      sub: kCivicPlanHeroSub,
-      stat: (
-        value: moduleCiviqueProgressValue(avancement.pourcentage),
-        label: kCivicPlanHeroStat,
-      ),
-      progress: avancement.pourcentage / 100,
     );
   }
 }

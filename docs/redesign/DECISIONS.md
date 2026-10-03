@@ -314,6 +314,7 @@
 - Choix, web et mobile :
   - Plan TCF et civique : lien « Tout l'entraînement » de « Priorités actuelles » retiré ; « À faire maintenant » passe avant la carte du plan, dont la phrase d'explication est retirée ; côté utilisateur, « cycle » se dit « plan » (« Plan N », « Mes plans »).
   - Plan TCF web : hero « Ma progression » de la colonne droite retiré (absent du segment Plan mobile ; le mobile porte « Ma progression » au-dessus des segments, le web dans la sidebar).
+  - Plan civique : hero rouge « Progression globale » et badge « Objectif examen · 32/40 » (web) retirés — **révoque X8 A** : le % civique n'a plus que 5 emplacements (Accueil, carte objectif / ligne d'objectif, tail sidebar, carte « Ma progression » mobile, écran Progression civique).
   - Plan civique : carte « Examen blanc civique » retirée (l'accès reste par Civique · Examens).
   - Entraînement TCF et civique : carte « Recommandé par votre plan » retirée **sur le mobile seulement** (le Plan est le segment voisin) ; **le web la garde** — écart web ⇄ mobile ASSUMÉ par le propriétaire (sur le web, le Plan est une autre page). Mobile : `reviserResumeTcf/Civique` supprimées ; web : inchangé.
   - TCF · Entraînement : hero « Entretien en temps réel » retiré (D3-B révoqué pour ce bloc ; la simulation reste accessible depuis le hub de l'expression orale).

@@ -9,7 +9,6 @@
  * (`tcf-epreuves`, `civique-examen`). Rien ici ne classe un nombre.
  */
 import {ACCUEIL_INCONNU} from "./accueil";
-import {CIVIQUE_EXAM_QUESTIONS, CIVIQUE_EXAM_SEUIL} from "./civique-examen";
 import {TCF_EPREUVES_OFFICIELLES} from "./tcf-epreuves";
 import type {TargetLevel} from "./types";
 
@@ -50,18 +49,6 @@ export function planTcfChipObjectif(cible: TargetLevel): string {
 export const PLAN_CIVIQUE_TITLE = "Plan";
 export const PLAN_CIVIQUE_SUBTITLE =
     "Suivez votre plan civique thème par thème et avancez selon vos priorités.";
-
-/** « Objectif examen · 32/40 » — seuil et format de l'arrêté (miroir gelé). */
-export const PLAN_CIVIQUE_BADGE_SEUIL = `Objectif examen · ${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`;
-
-export const PLAN_CIVIQUE_HERO_LABEL = "Progression globale";
-export const PLAN_CIVIQUE_HERO_SUB = "Votre parcours avance thème par thème, dans le bon ordre.";
-export const PLAN_CIVIQUE_HERO_STAT = "du parcours";
-
-/** « {n} séries terminées » — `0` s'écrit, jamais un vide. */
-export function seriesTermineesTitre(n: number): string {
-    return `${n} ${pluriel(n, "série terminée", "séries terminées")}`;
-}
 
 /* --------------------------------------------------------- Entraînement */
 

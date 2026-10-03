@@ -45,7 +45,8 @@ conditions réelles.
   « cycle ». Sur l'écran Plan : « À faire maintenant » → jalon → carte du plan (sans phrase
   d'explication) → « Priorités actuelles ». Les mentions « Mes cycles » plus bas sont historiques.
 - **Entraînement** : plus de bloc « Entretien en temps réel » ; la carte « Recommandé par votre
-  plan » est gardée sur le WEB et retirée du MOBILE (écart assumé par le propriétaire) ; le Plan civique n'a plus de carte « Examen blanc civique » (DEC-39).
+  plan » est gardée sur le WEB et retirée du MOBILE (écart assumé par le propriétaire) ; le Plan civique n'a plus ni hero « Progression globale » (X8 révoqué) ni carte « Examen blanc
+  civique » (DEC-39).
 - **Plan TCF** : la section « Votre prochain jalon » est **retirée** (DEC-38, demande du
   propriétaire) — `PlanMilestoneCard` / `plan_milestone_labels.dart` n'existent plus ; les
   mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.

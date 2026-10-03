@@ -7,7 +7,7 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
-import {civicDiagnosticApi, civicPlanApi, dashboardApi, journeyApi} from "@/lib/api";
+import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {useAuth} from "@/lib/auth-context";
@@ -27,16 +27,13 @@ import {
   CIVIC_MAITRISE_LABEL,
   type CivicDiagnosticDto,
   type CivicPlanDto,
-  type DashboardSummaryResponse,
   type JourneyDto,
 } from "@/lib/types";
 import {
   Badge,
-  BlockError,
   BlockSkeleton,
   Cta,
   GoalStrip,
-  Hero,
   InfoCard,
   NowCard,
   Pad,
@@ -45,22 +42,11 @@ import {
   Stack,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {IconTarget} from "@/app/_components/shell/ShellIcons";
-import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY, accueilPourcentage} from "@/lib/accueil";
 import {
   MODULE_CIVIQUE_KICKER,
-  MODULE_VOIR_DETAIL,
-  PLAN_CIVIQUE_BADGE_SEUIL,
-  PLAN_CIVIQUE_HERO_LABEL,
-  PLAN_CIVIQUE_HERO_STAT,
-  PLAN_CIVIQUE_HERO_SUB,
   PLAN_CIVIQUE_SUBTITLE,
   PLAN_CIVIQUE_TITLE,
-  seriesTermineesTitre,
 } from "@/lib/module-ecrans";
-import {progressionHref} from "@/lib/progression";
-import {avancementSeriesCivique} from "@/lib/reviser";
-import {type CachedData, useCachedData} from "@/lib/use-cached-data";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
@@ -197,7 +183,6 @@ function CiviqueHead() {
         kicker={MODULE_CIVIQUE_KICKER}
         title={PLAN_CIVIQUE_TITLE}
         subtitle={PLAN_CIVIQUE_SUBTITLE}
-        aside={<Badge module="civique">{PLAN_CIVIQUE_BADGE_SEUIL}</Badge>}
       />
     </Pad>
   );
@@ -232,10 +217,6 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
   const launchExam = useMockExamLauncher();
   const [examPaywall, setExamPaywall] = useState(false);
 
-  /* La lecture du bandeau est celle, EN CACHE, de
-     l'Accueil, de la barre latérale et de l'écran Progression civique. */
-  const summary = useCachedData<DashboardSummaryResponse>("plan:dashboard", () => dashboardApi.summaryCached());
-
   const carte = civicNowCard(plan, {journey, free, lancerExamen: true});
   const grainNote = civicPlanGrainNote(plan.grain);
   const erreur = serieCible.erreur ?? serieUnite.erreur;
@@ -243,14 +224,6 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
   return (
     <>
       <CiviqueHead />
-
-      {/* **Hero rouge (X8-A)** : le pourcentage UNIQUE du parcours en séries
-          (`avancementSeriesCivique`), la même valeur que l'Accueil, la barre
-          latérale et l'écran Progression civique. Le cycle reste lisible dans
-          sa carte et ses blocs, plus bas. */}
-      <Pad className={sejourStyles.pageBody}>
-        <AvancementHero summary={summary} />
-      </Pad>
 
       {/* 🛑 LA BANDE OBJECTIF (D-50 §1) : la démarche visée et le seuil, deux
           FAITS du référentiel. ⛔ **Jamais un score d'entrée** — il se lirait
@@ -408,32 +381,6 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
 }
 
 /* ------------------------------------------------ les blocs de la maquette */
-
-/**
- * **Le bandeau rouge « Progression globale »** : `{terminées} séries
- * terminées`, `{pct} %` « du parcours », barre = pct — la fonction UNIQUE
- * `avancementSeriesCivique` sur les thèmes servis par `/api/me/dashboard`.
- * 0 série ⇒ « 0 % », jamais vide.
- */
-function AvancementHero({summary}: {summary: CachedData<DashboardSummaryResponse>}) {
-  if (summary.loading) return <BlockSkeleton height={220} radius={30} />;
-  if (summary.error !== null || !summary.data) {
-    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />;
-  }
-  const avancement = avancementSeriesCivique(summary.data.civique);
-  return (
-    <Hero
-      module="civique"
-      icon={<IconTarget />}
-      label={PLAN_CIVIQUE_HERO_LABEL}
-      title={seriesTermineesTitre(avancement.terminees)}
-      sub={PLAN_CIVIQUE_HERO_SUB}
-      stat={{value: accueilPourcentage(avancement.pourcentage), label: PLAN_CIVIQUE_HERO_STAT}}
-      progress={avancement.pourcentage / 100}
-      cta={{label: MODULE_VOIR_DETAIL, href: progressionHref("CIVIQUE")}}
-    />
-  );
-}
 
 /* ------------------------------------------------- les deux lanceurs */
 
