@@ -159,7 +159,7 @@ class _ModuleScreenState extends ConsumerState<ModuleScreen> {
                           SegmentTab(
                             value: segment,
                             label: moduleSegmentLabel(segment),
-                            color: civique ? AppColors.moduleCivique : null,
+                            color: AppColors.module(civique: civique),
                           ),
                       ],
                       onChanged: (segment) {
