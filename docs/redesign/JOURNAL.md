@@ -48,3 +48,34 @@ d'Ariane, bottom nav, segment) ✅ · anciennes routes ✅ · % civique sur 6 em
   affiche encore un « % Progression » civique par `moduleAverage` (2ᵉ règle) → à brancher sur
   `avancementSeriesCivique` ; le Profil web calcule encore la cible via `niveauViseTcf` (X13).
 - `CLAUDE.md` web et mobile (shell, bottom nav, couleurs de module) : mis à jour en fin de phase 4.
+
+## Phase 3 terminée — Accueil (2026-10-03)
+
+**Fait**
+- Accueil web (`app/(app)/dashboard/page.tsx`, libellés `lib/accueil.ts`) et mobile
+  (`screens/home/`) reconstruits sur le kit, contenu de la maquette, données servies :
+  kicker `Objectif · {mention}` (`objectifKicker`), « Bonjour {prénom nom} », « Mes objectifs »
+  (TCF `{actuel|—} → {cible}`, civique `{pct} %` via `avancementSeriesCivique` ; web : `ObjCard`
+  avec barre = avancement du cycle (D4 B), épreuves au niveau cible, cycle ; civique : %,
+  séries, seuil), « À faire maintenant » (2 cartes, gestes servis, durée masquée si nulle).
+  Ordre propre à chaque maquette (D2 A).
+- X7 appliqué : bascule, « Où vous en êtes » et CTA secondaires supprimés ; carte diagnostic en
+  cours, invitation objectif et `_IndependenceNote` gardées. `?module=` ignoré sur `/dashboard`.
+- États par bloc : squelette, erreur + « Réessayer ».
+- Primitives miroirs ajoutées aux deux kits, primitives orphelines retirées (DEC-22).
+- `docs/regles/plan.md` : la carte civique de l'Accueil lance l'examen de thème (DEC-18).
+
+**Vérifications** : web `tsc` 0, eslint 0 sur les fichiers touchés, `npm test` 278/278,
+`npm run build` OK, contrat de progression conforme ; mobile `flutter analyze` 0,
+`flutter test` 303/303. Greps hex maquette / données fictives : rien.
+
+**Checklist §12 (Accueil)** : hex ✅ · données fictives ✅ · « abonnement » ✅ · ordre des blocs ✅ ·
+civique rouge ✅ · états chargement/erreur/gratuit/pass ✅ · % civique : 3 emplacements sur 6
+(tail sidebar, carte « Ma progression » mobile, Accueil) ⏳ · fidélité visuelle : non vérifiée à
+l'écran.
+
+**Points de vigilance**
+- Appariement d'en-tête : web `PageHead` ⇄ mobile `SfModuleHeader` (pas de `ModuleHeader` web).
+- `ObjectivesCard` attend le « Résumé de préparation » du Profil web (phase 4).
+- `/examens-blancs` : « % Progression » civique encore par `moduleAverage` ; Profil web :
+  `niveauViseTcf` (X13) — phase 4.

@@ -144,7 +144,7 @@ enum TargetProcedure {
   /// La démarche **telle qu'on la nomme au candidat**, dans l'ordre du livret.
   ///
   /// 🛑 **Une seule table pour tout le mobile** : elle sert la pastille
-  /// d'objectif de l'Accueil ([objectifLabel]) comme la phrase du diagnostic
+  /// du kicker de l'Accueil (`objectifKicker`) comme la phrase du diagnostic
   /// civique (`kMentionLabel`, qui en dérive). Miroir de `MENTION_LABEL`
   /// (`web_sejoufr/lib/civic-diagnostic.ts`).
   ///

@@ -215,18 +215,22 @@ export function moduleParDefaut(prep: PreparationDto): "TCF" | "CIVIQUE" {
    -------------------------------------------------------------------------- */
 
 /**
- * « Objectif : naturalisation ».
+ * « Objectif · Naturalisation » — le kicker de l'Accueil (Navigation v2,
+ * maquette `#accueil`).
  *
  * 🛑 **Une seule table de démarches sur le web** : `MENTION_LABEL`
- * (`lib/civic-diagnostic.ts`). Cette phrase-ci était écrite en dur dans
- * `AppSidebar`, et l'Accueil allait en poser une deuxième copie sous son
- * « Bonjour » — deux copies d'un libellé de démarche finissent toujours par
- * diverger (c'est exactement ce qui est arrivé à la table des paliers).
+ * (`lib/civic-diagnostic.ts`). Deux copies d'un libellé de démarche finissent
+ * toujours par diverger (c'est exactement ce qui est arrivé à la table des
+ * paliers).
  *
- * `null` / démarche inconnue ⇒ l'invitation à la choisir, jamais une démarche
- * par défaut : `null = inconnu, jamais mauvais`.
+ * ⚠️ **Remplace `objectifLabel`** (« Objectif : naturalisation », pastille de
+ * l'ancien Accueil, son seul lecteur) — refonte = suppression de l'ancien.
+ *
+ * `null` / démarche inconnue ⇒ `null` : pas de kicker, jamais une démarche par
+ * défaut (`null = inconnu, jamais mauvais`). L'invitation à la choisir est le
+ * bandeau de l'Accueil.
  */
-export function objectifLabel(procedure: TargetProcedure | null | undefined): string {
+export function objectifKicker(procedure: TargetProcedure | null | undefined): string | null {
     const mention = procedure ? MENTION_LABEL[procedure] : undefined;
-    return mention ? `Objectif : ${mention.toLowerCase()}` : "Choisir mon parcours";
+    return mention ? `Objectif · ${mention}` : null;
 }

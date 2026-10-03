@@ -1,1113 +1,585 @@
 "use client";
 
 import Link from "next/link";
-import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {Suspense, useEffect, useState} from "react";
+import {useRouter} from "next/navigation";
+import {useEffect, useRef, useState} from "react";
 import {
-    ArrowRight,
-    Landmark,
-    Sparkles,
-    Target,
-} from "lucide-react";
-import {
+    ActionCard,
+    BlockError,
+    BlockSkeleton,
     Card,
     Cta,
-    GoalBanner,
-    LevelCard,
-    LevelCardGrid,
-    LevelLadder,
-    MicroNote,
-    NowCard,
+    ObjCard,
+    PageHead,
     Pad,
     Section,
     SejourApp,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {civicPlanApi, diagnosticApi, journeyApi, learningPlanApi, progressApi, userContentApi} from "@/lib/api";
-import {
-    JOURNEY_NEEDS_OBJECTIVE_CTA,
-    JOURNEY_NEEDS_OBJECTIVE_TEXT,
-    JOURNEY_NEEDS_OBJECTIVE_TITLE,
-    journeyTargetPathHref,
-} from "@/lib/journey";
-import {civicBarTone} from "@/lib/civic-diagnostic";
-import {themeSlug} from "@/lib/themes";
-import {progressionEpreuveHref, progressionThemeHref} from "@/lib/progression";
-import {situationIcon} from "@/lib/situation-icons";
-import {
-    ACCUEIL_EVALUEES_CAPTION,
-    ACCUEIL_EVALUER_CTA,
-    ACCUEIL_EVALUES_CAPTION_CIVIQUE,
-    NON_MESURE_LABEL,
-    accueilEchelleLabel,
-    accueilEchelleLabelCivique,
-    accueilEchelons,
-    accueilEchelonsCivique,
-    accueilEpreuveBadge,
-    accueilEpreuveCta,
-    accueilEpreuveMesureEnPlus,
-    accueilEpreuveOuvreLExercice,
-    accueilEpreuveStatut,
-    accueilEpreuveTon,
-    accueilEvaluees,
-    accueilEvaluesCivique,
-    progresCiviqueScore,
-} from "@/lib/progres";
-import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
-import {
-    DIAGNOSTIC_RAPIDE_START_HREF,
-    moduleParDefaut,
-    objectifLabel,
-} from "@/lib/preparation";
-import {useAuth} from "@/lib/auth-context";
-import {
-    planDomainHref,
-    planDomainLabel,
-    planDomainShort,
-    planNowCard,
-} from "@/lib/plan-domain";
-import {planNowIcon} from "@/app/_components/plan/PlanBits";
+import {IconEar, IconMap, IconShield, IconSparkle, IconTarget} from "@/app/_components/shell/ShellIcons";
 import {usePlanAssessment, usePlanExercise} from "@/app/_components/plan/use-plan-exercise";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
+import {civicPlanApi, dashboardApi, diagnosticApi, journeyApi, learningPlanApi, progressApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {
+    ACCUEIL_BLOCK_ERROR,
+    ACCUEIL_CIVIQUE_CTA,
+    ACCUEIL_CIVIQUE_LABEL,
+    ACCUEIL_CIVIQUE_METRIC_EXAMEN,
+    ACCUEIL_CIVIQUE_METRIC_PARCOURS,
+    ACCUEIL_CIVIQUE_METRIC_SERIES,
+    ACCUEIL_CIVIQUE_OBJECTIF_TITRE,
+    ACCUEIL_CIVIQUE_SEUIL,
+    ACCUEIL_DIAGNOSTIC_CTA_ANALYSIS,
+    ACCUEIL_DIAGNOSTIC_CTA_RESUME,
+    ACCUEIL_DIAGNOSTIC_LABEL,
+    ACCUEIL_DIAGNOSTIC_RESUME_TEXT,
+    ACCUEIL_DIAGNOSTIC_TITLE_ANALYSIS,
+    ACCUEIL_DIAGNOSTIC_TITLE_RESUME,
+    ACCUEIL_NOW_TITLE,
+    ACCUEIL_OBJECTIVES_TITLE,
+    ACCUEIL_PARCOURS_BANNER_LABEL,
+    ACCUEIL_PARCOURS_BANNER_TEXT,
+    ACCUEIL_PARCOURS_BANNER_TITLE,
+    ACCUEIL_RETRY,
+    ACCUEIL_SUBTITLE,
+    ACCUEIL_TCF_CTA,
+    ACCUEIL_TCF_LABEL,
+    ACCUEIL_TCF_METRIC_CYCLE,
+    ACCUEIL_TCF_METRIC_PROGRESSION,
+    ACCUEIL_TCF_NB_EPREUVES,
+    accueilBonjour,
+    accueilCiviqueActionMeta,
+    accueilCiviqueDescription,
+    accueilCycleLabel,
+    accueilCycleRatio,
+    accueilEpreuvesAuNiveau,
+    accueilPourcentage,
+    accueilSeries,
+    accueilTcfActionMeta,
+    accueilTcfDescription,
+    accueilTcfMetricEpreuves,
+    accueilTcfObjectifTitre,
+    accueilTcfProgression,
+} from "@/lib/accueil";
+import {civicNowCard} from "@/lib/civic-plan";
 import {
     diagnosticAnalyzingObjective,
     diagnosticCompletedExerciseCount,
     diagnosticCountLabel,
-    diagnosticExerciseCount,
     diagnosticDashboardState,
+    diagnosticExerciseCount,
 } from "@/lib/diagnostic";
 import {
-    CIVIC_THEME_STATE_LABEL,
-    niveauCecrlShort,
+    JOURNEY_NEEDS_OBJECTIVE_CTA,
+    JOURNEY_NEEDS_OBJECTIVE_TEXT,
+    JOURNEY_NEEDS_OBJECTIVE_TITLE,
+    JOURNEY_UP_TO_DATE_TITLE,
+    journeyTargetPathHref,
+} from "@/lib/journey";
+import {planHref} from "@/lib/module-switch";
+import {planNowCard} from "@/lib/plan-domain";
+import {planUnlockHref} from "@/lib/plan-unlock";
+import {DIAGNOSTIC_RAPIDE_START_HREF, objectifKicker} from "@/lib/preparation";
+import {progressionHref} from "@/lib/progression";
+import {avancementSeriesCivique} from "@/lib/reviser";
+import {
     canAccessModule,
     type CivicPlanDto,
+    type DashboardSummaryResponse,
     type DiagnosticResponse,
     type JourneyDto,
     type LearningPlanDto,
-    type PreparationDto,
     type ProgressDto,
 } from "@/lib/types";
-import {planUnlockHref} from "@/lib/plan-unlock";
-import {civicNowCard} from "@/lib/civic-plan";
 
 /**
- * **L'Accueil** de l'espace connecté, **scopé au parcours choisi**.
+ * **L'Accueil** de l'espace connecté — Navigation v2, phase 3 (2026-10-03).
  *
- * ## Un écran, deux parcours (2026-09-12)
+ * Maquette : `docs/redesign/sejourfr-navigation-web.html`, écran `#accueil`.
+ * Ordre web (D2-A) : en-tête → **À faire maintenant** (deux cartes, une par
+ * module) → **Mes objectifs** (deux cartes dégradées). Tout est monté sur le
+ * KIT (`PageHead`, `ActionCard`, `ObjCard`, `BlockSkeleton`, `BlockError`) ;
+ * l'écran n'a aucun style à lui.
  *
- * ⚠️ **Navigation v2 (2026-10-03)** : la bascule TCF / Examen civique de
- * l'écran est SUPPRIMÉE (la barre latérale porte les deux modules) ; la phase 3
- * refait cet Accueil. D'ici là il reste scopé par `?module=` : le défaut est **servi**
- * (`moduleParDefaut(prep)`) et s'inscrit dans l'URL — **aucun `useState` de
- * module**, aucune seconde mécanique.
+ * ⚠️ **Ce qui est parti** (X7) : la bascule TCF / Civique et `?module=` (la
+ * barre latérale porte les deux modules ; un `?module=` dans l'adresse est
+ * ignoré), « Où vous en êtes » (remplacé par « Mes objectifs »), les CTA
+ * secondaires de la carte d'action. **Ce qui reste** : la carte de diagnostic
+ * en cours (au-dessus de « À faire maintenant », seulement quand elle existe)
+ * et l'invitation à choisir son objectif.
  *
- * ## Ce que l'écran porte, de haut en bas (2026-09-19)
+ * 🛑 **Chaque bloc charge, échoue et se réessaie SEUL** (brief §7) : un
+ * squelette aux dimensions de sa carte, puis un message + « Réessayer » à sa
+ * place — le reste de l'écran reste utilisable.
  *
- * Bandeau « Choisissez votre parcours » (démarche absente) → en-tête
- * « Bonjour X » + pastille de démarche → **À faire maintenant** (+ l'invitation à choisir un objectif) → **Où vous en
- * êtes**. Et rien d'autre.
- *
- * 🛑 **Le bas de l'Accueil est SUPPRIMÉ** (arbitrage du propriétaire,
- * 2026-09-19, verbatim : « Dans Accueil aussi supprime tout ça sauf le "outil
- * indépendant non affilié…" ») : l'aperçu « Votre Plan », les deux compteurs de
- * « Votre progression », la carte « Continuez votre diagnostic complet »
- * (`AffinerPlanCard`, supprimée avec son autorité `affinerPlan`) et les deux
- * lignes de « Vos parcours » — la bascule ci-dessus fait déjà ce travail.
- * **Ne pas les réintroduire** : le Plan se lit sur `/plan`, les résultats sur
- * les écrans de progression (`/progression/*`) ; le parcours du diagnostic
- * complet est retiré des fronts depuis le 2026-09-26. Même passe côté mobile.
- *
- * 🛑 **Sans objectif déclaré, on INVITE — on ne ferme rien** (arbitrage du
- * 2026-09-17) : la carte « Choisir mon objectif » reste, elle **s'ajoute** à la
- * carte d'action au-dessus. Miroir de `_objectifTcf` côté mobile.
- *
- * ## Les sources, parcours par parcours
- *
- * | bloc | TCF | Civique |
- * |---|---|---|
- * | à faire maintenant | `/api/diagnostics/current` (reprise) puis `planNowCard(plan, journey)` | `civicNowCard(civicPlan, journey)` |
- * | où vous en êtes | `progres.tcf` (4 épreuves) | `progres.civique` (thèmes) |
- *
- * 🛑 **Le civique n'a AUCUN palier CECRL servi** : pas d'échelle, pas
- * d'objectif — on ne fabrique pas une mesure qui n'existe pas.
- *
- * ## Ce que la maquette ne décide PAS
- *
- * `~/Desktop/grok_ecran` — `screenshots/accueil.png` et `accueil-civ.png`.
- * L'écran est monté sur le **KIT** (`SejourApp wide` → colonne de 1080 px au
- * palier desktop) et dispose ses sections par paires avec
- * `sejourStyles.deskPair`. 🛑 **Le desktop n'ajoute aucun composant**, et une
- * carte seule sur sa rangée la prend en entier — c'est la règle `:only-child`
- * du kit, aucun cas particulier n'est écrit ici.
- *
- * 🛑 Elle est une référence de **mise en page**, jamais une source de données
- * ni de règles. La hiérarchie arbitrée est **inchangée** : une seule action
- * dominante — « À faire maintenant » —, un en-tête sans CTA, une priorité TCF
- * verrouillée qui n'est pas nommée.
- *
- * ⚠️ **Un écart assumé avec la maquette civique**, à rouvrir si besoin : la
- * pastille d'objectif nomme la **démarche** servie (« Objectif :
- * naturalisation », autorité `objectifLabel`) et non le module, que la bascule
- * juste en dessous annonce déjà.
+ * 🛑 **Les gestes sont SERVIS** : `planNowCard` / `civicNowCard` décident de
+ * LANCER, OUVRIR_ETAPE, DEBLOQUER ou AUCUN — l'Accueil ne redéduit ni un
+ * verrou d'un rang ni une adresse.
  */
-/* --------------------------------------------- « Où vous en êtes » ------- */
-
-/**
- * 🛑 **Miroirs mot pour mot de `home_labels.dart`** : un libellé qui bouge, ce
- * sont deux fichiers dans la même passe.
- */
-const SITUATION_TITLE = "Où vous en êtes";
-
-/**
- * Le lien de tête de section, vers le Plan **du module affiché** (maquette v3,
- * 2026-09-24). ⚠️ L'ancienne carte-enveloppe (« Votre niveau par épreuve » /
- * « … par thème » et leurs phrases de cadrage) est supprimée avec elle.
- */
-const SITUATION_PLAN_LINK = "Mon plan";
-
-/**
- * La note de pied de carte (maquette).
- *
- * 🛑 **Elle dit ce qui fait bouger le palier**, et c'est la même règle que la
- * page de résultats : un entraînement libre ou un petit sujet n'y entre pas.
- * Sans elle, un candidat qui vient d'enchaîner des séries lit un niveau
- * inchangé et croit à une panne.
- */
-const SITUATION_NOTE =
-    "Le niveau affiché évolue uniquement avec vos diagnostics et vos "
-    + "épreuves complètes.";
-
-/* Le pictogramme de chaque carte vient de `lib/situation-icons.ts` : les
-   écrans de progression reprennent les mêmes (miroir mobile :
-   `situation_icons.dart`). */
-
-/**
- * 🛑 **Un thème évalué ne démarre rien, et ne mène plus au Plan** (demande du
- * propriétaire, 2026-09-19) : sa ligne ouvre **l'écran de progression du
- * thème** (`/progression/civique/[theme]`, D17) — pendant exact du « Voir mes
- * résultats » d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
- *
- * 🛑 **Un thème JAMAIS évalué n'a pas de résultats à voir** (2026-09-28) : sa
- * carte dit `ACCUEIL_EVALUER_CTA` et lance l'examen blanc du thème servi
- * (`evaluation`), comme la carte d'une épreuve TCF jamais mesurée.
- */
-const SITUATION_CIVIC_CTA = "Voir mes résultats";
-
-/**
- * L'intitulé de la bande de tête civique.
- *
- * 🛑 **Ce n'est PAS « Objectif actuel »** : le civique n'a aucun objectif servi
- * comparable au palier CECRL du TCF. Ce que le serveur sert, c'est le **dernier
- * résultat** et le seuil de son format — la bande le dit, et rien d'autre.
- */
-const SITUATION_CIVIC_RESULT_LABEL = "Votre dernier résultat";
-
-const SITUATION_GOAL_LABEL = "Objectif actuel";
-
-/**
- * « Atteindre B1 partout ». Le palier est **servi** (`ProgressTcfDto.objectif`,
- * dérivé de la démarche) — aucun écran ne le devine.
- */
-function situationGoalText(niveau: string): string {
-    return `Atteindre ${niveau} partout`;
-}
-
 export default function DashboardPage() {
-    // `useSearchParams` impose une frontière de Suspense côté App Router.
-    return (
-        <Suspense fallback={<DashSkeleton/>}>
-            <DashboardRoot/>
-        </Suspense>
-    );
-}
-
-function DashboardRoot() {
     const {user, status} = useAuth();
-    const search = useSearchParams();
-    const pathname = usePathname();
-    const router = useRouter();
+    const actif = status === "authenticated" && Boolean(user);
 
-    const [progres, setProgres] = useState<ProgressDto | null>(null);
-    const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
-    const [plan, setPlan] = useState<LearningPlanDto | null>(null);
-    /* 🛑 **Le parcours est lu ICI aussi** : la carte « À faire maintenant » de
-       l'Accueil doit annoncer **la même** étape que celle du Plan. Sans lui,
-       cet écran retomberait sur la règle du Plan pendant que le Plan suivrait
-       le parcours — exactement la contradiction corrigée le 2026-09-16, à un
-       étage de plus. */
-    const [journey, setJourney] = useState<JourneyDto | null>(null);
-    const [journeyCivique, setJourneyCivique] = useState<JourneyDto | null>(null);
-    const [civicPlan, setCivicPlan] = useState<CivicPlanDto | null>(null);
-    const [loading, setLoading] = useState(true);
+    const summary = useSource<DashboardSummaryResponse>(actif, () => dashboardApi.summaryCached());
+    const progres = useSource<ProgressDto>(actif, () => progressApi.get());
+    const plan = useSource<LearningPlanDto>(actif, () => learningPlanApi.getCached());
+    const journeyTcf = useSource<JourneyDto>(actif, () => journeyApi.getCached());
+    const journeyCivique = useSource<JourneyDto>(actif, () => journeyApi.getCached("CIVIQUE"));
+    const civicPlan = useSource<CivicPlanDto>(actif, () => civicPlanApi.getCached());
+    /* Best-effort : sans diagnostic lisible, la carte de reprise n'existe pas. */
+    const diagnostic = useSource<DiagnosticResponse>(actif, () => diagnosticApi.currentCached());
 
-    /**
-     * 🛑 **Le parcours affiché vit dans l'URL, exactement comme sur le Plan**
-     * (`PlanModules`) : `?module=` est le seul transport, le défaut est
-     * **servi** par `moduleParDefaut(preparation)`, et il n'existe aucun `useState` de
-     * module. Deux mécaniques auraient fini par afficher deux parcours
-     * différents sur deux écrans du même compte.
-     */
-    const [defaut, setDefaut] = useState<ParcoursModule | null>(null);
-    const demande = moduleDeLUrl(search);
-    const affiche: ParcoursModule = demande ?? defaut ?? "TCF";
-
-    useEffect(() => {
-        if (status !== "authenticated" || !user) return;
-        let cancelled = false;
-        (async () => {
-            const [progression, currentDiagnostic, currentPlan, preparation, planCivique, parcours, parcoursCivique] = await Promise.all([
-                // 🛑 Les compteurs de compétences viennent d'ICI, servis pour les
-                // deux parcours — l'Accueil ne les recompte pas.
-                progressApi.get().catch((): ProgressDto | null => null),
-                diagnosticApi.currentCached().catch((): DiagnosticResponse | null => null),
-                learningPlanApi.getCached().catch((): LearningPlanDto | null => null),
-                // 🛑 Un SEUL appel pour tout l'écran : deux appels auraient pu
-                // proposer deux prochaines actions.
-                userContentApi.preparation().catch((): PreparationDto | null => null),
-                // Le pendant civique : l'action du jour, ses priorités et ce qui
-                // a bougé. Best-effort — son échec laisse l'écran entier.
-                civicPlanApi.getCached().catch((): CivicPlanDto | null => null),
-                // Best-effort, comme le reste : un backend antérieur à
-                // l'endpoint laisse l'Accueil entier, sur la règle du Plan.
-                journeyApi.getCached().catch((): JourneyDto | null => null),
-                // 🛑 Le cycle CIVIQUE : « À faire maintenant » y lit son étape
-                // depuis D-50 §2, exactement comme le Plan civique.
-                journeyApi.getCached("CIVIQUE").catch((): JourneyDto | null => null),
-            ]);
-            if (cancelled) return;
-            setProgres(progression);
-            setDiagnostic(currentDiagnostic);
-            setPlan(currentPlan);
-            setCivicPlan(planCivique);
-            setJourney(parcours);
-            setJourneyCivique(parcoursCivique);
-            if (preparation) setDefaut(moduleParDefaut(preparation));
-            setLoading(false);
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [status, user]);
-
-    /* L'URL devient canonique dès que le défaut servi est connu : elle rend le
-       parcours affiché partageable. Les autres paramètres sont conservés. */
-    useEffect(() => {
-        if (demande !== null || defaut === null || pathname === null) return;
-        const params = new URLSearchParams(search?.toString() ?? "");
-        params.set("module", defaut);
-        router.replace(`${pathname}?${params.toString()}`, {scroll: false});
-    }, [demande, defaut, pathname, router, search]);
-
-    if (status === "loading" || (loading && status === "authenticated")) {
-        return <DashSkeleton/>;
-    }
+    if (status === "loading") return <AccueilSquelette/>;
     if (!user) {
         return (
-            <div className="dash-empty">
-                <p>
-                    Session expirée.{" "}
-                    <Link href="/connexion" className="dash-empty-link">
-                        Se reconnecter
-                    </Link>
-                </p>
-                <style>{emptyStyle}</style>
-            </div>
+            <SejourApp className={sejourStyles.home}>
+                <Pad>
+                    <p className={sejourStyles.tiny}>
+                        Session expirée.{" "}
+                        <Link href="/connexion">Se reconnecter</Link>
+                    </p>
+                </Pad>
+            </SejourApp>
         );
     }
 
-    const civique = affiche === "CIVIQUE";
-
-    /* 🛑 **Le Plan existe pour tout compte** (D-69, 2026-09-28) : la carte
-       « À faire maintenant » lit toujours le parcours. 🛑 **Le diagnostic n'est
-       plus proposé sur l'Accueil** (ni sur le Plan, 2026-09-28) : la carte
-       « Affinez votre plan avec le diagnostic » est supprimée. Sans action, la
-       section n'existe pas : pas de titre au-dessus du vide. */
-    const aUneAction = civique ? Boolean(civicPlan) : Boolean(diagnostic);
-
     return (
-        <SejourApp wide className="home">
+        <SejourApp className={sejourStyles.home}>
+            {/* Compte sans démarche déclarée : la seule chose qui manque pour
+                personnaliser la préparation (miroir de `HomeBanner`). */}
             {!user.targetProcedure && (
                 <Pad>
-                    <Link href={journeyTargetPathHref("/dashboard")} className="home-banner">
-                        <span>
-                            <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
-                            naturalisation) pour personnaliser votre préparation.
-                        </span>
-                        <ArrowRight size={16} aria-hidden/>
-                    </Link>
+                    <div className={sejourStyles.homeStackBottom}>
+                        <ActionCard
+                            module="tcf"
+                            icon={<IconTarget/>}
+                            label={ACCUEIL_PARCOURS_BANNER_LABEL}
+                            title={ACCUEIL_PARCOURS_BANNER_TITLE}
+                            meta={ACCUEIL_PARCOURS_BANNER_TEXT}
+                            cta={{label: JOURNEY_NEEDS_OBJECTIVE_CTA, href: journeyTargetPathHref("/dashboard")}}
+                            block
+                        />
+                    </div>
                 </Pad>
             )}
 
-            {/* L'en-tête de la maquette : le prénom, puis la démarche visée en
-                pastille. La démarche est **servie** (`user.targetProcedure`) et
-                son libellé vient de l'autorité unique `objectifLabel`.
+            <Pad>
+                <PageHead
+                    kicker={objectifKicker(user.targetProcedure)}
+                    title={accueilBonjour(user.firstName, user.lastName)}
+                    subtitle={ACCUEIL_SUBTITLE}
+                />
+            </Pad>
 
-                🛑 **Aucun CTA ici** (arbitrage du propriétaire, 2026-09-12) :
-                « l'en-tête doit rester simple — Bonjour / nom, objectif actuel.
-                L'action principale passe entièrement par la carte À faire
-                maintenant, juste en dessous. Une seule action dominante par
-                écran. » Le bouton « Entraînement du jour » est parti avec son
-                libellé ; sa destination reste atteignable par les deux entrées
-                de parcours de la barre latérale. */}
-            <header className="home-hello">
-                <h1>Bonjour {user.firstName ?? "à vous"}</h1>
-                <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
-            </header>
+            <Section title={ACCUEIL_NOW_TITLE}>
+                <Pad>
+                    {diagnostic.data && <CarteDiagnostic diagnostic={diagnostic.data}/>}
+                    <div className={sejourStyles.homeGrid}>
+                        <ActionTcf
+                            plan={plan}
+                            journey={journeyTcf}
+                            free={!canAccessModule(user, "TCF")}
+                        />
+                        <ActionCivique
+                            plan={civicPlan}
+                            journey={journeyCivique}
+                            free={!canAccessModule(user, "CIVIQUE")}
+                        />
+                    </div>
+                </Pad>
+            </Section>
 
-            <div className={sejourStyles.deskPair}>
-                {aUneAction ? (
-                    <Section title="À faire maintenant">
-                        <Pad>
-                            {civique ? (
-                                <ActionCivique
-                                    plan={civicPlan ?? null}
-                                    journey={journeyCivique}
-                                    free={!canAccessModule(user, "CIVIQUE")}
-                                />
-                            ) : diagnostic ? (
-                                <ActionPrincipale
-                                    diagnostic={diagnostic}
-                                    plan={plan}
-                                    journey={journey}
-                                    free={!canAccessModule(user, "TCF")}
-                                />
-                            ) : null}
-                        </Pad>
-                    </Section>
-                ) : null}
+            {/* 🛑 **L'invitation à déclarer un objectif** (parcours TCF
+                `NEEDS_OBJECTIVE`) : elle s'AJOUTE aux cartes d'action, elle ne
+                ferme rien. Miroir de `_objectifADeclarer`. */}
+            {journeyTcf.data?.state === "NEEDS_OBJECTIVE" && (
+                <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
+                    <Pad>
+                        <Card>
+                            <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
+                            <Cta href={journeyTargetPathHref("/dashboard")}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
+                        </Card>
+                    </Pad>
+                </Section>
+            )}
 
-                {/* 🛑 **L'invitation à déclarer un objectif, et rien d'autre**
-                    (l'aperçu « Votre Plan » a été supprimé le 2026-09-19) :
-                    elle n'enlève rien à la carte ci-dessus, elle s'ajoute. */}
-                <ObjectifManquant civique={civique} journey={journey}/>
-            </div>
-
-            {/* ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du
-                propriétaire, refait en v3 le 2026-09-24) : l'objectif, puis une
-                carte par épreuve — palier, échelle, état en un mot, action.
-
-                🛑 **C'est le SEUL constat de l'écran** depuis le 2026-09-19 :
-                « Votre progression » et ses deux compteurs de compétences ont
-                été supprimés.
-
-                🛑 **Aucun appel de plus** : `progres` est déjà dans l'état de
-                l'écran, et le même `ProgressDto` porte déjà les 4 épreuves.
-
-                ⚠️ Elle prend **toute la rangée** plutôt que d'entrer dans le
-                `deskPair` au-dessus : quatre cartes dans une demi-colonne de
-                1080 px se replieraient en une file illisible, et la maquette la
-                montre pleine largeur. */}
-            <OuVousEnEtes progres={progres} civique={civique}/>
-
-            <style>{homeStyles}</style>
+            <Section title={ACCUEIL_OBJECTIVES_TITLE}>
+                <Pad>
+                    <div className={sejourStyles.homeGrid}>
+                        <ObjectifTcf
+                            cible={user.targetLevel ?? null}
+                            summary={summary}
+                            progres={progres}
+                            journey={journeyTcf}
+                        />
+                        <ObjectifCivique summary={summary}/>
+                    </div>
+                </Pad>
+            </Section>
         </SejourApp>
     );
 }
 
-/**
- * **L'action principale de l'Accueil**, dans la carte hero du KIT.
- *
- * 🛑 **D-69 (2026-09-28) : plus de carte « Faire mon diagnostic ».** Un compte
- * qui ne l'a pas commencé voit l'action du Plan (le premier examen du cycle),
- * et rien d'autre. Seul un diagnostic DÉJÀ COMMENCÉ garde sa carte de reprise.
- */
-function ActionPrincipale({
-                              diagnostic,
-                              plan,
-                              journey,
-                              free,
-                          }: {
-    diagnostic: DiagnosticResponse;
-    plan: LearningPlanDto | null;
-    journey: JourneyDto | null;
-    free: boolean;
-}) {
-    const state = diagnosticDashboardState(diagnostic);
+/* ================================================================ Données */
 
-    if (state === "IN_PROGRESS") {
-        const done = diagnosticCompletedExerciseCount(diagnostic);
-        const analyzing = diagnostic.status === "ANALYZING" || diagnostic.nextStep === "ANALYSIS";
-        return (
-            <NowCard
-                icon={Sparkles}
-                title={analyzing ? "Votre analyse est en préparation" : "Reprenez votre diagnostic"}
-                subtitle={diagnosticCountLabel(done, diagnosticExerciseCount(diagnostic))}
-                badge="Diagnostic en cours"
-                objective={
-                    analyzing
-                        ? diagnosticAnalyzingObjective(diagnostic.format)
-                        : "Continuez exactement à l'étape où vous vous êtes arrêté."
-                }
-            >
-                <div className="home-now-actions">
-                    {/* « Reprendre mon diagnostic » nomme le geste, donc il le
-                        pose ; « Voir l'analyse » ne lance rien et ouvre l'écran
-                        tel quel. ⚠️ Sans effet quand le candidat est déjà plus
-                        loin que la présentation : l'écran ne saute que ce qu'il
-                        y a à sauter. */}
-                    <Cta href={analyzing ? "/diagnostic" : DIAGNOSTIC_RAPIDE_START_HREF}>
-                        {analyzing ? "Voir l'analyse" : "Reprendre mon diagnostic"}
-                    </Cta>
-                </div>
-            </NowCard>
-        );
-    }
-
-    return <ActionPlanDuJour plan={plan} journey={journey} free={free}/>;
+interface Source<T> {
+    data: T | undefined;
+    error: boolean;
+    loading: boolean;
+    reload: () => void;
 }
 
 /**
- * **L'action du jour**, une fois le diagnostic terminé.
- *
- * 🛑 **Elle annonce exactement ce qu'annonce le Plan** : `planNowCard` est
- * l'autorité unique des quatre cartes « À faire maintenant » du produit (Plan
- * et Accueil, web et mobile). Sans elle, cet écran ne lisait que
- * `currentPriority` : il annonçait « Raconter brièvement une expérience passée ·
- * VOTRE PRIORITÉ DU JOUR » pendant que le Plan, au même instant, demandait de
- * « Compléter mon évaluation de compréhension écrite · À ÉVALUER ».
- *
- * 🛑 **Cet écran n'a AUCUNE notion de plan gratuit** — contrairement au Plan,
- * qui rend une carte à part pour un compte sans accès. Ici le seul fait lu est
- * le `locked` **servi**, comme avant : rien à masquer de plus.
+ * Une lecture d'un bloc : chargée une fois, réessayable seule. Les lecteurs
+ * passés sont ceux, EN CACHE, des autres écrans (Plan, Réviser, barre
+ * latérale) — l'Accueil n'ajoute aucune lecture propre.
  */
-function ActionPlanDuJour({plan, journey, free}: {
-    plan: LearningPlanDto | null;
-    journey: JourneyDto | null;
-    /** 🛑 **Le drapeau d'accès descend jusqu'à l'autorité** (2026-09-20) : sans
-     *  lui, l'Accueil ne savait pas qu'il fallait proposer de débloquer, et il
-     *  annonçait « Commencer » là où le Plan disait « Débloquer ». */
+function useSource<T>(enabled: boolean, load: () => Promise<T>): Source<T> {
+    const loadRef = useRef(load);
+    useEffect(() => {
+        loadRef.current = load;
+    });
+    const [state, setState] = useState<{data: T | undefined; error: boolean}>({data: undefined, error: false});
+    const [tentative, setTentative] = useState(0);
+
+    useEffect(() => {
+        if (!enabled) return;
+        let vivant = true;
+        loadRef
+            .current()
+            .then((data) => {
+                if (vivant) setState({data, error: false});
+            })
+            .catch(() => {
+                if (vivant) setState((s) => ({data: s.data, error: true}));
+            });
+        return () => {
+            vivant = false;
+        };
+    }, [enabled, tentative]);
+
+    return {
+        data: state.data,
+        error: state.error,
+        loading: enabled && state.data === undefined && !state.error,
+        reload: () => {
+            setState((s) => ({data: s.data, error: false}));
+            setTentative((n) => n + 1);
+        },
+    };
+}
+
+/** L'état d'un bloc qui lit plusieurs sources. */
+function etatBloc(sources: Array<Source<unknown>>): "loading" | "error" | "ready" {
+    if (sources.some((s) => s.error)) return "error";
+    if (sources.some((s) => s.loading)) return "loading";
+    return "ready";
+}
+
+function reessayer(sources: Array<Source<unknown>>): () => void {
+    return () => sources.filter((s) => s.error).forEach((s) => s.reload());
+}
+
+/* ======================================================== À faire maintenant */
+
+/**
+ * **La carte TCF** — l'action servie par `planNowCard`, la même autorité que
+ * le Plan et Réviser.
+ *
+ * 🛑 **Le geste est celui du « Continuer » du Plan** : `LANCER` démarre la
+ * mesure ou l'exercice par les lanceurs du Plan (`usePlanAssessment`,
+ * `usePlanExercise`), `OUVRIR_ETAPE` ouvre l'écran de l'étape servi,
+ * `DEBLOQUER` l'écran de transition, `AUCUN` rien — carte neutre, sans bouton.
+ */
+function ActionTcf({plan, journey, free}: {
+    plan: Source<LearningPlanDto>;
+    journey: Source<JourneyDto>;
     free: boolean;
 }) {
     const router = useRouter();
-    const {start, starting, error, paywallOpen, closePaywall} = usePlanExercise();
-    const assessments = usePlanAssessment();
+    const exercices = usePlanExercise();
+    const mesures = usePlanAssessment();
 
-    const carte = plan ? planNowCard(plan, {journey, free}) : null;
-    /* 🛑 **Une priorité verrouillée se NOMME ici comme sur le Plan** (demande
-       du propriétaire, 2026-09-20).
+    const etat = etatBloc([plan, journey]);
+    if (etat === "loading") return <BlockSkeleton height={154}/>;
+    if (etat === "error" || !plan.data) {
+        return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([plan, journey])}/>;
+    }
 
-       ⚠️ **Révoque** « une priorité verrouillée n'est jamais nommée ici » : la
-       règle protégeait le rideau de « Mes priorités », qui n'existe plus — le
-       Plan nomme l'étape depuis le 2026-09-19 et Réviser depuis le 20. Le seul
-       écran à se taire encore était celui-ci, et il annonçait « Continuez votre
-       plan personnalisé » pendant que le Plan disait « Expression écrite ·
-       Tâche 3 ». Deux écrans, deux réponses, au même instant. */
-    const debloquer = carte?.geste === "DEBLOQUER";
-    /* 🛑 **Une étape de séries ouvre son écran**, elle ne se lance plus d'ici.
-       Le geste ET sa destination viennent de `planNowCard` : cet écran ne
-       redéduit ni « est-ce une série ? » ni l'adresse. */
-    const ouvrirEtape = carte?.geste === "OUVRIR_ETAPE" ? carte.etapeHref : null;
-    const mesure = carte?.mesure ?? null;
-    const exercise = carte?.exercise ?? null;
-    /* 🛑 **Un raccourci verrouillé n'en est pas un.** La priorité du jour peut
-       être une compétence **à acquérir** — désignée avec son `locked`, le
-       serveur ayant vérifié qu'elle n'est pas ouverte par sa place n°1 —, et
-       « Commencer directement » enverrait alors un compte gratuit droit sur un
-       403. Le Plan, lui, reste ouvert : on garde « Continuer mon plan », qui
-       porte le cadenas et l'offre. */
-    /* 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
-       l'écran de transition (A145), une action ouvre l'action. */
-    const startable = carte !== null && carte.geste === "LANCER"
-        && (mesure !== null ? !carte.locked : Boolean(exercise) && !exercise?.locked);
-    const busy = starting || assessments.starting !== null;
+    const vue = planNowCard(plan.data, {free, journey: journey.data ?? null});
+    if (!vue) return <CarteFinDeCycle module="tcf"/>;
+
+    const busy = exercices.starting || mesures.starting !== null;
+    const lancer = () => {
+        if (vue.mesure) {
+            void mesures.start(vue.mesure.assessment);
+            return;
+        }
+        if (vue.exercise) void exercices.start(vue.exercise);
+    };
+    const cta = vue.geste === "DEBLOQUER"
+        /* 🛑 Le libellé suit le droit réel : un verrou se DIT (« Débloquer
+           cette étape »), il ne se déguise pas en « Continuer ». */
+        ? {label: vue.cta, onClick: () => router.push(planUnlockHref("TCF"))}
+        : vue.geste === "OUVRIR_ETAPE" && vue.etapeHref
+            ? {label: ACCUEIL_TCF_CTA, href: vue.etapeHref}
+            : vue.geste === "LANCER"
+                ? {label: ACCUEIL_TCF_CTA, onClick: lancer, disabled: busy}
+                : null;
+    const erreur = exercices.error ?? mesures.error;
 
     return (
         <>
-            <NowCard
-                icon={carte ? planNowIcon(carte) : Target}
-                variant={carte?.nature === "VERIFICATION" ? "verify" : "default"}
-                /* Le titre de l'action, et rien d'autre : `explanation` est le
-                   constat d'une production déjà faite — il raconte le passé sur
-                   une carte qui annonce l'action à mener, et il vit déjà dans
-                   le Plan. */
-                title={carte?.title ?? "Continuez votre plan personnalisé"}
-                subtitle={carte?.subtitle}
-                /* 🛑 Une mesure n'est pas « votre priorité du jour » : sa
-                   pastille dit sa nature servie, comme sur le Plan. */
-                badge={carte?.badge ?? "Votre priorité du jour"}
+            <ActionCard
+                module="tcf"
+                icon={<IconEar/>}
+                label={ACCUEIL_TCF_LABEL}
+                title={vue.title}
+                meta={accueilTcfActionMeta(vue)}
+                badge={vue.section}
+                cta={cta}
+                block
             >
-                <div className="home-now-actions">
-                    {debloquer && carte ? (
-                        <Cta onClick={() => router.push(planUnlockHref("TCF"))}>
-                            {carte.cta}
-                        </Cta>
-                    ) : (
-                        <Cta href="/plan">Continuer mon plan</Cta>
-                    )}
-                    {/* 🛑 **Les lanceurs du Plan, jamais un second chemin** :
-                        une mesure part chez `usePlanAssessment`, un exercice
-                        chez `usePlanExercise` — exactement comme le bouton du
-                        Plan. Le raccourci **nomme ce qu'il lance** quand c'est
-                        une mesure ; sinon il garde le libellé de l'Accueil. */}
-                    {startable && carte && (
-                        <button
-                            type="button"
-                            className="home-now-later"
-                            disabled={busy}
-                            onClick={() => {
-                                if (mesure) {
-                                    void assessments.start(mesure.assessment);
-                                    return;
-                                }
-                                if (exercise) void start(exercise);
-                            }}
-                        >
-                            {mesure ? carte.cta : "Commencer directement"}
-                        </button>
-                    )}
-                    {/* 🛑 **Le raccourci OUVRE l'étape** au lieu de lancer sa
-                        série : même écran que la ligne du cycle, même
-                        destination servie. */}
-                    {ouvrirEtape && carte && (
-                        <button
-                            type="button"
-                            className="home-now-later"
-                            onClick={() => router.push(ouvrirEtape)}
-                        >
-                            {carte.cta}
-                        </button>
-                    )}
-                </div>
-            </NowCard>
-            {(error ?? assessments.error) && (
-                <p className={sejourStyles.tiny} role="alert">{error ?? assessments.error}</p>
-            )}
-            {/* « À faire maintenant » lance l'action du Plan : CTA du Plan. */}
+                {vue.geste === "AUCUN" && vue.lines[0] ? (
+                    <p className={sejourStyles.actionNote}>{vue.lines[0]}</p>
+                ) : null}
+                {erreur ? <p className={sejourStyles.actionNote} role="alert">{erreur}</p> : null}
+            </ActionCard>
             <PaywallSheet
                 ctaLocation="LOCKED_PLAN"
                 screen="dashboard"
                 module="INTEGRAL"
-                journeyId={journey?.journeyId}
-                open={paywallOpen || assessments.paywallOpen}
-                onClose={() => { closePaywall(); assessments.closePaywall(); }}
+                journeyId={journey.data?.journeyId}
+                open={exercices.paywallOpen || mesures.paywallOpen}
+                onClose={() => {
+                    exercices.closePaywall();
+                    mesures.closePaywall();
+                }}
             />
         </>
     );
 }
 
 /**
- * **L'action principale de l'Accueil CIVIQUE.**
+ * **La carte civique** — l'action servie par `civicNowCard`, la même autorité
+ * que le Plan civique ; titre, méta et geste suivent le TYPE de l'étape
+ * courante (examen de thème, unité officielle, cible du plan dérivé).
  *
- * 🛑 **Aucune règle nouvelle, aucun libellé nouveau** : `civicNowCard`, la
- * même autorité que le Plan civique. Plus de porte « diagnostic » (D-69) : le
- * parcours civique existe pour tout compte.
- *
- * 🛑 **Cette carte ne DÉMARRE rien.** Elle mène au Plan civique, qui porte le
- * seul lanceur de série (`CivicPlanPanel`). Un second point de départ aurait
- * dupliqué la gestion du 403 et du paywall.
- *
- * 🛑 **Le verrou civique porte sur la SÉRIE, jamais sur le constat** : une
- * cible `locked` garde son nom et son état — c'est la règle du module civique,
- * et elle diffère volontairement de celle du TCF, où une priorité verrouillée
- * n'est pas nommée parce que le Plan la floute.
+ * 🛑 L'examen de thème part du lanceur partagé avec le Plan
+ * (`useMockExamLauncher`) ; une unité par séries ouvre son écran ; une cible
+ * du plan dérivé mène au Plan civique, seul porteur de son lanceur de série
+ * (le « Continuer » de l'ancien Accueil).
  */
 function ActionCivique({plan, journey, free}: {
-    plan: CivicPlanDto | null;
-    journey: JourneyDto | null;
+    plan: Source<CivicPlanDto>;
+    journey: Source<JourneyDto>;
     free: boolean;
 }) {
     const router = useRouter();
+    const lancerExamen = useMockExamLauncher();
+    const [paywall, setPaywall] = useState(false);
 
-    /* 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
-       ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce
-       l'étape du cycle depuis D-50 §2, donc les deux écrans annonçaient deux
-       reprises différentes au même candidat, au même instant. C'est la
-       troisième fois que ce même écart se rouvre par la bande — après Réviser
-       (A149), après le Plan lui-même. */
-    const carte = plan ? civicNowCard(plan, {journey, free}) : null;
-    /* `null` est un cas NORMAL : plus rien à faire, la carte disparaît. */
-    if (!carte) return null;
-    const debloquer = carte.geste === "DEBLOQUER";
-    /* 🛑 **Une unité qui se travaille par séries ouvre son écran** — le geste et
-       sa destination viennent de `civicNowCard`, jamais d'une condition écrite
-       ici. */
-    const ouvrirEtape = carte.geste === "OUVRIR_ETAPE" ? carte.etapeHref : null;
+    const etat = etatBloc([plan, journey]);
+    if (etat === "loading") return <BlockSkeleton height={154}/>;
+    if (etat === "error" || !plan.data) {
+        return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([plan, journey])}/>;
+    }
 
-    return (
-        <NowCard
-            icon={Landmark}
-            title={carte.title}
-            subtitle={carte.subtitle ?? undefined}
-            badge={carte.badge ?? "Votre priorité du jour"}
-            objectiveLabel={carte.objectiveLabel ?? undefined}
-            objective={carte.objective ?? undefined}
-        >
-            {/* 🛑 **Cette carte ne DÉMARRE toujours rien** : elle mène au Plan
-                civique, seul porteur du lanceur de série — un second point de
-                départ dupliquerait la gestion du 403. Seul le geste d'ACHAT
-                part d'ici, vers l'écran de transition (A145). */}
-            <div className="home-now-actions">
-                {debloquer ? (
-                    <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>
-                        {carte.cta}
-                    </Cta>
-                ) : ouvrirEtape ? (
-                    <Cta href={ouvrirEtape} variant="blue">{carte.cta}</Cta>
-                ) : (
-                    <Cta href={planHref("CIVIQUE")} variant="blue">Continuer mon plan</Cta>
-                )}
-            </div>
-        </NowCard>
-    );
-}
+    const carte = civicNowCard(plan.data, {journey: journey.data ?? null, free, lancerExamen: true});
+    if (!carte) return <CarteFinDeCycle module="civique"/>;
 
-/**
- * **Où vous en êtes** — le titre et son lien « Mon plan », le bandeau
- * d'objectif, puis **une carte par épreuve** en grille, chacune portant son
- * palier en gros et son **échelle CECRL**.
- *
- * ⚠️ **Refait le 2026-09-24 sur la maquette v3 du propriétaire** : la liste
- * verticale dans une seule carte (v2, 2026-09-16) devient une grille de cartes
- * séparées — deux colonnes sur téléphone, quatre sur une rangée quand la
- * grille est assez large.
- *
- * 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, échelle, CTA et
- * destination viennent tous de `accueilEpreuve*` / `accueilEchelons`
- * (`lib/progres.ts`), l'autorité **partagée avec l'écran Progrès**, qui ne lit
- * que des faits servis : `status`, `evolution`, `niveau`, `objectif`. Aucun
- * palier n'est comparé à un autre — cette comparaison vit côté serveur, dans
- * `StatutObjectifResolver`.
- *
- * 🛑 **La section n'existe pas tant que rien n'est servi** : pas de titre
- * au-dessus du vide, comme tous les blocs de cet écran.
- *
- * 🛑 **Miroir de `_ouVousEnEtes` côté mobile**, bloc pour bloc.
- */
-function OuVousEnEtes({progres, civique}: {
-    progres: ProgressDto | null;
-    civique: boolean;
-}) {
-    if (!progres) return null;
-    return civique
-        ? <SituationCivique progres={progres}/>
-        : <SituationTcf progres={progres}/>;
-}
-
-function SituationTcf({progres}: {progres: ProgressDto}) {
-    /* 🛑 **Le lanceur du Plan, jamais un second** : une épreuve jamais mesurée
-       porte le descripteur `evaluation` servi, et c'est `usePlanAssessment` —
-       celui de « Compléter mon profil » et de la ligne `A_EVALUER` de la
-       séance — qui l'ouvre. Écrire ici un second chemin de démarrage l'aurait
-       fait diverger de celui-là. */
-    const assessments = usePlanAssessment();
-    const epreuves = progres.tcf.epreuves;
-    /* Les 4 épreuves sont **toujours** servies : depuis le 2026-09-16 elles ne
-       dépendent plus du diagnostic 4 épreuves. Une liste vide ne devrait donc
-       plus arriver — mais un client servi par un backend antérieur au
-       correctif la verrait, et le bloc se tait plutôt que d'afficher un titre
-       au-dessus du vide. */
-    if (epreuves.length === 0) return null;
-    const objectif = progres.tcf.objectif;
-    const compte = accueilEvaluees(epreuves);
+    const examen = carte.examen;
+    const cta = carte.geste === "DEBLOQUER"
+        ? {label: carte.cta, onClick: () => router.push(planUnlockHref("CIVIQUE"))}
+        : carte.geste === "OUVRIR_ETAPE" && carte.etapeHref
+            ? {label: ACCUEIL_CIVIQUE_CTA, href: carte.etapeHref}
+            : carte.geste === "LANCER" && examen
+                ? {
+                    label: ACCUEIL_CIVIQUE_CTA,
+                    onClick: () => lancerExamen({kind: "CIVIQUE", ...examen, onPaywall: () => setPaywall(true)}),
+                }
+                : carte.geste === "LANCER"
+                    ? {label: ACCUEIL_CIVIQUE_CTA, href: planHref("CIVIQUE")}
+                    : null;
 
     return (
-        <Section
-            title={SITUATION_TITLE}
-            lead
-            action={{label: SITUATION_PLAN_LINK, href: planHref("TCF")}}
-        >
-            <Pad>
-                {/* 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) : il
-                    annonce vers quoi on va avant de montrer où on en est. Sans
-                    démarche déclarée, pas de bandeau — on ne devine pas
-                    l'objectif d'un candidat qui n'en a pas donné, et le
-                    compteur part avec lui. */}
-                {objectif && (
-                    <GoalBanner
-                        label={SITUATION_GOAL_LABEL}
-                        value={situationGoalText(niveauCecrlShort(objectif))}
-                        count={compte?.faites}
-                        total={compte?.total}
-                        caption={ACCUEIL_EVALUEES_CAPTION}
-                    />
-                )}
-                <LevelCardGrid>
-                    {epreuves.map((e) => {
-                        /* 🛑 **Trois issues, aucune inventée.**
-                           1. Épreuve jamais mesurée dont le serveur dit par
-                              quoi la mesurer ⇒ on **lance** cette mesure, sans
-                              étape intermédiaire.
-                           2. Quelque chose à faire, mais rien à lancer
-                              (épreuve en progression ; ou descripteur absent —
-                              client ancien) ⇒ la fiche du domaine, le
-                              comportement historique.
-                           3. Rien à faire ⇒ l'écran de progression de
-                              l'épreuve (`/progression/tcf/[epreuve]`, D17).
-                           Le choix se lit sur l'état servi, jamais sur un
-                           texte de bouton. */
-                        const mesure = e.niveau === null ? e.evaluation : null;
-                        const href = accueilEpreuveOuvreLExercice(e)
-                            ? planDomainHref(
-                                e.epreuve as Parameters<typeof planDomainHref>[0])
-                            : progressionEpreuveHref(e.epreuve) ?? planDomainHref(
-                                e.epreuve as Parameters<typeof planDomainHref>[0]);
-                        const domaine = e.epreuve as Parameters<
-                            typeof planDomainLabel>[0];
-                        const mesuree = Boolean(e.niveau);
-                        /* 🛑 **Un palier du DIAGNOSTIC n'est pas une mesure
-                           par examen blanc** (2026-09-27) : la carte garde
-                           « Voir mes résultats » ET propose « Évaluer mon
-                           niveau ». La provenance est servie, le lanceur est
-                           le même que celui de l'épreuve jamais évaluée. */
-                        const enPlus = accueilEpreuveMesureEnPlus(e);
-                        return (
-                            <LevelCard
-                                key={e.epreuve}
-                                mark={planDomainShort(domaine)}
-                                icon={situationIcon(e.epreuve)}
-                                title={planDomainLabel(domaine)}
-                                status={accueilEpreuveStatut(e)}
-                                tone={accueilEpreuveTon(e)}
-                                level={accueilEpreuveBadge(e)}
-                                measured={mesuree}
-                                scale={
-                                    <LevelLadder
-                                        steps={accueilEchelons(e, objectif)}
-                                        label={accueilEchelleLabel(e, objectif)}
-                                        dim={!mesuree}
-                                    />
-                                }
-                                cta={accueilEpreuveCta(e)}
-                                /* Le bouton plein est réservé à l'action qui
-                                   MANQUE : mesurer une épreuve jamais évaluée.
-                                   Relire un résultat reste un lien. */
-                                ctaPrimary={!mesuree}
-                                busy={assessments.starting === e.epreuve}
-                                href={mesure ? null : href}
-                                onClick={mesure
-                                    ? () => void assessments.start(mesure)
-                                    : undefined}
-                                evaluate={enPlus
-                                    ? {
-                                        label: ACCUEIL_EVALUER_CTA,
-                                        onClick: () => void assessments.start(enPlus),
-                                        busy: assessments.starting === e.epreuve,
-                                    }
-                                    : undefined}
-                            />
-                        );
-                    })}
-                </LevelCardGrid>
-                {/* ⚠️ **Hors maquette, et conservé volontairement** : elle dit
-                    ce qui fait bouger le palier (diagnostics et épreuves
-                    complètes, pas les séries). Sans elle, un candidat qui vient
-                    d'enchaîner des entraînements lit un niveau inchangé et
-                    croit à une panne. */}
-                <MicroNote>{SITUATION_NOTE}</MicroNote>
-                {assessments.error && (
-                    <p className={sejourStyles.tiny} role="alert">{assessments.error}</p>
-                )}
-            </Pad>
-            {/* 🛑 L'Accueil ne compte comme le Plan QUE pour « À faire
-                maintenant » (arbitrage du propriétaire, contrôle F). Une carte
-                d'épreuve lance un examen blanc hors Plan : `MOCK_EXAM`, comme
-                l'écran Progrès, sans parcours. */}
-            <PaywallSheet
-                ctaLocation="MOCK_EXAM"
-                screen="dashboard_epreuve"
-                module="INTEGRAL"
-                open={assessments.paywallOpen}
-                onClose={assessments.closePaywall}
+        <>
+            <ActionCard
+                module="civique"
+                icon={<IconShield/>}
+                label={ACCUEIL_CIVIQUE_LABEL}
+                title={carte.title}
+                meta={accueilCiviqueActionMeta(carte)}
+                badge={carte.badge}
+                cta={cta}
+                block
             />
-        </Section>
-    );
-}
-
-/**
- * Le pendant civique — **la même anatomie** (arbitrage du propriétaire,
- * 2026-09-16) : titre et lien vers le Plan, bande de tête, puis une carte par
- * thème avec son repère, son pictogramme, son statut à pastille colorée, ses
- * crans et son action.
- *
- * 🛑 **Adapté, jamais transposé.** Le civique n'a **ni palier CECRL ni
- * objectif CECRL servi** : pas de palier en gros, pas d'« Atteindre B2
- * partout ». La bande de tête dit ce qui EST servi — le dernier résultat et son
- * seuil (`progresCiviqueScore`, l'autorité déjà en place) — et le compteur
- * porte sur les **thèmes** de la liste servie.
- */
-function SituationCivique({progres}: {progres: ProgressDto}) {
-    /* 🛑 **Le lanceur de la grille du thème et de l'étape du Plan, jamais un
-       second** : feuille d'information, puis démarrage. Hooks avant tout
-       retour anticipé. */
-    const launchExam = useMockExamLauncher();
-    const [paywallOpen, setPaywallOpen] = useState(false);
-    const themes = progres.civique.themes;
-    if (themes.length === 0) return null;
-    /* 🛑 Rien n'est fabriqué : sans examen civique passé, le serveur ne sert ni
-       score ni seuil, et la bande disparaît — exactement comme le bandeau TCF
-       sans démarche déclarée. */
-    const dernier = progresCiviqueScore(progres.civique);
-    const compte = accueilEvaluesCivique(themes);
-
-    return (
-        <Section
-            title={SITUATION_TITLE}
-            lead
-            action={{label: SITUATION_PLAN_LINK, href: planHref("CIVIQUE")}}
-        >
-            <Pad>
-                {dernier && (
-                    <GoalBanner
-                        label={SITUATION_CIVIC_RESULT_LABEL}
-                        value={dernier}
-                        count={compte?.faites}
-                        total={compte?.total}
-                        caption={ACCUEIL_EVALUES_CAPTION_CIVIQUE}
-                    />
-                )}
-                <LevelCardGrid>
-                    {themes.map((t, rang) => {
-                        /* 🛑 **Deux issues, lues sur le descripteur SERVI** :
-                           un thème jamais évalué porte `evaluation` (thème +
-                           créneau offert) et la carte le **lance** ; sinon
-                           elle ouvre ses résultats. Aucun recalcul ici. */
-                        const mesure = t.evaluation ?? null;
-                        return (
-                            <LevelCard
-                                key={t.themeId}
-                                /* 🛑 **Le repère est le RANG SERVI**, pas un code
-                                   abrégé : un thème n'a aucun code de deux lettres
-                                   servi (`CIV_PRINCIPES` n'en est pas un), et en
-                                   inventer un serait fabriquer un libellé. */
-                                mark={`${rang + 1}`}
-                                icon={situationIcon(t.code)}
-                                title={t.label}
-                                /* 🛑 L'état arrive **servi** : on pose son libellé
-                                   gelé, on ne classe aucun nombre. `NON_EVALUE`
-                                   reste neutre, jamais ambre. */
-                                status={t.etat === "NON_EVALUE"
-                                    ? NON_MESURE_LABEL
-                                    : CIVIC_THEME_STATE_LABEL[t.etat]}
-                                tone={civicBarTone(t.etat)}
-                                /* 🛑 **Aucun palier CECRL en civique** : le civique
-                                   se mesure en thèmes, jamais en paliers. La carte
-                                   n'a donc pas de valeur en gros. */
-                                level={null}
-                                measured={t.etat !== "NON_EVALUE"}
-                                /* 🛑 **Le même cran segmenté que le TCF**, sur la
-                                   seule donnée servie pour un thème : son `etat`
-                                   (`accueilEchelonsCivique`). Sans libellés : les
-                                   trois états ne tiennent pas sous une demi-carte,
-                                   et la pastille de statut les dit déjà. */
-                                scale={
-                                    <LevelLadder
-                                        steps={accueilEchelonsCivique(t.etat)}
-                                        label={accueilEchelleLabelCivique(t.etat)}
-                                        dim={t.etat === "NON_EVALUE"}
-                                        labels={false}
-                                    />
-                                }
-                                cta={mesure ? ACCUEIL_EVALUER_CTA : SITUATION_CIVIC_CTA}
-                                /* Le bouton plein est réservé à la mesure qui
-                                   MANQUE, comme sur le TCF. */
-                                ctaPrimary={Boolean(mesure)}
-                                /* 🛑 **L'écran de progression du thème**, le
-                                   pendant civique de celui d'une épreuve TCF (D17). */
-                                href={mesure ? null : progressionThemeHref(themeSlug(t.code))}
-                                onClick={mesure
-                                    ? () => launchExam({
-                                        kind: "CIVIQUE",
-                                        themeId: mesure.themeId,
-                                        themeName: t.label,
-                                        slotNumber: mesure.slotNumber,
-                                        onPaywall: () => setPaywallOpen(true),
-                                    })
-                                    : undefined}
-                            />
-                        );
-                    })}
-                </LevelCardGrid>
-            </Pad>
-            {/* Garde de dernier recours : le créneau servi est l'offert. */}
             <PaywallSheet
-                ctaLocation="MOCK_EXAM"
-                screen="dashboard_theme"
+                ctaLocation="LOCKED_PLAN"
+                screen="dashboard"
                 module="CIVIQUE"
-                open={paywallOpen}
-                onClose={() => setPaywallOpen(false)}
+                journeyId={journey.data?.journeyId}
+                open={paywall}
+                onClose={() => setPaywall(false)}
             />
-        </Section>
+        </>
     );
 }
 
 /**
- * **L'invitation à déclarer un objectif**, quand le candidat n'en a pas.
- *
- * 🛑 **Elle n'enlève rien** (arbitrage du propriétaire, 2026-09-17) : le Plan
- * n'exige **pas** d'objectif déclaré, et la carte « À faire maintenant » reste
- * servie au-dessus, entière. C'est une invitation, jamais une porte fermée — et
- * elle doit se lire partout où une carte « À faire maintenant » se lit, sans
- * quoi le candidat ne découvre jamais que déclarer sa démarche lui ouvre un
- * parcours.
- *
- * 🛑 **TCF seulement** : le parcours est un objet TCF, le civique n'en a pas.
- *
- * ⚠️ Elle vivait dans `VotrePlan`, l'aperçu du Plan, **supprimé le 2026-09-19**
- * (demande du propriétaire). Miroir de `_objectifTcf`
- * (`mobile_sejourfr/lib/screens/home/home_screen.dart`).
+ * Plus d'étape à annoncer (cycle terminé, parcours à jour) : la carte le dit
+ * et mène au Plan du module, où vit « Actualiser mon plan ». Miroir mobile.
  */
-function ObjectifManquant({civique, journey}: {
-    civique: boolean;
-    journey: JourneyDto | null;
-}) {
-    if (civique || journey?.state !== "NEEDS_OBJECTIVE") return null;
+function CarteFinDeCycle({module}: {module: "tcf" | "civique"}) {
+    const tcf = module === "tcf";
     return (
-        <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
-            <Pad>
-                <Card>
-                    <p className={sejourStyles.tiny}>{JOURNEY_NEEDS_OBJECTIVE_TEXT}</p>
-                    <Cta href={journeyTargetPathHref("/dashboard")}>{JOURNEY_NEEDS_OBJECTIVE_CTA}</Cta>
-                </Card>
-            </Pad>
-        </Section>
+        <ActionCard
+            module={module}
+            icon={tcf ? <IconEar/> : <IconShield/>}
+            label={tcf ? ACCUEIL_TCF_LABEL : ACCUEIL_CIVIQUE_LABEL}
+            title={JOURNEY_UP_TO_DATE_TITLE}
+            cta={{label: tcf ? ACCUEIL_TCF_CTA : ACCUEIL_CIVIQUE_CTA, href: planHref(tcf ? "TCF" : "CIVIQUE")}}
+            block
+        />
     );
 }
 
-function DashSkeleton() {
+/**
+ * **Le diagnostic rapide commencé** — gardé (X7), au-dessus des cartes
+ * d'action, et seulement quand il existe. « Reprendre » relance l'étape où
+ * le candidat s'est arrêté ; « Voir l'analyse » ouvre l'écran tel quel.
+ */
+function CarteDiagnostic({diagnostic}: {diagnostic: DiagnosticResponse}) {
+    if (diagnosticDashboardState(diagnostic) !== "IN_PROGRESS") return null;
+    const analyse = diagnostic.status === "ANALYZING" || diagnostic.nextStep === "ANALYSIS";
     return (
-        <SejourApp wide className="home">
+        <div className={sejourStyles.homeStackBottom}>
+            <ActionCard
+                module="tcf"
+                icon={<IconSparkle/>}
+                label={ACCUEIL_DIAGNOSTIC_LABEL}
+                title={analyse ? ACCUEIL_DIAGNOSTIC_TITLE_ANALYSIS : ACCUEIL_DIAGNOSTIC_TITLE_RESUME}
+                meta={diagnosticCountLabel(
+                    diagnosticCompletedExerciseCount(diagnostic),
+                    diagnosticExerciseCount(diagnostic),
+                )}
+                cta={analyse
+                    ? {label: ACCUEIL_DIAGNOSTIC_CTA_ANALYSIS, href: "/diagnostic"}
+                    : {label: ACCUEIL_DIAGNOSTIC_CTA_RESUME, href: DIAGNOSTIC_RAPIDE_START_HREF}}
+                block
+            >
+                <p className={sejourStyles.actionNote}>
+                    {analyse ? diagnosticAnalyzingObjective(diagnostic.format) : ACCUEIL_DIAGNOSTIC_RESUME_TEXT}
+                </p>
+            </ActionCard>
+        </div>
+    );
+}
+
+/* =========================================================== Mes objectifs */
+
+/**
+ * **La carte TCF** : barre = avancement du cycle en cours (D4-B, servi) ;
+ * métriques = niveau actuel estimé → cible, épreuves au niveau cible (statut
+ * servi), numéro du cycle. Une valeur absente est masquée.
+ */
+function ObjectifTcf({cible, summary, progres, journey}: {
+    cible: DashboardCibleTcf;
+    summary: Source<DashboardSummaryResponse>;
+    progres: Source<ProgressDto>;
+    journey: Source<JourneyDto>;
+}) {
+    const etat = etatBloc([summary, progres, journey]);
+    if (etat === "loading") return <BlockSkeleton height={280} radius={30}/>;
+    if (etat === "error" || !summary.data) {
+        return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([summary, progres, journey])}/>;
+    }
+    const cycle = journey.data?.cycle ?? null;
+    const metrics = [
+        {value: accueilTcfProgression(summary.data.estimatedTcfLevel, cible), label: ACCUEIL_TCF_METRIC_PROGRESSION},
+    ];
+    if (progres.data) {
+        metrics.push({
+            value: accueilSeries(accueilEpreuvesAuNiveau(progres.data.tcf.epreuves), ACCUEIL_TCF_NB_EPREUVES),
+            label: accueilTcfMetricEpreuves(cible),
+        });
+    }
+    if (cycle) metrics.push({value: accueilCycleLabel(cycle), label: ACCUEIL_TCF_METRIC_CYCLE});
+
+    return (
+        <ObjCard
+            module="tcf"
+            icon={<IconMap/>}
+            pill={ACCUEIL_TCF_LABEL}
+            title={accueilTcfObjectifTitre(cible)}
+            description={accueilTcfDescription(cible)}
+            progress={accueilCycleRatio(cycle)}
+            metrics={metrics}
+            href={progressionHref("TCF")}
+        />
+    );
+}
+
+type DashboardCibleTcf = NonNullable<Parameters<typeof accueilTcfObjectifTitre>[0]> | null;
+
+/**
+ * **La carte civique** : le pourcentage unique `avancementSeriesCivique`
+ * (0 % jamais vide), les séries terminées sur le total servi, et le seuil de
+ * l'examen (miroir gelé de l'arrêté).
+ */
+function ObjectifCivique({summary}: {summary: Source<DashboardSummaryResponse>}) {
+    const etat = etatBloc([summary]);
+    if (etat === "loading") return <BlockSkeleton height={280} radius={30}/>;
+    if (etat === "error" || !summary.data) {
+        return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={reessayer([summary])}/>;
+    }
+    const themes = summary.data.civique;
+    const avancement = avancementSeriesCivique(themes);
+    return (
+        <ObjCard
+            module="civique"
+            icon={<IconShield/>}
+            pill={ACCUEIL_CIVIQUE_LABEL}
+            title={ACCUEIL_CIVIQUE_OBJECTIF_TITRE}
+            description={accueilCiviqueDescription(themes.length)}
+            progress={avancement.pourcentage / 100}
+            metrics={[
+                {value: accueilPourcentage(avancement.pourcentage), label: ACCUEIL_CIVIQUE_METRIC_PARCOURS},
+                {value: accueilSeries(avancement.terminees, avancement.total), label: ACCUEIL_CIVIQUE_METRIC_SERIES},
+                {value: ACCUEIL_CIVIQUE_SEUIL, label: ACCUEIL_CIVIQUE_METRIC_EXAMEN},
+            ]}
+            href={progressionHref("CIVIQUE")}
+        />
+    );
+}
+
+/* ================================================================ Squelette */
+
+/** Le chargement de l'authentification : chaque bloc à ses dimensions. */
+function AccueilSquelette() {
+    return (
+        <SejourApp className={sejourStyles.home}>
             <Pad>
-                <div className="sk sk-head"/>
-                <div className="sk-grid sk-grid-2">
-                    <div className="sk sk-card"/>
-                    <div className="sk sk-card"/>
-                </div>
-                <div className="sk-grid">
-                    <div className="sk sk-card"/>
-                </div>
+                <BlockSkeleton height={112} radius={16}/>
             </Pad>
-            <style>{homeStyles}</style>
-            <style>{`
-        .sk {
-          background: linear-gradient(90deg, #EDEFF7 25%, #F5F6FB 50%, #EDEFF7 75%);
-          background-size: 200% 100%;
-          animation: sk-shimmer 1.4s infinite;
-          border-radius: 16px;
-        }
-        @keyframes sk-shimmer {
-          to { background-position: -200% 0; }
-        }
-        .sk-head { height: 92px; margin-bottom: 22px; }
-        .sk-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 16px;
-          margin-bottom: 22px;
-        }
-        .sk-card { height: 180px; }
-        @media (min-width: 960px) {
-          .sk-grid-2 { grid-template-columns: 1fr 1fr; }
-        }
-      `}</style>
+            <Section title={ACCUEIL_NOW_TITLE}>
+                <Pad>
+                    <div className={sejourStyles.homeGrid}>
+                        <BlockSkeleton height={154}/>
+                        <BlockSkeleton height={154}/>
+                    </div>
+                </Pad>
+            </Section>
+            <Section title={ACCUEIL_OBJECTIVES_TITLE}>
+                <Pad>
+                    <div className={sejourStyles.homeGrid}>
+                        <BlockSkeleton height={280} radius={30}/>
+                        <BlockSkeleton height={280} radius={30}/>
+                    </div>
+                </Pad>
+            </Section>
         </SejourApp>
     );
 }
-
-const emptyStyle = `
-  .dash-empty {
-    min-height: 60vh;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
-    color: var(--color-muted);
-  }
-  .dash-empty-link { color: var(--color-blue); font-weight: 700; }
-`;
-
-/**
- * 🛑 **Aucune couleur ni font en dur** : tout passe par les tokens `@theme`
- * (`--color-*`, `--font-*`) et par les variables du KIT (`--sf-*`), disponibles
- * parce que l'écran est dans le scope `.app`.
- *
- * 🛑 **Aucune borne nouvelle** : les seules media queries ici sont celles de la
- * fondation (960 px), et elles ne font que reprendre ce que le KIT décide déjà.
- */
-const homeStyles = `
-  /* ===== bandeaux ===== */
-  .home-banner {
-    display: flex; align-items: center; justify-content: space-between; gap: 14px;
-    background: var(--color-blue-light);
-    border: 1px solid color-mix(in srgb, var(--color-blue) 18%, transparent);
-    color: var(--color-ink);
-    border-radius: 14px;
-    padding: 13px 18px;
-    font-size: 14px;
-    text-decoration: none;
-    margin-top: 14px;
-    transition: filter 0.15s;
-  }
-  .home-banner:hover { filter: brightness(0.98); }
-  .home-banner strong { color: var(--color-blue); }
-  /* ===== en-tête « Bonjour X » ===== */
-  /* Deux lignes, et rien d'autre : le nom, puis la démarche visée en pastille.
-     L'en-tête était une rangée à deux pôles parce qu'elle portait un CTA à
-     droite ; il est parti (une seule action dominante par écran), la rangée
-     avec lui. La pastille passe à la ligne d'elle-même : le titre est un bloc. */
-  .home-hello {
-    padding: 14px 16px 2px;
-  }
-  .home-hello h1 {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 1.15;
-    color: var(--color-ink);
-  }
-  .home-obj {
-    display: inline-flex;
-    margin-top: 10px;
-    padding: 5px 10px;
-    border-radius: var(--sf-radius-pill);
-    background: var(--color-blue-light);
-    color: var(--color-blue-dark);
-    font-size: 12px;
-    font-weight: 750;
-  }
-  /* ===== actions de la carte « À faire maintenant » ===== */
-  .home-now-actions {
-    margin-top: 14px;
-    display: grid;
-    gap: 8px;
-    justify-items: start;
-  }
-  .home-now-actions > * { width: 100%; }
-  .home-now-later {
-    justify-self: center;
-    border: 0;
-    padding: 4px;
-    background: transparent;
-    color: var(--color-muted);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    text-align: center;
-    text-decoration: none;
-    cursor: pointer;
-    width: auto;
-  }
-  .home-now-later:hover { color: var(--color-blue); text-decoration: underline; }
-
-
-  /* ===== « Où vous en êtes » ===== */
-  /* 🛑 **Plus une seule règle de cet écran.** Toute la section vit dans le KIT
-     depuis la 3ᵉ passe du 2026-09-16 ; maquette v3 du 2026-09-24 : Section
-     lead + action, GoalBanner, LevelCardGrid, LevelCard, LevelLadder et MicroNote, avec
-     leur miroir Flutter dans la même passe — c'est ce qui garantit que les deux
-     fronts montrent la même carte. Les classes .home-situation-title et
-     .home-situation-copy sont SUPPRIMÉES avec leurs appelants, comme l'étaient
-     déjà .home-situation-grid / -card / -head / -name / -badge / -statut et
-     .home-goal. */
-
-  /* ===== palier desktop (960 px) — la borne du KIT, pas une de plus ===== */
-  @media (min-width: 960px) {
-    .home-hello {
-      padding-left: 0;
-      padding-right: 0;
-      padding-top: 10px;
-    }
-    .home-hello h1 { font-size: 32px; }
-  }
-
-`;

@@ -18,16 +18,18 @@ const String kPreparationTitle = 'Ma préparation';
 const String kTcfLabel = 'TCF IRN';
 const String kCiviqueLabel = 'Examen civique';
 
-/// La pastille d'objectif de l'Accueil : **la démarche servie**, jamais le
-/// module — la bascule juste en dessous annonce déjà le parcours.
+/// « Objectif · Naturalisation » — le kicker de l'Accueil (Navigation v2,
+/// maquette `#accueil`).
 ///
-/// 🛑 Démarche absente ⇒ « Choisir mon parcours » : on n'en devine aucune.
-/// Miroir mot pour mot de `objectifLabel` (`web_sejoufr/lib/preparation.ts`),
-/// et la table des démarches reste l'autorité unique
-/// [TargetProcedure.mentionLabel].
-String objectifLabel(TargetProcedure? procedure) => procedure == null
-    ? 'Choisir mon parcours'
-    : 'Objectif : ${procedure.mentionLabel.toLowerCase()}';
+/// ⚠️ **Remplace `objectifLabel`** (« Objectif : naturalisation », pastille de
+/// l'ancien Accueil, son seul lecteur) — refonte = suppression de l'ancien.
+///
+/// 🛑 Démarche absente ⇒ `null` : pas de kicker, jamais une démarche par défaut
+/// (l'invitation à la choisir est le bandeau de l'Accueil). Miroir mot pour mot
+/// de `objectifKicker` (`web_sejoufr/lib/preparation.ts`) ; la table des
+/// démarches reste l'autorité unique [TargetProcedure.mentionLabel].
+String? objectifKicker(TargetProcedure? procedure) =>
+    procedure == null ? null : 'Objectif · ${procedure.mentionLabel}';
 
 /// Où mène la prochaine action d'un module.
 typedef PreparationAction = ({String statut, String cta, String route});
@@ -124,15 +126,6 @@ String? aRenforcerLine(ModulePreparation m) {
 bool diagnosticFait(ModulePreparation m, {required bool civique}) => civique
     ? m.etape == PreparationEtape.planPret
     : m.estimationSessionId != null;
-
-/// Le module sur lequel ouvrir le toggle : celui qui a quelque chose à dire.
-///
-/// 🛑 On ouvre sur le module DÉJÀ commencé plutôt que toujours sur le TCF : un
-/// candidat qui ne prépare que le civique n'a aucune raison d'arriver sur un
-/// onglet vide.
-bool moduleCiviqueParDefaut(PreparationDto prep) =>
-    prep.tcf.etape == PreparationEtape.diagnosticAFaire &&
-    prep.civique.etape != PreparationEtape.diagnosticAFaire;
 
 // ---------------------------------------------------------------------------
 // Le diagnostic COMPLET — RETIRÉ des fronts le 2026-09-26

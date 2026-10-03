@@ -145,3 +145,43 @@ export function IconArrowLeft() {
         </Svg>
     );
 }
+
+/** La flèche des CTA de la maquette (« Continuer le TCF → »). */
+export function IconArrowRight() {
+    return (
+        <Svg>
+            <path d="M5 12h14" />
+            <path d="m14 7 5 5-5 5" />
+        </Svg>
+    );
+}
+
+/** L'oreille de la carte d'action TCF (maquette `#accueil`, `.iconbox.blue`). */
+export function IconEar() {
+    return (
+        <Svg>
+            <path d="M12 4a6 6 0 0 0-6 6v4" />
+            <path d="M6 14a3 3 0 0 0 3 3h1" />
+            <path d="M12 8a2 2 0 0 0-2 2v2" />
+            <path d="M18 10a6 6 0 0 1-6 6" />
+            <path d="M12 16v4" />
+        </Svg>
+    );
+}
+
+/** L'étincelle de la carte « diagnostic en cours » (pas de pictogramme dans la
+ *  maquette : celle de l'ancien Accueil, au trait de la maquette). */
+export function IconSparkle() {
+    return (
+        <Svg>
+            <path d="M12 3v4" />
+            <path d="M12 17v4" />
+            <path d="M3 12h4" />
+            <path d="M17 12h4" />
+            <path d="m6 6 2.5 2.5" />
+            <path d="m15.5 15.5 2.5 2.5" />
+            <path d="m18 6-2.5 2.5" />
+            <path d="M8.5 15.5 6 18" />
+        </Svg>
+    );
+}

@@ -1277,12 +1277,7 @@ export function ChoiceCard({
    de `SfChoiceCard`, retiré dans la même passe. */
 
 /* ========================================================================== */
-/* Maquette « Où vous en êtes » (propriétaire, 2026-09-16) */
-/*                                                                            */
-/* ⚠️ « Où vous en êtes » a été refait deux fois : liste verticale dans une    */
-/* seule carte (v2, 2026-09-16), puis GRILLE de cartes séparées, une par       */
-/* épreuve (v3, 2026-09-24). `LevelRow`, `LevelList` et `LadderLegend` sont    */
-/* **supprimées** avec leurs classes — refonte = suppression de l'ancien.     */
+/* Pastilles de statut, notes discrètes, encarts                              */
 /* ========================================================================== */
 
 /**
@@ -1298,320 +1293,12 @@ const statusToneClass: Record<BarTone, string> = {
   muted: styles.toneMuted,
 };
 
-/**
- * Un cran de l'échelle CECRL, **composé par l'appelant**
- * (`accueilEchelons`, `lib/progres.ts` ⇄ `progres_labels.dart`).
- *
- * 🛑 Le kit ne sait ni ce qu'est un palier, ni lequel est atteint : il reçoit
- * des crans déjà situés, et il en rend autant qu'on lui en donne — c'est
- * l'appelant qui décide que l'échelle s'arrête à B2. Miroir Flutter :
- * `SfLadderStep`.
- */
-export type LadderStep = {
-  /** Ce qui s'écrit sous le cran (« A1 »…). Décoratif : l'échelle est un `img`. */
-  label: string;
-  /** `done` = palier acquis · `target` = le cran visé · `empty` = le reste. */
-  state: "done" | "target" | "empty";
-  /** Le palier ACTUEL du candidat — au plus un cran, aucun quand rien n'est mesuré. */
-  current: boolean;
-  /** Le palier VISÉ — au plus un cran, aucun sans démarche déclarée. */
-  goal: boolean;
-};
-
-/**
- * **L'échelle CECRL** — l'élément signature de la maquette v2 : les crans du
- * parcours et leurs libellés, sous la ligne d'une épreuve.
- *
- * 🛑 **Ce n'est pas une jauge et elle n'affiche aucun chiffre** : elle situe un
- * **palier servi** face à un **objectif servi**. Aucun pourcentage de
- * progression vers un palier n'est calculé ni montré — la règle qui l'interdit
- * tient toujours.
- *
- * 🛑 **Rendue en `role="img"`** avec un `aria-label` composé par l'appelant :
- * les libellés sont `aria-hidden`, un lecteur d'écran n'a pas à épeler quatre
- * crans pour comprendre « Niveau B1, objectif B2 ».
- *
- * ⚠️ **Elle sert aussi la ligne CIVIQUE** depuis le 2026-09-19 (« afficher le
- * cran de la même manière que le TCF ») : trois crans au lieu de quatre, les
- * états **mesurés** de `CivicThemeState` (`accueilEchelonsCivique`), et **aucun
- * cran d'objectif** — le civique n'en sert pas. La piste compte ses colonnes sur
- * les crans reçus, elle n'en présume aucun nombre.
- *
- * Miroir Flutter : `SfLevelLadder`.
- */
-export function LevelLadder({
-  steps,
-  label,
-  dim,
-  labels = true,
-}: {
-  steps: LadderStep[];
-  /** Ce que l'échelle DIT. Jamais dérivé ici. */
-  label: string;
-  /**
-   * Épreuve jamais mesurée : les crans passent en contour, sans remplissage.
-   * 🛑 **Passé, jamais deviné** d'un cran vide — une épreuve `<A1` n'a elle non
-   * plus aucun cran rempli, et ce n'est pas la même chose.
-   */
-  dim?: boolean;
-  /**
-   * Les libellés sous les crans. `false` quand ils ne tiennent pas : les trois
-   * états civiques (« À renforcer ») débordent d'une demi-carte de téléphone,
-   * et la pastille de statut de la carte dit déjà l'état servi.
-   */
-  labels?: boolean;
-}) {
-  return (
-    <span className={cx(styles.ladder, dim && styles.isDim)} role="img" aria-label={label}>
-      <span className={styles.ladderTrack}>
-        {steps.map((step) => (
-          <i
-            key={step.label}
-            className={cx(
-              styles.ladderStep,
-              step.state === "done" && styles.isDone,
-              step.state === "target" && styles.isTarget,
-            )}
-          />
-        ))}
-      </span>
-      {labels ? (
-      <span className={styles.ladderLabels} aria-hidden>
-        {steps.map((step) => (
-          <span
-            key={step.label}
-            className={cx(
-              step.current && styles.isCur,
-              !step.current && step.goal && styles.isTgt,
-            )}
-          >
-            {step.label}
-          </span>
-        ))}
-      </span>
-      ) : null}
-    </span>
-  );
-}
-
-/**
- * **La carte d'une épreuve** — maquette « niveau par épreuve » v3 du
- * propriétaire (2026-09-24) : repère court en pastille mono et pictogramme en
- * tête, intitulé discret, palier en très gros, statut à pastille colorée,
- * l'échelle et ses libellés, puis un filet et l'action, **épinglée en bas**.
- *
- * 🛑 **Cette brique ne classe rien.** Tout lui arrive **composé** par
- * `accueilEpreuve*` (`lib/progres.ts` ⇄ `progres_labels.dart`) — palier,
- * statut, ton, crans, CTA.
- *
- * ⚠️ **Deux jeux de données pour une seule anatomie** : en TCF, `level` porte
- * le palier CECRL servi ; en civique, aucun palier n'est servi, `level` est
- * `null` et la carte n'en montre pas — on n'en fabrique aucun.
- *
- * ⚠️ **Remplace `LevelRow`, `LevelList` et `LadderLegend`** (liste verticale
- * dans une seule carte, maquette v2) — refonte = suppression de l'ancien.
- *
- * ⚠️ **Deux actions** (2026-09-27) : quand `evaluate` est passé — un palier
- * existe, mais il ne vient pas d'un examen blanc —, la carte cesse d'être un
- * seul lien. Elle porte au pied le lien de `cta` **et** le bouton plein de la
- * mesure, empilés : deux boutons côte à côte ne tiennent pas dans une
- * demi-carte de 360 px.
- *
- * Miroir Flutter : `SfLevelCard`.
- */
-export function LevelCard({
-  mark,
-  icon: Icon,
-  title,
-  status,
-  tone,
-  level,
-  measured,
-  scale,
-  cta,
-  ctaPrimary,
-  href,
-  onClick,
-  busy,
-  evaluate,
-}: {
-  /** Repère court (« CO », ou le rang servi d'un thème). */
-  mark: string;
-  /** Le pictogramme de l'épreuve ou du thème, choisi par l'appelant. */
-  icon: LucideIcon;
-  title: string;
-  /** L'état en un mot. `null` = rien à dire, jamais « rien à faire ». */
-  status: string | null;
-  /** Le ton de la pastille de statut. */
-  tone: BarTone;
-  /**
-   * Le palier servi, ou le mot d'une absence de mesure. `null` retire la
-   * ligne : le civique n'a aucun palier CECRL servi.
-   */
-  level: string | null;
-  /**
-   * Y a-t-il une mesure derrière `level` ?
-   *
-   * 🛑 **Passé, jamais deviné du texte** : comparer un libellé pour décider
-   * d'une couleur ferait dépendre l'apparence d'une chaîne reformulable.
-   */
-  measured: boolean;
-  /** L'échelle (`LevelLadder`). `null` quand rien ne la sert. */
-  scale?: ReactNode;
-  cta: string;
-  /** Le CTA devient un bouton plein — l'action qui manque, pas celle qui relit. */
-  ctaPrimary?: boolean;
-  /** Où mène la carte. `null` quand elle **lance** au lieu de naviguer. */
-  href: string | null;
-  onClick?: () => void;
-  busy?: boolean;
-  /**
-   * **La mesure qui manque encore**, à côté de `cta` : le palier affiché ne
-   * vient pas d'un examen blanc (fait servi, jamais deviné). Absent, la carte
-   * reste un seul lien.
-   */
-  evaluate?: { label: string; onClick: () => void; busy?: boolean };
-}) {
-  const head = (
-    <>
-      <span className={styles.levelCardTop}>
-        <span className={styles.levelCardMark}>{mark}</span>
-        <Icon className={styles.levelCardIcon} size={24} strokeWidth={1.8} aria-hidden />
-      </span>
-      <span className={styles.levelCardName}>{title}</span>
-      {level ? (
-        <span className={cx(styles.levelCardLevel, !measured && styles.isNa)}>{level}</span>
-      ) : null}
-      {status ? (
-        <span className={cx(styles.levelCardStatus, statusToneClass[tone])}>{status}</span>
-      ) : null}
-      {scale ? <span className={styles.levelCardScale}>{scale}</span> : null}
-    </>
-  );
-  const cls = cx(styles.levelCard, !measured && styles.isTodo);
-  if (evaluate) {
-    const lien = (
-      <>
-        <span>{cta}</span>
-        <ArrowRight size={18} strokeWidth={2.2} aria-hidden />
-      </>
-    );
-    return (
-      <li className={styles.levelCardItem}>
-        <div className={cx(cls, styles.isStatic)}>
-          {head}
-          <span className={cx(styles.levelCardFoot, styles.isDouble)}>
-            {href ? (
-              <Link href={href} className={styles.levelCardCta}>
-                {lien}
-              </Link>
-            ) : (
-              <button type="button" className={styles.levelCardCta} onClick={onClick} disabled={busy}>
-                {lien}
-              </button>
-            )}
-            <button
-              type="button"
-              className={cx(styles.levelCardCta, styles.isPrimary)}
-              onClick={evaluate.onClick}
-              disabled={evaluate.busy}
-            >
-              {evaluate.label}
-            </button>
-          </span>
-        </div>
-      </li>
-    );
-  }
-  const body = (
-    <>
-      {head}
-      <span className={styles.levelCardFoot}>
-        <span className={cx(styles.levelCardCta, ctaPrimary && styles.isPrimary)}>
-          <span>{cta}</span>
-          {ctaPrimary ? null : <ArrowRight size={18} strokeWidth={2.2} aria-hidden />}
-        </span>
-      </span>
-    </>
-  );
-  return (
-    <li className={styles.levelCardItem}>
-      {href ? (
-        <Link href={href} className={cls}>
-          {body}
-        </Link>
-      ) : (
-        <button type="button" className={cls} onClick={onClick} disabled={busy}>
-          {body}
-        </button>
-      )}
-    </li>
-  );
-}
-
-/**
- * La grille des cartes d'épreuve — **deux colonnes** sur téléphone, une
- * dernière carte impaire (les 5 thèmes civiques) prenant toute la rangée.
- *
- * ⚠️ **Plus large, elle se règle sur SA largeur, pas sur la fenêtre**
- * (requête de conteneur) : la barre latérale du desktop mange une part
- * variable de l'écran. Dès que la grille dispose d'environ 820 px, quatre
- * cartes tiennent sur UNE rangée, et cinq se rangent en 3 + 2. Ce sont des
- * règles de mise en page sur une primitive existante, **sans miroir Flutter**
- * — l'app est en portrait téléphone et garde ses deux colonnes.
- *
- * Miroir Flutter : `SfLevelCardGrid`.
- */
-export function LevelCardGrid({ children }: { children: ReactNode }) {
-  return (
-    <div className={styles.levelCardGridWrap}>
-      <ul className={styles.levelCardGrid}>{children}</ul>
-    </div>
-  );
-}
-
-/**
- * **Le bandeau d'objectif** — la bande bleue pleine de la maquette : cocarde,
- * intitulé + valeur, puis le compteur « 3 / 4 » en gros et le mot qu'il
- * compte.
- *
- * 🛑 `count` et `total` sont **passés**, jamais comptés ici.
- *
- * ⚠️ **Plus de pastilles sous le compteur** (maquette v3, 2026-09-24) : les
- * cartes juste en dessous montrent déjà, une par une, ce qui est évalué.
- * Miroir Flutter : `SfGoalBanner`.
- */
-export function GoalBanner({
-  label,
-  value,
-  count,
-  total,
-  caption,
-}: {
-  label: string;
-  value: string;
-  /** Le nombre de mesures faites. `null` retire le compteur entier. */
-  count?: number | null;
-  total?: number | null;
-  caption?: string;
-}) {
-  const counted = count != null && total != null && total > 0;
-  return (
-    <div className={styles.goalBanner}>
-      <span className={styles.goalCocarde} aria-hidden />
-      <span className={styles.goalBannerBody}>
-        <small>{label}</small>
-        <b>{value}</b>
-      </span>
-      {counted ? (
-        <span className={styles.goalCount}>
-          <b>{`${count} / ${total}`}</b>
-          {caption ? <small>{caption}</small> : null}
-        </span>
-      ) : null}
-    </div>
-  );
-}
+/* ⚠️ `LadderStep`, `LevelLadder`, `LevelCard`, `LevelCardGrid` et
+   `GoalBanner` (« Où vous en êtes ») sont SUPPRIMÉES (Navigation v2, phase 3,
+   2026-10-03) : l'Accueil porte « Mes objectifs » (`ObjCard`,
+   `ObjectivesCard`) à leur place. Leurs miroirs Flutter partent dans la
+   même passe : `SfLadderStep`, `SfLevelLadder`, `SfLevelCard`, `SfLevelCardGrid`,
+   `SfGoalBanner`. */
 
 /**
  * La note discrète de bas de carte (`.micro-note`) : une pastille « i » et une
@@ -3119,6 +2806,325 @@ export function SerieCard({
           <ChevronRight size={15} strokeWidth={2.2} aria-hidden />
         </Link>
       ) : null}
+    </div>
+  );
+}
+
+/* ==========================================================================
+   NAVIGATION V2 — ACCUEIL (phase 3, 2026-10-03)
+
+   Maquette : `docs/redesign/sejourfr-navigation-web.html` (`#accueil`) et
+   `sejourfr-navigation-mobile.html` (`.objectives-card`). Miroirs Flutter,
+   mêmes noms préfixés `Sf` (`sejour_kit.dart`) : `SfActionCard`, `SfObjCard`,
+   `SfObjectivesCard`, `SfObjectiveRow`, `SfBlockSkeleton`, `SfBlockError`.
+   `PageHead` (web) ⇄ `SfModuleHeader` (mobile, phase 2) : même anatomie —
+   kicker teinté, grand titre, phrase de cadrage —, le web y ajoute la
+   rangée de pastilles à droite (`aside`), sans équivalent téléphone.
+
+   🛑 **Rien n'est calculé ici** : valeurs, libellés et gestes arrivent
+   composés par l'écran (`lib/accueil.ts`), à partir de faits servis.
+   ========================================================================== */
+
+/** Le module qui teinte une primitive : TCF bleu, civique rouge (X1). */
+export type ModuleTone = "tcf" | "civique";
+
+const moduleToneClass: Record<ModuleTone, string> = {
+  tcf: styles.modTcf,
+  civique: styles.modCivique,
+};
+
+/**
+ * **L'en-tête de page de la maquette** (`.page-head`) : kicker en pastille
+ * teintée, grand titre (`--shell-h1-size`, 32 → 26 px sous 760 px), phrase
+ * de cadrage, et à droite des pastilles facultatives (`aside`).
+ *
+ * Miroir Flutter : `SfModuleHeader` (`civique`, `kicker?`, `title`, `lead`) —
+ * `aside` n'a pas d'équivalent téléphone.
+ */
+export function PageHead({
+  kicker,
+  title,
+  subtitle,
+  tone = "tcf",
+  aside,
+}: {
+  /** `null` ⇒ pas de pastille (démarche inconnue : rien n'est deviné). */
+  kicker?: string | null;
+  title: string;
+  subtitle?: string | null;
+  /** La teinte du kicker. `tcf` (bleu) par défaut, comme la maquette. */
+  tone?: ModuleTone;
+  aside?: ReactNode;
+}) {
+  return (
+    <header className={cx(styles.pageHead, moduleToneClass[tone])}>
+      <div className={styles.pageHeadText}>
+        {kicker ? <span className={styles.pageKicker}>{kicker}</span> : null}
+        <h1 className={styles.pageTitle}>{title}</h1>
+        {subtitle ? <p className={styles.pageSub}>{subtitle}</p> : null}
+      </div>
+      {aside ? <div className={styles.pageHeadAside}>{aside}</div> : null}
+    </header>
+  );
+}
+
+/** Le geste d'une carte : un lien, ou un bouton. */
+export type ActionCardCta = {
+  label: string;
+  /** Un lien (`OUVRIR_ETAPE`, page d'offre). Exclusif avec `onClick`. */
+  href?: string;
+  onClick?: () => void;
+  /** Lancement en cours. */
+  disabled?: boolean;
+};
+
+function ModuleCta({ cta, block }: { cta: ActionCardCta; block?: boolean }) {
+  const cls = cx(styles.modCta, block && styles.isBlock);
+  const body = (
+    <>
+      {cta.label}
+      <ArrowRight aria-hidden />
+    </>
+  );
+  return cta.href && !cta.disabled ? (
+    <Link href={cta.href} className={cls} onClick={cta.onClick}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" className={cls} onClick={cta.onClick} disabled={cta.disabled}>
+      {body}
+    </button>
+  );
+}
+
+/**
+ * **La carte « À faire maintenant » d'un module** (`.card.action-card`) :
+ * icône PLEINE du module, label, titre, méta, badge facultatif à droite, puis
+ * le CTA plein du module.
+ *
+ * 🛑 **`cta: null` = état neutre** — rien à lancer (`AUCUN` servi) : l'icône
+ * passe en teinte douce et aucun bouton mort n'est posé. `children` porte une
+ * note éventuelle (verrou, erreur de lancement), entre l'en-tête et le CTA.
+ *
+ * Miroir Flutter : `SfActionCard` (`civique`, `icon`, `label`, `title`,
+ * `meta?`, `badge?`, `cta?` (libellé), `onPressed?`) — `cta` ou `onPressed`
+ * nuls ⇒ carte neutre. Ici `cta` porte libellé + geste (`href` | `onClick`) ;
+ * `block` et `children` (note) sont propres au web.
+ */
+export function ActionCard({
+  module,
+  icon,
+  label,
+  title,
+  meta,
+  badge,
+  cta,
+  block,
+  children,
+}: {
+  module: ModuleTone;
+  /** Le pictogramme (trait de la maquette), teinté par la carte. */
+  icon: ReactNode;
+  label: string;
+  title: string;
+  /** « Examen blanc · ≈ 20 min ». `null` ⇒ pas de ligne. */
+  meta?: string | null;
+  /** Le code court servi (« CO »). `null` ⇒ pas de badge. */
+  badge?: string | null;
+  cta?: ActionCardCta | null;
+  /** CTA pleine largeur (`.cta.block` de la maquette web). */
+  block?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <article className={cx(styles.actionCard, moduleToneClass[module], !cta && styles.isNeutral)}>
+      <div className={styles.actionTop}>
+        <span className={styles.actionIcon} aria-hidden>
+          {icon}
+        </span>
+        <div className={styles.actionCopy}>
+          <p className={styles.actionLabel}>{label}</p>
+          <h3 className={styles.actionTitle}>{title}</h3>
+          {meta ? <p className={styles.actionMeta}>{meta}</p> : null}
+        </div>
+        {badge ? <span className={styles.actionBadge}>{badge}</span> : null}
+      </div>
+      {children}
+      {cta ? <ModuleCta cta={cta} block={block} /> : null}
+    </article>
+  );
+}
+
+/** Une métrique de carte d'objectif : la valeur en gros, son mot dessous. */
+export type ObjMetric = { value: string; label: string };
+
+/**
+ * **La grande carte d'objectif web** (`.obj-card`) : dégradé du module, halo,
+ * pictogramme et pastille, titre, description, barre blanche, puis trois
+ * métriques. Toute la carte est un lien.
+ *
+ * 🛑 `progress` est une **fraction déjà calculée** par l'écran sur des faits
+ * servis (0 → 1) ; `null` retire la barre — jamais une barre à 0 inventée.
+ *
+ * Miroir Flutter : `SfObjCard` (`civique`, `icon`, `pill`, `title`,
+ * `description?`, `progress?`, `metrics` (`SfObjMetric`), `onTap?`) ; ici
+ * `href` (un lien web) tient lieu d'`onTap`.
+ */
+export function ObjCard({
+  module,
+  icon,
+  pill,
+  title,
+  description,
+  progress,
+  metrics,
+  href,
+}: {
+  module: ModuleTone;
+  icon: ReactNode;
+  pill: string;
+  title: string;
+  description?: string | null;
+  progress?: number | null;
+  metrics: ObjMetric[];
+  href: string;
+}) {
+  const ratio =
+    progress == null || !Number.isFinite(progress) ? null : Math.max(0, Math.min(1, progress));
+  return (
+    <Link href={href} className={cx(styles.objCard, moduleToneClass[module])}>
+      <span className={styles.objTop}>
+        <span className={styles.objIcon} aria-hidden>
+          {icon}
+        </span>
+        <span className={styles.objPill}>{pill}</span>
+      </span>
+      <span className={styles.objTitle}>{title}</span>
+      {description ? <span className={styles.objDesc}>{description}</span> : null}
+      <span className={styles.objBottom}>
+        {ratio !== null ? (
+          <span className={styles.objBar} aria-hidden>
+            <span style={{ width: `${Math.round(ratio * 100)}%` }} />
+          </span>
+        ) : null}
+        {metrics.length > 0 ? (
+          <span className={styles.objMetrics}>
+            {metrics.map((m) => (
+              <span key={m.label} className={styles.objMetric}>
+                <strong>{m.value}</strong>
+                <span>{m.label}</span>
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * **La carte groupée « Mes objectifs »** (`.objectives-card`, maquette
+ * mobile) : des `ObjectiveRow` séparées d'un filet en retrait. Sert aussi le
+ * « Résumé de préparation » du Profil web (phase 4).
+ *
+ * Miroir Flutter : `SfObjectivesCard` (`rows`) ; ici les lignes passent en
+ * `children` (idiome React).
+ */
+export function ObjectivesCard({ children }: { children: ReactNode }) {
+  return <div className={styles.objectivesCard}>{children}</div>;
+}
+
+/**
+ * Une ligne d'objectif (`.objective-row`) : icône douce du module, label,
+ * titre, méta, puis la valeur à la couleur du module et un chevron. Toute la
+ * ligne est un lien.
+ *
+ * Miroir Flutter : `SfObjectiveRow` (`civique`, `icon`, `label`, `title`,
+ * `meta?`, `value`, `onTap?`) ; ici `href` tient lieu d'`onTap`.
+ */
+export function ObjectiveRow({
+  module,
+  icon,
+  label,
+  title,
+  meta,
+  value,
+  href,
+}: {
+  module: ModuleTone;
+  icon: ReactNode;
+  label: string;
+  title: string;
+  meta?: string | null;
+  value: string;
+  /** Absent ⇒ ligne inerte (miroir de `onTap` nul). */
+  href?: string | null;
+}) {
+  const cls = cx(styles.objectiveRow, moduleToneClass[module]);
+  const body = (
+    <>
+      <span className={styles.objectiveIcon} aria-hidden>
+        {icon}
+      </span>
+      <span className={styles.objectiveCopy}>
+        <span className={styles.objectiveLabel}>{label}</span>
+        <span className={styles.objectiveTitle}>{title}</span>
+        {meta ? <span className={styles.objectiveMeta}>{meta}</span> : null}
+      </span>
+      <span className={styles.objectiveValue}>
+        <strong>{value}</strong>
+        {href ? <ChevronRight aria-hidden /> : null}
+      </span>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cls}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
+  );
+}
+
+/**
+ * **Le squelette d'UN bloc**, aux dimensions du composant qu'il remplace —
+ * jamais un spinner plein écran (brief §7). Décoratif : il ne se lit pas.
+ * `radius` en px ; absent, le rayon des cartes du kit (`--sf-radius-4xl`).
+ *
+ * Miroir Flutter : `SfBlockSkeleton` (`height`, `radius`).
+ */
+export function BlockSkeleton({ height, radius }: { height: number; radius?: number }) {
+  return (
+    <span
+      className={styles.skel}
+      style={{ height, ...(radius != null ? { borderRadius: radius } : null) }}
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * **L'échec d'UN bloc** : un message et « Réessayer », à la place du bloc
+ * seul — le reste de l'écran reste utilisable (brief §7).
+ *
+ * Miroir Flutter : `SfBlockError` (`message`, `onRetry`, `retryLabel`).
+ */
+export function BlockError({
+  message,
+  onRetry,
+  retryLabel = "Réessayer",
+}: {
+  message: string;
+  onRetry: () => void;
+  retryLabel?: string;
+}) {
+  return (
+    <div className={styles.blockError} role="alert">
+      <AlertCircle className={styles.blockErrorIco} size={20} strokeWidth={2} aria-hidden />
+      <p className={styles.blockErrorText}>{message}</p>
+      <button type="button" className={styles.blockErrorRetry} onClick={onRetry}>
+        {retryLabel}
+      </button>
     </div>
   );
 }

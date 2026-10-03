@@ -99,18 +99,3 @@ class SegmentedTabs<T> extends StatelessWidget {
     );
   }
 }
-
-/// Toggle parcours canonique : chaque module dans SA couleur — TCF bleu,
-/// Civique rouge (tokens de module, Navigation v2 X1).
-List<SegmentTab<T>> parcoursSegments<T>({
-  required T tcf,
-  required T civique,
-}) =>
-    [
-      SegmentTab(value: tcf, label: 'TCF IRN', color: AppColors.moduleTcf),
-      SegmentTab(
-        value: civique,
-        label: 'Examen civique',
-        color: AppColors.moduleCivique,
-      ),
-    ];

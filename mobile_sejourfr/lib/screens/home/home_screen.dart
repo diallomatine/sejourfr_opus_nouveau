@@ -5,93 +5,57 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../core/analytics/analytics_events.dart';
 import '../../core/auth/auth_controller.dart';
-import '../../core/models/civic_diagnostic_models.dart';
-import '../../core/models/civic_plan_models.dart';
+import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/journey_models.dart';
 import '../../core/models/preparation_labels.dart';
-import '../../core/models/progress_models.dart';
-import '../../core/providers/preparation_provider.dart';
-import '../../core/providers/progress_provider.dart';
+import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/router/shell_navigation.dart';
-import '../../core/utils/situation_icons.dart';
-import '../../core/widgets/segmented_tabs.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/civique_examen.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../diagnostic/diagnostic_courant_provider.dart';
+import '../module/module_labels.dart';
 import '../module_detail/civique_theme_exam_launcher.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/civic_plan_provider.dart';
-import '../../core/models/journey_models.dart';
+import '../plan/civic_serie_launcher.dart';
 import '../plan/journey_labels.dart';
 import '../plan/learning_plan_provider.dart';
 import '../plan/plan_actions.dart';
 import '../plan/plan_cta.dart';
-import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
-import '../progres/progres_labels.dart';
+import '../reviser/reviser_labels.dart';
 import 'home_labels.dart';
 import 'widgets/home_blocks.dart';
 
-/// **L'Accueil**, refait sur la maquette du propriétaire (`~/Desktop/grok_ecran`
-/// — `src/components/sejour/screens/accueil.tsx`, captures
-/// `screenshots/accueil-mobile.png` et `accueil-civ-mobile.png`), assemblé avec
-/// le KIT (`core/widgets/sejour/sejour_kit.dart`).
+/// **L'Accueil** — Navigation v2, phase 3 (2026-10-03). Maquette :
+/// `docs/redesign/sejourfr-navigation-mobile.html`, écran `#accueil`.
 ///
-/// ## L'ordre, de haut en bas (2026-09-19)
+/// ## L'ordre, de haut en bas
 ///
-/// Bandeau « Choisissez votre parcours » → en-tête « Bonjour X » + pastille
-/// d'objectif → **bascule TCF / Examen civique** → **À faire maintenant**
-/// (+ l'invitation à choisir un objectif) → **Où vous en êtes** → la note de
-/// non-affiliation. Et rien d'autre.
+/// Bandeau « Choisissez votre parcours » (compte sans démarche) → kicker
+/// « Objectif · {mention} », « Bonjour {nom} » et le sous-titre statique →
+/// **Mes objectifs** (une carte, deux lignes : TCF puis civique) → la carte du
+/// diagnostic rapide en cours, quand il y en a un → **À faire maintenant**
+/// (deux cartes : TCF puis civique) → l'invitation à déclarer un objectif →
+/// la note de non-affiliation.
 ///
-/// 🛑 **Le bas de l'Accueil est SUPPRIMÉ** (arbitrage du propriétaire,
-/// 2026-09-19, verbatim : « Dans Accueil aussi supprime tout ça sauf le "outil
-/// indépendant non affilié…" ») : l'aperçu **« Votre Plan »** (`HomeMiniPlan`),
-/// les deux compteurs de **« Votre progression »**, la carte **« Continuez
-/// votre diagnostic complet »** (`AffinerPlanCard`, supprimée avec son autorité
-/// `affinerPlan`) et les deux lignes de **« Vos parcours »** (`HomeTrackRow`) —
-/// la bascule juste au-dessus fait déjà ce travail. **Ne pas les
-/// réintroduire** : le Plan se lit sur `/plan`, la progression sur les écrans
-/// de progression (`screens/progression/`, ouverts par « Voir mes résultats »
-/// et depuis le Profil) ; le parcours du diagnostic complet est retiré des
-/// fronts depuis le 2026-09-26. Même passe côté web.
+/// 🛑 **Aucune bascule de module** : les deux parcours se lisent ensemble, la
+/// barre d'onglets porte la navigation. « Où vous en êtes » est supprimé — la
+/// carte « Mes objectifs » le remplace, et le détail vit sur les écrans de
+/// progression.
 ///
-/// 🛑 **[_IndependenceNote] ne se touche pas** : c'est une exigence de
-/// conformité store (Misleading Claims).
+/// 🛑 **Chaque bloc a ses états** (brief §7) : squelette aux dimensions du
+/// composant pendant le chargement, message + « Réessayer » sur erreur, sans
+/// toucher aux autres blocs.
 ///
-/// ✅ **« Où vous en êtes » ajouté le 2026-09-16** (maquette du propriétaire) :
-/// une carte par épreuve (grille, maquette v3 du 2026-09-24) — palier,
-/// échelle, état en un mot, action. C'est
-/// désormais le **seul constat** de l'écran.
-///
-/// ⚠️ Une première passe avait suivi la structure du **web** plutôt que la
-/// maquette : « Ma préparation » et « À renforcer en priorité » en plus, quatre
-/// tuiles d'indicateurs au lieu des deux compteurs, des cartes de parcours à
-/// barres de catégories. Le propriétaire a tranché sur capture (2026-09-12) :
-/// c'est la maquette. Ces blocs sont **retirés**, pas déplacés.
-///
-/// ## Un écran, deux parcours
-///
-/// 🛑 **La bascule change ce que l'Accueil AFFICHE**, elle ne navigue pas.
-/// ⚠️ Navigation v2 (phase 2) : le Plan et Réviser ont quitté la bascule — ce
-/// sont des onglets de module —, donc le parcours affiché n'est plus partagé
-/// et vit ici, en état local. L'Accueil est refait en phase 3. Le défaut est
-/// **servi** (`moduleCiviqueParDefaut`).
-///
-/// ## Ce que la maquette ne décide PAS
-///
-/// 🛑 Elle est une référence de **mise en page**, jamais une source de données.
-/// Une seule action dominante — « À faire maintenant » —, un en-tête sans CTA,
-/// et une priorité TCF verrouillée qui n'est **pas nommée**.
-///
-/// ⚠️ **Deux écarts assumés, et leurs raisons** :
-/// - les **raccourcis du bas** (Réviser · Examens blancs · Mes résultats) sont
-///   omis : la bottom nav les porte déjà, et le propriétaire a écarté une
-///   rangée de raccourcis redondante le 2026-09-12 ;
-/// - la pastille d'objectif nomme la **démarche** servie ([objectifLabel]) et
-///   non le module, que la bascule juste en dessous annonce déjà.
+/// 🛑 **[_IndependenceNote] ne se touche pas** : exigence de conformité store
+/// (Misleading Claims).
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -100,606 +64,429 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// Le parcours affiché. `null` tant que le défaut servi n'est pas connu.
-  bool? _civique;
+  /// Un lanceur est en vol : un second toucher ne relance rien.
+  bool _lancement = false;
 
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_poserDefaut());
+  /// Le tiré-pour-rafraîchir : les sources du compte (le même point que le
+  /// Plan), plus le tableau de bord, qui suit le même signal.
+  Future<void> _refresh() async {
+    final sources = relireSourcesDuCompte(ref);
+    await Future.wait<void>([
+      sources,
+      ref.read(dashboardProvider.future).then((_) {}, onError: (Object _) {}),
+    ]);
   }
-
-  /// Le parcours ouvert par défaut est **servi** : celui qui a déjà quelque
-  /// chose à dire. Il n'écrase jamais un choix déjà fait par le candidat.
-  Future<void> _poserDefaut() async {
-    bool defaut;
-    try {
-      defaut = moduleCiviqueParDefaut(await ref.read(preparationProvider.future));
-    } catch (_) {
-      // 🛑 L'échec n'ouvre pas sur un module au hasard : on retombe sur le TCF.
-      defaut = false;
-    }
-    if (!mounted || _civique != null) return;
-    setState(() => _civique = defaut);
-  }
-
-  /// 🛑 **Le seul point de fraîcheur de l'Accueil**, avec le signal du Plan :
-  /// ses quatre sources sont gardées en vie pour la session, donc revenir sur
-  /// l'onglet ne redemande plus rien. Ici on vide tout, puis on attend la plus
-  /// lente pour que l'indicateur de rafraîchissement dure le temps du travail.
-  /// Le MÊME point que le tiré du Plan : les deux écrans relisent les mêmes
-  /// sources — les cycles compris, qu'on oubliait ici.
-  Future<void> _refresh() => relireSourcesDuCompte(ref);
 
   @override
   Widget build(BuildContext context) {
-    final civique = _civique ?? false;
-
-    // `SegmentedTabs` + `parcoursSegments` portent les couleurs de module.
-    final toggle = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: SegmentedTabs<bool>(
-        tabs: parcoursSegments(tcf: false, civique: true),
-        value: civique,
-        onChanged: (v) => setState(() => _civique = v),
-      ),
-    );
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    final procedure = user?.targetProcedure;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: SfTopSlot(
-          below: toggle,
-          child: RefreshIndicator(
-            color: AppColors.blue,
-            onRefresh: _refresh,
-            child: ListView(children: _contenu(context, civique)),
+        child: RefreshIndicator(
+          color: AppColors.blue,
+          onRefresh: _refresh,
+          child: ListView(
+            children: [
+              if (user != null && procedure == null)
+                HomeBanner(
+                  onTap: () =>
+                      context.push(AppRoutes.targetPathFrom(AppRoutes.home)),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                child: SfModuleHeader(
+                  civique: false,
+                  kicker: objectifKicker(procedure),
+                  title: homeHello(user?.firstName, user?.lastName),
+                  lead: kHomeLead,
+                ),
+              ),
+              SfSection(
+                title: kHomeObjectivesTitle,
+                lead: true,
+                flush: true,
+                child: _objectifs(context),
+              ),
+              ..._diagnosticEnCours(context),
+              SfSection(
+                title: kHomeNowTitle,
+                lead: true,
+                flush: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _actionTcf(context),
+                    const SizedBox(height: 12),
+                    _actionCivique(context),
+                  ],
+                ),
+              ),
+              ..._objectifADeclarer(context),
+              const SizedBox(height: 24),
+              const _IndependenceNote(),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _contenu(BuildContext context, bool civique) {
-    final auth = ref.watch(authControllerProvider);
-    final user = auth is AuthAuthenticated ? auth.user : null;
+  /* -------------------------------------------------------- mes objectifs */
 
-    // 🛑 **Les DEUX parcours sont observés en permanence**, et c'est ce qui rend
-    // la bascule gratuite. Ces providers sont `autoDispose` : n'observer que le
-    // parcours affiché laissait l'autre se jeter à chaque bascule, et revenir
-    // dessus rappelait son endpoint — pour une réponse identique, puisque ni le
-    // plan TCF ni le plan civique ne dépendent de l'onglet ouvert. Les lire ici
-    // ne coûte rien de plus : ils sont de toute façon chargés dès qu'on ouvre
-    // leur parcours.
-    ref.watch(learningPlanProvider);
-    ref.watch(civicPlanProvider);
-    ref.watch(diagnosticCourantProvider);
-    // 🛑 **La préparation est observée ICI** : `_poserDefaut` compte sur elle.
-    ref.watch(preparationProvider);
-
-    return <Widget>[
-      if (user != null && user.targetProcedure == null)
-        HomeBanner(onTap: () => context.push(AppRoutes.targetPathFrom(AppRoutes.home))),
-      SfTop(
-        title: homeHello(user?.firstName),
-        badges: [objectifLabel(user?.targetProcedure)],
-      ),
-      ..._blocs(context, civique),
-      const SizedBox(height: 24),
-      const _IndependenceNote(),
-      const SizedBox(height: 20),
-    ];
-  }
-
-  /// 🛑 **Chaque bloc apparaît quand SA source est là**, et disparaît quand elle
-  /// n'a rien à dire : pas de squelette global, pas de section au-dessus du
-  /// vide. Miroir du web, dont chaque appel retombe sur `null` en best-effort.
-  List<Widget> _blocs(BuildContext context, bool civique) {
-    final action = civique ? _actionCivique(context) : _actionTcf(context);
-    final objectif = civique ? null : _objectifTcf(context);
-    final situation = _ouVousEnEtes(context, civique);
-
-    return <Widget>[
-      if (action != null)
-        SfSection(title: kHomeNowTitle, flush: true, child: action),
-      if (objectif != null)
-        SfSection(
-            title: kJourneyNeedsObjectiveTitle, flush: true, child: objectif),
-      if (situation != null)
-        SfSection(
-          title: kHomeSituationTitle,
-          flush: true,
-          lead: true,
-          action: SfSectionAction(
-            label: kHomeSituationPlanLink,
-            onTap: () => _ouvrirPlan(context, civique: civique),
-          ),
-          child: situation,
-        ),
-    ];
-  }
-
-  /// « Voir mon Plan » sur une ligne de parcours : le segment Plan **du module
-  /// de la ligne**, dans l'onglet de ce module.
-  void _ouvrirPlan(BuildContext context, {required bool civique}) =>
-      context.go(AppRoutes.modulePlan(civique: civique));
-
-  /* ------------------------------------------- l'action du jour — TCF ----- */
-
-  /// 🛑 Les états et leurs phrases sont **ceux du web**, mot pour mot. Sans
-  /// diagnostic servi, la section n'existe pas : pas de titre au-dessus du vide.
+  /// **Mes objectifs** — la carte groupée de la maquette mobile.
   ///
-  /// 🛑 **D-69 (2026-09-28)** : un diagnostic **non commencé** n'affiche plus la
-  /// carte « Découvrez ce qui vous bloque au TCF » — le Plan existe, donc c'est
-  /// SON action (le premier examen du cycle d'examens), exactement comme quand
-  /// le diagnostic est fait. Le diagnostic n'est plus proposé sur l'Accueil ;
-  /// seuls « en cours » et « analyse en préparation » gardent leur carte.
-  Widget? _actionTcf(BuildContext context) {
-    final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
-    if (journey == null) return null;
+  /// - TCF : « Atteindre {cible} partout », `{actuel|—} → {cible}`. Le niveau
+  ///   cible vient de `userTargetLevelProvider` (seule source, X13), le niveau
+  ///   actuel de `estimatedTcfLevel` servi (`null` ⇒ « — »).
+  /// - Civique : « Être prêt pour l'examen », seuil et nombre de questions de
+  ///   l'examen officiel, et l'avancement en séries par
+  ///   [avancementSeriesCivique], la fonction unique (0 % jamais vide).
+  Widget _objectifs(BuildContext context) {
+    final async = ref.watch(dashboardProvider);
+    final dashboard = async.valueOrNull;
+    if (dashboard == null) {
+      if (async.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () => ref.invalidate(dashboardProvider),
+        );
+      }
+      return const SfBlockSkeleton(height: 202);
+    }
+    return SfObjectivesCard(
+      rows: [
+        _objectifTcf(context, dashboard),
+        _objectifCivique(context, dashboard),
+      ],
+    );
+  }
 
-    if (_diagnosticEnCours(journey)) {
-      final fait = journey.completedExerciseCount;
-      final analyse = journey.status == DiagnosticJourneyStatus.analyzing ||
-          journey.nextStep == DiagnosticStep.analysis;
-      return SfNowCard(
-        icon: LucideIcons.sparkles,
-        title: analyse ? kHomeDiagAnalyzingTitle : kHomeDiagResumeTitle,
-        subtitle: homeDiagCount(fait, journey.exerciseCount),
-        badge: kHomeDiagBadge,
-        objective: analyse
-            ? homeDiagAnalyzingObjective(journey.format)
-            : kHomeDiagResumeObjective,
-        action: SfButton(
-          label: analyse ? kHomeDiagAnalyzingCta : kHomeDiagResumeCta,
-          // « Reprendre mon diagnostic » nomme le geste, donc il le pose ;
-          // « Voir l'analyse » ne lance rien et ouvre l'écran tel quel.
-          // ⚠️ Sans effet quand le candidat est déjà plus loin que la
-          // présentation : l'écran ne saute que ce qu'il y a à sauter.
-          onPressed: () => context.push(
-            analyse ? AppRoutes.diagnostic : AppRoutes.diagnosticDemarrer,
+  SfObjectiveRow _objectifTcf(
+      BuildContext context, DashboardSummary dashboard) {
+    final cible = ref.watch(userTargetLevelProvider)?.wire;
+    final actuel = dashboard.estimatedTcfLevel?.shortName;
+    return SfObjectiveRow(
+      civique: false,
+      icon: LucideIcons.map,
+      label: kHomeTcfLabel,
+      // Sans démarche déclarée, aucun palier n'est visé : on invite à le
+      // choisir plutôt que d'écrire « Atteindre — partout ».
+      title: cible == null ? kJourneyNeedsObjectiveTitle : homeGoalText(cible),
+      meta: kHomeTcfObjectiveMeta,
+      value: homeTcfObjectiveValue(
+        actuel ?? kModuleProgressUnknown,
+        cible ?? kModuleProgressUnknown,
+      ),
+      onTap: () => pousserOuAller(context, AppRoutes.progressionTcf),
+    );
+  }
+
+  SfObjectiveRow _objectifCivique(
+    BuildContext context,
+    DashboardSummary dashboard,
+  ) {
+    final avancement = avancementSeriesCivique(dashboard.civique);
+    return SfObjectiveRow(
+      civique: true,
+      icon: LucideIcons.shieldCheck,
+      label: kHomeCiviqueLabel,
+      title: kHomeCiviqueObjectiveTitle,
+      meta: homeCiviqueObjectiveMeta(
+        CivicExamFormat.seuil,
+        CivicExamFormat.questions,
+      ),
+      value: moduleCiviqueProgressValue(avancement.pourcentage),
+      onTap: () => pousserOuAller(context, AppRoutes.progressionCivique),
+    );
+  }
+
+  /* ------------------------------------------- le diagnostic rapide en cours */
+
+  /// La reprise d'un diagnostic rapide commencé, ou son analyse en
+  /// préparation — **au-dessus** de « À faire maintenant », et seulement quand
+  /// elle existe. Chargement ou erreur : rien (c'est un bloc facultatif).
+  List<Widget> _diagnosticEnCours(BuildContext context) {
+    final journey = ref.watch(diagnosticCourantProvider).valueOrNull;
+    if (journey == null ||
+        journey.status == DiagnosticJourneyStatus.notStarted ||
+        journey.status == DiagnosticJourneyStatus.completed) {
+      return const <Widget>[];
+    }
+    final analyse = journey.status == DiagnosticJourneyStatus.analyzing ||
+        journey.nextStep == DiagnosticStep.analysis;
+    return <Widget>[
+      SfSection(
+        flush: true,
+        child: SfNowCard(
+          icon: LucideIcons.sparkles,
+          title: analyse ? kHomeDiagAnalyzingTitle : kHomeDiagResumeTitle,
+          subtitle: homeDiagCount(
+            journey.completedExerciseCount,
+            journey.exerciseCount,
+          ),
+          badge: kHomeDiagBadge,
+          objective: analyse
+              ? homeDiagAnalyzingObjective(journey.format)
+              : kHomeDiagResumeObjective,
+          action: SfButton(
+            label: analyse ? kHomeDiagAnalyzingCta : kHomeDiagResumeCta,
+            variant: SfButtonVariant.tcf,
+            // « Reprendre » nomme le geste, donc il le pose ; « Voir
+            // l'analyse » ne lance rien et ouvre l'écran tel quel.
+            onPressed: () => context.push(
+              analyse ? AppRoutes.diagnostic : AppRoutes.diagnosticDemarrer,
+            ),
           ),
         ),
+      ),
+    ];
+  }
+
+  /* ------------------------------------------- à faire maintenant — TCF */
+
+  /// **La carte d'action TCF** — l'étape courante du parcours
+  /// (`journey.current`), décidée par [planNowCard], la même autorité que le
+  /// Plan et l'Entraînement.
+  ///
+  /// 🛑 **Le geste est SERVI** : `debloquer` ouvre l'écran de transition,
+  /// `ouvrirEtape` l'écran de l'étape (adresse servie), `lancer` démarre la
+  /// mesure ou l'exercice par les lanceurs du Plan, `aucun` ⇒ carte neutre,
+  /// sans bouton.
+  Widget _actionTcf(BuildContext context) {
+    final planAsync = ref.watch(learningPlanProvider);
+    final journeyAsync = ref.watch(journeyProvider);
+    final plan = planAsync.valueOrNull;
+    final parcours = journeyAsync.valueOrNull;
+    if (plan == null || parcours == null) {
+      if (planAsync.hasError || journeyAsync.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () {
+            ref.invalidate(learningPlanProvider);
+            ref.invalidate(journeyProvider);
+          },
+        );
+      }
+      return const SfBlockSkeleton(height: 160);
+    }
+
+    final compte = ref.watch(authControllerProvider);
+    final free = !(compte is AuthAuthenticated && compte.user.hasTcf);
+    final carte = planNowCard(plan, journey: parcours, free: free);
+
+    // Plus d'étape à faire (cycle terminé, parcours à jour) : la carte le dit
+    // et mène au Plan, où se trouve « Actualiser mon plan ».
+    if (carte == null) {
+      return SfActionCard(
+        civique: false,
+        icon: LucideIcons.circleCheck,
+        label: kHomeTcfLabel,
+        title: kJourneyUpToDateTitle,
+        cta: kHomeTcfCta,
+        onPressed: () =>
+            pousserOuAller(context, AppRoutes.modulePlan(civique: false)),
       );
     }
 
-    // 🛑 **L'Accueil et le Plan annoncent la MÊME action**, et c'est
-    // [planNowCard] qui la décide — pour les deux écrans, des deux côtés. Sans
-    // elle, l'Accueil ne lisait que `currentPriority` : il annonçait une tâche
-    // d'expression orale pendant que le Plan, au même instant, demandait de
-    // compléter une mesure de compréhension écrite.
-    final plan = ref.watch(learningPlanProvider).valueOrNull;
-    // 🛑 **Le parcours est lu ici aussi** : sans lui, l'Accueil retomberait sur
-    // la règle du Plan pendant que le Plan suivrait le parcours — la même
-    // contradiction, à un étage de plus.
-    final parcours = ref.watch(journeyProvider).valueOrNull;
-    // 🛑 **Le drapeau d'accès descend jusqu'à l'autorité** (2026-09-20) : sans
-    // lui, l'Accueil ne savait pas qu'il fallait proposer de débloquer, et il
-    // annonçait « Commencer » là où le Plan disait « Débloquer ».
-    final compte = ref.watch(authControllerProvider);
-    final free = !(compte is AuthAuthenticated && compte.user.hasTcf);
-    final carte = plan == null
-        ? null
-        : planNowCard(plan, journey: parcours, free: free);
-
-    // 🛑 **Une priorité verrouillée se NOMME ici comme sur le Plan** (demande
-    // du propriétaire, 2026-09-20).
-    //
-    // ⚠️ **Révoque** « une priorité verrouillée n'est jamais nommée ici » : la
-    // règle protégeait le rideau de « Mes priorités », qui n'existe plus — le
-    // Plan nomme l'étape depuis le 2026-09-19 et Réviser depuis le 20. Le seul
-    // écran à se taire encore était celui-ci, et il annonçait « Continuez votre
-    // plan personnalisé » pendant que le Plan disait « Expression écrite ·
-    // Tâche 3 ». Deux écrans, deux réponses, au même instant.
-    final nommable = carte != null;
-
-    final mesure = carte?.mesure;
-    final exercice = carte?.exercise;
-    // 🛑 **Le geste vient de l'autorité**, jamais redéduit : un verrou ouvre
-    // l'écran de transition (A145), une action ouvre l'action.
-    final debloquer = carte?.geste == PlanNowGeste.debloquer;
-    // 🛑 **Une étape de séries ouvre son écran**, elle ne se lance plus d'ici.
-    // Le geste ET sa destination viennent de [planNowCard] : cet écran ne
-    // redéduit ni « est-ce une série ? » ni l'adresse.
-    final ouvrirEtape =
-        carte?.geste == PlanNowGeste.ouvrirEtape ? carte?.etapeRoute : null;
-    final lancable = carte != null &&
-        carte.geste == PlanNowGeste.lancer &&
-        (mesure != null ? !carte.locked : exercice != null && !exercice.locked);
-
-    return SfNowCard(
-      // Quand la série se termine, la carte change de nature : sans son accent
-      // propre, elle se lirait « rien n'a bougé » — ici comme sur le Plan.
-      variant: nommable && carte.estVerification
-          ? SfNowCardVariant.verify
-          : SfNowCardVariant.standard,
-      icon: nommable ? carte.icon : LucideIcons.target,
-      // Le titre de l'action, et rien d'autre : l'explication du correcteur est
-      // le constat d'une production déjà faite — elle raconte le passé sur une
-      // carte qui annonce l'action à mener, et elle vit déjà dans le Plan.
-      title: nommable ? carte.title : kHomePriorityFallback,
-      subtitle: nommable ? carte.subtitle : null,
-      // 🛑 Une mesure n'est pas « votre priorité du jour » : sa pastille dit sa
-      // nature servie, exactement comme sur le Plan.
-      badge: nommable ? carte.badge : kHomePriorityBadge,
-      action: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SfButton(
-            label: debloquer ? carte!.cta : kHomePlanCta,
-            variant: SfButtonVariant.tcf,
-            onPressed: debloquer
-                ? () => context.push(AppRoutes.planUnlockPath(civique: false))
-                : () => _ouvrirPlan(context, civique: false),
-          ),
-          // 🛑 **Le raccourci OUVRE l'étape** au lieu de lancer sa série :
-          // même écran que la ligne du cycle, même destination servie.
-          if (ouvrirEtape != null)
-            HomeSoftAction(
-              label: carte!.cta,
-              onTap: () => pousserOuAller(context, ouvrirEtape),
-            ),
-          if (lancable)
-            HomeSoftAction(
-              // Le raccourci **nomme ce qu'il lance** : « Compléter la mesure »
-              // quand c'est une mesure, sinon le libellé générique de l'Accueil.
-              label: carte.estMesure ? carte.cta : kHomeStartDirectCta,
-              onTap: () => unawaited(
-                mesure != null
-                    // Les deux lanceurs du Plan, jamais un second chemin.
-                    // Contrôle F : la carte « À faire maintenant » relaie
-                    // l'action du Plan — la seule entrée de l'Accueil qui
-                    // compte comme le Plan (avec son parcours).
-                    ? startPlanSeanceItem(context, ref, mesure,
-                        origine: PlanOrigine.relais)
-                    : openPlanExercise(
-                        context,
-                        ref,
-                        exercice!,
-                        origine: PlanOrigine.relais,
-                        masteryBefore: carte.priority?.masteryState,
-                      ),
-              ),
-            ),
-        ],
-      ),
+    return SfActionCard(
+      civique: false,
+      icon: carte.icon,
+      label: kHomeTcfLabel,
+      title: carte.title,
+      meta: homeActionMeta([
+        carte.kindLabel ?? carte.subtitle,
+        carte.minutesLabel,
+      ]),
+      cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeTcfCta,
+      onPressed: _gesteTcf(context, carte),
     );
   }
 
-  /// Un diagnostic rapide commencé et pas encore rendu : la carte d'action le
-  /// reprend, elle ne montre pas encore le Plan.
-  bool _diagnosticEnCours(DiagnosticJourney journey) =>
-      journey.status != DiagnosticJourneyStatus.notStarted &&
-      journey.status != DiagnosticJourneyStatus.completed;
+  VoidCallback? _gesteTcf(BuildContext context, PlanNowCard carte) {
+    switch (carte.geste) {
+      case PlanNowGeste.aucun:
+        return null;
+      case PlanNowGeste.debloquer:
+        return () =>
+            pousserOuAller(context, AppRoutes.planUnlockPath(civique: false));
+      case PlanNowGeste.ouvrirEtape:
+        final route = carte.etapeRoute;
+        return route == null ? null : () => pousserOuAller(context, route);
+      case PlanNowGeste.lancer:
+        final mesure = carte.mesure;
+        final exercice = carte.exercise;
+        if (mesure == null && exercice == null) return null;
+        // Contrôle F : la carte relaie l'action du Plan — elle compte comme
+        // le Plan quand son parcours est connu (`PlanOrigine.relais`).
+        return () => unawaited(_lancer(() => mesure != null
+            ? startPlanSeanceItem(context, ref, mesure,
+                origine: PlanOrigine.relais)
+            : openPlanExercise(
+                context,
+                ref,
+                exercice!,
+                origine: PlanOrigine.relais,
+                masteryBefore: carte.priority?.masteryState,
+              )));
+    }
+  }
 
-  /* --------------------------------------- l'action du jour — CIVIQUE ----- */
+  /* --------------------------------------- à faire maintenant — CIVIQUE */
 
-  /// 🛑 **Aucune règle nouvelle, aucun libellé nouveau** : l'autorité du Plan
-  /// civique, [civicNowCard]. 🛑 **D-69 : aucune porte** — sans diagnostic
-  /// civique, la carte lit le parcours (un examen de thème par bloc).
+  /// **La carte d'action civique** — l'étape courante du cycle civique, par
+  /// [civicNowCard] : son titre, sa méta et son geste dépendent du **type**
+  /// servi de l'étape (examen de thème, unité à travailler par séries, ou
+  /// cible du plan dérivé).
   ///
-  /// 🛑 **Cette carte ne DÉMARRE rien** : elle mène au Plan civique, qui porte
-  /// le seul lanceur de série. Un second point de départ aurait dupliqué la
-  /// gestion du 403 et du paywall.
-  ///
-  /// 🛑 **Le verrou civique porte sur la SÉRIE, jamais sur le constat** : une
-  /// cible verrouillée garde son nom et son état — c'est la règle du module
-  /// civique, et elle diffère volontairement de celle du TCF.
-  Widget? _actionCivique(BuildContext context) {
-    // 🛑 **L'Accueil lit le CYCLE, comme le Plan civique** (2026-09-20).
-    // ⚠️ **Révoque** la lecture de `plan.prochaine` : le Plan civique annonce
-    // l'étape du cycle depuis D-50 §2, donc les deux écrans annonçaient deux
-    // reprises différentes au même candidat, au même instant. C'est la
-    // troisième fois que ce même écart se rouvre par la bande — après Réviser
-    // (A149), après le Plan lui-même.
-    final plan = ref.watch(civicPlanProvider).valueOrNull;
-    if (plan == null) return null;
+  /// 🛑 **L'Accueil porte le lanceur d'examen de thème** (`lancerExamen`) : il
+  /// emploie déjà [launchCiviqueThemeExam], le même que la ligne du cycle.
+  /// Sans lui, l'étape d'examen — celle du premier cycle de tout compte —
+  /// rendrait une carte sans bouton.
+  Widget _actionCivique(BuildContext context) {
+    final planAsync = ref.watch(civicPlanProvider);
+    final journeyAsync = ref.watch(journeyCiviqueProvider);
+    final plan = planAsync.valueOrNull;
+    final parcours = journeyAsync.valueOrNull;
+    if (plan == null || parcours == null) {
+      if (planAsync.hasError || journeyAsync.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () {
+            ref.invalidate(civicPlanProvider);
+            ref.invalidate(journeyCiviqueProvider);
+          },
+        );
+      }
+      return const SfBlockSkeleton(height: 160);
+    }
+
     final compte = ref.watch(authControllerProvider);
     final free = !(compte is AuthAuthenticated && compte.user.hasCivique);
     final carte = civicNowCard(
       plan,
-      journey: ref.watch(journeyCiviqueProvider).valueOrNull,
+      journey: parcours,
       free: free,
+      lancerExamen: true,
     );
-    // `null` est un cas NORMAL : plus rien à faire, la carte disparaît.
-    if (carte == null) return null;
-    final debloquer = carte.geste == PlanNowGeste.debloquer;
-    // 🛑 **Une unité qui se travaille par séries ouvre son écran** — le geste et
-    // sa destination viennent de [civicNowCard], jamais d'une condition écrite
-    // ici.
-    final ouvrirEtape =
-        carte.geste == PlanNowGeste.ouvrirEtape ? carte.etapeRoute : null;
 
-    return SfNowCard(
-      icon: LucideIcons.landmark,
+    if (carte == null) {
+      return SfActionCard(
+        civique: true,
+        icon: LucideIcons.circleCheck,
+        label: kHomeCiviqueLabel,
+        title: kJourneyUpToDateTitle,
+        cta: kHomeCiviqueCta,
+        onPressed: () =>
+            pousserOuAller(context, AppRoutes.modulePlan(civique: true)),
+      );
+    }
+
+    return SfActionCard(
+      civique: true,
+      icon: LucideIcons.shieldCheck,
+      label: kHomeCiviqueLabel,
       title: carte.title,
-      subtitle: carte.subtitle,
-      badge: carte.badge ?? kHomePriorityBadge,
-      objectiveLabel: carte.objectiveLabel ?? kHomeCivicObservedLabel,
-      objective: carte.objective,
-      // 🛑 **Cette carte ne DÉMARRE toujours rien** : elle mène au Plan
-      // civique, seul porteur du lanceur de série — un second point de départ
-      // dupliquerait la gestion du 403. Seul le geste d'ACHAT part d'ici, vers
-      // l'écran de transition (A145).
-      action: SfButton(
-        label: debloquer || ouvrirEtape != null
-            ? carte.cta
-            : kHomeCiviquePlanCta,
-        variant: SfButtonVariant.civique,
-        onPressed: debloquer
-            ? () => context.push(AppRoutes.planUnlockPath(civique: true))
-            : ouvrirEtape != null
-                ? () => pousserOuAller(context, ouvrirEtape)
-                : () => _ouvrirPlan(context, civique: true),
-      ),
+      meta: homeActionMeta([carte.subtitle, carte.meta]),
+      cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeCiviqueCta,
+      onPressed: _gesteCivique(context, carte),
     );
   }
 
-  /* --------------------------------------------------- où vous en êtes ---- */
-
-  /// **Où vous en êtes** — le titre et son lien « Mon plan », le bandeau
-  /// d'objectif, puis **une carte par épreuve** en grille de deux colonnes,
-  /// chacune portant son palier en gros et son **échelle CECRL**.
-  ///
-  /// ⚠️ **Refait le 2026-09-24 sur la maquette v3 du propriétaire** : la liste
-  /// verticale dans une seule carte (v2, 2026-09-16) devient une grille de
-  /// cartes séparées.
-  ///
-  /// 🛑 **Aucun appel de plus** : `progressProvider` est déjà observé par
-  /// l'écran, et le même `ProgressDto` porte déjà les 4 épreuves. Cette section
-  /// ne coûte rien au réseau.
-  ///
-  /// 🛑 **Rien n'est classé ici.** Libellé, pastille, ton, échelle et CTA
-  /// viennent tous de `accueilEpreuve*` / `accueilEchelons`
-  /// (`screens/progres/progres_labels.dart`),
-  /// l'autorité **partagée avec l'écran Progrès**, qui ne lit que deux faits
-  /// servis : `status` et `evolution`. Aucun palier n'est comparé à un autre —
-  /// cette comparaison vit côté serveur, dans `StatutObjectifResolver`.
-  ///
-  /// 🛑 **La section n'existe pas tant que rien n'est servi** : pas de titre
-  /// au-dessus du vide, comme tous les blocs de cet écran.
-  Widget? _ouVousEnEtes(BuildContext context, bool civique) {
-    final progres = ref.watch(progressProvider).valueOrNull;
-    if (progres == null) return null;
-    return civique
-        ? _situationCivique(context, progres)
-        : _situationTcf(context, progres);
-  }
-
-  Widget? _situationTcf(BuildContext context, Progress progres) {
-    final epreuves = progres.tcf.epreuves;
-    // Les 4 épreuves sont **toujours** servies : depuis le 2026-09-16 elles ne
-    // dépendent plus du diagnostic 4 épreuves. Une liste vide ne devrait donc
-    // plus arriver — mais un client servi par un backend antérieur au
-    // correctif la verrait, et le bloc se tait plutôt que d'afficher un titre
-    // au-dessus du vide.
-    if (epreuves.isEmpty) return null;
-
-    final objectif = progres.tcf.objectif;
-    final compte = accueilEvaluees(epreuves);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // 🛑 **Le bandeau passe AU-DESSUS des cartes** (maquette) : il annonce
-        // vers quoi on va avant de montrer où on en est. Sans démarche
-        // déclarée, pas de bandeau — on ne devine pas l'objectif d'un candidat
-        // qui n'en a pas donné, et le compteur part avec lui.
-        if (objectif != null) ...[
-          SfGoalBanner(
-            label: kHomeGoalLabel,
-            value: homeGoalText(objectif.shortName),
-            count: compte?.faites,
-            total: compte?.total,
-            caption: kAccueilEvalueesCaption,
-          ),
-          const SizedBox(height: 12),
-        ],
-        SfLevelCardGrid(
-          children: [
-            for (final epreuve in epreuves)
-              SfLevelCard(
-                mark: planDomainSection(epreuve.epreuve)?.wire ?? '',
-                icon: situationEpreuveIcon(planDomainSection(epreuve.epreuve)),
-                title: epreuve.epreuve.displayLabel,
-                status: accueilEpreuveStatut(epreuve),
-                tone: accueilEpreuveTon(epreuve),
-                level: accueilEpreuveBadge(epreuve),
-                measured: epreuve.niveau != null,
-                scale: SfLevelLadder(
-                  steps: accueilEchelons(epreuve, objectif),
-                  label: accueilEchelleLabel(epreuve, objectif),
-                  dim: epreuve.niveau == null,
-                ),
-                cta: accueilEpreuveCta(epreuve),
-                // Le bouton plein est réservé à l'action qui MANQUE : mesurer
-                // une épreuve jamais évaluée. Relire un résultat reste un lien.
-                ctaPrimary: epreuve.niveau == null,
-                onTap: () => _ouvrirEpreuve(context, epreuve),
-                // 🛑 **Un palier du DIAGNOSTIC n'est pas une mesure par examen
-                // blanc** (2026-09-27) : la carte garde « Voir mes résultats »
-                // ET propose « Évaluer mon niveau ». La provenance est servie,
-                // le lanceur est celui de l'épreuve jamais évaluée.
-                evaluateLabel: accueilEpreuveMesureEnPlus(epreuve) == null
-                    ? null
-                    : kAccueilEvaluerCta,
-                onEvaluate: _evaluerEnPlus(context, epreuve),
-              ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        // ⚠️ **Hors maquette, et conservée volontairement** : elle dit ce qui
-        // fait bouger le palier (diagnostics et épreuves complètes, pas les
-        // séries). Sans elle, un candidat qui vient d'enchaîner des
-        // entraînements lit un niveau inchangé et croit à une panne.
-        const SfMicroNote(kHomeSituationNote),
-      ],
-    );
-  }
-
-  /// Le pendant civique — **la même anatomie** (arbitrage du propriétaire,
-  /// 2026-09-16) : bande de tête, puis une carte par thème avec son repère,
-  /// son pictogramme, son statut à pastille colorée, ses crans et son action.
-  ///
-  /// 🛑 **Adapté, jamais transposé.** Le civique n'a **ni palier CECRL ni
-  /// objectif CECRL servi** : pas de palier en gros, pas d'« Atteindre B2
-  /// partout ». La bande de tête dit ce qui EST servi — le dernier résultat et
-  /// son seuil (`progresCiviqueScore`, l'autorité déjà en place) — et le
-  /// compteur porte sur les **thèmes** de la liste servie.
-  Widget? _situationCivique(BuildContext context, Progress progres) {
-    final themes = progres.civique.themes;
-    if (themes.isEmpty) return null;
-    // 🛑 Rien n'est fabriqué : sans examen civique passé, le serveur ne sert ni
-    // score ni seuil, et la bande disparaît — exactement comme le bandeau TCF
-    // sans démarche déclarée.
-    final dernier = progresCiviqueScore(progres.civique);
-    final compte = accueilEvaluesCivique(themes);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (dernier != null) ...[
-          SfGoalBanner(
-            label: kHomeSituationCivicResultLabel,
-            value: dernier,
-            count: compte?.faites,
-            total: compte?.total,
-            caption: kAccueilEvaluesCaptionCivique,
-          ),
-          const SizedBox(height: 12),
-        ],
-        SfLevelCardGrid(
-          children: [
-            for (var rang = 0; rang < themes.length; rang++)
-              _carteThemeCivique(context, themes[rang], rang),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// La carte d'un thème civique.
-  ///
-  /// 🛑 **Le repère est le RANG SERVI**, pas un code abrégé : un thème n'a aucun
-  /// code de deux lettres servi (`CIV_PRINCIPES` n'en est pas un), et en
-  /// inventer un serait fabriquer un libellé. Le produit numérote déjà les cinq
-  /// thèmes du livret citoyen — on montre leur position dans la liste que le
-  /// serveur ordonne, rien de plus.
-  Widget _carteThemeCivique(
-    BuildContext context,
-    CivicPlanThemeLigne theme,
-    int rang,
-  ) {
-    final mesure = theme.evaluation;
-    return SfLevelCard(
-      mark: '${rang + 1}',
-      icon: situationThemeIcon(theme.code),
-      title: theme.label,
-      // 🛑 L'état arrive **servi** : on pose son libellé gelé, on ne classe
-      // aucun nombre. `NON_EVALUE` reste neutre, jamais ambre.
-      status: theme.etat == CivicThemeState.nonEvalue
-          ? kNonMesureLabel
-          : theme.etat.label,
-      tone: civicThemeBarTone(theme.etat),
-      // 🛑 **Aucun palier CECRL en civique** : le civique se mesure en thèmes,
-      // jamais en paliers. La carte n'a donc pas de valeur en gros.
-      level: null,
-      measured: theme.etat != CivicThemeState.nonEvalue,
-      // 🛑 **Le même cran segmenté que le TCF**, sur la seule donnée servie
-      // pour un thème : son `etat` (`accueilEchelonsCivique`). Sans libellés :
-      // les trois états ne tiennent pas sous une demi-carte, et la pastille de
-      // statut les dit déjà.
-      scale: SfLevelLadder(
-        steps: accueilEchelonsCivique(theme.etat),
-        label: accueilEchelleLabelCivique(theme.etat),
-        dim: theme.etat == CivicThemeState.nonEvalue,
-        labels: false,
-      ),
-      // 🛑 **Deux issues, lues sur le descripteur SERVI** : un thème jamais
-      // évalué porte `evaluation` (thème + créneau offert) et la carte le
-      // **lance** par le lanceur de la grille du thème et de l'étape du Plan ;
-      // sinon elle ouvre ses résultats. Aucun recalcul ici.
-      cta: mesure != null ? kAccueilEvaluerCta : kHomeSituationCivicCta,
-      // Le bouton plein est réservé à la mesure qui MANQUE, comme sur le TCF.
-      ctaPrimary: mesure != null,
-      // 🛑 **L'écran de progression du thème** (D17, 2026-09-24), le pendant
-      // civique de l'écran de progression d'une épreuve TCF.
-      onTap: mesure != null
-          ? () => launchCiviqueThemeExam(
+  VoidCallback? _gesteCivique(BuildContext context, CivicNowCard carte) {
+    switch (carte.geste) {
+      case PlanNowGeste.aucun:
+        return null;
+      case PlanNowGeste.debloquer:
+        return () =>
+            pousserOuAller(context, AppRoutes.planUnlockPath(civique: true));
+      case PlanNowGeste.ouvrirEtape:
+        final route = carte.etapeRoute;
+        return route == null ? null : () => pousserOuAller(context, route);
+      case PlanNowGeste.lancer:
+        final examen = carte.examen;
+        if (examen != null) {
+          return () => unawaited(_lancer(() => launchCiviqueThemeExam(
                 context,
                 ref,
-                themeId: mesure.themeId,
-                themeName: theme.label,
-                slotNumber: mesure.slotNumber,
-              )
-          : () => pousserOuAller(
-                context, AppRoutes.progressionThemePath(theme.themeId)),
-    );
+                themeId: examen.themeId,
+                themeName: examen.themeName,
+                slotNumber: examen.slotNumber,
+              )));
+        }
+        final source = carte.source;
+        if (source == null) return null;
+        return () => unawaited(_lancer(() => _lancerSerieCivique(source)));
+    }
   }
 
-  /// Ce qu'ouvre la carte d'une épreuve.
-  ///
-  /// 🛑 **Trois issues, aucune inventée** :
-  /// 1. épreuve **jamais mesurée** dont le serveur dit par quoi la mesurer ⇒ on
-  ///    **lance** cette mesure par [openPlanAssessment], l'autorité unique déjà
-  ///    en place — la même que « Compléter mon profil », la fiche d'un domaine
-  ///    et la ligne `A_EVALUER` de la séance. Aucun second chemin n'est écrit
-  ///    ici, et aucune étape intermédiaire ne s'intercale ;
-  /// 2. quelque chose à faire mais rien à lancer (épreuve en progression ;
-  ///    descripteur absent, cas d'un client servi par un backend antérieur) ⇒
-  ///    la fiche du domaine, le comportement historique ;
-  /// 3. rien à faire ⇒ l'écran de progression de l'épreuve (D17, 2026-09-24 :
-  ///    seule cette issue a changé de destination).
-  ///
-  /// Le choix se lit sur l'état **servi**, jamais sur un texte de bouton.
-  /// Le lanceur de la mesure proposée **en plus** d'un palier de diagnostic,
-  /// ou `null` quand la carte n'en porte pas. Le même que celui d'une épreuve
-  /// jamais évaluée : `openPlanAssessment`, hors Plan (contrôle F).
-  VoidCallback? _evaluerEnPlus(BuildContext context, ProgressEpreuve epreuve) {
-    final mesure = accueilEpreuveMesureEnPlus(epreuve);
-    if (mesure == null) return null;
-    return () =>
-        openPlanAssessment(context, ref, mesure, origine: PlanOrigine.horsPlan);
+  /// 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité du
+  /// cycle et la cible du plan dérivé sont deux routes serveur distinctes.
+  Future<void> _lancerSerieCivique(CivicNowSource source) {
+    final cta = planCta(ref, PlanOrigine.relais,
+        horsPlan: AnalyticsCtaLocation.other, civique: true);
+    return switch (source) {
+      CivicNowUnite(code: final code) => startCivicUniteSerie(
+          context,
+          ref,
+          code,
+          ctaLocation: cta.ctaLocation,
+          journeyId: cta.journeyId,
+        ),
+      CivicNowCible(cible: final cible) => startCivicSerie(
+          context,
+          ref,
+          cible,
+          ctaLocation: cta.ctaLocation,
+          journeyId: cta.journeyId,
+        ),
+    };
   }
 
-  void _ouvrirEpreuve(BuildContext context, ProgressEpreuve epreuve) {
-    final mesure = epreuve.niveau == null ? epreuve.evaluation : null;
-    if (mesure != null) {
-      // Contrôle F : la carte d'une épreuve n'est pas le Plan — l'offre d'un
-      // examen verrouillé part avec le CTA des grilles d'examens.
-      openPlanAssessment(context, ref, mesure, origine: PlanOrigine.horsPlan);
-      return;
+  Future<void> _lancer(Future<void> Function() geste) async {
+    if (_lancement) return;
+    setState(() => _lancement = true);
+    try {
+      await geste();
+    } finally {
+      if (mounted) setState(() => _lancement = false);
     }
-    if (accueilEpreuveOuvreLExercice(epreuve)) {
-      openPlanDomain(context, epreuve.epreuve);
-      return;
-    }
-    pousserOuAller(
-        context, AppRoutes.progressionEpreuvePath(planDomainKey(epreuve.epreuve)));
   }
 
   /* ------------------------------------------------------- l'objectif ---- */
 
-  /// **L'invitation à déclarer un objectif**, quand le candidat n'en a pas.
-  ///
-  /// 🛑 **Elle n'enlève rien** (arbitrage du propriétaire, 2026-09-17) : le Plan
-  /// n'exige **pas** d'objectif déclaré, sa carte d'action reste au-dessus,
-  /// entière. C'est une invitation, jamais une porte fermée — et elle doit se
-  /// lire partout où une carte « À faire maintenant » se lit, sans quoi le
-  /// candidat ne découvre jamais que déclarer sa démarche lui ouvre un parcours.
-  Widget? _objectifTcf(BuildContext context) {
+  /// **L'invitation à déclarer un objectif**, quand le parcours TCF le
+  /// demande. Elle n'enlève rien : la carte d'action reste au-dessus.
+  List<Widget> _objectifADeclarer(BuildContext context) {
     final parcours = ref.watch(journeyProvider).valueOrNull;
     if (parcours == null || parcours.state != JourneyState.needsObjective) {
-      return null;
+      return const <Widget>[];
     }
-    return SfStack(
-      children: [
-        const SfCard(child: Text(kJourneyNeedsObjectiveText)),
-        SfButton(
-          label: kJourneyNeedsObjectiveCta,
-          onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.home)),
+    return <Widget>[
+      SfSection(
+        title: kJourneyNeedsObjectiveTitle,
+        flush: true,
+        child: SfStack(
+          pad: false,
+          children: [
+            const SfCard(child: Text(kJourneyNeedsObjectiveText)),
+            SfButton(
+              label: kJourneyNeedsObjectiveCta,
+              onPressed: () =>
+                  context.push(AppRoutes.targetPathFrom(AppRoutes.home)),
+            ),
+          ],
         ),
-      ],
-    );
+      ),
+    ];
   }
 }
 

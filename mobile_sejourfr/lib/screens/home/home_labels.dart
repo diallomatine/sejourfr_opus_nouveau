@@ -1,23 +1,31 @@
 /// Les phrases de l'**Accueil** — **pures**, déclarées une fois.
 ///
-/// 🛑 **Miroirs mot pour mot du web** (`web_sejoufr/app/(app)/dashboard/page.tsx`).
+/// 🛑 **Miroirs mot pour mot du web** (`web_sejoufr/app/(app)/dashboard/`).
 /// Le serveur n'expose aucun libellé pour cet écran : il sert des faits, les
 /// deux fronts les mettent en mots — et ils doivent les mettre dans les
-/// **mêmes** mots, sinon le même compte lit deux prochaines actions selon
-/// l'appareil.
+/// **mêmes** mots.
+///
+/// Navigation v2 (phase 3, 2026-10-03) : textes éditoriaux de la maquette
+/// `docs/redesign/sejourfr-navigation-mobile.html`, repris tels quels (R8),
+/// sauf quand ils portent une valeur — elle est alors servie.
 library;
 
 import '../../core/models/diagnostic_models.dart';
 
 /* ------------------------------------------------------------- en-tête --- */
 
-/// « Bonjour Abdoul ». Sans prénom servi, on ne fabrique pas d'identité.
-String homeHello(String? firstName) {
-  final prenom = firstName?.trim();
-  return prenom == null || prenom.isEmpty
-      ? 'Bonjour à vous'
-      : 'Bonjour $prenom';
+/// « Bonjour {prénom nom} » — le nom du compte. Sans nom servi, on ne
+/// fabrique pas d'identité.
+String homeHello(String? firstName, String? lastName) {
+  final nom = [firstName?.trim(), lastName?.trim()]
+      .whereType<String>()
+      .where((part) => part.isNotEmpty)
+      .join(' ');
+  return nom.isEmpty ? 'Bonjour à vous' : 'Bonjour $nom';
 }
+
+/// Le sous-titre statique de la maquette mobile.
+const String kHomeLead = 'Tout votre parcours, sans vous demander où aller.';
 
 /// Le bandeau d'un compte **sans démarche déclarée**. C'est la seule chose qui
 /// manque pour personnaliser la préparation : on le dit, et on ouvre l'écran
@@ -29,70 +37,53 @@ const String kHomeParcoursBannerText =
 
 /* ----------------------------------------------------- sections de page --- */
 
+const String kHomeObjectivesTitle = 'Mes objectifs';
 const String kHomeNowTitle = 'À faire maintenant';
 
-/* ------------------------------------------------- « Où vous en êtes » ---- */
+/// Le nom des deux modules, sur les lignes d'objectif et les cartes d'action.
+const String kHomeTcfLabel = 'TCF IRN';
+const String kHomeCiviqueLabel = 'Examen civique';
 
-/// La section des cartes d'épreuve, entre l'action du jour et l'aperçu du Plan.
-const String kHomeSituationTitle = 'Où vous en êtes';
+/* -------------------------------------------------------- mes objectifs --- */
 
-/// Le lien de tête de section, vers le Plan **du module affiché** (maquette
-/// v3, 2026-09-24). ⚠️ L'ancienne carte-enveloppe (« Votre niveau par
-/// épreuve » / « … par thème » et leurs phrases de cadrage) est supprimée avec
-/// elle. Miroir web : `SITUATION_PLAN_LINK`.
-const String kHomeSituationPlanLink = 'Mon plan';
-
-/// La note de pied de carte (maquette du propriétaire, 2026-09-16).
-///
-/// 🛑 **Elle dit ce qui fait bouger le palier**, et c'est la même règle que la
-/// page de résultats : un entraînement libre ou un petit sujet n'y entre pas.
-/// Sans elle, un candidat qui vient d'enchaîner des séries lit un niveau
-/// inchangé et croit à une panne.
-const String kHomeSituationNote =
-    'Le niveau affiché évolue uniquement avec vos diagnostics et vos '
-    'épreuves complètes.';
-
-/// Ce que propose la ligne d'un thème civique.
-///
-/// 🛑 **Elle ne démarre rien, et elle ne mène plus au Plan** (demande du
-/// propriétaire, 2026-09-19) : elle ouvre **l'historique des examens blancs du
-/// thème**, la page qui existe déjà — pendant exact du « Voir mes résultats »
-/// d'une épreuve TCF mesurée. Le lanceur de série reste au Plan.
-///
-/// 🛑 **Un thème JAMAIS évalué n'a pas de résultats à voir** (2026-09-28) : sa
-/// carte dit `kAccueilEvaluerCta` et lance l'examen blanc du thème servi
-/// (`CivicPlanThemeLigne.evaluation`), comme une épreuve TCF jamais mesurée.
-/// Miroir web : `SITUATION_CIVIC_CTA`.
-const String kHomeSituationCivicCta = 'Voir mes résultats';
-
-/// L'intitulé de la bande de tête civique.
-///
-/// 🛑 **Ce n'est PAS « Objectif actuel »** : le civique n'a aucun objectif servi
-/// comparable au palier CECRL du TCF. Ce que le serveur sert, c'est le
-/// **dernier résultat** et le seuil de son format — la bande le dit, et rien
-/// d'autre. Miroir web : `SITUATION_CIVIC_RESULT_LABEL`.
-const String kHomeSituationCivicResultLabel = 'Votre dernier résultat';
-
-const String kHomeGoalLabel = 'Objectif actuel';
-
-/// « Atteindre B1 partout ». Le palier est **servi** (`ProgressTcf.objectif`,
-/// dérivé de la démarche) — aucun écran ne le devine.
+/// « Atteindre B2 partout ». Le palier est **servi** (`targetLevel`, plancher
+/// de la démarche appliqué) — aucun écran ne le devine.
 String homeGoalText(String niveau) => 'Atteindre $niveau partout';
 
-// 🛑 `kHomePlanTitle`, `kHomePlanCurrentLabel`, `kHomePlanLink`,
-// `kHomeProgressTitle`, `kHomeTracksTitle` et `kHomeTrackLink` sont
-// **supprimés** le 2026-09-19 (arbitrage du propriétaire) : l'aperçu « Votre
-// Plan », les deux compteurs de « Votre progression » et les lignes de « Vos
-// parcours » ont quitté l'Accueil, des deux côtés. Ne pas les recréer.
+const String kHomeTcfObjectiveMeta = 'Progression vers l\'objectif';
 
-/* --------------------------------------------- l'action du jour — TCF ----- */
+/// « B1 → B2 ». Les deux paliers sont servis ; un palier inconnu s'écrit « — ».
+String homeTcfObjectiveValue(String actuel, String cible) => '$actuel → $cible';
 
-// 🛑 **D-69 (2026-09-28)** : la carte « Découvrez ce qui vous bloque au TCF »
-// (`kHomeDiagStart*`, `kHomeStartBadge`, `kHomeLaterCta`,
-// `homeDiagStartSubtitle` / `homeDiagStartObjective`) est **supprimée** : sans
-// diagnostic, l'Accueil montre l'action du Plan, et le diagnostic n'y est plus
-// proposé du tout (la carte « Affinez votre plan » est supprimée elle aussi).
-// Ne pas les recréer.
+const String kHomeCiviqueObjectiveTitle = 'Être prêt pour l\'examen';
+
+/// « Objectif : avoir 32/40 » — seuil et nombre de questions de l'examen
+/// civique officiel (`CivicExamFormat`, miroir gelé de l'enum serveur).
+String homeCiviqueObjectiveMeta(int seuil, int questions) =>
+    'Objectif : avoir $seuil/$questions';
+
+/* --------------------------------------------------- à faire maintenant --- */
+
+const String kHomeTcfCta = 'Continuer le TCF';
+const String kHomeCiviqueCta = 'Continuer le civique';
+
+/// La méta d'une carte d'action : les morceaux servis, dans l'ordre, joints par
+/// « · ». Un morceau absent (durée non servie…) est **omis**, jamais inventé.
+/// `null` quand il ne reste rien.
+String? homeActionMeta(Iterable<String?> morceaux) {
+  final parts = morceaux
+      .whereType<String>()
+      .where((part) => part.trim().isNotEmpty)
+      .toList();
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
+/* ------------------------------------------------------ états de bloc --- */
+
+const String kHomeBlockError = 'Ce bloc n\'a pas pu être chargé.';
+const String kHomeRetry = 'Réessayer';
+
+/* --------------------------------------- le diagnostic rapide en cours --- */
 
 /// Le total d'exercices à rendre, **servi**. Sans lui, l'analyse en cours
 /// annonçait « vos deux réponses » sur un diagnostic qui n'en attend qu'une.
@@ -112,30 +103,6 @@ const String kHomeDiagAnalyzingCta = 'Voir l\'analyse';
 const String kHomeDiagResumeCta = 'Reprendre mon diagnostic';
 
 /// « 1 / 2 terminé ». Les **deux** nombres sont servis : le total vient du
-/// format du diagnostic, il n'est plus écrit en dur — un diagnostic à une
-/// seule production affichait « 1 / 2 » alors qu'il était fini.
+/// format du diagnostic, il n'est plus écrit en dur.
 String homeDiagCount(int done, int total) =>
     '$done / $total terminé${done > 1 ? 's' : ''}';
-
-const String kHomePriorityBadge = 'Votre priorité du jour';
-const String kHomePriorityFallback = 'Continuez votre plan personnalisé';
-const String kHomePlanCta = 'Continuer mon plan';
-const String kHomeCiviquePlanCta = 'Continuer mon Plan civique';
-const String kHomeStartDirectCta = 'Commencer directement';
-
-// ⚠️ `homeExerciseMeta` (« Argumenter · 12 min ») est **supprimé** le
-// 2026-09-16 : le sous-titre de la carte d'action vient désormais de
-// `planNowCard`, la même autorité que le Plan — l'Accueil ne compose plus de
-// repère à lui.
-
-/* ----------------------------------------- l'action du jour — CIVIQUE ----- */
-
-/// Ce que le plan civique a **observé** sur sa cible de rang 1.
-const String kHomeCivicObservedLabel = 'Ce que le plan a observé';
-
-// 🛑 `homeWorkedLabel` / `homeMasteredLabel` sont **supprimés** le 2026-09-19
-// avec « Votre progression », leur unique lecteur. ⚠️ Les compteurs eux-mêmes
-// ne perdent rien : `ProgressCompetences.travaillees` / `maitrisees` et
-// `ProgressCivique.grainNotion` restent lus par l'écran **Progrès**
-// (`progresCompetencesLabel` / `progresCiviqueLabel`, `progres_labels.dart`),
-// qui les dit d'une autre façon. Ne pas recréer une seconde mise en mots ici.

@@ -2453,8 +2453,10 @@ la carte « À faire maintenant », une étape d'examen civique se sous-titre «
 (comme le TCF) au lieu de répéter le thème, et **porte son bouton** « Passer l'épreuve »
 (`journeyNowCta`, comme le TCF) qui lance ce même examen (`civicNowCard(…, lancerExamen)` ⇄
 `civicNowCard(lancerExamen:)`, champ `examen`, lecture unique `journeyExamenThemeLance`).
-🛑 Seul le Plan civique passe `lancerExamen` : l'Accueil et Réviser, qui n'ont pas ce lanceur,
-gardent le geste `AUCUN` sur un examen.
+🛑 Le Plan civique **et l'Accueil** (navigation v2, 2026-10-03) passent `lancerExamen` : le
+premier cycle de tout compte étant un cycle d'examens de thème, la carte civique de l'Accueil
+n'aurait sinon jamais de bouton. L'Entraînement (ex-Réviser), sans ce lanceur, garde le geste
+`AUCUN` sur un examen.
 
 ### Trois statuts de cycle, et un seul est persisté
 

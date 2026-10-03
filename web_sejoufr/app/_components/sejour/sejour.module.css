@@ -1949,476 +1949,24 @@
 }
 
 /* ==========================================================================
-   Maquette « Où vous en êtes » (propriétaire, 2026-09-16)
+   Tons de statut, notes discrètes et encarts.
+
+   ⚠️ « Où vous en êtes » (`LevelCard`, `LevelCardGrid`, `LevelLadder`,
+   `GoalBanner`) est SUPPRIMÉ avec ses classes (Navigation v2, phase 3,
+   2026-10-03) : l'Accueil porte « Mes objectifs » à sa place.
 
    🛑 **Aucune couleur ni font en dur** : tokens `--color-*`, `--font-*`,
    `--sf-*` et `color-mix()` uniquement. Un `grep -nE "#[0-9a-fA-F]{3,8}"` sur
    ce bloc doit rester vide.
    ========================================================================== */
 
-/* ---------- « Où vous en êtes » : la grille de cartes d'épreuve ---------- */
-
-/* 🛑 **Maquette v3 (2026-09-24)** : une carte blanche PAR épreuve, deux
-   colonnes dès 360 px. La grille se règle sur **sa propre largeur** (requête
-   de conteneur), jamais sur la fenêtre : la barre latérale du desktop en
-   mange une part variable.
-   - < 560 px de grille : deux colonnes serrées (téléphone) ;
-   - ≥ 560 px : deux colonnes aérées (tablette, desktop étroit) ;
-   - ≥ 820 px : quatre cartes sur UNE rangée, cinq en 3 + 2.
-   Une dernière carte impaire prend toute la rangée tant que la grille est en
-   deux colonnes. Les cartes d'une rangée ont toujours la même hauteur, et
-   leur action est épinglée en bas. */
-.levelCardGridWrap {
-  container-type: inline-size;
-}
-
-.levelCardGrid {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: 12px 0 0;
-  padding: 0;
-}
-
-.levelCardItem {
-  display: flex;
-  min-width: 0;
-}
-
-.levelCardItem:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.levelCard {
-  container-type: inline-size;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 14px 12px 12px;
-  border: 0;
-  border-radius: var(--sf-radius-lg);
-  background: white;
-  box-shadow: var(--sf-shadow-border);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition: box-shadow var(--sf-quick), transform var(--sf-quick);
-}
-
-.levelCard:hover {
-  box-shadow: var(--sf-shadow-lift);
-}
-
-.levelCard:disabled {
-  cursor: progress;
-  opacity: 0.65;
-}
-
-.levelCard:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 2px;
-}
-
-/* Une épreuve **jamais mesurée** se détache : c'est la seule carte qui
-   demande un geste pour exister. 🛑 Le fait est **passé** (`measured`), jamais
-   lu d'un libellé — et il ne se confond pas avec « &lt;A1 », qui est une
-   mesure. */
-.levelCard.isTodo {
-  background: var(--color-paper-2);
-}
-
-.levelCardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* Le repère court (« CO »), en mono : c'est une étiquette technique. */
-.levelCardMark {
-  flex: 0 0 auto;
-  padding: 4px 10px;
-  border-radius: var(--sf-radius-pill);
-  background: var(--color-blue-light);
-  color: var(--color-blue);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.levelCardIcon {
-  flex: 0 0 auto;
-  color: var(--color-blue);
-}
-
-/* 🛑 **Coupé entre deux mots, jamais au milieu** : « Compréhension écrite »
-   passe sur deux lignes à 360 px, et « Compréhension » tient entier dans une
-   demi-carte. */
-.levelCardName {
-  display: block;
-  margin-top: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.25;
-  color: var(--color-muted);
-  overflow-wrap: normal;
-  word-break: normal;
-  hyphens: manual;
-}
-
-/* Le palier, en très gros : c'est LA donnée de la carte. Sa taille suit la
-   largeur de la carte (`cqi`), bornée — « &lt;A1 » tient dans une demi-carte
-   de 360 px. */
-.levelCardLevel {
-  display: block;
-  margin-top: 4px;
-  font-size: clamp(34px, 30cqi, 52px);
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-  color: var(--color-ink);
-  white-space: nowrap;
-}
-
-/* 🛑 Non mesuré : le mot de l'absence, en neutre et en petit. Le très gros
-   noir est réservé à un palier réel — une absence de mesure en gros se
-   lirait comme un résultat. */
-.levelCardLevel.isNa {
-  margin-top: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--color-muted);
-  white-space: normal;
-}
-
-/* La pastille de statut prend le ton **servi**, et le mot le redit : la
-   couleur n'est jamais le seul porteur de l'information. */
-.levelCardStatus {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  margin-top: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.levelCardStatus::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  transform: translateY(-1px);
-}
-
-.levelCardScale {
-  display: block;
-  margin-top: 12px;
-}
-
-/* 🛑 **L'action épinglée en bas** : `margin-top: auto` pousse le filet et le
-   lien au pied de la carte, donc les barres et les « Voir mes résultats »
-   d'une même rangée restent alignés quelle que soit la longueur des noms. */
-.levelCardFoot {
-  display: block;
-  margin-top: auto;
-  padding-top: 12px;
-}
-
-.levelCardCta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-line);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--color-blue);
-}
-
-.levelCardCta > svg {
-  flex: 0 0 auto;
-}
-
-/* 🛑 Le rouge n'apparaît que sur l'action qui MANQUE (évaluer une épreuve
-   jamais mesurée) — c'est la règle d'usage du Rouge France, pas un accent. */
-.levelCardCta.isPrimary {
-  justify-content: center;
-  padding: 9px 12px;
-  border-top: 0;
-  border-radius: var(--sf-radius-xs);
-  background: var(--color-red);
-  color: white;
-  text-align: center;
-  transition: background var(--sf-quick);
-}
-
-.levelCard:hover .levelCardCta.isPrimary {
-  background: var(--color-red-dark);
-}
-
-/* ---------- Deux actions : un lien ET la mesure qui manque (2026-09-27) ----------
-   La carte n'est plus un seul lien : chaque action l'est. Empilées, jamais
-   côte à côte — deux boutons ne tiennent pas dans une demi-carte de 360 px. */
-.levelCard.isStatic {
-  cursor: default;
-}
-
-.levelCard.isStatic:hover {
-  box-shadow: var(--sf-shadow-border);
-}
-
-.levelCardFoot.isDouble {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.isDouble .levelCardCta {
-  width: 100%;
-  margin: 0;
-  padding: 12px 0 0;
-  border-right: 0;
-  border-bottom: 0;
-  border-left: 0;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.isDouble .levelCardCta.isPrimary {
-  padding: 9px 12px;
-  background: var(--color-red);
-  text-align: center;
-}
-
-.isDouble .levelCardCta.isPrimary:hover {
-  background: var(--color-red-dark);
-}
-
-.isDouble .levelCardCta:disabled {
-  cursor: progress;
-  opacity: 0.65;
-}
-
-.isDouble .levelCardCta:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 2px;
-}
+/* ---------- Tons de pastille de statut (texte) ---------- */
 
 .toneOk { color: var(--color-green); }
 .toneNow { color: var(--color-blue); }
 .toneWarn { color: var(--color-amber-dark); }
 .toneHot { color: var(--color-red-dark); }
 .toneMuted { color: var(--color-muted); }
-
-/* Tablette et desktop étroit : mêmes deux colonnes, plus d'air. */
-@container (min-width: 560px) {
-  .levelCardGrid {
-    gap: 14px;
-  }
-
-  .levelCard {
-    padding: 18px 18px 16px;
-  }
-}
-
-/* Desktop large : les quatre épreuves sur une rangée ; les cinq thèmes
-   civiques en 3 + 2 sur une grille de six colonnes — cinq cartes côte à côte
-   y seraient trop étroites pour leurs intitulés. */
-@container (min-width: 820px) {
-  .levelCardGrid:has(> .levelCardItem:nth-child(4):last-child) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem {
-    grid-column: span 2;
-  }
-
-  .levelCardGrid:has(> .levelCardItem:nth-child(5):last-child) > .levelCardItem:nth-child(n + 4) {
-    grid-column: span 3;
-  }
-}
-
-/* ---------- L'échelle CECRL : l'élément signature ---------- */
-
-/* 🛑 **Quatre crans à largeur égale**, jamais proportionnels : ce n'est pas
-   une jauge, c'est une position. Aucun chiffre n'y est écrit.
-
-   ⚠️ La maquette en montrait SIX (C1 et C2 grisés) : arbitrage du propriétaire
-   du 2026-09-16 — l'échelle s'arrête à B2, comme le reste du produit. */
-.ladder {
-  display: block;
-}
-
-/* 🛑 **Autant de colonnes qu'on lui passe de crans, à largeur égale** : la
-   piste comptait `repeat(4, …)` en dur, ce qui laissait une colonne vide sous
-   une échelle de trois crans. `grid-auto-flow: column` lit le nombre de crans
-   dans les enfants — le rendu du TCF (quatre crans) est inchangé, et l'échelle
-   civique (trois états servis) tombe juste. */
-.ladderTrack {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 4px;
-}
-
-.ladderStep {
-  height: 7px;
-  border-radius: 4px;
-  background: var(--color-line);
-}
-
-.ladderStep.isDone {
-  background: var(--color-blue-muted);
-}
-
-.ladderStep.isTarget {
-  background: var(--color-red-light);
-  box-shadow: inset 0 0 0 1.5px var(--color-red-muted);
-}
-
-/* Épreuve jamais mesurée : les crans passent en contour. Le cran d'objectif,
-   lui, reste marqué — c'est la seule chose qu'on sait d'elle. */
-.ladder.isDim .ladderStep {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--color-line);
-}
-
-.ladder.isDim .ladderStep.isTarget {
-  background: var(--color-red-light);
-  box-shadow: inset 0 0 0 1.5px var(--color-red-muted);
-}
-
-/* Les libellés sous CHAQUE échelle (maquette v3) : chaque carte d'épreuve
-   porte la sienne, il n'y a plus de légende commune. */
-.ladderLabels {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.ladderLabels span {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-muted-2);
-  text-align: center;
-}
-
-.ladderLabels .isCur {
-  color: var(--color-blue);
-  font-weight: 700;
-}
-
-.ladderLabels .isTgt {
-  color: var(--color-red);
-  font-weight: 700;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .ladderStep {
-    transition: background var(--sf-fast);
-  }
-}
-
-/* ---------- Le bandeau d'objectif ---------- */
-
-/* 🛑 **Bande bleue pleine** : elle annonce l'objectif avant que les cartes
-   disent où on en est. Le compteur « 4 / 4 » s'écrit en gros, sans pastilles
-   (maquette v3, 2026-09-24) : les cartes en dessous les montrent déjà. */
-.goalBanner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border-radius: var(--sf-radius-lg);
-  background: var(--color-blue);
-  color: white;
-}
-
-/* La cocarde : trois cercles concentriques, en pur dégradé radial. */
-.goalCocarde {
-  flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    var(--color-red) 0 36%,
-    white 37% 70%,
-    var(--color-blue-dark) 71%
-  );
-  box-shadow: 0 0 0 2px color-mix(in srgb, white 25%, transparent);
-}
-
-.goalBannerBody {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.goalBannerBody small {
-  font-size: 13px;
-  font-weight: 500;
-  color: color-mix(in srgb, white 78%, var(--color-blue));
-}
-
-.goalBannerBody b {
-  margin-top: 2px;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.goalCount {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-}
-
-.goalCount b {
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.goalCount small {
-  margin-top: 2px;
-  font-size: 12px;
-  color: color-mix(in srgb, white 78%, var(--color-blue));
-}
-
-@media (min-width: 620px) {
-  .goalBanner {
-    padding: 18px 22px;
-  }
-}
 
 /* ---------- La note discrète de bas de carte ---------- */
 
@@ -2524,13 +2072,6 @@
 
 .isCheck .infoNoteIco {
   color: var(--color-blue);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .levelCard,
-  .ladderStep {
-    transition: none;
-  }
 }
 
 /* ======================================================================
@@ -4933,4 +4474,656 @@ a.pRow:focus-visible {
   .railStep .blocHeadSansMarque {
     grid-template-columns: minmax(0, 1fr) 18px;
   }
+}
+
+/* ==========================================================================
+   NAVIGATION V2 — ACCUEIL (phase 3, 2026-10-03)
+
+   Maquette : `docs/redesign/sejourfr-navigation-web.html`, écran `#accueil`
+   (`.page-head`, `.action-card`, `.iconbox`, `.cta`, `.badge`, `.obj-card`,
+   `.grid-2`, `.section-head`) et `sejourfr-navigation-mobile.html`
+   (`.objectives-card`, `.objective-row`). Géométrie de la maquette, couleurs
+   = tokens de module (`--color-module-*`, `--gradient-module-*`,
+   `--sf-shadow-module-*`). AUCUN hex. Graisses 850/900 → 800 (max Jakarta).
+
+   Primitives : `PageHead`, `ActionCard`, `ObjCard`, `ObjectivesCard` +
+   `ObjectiveRow`, `BlockSkeleton`, `BlockError`. Miroirs Flutter `Sf…`
+   (`sejour_kit.dart`) ; `PageHead` ⇄ `SfModuleHeader`.
+   ========================================================================== */
+
+/* ---------- Teinte de module, posée une fois par primitive ---------- */
+
+.modTcf {
+  --mod: var(--color-module-tcf);
+  --mod-dark: var(--color-module-tcf-dark);
+  --mod-light: var(--color-module-tcf-light);
+  --mod-gradient: var(--gradient-module-tcf);
+  --mod-shadow: var(--sf-shadow-module-tcf);
+  --mod-shadow-hero: var(--sf-shadow-hero-tcf);
+}
+
+.modCivique {
+  --mod: var(--color-module-civique);
+  --mod-dark: var(--color-module-civique-dark);
+  --mod-light: var(--color-module-civique-light);
+  --mod-gradient: var(--gradient-module-civique);
+  --mod-shadow: var(--sf-shadow-module-civique);
+  --mod-shadow-hero: var(--sf-shadow-hero-civique);
+}
+
+/* ---------- L'écran : colonne du shell, grille de la maquette ---------- */
+
+/* 🛑 L'Accueil prend la colonne du shell (plafond 1240 px, gouttière 44 px) :
+   c'est déjà la largeur de la maquette, le kit n'en ajoute pas une seconde.
+   Les deux colonnes de `.grid-2` se règlent sur la largeur du CONTENU
+   (requête de conteneur) : la maquette passe à une colonne sous 760 px de
+   fenêtre, soit ~720 px de contenu — la barre latérale mangeant une part
+   variable de la fenêtre, la fenêtre ne dit rien. Une règle de mise en page,
+   sans miroir Flutter. */
+.app.home {
+  max-width: none;
+  container: home / inline-size;
+}
+
+.homeGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+@container home (min-width: 700px) {
+  .homeGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* Une carte seule sur sa rangée la prend en entier (règle du kit). */
+  .homeGrid > :only-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* L'intertitre de section de la maquette (`.section-head h2`, 20 px). */
+.home .section {
+  margin-top: 0;
+}
+
+.home .sectionH {
+  margin: 34px 16px 15px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 960px) {
+  .home .sectionH {
+    margin-inline: 2px;
+  }
+}
+
+/* Une carte posée au-dessus d'une grille (bandeau de démarche, diagnostic
+   en cours). */
+.homeStackBottom {
+  margin-bottom: 18px;
+}
+
+/* ---------- PageHead — `.page-head` ---------- */
+
+.pageHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.pageHeadText {
+  min-width: 0;
+}
+
+.pageKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--mod-light);
+  color: var(--mod-dark);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pageTitle {
+  margin: 12px 0 0;
+  font-size: var(--shell-h1-size, 32px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.pageSub {
+  margin: 8px 0 0;
+  max-width: 560px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.pageHeadAside {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- ActionCard — `.card.action-card` ---------- */
+
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-4xl);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .actionCard {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .actionCard:not(.isNeutral):hover {
+    transform: translateY(-3px);
+    box-shadow: var(--sf-shadow-hover);
+  }
+}
+
+.actionTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.actionIcon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--sf-radius-md);
+  background: var(--mod);
+  color: var(--color-white);
+}
+
+.actionIcon svg {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.1;
+}
+
+/* Rien à lancer : l'icône passe en teinte douce, la carte n'appelle aucun
+   geste. */
+.isNeutral .actionIcon {
+  background: var(--mod-light);
+  color: var(--mod);
+}
+
+.actionCopy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.actionLabel {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.actionTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.actionMeta {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.actionBadge {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--mod-light);
+  color: var(--mod);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.actionNote {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+/* ---------- Le CTA plein du module — `.cta.blue|red` ---------- */
+
+.modCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  height: 50px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--sf-radius-md);
+  background: var(--mod);
+  color: var(--color-white);
+  box-shadow: var(--mod-shadow);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.modCta.isBlock {
+  width: 100%;
+}
+
+.modCta svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.2;
+}
+
+.modCta:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.modCta:focus-visible {
+  outline: 2px solid var(--mod-dark);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modCta {
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .modCta:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+  }
+}
+
+/* ---------- ObjCard — `.obj-card` ---------- */
+
+.objCard {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 280px;
+  padding: 26px;
+  border-radius: var(--sf-radius-5xl);
+  background: var(--mod-gradient);
+  box-shadow: var(--mod-shadow-hero);
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+/* Le halo clair en haut à droite. */
+.objCard::before {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -100px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-white) 15%, transparent),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.objCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.objCard:focus-visible {
+  outline: 3px solid var(--mod-dark);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .objCard {
+    transition: transform 0.18s ease;
+  }
+
+  .objCard:hover {
+    transform: translateY(-4px);
+  }
+}
+
+.objTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.objIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--sf-radius-md);
+  background: color-mix(in srgb, var(--color-white) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-white) 22%, transparent);
+}
+
+.objIcon svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.1;
+}
+
+.objPill {
+  padding: 7px 12px;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, var(--color-white) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-white) 22%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.objTitle {
+  display: block;
+  margin: 18px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.objDesc {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-white) 82%, transparent);
+}
+
+.objBottom {
+  display: block;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+.objBar {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--sf-radius-pill);
+  background: color-mix(in srgb, var(--color-white) 24%, transparent);
+}
+
+.objBar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-white);
+}
+
+.objMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  margin-top: 14px;
+}
+
+.objMetric {
+  min-width: 0;
+}
+
+.objMetric strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.objMetric span {
+  display: block;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--color-white) 75%, transparent);
+}
+
+@container home (max-width: 699px) {
+  .objCard {
+    min-height: 0;
+    padding: 20px;
+  }
+}
+
+/* ---------- ObjectivesCard + ObjectiveRow — `.objectives-card` ---------- */
+
+.objectivesCard {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-3xl);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+}
+
+.objectiveRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+/* Le filet entre deux lignes, en retrait sous le texte (maquette). */
+.objectiveRow + .objectiveRow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 77px;
+  right: 17px;
+  height: 1px;
+  background: var(--color-line);
+}
+
+.objectiveRow:hover {
+  background: color-mix(in srgb, var(--mod-light) 35%, var(--color-white));
+}
+
+.objectiveRow:focus-visible {
+  outline: 2px solid var(--mod);
+  outline-offset: -2px;
+}
+
+.objectiveIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sf-radius-md);
+  background: var(--mod-light);
+  color: var(--mod);
+}
+
+.objectiveIcon svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.1;
+}
+
+.objectiveCopy {
+  min-width: 0;
+}
+
+.objectiveLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.objectiveMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.objectiveTitle {
+  display: block;
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.objectiveValue {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--mod);
+  white-space: nowrap;
+}
+
+.objectiveValue strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.objectiveValue svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.2;
+}
+
+/* ---------- BlockSkeleton — un bloc en chargement, à ses dimensions ---------- */
+
+.skel {
+  display: block;
+  border-radius: var(--sf-radius-4xl);
+  background: linear-gradient(
+    90deg,
+    var(--color-paper-2) 25%,
+    var(--color-line-2) 50%,
+    var(--color-paper-2) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skel {
+    animation: skelShimmer 1.4s infinite linear;
+  }
+}
+
+@keyframes skelShimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- BlockError — l'échec d'UN bloc, l'écran reste utilisable ---------- */
+
+.blockError {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-xl);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.blockErrorIco {
+  flex: 0 0 auto;
+  color: var(--color-amber-dark);
+}
+
+.blockErrorText {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.blockErrorRetry {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-sm);
+  background: var(--color-white);
+  color: var(--color-blue);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blockErrorRetry:hover {
+  background: var(--color-blue-soft);
+}
+
+.blockErrorRetry:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
 }

@@ -138,3 +138,43 @@
 - Choix : B pour ce seul tail (l'objectif reste une information utile) ; tous les autres tails sont masqués quand la donnée manque.
 - Fichiers impactés : `web_sejoufr/lib/shell-nav.ts`
 - Réversibilité : facile
+
+### DEC-18 — La carte civique de l'Accueil lance l'examen de thème
+- Phase : 3
+- Contexte : `docs/regles/plan.md` réservait `lancerExamen` au Plan civique ; sur l'Accueil une étape d'examen de thème avait le geste `AUCUN`. Or le premier cycle de tout compte (D-69) est un cycle d'examens de thème : la carte civique n'aurait presque jamais de bouton.
+- Options envisagées : A garder la règle (carte neutre) · B passer `lancerExamen: true` sur l'Accueil (lanceur partagé déjà disponible : web `useMockExamLauncher`, mobile `launchCiviqueThemeExam`)
+- Choix : B, des deux côtés ; la règle de `docs/regles/plan.md` est mise à jour (Plan civique + Accueil).
+- Fichiers impactés : `web_sejoufr/app/(app)/dashboard/page.tsx`, `mobile_sejourfr/lib/screens/home/home_screen.dart`, `docs/regles/plan.md`
+- Réversibilité : facile
+
+### DEC-19 — Composition de la méta et du libellé des cartes « À faire maintenant »
+- Phase : 3
+- Contexte : la spec dit `{type} · {durée}`, mais la carte servie n'a pas de champ « type » unique ; un geste `DEBLOQUER` ouvre l'offre alors que la maquette dit « Continuer ».
+- Options envisagées : A libellés maquette partout · B méta composée des champs servis + libellé servi pour `DEBLOQUER`
+- Choix : B. Méta TCF = `[kindLabel ?? subtitle, minutesLabel]`, civique = `[subtitle, meta]`, parties nulles omises (web `accueilTcfActionMeta`/`accueilCiviqueActionMeta` ⇄ mobile `homeActionMeta`). CTA « Continuer le TCF / le civique » pour LANCER / OUVRIR_ETAPE, libellé servi pour DEBLOQUER, aucune étape courante → « plan à jour » + CTA vers le Plan du module, geste `AUCUN` → carte neutre sans bouton.
+- Fichiers impactés : `web_sejoufr/lib/accueil.ts`, `mobile_sejourfr/lib/screens/home/home_labels.dart`
+- Réversibilité : facile
+
+### DEC-20 — Pas de texte d'invitation dédié pour un compte neuf
+- Phase : 3
+- Contexte : brief §7 : « nouvel utilisateur → texte d'invitation au 1er examen/1re série ». Or un compte neuf a toujours un cycle d'examens dont l'étape courante (examen CO / examen du 1ᵉʳ thème) est servie et non verrouillée : les deux cartes « À faire maintenant » sont déjà cette invitation.
+- Options envisagées : A ajouter un texte d'invitation · B « — » et « 0 % » dans « Mes objectifs », l'invitation est portée par les cartes action
+- Choix : B (pas de bloc redondant). À rajouter si tu le veux.
+- Fichiers impactés : Accueil web et mobile
+- Réversibilité : facile
+
+### DEC-21 — Les objectifs de l'Accueil mènent aux écrans Progression
+- Phase : 3
+- Contexte : la maquette web fait cliquer les `.obj-card` vers le Plan, le brief §4.1 (mobile) vers la Progression.
+- Options envisagées : A Plan · B Progression, partout
+- Choix : B (parité, et « Mes objectifs » parle de progression).
+- Fichiers impactés : `web_sejoufr/app/(app)/dashboard/page.tsx`
+- Réversibilité : facile
+
+### DEC-22 — Primitives de l'Accueil retirées des deux kits
+- Phase : 3
+- Contexte : « Où vous en êtes » supprimé (X7) ; ses briques n'avaient plus de lecteur.
+- Options envisagées : A les garder « au cas où » · B suppression immédiate (règle « refonte = suppression »)
+- Choix : B, dans les deux kits : `LevelLadder`/`LadderStep`/`LevelCard`/`LevelCardGrid`/`GoalBanner` ⇄ `Sf*`, `SfTopSlot`, `parcoursSegments`, `moduleCiviqueParDefaut`, helpers `accueil*` de `progres.ts` ⇄ `progres_labels.dart`, `objectifLabel` → `objectifKicker`. Nouvelles primitives miroirs : `PageHead`⇄`SfModuleHeader`, `ActionCard`⇄`SfActionCard`, `ObjCard`/`ObjMetric`⇄`SfObjCard`/`SfObjMetric`, `ObjectivesCard`/`ObjectiveRow`⇄`SfObjectivesCard`/`SfObjectiveRow`, `BlockSkeleton`/`BlockError`⇄`SfBlockSkeleton`/`SfBlockError`.
+- Fichiers impactés : `SejourKit.tsx`, `sejour.module.css`, `sejour_kit.dart`, `lib/progres.ts`, `progres_labels.dart`
+- Réversibilité : moyenne (récupérables dans l'historique git)

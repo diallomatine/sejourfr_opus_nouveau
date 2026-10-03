@@ -120,10 +120,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
 
   @override
   Widget build(BuildContext context) {
-    // 🛑 **La bascule de parcours ne se fait jamais attendre.** C'est l'en-tête
-    // qui la porte (`SfTopSlot`), donc on le rend dès le premier passage, avant
-    // le plan : une roue seule laissait l'écran sans aucune porte vers le TCF
-    // tant que `/api/me/civic-plan` n'avait pas répondu.
     final async = ref.watch(civicPlanProvider);
     // 🛑 **Le plan déjà lu reste affiché pendant un rechargement** : sans ça, un
     // tiré-pour-rafraîchir ramenait la roue par-dessus un écran qu'on avait.
