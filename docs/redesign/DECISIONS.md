@@ -314,6 +314,7 @@
 - Choix, web et mobile :
   - Plan TCF et civique : lien « Tout l'entraînement » de « Priorités actuelles » retiré ; « À faire maintenant » passe avant la carte du plan, dont la phrase d'explication est retirée ; côté utilisateur, « cycle » se dit « plan » (« Plan N », « Mes plans »).
   - Plan civique : carte « Examen blanc civique » retirée (l'accès reste par Civique · Examens).
+  - Entraînement TCF et civique : carte « Recommandé par votre plan » retirée (le Plan est l'onglet voisin) ; `reviserResumeTcf/Civique` supprimées, `PlanRecoCard` gardée (lue par `PlanEpreuveReco`).
   - TCF · Entraînement : hero « Entretien en temps réel » retiré (D3-B révoqué pour ce bloc ; la simulation reste accessible depuis le hub de l'expression orale).
 - Fichiers impactés : `PlanCycleSection.tsx`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `ReviserScreen.tsx`, `lib/module-ecrans.ts`, `lib/journey.ts`, `plan_cycle_section.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`, `civic_plan_labels.dart`, `reviser_body.dart`, `module_labels.dart`, `journey_labels.dart`
 - Réversibilité : facile (historique git)

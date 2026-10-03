@@ -1949,6 +1949,11 @@ Les écrans assemblent le kit ; ils ne choisissent plus rien.
 
 ##### Le 5ᵉ et le 6ᵉ site : la carte de RÉVISER (2026-09-16, même passe)
 
+> ⚠️ **Retiré le 2026-10-03 (navigation v2, demande du propriétaire)** : l'écran Entraînement
+> (ex-Réviser) n'a plus de carte de reprise — le Plan est l'onglet voisin. `reviserResumeTcf` /
+> `reviserResumeCivique` n'existent plus ; ce qui suit, et les mentions « Réviser » du tableau
+> ci-dessus, sont historiques.
+
 ⚠️ **La migration précédente avait oublié un écran.** « Reprendre là où vous
 vous êtes arrêté » (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart` ⇄
 `lib/reviser.ts`) tenait sa **propre** sélection : `plan.seance.items.first` /

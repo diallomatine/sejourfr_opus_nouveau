@@ -44,6 +44,8 @@ conditions réelles.
   « Plan terminé »…) depuis le 2026-10-03 ; le code, les routes, les DTO et la doc gardent
   « cycle ». Sur l'écran Plan : « À faire maintenant » → jalon → carte du plan (sans phrase
   d'explication) → « Priorités actuelles ». Les mentions « Mes cycles » plus bas sont historiques.
+- **Entraînement** : plus de carte « Recommandé par votre plan » ni de bloc « Entretien en
+  temps réel » ; le Plan civique n'a plus de carte « Examen blanc civique » (DEC-39).
 - **Plan TCF** : la section « Votre prochain jalon » est **retirée** (DEC-38, demande du
   propriétaire) — `PlanMilestoneCard` / `plan_milestone_labels.dart` n'existent plus ; les
   mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.

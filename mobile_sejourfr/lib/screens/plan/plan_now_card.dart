@@ -21,11 +21,8 @@ import 'plan_seance_state.dart';
 /// mon évaluation de compréhension écrite · À ÉVALUER » : deux « à faire
 /// maintenant » contradictoires pour le même candidat, au même instant.
 ///
-/// ⚠️ **La carte « Reprendre là où vous vous êtes arrêté » de Réviser en dérive
-/// aussi** (`reviserResumeTcf`, `screens/reviser/reviser_labels.dart`) : elle
-/// lisait `plan.seance.items.first` puis retombait sur `currentPriority`, donc
-/// une mesure qui n'ouvrait pas la séance lui échappait — troisième écran, même
-/// contradiction.
+/// ⚠️ La carte de reprise de Réviser en dérivait aussi, pour la même raison ;
+/// elle est **retirée** de l'écran Entraînement (2026-10-03).
 ///
 /// ⚠️ Miroir mot pour mot du web (`planNowCard`, `lib/plan-domain.ts`), drapeau
 /// `free` compris : depuis le 2026-09-20, les deux fronts rendent le plan
@@ -633,7 +630,8 @@ PlanNowCard _cartePriorite(
 
 /// « ≈ 20 min », ou `null` quand aucune durée n'est servie — jamais un chiffre
 /// inventé.
-String? _minutes(int? minutes) => minutes == null || minutes <= 0 ? null : '≈ $minutes min';
+String? _minutes(int? minutes) =>
+    minutes == null || minutes <= 0 ? null : '≈ $minutes min';
 
 /// La priorité du Plan qui porte la compétence de cette étape — **son action**.
 ///

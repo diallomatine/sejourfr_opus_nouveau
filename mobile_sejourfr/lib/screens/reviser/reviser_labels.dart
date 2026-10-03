@@ -20,10 +20,6 @@ import '../../core/models/civic_plan_models.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
-import '../../core/models/skill_models.dart';
-import '../../core/models/journey_models.dart';
-import '../plan/civic_plan_labels.dart';
-import '../plan/plan_now_card.dart';
 import '../progres/progres_labels.dart' show niveauActuelEpreuve;
 
 /* --------------------------------- Structure de la langue, hors examen ---- */
@@ -45,134 +41,20 @@ export '../../core/utils/tcf_epreuves.dart'
 String reviserSectionTitle(AppModule module, int count) =>
     module == AppModule.tcf ? 'Les $count épreuves' : 'Les $count thèmes';
 
-/* ------------------------------- Reprendre là où vous vous êtes arrêté ----- */
+/* --------------------------------------- Recommandé par votre plan ----- */
 
-/// **Le sur-titre de la carte de tête : d'où vient ce qu'elle propose.**
+/// **Le sur-titre de la carte de recommandation du Plan** (`PlanEpreuveReco`).
 ///
-/// 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20). « Reprendre
-/// là où vous vous êtes arrêté » décrivait un historique d'écran — or Réviser
-/// n'en tient aucun : ce qu'il annonce est **désigné par le Plan**
-/// (`planNowCard` / `civicNowCard`), la même carte que « À faire maintenant ».
-/// Le sur-titre le dit, au lieu de laisser croire à une reprise de navigation.
+/// 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20) : ce que la
+/// carte annonce est **désigné par le Plan**, pas par un historique d'écran.
+/// La carte de reprise en tête de l'écran Entraînement est **retirée**
+/// (2026-10-03, « on a le plan juste à côté ») ; le libellé ne sert plus
+/// qu'au Plan.
 const String kReviserResumeLabel = 'Recommandé par votre plan';
-
-/// Ce que le Plan demande de faire **maintenant**, mis en mots.
-class ReviserResume {
-  const ReviserResume({
-    required this.title,
-    required this.geste,
-    required this.cta,
-    this.subtitle,
-    this.section,
-    this.carte,
-    this.source,
-    this.etapeRoute,
-  });
-
-  final String title;
-  final String? subtitle;
-
-  /// La section travaillée — c'est elle qui donne le pictogramme.
-  final SkillSection? section;
-
-  /// 🛑 **Le geste est SERVI par l'autorité du Plan** (`planNowCard` /
-  /// `civicNowCard`), jamais redéduit ici : `debloquer` dès qu'il n'y a pas
-  /// d'accès, `lancer` sinon.
-  final PlanNowGeste geste;
-
-  /// Ce que le bouton **dit**, décidé par la même autorité — « Continuer » ou
-  /// le libellé de déblocage. Jamais une chaîne écrite dans l'écran.
-  final String cta;
-
-  /// **Ce que le bouton lance** côté TCF, tel que le Plan l'a désigné.
-  final PlanNowCard? carte;
-
-  /// **Ce que le bouton lance** côté civique — l'unité du cycle ou la cible du
-  /// plan dérivé, au grain que `civicNowCard` a tranché.
-  final CivicNowSource? source;
-
-  /// **Où mène [PlanNowGeste.ouvrirEtape]**, servi avec lui — jamais recomposé
-  /// ici.
-  final String? etapeRoute;
-}
-
-/// La reprise TCF.
-///
-/// 🛑 **La source est le Plan, jamais un historique d'écran** — et c'est
-/// [planNowCard] qui la décide, la **même autorité** que la carte « À faire
-/// maintenant » du Plan et de l'Accueil, des deux côtés. Réviser lisait
-/// `plan.seance.items.first` puis retombait sur `currentPriority` : une
-/// **mesure de domaine** qui n'ouvrait pas la séance lui échappait, et l'écran
-/// annonçait la priorité pédagogique pendant que le Plan, au même instant,
-/// demandait de compléter une mesure.
-///
-/// 🛑 **Un compte sans accès voit la MÊME carte qu'un abonné**, seul le geste
-/// change (demande du propriétaire, 2026-09-20 — la règle du Plan, étendue à
-/// Réviser). ⚠️ Cela **révoque** « une action verrouillée n'est pas proposée
-/// en reprise, la carte disparaît » : l'écran ouvrait alors sur sa liste
-/// d'épreuves sans jamais nommer ce que le candidat allait débloquer.
-///
-/// `null` quand il n'y a vraiment rien à annoncer : pas de plan, aucune
-/// priorité servie, ou [PlanNowGeste.aucun] — on ne pose pas un bouton mort.
-ReviserResume? reviserResumeTcf(
-  LearningPlan? plan, {
-  Journey? journey,
-  bool free = false,
-}) {
-  if (plan == null) return null;
-  // 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
-  // la règle du Plan pendant que le Plan suivrait le parcours — la même
-  // contradiction, à un troisième écran.
-  final carte = planNowCard(plan, journey: journey, free: free);
-  if (carte == null || carte.geste == PlanNowGeste.aucun) return null;
-  return ReviserResume(
-    title: carte.title,
-    subtitle: carte.subtitle,
-    section: carte.section,
-    geste: carte.geste,
-    cta: carte.cta,
-    carte: carte,
-    etapeRoute: carte.etapeRoute,
-  );
-}
-
-/// La reprise civique — **la même autorité que le Plan** ([civicNowCard]),
-/// pour la même raison que côté TCF : deux règles finiraient par proposer deux
-/// reprises différentes au même candidat.
-///
-/// 🛑 **Un compte sans accès la voit aussi**, avec son geste de déblocage.
-ReviserResume? reviserResumeCivique(
-  CivicPlan? plan, {
-  Journey? journey,
-  bool free = false,
-}) {
-  if (plan == null) return null;
-  final carte = civicNowCard(plan, journey: journey, free: free);
-  if (carte == null || carte.geste == PlanNowGeste.aucun) return null;
-  return ReviserResume(
-    title: carte.title,
-    subtitle: carte.subtitle,
-    geste: carte.geste,
-    cta: carte.cta,
-    source: carte.source,
-    etapeRoute: carte.etapeRoute,
-  );
-}
 
 /* ---------------------------------------------------- Une épreuve du TCF --- */
 
 const String kReviserNotStarted = 'Pas encore travaillé';
-
-/// L'épreuve d'une section de compétences. `null` hors des quatre domaines du
-/// Plan — c'est la même table que `PLAN_DOMAIN_SECTION` côté web, lue à
-/// l'envers.
-EpreuveType? sectionEpreuve(SkillSection? section) => switch (section) {
-      SkillSection.co => EpreuveType.tcfCo,
-      SkillSection.ce => EpreuveType.tcfCe,
-      SkillSection.ee => EpreuveType.tcfEe,
-      SkillSection.eo => EpreuveType.tcfEo,
-      _ => null,
-    };
 
 /// Le domaine servi pour ce code de catégorie, ou `null` (Structure, civique).
 PlanDomain? domainForCode(LearningPlan? plan, String code) => switch (code) {

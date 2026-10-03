@@ -22,25 +22,16 @@
  */
 
 import type {
-    JourneyDto,
-    CivicPlanDto,
     CivicPlanThemeLigneDto,
     DashboardCategoryStat,
     LearningPlanDto,
     PlanDomainDto,
     PlanDomainTaskDto,
-    SkillSection,
     TcfDomainProfileDto,
 } from "./types";
 import {niveauCecrlLabel} from "./types";
 import {niveauActuelEpreuve} from "./progres";
-import {
-    planNowCard,
-    type PlanDomainEpreuve,
-    type PlanNowGeste,
-    type PlanNowVue,
-} from "./plan-domain";
-import {civicNowCard, type CivicNowVue} from "./civic-plan";
+import type {PlanDomainEpreuve} from "./plan-domain";
 
 /* ------------------------------------------------------------------ En-tête */
 
@@ -65,116 +56,22 @@ export {
     TCF_EPREUVES_OFFICIELLES,
 } from "./tcf-epreuves";
 
-/* ------------------------------- Reprendre là où vous vous êtes arrêté ----- */
+/* --------------------------------------- Recommandé par votre plan ----- */
 
 /**
- * **Le sur-titre de la carte de tête : d'où vient ce qu'elle propose.**
+ * **Le sur-titre de la carte de recommandation du Plan** (`PlanEpreuveReco`).
  *
- * 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20). « Reprendre là
- * où vous vous êtes arrêté » décrivait un historique d'écran — or Réviser n'en
- * tient aucun : ce qu'il annonce est **désigné par le Plan** (`planNowCard` /
- * `civicNowCard`), la même carte que « À faire maintenant ». Le sur-titre le
- * dit, au lieu de laisser croire à une reprise de navigation.
+ * 🛑 Il **nomme le Plan** (demande du propriétaire, 2026-09-20) : ce que la
+ * carte annonce est **désigné par le Plan**, pas par un historique d'écran.
+ * La carte de reprise en tête de l'écran Entraînement est **retirée**
+ * (2026-10-03, « on a le plan juste à côté ») ; le libellé ne sert plus
+ * qu'au Plan.
  */
 export const REVISER_RESUME_LABEL = "Recommandé par votre plan";
-
-/**
- * Ce que le Plan demande de faire **maintenant**, mis en mots.
- *
- * 🛑 **La source est le Plan, jamais un historique d'écran** — et c'est
- * `planNowCard` qui la décide, la **même autorité** que la carte « À faire
- * maintenant » du Plan (`ActionMaintenant`) et de l'Accueil
- * (`ActionPlanDuJour`), des deux côtés. Réviser lisait `seance.items[0]` puis
- * retombait sur `currentPriority` : une **mesure de domaine** qui n'ouvrait pas
- * la séance lui échappait, et l'écran annonçait la priorité pédagogique pendant
- * que le Plan, au même instant, demandait de compléter une mesure.
- *
- * 🛑 **Un compte sans accès voit la MÊME carte qu'un abonné**, seul le geste
- * change (demande du propriétaire, 2026-09-20 — la règle du Plan, étendue à
- * Réviser). ⚠️ Cela **révoque** « une action verrouillée n'est pas proposée en
- * reprise, la carte disparaît » : l'écran ouvrait alors sur sa liste d'épreuves
- * sans jamais nommer ce que le candidat allait débloquer.
- *
- * `null` quand il n'y a vraiment rien à annoncer : pas de plan, aucune priorité
- * servie, ou geste `AUCUN` — on ne pose pas un bouton mort.
- */
-export function reviserResumeTcf(
-    plan: LearningPlanDto | null,
-    journey: JourneyDto | null = null,
-    free = false,
-): ReviserResume | null {
-    if (!plan) return null;
-    /* 🛑 **Le parcours est passé jusqu'ici** : sans lui, Réviser retomberait sur
-       la règle du Plan pendant que le Plan suivrait le parcours — la même
-       contradiction, à un troisième écran. */
-    const carte = planNowCard(plan, {journey, free});
-    if (!carte || carte.geste === "AUCUN") return null;
-    return {
-        title: carte.title,
-        subtitle: carte.subtitle,
-        section: carte.section,
-        geste: carte.geste,
-        etapeHref: carte.etapeHref,
-        cta: carte.cta,
-        carte,
-    };
-}
-
-export interface ReviserResume {
-    title: string;
-    subtitle: string | null;
-    /** La section travaillée — c'est elle qui donne le pictogramme. Celle du
-     *  domaine **réellement lancé**, mesure comprise. */
-    section: SkillSection | null;
-    /** 🛑 **Le geste est SERVI par l'autorité du Plan**, jamais redéduit ici. */
-    geste: PlanNowGeste;
-    /** **Où mène `OUVRIR_ETAPE`**, servi avec lui — jamais recomposé ici. */
-    etapeHref: string | null;
-    /** Ce que le bouton **dit**, décidé par la même autorité. */
-    cta: string;
-    /** **Ce que le bouton lance**, tel que le Plan l'a désigné. */
-    carte: PlanNowVue;
-}
-
-/**
- * La reprise civique — **la même autorité que le Plan** (`civicNowCard`), pour
- * la même raison que côté TCF : deux règles finiraient par proposer deux
- * reprises différentes au même candidat.
- *
- * 🛑 **Un compte sans accès la voit aussi**, avec son geste de déblocage.
- */
-export function reviserResumeCivique(
-    plan: CivicPlanDto | null,
-    journey: JourneyDto | null = null,
-    free = false,
-): CivicNowVue | null {
-    if (!plan) return null;
-    const carte = civicNowCard(plan, {journey, free});
-    return carte && carte.geste !== "AUCUN" ? carte : null;
-}
 
 /* ---------------------------------------------------- Une épreuve du TCF --- */
 
 export const REVISER_NOT_STARTED = "Pas encore travaillé";
-
-/**
- * L'épreuve d'une section de compétences. `null` hors des quatre domaines du
- * Plan — c'est la même table que `PLAN_DOMAIN_SECTION`, lue à l'envers.
- */
-export function sectionEpreuve(section: SkillSection | null | undefined): PlanDomainEpreuve | null {
-    switch (section) {
-        case "CO":
-            return "TCF_CO";
-        case "CE":
-            return "TCF_CE";
-        case "EE":
-            return "TCF_EE";
-        case "EO":
-            return "TCF_EO";
-        default:
-            return null;
-    }
-}
 
 /** Le domaine servi pour ce code de catégorie, ou `null` (Structure, civique). */
 export function domainForCode(

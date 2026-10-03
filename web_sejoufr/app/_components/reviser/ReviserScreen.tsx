@@ -5,13 +5,17 @@
  * (2026-10-03), maquettes `#tcf-entrainement` et `#civique-entrainement` de
  * `docs/redesign/sejourfr-navigation-web.html`, montées sur le KIT.
  *
- * TCF : `PageHead` (« 4 épreuves »), la carte « Recommandé par votre plan »
- * (`ActionCard`), une `Metric` par épreuve officielle (niveau servi, état servi
- * `StatutObjectif`, compteur, CTA plein sur l'épreuve de l'étape courante du
- * parcours), puis « Renforcer mon français » — le même ordre sur le mobile. Civique : `PageHead` (thèmes, séries), la carte
- * de reprise, une `ThemeCard` par thème (anneau = `avancementSeriesCivique`
- * du thème, description servie). « Statistiques par thème » de la maquette
- * est **masqué** : rien ne le sert.
+ * TCF : `PageHead` (« 4 épreuves »), une `Metric` par épreuve officielle
+ * (niveau servi, état servi `StatutObjectif`, compteur, CTA plein sur
+ * l'épreuve de l'étape courante du parcours), puis « Renforcer mon français »
+ * — le même ordre sur le mobile. Civique : `PageHead` (thèmes, séries), une
+ * `ThemeCard` par thème (anneau = `avancementSeriesCivique` du thème,
+ * description servie). « Statistiques par thème » de la maquette est
+ * **masqué** : rien ne le sert.
+ *
+ * 🛑 **Pas de carte « Recommandé par votre plan » en tête** (demande du
+ * propriétaire, 2026-10-03) : « on a le plan juste à côté ». Ce que le Plan
+ * désigne ne se lit plus ici que par le CTA plein de la tuile d'épreuve.
  *
  * 🛑 **« Structure de la langue » n'est PAS une cinquième épreuve** (arbitrage
  * du propriétaire, 2026-09-13). Le TCF IRN en comporte quatre : CO, CE, EE,
@@ -20,18 +24,6 @@
  * bandeau que le mobile posait déjà sur son écran de détail. Le backend
  * l'excluait déjà de l'examen blanc, du Plan et du diagnostic : seul
  * l'affichage la présentait comme un pair.
- *
- * 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
- * côté TCF c'est `planNowCard` — la **même** autorité que la carte « À faire
- * maintenant » du Plan et de l'Accueil, donc la même action, mesure de domaine
- * prioritaire comprise —, la cible de rang 1 côté civique. Réviser ne tient
- * aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
- * trois choses différentes.
- *
- * 🛑 **Plus de porte « diagnostic » ici** (D-69, 2026-09-28) : le Plan existe
- * pour tout compte, donc « Reprendre » annonce toujours son action — le
- * premier examen du cycle pour un compte sans diagnostic. Un visiteur n'a pas
- * de Plan : il garde le catalogue et son bandeau de découverte.
  *
  * 🛑 **Pas de bascule de parcours ICI** : on arrive par la barre latérale, qui
  * porte une entrée « Entraînement » par module (Navigation v2).
@@ -47,7 +39,6 @@
 import { useMemo } from "react";
 import {
   BookOpen,
-  Compass,
   Ear,
   FileText,
   Gavel,
@@ -75,18 +66,9 @@ import {
 import { type CachedData, useCachedData } from "@/lib/use-cached-data";
 import { themeSlug } from "@/lib/themes";
 import { entrainementHref } from "@/lib/module-switch";
-import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { useCivicSerie } from "@/app/_components/plan/useCivicSerie";
-import { useCivicUniteSerie } from "@/app/_components/plan/use-civic-unite-serie";
-import { planUnlockHref } from "@/lib/plan-unlock";
-import {
-  usePlanAssessment,
-  usePlanExercise,
-} from "@/app/_components/plan/use-plan-exercise";
 import {
   canAccessModule,
   type AuthenticatedUser,
-  type CivicPlanCibleDto,
   type DashboardCategoryStat,
   type DashboardSummaryResponse,
   type JourneyDto,
@@ -102,8 +84,6 @@ import {
   productionEntryHref,
 } from "@/app/_components/production/config";
 import {
-  ActionCard,
-  type ActionCardCta,
   Badge,
   BlockError,
   BlockSkeleton,
@@ -128,15 +108,11 @@ import {
   epreuveStatus,
   isProductionCode,
   REVISER_NOT_STARTED,
-  REVISER_RESUME_LABEL,
-  reviserResumeCivique,
-  reviserResumeTcf,
   reviserSectionTitle,
   themeLigneFor,
   REVISER_RENFORCER_NOTE,
   REVISER_RENFORCER_NOTE_TITLE,
   REVISER_RENFORCER_TITLE,
-  sectionEpreuve,
   TCF_CODE_COMPLEMENTAIRE,
   TCF_EPREUVES_OFFICIELLES,
   themeStatus,
@@ -283,8 +259,8 @@ function TcfBody({
     isGuest ? null : learningPlanApi.cacheKey,
     () => learningPlanApi.getCached(),
   );
-  /* 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent la
-     même carte de reprise, et n'en lire qu'un rouvrirait l'écart. */
+  /* Le parcours : l'invitation à déclarer un objectif et l'épreuve de l'étape
+     courante (CTA plein de sa tuile). */
   const journey = useCachedData<JourneyDto>(
     isGuest ? null : journeyApi.cacheKey,
     () => journeyApi.getCached(),
@@ -296,18 +272,6 @@ function TcfBody({
     isGuest ? null : `${PROGRESS_CACHE_PREFIX}current`,
     () => progressApi.get(),
   );
-  /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
-     ligne de séance est un exercice **ou** une mesure de domaine, et les
-     deux savent déjà où aller. */
-  const exercise = usePlanExercise();
-  const assessment = usePlanAssessment();
-
-  /* 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
-     ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan. */
-  const resume = reviserResumeTcf(plan.data ?? null, journey.data ?? null, !isPremium);
-  const carte = resume?.carte ?? null;
-  const busy = exercise.starting || assessment.starting !== null;
-
   /* 🛑 **L'autorité d'AFFICHAGE du niveau**, servie par le tableau de bord déjà
      chargé — donc **aucun appel de plus**. C'est la même valeur que l'Accueil,
      le Profil, l'écran Progrès et l'écran Diagnostic
@@ -326,29 +290,6 @@ function TcfBody({
   const blocCourant = journey.data?.current?.bloc ?? null;
   const prioritaire = blocCourant?.kind === "EPREUVE" ? blocCourant.code : null;
 
-  /* 🛑 **Le même geste que le bouton du Plan**, sur la **même** action : une
-     MESURE passe devant tout le reste, et c'est `planNowCard` qui l'a tranché —
-     l'écran exécute, il ne rechoisit pas. */
-  const reprendre = () => {
-    if (!carte) return;
-    if (carte.mesure) {
-      void assessment.start(carte.mesure.assessment);
-      return;
-    }
-    if (carte.exercise) void exercise.start(carte.exercise);
-  };
-  /* 🛑 **Le geste ET sa destination viennent du Plan** : `OUVRIR_ETAPE`
-     ouvre l'écran de l'étape (ses deux séries), `LANCER` démarre l'action, et
-     un geste d'achat passe par l'écran de transition (A145). */
-  const resumeCta: ActionCardCta | null = !resume
-    ? null
-    : resume.geste === "DEBLOQUER"
-      ? { label: resume.cta, href: planUnlockHref("TCF") }
-      : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
-        ? { label: resume.cta, href: resume.etapeHref }
-        : { label: resume.cta, onClick: reprendre, disabled: busy };
-  const resumeError = exercise.error ?? assessment.error;
-
   return (
     <>
       <Pad>
@@ -359,27 +300,8 @@ function TcfBody({
           aside={<Badge>{ENTRAINEMENT_TCF_BADGE}</Badge>}
         />
       </Pad>
-      {resume ? (
-        <Pad className={sejourStyles.pageBody}>
-          <ActionCard
-            module="tcf"
-            /* Le domaine **réellement lancé** : celui de la mesure quand elle
-               passe devant, celui de la priorité sinon. */
-            icon={renderIcon(iconFor(sectionEpreuve(resume.section) ?? "TCF_CO"))}
-            label={REVISER_RESUME_LABEL}
-            title={resume.title}
-            meta={resume.subtitle}
-            badge={resume.section}
-            cta={resumeCta}
-            block
-          >
-            {resumeError ? <p className={sejourStyles.actionNote} role="alert">{resumeError}</p> : null}
-          </ActionCard>
-        </Pad>
-      ) : null}
       {/* 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
-          du propriétaire, 2026-09-17). Elle n'enlève rien — la reprise
-          ci-dessus reste servie, le Plan n'exige pas d'objectif. */}
+          du propriétaire, 2026-09-17). Le Plan n'exige pas d'objectif. */}
       {journey.data?.state === "NEEDS_OBJECTIVE" && (
         <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
           <Pad>
@@ -390,23 +312,6 @@ function TcfBody({
           </Pad>
         </Section>
       )}
-      {/* 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
-          contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
-          avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement,
-          et ce marqueur n'existe pas. Un 403 y prend donc le CTA de l'écran
-          d'arrivée, sans parcours : `MOCK_EXAM` pour une mesure, `OTHER` pour
-          un exercice — miroir du mobile. */}
-      <PaywallSheet
-        ctaLocation={assessment.paywallOpen ? "MOCK_EXAM" : "OTHER"}
-        screen="reviser"
-        journeyId={null}
-        open={exercise.paywallOpen || assessment.paywallOpen}
-        module="INTEGRAL"
-        onClose={() => {
-          exercise.closePaywall();
-          assessment.closePaywall();
-        }}
-      />
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="TCF" />
       <Section title={reviserSectionTitle("TCF", stats.length)}>
         <Pad>
@@ -552,20 +457,8 @@ function CiviqueBody({
   isGuest: boolean;
   isPremium: boolean;
 }) {
-  const { enCours, erreur, paywall, setPaywall, commencer } = useCivicSerie();
-  /* 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité
-     officielle du cycle et la cible du plan dérivé sont deux routes serveur
-     distinctes. La source est **servie**, l'écran exécute. */
-  const serieUnite = useCivicUniteSerie();
   const civicPlan = useCachedData(isGuest ? null : civicPlanApi.cacheKey, () =>
     civicPlanApi.getCached(),
-  );
-  /* 🛑 **Le CYCLE, comme sur le Plan** : « À faire maintenant » y lit
-     `journey.current` depuis D-50 §2. Sans lui, Réviser annoncerait la cible du
-     plan dérivé pendant que le Plan annonce l'étape du cycle. */
-  const journey = useCachedData<JourneyDto>(
-    isGuest ? null : journeyApi.cacheKeyFor("CIVIQUE"),
-    () => journeyApi.getCached("CIVIQUE"),
   );
   /* La description éditoriale de chaque thème (`ThemeUserResponse.description`,
      servie) : un compte la lit sur `/api/themes`, un visiteur sur la liste
@@ -574,8 +467,6 @@ function CiviqueBody({
     isGuest ? null : "reviser:themes",
     () => themeApi.list("CIVIQUE"),
   );
-  const prochaine: CivicPlanCibleDto | null = civicPlan.data?.prochaine ?? null;
-  const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium);
 
   const stats = useMemo(() => {
     if (summary.data) return summary.data.civique;
@@ -607,24 +498,6 @@ function CiviqueBody({
      servis — la même valeur que l'Accueil et le Plan civique. */
   const avancement = summary.data ? avancementSeriesCivique(summary.data.civique) : null;
 
-  const resumeCta: ActionCardCta | null = !resume
-    ? null
-    : resume.geste === "DEBLOQUER"
-      ? { label: resume.cta, href: planUnlockHref("CIVIQUE") }
-      : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
-        ? { label: resume.cta, href: resume.etapeHref }
-        : {
-          label: resume.cta,
-          disabled: enCours !== null || serieUnite.enCours !== null,
-          onClick: () => {
-            const source = resume.source;
-            if (!source) return;
-            if (source.kind === "UNITE") void serieUnite.start(source.code);
-            else void commencer(source.cible);
-          },
-        };
-  const resumeError = erreur ?? serieUnite.erreur;
-
   return (
     <>
       <Pad>
@@ -643,24 +516,6 @@ function CiviqueBody({
           }
         />
       </Pad>
-      {resume ? (
-        <Pad className={sejourStyles.pageBody}>
-          <ActionCard
-            module="civique"
-            /* Le pictogramme du thème quand la reprise en a un ; une **unité**
-               du cycle n'en porte pas, on reprend alors la boussole. */
-            icon={renderIcon(prochaine ? iconFor(prochaine.themeCode) : Compass)}
-            label={REVISER_RESUME_LABEL}
-            title={resume.title}
-            meta={resume.subtitle}
-            badge={resume.badge}
-            cta={resumeCta}
-            block
-          >
-            {resumeError ? <p className={sejourStyles.actionNote} role="alert">{resumeError}</p> : null}
-          </ActionCard>
-        </Pad>
-      ) : null}
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="CIVIQUE" />
       <Section title={reviserSectionTitle("CIVIQUE", stats.length)}>
         <Pad>
@@ -698,20 +553,6 @@ function CiviqueBody({
           )}
         </Pad>
       </Section>
-      {/* 🛑 La reprise civique relance l'action de `civicNowCard`, sans
-          marqueur persisté de lancement depuis le Plan : pas le Plan (D113),
-          le CTA d'une série (`OTHER`), sans parcours — miroir du mobile. */}
-      <PaywallSheet
-        ctaLocation="OTHER"
-        screen="reviser"
-        journeyId={null}
-        open={paywall || serieUnite.paywall}
-        module="CIVIQUE"
-        onClose={() => {
-          setPaywall(false);
-          serieUnite.setPaywall(false);
-        }}
-      />
     </>
   );
 }

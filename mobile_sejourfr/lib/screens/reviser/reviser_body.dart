@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/analytics/analytics_events.dart';
 import '../../core/models/civic_plan_models.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
@@ -18,18 +16,12 @@ import '../../core/utils/dashboard_targets.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../module/module_labels.dart';
 import '../module_detail/civique_hub_data.dart';
-import '../plan/civic_plan_labels.dart';
-import '../plan/widgets/plan_reco_card.dart';
 import '../plan/civic_plan_provider.dart';
 import '../../core/router/app_router.dart';
-import '../plan/civic_serie_launcher.dart';
 import '../plan/journey_labels.dart';
 import '../../core/models/journey_models.dart';
 import '../plan/learning_plan_provider.dart';
-import '../plan/plan_actions.dart';
-import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
-import '../plan/plan_now_card.dart';
 import '../progres/progres_labels.dart';
 import 'reviser_labels.dart';
 
@@ -37,14 +29,13 @@ import 'reviser_labels.dart';
 /// (Navigation v2) — l'ancien onglet « Réviser », sans en-tête ni bascule :
 /// c'est l'onglet TCF ou Civique de la barre qui choisit le module.
 ///
-/// Deux blocs : la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
-/// grille des épreuves (TCF, `.metric`) ou les cartes des thèmes (civique,
+/// La grille des épreuves (TCF, `.metric`) ou les cartes des thèmes (civique,
 /// `.theme-card`) — gabarit Navigation v2, phase 4.
 ///
-/// 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
-/// côté TCF c'est [planNowCard] — la **même** autorité que la carte « À faire
-/// maintenant » du Plan et de l'Accueil —, le cycle civique côté civique.
-/// Réviser ne tient aucun historique à lui. Rien à reprendre ⇒ pas de carte.
+/// 🛑 **Pas de carte « Recommandé par votre plan » en tête** (demande du
+/// propriétaire, 2026-10-03) : « on a le plan juste à côté ». Ce que le Plan
+/// désigne ne se lit plus ici que par le CTA plein de la tuile d'épreuve.
+/// Miroir web : `ReviserScreen`.
 ///
 /// 🛑 **Aucune phrase n'est composée ici** : elles vivent dans
 /// `reviser_labels.dart`, miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.
@@ -58,9 +49,6 @@ class ReviserBody extends ConsumerStatefulWidget {
 }
 
 class _ReviserBodyState extends ConsumerState<ReviserBody> {
-  /// Le lancement en cours, pour ne pas démarrer deux fois la même reprise.
-  bool _lancement = false;
-
   Future<void> _refresh() async {
     ref.invalidate(dashboardProvider);
     await ref.read(dashboardProvider.future);
@@ -70,14 +58,10 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
   Widget build(BuildContext context) {
     final dashboard = ref.watch(dashboardProvider);
     final plan = ref.watch(learningPlanProvider).valueOrNull;
-    // 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent
-    // la même carte de reprise, et n'en observer qu'un rouvrirait l'écart.
+    // Le parcours : l'invitation à déclarer un objectif et l'épreuve de
+    // l'étape courante (CTA plein de sa tuile).
     final parcours = ref.watch(journeyProvider).valueOrNull;
     final civicPlan = ref.watch(civicPlanProvider).valueOrNull;
-    // 🛑 **Le CYCLE civique, comme sur le Plan** : « À faire maintenant » y lit
-    // `journey.current`. Sans lui, Réviser annoncerait la cible du plan dérivé
-    // pendant que le Plan annonce l'étape du cycle.
-    final parcoursCivique = ref.watch(journeyCiviqueProvider).valueOrNull;
     final civique = widget.civique;
 
     return RefreshIndicator(
@@ -99,7 +83,7 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
               ),
             ],
             data: (d) => civique
-                ? _civique(d, civicPlan, parcoursCivique)
+                ? _civique(d, civicPlan)
                 : _tcf(context, d, plan, parcours),
           ),
         ],
@@ -115,44 +99,15 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
     LearningPlan? plan,
     Journey? parcours,
   ) {
-    // 🛑 **Le drapeau d'accès descend jusqu'à l'autorité**, il n'est pas relu
-    // ici : c'est `planNowCard` qui en tire le geste, comme sur le Plan.
-    final auth = ref.watch(authControllerProvider);
-    final free = !(auth is AuthAuthenticated && auth.user.hasTcf);
-    final resume = reviserResumeTcf(plan, journey: parcours, free: free);
     final stats = orderedTcfCategories(dashboard.tcf);
     final complementaire = complementaireCategory(dashboard.tcf);
     final profil = dashboard.tcfDomainProfile;
     return <Widget>[
-      if (resume != null)
-        PlanRecoCard(
-          label: kReviserResumeLabel,
-          title: resume.title,
-          subtitle: resume.subtitle,
-          cta: resume.cta,
-          // L'icône du domaine, la même que sur le Plan et sur son hub — le
-          // candidat doit reconnaître ce qu'il reprend. C'est le domaine
-          // **réellement lancé** : celui de la mesure quand elle passe devant.
-          icon: planDomainIcon(sectionEpreuve(resume.section)),
-          variant: SfButtonVariant.tcf,
-          // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
-          // geste d'achat passe par l'écran de transition (A145), jamais par
-          // le paywall d'un coup. `ouvrirEtape` ouvre l'écran de l'étape (ses
-          // deux séries), `lancer` démarre l'action : aucune condition sur
-          // « est-ce une série ? » ici.
-          onContinue: switch (resume.geste) {
-            PlanNowGeste.debloquer => () =>
-                context.push(AppRoutes.planUnlockPath(civique: false)),
-            PlanNowGeste.ouvrirEtape when resume.etapeRoute != null => () =>
-                context.push(resume.etapeRoute!),
-            _ => () => _reprendreTcf(resume.carte!),
-          },
-        ),
       // 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
       // du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un compte
       // gratuit : sans elle, un candidat sans démarche déclarée n'apprenait
-      // nulle part qu'elle lui ouvre un parcours. Elle n'enlève rien — la
-      // reprise ci-dessus reste servie, le Plan n'exige pas d'objectif.
+      // nulle part qu'elle lui ouvre un parcours. Le Plan n'exige pas
+      // d'objectif.
       if (parcours?.state == JourneyState.needsObjective)
         SfSection(
           title: kJourneyNeedsObjectiveTitle,
@@ -291,78 +246,18 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
     );
   }
 
-  /// Lance ce que le Plan désigne — le **même** geste que le bouton principal
-  /// du Plan (`startPlanSeanceItem` / `openPlanExercise`), sur la **même**
-  /// action (`planNowCard`), jamais un second chemin écrit ici.
-  ///
-  /// 🛑 **Une MESURE passe devant tout le reste**, ici comme sur le Plan et sur
-  /// l'Accueil : c'est [planNowCard] qui l'a tranché, l'écran exécute.
-  ///
-  /// 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
-  /// contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
-  /// avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement, et
-  /// ce marqueur n'existe pas — la carte relance l'action calculée à la
-  /// lecture, pas une tentative en cours. [PlanOrigine.horsPlan] : une offre
-  /// ouverte en chemin prend le CTA de l'écran d'arrivée, sans parcours
-  /// (`OTHER` pour un exercice, `MOCK_EXAM` pour une mesure) — miroir du web.
-  Future<void> _reprendreTcf(PlanNowCard carte) async {
-    if (_lancement) return;
-    setState(() => _lancement = true);
-    final mesure = carte.mesure;
-    final exercice = carte.exercise;
-    if (mesure != null) {
-      await startPlanSeanceItem(context, ref, mesure,
-          origine: PlanOrigine.horsPlan);
-    } else if (exercice != null) {
-      await openPlanExercise(
-        context,
-        ref,
-        exercice,
-        origine: PlanOrigine.horsPlan,
-        masteryBefore: carte.priority?.masteryState,
-      );
-    }
-    if (!mounted) return;
-    setState(() => _lancement = false);
-  }
-
   /* -------------------------------------------------------------- Civique */
 
   List<Widget> _civique(
     DashboardSummary dashboard,
     CivicPlan? civicPlan,
-    Journey? parcours,
   ) {
-    final auth = ref.watch(authControllerProvider);
-    final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
-    final resume =
-        reviserResumeCivique(civicPlan, journey: parcours, free: free);
     final themes = civicPlan?.themes ?? const <CivicPlanThemeLigne>[];
     final global = avancementSeriesCivique(dashboard.civique);
     // Observée, jamais attendue : sans elle, les cartes n'ont pas de
     // description, rien d'autre.
     final descriptions = ref.watch(civiqueThemesProvider).valueOrNull;
     return <Widget>[
-      if (resume != null)
-        PlanRecoCard(
-          label: kReviserResumeLabel,
-          title: resume.title,
-          subtitle: resume.subtitle,
-          cta: resume.cta,
-          // Le pictogramme du thème quand la reprise en a un ; une **unité**
-          // du cycle n'en porte pas, on reprend alors la boussole du parcours.
-          icon: civicPlan?.prochaine == null
-              ? LucideIcons.compass
-              : dashboardCategoryIcon(civicPlan!.prochaine!.themeCode),
-          variant: SfButtonVariant.civique,
-          onContinue: switch (resume.geste) {
-            PlanNowGeste.debloquer => () =>
-                context.push(AppRoutes.planUnlockPath(civique: true)),
-            PlanNowGeste.ouvrirEtape when resume.etapeRoute != null => () =>
-                context.push(resume.etapeRoute!),
-            _ => () => _reprendreCivique(resume.source),
-          },
-        ),
       // Les thèmes en `.theme-card` : nom servi, description servie
       // (`ThemeUserResponse.description`, masquée si absente), anneau et
       // compteur sur les séries du thème (`avancementSeriesCivique([stat])`, la
@@ -399,38 +294,6 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
       return texte == null || texte.isEmpty ? null : texte;
     }
     return null;
-  }
-
-  /// 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité
-  /// officielle du cycle et la cible du plan dérivé sont deux routes serveur
-  /// distinctes. La source est **servie** par `civicNowCard`, l'écran exécute.
-  Future<void> _reprendreCivique(CivicNowSource? source) async {
-    if (_lancement || source == null) return;
-    setState(() => _lancement = true);
-    // Contrôle F (D113) : sans marqueur persisté de lancement depuis le Plan,
-    // la reprise n'est pas le Plan — le CTA d'une série (`OTHER`), sans parcours.
-    final cta = planCta(ref, PlanOrigine.horsPlan,
-        horsPlan: AnalyticsCtaLocation.other, civique: true);
-    switch (source) {
-      case CivicNowUnite(code: final code):
-        await startCivicUniteSerie(
-          context,
-          ref,
-          code,
-          ctaLocation: cta.ctaLocation,
-          journeyId: cta.journeyId,
-        );
-      case CivicNowCible(cible: final cible):
-        await startCivicSerie(
-          context,
-          ref,
-          cible,
-          ctaLocation: cta.ctaLocation,
-          journeyId: cta.journeyId,
-        );
-    }
-    if (!mounted) return;
-    setState(() => _lancement = false);
   }
 }
 
