@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/analytics/analytics_events.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/models/skill_models.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/router/route_observer.dart';
 import '../../../core/theme/app_theme.dart';
 import '../expression_labels.dart';
@@ -113,15 +114,12 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      appRouteObserver.subscribe(this, route);
-    }
+    suivreLeRetour(this, context);
   }
 
   @override
   void dispose() {
-    appRouteObserver.unsubscribe(this);
+    cesserDeSuivreLeRetour(this);
     super.dispose();
   }
 
@@ -138,7 +136,9 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
       return;
     }
     // Venu du Plan, on y retourne : l'étape est son écran, pas l'épreuve.
-    context.go(widget.planStep ? '/plan' : '/tcf/${widget.module.routeKey}');
+    context.go(widget.planStep
+        ? AppRoutes.tcfPlan
+        : '/tcf/${widget.module.routeKey}');
   }
 
   /// L'origine de la fiche (contrôle F) : ouverte depuis le Plan (marqueur
@@ -463,7 +463,7 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
               cta: suivante == null
                   ? kPlanStepDoneCta
                   : journeyEtapeSuivanteCta(suivante),
-              onAction: suivanteAction ?? () => context.go('/plan'),
+              onAction: suivanteAction ?? () => context.go(AppRoutes.tcfPlan),
             )
           else
             _NextPromptCard(

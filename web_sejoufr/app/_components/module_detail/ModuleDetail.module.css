@@ -355,9 +355,8 @@
   }
 }
 
-/* Sous la barre du haut de l'espace connecté : `--app-bar-gap` (globals.css). */
-@media (max-width: 900px) {
-  :global(.app-shell--has-drawer) .root {
-    padding-top: var(--app-bar-gap);
-  }
+/* Dans le shell connecté, la marge haute est celle du contenu du shell
+   (`AppShell`, maquette « Navigation v2 ») : l'écran n'en ajoute pas. */
+:global(.app-shell) .root {
+  padding-top: 0;
 }

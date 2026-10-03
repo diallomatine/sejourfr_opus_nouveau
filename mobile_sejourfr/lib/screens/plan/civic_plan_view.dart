@@ -94,11 +94,11 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// [civicPlanProvider] : il vivait en `initState` + `setState`, donc chaque
   /// bascule de parcours démontait cette vue, jetait le plan et **rappelait
   /// `/api/me/civic-plan`** — pour une réponse identique. Le provider est
-  /// **maintenu vivant par `PlanScreen`**, qui observe les deux parcours : la
+  /// **maintenu vivant par `PlanBody`**, qui observe les deux parcours : la
   /// bascule ne coûte plus aucun appel.
   String? _enCours;
   /// Le tiré-pour-rafraîchir, seul point qui redemande le plan — avec le retour
-  /// d'un entraînement joué au-dessus (`PlanScreen.didPopNext`).
+  /// d'un entraînement joué au-dessus (`PlanBody.didPopNext`).
   /// Même relecture que le tiré du Plan TCF : le plan civique ET son cycle
   /// ensemble. Best-effort — les erreurs sont avalées, l'onglet reste sobre.
   Future<void> _load() => relireSourcesDuCompte(ref);
@@ -130,9 +130,10 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     if (async.isLoading && !async.hasValue) {
       return ListView(
         children: const [
-          SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
           SizedBox(height: 40),
-          Center(child: CircularProgressIndicator(color: AppColors.blue)),
+          Center(
+            child: CircularProgressIndicator(color: AppColors.moduleCivique),
+          ),
         ],
       );
     }
@@ -144,8 +145,20 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     // l'en-tête seul — donc la bascule vers l'autre parcours.
     if (plan == null) {
       return ListView(
-        children: const [
-          SfTop(kicker: kCivicPlanTopKicker, title: kCivicPlanScreenTitle),
+        children: [
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: SfNoteCard(
+              icon: LucideIcons.cloudOff,
+              title: kPlanErrorTitle,
+              child: SfButton(
+                label: kPlanErrorRetry,
+                variant: SfButtonVariant.line,
+                onPressed: () => ref.invalidate(civicPlanProvider),
+              ),
+            ),
+          ),
         ],
       );
     }
@@ -154,7 +167,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
 
     final liste = RefreshIndicator(
-      color: AppColors.blue,
+      color: AppColors.moduleCivique,
       onRefresh: _load,
       child: ListView(children: _ecran(plan, free: free)),
     );
@@ -189,10 +202,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     final parcours = ref.watch(journeyCiviqueProvider).valueOrNull;
     final objectif = parcours?.objectif;
     return <Widget>[
-      SfTop(
-        kicker: free ? kCivicPlanTopKickerFree : kCivicPlanTopKicker,
-        title: kCivicPlanScreenTitle,
-      ),
       const SizedBox(height: 14),
 
       // 🛑 LA BANDE OBJECTIF (D-50 §1) : la démarche visée et le seuil, deux
@@ -269,7 +278,8 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
             iconColor: AppColors.muted,
             title: kJourneyHistoryTitle,
             sub: journeyHistorySub(AppModule.civique),
-            onTap: () => context.push(AppRoutes.planProgress),
+            onTap: () =>
+                context.push(AppRoutes.planProgressPath(civique: true)),
           ),
           // 🛑 **Seulement s'il y a un diagnostic civique CLOS à relire** :
           // le diagnostic n'est plus proposé sur le Plan.

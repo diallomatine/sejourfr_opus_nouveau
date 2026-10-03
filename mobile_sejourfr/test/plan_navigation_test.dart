@@ -1,18 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
+import 'package:sejourfr_mobile/core/router/shell_navigation.dart';
 import 'package:sejourfr_mobile/screens/shell/main_shell.dart';
 
 void main() {
-  // ⚠️ Ce test gelait « le QUATRIÈME onglet ouvre Plan ». Le rang n'est pas le
-  // contrat — le propriétaire a réordonné la barre le 2026-09-12 (Plan en 2ᵉ).
-  // Ce qui doit tenir : le Plan a son onglet, il pointe sur le plan serveur, et
-  // les écrans de progression n'y sont pas (ils s'ouvrent depuis le Profil et
-  // l'Accueil — l'ancien écran Progrès `/progress` est supprimé le 2026-09-24).
-  test('le Plan a son onglet et la progression reste secondaire', () {
-    expect(mainShellDestinations, hasLength(5));
-    final plan = mainShellDestinations
-        .singleWhere((destination) => destination.label == 'Plan');
-    expect(plan.route, AppRoutes.plan);
+  // ⚠️ Navigation v2 (2026-10-03) : la barre passe à 4 onglets — Accueil ·
+  // TCF · Civique · Profil. Le Plan n'a plus d'onglet à lui : c'est le
+  // segment par défaut de chaque onglet de module. Ce qui doit tenir : les
+  // onglets de module ouvrent leur segment Plan, et les écrans de progression
+  // ne sont pas des onglets (on les ouvre depuis la carte « Ma progression »).
+  test('les onglets de module ouvrent leur Plan, la progression reste secondaire',
+      () {
+    expect(mainShellDestinations, hasLength(4));
+    final tcf = mainShellDestinations
+        .singleWhere((destination) => destination.branche == ShellBranch.tcf);
+    expect(tcf.route, AppRoutes.tcfPlan);
+    final civique = mainShellDestinations
+        .singleWhere((destination) => destination.branche == ShellBranch.civique);
+    expect(civique.route, AppRoutes.civiquePlan);
     expect(
       mainShellDestinations.map((destination) => destination.route),
       isNot(contains(AppRoutes.progressionTcf)),

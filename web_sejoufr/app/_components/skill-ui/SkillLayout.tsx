@@ -59,10 +59,9 @@ import s from "./skill.module.css";
  * - sinon, le lien de retour historique, gardé pour les écrans d'appoint
  *   (modèles corrigés, historique).
  *
- * Sous 900 px dans le shell connecté : le titre de parcours monte dans la barre
- * (titre + `meta`, `useAppBarTitle`) — miroir du `ScreenHeader` Flutter. 🛑 La
- * barre garde le BURGER (propriétaire, 2026-09-24) : la flèche de retour reste
- * dans la page.
+ * Dans le shell connecté, le titre de parcours nomme la page du fil d'Ariane
+ * de la barre du haut (`useAppBarTitle`) ; l'en-tête de la page reste. La
+ * flèche de retour reste dans la page.
  */
 export function SkillShell({
   backHref,
@@ -107,7 +106,7 @@ export function SkillShell({
   hideBack?: boolean;
   children: ReactNode;
 }) {
-  const titleInBar = useAppBarTitle(title ? {title, subtitle: meta ?? eyebrow} : null);
+  useAppBarTitle(title ? {title} : null);
   return (
     <main className={`${s.wrap} ${wide ? s.wrapWide : ""}`}>
       {title ? (
@@ -115,7 +114,7 @@ export function SkillShell({
           <Link href={backHref} className={s.backDot} aria-label={backLabel}>
             <ArrowLeft size={18} aria-hidden />
           </Link>
-          <div className={`${s.pageHeadBody}${titleInBar ? " in-bar-title" : ""}`}>
+          <div className={s.pageHeadBody}>
             {eyebrow && <p className={s.pageEyebrow}>{eyebrow}</p>}
             <h1 className={s.pageTitle}>{title}</h1>
             {meta && <p className={s.pageMeta}>{meta}</p>}

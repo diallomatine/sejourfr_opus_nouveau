@@ -256,7 +256,7 @@ class _CivicDiagnosticScreenState extends ConsumerState<CivicDiagnosticScreen> {
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         SfTop(
-          onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
+          onBack: () => retourOuRepli(context, repli: AppRoutes.civiquePlan),
           kicker: kCivicIntroKicker,
           title: kCivicIntroTitle,
           badges: _invite ? const [kCivicDiagnosticGuestBadge] : const [],

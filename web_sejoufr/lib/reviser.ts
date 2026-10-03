@@ -321,6 +321,45 @@ export function epreuveRatio(stat: DashboardCategoryStat): number {
     return clamp01(stat.seriesDone / stat.seriesTotal);
 }
 
+/**
+ * **L'avancement du parcours civique, en séries** — la fonction UNIQUE du web
+ * (X4-A, Navigation v2, brief §6). Miroir exact :
+ * `avancementSeriesCivique` de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.
+ *
+ * `pourcentage = floor(Σ seriesDone / Σ seriesTotal × 100)`, sur les thèmes
+ * servis par `GET /api/me/dashboard` (`DashboardSummaryResponse.civique`).
+ *
+ * - Une série **terminée** = au moins un passage fini, quel que soit le score
+ *   (D5-A amendé) ; le total compte **toutes** les séries du thème,
+ *   verrouillées comprises, toutes mentions confondues (X4 : les lots civiques
+ *   ne sont pas filtrés par mention côté serveur). Les deux compteurs sont
+ *   servis, rien n'est recompté ici.
+ * - `floor` : jamais 100 % tant qu'il reste une série. Total nul ⇒ 0 %.
+ *
+ * 🛑 **Ce n'est pas une note ni un état** : c'est une couverture, comme
+ * `epreuveRatio`. Aucun écran ne la classe en niveau ni en ton.
+ * Restreinte à un thème, passer `[stat]`.
+ */
+export interface AvancementSeriesCivique {
+    pourcentage: number;
+    terminees: number;
+    total: number;
+}
+
+export function avancementSeriesCivique(
+    themes: readonly DashboardCategoryStat[],
+): AvancementSeriesCivique {
+    let terminees = 0;
+    let total = 0;
+    for (const theme of themes) {
+        terminees += theme.seriesDone < 0 ? 0 : theme.seriesDone;
+        total += theme.seriesTotal < 0 ? 0 : theme.seriesTotal;
+    }
+    if (total <= 0) return {pourcentage: 0, terminees, total: 0};
+    const faites = terminees > total ? total : terminees;
+    return {pourcentage: Math.floor((faites * 100) / total), terminees: faites, total};
+}
+
 function clamp01(value: number): number {
     if (!Number.isFinite(value)) return 0;
     return Math.max(0, Math.min(1, value));

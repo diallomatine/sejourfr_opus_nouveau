@@ -116,6 +116,12 @@
   --sf-radius-md: 16px;
   --sf-radius-lg: 20px;
   --sf-radius-xl: 24px;
+  /* Rayons de la maquette « Navigation v2 » (cartes, blocs de module, héros)
+     qui dépassent l'échelle du kit. */
+  --sf-radius-2xl: 22px;
+  --sf-radius-3xl: 26px;
+  --sf-radius-4xl: 28px;
+  --sf-radius-5xl: 30px;
   --sf-radius-pill: 999px;
 
   --sf-shadow-border:
@@ -131,12 +137,83 @@
   --sf-quick: 150ms;
   --sf-fast: 250ms;
 
-  /* 🛑 **L'écart entre la barre du haut (`AppTopBar`, ≤ 900 px) et le premier
-     élément d'un écran connecté** (demande du propriétaire, 2026-09-24 :
-     « baisser la distance, partout »). UNE valeur, lue par chaque conteneur
-     d'écran dans sa media query `≤ 900 px` scopée `.app-shell--has-drawer`.
-     Desktop : aucune barre, les conteneurs gardent leur respiration. */
-  --app-bar-gap: 14px;
+  /* Ombres de la maquette « Navigation v2 », teintées à l'encre. */
+  --sf-shadow-card: 0 16px 42px color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --sf-shadow-card-sm: 0 8px 22px color-mix(in srgb, var(--color-ink) 5.5%, transparent);
+  --sf-shadow-hover: 0 22px 54px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  --sf-shadow-nav-active: 0 8px 18px color-mix(in srgb, var(--color-ink) 11%, transparent);
+  --sf-shadow-module-icon: 0 8px 16px color-mix(in srgb, var(--color-ink) 18%, transparent);
+  --sf-shadow-drawer: 0 30px 80px color-mix(in srgb, var(--color-ink) 22%, transparent);
+
+  /* ==========================================================================
+     🛑 COULEURS DE MODULE — TCF = bleu, Examen civique = rouge (X1-A,
+     Navigation v2, 2026-10-03).
+
+     L'inversion de l'ancien code (TCF rouge, civique bleu) est centralisée ICI :
+     un composant qui colore un MODULE lit `--color-module-tcf*` /
+     `--color-module-civique*`, jamais `--color-blue` / `--color-red` en dur.
+     Un rouge de CTA critique ou d'alerte garde `--color-red` : c'est une autre
+     sémantique. Miroir Flutter : `AppColors.moduleTcf*` / `moduleCivique*`.
+     ========================================================================== */
+  --color-module-tcf: var(--color-blue);
+  --color-module-tcf-dark: var(--color-blue-dark);
+  --color-module-tcf-light: var(--color-blue-light);
+  /* Fond du bloc de module de la barre latérale, et son filet. */
+  --color-module-tcf-bg: color-mix(in srgb, var(--color-blue-light) 55%, var(--color-white));
+  --color-module-tcf-border: color-mix(in srgb, var(--color-blue) 12%, var(--color-blue-light));
+  /* Rail et traits de l'escalier du bloc de module. */
+  --color-module-tcf-rail: color-mix(in srgb, var(--color-blue) 18%, transparent);
+  --color-module-civique: var(--color-red);
+  --color-module-civique-dark: var(--color-red-dark);
+  --color-module-civique-light: var(--color-red-light);
+  --color-module-civique-bg: color-mix(in srgb, var(--color-red-light) 55%, var(--color-white));
+  --color-module-civique-border: color-mix(in srgb, var(--color-red) 14%, var(--color-red-light));
+  --color-module-civique-rail: color-mix(in srgb, var(--color-red) 24%, transparent);
+
+  /* Dégradés de module : sombre → marque (héros, cartes objectif, icône du
+     bloc de module). */
+  --gradient-module-tcf: linear-gradient(150deg, var(--color-module-tcf-dark), var(--color-module-tcf));
+  --gradient-module-civique: linear-gradient(
+    150deg,
+    var(--color-module-civique-dark),
+    var(--color-module-civique)
+  );
+  /* Ombres teintées par la couleur du module (CTA, héros). */
+  --sf-shadow-module-tcf: 0 12px 26px color-mix(in srgb, var(--color-module-tcf) 25%, transparent);
+  --sf-shadow-module-civique: 0 12px 26px color-mix(in srgb, var(--color-module-civique) 25%, transparent);
+  --sf-shadow-hero-tcf: 0 18px 42px color-mix(in srgb, var(--color-module-tcf-dark) 22%, transparent);
+  --sf-shadow-hero-civique: 0 18px 42px color-mix(in srgb, var(--color-module-civique-dark) 22%, transparent);
+
+  /* Carte « conseil » (`tip-card`) : fond et filet dérivés de l'ambre. */
+  --gradient-tip: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-amber-light) 70%, var(--color-white)),
+    var(--color-amber-light)
+  );
+  --color-tip-border: var(--color-amber-border);
+
+  /* Pastille d'avatar (initiales) : bleu France → bleu éclairci. */
+  --gradient-avatar: linear-gradient(
+    145deg,
+    var(--color-blue),
+    color-mix(in srgb, var(--color-blue) 55%, var(--color-white))
+  );
+
+  /* Texte d'une entrée de navigation au repos (entre l'encre et le gris). */
+  --color-nav-ink: color-mix(in srgb, var(--color-ink-2) 62%, var(--color-muted));
+
+  /* Shell connecté (maquette « Navigation v2 ») : largeur de la barre
+     latérale, plafond du contenu, et hauteur de la barre du haut sticky —
+     lue par un élément `sticky` d'écran pour se poser SOUS elle. */
+  --shell-sidebar-w: 292px;
+  --shell-content-max: 1240px;
+  --shell-topbar-h: 75px;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --shell-topbar-h: 71px;
+  }
 }
 
 /* ============================================================================
@@ -565,221 +642,12 @@ a {
 }
 
 /* ============================================================================
-   Barre du haut + tiroir de l'espace connecté — voir AppTopBar.tsx
+   Shell de l'espace connecté (Navigation v2) — voir `_components/shell/`
    ============================================================================ */
-/* Sous 900 px : le pendant de l'en-tête Flutter (`ScreenHeader`) — fond papier
-   translucide flouté, filet bas, titre Fraunces. Sticky EN TÊTE de la colonne
-   de contenu : elle prend sa place dans le flux, aucune page ne compense.
-   z-index 60 : au-dessus du contenu, sous l'overlay (80), le tiroir (90) et
-   les feuilles / modales (≥ 100). */
-.atb {
-  display: none;
-  position: sticky;
-  top: 0;
-  z-index: 60;
-  align-items: center;
-  gap: 10px;
-  min-height: calc(56px + env(safe-area-inset-top, 0px));
-  padding: env(safe-area-inset-top, 0px) 16px 0 12px;
-  background: color-mix(in srgb, var(--color-paper) 88%, transparent);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--color-line-2);
-  transition: box-shadow 0.18s, border-color 0.18s;
-}
-.atb.is-scrolled {
-  border-bottom-color: var(--color-line);
-  box-shadow: 0 8px 20px -16px color-mix(in srgb, var(--color-ink) 45%, transparent);
-}
-.atb-burger {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: white;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  color: var(--color-ink);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s, border-color 0.15s;
-}
-.atb-burger:hover {
-  background: var(--color-blue-soft);
-  border-color: var(--color-blue);
-}
-.atb-burger:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 2px;
-}
-.atb-titles {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.atb-title {
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  color: var(--color-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.atb-sub {
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  line-height: 1.3;
-  color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* La flèche de retour d'un sous-écran vit dans la barre du haut du shell
+   (`useAppBarBack`), à toutes les largeurs : le lien de retour de la page
+   s'efface dès qu'elle est là. Visiteur (pas de shell) : il reste. */
+.app-shell .in-bar-back { display: none !important; }
 
-.ms-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 24, 57, 0.5);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  z-index: 80;
-  animation: ms-overlay-in 0.18s ease-out;
-  /* Empêche le scroll/geste sur l'overlay de défiler la page derrière. */
-  overscroll-behavior: contain;
-  touch-action: none;
-}
-@keyframes ms-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.ms-drawer {
-  display: none;
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: min(86vw, 300px);
-  background: #fff;
-  z-index: 90;
-  transform: translateX(-100%);
-  transition: transform 0.22s ease-out;
-  box-shadow: 18px 0 40px -20px rgba(15, 24, 57, 0.35);
-  flex-direction: column;
-}
-.ms-drawer.is-open {
-  transform: translateX(0);
-}
-.ms-drawer-inner {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.ms-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 1;
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--color-line);
-  border-radius: 10px;
-  color: var(--color-ink);
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s, color 0.15s;
-}
-.ms-close:hover {
-  background: var(--color-red-light);
-  color: var(--color-red);
-  border-color: var(--color-red);
-}
-
-/* Override de l'AppSidebar quand elle est rendue à l'intérieur du drawer
-   mobile : on veut retrouver l'affichage vertical complet (et pas la barre
-   horizontale scrollable que l'AppSidebar applique elle-même sous 900px). */
-.ms-drawer-inner .app-sidebar {
-  position: static;
-  height: 100%;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 22px 16px 16px;
-  border-right: none;
-  border-bottom: none;
-  gap: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Le scroll interne du drawer ne doit pas "chaîner" vers la page derrière
-     quand on atteint le haut/bas (scroll bleed mobile). */
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-.ms-drawer-inner .app-brand {
-  border-bottom: 1px solid var(--color-line-2);
-  padding: 6px 8px 22px;
-  margin: 0 0 20px;
-  flex-shrink: 0;
-}
-.ms-drawer-inner .app-nav {
-  flex-direction: column;
-  gap: 0;
-  overflow: visible;
-}
-.ms-drawer-inner .nav-item {
-  padding: 10px 11px;
-  font-size: 14px;
-  white-space: normal;
-  margin-bottom: 2px;
-}
-.ms-drawer-inner .nav-label { display: block; }
-.ms-drawer-inner .app-sidebar-foot {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-line-2);
-  flex-shrink: 0;
-  flex-direction: column;
-}
-.ms-drawer-inner .streak-card { display: flex; }
-.ms-drawer-inner .user-mini { padding: 8px; }
-.ms-drawer-inner .user-info { display: flex; }
-
-@media (max-width: 900px) {
-  .atb { display: flex; }
-  /* Le lien de retour d'un sous-écran : la flèche de la barre le remplace
-     (`useAppBarBack`). Desktop et visiteur : il reste. */
-  .app-shell--has-drawer .in-bar-back { display: none !important; }
-  /* L'en-tête de page monté dans la barre (`useAppBarTitle`) : effacé à
-     l'œil, il reste le `<h1>` des lecteurs d'écran. */
-  .app-shell--has-drawer .in-bar-title {
-    position: absolute !important;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
-  /* Une ancre (#section) ne s'arrête pas sous la barre sticky. */
-  html:has(.app-shell--has-drawer) { scroll-padding-top: 64px; }
-  .ms-overlay { display: block; }
-  .ms-drawer { display: flex; }
-
-  /* Masque la version "horizontale" de l'AppSidebar quand le shell utilise
-     le drawer mobile (classe ajoutée par AppGroupLayout / DualChromeShell). */
-  .app-shell--has-drawer > .app-sidebar { display: none; }
-}
+/* Une ancre (#section) ne s'arrête pas sous la barre sticky. */
+html:has(.app-shell) { scroll-padding-top: calc(var(--shell-topbar-h) + 12px); }

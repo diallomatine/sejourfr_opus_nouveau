@@ -41,20 +41,6 @@ export '../../core/utils/tcf_epreuves.dart'
         kTcfComplementaireSectionTitle,
         kTcfEpreuvesOfficielles;
 
-/* ------------------------------------------------------------------ En-tête */
-
-const String kReviserTitle = 'Réviser';
-
-const String kReviserSubtitleTcf =
-    'Le test linguistique exigé pour la résidence et la naturalisation.';
-
-const String kReviserSubtitleCivique =
-    'Les thèmes officiels de l\'Examen civique, travaillés notion par notion.';
-
-String reviserSubtitle(AppModule module) => module == AppModule.tcf
-    ? kReviserSubtitleTcf
-    : kReviserSubtitleCivique;
-
 /// « Les 4 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**.
 String reviserSectionTitle(AppModule module, int count) =>
     module == AppModule.tcf ? 'Les $count épreuves' : 'Les $count thèmes';
@@ -289,6 +275,40 @@ double epreuveRatio(DashboardCategoryStat stat) {
   }
   if (stat.seriesTotal <= 0) return 0;
   return _clamp01(stat.seriesDone / stat.seriesTotal);
+}
+
+/// **L'avancement du parcours civique, en séries** — la fonction UNIQUE du
+/// mobile (Navigation v2, brief §6). Miroir exact côté web :
+/// `avancementSeriesCivique` (`web_sejoufr/lib/reviser.ts`).
+///
+/// `pourcentage = floor(Σ seriesDone / Σ seriesTotal × 100)`, sur les thèmes
+/// servis par `GET /api/me/dashboard` (`DashboardSummary.civique`).
+///
+/// - Une série **terminée** = au moins un passage fini, quel que soit le score
+///   (`LotService`, D5-A amendé) ; le total compte **toutes** les séries du
+///   thème, verrouillées comprises, toutes mentions confondues (X4 : les lots
+///   civiques ne sont pas filtrés par mention côté serveur).
+/// - `floor` : jamais 100 % tant qu'il reste une série. Total nul ⇒ 0 %.
+///
+/// 🛑 **Ce n'est pas une note ni un état** : c'est une couverture, comme
+/// [epreuveRatio]. Aucun écran ne la classe en niveau ni en ton.
+/// Restreinte à un thème, passer `[stat]`.
+({int pourcentage, int terminees, int total}) avancementSeriesCivique(
+  Iterable<DashboardCategoryStat> themes,
+) {
+  var terminees = 0;
+  var total = 0;
+  for (final theme in themes) {
+    terminees += theme.seriesDone < 0 ? 0 : theme.seriesDone;
+    total += theme.seriesTotal < 0 ? 0 : theme.seriesTotal;
+  }
+  if (total <= 0) return (pourcentage: 0, terminees: terminees, total: 0);
+  final faites = terminees > total ? total : terminees;
+  return (
+    pourcentage: (faites * 100) ~/ total,
+    terminees: faites,
+    total: total,
+  );
 }
 
 double _clamp01(double value) {

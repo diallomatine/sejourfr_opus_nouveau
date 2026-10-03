@@ -21,6 +21,7 @@ import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../favoris/favoris_labels.dart';
 import 'account_labels.dart';
+import '../../core/router/shell_navigation.dart';
 
 /// Statut d'abonnement pour la carte « Mon pass » du profil.
 ///
@@ -163,7 +164,7 @@ class ProfileScreen extends ConsumerWidget {
                         icon: LucideIcons.chartColumn,
                         title: 'Ma progression',
                         sub: 'Maîtrise par parcours et niveau estimé',
-                        onTap: () => context.push(AppRoutes.progressionTcf),
+                        onTap: () => pousserOuAller(context, AppRoutes.progressionTcf),
                       ),
                       ListRow(
                         icon: LucideIcons.bookmark,

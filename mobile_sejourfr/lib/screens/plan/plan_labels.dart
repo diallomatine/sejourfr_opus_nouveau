@@ -408,23 +408,6 @@ const String kPlanSerieNote =
 
 /* --------------------------------------------- l'écran « Mon plan » (kit)   */
 
-/// Le kicker de l'en-tête d'un compte **abonné**. L'objectif est nullable et le
-/// reste : sans démarche déclarée, la phrase ne nomme aucun palier plutôt que
-/// d'en inventer un.
-String planTopKicker(TargetLevel? objective) => objective == null
-    ? 'Votre parcours personnalisé'
-    : 'Votre parcours personnalisé vers le ${objective.wire}';
-
-/// Le kicker d'un compte **sans accès**. 🛑 Il ne dit plus « créé à partir de
-/// votre diagnostic » : depuis D-69, le Plan existe sans diagnostic.
-const String kPlanTopKickerFree = 'Votre parcours personnalisé';
-
-const String kPlanTitle = 'Mon plan du jour';
-
-/// Le titre d'un compte sans accès nomme le palier visé quand il est connu.
-String planTitleFree(TargetLevel? objective) =>
-    objective == null ? kPlanTitle : '$kPlanTitle ${objective.wire}';
-
 /// Le palier de repli du bandeau d'objectif. *null = inconnu, jamais mauvais* :
 /// on n'écrit ni A1 ni B2 par défaut.
 const String kPlanGoalUnknown = '—';

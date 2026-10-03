@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SejourFR — Espace premium</title>
+<style>
+:root{
+  --bg:#F7F8FC;
+  --surface:#FFFFFF;
+  --surface-2:#F1F4FA;
+  --ink:#0E1738;
+  --muted:#727B9C;
+  --line:#E6E9F2;
+  --blue:#27449B;
+  --blue-dark:#1B337F;
+  --blue-soft:#EEF2FF;
+  --red:#D94B40;
+  --red-soft:#FFF1EF;
+  --green:#2F9A69;
+  --green-soft:#E9F6F0;
+  --amber:#A87A22;
+  --amber-soft:#FBF4E4;
+  --shadow:0 16px 42px rgba(20,31,72,.08);
+  --shadow-sm:0 8px 22px rgba(20,31,72,.055);
+  --shadow-hover:0 22px 54px rgba(20,31,72,.12);
+  --radius-xl:28px;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --sidebar-w:292px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(1100px 520px at 85% -10%,rgba(39,68,155,.07),transparent 60%),
+    radial-gradient(900px 480px at -10% 110%,rgba(217,75,64,.05),transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Inter,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit}
+h1,h2,h3,p{margin:0}
+h1{font-size:32px;line-height:1.05;letter-spacing:-1px}
+h2{font-size:21px;line-height:1.15;letter-spacing:-.4px}
+h3{font-size:17px;line-height:1.25}
+.subtitle{font-size:15px;line-height:1.5;color:var(--muted);margin-top:8px;max-width:560px}
+
+/* ============ SHELL ============ */
+.shell{display:flex;min-height:100vh}
+
+/* ============ SIDEBAR ============ */
+.sidebar{
+  width:var(--sidebar-w);flex:0 0 auto;
+  position:sticky;top:0;height:100vh;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(16px);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  padding:26px 14px 14px;
+  z-index:30;
+}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px}
+.brand-mark{
+  width:44px;height:44px;border-radius:14px;flex:0 0 auto;
+  background:linear-gradient(150deg,#182758,#2B4AA2);
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 10px 22px rgba(25,44,101,.25);
+}
+.brand-mark svg{width:24px;height:24px;stroke:#fff;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.brand-name{font-size:19px;font-weight:900;letter-spacing:-.4px}
+.brand-name span{color:var(--blue)}
+.brand-tag{font-size:11px;color:var(--muted);font-weight:700;margin-top:1px}
+
+.nav{flex:1;overflow-y:auto;margin-top:26px;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-group{margin-bottom:22px}
+.nav-label{
+  display:flex;align-items:center;gap:8px;
+  padding:0 12px;margin-bottom:8px;
+  font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.9px;
+  color:var(--muted);
+}
+.nav-label .pill{width:8px;height:8px;border-radius:3px}
+.nav-label .pill.blue{background:var(--blue)}
+.nav-label .pill.red{background:var(--red)}
+.nav-item{
+  width:100%;border:0;background:transparent;cursor:pointer;
+  display:flex;align-items:center;gap:11px;
+  padding:10.5px 12px;border-radius:14px;margin-bottom:2px;
+  color:#4C557A;font-size:14.5px;font-weight:750;text-align:left;
+  transition:background .15s ease,color .15s ease;
+  position:relative;
+}
+.nav-item svg{width:21px;height:21px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.nav-item:hover{background:#F0F2F9;color:var(--ink)}
+.nav-item.active{background:var(--surface-2);color:var(--ink);font-weight:850}
+.nav-item.active::before{
+  content:"";position:absolute;left:-18px;top:50%;transform:translateY(-50%);
+  width:4px;height:22px;border-radius:0 4px 4px 0;background:var(--ink);
+}
+.nav-item.blue.active{background:var(--blue-soft);color:var(--blue)}
+.nav-item.blue.active::before{background:var(--blue)}
+.nav-item.red.active{background:var(--red-soft);color:var(--red)}
+.nav-item.red.active::before{background:var(--red)}
+.nav-item .tail{margin-left:auto;font-size:11px;font-weight:900;color:var(--muted)}
+.nav-item.blue.active .tail{color:var(--blue)}
+.nav-item.red.active .tail{color:var(--red)}
+
+.side-user{
+  border:1px solid var(--line);border-radius:20px;background:#fff;
+  box-shadow:var(--shadow-sm);padding:13px;display:flex;align-items:center;gap:11px;
+}
+.side-avatar{
+  width:42px;height:42px;border-radius:13px;flex:0 0 auto;
+  background:linear-gradient(145deg,#244292,#7188CF);
+  display:grid;place-items:center;color:#fff;font-weight:900;font-size:15px;
+}
+.side-user .name{font-size:14px;font-weight:850}
+.side-user .plan{font-size:11.5px;color:var(--muted);margin-top:2px}
+.side-user .plan b{color:var(--amber)}
+
+/* ============ MAIN / TOPBAR ============ */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:20;
+  background:rgba(247,248,252,.85);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(230,233,242,.8);
+  padding:16px 44px;
+  display:flex;align-items:center;gap:18px;
+}
+.crumb{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:750;color:var(--muted)}
+.crumb .sep{color:#B7BDD2}
+.crumb .here{color:var(--ink);font-weight:850}
+.crumb .here.blue{color:var(--blue)}
+.crumb .here.red{color:var(--red)}
+.topbar .spacer{flex:1}
+.search{
+  display:flex;align-items:center;gap:9px;
+  background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:9px 15px;width:250px;color:var(--muted);
+  box-shadow:var(--shadow-sm);
+}
+.search svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.search input{border:0;outline:0;background:none;font:inherit;font-size:13.5px;width:100%;color:var(--ink)}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:9px 14px;font-size:13px;font-weight:800;color:var(--ink);
+  box-shadow:var(--shadow-sm);white-space:nowrap;
+}
+.chip svg{width:16px;height:16px;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.chip.streak svg{stroke:var(--amber)}
+.chip.streak b{color:var(--amber)}
+.top-avatar{
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(145deg,#244292,#7188CF);
+  display:grid;place-items:center;color:#fff;font-weight:900;font-size:14px;
+  border:2px solid #fff;box-shadow:var(--shadow-sm);cursor:pointer;
+}
+
+.content{flex:1;padding:36px 44px 64px;max-width:1240px;width:100%;margin:0 auto}
+.screen{display:none}
+.screen.active{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============ TYPO / COMMON ============ */
+.kicker{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 12px;border-radius:999px;
+  color:#2B438A;background:#EAF0FF;
+  font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.7px
+}
+.kicker.red{background:var(--red-soft);color:#B53C33}
+.label{
+  font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--muted);font-weight:850
+}
+.meta{font-size:13.5px;color:var(--muted);line-height:1.4;margin-top:4px}
+.micro{font-size:12px;color:var(--muted);line-height:1.35}
+.green{color:var(--green)}
+.amber{color:var(--amber)}
+.redtxt{color:var(--red)}
+.blue-text{color:var(--blue)}
+.red-text{color:var(--red)}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.page-head h1{margin-top:12px}
+.head-chips{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:34px 2px 15px;
+}
+.section-head h2{font-size:20px}
+.text-link{
+  border:0;background:none;padding:0;color:var(--blue);
+  font-size:13.5px;font-weight:800;cursor:pointer
+}
+.text-link.red-link{color:var(--red)}
+
+.card{
+  background:var(--surface);
+  border:1px solid rgba(225,229,239,.9);
+  border-radius:var(--radius-xl);
+  box-shadow:var(--shadow-sm);
+}
+.card-pad{padding:22px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.gap-12{gap:12px}
+.grow{flex:1;min-width:0}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.split{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(280px,1fr);gap:20px;align-items:start}
+
+.iconbox{
+  width:52px;height:52px;border-radius:16px;
+  display:grid;place-items:center;flex:0 0 auto;
+}
+.iconbox.blue{background:var(--blue);color:#fff}
+.iconbox.red{background:var(--red);color:#fff}
+.iconbox.soft{background:#F1F4FB;color:var(--blue)}
+.iconbox.soft-red{background:var(--red-soft);color:var(--red)}
+.iconbox svg{width:25px;height:25px;stroke:currentColor;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.cta{
+  border:0;height:50px;border-radius:15px;padding:0 22px;
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  color:#fff;font-weight:850;font-size:14.5px;cursor:pointer;
+  transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
+}
+.cta:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.cta.blue{background:var(--blue);box-shadow:0 12px 26px rgba(39,68,155,.25)}
+.cta.red{background:var(--red);box-shadow:0 12px 26px rgba(217,75,64,.25)}
+.cta.soft{background:#EFF2F8;color:var(--ink);box-shadow:none}
+.cta.ghost-blue{background:var(--blue-soft);color:var(--blue);box-shadow:none}
+.cta.ghost-red{background:var(--red-soft);color:var(--red);box-shadow:none}
+.cta.block{width:100%;margin-top:16px}
+.cta svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:26px;padding:0 9px;border-radius:999px;
+  font-size:11px;font-weight:900;letter-spacing:.3px;
+  background:var(--blue-soft);color:var(--blue)
+}
+.badge.red{background:var(--red-soft);color:var(--red)}
+.badge.green{background:var(--green-soft);color:var(--green)}
+.badge.amber{background:var(--amber-soft);color:var(--amber)}
+
+.progress{
+  height:8px;background:#E8EBF3;border-radius:999px;overflow:hidden;margin-top:13px
+}
+.progress > span{display:block;height:100%;border-radius:999px;background:var(--blue)}
+.progress.red > span{background:var(--red)}
+.progress.white{background:rgba(255,255,255,.24)}
+.progress.white > span{background:#fff}
+
+.ring{
+  --p:50;
+  width:52px;height:52px;border-radius:50%;
+  background:conic-gradient(var(--blue) calc(var(--p)*1%),#E8EBF3 0);
+  position:relative;flex:0 0 auto
+}
+.ring.red{background:conic-gradient(var(--red) calc(var(--p)*1%),#F4E9E7 0)}
+.ring::after{content:"";position:absolute;inset:6px;background:white;border-radius:50%}
+.ring .val{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-size:11px;font-weight:900;z-index:1;color:var(--ink)
+}
+
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;background:var(--green)}
+.dot.amber{background:var(--amber)}
+.dot.red{background:var(--red)}
+
+.chev{color:#A2A9C1}
+.chev svg{width:18px;height:18px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.hoverable{transition:transform .18s ease,box-shadow .18s ease}
+.hoverable:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+.clickable{cursor:pointer}
+</style>
+<style>
+/* ============ HERO / OBJECTIVE CARDS ============ */
+.hero{
+  padding:26px;border-radius:30px;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(150deg,#182758 0%,#2B4AA2 100%);
+  box-shadow:0 18px 42px rgba(25,44,101,.22);
+}
+.hero.red{background:linear-gradient(150deg,#B93E35 0%,#E05A4F 100%);box-shadow:0 18px 42px rgba(185,62,53,.22)}
+.hero::before{
+  content:"";position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.16),transparent);
+}
+.hero::after{
+  content:"";position:absolute;right:60px;bottom:-130px;width:240px;height:240px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.10),transparent);
+}
+.hero > *{position:relative;z-index:1}
+.hero .label{color:#D8E0FF}
+.hero.red .label{color:#FFE0DC}
+.hero-title{font-size:26px;line-height:1.06;letter-spacing:-.5px;margin-top:7px;font-weight:900}
+.hero-sub{font-size:13px;color:#DDE4FF;margin-top:8px}
+.hero.red .hero-sub{color:#FFE6E1}
+.hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.hero-stat{text-align:right;white-space:nowrap}
+.hero-stat strong{display:block;font-size:30px;line-height:1;font-weight:900}
+.hero-stat span{font-size:11px;color:#DDE4FF}
+.hero.red .hero-stat span{color:#FFE7E3}
+.hero-cta{
+  margin-top:18px;display:inline-flex;align-items:center;gap:9px;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);
+  color:#fff;border-radius:13px;padding:11px 16px;font-weight:850;font-size:13.5px;cursor:pointer;
+  transition:background .15s ease;
+}
+.hero-cta:hover{background:rgba(255,255,255,.22)}
+.hero-cta svg{width:16px;height:16px;stroke:#fff;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* Big objective cards on accueil */
+.obj-card{
+  border-radius:30px;padding:26px;color:#fff;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;min-height:280px;cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.obj-card:hover{transform:translateY(-4px)}
+.obj-card.blue{background:linear-gradient(155deg,#182758 0%,#2B4AA2 100%);box-shadow:0 20px 46px rgba(25,44,101,.26)}
+.obj-card.red{background:linear-gradient(155deg,#A83730 0%,#E05A4F 100%);box-shadow:0 20px 46px rgba(185,62,53,.26)}
+.obj-card::before{
+  content:"";position:absolute;right:-80px;top:-100px;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.15),transparent);
+}
+.obj-card > *{position:relative;z-index:1}
+.obj-top{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.obj-ic{
+  width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.22);display:grid;place-items:center;
+}
+.obj-ic svg{width:26px;height:26px;stroke:#fff;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.obj-pill{
+  padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.22);font-size:11px;font-weight:900;
+  text-transform:uppercase;letter-spacing:.7px;color:#fff;
+}
+.obj-title{font-size:24px;font-weight:900;letter-spacing:-.5px;margin-top:18px}
+.obj-desc{font-size:13.5px;color:rgba(255,255,255,.82);margin-top:6px;line-height:1.5}
+.obj-bottom{margin-top:auto;padding-top:20px}
+.obj-metrics{display:flex;gap:26px;margin-top:14px}
+.obj-metric strong{display:block;font-size:22px;font-weight:900}
+.obj-metric span{font-size:11.5px;color:rgba(255,255,255,.75)}
+
+/* Action cards */
+.action-card{padding:20px;display:flex;flex-direction:column;gap:16px}
+.action-top{display:flex;align-items:center;gap:14px}
+.action-copy{min-width:0;flex:1}
+.action-copy .label{margin-bottom:4px}
+.action-copy h3{font-size:18px}
+
+/* Metric tiles */
+.metric{
+  background:#fff;border:1px solid var(--line);
+  border-radius:24px;padding:20px;box-shadow:var(--shadow-sm);
+  display:flex;flex-direction:column;
+}
+.metric .big{font-size:30px;line-height:1;font-weight:900;margin-top:12px}
+.metric .state{font-size:12.5px;font-weight:750;margin-top:8px}
+
+/* Info rows */
+.info-card{
+  padding:16px 18px;display:flex;align-items:center;gap:14px;
+  border-radius:22px;background:#fff;border:1px solid var(--line);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.info-card.hoverable:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.info-copy{flex:1;min-width:0}
+
+/* Exam rows */
+.exam-row{
+  padding:15px 17px;display:flex;align-items:center;gap:15px;
+  border-radius:22px;background:#fff;border:1px solid var(--line);
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+.exam-row:not(.locked):hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:#C9D2EA}
+.exam-num{
+  width:48px;height:48px;border-radius:14px;background:var(--blue);color:#fff;
+  display:grid;place-items:center;font-size:19px;font-weight:900;flex:0 0 auto
+}
+.exam-num.red{background:var(--red)}
+.exam-num.ghost{background:#F2F4F9;color:var(--red)}
+.exam-status{
+  margin-left:auto;border-radius:999px;padding:8px 12px;
+  background:#F1F3F8;color:#697293;font-size:11.5px;font-weight:850;white-space:nowrap
+}
+.exam-status.go{background:var(--blue);color:#fff}
+.exam-status.go-red{background:var(--red);color:#fff}
+.exam-row.locked{opacity:.55}
+
+/* Level rows (progression) */
+.level-list{display:flex;flex-direction:column;gap:10px}
+.level-row{
+  display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:14px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:20px;background:#fff
+}
+.level-code{
+  width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
+  background:#F1F4FB;color:var(--blue);font-weight:900;font-size:13px
+}
+.level-code.red{background:var(--red-soft);color:var(--red)}
+.level-value{font-size:18px;font-weight:900}
+.level-state{font-size:12.5px;color:var(--muted);margin-top:2px}
+
+/* Timeline */
+.timeline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}
+.step{
+  min-width:40px;height:32px;border-radius:999px;background:#EDF0F6;
+  display:grid;place-items:center;padding:0 12px;font-size:12.5px;font-weight:850;color:#6B7495
+}
+.step.active{background:var(--blue);color:#fff}
+.step.active.red-active{background:var(--red)}
+.timeline .arrow{color:#A9B0C6;font-size:13px}
+
+/* Theme cards (civique réviser) */
+.theme-card{
+  padding:20px;border-radius:26px;background:#fff;border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:14px;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.theme-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+.theme-head{display:flex;align-items:center;gap:13px}
+.theme-card h3{font-size:16.5px}
+
+/* Stat strip */
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:26px}
+.stat-tile{
+  background:#fff;border:1px solid var(--line);border-radius:24px;
+  padding:18px 20px;box-shadow:var(--shadow-sm);
+  display:flex;align-items:center;gap:14px;
+}
+.stat-tile .num{font-size:24px;font-weight:900;line-height:1}
+.stat-tile .cap{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* Tip card */
+.tip-card{
+  border-radius:26px;padding:22px;
+  background:linear-gradient(150deg,#FBF6E9,#F7EFD9);
+  border:1px solid #EFE3C4;
+}
+.tip-card .label{color:var(--amber)}
+.tip-card p{font-size:13.5px;line-height:1.55;color:#6B5A2E;margin-top:8px}
+
+/* Profile */
+.profile-card{
+  display:flex;align-items:center;gap:20px;padding:26px;
+}
+.avatar{
+  width:78px;height:78px;border-radius:24px;flex:0 0 auto;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#244292,#7188CF);
+  color:#fff;font-weight:900;font-size:27px
+}
+
+/* Objectives mini list (accueil right column) */
+.objective-row{
+  width:100%;border:0;background:transparent;padding:16px 18px;
+  display:grid;grid-template-columns:50px 1fr auto;align-items:center;gap:13px;
+  text-align:left;color:var(--ink);cursor:pointer;border-radius:20px;
+  transition:background .15s ease;
+}
+.objective-row:hover{background:#F5F7FC}
+.objective-icon{width:50px;height:50px;border-radius:15px;display:grid;place-items:center}
+.objective-icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.blue-soft-icon{background:var(--blue-soft);color:var(--blue)}
+.red-soft-icon{background:var(--red-soft);color:var(--red)}
+.objective-copy{min-width:0}
+.objective-copy h3{margin-top:3px;font-size:16.5px}
+.objective-value{display:flex;align-items:center;gap:6px;color:var(--blue);white-space:nowrap}
+.objective-value strong{font-size:15px}
+.objective-value svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.objective-value.red-value{color:var(--red)}
+.objective-divider{height:1px;background:var(--line);margin:0 18px 0 80px}
+
+/* ============ SIDEBAR MODULES (univers TCF / Civique) ============ */
+.module{
+  border-radius:22px;padding:12px 8px;margin-bottom:18px;
+  border:1px solid transparent;
+}
+.module.blue-module{background:#EFF3FE;border-color:#DCE4FB}
+.module.red-module{background:#FFF4F1;border-color:#FBDEDA}
+.module-head{display:flex;align-items:center;gap:11px;padding:3px 8px 12px}
+.module-icon{
+  width:40px;height:40px;border-radius:13px;display:grid;place-items:center;flex:0 0 auto;
+  color:#fff;box-shadow:0 8px 16px rgba(20,31,72,.18)
+}
+.blue-module .module-icon{background:linear-gradient(150deg,#1B337F,#2B4AA2)}
+.red-module .module-icon{background:linear-gradient(150deg,#B93E35,#E05A4F)}
+.module-icon svg{width:21px;height:21px;stroke:#fff;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.module-title{font-size:16px;font-weight:900;letter-spacing:.2px}
+.blue-module .module-title{color:var(--blue-dark)}
+.red-module .module-title{color:#A83730}
+.module-sub{font-size:11px;color:var(--muted);font-weight:750;margin-top:2px}
+
+/* Escalier : sous-menus indentés sous un rail coloré */
+.module-items{
+  margin-left:24px;padding-left:10px;
+  border-left:2.5px solid rgba(39,68,155,.18);
+  display:flex;flex-direction:column;gap:3px;
+  border-radius:2px;
+}
+.red-module .module-items{border-left-color:rgba(217,75,64,.24)}
+.module .nav-item{
+  border-radius:12px;padding:9px 10px;font-size:13.5px;margin-bottom:0;
+  position:relative;gap:9px;white-space:nowrap;overflow:hidden;
+}
+.module .nav-item svg{width:19px;height:19px}
+.module .nav-item .tail{font-size:10.5px;white-space:nowrap;flex:0 0 auto}
+.module .nav-item::after{
+  content:"";position:absolute;left:-10px;top:50%;transform:translateY(-50%);
+  width:10px;height:2.5px;background:rgba(39,68,155,.18);border-radius:2px;
+}
+.red-module .nav-item::after{background:rgba(217,75,64,.24)}
+.module .nav-item:hover{background:rgba(255,255,255,.72)}
+.module .nav-item.active{
+  background:#fff;font-weight:850;
+  box-shadow:0 8px 18px rgba(20,31,72,.11);
+}
+.module .nav-item.active::before{display:none}
+.module .nav-item.active::after{background:currentColor}
+.blue-module .nav-item.active{color:var(--blue);background:#fff}
+.red-module .nav-item.active{color:var(--red);background:#fff}
+.blue-module .nav-item.active .tail{color:var(--blue)}
+.red-module .nav-item.active .tail{color:var(--red)}
+
+/* ============ RESPONSIVE : burger + tiroir ============ */
+.burger{
+  display:none;border:1px solid var(--line);background:#fff;
+  width:42px;height:42px;border-radius:13px;cursor:pointer;
+  place-items:center;box-shadow:var(--shadow-sm);flex:0 0 auto;
+  transition:transform .15s ease;
+}
+.burger:hover{transform:translateY(-1px)}
+.burger svg{width:20px;height:20px;stroke:var(--ink);stroke-width:2.2;fill:none;stroke-linecap:round}
+.drawer-close{display:none}
+.overlay{display:none}
+
+@media (max-width:1180px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .stat-strip{grid-template-columns:repeat(2,1fr)}
+  .split{grid-template-columns:1fr}
+}
+@media (max-width:1024px){
+  .burger{display:grid}
+  .content{padding:24px 20px 90px}
+  .topbar{padding:14px 16px;gap:12px}
+  .search{display:none}
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;height:100dvh;
+    width:min(322px,86vw);
+    transform:translateX(-106%);
+    transition:transform .28s cubic-bezier(.2,.8,.25,1);
+    box-shadow:0 30px 80px rgba(15,24,58,.22);
+    z-index:40;
+  }
+  .sidebar.open{transform:none}
+  .drawer-close{
+    display:grid;place-items:center;position:absolute;top:18px;right:12px;
+    width:38px;height:38px;border-radius:12px;border:1px solid var(--line);
+    background:#fff;cursor:pointer;color:var(--muted);
+  }
+  .drawer-close svg{width:17px;height:17px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round}
+  .overlay.show{
+    display:block;position:fixed;inset:0;z-index:35;
+    background:rgba(14,23,56,.42);backdrop-filter:blur(3px);
+  }
+}
+@media (max-width:760px){
+  .grid-2{grid-template-columns:1fr}
+  .stat-strip{grid-template-columns:1fr 1fr}
+  h1{font-size:26px}
+  .chip.hide-sm{display:none}
+  .content{padding:20px 14px 80px}
+  .hero{padding:20px}
+  .hero-stat strong{font-size:24px}
+  .obj-card{padding:20px;min-height:0}
+}
+@media (max-width:520px){
+  .stat-strip{grid-template-columns:1fr 1fr;gap:12px}
+  .stat-tile{padding:13px 14px;border-radius:20px;gap:10px}
+  .stat-tile .iconbox{width:42px;height:42px;border-radius:13px}
+  .stat-tile .iconbox svg{width:21px;height:21px}
+  .stat-tile .num{font-size:20px}
+  .stat-tile .cap{font-size:11px}
+  .crumb{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Sejour<span>FR</span></div>
+        <div class="brand-tag">TCF IRN · Examen civique</div>
+      </div>
+    </div>
+    <button class="drawer-close" onclick="closeMenu()" aria-label="Fermer le menu">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+    </button>
+
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-label">Vue d'ensemble</div>
+        <button class="nav-item active" data-screen="accueil" data-crumb="Accueil" onclick="go('accueil')">
+          <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+          Accueil
+        </button>
+      </div>
+
+      <div class="nav-group module blue-module">
+        <div class="module-head">
+          <div class="module-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg>
+          </div>
+          <div>
+            <div class="module-title">TCF IRN</div>
+            <div class="module-sub">Objectif B2 · 4 épreuves</div>
+          </div>
+        </div>
+        <div class="module-items">
+        <button class="nav-item blue" data-screen="tcf-plan" data-crumb="TCF IRN" onclick="go('tcf-plan')">
+          <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg>
+          Mon plan
+          <span class="tail">B1 → B2</span>
+        </button>
+        <button class="nav-item blue" data-screen="tcf-entrainement" data-crumb="TCF IRN" onclick="go('tcf-entrainement')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>
+          Entraînement
+          <span class="tail">4 épreuves</span>
+        </button>
+        <button class="nav-item blue" data-screen="tcf-examens" data-crumb="TCF IRN" onclick="go('tcf-examens')">
+          <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h3"/></svg>
+          Examens blancs
+          <span class="tail">2/4</span>
+        </button>
+        <button class="nav-item blue" data-screen="tcf-progression" data-crumb="TCF IRN" onclick="go('tcf-progression')">
+          <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+          Progression
+          <span class="tail">B1</span>
+        </button>
+        </div>
+      </div>
+
+      <div class="nav-group module red-module">
+        <div class="module-head">
+          <div class="module-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+          </div>
+          <div>
+            <div class="module-title">Examen civique</div>
+            <div class="module-sub">Objectif 32/40 · 5 thèmes</div>
+          </div>
+        </div>
+        <div class="module-items">
+        <button class="nav-item red" data-screen="civique-plan" data-crumb="Examen civique" onclick="go('civique-plan')">
+          <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+          Plan
+          <span class="tail">34%</span>
+        </button>
+        <button class="nav-item red" data-screen="civique-entrainement" data-crumb="Examen civique" onclick="go('civique-entrainement')">
+          <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21.5v-16Z"/></svg>
+          Entraînement
+          <span class="tail">5 thèmes</span>
+        </button>
+        <button class="nav-item red" data-screen="civique-examens" data-crumb="Examen civique" onclick="go('civique-examens')">
+          <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="8"/></svg>
+          Examens
+          <span class="tail">91%</span>
+        </button>
+        <button class="nav-item red" data-screen="civique-progression" data-crumb="Examen civique" onclick="go('civique-progression')">
+          <svg viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>
+          Progression
+          <span class="tail">17 séries</span>
+        </button>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Compte</div>
+        <button class="nav-item" data-screen="profil" data-crumb="Compte" onclick="go('profil')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+          Profil
+        </button>
+      </div>
+    </nav>
+
+    <div class="side-user">
+      <div class="side-avatar">AM</div>
+      <div class="grow">
+        <div class="name">Abdoul Matine</div>
+        <div class="plan"><b>Pass Intégral</b> · actif</div>
+      </div>
+      <div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+    <header class="topbar">
+      <button class="burger" onclick="openMenu()" aria-label="Ouvrir le menu">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+      </button>
+      <div class="crumb">
+        <span>SejourFR</span>
+        <span class="sep">/</span>
+        <span id="crumb-section">Accueil</span>
+        <span class="sep">/</span>
+        <span class="here" id="crumb-here">Vue d'ensemble</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="top-avatar" onclick="go('profil')">AM</div>
+    </header>
+
+    <main class="content">
+
+      <!-- ============ ACCUEIL ============ -->
+      <section class="screen active" id="accueil">
+        <div class="page-head">
+          <div>
+            <div class="kicker">Objectif · Naturalisation</div>
+            <h1>Bonjour Abdoul Matine</h1>
+            <p class="subtitle">Deux préparations, une seule application. Tout votre parcours, sans vous demander où aller.</p>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>À faire maintenant</h2></div>
+        <div class="grid-2">
+          <div class="card action-card hoverable">
+            <div class="action-top">
+              <div class="iconbox blue"><svg viewBox="0 0 24 24"><path d="M12 4a6 6 0 0 0-6 6v4"/><path d="M6 14a3 3 0 0 0 3 3h1"/><path d="M12 8a2 2 0 0 0-2 2v2"/><path d="M18 10a6 6 0 0 1-6 6"/><path d="M12 16v4"/></svg></div>
+              <div class="action-copy">
+                <div class="label">TCF IRN</div>
+                <h3>Compréhension orale</h3>
+                <div class="meta">Examen blanc · environ 20 min</div>
+              </div>
+              <span class="badge">CO</span>
+            </div>
+            <button class="cta blue block" style="margin-top:0" onclick="go('tcf-examens')">
+              Continuer le TCF
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+            </button>
+          </div>
+
+          <div class="card action-card hoverable">
+            <div class="action-top">
+              <div class="iconbox red"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg></div>
+              <div class="action-copy">
+                <div class="label">Examen civique</div>
+                <h3>Principes et valeurs</h3>
+                <div class="meta">Série recommandée par votre parcours</div>
+              </div>
+              <span class="badge red">Série 4</span>
+            </div>
+            <button class="cta red block" style="margin-top:0" onclick="go('civique-entrainement')">
+              Continuer
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Mes objectifs</h2></div>
+        <div class="grid-2">
+          <div class="obj-card blue clickable" onclick="go('tcf-plan')">
+            <div class="obj-top">
+              <div class="obj-ic"><svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg></div>
+              <span class="obj-pill">TCF IRN</span>
+            </div>
+            <div class="obj-title">Atteindre B2 partout</div>
+            <div class="obj-desc">Compréhension orale, écrite et les deux expressions : votre plan vous mène au niveau B2 dans les 4 épreuves.</div>
+            <div class="obj-bottom">
+              <div class="progress white"><span style="width:62%"></span></div>
+              <div class="obj-metrics">
+                <div class="obj-metric"><strong>B1 → B2</strong><span>Progression</span></div>
+                <div class="obj-metric"><strong>1/4</strong><span>Épreuves au B2</span></div>
+                <div class="obj-metric"><strong>Cycle 2</strong><span>En cours</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="obj-card red clickable" onclick="go('civique-plan')">
+            <div class="obj-top">
+              <div class="obj-ic"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg></div>
+              <span class="obj-pill">Examen civique</span>
+            </div>
+            <div class="obj-title">Être prêt pour l'examen</div>
+            <div class="obj-desc">Révisez les 5 thèmes officiels, série par série, et validez votre préparation avec des examens blancs.</div>
+            <div class="obj-bottom">
+              <div class="progress white"><span style="width:34%"></span></div>
+              <div class="obj-metrics">
+                <div class="obj-metric"><strong>34%</strong><span>Du parcours</span></div>
+                <div class="obj-metric"><strong>17/43</strong><span>Séries terminées</span></div>
+                <div class="obj-metric"><strong>32/40</strong><span>Objectif examen</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============ TCF · PLAN ============ -->
+      <section class="screen" id="tcf-plan">
+        <div class="page-head">
+          <div>
+            <div class="kicker">Préparation TCF IRN</div>
+            <h1>Mon plan</h1>
+            <p class="subtitle">Votre parcours vers le B2, étape par étape. Le plan met en avant les épreuves qui demandent le plus de travail.</p>
+          </div>
+          <div class="head-chips">
+            <span class="badge">Niveau actuel · B1</span>
+            <span class="badge green">Objectif · B2</span>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top:26px">
+          <div>
+            <div class="card card-pad">
+              <div class="row between">
+                <div>
+                  <div class="label">Cycle 2</div>
+                  <h3 style="margin-top:5px;font-size:19px">Votre parcours vers le B2</h3>
+                </div>
+                <strong style="font-size:22px">0/4</strong>
+              </div>
+              <div class="progress"><span style="width:8%"></span></div>
+              <div class="meta" style="margin-top:12px">Terminez les 4 mesures pour ouvrir le prochain cycle. Chaque mesure réajuste automatiquement vos priorités.</div>
+            </div>
+
+            <div class="section-head"><h2>Priorités actuelles</h2><button class="text-link" onclick="go('tcf-entrainement')">Tout l'entraînement</button></div>
+            <div class="stack">
+              <div class="info-card hoverable clickable" onclick="go('tcf-entrainement')">
+                <div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M12 4a6 6 0 0 0-6 6v4"/><path d="M6 14a3 3 0 0 0 3 3h1"/><path d="M18 10a6 6 0 0 1-6 6"/></svg></div>
+                <div class="info-copy"><span class="badge">CO</span><h3 style="margin-top:6px">Compréhension orale</h3><div class="meta">B2 · solide, à maintenir</div></div>
+                <span class="badge green">✓ Objectif atteint</span>
+              </div>
+              <div class="info-card hoverable clickable" onclick="go('tcf-entrainement')">
+                <div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21.5v-16Z"/></svg></div>
+                <div class="info-copy"><span class="badge">CE</span><h3 style="margin-top:6px">Compréhension écrite</h3><div class="meta">B1 · proche de l'objectif</div></div>
+                <div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+              </div>
+              <div class="info-card hoverable clickable" onclick="go('tcf-entrainement')">
+                <div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="m4 20 4.5-1 9.7-9.7a2 2 0 0 0-2.8-2.8L5.7 16.2 4 20Z"/><path d="m13.8 8.2 2 2"/></svg></div>
+                <div class="info-copy"><span class="badge">EE</span><h3 style="margin-top:6px">Expression écrite</h3><div class="meta">B1 · renforcer l'argumentation</div></div>
+                <div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+              </div>
+              <div class="info-card hoverable clickable" onclick="go('tcf-entrainement')">
+                <div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4"/></svg></div>
+                <div class="info-copy"><span class="badge">EO</span><h3 style="margin-top:6px">Expression orale</h3><div class="meta">A2 · priorité du cycle</div></div>
+                <span class="badge red">Prioritaire</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:18px">
+            <div class="hero">
+              <div class="hero-top">
+                <div>
+                  <div class="label">Ma progression</div>
+                  <div class="hero-title">B1 → B2</div>
+                  <div class="hero-sub">Objectif : B2 dans les 4 compétences</div>
+                </div>
+                <div class="hero-stat"><strong>1/4</strong><span>épreuves au B2</span></div>
+              </div>
+              <div class="progress white"><span style="width:62%"></span></div>
+              <button class="hero-cta" onclick="go('tcf-progression')">
+                Voir le détail
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+              </button>
+            </div>
+            <div class="tip-card">
+              <div class="label">Conseil du plan</div>
+              <p>Votre expression orale est le levier le plus rapide ce cycle : deux sessions d'entretien simulé par semaine suffisent pour viser le B1 au prochain repère.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TCF · ENTRAÎNEMENT ============ -->
+      <section class="screen" id="tcf-entrainement">
+        <div class="page-head">
+          <div>
+            <div class="kicker">Préparation TCF IRN</div>
+            <h1>Entraînement</h1>
+            <p class="subtitle">Travaillez chaque épreuve sans vous disperser. L'oral et l'écrit sont renforcés par l'analyse IA.</p>
+          </div>
+          <span class="badge">4 épreuves</span>
+        </div>
+
+        <div class="grid-4" style="margin-top:26px">
+          <div class="metric hoverable">
+            <span class="badge">CO</span>
+            <div class="big">B2</div>
+            <div class="state green">Solide · à maintenir</div>
+            <div class="meta">Compréhension orale</div>
+            <button class="cta soft block">S'entraîner</button>
+          </div>
+          <div class="metric hoverable">
+            <span class="badge">CE</span>
+            <div class="big">B1</div>
+            <div class="state amber">À renforcer</div>
+            <div class="meta">Compréhension écrite</div>
+            <button class="cta soft block">S'entraîner</button>
+          </div>
+          <div class="metric hoverable">
+            <span class="badge">EE</span>
+            <div class="big">B1</div>
+            <div class="state amber">À renforcer</div>
+            <div class="meta">Expression écrite · analyse IA</div>
+            <button class="cta soft block">S'entraîner</button>
+          </div>
+          <div class="metric hoverable">
+            <span class="badge red">EO</span>
+            <div class="big">A2</div>
+            <div class="state redtxt">Prioritaire</div>
+            <div class="meta">Expression orale · analyse IA</div>
+            <button class="cta blue block">S'entraîner</button>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Entretien en temps réel</h2></div>
+        <div class="hero">
+          <div class="hero-top">
+            <div>
+              <div class="label">Simulation d'entretien · IA</div>
+              <div class="hero-title">Entraînez-vous comme à l'examen</div>
+              <div class="hero-sub">Répondez à des consignes et des relances dans un format vivant : réactivité, aisance, confiance.</div>
+            </div>
+            <div class="hero-stat"><strong>EO</strong><span>expression orale</span></div>
+          </div>
+          <button class="hero-cta">
+            Lancer une simulation
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============ TCF · EXAMENS ============ -->
+      <section class="screen" id="tcf-examens">
+        <div class="page-head">
+          <div>
+            <div class="kicker">Préparation TCF IRN</div>
+            <h1>Examens blancs</h1>
+            <p class="subtitle">Des simulations complètes, dans les conditions réelles de l'épreuve.</p>
+          </div>
+          <span class="badge">2/4 disponibles</span>
+        </div>
+
+        <div class="hero" style="margin-top:26px">
+          <div class="hero-top">
+            <div>
+              <div class="label">Simulation réelle</div>
+              <div class="hero-title">Examen blanc complet</div>
+              <div class="hero-sub">CO · CE · EE · EO · environ 95 min, avec niveau estimé et analyse IA à la clé.</div>
+            </div>
+            <div class="hero-stat"><strong>95</strong><span>minutes</span></div>
+          </div>
+          <button class="hero-cta">
+            Commencer l'examen 3
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div class="section-head"><h2>Mes examens</h2></div>
+        <div class="stack">
+          <div class="exam-row"><div class="exam-num">1</div><div class="grow"><h3>Examen 1</h3><div class="meta">Terminé · niveau estimé A2+</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row"><div class="exam-num">2</div><div class="grow"><h3>Examen 2</h3><div class="meta">Terminé · niveau estimé B1</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row clickable"><div class="exam-num">3</div><div class="grow"><h3>Examen 3</h3><div class="meta">Disponible · recommandé cette semaine</div></div><div class="exam-status go">Commencer</div></div>
+          <div class="exam-row locked"><div class="exam-num">4</div><div class="grow"><h3>Examen 4</h3><div class="meta">Se débloque à la fin du cycle 2</div></div><div class="exam-status">Verrouillé</div></div>
+        </div>
+      </section>
+
+      <!-- ============ TCF · PROGRESSION ============ -->
+      <section class="screen" id="tcf-progression">
+        <div class="page-head">
+          <div>
+            <div class="kicker">Préparation TCF IRN</div>
+            <h1>Ma progression</h1>
+            <p class="subtitle">Votre niveau actuel et le chemin vers l'objectif B2, compétence par compétence.</p>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top:26px">
+          <div>
+            <div class="card card-pad">
+              <div class="label">Objectif global</div>
+              <div class="row between" style="margin-top:10px;gap:18px">
+                <div><div class="micro">Niveau actuel</div><strong style="font-size:34px">B1</strong></div>
+                <div class="iconbox soft" style="width:46px;height:46px;border-radius:50%"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></div>
+                <div style="text-align:right"><div class="micro">Objectif</div><strong style="font-size:34px;color:var(--blue)">B2</strong></div>
+              </div>
+              <div class="progress"><span style="width:62%"></span></div>
+            </div>
+
+            <div class="section-head"><h2>Par compétence</h2></div>
+            <div class="level-list">
+              <div class="level-row"><div class="level-code">CO</div><div><div class="level-value">B2</div><div class="level-state"><span class="dot"></span>Objectif atteint</div></div><span class="badge green">✓</span></div>
+              <div class="level-row"><div class="level-code">CE</div><div><div class="level-value">B1</div><div class="level-state"><span class="dot amber"></span>Proche du B2</div></div><span class="micro">→ B2</span></div>
+              <div class="level-row"><div class="level-code">EE</div><div><div class="level-value">B1</div><div class="level-state"><span class="dot amber"></span>À renforcer</div></div><span class="micro">→ B2</span></div>
+              <div class="level-row"><div class="level-code">EO</div><div><div class="level-value">A2</div><div class="level-state"><span class="dot red"></span>Priorité actuelle</div></div><span class="micro">→ B2</span></div>
+            </div>
+
+            <div class="section-head"><h2>Évolution</h2></div>
+            <div class="card card-pad">
+              <div class="label">Derniers repères</div>
+              <div class="timeline">
+                <div class="step">A2</div><span class="arrow">→</span>
+                <div class="step">B1</div><span class="arrow">→</span>
+                <div class="step">B1</div><span class="arrow">→</span>
+                <div class="step active">B1+</div>
+              </div>
+              <div class="meta" style="margin-top:12px">Meilleur niveau observé : B1 · prochain repère à la fin du cycle 2.</div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:18px">
+            <div class="hero">
+              <div class="label">Prochaine étape</div>
+              <div class="hero-title">Examen blanc 3</div>
+              <div class="hero-sub">Recommandé pour mesurer vos progrès en expression orale.</div>
+              <button class="hero-cta" onclick="go('tcf-examens')">
+                Voir les examens
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+              </button>
+            </div>
+            <div class="tip-card">
+              <div class="label">Analyse IA</div>
+              <p>Vos écrits gagnent en structure : les connecteurs sont mieux utilisés. Travaillez encore la nuance d'opinion pour stabiliser le B2.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CIVIQUE · PLAN ============ -->
+      <section class="screen" id="civique-plan">
+        <div class="page-head">
+          <div>
+            <div class="kicker red">Préparation civique</div>
+            <h1>Plan</h1>
+            <p class="subtitle">Suivez votre plan civique thème par thème et avancez selon vos priorités.</p>
+          </div>
+          <span class="badge red">Objectif examen · 32/40</span>
+        </div>
+
+        <div class="hero red" style="margin-top:26px">
+          <div class="hero-top">
+            <div>
+              <div class="label">Progression globale</div>
+              <div class="hero-title">17 séries terminées</div>
+              <div class="hero-sub">Votre parcours avance thème par thème, dans le bon ordre.</div>
+            </div>
+            <div class="hero-stat"><strong>34%</strong><span>du parcours</span></div>
+          </div>
+          <div class="progress white"><span style="width:34%"></span></div>
+          <button class="hero-cta" onclick="go('civique-progression')">
+            Voir le détail
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div class="section-head"><h2>À faire maintenant</h2></div>
+        <div class="grid-2">
+          <div class="card action-card hoverable">
+            <div class="action-top">
+              <div class="iconbox red"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg></div>
+              <div class="action-copy">
+                <div class="label">Recommandé</div>
+                <h3>Principes et valeurs de la République</h3>
+                <div class="meta">Prochaine série à travailler · série 4/5</div>
+              </div>
+            </div>
+            <button class="cta red block" style="margin-top:0" onclick="go('civique-entrainement')">
+              Commencer la série
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+            </button>
+          </div>
+          <div class="card action-card hoverable">
+            <div class="action-top">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="8"/></svg></div>
+              <div class="action-copy">
+                <div class="label">Examen blanc</div>
+                <h3>Examen blanc 2 disponible</h3>
+                <div class="meta">Votre dernier score : 91 % · objectif 80 %</div>
+              </div>
+            </div>
+            <button class="cta ghost-red block" style="margin-top:0" onclick="go('civique-examens')">
+              Voir les examens blancs
+              <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CIVIQUE · ENTRAÎNEMENT ============ -->
+      <section class="screen" id="civique-entrainement">
+        <div class="page-head">
+          <div>
+            <div class="kicker red">Préparation civique</div>
+            <h1>Entraînement</h1>
+            <p class="subtitle">Travaillez librement les 5 thèmes officiels, sans perturber votre plan recommandé.</p>
+          </div>
+          <span class="badge red">17/43 séries</span>
+        </div>
+
+        <div class="grid-2" style="margin-top:26px">
+          <div class="theme-card clickable">
+            <div class="theme-head">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 7h14"/><path d="m7 7-3 6h6l-3-6Z"/><path d="m17 7-3 6h6l-3-6Z"/></svg></div>
+              <div class="grow"><h3>Principes et valeurs</h3><div class="meta">Symboles, principes et valeurs de la République</div></div>
+              <div class="ring red" style="--p:60"><span class="val">60%</span></div>
+            </div>
+            <div class="row between"><span class="badge red">3/5 séries</span><span class="micro">En cours</span></div>
+            <button class="cta ghost-red block" style="margin-top:0">Continuer</button>
+          </div>
+
+          <div class="theme-card clickable">
+            <div class="theme-head">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="M4 10h16"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="m3 10 9-6 9 6"/><path d="M3 20h18"/></svg></div>
+              <div class="grow"><h3>Système institutionnel</h3><div class="meta">Institutions et repères de la vie démocratique</div></div>
+              <div class="ring red" style="--p:18"><span class="val">18%</span></div>
+            </div>
+            <div class="row between"><span class="badge red">2/11 séries</span><span class="micro">À travailler</span></div>
+            <button class="cta ghost-red block" style="margin-top:0">Continuer</button>
+          </div>
+
+          <div class="theme-card clickable">
+            <div class="theme-head">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></div>
+              <div class="grow"><h3>Droits et devoirs</h3><div class="meta">Libertés, responsabilités et vie citoyenne</div></div>
+              <div class="ring red" style="--p:12"><span class="val">12%</span></div>
+            </div>
+            <div class="row between"><span class="badge red">1/8 séries</span><span class="micro">À travailler</span></div>
+            <button class="cta ghost-red block" style="margin-top:0">Continuer</button>
+          </div>
+
+          <div class="theme-card clickable">
+            <div class="theme-head">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="8"/></svg></div>
+              <div class="grow"><h3>Histoire et culture</h3><div class="meta">Repères historiques, géographiques et culturels</div></div>
+              <div class="ring red" style="--p:60"><span class="val">60%</span></div>
+            </div>
+            <div class="row between"><span class="badge red">6/10 séries</span><span class="micro">En cours</span></div>
+            <button class="cta ghost-red block" style="margin-top:0">Continuer</button>
+          </div>
+
+          <div class="theme-card clickable">
+            <div class="theme-head">
+              <div class="iconbox soft-red"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></div>
+              <div class="grow"><h3>Vivre en France</h3><div class="meta">Services, travail, école, santé et vie quotidienne</div></div>
+              <div class="ring red" style="--p:55"><span class="val">55%</span></div>
+            </div>
+            <div class="row between"><span class="badge red">5/9 séries</span><span class="micro">En cours</span></div>
+            <button class="cta ghost-red block" style="margin-top:0">Continuer</button>
+          </div>
+
+          <div class="tip-card" style="display:flex;flex-direction:column;justify-content:center">
+            <div class="label">Statistiques par thème</div>
+            <p>Le « Système institutionnel » est votre thème le moins avancé : deux séries cette semaine le remettent au niveau des autres.</p>
+            <button class="cta red block" style="margin-top:14px" onclick="go('civique-progression')">Voir ma progression</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CIVIQUE · EXAMENS ============ -->
+      <section class="screen" id="civique-examens">
+        <div class="page-head">
+          <div>
+            <div class="kicker red">Préparation civique</div>
+            <h1>Examens</h1>
+            <p class="subtitle">Testez l'ensemble des thèmes dans une simulation complète, en conditions réelles.</p>
+          </div>
+          <span class="badge red">Meilleur score · 91%</span>
+        </div>
+
+        <div class="hero red" style="margin-top:26px">
+          <div class="hero-top">
+            <div>
+              <div class="label">Conditions réelles</div>
+              <div class="hero-title">Examen blanc civique</div>
+              <div class="hero-sub">40 questions · les 5 thèmes · objectif de réussite : 32/40.</div>
+            </div>
+            <div class="hero-stat"><strong>40</strong><span>questions</span></div>
+          </div>
+          <button class="hero-cta">
+            Lancer un examen blanc
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div class="section-head"><h2>Historique</h2></div>
+        <div class="stack">
+          <div class="exam-row"><div class="exam-num red">1</div><div class="grow"><h3>Examen blanc 1</h3><div class="meta">76 % · terminé · réussi</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row clickable"><div class="exam-num ghost">2</div><div class="grow"><h3>Examen blanc 2</h3><div class="meta">Disponible · couvre les 5 thèmes</div></div><div class="exam-status go-red">Commencer</div></div>
+          <div class="exam-row locked"><div class="exam-num ghost">3</div><div class="grow"><h3>Examen blanc par thème</h3><div class="meta">Inclus dans le pass Intégral · se débloque à 50 % du parcours</div></div><div class="exam-status">Verrouillé</div></div>
+        </div>
+      </section>
+
+      <!-- ============ CIVIQUE · PROGRESSION ============ -->
+      <section class="screen" id="civique-progression">
+        <div class="page-head">
+          <div>
+            <div class="kicker red">Préparation civique</div>
+            <h1>Ma progression</h1>
+            <p class="subtitle">Votre avancement par thème et vos résultats aux examens blancs.</p>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top:26px">
+          <div>
+            <div class="card card-pad">
+              <div class="label">Maîtrise globale</div>
+              <div class="row between" style="margin-top:10px;gap:18px">
+                <div><strong style="font-size:34px;color:var(--red)">34%</strong><div class="micro">du parcours réalisé</div></div>
+                <div style="text-align:right"><strong style="font-size:34px">17</strong><div class="micro">séries terminées</div></div>
+              </div>
+              <div class="progress red"><span style="width:34%"></span></div>
+            </div>
+
+            <div class="section-head"><h2>Par thème</h2></div>
+            <div class="level-list">
+              <div class="level-row"><div class="level-code red">PV</div><div><div class="level-value">60%</div><div class="level-state">3/5 séries · Principes et valeurs</div></div><span class="badge">En cours</span></div>
+              <div class="level-row"><div class="level-code red">SI</div><div><div class="level-value">18%</div><div class="level-state">2/11 séries · Système institutionnel</div></div><span class="badge amber">À travailler</span></div>
+              <div class="level-row"><div class="level-code red">DD</div><div><div class="level-value">12%</div><div class="level-state">1/8 séries · Droits et devoirs</div></div><span class="badge amber">À travailler</span></div>
+              <div class="level-row"><div class="level-code red">HC</div><div><div class="level-value">60%</div><div class="level-state">6/10 séries · Histoire et culture</div></div><span class="badge">En cours</span></div>
+              <div class="level-row"><div class="level-code red">VF</div><div><div class="level-value">55%</div><div class="level-state">5/9 séries · Vivre en France</div></div><span class="badge">En cours</span></div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:18px">
+            <div class="card card-pad">
+              <div class="label">Examens blancs · évolution du score</div>
+              <div class="timeline">
+                <div class="step">76%</div><span class="arrow">→</span>
+                <div class="step">84%</div><span class="arrow">→</span>
+                <div class="step active red-active">91%</div>
+              </div>
+              <div class="meta" style="margin-top:12px">Meilleur score : 91 % · vous êtes au-dessus du seuil de réussite.</div>
+            </div>
+            <div class="hero red">
+              <div class="label">Prochaine étape</div>
+              <div class="hero-title">Série 4 · Principes et valeurs</div>
+              <div class="hero-sub">Terminer ce thème vous rapproche des examens blancs par thème.</div>
+              <button class="hero-cta" onclick="go('civique-entrainement')">
+                Reprendre la série
+                <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PROFIL ============ -->
+      <section class="screen" id="profil">
+        <div class="page-head">
+          <div>
+            <h1 style="margin-top:0">Profil</h1>
+            <p class="subtitle">Votre compte, votre objectif et vos réglages.</p>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top:26px">
+          <div>
+            <div class="card profile-card">
+              <div class="avatar">AM</div>
+              <div class="grow">
+                <h3 style="font-size:20px">Abdoul Matine</h3>
+                <div class="meta">Objectif : naturalisation française</div>
+                <div class="row gap-12" style="margin-top:10px;gap:8px">
+                  <span class="badge amber">Pass Intégral</span>
+                  <span class="badge green">Membre depuis 2026</span>
+                </div>
+              </div>
+              <button class="cta soft">Modifier</button>
+            </div>
+
+            <div class="section-head"><h2>Mon compte</h2></div>
+            <div class="stack">
+              <div class="info-card hoverable clickable"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M7 10h5"/></svg></div><div class="info-copy"><h3>Mon abonnement</h3><div class="meta">Pass Intégral · paiement unique, aucun renouvellement</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+              <div class="info-card hoverable clickable"><div class="iconbox soft"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1-2.9 2.9-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21H10v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1-2.9-2.9.1-.1A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.5-1H3v-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1 2.9-2.9.1.1A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.5V3h4v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1 2.9 2.9-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.1v4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg></div><div class="info-copy"><h3>Paramètres</h3><div class="meta">Notifications, compte, préférences</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+              <div class="info-card hoverable clickable"><div class="iconbox soft"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 0 1 4.8 1c0 2-2.5 2.2-2.5 4"/><path d="M12 18h.01"/></svg></div><div class="info-copy"><h3>Aide</h3><div class="meta">Questions fréquentes et contact</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+            </div>
+          </div>
+
+          <div class="stack" style="gap:18px">
+            <div class="card card-pad">
+              <div class="label">Résumé de préparation</div>
+              <button class="objective-row" style="padding:14px 4px" onclick="go('tcf-progression')">
+                <div class="objective-icon blue-soft-icon"><svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg></div>
+                <div class="objective-copy">
+                  <div class="label">TCF IRN</div>
+                  <h3>Atteindre B2 partout</h3>
+                </div>
+                <div class="objective-value"><strong>B1 → B2</strong><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+              </button>
+              <div class="objective-divider" style="margin:0 4px"></div>
+              <button class="objective-row" style="padding:14px 4px" onclick="go('civique-progression')">
+                <div class="objective-icon red-soft-icon"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg></div>
+                <div class="objective-copy">
+                  <div class="label">Examen civique</div>
+                  <h3>Être prêt pour l'examen</h3>
+                </div>
+                <div class="objective-value red-value"><strong>34%</strong><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+              </button>
+            </div>
+            <div class="tip-card">
+              <div class="label">Votre semaine</div>
+              <p>7 jours d'activité de suite. Continuez ainsi : la régularité est le meilleur prédicteur de réussite aux deux examens.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const TITLES = {
+  'accueil':            ['Accueil','Vue d\'ensemble',''],
+  'tcf-plan':           ['TCF IRN','Mon plan','blue'],
+  'tcf-entrainement':   ['TCF IRN','Entraînement','blue'],
+  'tcf-examens':        ['TCF IRN','Examens blancs','blue'],
+  'tcf-progression':    ['TCF IRN','Progression','blue'],
+  'civique-plan':       ['Examen civique','Plan','red'],
+  'civique-entrainement':['Examen civique','Entraînement','red'],
+  'civique-examens':    ['Examen civique','Examens','red'],
+  'civique-progression':['Examen civique','Progression','red'],
+  'profil':             ['Compte','Profil','']
+};
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const target=document.getElementById(id);
+  if(!target) return;
+  target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b=>{
+    b.classList.toggle('active',b.dataset.screen===id)
+  });
+  closeMenu();
+  const t=TITLES[id]||['SejourFR',id,''];
+  const sec=document.getElementById('crumb-section');
+  const here=document.getElementById('crumb-here');
+  sec.textContent=t[0];
+  here.textContent=t[1];
+  here.className='here'+(t[2]?' '+t[2]:'');
+  window.scrollTo({top:0,behavior:'instant'});
+  if(history.replaceState) history.replaceState(null,'','#'+id);
+}
+function openMenu(){
+  document.querySelector('.sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeMenu(){
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.body.style.overflow='';
+}
+if(location.hash){
+  go(location.hash.slice(1));
+  window.addEventListener('load',()=>window.scrollTo(0,0));
+  setTimeout(()=>window.scrollTo(0,0),60);
+}
+</script>
+</body>
+</html>

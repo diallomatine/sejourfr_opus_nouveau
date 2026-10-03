@@ -7,7 +7,6 @@ import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
@@ -30,16 +29,12 @@ import 'learning_plan_provider.dart';
 ///
 /// 🛑 **Miroir de `PlanHistoryView` côté web**, brique pour brique.
 ///
-/// ## Le parcours affiché vient de [parcoursCiviqueProvider] (P8.9, 2026-09-20)
+/// ## Le parcours affiché vient de la ROUTE (Navigation v2, 2026-10-03)
 ///
-/// 🛑 **Un seul écran pour les deux parcours**, scopé par l'état **partagé** du
-/// parcours affiché — le pendant Dart du `?module=` du web, et déjà l'autorité
-/// de l'Accueil, du Plan et de Réviser. Une seconde route aurait été une
-/// deuxième façon de dire la même chose.
-///
-/// ⚠️ **L'écran est POUSSÉ depuis le Plan**, qui a déjà fait le choix : la
-/// bascule n'existe pas ici, et l'état ne peut donc pas changer sous les pieds
-/// du candidat pendant qu'il lit.
+/// 🛑 **Un seul écran pour les deux parcours**, déclaré sous le Plan de chaque
+/// module (`/tcf/plan/progression`, `/civique/plan/progression`) : le module
+/// est porté par l'adresse, comme le `?module=` du web, et l'écran s'affiche
+/// dans l'onglet de son module.
 ///
 /// Ce qui change avec le parcours, et **rien d'autre** : le **mot** de l'unité
 /// travaillée (compétence ⇄ unité officielle) et la **mesure** de fin de cycle
@@ -59,15 +54,13 @@ import 'learning_plan_provider.dart';
 /// l'app n'a pas de menu latéral, sa navigation principale est la barre
 /// d'onglets. Écart de forme, pas de parcours.
 class PlanHistoryScreen extends ConsumerWidget {
-  const PlanHistoryScreen({super.key});
+  const PlanHistoryScreen({super.key, required this.civique});
+
+  final bool civique;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    /// 🛑 **Le défaut est TCF**, pas une déduction : l'écran est atteint depuis
-    /// le Plan, qui a déjà posé le parcours affiché.
-    final module = (ref.watch(parcoursCiviqueProvider) ?? false)
-        ? AppModule.civique
-        : AppModule.tcf;
+    final module = civique ? AppModule.civique : AppModule.tcf;
     final historyAsync = ref.watch(journeyHistoryProvider(module));
     final history = historyAsync.valueOrNull;
 
@@ -78,7 +71,10 @@ class PlanHistoryScreen extends ConsumerWidget {
         child: ListView(
           children: [
             SfTop(
-              onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
+              onBack: () => retourOuRepli(
+                context,
+                repli: AppRoutes.modulePlan(civique: civique),
+              ),
               title: kJourneyHistoryTitle,
             ),
             SfSection(
@@ -161,7 +157,9 @@ class PlanHistoryScreen extends ConsumerWidget {
                                 status: journeyHistoryPill(cycle.finDeCycle),
                                 onOpen: () => context.push(
                                   AppRoutes.planCycleArchivePath(
-                                      cycle.journeyId),
+                                    cycle.journeyId,
+                                    civique: civique,
+                                  ),
                                 ),
                               ),
                           ],

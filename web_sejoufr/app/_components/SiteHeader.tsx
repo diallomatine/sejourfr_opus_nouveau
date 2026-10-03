@@ -5,7 +5,7 @@ import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useRef, useState} from "react";
 import {ChevronDown, Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
-import {AppSidebar} from "./AppSidebar";
+import {AppSidebar} from "./shell/AppSidebar";
 import {track} from "@/lib/analytics";
 import {useAuth} from "@/lib/auth-context";
 import {isAppShellMounted, isDualChromeRoute, shouldHideGlobalChrome} from "@/lib/chrome-routes";
@@ -263,32 +263,15 @@ export function SiteHeader() {
                 <>
                     <div className={styles.overlay} onClick={() => setMobileNavOpen(false)} aria-hidden/>
                     {isAuth ? (
-                        /* Compte : le tiroir rend la même AppSidebar que l'espace
-                           perso (overrides globaux `.ms-drawer-inner` + `.ms-close`). */
+                        /* Compte : le tiroir rend la barre latérale de l'espace
+                           perso, en version embarquée (avec son bouton fermer). */
                         <aside
                             className={`${styles.panel} ${styles.panelApp}`}
                             role="dialog"
                             aria-modal="true"
                             aria-label="Menu"
                         >
-                            <button
-                                type="button"
-                                className="ms-close"
-                                onClick={() => setMobileNavOpen(false)}
-                                aria-label="Fermer le menu"
-                            >
-                                <X size={18} aria-hidden/>
-                            </button>
-                            <div
-                                className="ms-drawer-inner"
-                                onClick={(e) => {
-                                    if ((e.target as HTMLElement).closest("a, button")) {
-                                        setMobileNavOpen(false);
-                                    }
-                                }}
-                            >
-                                <AppSidebar/>
-                            </div>
+                            <AppSidebar embedded onClose={() => setMobileNavOpen(false)}/>
                         </aside>
                     ) : (
                         <aside className={styles.panel} role="dialog" aria-modal="true" aria-label="Menu">

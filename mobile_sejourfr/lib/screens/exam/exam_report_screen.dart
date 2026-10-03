@@ -12,6 +12,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/question_detail_sheet.dart';
+import '../../core/models/enums.dart';
 
 /// Provider qui charge l'attempt finalisé pour le rapport.
 final examReportProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
@@ -74,7 +75,10 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
         );
         return;
       }
-      context.go(fromPlan ? AppRoutes.plan : AppRoutes.home);
+      final civique = state.valueOrNull?.module == AppModule.civique;
+      context.go(
+        fromPlan ? AppRoutes.modulePlan(civique: civique) : AppRoutes.home,
+      );
     }
 
     return Scaffold(

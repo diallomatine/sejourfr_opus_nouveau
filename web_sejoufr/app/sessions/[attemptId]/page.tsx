@@ -145,19 +145,21 @@ function attemptContextLabel(
 /** Écran d'origine d'un examen blanc, dérivé de l'attempt : examen
  *  thématique civique → page examens du thème ; examen module TCF → page
  *  examens de l'épreuve ; examens complets (template ou non) →
- *  /examens-blancs. */
+ *  `/examens-blancs?module=` de SON parcours (le module se lit dans l'URL
+ *  depuis la Navigation v2). */
 function examReturnPath(attempt: AttemptResponse): string {
-  if (attempt.examTemplateId) return "/examens-blancs";
+  const examens = `/examens-blancs?module=${attempt.module}`;
+  if (attempt.examTemplateId) return examens;
   if (attempt.module === "CIVIQUE") {
     return attempt.themeId
       ? `/entrainement/civique/${attempt.themeId}/examens`
-      : "/examens-blancs";
+      : examens;
   }
   const code = attempt.moduleExamQuestionType?.toLowerCase();
   if (code === "co" || code === "ce" || code === "structure") {
     return `/entrainement/tcf/${code}/examens`;
   }
-  return "/examens-blancs";
+  return examens;
 }
 
 /**
@@ -548,10 +550,8 @@ function SessionRunnerInner({ params }: PageProps) {
             margin: 0 auto;
             padding: 20px 18px 0;
           }
-          /* Sous la barre du haut de l'espace connecté : --app-bar-gap. */
-          @media (max-width: 900px) {
-            .app-shell--has-drawer .sess-back-row { padding-top: var(--app-bar-gap); }
-          }
+          /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
+          .app-shell .sess-back-row { padding-top: 0; }
           .sess-back {
             display: inline-flex;
             align-items: center;

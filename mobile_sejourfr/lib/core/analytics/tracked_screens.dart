@@ -31,14 +31,20 @@ enum TrackedScreen {
     '/diagnostic-civique/resultat',
     [AppRoutes.civicDiagnosticResult],
   ),
-  plan('PLAN', '/plan', [AppRoutes.plan]),
-  planEtape('PLAN_ETAPE', '/plan/etape/:id', [AppRoutes.planEtape]),
+  // Navigation v2 : les segments et sous-écrans de module gardent les clés
+  // EXISTANTES (le serveur fait autorité, aucune clé nouvelle) — le segment
+  // Plan TCF ou civique est « PLAN », etc.
+  plan('PLAN', '/plan', [AppRoutes.tcfPlan, AppRoutes.civiquePlan]),
+  planEtape('PLAN_ETAPE', '/plan/etape/:id', [
+    AppRoutes.tcfPlanEtape,
+    AppRoutes.civiquePlanEtape,
+  ]),
   planDomaine('PLAN_DOMAINE', '/plan/domaine/:domaine', [AppRoutes.planDomain]),
   planDebloquer('PLAN_DEBLOQUER', '/plan/debloquer', [AppRoutes.planUnlock]),
   planProgression(
     'PLAN_PROGRESSION',
     '/plan/progression',
-    [AppRoutes.planProgress],
+    [AppRoutes.tcfPlanProgress, AppRoutes.civiquePlanProgress],
   ),
   progressionTcf('PROGRESSION_TCF', '/progression/tcf', [AppRoutes.progressionTcf]),
   progressionTcfEpreuve(
@@ -56,7 +62,10 @@ enum TrackedScreen {
     '/progression/civique/:theme',
     [AppRoutes.progressionTheme],
   ),
-  reviser('REVISER', '/reviser', [AppRoutes.reviser]),
+  reviser('REVISER', '/reviser', [
+    AppRoutes.tcfEntrainement,
+    AppRoutes.civiqueEntrainement,
+  ]),
   themeCivique(
     'THEME_CIVIQUE',
     '/civique/theme/:theme',
@@ -92,7 +101,10 @@ enum TrackedScreen {
     '/tcf/expression-orale/resultats/:id',
     ['${AppRoutes.tcfExpressionOrale}/resultats/:submissionId'],
   ),
-  examensBlancs('EXAMENS_BLANCS', '/examens', [AppRoutes.examens]),
+  examensBlancs('EXAMENS_BLANCS', '/examens', [
+    AppRoutes.tcfExamens,
+    AppRoutes.civiqueExamens,
+  ]),
   examenTcf(
     'EXAMEN_TCF',
     '/tcf/examen-blanc/:id',

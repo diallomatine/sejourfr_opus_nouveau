@@ -8,8 +8,14 @@ import '../models/enums.dart';
 ///
 /// Marque : Bleu France + Rouge France conservés. Neutres calmes en trois
 /// niveaux de surface (surface > surface2 > surface3) sur fond très clair.
-/// Sémantique maquette : `primary` = bleu, `accent` = rouge (usage rare),
-/// TCF = rouge, Civique = bleu.
+/// Sémantique : `primary` = bleu, `accent` = rouge (CTA critiques, alertes).
+///
+/// 🛑 **Couleur d'un MODULE = TCF bleu, Civique rouge** (Navigation v2, X1,
+/// 2026-10-03 — inverse l'ancienne convention « TCF rouge, Civique bleu »).
+/// Tout ce qui colore un module (onglet, segment, en-tête, CTA de module,
+/// anneau de thème…) lit les tokens `moduleTcf*` / `moduleCivique*` ci-dessous,
+/// jamais [blue] ou [red] directement : l'inversion vit à un seul endroit.
+/// Les rouges d'alerte et de CTA critique, eux, restent [red].
 class AppColors {
   static const blue = Color(0xFF1E3A8C);
   static const blueDark = Color(0xFF15296B);
@@ -35,6 +41,27 @@ class AppColors {
   static const red = Color(0xFFE1372F);
   static const redDark = Color(0xFFB5251E);
   static const redLight = Color(0xFFFDECEB);
+
+  /// **Les couleurs de MODULE** (X1) — alias sémantiques, jamais de nouvel hex.
+  /// Miroirs web : `--color-module-tcf*` / `--color-module-civique*`.
+  static const moduleTcf = blue;
+  static const moduleTcfDark = blueDark;
+  static const moduleTcfLight = blueLight;
+  static const moduleCivique = red;
+  static const moduleCiviqueDark = redDark;
+  static const moduleCiviqueLight = redLight;
+
+  /// La couleur pleine d'un module.
+  static Color module({required bool civique}) =>
+      civique ? moduleCivique : moduleTcf;
+
+  /// Le ton foncé d'un module (texte d'une pastille sur [moduleLight]).
+  static Color moduleDark({required bool civique}) =>
+      civique ? moduleCiviqueDark : moduleTcfDark;
+
+  /// Le fond clair d'un module (pastille, kicker, icône douce).
+  static Color moduleLight({required bool civique}) =>
+      civique ? moduleCiviqueLight : moduleTcfLight;
 
   /// Rouge **lisible sur fond bleu**. [red] pose sur le bleu France ne passe
   /// aucun contraste, et [redLight] y disparait. C'est la teinte de la maquette
@@ -220,6 +247,17 @@ class AppGradients {
 
   /// Bandeau premium (analyse IA) : encre → Bleu France.
   static LinearGradient get premium => hero(AppColors.ink, AppColors.blue);
+
+  /// **Dégradé d'un module** (`hero` / `obj-card` de Navigation v2) : du ton
+  /// foncé vers la couleur pleine — `blueDark → blue` (TCF), `redDark → red`
+  /// (civique). Miroirs web : `--gradient-module-tcf` / `--gradient-module-civique`.
+  static LinearGradient get moduleTcf =>
+      hero(AppColors.moduleTcfDark, AppColors.moduleTcf);
+  static LinearGradient get moduleCivique =>
+      hero(AppColors.moduleCiviqueDark, AppColors.moduleCivique);
+
+  static LinearGradient module({required bool civique}) =>
+      civique ? moduleCivique : moduleTcf;
 }
 
 /// Helpers typographiques.

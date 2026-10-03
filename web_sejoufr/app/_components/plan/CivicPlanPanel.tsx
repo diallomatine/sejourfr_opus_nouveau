@@ -135,11 +135,9 @@ export function CivicPlanPanel({diagnosticFait}: {diagnosticFait: boolean}) {
     track("PLAN_OPENED", {}, {once: true, context: {journeyId}});
   }, [planShown, journeyRead, journeyId]);
 
-  /* 🛑 **La bascule de parcours ne se fait jamais attendre.** C'est l'en-tête
-     qui la porte (`TopSlot`), donc on le rend dès le premier passage, avant le
-     plan : rendre `null` ici laissait l'écran sans aucune porte vers le TCF
-     tant que `/api/me/civic-plan` n'avait pas répondu. Même état que le
-     chargement du plan TCF, qui rend déjà son `Top` seul. */
+  /* L'en-tête ne se fait jamais attendre : il est rendu dès le premier
+     passage, avant le plan. Même état que le chargement du plan TCF, qui rend
+     déjà son `Top` seul. */
   if (!plan) {
     return <Top kicker={CIVIC_PLAN_TOP_KICKER} title={CIVIC_PLAN_SCREEN_TITLE} />;
   }

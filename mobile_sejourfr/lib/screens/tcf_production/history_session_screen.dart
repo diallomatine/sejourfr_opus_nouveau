@@ -185,7 +185,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
     } else {
       ref.read(eeSessionProvider.notifier).reset();
     }
-    context.go(AppRoutes.reviser);
+    context.go(AppRoutes.tcfEntrainement);
   }
 
   @override

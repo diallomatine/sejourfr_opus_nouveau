@@ -505,7 +505,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         errorMessage: state.errorMessage,
         onRefresh: () => unawaited(_controller.refreshDetail()),
         onRetry: () => unawaited(_controller.retryAnalysis()),
-        onOpenPlan: () => context.go(AppRoutes.plan),
+        onOpenPlan: () => context.go(AppRoutes.tcfPlan),
         onOpenHome: () => context.go(AppRoutes.home),
       );
     }

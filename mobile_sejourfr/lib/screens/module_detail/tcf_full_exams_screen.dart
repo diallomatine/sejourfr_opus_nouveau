@@ -48,42 +48,8 @@ const int _fullExamSlotsCount = 20;
 /// X à Y » déplie le reste (même pattern que les examens blancs Civique).
 const int _visibleByDefault = 8;
 
-/// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
-/// depuis le hero Progression, l'historique, le bilan et le hero examen blanc
-/// du hub TCF (`AppRoutes.tcfFullExams`). `TcfFullExamsView` (le corps) est
-/// le bloc réutilisable des 20 slots.
-class TcfFullExamsScreen extends StatelessWidget {
-  const TcfFullExamsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-              child: _TopBar(onBack: () => _back(context)),
-            ),
-            const Expanded(child: TcfFullExamsView()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _back(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.reviser);
-    }
-  }
-}
-
-/// Corps réutilisable des 20 slots d'examens blancs TCF complets. Rendu sous
-/// la topbar de `TcfFullExamsScreen` (route `/tcf/examens-blancs`).
+/// Les 20 slots d'examens blancs TCF complets — corps du segment « Examens »
+/// de l'écran de module TCF (Navigation v2).
 class TcfFullExamsView extends ConsumerWidget {
   const TcfFullExamsView({super.key});
 
@@ -140,7 +106,7 @@ class TcfFullExamsView extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      color: AppColors.red,
+      color: AppColors.moduleTcf,
       onRefresh: () async {
         ref.invalidate(fullExamsHistoryProvider);
         await ref.read(fullExamsHistoryProvider.future);
@@ -151,8 +117,8 @@ class TcfFullExamsView extends ConsumerWidget {
           _ResultStats(history: historyAsync.valueOrNull ?? const []),
           const SizedBox(height: 14),
           ExamInfoChips(
-            accent: AppColors.red,
-            soft: AppColors.redLight,
+            accent: AppColors.moduleTcf,
+            soft: AppColors.moduleTcfLight,
             items: [
               (icon: LucideIcons.zap, label: 'Simulation réelle'),
               // Ordre de grandeur, pas un décompte : il n'y a plus d'enveloppe
@@ -222,7 +188,7 @@ class TcfFullExamsView extends ConsumerWidget {
       builder: (sheetCtx) => ExamDoneSheet(
         title: slot != null ? 'Examen blanc $slot' : 'Examen blanc',
         subtitle: subtitle,
-        accent: AppColors.red,
+        accent: AppColors.moduleTcf,
         onViewDetail: () {
           Navigator.of(sheetCtx).pop();
           // push (pas go) : le bilan se pose au-dessus de la liste → le back
@@ -236,56 +202,6 @@ class TcfFullExamsView extends ConsumerWidget {
           if (slot != null) startNew(slot);
         },
       ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Material(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onBack,
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.line),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(LucideIcons.chevronLeft,
-                  size: 22, color: AppColors.ink),
-            ),
-          ),
-        ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.blueLight,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            'TCF IRN',
-            style: AppFonts.ui(
-              size: 12,
-              weight: FontWeight.w800,
-              color: AppColors.blue,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -325,7 +241,7 @@ class _ResultStats extends StatelessWidget {
           child: StatValueCard(
             value: best?.shortName ?? '—',
             label: 'Meilleur niveau',
-            color: AppColors.red,
+            color: AppColors.moduleTcf,
             valueSize: 20,
           ),
         ),
@@ -342,7 +258,7 @@ class _ResultStats extends StatelessWidget {
           child: StatValueCard(
             value: '${doneSlots.length}/$_fullExamSlotsCount',
             label: 'Terminés',
-            color: AppColors.red,
+            color: AppColors.moduleTcf,
             valueSize: 20,
           ),
         ),
@@ -424,11 +340,11 @@ class _SlotsSectionState extends State<_SlotsSection> {
                 style: AppFonts.ui(
                   size: 13,
                   weight: FontWeight.w700,
-                  color: AppColors.red,
+                  color: AppColors.moduleTcf,
                 ),
               ),
               label: const Icon(LucideIcons.chevronDown,
-                  size: 16, color: AppColors.red),
+                  size: 16, color: AppColors.moduleTcf),
             ),
           ),
       ],
@@ -458,7 +374,7 @@ class _ExamSlotCard extends StatelessWidget {
   Color get _accent => switch (exam?.status) {
         FullTcfExamStatus.inProgress => AppColors.amber,
         FullTcfExamStatus.pendingEvaluations => AppColors.blue,
-        FullTcfExamStatus.completed => AppColors.red,
+        FullTcfExamStatus.completed => AppColors.moduleTcf,
         null => AppColors.inkFaint,
       };
 
@@ -523,8 +439,8 @@ class _ExamSlotCard extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2.5),
         );
       case FullTcfExamStatus.completed:
-        return FullExamSlotCard.faitPill(AppColors.red,
-            bg: AppColors.redLight);
+        return FullExamSlotCard.faitPill(AppColors.moduleTcf,
+            bg: AppColors.moduleTcfLight);
     }
   }
 }

@@ -19,6 +19,7 @@ import {useAuth} from "@/lib/auth-context";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, billingApi, dashboardApi} from "@/lib/api";
 import {AIDE_HREF} from "@/lib/aide";
+import {passAccessName} from "@/lib/passes";
 import {FAVORIS_HREF, FAVORIS_ROW_SUB, FAVORIS_TITLE} from "@/lib/favoris";
 import {
     COMPTE_INFORMATIONS_HREF,
@@ -40,8 +41,7 @@ import type {
  * Page profil web — maquette du propriétaire
  * (`docs/progression/maquettes-progression/profil.html`), en parité de contenu
  * avec l'onglet Profil mobile (`profile_screen.dart`). Sections :
- *   - barre de titre « Mon profil » (desktop seul : sous 900 px, la barre du
- *     haut du shell, `AppTopBar`, porte déjà le titre)
+ *   - barre de titre « Mon profil »
  *   - hero bleu : avatar, nom, e-mail, démarche, bouton « Modifier »
  *   - 3 tuiles (maîtrise / série / niveau estimé + périmètre) issues de /api/me/dashboard
  *   - grille « Mon pass » (subscription-status) | « Mon objectif » (démarche)
@@ -147,11 +147,7 @@ export default function ProfilPage() {
     // ── Mon pass ──────────────────────────────────────────────────────────
     const premium = subscription?.isPremium ?? user.isPremium ?? false;
     const access = subscription?.moduleAccess;
-    const passName = !premium
-        ? "Découverte"
-        : access === "INTEGRAL"
-            ? "Pass Intégral"
-            : "Pass Civique";
+    const passName = passAccessName(premium, access === "INTEGRAL");
     const expiresAt = subscription?.expiresAt ?? user.premiumEndsAt ?? null;
     const passSub = !premium
         ? "Accès limité — débloquez tout SejourFR"
@@ -163,7 +159,7 @@ export default function ProfilPage() {
     return (
         <main className="pr">
             <div className="pr-shell">
-                {/* ---- Barre de titre (desktop) : sous 900 px, c'est la barre du shell ---- */}
+                {/* ---- Barre de titre ---- */}
                 <div className="pr-topbar">
                     <span className="pr-topbar-slot" aria-hidden/>
                     <div className="pr-page-title">Mon profil</div>
@@ -438,7 +434,7 @@ const styles = `
   }
   .pr-shell { width: min(980px, 100%); margin: 0 auto; }
 
-  /* ---- Barre de titre (masquée sous 900 px : AppTopBar la remplace) ---- */
+  /* ---- Barre de titre ---- */
   .pr-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 18px; }
   .pr-topbar-slot { width: 48px; height: 48px; flex-shrink: 0; }
   .pr-page-title {
@@ -553,11 +549,8 @@ const styles = `
   .pm-btn-danger:hover { background: var(--color-red-dark); }
   .pm-btn-neutral { background: var(--color-ink); color: white; }
   .pm-btn-neutral:hover { background: var(--color-ink-2); }
-  @media (max-width: 900px) {
-    .pr-topbar { display: none; }
-    /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
-    .app-shell--has-drawer .pr { padding-top: var(--app-bar-gap); }
-  }
+  /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
+  .app-shell .pr { padding-top: 0; }
   /* ---- ≤ 760 px ---- */
   @media (max-width: 760px) {
     .pr { padding: 16px 14px 34px; }

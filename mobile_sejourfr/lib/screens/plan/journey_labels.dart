@@ -167,10 +167,12 @@ SfJourneyKind journeyKind(JourneyStep step) =>
 /// **Où mène une étape de séries.**
 ///
 /// 🛑 **Une seule composition d'adresse** : un chemin recopié dans un écran
-/// finirait par diverger du router. ⚠️ Pendant de `journeyEtapeHref`
-/// (`web .../lib/journey.ts`), sans son `?module=` — le mobile a un écran par
-/// parcours, l'adresse n'a pas à le porter.
-String journeyEtapeRoute(String stepId) => AppRoutes.planEtapePath(stepId);
+/// finirait par diverger du router. Pendant de `journeyEtapeHref`
+/// (`web .../lib/journey.ts`) : le module y est porté par le chemin
+/// (`/tcf/plan/etape/…`, `/civique/plan/etape/…`), là où le web met
+/// `?module=` — l'écran s'ouvre ainsi dans l'onglet de son module.
+String journeyEtapeRoute(String stepId, {required bool civique}) =>
+    AppRoutes.planEtapePath(stepId, civique: civique);
 
 /// **Cette étape se travaille-t-elle par SÉRIES ?**
 ///

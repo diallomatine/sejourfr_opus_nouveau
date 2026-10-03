@@ -180,7 +180,7 @@ class _CivicDiagnosticResultScreenState
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         SfTop(
-          onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
+          onBack: () => retourOuRepli(context, repli: AppRoutes.civiquePlan),
           kicker: kCivicResultKicker,
           title: kCivicResultTitle,
           badges: const [kCivicResultBadge],
@@ -351,7 +351,7 @@ class _CivicDiagnosticResultScreenState
           SfButton(
             label: kCivicDiagnosticPlanCta,
             variant: SfButtonVariant.blue,
-            onPressed: () => context.go('/plan?module=CIVIQUE'),
+            onPressed: () => context.go(AppRoutes.civiquePlan),
           ),
         ],
       ),
@@ -370,7 +370,7 @@ class _CivicDiagnosticResultScreenState
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         SfTop(
-          onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
+          onBack: () => retourOuRepli(context, repli: AppRoutes.civiquePlan),
           kicker: kCivicDiagnosticGateEyebrow,
           title: kCivicDiagnosticGateTitle,
           badges: const [kCivicDiagnosticGuestBadge],

@@ -19,7 +19,7 @@ import '../../core/models/civic_plan_models.dart';
 /// `autoDispose` sans garde, donc chaque ouverture d'écran rappelait
 /// `/api/me/civic-plan` pour une réponse identique. Ses points de fraîcheur :
 /// le tiré-pour-rafraîchir de l'Accueil et du Plan, le retour d'un flux poussé
-/// (`PlanScreen.didPopNext`) et le lancement d'une série ciblée, qui fait
+/// (`PlanBody.didPopNext`) et le lancement d'une série ciblée, qui fait
 /// bouger la boîte Leitner.
 ///
 /// L'échec n'est **pas** mis en cache.

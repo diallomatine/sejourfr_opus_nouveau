@@ -8,7 +8,7 @@ import '../../../core/widgets/sejour/sejour_kit.dart';
 /// (l'étape du cycle pour CETTE épreuve).
 ///
 /// ⚠️ Extraite à sa **deuxième** surface (2026-09-20). Elle vivait en privé
-/// dans `ReviserScreen` ; la recopier dans les écrans d'épreuve aurait donné
+/// dans `ReviserBody` ; la recopier dans les écrans d'épreuve aurait donné
 /// deux cartes qui disent la même chose et divergent à la première retouche.
 ///
 /// 🛑 **Elle ne décide rien** : ni le titre, ni le libellé du bouton, ni le

@@ -12,29 +12,25 @@
  * Plan** (2026-09-28) : elle ne vit que sur l'Accueil. Le Plan montre « À faire
  * maintenant », le jalon éventuel et le cycle.
  *
- * ## Le module sélectionné vit dans l'URL, et nulle part ailleurs (2026-09-12)
+ * ## Le module sélectionné vit dans l'URL, et nulle part ailleurs
  *
- * Arbitrage du propriétaire : la bascule de la **barre latérale** navigue entre
- * les deux modules du Plan quand on est sur le Plan, et la bascule **de
- * l'écran** disparaît en desktop pour ne pas faire doublon. Les deux contrôles
- * doivent donc s'entendre sur « quel module est affiché » — d'où **un seul
- * mécanisme de sélection** : le paramètre `?module=`.
+ * La barre latérale (Navigation v2, 2026-10-03) porte deux entrées de Plan,
+ * `/plan?module=TCF` et `/plan?module=CIVIQUE` : l'écran n'a plus de bascule
+ * (X14 / « supprimer les bascules devenues inutiles »), le module vient de
+ * l'URL.
  *
  * - l'URL le dit ⇒ c'est lui, quel que soit l'état serveur ;
  * - l'URL se tait ⇒ on affiche le module **servi** par `moduleParDefaut(prep)`,
  *   puis on **inscrit** cette résolution dans l'URL (`router.replace`), pour que
- *   la barre latérale sache quel côté marquer actif. Sans ça, elle devrait
+ *   la barre latérale sache quelle entrée marquer active. Sans ça, elle devrait
  *   refaire ce choix de son côté — une deuxième autorité sur le même fait.
- *
- * Conséquence : la bascule de l'écran est un **lien**, pas un état local. Elle
- * fait ce que fait celle du rail, elle n'a plus son propre `useState`.
  */
 import {useEffect, useState} from "react";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {ModuleToggle, SejourApp, TopInAppBar, TopSlot} from "@/app/_components/sejour/SejourKit";
+import {SejourApp} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {moduleDeLUrl, planHref, type ParcoursModule} from "@/lib/module-switch";
+import {moduleDeLUrl, type ParcoursModule} from "@/lib/module-switch";
 import {diagnosticFait, moduleParDefaut} from "@/lib/preparation";
 import {canAccessModule, type PreparationDto} from "@/lib/types";
 import {LearningPlanView} from "./LearningPlanView";
@@ -65,12 +61,8 @@ export function PlanModules() {
     const [prep, setPrep] = useState<PreparationDto | null>(null);
     /**
      * Le module **servi** par défaut, quand l'URL ne dit rien. `null` tant que
-     * `preparation()` n'a pas répondu.
-     *
-     * 🛑 **Le toggle ne se fait jamais attendre** : en attendant cette réponse
-     * l'écran ouvre le TCF, et il sera corrigé dès que l'état arrive. Rendre
-     * `null` le temps du chargement laissait la page sans aucune porte vers le
-     * civique : c'est une navigation, pas un résultat.
+     * `preparation()` n'a pas répondu : l'écran ouvre alors le TCF, et il sera
+     * corrigé dès que l'état arrive.
      */
     const [defaut, setDefaut] = useState<ParcoursModule | null>(null);
 
@@ -87,8 +79,8 @@ export function PlanModules() {
                 setDefaut(moduleParDefaut(p));
             })
             .catch(() => {
-                // 🛑 L'échec ne masque rien : les deux onglets restent là, et le
-                // plan TCF reste atteignable — il existait avant cet onglet.
+                // 🛑 L'échec ne masque rien : le plan TCF reste affiché, et les
+                // deux Plans restent atteignables par la barre latérale.
             });
         return () => {
             vivant = false;
@@ -96,8 +88,8 @@ export function PlanModules() {
     }, []);
 
     /* L'URL devient canonique dès que le défaut servi est connu : la barre
-       latérale lit `?module=` pour savoir quel côté marquer actif, et elle n'a
-       pas à refaire ce choix. Les autres paramètres sont **conservés** —
+       latérale lit `?module=` pour savoir quelle entrée marquer active, et elle
+       n'a pas à refaire ce choix. Les autres paramètres sont **conservés** —
        `/plan` porte parfois une provenance (`withTrafficSource`). */
     useEffect(() => {
         if (demande !== null || defaut === null || pathname === null) return;
@@ -115,42 +107,15 @@ export function PlanModules() {
        - abonné ⇒ `wide`, le Plan est un **tableau de bord** (1080). */
     const abonne = canAccessModule(user, affiche);
 
-    /* 🛑 Le toggle du kit, partagé par les 7 écrans de parcours : une seconde
-       implémentation du même contrôle finirait par diverger.
-
-       🛑 **Il se pose SOUS l'en-tête de page** (eyebrow + titre), pas au-dessus
-       — l'écran s'annonce, puis on choisit son parcours. Comme l'en-tête
-       appartient à l'état affiché (le titre et l'eyebrow changent avec lui), le
-       toggle descend par `TopSlot` : c'est `Top` qui le place, dans les sept
-       variantes à la fois, sans qu'aucune ne le recopie.
-
-       🛑 **Des liens, pas un état local** : c'est la même destination que la
-       bascule du rail, donc le même mécanisme. Le kit masque ce toggle dès que
-       le rail est visible (≥ 901 px) — une seule bascule à l'écran. */
-    const toggle = (
-        <ModuleToggle
-            current={affiche === "TCF" ? "tcf" : "civique"}
-            tcfHref={planHref("TCF")}
-            civicHref={planHref("CIVIQUE")}
-        />
-    );
-
     return (
         <SejourApp sticky={!abonne} wide={abonne}>
-            {/* 🛑 Sous 900 px, « Mon plan du jour » et son eyebrow (l'objectif,
-                servi) montent dans la barre du haut : c'est le titre de cet
-                écran, pas le « Plan » générique de `lib/app-bar.ts`. */}
-            <TopInAppBar>
-                <TopSlot node={toggle}>
-                    {affiche === "TCF" ? (
-                        <LearningPlanView diagnosticFait={diagnosticFait(prep?.tcf ?? null, "TCF")} />
-                    ) : (
-                        /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
-                           L10) : c'est un moteur, plus un écho du diagnostic. */
-                        <CivicPlanPanel diagnosticFait={diagnosticFait(prep?.civique ?? null, "CIVIQUE")} />
-                    )}
-                </TopSlot>
-            </TopInAppBar>
+            {affiche === "TCF" ? (
+                <LearningPlanView diagnosticFait={diagnosticFait(prep?.tcf ?? null, "TCF")} />
+            ) : (
+                /* 🛑 Le plan civique lit SA propre source (`/api/me/civic-plan`,
+                   L10) : c'est un moteur, plus un écho du diagnostic. */
+                <CivicPlanPanel diagnosticFait={diagnosticFait(prep?.civique ?? null, "CIVIQUE")} />
+            )}
         </SejourApp>
     );
 }

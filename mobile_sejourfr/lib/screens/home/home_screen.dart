@@ -15,7 +15,7 @@ import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/progress_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/parcours_affiche.dart';
+import '../../core/router/shell_navigation.dart';
 import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
@@ -74,11 +74,11 @@ import 'widgets/home_blocks.dart';
 ///
 /// ## Un écran, deux parcours
 ///
-/// 🛑 **La bascule change ce que l'Accueil AFFICHE**, elle ne navigue pas. Le
-/// parcours affiché vit dans [parcoursCiviqueProvider], **partagé avec le
-/// Plan** : c'est le pendant du `?module=` du web, et la raison est la même —
-/// deux mécaniques auraient fini par afficher deux parcours différents sur deux
-/// écrans du même compte. Le défaut est **servi** (`moduleCiviqueParDefaut`).
+/// 🛑 **La bascule change ce que l'Accueil AFFICHE**, elle ne navigue pas.
+/// ⚠️ Navigation v2 (phase 2) : le Plan et Réviser ont quitté la bascule — ce
+/// sont des onglets de module —, donc le parcours affiché n'est plus partagé
+/// et vit ici, en état local. L'Accueil est refait en phase 3. Le défaut est
+/// **servi** (`moduleCiviqueParDefaut`).
 ///
 /// ## Ce que la maquette ne décide PAS
 ///
@@ -100,6 +100,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// Le parcours affiché. `null` tant que le défaut servi n'est pas connu.
+  bool? _civique;
+
   @override
   void initState() {
     super.initState();
@@ -107,19 +110,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   /// Le parcours ouvert par défaut est **servi** : celui qui a déjà quelque
-  /// chose à dire. `??=` n'écrase jamais un choix déjà fait par le candidat sur
-  /// le Plan.
+  /// chose à dire. Il n'écrase jamais un choix déjà fait par le candidat.
   Future<void> _poserDefaut() async {
+    bool defaut;
     try {
-      final prep = await ref.read(preparationProvider.future);
-      if (!mounted) return;
-      ref.read(parcoursCiviqueProvider.notifier).state ??=
-          moduleCiviqueParDefaut(prep);
+      defaut = moduleCiviqueParDefaut(await ref.read(preparationProvider.future));
     } catch (_) {
-      // 🛑 L'échec n'ouvre pas sur un module au hasard : on retombe sur le TCF,
-      // exactement comme le Plan.
-      if (mounted) ref.read(parcoursCiviqueProvider.notifier).state ??= false;
+      // 🛑 L'échec n'ouvre pas sur un module au hasard : on retombe sur le TCF.
+      defaut = false;
     }
+    if (!mounted || _civique != null) return;
+    setState(() => _civique = defaut);
   }
 
   /// 🛑 **Le seul point de fraîcheur de l'Accueil**, avec le signal du Plan :
@@ -132,17 +133,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
+    final civique = _civique ?? false;
 
-    // 🛑 **Le MÊME toggle que le Plan, les Examens et Réviser**, et pas une
-    // copie : `SegmentedTabs` + `parcoursSegments` portent déjà les deux
-    // couleurs du produit (rouge = TCF, bleu = civique).
+    // `SegmentedTabs` + `parcoursSegments` portent les couleurs de module.
     final toggle = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: SegmentedTabs<bool>(
         tabs: parcoursSegments(tcf: false, civique: true),
         value: civique,
-        onChanged: (v) => ref.read(parcoursCiviqueProvider.notifier).state = v,
+        onChanged: (v) => setState(() => _civique = v),
       ),
     );
 
@@ -221,14 +220,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ];
   }
 
-  /// « Voir mon Plan » sur une ligne de parcours : le Plan **du module de la
-  /// ligne**. La bascule du Plan lit le même provider que celle d'ici, donc
-  /// choisir la ligne suffit à ouvrir le bon onglet — aucun paramètre de route
-  /// n'est inventé.
-  void _ouvrirPlan(BuildContext context, {required bool civique}) {
-    ref.read(parcoursCiviqueProvider.notifier).state = civique;
-    context.go(AppRoutes.plan);
-  }
+  /// « Voir mon Plan » sur une ligne de parcours : le segment Plan **du module
+  /// de la ligne**, dans l'onglet de ce module.
+  void _ouvrirPlan(BuildContext context, {required bool civique}) =>
+      context.go(AppRoutes.modulePlan(civique: civique));
 
   /* ------------------------------------------- l'action du jour — TCF ----- */
 
@@ -333,6 +328,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           SfButton(
             label: debloquer ? carte!.cta : kHomePlanCta,
+            variant: SfButtonVariant.tcf,
             onPressed: debloquer
                 ? () => context.push(AppRoutes.planUnlockPath(civique: false))
                 : () => _ouvrirPlan(context, civique: false),
@@ -342,7 +338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (ouvrirEtape != null)
             HomeSoftAction(
               label: carte!.cta,
-              onTap: () => context.push(ouvrirEtape),
+              onTap: () => pousserOuAller(context, ouvrirEtape),
             ),
           if (lancable)
             HomeSoftAction(
@@ -430,11 +426,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         label: debloquer || ouvrirEtape != null
             ? carte.cta
             : kHomeCiviquePlanCta,
-        variant: SfButtonVariant.blue,
+        variant: SfButtonVariant.civique,
         onPressed: debloquer
             ? () => context.push(AppRoutes.planUnlockPath(civique: true))
             : ouvrirEtape != null
-                ? () => context.push(ouvrirEtape)
+                ? () => pousserOuAller(context, ouvrirEtape)
                 : () => _ouvrirPlan(context, civique: true),
       ),
     );
@@ -635,7 +631,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 themeName: theme.label,
                 slotNumber: mesure.slotNumber,
               )
-          : () => context.push(AppRoutes.progressionThemePath(theme.themeId)),
+          : () => pousserOuAller(
+                context, AppRoutes.progressionThemePath(theme.themeId)),
     );
   }
 
@@ -676,8 +673,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       openPlanDomain(context, epreuve.epreuve);
       return;
     }
-    context.push(
-        AppRoutes.progressionEpreuvePath(planDomainKey(epreuve.epreuve)));
+    pousserOuAller(
+        context, AppRoutes.progressionEpreuvePath(planDomainKey(epreuve.epreuve)));
   }
 
   /* ------------------------------------------------------- l'objectif ---- */

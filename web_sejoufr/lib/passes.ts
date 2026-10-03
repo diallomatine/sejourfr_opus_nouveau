@@ -47,6 +47,21 @@ export const PASS_MODULE_NAME: Record<PassModule, string> = {
   CIVIQUE: "Civique",
 };
 
+/** L'accès d'un compte sans pass (Profil, carte utilisateur du shell). */
+export const PASS_FREE_NAME = "Découverte";
+
+/**
+ * **Le nom de l'accès d'un compte** — « Pass Intégral », « Pass Civique » ou
+ * « Découverte » —, déclaré une seule fois : le Profil et la carte
+ * utilisateur de la barre latérale le lisaient chacun à leur façon.
+ * `integral` vient d'un fait servi (`moduleAccess === "INTEGRAL"` ou
+ * `hasTcf`, l'accès TCF n'étant ouvert que par l'Intégral).
+ */
+export function passAccessName(premium: boolean, integral: boolean): string {
+  if (!premium) return PASS_FREE_NAME;
+  return `Pass ${PASS_MODULE_NAME[integral ? "INTEGRAL" : "CIVIQUE"]}`;
+}
+
 /**
  * 🛑 **LE TITRE DE LA CARTE d'un module dans une grille de pass**, déclaré une
  * seule fois pour tout le web.

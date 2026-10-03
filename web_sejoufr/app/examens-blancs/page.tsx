@@ -1,7 +1,7 @@
 "use client";
 
-import {useRouter} from "next/navigation";
-import {type ReactNode, useEffect, useMemo, useState} from "react";
+import {useRouter, useSearchParams} from "next/navigation";
+import {type ReactNode, Suspense, useEffect, useMemo, useState} from "react";
 import {Lightbulb, Target, Waves} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleToggle} from "@/app/_components/ModuleToggle";
@@ -10,6 +10,7 @@ import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {moduleDeLUrl} from "@/lib/module-switch";
 import {useExamSlotLocks} from "@/lib/use-exam-slot-locks";
 import {
     EPREUVE_PRESENTATION,
@@ -72,6 +73,23 @@ const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
  * - **Civique** : MOCK_EXAM 40 Q stratifiées (`civique-decouverte`).
  */
 export default function ExamensBlancsHomePage() {
+    return (
+        <Suspense fallback={<HomeSkeleton/>}>
+            <ExamensBlancsRoot/>
+        </Suspense>
+    );
+}
+
+/**
+ * 🛑 **Le parcours affiché vient de l'URL** (`?module=TCF|CIVIQUE`, nu → TCF),
+ * plus d'un état local (Navigation v2, 2026-10-03) : la barre latérale porte
+ * une entrée « Examens » par module, et l'adresse se partage.
+ */
+function useExamModule(): ExamModule {
+    return moduleDeLUrl(useSearchParams()) ?? "TCF";
+}
+
+function ExamensBlancsRoot() {
     const {status} = useAuth();
     if (status === "loading") return <HomeSkeleton/>;
     if (status === "guest") return <ExamsGuestHome/>;
@@ -96,7 +114,7 @@ function ExamsConnectedHome() {
     const [civiqueSlot, setCiviqueSlot] = useState<number | null>(null);
     const [civiqueStarting, setCiviqueStarting] = useState(false);
     const [civiqueError, setCiviqueError] = useState<string | null>(null);
-    const [active, setActive] = useState<ExamModule>("TCF");
+    const active = useExamModule();
     /** Dashboard agrégé (cache 30 s) : sert niveau TCF estimé + progression civique. */
     const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
 
@@ -340,11 +358,9 @@ function ExamsConnectedHome() {
         <main className="ebh">
             <h1 className="ebh-sr">Examens blancs</h1>
 
-            <ModuleToggle active={active} onChange={setActive}/>
-
             {active === "TCF" ? (
                 <ModuleExamsSection
-                    tone="red"
+                    module="TCF"
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
                     chip="CO · CE · EE · EO"
@@ -366,7 +382,7 @@ function ExamsConnectedHome() {
                 </ModuleExamsSection>
             ) : (
                 <ModuleExamsSection
-                    tone="blue"
+                    module="CIVIQUE"
                     icon={<Lightbulb size={22} strokeWidth={1.8}/>}
                     title="Examen civique"
                     chip="5 catégories mélangées"
@@ -483,7 +499,7 @@ function civiqueScoreLabel(a: AttemptSummaryResponse | null): string {
 // SECTION MODULE — card TCF IRN / Examen civique (chrome + grille en children)
 // ============================================================================
 function ModuleExamsSection({
-                                tone,
+                                module,
                                 icon,
                                 title,
                                 chip,
@@ -492,7 +508,8 @@ function ModuleExamsSection({
                                 tips,
                                 children,
                             }: {
-    tone: "blue" | "red";
+    /** Le parcours : il colore la carte (`--color-module-*`, X1-A). */
+    module: ExamModule;
     icon: ReactNode;
     title: string;
     chip: string;
@@ -504,7 +521,7 @@ function ModuleExamsSection({
     return (
         <section className="ebh-module">
             <header className="ebh-module-head">
-                <span className={`ebh-module-icon ebh-module-icon-${tone}`} aria-hidden>
+                <span className={`ebh-module-icon ebh-module-icon-${module.toLowerCase()}`} aria-hidden>
                     {icon}
                 </span>
                 <div className="ebh-module-titles">
@@ -528,7 +545,7 @@ function ModuleExamsSection({
 
             <div className="ebh-tips">
                 {tips.map((t) => (
-                    <span className={`ebh-tip ebh-tip-${tone}`} key={t}>
+                    <span className={`ebh-tip ebh-tip-${module.toLowerCase()}`} key={t}>
                         {t}
                     </span>
                 ))}
@@ -545,7 +562,7 @@ function ModuleExamsSection({
 function HomeSkeleton() {
     return (
         <div className="ebh-loading">
-            <style>{`.ebh-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+            <style>{`.ebh-loading { min-height: calc(100vh - 80px); background: var(--color-paper); }`}</style>
         </div>
     );
 }
@@ -565,7 +582,7 @@ function ExamsGuestHome() {
     const [introModule, setIntroModule] = useState<ModuleEnum | null>(null);
     const [demoStarting, setDemoStarting] = useState(false);
     const [demoError, setDemoError] = useState<string | null>(null);
-    const [active, setActive] = useState<ExamModule>("TCF");
+    const active = useExamModule();
     // Grilles vues d'un visiteur : le serveur n'y ouvre que ce qui est offert
     // sans compte (l'examen gratuit de chaque parcours, au créneau 1).
     const tcfSlotLocks = useExamSlotLocks("TCF_COMPLET");
@@ -657,11 +674,13 @@ function ExamsGuestHome() {
 
             {error && <div className="ebh-error">{error}</div>}
 
-            <ModuleToggle active={active} onChange={setActive}/>
+            {/* Un visiteur n'a pas la barre latérale : la bascule reste, en
+                LIENS (`?module=`), seule porte vers l'autre parcours. */}
+            <ModuleToggle active={active} hrefFor={(m) => `/examens-blancs?module=${m}`}/>
 
             {active === "TCF" ? (
                 <ModuleExamsSection
-                    tone="red"
+                    module="TCF"
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
                     chip="Tous les modules"
@@ -687,7 +706,7 @@ function ExamsGuestHome() {
                 </ModuleExamsSection>
             ) : (
                 <ModuleExamsSection
-                    tone="blue"
+                    module="CIVIQUE"
                     icon={<Lightbulb size={22} strokeWidth={1.8}/>}
                     title="Examen civique"
                     chip="5 catégories mélangées"
@@ -871,10 +890,11 @@ const styles = `
     border-radius: 13px;
     display: grid; place-items: center;
     flex-shrink: 0;
-    color: #fff;
+    color: var(--color-white);
   }
-  .ebh-module-icon-blue { background: var(--color-blue); }
-  .ebh-module-icon-red { background: var(--color-red); }
+  /* La couleur du MODULE (TCF bleu, civique rouge) : tokens sémantiques. */
+  .ebh-module-icon-tcf { background: var(--color-module-tcf); }
+  .ebh-module-icon-civique { background: var(--color-module-civique); }
   .ebh-module-titles { flex: 1; min-width: 0; }
   .ebh-module-titles h2 {
     margin: 0 0 2px;
@@ -945,10 +965,15 @@ const styles = `
     border: 1px solid var(--color-line);
     white-space: nowrap;
   }
-  .ebh-tip-red {
-    background: var(--color-red-light);
-    color: var(--color-red-dark);
-    border-color: color-mix(in srgb, var(--color-red) 18%, transparent);
+  .ebh-tip-tcf {
+    background: var(--color-module-tcf-light);
+    color: var(--color-module-tcf-dark);
+    border-color: color-mix(in srgb, var(--color-module-tcf) 18%, transparent);
+  }
+  .ebh-tip-civique {
+    background: var(--color-module-civique-light);
+    color: var(--color-module-civique-dark);
+    border-color: color-mix(in srgb, var(--color-module-civique) 18%, transparent);
   }
 
   .ebh-guest-foot {
@@ -976,8 +1001,6 @@ const styles = `
     .ebh-stat-lbl { font-size: 11px; }
     .ebh-stat-hint { font-size: 10.5px; }
   }
-  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
-  @media (max-width: 900px) {
-    .app-shell--has-drawer .ebh { padding-top: var(--app-bar-gap); }
-  }
+  /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
+  .app-shell .ebh { padding-top: 0; }
 `;

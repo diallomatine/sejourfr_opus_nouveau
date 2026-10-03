@@ -10,14 +10,10 @@ import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
-import '../../screens/civique/civique_full_exams_screen.dart';
 import '../../screens/diagnostic/diagnostic_screen.dart';
-import '../../screens/examens/examens_screen.dart';
-import '../../screens/reviser/reviser_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/civique_theme_exams_screen.dart';
-import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/tcf_production/competences/competence_detail_screen.dart';
@@ -48,7 +44,6 @@ import '../../screens/plan/plan_etape_screen.dart';
 import '../../screens/plan/plan_labels.dart';
 import '../../screens/plan/plan_cycle_archive_screen.dart';
 import '../../screens/plan/plan_history_screen.dart';
-import '../../screens/plan/plan_screen.dart';
 import '../../screens/plan/plan_unlock_labels.dart';
 import '../../screens/plan/plan_unlock_screen.dart';
 import '../../screens/plan/plan_serie_result_screen.dart';
@@ -57,6 +52,7 @@ import '../../screens/diagnostic_civique/civic_diagnostic_screen.dart';
 import '../../screens/diagnostic_civique/civic_diagnostic_result_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/favoris/mes_favoris_screen.dart';
+import '../../screens/module/module_screen.dart';
 import '../../screens/shell/main_shell.dart';
 import '../../screens/progression/progression_civique_screen.dart';
 import '../../screens/progression/progression_epreuve_screen.dart';
@@ -80,6 +76,7 @@ import '../auth/auth_controller.dart';
 import '../models/diagnostic_run_models.dart';
 import '../models/enums.dart';
 import '../models/skill_models.dart';
+import 'shell_navigation.dart';
 
 /// Routes nommées centralisées (utilisées par les écrans).
 class AppRoutes {
@@ -89,16 +86,32 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const home = '/';
 
-  // Onglets de la refonte 2026 : Réviser (hub fusionné Civique/TCF avec
-  // toggle) et Examens (examens blancs complets des deux parcours).
+  /// **Anciennes adresses des onglets** de la refonte 2026 (Réviser, Examens),
+  /// supprimés par Navigation v2 : elles ne portent plus d'écran et
+  /// **redirigent** vers le segment TCF — un lien déjà émis aboutit.
   static const reviser = '/reviser';
   static const examens = '/examens';
 
+  /// **Les écrans de module** (Navigation v2, 2026-10-03) — racines des
+  /// onglets TCF et Civique, un segment par sous-route. `/tcf` et `/civique`
+  /// mènent au segment Plan.
+  static const tcfPlan = '/tcf/plan';
+  static const tcfEntrainement = '/tcf/entrainement';
+  static const tcfExamens = '/tcf/examens';
+  static const civiquePlan = '/civique/plan';
+  static const civiqueEntrainement = '/civique/entrainement';
+  static const civiqueExamens = '/civique/examens';
+
+  static String modulePlan({required bool civique}) =>
+      civique ? civiquePlan : tcfPlan;
+  static String moduleEntrainement({required bool civique}) =>
+      civique ? civiqueEntrainement : tcfEntrainement;
+  static String moduleExamens({required bool civique}) =>
+      civique ? civiqueExamens : tcfExamens;
+
   static const civique = '/civique';
-  // Page « Examens blancs » civique GLOBAUX (20 slots de 40 Q tous thèmes,
-  // 45 min, seuil 32/40). Pushée depuis le hero du hub Civique. Distincte
-  // des examens thématiques (20 Q d'un seul thème, route
-  // `/civique/theme/:themeId/examens`).
+  /// Ancienne page plein écran des examens blancs civiques GLOBAUX : elle
+  /// **redirige** vers le segment Examens du module Civique (X10).
   static const civiqueExamsBlanc = '/civique/examens-blancs';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
   // Page « Examens blancs » d'un thème civique (10 slots de 20 Q / 20 min /
@@ -152,9 +165,8 @@ class AppRoutes {
   static const tcfCompetenceResult =
       '/tcf/:moduleKey/competences/resultat/:attemptId';
 
-  // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
-  // la liste. Distinct des module exams (CO/CE seul) côté backend via
-  // attempts.epreuve = TCF_COMPLET vs attempts.module_exam_question_type.
+  /// Ancienne page plein écran des examens blancs TCF complets : elle
+  /// **redirige** vers le segment Examens du module TCF (X10).
   static const tcfFullExams = '/tcf/examens-blancs';
 
   // Hub de progression d'un examen blanc complet en cours (4 étapes).
@@ -200,7 +212,13 @@ class AppRoutes {
 
   static String civicDiagnosticResultPath(String sessionId) =>
       '/diagnostic-civique/$sessionId/resultat';
+  /// L'ancienne adresse de l'onglet Plan : **redirige** vers le segment Plan
+  /// du module (`?module=CIVIQUE` ⇒ civique, sinon TCF).
   static const plan = '/plan';
+
+  /// `true` quand une ancienne adresse `/plan…` porte `?module=CIVIQUE`.
+  static bool planCiviqueQuery(Map<String, String> query) =>
+      query['module'] == 'CIVIQUE';
 
   /// Fiche d'un des quatre domaines du TCF **vu par le Plan** (`co|ce|ee|eo`).
   /// Aucun identifiant n'y voyage : la fiche relit le Plan déjà chargé.
@@ -224,27 +242,48 @@ class AppRoutes {
   /// (2026-09-20). Une étape d'entraînement de compréhension (CO/CE) ou une
   /// étape civique ouvre CET écran depuis la ligne du cycle, au lieu de lancer
   /// la série. 🛑 Les étapes d'**expression** ne passent pas par ici.
+  ///
+  /// Navigation v2 : l'écran vit **sous le Plan de son module**
+  /// (`/tcf/plan/etape/:stepId`, `/civique/plan/etape/:stepId`), donc dans
+  /// l'onglet du module. [planEtape] est l'ancienne adresse, redirigée.
   static const planEtape = '/plan/etape/:stepId';
+  static const tcfPlanEtape = '$tcfPlan/etape/:stepId';
+  static const civiquePlanEtape = '$civiquePlan/etape/:stepId';
 
-  static String planEtapePath(String stepId) => '/plan/etape/$stepId';
+  static String planEtapePath(String stepId, {required bool civique}) =>
+      '${modulePlan(civique: civique)}/etape/$stepId';
 
   /// **« Mes cycles »** — l'historique des cycles du Plan (D16, 2026-09-24 :
   /// renommé à l'écran, chemin inchangé). 🛑 **À ne pas confondre avec les
   /// écrans de progression** ([progressionTcf] …), qui lisent des examens
   /// blancs. Aucun identifiant n'y voyage : l'écran relit le Plan déjà chargé.
+  ///
+  /// Navigation v2 : sous le Plan de son module (`/tcf/plan/progression`,
+  /// `/civique/plan/progression`) ; [planProgress] est l'ancienne adresse,
+  /// redirigée.
   static const planProgress = '/plan/progression';
+  static const tcfPlanProgress = '$tcfPlan/progression';
+  static const civiquePlanProgress = '$civiquePlan/progression';
+
+  static String planProgressPath({required bool civique}) =>
+      '${modulePlan(civique: civique)}/progression';
 
   /// **Un cycle terminé, en consultation** (2026-09-27) — ouvert depuis « Mes
-  /// cycles » : son plan tel qu'il était, en lecture seule.
+  /// cycles » : son plan tel qu'il était, en lecture seule. Même déménagement
+  /// que [planProgress].
   static const planCycleArchive = '/plan/progression/cycle/:journeyId';
 
-  static String planCycleArchivePath(String journeyId) =>
-      '/plan/progression/cycle/${Uri.encodeComponent(journeyId)}';
+  static String planCycleArchivePath(
+    String journeyId, {
+    required bool civique,
+  }) =>
+      '${planProgressPath(civique: civique)}/cycle/'
+      '${Uri.encodeComponent(journeyId)}';
 
   /// **Les écrans de progression** (2026-09-24, maquettes
-  /// `docs/progression/maquettes-progression/`) — ouverts depuis le Profil
-  /// (« Ma progression », D16), l'Accueil (« Voir mes résultats », D17) et
-  /// entre eux. Hors shell, poussés.
+  /// `docs/progression/maquettes-progression/`) — ouverts depuis la carte
+  /// « Ma progression » du module, le Profil, l'Accueil et entre eux.
+  /// Navigation v2 : dans l'onglet de leur module (TCF / Civique).
   static const progressionTcf = '/progression/tcf';
 
   /// La même page, avec **tout** l'historique des examens complets (D8).
@@ -401,6 +440,66 @@ TcfProductionModule _productionModuleFromKey(String? key) =>
     key == TcfProductionModule.eo.routeKey
         ? TcfProductionModule.eo
         : TcfProductionModule.ee;
+
+/// Le numéro de tâche d'une route `/tcf/…/tache/:tacheNumero`, borné à 1-3.
+int _tacheNumero(GoRouterState state) =>
+    (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3);
+
+/// **La racine d'un onglet de module** : `/tcf` ou `/civique` (→ segment
+/// Plan), puis un segment par sous-route. Les trois segments partagent **la
+/// même page** (même clé, sans transition) : changer de segment met à jour
+/// l'écran au lieu d'en empiler un autre. Les écrans secondaires du Plan qui
+/// servent les DEUX modules (étape de séries, « Mes cycles », cycle archivé)
+/// vivent sous le segment Plan de leur module.
+GoRoute _moduleRoute({required bool civique}) {
+  final racine = civique ? AppRoutes.civique : AppRoutes.tcf;
+  Page<void> page(ModuleSegment segment) => NoTransitionPage<void>(
+        key: ValueKey<String>('module-$racine'),
+        child: ModuleScreen(civique: civique, segment: segment),
+      );
+  return GoRoute(
+    path: racine,
+    redirect: (_, state) => state.uri.path == racine
+        ? ModuleSegment.plan.path(civique: civique)
+        : null,
+    routes: [
+      GoRoute(
+        path: ModuleSegment.plan.slug,
+        pageBuilder: (_, __) => page(ModuleSegment.plan),
+        routes: [
+          GoRoute(
+            path: 'etape/:stepId',
+            builder: (_, state) => PlanEtapeScreen(
+              stepId: state.pathParameters['stepId']!,
+              civique: civique,
+            ),
+          ),
+          GoRoute(
+            path: 'progression',
+            builder: (_, __) => PlanHistoryScreen(civique: civique),
+            routes: [
+              GoRoute(
+                path: 'cycle/:journeyId',
+                builder: (_, state) => PlanCycleArchiveScreen(
+                  journeyId: state.pathParameters['journeyId']!,
+                  civique: civique,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: ModuleSegment.entrainement.slug,
+        pageBuilder: (_, __) => page(ModuleSegment.entrainement),
+      ),
+      GoRoute(
+        path: ModuleSegment.examens.slug,
+        pageBuilder: (_, __) => page(ModuleSegment.examens),
+      ),
+    ],
+  );
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthRouterNotifier(ref);
@@ -569,6 +668,300 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.targetPath,
         builder: (_, __) => const TargetPathScreen(),
       ),
+
+      // ── Navigation v2 (2026-10-03) : le shell à 4 onglets ──────────────
+      //
+      // Une pile par onglet. Un écran déclaré dans une branche s'affiche
+      // AVEC la barre d'onglets, sous l'onglet de son module ; tout ce qui
+      // est plein écran (passation, résultats, paywall, diagnostic, auth)
+      // reste sur le navigateur racine, plus bas.
+      //
+      // 🛑 Ouvrir un écran d'une branche depuis un écran plein écran ou
+      // depuis un autre onglet passe par `pousserOuAller`
+      // (`shell_navigation.dart`) : un `push` y empilerait un second shell
+      // portant la même clé de page.
+      StatefulShellRoute.indexedStack(
+        builder: (_, __, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: shellBranchKeys[ShellBranch.accueil],
+            observers: [brancheRouteObservers[ShellBranch.accueil.index]],
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (_, __) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: shellBranchKeys[ShellBranch.tcf],
+            observers: [brancheRouteObservers[ShellBranch.tcf.index]],
+            initialLocation: AppRoutes.tcfPlan,
+            routes: [
+              _moduleRoute(civique: false),
+              // Fiche d'un des quatre domaines du TCF vu par le Plan : TCF
+              // seulement, chemin inchangé.
+              GoRoute(
+                path: AppRoutes.planDomain,
+                builder: (_, state) => PlanDomainScreen(
+                  domainKey: state.pathParameters['domainKey'] ?? '',
+                ),
+              ),
+              GoRoute(
+                path: AppRoutes.progressionTcf,
+                builder: (_, state) => ProgressionTcfScreen(
+                  tous: state.uri.queryParameters['tous'] == 'true',
+                ),
+              ),
+              GoRoute(
+                path: AppRoutes.progressionEpreuve,
+                builder: (_, state) {
+                  final epreuve =
+                      planDomainFromKey(state.pathParameters['domainKey'] ?? '');
+                  // Une clé inconnue ne fabrique pas d'épreuve : on retombe
+                  // sur la progression globale plutôt que d'inventer un
+                  // domaine.
+                  if (epreuve == null) return const ProgressionTcfScreen();
+                  return ProgressionEpreuveScreen(epreuve: epreuve);
+                },
+              ),
+              // TCF QCM CO — hub + sous-route examens.
+              GoRoute(
+                path: AppRoutes.tcfCoDetail,
+                builder: (_, __) =>
+                    const TcfQcmDetailScreen(module: TcfQcmModule.co),
+                routes: [
+                  GoRoute(
+                    path: 'examens',
+                    builder: (_, __) =>
+                        const TcfQcmExamsScreen(module: TcfQcmModule.co),
+                  ),
+                ],
+              ),
+              // TCF QCM CE — hub + sous-route examens.
+              GoRoute(
+                path: AppRoutes.tcfCeDetail,
+                builder: (_, __) =>
+                    const TcfQcmDetailScreen(module: TcfQcmModule.ce),
+                routes: [
+                  GoRoute(
+                    path: 'examens',
+                    builder: (_, __) =>
+                        const TcfQcmExamsScreen(module: TcfQcmModule.ce),
+                  ),
+                ],
+              ),
+              // TCF Structure de la langue — QCM grammaire / lexique. Non
+              // évalué dans le TCF IRN officiel — bannière rendue par le hub.
+              GoRoute(
+                path: AppRoutes.tcfStructureDetail,
+                builder: (_, __) =>
+                    const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+                routes: [
+                  GoRoute(
+                    path: 'examens',
+                    builder: (_, __) => const TcfQcmExamsScreen(
+                        module: TcfQcmModule.structure),
+                  ),
+                ],
+              ),
+              // Lots d'un niveau pour un module TCF QCM.
+              GoRoute(
+                path: AppRoutes.tcfLevelLots,
+                builder: (_, state) {
+                  final moduleKey = state.pathParameters['moduleKey']!;
+                  final levelKey = state.pathParameters['level']!.toUpperCase();
+                  final module = switch (moduleKey) {
+                    'ce' => TcfQcmModule.ce,
+                    'structure' => TcfQcmModule.structure,
+                    _ => TcfQcmModule.co,
+                  };
+                  final level = Difficulty.values.firstWhere(
+                    (d) => d.wire == levelKey,
+                    orElse: () => Difficulty.a2,
+                  );
+                  return TcfLevelLotsScreen(module: module, level: level);
+                },
+              ),
+              // TCF productions — niveau 1 : l'épreuve et ses trois tâches.
+              GoRoute(
+                path: AppRoutes.tcfEoEntry,
+                builder: (_, __) =>
+                    const ProductionTasksScreen(module: TcfProductionModule.eo),
+              ),
+              GoRoute(
+                path: AppRoutes.tcfEeEntry,
+                builder: (_, __) =>
+                    const ProductionTasksScreen(module: TcfProductionModule.ee),
+              ),
+              // Niveau 2 : une tâche et ses sujets complets.
+              GoRoute(
+                path: AppRoutes.tcfEoTaskTraining,
+                builder: (_, state) => ProductionTaskScreen(
+                  module: TcfProductionModule.eo,
+                  tache: _tacheNumero(state),
+                  planStep: isPlanStepQuery(state.uri.queryParameters),
+                ),
+              ),
+              GoRoute(
+                path: AppRoutes.tcfEeTaskTraining,
+                builder: (_, state) => ProductionTaskScreen(
+                  module: TcfProductionModule.ee,
+                  tache: _tacheNumero(state),
+                  planStep: isPlanStepQuery(state.uri.queryParameters),
+                ),
+              ),
+              // Modèles corrigés d'une tâche (`moduleKey` ∈ {ee, eo}).
+              GoRoute(
+                path: AppRoutes.tcfTaskExamples,
+                builder: (_, state) => TcfTaskExamplesScreen(
+                  module: _productionModuleFromKey(
+                      state.pathParameters['moduleKey']),
+                  tache: _tacheNumero(state),
+                ),
+              ),
+              // Compétences TCF : le catalogue d'une tâche et la fiche d'une
+              // compétence. Le petit sujet (production en cours) et son
+              // résultat sont plein écran, plus bas.
+              GoRoute(
+                path: AppRoutes.tcfCompetences,
+                builder: (_, state) => CompetencesScreen(
+                  module: _productionModuleFromKey(
+                      state.pathParameters['moduleKey']),
+                  tache: _tacheNumero(state),
+                ),
+              ),
+              GoRoute(
+                path: AppRoutes.tcfCompetenceDetail,
+                builder: (_, state) => CompetenceDetailScreen(
+                  module: _productionModuleFromKey(
+                      state.pathParameters['moduleKey']),
+                  skillId: state.pathParameters['skillId']!,
+                  // Marqueur d'étape du Plan : la compétence s'affiche alors à
+                  // l'échelle de l'étape (« 2/5 »). Cf. plan_step_labels.dart.
+                  planStep: isPlanStepQuery(state.uri.queryParameters),
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: shellBranchKeys[ShellBranch.civique],
+            observers: [brancheRouteObservers[ShellBranch.civique.index]],
+            initialLocation: AppRoutes.civiquePlan,
+            routes: [
+              _moduleRoute(civique: true),
+              GoRoute(
+                path: AppRoutes.progressionCivique,
+                builder: (_, state) => ProgressionCiviqueScreen(
+                  tous: state.uri.queryParameters['tous'] == 'true',
+                ),
+              ),
+              GoRoute(
+                path: AppRoutes.progressionTheme,
+                builder: (_, state) => ProgressionThemeScreen(
+                  themeId: state.pathParameters['themeId']!,
+                ),
+              ),
+              // Un thème civique et ses examens blancs de thème.
+              GoRoute(
+                path: AppRoutes.civiqueThemeDetail,
+                builder: (_, state) => CiviqueThemeDetailScreen(
+                  themeId: state.pathParameters['themeId']!,
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'examens',
+                    builder: (_, state) => CiviqueThemeExamsScreen(
+                      themeId: state.pathParameters['themeId']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: shellBranchKeys[ShellBranch.profil],
+            observers: [brancheRouteObservers[ShellBranch.profil.index]],
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (_, __) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // ── Anciennes adresses (redirections, aucun écran) ────────────────
+      //
+      // Navigation v2 supprime les onglets Plan / Réviser / Examens et les
+      // pages plein écran des examens blancs : leurs adresses mènent au
+      // segment du module, pour qu'un lien déjà émis aboutisse.
+      GoRoute(
+        path: AppRoutes.plan,
+        redirect: (_, state) => AppRoutes.modulePlan(
+          civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.planEtape,
+        redirect: (_, state) => AppRoutes.planEtapePath(
+          state.pathParameters['stepId']!,
+          civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.planProgress,
+        redirect: (_, state) => state.uri.path == AppRoutes.planProgress
+            ? AppRoutes.planProgressPath(
+                civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+              )
+            : null,
+        routes: [
+          GoRoute(
+            path: 'cycle/:journeyId',
+            redirect: (_, state) => AppRoutes.planCycleArchivePath(
+              state.pathParameters['journeyId']!,
+              civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: AppRoutes.reviser,
+        redirect: (_, state) => AppRoutes.moduleEntrainement(
+          civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.examens,
+        redirect: (_, state) => AppRoutes.moduleExamens(
+          civique: AppRoutes.planCiviqueQuery(state.uri.queryParameters),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfFullExams,
+        redirect: (_, __) => AppRoutes.tcfExamens,
+      ),
+      GoRoute(
+        path: AppRoutes.civiqueExamsBlanc,
+        redirect: (_, __) => AppRoutes.civiqueExamens,
+      ),
+      // Diagnostic complet retiré (2026-09-26) : l'ancienne adresse et ses
+      // sous-routes (`/diagnostic-tcf/{id}/resultat`) mènent au Plan TCF.
+      GoRoute(
+        path: AppRoutes.tcfDiagnosticRetire,
+        redirect: (_, __) => AppRoutes.tcfPlan,
+        routes: [
+          GoRoute(
+            path: ':sessionId/resultat',
+            redirect: (_, __) => AppRoutes.tcfPlan,
+          ),
+        ],
+      ),
+
+      // ── Plein écran (navigateur racine, sans barre d'onglets) ─────────
       GoRoute(
         path: AppRoutes.examResult,
         builder: (_, state) {
@@ -576,41 +969,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ExamResultScreen(attemptId: attemptId);
         },
       ),
-
-      // Les écrans de progression — 🛑 **hors shell** : ils sont poussés
-      // depuis l'Accueil et le Profil, et les déclarer dans le ShellRoute
-      // provoquerait une collision de clé de page.
-      GoRoute(
-        path: AppRoutes.progressionTcf,
-        builder: (_, state) => ProgressionTcfScreen(
-          tous: state.uri.queryParameters['tous'] == 'true',
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.progressionEpreuve,
-        builder: (_, state) {
-          final epreuve =
-              planDomainFromKey(state.pathParameters['domainKey'] ?? '');
-          // Une clé inconnue ne fabrique pas d'épreuve : on retombe sur la
-          // progression globale plutôt que d'inventer un domaine.
-          if (epreuve == null) return const ProgressionTcfScreen();
-          return ProgressionEpreuveScreen(epreuve: epreuve);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.progressionCivique,
-        builder: (_, state) => ProgressionCiviqueScreen(
-          tous: state.uri.queryParameters['tous'] == 'true',
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.progressionTheme,
-        builder: (_, state) => ProgressionThemeScreen(
-          themeId: state.pathParameters['themeId']!,
-        ),
-      ),
-      // Hors shell : poussé depuis le Profil. Le garder dans le ShellRoute
-      // provoquait une collision de page key (double instanciation du shell).
       GoRoute(
         path: AppRoutes.mesFavoris,
         builder: (_, __) => const MesFavorisScreen(),
@@ -663,18 +1021,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.diagnostic,
         builder: (_, __) => const DiagnosticScreen(),
       ),
-      // Diagnostic complet retiré (2026-09-26) : l'ancienne adresse et ses
-      // sous-routes (`/diagnostic-tcf/{id}/resultat`) mènent au Plan.
-      GoRoute(
-        path: AppRoutes.tcfDiagnosticRetire,
-        redirect: (_, __) => AppRoutes.plan,
-        routes: [
-          GoRoute(
-            path: ':sessionId/resultat',
-            redirect: (_, __) => AppRoutes.plan,
-          ),
-        ],
-      ),
       GoRoute(
         path: AppRoutes.civicDiagnostic,
         builder: (_, __) => const CivicDiagnosticScreen(),
@@ -692,64 +1038,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ExamReportScreen(attemptId: attemptId);
         },
       ),
-
-      // Shell avec bottom nav
-      ShellRoute(
-        builder: (context, state, child) => MainShell(child: child),
-        routes: [
-          GoRoute(
-            path: AppRoutes.home,
-            builder: (_, __) => const HomeScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.reviser,
-            builder: (_, __) => const ReviserScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.examens,
-            builder: (_, __) => const ExamensScreen(),
-          ),
-          // Anciens hubs Civique/TCF — absorbés par l'onglet Réviser
-          // (refonte 2026). Redirects gardés pour les fallbacks/deep links.
-          GoRoute(
-            path: AppRoutes.civique,
-            redirect: (_, state) =>
-                state.uri.path == AppRoutes.civique ? AppRoutes.reviser : null,
-          ),
-          GoRoute(
-            path: AppRoutes.tcf,
-            redirect: (_, state) =>
-                state.uri.path == AppRoutes.tcf ? AppRoutes.reviser : null,
-          ),
-          GoRoute(
-            path: AppRoutes.plan,
-            builder: (_, __) => const PlanScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.profile,
-            builder: (_, __) => const ProfileScreen(),
-          ),
-        ],
-      ),
-
-      // Écrans secondaires du Plan — hors shell : ils sont poussés au-dessus de
-      // l'onglet, qui reste dessous et se ré-hydrate au retour.
-      GoRoute(
-        path: AppRoutes.planDomain,
-        builder: (_, state) => PlanDomainScreen(
-          domainKey: state.pathParameters['domainKey'] ?? '',
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.planProgress,
-        builder: (_, __) => const PlanHistoryScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.planCycleArchive,
-        builder: (_, state) => PlanCycleArchiveScreen(
-          journeyId: state.pathParameters['journeyId']!,
-        ),
-      ),
+      // « Débloquer mon plan » : un écran de transition vers l'offre, qu'on
+      // ferme par la croix — plein écran comme le paywall.
       GoRoute(
         path: AppRoutes.planUnlock,
         builder: (_, state) => PlanUnlockScreen(
@@ -758,12 +1048,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               : PlanUnlockModule.tcf,
         ),
       ),
-      GoRoute(
-        path: AppRoutes.planEtape,
-        builder: (_, state) => PlanEtapeScreen(
-          stepId: state.pathParameters['stepId']!,
-        ),
-      ),
+      // Bilan d'une série ciblée, poussé par le runner.
       GoRoute(
         path: AppRoutes.planSerieResult,
         builder: (_, state) => PlanSerieResultScreen(
@@ -774,8 +1059,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ),
       ),
-
-      // Runner hors shell (plein écran)
       GoRoute(
         path: AppRoutes.runner,
         builder: (_, state) {
@@ -783,143 +1066,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           return RunnerScreen(attemptId: attemptId);
         },
       ),
-
-      // Page « Examens blancs » civique GLOBAUX (20 slots, 40 Q tous thèmes).
-      // Pushée depuis le hero du hub Civique. Hors shell pour cohérence avec
-      // `tcfFullExams` (même UX 20 slots côté TCF).
-      GoRoute(
-        path: AppRoutes.civiqueExamsBlanc,
-        builder: (_, __) => const CiviqueFullExamsScreen(),
-      ),
-
-      // Écrans détail module (hors shell — pas de bottom nav).
-      // Civique : un détail par thème (5 thèmes officiels chargés depuis l'API).
-      GoRoute(
-        path: AppRoutes.civiqueThemeDetail,
-        builder: (_, state) => CiviqueThemeDetailScreen(
-          themeId: state.pathParameters['themeId']!,
-        ),
-        routes: [
-          GoRoute(
-            path: 'examens',
-            builder: (_, state) => CiviqueThemeExamsScreen(
-              themeId: state.pathParameters['themeId']!,
-            ),
-          ),
-        ],
-      ),
-      // TCF QCM CO — hub + sous-routes examens/erreurs.
-      GoRoute(
-        path: AppRoutes.tcfCoDetail,
-        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.co),
-        routes: [
-          GoRoute(
-            path: 'examens',
-            builder: (_, __) =>
-                const TcfQcmExamsScreen(module: TcfQcmModule.co),
-          ),
-        ],
-      ),
-      // TCF QCM CE — hub + sous-route examens.
-      GoRoute(
-        path: AppRoutes.tcfCeDetail,
-        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
-        routes: [
-          GoRoute(
-            path: 'examens',
-            builder: (_, __) =>
-                const TcfQcmExamsScreen(module: TcfQcmModule.ce),
-          ),
-        ],
-      ),
-      // TCF Structure de la langue — QCM grammaire / lexique. Non évalué dans
-      // le TCF IRN officiel — bannière `_ModuleNoticeBanner` rendue par le hub.
-      GoRoute(
-        path: AppRoutes.tcfStructureDetail,
-        builder: (_, __) =>
-            const TcfQcmDetailScreen(module: TcfQcmModule.structure),
-        routes: [
-          GoRoute(
-            path: 'examens',
-            builder: (_, __) =>
-                const TcfQcmExamsScreen(module: TcfQcmModule.structure),
-          ),
-        ],
-      ),
-      // TCF productions — niveau 1 : l'épreuve et ses trois tâches.
-      //
-      // Aucune sous-route n'est déclarée sous elles (`/tcf/ee/tache/…` sont
-      // des routes absolues de premier niveau), donc pas besoin du garde
-      // `state.uri.path ==` utilisé plus bas pour `/tcf/expression-{orale,ecrite}`.
-      GoRoute(
-        path: AppRoutes.tcfEoEntry,
-        builder: (_, __) =>
-            const ProductionTasksScreen(module: TcfProductionModule.eo),
-      ),
-      GoRoute(
-        path: AppRoutes.tcfEeEntry,
-        builder: (_, __) =>
-            const ProductionTasksScreen(module: TcfProductionModule.ee),
-      ),
-      // Niveau 2 : une tâche et ses sujets complets. Plus d'onglets depuis le
-      // 2026-09-20 — les compétences ne se travaillent que via le Plan, qui
-      // route vers `tcfCompetences` (plus bas).
-      GoRoute(
-        path: AppRoutes.tcfEoTaskTraining,
-        builder: (_, state) => ProductionTaskScreen(
-          module: TcfProductionModule.eo,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
-              .clamp(1, 3),
-          planStep: isPlanStepQuery(state.uri.queryParameters),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.tcfEeTaskTraining,
-        builder: (_, state) => ProductionTaskScreen(
-          module: TcfProductionModule.ee,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
-              .clamp(1, 3),
-          planStep: isPlanStepQuery(state.uri.queryParameters),
-        ),
-      ),
-      // Modèles corrigés d'une tâche (`moduleKey` ∈ {ee, eo}).
-      GoRoute(
-        path: AppRoutes.tcfTaskExamples,
-        builder: (_, state) => TcfTaskExamplesScreen(
-          module: state.pathParameters['moduleKey'] == 'eo'
-              ? TcfProductionModule.eo
-              : TcfProductionModule.ee,
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
-              .clamp(1, 3),
-        ),
-      ),
-      // Compétences TCF — les 4 écrans du parcours (cf. AppRoutes). L'ordre
-      // n'est pas ambigu : les patterns ont des longueurs différentes et
-      // `resultat` est un littéral.
-      GoRoute(
-        path: AppRoutes.tcfCompetences,
-        builder: (_, state) => CompetencesScreen(
-          module: _productionModuleFromKey(state.pathParameters['moduleKey']),
-          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1)
-              .clamp(1, 3),
-        ),
-      ),
+      // Petit sujet de compétence (une production en cours) et son résultat.
       GoRoute(
         path: AppRoutes.tcfCompetenceResult,
         builder: (_, state) => CompetenceResultScreen(
           module: _productionModuleFromKey(state.pathParameters['moduleKey']),
           attemptId: state.pathParameters['attemptId']!,
           // Marqueur d'étape : le sujet suivant reste alors DANS les 5.
-          planStep: isPlanStepQuery(state.uri.queryParameters),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.tcfCompetenceDetail,
-        builder: (_, state) => CompetenceDetailScreen(
-          module: _productionModuleFromKey(state.pathParameters['moduleKey']),
-          skillId: state.pathParameters['skillId']!,
-          // Marqueur d'étape du Plan : la compétence s'affiche alors à
-          // l'échelle de l'étape (« 2/5 »). Cf. plan_step_labels.dart.
           planStep: isPlanStepQuery(state.uri.queryParameters),
         ),
       ),
@@ -935,46 +1088,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // Examen blanc TCF complet : CO + CE + EE + EO, **chacune avec son propre
-      // chrono** (~95 min au total, indicatif — il n'y a plus d'enveloppe
-      // globale et rien ne se reporte d'une épreuve à l'autre). Pushé depuis la
-      // carte sombre du hub TCF.
-      GoRoute(
-        path: AppRoutes.tcfFullExams,
-        builder: (_, __) => const TcfFullExamsScreen(),
-      ),
-      // Hub de progression : 4 étapes (CO → CE → EE → EO) avec leur état.
+      // Examen blanc TCF complet : CO + CE + EE + EO, chacune avec son propre
+      // chrono. Hub de progression puis bilan, plein écran.
       GoRoute(
         path: AppRoutes.tcfFullExamProgress,
         builder: (_, state) => TcfFullExamProgressScreen(
           parentAttemptId: state.pathParameters['parentId']!,
         ),
       ),
-      // Bilan final (CECRL plancher + détail par épreuve).
       GoRoute(
         path: AppRoutes.tcfFullExamBilan,
         builder: (_, state) => TcfFullExamBilanScreen(
           parentAttemptId: state.pathParameters['parentId']!,
         ),
-      ),
-      // Lots d'un niveau pour un module TCF QCM. Pushé depuis l'onglet
-      // Séries du détail module quand l'utilisateur tape une carte niveau.
-      GoRoute(
-        path: AppRoutes.tcfLevelLots,
-        builder: (_, state) {
-          final moduleKey = state.pathParameters['moduleKey']!;
-          final levelKey = state.pathParameters['level']!.toUpperCase();
-          final module = switch (moduleKey) {
-            'ce' => TcfQcmModule.ce,
-            'structure' => TcfQcmModule.structure,
-            _ => TcfQcmModule.co,
-          };
-          final level = Difficulty.values.firstWhere(
-            (d) => d.wire == levelKey,
-            orElse: () => Difficulty.a2,
-          );
-          return TcfLevelLotsScreen(module: module, level: level);
-        },
       ),
       // Bilan d'un lot terminé. moduleKey + level passés en query par le
       // runner pour permettre au CTA "Retour aux lots" de revenir au bon écran.

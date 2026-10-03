@@ -458,7 +458,12 @@ class _PlanUnlockScreenState extends ConsumerState<PlanUnlockScreen> {
   /// lien profond ou un démarrage à froid le laisserait sans personne en
   /// dessous — et la croix ne répondrait plus. `retourOuRepli` dépile si elle
   /// peut, sinon elle rejoint le Plan, où le candidat aurait atterri.
-  void _retour() => retourOuRepli(context, repli: AppRoutes.plan);
+  void _retour() => retourOuRepli(
+        context,
+        repli: AppRoutes.modulePlan(
+          civique: widget.module == PlanUnlockModule.civique,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {

@@ -18,6 +18,7 @@ import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'production_nav.dart';
 import 'tcf_production_module.dart';
+import '../../core/router/shell_navigation.dart';
 
 /// Ouvre l'exercice recommandé par le Plan — **le seul endroit** qui sait où
 /// mènent ses trois natures.
@@ -114,7 +115,7 @@ Future<void> openRecommendedExercise(
   //
   // Micro-exercice sans sujet : la fiche de la compétence, jamais une adresse
   // fabriquée avec un identifiant nul.
-  context.push(promptId == null
+  pousserOuAller(context, promptId == null
       ? competenceDetailPath(module, exercise.skillId, planStep: true)
       : competencePromptPath(module, exercise.skillId, promptId,
           planStep: true));
@@ -139,7 +140,7 @@ Future<void> _openReassessment(
   // 🛑 Avec le **marqueur d'étape** (contrôle F) : la liste sait qu'elle est
   // ouverte depuis le Plan, et son offre sur un 403 part en `LOCKED_PLAN`.
   if (taskId == null) {
-    context.push(
+    pousserOuAller(context,
         productionTaskPath(module, exercise.tacheNumero ?? 1, planStep: true));
     return;
   }

@@ -454,8 +454,8 @@ const styles = `
     max-width: 720px;
   }
   @media (max-width: 760px) { .rcp { padding: 20px 16px 56px; } }
-  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
-  @media (max-width: 900px) { .app-shell--has-drawer .rcp { padding-top: var(--app-bar-gap); } }
+  /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
+  .app-shell .rcp { padding-top: 0; }
 
   .rcp-back {
     display: inline-flex;

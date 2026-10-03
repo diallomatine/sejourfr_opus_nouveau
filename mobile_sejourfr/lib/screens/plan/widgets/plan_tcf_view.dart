@@ -105,7 +105,6 @@ class PlanTcfView extends ConsumerWidget {
     final milestone = plan.milestone;
 
     return <Widget>[
-      SfTop(kicker: planTopKicker(objective), title: kPlanTitle),
       const SizedBox(height: 14),
       _goalStrip(context),
       SfSection(
@@ -146,7 +145,6 @@ class PlanTcfView extends ConsumerWidget {
   /// refus, pas des gestes d'achat.
 
   List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
-        SfTop(kicker: kPlanTopKickerFree, title: planTitleFree(objective)),
         const SizedBox(height: 14),
         _goalStrip(context),
         SfSection(
@@ -200,7 +198,7 @@ class PlanTcfView extends ConsumerWidget {
             SfButton(
               label: kPlanGoalPick,
               variant: SfButtonVariant.line,
-              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.plan)),
+              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.tcfPlan)),
             ),
           ],
         ],
@@ -362,7 +360,8 @@ class PlanTcfView extends ConsumerWidget {
             iconColor: AppColors.muted,
             title: kJourneyHistoryTitle,
             sub: journeyHistorySub(),
-            onTap: () => context.push(AppRoutes.planProgress),
+            onTap: () =>
+                context.push(AppRoutes.planProgressPath(civique: false)),
           ),
           // 🛑 **Seulement s'il y a un diagnostic CLOS à relire** : le
           // diagnostic n'est plus proposé sur le Plan.

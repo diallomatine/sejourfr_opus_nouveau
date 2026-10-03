@@ -5,6 +5,7 @@ import {Suspense} from "react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ReviserScreen} from "@/app/_components/reviser/ReviserScreen";
 import {useAuth} from "@/lib/auth-context";
+import {moduleDeLUrl} from "@/lib/module-switch";
 
 export default function EntrainementPage() {
   return (
@@ -17,10 +18,9 @@ export default function EntrainementPage() {
 /**
  * **L'écran « Réviser »**, scopé par `?module=`.
  *
- * 🛑 **Pas de bascule de parcours ici** (arbitrage du propriétaire,
- * 2026-09-12) : on y arrive par la barre latérale, qui porte déjà ses deux
- * entrées « TCF IRN » et « Examen civique » — le choix est fait avant
- * d'arriver. Le mobile garde la sienne, parce que Réviser y est un onglet de la
+ * 🛑 **Pas de bascule de parcours ici** : on y arrive par la barre latérale,
+ * qui porte une entrée « Entraînement » par module (Navigation v2) — le choix
+ * est fait avant d'arriver. Le mobile garde la sienne, parce que Réviser y est un onglet de la
  * barre du bas ; écart de **forme**, pas de parcours.
  *
  * Connecté → sidebar via `DualChromeShell` ; visiteur → chrome public
@@ -31,8 +31,9 @@ function EntrainementRoot() {
   const searchParams = useSearchParams();
   if (status === "loading") return <EntrainementSkeleton />;
   const safeUser = status === "authenticated" ? user : null;
-  const module = searchParams?.get("module") === "TCF" ? "TCF" : "CIVIQUE";
-  const screen = <ReviserScreen module={module} user={safeUser} />;
+  // `moduleDeLUrl` (casse tolérée), la même lecture que la barre latérale.
+  const parcours = moduleDeLUrl(searchParams) === "TCF" ? "TCF" : "CIVIQUE";
+  const screen = <ReviserScreen module={parcours} user={safeUser} />;
   return safeUser ? <DualChromeShell>{screen}</DualChromeShell> : screen;
 }
 

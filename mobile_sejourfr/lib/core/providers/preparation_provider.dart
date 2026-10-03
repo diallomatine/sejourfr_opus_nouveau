@@ -13,9 +13,6 @@ import '../models/preparation_models.dart';
 /// dans la même seconde, donc proposer deux prochaines actions : ce provider
 /// garantit qu'ils lisent la **même** réponse.
 ///
-/// ⚠️ L'écran Plan garde sa propre lecture (`PlanScreen._chargerPreparation`) :
-/// elle décide de l'onglet ouvert **avant** le premier rendu et ne peut pas
-/// s'exprimer en `AsyncValue` sans faire clignoter la bascule de parcours.
 /// 🛑 **Gardé en vie pour la session** (2026-09-12) : trois écrans le lisent
 /// (Accueil, Plan, Examens) et il ne dépend d'aucun onglet — chaque ouverture
 /// rappelait `/api/me/preparation` pour la même réponse. Il se rafraîchit au

@@ -52,7 +52,7 @@ String? niveauLine(ModulePreparation m) {
 /// diagnostic n'est plus une porte, ni même une proposition de l'Accueil ou
 /// du Plan.
 PreparationAction tcfAction(ModulePreparation m) =>
-    (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/plan');
+    (statut: _tcfStatut(m), cta: 'Continuer mon plan', route: '/tcf/plan');
 
 /// Ce qu'on sait du candidat.
 ///
@@ -69,7 +69,7 @@ String _tcfStatut(ModulePreparation m) =>
 /// seul le statut dit où en est le diagnostic.
 PreparationAction civiqueAction(ModulePreparation m) {
   const cta = 'Continuer mon plan';
-  const route = '/plan?module=CIVIQUE';
+  const route = '/civique/plan';
   switch (m.etape) {
     case PreparationEtape.diagnosticAFaire:
     // 🛑 `estimationFaite` n'existe PAS côté civique — il n'a qu'UN

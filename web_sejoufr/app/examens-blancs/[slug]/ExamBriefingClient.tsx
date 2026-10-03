@@ -148,7 +148,7 @@ function ExamBriefingInner({
   return (
     <main className="brf">
       <div className="brf-wrap">
-        <Link href="/examens-blancs" className="brf-back">
+        <Link href={`/examens-blancs?module=${exam.module}`} className="brf-back">
           ← Tous les examens
         </Link>
 
@@ -476,7 +476,7 @@ function ExamBriefingInner({
                         ? "Refaire l'examen →"
                         : "Démarrer l'examen →"}
                 </button>
-                <Link href="/examens-blancs" className="btn btn-ghost">
+                <Link href={`/examens-blancs?module=${exam.module}`} className="btn btn-ghost">
                   Choisir un autre
                 </Link>
               </div>
@@ -600,8 +600,10 @@ const styles = `
     font-weight: 700;
     position: relative;
   }
-  .brf-tag.civique { background: rgba(255, 255, 255, 0.15); color: #fff; }
-  .brf-tag.tcf { background: rgba(225, 55, 47, 0.32); color: #fff; }
+  /* La teinte du MODULE (X1-A : TCF bleu, civique rouge), lue sur les tokens
+     sémantiques ; sur le bandeau bleu, le TCF garde un voile blanc. */
+  .brf-tag.tcf { background: color-mix(in srgb, var(--color-white) 15%, transparent); color: var(--color-white); }
+  .brf-tag.civique { background: color-mix(in srgb, var(--color-module-civique) 32%, transparent); color: var(--color-white); }
 
   .brf-head h1 {
     font-family: var(--font-display); font-weight: 500;
@@ -640,10 +642,8 @@ const styles = `
     .brf-head { padding: 26px 22px; }
     .brf-body { padding: 24px 22px; }
   }
-  /* Sous la barre du haut de l'espace connecté : --app-bar-gap (globals.css). */
-  @media (max-width: 900px) {
-    .app-shell--has-drawer .brf { padding-top: var(--app-bar-gap); }
-  }
+  /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
+  .app-shell .brf { padding-top: 0; }
   .brf-stat .l {
     font-family: var(--font-mono); font-size: 9.5px;
     letter-spacing: 0.14em; text-transform: uppercase;

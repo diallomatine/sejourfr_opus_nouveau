@@ -4,24 +4,20 @@ import type {ReactNode} from "react";
 import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {
     Card,
-    ModuleToggle,
     Pad,
     PanelHead,
     ProgressIntro,
     SejourApp,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import type {ParcoursModule} from "@/lib/module-switch";
 import {
     PROGRESSION_EYEBROW,
     PROGRESSION_LOADING,
     PROGRESSION_RETRY,
-    progressionHref,
 } from "@/lib/progression";
 
 /**
- * Le cadre commun des quatre écrans de progression : colonne du kit, intro,
- * et la bascule de module des écrans globaux.
+ * Le cadre commun des quatre écrans de progression : colonne du kit et intro.
  *
  * 🛑 **Le retour vit dans la barre du haut**, à côté du burger qui reste
  * toujours là (demande du propriétaire, 2026-09-28) : plus de rangée « retour
@@ -29,23 +25,20 @@ import {
  * (`retourOuRepli`, dans `AppTopBar`) — l'écran d'où l'on vient —, et
  * `backHref` seulement quand il n'y en a pas (lien direct, nouvel onglet).
  *
- * [module] : présent sur les deux écrans GLOBAUX seulement, il pose la bascule
- * TCF IRN / Examen civique du kit sous l'intro, comme le Plan et l'Accueil.
- * 🛑 **Des liens, pas un état local** : l'adresse (`/progression/tcf` ⇄
- * `/progression/civique`) reste l'unique autorité du choix, et `?tous=true`
- * tombe à la bascule. Les écrans d'épreuve et de thème ne la portent pas.
+ * 🛑 **Plus de bascule TCF IRN / Examen civique** (X14, Navigation v2,
+ * 2026-10-03) : la barre latérale porte une entrée « Progression » par module,
+ * et l'adresse (`/progression/tcf` ⇄ `/progression/civique`) reste l'unique
+ * autorité du module affiché.
  */
 export function ProgressionFrame({
     backHref,
     title,
     lead,
-    module,
     children,
 }: {
     backHref: string;
     title: string;
     lead?: string | null;
-    module?: ParcoursModule;
     children: ReactNode;
 }) {
     useAppBarBack({fallbackHref: backHref});
@@ -54,13 +47,6 @@ export function ProgressionFrame({
             <Pad>
                 <div className={sejourStyles.pScreen}>
                     <ProgressIntro eyebrow={PROGRESSION_EYEBROW} title={title} lead={lead}/>
-                    {module ? (
-                        <ModuleToggle
-                            current={module === "CIVIQUE" ? "civique" : "tcf"}
-                            tcfHref={progressionHref("TCF")}
-                            civicHref={progressionHref("CIVIQUE")}
-                        />
-                    ) : null}
                     {children}
                 </div>
             </Pad>

@@ -40,8 +40,8 @@ export function CompteShell({
   lead?: string;
   children: ReactNode;
 }) {
-  // Sous 900 px (shell connecté), la flèche de la barre du haut remplace le
-  // lien de retour — l'écran de compte Flutter n'a que celle de son en-tête.
+  // Dans le shell connecté, la flèche de la barre du haut remplace le lien de
+  // retour — l'écran de compte Flutter n'a que celle de son en-tête.
   const backInBar = useAppBarBack(backHref ? { fallbackHref: backHref } : null);
   return (
     <main className={s.page}>

@@ -476,7 +476,10 @@
   gap: 12px;
 }
 
-@media (min-width: 1024px) {
+/* ⚠️ Deux colonnes au-dessus de 1180 px seulement — la borne du `split` de la
+   maquette « Navigation v2 » : entre 1025 et 1180 px, la barre latérale de
+   292 px ne laisse plus la place à deux colonnes lisibles. */
+@media (min-width: 1181px) {
   .split {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -487,5 +490,9 @@
   .splitAside {
     position: sticky;
     top: 24px;
+  }
+  /* Dans le shell connecté, sous la barre du haut sticky. */
+  :global(.app-shell) .splitAside {
+    top: calc(var(--shell-topbar-h) + 24px);
   }
 }

@@ -29,7 +29,8 @@ const fraunces = Fraunces({
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains",
-  weight: ["400", "500"],
+  // 700/800 : labels uppercase, codes et tails de la navigation v2.
+  weight: ["400", "500", "700", "800"],
   display: "swap",
 });
 

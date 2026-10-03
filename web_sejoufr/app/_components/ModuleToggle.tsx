@@ -1,52 +1,52 @@
 "use client";
 
 /**
- * **Le toggle de parcours** : TCF IRN | Examen civique.
+ * **La bascule de parcours d'un VISITEUR** sur `/examens-blancs` : TCF IRN |
+ * Examen civique.
  *
- * 🛑 **Un seul composant pour tous les écrans qui portent les deux parcours.**
- * Il vivait dans `/examens-blancs` ; le Plan en avait besoin à l'identique, et
- * une seconde copie aurait fini par diverger — c'est le défaut le plus cher de
- * ce dépôt. À la 2ᵉ occurrence, on extrait.
+ * Navigation v2 (2026-10-03) : un compte n'en a plus — la barre latérale porte
+ * une entrée « Examens » par module. Un visiteur n'a pas cette barre : sans
+ * bascule, l'examen civique offert lui serait inaccessible. Elle reste donc,
+ * pour lui seul, et devient des **liens** (`?module=`), plus un état local :
+ * l'adresse est l'unique autorité du parcours affiché.
  *
- * 🛑 **Deux couleurs, et elles ne sont pas décoratives** : le rouge est celui du
- * TCF, le bleu celui du civique, partout dans le produit (`ebh-module-icon-red`
- * / `-blue`, les cartes de Progrès, les pastilles de thème). Un candidat
- * reconnaît son parcours à la couleur avant de lire le mot.
+ * 🛑 Les couleurs sont celles des MODULES (X1-A) : TCF = bleu, civique =
+ * rouge, lues sur `--color-module-*` — jamais un bleu / rouge en dur.
  */
+import Link from "next/link";
 import {Lightbulb, Waves} from "lucide-react";
-
-export type ParcoursModule = "TCF" | "CIVIQUE";
+import type {ParcoursModule} from "@/lib/module-switch";
 
 export function ModuleToggle({
     active,
-    onChange,
+    hrefFor,
 }: {
     active: ParcoursModule;
-    onChange: (m: ParcoursModule) => void;
+    hrefFor: (m: ParcoursModule) => string;
 }) {
     return (
         <>
             <div className="mtg" role="tablist" aria-label="Choisir un parcours">
-                <button
-                    type="button"
+                <Link
+                    href={hrefFor("TCF")}
                     role="tab"
                     aria-selected={active === "TCF"}
-                    className={`mtg-btn mtg-btn-red${active === "TCF" ? " is-active" : ""}`}
-                    onClick={() => onChange("TCF")}
+                    className={`mtg-btn mtg-btn-tcf${active === "TCF" ? " is-active" : ""}`}
+                    scroll={false}
                 >
                     <Waves size={16} strokeWidth={1.8} aria-hidden />
                     TCF IRN
-                </button>
-                <button
-                    type="button"
+                </Link>
+                <Link
+                    href={hrefFor("CIVIQUE")}
                     role="tab"
                     aria-selected={active === "CIVIQUE"}
-                    className={`mtg-btn mtg-btn-blue${active === "CIVIQUE" ? " is-active" : ""}`}
-                    onClick={() => onChange("CIVIQUE")}
+                    className={`mtg-btn mtg-btn-civique${active === "CIVIQUE" ? " is-active" : ""}`}
+                    scroll={false}
                 >
                     <Lightbulb size={16} strokeWidth={1.8} aria-hidden />
                     Examen civique
-                </button>
+                </Link>
             </div>
             <Styles />
         </>
@@ -71,7 +71,7 @@ function Styles() {
     padding: 4px;
     margin-bottom: 20px;
     max-width: 440px;
-    background: #fff;
+    background: var(--color-white);
     border: 1px solid var(--color-line);
     border-radius: 14px;
   }
@@ -83,24 +83,21 @@ function Styles() {
     justify-content: center;
     gap: 7px;
     padding: 8px 10px;
-    border: 0;
     border-radius: 10px;
-    background: transparent;
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
     color: var(--color-muted);
-    cursor: pointer;
+    text-decoration: none;
     transition: color 0.15s ease, background 0.15s ease;
   }
   .mtg-btn svg { flex-shrink: 0; }
   .mtg-btn:hover { color: var(--color-ink); }
-  .mtg-btn.is-active { color: #fff; }
-  /* Les deux couleurs du produit : rouge = TCF, bleu = civique. */
-  .mtg-btn-red.is-active { background: var(--color-red); }
-  .mtg-btn-blue.is-active { background: var(--color-blue); }
+  .mtg-btn.is-active { color: var(--color-white); }
+  .mtg-btn-tcf.is-active { background: var(--color-module-tcf); }
+  .mtg-btn-civique.is-active { background: var(--color-module-civique); }
   @media (max-width: 380px) {
     .mtg-btn { font-size: 13px; gap: 6px; padding: 8px 6px; }
   }

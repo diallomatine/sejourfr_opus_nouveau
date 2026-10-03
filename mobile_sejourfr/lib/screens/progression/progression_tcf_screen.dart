@@ -7,6 +7,7 @@ import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
+import '../../core/router/shell_navigation.dart';
 import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../plan/plan_labels.dart';
@@ -37,7 +38,12 @@ class ProgressionTcfScreen extends ConsumerWidget {
     return ProgressionPage<ProgressionTcf>(
       async: ref.watch(provider),
       barSub: kTcfLabel,
-      onBack: () => retourOuRepli(context),
+      // Le lien retour ramène à l'écran du module, sur son segment d'origine.
+      lienRetour: (label: kTcfLabel, civique: false),
+      onBack: () => retourOuRepli(
+        context,
+        repli: racineDuModule(ref, civique: false),
+      ),
       onRefresh: () => ref.refresh(provider.future),
       children: (data) => _corps(context, data),
       entete: const [
@@ -46,7 +52,6 @@ class ProgressionTcfScreen extends ConsumerWidget {
           title: kTcfTitle,
           lead: kTcfLead,
         ),
-        ProgressionBascule(civique: false),
       ],
     );
   }

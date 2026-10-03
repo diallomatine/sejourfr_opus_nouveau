@@ -41,13 +41,12 @@ class _CompetencesScreenState extends ConsumerState<CompetencesScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) appRouteObserver.subscribe(this, route);
+    suivreLeRetour(this, context);
   }
 
   @override
   void dispose() {
-    appRouteObserver.unsubscribe(this);
+    cesserDeSuivreLeRetour(this);
     super.dispose();
   }
 

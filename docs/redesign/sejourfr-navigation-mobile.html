@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>SejourFR — Navigation premium</title>
+<style>
+:root{
+  --bg:#F7F8FC;
+  --surface:#FFFFFF;
+  --surface-2:#F1F4FA;
+  --ink:#0E1738;
+  --muted:#727B9C;
+  --line:#E6E9F2;
+  --blue:#27449B;
+  --blue-dark:#1B337F;
+  --blue-soft:#EEF2FF;
+  --red:#D94B40;
+  --red-soft:#FFF1EF;
+  --green:#2F9A69;
+  --amber:#A87A22;
+  --shadow:0 16px 42px rgba(20,31,72,.08);
+  --shadow-sm:0 8px 22px rgba(20,31,72,.055);
+  --radius-xl:28px;
+  --radius-lg:22px;
+  --radius-md:16px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:#E9ECF4;color:var(--ink)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Inter,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit}
+.app{
+  width:min(100%,430px);
+  min-height:100vh;
+  margin:0 auto;
+  background:var(--bg);
+  position:relative;
+  overflow:hidden;
+}
+.statusbar{
+  height:46px;
+  padding:14px 22px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  font-size:15px;font-weight:800;color:#101010;
+}
+.status-icons{display:flex;align-items:center;gap:8px}
+.status-icons svg{display:block}
+
+main{
+  min-height:calc(100vh - 46px);
+  padding:18px 18px 110px;
+  overflow-y:auto;
+}
+.screen{display:none}
+.screen.active{display:block;animation:fade .16s ease}
+@keyframes fade{from{opacity:.35;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+h1,h2,h3,p{margin:0}
+h1{font-size:34px;line-height:1.02;letter-spacing:-1.2px}
+h2{font-size:24px;line-height:1.12;letter-spacing:-.45px}
+h3{font-size:18px;line-height:1.2}
+.subtitle{font-size:16px;line-height:1.45;color:var(--muted);margin-top:8px}
+.kicker{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 11px;border-radius:999px;
+  color:#2B438A;background:#EAF0FF;
+  font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.7px
+}
+.kicker.red{background:var(--red-soft);color:#B53C33}
+
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:28px 2px 14px;
+}
+.section-head h2{font-size:22px}
+.text-link{
+  border:0;background:none;padding:0;color:var(--blue);
+  font-size:14px;font-weight:800;cursor:pointer
+}
+
+.card{
+  background:var(--surface);
+  border:1px solid rgba(225,229,239,.9);
+  border-radius:var(--radius-xl);
+  box-shadow:var(--shadow-sm);
+}
+.card-pad{padding:18px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center}
+.between{justify-content:space-between}
+.gap-12{gap:12px}
+.grow{flex:1;min-width:0}
+
+.iconbox{
+  width:54px;height:54px;border-radius:17px;
+  display:grid;place-items:center;flex:0 0 auto;
+}
+.iconbox.blue{background:var(--blue);color:#fff}
+.iconbox.red{background:var(--red);color:#fff}
+.iconbox.soft{background:#F1F4FB;color:var(--blue)}
+.iconbox svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.meta{font-size:14px;color:var(--muted);line-height:1.35;margin-top:4px}
+.micro{font-size:12px;color:var(--muted);line-height:1.35}
+.label{
+  font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--muted);font-weight:850
+}
+
+.hero{
+  margin-top:22px;
+  padding:22px;
+  border-radius:30px;
+  color:white;
+  background:linear-gradient(150deg,#182758 0%,#2B4AA2 100%);
+  box-shadow:0 18px 42px rgba(25,44,101,.20);
+}
+.hero.red{
+  background:linear-gradient(150deg,#B93E35 0%,#E05A4F 100%);
+}
+.hero .label{color:#D8E0FF}
+.hero.red .label{color:#FFE0DC}
+.hero-title{font-size:28px;line-height:1.04;letter-spacing:-.6px;margin-top:7px;font-weight:900}
+.hero-sub{font-size:13px;color:#DDE4FF;margin-top:8px}
+.hero.red .hero-sub{color:#FFE6E1}
+.hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.hero-stat{text-align:right;white-space:nowrap}
+.hero-stat strong{display:block;font-size:27px;line-height:1;font-weight:900}
+.hero-stat span{font-size:11px;color:#DDE4FF}
+.hero.red .hero-stat span{color:#FFE7E3}
+
+.cta{
+  border:0;width:100%;height:54px;border-radius:17px;
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  color:#fff;font-weight:850;font-size:15px;cursor:pointer;margin-top:16px;
+}
+.cta.blue{background:var(--blue)}
+.cta.red{background:var(--red)}
+.cta.soft{background:#EFF2F8;color:var(--ink)}
+.cta svg{width:18px;height:18px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.action-card{padding:18px}
+.action-top{display:flex;align-items:center;gap:13px}
+.action-copy{min-width:0}
+.action-copy .label{margin-bottom:5px}
+.action-copy h3{font-size:19px}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{
+  background:#fff;border:1px solid var(--line);
+  border-radius:22px;padding:16px;box-shadow:var(--shadow-sm)
+}
+.metric .big{font-size:28px;line-height:1;font-weight:900;margin-top:9px}
+.metric .state{font-size:12px;font-weight:750;margin-top:7px}
+.green{color:var(--green)}
+.amber{color:var(--amber)}
+.redtxt{color:var(--red)}
+
+.progress{
+  height:8px;background:#E8EBF3;border-radius:999px;overflow:hidden;margin-top:13px
+}
+.progress > span{display:block;height:100%;border-radius:999px;background:var(--blue)}
+.progress.red > span{background:var(--red)}
+.progress.white{background:rgba(255,255,255,.24)}
+.progress.white > span{background:#fff}
+
+.segment-wrap{
+  margin-top:20px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none
+}
+.segment-wrap::-webkit-scrollbar{display:none}
+.segment{
+  display:flex;gap:7px;min-width:max-content;
+  background:#EDEFF6;padding:5px;border-radius:18px
+}
+.segment button{
+  border:0;background:transparent;color:#727B9B;
+  padding:11px 14px;border-radius:13px;font-size:13px;font-weight:800;cursor:pointer
+}
+.segment button.active{
+  background:white;color:var(--ink);box-shadow:0 5px 14px rgba(27,42,92,.08)
+}
+.segment.red button.active{background:var(--red);color:#fff}
+
+.pane{display:none}
+.pane.active{display:block}
+
+.info-card{
+  padding:17px;
+  display:flex;align-items:center;gap:12px;
+  border-radius:22px;background:#fff;border:1px solid var(--line)
+}
+.info-copy{flex:1}
+.badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:27px;padding:0 9px;border-radius:999px;
+  font-size:11px;font-weight:900;letter-spacing:.3px;
+  background:var(--blue-soft);color:var(--blue)
+}
+.badge.red{background:var(--red-soft);color:var(--red)}
+
+.chev{color:#A2A9C1}
+.chev svg{width:18px;height:18px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.ring{
+  --p:50;
+  width:44px;height:44px;border-radius:50%;
+  background:conic-gradient(var(--blue) calc(var(--p)*1%),#E8EBF3 0);
+  position:relative;flex:0 0 auto
+}
+.ring.red{background:conic-gradient(var(--red) calc(var(--p)*1%),#F0E7E5 0)}
+.ring::after{
+  content:"";position:absolute;inset:6px;background:white;border-radius:50%
+}
+
+.exam-row{
+  padding:14px 15px;
+  display:flex;align-items:center;gap:13px;
+  border-radius:21px;background:#fff;border:1px solid var(--line)
+}
+.exam-num{
+  width:50px;height:50px;border-radius:15px;background:var(--red);color:#fff;
+  display:grid;place-items:center;font-size:21px;font-weight:900;flex:0 0 auto
+}
+.exam-status{
+  margin-left:auto;border-radius:999px;padding:8px 10px;
+  background:#F1F3F8;color:#697293;font-size:11px;font-weight:850
+}
+.exam-row.locked{opacity:.5}
+
+.progression-head{
+  padding:20px;
+}
+.target{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.target strong{font-size:31px}
+.target-arrow{
+  width:42px;height:42px;border-radius:50%;background:var(--blue-soft);color:var(--blue);
+  display:grid;place-items:center
+}
+.target-arrow svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.level-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.level-row{
+  display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:12px;
+  padding:13px 14px;border:1px solid var(--line);border-radius:18px;background:#fff
+}
+.level-code{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+  background:#F1F4FB;color:var(--blue);font-weight:900;font-size:13px
+}
+.level-value{font-size:18px;font-weight:900}
+.level-state{font-size:12px;color:var(--muted);margin-top:2px}
+.dot{
+  width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;background:var(--green)
+}
+.dot.amber{background:var(--amber)} .dot.red{background:var(--red)}
+
+.timeline{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:14px
+}
+.step{
+  min-width:38px;height:30px;border-radius:999px;background:#EDF0F6;
+  display:grid;place-items:center;padding:0 10px;font-size:12px;font-weight:850;color:#6B7495
+}
+.step.active{background:var(--blue);color:#fff}
+.timeline .arrow{color:#A9B0C6;font-size:13px}
+
+.bottom-nav{
+  position:absolute;left:0;right:0;bottom:0;
+  height:91px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.97);
+  border-top:1px solid #E3E6EF;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  backdrop-filter:blur(14px);
+  z-index:20;
+}
+.bottom-nav button{
+  border:0;background:transparent;color:#9BA3BC;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font-size:11px;font-weight:760;cursor:pointer;padding:0
+}
+.bottom-nav svg{
+  width:25px;height:25px;stroke:currentColor;stroke-width:2.05;fill:none;stroke-linecap:round;stroke-linejoin:round
+}
+.bottom-nav button.active{color:var(--blue)}
+.bottom-nav button[data-screen="civique"].active{color:var(--red)}
+
+.profile{
+  text-align:center;padding:28px 18px
+}
+.avatar{
+  width:76px;height:76px;border-radius:24px;
+  display:grid;place-items:center;margin:0 auto 13px;
+  background:linear-gradient(145deg,#244292,#7188CF);
+  color:#fff;font-weight:900;font-size:27px
+}
+
+
+.progress-summary{
+  width:100%;margin-top:18px;padding:16px 17px;
+  border:1px solid var(--line);border-radius:22px;background:#fff;
+  box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:space-between;
+  gap:14px;text-align:left;color:var(--ink);cursor:pointer
+}
+.progress-summary-main{
+  display:flex;align-items:center;gap:8px;margin-top:6px;
+  font-size:23px;line-height:1;font-weight:900
+}
+.progress-summary-main strong{font-size:26px}
+.blue-text{color:var(--blue)}
+.red-text{color:var(--red)}
+.progress-summary-action{
+  flex:0 0 auto;display:flex;align-items:center;gap:4px;
+  color:var(--blue);font-size:12px;font-weight:850;white-space:nowrap
+}
+.progress-summary-action.red-action{color:var(--red)}
+.progress-summary-action svg{
+  width:17px;height:17px;stroke:currentColor;stroke-width:2.2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round
+}
+.segment.segment-3{
+  width:100%;min-width:0;display:grid;grid-template-columns:repeat(3,1fr)
+}
+.segment.segment-3 button{
+  min-width:0;padding:11px 8px;white-space:nowrap
+}
+.back-link{
+  border:0;background:transparent;padding:0;color:var(--blue);
+  display:inline-flex;align-items:center;gap:4px;font-weight:850;font-size:14px;cursor:pointer
+}
+.back-link.red-back{color:var(--red)}
+.back-link svg{
+  width:18px;height:18px;stroke:currentColor;stroke-width:2.2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round
+}
+
+
+.objectives-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:26px;
+  box-shadow:var(--shadow-sm);
+  overflow:hidden;
+}
+.objective-row{
+  width:100%;
+  border:0;
+  background:transparent;
+  padding:17px;
+  display:grid;
+  grid-template-columns:48px 1fr auto;
+  align-items:center;
+  gap:12px;
+  text-align:left;
+  color:var(--ink);
+  cursor:pointer;
+}
+.objective-icon{
+  width:48px;height:48px;border-radius:15px;
+  display:grid;place-items:center;
+}
+.objective-icon svg{
+  width:24px;height:24px;fill:none;stroke:currentColor;
+  stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;
+}
+.blue-soft-icon{background:var(--blue-soft);color:var(--blue)}
+.red-soft-icon{background:var(--red-soft);color:var(--red)}
+.objective-copy{min-width:0}
+.objective-copy h3{margin-top:4px;font-size:18px}
+.objective-value{
+  display:flex;align-items:center;gap:5px;
+  color:var(--blue);white-space:nowrap;
+}
+.objective-value strong{font-size:16px}
+.objective-value svg{
+  width:17px;height:17px;fill:none;stroke:currentColor;
+  stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+}
+.objective-value.red-value{color:var(--red)}
+.objective-divider{
+  height:1px;
+  background:var(--line);
+  margin:0 17px 0 77px;
+}
+
+@media (min-width:700px){
+  body{padding:26px 0}
+  .app{min-height:900px;height:900px;border-radius:34px;box-shadow:0 30px 80px rgba(15,24,58,.18)}
+  main{height:763px}
+  .bottom-nav{border-radius:0 0 34px 34px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="statusbar">
+    <span>17:30</span>
+    <div class="status-icons">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="#111"/><rect x="5" y="4" width="3" height="8" rx="1" fill="#111"/><rect x="10" y="1" width="3" height="11" rx="1" fill="#111"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#bbb"/></svg>
+      <svg width="18" height="13" viewBox="0 0 20 14" fill="none"><path d="M1.5 4.8C6.2.6 13.8.6 18.5 4.8" stroke="#111" stroke-width="2.2" stroke-linecap="round"/><path d="M4.5 8c3.1-2.7 7.9-2.7 11 0" stroke="#111" stroke-width="2.2" stroke-linecap="round"/><path d="M8.4 11.3c1-.9 2.2-.9 3.2 0" stroke="#111" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <svg width="26" height="13" viewBox="0 0 28 14" fill="none"><rect x=".8" y=".8" width="23" height="12.4" rx="3" stroke="#111" stroke-width="1.6"/><rect x="3" y="3" width="17" height="8" rx="2" fill="#111"/><rect x="25" y="4" width="2" height="6" rx="1" fill="#111"/></svg>
+    </div>
+  </div>
+
+  <main>
+    <!-- ACCUEIL -->
+    <section class="screen active" id="accueil">
+      <div class="kicker">Objectif · Naturalisation</div>
+      <h1 style="margin-top:14px">Bonjour Abdoul Matine</h1>
+      <p class="subtitle">Tout votre parcours, sans vous demander où aller.</p>
+
+      <div class="section-head" style="margin-top:24px"><h2>Mes objectifs</h2></div>
+
+      <div class="objectives-card">
+        <button class="objective-row" onclick="go('tcfprogress','tcf')">
+          <div class="objective-icon blue-soft-icon">
+            <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg>
+          </div>
+          <div class="objective-copy">
+            <div class="label">TCF IRN</div>
+            <h3>Atteindre B2 partout</h3>
+            <div class="meta">Progression vers l'objectif</div>
+          </div>
+          <div class="objective-value">
+            <strong>B1 → B2</strong>
+            <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+          </div>
+        </button>
+
+        <div class="objective-divider"></div>
+
+        <button class="objective-row" onclick="go('civiqueprogress','civique')">
+          <div class="objective-icon red-soft-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+          </div>
+          <div class="objective-copy">
+            <div class="label">Examen civique</div>
+            <h3>Être prêt pour l'examen</h3>
+            <div class="meta">Objectif : avoir 32/40</div>
+          </div>
+          <div class="objective-value red-value">
+            <strong>34%</strong>
+            <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+          </div>
+        </button>
+      </div>
+
+      <div class="section-head"><h2>À faire maintenant</h2></div>
+
+      <div class="stack">
+        <div class="card action-card">
+          <div class="action-top">
+            <div class="iconbox blue">
+              <svg viewBox="0 0 24 24"><path d="M12 4a6 6 0 0 0-6 6v4"/><path d="M6 14a3 3 0 0 0 3 3h1"/><path d="M12 8a2 2 0 0 0-2 2v2"/><path d="M18 10a6 6 0 0 1-6 6"/><path d="M12 16v4"/></svg>
+            </div>
+            <div class="action-copy">
+              <div class="label">TCF IRN</div>
+              <h3>Compréhension orale</h3>
+              <div class="meta">Examen blanc · environ 20 min</div>
+            </div>
+          </div>
+          <button class="cta blue" onclick="go('tcf');openTab('tcf','examens')">
+            Continuer le TCF
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+
+        <div class="card action-card">
+          <div class="action-top">
+            <div class="iconbox red">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+            </div>
+            <div class="action-copy">
+              <div class="label">Examen civique</div>
+              <h3>Principes et valeurs</h3>
+              <div class="meta">Série recommandée par votre parcours</div>
+            </div>
+          </div>
+          <button class="cta red" onclick="go('civique');openTab('civique','reviser')">
+            Continuer le civique
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TCF -->
+    <section class="screen" id="tcf">
+      <div class="kicker">Préparation TCF IRN</div>
+      <h1 style="margin-top:14px">Mon TCF</h1>
+      <p class="subtitle">Plan, entraînement et examens au même endroit.</p>
+
+      <button class="progress-summary" onclick="go('tcfprogress','tcf')" aria-label="Voir la progression TCF">
+        <div>
+          <div class="label">Ma progression</div>
+          <div class="progress-summary-main"><strong>B1</strong><span>→</span><strong class="blue-text">B2</strong></div>
+          <div class="meta">Objectif : B2 dans les 4 compétences</div>
+        </div>
+        <div class="progress-summary-action">
+          <span>Voir le détail</span>
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </div>
+      </button>
+
+      <div class="segment-wrap">
+        <div class="segment segment-3" data-group="tcf">
+          <button class="active" data-tab="plan" onclick="openTab('tcf','plan')">Plan</button>
+          <button data-tab="entrainement" onclick="openTab('tcf','entrainement')">Entraînement</button>
+          <button data-tab="examens" onclick="openTab('tcf','examens')">Examens</button>
+        </div>
+      </div>
+
+      <div class="pane active" data-pane="tcf-plan">
+        <div class="card card-pad">
+          <div class="row between">
+            <div>
+              <div class="label">Cycle 2</div>
+              <h3 style="margin-top:5px">Votre parcours vers le B2</h3>
+            </div>
+            <strong style="font-size:20px">0/4</strong>
+          </div>
+          <div class="progress"><span style="width:8%"></span></div>
+          <div class="meta" style="margin-top:12px">Terminez les 4 mesures pour ouvrir le prochain cycle.</div>
+        </div>
+
+        <div class="section-head"><h2>Priorités actuelles</h2></div>
+        <div class="stack">
+          <div class="info-card">
+            <div class="iconbox soft">
+              <svg viewBox="0 0 24 24"><path d="M12 4a6 6 0 0 0-6 6v4"/><path d="M6 14a3 3 0 0 0 3 3h1"/><path d="M18 10a6 6 0 0 1-6 6"/></svg>
+            </div>
+            <div class="info-copy"><span class="badge">CO</span><h3 style="margin-top:6px">Compréhension orale</h3><div class="meta">B2 · solide, à maintenir</div></div>
+            <span class="green">✓</span>
+          </div>
+
+          <div class="info-card">
+            <div class="iconbox soft">
+              <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5A2.5 2.5 0 0 1 20 21.5v-16Z"/></svg>
+            </div>
+            <div class="info-copy"><span class="badge">CE</span><h3 style="margin-top:6px">Compréhension écrite</h3><div class="meta">B1 · proche de l'objectif</div></div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+          </div>
+
+          <div class="info-card">
+            <div class="iconbox soft">
+              <svg viewBox="0 0 24 24"><path d="m4 20 4.5-1 9.7-9.7a2 2 0 0 0-2.8-2.8L5.7 16.2 4 20Z"/><path d="m13.8 8.2 2 2"/></svg>
+            </div>
+            <div class="info-copy"><span class="badge">EE</span><h3 style="margin-top:6px">Expression écrite</h3><div class="meta">Renforcer l'argumentation</div></div>
+            <div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="tcf-entrainement">
+        <div class="section-head" style="margin-top:8px"><h2>Choisir une épreuve</h2></div>
+        <div class="grid-2">
+          <div class="metric"><span class="badge">CO</span><div class="big">B2</div><div class="state green">Solide</div><button class="cta soft">S'entraîner</button></div>
+          <div class="metric"><span class="badge">CE</span><div class="big">B1</div><div class="state amber">À renforcer</div><button class="cta soft">S'entraîner</button></div>
+          <div class="metric"><span class="badge">EE</span><div class="big">B1</div><div class="state amber">À renforcer</div><button class="cta soft">S'entraîner</button></div>
+          <div class="metric"><span class="badge">EO</span><div class="big">A2</div><div class="state redtxt">Prioritaire</div><button class="cta soft">S'entraîner</button></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="tcf-examens">
+        <div class="card card-pad">
+          <div class="row between">
+            <div>
+              <div class="label">Simulation réelle</div>
+              <h3 style="margin-top:5px">Examen blanc complet</h3>
+              <div class="meta">CO · CE · EE · EO · environ 95 min</div>
+            </div>
+            <span class="badge red">2/20</span>
+          </div>
+        </div>
+        <div class="section-head"><h2>Mes examens</h2></div>
+        <div class="stack">
+          <div class="exam-row"><div class="exam-num">1</div><div class="grow"><h3>Examen 1</h3><div class="meta">Terminé</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row"><div class="exam-num">2</div><div class="grow"><h3>Examen 2</h3><div class="meta">Dernier niveau : B1</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row"><div class="exam-num">3</div><div class="grow"><h3>Examen 3</h3><div class="meta">Disponible</div></div><div class="exam-status">Commencer</div></div>
+          <div class="exam-row locked"><div class="exam-num">4</div><div class="grow"><h3>Examen 4</h3><div class="meta">Inclus dans le pass Intégral</div></div><div class="exam-status">Verrouillé</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CIVIQUE -->
+    <section class="screen" id="civique">
+      <div class="kicker red">Préparation civique</div>
+      <h1 style="margin-top:14px">Examen civique</h1>
+      <p class="subtitle">Révisez les thèmes officiels et mesurez votre maîtrise.</p>
+
+      <button class="progress-summary civique-summary" onclick="go('civiqueprogress','civique')" aria-label="Voir la progression civique">
+        <div>
+          <div class="label">Ma progression</div>
+          <div class="progress-summary-main"><strong class="red-text">34%</strong></div>
+          <div class="meta">17 séries terminées</div>
+        </div>
+        <div class="progress-summary-action red-action">
+          <span>Voir le détail</span>
+          <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+        </div>
+      </button>
+
+      <div class="segment-wrap">
+        <div class="segment red segment-3" data-group="civique">
+          <button class="active" data-tab="parcours" onclick="openTab('civique','parcours')">Parcours</button>
+          <button data-tab="reviser" onclick="openTab('civique','reviser')">Réviser</button>
+          <button data-tab="examens" onclick="openTab('civique','examens')">Examens</button>
+        </div>
+      </div>
+
+      <div class="pane active" data-pane="civique-parcours">
+        <div class="hero red">
+          <div class="hero-top">
+            <div>
+              <div class="label">Progression globale</div>
+              <div class="hero-title">17 séries terminées</div>
+              <div class="hero-sub">Votre parcours avance thème par thème.</div>
+            </div>
+            <div class="hero-stat"><strong>34%</strong><span>du parcours</span></div>
+          </div>
+          <div class="progress white"><span style="width:34%"></span></div>
+        </div>
+
+        <div class="section-head"><h2>À faire maintenant</h2></div>
+        <div class="card action-card">
+          <div class="action-top">
+            <div class="iconbox red">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+            </div>
+            <div class="action-copy">
+              <div class="label">Recommandé</div>
+              <h3>Principes et valeurs de la République</h3>
+              <div class="meta">Prochaine série à travailler</div>
+            </div>
+          </div>
+          <button class="cta red">Commencer la série
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="civique-reviser">
+        <div class="section-head" style="margin-top:8px"><h2>Les 5 thèmes</h2></div>
+        <div class="stack">
+          <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M5 7h14"/><path d="m7 7-3 6h6l-3-6Z"/><path d="m17 7-3 6h6l-3-6Z"/></svg></div><div class="info-copy"><h3>Principes et valeurs</h3><div class="meta">3/5 séries</div></div><div class="ring red" style="--p:60"></div></div>
+          <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M4 10h16"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="m3 10 9-6 9 6"/><path d="M3 20h18"/></svg></div><div class="info-copy"><h3>Système institutionnel</h3><div class="meta">2/11 séries</div></div><div class="ring red" style="--p:18"></div></div>
+          <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></div><div class="info-copy"><h3>Droits et devoirs</h3><div class="meta">1/8 séries</div></div><div class="ring red" style="--p:12"></div></div>
+          <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="8"/></svg></div><div class="info-copy"><h3>Histoire et culture</h3><div class="meta">6/10 séries</div></div><div class="ring red" style="--p:60"></div></div>
+          <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg></div><div class="info-copy"><h3>Vivre en France</h3><div class="meta">5/9 séries</div></div><div class="ring red" style="--p:55"></div></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="civique-examens">
+        <div class="card card-pad">
+          <div class="label">Conditions réelles</div>
+          <h3 style="margin-top:5px">Examen blanc civique</h3>
+          <div class="meta">Testez l'ensemble des thèmes dans une simulation complète.</div>
+          <button class="cta red">Lancer un examen blanc
+            <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg>
+          </button>
+        </div>
+        <div class="section-head"><h2>Historique</h2></div>
+        <div class="stack">
+          <div class="exam-row"><div class="exam-num">1</div><div class="grow"><h3>Examen blanc 1</h3><div class="meta">76 % · terminé</div></div><div class="exam-status">Fait</div></div>
+          <div class="exam-row"><div class="exam-num" style="background:#F2F4F9;color:var(--red)">2</div><div class="grow"><h3>Examen blanc 2</h3><div class="meta">Disponible</div></div><div class="exam-status">Commencer</div></div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- TCF PROGRESSION -->
+    <section class="screen" id="tcfprogress">
+      <button class="back-link" onclick="go('tcf','tcf');openTab('tcf','plan')">
+        <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        TCF IRN
+      </button>
+      <h1 style="margin-top:14px">Ma progression</h1>
+      <p class="subtitle">Votre niveau actuel et le chemin vers l'objectif B2.</p>
+
+        <div class="card progression-head">
+          <div class="label">Objectif global</div>
+          <div class="target" style="margin-top:8px">
+            <div><div class="micro">Niveau actuel</div><strong>B1</strong></div>
+            <div class="target-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m14 7 5 5-5 5"/></svg></div>
+            <div style="text-align:right"><div class="micro">Objectif</div><strong style="color:var(--blue)">B2</strong></div>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Par compétence</h2></div>
+        <div class="level-list">
+          <div class="level-row"><div class="level-code">CO</div><div><div class="level-value">B2</div><div class="level-state"><span class="dot"></span>Objectif atteint</div></div><span class="green">✓</span></div>
+          <div class="level-row"><div class="level-code">CE</div><div><div class="level-value">B1</div><div class="level-state"><span class="dot amber"></span>Proche du B2</div></div><span class="micro">→ B2</span></div>
+          <div class="level-row"><div class="level-code">EE</div><div><div class="level-value">B1</div><div class="level-state"><span class="dot amber"></span>À renforcer</div></div><span class="micro">→ B2</span></div>
+          <div class="level-row"><div class="level-code">EO</div><div><div class="level-value">A2</div><div class="level-state"><span class="dot red"></span>Priorité actuelle</div></div><span class="micro">→ B2</span></div>
+        </div>
+
+        <div class="section-head"><h2>Évolution</h2></div>
+        <div class="card card-pad">
+          <div class="label">Derniers repères</div>
+          <div class="timeline">
+            <div class="step">A2</div><span class="arrow">→</span>
+            <div class="step">B1</div><span class="arrow">→</span>
+            <div class="step">B1</div><span class="arrow">→</span>
+            <div class="step active">B1+</div>
+          </div>
+          <div class="meta" style="margin-top:12px">Meilleur niveau observé : B1</div>
+        </div>
+    </section>
+
+    <!-- CIVIQUE PROGRESSION -->
+    <section class="screen" id="civiqueprogress">
+      <button class="back-link red-back" onclick="go('civique','civique');openTab('civique','parcours')">
+        <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+        Examen civique
+      </button>
+      <h1 style="margin-top:14px">Ma progression</h1>
+      <p class="subtitle">Votre avancement par thème et vos résultats aux examens blancs.</p>
+
+        <div class="card progression-head">
+          <div class="label">Maîtrise globale</div>
+          <div class="target" style="margin-top:8px">
+            <div><strong style="color:var(--red)">34%</strong><div class="micro">du parcours réalisé</div></div>
+            <div style="text-align:right"><strong>17</strong><div class="micro">séries terminées</div></div>
+          </div>
+          <div class="progress red"><span style="width:34%"></span></div>
+        </div>
+
+        <div class="section-head"><h2>Par thème</h2></div>
+        <div class="level-list">
+          <div class="level-row"><div class="level-code" style="color:var(--red)">PV</div><div><div class="level-value">60%</div><div class="level-state">3/5 séries</div></div><span class="micro">En cours</span></div>
+          <div class="level-row"><div class="level-code" style="color:var(--red)">SI</div><div><div class="level-value">18%</div><div class="level-state">2/11 séries</div></div><span class="micro">À travailler</span></div>
+          <div class="level-row"><div class="level-code" style="color:var(--red)">DD</div><div><div class="level-value">12%</div><div class="level-state">1/8 séries</div></div><span class="micro">À travailler</span></div>
+          <div class="level-row"><div class="level-code" style="color:var(--red)">HC</div><div><div class="level-value">60%</div><div class="level-state">6/10 séries</div></div><span class="micro">En cours</span></div>
+          <div class="level-row"><div class="level-code" style="color:var(--red)">VF</div><div><div class="level-value">55%</div><div class="level-state">5/9 séries</div></div><span class="micro">En cours</span></div>
+        </div>
+
+        <div class="section-head"><h2>Examens blancs</h2></div>
+        <div class="card card-pad">
+          <div class="label">Évolution du score</div>
+          <div class="timeline">
+            <div class="step">76%</div><span class="arrow">→</span>
+            <div class="step">84%</div><span class="arrow">→</span>
+            <div class="step active" style="background:var(--red)">91%</div>
+          </div>
+          <div class="meta" style="margin-top:12px">Meilleur score : 91 %</div>
+        </div>
+    </section>
+
+    <!-- PROFIL -->
+    <section class="screen" id="profil">
+      <h1>Profil</h1>
+      <p class="subtitle">Votre compte, votre objectif et vos réglages.</p>
+
+      <div class="card profile" style="margin-top:20px">
+        <div class="avatar">AM</div>
+        <h3>Abdoul Matine</h3>
+        <div class="meta">Objectif : naturalisation française</div>
+      </div>
+
+      <div class="section-head"><h2>Mon compte</h2></div>
+      <div class="stack">
+        <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M7 10h5"/></svg></div><div class="info-copy"><h3>Mon abonnement</h3><div class="meta">Pass Intégral</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+        <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1-2.9 2.9-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21H10v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1-2.9-2.9.1-.1A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.5-1H3v-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1 2.9-2.9.1.1A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.5V3h4v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1 2.9 2.9-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.1v4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg></div><div class="info-copy"><h3>Paramètres</h3><div class="meta">Notifications, compte, préférences</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+        <div class="info-card"><div class="iconbox soft"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 0 1 4.8 1c0 2-2.5 2.2-2.5 4"/><path d="M12 18h.01"/></svg></div><div class="info-copy"><h3>Aide</h3><div class="meta">Questions fréquentes et contact</div></div><div class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="active" data-screen="accueil" onclick="go('accueil')">
+      <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
+      <span>Accueil</span>
+    </button>
+    <button data-screen="tcf" onclick="go('tcf')">
+      <svg viewBox="0 0 24 24"><path d="M4 6.5 9 4l6 2.5L20 4v13.5L15 20l-6-2.5L4 20V6.5Z"/><path d="M9 4v13.5"/><path d="M15 6.5V20"/></svg>
+      <span>TCF</span>
+    </button>
+    <button data-screen="civique" onclick="go('civique')">
+      <svg viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.1 8 9 4.6-.9 8-4 8-9V7l-8-4Z"/><path d="m9.5 12 1.6 1.6 3.6-3.6"/></svg>
+      <span>Civique</span>
+    </button>
+    <button data-screen="profil" onclick="go('profil')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+      <span>Profil</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+function go(id, navId=id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.bottom-nav button').forEach(b=>{
+    b.classList.toggle('active',b.dataset.screen===navId)
+  });
+  const main=document.querySelector('main');
+  if(main) main.scrollTo({top:0,behavior:'smooth'});
+}
+
+function openTab(group,tab){
+  document.querySelectorAll(`.segment[data-group="${group}"] button`).forEach(b=>{
+    b.classList.toggle('active',b.dataset.tab===tab)
+  });
+  document.querySelectorAll(`[data-pane^="${group}-"]`).forEach(p=>p.classList.remove('active'));
+  const pane=document.querySelector(`[data-pane="${group}-${tab}"]`);
+  if(pane) pane.classList.add('active');
+  const main=document.querySelector('main');
+  if(main) main.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>

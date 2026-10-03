@@ -85,9 +85,9 @@ export interface ExamSlotData {
  * courte (`subtitle`), rien d'autre. 🛑 Pas d'œil-de-bœuf ni de paragraphe
  * d'explication : l'app mobile n'en a pas (alignement, 2026-09-24).
  *
- * Sous 900 px dans le shell connecté, le titre et le contexte montent dans la
- * barre du haut (`useAppBarTitle`). 🛑 La barre garde le BURGER (propriétaire,
- * 2026-09-24) : le lien de retour reste dans la page, à toute largeur.
+ * Dans le shell connecté, le titre nomme la page du fil d'Ariane de la barre
+ * du haut (`useAppBarTitle`) ; l'en-tête de la page reste. Le lien de retour
+ * reste dans la page, à toute largeur.
  */
 export function DetailShell({
   backHref,
@@ -111,7 +111,7 @@ export function DetailShell({
   notice?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const titleInBar = useAppBarTitle({ title, subtitle });
+  useAppBarTitle({ title });
   const backClass = styles.back;
   return (
     <main className={styles.wrap}>
@@ -126,7 +126,7 @@ export function DetailShell({
           {backLabel}
         </Link>
       )}
-      <header className={`${styles.head}${titleInBar ? " in-bar-title" : ""}`}>
+      <header className={styles.head}>
         <h1 className={styles.title}>{title}</h1>
         {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
       </header>

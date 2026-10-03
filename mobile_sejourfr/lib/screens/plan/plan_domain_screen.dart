@@ -90,7 +90,7 @@ class PlanDomainScreen extends ConsumerWidget {
       context.pop();
       return;
     }
-    context.go(AppRoutes.plan);
+    context.go(AppRoutes.tcfPlan);
   }
 }
 

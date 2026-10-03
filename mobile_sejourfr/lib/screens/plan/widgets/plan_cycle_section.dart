@@ -118,7 +118,11 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
             const SfCard(child: Text(kJourneyNeedsObjectiveText)),
             SfButton(
               label: kJourneyNeedsObjectiveCta,
-              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.plan)),
+              onPressed: () => context.push(AppRoutes.targetPathFrom(
+                AppRoutes.modulePlan(
+                  civique: widget.module == AppModule.civique,
+                ),
+              )),
             ),
           ],
         ),
@@ -439,7 +443,10 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     // ⚠️ **Les étapes d'EXPRESSION ne sont PAS concernées** : elles portent une
     // tâche et gardent leur chemin vers leurs petits sujets.
     if (journeyEtapeASeries(etape)) {
-      return () => context.push(AppRoutes.planEtapePath(etape.id));
+      return () => context.push(AppRoutes.planEtapePath(
+            etape.id,
+            civique: widget.module == AppModule.civique,
+          ));
     }
     // 🛑 **L'examen d'un bloc CIVIQUE lance l'examen de thème SERVI**
     // (`examenTheme`, 2026-09-28) — par le lanceur de la grille du thème :

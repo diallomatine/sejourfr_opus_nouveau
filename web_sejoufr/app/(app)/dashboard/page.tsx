@@ -17,7 +17,6 @@ import {
     LevelCardGrid,
     LevelLadder,
     MicroNote,
-    ModuleToggle,
     NowCard,
     Pad,
     Section,
@@ -97,18 +96,16 @@ import {civicNowCard} from "@/lib/civic-plan";
  *
  * ## Un écran, deux parcours (2026-09-12)
  *
- * 🛑 Arbitrage du propriétaire : « **la bascule avec l'Examen civique doit
- * afficher l'accueil de l'Examen civique** ». La bascule ne navigue donc plus
- * vers le hub d'entraînement : elle change **ce que l'Accueil montre**, comme
- * sur le Plan. Le transport est `?module=`, le défaut est **servi**
+ * ⚠️ **Navigation v2 (2026-10-03)** : la bascule TCF / Examen civique de
+ * l'écran est SUPPRIMÉE (la barre latérale porte les deux modules) ; la phase 3
+ * refait cet Accueil. D'ici là il reste scopé par `?module=` : le défaut est **servi**
  * (`moduleParDefaut(prep)`) et s'inscrit dans l'URL — **aucun `useState` de
  * module**, aucune seconde mécanique.
  *
  * ## Ce que l'écran porte, de haut en bas (2026-09-19)
  *
  * Bandeau « Choisissez votre parcours » (démarche absente) → en-tête
- * « Bonjour X » + pastille de démarche → **bascule TCF / Examen civique** →
- * **À faire maintenant** (+ l'invitation à choisir un objectif) → **Où vous en
+ * « Bonjour X » + pastille de démarche → **À faire maintenant** (+ l'invitation à choisir un objectif) → **Où vous en
  * êtes**. Et rien d'autre.
  *
  * 🛑 **Le bas de l'Accueil est SUPPRIMÉ** (arbitrage du propriétaire,
@@ -294,8 +291,7 @@ function DashboardRoot() {
     }, [status, user]);
 
     /* L'URL devient canonique dès que le défaut servi est connu : elle rend le
-       parcours affiché partageable, et c'est elle que lit la bascule. Les autres
-       paramètres sont conservés. */
+       parcours affiché partageable. Les autres paramètres sont conservés. */
     useEffect(() => {
         if (demande !== null || defaut === null || pathname === null) return;
         const params = new URLSearchParams(search?.toString() ?? "");
@@ -358,25 +354,6 @@ function DashboardRoot() {
                 <h1>Bonjour {user.firstName ?? "à vous"}</h1>
                 <span className="home-obj">{objectifLabel(user.targetProcedure)}</span>
             </header>
-
-            {/* 🛑 **Le choix TCF / Examen civique vit ICI** (arbitrage du
-                propriétaire, 2026-09-12 : « le menu de gauche, faut le laisser
-                comme il était ; le choix entre examen civique et TCF, dans les
-                écrans dashboard, plan, entraînement »). C'est la **brique du
-                kit**, au même endroit que sur le Plan — sous l'en-tête —, pas
-                une seconde implémentation.
-
-                🛑 **Elle change ce que l'Accueil AFFICHE**, elle ne navigue plus
-                vers le hub (arbitrage du 2026-09-12 : « la bascule avec l'Examen
-                civique doit afficher l'accueil de l'Examen civique »). Les deux
-                hubs d'entraînement restent atteignables par les deux entrées
-                « TCF IRN » / « Examen civique » de la barre latérale — « Vos
-                parcours » a été supprimé de l'Accueil le 2026-09-19. */}
-            <ModuleToggle
-                current={civique ? "civique" : "tcf"}
-                tcfHref={`${pathname ?? "/dashboard"}?module=TCF`}
-                civicHref={`${pathname ?? "/dashboard"}?module=CIVIQUE`}
-            />
 
             <div className={sejourStyles.deskPair}>
                 {aUneAction ? (
@@ -1133,11 +1110,4 @@ const homeStyles = `
     .home-hello h1 { font-size: 32px; }
   }
 
-  /* Sous la barre du haut : « Bonjour » se pose déjà à 14 px (le kit ôte le
-     padding de .app) ; la bannière de parcours et le squelette, qui arrivent
-     en premier sans marge propre, prennent le même écart, --app-bar-gap. */
-  @media (max-width: 900px) {
-    .app-shell--has-drawer .home-banner,
-    .app-shell--has-drawer .home .sk-head { margin-top: var(--app-bar-gap); }
-  }
 `;

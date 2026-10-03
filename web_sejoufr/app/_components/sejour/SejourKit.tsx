@@ -14,7 +14,7 @@
  */
 
 import Link from "next/link";
-import { useAppBarBack, useAppBarTitle } from "@/app/_components/AppBarTitle";
+import { useAppBarBack } from "@/app/_components/AppBarTitle";
 import {
   ArrowRight,
   BadgeCheck,
@@ -141,47 +141,6 @@ export function SejourApp({
   );
 }
 
-/**
- * Ce qui se glisse SOUS l'en-tête de page, dans TOUS les états d'un écran.
- *
- * 🛑 **L'ordre « eyebrow → titre → bascule de module » est posé ICI**, une
- * seule fois : l'écran parent fournit le nœud, `Top` le pose. Sans ce relais,
- * le parent devrait rendre la bascule lui-même — donc AVANT l'en-tête, l'ordre
- * qu'on corrige — ou la faire descendre en prop jusqu'aux sept variantes du
- * Plan (chargement, sans diagnostic, gratuit, abonné, TCF, civique…), chacune
- * portant son propre `Top`. Une bascule recopiée sept fois finit toujours par
- * diverger d'un état à l'autre.
- *
- * Miroir Flutter : `SfTopSlot` (`core/widgets/sejour/sejour_kit.dart`).
- */
-const TopSlotContext = createContext<ReactNode>(null);
-
-export function TopSlot({ node, children }: { node: ReactNode; children: ReactNode }) {
-  return <TopSlotContext.Provider value={node}>{children}</TopSlotContext.Provider>;
-}
-
-/**
- * **L'en-tête de page monte dans la barre du haut** (`AppTopBar`, ≤ 900 px).
- *
- * Pour un écran dont le titre est une DONNÉE (le Plan : « Mon plan du jour »,
- * et son eyebrow « Votre parcours personnalisé vers B2 », qui change avec la
- * bascule TCF / civique) : chaque `Top` rendu dessous donne son titre et son
- * eyebrow à la barre (`useAppBarTitle`), et s'efface **à l'œil** sous 900 px
- * — il reste le `<h1>` des lecteurs d'écran. Desktop : aucune barre, l'en-tête
- * reste. Hors shell connecté (pas de barre), rien ne change.
- *
- * Même relais que `TopSlot`, pour la même raison : les sept variantes du Plan
- * portent chacune leur `Top`, et aucune n'a à le déclarer.
- *
- * ⚠️ Pas de miroir Flutter : c'est la barre du web sous 900 px qui en a
- * besoin, l'app Flutter a son propre en-tête d'écran.
- */
-const TopInAppBarContext = createContext(false);
-
-export function TopInAppBar({ children }: { children: ReactNode }) {
-  return <TopInAppBarContext.Provider value>{children}</TopInAppBarContext.Provider>;
-}
-
 export function Top({
   backTo,
   onBack,
@@ -204,11 +163,8 @@ export function Top({
   lead?: string;
   badge?: string;
 }) {
-  const slot = useContext(TopSlotContext);
-  const versLaBarre = useContext(TopInAppBarContext);
-  const dansLaBarre = useAppBarTitle(versLaBarre ? { title, subtitle: kicker } : null);
-  /* La flèche de retour monte dans la barre du haut (≤ 900 px, shell
-     connecté) — le chevron de l'en-tête s'efface alors (`in-bar-back`). */
+  /* La flèche de retour monte dans la barre du haut du shell connecté — le
+     chevron de l'en-tête s'efface alors (`in-bar-back`). */
   const retourDansLaBarre = useAppBarBack(
     backTo ? { fallbackHref: backTo } : onBack ? { fallbackHref: "/dashboard", onBack } : null,
   );
@@ -219,8 +175,7 @@ export function Top({
      page — et il ne s'aligne ni sur la bascule de parcours, ni sur les cartes
      en dessous. Même retrait côté mobile (`SfTop`) dans la même passe. */
   return (
-    <>
-      <header className={cx(styles.top, dansLaBarre && styles.topInAppBar)}>
+      <header className={styles.top}>
         {backTo ? (
           <Link
             href={backTo}
@@ -246,8 +201,6 @@ export function Top({
           {badge ? <span className={styles.badge}>{badge}</span> : null}
         </div>
       </header>
-      {slot}
-    </>
   );
 }
 
@@ -256,8 +209,8 @@ export function Top({
  * œil-de-bœuf à droite.
  *
  * 🛑 **Ce n'est pas une variante de `Top`**, et c'est la différence qui compte :
- * `Top` annonce une **page** (retour en chevron, titre en `h1`, bascule de
- * module dans son `TopSlot`) ; celui-ci coiffe un écran **qu'on ferme** — une
+ * `Top` annonce une **page** (retour en chevron, titre en `h1`) ; celui-ci
+ * coiffe un écran **qu'on ferme** — une
  * étape posée par-dessus, sans titre, dont le contenu commence par son héros.
  * Les deux maquettes de l'écran de déblocage du Plan le montrent ainsi.
  *
@@ -541,67 +494,6 @@ export function Cta({
 
 export function Sticky({ children }: { children: ReactNode }) {
   return <div className={styles.sticky}>{children}</div>;
-}
-
-/* ------------------------------------------------------- Bascule de module */
-
-/**
- * **Le choix TCF IRN / Examen civique**, et il n'y en a qu'un.
- *
- * 🛑 Arbitrage du propriétaire (2026-09-12) : le menu de gauche garde ses deux
- * entrées de parcours, et le choix TCF / civique vit dans les **deux écrans où
- * il change ce qui est affiché** — `/dashboard` et `/plan`. Ils rendent donc
- * **cette** brique, au même endroit (sous l'en-tête), pas deux variantes.
- *
- * ⚠️ Les hubs `/entrainement` ne la portent **pas** : on y arrive par le menu,
- * qui a déjà fait le choix — « il faut afficher directement l'écran ». La prop
- * `className` et la classe `segFlush` qui les servaient sont parties avec eux.
- */
-export function ModuleToggle({
-  current,
-  onSelect,
-  tcfHref,
-  civicHref,
-}: {
-  current: "tcf" | "civique";
-  onSelect?: (module: "tcf" | "civique") => void;
-  tcfHref?: string;
-  civicHref?: string;
-}) {
-  const items: Array<{ id: "tcf" | "civique"; label: string; href?: string }> = [
-    { id: "tcf", label: "TCF IRN", href: tcfHref },
-    { id: "civique", label: "Examen civique", href: civicHref },
-  ];
-  return (
-    <div className={styles.segWrap}>
-      <div className={styles.seg} role="tablist" aria-label="Parcours">
-        {items.map((item) =>
-          item.href ? (
-            <Link
-              key={item.id}
-              href={item.href}
-              role="tab"
-              aria-selected={current === item.id}
-              className={current === item.id ? styles.isOn : undefined}
-            >
-              {item.label}
-            </Link>
-          ) : (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={current === item.id}
-              className={current === item.id ? styles.isOn : undefined}
-              onClick={() => onSelect?.(item.id)}
-            >
-              {item.label}
-            </button>
-          ),
-        )}
-      </div>
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------- Observations */

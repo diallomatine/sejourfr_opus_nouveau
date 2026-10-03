@@ -108,12 +108,6 @@ String? civicRevueLabel(CivicPlanCible cible, DateTime maintenant) {
 
 /* --------------------------------------------- l'écran « Mon plan » (kit)   */
 
-const String kCivicPlanTopKicker =
-    'Votre préparation personnalisée à l\'Examen civique';
-/// D-69 : un compte sans diagnostic civique a son Plan — plus « créé à partir de votre diagnostic ».
-const String kCivicPlanTopKickerFree = 'Votre parcours personnalisé';
-const String kCivicPlanScreenTitle = 'Mon plan du jour';
-
 /// Le ton d'un état de thème **servi**.
 CivicCibleTone civicThemeTone(CivicThemeState etat) => switch (etat) {
       CivicThemeState.solide => CivicCibleTone.ok,
@@ -325,7 +319,7 @@ CivicNowCard? civicNowCard(
               : resoluble || examenLance != null
                   ? PlanNowGeste.lancer
                   : PlanNowGeste.aucun,
-      etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
+      etapeRoute: serie ? journeyEtapeRoute(etape.id, civique: true) : null,
       source: resoluble ? CivicNowUnite(unite.code) : null,
       examen: examenLance,
       title: journeyStepTitle(etape),

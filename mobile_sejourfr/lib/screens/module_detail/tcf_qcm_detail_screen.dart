@@ -195,7 +195,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.reviser);
+      context.go(AppRoutes.tcfEntrainement);
     }
   }
 

@@ -289,7 +289,7 @@ class _BilanView extends StatelessWidget {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.tcfFullExams);
+      context.go(AppRoutes.tcfExamens);
     }
   }
 }

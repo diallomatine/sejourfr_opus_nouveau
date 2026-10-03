@@ -247,7 +247,7 @@ class _TcfFullExamProgressScreenState
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.reviser);
+      context.go(AppRoutes.tcfExamens);
     }
   }
 }

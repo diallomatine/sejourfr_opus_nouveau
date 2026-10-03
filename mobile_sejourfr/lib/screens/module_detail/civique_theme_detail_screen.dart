@@ -232,7 +232,7 @@ class _CiviqueThemeDetailScreenState
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.reviser);
+      context.go(AppRoutes.civiqueEntrainement);
     }
   }
 

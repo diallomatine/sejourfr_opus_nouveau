@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/analytics/analytics.dart';
 import '../../core/models/diagnostic_models.dart';
@@ -21,6 +20,7 @@ import 'plan_cta.dart';
 import 'plan_labels.dart';
 import 'plan_milestone_launcher.dart';
 import 'plan_seance_state.dart';
+import '../../core/router/shell_navigation.dart';
 
 /// **Où mènent les gestes du Plan**, en un seul endroit.
 ///
@@ -166,13 +166,14 @@ void openPlanSkill(
   }
   final module =
       section.isEo ? TcfProductionModule.eo : TcfProductionModule.ee;
-  context.push(competenceDetailPath(module, skillId, planStep: true));
+  pousserOuAller(context, competenceDetailPath(module, skillId, planStep: true));
 }
 
 /// La fiche d'un domaine du TCF. Aucun identifiant ne voyage : la fiche relit
 /// le Plan déjà chargé.
 void openPlanDomain(BuildContext context, EpreuveType epreuve) {
-  context.push(
+  pousserOuAller(
+    context,
     AppRoutes.planDomain.replaceFirst(':domainKey', planDomainKey(epreuve)),
   );
 }

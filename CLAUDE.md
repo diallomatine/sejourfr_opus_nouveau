@@ -216,9 +216,11 @@ Ce qui suit est résident parce que ça se viole depuis une tâche qui n'en avai
   détaillées : le `CLAUDE.md` de chaque front.
 - 🛑 **Jamais de couleur ni de font en dur.** Toujours les tokens locaux (`var(--color-*)`,
   `AppColors.*`, `AppFonts.*`). Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques
-  seulement) ; **Plus Jakarta Sans** (web/mobile) ou **Inter** (admin), **Fraunces** (titres,
-  `<em>` toujours rouge), **JetBrains Mono** (labels techniques).
-  → `docs/identite-visuelle.md`
+  et couleur du module civique). 🛑 **TCF = bleu, civique = rouge**, toujours via les tokens
+  sémantiques de module (`--color-module-*` / `AppColors.module*`), jamais `blue`/`red` en
+  direct. Polices : **Plus Jakarta Sans** (web) / **Bricolage + Hanken Grotesk** (mobile) /
+  **Inter** (admin), **Fraunces** (titres web, `<em>` toujours rouge), **JetBrains Mono**
+  (labels techniques web). → `docs/identite-visuelle.md`
 - **Responsive obligatoire (web + admin)** : du mobile (~360 px) au desktop. Tester mentalement
   360 / 768 / 1280. Pas de largeur fixe sans `max-width: 100%`, pas de grille à colonnes fixes
   sans `@media` de repli, pas de tableau sans alternative carte.

@@ -489,8 +489,9 @@ class _EmptyState extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final module = ref.watch(selectedModuleProvider);
-    final hubRoute =
-        module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
+    final hubRoute = AppRoutes.moduleEntrainement(
+      civique: module == AppModule.civique,
+    );
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 28),

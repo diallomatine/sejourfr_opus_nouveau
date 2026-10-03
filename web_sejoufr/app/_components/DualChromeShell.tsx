@@ -1,21 +1,15 @@
 "use client";
 
-import { AppSidebar } from "./AppSidebar";
-import { AppTopBar } from "./AppTopBar";
-import { AppBarProvider } from "./AppBarTitle";
+import { AppShell } from "./shell/AppShell";
 import { useAuth } from "@/lib/auth-context";
 
 /**
- * Wrap pour les routes "duales" (/entrainement, /examens-blancs, /sessions)
- * quand l'utilisateur est connecté : restaure le même app-shell que les
- * routes du group `(app)/` (sidebar 248px + main). Les routes étant hors du
- * group, le layout `(app)/layout.tsx` n'est pas accessible — on duplique sa
- * structure inline ici.
+ * Wrap pour les routes "duales" (/entrainement, /examens-blancs, /sessions,
+ * /diagnostic) : un compte y retrouve le même shell que les routes du groupe
+ * `(app)/` (`AppShell`) ; les routes étant hors du groupe, son layout n'y est
+ * pas accessible.
  *
- * Sous 900 px : la barre du haut (AppTopBar : burger + titre) prend le relais, et
- * la sidebar fixe horizontale est masquée par la classe `app-shell--has-drawer`.
- *
- * Guests : pas de sidebar — le contenu est rendu tel quel sous le chrome
+ * Visiteur : pas de shell — le contenu est rendu tel quel sous le chrome
  * public (SiteHeader + Footer), qui reste visible sur les routes duales.
  */
 export function DualChromeShell({ children }: { children: React.ReactNode }) {
@@ -25,37 +19,10 @@ export function DualChromeShell({ children }: { children: React.ReactNode }) {
       <div className="dual-shell-guest">
         {children}
         <style>{`
-          .dual-shell-guest { min-height: 100vh; background: #F7F8FC; }
+          .dual-shell-guest { min-height: 100vh; background: var(--color-paper); }
         `}</style>
       </div>
     );
   }
-  return (
-    <div className="dual-shell app-shell--has-drawer">
-      <AppSidebar />
-      <div className="dual-shell__main">
-        <AppBarProvider>
-          <AppTopBar />
-          {children}
-        </AppBarProvider>
-      </div>
-      <style>{`
-        .dual-shell {
-          display: grid;
-          grid-template-columns: 248px 1fr;
-          min-height: 100vh;
-          background: #F7F8FC;
-        }
-        .dual-shell__main {
-          min-width: 0;
-          /* Idem .app-shell__main : filet de sécurité contre tout scroll
-             horizontal qui pourrait être déclenché par un enfant. */
-          overflow-x: clip;
-        }
-        @media (max-width: 900px) {
-          .dual-shell { grid-template-columns: 1fr; }
-        }
-      `}</style>
-    </div>
-  );
+  return <AppShell>{children}</AppShell>;
 }

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../../core/widgets/segmented_tabs.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../progression_labels.dart';
 
@@ -32,6 +29,7 @@ class ProgressionPage<T> extends StatelessWidget {
     required this.children,
     this.notFound,
     this.entete = const [],
+    this.lienRetour,
   });
 
   final AsyncValue<T> async;
@@ -46,9 +44,14 @@ class ProgressionPage<T> extends StatelessWidget {
   final String? notFound;
 
   /// Ce qui ouvre la page **dans tous les états** (chargement et erreur
-  /// compris) : l'intro et la bascule des deux écrans globaux — la bascule est
-  /// une navigation, pas un résultat. Vide ailleurs.
+  /// compris) : l'intro des deux écrans globaux. Vide ailleurs.
   final List<Widget> entete;
+
+  /// **Le lien retour de la maquette** (« ‹ TCF IRN », « ‹ Examen civique »),
+  /// à la couleur du module, à la place de la barre du haut — sur les deux
+  /// écrans GLOBAUX, ouverts depuis l'écran de module (Navigation v2). Son
+  /// geste est [onBack]. `null` ⇒ la barre du haut habituelle.
+  final ({String label, bool civique})? lienRetour;
 
   @override
   Widget build(BuildContext context) {
@@ -75,11 +78,21 @@ class ProgressionPage<T> extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ScreenHeader(
-              title: kProgressionBarTitle,
-              sub: barSub,
-              onBack: onBack,
-            ),
+            if (lienRetour case final lien?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: SfBackLink(
+                  civique: lien.civique,
+                  label: lien.label,
+                  onTap: onBack,
+                ),
+              )
+            else
+              ScreenHeader(
+                title: kProgressionBarTitle,
+                sub: barSub,
+                onBack: onBack,
+              ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: onRefresh,
@@ -95,38 +108,6 @@ class ProgressionPage<T> extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// **La bascule TCF IRN / Examen civique** des deux écrans globaux, posée sous
-/// l'intro comme sur le Plan et l'Accueil — le MÊME toggle (`SegmentedTabs` +
-/// `parcoursSegments`), pas une copie. Miroir web : `ModuleToggle` du kit dans
-/// `ProgressionFrame`.
-///
-/// 🛑 **La route reste l'unique autorité du choix** : basculer remplace l'écran
-/// global par celui de l'autre module (`/progression/tcf` ⇄
-/// `/progression/civique`), sans `?tous=true` — le retour mène toujours là
-/// d'où l'on venait. Les écrans d'épreuve et de thème ne la portent pas.
-class ProgressionBascule extends StatelessWidget {
-  const ProgressionBascule({super.key, required this.civique});
-
-  final bool civique;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-      child: SegmentedTabs<bool>(
-        tabs: parcoursSegments(tcf: false, civique: true),
-        value: civique,
-        onChanged: (v) {
-          if (v == civique) return;
-          context.pushReplacement(
-            v ? AppRoutes.progressionCivique : AppRoutes.progressionTcf,
-          );
-        },
       ),
     );
   }

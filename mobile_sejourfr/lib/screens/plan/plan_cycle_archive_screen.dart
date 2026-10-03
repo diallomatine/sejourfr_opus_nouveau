@@ -8,7 +8,6 @@ import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
-import '../../core/utils/parcours_affiche.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import 'journey_labels.dart';
 import 'learning_plan_provider.dart';
@@ -34,9 +33,16 @@ import 'widgets/journey_exam_lu.dart';
 ///
 /// 🛑 **Miroir de `PlanCycleArchiveView` côté web**, brique pour brique.
 class PlanCycleArchiveScreen extends ConsumerStatefulWidget {
-  const PlanCycleArchiveScreen({super.key, required this.journeyId});
+  const PlanCycleArchiveScreen({
+    super.key,
+    required this.journeyId,
+    required this.civique,
+  });
 
   final String journeyId;
+
+  /// Le module, porté par la route (sous le Plan de son module).
+  final bool civique;
 
   @override
   ConsumerState<PlanCycleArchiveScreen> createState() =>
@@ -53,10 +59,8 @@ class _PlanCycleArchiveScreenState
   @override
   Widget build(BuildContext context) {
     /// Le parcours ne sert qu'au MOT de la mesure : le cycle porte le sien côté
-    /// serveur. Même autorité que « Mes cycles », qui a poussé cet écran.
-    final module = (ref.watch(parcoursCiviqueProvider) ?? false)
-        ? AppModule.civique
-        : AppModule.tcf;
+    /// serveur.
+    final module = widget.civique ? AppModule.civique : AppModule.tcf;
     final async = ref.watch(journeyCycleArchiveProvider(widget.journeyId));
     final archive = async.valueOrNull;
 
@@ -68,7 +72,10 @@ class _PlanCycleArchiveScreenState
           children: [
             SfTop(
               onBack: () =>
-                  retourOuRepli(context, repli: AppRoutes.planProgress),
+                  retourOuRepli(
+                context,
+                repli: AppRoutes.planProgressPath(civique: widget.civique),
+              ),
               kicker: kJourneyArchiveKicker,
               title: archive == null
                   ? kJourneyArchiveKicker

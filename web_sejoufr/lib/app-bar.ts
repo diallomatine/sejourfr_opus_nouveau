@@ -1,25 +1,17 @@
 /**
- * **Ce que dit la barre du haut de l'espace connecté, sous 900 px** (`AppTopBar`).
+ * **Le titre d'un écran connecté dans la barre du haut** (`AppTopBar`) — la
+ * page du fil d'Ariane `SejourFR / {Section} / {Page}` sur un sous-écran.
+ * Sur l'adresse racine d'une entrée de menu, le fil prend le libellé du menu
+ * (`shellCrumb`, `lib/shell-nav.ts`) ; la section vient du module de l'entrée.
  *
- * 🛑 **L'autorité unique du titre de la barre.** Une route, un titre : on ne
+ * 🛑 **L'autorité unique du titre par défaut.** Une route, un titre : on ne
  * l'écrit ni dans la page, ni dans le composant. Correspondance par **préfixe
  * le plus long** — `/profil/informations/email` l'emporte sur `/profil`.
  *
- * Les titres sont ceux des en-têtes de l'app Flutter pour le même écran :
- * l'onglet de la barre du bas pour les écrans d'onglet (Accueil, Plan,
- * Réviser, Examens blancs, Profil), le `ScreenHeader` pour les écrans du
- * compte, du centre d'aide et des favoris (mêmes constantes que la page).
- *
  * ⚠️ **Un titre de donnée (un thème, une épreuve de progression, un sujet) ne
- * s'invente pas ici** : la table donne le **parent** (« Examen civique »,
- * « Progression »), repli du rendu serveur.
- *
- * Seconde voie : la page pose elle-même le titre de son `ScreenHeader` Flutter
- * (`useAppBarTitle`, `app/_components/AppBarTitle.tsx`) — le Plan, et les
- * coquilles de sous-écran (`DetailShell`, `SkillShell` avec `title`), qui
- * montent leur titre + ligne de contexte dans la barre. La table reste le
- * repli. La flèche de retour d'un sous-écran suit la même voie
- * (`useAppBarBack`).
+ * s'invente pas ici** : la table donne le **parent**, repli du rendu serveur ;
+ * la page pose elle-même le titre de son `ScreenHeader` Flutter
+ * (`useAppBarTitle`, `app/_components/AppBarTitle.tsx`).
  */
 import {AIDE_TITLE} from "./aide";
 import {
@@ -31,13 +23,10 @@ import {
 } from "./compte";
 import {FAVORIS_TITLE} from "./favoris";
 import {JOURNEY_HISTORY_TITLE} from "./journey";
-import {moduleDeLUrl} from "./module-switch";
 import {questionTypeLabel, SKILL_SECTION_LABEL} from "./types";
 
 export interface AppBarInfo {
   title: string;
-  /** Une ligne de contexte courte (le parcours), jamais une donnée de la page. */
-  subtitle?: string;
 }
 
 const TCF = "TCF IRN";
@@ -47,23 +36,24 @@ const APP_BAR_ROUTES: ReadonlyArray<readonly [prefix: string, info: AppBarInfo]>
   ["/dashboard", {title: "Accueil"}],
 
   ["/plan", {title: "Plan"}],
-  ["/plan/progression", {title: JOURNEY_HISTORY_TITLE, subtitle: "Plan"}],
-  ["/plan/progression/cycle", {title: "Cycle terminé", subtitle: JOURNEY_HISTORY_TITLE}],
+  ["/plan/progression", {title: JOURNEY_HISTORY_TITLE}],
+  ["/plan/progression/cycle", {title: "Cycle terminé"}],
 
-  ["/progression/tcf", {title: "Progression", subtitle: TCF}],
-  ["/progression/civique", {title: "Progression", subtitle: CIVIQUE}],
+  ["/progression/tcf", {title: "Progression"}],
+  ["/progression/civique", {title: "Progression"}],
 
   ["/diagnostic", {title: "Diagnostic"}],
-  ["/diagnostic-civique", {title: "Diagnostic", subtitle: CIVIQUE}],
+  ["/diagnostic-civique", {title: "Diagnostic"}],
 
   ["/entrainement/tcf", {title: TCF}],
-  ["/entrainement/tcf/co", {title: SKILL_SECTION_LABEL.CO, subtitle: TCF}],
-  ["/entrainement/tcf/ce", {title: SKILL_SECTION_LABEL.CE, subtitle: TCF}],
-  ["/entrainement/tcf/ee", {title: SKILL_SECTION_LABEL.EE, subtitle: TCF}],
-  ["/entrainement/tcf/eo", {title: SKILL_SECTION_LABEL.EO, subtitle: TCF}],
-  ["/entrainement/tcf/structure", {title: questionTypeLabel("STRUCTURE"), subtitle: TCF}],
+  ["/entrainement/tcf/co", {title: SKILL_SECTION_LABEL.CO}],
+  ["/entrainement/tcf/ce", {title: SKILL_SECTION_LABEL.CE}],
+  ["/entrainement/tcf/ee", {title: SKILL_SECTION_LABEL.EE}],
+  ["/entrainement/tcf/eo", {title: SKILL_SECTION_LABEL.EO}],
+  ["/entrainement/tcf/structure", {title: questionTypeLabel("STRUCTURE")}],
   ["/entrainement/civique", {title: CIVIQUE}],
 
+  ["/entrainement", {title: "Entraînement"}],
   ["/examens-blancs", {title: "Examens blancs"}],
   ["/sessions", {title: "Entraînement"}],
 
@@ -111,21 +101,9 @@ function matches(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-/**
- * Le titre de la barre pour `pathname`. `searchParams` ne sert qu'à Réviser
- * (`/entrainement?module=`), dont le parcours est dans l'URL et pas le chemin.
- */
-export function appBarInfo(
-  pathname: string | null,
-  searchParams?: {get(name: string): string | null} | null,
-): AppBarInfo {
+/** Le titre de la barre pour `pathname` (préfixe le plus long). */
+export function appBarInfo(pathname: string | null): AppBarInfo {
   if (!pathname) return FALLBACK;
-  if (pathname === "/entrainement") {
-    return {
-      title: "Réviser",
-      subtitle: moduleDeLUrl(searchParams) === "TCF" ? TCF : CIVIQUE,
-    };
-  }
   let best: readonly [string, AppBarInfo] | null = null;
   for (const entry of APP_BAR_ROUTES) {
     if (matches(pathname, entry[0]) && (!best || entry[0].length > best[0].length)) {

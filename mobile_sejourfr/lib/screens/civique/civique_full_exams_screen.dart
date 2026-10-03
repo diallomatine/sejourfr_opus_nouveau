@@ -21,8 +21,6 @@ import '../module_detail/civique_exam_briefing_sheet.dart';
 import '../module_detail/exam_slots_data.dart';
 import '../module_detail/widgets/exam_done_sheet.dart';
 import '../tcf_production/widgets/exams_error_view.dart';
-import '../tcf_production/widgets/flag_badge.dart';
-import '../tcf_production/widgets/module_screen_header.dart';
 
 const int _examSlotsCount = 20;
 const int _visibleByDefault = 7;
@@ -44,47 +42,9 @@ final civiqueGlobalExamsProvider =
   return all.where((a) => !a.isThemeScoped).toList();
 });
 
-/// Page « Examens blancs » Civique GLOBAUX (`/civique/examens-blancs`).
-/// Pendant de `TcfFullExamsScreen` côté Civique : 20 slots de 40 Q tous
-/// thèmes, 45 min, seuil 32/40. Verrou de chaque slot SERVI (slot 1 offert et
-/// rejouable, 2+ aux abonnés Civique). Accent bleu (convention Civique = bleu).
-/// `CiviqueFullExamsView` (le corps) est réutilisé par l'onglet Examens du
-/// shell, comme `TcfFullExamsView` côté TCF.
-class CiviqueFullExamsScreen extends StatelessWidget {
-  const CiviqueFullExamsScreen({super.key});
-
-  void _back(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.reviser);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ModuleScreenHeader(
-              title: 'Examens blancs',
-              subtitle: 'Civique · 40 Q tous thèmes',
-              onBack: () => _back(context),
-              trailing: const FlagBadge(),
-            ),
-            const Expanded(child: CiviqueFullExamsView()),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Corps réutilisable de la page (stats + filtre + 20 slots). Embarqué tel
-/// quel par l'onglet Examens du shell.
+/// Les examens blancs civiques GLOBAUX (20 slots de 40 Q tous thèmes, 45 min,
+/// seuil 32/40, verrou de chaque slot SERVI) — corps du segment « Examens »
+/// de l'écran de module Civique (Navigation v2).
 class CiviqueFullExamsView extends ConsumerStatefulWidget {
   const CiviqueFullExamsView({super.key});
 
@@ -164,7 +124,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       builder: (sheetCtx) => ExamDoneSheet(
         title: 'Examen blanc $slot',
         subtitle: subtitle,
-        accent: AppColors.blue,
+        accent: AppColors.moduleCivique,
         onViewDetail: () {
           Navigator.of(sheetCtx).pop();
           _openExamReport(attempt);
@@ -183,11 +143,11 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
 
     return async.when(
       loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.blue)),
+          child: CircularProgressIndicator(color: AppColors.moduleCivique)),
       error: (e, _) => ExamsErrorView(
         message: ApiClient.toApiException(e).message,
         onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
-        accent: AppColors.blue,
+        accent: AppColors.moduleCivique,
       ),
       data: _buildContent,
     );
@@ -224,7 +184,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
     final hiddenCount = _examSlotsCount - visibleCount;
 
     return RefreshIndicator(
-      color: AppColors.blue,
+      color: AppColors.moduleCivique,
       onRefresh: () async {
         ref.invalidate(civiqueGlobalExamsProvider);
         await ref.read(civiqueGlobalExamsProvider.future);
@@ -238,7 +198,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
                 child: StatValueCard(
                   value: bestScore == null ? '—' : '$bestScore/$maxPossible',
                   label: 'Meilleur score',
-                  color: AppColors.blue,
+                  color: AppColors.moduleCivique,
                   valueSize: 20,
                 ),
               ),
@@ -255,7 +215,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
                 child: StatValueCard(
                   value: '$progressPercent %',
                   label: 'Progression',
-                  color: AppColors.blue,
+                  color: AppColors.moduleCivique,
                   valueSize: 20,
                 ),
               ),
@@ -263,8 +223,8 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
           ),
           const SizedBox(height: 14),
           const ExamInfoChips(
-            accent: AppColors.blue,
-            soft: AppColors.blueLight,
+            accent: AppColors.moduleCivique,
+            soft: AppColors.moduleCiviqueLight,
             items: [
               (icon: LucideIcons.zap, label: 'Simulation réelle'),
               (icon: LucideIcons.clock, label: '45 minutes'),
@@ -298,11 +258,11 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
                   style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
-                    color: AppColors.blue,
+                    color: AppColors.moduleCivique,
                   ),
                 ),
                 label: const Icon(LucideIcons.chevronDown,
-                    size: 16, color: AppColors.blue),
+                    size: 16, color: AppColors.moduleCivique),
               ),
             ),
         ],
@@ -331,13 +291,13 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
     return FullExamSlotCard(
       slot: number,
       filled: done,
-      accent: AppColors.blue,
+      accent: AppColors.moduleCivique,
       title: 'Examen $number',
       subtitle: subtitle,
-      subtitleColor: done ? AppColors.blue : AppColors.inkFaint,
+      subtitleColor: done ? AppColors.moduleCivique : AppColors.inkFaint,
       lockedEmpty: lockedEmpty,
       trailing: done
-          ? FullExamSlotCard.faitPill(AppColors.blue, bg: AppColors.blueLight)
+          ? FullExamSlotCard.faitPill(AppColors.moduleCivique, bg: AppColors.moduleCiviqueLight)
           : Icon(
               lockedEmpty ? LucideIcons.lock : LucideIcons.chevronRight,
               size: 18,

@@ -100,7 +100,6 @@ function CiviqueScoped() {
             backHref="/dashboard?module=CIVIQUE"
             title={CIVIQUE_TITLE}
             lead={CIVIQUE_LEAD}
-            module="CIVIQUE"
         >
             {dto ? (
                 <CiviqueContenu dto={dto} tous={tous}/>

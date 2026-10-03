@@ -30,6 +30,7 @@ import '../widgets/production_state_views.dart';
 import 'widgets/skill_level_card.dart';
 import 'widgets/skill_references_tabs.dart';
 import 'widgets/skill_status_badge.dart';
+import '../../../core/router/shell_navigation.dart';
 
 /// Résultat d'une tentative sur un petit sujet.
 ///
@@ -458,7 +459,8 @@ class _CompetenceResultScreenState
             prompt: prompt,
             accent: _accent,
             icon: widget.module.icon,
-            onTap: () => context.push(
+            onTap: () => pousserOuAller(
+              context,
               competenceDetailPath(widget.module, prompt.skillId,
                   planStep: widget.planStep),
             ),
@@ -1267,7 +1269,7 @@ class _NextActionCard extends StatelessWidget {
             onPressed: switch (action.kind) {
               CompetenceNextKind.reessayer => rejouer,
               CompetenceNextKind.sujetSuivant => suivant,
-              CompetenceNextKind.plan => () => context.go(AppRoutes.plan),
+              CompetenceNextKind.plan => () => context.go(AppRoutes.tcfPlan),
             },
           ),
           const SizedBox(height: 8),

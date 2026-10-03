@@ -1,0 +1,620 @@
+/* ============================================================================
+   Shell de l'espace connecté — maquette « Navigation v2 »
+   (`docs/redesign/sejourfr-navigation-web.html`).
+
+   Géométrie, tailles et comportements de la maquette ; couleurs, ombres et
+   rayons = tokens SejourFR (`app/globals.css`). AUCUN hex ici.
+
+   Bornes du shell (celles de la maquette) : > 1180 complet · ≤ 1024 la barre
+   latérale devient un tiroir · ≤ 760 paddings réduits · ≤ 520 fil d'Ariane
+   masqué. ⚠️ Le contenu des écrans du kit garde SES bornes : une media query
+   n'est pas une primitive.
+   ============================================================================ */
+
+/* ---------- Coquille ---------- */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  color: var(--color-ink);
+  background:
+    radial-gradient(1100px 520px at 85% -10%, color-mix(in srgb, var(--color-blue) 7%, transparent), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, color-mix(in srgb, var(--color-red) 5%, transparent), transparent 60%),
+    var(--color-paper);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Filet de sécurité : aucun écran ne doit déclencher de scroll horizontal. */
+  overflow-x: clip;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--shell-content-max);
+  margin: 0 auto;
+  padding: 36px 44px 64px;
+  /* La taille du H1 de la maquette (32 → 26 px sous 760 px), lue par les
+     en-têtes de page du gabarit (phases 3 et 4). */
+  --shell-h1-size: 32px;
+}
+
+/* ---------- Barre latérale ---------- */
+
+.sidebar {
+  width: var(--shell-sidebar-w);
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background: color-mix(in srgb, var(--color-white) 92%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--color-line);
+  display: flex;
+  flex-direction: column;
+  padding: 26px 14px 14px;
+  z-index: 30;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brandTag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+.drawerClose {
+  display: none;
+  place-items: center;
+  position: absolute;
+  top: 18px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-white);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.drawerClose svg {
+  width: 17px;
+  height: 17px;
+}
+
+.drawerClose:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 26px;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.group {
+  margin-bottom: 22px;
+}
+
+.groupLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-muted);
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10.5px 12px;
+  border-radius: 14px;
+  margin-bottom: 2px;
+  color: var(--color-nav-ink);
+  font-size: 14.5px;
+  font-weight: 700;
+  text-decoration: none;
+  position: relative;
+  transition: background var(--sf-quick) ease, color var(--sf-quick) ease;
+}
+
+.item svg {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+}
+
+.item:hover {
+  background: var(--color-blue-soft);
+  color: var(--color-ink);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.itemLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.active {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  font-weight: 800;
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 22px;
+  border-radius: 0 4px 4px 0;
+  background: var(--color-ink);
+}
+
+.tail {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* ---------- Bloc de module (univers TCF / civique) ---------- */
+
+.module {
+  --mod: var(--color-module-tcf);
+  --mod-dark: var(--color-module-tcf-dark);
+  --mod-bg: var(--color-module-tcf-bg);
+  --mod-border: var(--color-module-tcf-border);
+  --mod-rail: var(--color-module-tcf-rail);
+  --mod-gradient: var(--gradient-module-tcf);
+  border-radius: var(--sf-radius-2xl);
+  padding: 12px 8px;
+  margin-bottom: 18px;
+  background: var(--mod-bg);
+  border: 1px solid var(--mod-border);
+}
+
+.moduleCivique {
+  --mod: var(--color-module-civique);
+  --mod-dark: var(--color-module-civique-dark);
+  --mod-bg: var(--color-module-civique-bg);
+  --mod-border: var(--color-module-civique-border);
+  --mod-rail: var(--color-module-civique-rail);
+  --mod-gradient: var(--gradient-module-civique);
+}
+
+.moduleHead {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 3px 8px 12px;
+}
+
+.moduleIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--color-white);
+  background: var(--mod-gradient);
+  box-shadow: var(--sf-shadow-module-icon);
+}
+
+.moduleIcon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.moduleTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--mod-dark);
+}
+
+.moduleSub {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+/* Escalier : sous-menus indentés sous un rail coloré. */
+.moduleItems {
+  margin-left: 24px;
+  padding-left: 10px;
+  border-left: 2.5px solid var(--mod-rail);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-radius: 2px;
+}
+
+.moduleItems .item {
+  border-radius: 12px;
+  padding: 9px 10px;
+  font-size: 13.5px;
+  margin-bottom: 0;
+  gap: 9px;
+  white-space: nowrap;
+}
+
+.moduleItems .item svg {
+  width: 19px;
+  height: 19px;
+}
+
+.moduleItems .item::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--mod-rail);
+}
+
+.moduleItems .item:hover {
+  background: color-mix(in srgb, var(--color-white) 72%, transparent);
+}
+
+.moduleItems .tail {
+  font-size: 10.5px;
+}
+
+.moduleItems .active {
+  background: var(--color-white);
+  color: var(--mod);
+  font-weight: 800;
+  box-shadow: var(--sf-shadow-nav-active);
+}
+
+.moduleItems .active::before {
+  display: none;
+}
+
+.moduleItems .active::after {
+  background: currentColor;
+}
+
+.moduleItems .active .tail {
+  color: var(--mod);
+}
+
+/* ---------- Carte utilisateur ---------- */
+
+.user {
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+  padding: 13px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  color: var(--color-ink);
+  transition: box-shadow var(--sf-quick) ease;
+}
+
+.user:hover {
+  box-shadow: var(--sf-shadow-card);
+}
+
+.user:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-avatar);
+  color: var(--color-white);
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.userText {
+  flex: 1;
+  min-width: 0;
+}
+
+.userName {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userPlan {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userPlan b {
+  color: var(--color-amber-dark);
+}
+
+.chev {
+  color: var(--color-muted-2);
+  display: grid;
+  place-items: center;
+}
+
+.chev svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Barre du haut ---------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  min-height: var(--shell-topbar-h);
+  background: color-mix(in srgb, var(--color-paper) 85%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 80%, transparent);
+  padding: 16px 44px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.iconButton {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid var(--color-line);
+  background: var(--color-white);
+  color: var(--color-ink);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+  box-shadow: var(--sf-shadow-card-sm);
+  transition: transform var(--sf-quick) ease;
+}
+
+.iconButton:hover {
+  transform: translateY(-1px);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.iconButton svg {
+  width: 20px;
+  height: 20px;
+}
+
+.burger {
+  display: none;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.crumb span {
+  white-space: nowrap;
+}
+
+.sep {
+  color: var(--color-muted-2);
+}
+
+.here {
+  color: var(--color-ink);
+  font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hereTcf {
+  color: var(--color-module-tcf);
+}
+
+.hereCivique {
+  color: var(--color-module-civique);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.topAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: var(--gradient-avatar);
+  color: var(--color-white);
+  font-weight: 800;
+  font-size: 14px;
+  border: 2px solid var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+  text-decoration: none;
+}
+
+.topAvatar:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.overlay {
+  display: none;
+}
+
+/* ---------- Barre latérale rendue dans un autre tiroir (en-tête public) ---------- */
+
+.embedded {
+  position: static;
+  width: 100%;
+  height: 100%;
+  border-right: 0;
+  background: var(--color-white);
+}
+
+.embedded .drawerClose {
+  display: grid;
+}
+
+/* ============================================================ Responsive */
+
+@media (max-width: 1024px) {
+  .burger {
+    display: grid;
+  }
+
+  .content {
+    padding: 24px 20px 90px;
+  }
+
+  .topbar {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .sidebar:not(.embedded) {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    width: min(322px, 86vw);
+    transform: translateX(-106%);
+    /* La visibilité tombe APRÈS la glissade : un tiroir fermé ne garde ni
+       focus clavier ni lecture d'écran. */
+    transition:
+      transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1),
+      visibility 0s linear 0.28s;
+    box-shadow: var(--sf-shadow-drawer);
+    z-index: 90;
+    visibility: hidden;
+  }
+
+  .sidebar.open {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.25, 1);
+  }
+
+  .sidebar:not(.embedded) .drawerClose {
+    display: grid;
+  }
+
+  .overlayShow {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: color-mix(in srgb, var(--color-ink) 42%, transparent);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    overscroll-behavior: contain;
+    touch-action: none;
+  }
+}
+
+@media (max-width: 760px) {
+  /* ⚠️ Pas de gouttière latérale ici : chaque écran existant, pensé mobile
+     d'abord, porte déjà la sienne (16 px du kit ≈ 14 px de la maquette) — une
+     seconde gouttière mangerait 30 px d'un écran de 390. */
+  .content {
+    padding: 20px 0 80px;
+    --shell-h1-size: 26px;
+  }
+}
+
+@media (max-width: 520px) {
+  .crumb {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .iconButton {
+    transition: none;
+  }
+}

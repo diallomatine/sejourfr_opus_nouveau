@@ -674,7 +674,11 @@ class _SfGoalValue extends StatelessWidget {
 
 /* ----------------------------------------------------------------- Boutons */
 
-enum SfButtonVariant { primary, blue, line }
+/// [tcf] / [civique] : le CTA **d'un module**, peint de sa couleur de module
+/// (Navigation v2, X1 — TCF bleu, civique rouge). À préférer à [blue] ou
+/// [primary] dès que la couleur dit « ce module » plutôt que « critique ».
+/// Miroir web : `Cta` variantes `tcf` / `civique`.
+enum SfButtonVariant { primary, blue, line, tcf, civique }
 
 /// Le bouton pleine largeur du kit, flèche comprise.
 class SfButton extends StatelessWidget {
@@ -712,6 +716,8 @@ class SfButton extends StatelessWidget {
       SfButtonVariant.primary => AppColors.red,
       SfButtonVariant.blue => AppColors.blue,
       SfButtonVariant.line => AppColors.white,
+      SfButtonVariant.tcf => AppColors.moduleTcf,
+      SfButtonVariant.civique => AppColors.moduleCivique,
     };
     final foreground = line ? AppColors.blue : AppColors.white;
 
@@ -7431,6 +7437,237 @@ class SfProgressGlobalExamRow extends StatelessWidget {
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/* ==========================================================================
+   NAVIGATION V2 (2026-10-03) — en-tête de module, carte « Ma progression »,
+   lien retour. Maquette : `docs/redesign/sejourfr-navigation-mobile.html`
+   (`.kicker`, `h1`, `.subtitle`, `.progress-summary`, `.back-link`).
+   Miroirs web, mêmes noms sans `Sf` : `ModuleHeader`, `ProgressSummary`,
+   `BackLink`. Le segment « Plan | Entraînement | Examens » est
+   `SegmentedTabs(shape: SegmentedTabsShape.module)` (`core/widgets/`).
+   ========================================================================== */
+
+/// **L'en-tête d'un écran de module** (onglet TCF ou Civique) : la pastille
+/// kicker teintée du module, le grand titre, la phrase de cadrage.
+///
+/// 🛑 Textes **statiques** fournis par l'écran ; la couleur vient du module
+/// ([AppColors.moduleLight] / [AppColors.moduleDark]), jamais d'un hex.
+class SfModuleHeader extends StatelessWidget {
+  const SfModuleHeader({
+    super.key,
+    required this.civique,
+    required this.kicker,
+    required this.title,
+    this.lead,
+  });
+
+  final bool civique;
+  final String kicker;
+  final String title;
+  final String? lead;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.moduleLight(civique: civique),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+          ),
+          child: Text(
+            kicker.toUpperCase(),
+            style: AppFonts.ui(
+              size: 11,
+              weight: FontWeight.w800,
+              color: AppColors.moduleDark(civique: civique),
+              letterSpacing: 0.7,
+              height: 1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          title,
+          style: AppFonts.display(size: 32, weight: FontWeight.w800, height: 1.05),
+        ),
+        if (lead != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            lead!,
+            style: AppFonts.ui(size: 16, color: AppColors.muted, height: 1.45),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// **La carte « Ma progression »** d'un écran de module : un libellé, une
+/// valeur (« B1 → B2 » ou « 39 % »), une méta, et « Voir le détail ».
+///
+/// [from] est la valeur de départ (niveau actuel), affichée à l'encre et suivie
+/// d'une flèche ; [value] est la valeur mise en avant, à la couleur du module.
+/// `from == null` ⇒ une seule valeur (le % civique). 🛑 Aucune valeur n'est
+/// calculée ici : l'écran passe des faits servis ou leur agrégat documenté.
+class SfProgressSummary extends StatelessWidget {
+  const SfProgressSummary({
+    super.key,
+    required this.civique,
+    required this.label,
+    required this.value,
+    required this.action,
+    required this.onTap,
+    this.from,
+    this.meta,
+  });
+
+  final bool civique;
+  final String label;
+  final String? from;
+  final String value;
+  final String? meta;
+  final String action;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.module(civique: civique);
+    final big = AppFonts.display(size: 26, weight: FontWeight.w800, height: 1);
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: AppColors.line),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      style: AppFonts.label(size: 11, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (from != null) ...[
+                          Text(from!, style: big),
+                          const SizedBox(width: 8),
+                          Text(
+                            '→',
+                            style: AppFonts.display(
+                              size: 22,
+                              weight: FontWeight.w800,
+                              height: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(
+                          child: Text(
+                            value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: big.copyWith(color: accent),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (meta != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        meta!,
+                        style: AppFonts.ui(
+                          size: 14,
+                          color: AppColors.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action,
+                    style: AppFonts.ui(
+                      size: 12,
+                      weight: FontWeight.w800,
+                      color: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(LucideIcons.chevronRight, size: 17, color: accent),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **Le lien retour** d'un écran poussé depuis un module (« ‹ TCF IRN »,
+/// « ‹ Examen civique »), à la couleur du module.
+class SfBackLink extends StatelessWidget {
+  const SfBackLink({
+    super.key,
+    required this.civique,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool civique;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.module(civique: civique);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.chevronLeft, size: 18, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: AppFonts.ui(
+                  size: 14,
+                  weight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

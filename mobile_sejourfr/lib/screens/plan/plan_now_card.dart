@@ -354,7 +354,7 @@ PlanEpreuveCarte? planEpreuveCarte(
         : serie
             ? PlanNowGeste.ouvrirEtape
             : PlanNowGeste.lancer,
-    etapeRoute: serie ? journeyEtapeRoute(step.id) : null,
+    etapeRoute: serie ? journeyEtapeRoute(step.id, civique: false) : null,
     cta: journeyNowCta(step, locked),
     action: action,
   );
@@ -591,7 +591,7 @@ PlanNowCard _cartePriorite(
             : exercise == null
                 ? PlanNowGeste.aucun
                 : PlanNowGeste.lancer,
-    etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
+    etapeRoute: serie ? journeyEtapeRoute(etape.id, civique: false) : null,
     mesure: null,
     priority: priority,
     exercise: exercise,
@@ -728,7 +728,7 @@ PlanNowCard _carteEtapeServie(
         : serie
             ? PlanNowGeste.ouvrirEtape
             : PlanNowGeste.lancer,
-    etapeRoute: serie ? journeyEtapeRoute(etape.id) : null,
+    etapeRoute: serie ? journeyEtapeRoute(etape.id, civique: false) : null,
     mesure: null,
     priority: null,
     exercise: exercise,

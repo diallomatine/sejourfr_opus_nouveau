@@ -13,19 +13,20 @@ import {
 import type { AppBarInfo } from "@/lib/app-bar";
 
 /**
- * **Le titre de la barre du haut fourni PAR LA PAGE** (`AppTopBar`, ≤ 900 px).
+ * **Le titre fourni PAR LA PAGE à la barre du haut du shell** (`AppTopBar`) —
+ * il nomme la page du fil d'Ariane sur un sous-écran.
  *
  * 🛑 `lib/app-bar.ts` reste l'autorité par défaut : une route, un titre. Ce
- * relais sert aux titres **portés par la page** : l'objectif du Plan, et le
- * titre + contexte du `ScreenHeader` Flutter d'un sous-écran (`DetailShell`,
- * `SkillShell`). Une page qui ne dit rien garde le titre de la table.
+ * relais sert aux titres **portés par la page** : le titre du `ScreenHeader`
+ * Flutter d'un sous-écran (`DetailShell`, `SkillShell`) et la nature d'une
+ * session (`/sessions/[attemptId]`). Une page qui ne dit rien garde le titre
+ * de la table. L'en-tête de la page, lui, reste affiché.
  *
  * Il porte aussi la **flèche de retour** d'un sous-écran (`useAppBarBack`),
- * posée À CÔTÉ du burger, qui reste toujours là (2026-09-27).
+ * posée dans la barre à côté du burger (2026-09-27).
  *
- * Monté par les deux shells connectés (`app/(app)/layout.tsx`,
- * `DualChromeShell`) : hors shell, `useAppBarTitle` ne fait rien et rend
- * `false` — la page garde alors son propre en-tête, il n'y a pas de barre.
+ * Monté par le shell connecté (`AppShell`) : hors shell, les deux hooks ne
+ * font rien — la page garde alors son propre lien de retour.
  */
 type Setter = (id: string, info: AppBarInfo | null) => void;
 type Entry = { id: string; info: AppBarInfo };
@@ -69,11 +70,7 @@ export function AppBarProvider({ children }: { children: ReactNode }) {
   const set = useCallback<Setter>((id, info) => {
     setEntry((cur) => {
       if (!info) return cur?.id === id ? null : cur;
-      if (
-        cur?.id === id &&
-        cur.info.title === info.title &&
-        cur.info.subtitle === info.subtitle
-      ) {
+      if (cur?.id === id && cur.info.title === info.title) {
         return cur;
       }
       return { id, info };
@@ -93,19 +90,18 @@ export function AppBarProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** La flèche posée par la page, `null` ⇒ burger. Lu par `AppTopBar`. */
+/** La flèche posée par la page, `null` ⇒ aucune. Lu par `AppTopBar`. */
 export function useAppBarBackOverride(): AppBarBack | null {
   return useContext(BackValueContext);
 }
 
 /**
- * **Le sous-écran ajoute une flèche de retour à côté du burger** (≤ 900 px).
- * Le burger est TOUJOURS présent (demande du propriétaire, 2026-09-27) ;
- * `back: null` ⇒ burger seul.
+ * **Le sous-écran pose une flèche de retour dans la barre du haut**, à côté du
+ * burger (≤ 1024 px). `back: null` ⇒ pas de flèche.
  *
  * Rend `true` quand une barre porte la flèche (shell connecté) : la page
- * masque alors son propre lien de retour sous 900 px (classe globale
- * `in-bar-back`). Desktop et visiteur : aucune barre, le lien reste.
+ * masque alors son propre lien de retour (classe globale `in-bar-back`).
+ * Visiteur : aucune barre, le lien reste.
  */
 export function useAppBarBack(back: AppBarBack | null): boolean {
   const set = useContext(BackSetterContext);
@@ -140,26 +136,15 @@ export function useAppBarOverride(): AppBarInfo | null {
   return useContext(ValueContext);
 }
 
-/**
- * La page donne son titre à la barre. `info: null` ⇒ elle ne dit rien.
- *
- * Rend `true` quand une barre est là pour le porter (shell connecté) : la page
- * peut alors effacer à l'œil son propre en-tête sous 900 px. La valeur est
- * connue dès le rendu serveur (présence du provider), donc sans décalage
- * d'hydratation ; seul le texte de la barre part du titre de la table, puis
- * bascule avant la première peinture côté client (`useLayoutEffect`).
- */
-export function useAppBarTitle(info: AppBarInfo | null): boolean {
+/** La page donne son titre à la barre. `info: null` ⇒ elle ne dit rien. */
+export function useAppBarTitle(info: AppBarInfo | null): void {
   const set = useContext(SetterContext);
   const id = useId();
   const title = info?.title;
-  const subtitle = info?.subtitle;
 
   useLayoutEffect(() => {
     if (!set || !title) return;
-    set(id, { title, subtitle });
+    set(id, { title });
     return () => set(id, null);
-  }, [set, id, title, subtitle]);
-
-  return set !== null && Boolean(title);
+  }, [set, id, title]);
 }

@@ -8,7 +8,6 @@ import '../../../core/models/enums.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/cecrl_track.dart';
-import '../../../core/utils/parcours_affiche.dart';
 import '../../../core/widgets/app_tag.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import 'diagnostic_report_labels.dart';
@@ -94,12 +93,8 @@ class DiagnosticResultView extends ConsumerWidget {
               const _PromiseCard(),
               SfButton(
                 label: kDiagnosticReportPlanCta,
-                // Le Plan **TCF**, par la même bascule que « Voir mon Plan »
-                // de l'Accueil : l'onglet Plan lit ce provider.
-                onPressed: () {
-                  ref.read(parcoursCiviqueProvider.notifier).state = false;
-                  context.go(AppRoutes.plan);
-                },
+                // Le segment Plan de l'onglet **TCF**.
+                onPressed: () => context.go(AppRoutes.tcfPlan),
               ),
             ],
           ),

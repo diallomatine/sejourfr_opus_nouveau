@@ -13,8 +13,6 @@ import '../../core/models/enums.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dashboard_targets.dart';
-import '../../core/utils/parcours_affiche.dart';
-import '../../core/widgets/segmented_tabs.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/widgets/plan_reco_card.dart';
@@ -30,34 +28,30 @@ import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
 import 'reviser_labels.dart';
 
-/// **L'onglet « Réviser »** — la maquette du propriétaire
-/// (`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`), montée sur le KIT.
+/// **Le corps du segment « Entraînement »** d'un écran de module
+/// (Navigation v2) — l'ancien onglet « Réviser », sans en-tête ni bascule :
+/// c'est l'onglet TCF ou Civique de la barre qui choisit le module.
 ///
-/// Trois blocs, et rien d'autre : l'en-tête et sa bascule de parcours, la carte
-/// **« Reprendre là où vous vous êtes arrêté »**, puis la liste des cinq
-/// épreuves (TCF) ou des cinq thèmes (civique).
+/// Deux blocs : la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
+/// liste des épreuves (TCF) ou des thèmes (civique).
 ///
 /// 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
 /// côté TCF c'est [planNowCard] — la **même** autorité que la carte « À faire
-/// maintenant » du Plan et de l'Accueil, donc la même action, mesure de domaine
-/// prioritaire comprise —, la cible de rang 1 côté civique. Réviser ne tient
-/// aucun historique à lui, et les trois écrans ne peuvent donc pas désigner
-/// trois choses différentes.
-///
-/// 🛑 **D-69 (2026-09-28) : plus de porte « diagnostic »** — le Plan existe
-/// pour tout compte, donc la reprise est lue sur le Plan même sans diagnostic
-/// (le premier examen du cycle d'examens). Rien à reprendre ⇒ pas de carte.
+/// maintenant » du Plan et de l'Accueil —, le cycle civique côté civique.
+/// Réviser ne tient aucun historique à lui. Rien à reprendre ⇒ pas de carte.
 ///
 /// 🛑 **Aucune phrase n'est composée ici** : elles vivent dans
 /// `reviser_labels.dart`, miroir mot pour mot de `web_sejoufr/lib/reviser.ts`.
-class ReviserScreen extends ConsumerStatefulWidget {
-  const ReviserScreen({super.key});
+class ReviserBody extends ConsumerStatefulWidget {
+  const ReviserBody({super.key, required this.civique});
+
+  final bool civique;
 
   @override
-  ConsumerState<ReviserScreen> createState() => _ReviserScreenState();
+  ConsumerState<ReviserBody> createState() => _ReviserBodyState();
 }
 
-class _ReviserScreenState extends ConsumerState<ReviserScreen> {
+class _ReviserBodyState extends ConsumerState<ReviserBody> {
   /// Le lancement en cours, pour ne pas démarrer deux fois la même reprise.
   bool _lancement = false;
 
@@ -68,10 +62,6 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🛑 **Les DEUX parcours sont observés en permanence**, comme sur le Plan :
-    // ces providers sont `autoDispose`, donc n'en observer qu'un laissait
-    // l'autre se jeter à la bascule — et revenir dessus rappelait son endpoint
-    // pour une réponse identique. La bascule ne coûte aucun appel.
     final dashboard = ref.watch(dashboardProvider);
     final plan = ref.watch(learningPlanProvider).valueOrNull;
     // 🛑 Le parcours, lu au **même endroit** que le Plan : les deux alimentent
@@ -79,67 +69,30 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
     final parcours = ref.watch(journeyProvider).valueOrNull;
     final civicPlan = ref.watch(civicPlanProvider).valueOrNull;
     // 🛑 **Le CYCLE civique, comme sur le Plan** : « À faire maintenant » y lit
-    // `journey.current` depuis D-50 §2. Sans lui, Réviser annoncerait la cible
-    // du plan dérivé pendant que le Plan annonce l'étape du cycle — deux
-    // reprises différentes pour le même candidat, au même instant.
+    // `journey.current`. Sans lui, Réviser annoncerait la cible du plan dérivé
+    // pendant que le Plan annonce l'étape du cycle.
     final parcoursCivique = ref.watch(journeyCiviqueProvider).valueOrNull;
+    final civique = widget.civique;
 
-    // 🛑 **Le parcours affiché est celui de l'Accueil et du Plan**
-    // ([parcoursCiviqueProvider]) : une seule mécanique, comme le `?module=`
-    // du web. Un état local de plus aurait fini par montrer deux parcours
-    // différents au même candidat selon l'écran.
-    final civique = ref.watch(parcoursCiviqueProvider) ?? false;
-    final module = civique ? AppModule.civique : AppModule.tcf;
-
-    final toggle = Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return RefreshIndicator(
+      color: AppColors.module(civique: civique),
+      onRefresh: _refresh,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
-          Text(
-            reviserSubtitle(module),
-            style: AppFonts.ui(size: 13.5, color: AppColors.muted, height: 1.4),
-          ),
-          const SizedBox(height: 14),
-          SegmentedTabs<bool>(
-            tabs: parcoursSegments(tcf: false, civique: true),
-            value: civique,
-            onChanged: (v) =>
-                ref.read(parcoursCiviqueProvider.notifier).state = v,
+          ...dashboard.when(
+            loading: () => const [_Loading()],
+            error: (e, _) => [
+              _ErrorCard(
+                message: ApiClient.toApiException(e).message,
+                onRetry: () => ref.invalidate(dashboardProvider),
+              ),
+            ],
+            data: (d) => civique
+                ? _civique(d, civicPlan, parcoursCivique)
+                : _tcf(context, d, plan, parcours),
           ),
         ],
-      ),
-    );
-
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: SfTopSlot(
-          below: toggle,
-          child: RefreshIndicator(
-            color: AppColors.blue,
-            onRefresh: _refresh,
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 28),
-              children: [
-                const SfTop(title: kReviserTitle),
-                ...dashboard.when(
-                  loading: () => const [_Loading()],
-                  error: (e, _) => [
-                    _ErrorCard(
-                      message: ApiClient.toApiException(e).message,
-                      onRetry: () => ref.invalidate(dashboardProvider),
-                    ),
-                  ],
-                  data: (d) => civique
-                      ? _civique(d, civicPlan, parcoursCivique)
-                      : _tcf(context, d, plan, parcours),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -171,7 +124,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           // candidat doit reconnaître ce qu'il reprend. C'est le domaine
           // **réellement lancé** : celui de la mesure quand elle passe devant.
           icon: planDomainIcon(sectionEpreuve(resume.section)),
-          variant: SfButtonVariant.primary,
+          variant: SfButtonVariant.tcf,
           // 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
           // geste d'achat passe par l'écran de transition (A145), jamais par
           // le paywall d'un coup. `ouvrirEtape` ouvre l'écran de l'étape (ses
@@ -198,7 +151,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
               const SfCard(child: Text(kJourneyNeedsObjectiveText)),
               SfButton(
                 label: kJourneyNeedsObjectiveCta,
-                onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.reviser)),
+                onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.tcfEntrainement)),
               ),
             ],
           ),
@@ -315,7 +268,7 @@ class _ReviserScreenState extends ConsumerState<ReviserScreen> {
           icon: civicPlan?.prochaine == null
               ? LucideIcons.compass
               : dashboardCategoryIcon(civicPlan!.prochaine!.themeCode),
-          variant: SfButtonVariant.blue,
+          variant: SfButtonVariant.civique,
           onContinue: switch (resume.geste) {
             PlanNowGeste.debloquer => () =>
                 context.push(AppRoutes.planUnlockPath(civique: true)),
@@ -384,7 +337,7 @@ class _Loading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Padding(
         padding: EdgeInsets.only(top: 60),
-        child: Center(child: CircularProgressIndicator(color: AppColors.blue)),
+        child: Center(child: CircularProgressIndicator()),
       );
 }
 

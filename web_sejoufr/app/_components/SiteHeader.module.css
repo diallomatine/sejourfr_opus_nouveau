@@ -289,13 +289,14 @@
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
 }
-/* Compte : l'AppSidebar (`.ms-drawer-inner`) porte son propre padding/scroll,
-   le panneau ne fait que le cadre. */
+/* Compte : la barre latérale embarquée (`shell/AppSidebar`) porte son propre
+   padding, son défilement et son bouton fermer ; le panneau ne fait que le
+   cadre, à la largeur du tiroir de l'espace connecté. */
 .panelApp {
   padding: 0;
   gap: 0;
   overflow: hidden;
-  width: min(86vw, 300px);
+  width: min(86vw, 322px);
 }
 .panelHead {
   display: flex;

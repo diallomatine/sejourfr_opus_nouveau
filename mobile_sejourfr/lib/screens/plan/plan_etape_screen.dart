@@ -12,7 +12,6 @@ import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/parcours_affiche.dart';
 import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_sheet.dart';
@@ -55,14 +54,21 @@ import 'learning_plan_provider.dart';
 /// série jamais jouée garde le gros bouton « Commencer ».
 ///
 /// 🛑 **Étape franchie = `detail.validee`, SERVI** : « Étape validée » et
-/// « Continuer mon plan » (retour au cycle, [AppRoutes.plan]). Jamais
+/// « Continuer mon plan » (retour au cycle, [AppRoutes.modulePlan]). Jamais
 /// `validees >= quota` recompté ici.
 ///
 /// 🛑 **Miroir de `PlanEtapeView` côté web**, brique pour brique.
 class PlanEtapeScreen extends ConsumerStatefulWidget {
-  const PlanEtapeScreen({super.key, required this.stepId});
+  const PlanEtapeScreen({
+    super.key,
+    required this.stepId,
+    required this.civique,
+  });
 
   final String stepId;
+
+  /// Le module, porté par la route (l'écran vit sous le Plan de son module).
+  final bool civique;
 
   @override
   ConsumerState<PlanEtapeScreen> createState() => _PlanEtapeScreenState();
@@ -86,7 +92,10 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
             SfTop(
               // 🛑 **Jamais un `pop()` nu** : un écran atteint par `go` n'a
               // personne en dessous, et la flèche ne répondrait pas.
-              onBack: () => retourOuRepli(context, repli: AppRoutes.plan),
+              onBack: () => retourOuRepli(
+                context,
+                repli: AppRoutes.modulePlan(civique: widget.civique),
+              ),
               title: journeyEtapeTitle(detail),
               lead: detail == null
                   ? null
@@ -214,7 +223,8 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
         SfButton(
           label: kJourneyEtapeDoneCta,
           variant: SfButtonVariant.blue,
-          onPressed: () => context.go(AppRoutes.plan),
+          onPressed: () =>
+              context.go(AppRoutes.modulePlan(civique: widget.civique)),
         ),
       SfInfoNote(
         variant: SfInfoNoteVariant.check,
@@ -344,7 +354,7 @@ class _PlanEtapeScreenState extends ConsumerState<PlanEtapeScreen> {
         ctaLocation: AnalyticsCtaLocation.lockedPlan,
         journeyId: planJourneyId(
           ref,
-          civique: ref.read(parcoursCiviqueProvider) ?? false,
+          civique: widget.civique,
         ),
       );
 

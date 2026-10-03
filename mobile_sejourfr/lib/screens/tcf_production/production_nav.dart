@@ -57,6 +57,6 @@ String productionSessionPath(TcfProductionModule module) =>
 
 /// « Retour » depuis le **niveau 1** d'une épreuve, qui n'a aucun écran de
 /// production au-dessus de lui : on dépile si on peut (retour à l'écran qui a
-/// ouvert l'épreuve), sinon on rejoint Réviser.
+/// ouvert l'épreuve), sinon on rejoint l'Entraînement du module TCF.
 void leaveProductionEpreuve(BuildContext context) =>
-    retourOuRepli(context, repli: AppRoutes.reviser);
+    retourOuRepli(context, repli: AppRoutes.tcfEntrainement);

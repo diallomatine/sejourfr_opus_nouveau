@@ -105,7 +105,6 @@ function TcfScoped() {
             backHref="/dashboard?module=TCF"
             title={TCF_TITLE}
             lead={TCF_LEAD}
-            module="TCF"
         >
             {dto ? (
                 <TcfContenu dto={dto} tous={tous}/>
