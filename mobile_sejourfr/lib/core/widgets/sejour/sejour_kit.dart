@@ -6441,14 +6441,11 @@ class SfProgressExamRow extends StatelessWidget {
   }
 }
 
-/// Une part d'un examen global : l'épreuve ou le thème, et sa valeur composée
-/// (« 392 / 499 », « 7 / 11 posées », « — »).
-typedef SfProgressPart = ({String label, String value});
-
 /// **Une ligne d'examen global** : l'ordinal et la date, le badge global
-/// (palier TCF ou « Global : 29 / 40 »), puis le détail **par épreuve** (TCF,
-/// quatre colonnes) ou **par thème** (civique, une ligne par thème : D11,
-/// « x / n posées », jamais « / 20 »).
+/// (palier TCF ou « Global : 29 / 40 »). Le détail par épreuve / par thème
+/// n'est pas repris en portrait téléphone (2026-10-03, demande du
+/// propriétaire) : il se lit dans le rapport que la ligne ouvre. Le web le
+/// garde au palier large (`ProgressGlobalExamRow`, `.pRowParts`).
 ///
 /// Miroir web : `ProgressGlobalExamRow`.
 class SfProgressGlobalExamRow extends StatelessWidget {
@@ -6456,12 +6453,10 @@ class SfProgressGlobalExamRow extends StatelessWidget {
     super.key,
     required this.title,
     required this.badge,
-    required this.parts,
     required this.onTap,
     this.date,
     this.meta,
     this.badgeTone = SfBarTone.now,
-    this.stacked = false,
   });
 
   final String title;
@@ -6471,10 +6466,6 @@ class SfProgressGlobalExamRow extends StatelessWidget {
   final String? meta;
   final String badge;
   final SfBarTone badgeTone;
-  final List<SfProgressPart> parts;
-
-  /// `true` = une part par ligne (noms longs des thèmes civiques).
-  final bool stacked;
   final VoidCallback? onTap;
 
   @override
@@ -6525,74 +6516,6 @@ class SfProgressGlobalExamRow extends StatelessWidget {
               ],
             ],
           ),
-          if (parts.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            if (stacked)
-              Column(
-                children: [
-                  for (var i = 0; i < parts.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            parts[i].label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                AppFonts.ui(size: 12, color: AppColors.muted),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          parts[i].value,
-                          style: AppFonts.ui(
-                            size: 12.5,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              )
-            else
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < parts.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            parts[i].label,
-                            style:
-                                AppFonts.ui(size: 10, color: AppColors.muted),
-                          ),
-                          const SizedBox(height: 3),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              parts[i].value,
-                              maxLines: 1,
-                              style: AppFonts.ui(
-                                size: 13,
-                                weight: FontWeight.w800,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-          ],
         ],
       ),
     );

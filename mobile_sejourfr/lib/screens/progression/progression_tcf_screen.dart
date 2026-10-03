@@ -232,13 +232,6 @@ class ProgressionTcfScreen extends ConsumerWidget {
       date: tcfExamenDate(e.date, e.partiel, e.epreuvesComptees),
       badge: progressionPalier(e.niveau),
       badgeTone: e.niveau == null ? SfBarTone.muted : SfBarTone.now,
-      parts: [
-        for (final p in e.parEpreuve)
-          (
-            label: tcfEpreuveMark(p.epreuve),
-            value: progressionScore(p.score, p.max),
-          ),
-      ],
       onTap: () => context.push(AppRoutes.tcfFullExamBilanPath(e.attemptId)),
     );
   }

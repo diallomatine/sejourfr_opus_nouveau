@@ -484,11 +484,6 @@ String civiqueExamenTitre(int numero) => 'Examen civique global n°$numero';
 String civiqueGlobalBadge(ProgressionMesure mesure) =>
     'Global : ${progressionScore(mesure.score, mesure.max)}';
 
-/// La part d'un thème dans un examen global (D11) : « 3 / 4 », « — » si non
-/// posé.
-String civiquePart(int bonnes, int posees) =>
-    posees == 0 ? kProgressionVide : '$bonnes / $posees';
-
 /* ======================================================================
    Écran d'un THÈME civique (`progression_theme_civique.html`)
    ====================================================================== */

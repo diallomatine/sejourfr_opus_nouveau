@@ -204,11 +204,6 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
       date: progressionDateLongue(m.date),
       badge: civiqueGlobalBadge(m),
       badgeTone: progressionEtatTon(m.etat),
-      stacked: true,
-      parts: [
-        for (final p in e.parTheme)
-          (label: p.label, value: civiquePart(p.bonnes, p.posees)),
-      ],
       onTap: rapport == null ? null : () => context.push(rapport),
     );
   }
