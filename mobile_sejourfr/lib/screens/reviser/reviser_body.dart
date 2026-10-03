@@ -231,11 +231,11 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
       civique: false,
       fill: true,
       code: planDomainSection(epreuve)?.wire ?? stat.label,
+      title: stat.label,
       value: niveau?.shortName ?? kModuleProgressUnknown,
       state:
           servie == null ? null : etatEpreuveTcf(servie.status, servie.niveau),
       meta: [
-        stat.label,
         epreuveMeta(stat),
         if (plan != null && plan != kReviserNotStarted) plan,
       ].whereType<String>().join(' · '),

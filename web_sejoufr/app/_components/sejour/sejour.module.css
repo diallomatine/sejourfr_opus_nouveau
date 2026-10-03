@@ -5279,6 +5279,14 @@ a.pRow:focus-visible {
   display: flex;
 }
 
+.metricTitle {
+  margin: 10px 0 0;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.25;
+  color: var(--color-ink);
+}
+
 .metricValue {
   margin: 12px 0 0;
   font-size: 30px;

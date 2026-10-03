@@ -7698,6 +7698,7 @@ class SfMetric extends StatelessWidget {
     required this.civique,
     required this.code,
     required this.value,
+    this.title,
     this.state,
     this.meta,
     this.cta,
@@ -7705,6 +7706,10 @@ class SfMetric extends StatelessWidget {
     this.ctaEmphasis = SfCtaEmphasis.soft,
     this.fill = false,
   });
+
+  /// Le nom de l'épreuve, lisible d'un coup d'œil sous la pastille.
+  /// Miroir web : `Metric.title`.
+  final String? title;
 
   final bool civique;
   final String code;
@@ -7744,6 +7749,14 @@ class SfMetric extends StatelessWidget {
         mainAxisSize: etiree ? MainAxisSize.max : MainAxisSize.min,
         children: [
           SfBadge(code, civique: civique),
+          if (title case final nom?) ...[
+            const SizedBox(height: 10),
+            Text(
+              nom,
+              style: AppFonts.display(
+                  size: 16, weight: FontWeight.w700, height: 1.25),
+            ),
+          ],
           const SizedBox(height: 10),
           Text(
             value,

@@ -430,13 +430,14 @@ function TcfBody({
                     key={stat.code}
                     module="tcf"
                     code={codeCourt(stat.code)}
+                    title={stat.label}
                     value={niveau ? niveauCecrlShort(niveau) : ACCUEIL_INCONNU}
                     state={etatEpreuveTcf(epreuve)}
-                    /* Le nom, le compteur servi, puis — pour une production —
-                       l'étape que le Plan construit ou ce qui est acquis
-                       (`epreuveStatus`). Le niveau est déjà la valeur. */
+                    /* Le compteur servi, puis — pour une production — l'étape
+                       que le Plan construit ou ce qui est acquis
+                       (`epreuveStatus`). Le nom est le titre de la tuile, le
+                       niveau sa valeur. */
                     meta={joindre([
-                      stat.label,
                       epreuveMeta(stat),
                       etape !== REVISER_NOT_STARTED ? etape : null,
                     ])}

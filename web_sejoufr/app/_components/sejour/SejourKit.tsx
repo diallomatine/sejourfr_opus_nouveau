@@ -3361,6 +3361,7 @@ export function InfoCard({
 export function Metric({
   module,
   code,
+  title,
   value,
   state,
   meta,
@@ -3369,6 +3370,8 @@ export function Metric({
 }: {
   module: ModuleTone;
   code: string;
+  /** Le nom de l'épreuve, lisible d'un coup d'œil sous la pastille. */
+  title?: string | null;
   value: string;
   state?: ServedState | null;
   meta?: string | null;
@@ -3380,6 +3383,7 @@ export function Metric({
       <span className={styles.metricHead}>
         <Badge module={module}>{code}</Badge>
       </span>
+      {title ? <p className={styles.metricTitle}>{title}</p> : null}
       <p className={styles.metricValue}>{value}</p>
       {state ? (
         <p className={cx(styles.metricState, stateToneClass[state.tone])}>{state.label}</p>
