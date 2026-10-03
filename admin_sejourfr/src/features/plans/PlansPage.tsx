@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useSearchParams } from "react-router-dom";
 import { plansApi } from "../../api/plansApi";
 import { Button } from "../../components/ui/Button";
+import { Chips } from "../../components/ui/Chips";
 import { FormRow, Input } from "../../components/ui/Form";
 import { Modal } from "../../components/ui/Modal";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -38,6 +40,18 @@ const MODULE_ACCESS_TONE: Record<ModuleAccess, "csp" | "premium" | "muted"> = {
   INTEGRAL: "premium",
 };
 
+type StatutFilter = "ACTIFS" | "INACTIFS" | "TOUS";
+
+const STATUT_FILTERS: readonly { value: StatutFilter; label: string }[] = [
+  { value: "ACTIFS", label: "Actifs" },
+  { value: "INACTIFS", label: "Inactifs" },
+  { value: "TOUS", label: "Tous" },
+];
+
+function readStatut(raw: string | null): StatutFilter {
+  return raw === "INACTIFS" || raw === "TOUS" ? raw : "ACTIFS";
+}
+
 function formatPrice(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return new Intl.NumberFormat("fr-FR", {
@@ -48,11 +62,24 @@ function formatPrice(n: number | null | undefined): string {
 
 export function PlansPage() {
   const [editing, setEditing] = useState<AdminPlanDto | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statut = readStatut(searchParams.get("statut"));
 
   const plansQuery = useQuery({
     queryKey: ["adminPlans"],
     queryFn: plansApi.list,
   });
+
+  const plans = (plansQuery.data ?? []).filter((p) =>
+    statut === "TOUS" ? true : statut === "ACTIFS" ? p.active : !p.active,
+  );
+
+  const setStatut = (value: StatutFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "ACTIFS") next.delete("statut");
+    else next.set("statut", value);
+    setSearchParams(next);
+  };
 
   return (
     <>
@@ -75,11 +102,22 @@ export function PlansPage() {
       {plansQuery.data && (
         <Panel
           title="Catalogue"
-          sub={`${plansQuery.data.length} plans en base · trié par module et prix`}
+          sub={`${plans.length} sur ${plansQuery.data.length} plans en base · trié par module et prix`}
+          actions={
+            <Chips label="Filtrer par statut" options={STATUT_FILTERS} value={statut} onChange={setStatut} />
+          }
           noPadding
         >
-          {plansQuery.data.length === 0 ? (
-            <EmptyState title="Aucun plan en base" />
+          {plans.length === 0 ? (
+            <EmptyState
+              title={
+                plansQuery.data.length === 0
+                  ? "Aucun plan en base"
+                  : statut === "ACTIFS"
+                    ? "Aucun plan actif"
+                    : "Aucun plan inactif"
+              }
+            />
           ) : (
             <div className={tableStyles.tableWrap}>
               <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
@@ -95,7 +133,7 @@ export function PlansPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {plansQuery.data.map((p) => (
+                  {plans.map((p) => (
                     <tr key={p.id}>
                       <td data-label="Plan">
                         <div>
