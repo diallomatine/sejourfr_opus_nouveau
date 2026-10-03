@@ -447,6 +447,22 @@ class AdminProductionControllerIT extends AbstractIntegrationTest {
         assertThat(d.at("/entete/niveauObserve").asString()).isEqualTo("A2");
     }
 
+    /** DI-07 : grille v4.2 (seuils de la config actuelle) → calcul partiel, cohérence jamais conclue. */
+    @Test
+    void fiche_grille_historique_partielle_coherence_non_verifiable() throws Exception {
+        User u = fx.candidat("partiel");
+        ProductionSubmission s = fx.production(u, EpreuveType.TCF_EE, 1, SubmissionStatut.EVALUATED, Instant.now());
+        fx.evaluation(s, NiveauCecrl.B2, NiveauCecrl.B2, "v4.2", 2, 2, 2, 2);
+
+        JsonNode d = get200(URL + "/" + s.getId());
+
+        assertThat(d.at("/calcul/statut").asString()).isEqualTo("CALCUL_PARTIEL");
+        assertThat(d.at("/calcul/statutLabel").asString()).contains("cohérence non vérifiable");
+        assertThat(d.at("/calcul/seuilsDeLaGrille").asBoolean()).isFalse();
+        assertThat(d.at("/calcul/niveauPersiste").asString()).isEqualTo("B2");
+        assertThat(d.at("/calcul/coherent").isNull()).isTrue();
+    }
+
     @Test
     void fiche_echec_sans_evaluation() throws Exception {
         User u = fx.candidat("echec");

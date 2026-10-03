@@ -1495,7 +1495,12 @@ export interface AdminProductionEvaluationIa {
   avertissements: string[];
 }
 
-export type AdminCalculStatut = "CALCULE" | "REGLE_NON_TRACABLE" | "NON_EVALUABLE" | "SANS_EVALUATION";
+export type AdminCalculStatut =
+  | "CALCULE"
+  | "CALCUL_PARTIEL"
+  | "REGLE_NON_TRACABLE"
+  | "NON_EVALUABLE"
+  | "SANS_EVALUATION";
 
 export interface AdminProductionSeuils {
   a2: number | null;
@@ -1519,7 +1524,11 @@ export interface AdminProductionPlafondNiveau {
   declencheur: string | null;
 }
 
-/** Hors `CALCULE`, seuls statut, libellé, versions et `niveauPersiste` / `notePersistee` sont servis. */
+/**
+ * `CALCULE` et `CALCUL_PARTIEL` : tout est servi ; en `CALCUL_PARTIEL` (paramètres repris de la
+ * configuration actuelle), `coherent` vaut toujours `null`. Sinon, seuls statut, libellé,
+ * versions et `niveauPersiste` / `notePersistee` sont servis.
+ */
 export interface AdminProductionCalcul {
   statut: AdminCalculStatut;
   statutLabel: string;
@@ -1540,6 +1549,7 @@ export interface AdminProductionCalcul {
   plafondPersiste: NiveauCecrl | null;
   niveauRecalcule: NiveauCecrl | null;
   niveauPersiste: NiveauCecrl | null;
+  /** `null` = non vérifiable (valeur manquante ou calcul partiel) : jamais un verdict. */
   coherent: boolean | null;
 }
 

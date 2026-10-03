@@ -141,8 +141,10 @@ public record AdminProductionDetailDto(
      * Le calcul SejourFR, relu avec la grille de l'évaluation (F-5 A) par les
      * MÊMES fonctions que la notation. Il n'écrit rien : un écart entre le
      * calcul relu et le niveau persisté est affiché ({@code coherent}), jamais
-     * corrigé. Hors {@code CALCULE}, seuls {@code statut}, {@code statutLabel},
-     * les versions et {@code niveauPersiste} sont renseignés.
+     * corrigé. {@code CALCUL_PARTIEL} : tout est servi, mais {@code coherent}
+     * vaut toujours {@code null}. Hors {@code CALCULE} et {@code CALCUL_PARTIEL},
+     * seuls {@code statut}, {@code statutLabel}, les versions et
+     * {@code niveauPersiste} sont renseignés.
      *
      * @param grilleActive         la grille de l'évaluation est celle qui note aujourd'hui
      * @param seuilsDeLaGrille     les seuils viennent du fichier de grille ; {@code false}
@@ -154,7 +156,9 @@ public record AdminProductionDetailDto(
      *                             appliqué à l'époque, {@code null} si aucun
      * @param niveauRecalcule      niveau relu, plafonds compris
      * @param coherent             {@code niveauRecalcule == niveauPersiste} ; {@code null}
-     *                             si l'un des deux manque
+     *                             si l'un des deux manque OU si le calcul est partiel
+     *                             (paramètre repris de la configuration actuelle) :
+     *                             jamais un faux « incohérent »
      */
     public record Calcul(
             AdminCalculStatut statut,

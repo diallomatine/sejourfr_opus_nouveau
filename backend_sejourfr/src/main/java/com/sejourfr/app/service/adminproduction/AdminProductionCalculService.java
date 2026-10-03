@@ -103,9 +103,15 @@ public class AdminProductionCalculService {
         }
 
         NiveauCecrl persiste = evaluation.getNiveauCecrl();
+        Map<String, BigDecimal> poids = poidsParCode(criteresGrille);
+        // Règle conservatrice : la cohérence n'est conclue que si TOUTES les
+        // entrées du calcul sont tracées par la grille de l'évaluation. Un
+        // paramètre repris de la configuration actuelle rend le calcul partiel.
+        boolean tracable = grille.parametresDeLaGrille() && toutesPonderees(criteresGrille, poids);
+        AdminCalculStatut statut = tracable ? AdminCalculStatut.CALCULE : AdminCalculStatut.CALCUL_PARTIEL;
         Calcul calcul = new Calcul(
-                AdminCalculStatut.CALCULE,
-                AdminCalculStatut.CALCULE.label(),
+                statut,
+                statut.label(),
                 evaluation.getRubricsVersion(),
                 evaluation.getPromptVersion(),
                 grille.version().equals(rubrics.versionActive()),
@@ -126,8 +132,8 @@ public class AdminProductionCalculService {
                 niveau(feedback.get(AiEvaluationService.PLAFOND_NIVEAU_KEY)),
                 niveauRecalcule,
                 persiste,
-                niveauRecalcule == null || persiste == null ? null : niveauRecalcule == persiste);
-        return new Explication(calcul, poidsParCode(criteresGrille));
+                !tracable || niveauRecalcule == null || persiste == null ? null : niveauRecalcule == persiste);
+        return new Explication(calcul, poids);
     }
 
     private static Calcul nonCalcule(AdminCalculStatut statut, AiEvaluation e) {
@@ -155,6 +161,11 @@ public class AdminProductionCalculService {
             }
         }
         return out;
+    }
+
+    /** Chaque critère de la tâche porte-t-il un poids déclaré par la grille ? */
+    private static boolean toutesPonderees(Object criteres, Map<String, BigDecimal> poids) {
+        return criteres instanceof List<?> list && !list.isEmpty() && poids.size() == list.size();
     }
 
     private static NiveauCecrl niveau(Object raw) {

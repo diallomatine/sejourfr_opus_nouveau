@@ -75,6 +75,22 @@ Format : décision · pourquoi · ce que ça change · ce qu'on pourrait modifie
   la **configuration actuelle**, exactement comme la notation les lirait ; servi `seuilsDeLaGrille: false`.
   Idem pour le coupe-circuit et les listes du couplage, et les niveaux max des plafonds (réglages
   de déploiement).
+- **Révision du 2026-10-03 (règle conservatrice du propriétaire)** : avant correction,
+  `AdminProductionCalculService` concluait `coherent` (y compris `false`) même quand une partie du
+  calcul venait de la configuration actuelle — un faux « incohérent » possible sur v3 → v5.
+  Désormais :
+  - `Grille.parametresDeLaGrille()` = le fichier déclare **ses trois blocs d'échelle**
+    (`commun.niveau`, `commun.couplage`, `commun.plafonds`) ; et chaque critère de la tâche porte
+    un **poids** déclaré par la grille ;
+  - sinon : `statut = CALCUL_PARTIEL`, libellé servi « Calcul partiel — paramètres historiques
+    non traçables, cohérence non vérifiable. », tout le calcul reste servi mais **`coherent` vaut
+    toujours `null`**, jamais `false`. Concerne en pratique v3, v4, v4.1, v4.2 (aucun bloc) et v5
+    (seuils seuls) ; v6 → v15 sont complètes et gardent `CALCULE` avec cohérence conclue.
+  - Reste repris du déploiement pour TOUTES les grilles : coupe-circuits, listes de critères du
+    couplage, niveaux max des plafonds — aucune grille ne les a jamais déclarés (ce sont des
+    réglages de déploiement, pas d'échelle) ; ils ne rendent donc pas une grille partielle. Si le
+    propriétaire veut aussi les exiger, aucune grille n'est vérifiable : à trancher avant d'étendre.
+  - Front : `CalculBlock` affiche le calcul avec le libellé servi et « Cohérence non vérifiable ».
 - **Plus tard** : persister la configuration effective à l'évaluation (hors V1).
 
 ### DI-08 — Autorités de notation rendues appelables, comportement inchangé
@@ -96,8 +112,8 @@ Format : décision · pourquoi · ce que ça change · ce qu'on pourrait modifie
 - **Pourquoi** : répondre à « pourquoi B1 et pas A2/B2 » à partir des scores affichés (critère n° 6).
 - **Change** : le niveau affiché reste toujours `ai_evaluations.niveau_cecrl` ; un écart est montré, jamais corrigé.
 
-### DI-10 — `calcul` jamais nul, quatre statuts
-- **Décision** : `statut = CALCULE | REGLE_NON_TRACABLE | NON_EVALUABLE | SANS_EVALUATION` + libellé
+### DI-10 — `calcul` jamais nul, cinq statuts
+- **Décision** : `statut = CALCULE | CALCUL_PARTIEL | REGLE_NON_TRACABLE | NON_EVALUABLE | SANS_EVALUATION` (`CALCUL_PARTIEL` : DI-07) + libellé
   servi. `REGLE_NON_TRACABLE` couvre `rubrics_version` NULL **et** grille non livrée ; seuls les
   versions et `niveauPersiste` / `notePersistee` sont alors servis.
 - **Pourquoi** : F-5 A (« indicateur règle historique non traçable ») ; un front n'a qu'un champ à lire.

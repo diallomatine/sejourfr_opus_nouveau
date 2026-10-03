@@ -1015,7 +1015,9 @@ aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le fr
   recollée + durée + `transcriptionInfo` ; `audioConserve: false` + motif — **aucun audio**),
   `evaluationIa` (dernière évaluation : critères **retenus** + poids de SA grille, note, niveau IA
   vs niveau retenu + écart en crans, confiance, justification), `calcul` (relu avec la grille de
-  l'évaluation par les fonctions de la notation ; `statut=CALCULE|REGLE_NON_TRACABLE|NON_EVALUABLE|SANS_EVALUATION`),
+  l'évaluation par les fonctions de la notation ; `statut=CALCULE|CALCUL_PARTIEL|REGLE_NON_TRACABLE|NON_EVALUABLE|SANS_EVALUATION` ;
+  `CALCUL_PARTIEL` = grille sans ses propres seuils / couplage / plafonds / poids (v3 → v5) :
+  calcul servi, `coherent` toujours `null`, jamais un faux « incohérent »),
   `vueCandidat` (le `ProductionSubmissionDto` exact du candidat, `planChange` nul), `technique`
   (modèle, versions, tokens, `coutMicroUsd` en USD×10⁻⁶, `coutLegacyCentimesEuro`, délai
   soumission → évaluation, relances manuelles, erreur), `jsonPersiste` (`feedback_json` APRÈS

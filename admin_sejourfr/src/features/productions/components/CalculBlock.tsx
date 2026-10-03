@@ -19,7 +19,7 @@ function codes(list: string[]): string | null {
  * enregistré ; un écart avec le recalcul est montré, jamais corrigé.
  */
 export function CalculBlock({ calcul }: { calcul: AdminProductionCalcul }) {
-  if (calcul.statut !== "CALCULE") {
+  if (calcul.statut !== "CALCULE" && calcul.statut !== "CALCUL_PARTIEL") {
     return (
       <div className={styles.wrap}>
         <p className={styles.notice}>{calcul.statutLabel}</p>
@@ -46,6 +46,7 @@ export function CalculBlock({ calcul }: { calcul: AdminProductionCalcul }) {
 
   return (
     <div className={styles.wrap}>
+      {calcul.statut === "CALCUL_PARTIEL" && <p className={styles.notice}>{calcul.statutLabel}</p>}
       <div className={styles.result}>
         <div className={styles.resultMain}>
           <SectionLabel>Niveau observé (tâche) enregistré</SectionLabel>

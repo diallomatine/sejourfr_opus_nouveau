@@ -142,13 +142,57 @@ class AdminProductionCalculServiceTest {
 
         AdminProductionCalculService.Explication x = service.expliquer(e, task(EpreuveType.TCF_EE, 1));
 
-        assertThat(x.calcul().statut()).isEqualTo(AdminCalculStatut.CALCULE);
+        // Seuils, couplage et plafonds de v3 viennent de la configuration ACTUELLE :
+        // calcul montré, mais partiel et jamais conclu.
+        assertThat(x.calcul().statut()).isEqualTo(AdminCalculStatut.CALCUL_PARTIEL);
+        assertThat(x.calcul().statutLabel()).contains("Calcul partiel").contains("non vérifiable");
+        assertThat(x.calcul().coherent()).isNull();
         assertThat(x.calcul().grilleActive()).isFalse();
         assertThat(x.calcul().seuilsDeLaGrille()).isFalse();
         assertThat(x.calcul().noteRecalculee()).isEqualByComparingTo("12.0");
         assertThat(x.calcul().seuils().b2()).isEqualByComparingTo("15");
         assertThat(x.calcul().niveauRecalcule()).isEqualTo(NiveauCecrl.B1);
         assertThat(x.poidsParCode().get("pertinence")).isEqualByComparingTo("0.35");
+    }
+
+    /** DI-07 : un écart relu sur une grille partielle n'est JAMAIS déclaré incohérent. */
+    @Test
+    void grille_historique_partielle_ne_conclut_jamais_a_une_incoherence() {
+        Map<String, Number> notes = new LinkedHashMap<>();
+        notes.put("pertinence", 12);
+        notes.put("lexique", 12);
+        notes.put("morphosyntaxe", 12);
+        notes.put("coherence", 12);
+        for (String version : List.of("v3", "v4.2")) {
+            AiEvaluation e = eval(version, NiveauCecrl.A2, "12.0", notes);
+
+            Calcul c = service.expliquer(e, task(EpreuveType.TCF_EE, 1)).calcul();
+
+            assertThat(c.statut()).as(version).isEqualTo(AdminCalculStatut.CALCUL_PARTIEL);
+            assertThat(c.niveauRecalcule()).as(version).isNotEqualTo(NiveauCecrl.A2);
+            assertThat(c.coherent()).as(version).isNull();
+        }
+        // v5 déclare ses seuils mais ni couplage ni plafonds : partiel aussi.
+        AiEvaluation v5 = eval("v5", NiveauCecrl.B2, "7.5", v5(8, 8, 7, 7));
+        Calcul c5 = service.expliquer(v5, task(EpreuveType.TCF_EE, 2)).calcul();
+        assertThat(c5.statut()).isEqualTo(AdminCalculStatut.CALCUL_PARTIEL);
+        assertThat(c5.seuilsDeLaGrille()).isTrue();
+        assertThat(c5.coherent()).isNull();
+    }
+
+    /** Grille complète (seuils, couplage, plafonds, poids déclarés) : la cohérence est conclue. */
+    @Test
+    void grille_historique_complete_conclut_la_coherence() {
+        Calcul ok = service.expliquer(eval("v12", NiveauCecrl.B1, "7.5", v5(8, 8, 7, 7)),
+                task(EpreuveType.TCF_EE, 2)).calcul();
+        Calcul ecart = service.expliquer(eval("v12", NiveauCecrl.B2, "7.5", v5(8, 8, 7, 7)),
+                task(EpreuveType.TCF_EE, 2)).calcul();
+
+        assertThat(ok.statut()).isEqualTo(AdminCalculStatut.CALCULE);
+        assertThat(ok.grilleActive()).isFalse();
+        assertThat(ok.coherent()).isTrue();
+        assertThat(ecart.statut()).isEqualTo(AdminCalculStatut.CALCULE);
+        assertThat(ecart.coherent()).isFalse();
     }
 
     @Test

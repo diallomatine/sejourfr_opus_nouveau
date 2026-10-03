@@ -90,6 +90,9 @@ class ProductionRubricsProviderTest {
 
         // v3 ne declare pas de bloc commun.niveau : seuils de la configuration.
         assertThat(v3.niveauDepuisLaGrille()).isFalse();
+        assertThat(v3.parametresDeLaGrille()).isFalse();
+        assertThat(provider.grilleDeVersion("v5").orElseThrow().parametresDeLaGrille()).isFalse();
+        assertThat(provider.grilleDeVersion("v15").orElseThrow().parametresDeLaGrille()).isTrue();
         assertThat(v3.niveauCecrl().getSeuilB2()).isEqualTo(15.0);
         assertThat(v3.tache(com.sejourfr.app.enums.EpreuveType.TCF_EE, 1)).isPresent();
         // La grille active, elle, n'a pas bouge.

@@ -192,7 +192,9 @@ public class ProductionRubricsProvider {
             resolveNiveau(communMap.get("niveau")),
             communMap.get("niveau") instanceof Map<?, ?>,
             resolveCouplage(communMap.get("couplage")),
+            communMap.get("couplage") instanceof Map<?, ?>,
             resolvePlafonds(communMap.get("plafonds")),
+            communMap.get("plafonds") instanceof Map<?, ?>,
             resolveBandes(communMap.get("bandes_criteres")));
     }
 
@@ -267,6 +269,8 @@ public class ProductionRubricsProvider {
      * meme fusion que la grille active ({@link #construire}).
      *
      * @param niveauCecrl     passage note -&gt; niveau effectif
+     * @param couplageDepuisLaGrille / plafondsDepuisLaGrille idem pour
+     *                        {@code commun.couplage} / {@code commun.plafonds}
      * @param niveauDepuisLaGrille {@code true} si le fichier declare son bloc
      *                        {@code commun.niveau} ; sinon les seuils viennent
      *                        de la configuration (grilles v3 a v4.2)
@@ -278,9 +282,21 @@ public class ProductionRubricsProvider {
         ProductionEvaluationProperties.NiveauCecrl niveauCecrl,
         boolean niveauDepuisLaGrille,
         ProductionEvaluationProperties.Couplage couplage,
+        boolean couplageDepuisLaGrille,
         ProductionEvaluationProperties.Plafonds plafonds,
+        boolean plafondsDepuisLaGrille,
         ProductionEvaluationProperties.BandesCriteres bandesCriteres
     ) {
+        /**
+         * Les parametres d'echelle du calcul (seuils de niveau, ecart de
+         * couplage, seuils de plafonds) sont-ils TOUS declares par le fichier ?
+         * Sinon, une partie vient de la configuration ACTUELLE, qui n'est pas
+         * tracee historiquement (grilles v3 a v5).
+         */
+        public boolean parametresDeLaGrille() {
+            return niveauDepuisLaGrille && couplageDepuisLaGrille && plafondsDepuisLaGrille;
+        }
+
         /** Rubrique d'une tache, vide si la grille ne la porte pas. */
         public Optional<Map<String, Object>> tache(EpreuveType epreuve, int tacheNumero) {
             if (epreuve == null) return Optional.empty();
