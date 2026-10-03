@@ -5,12 +5,8 @@ import {Suspense} from "react";
 import {useSearchParams} from "next/navigation";
 import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {
-    Badge,
-    BlockError,
     BlockSkeleton,
     Card,
-    LevelList,
-    LevelRow,
     MicroNote,
     Pad,
     PageHead,
@@ -28,12 +24,9 @@ import {
     sejourStyles,
     type ProgressChip,
 } from "@/app/_components/sejour/SejourKit";
-import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY} from "@/lib/accueil";
-import {PROGRESS_CACHE_PREFIX, progressApi, progressionApi} from "@/lib/api";
+import {progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {etatEpreuveTcf} from "@/lib/etats-servis";
 import {MODULE_TCF_KICKER} from "@/lib/module-ecrans";
-import {TCF_EPREUVES_OFFICIELLES} from "@/lib/tcf-epreuves";
 import {
     PROGRESSION_ERROR,
     PROGRESSION_SANS_EXAMEN,
@@ -63,7 +56,6 @@ import {
     TCF_NIVEAU_ACTUEL_LABEL,
     TCF_OBJECTIF_GLOBAL_LABEL,
     TCF_OBJECTIF_LABEL,
-    TCF_PAR_COMPETENCE_TITLE,
     examenBlancTitre,
     progressionAnnee,
     progressionDateCourte,
@@ -88,10 +80,9 @@ import {
     tcfNiveauPartielNote,
     tcfMeilleurNiveauObserve,
     tcfProgressionLead,
-    tcfVersCible,
 } from "@/lib/progression";
 import {situationIcon} from "@/lib/situation-icons";
-import type {ProgressDto, ProgressionTcfDto, TargetLevel} from "@/lib/types";
+import type {ProgressionTcfDto} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
 import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
 
@@ -101,12 +92,11 @@ import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
  * blocs existants (maquette `progression_global_tcf.html`), tous gardés.
  *
  * Ordre : en-tête → `Split` : à gauche « Objectif global » (niveau actuel →
- * objectif, **sans barre** à côté des niveaux), « Par compétence » (état
- * SERVI `StatutObjectif`, `etatEpreuveTcf`), « Évolution » (paliers servis
- * des derniers examens complets, sans « + »), puis le héros, les tuiles, les
- * cartes d'épreuve et la liste des examens ; à droite « Prochaine étape »
- * (`journey.current`, geste de l'Accueil). « Analyse IA » : absente, pas de
- * donnée (X11).
+ * objectif, **sans barre** à côté des niveaux), « Évolution » (paliers
+ * servis des derniers examens complets, sans « + »), puis le héros, les
+ * tuiles, les cartes d'épreuve et la liste des examens. Pas de « Par
+ * compétence » : les cartes d'épreuve le disent déjà. « Analyse IA » :
+ * absente, pas de donnée (X11).
  *
  * Lit `GET /api/me/progression/tcf[?tous=true]`. 🛑 **Aucun score global**
  * (D6). Le niveau cible est `AuthenticatedUser.targetLevel` (X13).
@@ -130,11 +120,6 @@ function TcfScoped() {
         actif ? progressionApi.tcfKey(tous) : null,
         () => progressionApi.tcf(tous),
         {errorMessage: PROGRESSION_ERROR},
-    );
-    /* Les états par épreuve : la même lecture (en cache) que l'Accueil. */
-    const progres = useCachedData<ProgressDto>(
-        actif ? `${PROGRESS_CACHE_PREFIX}current` : null,
-        () => progressApi.get(),
     );
     useAppBarBack({fallbackHref: "/dashboard"});
     const dto = query.data;
@@ -165,11 +150,6 @@ function TcfScoped() {
                                     <BlockSkeleton height={130}/>
                                 )}
                             </Pad>
-                            <Section title={TCF_PAR_COMPETENCE_TITLE}>
-                                <Pad>
-                                    <ParCompetence progres={progres.data} error={progres.error} onRetry={progres.reload} cible={cible}/>
-                                </Pad>
-                            </Section>
                             {dto ? (
                                 <>
                                     <Section title={TCF_EVOLUTION_TITLE}>
@@ -195,44 +175,6 @@ function TcfScoped() {
                 />
             </div>
         </SejourApp>
-    );
-}
-
-/**
- * **« Par compétence »** — une ligne par épreuve officielle (miroir
- * `tcf-epreuves`) : code, palier servi (« — » sans mesure), état SERVI et son
- * point, « → {cible} » ou la coche quand l'objectif est atteint (statut
- * servi). Toute la ligne ouvre l'écran de l'épreuve.
- */
-function ParCompetence({progres, error, onRetry, cible}: {
-    progres: ProgressDto | undefined;
-    error: string | null;
-    onRetry: () => void;
-    cible: TargetLevel | null;
-}) {
-    if (error) return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>;
-    if (!progres) return <BlockSkeleton height={300}/>;
-    return (
-        <LevelList>
-            {TCF_EPREUVES_OFFICIELLES.map((code) => {
-                const epreuve = progres.tcf.epreuves.find((e) => e.epreuve === code) ?? null;
-                const etat = etatEpreuveTcf(epreuve);
-                const atteint = epreuve?.niveau != null && epreuve.status === "TARGET_REACHED";
-                return (
-                    <LevelRow
-                        key={code}
-                        module="tcf"
-                        code={tcfEpreuveMark(code)}
-                        value={progressionPalier(epreuve?.niveau ?? null)}
-                        state={etat}
-                        trailing={atteint
-                            ? <Badge tone="success" check label={etat?.label}/>
-                            : cible ? tcfVersCible(cible) : null}
-                        href={progressionEpreuveHref(code)}
-                    />
-                );
-            })}
-        </LevelList>
     );
 }
 

@@ -525,14 +525,8 @@ export const CIVIQUE_PROGRESSION_LEAD = "Votre avancement par thème et vos rés
 export const TCF_OBJECTIF_GLOBAL_LABEL = "Objectif global";
 export const TCF_NIVEAU_ACTUEL_LABEL = "Niveau actuel";
 export const TCF_OBJECTIF_LABEL = "Objectif";
-export const TCF_PAR_COMPETENCE_TITLE = "Par compétence";
 export const TCF_EVOLUTION_TITLE = "Évolution";
 export const TCF_DERNIERS_REPERES_LABEL = "Derniers repères";
-
-/** « → B2 » en bout de ligne d'une épreuve sous l'objectif. */
-export function tcfVersCible(cible: string): string {
-    return `→ ${cible}`;
-}
 
 /** « Meilleur niveau observé : B1 » — le palier du meilleur examen complet
  *  non partiel, servi (D7). */
@@ -548,19 +542,12 @@ export const PROGRESSION_REPERES_MAX = 4;
 
 export const CIVIQUE_MAITRISE_LABEL = "Maîtrise globale";
 export const CIVIQUE_DU_PARCOURS = "du parcours réalisé";
-export const CIVIQUE_PAR_THEME_TITLE = "Par thème";
 export const CIVIQUE_EXAMENS_BLANCS_TITLE = "Examens blancs";
 export const CIVIQUE_EVOLUTION_SCORE_LABEL = "Évolution du score";
 
 /** « séries terminées » / « série terminée » — le libellé sous le nombre. */
 export function civiqueSeriesTermineesLabel(terminees: number): string {
     return terminees > 1 ? "séries terminées" : "série terminée";
-}
-
-/** « 3/5 séries · Principes et valeurs » — compteurs servis du thème. */
-export function civiqueThemeCaption(faites: number, total: number, nom: string | null): string {
-    const compte = `${faites}/${total} séries`;
-    return nom ? `${compte} · ${nom}` : compte;
 }
 
 /** « Meilleur score : {taux} », et la suite seulement si le seuil servi est

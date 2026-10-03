@@ -7183,12 +7183,12 @@ class SfBlockError extends StatelessWidget {
 /* ==========================================================================
    NAVIGATION V2 — PRIMITIVES DES ÉCRANS DE MODULE (phase 4a, 2026-10-03).
    Maquette : `docs/redesign/sejourfr-navigation-mobile.html` (`.hero`,
-   `.info-card`, `.metric`, `.level-row`, `.timeline` / `.step`, `.ring`,
+   `.info-card`, `.metric`, `.timeline` / `.step`, `.ring`,
    `.exam-row`, `.progression-head` / `.target`) et, pour [SfThemeCard] et
    [SfTipCard] absents de la maquette mobile, `sejourfr-navigation-web.html`
    (`.theme-card`, `.tip-card`) ramenés au portrait.
    Miroirs web, mêmes noms sans `Sf` : `Hero`, `InfoCard`, `Metric`,
-   `LevelRow`, `LevelList`, `Timeline`, `ThemeCard`, `TipCard`,
+   `Timeline`, `ThemeCard`, `TipCard`,
    `ProgressionHead`, `ExamRow`. Le `module: "tcf" | "civique"` du web est ici
    `civique: bool`, comme [SfActionCard].
    Rayons de la maquette (16 → 30 px) arrondis aux [AppRadii] (DEC-10).
@@ -7643,19 +7643,6 @@ class _SfHeroCta extends StatelessWidget {
   }
 }
 
-/// Le petit texte discret en bout de ligne (« → B2 »). Miroir du `trailing`
-/// chaîne de `LevelRow` côté web (Dart n'a pas d'union `String | Widget`).
-class SfTrailingText extends StatelessWidget {
-  const SfTrailingText(this.text, {super.key});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppFonts.ui(size: 12, color: AppColors.muted));
-  }
-}
-
 /// Le chevron d'une ligne cliquable (`.chev`) — le `trailing="chevron"` du
 /// web.
 class SfChevron extends StatelessWidget {
@@ -7669,7 +7656,7 @@ class SfChevron extends StatelessWidget {
 }
 
 /// Le cadre commun des lignes blanches cliquables (`.info-card`,
-/// `.level-row`, `.exam-row`).
+/// `.exam-row`).
 class _SfRowFrame extends StatelessWidget {
   const _SfRowFrame({
     required this.padding,
@@ -7874,134 +7861,6 @@ class SfMetric extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// **La ligne de niveau** (`.level-row`) : code dans sa pastille, valeur
-/// (niveau ou pourcentage servi), dessous l'état servi précédé d'un point au
-/// ton servi et/ou une ligne sans point ([caption], « {terminées}/{total}
-/// séries · {thème} » — l'état passe alors en [SfBadge] à droite), et en bout
-/// [trailing] ([SfTrailingText], [SfBadge] coche ou état).
-///
-/// Miroir web : `LevelRow`.
-class SfLevelRow extends StatelessWidget {
-  const SfLevelRow({
-    super.key,
-    this.civique = false,
-    required this.code,
-    required this.value,
-    this.state,
-    this.caption,
-    this.trailing,
-    this.onTap,
-  });
-
-  final bool civique;
-
-  /// Le code servi (« CO ») ou le rang du thème — jamais une abréviation
-  /// inventée.
-  final String code;
-  final String value;
-
-  /// L'état servi, avec son point coloré.
-  final SfState? state;
-
-  /// La ligne grise sans point.
-  final String? caption;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final etat = state;
-    final legende = caption;
-    final bout = trailing;
-    final gris = AppFonts.ui(size: 12, color: AppColors.muted, height: 1.3);
-    return _SfRowFrame(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.moduleLight(civique: civique),
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Text(
-              code,
-              style: AppFonts.ui(
-                size: 13,
-                weight: FontWeight.w800,
-                color: AppColors.module(civique: civique),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: AppFonts.display(
-                      size: 16, weight: FontWeight.w800, height: 1.1),
-                ),
-                if (etat != null) ...[
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: etat.tone.mark,
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      Flexible(child: Text(etat.label, style: gris)),
-                    ],
-                  ),
-                ],
-                if (legende != null) ...[
-                  const SizedBox(height: 3),
-                  Text(legende, style: gris),
-                ],
-              ],
-            ),
-          ),
-          if (bout != null) ...[
-            const SizedBox(width: 12),
-            bout,
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// **La pile de lignes de niveau** (`.level-list`).
-///
-/// Miroir web : `LevelList`.
-class SfLevelList extends StatelessWidget {
-  const SfLevelList({super.key, required this.rows});
-
-  final List<SfLevelRow> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
-          rows[i],
-        ],
-      ],
     );
   }
 }

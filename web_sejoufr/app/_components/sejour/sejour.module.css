@@ -4962,16 +4962,16 @@ a.pRow:focus-visible {
    NAVIGATION V2 — PRIMITIVES DES ÉCRANS DE MODULE (phase 4a, 2026-10-03)
 
    Maquette : `docs/redesign/sejourfr-navigation-web.html` (`.hero`,
-   `.info-card`, `.metric`, `.level-row`, `.timeline`, `.theme-card`, `.ring`,
+   `.info-card`, `.metric`, `.timeline`, `.theme-card`, `.ring`,
    `.tip-card`, `.exam-row`, `.badge`, `.cta.soft|ghost-*`, `.split`,
    `.grid-2`, `.grid-4`). Géométrie de la maquette, couleurs = tokens de
    module (`--mod*`, posées par `.modTcf` / `.modCivique`) et tokens d'état.
    AUCUN hex. Graisses 850/900 → 800 (max Jakarta). Rayons hors échelle
    arrondis au token voisin (13/14 px → `--sf-radius-sm|md`).
 
-   Primitives : `Badge`, `Hero`, `InfoCard`, `Metric`, `LevelList` +
-   `LevelRow`, `Timeline`, `ThemeCard`, `Ring` (variante module),
-   `TipCard`, `ProgressionHead`, `ExamRow`, `Split`, `Grid`. Miroirs
+   Primitives : `Badge`, `Hero`, `InfoCard`, `Metric`, `Timeline`,
+   `ThemeCard`, `Ring` (variante module), `TipCard`, `ProgressionHead`,
+   `ExamRow`, `Split`, `Grid`. Miroirs
    Flutter `Sf…` (`sejour_kit.dart`), sauf `Split` / `Grid` (mise en page).
    ========================================================================== */
 
@@ -5424,72 +5424,6 @@ a.pRow:focus-visible {
   }
 }
 
-/* ---------- LevelList + LevelRow — `.level-list` / `.level-row` ---------- */
-
-.levelList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.levelRow {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--sf-radius-lg);
-  background: var(--color-white);
-  color: var(--color-ink);
-}
-
-.levelCode {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--sf-radius-sm);
-  background: var(--mod-light);
-  color: var(--mod);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.levelCopy {
-  display: block;
-  min-width: 0;
-}
-
-.levelValue {
-  display: block;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.levelState {
-  display: flex;
-  align-items: center;
-  margin-top: 2px;
-  font-size: 12.5px;
-  line-height: 1.35;
-  color: var(--color-muted);
-}
-
-.levelTrail {
-  font-size: 12px;
-  line-height: 1.35;
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
-.levelTrailSlot {
-  display: flex;
-}
-
 /* ---------- Carte de module — `.card.card-pad` + `.label` + `.meta` ---------- */
 
 .modCard {
@@ -5822,7 +5756,6 @@ a.pRow:focus-visible {
 
 @media (prefers-reduced-motion: no-preference) {
   .infoCard,
-  .levelRow,
   .examRow,
   .metric,
   .themeCardV2 {
@@ -5832,8 +5765,7 @@ a.pRow:focus-visible {
       border-color 0.15s ease;
   }
 
-  .infoCard.isPressable:hover,
-  .levelRow.isPressable:hover {
+  .infoCard.isPressable:hover {
     transform: translateY(-2px);
     box-shadow: var(--sf-shadow-card-sm);
   }

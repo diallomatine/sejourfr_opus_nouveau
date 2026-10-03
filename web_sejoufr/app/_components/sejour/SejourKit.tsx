@@ -3142,12 +3142,12 @@ export function BlockError({
    Maquette : `docs/redesign/sejourfr-navigation-web.html`, écrans TCF ·
    Mon plan / Entraînement / Examens blancs / Progression, Civique · Plan /
    Entraînement / Examens / Progression, Profil (`.hero`, `.info-card`,
-   `.metric`, `.level-row`, `.timeline`, `.theme-card`, `.ring`, `.tip-card`,
+   `.metric`, `.timeline`, `.theme-card`, `.ring`, `.tip-card`,
    `.exam-row`, `.badge`, `.split`, `.grid-2`, `.grid-4`).
 
    Miroirs Flutter, même nom préfixé `Sf` (`sejour_kit.dart`) : `Hero`,
-   `InfoCard`, `Metric`, `LevelRow` / `LevelList`, `Timeline`, `ThemeCard`,
-   `TipCard`, `ProgressionHead`, `ExamRow`, `Badge`. Le web prend
+   `InfoCard`, `Metric`, `Timeline`, `ThemeCard`, `TipCard`,
+   `ProgressionHead`, `ExamRow`, `Badge`. Le web prend
    `module: "tcf" | "civique"` là où le mobile prend `civique: bool`, comme
    `ActionCard`. `Split` et `Grid` sont des règles de MISE EN PAGE (media
    queries) : aucun miroir.
@@ -3241,8 +3241,8 @@ function Pressable({
  *
  * - `tone` posé ⇒ couleurs de l'état servi (vert / ambre / rouge / neutre) ;
  * - sinon ⇒ teinte douce du module (`module`, TCF par défaut).
- * - `check` ⇒ une coche avant le texte (« ✓ Objectif atteint », ou la coche
- *   seule d'une `LevelRow` à l'objectif) ; sans texte, `label` nomme la coche.
+ * - `check` ⇒ une coche avant le texte (« ✓ Objectif atteint ») ; sans texte,
+ *   `label` nomme la coche.
  *
  * Miroir Flutter : `SfBadge` (`civique`, `tone?`, `check`, `label`).
  */
@@ -3462,75 +3462,6 @@ export function Metric({
         </div>
       ) : null}
     </article>
-  );
-}
-
-/**
- * **La liste des niveaux** (`.level-list`) : des `LevelRow` empilées, à
- * 10 px. Miroir Flutter : `SfLevelList` (`rows`) ; ici les lignes passent en
- * `children`.
- */
-export function LevelList({ children }: { children: ReactNode }) {
-  return <div className={styles.levelList}>{children}</div>;
-}
-
-/**
- * **Une ligne de niveau** (`.level-row`) : code dans un carré doux du module,
- * la valeur servie (palier, « 60 % »), puis dessous soit l'état servi précédé
- * de son point de couleur (`state`), soit une ligne de texte (`caption`) ; à
- * droite un `trailing` — texte discret (« → B2 »), `Badge` (état servi,
- * coche à l'objectif).
- *
- * `caption` existe pour le civique : « {terminées}/{total} séries · {thème} »
- * se lit sans point, l'état servi y passant en `Badge` à droite.
- *
- * Miroir Flutter : `SfLevelRow` (`civique`, `code`, `value`, `state?`,
- * `caption?`, `trailing?`, `onTap?`).
- */
-export function LevelRow({
-  module,
-  code,
-  value,
-  state,
-  caption,
-  trailing,
-  href,
-  onClick,
-}: {
-  module: ModuleTone;
-  /** Le code servi (« CO ») ou le rang du thème — jamais une abréviation inventée. */
-  code: string;
-  value: string;
-  state?: ServedState | null;
-  caption?: string | null;
-  /** Une chaîne est rendue en texte discret ; sinon le bloc tel quel. */
-  trailing?: ReactNode;
-  href?: string | null;
-  onClick?: (() => void) | null;
-}) {
-  return (
-    <Pressable
-      className={cx(styles.levelRow, moduleToneClass[module])}
-      href={href}
-      onClick={onClick}
-    >
-      <span className={styles.levelCode}>{code}</span>
-      <span className={styles.levelCopy}>
-        <span className={styles.levelValue}>{value}</span>
-        {state ? (
-          <span className={styles.levelState}>
-            <i className={cx(styles.stateDot, stateToneClass[state.tone])} aria-hidden />
-            {state.label}
-          </span>
-        ) : null}
-        {caption ? <span className={styles.levelState}>{caption}</span> : null}
-      </span>
-      {typeof trailing === "string" ? (
-        <span className={styles.levelTrail}>{trailing}</span>
-      ) : trailing ? (
-        <span className={styles.levelTrailSlot}>{trailing}</span>
-      ) : null}
-    </Pressable>
   );
 }
 

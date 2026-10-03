@@ -52,9 +52,9 @@ conditions réelles.
   mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.
 - **Kit** : `SfModuleHeader`, `SfProgressSummary`, `SfBackLink`, `SfActionCard`,
   `SfObjectivesCard`/`SfObjectiveRow`, `SfBlockSkeleton`/`SfBlockError`, `SfHero`
-  (ex-`SfHeroBanner`), `SfInfoCard`, `SfMetric`, `SfLevelList`/`SfLevelRow`, `SfTimeline`,
+  (ex-`SfHeroBanner`), `SfInfoCard`, `SfMetric`, `SfTimeline`,
   `SfThemeCard`, `SfTipCard`, `SfProgressionHead`, `SfExamRow` (refait), `SfBadge`,
-  `SfChevron`, `SfTrailingText` ; ton servi = `SfTone` via `SfState`. Supprimés :
+  `SfChevron` ; ton servi = `SfTone` via `SfState`. Supprimés :
   `SfTopSlot`, `SfModuleToggle`, `SfLevelLadder`, `SfLevelCard(Grid)`, `SfGoalBanner`,
   `SfEpreuveRow`, `ProgressionBascule`, `parcoursSegments`, `parcoursCiviqueProvider`,
   `examensParcoursProvider`, `plan_screen`, `reviser_screen`, `examens_screen`.

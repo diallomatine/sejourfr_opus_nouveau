@@ -86,7 +86,6 @@ SfState? etatEpreuveTcf(StatutObjectif? status, NiveauCecrl? niveau) {
 }
 
 /// **L'état servi d'un thème civique** (`CivicThemeState`) et son ton
-/// ([sfToneOf]) — la seule correspondance du mobile. Miroir web :
-/// `etatThemeCivique` (`lib/etats-servis.ts`).
+/// ([sfToneOf]) — la seule correspondance du mobile.
 SfState etatThemeCivique(CivicThemeState etat) =>
     (label: etat.label, tone: sfToneOf(etat));

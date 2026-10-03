@@ -31,13 +31,12 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
 - **% civique** : `avancementSeriesCivique` (`lib/reviser.ts`) est la SEULE formule
   (`floor(Σ seriesDone / Σ seriesTotal × 100)`, toutes mentions, terminée = au moins une
   fois). `moduleAverage` est supprimé. Miroir mobile du même nom.
-- **États servis → libellé + ton** : `lib/etats-servis.ts` (`etatEpreuveTcf`,
-  `etatThemeCivique`, `etatTon`), seul mapping. **Gestes « À faire maintenant / Prochaine
+- **États servis → libellé + ton** : `lib/etats-servis.ts` (`etatEpreuveTcf`), seul mapping. **Gestes « À faire maintenant / Prochaine
   étape »** : `app/_components/plan/now-card-gestes.tsx`, lu par l'Accueil et la Progression.
 - **Nom du pass** : `passAccessName` (`lib/passes.ts`), jamais un libellé de pass en dur.
 - **Kit** : primitives v2 (fin de `SejourKit.tsx`) `PageHead`, `ActionCard`, `ObjCard`,
   `ObjectivesCard`/`ObjectiveRow`, `BlockSkeleton`/`BlockError`, `Hero` (ex-`HeroBanner`),
-  `InfoCard`, `Metric`, `LevelList`/`LevelRow`, `Timeline`, `ThemeCard`, `TipCard`,
+  `InfoCard`, `Metric`, `Timeline`, `ThemeCard`, `TipCard`,
   `ProgressionHead`, `ExamRow` (refait), `Badge`, `Split`/`Grid` (mise en page web seule).
   Supprimées : `ModuleToggle`, `TopSlot`, `TopInAppBar`, `LevelLadder`, `LevelCard(Grid)`,
   `GoalBanner`, `EpreuveRow`. Miroirs `Sf*` côté Flutter, mêmes noms.

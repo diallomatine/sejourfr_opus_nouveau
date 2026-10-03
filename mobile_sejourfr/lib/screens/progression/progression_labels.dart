@@ -545,12 +545,8 @@ const String kCiviqueProgressionLead =
 const String kTcfObjectifGlobalLabel = 'Objectif global';
 const String kTcfNiveauActuelLabel = 'Niveau actuel';
 const String kTcfObjectifLabel = 'Objectif';
-const String kTcfParCompetenceTitle = 'Par compétence';
 const String kTcfEvolutionTitle = 'Évolution';
 const String kTcfDerniersReperesLabel = 'Derniers repères';
-
-/// « → B2 » en bout de ligne d'une épreuve sous l'objectif.
-String tcfVersCible(String cible) => '→ $cible';
 
 /// « Meilleur niveau observé : B1 » — le palier du meilleur examen complet
 /// non partiel, servi (D7).
@@ -561,19 +557,12 @@ String tcfMeilleurNiveauObserve(String niveau) =>
 
 const String kCiviqueMaitriseLabel = 'Maîtrise globale';
 const String kCiviqueDuParcours = 'du parcours réalisé';
-const String kCiviqueParThemeTitle = 'Par thème';
 const String kCiviqueExamensBlancsTitle = 'Examens blancs';
 const String kCiviqueEvolutionScoreLabel = 'Évolution du score';
 
 /// « 17 séries terminées » / « 1 série terminée » — le libellé sous le nombre.
 String civiqueSeriesTermineesLabel(int terminees) =>
     terminees > 1 ? 'séries terminées' : 'série terminée';
-
-/// « 3/5 séries · Principes et valeurs » — compteurs servis du thème.
-String civiqueThemeCaption(int faites, int total, String? nom) {
-  final compte = '$faites/$total séries';
-  return nom == null ? compte : '$compte · $nom';
-}
 
 /// « Meilleur score : {taux} % », et la suite seulement si le seuil servi est
 /// atteint (`seuilAtteint`, jamais une comparaison au seuil ici).
