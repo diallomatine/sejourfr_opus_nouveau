@@ -533,11 +533,10 @@ function ActionMaintenant({plan, journey, free}: {
           ))}
           {/* 🛑 **Le bouton dit ce que le geste FAIT**, et son libellé vient
               lui aussi de `planNowCard` : `PLAN_NOW_CTA_LOCKED` sur un verrou
-              (son motif est écrit à sa déclaration), l'action sinon. En
-              **bleu** (A46) : sur un Plan gratuit, le seul bouton rouge de la
-              page reste celui de la barre basse. */}
+              (son motif est écrit à sa déclaration), l'action sinon. À la
+              couleur du module (navigation v2, TCF bleu). */}
           {debloquer && (
-            <Cta variant="blue" onClick={() => router.push(planUnlockHref("TCF"))}>
+            <Cta variant="tcf" onClick={() => router.push(planUnlockHref("TCF"))}>
               {vue.cta}
             </Cta>
           )}
@@ -546,7 +545,7 @@ function ActionMaintenant({plan, journey, free}: {
               compétence que le Plan priorisait ce jour-là, pendant que la carte
               en annonçait une autre. */}
           {vue.geste === "LANCER" && (
-            <Cta onClick={startNext} disabled={busy}>
+            <Cta variant="tcf" onClick={startNext} disabled={busy}>
               {busy ? PLAN_STARTING : vue.cta}
             </Cta>
           )}
@@ -556,7 +555,7 @@ function ActionMaintenant({plan, journey, free}: {
               destination est **servie** par `planNowCard` — cet écran ne
               recompose aucune adresse. */}
           {vue.geste === "OUVRIR_ETAPE" && vue.etapeHref && (
-            <Cta href={vue.etapeHref}>{vue.cta}</Cta>
+            <Cta variant="tcf" href={vue.etapeHref}>{vue.cta}</Cta>
           )}
         </NowCard>
         {actionLocked && (

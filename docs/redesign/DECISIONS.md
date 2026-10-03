@@ -290,3 +290,11 @@
 - Choix : B (doublon).
 - Fichiers impactés : `ReviserScreen.tsx`
 - Réversibilité : facile
+
+### DEC-37 — Carte « À faire maintenant » du Plan à la couleur du module (après relecture à l'écran)
+- Phase : 4 (retour du propriétaire, captures mobiles)
+- Contexte : sur le Plan TCF, le bouton « Passer l'épreuve » restait rouge (variante par défaut de `Cta`/`SfButton`) et la pastille d'icône de la carte civique restait bleue.
+- Options envisagées : A garder (A46) · B carte entière à la couleur du module
+- Choix : B, web et mobile : `NowCard.module` ⇄ `SfNowCard.civique` (pastille d'icône), boutons TCF en variante `tcf`. Corollaire de X1 / DEC-26.
+- Fichiers impactés : `SejourKit.tsx`, `sejour.module.css`, `LearningPlanView.tsx`, `CivicPlanPanel.tsx`, `sejour_kit.dart`, `plan_tcf_view.dart`, `civic_plan_view.dart`
+- Réversibilité : facile

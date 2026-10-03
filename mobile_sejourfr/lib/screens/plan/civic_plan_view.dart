@@ -366,6 +366,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     final source = carte.source;
     final examen = carte.examen;
     return SfNowCard(
+      civique: true,
       icon: LucideIcons.landmark,
       title: carte.title,
       subtitle: carte.subtitle,

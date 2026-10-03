@@ -922,6 +922,10 @@
   box-shadow: var(--sf-shadow-lift), inset 0 0 0 1px var(--color-amber-border);
 }
 
+.nowIcoCivique {
+  background: var(--color-module-civique);
+}
+
 .now.isVerify .nowIco {
   background: var(--color-amber-dark);
 }
@@ -957,7 +961,7 @@
   border-radius: var(--sf-radius-md);
   display: grid;
   place-items: center;
-  background: var(--color-blue);
+  background: var(--color-module-tcf);
   color: #fff;
   flex: 0 0 auto;
 }

@@ -1081,11 +1081,14 @@ export function NowCard({
   children,
   caption,
   variant = "default",
+  module = "tcf",
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
   badge?: string;
+  /** Couleur de module de la pastille d'icône. Miroir de `SfNowCard.civique`. */
+  module?: ModuleTone;
   objectiveLabel?: string;
   objective?: string;
   meta?: Array<{ icon: LucideIcon; label: string }>;
@@ -1102,7 +1105,7 @@ export function NowCard({
   return (
     <article className={cx(styles.now, variant === "verify" && styles.isVerify)}>
       <div className={styles.nowHead}>
-        <div className={styles.nowIco}>
+        <div className={cx(styles.nowIco, module === "civique" && styles.nowIcoCivique)}>
           <Icon size={24} strokeWidth={2} aria-hidden />
         </div>
         <div>

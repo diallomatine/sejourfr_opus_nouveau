@@ -287,6 +287,7 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
             {carte && (
               <div>
                 <NowCard
+                  module="civique"
                   icon={Landmark}
                   title={carte.title}
                   subtitle={carte.subtitle ?? undefined}

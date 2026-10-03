@@ -275,7 +275,7 @@ class PlanTcfView extends ConsumerWidget {
         PlanNowGeste.aucun => null,
         PlanNowGeste.debloquer => SfButton(
             label: carte.cta,
-            variant: SfButtonVariant.blue,
+            variant: SfButtonVariant.tcf,
             onPressed: () => _versEcranDeDeblocage(context),
           ),
         // 🛑 **`ouvrirEtape` ouvre l'écran de l'étape**, il ne lance rien : une
@@ -283,12 +283,14 @@ class PlanTcfView extends ConsumerWidget {
         // les choisit là-bas. La destination est **servie** par [planNowCard].
         PlanNowGeste.ouvrirEtape => SfButton(
             label: carte.cta,
+            variant: SfButtonVariant.tcf,
             onPressed: carte.etapeRoute == null
                 ? null
                 : () => context.push(carte.etapeRoute!),
           ),
         PlanNowGeste.lancer => SfButton(
             label: carte.cta,
+            variant: SfButtonVariant.tcf,
             onPressed: mesure != null
                 // Le lanceur de mesure est une AUTORITÉ EXISTANTE
                 // (`startPlanSeanceItem` → `openPlanAssessment`) : on ne

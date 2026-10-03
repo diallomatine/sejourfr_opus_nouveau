@@ -1576,6 +1576,7 @@ class SfNowCard extends StatelessWidget {
     this.action,
     this.caption,
     this.variant = SfNowCardVariant.standard,
+    this.civique = false,
   });
 
   /// 🛑 [SfNowCardVariant.verify] change **la carte**, pas seulement son
@@ -1584,6 +1585,9 @@ class SfNowCard extends StatelessWidget {
   /// bougé » alors que l'action a changé de nature. Miroir du `variant` du
   /// `NowCard` web.
   final SfNowCardVariant variant;
+
+  /// Couleur du module de la pastille d'icône (TCF bleu, civique rouge).
+  final bool civique;
 
   final IconData icon;
   final String title;
@@ -1630,7 +1634,9 @@ class SfNowCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: verify ? AppColors.amberDark : AppColors.blue,
+                  color: verify
+                      ? AppColors.amberDark
+                      : AppColors.module(civique: civique),
                   borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: Icon(icon, size: 24, color: AppColors.white),
