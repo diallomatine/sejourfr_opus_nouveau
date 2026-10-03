@@ -3739,16 +3739,15 @@ class SfBlocAccordion extends StatelessWidget {
                     if (MediaQuery.sizeOf(context).width -
                             SfCycleRail.retraitDe(context) >
                         366) ...[
-                      const SizedBox(width: 11),
-                      if (pictogramme != null)
-                        SfBadge(status.label, tone: status.tone)
-                      else
-                        SfPill(
-                            label: status.label,
-                            tone: status.tone.asBarTone,
-                            dense: true),
+                      // L'état reste discret et colle au chevron (pastille
+                      // dense, 2026-10-04, demande du propriétaire).
+                      const SizedBox(width: 8),
+                      SfPill(
+                          label: status.label,
+                          tone: status.tone.asBarTone,
+                          dense: true),
                     ],
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     // La seule affordance visible qu'un bloc se deplie. Le
                     // chevron PIVOTE, il ne se remplace pas — aucun saut de
                     // largeur a l'ouverture. La variante lien pointe a droite.

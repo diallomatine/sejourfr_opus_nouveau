@@ -5863,6 +5863,25 @@ a.pRow:focus-visible {
   font-size: 10px;
 }
 
+/* Téléphone et tablette étroite : l'état du bloc se fait discret et se
+   colle au chevron (2026-10-04, demande du propriétaire) ; le desktop garde
+   la pastille pleine taille. */
+@media (max-width: 760px) {
+  .blocHeadInfo {
+    gap: 8px;
+  }
+
+  .blocHeadInfo .infoTrailing .badge {
+    padding: 2px 6px;
+    font-size: 9px;
+    letter-spacing: 0.02em;
+  }
+
+  .blocHeadInfo .infoChevron {
+    margin-left: -2px;
+  }
+}
+
 @media (max-width: 360px) {
   .blocHeadInfo .infoTrailing {
     display: none;
