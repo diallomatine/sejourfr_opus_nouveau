@@ -42,18 +42,6 @@ const String kCivicPlanHeroLabel = 'Progression globale';
 const String kCivicPlanHeroSub = 'Votre parcours avance thème par thème.';
 const String kCivicPlanHeroStat = 'du parcours';
 
-/// La carte « Examen blanc civique » de « À faire maintenant » : le dernier
-/// score SERVI (`ProgressionCiviqueDto`), jamais un « objectif 80 % ».
-/// Miroir mot pour mot de `PLAN_CIVIQUE_EXAM_*` (web `lib/module-ecrans.ts`).
-const String kCivicPlanExamLabel = 'Examen blanc';
-const String kCivicPlanExamTitle = 'Examen blanc civique';
-const String kCivicPlanExamEmpty =
-    'Passez votre premier examen blanc pour situer votre préparation.';
-
-/// « Votre dernier score : 29 / 40 » — le score déjà écrit par
-/// `progressionScore`. Miroir de `planCiviqueDernierScore`.
-String civicPlanExamLastScore(String score) => 'Votre dernier score : $score';
-
 /// Le geste d'une action **fermée** — la série, pas le plan entier.
 ///
 /// 🛑 **Aucune chaîne neuve n'est gelée** : elle existait déjà ici et n'avait

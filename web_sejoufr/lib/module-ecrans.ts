@@ -80,17 +80,6 @@ export function seriesTermineesTitre(n: number): string {
     return `${n} ${pluriel(n, "série terminée", "séries terminées")}`;
 }
 
-export const PLAN_CIVIQUE_EXAM_LABEL = "Examen blanc";
-export const PLAN_CIVIQUE_EXAM_TITLE = "Examen blanc civique";
-/** Aucun examen blanc civique servi : l'invitation au premier. */
-export const PLAN_CIVIQUE_EXAM_EMPTY =
-    "Passez votre premier examen blanc pour situer votre préparation.";
-
-/** « Votre dernier score : 29 / 40 ». */
-export function planCiviqueDernierScore(score: string): string {
-    return `Votre dernier score : ${score}`;
-}
-
 /* --------------------------------------------------------- Entraînement */
 
 export const ENTRAINEMENT_TITLE = "Entraînement";

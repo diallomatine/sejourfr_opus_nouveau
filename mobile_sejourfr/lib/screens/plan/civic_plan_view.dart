@@ -13,12 +13,9 @@ import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/dashboard_provider.dart';
-import '../../core/router/shell_navigation.dart';
 import '../../core/utils/civique_examen.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
 import '../module/module_labels.dart';
-import '../progression/progression_labels.dart';
-import '../progression/progression_providers.dart';
 import '../reviser/reviser_labels.dart' show avancementSeriesCivique;
 import 'plan_labels.dart';
 import '../../core/api/repositories.dart';
@@ -345,8 +342,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       free: free,
       lancerExamen: true,
     );
-    // Navigation v2 : la carte d'action, puis la carte « Examen blanc civique »
-    // de la maquette (web `grid-2`, ici empilées).
     return SfSection(
       title: kCivicPlanNowTitle,
       flush: true,
@@ -355,7 +350,6 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
         pad: false,
         children: [
           if (carte != null) _carteAction(carte),
-          const _ExamenBlancCivique(),
         ],
       ),
     );
@@ -556,49 +550,6 @@ class _HeroCivique extends ConsumerWidget {
         label: kCivicPlanHeroStat,
       ),
       progress: avancement.pourcentage / 100,
-    );
-  }
-}
-
-/// **La carte « Examen blanc civique »** de « À faire maintenant » (maquette
-/// web `.action-card`, ramenée à une `.info-card` portrait) : le dernier score
-/// SERVI et son verdict face au seuil (`seuilAtteint`, `pointsManquants`
-/// servis), ou l'invitation au premier examen. Elle mène au segment Examens.
-///
-/// En `.info-card` cliquable, sans bouton — comme le web.
-class _ExamenBlancCivique extends ConsumerWidget {
-  const _ExamenBlancCivique();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lecture = ref.watch(progressionCiviqueProvider(false));
-    final progression = lecture.valueOrNull;
-    if (progression == null) {
-      if (lecture.hasError) {
-        return SfBlockError(
-          message: kModuleBlockError,
-          retryLabel: kModuleRetry,
-          onRetry: () => ref.invalidate(progressionCiviqueProvider(false)),
-        );
-      }
-      return const SfBlockSkeleton(height: 86, radius: AppRadii.lg);
-    }
-    final dernier = progression.global.dernier;
-    final verdict = progressionSeuilVerdict(dernier, progression.echelle.seuil);
-    return SfInfoCard(
-      civique: true,
-      icon: LucideIcons.clock,
-      code: kCivicPlanExamLabel,
-      title: kCivicPlanExamTitle,
-      meta: dernier == null
-          ? kCivicPlanExamEmpty
-          : [
-              civicPlanExamLastScore(
-                  progressionScore(dernier.score, dernier.max)),
-              if (verdict != null) verdict,
-            ].join(' · '),
-      trailing: const SfChevron(),
-      onTap: () => context.go(ModuleSegment.examens.path(civique: true)),
     );
   }
 }

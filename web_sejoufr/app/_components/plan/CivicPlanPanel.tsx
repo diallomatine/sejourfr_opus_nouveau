@@ -7,7 +7,7 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
-import {civicDiagnosticApi, civicPlanApi, dashboardApi, journeyApi, progressionApi} from "@/lib/api";
+import {civicDiagnosticApi, civicPlanApi, dashboardApi, journeyApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {useAuth} from "@/lib/auth-context";
@@ -29,7 +29,6 @@ import {
   type CivicPlanDto,
   type DashboardSummaryResponse,
   type JourneyDto,
-  type ProgressionCiviqueDto,
 } from "@/lib/types";
 import {
   Badge,
@@ -37,7 +36,6 @@ import {
   BlockSkeleton,
   Cta,
   GoalStrip,
-  Grid,
   Hero,
   InfoCard,
   NowCard,
@@ -47,26 +45,21 @@ import {
   Stack,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {IconClock, IconTarget} from "@/app/_components/shell/ShellIcons";
+import {IconTarget} from "@/app/_components/shell/ShellIcons";
 import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY, accueilPourcentage} from "@/lib/accueil";
 import {
   MODULE_CIVIQUE_KICKER,
   MODULE_VOIR_DETAIL,
   PLAN_CIVIQUE_BADGE_SEUIL,
-  PLAN_CIVIQUE_EXAM_EMPTY,
-  PLAN_CIVIQUE_EXAM_LABEL,
-  PLAN_CIVIQUE_EXAM_TITLE,
   PLAN_CIVIQUE_HERO_LABEL,
   PLAN_CIVIQUE_HERO_STAT,
   PLAN_CIVIQUE_HERO_SUB,
   PLAN_CIVIQUE_SUBTITLE,
   PLAN_CIVIQUE_TITLE,
-  planCiviqueDernierScore,
   seriesTermineesTitre,
 } from "@/lib/module-ecrans";
-import {progressionHref, progressionScore, progressionSeuilVerdict} from "@/lib/progression";
+import {progressionHref} from "@/lib/progression";
 import {avancementSeriesCivique} from "@/lib/reviser";
-import {shellModuleHref} from "@/lib/shell-nav";
 import {type CachedData, useCachedData} from "@/lib/use-cached-data";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
@@ -239,13 +232,9 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
   const launchExam = useMockExamLauncher();
   const [examPaywall, setExamPaywall] = useState(false);
 
-  /* Les lectures du bandeau et de la carte d'examen sont celles, EN CACHE, de
+  /* La lecture du bandeau est celle, EN CACHE, de
      l'Accueil, de la barre latérale et de l'écran Progression civique. */
   const summary = useCachedData<DashboardSummaryResponse>("plan:dashboard", () => dashboardApi.summaryCached());
-  const progression = useCachedData<ProgressionCiviqueDto>(
-    progressionApi.civiqueKey(false),
-    () => progressionApi.civique(false),
-  );
 
   const carte = civicNowCard(plan, {journey, free, lancerExamen: true});
   const grainNote = civicPlanGrainNote(plan.grain);
@@ -279,12 +268,10 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
 
       {/* 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
           plan dérivé. Le contenu est identique pour les deux accès ; seul le
-          geste change. À côté, l'examen blanc civique et son dernier score
-          servi. */}
+          geste change. */}
       <Section title={CIVIC_PLAN_NOW_TITLE}>
         <Pad>
-          <Grid cols={2}>
-            {carte && (
+          {carte && (
               <div>
                 <NowCard
                   module="civique"
@@ -340,8 +327,6 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
                 )}
               </div>
             )}
-            <ExamenBlancCard progression={progression} />
-          </Grid>
           {erreur && <p className={sejourStyles.tiny} role="alert">{erreur}</p>}
         </Pad>
       </Section>
@@ -446,38 +431,6 @@ function AvancementHero({summary}: {summary: CachedData<DashboardSummaryResponse
       stat={{value: accueilPourcentage(avancement.pourcentage), label: PLAN_CIVIQUE_HERO_STAT}}
       progress={avancement.pourcentage / 100}
       cta={{label: MODULE_VOIR_DETAIL, href: progressionHref("CIVIQUE")}}
-    />
-  );
-}
-
-/**
- * **La carte « Examen blanc civique »** (`InfoCard` cliquable) : le dernier score servi
- * (`ProgressionCiviqueDto.global.dernier`) et son verdict face au seuil —
- * `seuilAtteint` / `pointsManquants` servis, jamais un seuil appliqué ici —,
- * puis l'accès aux examens blancs du module. Aucun examen ⇒ l'invitation au
- * premier, à la place du score.
- */
-function ExamenBlancCard({progression}: {progression: CachedData<ProgressionCiviqueDto>}) {
-  if (progression.loading) return <BlockSkeleton height={154} />;
-  if (progression.error !== null || !progression.data) {
-    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={progression.reload} />;
-  }
-  const dernier = progression.data.global.dernier;
-  const meta = dernier
-    ? [
-      planCiviqueDernierScore(progressionScore(dernier.score, dernier.max)),
-      progressionSeuilVerdict(dernier, progression.data.echelle.seuil),
-    ].filter(Boolean).join(" · ")
-    : PLAN_CIVIQUE_EXAM_EMPTY;
-  return (
-    <InfoCard
-      module="civique"
-      icon={<IconClock />}
-      code={PLAN_CIVIQUE_EXAM_LABEL}
-      title={PLAN_CIVIQUE_EXAM_TITLE}
-      meta={meta}
-      trailing="chevron"
-      href={shellModuleHref("examens", "CIVIQUE")}
     />
   );
 }
