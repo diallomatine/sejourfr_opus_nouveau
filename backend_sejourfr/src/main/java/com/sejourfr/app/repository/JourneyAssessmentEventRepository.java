@@ -110,12 +110,21 @@ public interface JourneyAssessmentEventRepository
      * ete traitee pour ce candidat. 🛑 <b>Ce n'est pas « epreuve non mesuree »</b> :
      * cette question a une seule autorite dans le depot, et ce n'est pas cette
      * table (arbitrage du 2026-09-16, « il n'existe qu'UNE notion de mesuree »).
+     *
+     * <p>🛑 <b>{@code saufCelle} exclut l'evaluation qu'on est en train de
+     * juger</b> (bug de prod du 2026-10-03). Elle vient d'etre journalisee, et
+     * {@code timestamptz} arrondit a la MICROseconde : un {@code completedAt}
+     * Java en nanosecondes ({@code .331182712}) relu {@code .331183} se
+     * trouvait « plus ancien que lui-meme ». L'examen CE etait alors ignore
+     * pour anciennete, et ses trois priorites n'atteignaient jamais le cycle
+     * suivant — une fois sur deux, selon l'arrondi.
      */
     @Query("SELECT MAX(e.completedAt) FROM JourneyAssessmentEvent e "
             + "WHERE e.journey.user.id = :userId AND e.journey.module = :module "
-            + "AND e.examType = :examType")
+            + "AND e.examType = :examType AND e.sourceAssessmentId <> :saufCelle")
     Optional<Instant> findDerniereMesureDeLEpreuve(
             @Param("userId") UUID userId,
             @Param("module") Module module,
-            @Param("examType") EpreuveType examType);
+            @Param("examType") EpreuveType examType,
+            @Param("saufCelle") UUID saufCelle);
 }

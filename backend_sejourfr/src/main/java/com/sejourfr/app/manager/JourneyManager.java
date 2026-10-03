@@ -158,9 +158,15 @@ public class JourneyManager {
         return eventRepository.dejaTraiteeParUnCycle(userId, module, sourceAssessmentId);
     }
 
-    /** La derniere evaluation deja traitee de cette epreuve, s'il y en a une (R14). */
-    public Optional<Instant> derniereMesure(UUID userId, Module module, EpreuveType examType) {
-        return eventRepository.findDerniereMesureDeLEpreuve(userId, module, examType);
+    /**
+     * La derniere evaluation deja traitee de cette epreuve, <b>autre que
+     * {@code saufCelle}</b>, s'il y en a une (R14). 🛑 L'evaluation jugee est
+     * toujours exclue : relue arrondie a la microseconde, elle paraissait plus
+     * recente qu'elle-meme.
+     */
+    public Optional<Instant> derniereMesure(
+            UUID userId, Module module, EpreuveType examType, UUID saufCelle) {
+        return eventRepository.findDerniereMesureDeLEpreuve(userId, module, examType, saufCelle);
     }
 
     public JourneyAssessmentEvent enregistrer(JourneyAssessmentEvent event) {

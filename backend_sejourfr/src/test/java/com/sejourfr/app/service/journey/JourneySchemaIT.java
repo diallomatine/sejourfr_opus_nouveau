@@ -413,7 +413,8 @@ class JourneySchemaIT extends AbstractIntegrationTest {
         Instant recent = Instant.now().minusSeconds(60);
         events.saveAndFlush(event(journey, UUID.randomUUID(),
                 JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, vieux));
-        events.saveAndFlush(event(journey, UUID.randomUUID(),
+        UUID laPlusRecente = UUID.randomUUID();
+        events.saveAndFlush(event(journey, laPlusRecente,
                 JourneyAssessmentKind.MOCK_EXAM, EpreuveType.TCF_CO, recent));
         events.saveAndFlush(event(journey, UUID.randomUUID(),
                 JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_EE, vieux));
@@ -422,14 +423,20 @@ class JourneySchemaIT extends AbstractIntegrationTest {
         // ne se remet pas a zero parce qu'un cycle a ete historise, sinon la
         // premiere synchronisation tardive apres une actualisation defaisait le
         // cycle promu.
+        UUID aucune = UUID.randomUUID();
         assertThat(events.findDerniereMesureDeLEpreuve(
-                candidat.getId(), Module.TCF, EpreuveType.TCF_CO)).contains(recent);
+                candidat.getId(), Module.TCF, EpreuveType.TCF_CO, aucune)).contains(recent);
         assertThat(events.findDerniereMesureDeLEpreuve(
-                candidat.getId(), Module.TCF, EpreuveType.TCF_EE)).contains(vieux);
+                candidat.getId(), Module.TCF, EpreuveType.TCF_EE, aucune)).contains(vieux);
+        // 🛑 L'evaluation qu'on juge est EXCLUE (prod, 2026-10-03) : sans cela,
+        // relue arrondie a la microseconde, elle se disait plus ancienne
+        // qu'elle-meme.
+        assertThat(events.findDerniereMesureDeLEpreuve(
+                candidat.getId(), Module.TCF, EpreuveType.TCF_CO, laPlusRecente)).contains(vieux);
         // 🛑 Vide ne veut PAS dire « epreuve non mesuree » : cette question a une
         // seule autorite dans le depot, et ce n'est pas cette table.
         assertThat(events.findDerniereMesureDeLEpreuve(
-                candidat.getId(), Module.TCF, EpreuveType.TCF_EO)).isEmpty();
+                candidat.getId(), Module.TCF, EpreuveType.TCF_EO, aucune)).isEmpty();
     }
 
     // ---------------------------------------------------------------- R4 / R18

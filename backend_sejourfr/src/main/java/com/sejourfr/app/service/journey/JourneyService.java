@@ -1405,8 +1405,13 @@ public class JourneyService {
      * mardi remplacerait le lot que celui de mercredi vient de creer.
      */
     private boolean estTropAncienne(Journey journey, JourneyEvaluation evaluation) {
+        // 🛑 L'evaluation jugee est EXCLUE de la comparaison : elle vient d'etre
+        // journalisee, et relue arrondie a la microseconde elle se trouvait
+        // « plus ancienne qu'elle-meme » (prod, 2026-10-03 : examen CE ignore,
+        // ses priorites perdues pour le cycle suivant).
         Optional<Instant> derniere = journeyManager.derniereMesure(
-                journey.getUser().getId(), journey.getModule(), evaluation.examType());
+                journey.getUser().getId(), journey.getModule(), evaluation.examType(),
+                evaluation.sourceAssessmentId());
         boolean ancienne = derniere.isPresent()
                 && evaluation.completedAt().isBefore(derniere.get());
         if (ancienne) {
