@@ -397,8 +397,8 @@ function CycleBody({journey, plan, module, avantPriorites}: {
             {/* **La carte Cycle** (maquette `#tcf-plan`) : numéro, objectif,
                 compteur et barre servis — sans phrase sous la barre
                 (2026-10-03). `complete` est SERVI, jamais déduit de
-                `done === total`. */}
-            <Pad>
+                `done === total`. Détachée de « À faire maintenant » au-dessus. */}
+            <Pad className={sejourStyles.pageBody}>
                 <CycleProgress
                     module={tone}
                     label={journeyCycleLabel(cycle)}
