@@ -583,7 +583,7 @@ changent sous GRANT à sessions), **D-42** (débit), **D-43** (lignée, cumul, p
 
 > Retour du propriétaire : « adapter l'existant au template, beaucoup plus premium ; écrans
 > fonctionnels sur mobile ; menu via un burger ». La maquette
-> `docs/admin/maquette-admin-utilisateurs-mvp.html` fait foi pour le DESIGN ; les données restent
+> `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` fait foi pour le DESIGN ; les données restent
 > celles du backend. Aucun DTO, endpoint ni calcul touché.
 
 ### D-35 — Palette : les tokens globaux réalignés sur l'identité visuelle

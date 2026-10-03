@@ -12,7 +12,7 @@ Ce projet est l'espace d'administration web de **SejourFR**, une plateforme d'en
 - **React Hook Form** pour les formulaires
 - **CSS Modules** vanilla — **pas de Tailwind, pas de CSS-in-JS, pas d'UI kit**
 
-La palette reprend `docs/identite-visuelle.md` (bleu France `#1E3A8C`, rouge France `#E1372F`, ink `#0F1839`…) et le design suit la maquette `docs/admin/maquette-admin-utilisateurs-mvp.html` (refonte du 2026-10-02, D-35 → D-39) : Inter partout (titres en 800), JetBrains Mono pour les identifiants techniques.
+La palette reprend `docs/identite-visuelle.md` (bleu France `#1E3A8C`, rouge France `#E1372F`, ink `#0F1839`…) et le design suit la maquette `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (refonte du 2026-10-02, D-35 → D-39) : Inter partout (titres en 800), JetBrains Mono pour les identifiants techniques.
 
 ## Architecture
 
@@ -151,10 +151,10 @@ Endpoints utilisés actuellement :
 
 ### Utilisateurs (`features/users/`)
 
-Retrouver, comprendre et dépanner un compte (spec `docs/admin/spec-admin-utilisateurs-v2.md`,
-GO du propriétaire, décisions `docs/admin/decisions-gestion-utilisateurs.md` D-01 → D-39 ;
+Retrouver, comprendre et dépanner un compte (spec `docs/admin/utilisateurs/spec-admin-utilisateurs-v2.md`,
+GO du propriétaire, décisions `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md` D-01 → D-39 ;
 refonte visuelle D-35 → D-39).
-Maquette : `docs/admin/maquette-admin-utilisateurs-mvp.html` (données fictives).
+Maquette : `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (données fictives).
 
 - **Routes** : `/users` (liste paginée serveur, recherche `q` debouncée — email, nom ou UUID
   complet —, filtre `filter` en puces : Tous / Accès TCF actif / Accès Civique actif / Sans
@@ -463,7 +463,7 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   toujours `var(--blue)`, `var(--ink)`, `var(--rule-strong)`, `var(--surface-2)`,
   `var(--radius-lg)`, `var(--shadow-panel)`, `var(--font-ui)`, etc. Teinte manquante ⇒ nouveau
   token dans `global.css`, jamais un hex local. Sur fond bleu : `--on-dark-*`.
-- Référence visuelle : `docs/admin/maquette-admin-utilisateurs-mvp.html` (cartes rayon 24, ombre
+- Référence visuelle : `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html` (cartes rayon 24, ombre
   douce, fond `--bg` bleu très clair, titres Inter 800, pastilles à point). `Fraunces` n'est plus
   utilisé par les primitives ; `JetBrains Mono` reste pour les identifiants (UUID, références).
 - **Coquille (`components/layout/`, D-37)** : ≥ 1180 px barre latérale complète ; 721–1179 px

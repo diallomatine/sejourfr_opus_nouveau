@@ -20,7 +20,7 @@ const DRAWER_QUERY = "(max-width: 720px)";
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * Coquille de la console (maquette `docs/admin/maquette-admin-utilisateurs-mvp.html`) :
+ * Coquille de la console (maquette `docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html`) :
  * barre latérale complète ≥ 1180 px, réduite aux icônes de 721 à 1179 px, tiroir
  * ouvert par le bouton burger ≤ 720 px.
  */

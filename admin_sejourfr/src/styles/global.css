@@ -2,7 +2,7 @@
 
 :root {
   /* Palette SejourFR (docs/identite-visuelle.md) : les écarts avec ce fichier
-     sont des bugs. La maquette admin (docs/admin/maquette-admin-utilisateurs-mvp.html)
+     sont des bugs. La maquette admin (docs/admin/utilisateurs/maquette-admin-utilisateurs-mvp.html)
      fixe l'usage ; ses teintes voisines sont ramenées à celles de l'identité. */
   --blue: #1e3a8c;
   --blue-dark: #15296b;

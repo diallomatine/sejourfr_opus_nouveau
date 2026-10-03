@@ -1052,7 +1052,7 @@ Remplace `GET /api/admin/analytics` et `/api/admin/analytics/annotations` (ancie
 ### Admin — Utilisateurs (console « Utilisateurs », V083, 2026-10-02)
 
 Règle : `docs/regles/paiements.md` § « Accès effectif = achats + décisions admin ».
-Décisions : `docs/admin/decisions-gestion-utilisateurs.md`. Miroir TS : `admin_sejourfr/src/types/api.ts`.
+Décisions : `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md`. Miroir TS : `admin_sejourfr/src/types/api.ts`.
 Tout est calculé serveur (statuts, dates incluses, libellés, actions proposées) : le front n'en
 recalcule rien.
 

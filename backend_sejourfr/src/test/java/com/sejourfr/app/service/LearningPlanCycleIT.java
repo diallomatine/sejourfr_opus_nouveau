@@ -248,7 +248,7 @@ class LearningPlanCycleIT extends AbstractIntegrationTest {
         // l'autorite `SubscriptionService` a cote des achats, INCONDITIONNELLE et
         // independante des donnees du candidat. Sans elle, un acces accorde ou
         // retire par l'admin ne serait pas oppose ici
-        // (docs/admin/decisions-gestion-utilisateurs.md, D-20).
+        // (docs/admin/utilisateurs/decisions-gestion-utilisateurs.md, D-20).
         assertThat(petit)
                 .as("budget de requetes du Plan, fixe et assume")
                 .isEqualTo(24);

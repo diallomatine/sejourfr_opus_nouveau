@@ -506,8 +506,8 @@ la décomposition de l'achat est inconnue.
 
 ## Accès effectif = achats + décisions admin (V083, 2026-10-02)
 
-Spec : `docs/admin/spec-admin-utilisateurs-v2.md` · GO propriétaire du 2026-10-02 ·
-décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
+Spec : `docs/admin/utilisateurs/spec-admin-utilisateurs-v2.md` · GO propriétaire du 2026-10-02 ·
+décisions : `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md`.
 
 - 🛑 **Achat ≠ accès.** `user_subscriptions` reste l'historique commercial **immuable** (Stripe,
   Apple, Google) : aucune colonne ajoutée, aucun webhook modifié. Une correction admin vit dans
@@ -572,7 +572,7 @@ décisions : `docs/admin/decisions-gestion-utilisateurs.md`.
     et ses sessions restent intacts — un webhook ne lit ni n'écrit jamais une décision admin
     (`RemboursementEtGrantIT` Stripe / Apple / Google, `QuotaEoAutoriteUniqueTest`). Un
     remboursement **partiel** laisse l'achat et son quota (comportement inchangé).
-  - Ledger unique de quota : **REPORTÉ** (`docs/admin/proposition-ledger-quota-eo.md`).
+  - Ledger unique de quota : **REPORTÉ** (`docs/admin/utilisateurs/proposition-ledger-quota-eo.md`).
 - **Emails** (G-6, D-32) : un compte n'est écarté d'un scénario Premium fondé sur les achats que
   si une décision admin change son accès effectif par rapport aux seuls achats, maintenant ou
   d'ici la date annoncée (`AccesEffectifResolver.decisionsChangentLAcces`, appelé par

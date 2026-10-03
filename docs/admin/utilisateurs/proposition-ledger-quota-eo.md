@@ -363,7 +363,7 @@ lu pour le quota. Rien ne change sur la reprise d'une session ni sur l'affichage
 - **Front admin, environ 4 fichiers** : `types/api.ts`, `subscriptionsApi.ts`,
   `SubscriptionsPage.tsx`, fiche utilisateur.
 - **Mobile 0, web 0.**
-- **Docs** : `docs/regles/paiements.md` (§ quota), `docs/admin/decisions-gestion-utilisateurs.md`
+- **Docs** : `docs/regles/paiements.md` (§ quota), `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md`
   (B-1 clos + D-30+), `docs/api-endpoints.md`.
 
 ---

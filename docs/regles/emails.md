@@ -254,7 +254,7 @@ manqué et n'envoient rien rétroactivement au premier déploiement :
   `SubscriptionService.covers`, l'autorité unique : le SQL ne fait que borner les candidats
   (décision D-25). Un pass remboursé ne « se termine » pas.
 - 🛑 **Décisions admin** (accès accordés / retirés, `access_overrides` ; D-32 de
-  `docs/admin/decisions-gestion-utilisateurs.md`) : les scénarios Premium fondés sur les achats
+  `docs/admin/utilisateurs/decisions-gestion-utilisateurs.md`) : les scénarios Premium fondés sur les achats
   (`NO_PREMIUM_AFTER_7_DAYS`, `PREMIUM_INACTIVE_2_DAYS`, `PREMIUM_ENDING_*`, `PREMIUM_ENDED`)
   écartent un compte **seulement** si une décision rend son accès effectif différent de celui des
   seuls achats **maintenant ou d'ici la date annoncée** par le message
