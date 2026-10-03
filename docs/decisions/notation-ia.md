@@ -10,6 +10,38 @@
 
 ---
 
+- **2026-10-04 — Version au niveau visé : consignes v3 (longueur VISÉE) + plafond du texte
+  modèle toléré de 10 mots.** Décision du propriétaire. *Constat (enquête sur la base
+  locale, aucun appel LLM)* : sur EE1 (bornes 30–60), **3 évaluations sur 7** n'avaient pas
+  « Une version plus aboutie » — le texte modèle faisait 61 à 64 mots, la réparation unique
+  dépassait encore, et `VersionCibleeValidator.validerLongueurTexte` (au mot près) faisait
+  tomber la section ILLUSTRATION ; **0 sur 5** sur EE2/EE3 (40–90). La consigne « en 30 à 60
+  mots » faisait viser le plafond.
+  *Décidé* : (1) **consignes v3** (`production-version-ciblee-rubrics-v3.json`, nouvelle
+  version, v2 non réécrite, **même tool-schema v2**) : la puce « Longueur » de l'exemple cible
+  et la phrase d'action (`commun.longueur_texte_modele.consigne`, jetons `{cible}`/`{min}`/
+  `{max}`) font viser une **cible** et interdisent de dépasser `mots_max`. Formule
+  (`VersionCibleeLongueur.cible`) : **milieu arrondi à la dizaine supérieure**, ramené dans
+  `[min, max]` → 30–60 → **50**, 40–90 → **70**. Écartées : milieu arrondi au multiple de 5
+  (rend **45** sur 30–60, pas le 50 voulu) et `max − 10` (rend **80** sur 40–90, à 10 mots du
+  plafond : on recréerait sur EE2/EE3 le défaut retiré d'EE1). (2) **Tolérance serveur de 10
+  mots au-dessus de `mots_max`** (`version-ciblee.tolerance-mots-max`, défaut 10) : 61–70
+  servis sur 30–60, 71 refusé ; 100 servi sur 40–90, 101 refusé ; même règle pour la
+  réparation. **Plancher strict conservé** (aucun modèle trop court n'a été mesuré ; le
+  relâcher n'apporterait rien). La tolérance **n'est pas annoncée** au modèle.
+  *Ce que ça révoque, explicitement* : la règle du 2026-08 « bornes du texte modèle au mot
+  près, un modèle hors bornes serait irrecevable sur la plateforme » — **pour le plafond
+  seulement, et pour ce seul appel**. Exception assumée : préférer un modèle légèrement long à
+  pas de modèle du tout ; la consigne vise le milieu pour que le cas reste rare. Rien de ce
+  qui note ne bouge (appel séparé) ⇒ aucune campagne de banc ; aucun DTO ni front ne change.
+  *À surveiller* : `VersionCibleeMetrics` (`REPARATION/TEXTE_HORS_BORNES`,
+  `SECTION/ILLUSTRATION/TEXTE_HORS_BORNES`) et, en SQL, la part de textes modèles servis entre
+  `mots_max + 1` et `mots_max + 10` — si elle n'est pas rare, c'est la consigne qu'il faut
+  revoir, pas la tolérance qu'il faut élargir.
+  *Retour arrière, sans migration* : `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2` (prompt d'avant
+  au caractère près) et/ou `EVAL_VERSION_CIBLEE_TOLERANCE_MOTS_MAX=0` (contrôle au mot près).
+  Verrous : `VersionCibleeContractTest` (v3 reconstruite depuis v2, défaut, retour v2),
+  `VersionCibleeLongueurTest`, `ProductionVersionCibleeServiceTest`.
 - **v15 / v9 = `exemples_corriges` ET `suggestions` NE SONT PLUS PRODUITS.** v15 est **v14
   au bit près pour tout ce qui note** (échelle, 4 critères, seuils `commun.niveau`,
   `couplage`, `plafonds`, `bandes_criteres`, tests décisifs A1/A2 et B1/B2, les 16 ancres,

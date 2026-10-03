@@ -18,6 +18,9 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.EvaluationPurgeMetrics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.ObjectMapper;
 
@@ -130,7 +133,7 @@ class ProductionVersionCibleeServiceTest {
         return new ProductionVersionCibleeService(
             submissionManager, aiEvaluationManager, transcriptionManager, llmClient,
             new VersionCibleePromptBuilder(new ObjectMapper(), rubrics),
-            new VersionCibleeValidator(rubrics), rubrics, purgeMetrics, metrics, props);
+            new VersionCibleeValidator(rubrics, props), rubrics, purgeMetrics, metrics, props);
     }
 
     // ------------------------------------------------------ ÉCRIT, cas nominal
@@ -338,37 +341,165 @@ class ProductionVersionCibleeServiceTest {
     // -------------------------------------------------- ÉCRIT, longueur modèle
 
     /**
-     * LE DÉFAUT MESURÉ EN BASE : deux blocs livrés faisaient <b>63 et 64 mots</b>
-     * sur une tâche EE plafonnée à <b>60</b> — nous rendions au candidat un texte
-     * modèle que notre propre serveur refuse de recevoir.
+     * TOLÉRANCE DE 10 MOTS AU-DELÀ DU PLAFOND (décision du 2026-10-04). Au mot
+     * près, 3 évaluations EE1 sur 7 perdaient leur texte modèle pour 61 à 64 mots,
+     * réparation comprise. De 61 à 70 mots sur une tâche 30–60, le texte est
+     * désormais SERVI, sans réparation payée.
      */
-    @Test
-    void ecrit_texteDe63MotsSurUneTacheA60_estRefuse_uneReparation_puisSeulLExempleCibleTombe() {
+    @ParameterizedTest
+    @ValueSource(ints = {61, 63, 64, 70})
+    @SuppressWarnings("unchecked")
+    void ecrit_texteDe61a70MotsSurUneTacheA60_estServiSansReparation(int mots) {
         ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
         sub.getProductionTask().setMotsMin(30);
         sub.getProductionTask().setMotsMax(60);
         AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
-        stubLlm(sortieEcrite(motsFactices(63), List.of("mot mot", "mot mot mot"),
+        stubLlm(sortieEcrite(motsFactices(mots), List.of("mot mot", "mot mot mot"),
             levierValide(), levierValide()));
 
         service.enrichir(sub.getId());
 
-        // On ne tronque JAMAIS un texte modele : il n'est simplement pas servi.
+        Map<String, Object> exemple = (Map<String, Object>) bloc(eval, VersionCibleeFields.BLOC)
+            .get(VersionCibleeFields.EXEMPLE_CIBLE);
+        assertThat(exemple).isNotNull();
+        assertThat(exemple.get(VersionCibleeFields.TEXTE)).isEqualTo(motsFactices(mots));
+        verify(llmClient, times(1)).produire(anyString(), anyString(), any());
+        assertThat(metrics.compteurs()).isEmpty();
+    }
+
+    /**
+     * Au-delà de la tolérance, le contrôle reste DUR : 71 mots sur 30–60 est
+     * refusé, une réparation est payée, puis seul l'exemple cible tombe. On ne
+     * tronque JAMAIS un texte modèle.
+     */
+    @Test
+    void ecrit_texteDe71MotsSurUneTacheA60_estRefuse_uneReparation_puisSeulLExempleCibleTombe() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        sub.getProductionTask().setMotsMin(30);
+        sub.getProductionTask().setMotsMax(60);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(motsFactices(71), List.of("mot mot", "mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
         assertThat(bloc(eval, VersionCibleeFields.BLOC))
             .doesNotContainKey(VersionCibleeFields.EXEMPLE_CIBLE)
             .containsKeys(VersionCibleeFields.LEVIERS, VersionCibleeFields.A_RETENIR);
         ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
         verify(llmClient, times(2)).produire(anyString(), prompts.capture(), any());
+        // La reparation ramene SOUS LE PLAFOND de la tache, pas sous la tolerance :
+        // la marge absorbe un depassement, elle n'est jamais une cible.
         assertThat(prompts.getAllValues().get(1))
-            .contains("63 mots")
+            .contains("71 mots")
             .contains("30 a 60 mots")
-            .contains("RETIRANT au moins 3 mots")
+            .contains("tolere jusqu'a 70")
+            .contains("RETIRANT au moins 11 mots")
             .contains("Ne coupe PAS le texte en cours de phrase");
-        // L'APPEL PAYE ET LA SECTION PERDUE SONT COMPTES, a part l'un de l'autre :
-        // sans eux, personne ne peut dire combien de candidats perdent ce texte.
         assertThat(metrics.compteurs())
             .containsEntry("REPARATION/TEXTE_HORS_BORNES", 1L)
             .containsEntry("SECTION/ILLUSTRATION/TEXTE_HORS_BORNES", 1L);
+    }
+
+    /** Même tolérance sur 40–90 : 100 mots servis, 101 refusés. */
+    @ParameterizedTest
+    @CsvSource({"90, true", "100, true", "101, false"})
+    void ecrit_toleranceSurUneTacheA90(int mots, boolean servi) {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(motsFactices(mots), List.of("mot mot", "mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        assertThat(bloc(eval, VersionCibleeFields.BLOC).containsKey(VersionCibleeFields.EXEMPLE_CIBLE))
+            .isEqualTo(servi);
+        verify(llmClient, times(servi ? 1 : 2)).produire(anyString(), anyString(), any());
+    }
+
+    /** La RÉPARATION est jugée avec la MÊME tolérance : 75 refusé, puis 68 servi. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void ecrit_reparationJugeeAvecLaMemeTolerance() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        sub.getProductionTask().setMotsMin(30);
+        sub.getProductionTask().setMotsMax(60);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        when(llmClient.produire(anyString(), anyString(), any())).thenReturn(
+            new VersionCibleeLlmClient.Outcome(sortieEcrite(motsFactices(75),
+                List.of("mot mot", "mot mot mot"), levierValide(), levierValide()), 300, 200, 1),
+            new VersionCibleeLlmClient.Outcome(sortieEcrite(motsFactices(68),
+                List.of("mot mot", "mot mot mot"), levierValide(), levierValide()), 300, 200, 1));
+
+        service.enrichir(sub.getId());
+
+        Map<String, Object> exemple = (Map<String, Object>) bloc(eval, VersionCibleeFields.BLOC)
+            .get(VersionCibleeFields.EXEMPLE_CIBLE);
+        assertThat(exemple.get(VersionCibleeFields.TEXTE)).isEqualTo(motsFactices(68));
+        assertThat(metrics.compteurs())
+            .containsEntry("REPARATION/TEXTE_HORS_BORNES", 1L)
+            .doesNotContainKey("SECTION/ILLUSTRATION/TEXTE_HORS_BORNES");
+    }
+
+    /**
+     * RETOUR ARRIÈRE de la tolérance : {@code tolerance-mots-max: 0} rend le
+     * contrôle au mot près d'avant — 61 mots sur 30–60 est refusé.
+     */
+    @Test
+    void ecrit_toleranceAZero_controleAuMotPres() {
+        props.getVersionCiblee().setToleranceMotsMax(0);
+        service = serviceAvec(props);
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        sub.getProductionTask().setMotsMin(30);
+        sub.getProductionTask().setMotsMax(60);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(motsFactices(61), List.of("mot mot", "mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        assertThat(bloc(eval, VersionCibleeFields.BLOC))
+            .doesNotContainKey(VersionCibleeFields.EXEMPLE_CIBLE);
+        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
+        verify(llmClient, times(2)).produire(anyString(), prompts.capture(), any());
+        assertThat(prompts.getAllValues().get(1)).contains("RETIRANT au moins 1 mots");
+    }
+
+    /** Une tolérance négative est une configuration absurde : échec au démarrage. */
+    @Test
+    void toleranceNegative_echoueAuDemarrage() {
+        props.getVersionCiblee().setToleranceMotsMax(-1);
+        VersionCibleeRubricsProvider rubrics =
+            new VersionCibleeRubricsProvider(props, new ObjectMapper());
+        rubrics.load();
+        org.assertj.core.api.Assertions
+            .assertThatThrownBy(() -> new VersionCibleeValidator(rubrics, props))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("tolerance-mots-max");
+    }
+
+    /**
+     * LE PLANCHER RESTE STRICT : aucune tolérance sous {@code mots_min}, le
+     * défaut mesuré n'a jamais été un modèle trop court.
+     */
+    @ParameterizedTest
+    @CsvSource({"30, 60, 29, 1", "40, 90, 39, 1"})
+    void ecrit_lePlancherResteStrict(int min, int max, int mots, int manquants) {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        sub.getProductionTask().setMotsMin(min);
+        sub.getProductionTask().setMotsMax(max);
+        AiEvaluation eval = eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(motsFactices(mots), List.of("mot mot", "mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        assertThat(bloc(eval, VersionCibleeFields.BLOC))
+            .doesNotContainKey(VersionCibleeFields.EXEMPLE_CIBLE);
+        ArgumentCaptor<String> prompts = ArgumentCaptor.forClass(String.class);
+        verify(llmClient, times(2)).produire(anyString(), prompts.capture(), any());
+        assertThat(prompts.getAllValues().get(1))
+            .contains("AJOUTANT au moins " + manquants + " mots");
     }
 
     /** Un modèle TROP COURT est tout aussi irrecevable : le plancher compte aussi. */
@@ -405,9 +536,58 @@ class ProductionVersionCibleeServiceTest {
 
         ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
         verify(llmClient).produire(anyString(), user.capture(), any());
+        // CONSIGNES v3 (defaut) : on vise le MILIEU de la fourchette, jamais au-dela
+        // du plafond — et la tolerance serveur n'est jamais annoncee au modele.
         assertThat(user.getValue())
             .contains("\"longueur_attendue\":\"30 à 60 mots\"")
-            .contains("en 30 à 60 mots");
+            .contains("\"longueur_visee\":\"environ 50 mots\"")
+            .contains("en visant environ 50 mots — entre 30 et 60, JAMAIS plus de 60")
+            .doesNotContain("70 mots")
+            .doesNotContain("{cible}");
+    }
+
+    /** Sur 40–90, la cible v3 vaut 70. */
+    @Test
+    void ecrit_surUneTacheA90_laCibleVaut70() {
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcriteConforme());
+
+        service.enrichir(sub.getId());
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).produire(anyString(), user.capture(), any());
+        assertThat(user.getValue())
+            .contains("\"longueur_visee\":\"environ 70 mots\"")
+            .contains("environ 70 mots — entre 40 et 90, JAMAIS plus de 90");
+    }
+
+    /**
+     * RETOUR ARRIÈRE v2 : {@code EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2} rend la
+     * phrase d'avant, au caractère près, sans cible ni {@code longueur_visee}.
+     */
+    @Test
+    void retourArriereV2_lePromptNeViseAucuneCible() {
+        ProductionEvaluationProperties v2 = new ProductionEvaluationProperties();
+        v2.getVersionCiblee().setRubricsVersion("v2");
+        service = serviceAvec(v2);
+        ProductionSubmission sub = submissionEcrite(TargetLevel.B1);
+        sub.getProductionTask().setMotsMin(30);
+        sub.getProductionTask().setMotsMax(60);
+        eval(NiveauCecrl.A2, sub.getId());
+        stubLlm(sortieEcrite(motsFactices(45), List.of("mot mot", "mot mot mot"),
+            levierValide(), levierValide()));
+
+        service.enrichir(sub.getId());
+
+        ArgumentCaptor<String> user = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).produire(anyString(), user.capture(), any());
+        assertThat(user.getValue())
+            .contains("\"longueur_attendue\":\"30 à 60 mots\"")
+            .contains(", réécris SA réponse à ce niveau en 30 à 60 mots (le serveur recompte, "
+                + "hors bornes la version est refusée), désigne")
+            .doesNotContain("longueur_visee")
+            .doesNotContain("environ");
     }
 
     // ------------------------------------------------------- ORAL, cas nominal

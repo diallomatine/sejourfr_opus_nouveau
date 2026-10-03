@@ -892,7 +892,10 @@ sejourfr:
     version-ciblee:
       enabled: ${EVAL_VERSION_CIBLEE_ENABLED:true}
       # Consignes : prompts/production-version-ciblee-rubrics-<v>.json.
-      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v2}
+      # v3 (2026-10-04) = v2 + longueur VISEE du texte modele ecrit : le milieu
+      # de la fourchette arrondi a la dizaine superieure (30-60 -> 50, 40-90 -> 70),
+      # jamais plus que mots_max. Meme tool-schema v2. Retour arriere : v2.
+      rubrics-version: ${EVAL_VERSION_CIBLEE_RUBRICS_VERSION:v3}
       # Contrat de sortie : prompts/production-version-ciblee-tool-schema-<v>.json.
       # Paire rubriques <-> tool-schema verifiee au demarrage, comme partout.
       tool-schema-version: ${EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION:v2}
@@ -907,6 +910,12 @@ sejourfr:
       # Plafond SERVEUR du nombre de leviers (le tool-schema en demande 2 a 3).
       # Troisieme filet, celui qui ne depend d'aucune cooperation du modele.
       max-leviers: 3
+      # Mots ACCEPTES au-dela de production_tasks.mots_max pour le texte modele
+      # ecrit (2026-10-04) : 70 sur 30-60, 100 sur 40-90 ; le plancher mots_min
+      # reste strict. Exception assumee : un modele un peu long vaut mieux que pas
+      # de modele du tout ; la consigne v3 vise le milieu pour que le cas reste
+      # rare. 0 = controle au mot pres (comportement d'avant).
+      tolerance-mots-max: ${EVAL_VERSION_CIBLEE_TOLERANCE_MOTS_MAX:10}
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10

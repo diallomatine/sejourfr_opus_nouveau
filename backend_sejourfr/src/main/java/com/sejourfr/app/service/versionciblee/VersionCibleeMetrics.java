@@ -41,7 +41,10 @@ public class VersionCibleeMetrics {
         SORTIE_HORS_CONTRAT,
         /** Champ absent, vide, mal type, cle en trop, cardinalite fausse, plafond depasse. */
         STRUCTURE,
-        /** Texte modele hors des bornes de la tache — il serait irrecevable a la soumission. */
+        /**
+         * Texte modele sous {@code mots_min}, ou au-dela de {@code mots_max} PLUS la
+         * tolerance {@code tolerance-mots-max} (cf. {@link VersionCibleeLongueur}).
+         */
         TEXTE_HORS_BORNES,
         /** Numero de passage oral inexistant ou deja designe. */
         SEGMENT_HORS_BORNES,

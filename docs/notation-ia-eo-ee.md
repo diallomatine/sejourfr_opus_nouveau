@@ -1380,7 +1380,7 @@ défendre.
 > correspondre, et le passage finalement surligné est **celui de votre texte, tel qu'il
 > s'affiche**, jamais une version retouchée.
 
-#### Cette version respecte la longueur de l'exercice — c'est vérifié, pas demandé
+#### Cette version respecte la longueur de l'exercice — c'est vérifié, pas seulement demandé
 
 Un sujet d'expression écrite impose un **nombre de mots** (par exemple 30 à 60 pour la
 tâche 1), et notre plateforme **refuse** une copie hors de ces bornes : « Votre texte est trop
@@ -1408,6 +1408,31 @@ Ce qui se passe maintenant :
   demande 30 est refusée de la même façon.
 
 Votre correction, votre note et votre niveau ne changent jamais à cause de cela.
+
+##### Depuis le 4 octobre 2026 : on vise le milieu, et un léger dépassement est accepté
+
+À l'usage, ce contrôle au mot près faisait disparaître trop souvent l'encart « Une version plus
+aboutie » sur la **tâche 1** (30 à 60 mots) : dans **3 cas sur 7**, l'IA rendait un texte de 61
+à 64 mots, la tentative de correction dépassait encore, et vous n'aviez pas de texte modèle du
+tout. Sur les tâches 2 et 3 (40 à 90 mots), ce n'était jamais arrivé. La cause était simple :
+quand on dit « entre 30 et 60 mots », l'IA vise le haut de la fourchette, et déborde.
+
+Deux changements, pensés ensemble :
+
+- **on demande à l'IA de viser le milieu de la fourchette**, pas son plafond : **environ 50
+  mots** pour la tâche 1, **environ 70 mots** pour les tâches 2 et 3 (le milieu exact, arrondi à
+  la dizaine du dessus), et de **ne jamais dépasser** le maximum de l'exercice ;
+- **si elle dépasse quand même de quelques mots, la version est gardée** : jusqu'à **10 mots de
+  plus** que le maximum (donc jusqu'à 70 mots pour la tâche 1, 100 pour les tâches 2 et 3).
+  Au-delà, rien ne change : une seule tentative de correction, puis l'encart est retiré plutôt
+  que coupé. **Le minimum, lui, reste strict** : une version trop courte est toujours refusée.
+
+C'est un choix assumé, et il a une contrepartie qu'on préfère vous dire : **il peut arriver,
+rarement, que la version modèle fasse quelques mots de plus que ce que l'exercice vous
+autorise**. Si vous la recopiez telle quelle, la plateforme vous demandera de la raccourcir un
+peu. Nous avons jugé qu'**un modèle légèrement trop long vaut mieux que pas de modèle du
+tout** — et c'est justement parce que l'IA vise désormais le milieu que ce cas doit rester
+exceptionnel. Votre propre copie, elle, reste contrôlée au mot près, comme avant.
 
 #### À l'**oral**, on ne réécrit **jamais** votre production — on reformule deux ou trois passages
 
@@ -4839,7 +4864,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
 | **Le retrait automatique des reproches fondés sur un mot mal transcrit** (§8 bis), **le retrait des reproches de langue étrangère à l'oral** (§8 quater) et **la suppression — au lieu du rejet — d'un exemple corrigé fondé sur une notion non évaluable à l'oral** (§9) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationOralArtifactFilter.java`. Ne touche **ni la note, ni le niveau, ni un seuil** : uniquement le texte du rapport, et **uniquement à l'oral**. Les deux plafonds qui protègent le cas « le candidat a vraiment changé de langue » sont écrits dans cette même classe, avec les chiffres qui les justifient ; la liste de mots-outils étrangers qu'ils utilisent vit avec son équivalent français dans `ProductionValidityService.java`. La frontière entre ce qui reste **fatal** et ce qui est **purgé** est écrite dans `EvaluationOutputValidator.java` |
 | **Le retrait d'un conseil qui vend un moyen de niveau A2 comme la clé d'un palier supérieur** (§8 quinquies) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationPalierMarqueurFilter.java`. La liste fermée de ces petits mots y est écrite, **et un test la confronte au fichier de la grille active** : si la grille change d'avis, le projet ne compile plus vert tant que les deux ne disent pas la même chose. Ne touche **ni la note, ni le niveau, ni un seuil** ; s'applique à l'écrit comme à l'oral, et jamais aux citations du candidat |
-| **Les bornes de longueur d'une production écrite** (celles qui refusent votre copie **et** celles que doit respecter la version modèle du §5.9) | `backend_sejourfr/src/main/java/com/sejourfr/app/util/ProductionTextBounds.java`, alimenté par les colonnes `mots_min` / `mots_max` du sujet en base. **Un seul endroit décide**, ce qui garantit qu'un texte modèle est toujours une copie recevable |
+| **Les bornes de longueur d'une production écrite** (celles qui refusent votre copie **et** celles que doit respecter la version modèle du §5.9) | `backend_sejourfr/src/main/java/com/sejourfr/app/util/ProductionTextBounds.java`, alimenté par les colonnes `mots_min` / `mots_max` du sujet en base. **Un seul endroit décide** des bornes. Exception depuis le 4 octobre 2026 : pour la version modèle, le **maximum** est toléré de 10 mots et la longueur **visée** est le milieu de la fourchette — `backend_sejourfr/src/main/java/com/sejourfr/app/service/versionciblee/VersionCibleeLongueur.java` (formule) et `sejourfr.production-evaluation.version-ciblee.tolerance-mots-max` (tolérance, `EVAL_VERSION_CIBLEE_TOLERANCE_MOTS_MAX=0` pour revenir au mot près) |
 | **Ce que les filets de rapport retirent** (compteurs par famille) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationPurgeMetrics.java`. Distinct du compteur des **refus** (§12.3 bis) : un refus peut coûter la correction, un retrait n'enlève qu'une phrase |
 | **Le compteur de français désaccentué** (§10 bis — il MESURE, il ne refuse jamais) | `backend_sejourfr/src/main/java/com/sejourfr/app/service/EvaluationAccentAudit.java`. La liste fermée des formes détectées y est écrite, avec la règle qui l'a construite : en cas de doute, on ne signale rien. Aucun effet sur la note, le niveau, ni le texte rendu |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole, §10) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad`. Les cinq valeurs sont modifiables **sans reconstruire l'application** (variables d'environnement `REALTIME_GEMINI_VAD_*`). Aucune n'a d'effet sur la note |
@@ -4856,7 +4881,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les consignes de l'avant / après du diagnostic** (choisir une phrase par son numéro, ce que la réécriture garde du candidat, ne nommer aucun niveau, ne jamais vendre un moyen déjà acquis) | `backend_sejourfr/src/main/resources/prompts/diagnostic-exemple-cible-rubrics-v1.json` et son format `…-tool-schema-v1.json`, fichiers **séparés** de ceux de l'analyse — c'est ce qui garantit que le jugement du diagnostic ne change pas d'une virgule. Aucun champ n'existe pour une note, un verdict ou un niveau, et aucun pour recopier la phrase du candidat : elle est **désignée par un numéro** et retrouvée par le serveur |
 | **Les réglages de l'avant / après** (activation, versions, plafond de sortie, température) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.diagnostic.exemple-cible`. Écrit seulement, produit après l'analyse et sans rejeu : `DIAGNOSTIC_EXEMPLE_CIBLE_ENABLED=false` le coupe sans rien changer d'autre |
 | **La version au niveau que le candidat vise** (§5.9 — ce que la réécriture conserve de lui, la forme des leviers, ce qu'une reformulation orale ne corrige jamais, la règle d'accentuation) | `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v2.json` et ses **deux** contrats de sortie : `production-version-ciblee-tool-schema-v2.json` (écrit) et `production-version-ciblee-tool-schema-oral-v2.json` (oral, qui ne prévoit aucun texte réécrit). La version v1 reste chargeable — retour arrière par configuration, sans migration. Fichiers **séparés de la grille de notation**, exactement comme pour les micro-exercices : c'est un **second correcteur**, qui ne note rien et à qui l'on ne montre pas la grille. Aucun champ n'y existe pour une note ou un niveau |
-| **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`) |
+| **Le coupe-circuit de cette version au niveau visé** | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.version-ciblee` — livré **actif**. `EVAL_VERSION_CIBLEE_ENABLED=false` supprime le second appel et l'encart, sans rien changer d'autre. Le **fournisseur** reste celui de tout le reste (`production-evaluation.provider`). Ses **consignes** : `backend_sejourfr/src/main/resources/prompts/production-version-ciblee-rubrics-v3.json` (version active depuis le 4 octobre 2026 : longueur visée au milieu de la fourchette) ; `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2` revient aux consignes d'avant |
 | **La situation dans le palier** (§6.3 bis — « A2 solide ») et **ses libellés** | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/SituationDansNiveau.java`. Les bornes viennent de la **grille active**, pas de ce fichier ; les trois libellés y sont figés par un test, avec la règle qui les gouverne : aucun ne nomme un manque |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
 | **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage. Depuis la v6, la grille active la reprend à l'identique comme échelle de notation ; cet enum reste malgré tout la source officielle et sert à **afficher** la fourchette du niveau atteint |
@@ -4914,9 +4939,11 @@ place, il dit **où la production se situe dans son propre palier** — *A2 atte
 confirmé*, *A2 solide* — jamais « presque B1 » (§6.3 bis). Et, à l'écrit, un **second
 correcteur appelé séparément** rend la même réponse **rédigée au niveau que le candidat vise**,
 avec deux ou trois leviers pour l'atteindre (§5.9) : le correcteur qui note n'apprend jamais ce
-niveau visé — sinon il alignerait sa note dessus. Cette version modèle **respecte la longueur
-imposée par le sujet**, recomptée par le serveur comme une vraie copie : hors bornes, une seule
-correction est demandée, puis l'encart est retiré plutôt que coupé au milieu d'une phrase.
+niveau visé — sinon il alignerait sa note dessus. Cette version modèle **vise le milieu de la
+longueur imposée par le sujet** (environ 50 mots en tâche 1, 70 en tâches 2 et 3), recomptée par
+le serveur comme une vraie copie : le minimum est strict, le maximum toléré de 10 mots (un
+modèle un peu long vaut mieux que pas de modèle) ; au-delà, une seule correction est demandée,
+puis l'encart est retiré plutôt que coupé au milieu d'une phrase.
 
 Enfin, le serveur retire du rapport les conseils qui **promettent un palier qu'ils ne peuvent
 pas donner** — présenter « parce que », « et » ou « mais » comme la clé du B1 alors que la

@@ -22,6 +22,11 @@ package com.sejourfr.app.util;
  * modeles de 63 et 64 mots sur une tache plafonnee a 60 : un texte que notre
  * propre plateforme refuse de recevoir.
  *
+ * <p>Depuis le 2026-10-04, le second appel lit le PLAFOND de ces bornes avec une
+ * marge configuree ({@code version-ciblee.tolerance-mots-max}) : exception assumee,
+ * portee par {@code VersionCibleeLongueur}, jamais par ce type — {@link #accepte}
+ * reste la regle de la soumission, au mot pres.
+ *
  * @param min nombre de mots minimum accepte (inclus)
  * @param max nombre de mots maximum accepte (inclus)
  */

@@ -47,6 +47,7 @@ class VersionCibleeContractTest {
     private static final String SCHEMA_V1 =
         "prompts/production-version-ciblee-tool-schema-v1.json";
     private static final String RUBRICS_V2 = "prompts/production-version-ciblee-rubrics-v2.json";
+    private static final String RUBRICS_V3 = "prompts/production-version-ciblee-rubrics-v3.json";
     private static final String SCHEMA_V2 =
         "prompts/production-version-ciblee-tool-schema-v2.json";
     private static final String SCHEMA_ORAL_V2 =
@@ -96,6 +97,92 @@ class VersionCibleeContractTest {
         assertThat(rubrics.contrat()).isEqualTo(VersionCibleeContrat.V1);
         assertThat(rubrics.contrat().planDAction()).isFalse();
         assertThat(rubrics.contrat().oral()).isFalse();
+    }
+
+    /**
+     * v3 EST LA VERSION ACTIVE PAR DÉFAUT, sur le tool-schema v2 (aucun champ ne
+     * change), et elle porte la phrase de longueur VISÉE avec ses trois jetons.
+     */
+    @Test
+    void v3EstLaVersionParDefaut_etGardeLeToolSchemaV2() throws Exception {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        assertThat(props.getVersionCiblee().getRubricsVersion()).isEqualTo("v3");
+        assertThat(props.getVersionCiblee().getToolSchemaVersion()).isEqualTo("v2");
+        assertThat(props.getVersionCiblee().getToleranceMotsMax()).isEqualTo(10);
+
+        assertThat(resource(RUBRICS_V3))
+            .containsEntry("rubrics-version", "v3")
+            .containsEntry("tool_schema_version", "v2")
+            .containsEntry("profile", "TCF_IRN");
+
+        VersionCibleeRubricsProvider rubrics = new VersionCibleeRubricsProvider(props, objectMapper);
+        rubrics.load();
+        assertThat(rubrics.getVersion()).isEqualTo("v3");
+        assertThat(rubrics.contrat()).isEqualTo(VersionCibleeContrat.V2);
+        assertThat(rubrics.consigneLongueurTexteModele())
+            .contains("{cible}").contains("{min}").contains("{max}").contains("JAMAIS plus de");
+    }
+
+    /**
+     * RETOUR ARRIÈRE v3 → v2 : une seule variable. v2 reste chargeable et ne
+     * porte AUCUNE consigne de cible — son prompt reste celui d'avant.
+     */
+    @Test
+    void retourArriereV2_resteChargeableSansCible() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.getVersionCiblee().setRubricsVersion("v2");
+        VersionCibleeRubricsProvider rubrics = new VersionCibleeRubricsProvider(props, objectMapper);
+        rubrics.load();
+
+        assertThat(rubrics.contrat()).isEqualTo(VersionCibleeContrat.V2);
+        assertThat(rubrics.consigneLongueurTexteModele()).isNull();
+    }
+
+    /**
+     * ON VERSIONNE, ON NE RÉÉCRIT JAMAIS — et v3 ne change QUE la longueur. On
+     * reconstruit v3 depuis v2 en appliquant la liste ÉNUMÉRÉE des changements,
+     * et on exige l'égalité : toute autre retouche glissée dans v3 casse ce test.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void v3EstV2AuCaracterePres_saufLaLongueurVisee() throws Exception {
+        Map<String, Object> v2 = resource(RUBRICS_V2);
+        Map<String, Object> v3 = resource(RUBRICS_V3);
+
+        Map<String, Object> commun2 = map(v2.get("commun"));
+        Map<String, Object> commun3 = map(v3.get("commun"));
+        assertThat(commun3.get("few_shot")).isEqualTo(commun2.get("few_shot"));
+        assertThat(commun3.get("contraintes_longueur")).isEqualTo(commun2.get("contraintes_longueur"));
+        assertThat(commun3.keySet()).containsExactly(
+            "sections", "contraintes_longueur", "longueur_texte_modele", "few_shot");
+
+        String ancienne = "- Longueur : tu respectes les bornes de mots indiquées dans les "
+            + "données de l'exercice. Le serveur RECOMPTE, et une version hors bornes est "
+            + "refusée — le candidat lui-même ne peut pas soumettre un texte hors de ces bornes.";
+        List<Map<String, Object>> sections2 = (List<Map<String, Object>>) commun2.get("sections");
+        List<Map<String, Object>> sections3 = (List<Map<String, Object>>) commun3.get("sections");
+        assertThat(sections3).hasSameSizeAs(sections2);
+        int modifiees = 0;
+        for (int i = 0; i < sections2.size(); i++) {
+            assertThat(sections3.get(i).get("titre")).isEqualTo(sections2.get(i).get("titre"));
+            String c2 = (String) sections2.get(i).get("contenu");
+            String c3 = (String) sections3.get(i).get("contenu");
+            if (c2.contains(ancienne)) {
+                modifiees++;
+                int debut = c2.indexOf(ancienne);
+                String nouvelle = c3.substring(debut,
+                    c3.length() - (c2.length() - debut - ancienne.length()));
+                assertThat(c3).isEqualTo(c2.replace(ancienne, nouvelle));
+                assertThat(nouvelle)
+                    .startsWith("- Longueur : ")
+                    .contains("`longueur_visee`")
+                    .contains("MILIEU de la fourchette")
+                    .contains("JAMAIS le maximum");
+            } else {
+                assertThat(c3).isEqualTo(c2);
+            }
+        }
+        assertThat(modifiees).isEqualTo(1);
     }
 
     /** Une version inconnue du registre n'existe pas : échec BRUYANT, jamais un repli muet. */
@@ -256,7 +343,7 @@ class VersionCibleeContractTest {
      */
     @Test
     void leFrancaisDesPromptsEstAccentue() throws Exception {
-        for (String chemin : List.of(RUBRICS_V1, SCHEMA_V1, RUBRICS_V2, SCHEMA_V2,
+        for (String chemin : List.of(RUBRICS_V1, SCHEMA_V1, RUBRICS_V2, RUBRICS_V3, SCHEMA_V2,
                 SCHEMA_ORAL_V2)) {
             String texte = resourceText(chemin);
             long accents = texte.chars().filter(VersionCibleeContractTest::estAccentuee).count();

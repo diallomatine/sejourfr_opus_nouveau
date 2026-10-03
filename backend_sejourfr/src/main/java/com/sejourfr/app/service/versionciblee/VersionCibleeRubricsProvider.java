@@ -43,11 +43,17 @@ public class VersionCibleeRubricsProvider {
 
     /**
      * Paires consignes -> tool-schema supportées. On versionne, on ne réécrit
-     * jamais : v1 reste chargeable, donc le retour arrière reste une paire de
-     * variables d'environnement.
+     * jamais : v1 et v2 restent chargeables, donc le retour arrière reste une
+     * variable d'environnement. v3 ne change que des consignes (longueur VISÉE du
+     * texte modèle) : elle garde le tool-schema v2.
      */
     private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION =
-        Map.of("v1", "v1", "v2", "v2");
+        Map.of("v1", "v1", "v2", "v2", "v3", "v2");
+
+    /** Jetons obligatoires de {@code commun.longueur_texte_modele.consigne}. */
+    static final String JETON_CIBLE = "{cible}";
+    static final String JETON_MIN = "{min}";
+    static final String JETON_MAX = "{max}";
 
     /** Ce module ne sert que le TCF IRN : aucune autre grille n'est acceptée. */
     private static final String PROFILE_ATTENDU = "TCF_IRN";
@@ -57,6 +63,7 @@ public class VersionCibleeRubricsProvider {
 
     private Map<String, Object> commun = Map.of();
     private Map<String, Integer> contraintesLongueur = Map.of();
+    private String consigneLongueurTexteModele;
 
     public VersionCibleeRubricsProvider(ProductionEvaluationProperties props,
                                         ObjectMapper objectMapper) {
@@ -89,6 +96,8 @@ public class VersionCibleeRubricsProvider {
             }
 
             this.contraintesLongueur = resolveContraintes(communMap.get("contraintes_longueur"));
+            this.consigneLongueurTexteModele =
+                resolveConsigneLongueur(communMap.get("longueur_texte_modele"));
             this.commun = Map.copyOf(communMap);
 
             log.info("Consignes « version au niveau vise » chargees ({}) : {} sections, {} ancres, "
@@ -160,6 +169,36 @@ public class VersionCibleeRubricsProvider {
      */
     public Map<String, Integer> contraintesLongueur() {
         return contraintesLongueur;
+    }
+
+    /**
+     * Phrase d'action qui fixe la longueur VISÉE du texte modèle écrit (v3 et
+     * au-delà), jetons {@code {cible}}, {@code {min}}, {@code {max}} à remplacer.
+     * {@code null} sous v1/v2, dont le prompt reste alors identique au caractère
+     * près à ce qu'il était : c'est ce qui fait de v2 un retour arrière exact.
+     */
+    public String consigneLongueurTexteModele() {
+        return consigneLongueurTexteModele;
+    }
+
+    /**
+     * Bloc absent = consignes d'avant v3. Bloc présent mais sans sa consigne ou
+     * sans l'un de ses jetons = échec au boot : une cible jamais injectée
+     * laisserait le modèle viser le plafond sans que rien ne le signale.
+     */
+    private static String resolveConsigneLongueur(Object node) {
+        if (node == null) return null;
+        if (!(node instanceof Map<?, ?> m) || !(m.get("consigne") instanceof String consigne)
+                || consigne.isBlank()) {
+            throw new IllegalStateException("bloc 'commun.longueur_texte_modele.consigne' invalide");
+        }
+        for (String jeton : List.of(JETON_CIBLE, JETON_MIN, JETON_MAX)) {
+            if (!consigne.contains(jeton)) {
+                throw new IllegalStateException(
+                    "'commun.longueur_texte_modele.consigne' sans le jeton " + jeton);
+            }
+        }
+        return consigne;
     }
 
     private static Map<String, Integer> resolveContraintes(Object node) {

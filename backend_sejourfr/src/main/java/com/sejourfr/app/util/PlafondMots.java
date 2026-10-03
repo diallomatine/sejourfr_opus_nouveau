@@ -23,9 +23,11 @@ package com.sejourfr.app.util;
  * les petits.
  *
  * <p><b>Ce n'est pas un relachement de contrainte dure</b> : les bornes de
- * longueur d'un TEXTE MODELE ({@link ProductionTextBounds}) restent appliquees au
- * mot pres, parce qu'un texte hors bornes serait irrecevable a la soumission. Ici
- * on parle d'etiquettes de restitution, que rien ne resoumet.
+ * longueur d'un TEXTE MODELE ({@link ProductionTextBounds}) ne passent jamais par
+ * cette tolerance relative. Elles s'appliquent au mot pres, a une exception
+ * pres, assumee et reglee a part : le plafond du texte modele de la « version au
+ * niveau vise » accepte une marge ABSOLUE configuree ({@code VersionCibleeLongueur},
+ * 2026-10-04). Ici on parle d'etiquettes de restitution, que rien ne resoumet.
  */
 public final class PlafondMots {
 

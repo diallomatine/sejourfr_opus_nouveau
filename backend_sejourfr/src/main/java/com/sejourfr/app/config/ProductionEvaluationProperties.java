@@ -1303,10 +1303,13 @@ public class ProductionEvaluationProperties {
         private boolean enabled = true;
         /**
          * Consignes : {@code prompts/production-version-ciblee-rubrics-<v>.json}.
+         * v3 (2026-10-04) = v2 + une longueur VISÉE pour le texte modèle écrit (le
+         * milieu de la fourchette, cf. {@code VersionCibleeLongueur}), même
+         * tool-schema v2. Retour à v2 : {@code EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2}.
          * Retour arrière v1 (plus de plan d'action structuré, plus d'oral) :
          * {@code EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v1} + le tool-schema v1.
          */
-        private String rubricsVersion = "v2";
+        private String rubricsVersion = "v3";
         /**
          * Contrat de sortie :
          * {@code prompts/production-version-ciblee-tool-schema-<v>.json}, plus sa
@@ -1325,6 +1328,14 @@ public class ProductionEvaluationProperties {
         private double temperature = 0;
         /** Plafond serveur du nombre de leviers rendus (le schéma en demande 2 à 3). */
         private int maxLeviers = 3;
+        /**
+         * Mots ACCEPTÉS au-delà de {@code production_tasks.mots_max} pour le texte
+         * modèle écrit (2026-10-04) : 70 sur une tâche 30–60, 100 sur 40–90. Le
+         * plancher reste strict. Exception assumée à « un modèle doit être
+         * soumettable » : un modèle un peu long vaut mieux que pas de modèle.
+         * {@code 0} = contrôle au mot près, comme avant. Négatif = échec au boot.
+         */
+        private int toleranceMotsMax = 10;
 
         public boolean isEnabled() {
             return enabled;
@@ -1372,6 +1383,14 @@ public class ProductionEvaluationProperties {
 
         public void setMaxLeviers(int maxLeviers) {
             this.maxLeviers = maxLeviers;
+        }
+
+        public int getToleranceMotsMax() {
+            return toleranceMotsMax;
+        }
+
+        public void setToleranceMotsMax(int toleranceMotsMax) {
+            this.toleranceMotsMax = toleranceMotsMax;
         }
     }
 }

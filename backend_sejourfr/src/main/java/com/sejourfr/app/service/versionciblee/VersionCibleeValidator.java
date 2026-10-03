@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.versionciblee;
 
+import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.util.PlafondMots;
 import com.sejourfr.app.util.ProductionPayloadSupport;
 import com.sejourfr.app.util.ProductionTextBounds;
@@ -126,16 +127,25 @@ public class VersionCibleeValidator {
     static final String VIOLATION_SEGMENT = "numero de segment";
 
     private final VersionCibleeRubricsProvider rubrics;
+    /** Mots acceptés au-delà de {@code mots_max} pour le texte modèle écrit. */
+    private final int toleranceMotsMax;
 
-    public VersionCibleeValidator(VersionCibleeRubricsProvider rubrics) {
+    public VersionCibleeValidator(VersionCibleeRubricsProvider rubrics,
+                                  ProductionEvaluationProperties props) {
         this.rubrics = rubrics;
+        this.toleranceMotsMax = props.getVersionCiblee().getToleranceMotsMax();
+        if (toleranceMotsMax < 0) {
+            throw new IllegalStateException(
+                "sejourfr.production-evaluation.version-ciblee.tolerance-mots-max negatif : "
+                    + toleranceMotsMax);
+        }
     }
 
     /**
      * @param bornes     bornes de la tache ({@code production_tasks.mots_min/mots_max}
      *                   croisees avec les garde-fous de configuration). Jamais null
-     *                   a l'ecrit : c'est ce qui garantit qu'un texte modele est
-     *                   SOUMETTABLE sur la plateforme qui l'affiche.
+     *                   a l'ecrit. Le plafond s'y lit avec la tolerance
+     *                   {@code tolerance-mots-max} (cf. {@link VersionCibleeLongueur}).
      * @param variante   ecrit ou oral : deux contrats de sortie distincts.
      * @param nbSegments nombre de passages CITABLES de la production orale ;
      *                   ignore a l'ecrit.
@@ -262,26 +272,30 @@ public class VersionCibleeValidator {
     }
 
     /**
-     * LONGUEUR DU TEXTE MODELE — controle DUR, sans tolerance.
+     * LONGUEUR DU TEXTE MODELE — controle DUR : plancher STRICT, plafond
+     * {@code mots_max + tolerance-mots-max} (10 mots par defaut, 2026-10-04).
      *
-     * <p>La tolerance de 20 % appliquee aux plafonds pedagogiques ne vaut PAS
-     * ici : un levier est une consigne, le texte modele est une PRODUCTION, et
-     * {@code ProductionEvaluationService.validateTextWordCount} refuse la
-     * soumission d'un candidat au mot pres depuis que la tolerance historique a
-     * ete supprimee (bornes EE strictes TCF IRN). Accorder ici 20 % de marge
-     * reviendrait a rendre au candidat un modele que la plateforme refuserait de
-     * recevoir — le defaut exact que ce controle corrige (63 et 64 mots rendus
-     * sur une tache plafonnee a 60).
+     * <p>La tolerance de 20 % des plafonds pedagogiques ne vaut toujours PAS ici :
+     * celle-ci est une marge ABSOLUE, propre au texte modele, et reglee en
+     * configuration. C'est une EXCEPTION ASSUMEE a « on ne montre pas un modele
+     * que la plateforme refuserait » ({@code validateTextWordCount} refuse un
+     * candidat au mot pres) : au mot pres, la section tombait sur 3 evaluations
+     * EE1 sur 7 pour 61 a 64 mots, reparation comprise — un modele un peu long
+     * vaut mieux que pas de modele. La consigne v3 vise le MILIEU de la fourchette
+     * pour que le cas reste rare. {@code tolerance-mots-max: 0} rend le controle
+     * d'avant, au mot pres.
      *
      * <p>Le comptage est celui de la soumission ({@link ProductionPayloadSupport#countWords}) :
      * deux comptages differents suffiraient a laisser passer un texte refuse.
      */
-    private static void validerLongueurTexte(String texte, ProductionTextBounds bornes,
-                                             List<String> violations) {
+    private void validerLongueurTexte(String texte, ProductionTextBounds bornes,
+                                      List<String> violations) {
         if (bornes == null) return;
         int mots = ProductionPayloadSupport.countWords(texte);
-        if (bornes.accepte(mots)) return;
-        violations.add(VIOLATION_LONGUEUR + mots + " mots, la tache en attend " + bornes.libelle());
+        if (VersionCibleeLongueur.accepte(mots, bornes, toleranceMotsMax)) return;
+        violations.add(VIOLATION_LONGUEUR + mots + " mots, la tache en attend " + bornes.libelle()
+            + " (tolere jusqu'a "
+            + VersionCibleeLongueur.plafondTolere(bornes, toleranceMotsMax) + ")");
     }
 
     // ----------------------------------------------------------------- leviers

@@ -76,6 +76,11 @@ public class VersionCibleePromptBuilder {
                                   ProductionTextBounds bornes) {
         Map<String, Object> entrees = entreesCommunes(task, niveauConstate, niveauVise);
         entrees.put("longueur_attendue", bornes.min() + " à " + bornes.max() + " mots");
+        String consigneLongueur = rubrics.consigneLongueurTexteModele();
+        int cible = VersionCibleeLongueur.cible(bornes);
+        if (consigneLongueur != null) {
+            entrees.put("longueur_visee", "environ " + cible + " mots");
+        }
         entrees.put("production_du_candidat", production);
 
         // La longueur est REPETEE hors du JSON, dans la phrase d'action : c'est la
@@ -83,6 +88,9 @@ public class VersionCibleePromptBuilder {
         // (aucun `maxLength` ne compte des mots). Elle reste une donnee de
         // l'exercice, pas une consigne ecrite ici — et elle est de toute façon
         // verifiee serveur, la consigne n'etant que le premier filet.
+        // Depuis v3, la phrase vise une CIBLE (milieu de la fourchette,
+        // VersionCibleeLongueur) au lieu des bornes seules, qui faisaient viser le
+        // plafond. La tolerance serveur n'est volontairement PAS annoncee.
         StringBuilder sb = new StringBuilder("DONNÉES DE L'EXERCICE ET PRODUCTION DU CANDIDAT :\n")
             .append(serialize(entrees));
         if (!rubrics.contrat().planDAction()) {
@@ -94,10 +102,18 @@ public class VersionCibleePromptBuilder {
             return sb.toString();
         }
         sb.append("\n\nDonne deux ou trois leviers vers le niveau ").append(niveauVise.name())
-            .append(", réécris SA réponse à ce niveau en ").append(bornes.min()).append(" à ")
-            .append(bornes.max())
-            .append(" mots (le serveur recompte, hors bornes la version est refusée), ")
-            .append("désigne deux ou trois passages recopiés MOT POUR MOT depuis ta version ")
+            .append(", ");
+        if (consigneLongueur == null) {
+            sb.append("réécris SA réponse à ce niveau en ").append(bornes.min()).append(" à ")
+                .append(bornes.max())
+                .append(" mots (le serveur recompte, hors bornes la version est refusée)");
+        } else {
+            sb.append(consigneLongueur
+                .replace(VersionCibleeRubricsProvider.JETON_CIBLE, String.valueOf(cible))
+                .replace(VersionCibleeRubricsProvider.JETON_MIN, String.valueOf(bornes.min()))
+                .replace(VersionCibleeRubricsProvider.JETON_MAX, String.valueOf(bornes.max())));
+        }
+        sb.append(", désigne deux ou trois passages recopiés MOT POUR MOT depuis ta version ")
             .append("(le serveur les y cherche, et abandonne tout le bloc s'il ne les trouve ")
             .append("pas), puis donne une tournure à retenir. Appelle l'outil `")
             .append(VersionCibleeFields.TOOL_NAME).append("`.");

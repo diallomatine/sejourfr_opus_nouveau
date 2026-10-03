@@ -50,7 +50,8 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   - **commun** : `leviers[2..3]` = objets `{action ≤ 6 mots impératif, exemple ≤ 5 mots}`
     (fini la chaîne libre de 25 mots) + `a_retenir {formule ≤ 8 mots, explication ≤ 14 mots}` ;
   - **EE** : `exemple_cible {texte, segments[0..3] {extrait, apport ≤ 3 mots}}` — `texte` garde
-    les bornes `production_tasks.mots_min/max` (recomptées serveur). ⚠️ **Les segments sont
+    les bornes `production_tasks.mots_min/max` (recomptées serveur), **plancher strict, plafond
+    toléré de 10 mots** depuis le 2026-10-04 (§ « Bornes de longueur » plus bas). ⚠️ **Les segments sont
     FACULTATIFS** (règle du 2026-08-11, elle **révoque** « 2 segments minimum, sinon ce n'est
     pas un chemin », qui ne vaut que pour les `reformulations` orales) : un extrait
     introuvable, un apport trop long ou un objet mal formé fait retirer **ce segment**
@@ -112,8 +113,9 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   il aligne sa note dessus (v10/v11 ont mesuré qu'un simple bloc ajouté à la grille fait tomber
   l'accord exact de 81,8 % à 75,6 %). **Ne pas fusionner les deux appels.** Verrou :
   `VersionCibleeContractTest`.
-  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema[-oral]}-v2.json`, paire
-  validée au boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon
+  Prompts versionnés `production-version-ciblee-{rubrics,tool-schema[-oral]}-v2.json`, plus
+  **`production-version-ciblee-rubrics-v3.json` (ACTIVE depuis le 2026-10-04, sur le tool-schema
+  v2)**, paire validée au boot ; **aucune consigne en dur dans le Java** ; français **accentué** (leçon
   v13/v7). `additionalProperties:false`, chaque plafond **déclaré en mots par la grille** ET
   doublé d'un `maxLength` + plafond serveur (tolérance ×1,2 sur les plafonds pédagogiques, **pas**
   sur les bornes du texte modèle) — **aucun champ où loger une note ou un niveau**. Le serveur
@@ -132,7 +134,8 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   `ce_qui_manque` 30 — **inchangés**. Même correction, même passe, sur le module Compétences
   (`CompetenceAnalysisValidator` : `strength_tag`/`focus_tag` 3→**4** ;
   `CompetenceNiveauViseValidator` : `apport` 3→**4**). Ne s'applique **pas** aux bornes du
-  texte modèle (`ProductionTextBounds`), qui restent au mot près.
+  texte modèle (`ProductionTextBounds`) : plancher au mot près, plafond avec sa **propre** marge
+  absolue (`tolerance-mots-max`, 2026-10-04), jamais avec ces 20 %.
   **Compteurs `VersionCibleeMetrics`** (troisième famille, à ne pas mélanger avec
   `EvaluationRefusalMetrics` « un refus coûte la tâche » ni `EvaluationPurgeMetrics` « une purge
   retire une phrase ») : **section abandonnée** par section × motif, **réparation payée** par
@@ -148,8 +151,11 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   l'écrit de l'oral à la présence de `exemple_cible` ou de `reformulations`. Tokens/coût du 2ᵉ
   appel **additionnés** à ceux de l'éval. Provider = `production-evaluation.provider` (règle
   « un seul correcteur configurable »), réglages propres sous
-  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1600`, `max-leviers: 3`).
-  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false`, ou **v1** par
+  `production-evaluation.version-ciblee` (`enabled`, `max-tokens: 1600`, `max-leviers: 3`,
+  `tolerance-mots-max: 10`).
+  Retour arrière : `EVAL_VERSION_CIBLEE_ENABLED=false` ; consignes **v2** (sans longueur visée)
+  par `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2` ; tolérance au mot près par
+  `EVAL_VERSION_CIBLEE_TOLERANCE_MOTS_MAX=0` ; ou **v1** par
   `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v1` + `EVAL_VERSION_CIBLEE_TOOL_SCHEMA_VERSION=v1`
   (sortie `texte` + `ce_qui_manque[string]`, oral muet) — **aucune migration**, on versionne, on
   ne réécrit jamais. **Aucune campagne requise** : rien de ce qui note ne bouge, par
@@ -692,6 +698,27 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   mots à retirer/ajouter, « ne coupe pas en cours de phrase »), puis **abandon du
   bloc** — on ne tronque **jamais** un texte modèle. Une violation **structurelle** ne
   vaut toujours **aucun** second appel payé. Invariant best-effort intact.
+  ⚠️ **EXCEPTION ASSUMÉE depuis le 2026-10-04 (décision du propriétaire) : le PLAFOND du
+  texte modèle est toléré de 10 mots** (`version-ciblee.tolerance-mots-max`, défaut 10,
+  `VersionCibleeLongueur`) : EE1 (30–60) accepté jusqu'à **70**, EE2/EE3 (40–90) jusqu'à
+  **100** ; 71 / 101 refusés. Le **plancher `mots_min` reste strict** (le défaut mesuré n'a
+  jamais été un modèle trop court). C'est une **dérogation explicite** à la règle « on ne
+  montre pas un modèle que la plateforme refuserait » : le candidat peut voir un modèle de 61
+  à 70 mots qu'il ne pourrait pas soumettre tel quel. Motif : **un modèle légèrement long vaut
+  mieux que pas de modèle du tout** — au mot près, **3 évaluations EE1 sur 7** en base
+  perdaient « Une version plus aboutie » (61–64 mots, réparation comprise), 0 sur 5 en
+  EE2/EE3. Pour que le cas reste rare, les **consignes v3** font viser une **cible** au
+  modèle : le **milieu de la fourchette arrondi à la dizaine supérieure**, ramené dans
+  `[min, max]` (30–60 → **50**, 40–90 → **70**), injectée en `longueur_visee` et dans la phrase
+  d'action, avec « JAMAIS plus de `mots_max` ». **La tolérance n'est jamais annoncée au
+  modèle** (elle deviendrait sa cible). La **réparation** est jugée avec la **même**
+  tolérance, et son message demande de redescendre **sous `mots_max`**, pas sous la limite
+  tolérée. Compteurs `VersionCibleeMetrics.TEXTE_HORS_BORNES` inchangés (ils comptent ce qui
+  dépasse la tolérance). Ne vaut **que** pour le second appel « version au niveau visé » : la
+  soumission du candidat (`validateTextWordCount`), `CompetenceNiveauViseValidator` et
+  `DiagnosticExempleCibleValidator` restent au mot près. Retour arrière :
+  `EVAL_VERSION_CIBLEE_TOLERANCE_MOTS_MAX=0` et/ou `EVAL_VERSION_CIBLEE_RUBRICS_VERSION=v2`.
+  Journal : `docs/decisions/notation-ia.md` (2026-10-04).
 - **Filet déterministe de langue étrangère à l'oral** (`EvaluationOralArtifactFilter`,
   volet LANGUE, livré **ACTIF** le 2026-08-07). Le transcripteur temps réel (Gemini
   natif-audio) hallucine des passages en langue/écriture étrangère — **6
