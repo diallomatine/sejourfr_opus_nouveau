@@ -60,6 +60,12 @@ export function CalculBlock({ calcul }: { calcul: AdminProductionCalcul }) {
             </Tag>
           )}
           {calcul.coherent === null && <Tag tone="neutral">Cohérence non vérifiable</Tag>}
+          {calcul.coherent !== null && (
+            <span className={styles.version}>
+              Vérifié avec les paramètres versionnés de la grille et les réglages actuels jamais historisés
+              (interrupteurs, critères du couplage, niveaux max des plafonds).
+            </span>
+          )}
           <span className={styles.version}>
             Grille <code>{calcul.rubricsVersion ?? "—"}</code>
             {calcul.grilleActive ? " (active)" : " (historique)"} · schéma <code>{calcul.promptVersion ?? "—"}</code>

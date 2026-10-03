@@ -90,6 +90,10 @@ Format : décision · pourquoi · ce que ça change · ce qu'on pourrait modifie
     couplage, niveaux max des plafonds — aucune grille ne les a jamais déclarés (ce sont des
     réglages de déploiement, pas d'échelle) ; ils ne rendent donc pas une grille partielle. Si le
     propriétaire veut aussi les exiger, aucune grille n'est vérifiable : à trancher avant d'étendre.
+    **Validé par le propriétaire le 2026-10-03.** ⚠️ **Limite assumée** : pour v6 → v15, la
+    cohérence est vérifiée avec les paramètres versionnés de la grille **et** ces réglages actuels
+    jamais historisés. Ce n'est donc **pas** une reproduction certaine de tous les paramètres
+    d'exécution historiques ; la fiche le dit sous le verdict de cohérence (`CalculBlock`).
   - Front : `CalculBlock` affiche le calcul avec le libellé servi et « Cohérence non vérifiable ».
 - **Plus tard** : persister la configuration effective à l'évaluation (hors V1).
 
