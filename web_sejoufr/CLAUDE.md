@@ -35,7 +35,7 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
   étape »** : `app/_components/plan/now-card-gestes.tsx`, lu par l'Accueil et la Progression.
 - **Nom du pass** : `passAccessName` (`lib/passes.ts`), jamais un libellé de pass en dur.
 - **Kit** : primitives v2 (fin de `SejourKit.tsx`) `PageHead`, `ActionCard`, `ObjCard`,
-  `ObjectivesCard`/`ObjectiveRow`, `BlockSkeleton`/`BlockError`, `Hero` (ex-`HeroBanner`),
+  `BlockSkeleton`/`BlockError`, `Hero` (ex-`HeroBanner`),
   `InfoCard`, `Metric`, `Timeline`, `ThemeCard`, `TipCard`,
   `ProgressionHead`, `ExamRow` (refait), `Badge`, `Split`/`Grid` (mise en page web seule).
   Supprimées : `ModuleToggle`, `TopSlot`, `TopInAppBar`, `LevelLadder`, `LevelCard(Grid)`,

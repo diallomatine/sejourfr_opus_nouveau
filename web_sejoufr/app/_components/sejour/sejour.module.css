@@ -4334,8 +4334,8 @@ a.pRow:focus-visible {
    = tokens de module (`--color-module-*`, `--gradient-module-*`,
    `--sf-shadow-module-*`). AUCUN hex. Graisses 850/900 → 800 (max Jakarta).
 
-   Primitives : `PageHead`, `ActionCard`, `ObjCard`, `ObjectivesCard` +
-   `ObjectiveRow`, `BlockSkeleton`, `BlockError`. Miroirs Flutter `Sf…`
+   Primitives : `PageHead`, `ActionCard`, `ObjCard`,
+   `BlockSkeleton`, `BlockError`. Miroirs Flutter `Sf…`
    (`sejour_kit.dart`) ; `PageHead` ⇄ `SfModuleHeader`.
    ========================================================================== */
 
@@ -4775,112 +4775,6 @@ a.pRow:focus-visible {
     min-height: 0;
     padding: 20px;
   }
-}
-
-/* ---------- ObjectivesCard + ObjectiveRow — `.objectives-card` ---------- */
-
-.objectivesCard {
-  overflow: hidden;
-  border: 1px solid var(--color-line);
-  border-radius: var(--sf-radius-3xl);
-  background: var(--color-white);
-  box-shadow: var(--sf-shadow-card-sm);
-}
-
-.objectiveRow {
-  position: relative;
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 17px;
-  color: var(--color-ink);
-  text-decoration: none;
-}
-
-/* Le filet entre deux lignes, en retrait sous le texte (maquette). */
-.objectiveRow + .objectiveRow::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 77px;
-  right: 17px;
-  height: 1px;
-  background: var(--color-line);
-}
-
-.objectiveRow:hover {
-  background: color-mix(in srgb, var(--mod-light) 35%, var(--color-white));
-}
-
-.objectiveRow:focus-visible {
-  outline: 2px solid var(--mod);
-  outline-offset: -2px;
-}
-
-.objectiveIcon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--sf-radius-md);
-  background: var(--mod-light);
-  color: var(--mod);
-}
-
-.objectiveIcon svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 2.1;
-}
-
-.objectiveCopy {
-  min-width: 0;
-}
-
-.objectiveLabel {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-.objectiveMeta {
-  display: block;
-  margin-top: 4px;
-  font-size: 14px;
-  line-height: 1.35;
-  color: var(--color-muted);
-}
-
-.objectiveTitle {
-  display: block;
-  margin: 4px 0 0;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.objectiveValue {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--mod);
-  white-space: nowrap;
-}
-
-.objectiveValue strong {
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.objectiveValue svg {
-  width: 17px;
-  height: 17px;
-  stroke-width: 2.2;
 }
 
 /* ---------- BlockSkeleton — un bloc en chargement, à ses dimensions ---------- */
@@ -5854,19 +5748,6 @@ a.pRow:focus-visible {
    Flutter (l'en-tête mobile est `SfModuleHeader`). */
 .pageBody {
   margin-top: 26px;
-}
-
-/* L'intertitre « Résumé de préparation » posé DANS une `ObjectivesCard`
-   (Profil web, `.card .label`). */
-.objectivesLabel {
-  margin: 0;
-  padding: 18px 21px 2px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-muted);
 }
 
 /* ---------- La carte « Cycle » (`CycleProgress title`, Navigation v2) ----------

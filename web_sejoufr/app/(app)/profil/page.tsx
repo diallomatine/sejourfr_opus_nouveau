@@ -15,20 +15,14 @@ import {
 } from "lucide-react";
 import {
     Badge,
-    BlockError,
-    BlockSkeleton,
     InfoCard,
-    ObjectiveRow,
-    ObjectivesCard,
     Pad,
     PageHead,
     Section,
     SejourApp,
     Split,
-    TipCard,
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
-import {IconMap, IconShield, IconSparkle} from "@/app/_components/shell/ShellIcons";
 import {useAuth} from "@/lib/auth-context";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, billingApi, dashboardApi} from "@/lib/api";
@@ -43,18 +37,6 @@ import {
     COMPTE_PROFIL_HREF,
     compteIsLocal,
 } from "@/lib/compte";
-import {
-    ACCUEIL_BLOCK_ERROR,
-    ACCUEIL_CIVIQUE_LABEL,
-    ACCUEIL_CIVIQUE_OBJECTIF_TITRE,
-    ACCUEIL_RETRY,
-    ACCUEIL_TCF_LABEL,
-    accueilPourcentage,
-    accueilTcfObjectifTitre,
-    accueilTcfProgression,
-} from "@/lib/accueil";
-import {progressionHref} from "@/lib/progression";
-import {avancementSeriesCivique} from "@/lib/reviser";
 import {CompteGate, CompteLoading} from "../../_components/compte/CompteParts";
 import {estimatedTcfLevelScopeLabel, niveauCecrlShort} from "@/lib/types";
 import type {
@@ -69,11 +51,11 @@ import type {
  * contenu avec l'onglet Profil mobile (`profile_screen.dart`).
  *
  * `Split` : à gauche la carte profil (initiales, nom, e-mail, « Objectif :
- * {démarche} », pastilles pass + démarche, « Modifier »), les 3 tuiles
- * (gardées), « Mon objectif » (gardé), « Mon compte » en `InfoCard` (Mon pass,
+ * {démarche} », pastilles pass + démarche, « Modifier »), la tuile
+ * « Niveau estimé », « Mon objectif », « Mon compte » en `InfoCard` (Mon pass,
  * Mes informations, Notifications, Mes favoris, Aide), la session
- * (déconnexion, suppression) et la version ; à droite le « Résumé de
- * préparation » (`ObjectivesCard`) et « Votre semaine » (`TipCard`).
+ * (déconnexion, suppression) et la version. « Résumé de préparation » et
+ * « Votre semaine » sont retirés (2026-10-03, demande du propriétaire).
  *
  * 🛑 Tout est servi : aucun nombre n'est classé ici. Le niveau cible est
  * `AuthenticatedUser.targetLevel` (X13), seule source. « Membre depuis » :
@@ -92,8 +74,6 @@ export default function ProfilPage() {
     const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 
     const [dashboard, setDashboard] = useState<DashboardSummaryResponse | null>(null);
-    const [dashboardError, setDashboardError] = useState(false);
-    const [dashboardTentative, setDashboardTentative] = useState(0);
     const [subscription, setSubscription] = useState<SubscriptionStatusResponse | null>(null);
 
     useEffect(() => {
@@ -101,13 +81,11 @@ export default function ProfilPage() {
         let cancelled = false;
         void dashboardApi.summaryCached().then((d) => {
             if (!cancelled) setDashboard(d);
-        }).catch(() => {
-            if (!cancelled) setDashboardError(true);
-        });
+        }).catch(() => {});
         return () => {
             cancelled = true;
         };
-    }, [status, dashboardTentative]);
+    }, [status]);
 
     useEffect(() => {
         if (status !== "authenticated") return;
@@ -322,28 +300,6 @@ export default function ProfilPage() {
                             </Pad>
                         </>
                     )}
-                    side={(
-                        <Pad>
-                            <div className={sejourStyles.splitSide}>
-                                <ResumePreparation
-                                    dashboard={dashboard}
-                                    error={dashboardError}
-                                    onRetry={() => {
-                                        setDashboardError(false);
-                                        setDashboardTentative((n) => n + 1);
-                                    }}
-                                    cible={cible}
-                                />
-                                {dashboard ? (
-                                    <TipCard
-                                        icon={<IconSparkle/>}
-                                        label="Votre semaine"
-                                        text={semaineTexte(dashboard.currentStreakDays)}
-                                    />
-                                ) : null}
-                            </div>
-                        </Pad>
-                    )}
                 />
             </div>
 
@@ -398,59 +354,6 @@ export default function ProfilPage() {
 // ============================================================================
 // BRIQUES
 // ============================================================================
-
-/**
- * **« Résumé de préparation »** — les deux objectifs, comme « Mes objectifs »
- * de l'Accueil : TCF `{actuel|—} → {cible}` (niveau estimé servi, cible
- * `targetLevel`), civique `{pct} %` par `avancementSeriesCivique`, la fonction
- * unique. Chaque ligne ouvre la Progression du module.
- */
-function ResumePreparation({dashboard, error, onRetry, cible}: {
-    dashboard: DashboardSummaryResponse | null;
-    error: boolean;
-    onRetry: () => void;
-    cible: Parameters<typeof accueilTcfObjectifTitre>[0];
-}) {
-    if (!dashboard) {
-        return error
-            ? <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>
-            : <BlockSkeleton height={200} radius={24}/>;
-    }
-    const civique = avancementSeriesCivique(dashboard.civique);
-    return (
-        <ObjectivesCard label="Résumé de préparation">
-            <ObjectiveRow
-                module="tcf"
-                icon={<IconMap/>}
-                label={ACCUEIL_TCF_LABEL}
-                title={accueilTcfObjectifTitre(cible)}
-                value={accueilTcfProgression(dashboard.estimatedTcfLevel, cible)}
-                href={progressionHref("TCF")}
-            />
-            <ObjectiveRow
-                module="civique"
-                icon={<IconShield/>}
-                label={ACCUEIL_CIVIQUE_LABEL}
-                title={ACCUEIL_CIVIQUE_OBJECTIF_TITRE}
-                value={accueilPourcentage(civique.pourcentage)}
-                href={progressionHref("CIVIQUE")}
-            />
-        </ObjectivesCard>
-    );
-}
-
-/**
- * « Votre semaine » : la série de jours servie (`currentStreakDays`) et le
- * texte éditorial de la maquette ; 0 jour ⇒ une invitation, jamais « 0 jour
- * d'activité de suite ».
- */
-function semaineTexte(jours: number): string {
-    if (jours <= 0) {
-        return "Une série aujourd'hui lance votre semaine : la régularité est le meilleur prédicteur de réussite aux deux examens.";
-    }
-    const mot = jours > 1 ? "jours" : "jour";
-    return `${jours} ${mot} d'activité de suite. Continuez ainsi : la régularité est le meilleur prédicteur de réussite aux deux examens.`;
-}
 
 function StatTile({
                       label,

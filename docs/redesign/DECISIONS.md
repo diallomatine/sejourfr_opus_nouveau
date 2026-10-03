@@ -315,6 +315,7 @@
   - Plan TCF et civique : lien « Tout l'entraînement » de « Priorités actuelles » retiré ; « À faire maintenant » passe avant la carte du plan, dont la phrase d'explication est retirée ; côté utilisateur, « cycle » se dit « plan » (« Plan N », « Mes plans »).
   - Plan TCF web : hero « Ma progression » de la colonne droite retiré (absent du segment Plan mobile ; le mobile porte « Ma progression » au-dessus des segments, le web dans la sidebar).
   - Plan civique : hero rouge « Progression globale » et badge « Objectif examen · 32/40 » (web) retirés — **révoque X8 A** : le % civique n'a plus que 5 emplacements (Accueil, carte objectif / ligne d'objectif, tail sidebar, carte « Ma progression » mobile, écran Progression civique).
+  - Profil : tuiles « Maîtrise » et « Série » retirées (web + mobile, reste « Niveau estimé ») ; Profil web : colonne « Résumé de préparation » + « Votre semaine » retirée, `ObjectivesCard`/`ObjectiveRow` retirées du kit web (le mobile garde `SfObjectivesCard`, lu par son Accueil).
   - Écrans Progression TCF et civique (globaux) : sections « Par compétence » / « Par thème » retirées (redite des cartes d'épreuve / de thème plus bas), avec `LevelList`/`LevelRow` ⇄ `SfLevelList`/`SfLevelRow`.
   - Écrans Progression TCF et civique (globaux) : bloc « Prochaine étape » retiré (web + mobile) ; `ProchaineEtape.tsx` / `prochaine_etape_hero.dart` supprimés, les gestes partagés (`now-card-gestes`) restent lus par l'Accueil.
   - Plan civique : carte « Examen blanc civique » retirée (l'accès reste par Civique · Examens).
