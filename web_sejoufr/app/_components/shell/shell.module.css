@@ -355,9 +355,45 @@
   box-shadow: var(--sf-shadow-card);
 }
 
-.user:focus-visible {
+.userLink {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--sf-radius-md);
+}
+
+.userLink:focus-visible,
+.logout:focus-visible {
   outline: 2px solid var(--color-blue);
   outline-offset: 2px;
+}
+
+.logout {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--sf-radius-md);
+  background: transparent;
+  color: var(--color-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--sf-quick) ease, color var(--sf-quick) ease;
+}
+
+.logout:hover {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.logout svg {
+  width: 20px;
+  height: 20px;
 }
 
 .avatar {
@@ -399,17 +435,6 @@
 
 .userPlan b {
   color: var(--color-amber-dark);
-}
-
-.chev {
-  color: var(--color-muted-2);
-  display: grid;
-  place-items: center;
-}
-
-.chev svg {
-  width: 18px;
-  height: 18px;
 }
 
 /* ---------- Barre du haut ---------- */

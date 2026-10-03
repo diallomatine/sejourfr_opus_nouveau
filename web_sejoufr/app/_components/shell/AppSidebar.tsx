@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {usePathname, useSearchParams} from "next/navigation";
+import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, type ReactNode} from "react";
 import {Cocarde, Wordmark} from "../Brand";
 import {useAuth} from "@/lib/auth-context";
@@ -23,7 +23,7 @@ import {useShellNav} from "@/lib/use-shell-nav";
 import {
     IconBook,
     IconChart,
-    IconChevronRight,
+    IconLogout,
     IconClock,
     IconClose,
     IconHome,
@@ -34,6 +34,8 @@ import {
     IconUser,
 } from "./ShellIcons";
 import styles from "./shell.module.css";
+
+const SHELL_LOGOUT_LABEL = "Se déconnecter";
 
 /**
  * **La barre latérale de l'espace connecté** — maquette « Navigation v2 ».
@@ -96,7 +98,8 @@ function SidebarBody({
     embedded?: boolean;
     active: ShellActive;
 }) {
-    const {user} = useAuth();
+    const {user, logout} = useAuth();
+    const router = useRouter();
     const nav = useShellNav();
 
     const cls = [styles.sidebar, open && styles.open, embedded && styles.embedded]
@@ -144,24 +147,35 @@ function SidebarBody({
             </nav>
 
             {user ? (
-                <Link
-                    href="/profil"
-                    className={styles.user}
-                    aria-current={active.item === "profil" ? "page" : undefined}
-                >
-                    <span className={styles.avatar} aria-hidden>
-                        {shellInitials(user.firstName, user.lastName, user.email)}
-                    </span>
-                    <span className={styles.userText}>
-                        <span className={styles.userName}>
-                            {`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email}
+                <div className={styles.user}>
+                    <Link
+                        href="/profil"
+                        className={styles.userLink}
+                        aria-current={active.item === "profil" ? "page" : undefined}
+                    >
+                        <span className={styles.avatar} aria-hidden>
+                            {shellInitials(user.firstName, user.lastName, user.email)}
                         </span>
-                        <UserPass premium={user.isPremium ?? false} integral={user.hasTcf ?? false} />
-                    </span>
-                    <span className={styles.chev} aria-hidden>
-                        <IconChevronRight />
-                    </span>
-                </Link>
+                        <span className={styles.userText}>
+                            <span className={styles.userName}>
+                                {`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email}
+                            </span>
+                            <UserPass premium={user.isPremium ?? false} integral={user.hasTcf ?? false} />
+                        </span>
+                    </Link>
+                    <button
+                        type="button"
+                        className={styles.logout}
+                        onClick={() => {
+                            logout();
+                            router.push("/");
+                        }}
+                        aria-label={SHELL_LOGOUT_LABEL}
+                        title={SHELL_LOGOUT_LABEL}
+                    >
+                        <IconLogout />
+                    </button>
+                </div>
             ) : null}
         </aside>
     );
