@@ -23,7 +23,10 @@ export interface NavSection {
 export const NAVIGATION: readonly NavSection[] = [
   {
     label: "Pilotage",
-    items: [{ to: "/dashboard", label: "Suivi", icon: "dashboard" }],
+    items: [
+      { to: "/dashboard", label: "Suivi", icon: "dashboard" },
+      { to: "/dashboard/activity", label: "Activité", icon: "activity" },
+    ],
   },
   {
     label: "Support",
@@ -76,4 +79,11 @@ export function navEntryFor(pathname: string): NavEntry | null {
     }
   }
   return best;
+}
+
+/** Vrai si une autre entrée vit sous `entry.to` (`/dashboard/activity` sous `/dashboard`) : son lien ne s'allume alors que sur sa route exacte. */
+export function hasNestedEntry(entry: NavEntry): boolean {
+  return NAVIGATION.some((section) =>
+    section.items.some((item) => item.to.startsWith(`${entry.to}/`)),
+  );
 }

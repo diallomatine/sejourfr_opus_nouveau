@@ -46,6 +46,9 @@ src/
 │   │                        seule. Détail dans la section « Suivi » plus bas.
 │   │                        Remplace `analytics/` (et avant elle `audience/`,
 │   │                        `dashboard/`), supprimées.
+│   ├── activity/            L'écran « Activité » (`/dashboard/activity`) : actifs,
+│   │                        connexions, plateformes, écrans consultés + direct
+│   │                        30 s. Détail dans la section « Activité » plus bas.
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
 │   ├── conversations/       Vue split list/detail style "boîte mail".
@@ -78,7 +81,12 @@ src/
 │                            multi-clés, recherche debouncée, recalage de page)
 │                            — partagé par `subscriptions/`, `users/`, `productions/`
 ├── lib/
-│   ├── dates.ts             Affichage d'un instant servi en heure de Paris + `parisToday()`
+│   ├── dates.ts             Affichage d'un instant servi en heure de Paris + `parisToday()`,
+│   │                        `parisDay()`, `dayMonth()`, `formatRange()` (bornes servies)
+│   ├── format.ts            Format fr-FR des écrans de pilotage (U+202F, U+2212, `—`)
+│   ├── measurement.ts       « non mesuré » / « mesuré depuis le JJ/MM » (date de début servie)
+│   ├── period.ts            Période des écrans de pilotage : `?period&from&to`, presets,
+│   │                        `rangeParams`, `comparedTo` — partagé par Suivi et Activité
 │   ├── evaluation.ts        Lecture d'une évaluation IA EE/EO (libellés, JSONB, transcription)
 │   └── queryClient.ts       Config TanStack Query
 ├── pages/
@@ -105,10 +113,16 @@ Endpoints utilisés actuellement :
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
 - `GET /api/admin/analytics/suivi` — **l'unique endpoint de l'écran Suivi**
-  (`AdminSuiviResponse`). Période : `preset=TODAY|YESTERDAY|LAST_7_DAYS|MONTH`
+  (`AdminSuiviResponse`). Période : `preset=TODAY|YESTERDAY|LAST_7_DAYS|LAST_30_DAYS|MONTH`
   **ou** `from`/`to` (`yyyy-MM-dd`, Paris, inclus, ≤ 365 j) — jamais les deux
   (400). Filtres : `type=ALL|TCF|CIVIQUE`, `platform=ALL|WEB|IOS|ANDROID`,
   `source` (valeurs de `filters.availableSources`), `includeInternal`.
+- `GET /api/admin/analytics/activity?preset=…|from=&to=&includeInternal=` — **l'unique
+  appel de période de l'écran Activité** (`AdminActivityResponse`) ; mêmes règles de
+  période que `/suivi`. `GET /api/admin/analytics/activity/live?includeInternal=` — le
+  direct (`AdminActivityLiveResponse`), relu toutes les 30 s par la carte « Actifs
+  maintenant » (Suivi) et « En ligne maintenant » (Activité). Contrat :
+  `docs/admin/activites/decisions-implementation.md` § Contrat.
 - ⚠️ `GET /api/admin/analytics` (ancien écran), `…/analytics/annotations`,
   `GET /api/admin/page-views` et `GET /api/admin/audience/funnel` n'ont plus
   aucun appelant ici ; `GET /api/admin/dashboard` survit, lu par `AppLayout`
@@ -286,7 +300,7 @@ de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
   jamais celles demandées.
 - 🛑 **`null` = inconnu ou pas encore mesuré, jamais `0`** (Q16, D43). Rendu
   `—` + mention « non mesuré » / « mesuré à partir du JJ/MM » tirée de
-  `measurementStart` (`measurement.ts`, `unmeasuredNote`). Une période qui
+  `measurementStart` (`measurement.ts` → `lib/measurement.ts`, `unmeasuredNote`). Une période qui
   **chevauche** la date de début est servie chiffrée depuis cette date (D117) :
   la valeur s'affiche avec la mention « mesuré depuis le JJ/MM »
   (`measuredSinceNote`), et sa tendance reste `—` (période précédente non mesurée). Une étape de tunnel `null` n'a **pas
@@ -295,10 +309,44 @@ de police dans la feature). Décisions : `docs/admin/decisions-suivi.md`.
   largeurs de barre du tunnel (`pctOfFirst`) sont servis. Seule exception
   visuelle : la longueur des barres de sources, échelle rapportée au plus gros
   groupe (aucun % affiché).
-- **Format** (`format.ts`) : espace fine insécable U+202F, signe moins U+2212,
+- **Format** (`lib/format.ts`) : espace fine insécable U+202F, signe moins U+2212,
   virgule décimale, `—` pour l'absent. Montants en centimes.
+- **Période** : Aujourd'hui / Hier / 7 jours / **30 jours** (`LAST_30_DAYS`) / Mois /
+  Personnalisé, lue et écrite par `lib/period.ts` et choisie par
+  `components/ui/PeriodPicker` (partagés avec Activité).
+- **Carte « Actifs maintenant »** au-dessus des KPI : `LiveActivityCard` de
+  `features/activity/` en variante `compact` (second appel assumé, D11 ; sa propre
+  `queryKey`, 30 s ; ne dépend ni de la période ni des filtres, sauf « internes »),
+  lien « Voir l'activité → » qui conserve `internal`.
 - Libellé plateforme **« iOS »** (jamais « Apple ») ; le fournisseur de
   paiement reste « Apple » dans le bloc Revenus.
+
+### Activité (`features/activity/`)
+
+Route **`/dashboard/activity`** (entrée de nav « Pilotage › Activité »), lecture
+seule, agrégats seulement (aucun nom ni email, CNIL). Plan :
+`docs/admin/activites/plan-technique-activite.md` § 5 ; décisions :
+`docs/admin/activites/decisions-implementation.md` § « Admin ».
+
+- **Blocs** : filtres (période Aujourd'hui / Hier / 7 j / 30 j / Personnalisé +
+  « Inclure internes ») → direct « En ligne maintenant » → 2 KPI (actifs uniques ;
+  comptes connectés + « N connexions · dont M inscriptions ») → répartition par
+  plateforme (+ connexions par méthode) → évolution journalière (masquée sur un seul
+  jour) → pages (web) / écrans (app) les plus consultés, en onglets.
+- **Deux appels** : `useActivity` (`["adminActivity", query]`) pour la période,
+  `useActivityLive` (`["adminActivityLive", includeInternal]`, `refetchInterval`
+  30 s, pas de relecture onglet caché). **État dans l'URL** (`useActivityParams` :
+  `?period&from&to&internal`, mêmes clés que Suivi, `month` non offert ⇒ ignoré).
+- 🛑 **Tout est servi** : libellés de plateforme et de méthode, `displayed` (« Non
+  déclarée » seulement avec internes), lignes « Total », « Autres écrans suivis »,
+  « Écrans non déclarés », tendances. Le front n'additionne **aucun unique** et ne
+  calcule aucun pourcentage. Fenêtre du direct lue dans `windowSeconds`, jamais en dur.
+- `null` = non mesuré : `—` + mention tirée de `measurementStart` (`notes.ts` →
+  `lib/measurement.ts`) ; `measuredSince` postérieur au début de période ⇒ « mesuré
+  depuis le JJ/MM ». Un jour non mesuré de la série = cadre pointillé, sans barre.
+- **Graphique journalier** en barres CSS, sans librairie : hauteur = échelle visuelle
+  rapportée au plus haut jour (aucun % affiché, même exception que les sources de
+  Suivi), ligne de lecture au survol / focus, tableau « Détail par jour » repliable.
 
 ### Titres des sujets EE/EO (`features/productionTasks/`)
 
@@ -497,6 +545,8 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   barre réduite aux icônes (libellés masqués visuellement mais lus) ; ≤ 720 px barre retirée,
   **bouton burger** dans la topbar qui ouvre la même barre en tiroir (voile, Échap, lien,
   changement de route ⇒ fermeture ; focus piégé puis rendu au burger ; défilement bloqué).
+  Une entrée dont une autre vit sous son chemin (`/dashboard` ⊃ `/dashboard/activity`) ne
+  s'allume que sur sa route exacte (`hasNestedEntry`).
   Ajouter une page = une route dans `App.tsx` **et** une entrée dans `navigation.ts` (icône du
   jeu `components/ui/Icon.tsx` — ajouter le SVG au jeu s'il manque, jamais de librairie).
 - **Primitives** : `Button` (`primary` | `default` contour bleu | `ghost` | `danger` contour rouge
@@ -504,14 +554,17 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   `Modal` (`title`, `description`, `size`, pied empilé pleine largeur en mobile), `Toast`
   (`show(titre, ton, détail?)`), `Panel`, `PageHeader` (`description`), `Chips` (filtre exclusif,
   défilement horizontal en mobile), `Avatar` (initiales), `Icon`, `Collapsible` (carte repliable,
-  `<details>` natif).
+  `<details>` natif), `Segmented` (sélecteur exclusif compact des écrans de pilotage),
+  `PeriodPicker` (période + plage personnalisée, sur `lib/period.ts`), `StatTile` (tuile KPI).
 - **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
   ajouter `tableStyles.cardTable` à la table, tous deux dans
   `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les
   `Panel` sont en `overflow: hidden`, sans lui les colonnes de droite sont rognées) ;
   `cardTable` bascule chaque ligne en fiche empilée sous 720 px, chaque cellule étant
   préfixée par l'intitulé de sa colonne — donc **chaque `<td>` porte un `data-label`**
-  (sauf la 1ʳᵉ colonne, titre de la fiche, et la dernière, actions de ligne). Ne pas
+  (sauf la 1ʳᵉ colonne, titre de la fiche, et la dernière, actions de ligne). Tableau
+  **sans** colonne d'actions : ajouter `tableStyles.noActions`, sa dernière cellule garde
+  alors son intitulé (et porte donc un `data-label`). Ne pas
   redupliquer ce bloc dans un module de feature : il y était recopié 5 fois avant d'être
   remonté.
 

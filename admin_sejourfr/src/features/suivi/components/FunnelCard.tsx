@@ -1,5 +1,5 @@
 import type { AdminSuiviResponse, SuiviFunnelStep } from "../../../types/api";
-import { DASH, int, money, pct } from "../format";
+import { DASH, int, money, pct } from "../../../lib/format";
 import { SCOPE_LABELS, STEP_LABELS } from "../labels";
 import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";

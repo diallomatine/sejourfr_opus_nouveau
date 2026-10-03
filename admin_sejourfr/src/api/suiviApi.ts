@@ -1,4 +1,5 @@
 import { apiRequest } from "./http";
+import { rangeParams } from "../lib/period";
 import type { AdminSuiviResponse, SuiviQuery } from "../types/api";
 
 /**
@@ -7,10 +8,7 @@ import type { AdminSuiviResponse, SuiviQuery } from "../types/api";
  * a leur valeur par defaut ne sont pas envoyes.
  */
 function toParams(query: SuiviQuery): Record<string, string> {
-  const params: Record<string, string> =
-    "preset" in query.range
-      ? { preset: query.range.preset }
-      : { from: query.range.from, to: query.range.to };
+  const params = rangeParams(query.range);
   if (query.type !== "ALL") params.type = query.type;
   if (query.platform !== "ALL") params.platform = query.platform;
   if (query.source !== "ALL") params.source = query.source;

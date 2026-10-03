@@ -1,5 +1,5 @@
 import type { AdminSuiviResponse } from "../../../types/api";
-import { DASH, count, deduction, int, money } from "../format";
+import { DASH, count, deduction, int, money } from "../../../lib/format";
 import { PROVIDER_LABELS } from "../labels";
 import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";

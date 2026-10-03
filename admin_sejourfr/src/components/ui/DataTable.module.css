@@ -186,3 +186,16 @@
     display: none;
   }
 }
+
+/* Tableau sans colonne d'actions (chiffres jusqu'à la dernière colonne) : sa
+   dernière cellule garde son intitulé en fiche. À poser avec `cardTable`. */
+@media (max-width: 720px) {
+  .cardTable.cardTable.noActions tbody td:last-child {
+    justify-content: space-between;
+    padding-top: 5px;
+  }
+
+  .cardTable.cardTable.noActions tbody td:last-child::before {
+    display: block;
+  }
+}

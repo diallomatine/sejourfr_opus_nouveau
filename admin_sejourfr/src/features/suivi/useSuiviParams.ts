@@ -1,28 +1,16 @@
 import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import type {
-  SuiviPeriodPreset,
-  SuiviPlatformFilter,
-  SuiviQuery,
-  SuiviTypeFilter,
-} from "../../types/api";
+import { readPeriod, writePeriod, type PeriodId, type PeriodPatch } from "../../lib/period";
+import type { SuiviPlatformFilter, SuiviQuery, SuiviTypeFilter } from "../../types/api";
 
-export type PeriodId = "today" | "yesterday" | "7d" | "month" | "custom";
-
-export const PERIOD_OPTIONS: { id: PeriodId; label: string }[] = [
-  { id: "today", label: "Aujourd’hui" },
-  { id: "yesterday", label: "Hier" },
-  { id: "7d", label: "7 jours" },
-  { id: "month", label: "Mois" },
-  { id: "custom", label: "Personnalisé" },
+export const SUIVI_PERIODS: readonly PeriodId[] = [
+  "today",
+  "yesterday",
+  "7d",
+  "30d",
+  "month",
+  "custom",
 ];
-
-const PRESETS: Record<Exclude<PeriodId, "custom">, SuiviPeriodPreset> = {
-  today: "TODAY",
-  yesterday: "YESTERDAY",
-  "7d": "LAST_7_DAYS",
-  month: "MONTH",
-};
 
 const TYPES: Record<string, SuiviTypeFilter> = { tcf: "TCF", civique: "CIVIQUE" };
 const PLATFORMS: Record<string, SuiviPlatformFilter> = {
@@ -31,16 +19,11 @@ const PLATFORMS: Record<string, SuiviPlatformFilter> = {
   android: "ANDROID",
 };
 
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
 function lookup<T>(table: Record<string, T>, raw: string | null): T | undefined {
   return raw != null && Object.hasOwn(table, raw) ? table[raw] : undefined;
 }
 
-export interface SuiviPatch {
-  period?: PeriodId;
-  from?: string;
-  to?: string;
+export interface SuiviPatch extends PeriodPatch {
   type?: SuiviTypeFilter;
   platform?: SuiviPlatformFilter;
   source?: string;
@@ -50,28 +33,16 @@ export interface SuiviPatch {
 /**
  * L'etat de l'ecran vit dans l'URL (`?period&from&to&type&platform&source
  * &internal`) : le lien se partage et le bouton retour rejoue la vue. Une
- * valeur illisible est ignoree ; une valeur par defaut n'est pas ecrite. Une
- * plage personnalisee incomplete ou inversee retombe sur « Aujourd'hui » :
- * elle partirait en 400.
+ * valeur illisible est ignoree ; une valeur par defaut n'est pas ecrite. La
+ * periode est lue et ecrite par `lib/period.ts`, partage avec Activite.
  */
 export function useSuiviParams() {
   const [params, setParams] = useSearchParams();
 
   const state = useMemo(() => {
-    const rawPeriod = params.get("period");
-    const from = params.get("from") ?? "";
-    const to = params.get("to") ?? "";
-    const customValid =
-      rawPeriod === "custom" && ISO_DAY.test(from) && ISO_DAY.test(to) && from <= to;
-    const period: PeriodId = customValid
-      ? "custom"
-      : lookup(PRESETS, rawPeriod)
-        ? (rawPeriod as PeriodId)
-        : "today";
-
+    const { period, from, to, range } = readPeriod(params, SUIVI_PERIODS);
     const query: SuiviQuery = {
-      range:
-        period === "custom" ? { from, to } : { preset: PRESETS[period as keyof typeof PRESETS] },
+      range,
       type: lookup(TYPES, params.get("type")) ?? "ALL",
       platform: lookup(PLATFORMS, params.get("platform")) ?? "ALL",
       source: params.get("source") || "ALL",
@@ -88,15 +59,7 @@ export function useSuiviParams() {
           if (value) next.set(key, value);
           else next.delete(key);
         };
-        if (patch.period !== undefined) {
-          write("period", patch.period === "today" ? null : patch.period);
-          if (patch.period !== "custom") {
-            next.delete("from");
-            next.delete("to");
-          }
-        }
-        if (patch.from !== undefined) write("from", patch.from);
-        if (patch.to !== undefined) write("to", patch.to);
+        writePeriod(next, patch);
         if (patch.type !== undefined) {
           write("type", patch.type === "ALL" ? null : patch.type.toLowerCase());
         }

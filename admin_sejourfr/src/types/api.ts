@@ -1595,7 +1595,7 @@ export interface AdminProductionDetailDto {
 // 🛑 `null` = inconnu ou pas encore mesure, JAMAIS zero. Le front n'en
 // recalcule aucun : il affiche ce qui est servi.
 
-export type SuiviPeriodPreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "MONTH";
+export type SuiviPeriodPreset = "TODAY" | "YESTERDAY" | "LAST_7_DAYS" | "LAST_30_DAYS" | "MONTH";
 
 export type SuiviTypeFilter = "ALL" | "TCF" | "CIVIQUE";
 
@@ -1626,7 +1626,11 @@ export type SuiviIndicator =
   | "REVENUE_BREAKDOWN"
   | "REFUNDS"
   | "SIGNUP_CONTEXT"
-  | "SIGNUP_PLATFORM_DETAIL";
+  | "SIGNUP_PLATFORM_DETAIL"
+  | "ACTIVE_USERS"
+  | "LOGINS"
+  | "SCREEN_VIEWS_WEB"
+  | "SCREEN_VIEWS_APP";
 
 export interface SuiviWindow {
   /** `null` pour une periode personnalisee. */
@@ -1809,6 +1813,134 @@ export interface SuiviQuery {
   platform: SuiviPlatformFilter;
   /** `ALL` ou un groupe de `filters.availableSources`. */
   source: string;
+  includeInternal: boolean;
+}
+
+// ============ ACTIVITÉ (GET /api/admin/analytics/activity[/live]) ============
+// Miroir manuel de `AdminActivityResponse` / `AdminActivityLiveResponse`
+// (contrat : docs/admin/activites/decisions-implementation.md § 3). Jours en
+// `yyyy-MM-dd` (Paris), instants ISO-8601 UTC. 🛑 `null` = non mesuré, jamais
+// 0. Libellés, `displayed`, tendances et lignes de synthèse sont SERVIS : le
+// front n'additionne aucun unique et ne calcule aucun pourcentage.
+
+/** Ordre servi, toujours les cinq : WEB, IOS, ANDROID, MOBILE, UNKNOWN. */
+export type ActivityPlatform = "WEB" | "IOS" | "ANDROID" | "MOBILE" | "UNKNOWN";
+
+export type ActivityIndicator = "ACTIVE_USERS" | "LOGINS" | "SCREEN_VIEWS_WEB" | "SCREEN_VIEWS_APP";
+
+export interface ActivityPlatformCount {
+  platform: ActivityPlatform;
+  /** « Web », « iOS », « Android », « App — système inconnu », « Non déclarée ». */
+  label: string;
+  /** Faux pour UNKNOWN hors comptes internes : la ligne n'est pas affichée. */
+  displayed: boolean;
+  value: number | null;
+}
+
+export interface AdminActivityLiveResponse {
+  at: string;
+  /** Fenêtre « en ligne », en secondes (180). */
+  windowSeconds: number;
+  includeInternal: boolean;
+  measurementStart: string | null;
+  /** Comptes distincts, toutes plateformes (un compte compté une fois). */
+  total: number | null;
+  multiPlatformUsers: number | null;
+  /** Leur somme peut dépasser `total` (comptes multi-plateformes). */
+  byPlatform: ActivityPlatformCount[];
+}
+
+export interface ActivityKpi {
+  value: number | null;
+  previous: number | null;
+  /** Variation servie en %, une décimale ; null si previous est null ou vaut 0. */
+  deltaPct: number | null;
+}
+
+export interface ActivityDailyPoint {
+  day: string;
+  total: number | null;
+  byPlatform: ActivityPlatformCount[];
+}
+
+export interface ActivityPlatformRow {
+  platform: ActivityPlatform;
+  label: string;
+  displayed: boolean;
+  activeUsers: number | null;
+  loggedInUsers: number | null;
+  logins: number | null;
+}
+
+export type ActivityLoginMethod = "LOCAL" | "GOOGLE" | "APPLE";
+
+export interface ActivityMethodCount {
+  method: ActivityLoginMethod;
+  /** « E-mail », « Google », « Apple ». */
+  label: string;
+  value: number | null;
+}
+
+export type ActivityScreenRowKind = "SCREEN" | "OTHER" | "UNDECLARED" | "TOTAL";
+
+export interface ActivityScreenRow {
+  kind: ActivityScreenRowKind;
+  /** Gabarit suivi pour SCREEN, sinon null. */
+  path: string | null;
+  label: string;
+  views: number;
+  uniqueVisitors: number;
+  /** Comptes distincts — PARTIEL (un lot envoyé sans jeton n'a pas de compte). */
+  uniqueUsers: number;
+  /** Onglet App seulement (null sur l'onglet Web). */
+  ios: number | null;
+  android: number | null;
+  appUnknownSystem: number | null;
+}
+
+export interface ActivityScreenTable {
+  /** Premier jour mesuré dans la période ; null = non mesuré (rows vide, synthèses null). */
+  measuredSince: string | null;
+  topLimit: number;
+  rows: ActivityScreenRow[];
+  otherTracked: ActivityScreenRow | null;
+  undeclared: ActivityScreenRow | null;
+  total: ActivityScreenRow | null;
+}
+
+export interface AdminActivityResponse {
+  window: {
+    /** null = période personnalisée. */
+    preset: SuiviPeriodPreset | null;
+    from: string;
+    to: string;
+    previousFrom: string;
+    previousTo: string;
+    timezone: string;
+    generatedAt: string;
+  };
+  includeInternal: boolean;
+  measurementStart: Partial<Record<ActivityIndicator, string | null>>;
+  activeUsers: {
+    measuredSince: string | null;
+    total: ActivityKpi;
+    multiPlatformUsers: number | null;
+    /** Un point par jour, sans trou ; non additive. */
+    daily: ActivityDailyPoint[];
+  };
+  logins: {
+    measuredSince: string | null;
+    uniqueUsers: ActivityKpi;
+    total: number | null;
+    signups: number | null;
+    byMethod: ActivityMethodCount[];
+  };
+  platforms: ActivityPlatformRow[];
+  screens: { web: ActivityScreenTable; app: ActivityScreenTable };
+}
+
+export interface ActivityQuery {
+  range: SuiviRange;
   includeInternal: boolean;
 }
 

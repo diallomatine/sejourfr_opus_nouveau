@@ -1,7 +1,6 @@
 import type {
   SubscriptionSource,
   SuiviFunnelStepCode,
-  SuiviPeriodPreset,
   SuiviPlatformFilter,
   SuiviTypeFilter,
 } from "../../types/api";
@@ -22,10 +21,10 @@ export const SCOPE_LABELS: Record<SuiviTypeFilter, string> = {
   CIVIQUE: "Civique",
 };
 
-export const TYPE_OPTIONS: { id: SuiviTypeFilter; label: string }[] = [
-  { id: "ALL", label: "Tous" },
-  { id: "TCF", label: "TCF" },
-  { id: "CIVIQUE", label: "Civique" },
+export const TYPE_OPTIONS: { value: SuiviTypeFilter; label: string }[] = [
+  { value: "ALL", label: "Tous" },
+  { value: "TCF", label: "TCF" },
+  { value: "CIVIQUE", label: "Civique" },
 ];
 
 export const PLATFORM_OPTIONS: { id: SuiviPlatformFilter; label: string }[] = [
@@ -40,20 +39,6 @@ export const PROVIDER_LABELS: Record<SubscriptionSource, string> = {
   APPLE: "Apple",
   GOOGLE: "Google",
 };
-
-/** Periode de comparaison des tendances, telle que le serveur la choisit. */
-export function comparedTo(preset: SuiviPeriodPreset | null): string {
-  switch (preset) {
-    case "TODAY":
-      return "vs hier";
-    case "YESTERDAY":
-      return "vs avant-hier";
-    case "LAST_7_DAYS":
-      return "vs 7 jours précédents";
-    default:
-      return "vs période précédente";
-  }
-}
 
 const SOURCE_LABELS: Record<string, string> = {
   instagram: "Instagram",

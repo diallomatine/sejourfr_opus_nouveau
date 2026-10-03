@@ -40,3 +40,40 @@ export function formatParisTime(iso: string | null | undefined): string {
     minute: "2-digit",
   });
 }
+
+/** Jour ISO `yyyy-MM-dd` à Paris d'un instant servi. */
+export function parisDay(iso: string): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: PARIS }).format(new Date(iso));
+}
+
+/** « 21/08 » — jour servi `yyyy-MM-dd`, sans conversion de fuseau. */
+export function dayMonth(day: string): string {
+  return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+}
+
+/** Période appliquée, toujours construite depuis les bornes SERVIES (`yyyy-MM-dd`). */
+export function formatRange(from: string, to: string): string {
+  if (from === to) return `Le ${longDate(from)}`;
+  const sameYear = from.slice(0, 4) === to.slice(0, 4);
+  const sameMonth = sameYear && from.slice(5, 7) === to.slice(5, 7);
+  if (sameMonth) return `Du ${dayOfMonth(from)} au ${longDate(to)}`;
+  if (sameYear) return `Du ${dayOfMonth(from)} ${monthName(from)} au ${longDate(to)}`;
+  return `Du ${longDate(from)} au ${longDate(to)}`;
+}
+
+function longDate(day: string): string {
+  return `${dayOfMonth(day)} ${monthName(day)} ${day.slice(0, 4)}`;
+}
+
+function dayOfMonth(day: string): string {
+  const number = Number(day.slice(8, 10));
+  return number === 1 ? "1er" : String(number);
+}
+
+function monthName(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date)).toLocaleDateString("fr-FR", {
+    month: "long",
+    timeZone: "UTC",
+  });
+}

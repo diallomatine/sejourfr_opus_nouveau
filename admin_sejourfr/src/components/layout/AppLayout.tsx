@@ -11,7 +11,7 @@ import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
 import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { useToast } from "../ui/Toast";
-import { NAVIGATION, navEntryFor } from "./navigation";
+import { NAVIGATION, hasNestedEntry, navEntryFor } from "./navigation";
 import type { NavBadge, NavEntry } from "./navigation";
 import styles from "./AppLayout.module.css";
 
@@ -276,6 +276,7 @@ function NavItem({ item, count, onNavigate }: { item: NavEntry; count?: number; 
   return (
     <NavLink
       to={item.to}
+      end={hasNestedEntry(item)}
       title={item.label}
       onClick={onNavigate}
       className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ""}`}

@@ -1,5 +1,5 @@
 import type { AdminSuiviResponse } from "../../../types/api";
-import { int } from "../format";
+import { int } from "../../../lib/format";
 import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
 import { Section, StatItem, Unmeasured } from "./Section";

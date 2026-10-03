@@ -1,4 +1,5 @@
 import { Spinner } from "../../components/ui/Spinner";
+import { LiveActivityCard } from "../activity/components/LiveActivityCard";
 import { ActivityCard } from "./components/ActivityCard";
 import { ByTypeCard } from "./components/ByTypeCard";
 import { FunnelCard } from "./components/FunnelCard";
@@ -8,7 +9,7 @@ import { RevenueCard } from "./components/RevenueCard";
 import { SignupsCard } from "./components/SignupsCard";
 import { SourcesCard } from "./components/SourcesCard";
 import { SuiviFilters } from "./components/SuiviFilters";
-import { formatRange } from "./dates";
+import { formatRange } from "../../lib/dates";
 import { useSuivi } from "./useSuivi";
 import { useSuiviParams } from "./useSuiviParams";
 import styles from "./suivi.module.css";
@@ -50,6 +51,8 @@ export function SuiviPage() {
           onChange={update}
         />
       </div>
+
+      <LiveActivityCard includeInternal={query.includeInternal} variant="compact" />
 
       {error && (
         <div className={styles.error} role="alert">

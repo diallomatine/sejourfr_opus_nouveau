@@ -1,26 +1,9 @@
-import type { ReactNode } from "react";
+import { StatTile } from "../../../components/ui/StatTile";
 import type { AdminSuiviResponse, SuiviIndicator, SuiviKpi } from "../../../types/api";
-import { DASH, int, money, pct, signedPct } from "../format";
-import { comparedTo } from "../labels";
+import { DASH, int, money, pct, signedPct } from "../../../lib/format";
+import { comparedTo } from "../../../lib/period";
 import { measuredSinceNote, unmeasuredNote } from "../measurement";
 import styles from "../suivi.module.css";
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  trend: ReactNode;
-  neutral?: boolean;
-}
-
-function KpiCard({ label, value, trend, neutral }: KpiCardProps) {
-  return (
-    <div className={`${styles.card} ${styles.kpi}`}>
-      <div className={styles.kpiLabel}>{label}</div>
-      <div className={styles.kpiValue}>{value}</div>
-      <div className={`${styles.trend} ${neutral ? styles.trendNeutral : ""}`}>{trend}</div>
-    </div>
-  );
-}
 
 /**
  * Ligne secondaire d'un KPI. Valeur inconnue : on dit pourquoi, jamais un
@@ -66,25 +49,25 @@ export function KpiGrid({ data }: { data: AdminSuiviResponse }) {
 
   return (
     <section className={styles.gridKpi}>
-      <KpiCard
+      <StatTile
         label="Visiteurs uniques"
         value={int(visitors.value)}
         trend={visitorsLine.trend}
         neutral={visitorsLine.neutral || (visitors.deltaPct ?? 0) <= 0}
       />
-      <KpiCard
+      <StatTile
         label="Diagnostics soumis"
         value={int(submitted.value)}
         trend={submittedLine.trend}
         neutral={submittedLine.neutral}
       />
-      <KpiCard
+      <StatTile
         label="Achats"
         value={int(purchases.value)}
         trend={purchasesLine.trend}
         neutral
       />
-      <KpiCard
+      <StatTile
         label="Net réel estimé"
         value={money(netExVatCents.value)}
         trend={netLine.trend}

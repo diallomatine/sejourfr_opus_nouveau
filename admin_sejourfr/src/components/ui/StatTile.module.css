@@ -1,0 +1,58 @@
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 19px 20px;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+.label {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 9px;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.neutral {
+  color: var(--muted);
+}
+
+.meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .value {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 400px) {
+  .tile {
+    padding: 15px 14px;
+  }
+  .value {
+    font-size: 21px;
+  }
+}

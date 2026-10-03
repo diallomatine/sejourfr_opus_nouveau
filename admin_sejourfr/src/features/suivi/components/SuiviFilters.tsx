@@ -1,7 +1,9 @@
+import { PeriodPicker } from "../../../components/ui/PeriodPicker";
+import { Segmented } from "../../../components/ui/Segmented";
+import type { PeriodId } from "../../../lib/period";
 import type { SuiviPlatformFilter, SuiviTypeFilter } from "../../../types/api";
-import { parisToday } from "../../../lib/dates";
 import { PLATFORM_OPTIONS, TYPE_OPTIONS, sourceLabel } from "../labels";
-import { PERIOD_OPTIONS, type PeriodId, type SuiviPatch } from "../useSuiviParams";
+import { SUIVI_PERIODS, type SuiviPatch } from "../useSuiviParams";
 import styles from "../suivi.module.css";
 
 interface SuiviFiltersProps {
@@ -24,79 +26,27 @@ interface SuiviFiltersProps {
  * les filtres du brief absents du template : plateforme, source, internes.
  */
 export function SuiviFilters(props: SuiviFiltersProps) {
-  const { period, from, to, onChange } = props;
-  const today = parisToday();
-
-  const choosePeriod = (id: PeriodId) => {
-    if (id !== "custom") {
-      onChange({ period: id });
-      return;
-    }
-    const start = props.servedFrom ?? today;
-    const end = props.servedTo ?? today;
-    onChange({ period: "custom", from: start, to: end });
-  };
+  const { onChange } = props;
 
   return (
     <div className={styles.filters}>
+      <PeriodPicker
+        offered={SUIVI_PERIODS}
+        period={props.period}
+        from={props.from}
+        to={props.to}
+        servedFrom={props.servedFrom}
+        servedTo={props.servedTo}
+        onChange={onChange}
+      />
       <div className={styles.filterRow}>
-        <div className={styles.segmented} role="group" aria-label="Période">
-          {PERIOD_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={period === option.id}
-              onClick={() => choosePeriod(option.id)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className={styles.segmented} role="group" aria-label="Type de diagnostic">
-          {TYPE_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={props.type === option.id}
-              onClick={() => onChange({ type: option.id })}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          options={TYPE_OPTIONS}
+          value={props.type}
+          onChange={(type) => onChange({ type })}
+          label="Type de diagnostic"
+        />
       </div>
-
-      {period === "custom" && (
-        <div className={styles.filterRow}>
-          <label className={styles.dateLabel}>
-            Du{" "}
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={from}
-              max={to || today}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value && value <= to) onChange({ from: value });
-              }}
-            />
-          </label>
-          <label className={styles.dateLabel}>
-            au{" "}
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={to}
-              min={from}
-              max={today}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value && value >= from) onChange({ to: value });
-              }}
-            />
-          </label>
-        </div>
-      )}
 
       <div className={styles.filterRow}>
         <select

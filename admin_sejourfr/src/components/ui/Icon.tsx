@@ -110,6 +110,7 @@ const PATHS = {
     <path d="M9.9 15.5a2 2 0 0 0-1.4-1.4l-6.1-1.6a.5.5 0 0 1 0-1l6.1-1.6a2 2 0 0 0 1.4-1.4l1.6-6.1a.5.5 0 0 1 1 0l1.6 6.1a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1l-6.1 1.6a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0l-1.6-6.1Z" />
   ),
   flag: <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1v12Zm0 7v-7" />,
+  activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

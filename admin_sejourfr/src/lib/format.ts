@@ -1,5 +1,5 @@
 /**
- * Formatage fr-FR de l'ecran Suivi, tenu d'un seul endroit :
+ * Formatage fr-FR de la console (Suivi, Activité), tenu d'un seul endroit :
  *
  *  1. separateur de milliers et espace avant `%` / `€` = ESPACE FINE INSECABLE
  *     (U+202F) ; `toLocaleString` rend une insecable normale ou une espace
