@@ -45,23 +45,6 @@ export function planTcfChipObjectif(cible: TargetLevel): string {
 }
 
 
-export const PLAN_TCF_HERO_LABEL = "Ma progression";
-
-/** « Objectif : B2 dans les 4 compétences ». Sans cible : rien. */
-export function planTcfHeroSub(cible: TargetLevel | null | undefined): string | null {
-    return cible ? `Objectif : ${cible} dans les ${MODULE_TCF_NB_EPREUVES} compétences` : null;
-}
-
-/** « épreuves au B2 » — le mot sous le compteur `{n}/{nbEpreuves}`. */
-export function planTcfHeroStatLabel(cible: TargetLevel | null | undefined): string {
-    return cible ? `épreuves au ${cible}` : "épreuves à l'objectif";
-}
-
-/** « 1/4 ». */
-export function planTcfHeroStat(auNiveau: number): string {
-    return `${auNiveau}/${MODULE_TCF_NB_EPREUVES}`;
-}
-
 /* -------------------------------------------------------- Civique · Plan */
 
 export const PLAN_CIVIQUE_TITLE = "Plan";

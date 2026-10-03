@@ -5,7 +5,6 @@ import {useEffect, useState} from "react";
 import {
   ChevronRight,
   Clock3,
-  Map as MapIcon,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -14,8 +13,6 @@ import {
   dashboardApi,
   journeyApi,
   learningPlanApi,
-  PROGRESS_CACHE_PREFIX,
-  progressApi,
 } from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {usePlanRelecture} from "@/lib/use-plan-relecture";
@@ -26,32 +23,19 @@ import {journeyTargetPathHref} from "@/lib/journey";
 import {PlanLinks} from "./PlanLinks";
 import {planHref} from "@/lib/module-switch";
 import {
-  ACCUEIL_BLOCK_ERROR,
-  ACCUEIL_RETRY,
-  accueilEpreuvesAuNiveau,
-  accueilTcfProgression,
-} from "@/lib/accueil";
-import {
   MODULE_TCF_KICKER,
-  MODULE_VOIR_DETAIL,
-  PLAN_TCF_HERO_LABEL,
   PLAN_TCF_TITLE,
   planTcfChipActuel,
   planTcfChipObjectif,
-  planTcfHeroStat,
-  planTcfHeroStatLabel,
-  planTcfHeroSub,
   planTcfSubtitle,
 } from "@/lib/module-ecrans";
-import {progressionHref} from "@/lib/progression";
-import {type CachedData, useCachedData} from "@/lib/use-cached-data";
+import {useCachedData} from "@/lib/use-cached-data";
 import {
   canAccessModule,
   type DashboardSummaryResponse,
   type JourneyDto,
   type LearningPlanDto,
   niveauCecrlShort,
-  type ProgressDto,
   type TargetLevel,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
@@ -60,11 +44,9 @@ import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
   Badge,
-  BlockError,
   BlockSkeleton,
   Card,
   Cta,
-  Hero,
   NowCard,
   Pad,
   PageHead,
@@ -301,10 +283,9 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
   free: boolean;
   cible: TargetLevel | null;
 }) {
-  /* Les lectures du bandeau et de l'en-tête sont celles, EN CACHE, de
-     l'Accueil et de la barre latérale : aucun appel propre à cet écran. */
+  /* La lecture de l'en-tête est celle, EN CACHE, de l'Accueil et de la barre
+     latérale : aucun appel propre à cet écran. */
   const summary = useCachedData<DashboardSummaryResponse>("plan:dashboard", () => dashboardApi.summaryCached());
-  const progres = useCachedData<ProgressDto>(`${PROGRESS_CACHE_PREFIX}current`, () => progressApi.get());
   const objective = plan.cycle.objectiveLevel;
 
   /* `null` = inconnu ⇒ « — » ; pendant la lecture, la pastille attend. */
@@ -363,13 +344,6 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
         }
         side={
           <>
-            <Pad>
-              <ProgressionHero
-                cible={cible}
-                summary={summary}
-                progres={progres}
-              />
-            </Pad>
             {/* ✅ **Visible aussi sans accès** (demande du propriétaire,
                 2026-09-20) : ce sont deux **constats**, rien ne s'y travaille. */}
             <AllerPlusLoin diagnosticFait={diagnosticFait} />
@@ -391,46 +365,6 @@ function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
         />
       )}
     </>
-  );
-}
-
-/* ------------------------------------------------ « Ma progression » */
-
-/**
- * **Le bandeau « Ma progression »** (`.hero` de la maquette) : niveau actuel
- * estimé → objectif, `{n}/{nbEpreuves} épreuves au {cible}` (statut servi
- * `TARGET_REACHED` sur une épreuve mesurée). Mêmes faits et mêmes fonctions que
- * la carte d'objectif de l'Accueil. ⚠️ **Pas de barre ici** : l'avancement du
- * cycle (D4-B) est déjà la barre de la carte Cycle, juste à gauche — même fait,
- * et c'est là que le mobile le porte.
- *
- * 🛑 Le compteur d'épreuves ne se pose pas tant que la progression n'est pas
- * lue : jamais un « 0/4 » inventé.
- */
-function ProgressionHero({cible, summary, progres}: {
-  cible: TargetLevel | null;
-  summary: CachedData<DashboardSummaryResponse>;
-  progres: CachedData<ProgressDto>;
-}) {
-  if (summary.loading) return <BlockSkeleton height={220} radius={30} />;
-  if (summary.error !== null || !summary.data) {
-    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />;
-  }
-  return (
-    <Hero
-      module="tcf"
-      icon={<MapIcon />}
-      label={PLAN_TCF_HERO_LABEL}
-      title={accueilTcfProgression(summary.data.estimatedTcfLevel, cible)}
-      sub={planTcfHeroSub(cible)}
-      stat={progres.data
-        ? {
-          value: planTcfHeroStat(accueilEpreuvesAuNiveau(progres.data.tcf.epreuves)),
-          label: planTcfHeroStatLabel(cible),
-        }
-        : null}
-      cta={{label: MODULE_VOIR_DETAIL, href: progressionHref("TCF")}}
-    />
   );
 }
 
