@@ -211,17 +211,6 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             Pageable pageable
     );
 
-    /** Calibration standard uniquement : le profil diagnostic n'a pas de /20. */
-    @Query("""
-            SELECT s FROM ProductionSubmission s
-            WHERE s.statut = :statut
-              AND s.diagnostic = false
-              AND s.productionTask.diagnosticCode IS NULL
-            ORDER BY s.submittedAt ASC
-            """)
-    List<ProductionSubmission> findStandardByStatut(
-            @Param("statut") SubmissionStatut statut);
-
     /**
      * Pour le hub d'entrainement : derniere submission par numero de tache
      * (1..3) pour un (user, epreuve, niveau) donne. Renvoie 0 a 3 lignes

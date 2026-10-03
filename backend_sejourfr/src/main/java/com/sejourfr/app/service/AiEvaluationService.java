@@ -150,7 +150,7 @@ public class AiEvaluationService {
      * comme PIRE (38 -> 35 classements exacts sur la campagne v5) : c'est donc
      * la note qui garde la decimale.
      */
-    static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
+    public static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
         if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
             return null;
         }
@@ -1169,22 +1169,9 @@ public class AiEvaluationService {
     @SuppressWarnings("unchecked")
     private void applyCouplage(Map<String, Object> feedback, UUID submissionId) {
         ProductionEvaluationProperties.Couplage cfg = rubrics.couplage();
-        if (!cfg.isEnabled() || !(feedback.get("scores_criteres") instanceof List<?> scores)) return;
-
-        Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));
-        List<BigDecimal> langue = new ArrayList<>();
-        for (String code : cfg.getCriteresLangue()) {
-            BigDecimal v = notes.get(code);
-            if (v != null) langue.add(v);
-        }
-        // Socle incomplet : on ne plafonne pas a l'aveugle.
-        if (langue.size() != cfg.getCriteresLangue().size() || langue.isEmpty()) return;
-
-        BigDecimal somme = BigDecimal.ZERO;
-        for (BigDecimal v : langue) somme = somme.add(v);
-        BigDecimal plafond = somme
-                .divide(BigDecimal.valueOf(langue.size()), 4, RoundingMode.HALF_UP)
-                .add(BigDecimal.valueOf(cfg.getEcartMax()));
+        if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return;
+        BigDecimal plafond = plafondCouplage(notesParCode(scores), cfg);
+        if (plafond == null) return;
 
         for (Object s : scores) {
             if (!(s instanceof Map<?, ?> rawMap)) continue;
@@ -1194,11 +1181,39 @@ public class AiEvaluationService {
             if (!(sm.get("note_sur_20") instanceof Number n)) continue;
             BigDecimal note = new BigDecimal(n.toString());
             if (note.compareTo(plafond) <= 0) continue;
-            BigDecimal ramenee = plafond.setScale(1, RoundingMode.DOWN);
+            BigDecimal ramenee = noteRamenee(plafond);
             log.info("Couplage applique submission={} critere={} : {} -> {} (socle langue + {}).",
                     submissionId, code, note, ramenee, cfg.getEcartMax());
             sm.put("note_sur_20", ramenee);
         }
+    }
+
+    /**
+     * Plafond des criteres de REALISATION : {@code moyenne(socle de langue) +
+     * ecart-max}. {@code null} quand le garde-fou est coupe ou que le socle de
+     * langue est incomplet (on ne plafonne pas a l'aveugle). Autorite unique,
+     * relue par la console admin pour expliquer une note.
+     */
+    public static BigDecimal plafondCouplage(Map<String, BigDecimal> notes,
+                                             ProductionEvaluationProperties.Couplage cfg) {
+        if (cfg == null || !cfg.isEnabled()) return null;
+        List<BigDecimal> langue = new ArrayList<>();
+        for (String code : cfg.getCriteresLangue()) {
+            BigDecimal v = notes.get(code);
+            if (v != null) langue.add(v);
+        }
+        if (langue.size() != cfg.getCriteresLangue().size() || langue.isEmpty()) return null;
+
+        BigDecimal somme = BigDecimal.ZERO;
+        for (BigDecimal v : langue) somme = somme.add(v);
+        return somme
+                .divide(BigDecimal.valueOf(langue.size()), 4, RoundingMode.HALF_UP)
+                .add(BigDecimal.valueOf(cfg.getEcartMax()));
+    }
+
+    /** Note a laquelle un critere de realisation au-dessus du plafond est ramene. */
+    public static BigDecimal noteRamenee(BigDecimal plafond) {
+        return plafond.setScale(1, RoundingMode.DOWN);
     }
 
     /**
@@ -1216,35 +1231,17 @@ public class AiEvaluationService {
      *
      * @return le niveau eventuellement abaisse (jamais releve)
      */
-    static final String PLAFOND_NIVEAU_KEY = "plafond_niveau";
+    public static final String PLAFOND_NIVEAU_KEY = "plafond_niveau";
 
     private NiveauCecrl applyPlafonds(Map<String, Object> feedback, ProductionTask task,
                                       NiveauCecrl niveau, UUID submissionId) {
         ProductionEvaluationProperties.Plafonds cfg = rubrics.plafonds();
         if (!cfg.isEnabled() || niveau == null) return niveau;
 
-        Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));
-        int tache = task.getTacheNumero();
         NiveauCecrl out = niveau;
-
-        BigDecimal prisePosition = noteAccomplissement(notes, "prise_position");
-        if (tache == 3 && prisePosition != null
-                && prisePosition.compareTo(BigDecimal.valueOf(cfg.getPrisePositionSeuil())) <= 0) {
-            out = appliquerPlafond(feedback, out, cfg.getPrisePositionNiveauMax(), submissionId,
-                "prise_position=" + prisePosition,
-                "Aucune prise de position claire n'a été identifiée. Sur cette tâche, donner son "
-                    + "avis et le défendre est attendu : le niveau observé est donc limité à "
-                    + cfg.getPrisePositionNiveauMax().name().replace("_", " ") + ".");
-        }
-
-        BigDecimal conduiteEchange = noteAccomplissement(notes, "conduite_echange");
-        if (task.getEpreuve() == EpreuveType.TCF_EO && tache == 2 && conduiteEchange != null
-                && conduiteEchange.compareTo(BigDecimal.valueOf(cfg.getConduiteEchangeSeuil())) <= 0) {
-            out = appliquerPlafond(feedback, out, cfg.getConduiteEchangeNiveauMax(), submissionId,
-                "conduite_echange=" + conduiteEchange,
-                "L'échange n'a pas vraiment eu lieu : vous n'avez pas mené le dialogue ni obtenu "
-                    + "les informations attendues. Le niveau observé est donc limité à "
-                    + cfg.getConduiteEchangeNiveauMax().name().replace("_", " ") + ".");
+        for (PlafondDeclenche p : plafondsDeclenches(
+                notesParCode(feedback.get("scores_criteres")), task.getEpreuve(), task.getTacheNumero(), cfg)) {
+            out = appliquerPlafond(feedback, out, p.niveauMax(), submissionId, p.declencheur(), p.raisonCandidat());
         }
 
         if (out != niveau) {
@@ -1255,6 +1252,49 @@ public class AiEvaluationService {
             // ressortait B1/B2 au bilan, c'est-a-dire au seul niveau qui fait
             // foi. Cf. ProductionBilanService#competenceOf.
             feedback.put(PLAFOND_NIVEAU_KEY, out.name());
+        }
+        return out;
+    }
+
+    /**
+     * Un plafond de niveau dont la condition est remplie.
+     *
+     * @param regle         code stable de la regle ({@code PRISE_POSITION_T3},
+     *                      {@code CONDUITE_ECHANGE_EO_T2})
+     * @param declencheur   critere et note qui l'ont declenche (journal)
+     * @param niveauMax     niveau au-dessus duquel la tache ne peut pas sortir
+     * @param raisonCandidat phrase ajoutee aux avertissements du candidat
+     */
+    public record PlafondDeclenche(String regle, String declencheur, NiveauCecrl niveauMax,
+                                   String raisonCandidat) {}
+
+    /**
+     * Les plafonds de niveau dont la condition est remplie, dans l'ordre ou ils
+     * s'appliquent. Autorite unique des conditions, relue par la console admin.
+     * Ne tient pas compte du coupe-circuit {@code enabled}, verifie par
+     * l'appelant.
+     */
+    public static List<PlafondDeclenche> plafondsDeclenches(Map<String, BigDecimal> notes, EpreuveType epreuve,
+                                                           int tache, ProductionEvaluationProperties.Plafonds cfg) {
+        List<PlafondDeclenche> out = new ArrayList<>();
+        BigDecimal prisePosition = noteAccomplissement(notes, "prise_position");
+        if (tache == 3 && prisePosition != null
+                && prisePosition.compareTo(BigDecimal.valueOf(cfg.getPrisePositionSeuil())) <= 0) {
+            out.add(new PlafondDeclenche("PRISE_POSITION_T3", "prise_position=" + prisePosition,
+                cfg.getPrisePositionNiveauMax(),
+                "Aucune prise de position claire n'a été identifiée. Sur cette tâche, donner son "
+                    + "avis et le défendre est attendu : le niveau observé est donc limité à "
+                    + cfg.getPrisePositionNiveauMax().name().replace("_", " ") + "."));
+        }
+
+        BigDecimal conduiteEchange = noteAccomplissement(notes, "conduite_echange");
+        if (epreuve == EpreuveType.TCF_EO && tache == 2 && conduiteEchange != null
+                && conduiteEchange.compareTo(BigDecimal.valueOf(cfg.getConduiteEchangeSeuil())) <= 0) {
+            out.add(new PlafondDeclenche("CONDUITE_ECHANGE_EO_T2", "conduite_echange=" + conduiteEchange,
+                cfg.getConduiteEchangeNiveauMax(),
+                "L'échange n'a pas vraiment eu lieu : vous n'avez pas mené le dialogue ni obtenu "
+                    + "les informations attendues. Le niveau observé est donc limité à "
+                    + cfg.getConduiteEchangeNiveauMax().name().replace("_", " ") + "."));
         }
         return out;
     }
@@ -1271,10 +1311,16 @@ public class AiEvaluationService {
         return v != null ? v : notes.get("communiquer");
     }
 
+    /** Le niveau {@code actuel} ramené sous {@code plafond} ; jamais relevé. */
+    public static NiveauCecrl plafonner(NiveauCecrl actuel, NiveauCecrl plafond) {
+        if (plafond == null || actuel == null || actuel.ordinal() <= plafond.ordinal()) return actuel;
+        return plafond;
+    }
+
     private NiveauCecrl appliquerPlafond(Map<String, Object> feedback, NiveauCecrl actuel,
                                          NiveauCecrl plafond, UUID submissionId,
                                          String declencheur, String raisonCandidat) {
-        if (plafond == null || actuel.ordinal() <= plafond.ordinal()) return actuel;
+        if (plafonner(actuel, plafond) == actuel) return actuel;
         log.info("Plafond de niveau applique submission={} ({}) : {} -> {}",
             submissionId, declencheur, actuel, plafond);
         addAvertissement(feedback, raisonCandidat);
@@ -1292,7 +1338,7 @@ public class AiEvaluationService {
     }
 
     /** Index {@code code -> note_sur_20} des scores exploitables. */
-    private static Map<String, BigDecimal> notesParCode(Object scoresCriteres) {
+    public static Map<String, BigDecimal> notesParCode(Object scoresCriteres) {
         Map<String, BigDecimal> out = new HashMap<>();
         if (!(scoresCriteres instanceof List<?> scores)) return out;
         for (Object s : scores) {

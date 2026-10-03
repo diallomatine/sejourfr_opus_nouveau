@@ -121,6 +121,14 @@ public class AiEvaluation {
     @Column(name = "cout_micro_usd")
     private Integer coutMicroUsd;
 
+    /**
+     * LEGACY (centimes d'euro, arrondis au centime superieur), plus jamais
+     * ecrite depuis V034. Mappee en LECTURE SEULE pour la console admin, qui
+     * l'affiche a part : elle ne s'additionne jamais a {@link #coutMicroUsd}.
+     */
+    @Column(name = "cout_estime_centimes", insertable = false, updatable = false)
+    private Integer coutEstimeCentimesLegacy;
+
     @Column(name = "nb_retries", nullable = false)
     private short nbRetries = 0;
 
@@ -174,6 +182,8 @@ public class AiEvaluation {
 
     public Integer getCoutMicroUsd() { return coutMicroUsd; }
     public void setCoutMicroUsd(Integer coutMicroUsd) { this.coutMicroUsd = coutMicroUsd; }
+
+    public Integer getCoutEstimeCentimesLegacy() { return coutEstimeCentimesLegacy; }
 
     public short getNbRetries() { return nbRetries; }
     public void setNbRetries(short nbRetries) { this.nbRetries = nbRetries; }

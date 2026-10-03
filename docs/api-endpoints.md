@@ -969,20 +969,66 @@ haut) et `POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
 
 ## Admin
 
-- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},diagnostics}`
+- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{stats,submissions/{id}/human-note},diagnostics,productions}`
 - `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
   — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
   principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
   d'une `CO_IMAGE`). **Filtre serveur** : la console ne doit plus filtrer la
   page affichée dans le navigateur.
-- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=&limit=`
-  — renvoie des `CalibrationSubmissionDto`
-  `{ submission, rubricsVersion, promptVersion }` : la soumission au format
-  partagé, plus les versions de la dernière évaluation IA. `rubricsVersion` est
-  `null` pour une évaluation antérieure à la colonne
-  `ai_evaluations.rubrics_version` (V022). DTO propre à l'admin — ces versions
-  ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
-  le web et le mobile consomment aussi.
+- ⚠️ `GET /api/admin/calibration/submissions` est **supprimé** (404) le 2026-10-03 : la liste
+  des productions vit dans `GET /api/admin/productions` (filtre `annotation` =
+  `ANNOTEES|NON_ANNOTEES`). La calibration garde `GET /stats`, `GET /stats/niveau`,
+  `GET|POST /submissions/{id}/human-note`.
+
+### Admin — Productions IA (`/api/admin/productions`, 2026-10-03)
+
+Audit : `docs/admin/productions_corrections/audit-admin-productions-ia.md` ; décisions :
+`docs/admin/productions_corrections/decisions-implementation-productions-ia.md`. `ROLE_ADMIN`
+(401 / 403 sinon, `AdminRoutesSecurityIT`). Périmètre : productions TCF EE/EO **complètes**
+(EO temps réel comprise) — ni diagnostic, ni petits sujets Compétences. DTO **propres à l'admin** :
+aucun DTO candidat ne change. Tout est servi (statut, libellés, calcul) : le front ne recalcule rien.
+
+- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=&from=&to=&includeInternal=&sort=&page=&size=`
+  → `PageResponse<AdminProductionListItemDto>` (`page` indexée à 0, `size` défaut **50**, bornée
+  `[1, 100]`).
+  - `q` : UUID complet ⇒ id de production **ou** id utilisateur ; sinon email « contient »,
+    sans casse, `%`/`_` échappés.
+  - `epreuve=TCF_EE|TCF_EO` ; `tache=1|2|3` ; `niveau=A1_NON_ATTEINT|A1|A2|B1|B2|SANS_NIVEAU`
+    (niveau observé de la dernière évaluation ; `SANS_NIVEAU` = en cours, échec, non évaluable) ;
+    `statut=EN_COURS|EVALUEE|NON_EVALUABLE|ECHEC` ;
+    `signalement=SIGNALEES|VERIFIEES|NON_SIGNALEES` (actif non vérifié / actif vérifié / aucun
+    actif — un signalement retiré ne compte plus) ; `annotation=ANNOTEES|NON_ANNOTEES` (note
+    humaine de calibration) ; `periode=TODAY|LAST_7_DAYS|LAST_30_DAYS` (jours Europe/Paris)
+    **ou** `from`/`to` (`yyyy-MM-dd`, inclus, les deux, 365 j max, `FenetreMesure`) ;
+    `includeInternal=false` (comptes `is_internal` exclus par défaut) ;
+    `sort=DATE_DESC|DATE_ASC|NIVEAU_DESC|NIVEAU_ASC|EPREUVE` (défaut `DATE_DESC`, toujours
+    complété par `submitted_at DESC, id DESC` ; sans niveau en dernier). Valeur inconnue,
+    épreuve hors EE/EO, tâche hors 1-3, `periode` + `from`/`to`, borne seule ⇒ **400**.
+  - Ligne : `id, submittedAt, userId, userEmail, userInternal, epreuve, tache, source
+    (ASYNC|REALTIME), contexte (ENTRAINEMENT|EXAMEN_BLANC|EXAMEN_COMPLET) + contexteLabel,
+    niveauObserve (nullable), statutIa + statutIaLabel, etatSignalement (AUCUN|SIGNALE|VERIFIE)
+    + etatSignalementLabel, annotee`.
+  - **Coût figé : 2 requêtes par page** (contenu + comptage), verrouillé par égalité dans
+    `AdminProductionControllerIT`.
+- `GET /api/admin/productions/{submissionId}` → `AdminProductionDetailDto` : `entete` (la ligne),
+  `sujet` (tel que reçu, sans la fiche examinateur), `reponse` (texte + mots, ou transcription
+  recollée + durée + `transcriptionInfo` ; `audioConserve: false` + motif — **aucun audio**),
+  `evaluationIa` (dernière évaluation : critères **retenus** + poids de SA grille, note, niveau IA
+  vs niveau retenu + écart en crans, confiance, justification), `calcul` (relu avec la grille de
+  l'évaluation par les fonctions de la notation ; `statut=CALCULE|REGLE_NON_TRACABLE|NON_EVALUABLE|SANS_EVALUATION`),
+  `vueCandidat` (le `ProductionSubmissionDto` exact du candidat, `planChange` nul), `technique`
+  (modèle, versions, tokens, `coutMicroUsd` en USD×10⁻⁶, `coutLegacyCentimesEuro`, délai
+  soumission → évaluation, relances manuelles, erreur), `jsonPersiste` (`feedback_json` APRÈS
+  traitement serveur), `signalements` (historique, retirés compris), `signalable`.
+  **Lecture passive** : aucune écriture, aucun appel LLM. Inconnue ou hors périmètre ⇒ **404**.
+- `POST /api/admin/productions/{submissionId}/flags` `{ motif, commentaire? }` → **201**
+  `AdminProductionFlagDto`. `motif=NIVEAU_INCOHERENT|SCORE_INCOHERENT|FEEDBACK_INCORRECT|REPONSE_MAL_COMPRISE|TRANSCRIPTION|AUTRE`
+  (obligatoire, sinon 400), `commentaire` ≤ 1000. Vise la dernière évaluation (NON_EVALUABLE
+  comprise). Aucune évaluation ⇒ **422** ; signalement déjà actif ⇒ **409** ; inconnue ⇒ 404.
+- `POST /api/admin/productions/flags/{flagId}/verify` → 200, idempotent ; signalement retiré ⇒ **409**.
+- `POST /api/admin/productions/flags/{flagId}/remove` → 200, retrait **soft** (historique gardé),
+  idempotent. 🛑 Un signalement ne modifie **jamais** l'évaluation (note, niveau, feedback) ni ce
+  que voit le candidat (table `ai_evaluation_flags`, V085).
 
 ### Admin — Suivi (`GET /api/admin/analytics/suivi`, chantier « Suivi » lot 4, 2026-09-25)
 

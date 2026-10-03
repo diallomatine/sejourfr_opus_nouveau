@@ -88,8 +88,16 @@ public class ProductionRubricsProvider {
         Map.entry("v15", "v9")
     );
 
+    /** Forme d'une version de grille lue en base : jamais un chemin arbitraire. */
+    private static final java.util.regex.Pattern VERSION_GRILLE =
+        java.util.regex.Pattern.compile("^v[0-9]{1,3}(\\.[0-9]{1,3})?$");
+
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
+    /** La grille active, telle que la notation l'applique. */
+    private Grille active;
+    /** Grilles historiques deja relues (lecture seule, console admin). */
+    private final Map<String, Optional<Grille>> historiques = new java.util.concurrent.ConcurrentHashMap<>();
     /** Bloc {@code commun} (sections + few_shot), global a toutes les taches. */
     private Map<String, Object> commun = Map.of();
     /** Cle "EE_T1" -> rubrique de la tache. */
@@ -112,43 +120,24 @@ public class ProductionRubricsProvider {
     void load() {
         String version = props.getRubricsVersion();
         String path = String.format(PATH_FORMAT, version);
-        Map<String, Map<String, Object>> built = new LinkedHashMap<>();
-        try (InputStream is = new ClassPathResource(path).getInputStream()) {
-            String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
-            Map<String, Object> root = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        try {
+            Map<String, Object> root = lireFichier(path);
 
             validateDeclaredContract(root, version);
 
-            if (!(root.get("commun") instanceof Map<?, ?> communNode)) {
-                throw new IllegalStateException("cle racine 'commun' absente ou invalide");
-            }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> communMap = (Map<String, Object>) communNode;
-
-            if (!(root.get("rubrics") instanceof Map<?, ?> rubricsNode)) {
-                throw new IllegalStateException("cle racine 'rubrics' absente ou invalide");
-            }
-            for (Map.Entry<?, ?> entry : rubricsNode.entrySet()) {
-                if (entry.getValue() instanceof Map<?, ?> rubric) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> r = (Map<String, Object>) rubric;
-                    built.put(entry.getKey().toString(), r);
-                }
-            }
-            if (built.isEmpty()) {
-                throw new IllegalStateException("aucune rubrique chargee");
-            }
-            this.commun = Map.copyOf(communMap);
-            this.rubrics = Map.copyOf(built);
-            this.niveauCecrl = resolveNiveau(communMap.get("niveau"));
-            this.couplage = resolveCouplage(communMap.get("couplage"));
-            this.plafonds = resolvePlafonds(communMap.get("plafonds"));
-            this.bandesCriteres = resolveBandes(communMap.get("bandes_criteres"));
+            Grille grille = construire(version, root);
+            this.active = grille;
+            this.commun = grille.commun();
+            this.rubrics = grille.rubrics();
+            this.niveauCecrl = grille.niveauCecrl();
+            this.couplage = grille.couplage();
+            this.plafonds = grille.plafonds();
+            this.bandesCriteres = grille.bandesCriteres();
             log.info("Rubriques production chargees ({}) : {} sections communes, {} taches, "
                     + "niveau depuis {} (criteres {}, seuils B2={} B1={} A2={}), "
                     + "couplage ecart-max={}, bandes criteres {}/{}/{}",
                 version, sectionCount(), rubrics.size(),
-                communMap.get("niveau") instanceof Map<?, ?> ? "le fichier" : "la config",
+                grille.niveauDepuisLaGrille() ? "le fichier" : "la config",
                 niveauCecrl.getSourceCriteres(), niveauCecrl.getSeuilB2(),
                 niveauCecrl.getSeuilB1(), niveauCecrl.getSeuilA2(),
                 couplage.getEcartMax(), bandesCriteres.getTresBonneMaitrise(),
@@ -160,6 +149,51 @@ public class ProductionRubricsProvider {
                 "Rubriques production introuvables/illisibles (" + path
                     + ") — verifier sejourfr.production-evaluation.rubrics-version", e);
         }
+    }
+
+    private Map<String, Object> lireFichier(String path) throws java.io.IOException {
+        try (InputStream is = new ClassPathResource(path).getInputStream()) {
+            String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        }
+    }
+
+    /**
+     * Construit une grille depuis la racine de son fichier. <b>Seule</b> facon
+     * de passer d'un fichier de rubriques a des reglages effectifs (fusion
+     * fichier &gt; configuration) : la grille active et les grilles historiques
+     * relues par la console admin passent par ici, jamais par une copie.
+     */
+    private Grille construire(String version, Map<String, Object> root) {
+        if (!(root.get("commun") instanceof Map<?, ?> communNode)) {
+            throw new IllegalStateException("cle racine 'commun' absente ou invalide");
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> communMap = (Map<String, Object>) communNode;
+
+        if (!(root.get("rubrics") instanceof Map<?, ?> rubricsNode)) {
+            throw new IllegalStateException("cle racine 'rubrics' absente ou invalide");
+        }
+        Map<String, Map<String, Object>> built = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : rubricsNode.entrySet()) {
+            if (entry.getValue() instanceof Map<?, ?> rubric) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> r = (Map<String, Object>) rubric;
+                built.put(entry.getKey().toString(), r);
+            }
+        }
+        if (built.isEmpty()) {
+            throw new IllegalStateException("aucune rubrique chargee");
+        }
+        return new Grille(
+            version,
+            Map.copyOf(communMap),
+            Map.copyOf(built),
+            resolveNiveau(communMap.get("niveau")),
+            communMap.get("niveau") instanceof Map<?, ?>,
+            resolveCouplage(communMap.get("couplage")),
+            resolvePlafonds(communMap.get("plafonds")),
+            resolveBandes(communMap.get("bandes_criteres")));
     }
 
     /**
@@ -225,6 +259,70 @@ public class ProductionRubricsProvider {
             case "deepseek" -> props.getDeepseek().getPromptVersion();
             default -> null; // EvaluationLlmConfig produira l'erreur de provider explicite.
         };
+    }
+
+    /**
+     * Les reglages effectifs d'UNE version de grille : poids des criteres,
+     * passage note -&gt; niveau, couplage, plafonds, bandes. Calcules par la
+     * meme fusion que la grille active ({@link #construire}).
+     *
+     * @param niveauCecrl     passage note -&gt; niveau effectif
+     * @param niveauDepuisLaGrille {@code true} si le fichier declare son bloc
+     *                        {@code commun.niveau} ; sinon les seuils viennent
+     *                        de la configuration (grilles v3 a v4.2)
+     */
+    public record Grille(
+        String version,
+        Map<String, Object> commun,
+        Map<String, Map<String, Object>> rubrics,
+        ProductionEvaluationProperties.NiveauCecrl niveauCecrl,
+        boolean niveauDepuisLaGrille,
+        ProductionEvaluationProperties.Couplage couplage,
+        ProductionEvaluationProperties.Plafonds plafonds,
+        ProductionEvaluationProperties.BandesCriteres bandesCriteres
+    ) {
+        /** Rubrique d'une tache, vide si la grille ne la porte pas. */
+        public Optional<Map<String, Object>> tache(EpreuveType epreuve, int tacheNumero) {
+            if (epreuve == null) return Optional.empty();
+            return Optional.ofNullable(rubrics.get(key(epreuve, tacheNumero)));
+        }
+    }
+
+    /** Version de la grille active ({@code sejourfr.production-evaluation.rubrics-version}). */
+    public String versionActive() {
+        return props.getRubricsVersion();
+    }
+
+    /**
+     * La grille d'une version donnee, pour RELIRE une evaluation passee avec la
+     * regle qui l'a notee — lecture seule, jamais utilisee pour noter.
+     *
+     * <p>Vide quand la version est inconnue ({@code null} : evaluation anterieure
+     * a la colonne {@code rubrics_version}), mal formee, ou que son fichier n'est
+     * pas livre : on ne devine jamais une regle. Contrairement au chargement de
+     * la grille active, aucune verification de contrat de sortie n'est faite :
+     * une grille historique n'appelle aucun modele.
+     */
+    public Optional<Grille> grilleDeVersion(String version) {
+        if (version == null || version.isBlank()) return Optional.empty();
+        if (active != null && active.version().equals(version)) return Optional.of(active);
+        if (!VERSION_GRILLE.matcher(version).matches()) return Optional.empty();
+        return historiques.computeIfAbsent(version, this::chargerHistorique);
+    }
+
+    private Optional<Grille> chargerHistorique(String version) {
+        String path = String.format(PATH_FORMAT, version);
+        try {
+            Map<String, Object> root = lireFichier(path);
+            if (!version.equals(String.valueOf(root.get("rubrics-version")))) {
+                log.warn("Grille historique {} : version declaree {} — ignoree.", version, root.get("rubrics-version"));
+                return Optional.empty();
+            }
+            return Optional.of(construire(version, root));
+        } catch (Exception e) {
+            log.warn("Grille historique {} illisible ou absente ({}) — regle non tracable.", version, e.toString());
+            return Optional.empty();
+        }
     }
 
     /** Bloc {@code commun} (global) : {@code sections} + {@code few_shot}. */

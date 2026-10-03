@@ -299,23 +299,6 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
         assertThat(manager.findLastSubmittedAtByTask(user.getId())).isEmpty();
     }
 
-    @Test
-    void findByStatutOrderedBySubmittedAt() {
-        User user = testData.user();
-        Attempt attempt = testData.attempt(user);
-        ProductionTask t = task(EpreuveType.TCF_EE, (short) 1);
-        Instant base = Instant.now().truncatedTo(ChronoUnit.SECONDS);
-        ProductionSubmission later = submission(attempt, t, user, base.minus(10, ChronoUnit.SECONDS), SubmissionStatut.EVALUATING);
-        ProductionSubmission earlier = submission(attempt, t, user, base.minus(30, ChronoUnit.SECONDS), SubmissionStatut.EVALUATING);
-        ProductionSubmission otherStatus = submission(attempt, t, user, base, SubmissionStatut.EVALUATED);
-
-        List<ProductionSubmission> result = manager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATING);
-
-        assertThat(result)
-                .extracting(ProductionSubmission::getId)
-                .containsExactly(earlier.getId(), later.getId())
-                .doesNotContain(otherStatus.getId());
-    }
     /**
      * FORME NOMINALE d'une soumission ORALE depuis V033 : ni media, ni texte —
      * l'audio n'est plus stocke, la production vit dans {@code transcriptions},

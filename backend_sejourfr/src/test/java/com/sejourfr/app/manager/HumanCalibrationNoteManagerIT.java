@@ -65,35 +65,6 @@ class HumanCalibrationNoteManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void findAnnotatedSubmissionIdsNeGardeQueLesAnnotees() {
-        ProductionSubmission annotee = testData.productionSubmission();
-        ProductionSubmission vierge = testData.productionSubmission();
-        note(annotee, testData.admin(), Instant.now());
-
-        Set<UUID> ids = manager.findAnnotatedSubmissionIds(
-                List.of(annotee.getId(), vierge.getId()));
-
-        assertThat(ids).containsExactly(annotee.getId());
-    }
-
-    @Test
-    void findAnnotatedSubmissionIdsDedupliqueLesReannotations() {
-        ProductionSubmission submission = testData.productionSubmission();
-        User evaluator = testData.admin();
-        note(submission, evaluator, Instant.now().minus(1, ChronoUnit.HOURS));
-        note(submission, evaluator, Instant.now());
-
-        assertThat(manager.findAnnotatedSubmissionIds(List.of(submission.getId())))
-                .containsExactly(submission.getId());
-    }
-
-    @Test
-    void findAnnotatedSubmissionIdsSansEntreeNeTapePasLaBase() {
-        assertThat(manager.findAnnotatedSubmissionIds(List.of())).isEmpty();
-        assertThat(manager.findAnnotatedSubmissionIds(null)).isEmpty();
-    }
-
-    @Test
     void findAllOrderedByCreatedAtDescReturnsNewestFirst() {
         int before = manager.findAllOrderedByCreatedAtDesc().size();
         ProductionSubmission submission = testData.productionSubmission();

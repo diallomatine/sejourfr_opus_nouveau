@@ -1,7 +1,6 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
-import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
 import com.sejourfr.app.entity.AiEvaluation;
@@ -9,16 +8,13 @@ import com.sejourfr.app.entity.HumanCalibrationNote;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.NiveauCecrl;
-import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
-import com.sejourfr.app.mapper.CalibrationSubmissionMapper;
 import com.sejourfr.app.mapper.HumanCalibrationNoteMapper;
-import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +30,6 @@ import java.util.UUID;
 /**
  * Service backend de la console admin de calibration IA :
  * <ul>
- *   <li>selectionne les submissions a annoter ;</li>
  *   <li>enregistre une note humaine + calcule l'ecart vs derniere {@link AiEvaluation} ;</li>
  *   <li>produit un dashboard de fiabilite.</li>
  * </ul>
@@ -53,58 +48,11 @@ public class AdminCalibrationService {
     private static final BigDecimal NOTE_MIN = BigDecimal.ZERO;
     private static final BigDecimal NOTE_MAX = new BigDecimal("20");
 
-    private static final int LIMIT_MIN = 1;
-    private static final int LIMIT_MAX = 200;
-
     private final ProductionSubmissionManager submissionManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final HumanCalibrationNoteManager humanNoteManager;
     private final UserManager userManager;
-    private final ProductionSubmissionMapper submissionMapper;
-    private final CalibrationSubmissionMapper calibrationMapper;
     private final HumanCalibrationNoteMapper noteMapper;
-
-    // ------------------------------------------------------------------------
-    // Liste des submissions
-    // ------------------------------------------------------------------------
-
-    /**
-     * Liste les submissions evaluees. {@code hasHumanNote=true} ne retourne que
-     * les submissions DEJA annotees ; {@code false} ou absent, que celles encore
-     * vierges. Seul {@code status=evaluated} est supporte pour l'instant.
-     *
-     * <p>Les ids annotes sont charges en UNE requete (et non par une lecture des
-     * notes submission par submission) : la liste peut monter a
-     * {@value #LIMIT_MAX} lignes.
-     *
-     * <p>Chaque ligne porte la version de grille de sa derniere evaluation IA :
-     * comparer une note IA a une note humaine n'a de sens qu'a bareme connu.
-     */
-    @Transactional(readOnly = true)
-    public List<CalibrationSubmissionDto> listSubmissions(String status, Boolean hasHumanNote, int limit) {
-        if (!"evaluated".equalsIgnoreCase(status)) {
-            throw new BusinessException("status=evaluated est le seul filtre supporte pour l'instant.");
-        }
-        int safe = clampLimit(limit);
-
-        List<ProductionSubmission> base = submissionManager
-                .findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED);
-
-        Set<UUID> annotees = humanNoteManager.findAnnotatedSubmissionIds(
-                base.stream().map(ProductionSubmission::getId).toList());
-        boolean veutAnnotees = Boolean.TRUE.equals(hasHumanNote);
-
-        List<ProductionSubmission> filtered = base.stream()
-                .filter(s -> annotees.contains(s.getId()) == veutAnnotees)
-                .limit(safe)
-                .toList();
-
-        return filtered.stream()
-                .map(s -> calibrationMapper.toDto(
-                        submissionMapper.toDto(s),
-                        aiEvaluationManager.findLatestBySubmissionId(s.getId()).orElse(null)))
-                .toList();
-    }
 
     /**
      * Derniere note humaine d'une submission, pour reafficher le formulaire
@@ -263,9 +211,5 @@ public class AdminCalibrationService {
         AiEvaluation ai = aiEvaluationManager.findLatestBySubmissionId(submissionId).orElse(null);
         if (ai == null || ai.getNoteSur20() == null) return null;
         return noteHumaine.subtract(ai.getNoteSur20()).setScale(1, RoundingMode.HALF_UP);
-    }
-
-    private int clampLimit(int limit) {
-        return Math.max(LIMIT_MIN, Math.min(limit, LIMIT_MAX));
     }
 }

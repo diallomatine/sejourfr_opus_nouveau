@@ -153,9 +153,4 @@ public class ProductionSubmissionManager {
     public List<ProductionSubmission> findLatestPerTask(UUID userId, EpreuveType epreuve, String niveauCible) {
         return repository.findLatestPerTask(userId, epreuve.name(), niveauCible);
     }
-
-    /** Submissions par statut, tri par date de soumission asc (calibration admin). */
-    public List<ProductionSubmission> findByStatutOrderedBySubmittedAt(SubmissionStatut statut) {
-        return repository.findStandardByStatut(statut);
-    }
 }

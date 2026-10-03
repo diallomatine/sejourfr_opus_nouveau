@@ -199,8 +199,6 @@ class DiagnosticServiceIT extends AbstractIntegrationTest {
             assertThat(submissionManager.countTrainingByUserAndEpreuve(
                     user.getId(), EpreuveType.TCF_EE)).isZero();
             assertThat(submissionManager.findRecentByUser(user.getId(), 20)).isEmpty();
-            assertThat(submissionManager.findByStatutOrderedBySubmittedAt(
-                    SubmissionStatut.SUBMITTED)).doesNotContain(submission);
         } finally {
             accountDeletionService.deleteAccount(user.getId());
         }

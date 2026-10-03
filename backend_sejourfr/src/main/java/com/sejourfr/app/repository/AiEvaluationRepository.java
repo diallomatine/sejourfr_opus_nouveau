@@ -18,6 +18,8 @@ public interface AiEvaluationRepository extends JpaRepository<AiEvaluation, UUID
     /** Derniere evaluation d'une submission (cf. index idx_ai_eval_submission_latest). */
     Optional<AiEvaluation> findFirstBySubmissionIdOrderByEvaluatedAtDesc(UUID submissionId);
 
+    long countBySubmissionId(UUID submissionId);
+
     /**
      * Les evaluations de PLUSIEURS submissions en <b>une</b> requete, de la plus
      * ancienne a la plus recente : l'appelant garde la derniere de chaque

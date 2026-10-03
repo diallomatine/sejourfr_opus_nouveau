@@ -1,7 +1,6 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
-import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
@@ -51,54 +50,6 @@ class AdminCalibrationServiceIT extends AbstractIntegrationTest {
 
     private static HumanCalibrationNoteDto note(String noteSur20) {
         return new HumanCalibrationNoteDto(null, new BigDecimal(noteSur20), NiveauCecrl.B1, "test");
-    }
-
-    private static List<UUID> ids(List<CalibrationSubmissionDto> l) {
-        return l.stream().map(row -> row.submission().id()).toList();
-    }
-
-    private static CalibrationSubmissionDto row(List<CalibrationSubmissionDto> l, UUID submissionId) {
-        return l.stream()
-                .filter(r -> submissionId.equals(r.submission().id()))
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("Submission absente de la liste : " + submissionId));
-    }
-
-    @Test
-    void listSubmissions_separe_reellement_annotees_et_vierges() {
-        User admin = testData.admin();
-        ProductionSubmission annotee = submissionEvaluee();
-        ProductionSubmission vierge = submissionEvaluee();
-        testData.aiEvaluation(annotee);
-        service.annoter(annotee.getId(), admin.getId(), note("15.0"));
-
-        List<UUID> avecNote = ids(service.listSubmissions("evaluated", true, 200));
-        List<UUID> sansNote = ids(service.listSubmissions("evaluated", false, 200));
-
-        assertThat(avecNote).contains(annotee.getId()).doesNotContain(vierge.getId());
-        assertThat(sansNote).contains(vierge.getId()).doesNotContain(annotee.getId());
-    }
-
-    /**
-     * La version de grille remonte bien de {@code ai_evaluations.rubrics_version}
-     * jusqu'a la console. Colonne nullable (V022) : une evaluation anterieure
-     * sort avec {@code null}, la console affiche « inconnue » plutot qu'une
-     * erreur.
-     */
-    @Test
-    void listSubmissions_expose_la_version_de_grille_persistee() {
-        ProductionSubmission avecGrille = submissionEvaluee();
-        ProductionSubmission sansGrille = submissionEvaluee();
-        AiEvaluation eval = testData.aiEvaluation(avecGrille);
-        eval.setRubricsVersion("v4.2");
-        aiEvaluationManager.save(eval);
-        testData.aiEvaluation(sansGrille); // rubrics_version laisse a null
-
-        List<CalibrationSubmissionDto> vierges = service.listSubmissions("evaluated", false, 200);
-
-        assertThat(row(vierges, avecGrille.getId()).rubricsVersion()).isEqualTo("v4.2");
-        assertThat(row(vierges, avecGrille.getId()).promptVersion()).isEqualTo("v1.0");
-        assertThat(row(vierges, sansGrille.getId()).rubricsVersion()).isNull();
     }
 
     @Test

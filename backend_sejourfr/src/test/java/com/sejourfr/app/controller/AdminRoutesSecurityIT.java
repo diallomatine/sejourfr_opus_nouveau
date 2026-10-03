@@ -79,7 +79,14 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                         "/api/admin/analytics/suivi?from=2026-08-18&to=2026-08-18&platform=IOS"
                         + "&source=instagram&includeInternal=true"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/stats"),
-                Arguments.of(HttpMethod.GET, "/api/admin/calibration/submissions"),
+                // Console « Productions IA » : contenu et email des candidats,
+                // et signalements — jamais ouverte hors ADMIN.
+                Arguments.of(HttpMethod.GET, "/api/admin/productions"),
+                Arguments.of(HttpMethod.GET, "/api/admin/productions?statut=ECHEC&includeInternal=true"),
+                Arguments.of(HttpMethod.GET, "/api/admin/productions/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/admin/productions/" + RANDOM_ID + "/flags"),
+                Arguments.of(HttpMethod.POST, "/api/admin/productions/flags/" + RANDOM_ID + "/verify"),
+                Arguments.of(HttpMethod.POST, "/api/admin/productions/flags/" + RANDOM_ID + "/remove"),
                 Arguments.of(HttpMethod.GET,
                     "/api/admin/calibration/submissions/" + RANDOM_ID + "/human-note"),
                 Arguments.of(HttpMethod.GET, "/api/admin/media/" + RANDOM_ID),
@@ -159,7 +166,8 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
      * Lectures de l'ancienne route admin {@code /audience} et de l'agrégat
      * {@code page_views}, supprimées le 2026-09-25 (aucun appelant) ; lecture
      * de l'ancien écran {@code /dashboard} et ses repères, remplacés par
-     * {@code /api/admin/analytics/suivi} (lot 4).
+     * {@code /api/admin/analytics/suivi} (lot 4) ; liste plate de la console
+     * Calibration, remplacée par {@code /api/admin/productions} (2026-10-03).
      */
     @ParameterizedTest(name = "ADMIN GET {0} -> 404 (route supprimée)")
     @ValueSource(strings = {
@@ -167,7 +175,8 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
             "/api/admin/page-views/paths",
             "/api/admin/audience/funnel",
             "/api/admin/analytics",
-            "/api/admin/analytics/annotations"})
+            "/api/admin/analytics/annotations",
+            "/api/admin/calibration/submissions"})
     void anciennesRoutesAudienceSupprimees(String path) throws Exception {
         User admin = testData.admin();
         MvcResult result = mockMvc.perform(build(HttpMethod.GET, path)

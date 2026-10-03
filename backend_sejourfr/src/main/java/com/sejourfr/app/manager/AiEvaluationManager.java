@@ -58,6 +58,11 @@ public class AiEvaluationManager {
         return repository.findByUserAndEpreuve(userId, epreuve);
     }
 
+    /** Nombre d'evaluations d'une soumission (1 en pratique ; la plus recente fait foi). */
+    public long countBySubmissionId(UUID submissionId) {
+        return repository.countBySubmissionId(submissionId);
+    }
+
     public AiEvaluation save(AiEvaluation evaluation) {
         return repository.save(evaluation);
     }

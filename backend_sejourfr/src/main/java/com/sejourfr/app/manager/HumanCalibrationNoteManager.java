@@ -33,15 +33,6 @@ public class HumanCalibrationNoteManager {
     }
 
     /**
-     * Sous-ensemble de {@code submissionIds} deja annote, en UNE requete.
-     * Retourne un ensemble vide sans toucher la base si l'entree est vide.
-     */
-    public Set<UUID> findAnnotatedSubmissionIds(Collection<UUID> submissionIds) {
-        if (submissionIds == null || submissionIds.isEmpty()) return Set.of();
-        return new LinkedHashSet<>(repository.findAnnotatedSubmissionIds(submissionIds));
-    }
-
-    /**
      * Toutes les notes, la plus recente d'abord — utilise par le dashboard de
      * calibration, qui n'en garde qu'une par submission (volumes maitrises).
      */

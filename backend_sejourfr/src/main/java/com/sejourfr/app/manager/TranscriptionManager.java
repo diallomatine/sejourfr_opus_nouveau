@@ -43,6 +43,35 @@ public class TranscriptionManager {
             .map(turnStitcher::stitch);
     }
 
+    /**
+     * Ce qu'on sait de la transcription la plus recente, <b>sans son texte</b> :
+     * outil, duree, cout et indicateurs de qualite (console admin). Le texte ne
+     * sort toujours que par {@link #findLatestTexteBySubmissionId(UUID)}.
+     */
+    public Optional<TranscriptionMeta> findLatestMetaBySubmissionId(UUID submissionId) {
+        return repository.findFirstBySubmissionIdOrderByCreatedAtDesc(submissionId)
+            .map(t -> new TranscriptionMeta(
+                t.getModeleUtilise(), t.getLangueDetectee(), t.getAudioDurationSec(),
+                t.getCoutMicroUsd(), t.getQualiteDegradee(), t.getTauxFormesSuspectes(),
+                t.getTauxCollages(), t.getAvgLogprob(), t.getNoSpeechProb(),
+                t.getCompressionRatio(), t.getCreatedAt()));
+    }
+
+    /** Metadonnees d'une transcription ; {@code null} = non mesure. */
+    public record TranscriptionMeta(
+        String modeleUtilise,
+        String langueDetectee,
+        Integer audioDurationSec,
+        Integer coutMicroUsd,
+        Boolean qualiteDegradee,
+        Double tauxFormesSuspectes,
+        Double tauxCollages,
+        Double avgLogprob,
+        Double noSpeechProb,
+        Double compressionRatio,
+        java.time.Instant createdAt
+    ) {}
+
     /** Une transcription existe-t-elle deja (pipeline : faut-il appeler Whisper ?). */
     public boolean existsBySubmissionId(UUID submissionId) {
         return repository.findFirstBySubmissionIdOrderByCreatedAtDesc(submissionId).isPresent();

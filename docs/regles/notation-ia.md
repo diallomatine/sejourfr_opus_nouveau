@@ -486,6 +486,15 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
 - **Console de calibration admin** (`features/calibration/` +
   `AdminCalibrationService`) : annotation humaine de vraies productions, biais et
   dispersion vs IA. C'est elle qui doit faire grossir le corpus réel.
+- **Console admin « Productions IA »** (2026-10-03, `/api/admin/productions`) : LA liste et
+  la fiche des productions EE/EO (la calibration ne garde que santé + annotation). Son bloc
+  « Calcul » relit une évaluation avec **la grille qui l'a notée**
+  (`ProductionRubricsProvider.grilleDeVersion(rubrics_version)`, même fusion fichier >
+  configuration que la grille active) et les **mêmes fonctions** que la notation
+  (`AiEvaluationService.weightedNote` / `plafondCouplage` / `plafondsDeclenches` / `plafonner`,
+  `ProductionBilanService.computeNiveau`). Version `NULL` ou grille non livrée : « règle non
+  traçable », rien d'inventé. Lecture seule : un écart relu ⇄ persisté est montré, jamais
+  corrigé. Décisions : `docs/admin/productions_corrections/decisions-implementation-productions-ia.md`.
 - **Fiche de scénario EO T2** : `production_tasks.agent_role_card` (migration
   V743, les 20 sujets couverts), rendue par `RealtimePersonaBuilder` via le
   gabarit `t2Fiche` de la persona v2. Jamais exposée à un client, jamais envoyée

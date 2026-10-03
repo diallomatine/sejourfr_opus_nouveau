@@ -62,4 +62,49 @@ class ProductionRubricsProviderTest {
 
         assertThatThrownBy(provider::load).isInstanceOf(IllegalStateException.class);
     }
+
+    // ------------------------------------------------------------------------
+    // Grille d'une version donnee (console admin « Productions IA », F-5 A)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void grilleDeVersion_active_est_la_grille_qui_note() {
+        ProductionRubricsProvider provider = load("v15");
+
+        ProductionRubricsProvider.Grille g = provider.grilleDeVersion("v15").orElseThrow();
+
+        assertThat(g.niveauCecrl().getSeuilB2()).isEqualTo(10.0);
+        assertThat(g.niveauCecrl().getSeuilB1()).isEqualTo(6.0);
+        assertThat(g.niveauCecrl().getSeuilA2()).isEqualTo(2.0);
+        assertThat(g.niveauDepuisLaGrille()).isTrue();
+        assertThat(g.niveauCecrl().getSeuilB1()).isEqualTo(provider.niveauCecrl().getSeuilB1());
+        assertThat(g.couplage().getEcartMax()).isEqualTo(provider.couplage().getEcartMax());
+        assertThat(provider.versionActive()).isEqualTo("v15");
+    }
+
+    @Test
+    void grilleDeVersion_historique_relue_par_la_meme_fusion() {
+        ProductionRubricsProvider provider = load("v15");
+
+        ProductionRubricsProvider.Grille v3 = provider.grilleDeVersion("v3").orElseThrow();
+
+        // v3 ne declare pas de bloc commun.niveau : seuils de la configuration.
+        assertThat(v3.niveauDepuisLaGrille()).isFalse();
+        assertThat(v3.niveauCecrl().getSeuilB2()).isEqualTo(15.0);
+        assertThat(v3.tache(com.sejourfr.app.enums.EpreuveType.TCF_EE, 1)).isPresent();
+        // La grille active, elle, n'a pas bouge.
+        assertThat(provider.niveauCecrl().getSeuilB2()).isEqualTo(10.0);
+        assertThat(provider.grilleDeVersion("v3")).containsSame(v3);
+    }
+
+    @Test
+    void grilleDeVersion_inconnue_ou_mal_formee_ne_devine_rien() {
+        ProductionRubricsProvider provider = load("v15");
+
+        assertThat(provider.grilleDeVersion(null)).isEmpty();
+        assertThat(provider.grilleDeVersion(" ")).isEmpty();
+        assertThat(provider.grilleDeVersion("v99")).isEmpty();
+        assertThat(provider.grilleDeVersion("../application")).isEmpty();
+        assertThat(provider.grilleDeVersion("v1.5")).isEmpty();
+    }
 }

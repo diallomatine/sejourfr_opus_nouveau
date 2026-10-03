@@ -1,7 +1,6 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
-import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
 import com.sejourfr.app.security.CurrentUser;
@@ -14,17 +13,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 /**
  * Console admin de calibration IA : annoter des submissions, suivre l'ecart
  * entre IA et notes humaines. Securise par {@code /api/admin/**} -&gt; ROLE_ADMIN
  * (cf. SecurityConfig).
+ *
+ * <p>La LISTE des productions vit dans la console « Productions IA »
+ * ({@code GET /api/admin/productions}, filtre {@code annotation}) : la
+ * calibration ne garde que la sante de la notation et l'annotation humaine.
  */
 @RestController
 @RequestMapping("/api/admin/calibration")
@@ -33,20 +34,6 @@ public class AdminCalibrationController {
 
     private final AdminCalibrationService adminCalibrationService;
     private final CurrentUser currentUser;
-
-    /**
-     * Liste les submissions a annoter (statut EVALUATED, sans note humaine).
-     * Filtre {@code hasHumanNote=true} pour voir UNIQUEMENT les deja-annotees.
-     * Chaque ligne enveloppe la soumission et les versions de grille / de
-     * tool-schema de sa derniere evaluation IA.
-     */
-    @GetMapping("/submissions")
-    public List<CalibrationSubmissionDto> submissions(
-            @RequestParam(required = false, defaultValue = "evaluated") String status,
-            @RequestParam(required = false) Boolean hasHumanNote,
-            @RequestParam(defaultValue = "50") int limit) {
-        return adminCalibrationService.listSubmissions(status, hasHumanNote, limit);
-    }
 
     /**
      * Derniere note humaine d'une submission (relecture / pre-remplissage du

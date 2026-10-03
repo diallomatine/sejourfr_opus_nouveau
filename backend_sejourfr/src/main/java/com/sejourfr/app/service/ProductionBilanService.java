@@ -522,7 +522,7 @@ public class ProductionBilanService {
      * moyenne ponderee deja calculee ({@code note_globale}). Retourne null si
      * rien d'exploitable. Package-private pour le test unitaire.
      */
-    static NiveauCecrl computeNiveau(Object scoresCriteres, List<String> sourceCodes,
+    public static NiveauCecrl computeNiveau(Object scoresCriteres, List<String> sourceCodes,
                                      BigDecimal noteGlobale, ProductionEvaluationProperties.NiveauCecrl seuils) {
         if (noteGlobale != null && noteGlobale.compareTo(BigDecimal.ZERO) == 0) {
             return NiveauCecrl.A1_NON_ATTEINT; // hors-sujet : coherent avec note_globale = 0
@@ -537,7 +537,7 @@ public class ProductionBilanService {
      * {@code scores_criteres} ; si un critère source manque, fallback
      * {@code noteGlobale} ; null si rien d'exploitable.
      */
-    static BigDecimal competence(Object scoresCriteres, List<String> sourceCodes, BigDecimal noteGlobale) {
+    public static BigDecimal competence(Object scoresCriteres, List<String> sourceCodes, BigDecimal noteGlobale) {
         Map<String, BigDecimal> byCode = new HashMap<>();
         if (scoresCriteres instanceof List<?> scores) {
             for (Object s : scores) {
@@ -565,7 +565,7 @@ public class ProductionBilanService {
     }
 
     /** Bande CECRL d'une compétence /20 selon les seuils config (plafond B2 inhérent). */
-    static NiveauCecrl niveauFromCompetence(BigDecimal competence,
+    public static NiveauCecrl niveauFromCompetence(BigDecimal competence,
                                             ProductionEvaluationProperties.NiveauCecrl seuils) {
         double c = competence.doubleValue();
         if (c >= seuils.getSeuilB2()) return NiveauCecrl.B2; // plafond B2

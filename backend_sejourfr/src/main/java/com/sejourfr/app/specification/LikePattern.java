@@ -7,13 +7,13 @@ import java.util.Locale;
  * {@code _} est courant dans un email et ne doit pas valoir « n'importe quel
  * caractère ». Partagé par les recherches admin.
  */
-final class LikePattern {
+public final class LikePattern {
 
-    static final char ESCAPE = '\\';
+    public static final char ESCAPE = '\\';
 
     private LikePattern() {}
 
-    static String contient(String saisie) {
+    public static String contient(String saisie) {
         String lower = saisie.trim().toLowerCase(Locale.ROOT);
         return "%" + lower.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
     }
