@@ -10,6 +10,7 @@ import {
   visitSessionId,
   writeJson,
 } from "./client-context";
+import {trackedScreenPath} from "./tracked-screens";
 import {trafficSourceFromRaw} from "./traffic-source";
 import type {DiagnosticRunType, PlanExerciseKind} from "./types";
 
@@ -161,6 +162,10 @@ type AnalyticsEventProperties = {
     planCode?: string;
     displayedPriceCents?: number;
   };
+  /** Un écran affiché (chantier « Activité »). Le gabarit voyage dans `path`
+   *  (`null` = écran non déclaré) ; aucune propriété, aucun contexte. 🛑 Exclu
+   *  du KPI « Visiteurs » de Suivi côté serveur (D8). */
+  SCREEN_VIEWED: Record<string, never>;
 };
 
 export type AnalyticsEvent = keyof AnalyticsEventProperties;
@@ -174,57 +179,15 @@ export type AnalyticsPropertiesFor<E extends AnalyticsEvent> = AnalyticsEventPro
 // ============================================================================
 
 /**
- * Les écrans qu'un événement peut nommer. Le serveur **refuse** un chemin hors
- * liste (l'événement est rejeté, et un `landingPath` de premier contact hors
- * liste rejette **tout le lot**) : un écran non déclaré part donc avec
- * `path: null`, jamais avec son adresse brute. Ajouter un écran suivi = une
- * ligne ici ET une dans `AnalyticsPaths.KNOWN`, dans la même passe.
- *
- * Les routes mobiles de la liste serveur (`/home`, `/target-path`, `/paywall`)
- * n'ont rien à faire ici.
+ * Le chemin qu'un événement peut nommer : le **gabarit** de l'écran affiché,
+ * lu dans `lib/tracked-screens.ts` (seul endroit déclaré). Le serveur
+ * **refuse** un chemin hors liste (l'événement est rejeté, et un `landingPath`
+ * de premier contact hors liste rejette **tout le lot**) : un écran non
+ * déclaré part donc avec `path: null`, jamais avec son adresse brute.
  */
-const TRACKED_PATHS: ReadonlySet<string> = new Set([
-  "/",
-  "/reussir",
-  "/diagnostic",
-  "/diagnostic/resultat",
-  "/diagnostic-civique",
-  "/diagnostic-civique/resultat",
-  "/plan",
-  "/plan/debloquer",
-  "/tarifs",
-  "/paiement",
-  "/connexion",
-  "/inscription",
-  "/dashboard",
-  "/entrainement",
-  "/examens-blancs",
-  "/competences",
-  "/profil",
-]);
-
-/** Routes web à segment dynamique, ramenées à l'écran qu'elles sont. Un
- *  identifiant de session n'a rien à faire dans une mesure d'audience. */
-const DYNAMIC_PATHS: ReadonlyArray<[RegExp, string]> = [
-  [/^\/diagnostic-civique\/[^/]+\/resultat$/, "/diagnostic-civique/resultat"],
-];
-
-/** Chemin suivi de cette adresse, ou `null` — jamais une valeur hors liste. */
-export function trackedPath(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let path = raw.split(/[?#]/)[0].trim().toLowerCase();
-  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
-  if (!path) path = "/";
-  if (TRACKED_PATHS.has(path)) return path;
-  for (const [pattern, normalized] of DYNAMIC_PATHS) {
-    if (pattern.test(path)) return normalized;
-  }
-  return null;
-}
-
 function currentPath(): string | null {
   try {
-    return trackedPath(window.location.pathname);
+    return trackedScreenPath(window.location.pathname);
   } catch {
     return null;
   }
@@ -706,4 +669,21 @@ export function trackDiagnosticAssessmentCompleted(attemptId: string): void {
   track(domain === "CO" ? "DIAGNOSTIC_CO_COMPLETED" : "DIAGNOSTIC_CE_COMPLETED", {
     diagnosticType: currentDiagnosticType,
   });
+}
+
+// ============================================================================
+// ÉCRANS AFFICHÉS — `SCREEN_VIEWED`
+// ============================================================================
+
+/** Dernière adresse comptée dans cet onglet : un nouveau rendu de la même
+ *  page (double effet de développement, re-montage du layout) n'est pas une
+ *  nouvelle vue. Un changement de seuls paramètres de requête non plus. */
+let lastViewedPathname: string | null = null;
+
+/** Une vue d'écran, à chaque changement d'adresse. Le gabarit est lu par
+ *  `track` sur l'adresse courante, comme pour tout événement. */
+export function trackScreenView(pathname: string): void {
+  if (!pathname || pathname === lastViewedPathname) return;
+  lastViewedPathname = pathname;
+  track("SCREEN_VIEWED", {});
 }

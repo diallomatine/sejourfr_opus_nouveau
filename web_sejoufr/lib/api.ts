@@ -357,6 +357,10 @@ interface FetchOptions extends RequestInit {
     json?: unknown; // body JSON à sérialiser
     /** Interne : court-circuite la tentative de refresh (utilisé par /auth/refresh). */
     skipRefresh?: boolean;
+    /** `false` : un 401 définitif (refresh impossible) remonte sans renvoyer
+     *  vers `/connexion`. Pour un appel de fond qui ne doit jamais faire
+     *  quitter la page affichée (le battement de présence). */
+    redirectOnUnauthorized?: boolean;
     /**
      * Extension Next.js : revalidation ISR (en secondes) ou tags de cache.
      * Utilisé pour les endpoints publics qui peuvent être servis depuis le cache
@@ -399,7 +403,16 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-    const {auth, json, headers, skipRefresh: _skip, cache, next, ...rest} = opts;
+    const {
+        auth,
+        json,
+        headers,
+        skipRefresh: _skip,
+        redirectOnUnauthorized: _redirect,
+        cache,
+        next,
+        ...rest
+    } = opts;
 
     const finalHeaders: Record<string, string> = {
         Accept: "application/json",
@@ -491,7 +504,7 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
                     return rawFetch<T>(path, opts);
                 }
             }
-            redirectToLogin();
+            if (opts.redirectOnUnauthorized !== false) redirectToLogin();
         }
         throw err;
     }
@@ -600,6 +613,22 @@ export const authApi = {
             }).catch(() => undefined);
         }
         tokenStorage.clear();
+    },
+};
+
+/**
+ * Battement de présence (chantier « Activité ») : `POST /api/me/presence`,
+ * sans corps, 204. N'importe quelle requête authentifiée compte déjà comme
+ * activité ; le battement couvre seulement les phases sans requête. Appelé
+ * par `lib/presence.ts`, et par lui seul.
+ */
+export const presenceApi = {
+    beat(): Promise<void> {
+        return apiFetch<void>("/api/me/presence", {
+            method: "POST",
+            auth: true,
+            redirectOnUnauthorized: false,
+        });
     },
 };
 

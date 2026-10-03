@@ -194,6 +194,16 @@ export default function ConfidentialitePage() {
               horaire, dates et heures de connexion ;
             </li>
             <li>
+              <strong>Données d&apos;activité de votre compte</strong> : lorsque
+              vous êtes connecté, les jours où vous utilisez la Plateforme, le
+              support utilisé (site web, application iOS ou Android), le moment
+              de votre dernière activité — un signal est envoyé une fois par
+              minute tant que la Plateforme est affichée au premier plan, et
+              jamais en arrière-plan — ainsi que les pages et écrans consultés,
+              désignés par leur type (« étape du Plan », « résultat
+              d&apos;expression écrite »…), sans leur contenu ;
+            </li>
+            <li>
               <strong>Données d&apos;utilisation des Services</strong> : sessions
               d&apos;entraînement et d&apos;examens blancs (module, thématiques abordées,
               réponses données, score, durée), progression par thématique pour
@@ -281,6 +291,10 @@ export default function ConfidentialitePage() {
               "Intérêt légitime (art. 6.1.f)",
             ],
             [
+              "Mesure de l'activité des comptes : nombre de comptes en ligne et actifs, connexions, pages et écrans consultés, par support — en statistiques agrégées",
+              "Intérêt légitime (art. 6.1.f)",
+            ],
+            [
               "Réponse à vos demandes (formulaire de contact)",
               "Intérêt légitime (art. 6.1.f)",
             ],
@@ -342,7 +356,14 @@ export default function ConfidentialitePage() {
               "Données de mesure d'audience (identifiant de mesure et étapes de parcours associées)",
               "395 jours au plus (13 mois), puis suppression automatique ; l'identifiant de mesure a lui-même une durée de vie de 13 mois, puis un nouveau est tiré",
             ],
-            ["Logs de connexion", "12 mois"],
+            [
+              "Adresse IP et navigateur associés à une session de connexion",
+              "Durée de la session de connexion + 7 jours, puis suppression automatique",
+            ],
+            [
+              "Historique de connexion et d'activité (dates de connexion, jours d'activité, pages et écrans consultés)",
+              "12 mois, puis suppression automatique ; supprimé immédiatement à la suppression du compte",
+            ],
             [
               "Journal des e-mails envoyés (type d'e-mail, adresse destinataire, date, statut d'envoi — jamais le contenu)",
               "12 mois, puis suppression automatique ; supprimé immédiatement à la suppression du compte",
@@ -497,7 +518,9 @@ export default function ConfidentialitePage() {
           </p>
           <p>
             <strong>Ce que nous enregistrons</strong> : l&apos;identifiant de mesure
-            décrit ci-dessus, la page consultée, les étapes franchies (diagnostic
+            décrit ci-dessus, la page ou l&apos;écran consulté (son type, jamais
+            son adresse complète ni un identifiant qu&apos;elle porterait), les
+            étapes franchies (diagnostic
             commencé, exercice terminé, écran des pass affiché, bouton
             d&apos;achat cliqué…), la date et l&apos;heure, le lien ou la campagne par
             lesquels vous êtes arrivé, votre <strong>pays</strong> et votre{" "}
@@ -534,9 +557,13 @@ export default function ConfidentialitePage() {
             d&apos;avoir passé un diagnostic sans compte (sa date, son type et les
             étapes franchies, jamais vos réponses). Nous savons ainsi quel chemin
             mène réellement à une inscription ou à un achat. Ces informations
-            sont alors <strong>supprimées avec votre compte</strong>, et vous
-            disposez à leur égard des droits décrits à l&apos;Article 9, notamment
-            le droit d&apos;opposition.
+            sont alors <strong>supprimées avec votre compte</strong>. Lorsque
+            vous êtes connecté, les pages et écrans consultés sont eux aussi
+            rattachés à votre compte : ils ne servent qu&apos;à des statistiques
+            agrégées (combien de comptes ont ouvert tel écran), jamais à une
+            liste nominative. Vous disposez à l&apos;égard de ces informations
+            des droits décrits à l&apos;Article 9, notamment le droit
+            d&apos;opposition.
           </p>
         </LegalSubsection>
 

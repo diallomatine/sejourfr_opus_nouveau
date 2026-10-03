@@ -14,6 +14,7 @@ import 'full_tcf_exam_repository.dart';
 import 'funnel_repository.dart';
 import 'lots_repository.dart';
 import 'learning_plan_repository.dart';
+import 'presence_repository.dart';
 import 'production_repository.dart';
 import 'profile_repository.dart';
 import 'realtime_repository.dart';
@@ -27,6 +28,10 @@ final themesRepositoryProvider = Provider<ThemesRepository>(
 
 final analyticsRepositoryProvider = Provider<AnalyticsRepository>(
   (ref) => AnalyticsRepository(ref.watch(apiClientProvider)),
+);
+
+final presenceRepositoryProvider = Provider<PresenceRepository>(
+  (ref) => PresenceRepository(ref.watch(apiClientProvider)),
 );
 
 final funnelRepositoryProvider = Provider<FunnelRepository>(

@@ -73,7 +73,9 @@ import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
 import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
+import '../analytics/analytics.dart';
 import '../analytics/diagnostic_run_tracker.dart';
+import '../analytics/screen_view_tracker.dart';
 import '../auth/auth_controller.dart';
 import '../models/diagnostic_run_models.dart';
 import '../models/enums.dart';
@@ -1122,6 +1124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  final screenViews = ScreenViewTracker(ref.read(analyticsServiceProvider));
+  void onRouteChanged() => screenViews.onRouteChanged(router);
+  router.routerDelegate.addListener(onRouteChanged);
+  ref.onDispose(() => router.routerDelegate.removeListener(onRouteChanged));
   return router;
 });
 

@@ -17,6 +17,8 @@
 /// ce qui n'existe QUE dans l'application.
 library;
 
+import 'tracked_screens.dart';
+
 enum AnalyticsEvent {
   landingViewed('LANDING_VIEWED'),
   diagnosticCtaClicked('DIAGNOSTIC_CTA_CLICKED'),
@@ -75,7 +77,13 @@ enum AnalyticsEvent {
   /// [planPaywallViewed] : c'est LE geste d'intention depuis le Plan.
   /// `planCode` / `displayedPriceCents` disent ce que le candidat avait sous
   /// les yeux, jamais ce qu'il a payé.
-  planUnlockClicked('PLAN_UNLOCK_CLICKED');
+  planUnlockClicked('PLAN_UNLOCK_CLICKED'),
+
+  /// Un écran affiché (chantier « Activité ») : émis par `ScreenViewTracker`
+  /// seul, avec le gabarit de `TrackedScreen` en `path` (`null` = écran non
+  /// déclaré). Aucune propriété, aucun contexte. 🛑 Exclu du KPI « Visiteurs »
+  /// de Suivi côté serveur (D8).
+  screenViewed('SCREEN_VIEWED');
 
   const AnalyticsEvent(this.wire);
 
@@ -173,6 +181,7 @@ const Map<AnalyticsEvent, Set<String>> kAnalyticsPropertyKeys = {
     'planCode',
     'displayedPriceCents',
   },
+  AnalyticsEvent.screenViewed: <String>{},
 };
 
 /// Les identifiants de **contexte** qu'un événement peut porter en colonne
@@ -219,26 +228,28 @@ const Map<AnalyticsEvent, AnalyticsContext> kAnalyticsEventContext = {
   AnalyticsEvent.planUnlockClicked: AnalyticsContext.plan,
 };
 
-/// Chemins admis par le serveur. Le mobile n'a pas d'URL, mais ses écrans ont
-/// un équivalent web exact : c'est **cet** équivalent qu'on envoie, pour que le
-/// même écran se compte du même côté des deux plateformes.
+/// Chemins des événements émis par un écran (hors `SCREEN_VIEWED`, qui les
+/// lit lui-même sur la route). Le mobile n'a pas d'URL : chaque écran suivi a
+/// son chemin app dans [TrackedScreen], seul endroit déclaré — on le
+/// réutilise ici, jamais recopié.
 ///
 /// 🛑 **L'allowlist est fermée côté serveur** (`util/AnalyticsPaths`) : un
-/// chemin non déclaré est refusé en 400 nommé, jamais rangé en « autre ».
-/// Ajouter un écran suivi, c'est ajouter une ligne des deux côtés dans la même
-/// passe. `null` est un cas normal : un écran non suivi n'invente pas de chemin.
+/// chemin non déclaré fait rejeter l'événement. `null` est un cas normal : un
+/// écran non suivi n'invente pas de chemin.
 class AnalyticsPath {
   const AnalyticsPath._();
 
-  static const String diagnostic = '/diagnostic';
-  static const String civicDiagnosticResult = '/diagnostic-civique/resultat';
-  static const String plan = '/plan';
+  static final String diagnostic = TrackedScreen.diagnosticTcf.path!;
+  static final String civicDiagnosticResult =
+      TrackedScreen.diagnosticCiviqueResultat.path!;
+  static final String plan = TrackedScreen.plan.path!;
 
   /// L'écran de déblocage du Plan (`PlanUnlockScreen`), miroir de la page web.
-  static const String planUnlock = '/plan/debloquer';
+  static final String planUnlock = TrackedScreen.planDebloquer.path!;
 
   /// L'écran paywall natif. Déclaré côté serveur dans la section « Mobile »
   /// d'`AnalyticsPaths` : il n'a pas d'URL, mais il a une place dans le
-  /// tableau, à côté du `/paiement` du web.
+  /// tableau, à côté du `/paiement` du web. C'est une feuille, pas une route :
+  /// il n'est pas dans [TrackedScreen].
   static const String paywall = '/paywall';
 }

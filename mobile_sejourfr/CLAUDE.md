@@ -3939,6 +3939,16 @@ canonique vit côté backend.
   portent le **`journeyId` seul**, jamais la run : le serveur résout journey → run
   fondatrice (Q8).
   🛑 Pas de `DIAGNOSTIC_SUBJECT_VIEWED` : l'étape 1 se lit sur la run.
+- **Activité (chantier 2026-10-03)** — contrat : `docs/admin/activites/decisions-implementation.md`.
+  `SCREEN_VIEWED` : un seul écouteur sur `routerDelegate` (`routerProvider`) →
+  `ScreenViewTracker` (`core/analytics/screen_view_tracker.dart`), qui lit le **gabarit**
+  (`router.state.fullPath`, route poussée comprise) et le traduit par `TrackedScreen`
+  (`core/analytics/tracked_screens.dart`, seul endroit déclaré, mêmes clés que
+  `web_sejoufr/lib/tracked-screens.ts`) ; gabarit absent ⇒ `path: null`. Une vue par adresse
+  affichée (`uri.path`), splash exclu, feuilles/dialogues non comptés. Battement de présence :
+  `core/presence/presence_heartbeat.dart` (`presenceHeartbeatProvider`, observé par `SejourFrApp`)
+  → `POST /api/me/presence` (`PresenceRepository`), `AuthAuthenticated` + `resumed` seulement,
+  immédiat puis 60 s, arrêt hors `resumed`, échec silencieux.
 - **La run du diagnostic** : `DiagnosticRunTracker` (`core/analytics/diagnostic_run_tracker.dart`)
   est l'**unique** stockage run + `claimToken` (un enregistrement par type, `SharedPreferences`,
   `clientKey` tirée par passage via `SubmissionKeys.newKey`). Création à la 1ʳᵉ question :

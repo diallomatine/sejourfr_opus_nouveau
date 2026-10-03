@@ -5246,11 +5246,19 @@ grille plus haut dans ce fichier** (vagues 5 à 9, mode guest) : ces props et co
   vidage de sortie aussi (contrôle N7) : balise acceptée par le navigateur, sinon
   réponse du repli `fetch`. Balise en `text/plain` (`BEACON_CONTENT_TYPE`) :
   pas de pré-vérification CORS, le lot lit le même JSON sous ce type.
-- 🛑 **Chemins : miroir FERMÉ de `AnalyticsPaths.KNOWN`** (`TRACKED_PATHS` + routes
-  dynamiques ramenées à leur écran, `/diagnostic-civique/{id}/resultat` →
-  `/diagnostic-civique/resultat`). Un écran non déclaré part avec `path: null` — un chemin
-  hors liste rejette l'événement, et un `landingPath` de premier contact hors liste rejette
-  **tout le lot**. Ajouter un écran suivi = une ligne ici ET côté backend.
+- 🛑 **Chemins : miroir FERMÉ de `AnalyticsPaths.KNOWN`** — `lib/tracked-screens.ts`, seul endroit
+  déclaré (les ~36 écrans de `TrackedScreen` côté serveur, mêmes clés que
+  `mobile_sejourfr/lib/core/analytics/tracked_screens.dart`). Tout événement porte le **gabarit**
+  de l'écran (`/plan/etape/:id`, en minuscules), jamais l'adresse concrète. Un écran non déclaré
+  part avec `path: null` — un chemin hors liste rejette l'événement, et un `landingPath` de premier
+  contact hors liste rejette **tout le lot**. Ajouter un écran suivi = une ligne ici, une dans le
+  fichier Dart ET une côté backend.
+- **Activité (chantier 2026-10-03)** : `app/_components/ActivityTracker.tsx`, monté une fois dans le
+  layout racine (sous `AuthProvider`) — `SCREEN_VIEWED` à chaque changement de `usePathname()`
+  (`trackScreenView`, dédoublonné sur l'adresse ; tout visiteur) et battement de présence
+  `lib/presence.ts` (`POST /api/me/presence` via `presenceApi`, compte connecté, onglet visible
+  seulement, immédiat puis 60 s, échec silencieux, un 401 définitif ne renvoie pas vers
+  `/connexion`). Contrat : `docs/admin/activites/decisions-implementation.md`.
 - **Contexte d'un événement** (`track(…, {context})`) : `diagnosticRunId`, `diagnosticType`,
   `journeyId` en colonnes serveur. 🛑 **Le `claimToken` n'y entre jamais** (aucun type ne le
   porte).

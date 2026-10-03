@@ -6,6 +6,7 @@ import { SiteHeader } from "./_components/SiteHeader";
 import { Footer } from "./_components/Footer";
 import { NavHistoryTracker } from "./_components/NavHistoryTracker";
 import { FirstTouchCapture } from "./_components/FirstTouchCapture";
+import { ActivityTracker } from "./_components/ActivityTracker";
 import { ProfileCompletionGuard } from "./_components/auth/ProfileCompletionGuard";
 import { MockExamLauncherProvider } from "./_components/hub/MockExamLauncher";
 import "./globals.css";
@@ -85,6 +86,7 @@ export default function RootLayout({
         <FirstTouchCapture />
         <NavHistoryTracker />
         <AuthProvider>
+          <ActivityTracker />
           <ProfileCompletionGuard />
           <MockExamLauncherProvider>
             <SiteHeader />
