@@ -1,0 +1,301 @@
+.toolbar {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-2);
+}
+
+.search {
+  position: relative;
+  display: block;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px 0 40px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.searchInput:focus {
+  border-color: var(--blue);
+  box-shadow: var(--focus-ring);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
+  gap: 10px 12px;
+  padding: 14px 18px 4px;
+}
+
+.filterGroup {
+  min-width: 0;
+}
+
+.filterLabel {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.filterOn select {
+  border-color: var(--blue-line);
+  background: var(--blue-50);
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.filtersFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 10px 18px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.rangeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.dateInput {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: var(--focus-ring);
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.checkbox input {
+  accent-color: var(--blue);
+}
+
+.loading {
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.table {
+  min-width: 960px;
+}
+
+.row {
+  cursor: pointer;
+}
+
+.mainLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.mainLink:hover {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+.mainLink:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: var(--focus-ring);
+}
+
+.subLine {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.candidate,
+.cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.email {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.inlineTag {
+  display: block;
+  margin-top: 5px;
+}
+
+.level {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.dash {
+  color: var(--muted-2);
+}
+
+.actionCell {
+  width: 1%;
+  text-align: right;
+}
+
+.rowAction {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.rowAction:hover,
+.row:hover .rowAction {
+  border-color: var(--rule-strong);
+  background: var(--surface);
+  color: var(--blue);
+}
+
+.rowAction:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--blue);
+}
+
+.rowActionText {
+  display: none;
+}
+
+.inlineError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--red-dark);
+  background: var(--red-soft);
+  border-bottom: 1px solid var(--rule);
+}
+
+.emptyWithAction {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 28px;
+}
+
+.refreshing {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stale {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+@media (max-width: 720px) {
+  .toolbar,
+  .filtersFoot {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .table {
+    min-width: 0;
+  }
+
+  .candidate,
+  .cell {
+    align-items: flex-end;
+  }
+
+  .actionCell {
+    width: auto;
+  }
+
+  .rowAction {
+    display: inline-flex;
+    width: 100%;
+    height: 36px;
+    gap: 6px;
+    justify-content: center;
+    border-color: var(--rule-strong);
+    color: var(--blue);
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  .rowActionText {
+    display: inline;
+  }
+}

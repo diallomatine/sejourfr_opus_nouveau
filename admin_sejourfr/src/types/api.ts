@@ -959,7 +959,7 @@ export interface CancelSubscriptionResponse {
 
 // ============ ÉVALUATION IA EO/EE (notation v4) ============
 //
-// Miroir de EvaluationResultDto (backend), consommé par `features/calibration/`.
+// Miroir de EvaluationResultDto (backend), consommé par `features/productions/` (vue candidat).
 
 export type NiveauCecrl = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
@@ -1213,23 +1213,6 @@ export type SubmissionStatut =
   | "EVALUATED"
   | "FAILED";
 
-/** Miroir de ProductionTaskDto — catalogue des sujets EO/EE (`GET /api/production-tasks`). */
-export interface ProductionTaskDto {
-  id: string;
-  epreuve: EpreuveType;
-  tacheNumero: number;
-  niveauCible: string | null;
-  /** Intitulé éditorial du sujet (V028). `null` = pas de titre : les fronts
-   *  candidats retombent sur « Sujet N » + consigne. */
-  titre: string | null;
-  consigne: string;
-  contexte: string | null;
-  dureeMaxSec: number | null;
-  dureeMinSec: number | null;
-  motsMin: number | null;
-  motsMax: number | null;
-}
-
 /**
  * Miroir de AdminProductionTaskDto (`GET /api/admin/production-tasks`).
  * Inclut les sujets DÉSACTIVÉS et le drapeau `active` : la console doit voir
@@ -1256,8 +1239,8 @@ export interface AdminProductionTaskTitreRequest {
 /**
  * Miroir de ProductionSubmissionDto. `evaluation` est null tant que le pipeline
  * IA n'a pas abouti ; `transcription` n'est renseignée que pour l'oral. Le DTO
- * ne porte PAS l'épreuve : elle se retrouve via `productionTaskId` dans le
- * catalogue des sujets.
+ * ne porte PAS l'épreuve : la console la lit sur l'en-tête de
+ * `AdminProductionDetailDto`.
  */
 export interface ProductionSubmissionDto {
   id: string;
@@ -1304,22 +1287,6 @@ export interface PlanChangeDto {
 
 // ============ CALIBRATION DE LA NOTATION IA ============
 
-/**
- * Une ligne de `GET /api/admin/calibration/submissions` : la soumission plus
- * les versions de l'évaluation IA. DTO propre à l'admin — la version de grille
- * n'intéresse que l'écran qui juge la notation, elle n'est pas ajoutée aux DTO
- * partagés avec le web et le mobile.
- *
- * `rubricsVersion` est null pour les évaluations antérieures à la colonne
- * `ai_evaluations.rubrics_version` : l'écran affiche « inconnue ». Une note
- * produite avec la grille v3 et une note v4.2 ne se comparent pas.
- */
-export interface CalibrationSubmissionDto {
-  submission: ProductionSubmissionDto;
-  rubricsVersion: string | null;
-  promptVersion: string | null;
-}
-
 /** Payload et réponse de POST /api/admin/calibration/submissions/{id}/human-note. */
 export interface HumanCalibrationNoteDto {
   submissionId: string;
@@ -1354,6 +1321,262 @@ export interface NiveauCalibrationStatsDto {
   divergents: number;
   /** Ratio sur 100. */
   pourcentageDivergents: number;
+}
+
+// ============ PRODUCTIONS IA (/api/admin/productions) ============
+// Miroir manuel de AdminProductionListItemDto / AdminProductionDetailDto /
+// AdminProductionFlagDto. DTO propres à l'admin. Statuts, libellés, calcul du
+// niveau : tout est servi, le front n'en recalcule rien. `null` = non
+// disponible, jamais 0.
+
+export type AdminProductionEpreuve = "TCF_EE" | "TCF_EO";
+
+export type ProductionSubmissionSource = "ASYNC" | "REALTIME";
+
+export type AdminProductionContexte = "ENTRAINEMENT" | "EXAMEN_BLANC" | "EXAMEN_COMPLET";
+
+export type AdminProductionStatutIa = "EN_COURS" | "EVALUEE" | "NON_EVALUABLE" | "ECHEC";
+
+/** `AUCUN` ne qualifie qu'une production, `RETIRE` qu'un signalement de l'historique. */
+export type EtatSignalement = "AUCUN" | "SIGNALE" | "VERIFIE" | "RETIRE";
+
+export type MotifSignalement =
+  | "NIVEAU_INCOHERENT"
+  | "SCORE_INCOHERENT"
+  | "FEEDBACK_INCORRECT"
+  | "REPONSE_MAL_COMPRISE"
+  | "TRANSCRIPTION"
+  | "AUTRE";
+
+export type AdminProductionNiveauFiltre = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "SANS_NIVEAU";
+
+/** Trois états disjoints ; absent = toutes. */
+export type AdminProductionSignalementFiltre = "SIGNALEES" | "VERIFIEES" | "NON_SIGNALEES";
+
+export type AdminProductionAnnotationFiltre = "ANNOTEES" | "NON_ANNOTEES";
+
+export type AdminProductionPeriode = "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS";
+
+export type AdminProductionTri = "DATE_DESC" | "DATE_ASC" | "NIVEAU_DESC" | "NIVEAU_ASC" | "EPREUVE";
+
+/** Paramètres de `GET /api/admin/productions`. `periode` OU `from`+`to` (yyyy-MM-dd), jamais les deux. */
+export interface AdminProductionFilters {
+  q?: string;
+  epreuve?: AdminProductionEpreuve;
+  tache?: 1 | 2 | 3;
+  niveau?: AdminProductionNiveauFiltre;
+  statut?: AdminProductionStatutIa;
+  signalement?: AdminProductionSignalementFiltre;
+  annotation?: AdminProductionAnnotationFiltre;
+  periode?: AdminProductionPeriode;
+  from?: string;
+  to?: string;
+  includeInternal?: boolean;
+  sort?: AdminProductionTri;
+  page?: number;
+  size?: number;
+}
+
+/** Une ligne de la liste, et l'en-tête de la fiche. */
+export interface AdminProductionListItemDto {
+  id: string;
+  submittedAt: string;
+  userId: string;
+  userEmail: string;
+  userInternal: boolean;
+  epreuve: EpreuveType;
+  tache: number;
+  source: ProductionSubmissionSource;
+  contexte: AdminProductionContexte;
+  contexteLabel: string;
+  /** Niveau observé (TÂCHE) de la dernière évaluation, jamais un « niveau final ». */
+  niveauObserve: NiveauCecrl | null;
+  statutIa: AdminProductionStatutIa;
+  statutIaLabel: string;
+  etatSignalement: EtatSignalement;
+  etatSignalementLabel: string;
+  /** Au moins une note humaine de calibration existe. */
+  annotee: boolean;
+}
+
+export interface AdminActeurDto {
+  id: string;
+  email: string | null;
+  nom: string | null;
+}
+
+export interface AdminProductionFlagDto {
+  id: string;
+  submissionId: string;
+  evaluationId: string;
+  motif: MotifSignalement;
+  motifLabel: string;
+  commentaire: string | null;
+  etat: EtatSignalement;
+  etatLabel: string;
+  createdAt: string;
+  createdBy: AdminActeurDto | null;
+  verifiedAt: string | null;
+  verifiedBy: AdminActeurDto | null;
+  removedAt: string | null;
+  removedBy: AdminActeurDto | null;
+}
+
+export interface AdminProductionFlagRequest {
+  motif: MotifSignalement;
+  commentaire: string | null;
+}
+
+/** Le sujet tel que reçu par le candidat (sans la fiche examinateur EO T2). */
+export interface AdminProductionSujet {
+  productionTaskId: string;
+  titre: string | null;
+  consigne: string;
+  contexte: string | null;
+  niveauCible: string | null;
+  motsMin: number | null;
+  motsMax: number | null;
+  dureeMinSec: number | null;
+  dureeMaxSec: number | null;
+}
+
+export interface AdminProductionTranscriptionInfo {
+  outil: string | null;
+  langueDetectee: string | null;
+  dureeAudioSec: number | null;
+  qualiteDegradee: boolean | null;
+  tauxFormesSuspectes: number | null;
+  tauxCollages: number | null;
+  avgLogprob: number | null;
+  noSpeechProb: number | null;
+  compressionRatio: number | null;
+  /** Millionièmes de dollar US ; `null` en temps réel (non mesuré). */
+  coutMicroUsd: number | null;
+}
+
+/** EE : `texte` + `motsCount`. EO : `transcription` + `dureeSec`. Aucun audio n'est conservé. */
+export interface AdminProductionReponse {
+  texte: string | null;
+  motsCount: number | null;
+  transcription: string | null;
+  dureeSec: number | null;
+  audioConserve: boolean;
+  audioMotif: string | null;
+  transcriptionInfo: AdminProductionTranscriptionInfo | null;
+}
+
+/** Un critère tel qu'il est enregistré (score RETENU, /20) ; `poids` de la grille de l'évaluation. */
+export interface AdminProductionCritereRetenu {
+  code: string;
+  label: string | null;
+  noteSur20: number | null;
+  poids: number | null;
+  bande: string | null;
+  commentaire: string | null;
+  preuve: string | null;
+}
+
+export interface AdminProductionEvaluationIa {
+  evaluationId: string;
+  evaluabilite: ProductionEvaluabilite;
+  evaluatedAt: string | null;
+  nbEvaluations: number;
+  criteres: AdminProductionCritereRetenu[];
+  noteSur20: number | null;
+  niveauIa: NiveauCecrl | null;
+  niveauRetenu: NiveauCecrl | null;
+  /** rang(retenu) − rang(IA) ; `null` si l'un manque. */
+  ecartNiveauCrans: number | null;
+  niveauMontreAuCandidat: boolean;
+  confiance: string | null;
+  confianceRaisons: string[];
+  /** Texte de l'IA, jamais montré au candidat. */
+  justificationNiveau: string | null;
+  avertissements: string[];
+}
+
+export type AdminCalculStatut = "CALCULE" | "REGLE_NON_TRACABLE" | "NON_EVALUABLE" | "SANS_EVALUATION";
+
+export interface AdminProductionSeuils {
+  a2: number | null;
+  b1: number | null;
+  b2: number | null;
+}
+
+export interface AdminProductionCouplage {
+  actif: boolean;
+  ecartMax: number | null;
+  criteresRealisation: string[];
+  criteresLangue: string[];
+  plafondRealisation: number | null;
+  /** Critères EXACTEMENT au plafond : POSSIBLEMENT ramenés (non affirmable). */
+  criteresAuPlafond: string[];
+}
+
+export interface AdminProductionPlafondNiveau {
+  regle: string;
+  niveauMax: NiveauCecrl | null;
+  declencheur: string | null;
+}
+
+/** Hors `CALCULE`, seuls statut, libellé, versions et `niveauPersiste` / `notePersistee` sont servis. */
+export interface AdminProductionCalcul {
+  statut: AdminCalculStatut;
+  statutLabel: string;
+  rubricsVersion: string | null;
+  promptVersion: string | null;
+  grilleActive: boolean;
+  formuleNote: string | null;
+  noteRecalculee: number | null;
+  notePersistee: number | null;
+  criteresPorteursNiveau: string[];
+  competence: number | null;
+  seuils: AdminProductionSeuils | null;
+  seuilsDeLaGrille: boolean;
+  regleNiveau: string | null;
+  niveauAvantPlafonds: NiveauCecrl | null;
+  couplage: AdminProductionCouplage | null;
+  plafondsDeclenches: AdminProductionPlafondNiveau[];
+  plafondPersiste: NiveauCecrl | null;
+  niveauRecalcule: NiveauCecrl | null;
+  niveauPersiste: NiveauCecrl | null;
+  coherent: boolean | null;
+}
+
+/** Ce qui est réellement enregistré sur l'appel (ni fournisseur, ni durée d'appel). */
+export interface AdminProductionTechnique {
+  modele: string | null;
+  promptVersion: string | null;
+  rubricsVersion: string | null;
+  tokensInput: number | null;
+  tokensInputCacheHit: number | null;
+  tokensOutput: number | null;
+  /** Millionièmes de dollar US. */
+  coutMicroUsd: number | null;
+  /** Ancienne colonne en centimes d'euro : ne s'additionne jamais à `coutMicroUsd`. */
+  coutLegacyCentimesEuro: number | null;
+  submittedAt: string | null;
+  evaluatedAt: string | null;
+  /** File d'attente + correction, PAS une durée d'appel. */
+  delaiSoumissionEvaluationSec: number | null;
+  relancesManuelles: number;
+  erreurMessage: string | null;
+}
+
+export interface AdminProductionDetailDto {
+  entete: AdminProductionListItemDto;
+  sujet: AdminProductionSujet;
+  reponse: AdminProductionReponse;
+  evaluationIa: AdminProductionEvaluationIa | null;
+  calcul: AdminProductionCalcul;
+  /** Le DTO EXACT servi au candidat (même mapper), `planChange` nul. */
+  vueCandidat: ProductionSubmissionDto;
+  technique: AdminProductionTechnique;
+  /** `feedback_json` APRÈS traitement serveur, pas la réponse de l'IA. */
+  jsonPersiste: Record<string, unknown> | null;
+  /** Retirés compris, le plus récent d'abord. */
+  signalements: AdminProductionFlagDto[];
+  signalable: boolean;
 }
 
 // ============ SUIVI (GET /api/admin/analytics/suivi) ============

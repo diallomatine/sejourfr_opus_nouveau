@@ -1,14 +1,3 @@
-/**
- * Jours ISO `yyyy-MM-dd` au fuseau Europe/Paris, comme le backend. Une seule
- * notion d'« aujourd'hui » : `parisToday()`.
- */
-
-export function parisToday(): string {
-  return new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" }).format(
-    new Date(),
-  );
-}
-
 /** « 21/08 » — mention « mesuré depuis le … ». */
 export function dayMonth(day: string): string {
   return `${day.slice(8, 10)}/${day.slice(5, 7)}`;

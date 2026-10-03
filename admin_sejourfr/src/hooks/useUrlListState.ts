@@ -15,9 +15,10 @@ export function oneOf<T extends string>(raw: string | null, allowed: readonly T[
  * une valeur par défaut n'est pas écrite. Poser un filtre, la recherche ou la
  * taille ramène en page 1 DANS LA MÊME écriture d'URL (jamais un effet qui
  * remettrait la page à 0 après coup : une requête partirait avec l'ancienne).
- * Chaque feature lit ses propres filtres dans `params`.
+ * Chaque feature lit ses propres filtres dans `params` ; `defaultSize` est le
+ * réglage d'écran (non écrit dans l'URL quand il est en vigueur).
  */
-export function useUrlListState() {
+export function useUrlListState(defaultSize: number = DEFAULT_PAGE_SIZE) {
   const [params, setParams] = useSearchParams();
 
   const { page, size } = useMemo(() => {
@@ -25,17 +26,19 @@ export function useUrlListState() {
     const rawSize = Number.parseInt(params.get("size") ?? "", 10);
     return {
       page: Number.isFinite(rawPage) && rawPage > 1 ? rawPage - 1 : 0,
-      size: PAGE_SIZE_OPTIONS.find((s) => s === rawSize) ?? DEFAULT_PAGE_SIZE,
+      size: PAGE_SIZE_OPTIONS.find((s) => s === rawSize) ?? defaultSize,
     };
-  }, [params]);
+  }, [params, defaultSize]);
 
-  const setFilter = useCallback(
-    (key: string, value: string | undefined, options?: { replace?: boolean }) => {
+  const setFilters = useCallback(
+    (patch: Record<string, string | undefined>, options?: { replace?: boolean }) => {
       setParams(
         (prev) => {
           const next = new URLSearchParams(prev);
-          if (value) next.set(key, value);
-          else next.delete(key);
+          for (const [key, value] of Object.entries(patch)) {
+            if (value) next.set(key, value);
+            else next.delete(key);
+          }
           next.delete("page");
           return next;
         },
@@ -43,6 +46,12 @@ export function useUrlListState() {
       );
     },
     [setParams],
+  );
+
+  const setFilter = useCallback(
+    (key: string, value: string | undefined, options?: { replace?: boolean }) =>
+      setFilters({ [key]: value }, options),
+    [setFilters],
   );
 
   const setPage = useCallback(
@@ -64,13 +73,13 @@ export function useUrlListState() {
     (nextSize: number) => {
       setParams((prev) => {
         const next = new URLSearchParams(prev);
-        if (nextSize === DEFAULT_PAGE_SIZE) next.delete("size");
+        if (nextSize === defaultSize) next.delete("size");
         else next.set("size", String(nextSize));
         next.delete("page");
         return next;
       });
     },
-    [setParams],
+    [setParams, defaultSize],
   );
 
   const resetFilters = useCallback(() => {
@@ -82,7 +91,7 @@ export function useUrlListState() {
     });
   }, [setParams]);
 
-  return { params, page, size, setFilter, setPage, setSize, resetFilters };
+  return { params, page, size, setFilter, setFilters, setPage, setSize, resetFilters };
 }
 
 /**

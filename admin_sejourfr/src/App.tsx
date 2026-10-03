@@ -14,6 +14,8 @@ import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
 import { ExamsPage } from "./features/exams/ExamsPage";
 import { PlansPage } from "./features/plans/PlansPage";
+import { ProductionDetailPage } from "./features/productions/ProductionDetailPage";
+import { ProductionsPage } from "./features/productions/ProductionsPage";
 import { ProductionTitlesPage } from "./features/productionTasks/ProductionTitlesPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
@@ -85,6 +87,8 @@ export function App() {
                   path="/example-audio/review"
                   element={<ExampleAudioReviewPage />}
                 />
+                <Route path="/productions-ia" element={<ProductionsPage />} />
+                <Route path="/productions-ia/:id" element={<ProductionDetailPage />} />
                 <Route path="/calibration" element={<CalibrationPage />} />
                 <Route path="/couts-ia" element={<AiCostsPage />} />
                 <Route path="/notions-civiques" element={<CivicNotionsPage />} />

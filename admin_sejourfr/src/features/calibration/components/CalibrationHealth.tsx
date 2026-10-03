@@ -3,13 +3,8 @@ import type {
   CalibrationStatsDto,
   NiveauCalibrationStatsDto,
 } from "../../../types/api";
-import {
-  formatDecimal,
-  formatPercent,
-  formatSigned,
-  readBias,
-  readDispersion,
-} from "../calibrationHelpers";
+import { formatDecimal, formatPercent, formatSigned } from "../../../lib/evaluation";
+import { readBias, readDispersion } from "../calibrationHelpers";
 import type { HealthTone } from "../calibrationHelpers";
 import styles from "./CalibrationHealth.module.css";
 

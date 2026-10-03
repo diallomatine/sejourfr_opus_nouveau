@@ -179,3 +179,126 @@ Format : décision · pourquoi · ce que ça change · ce qu'on pourrait modifie
   s'ouvre depuis la fiche Productions IA. « À annoter » = `GET /api/admin/productions?annotation=NON_ANNOTEES&statut=EVALUEE`.
 - Nouveaux types miroirs dans `admin_sejourfr/src/types/api.ts` (contrat : `docs/api-endpoints.md`
   § « Admin — Productions IA »). Aucun type web/mobile ne change.
+
+---
+
+## Front admin (lot 2 + partie front du lot 3) — 2026-10-03
+
+Vérification : `npx tsc --noEmit`, `npm run build`, `npm run lint` (aucune erreur dans les
+fichiers touchés ; les erreurs restantes sont antérieures). Aucun test front ajouté (aucun
+n'existait dans `admin_sejourfr/`). Aucun bug backend bloquant rencontré : backend inchangé.
+
+### DI-22 — Routes `/productions-ia` et `/productions-ia/:id`, entrée « Génération IA »
+- **Décision** : feature `features/productions/`, entrée de nav « Productions IA » juste avant
+  « Calibration notation » (F-8), icône `sparkles` ajoutée au jeu local, `detailLabel: "Production"`
+  pour le fil d'Ariane.
+- **Pourquoi** : chemin parlant et distinct de `/production-titles` (titres des sujets).
+- **Change** : deux routes dans `App.tsx`, une entrée dans `navigation.ts`.
+- **Plus tard** : renommer le chemin ne demande qu'un remplacement (aucun lien externe connu).
+
+### DI-23 — `useUrlListState(defaultSize)` + `setFilters` multi-clés
+- **Décision** : le hook partagé accepte une taille par défaut par écran (50 ici, F-9 ; 25 reste
+  le défaut des autres) et un `setFilters(patch)` qui écrit plusieurs clés et ramène en page 1
+  dans la même écriture d'URL. `setFilter` en devient un cas particulier.
+- **Pourquoi** : passer de « 7 jours » à « Personnalisée » doit retirer `periode` et poser
+  `from`/`to` d'un coup — deux écritures successives enverraient une requête invalide (400).
+- **Change** : `useProductionListParams` ; aucun changement de comportement pour Utilisateurs /
+  Abonnements.
+
+### DI-24 — Période : `periode` OU `from`+`to`, jamais complétée
+- **Décision** : « Personnalisée » pose `from = to = aujourd'hui (Paris)` ; une plage illisible
+  ou inversée dans l'URL est ignorée (aucun filtre de période), jamais corrigée ni complétée.
+  Le contrôle de la borne > 365 j reste serveur (400 affiché en bandeau d'erreur).
+  `parisToday()` remonté de `features/suivi/dates.ts` vers `lib/dates.ts` (2ᵉ usage).
+- **Pourquoi** : même mécanique que le Suivi ; une seule notion d'« aujourd'hui ».
+
+### DI-25 — Filtres en sélecteurs libellés, libellés des valeurs de filtre locaux
+- **Décision** : 8 sélecteurs `Select` (primitive `Form`) en grille responsive (Épreuve, Tâche,
+  Niveau observé, Statut IA, Signalement, Annotation humaine, Période, Trier par) + case
+  « Inclure les comptes internes » ; pas les pastilles-select de la maquette. « Signalées » est
+  libellé « Signalées (à vérifier) » (DI-03 : n'inclut pas les vérifiées). Les libellés des
+  VALEURS DE FILTRE sont locaux (`productionLabels.ts`) — rien ne les sert — ; tout ce qui
+  qualifie une production affichée (statut, contexte, signalement) reste le libellé servi.
+- **Pourquoi** : réutiliser la primitive existante (même forme qu'Abonnements) plutôt qu'un
+  nouveau composant ; 8 filtres en `Chips` seraient illisibles à 360 px.
+- **Plus tard** : un composant `PillSelect` partagé si le style maquette est voulu partout.
+
+### DI-26 — Colonnes : celles du brief, le reste en sous-ligne
+- **Décision** : Date · Candidat · Épreuve (EE/EO) · Tâche · Niveau observé · Statut IA ·
+  Signalement. Sous-lignes : heure + 8 premiers caractères de l'id ; id utilisateur court ;
+  « Compte interne » ; « Temps réel » sous EO ; contexte servi sous la tâche ; « Annotée » sous
+  le statut. Niveau absent = « — » (jamais A1). Repli carte < 720 px (`cardTable`).
+- **Pourquoi** : « simple » d'abord ; Mode et Contexte (suggérés par l'audit) sans colonnes en plus.
+
+### DI-27 — Mutualisation et suppression de l'ancien (F-1)
+- **Décision** : les helpers de lecture d'une évaluation (libellés niveau / confiance / bande /
+  critère, `isNonEvaluable`, `isLegacyEvaluation`, transcription en tours, formats) passent de
+  `calibrationHelpers.ts` à `lib/evaluation.ts` ; `calibrationHelpers.ts` ne garde que la
+  lecture de santé (biais, dispersion, écart). `EvaluationReport` est **déplacé** en
+  `productions/components/CandidateFeedback` ; `ProductionView` (remplacé par `ReponseBlock`,
+  même rendu des tours examinateur/candidat) et `SubmissionDetailModal` sont **supprimés**, ainsi
+  que `calibrationApi.submissions`, `CalibrationSubmissionDto`, les onglets « à annoter /
+  annotées », et `productionTasksApi.list` + `ProductionTaskDto` (route candidat
+  `/api/production-tasks`, qui n'avait plus d'appelant). Polices en dur des CSS repris → tokens.
+- **Pourquoi** : refonte = suppression immédiate ; 2ᵉ usage ⇒ `lib/`.
+
+### DI-28 — « Feedback candidat » rendu depuis `vueCandidat`, sans doublon
+- **Décision** : `CandidateFeedback` rend `vueCandidat.evaluation` : niveau observé (tâche) tel
+  que servi au candidat (« Non montré au candidat » s'il est nul), position dans le niveau,
+  confiance et raisons, avertissement de niveau, accomplissement, points forts / à améliorer
+  (+ blocs legacy). La note /20 n'y figure pas (le candidat ne la voit pas sur une tâche) et le
+  détail par critère n'est pas répété : ce sont les mêmes `scores_criteres` que le bloc
+  « Évaluation IA » (le mapper candidat ne retire que `niveau_cecrl` et `justification_niveau`).
+- **Pourquoi** : « pas de surcharge » ; montrer ce que le candidat a vu sans le réécrire.
+- **Plus tard** : réafficher les critères dans ce bloc si l'on veut une copie d'écran fidèle.
+
+### DI-29 — Annotation ouverte depuis la fiche, Calibration recentrée
+- **Décision** : `calibration/components/HumanNoteModal` (stats pour le seuil + dernière note +
+  `HumanNoteForm`) s'ouvre par « Annoter (calibration) » / « Revoir l'annotation » sur une fiche
+  au statut `EVALUEE` (rien à annoter sinon). Enregistrer invalide `["calibration"]` et
+  `["adminProductions"]` (drapeau `annotee`). `CalibrationPage` = bandeau de santé + deux liens
+  `/productions-ia?annotation=NON_ANNOTEES&statut=EVALUEE` et `?annotation=ANNOTEES`.
+- **Pourquoi** : F-1 — Calibration garde la santé et l'annotation, Productions IA la liste.
+
+### DI-30 — Calcul SejourFR : bloc distinct, écart IA ⇄ retenu dedans
+- **Décision** : bloc à liseré bleu sur fond `--surface-2` (séparé de l'évaluation IA). En tête,
+  le niveau ENREGISTRÉ + pastille de cohérence servie (`coherent` vrai / faux / non vérifiable),
+  versions de grille et de schéma ; puis notes recalculée / enregistrée, compétence, porteurs,
+  seuils + leur origine, niveaux avant plafonds / recalculé, formule et règle (textes servis),
+  plafonds déclenchés + plafond enregistré, couplage. Hors `CALCULE` : le `statutLabel` servi
+  et, pour `REGLE_NON_TRACABLE`, niveau / note enregistrés et versions — rien d'autre (F-5).
+  « Niveau IA vs retenu » ferme le bloc (masqué pour un non évaluable), écart en crans servi.
+  Les critères exactement au plafond de couplage portent « Possiblement ramené » dans
+  l'évaluation IA (sans l'affirmer, F-4).
+- **Plus tard** : passer l'écart dans un bloc à part si le propriétaire le veut plus visible.
+
+### DI-31 — Informations techniques : unités réelles, rien de converti
+- **Décision** : « Fournisseur : non enregistré » (le champ n'existe pas) ; coût `coutMicroUsd`
+  formaté en dollars (2 à 6 décimales) ; coût legacy en € sur une ligne séparée, jamais additionné ;
+  délai soumission → évaluation (avec la mention « pas une durée d'appel ») ; relances manuelles ;
+  erreur en encadré. Les indicateurs de transcription (parts) et le poids d'un critère
+  (« poids × 0,25 ») sont affichés tels que servis, sans conversion en pourcentage.
+- **Pourquoi** : rien d'inventé, aucune unité supposée.
+
+### DI-32 — Signalement : motifs locaux, un bandeau, historique en fin de fiche
+- **Décision** : la modale (primitive `Modal`) propose les 6 motifs en pastilles radio — liste
+  locale, miroir de `MotifSignalement` (aucun endpoint ne les sert) — puis affiche le
+  `motifLabel` servi. Motif obligatoire, commentaire ≤ 1000 (compteur). 409 ⇒ « déjà actif,
+  rechargez », 422 ⇒ « aucune évaluation ». Le signalement actif (au plus un) s'affiche en
+  bandeau sous le contexte (date, admin, motif, commentaire ; « Marquer vérifié » si non vérifié,
+  « Retirer ») ; l'historique complet, retirés compris, ferme la fiche. Les actions n'ont pas de
+  confirmation (idempotentes, retrait soft). Chaque mutation invalide `["adminProductions"]`.
+- **Plus tard** : une confirmation avant « Retirer » si des retraits accidentels apparaissent.
+
+### DI-33 — Primitive `Collapsible`, icônes ajoutées
+- **Décision** : `components/ui/Collapsible` (carte repliable sur `<details>` natif, fermée par
+  défaut) pour « Informations techniques » et « JSON persisté après traitement serveur » (rendu
+  `JSON.stringify(…, 2)`, lecture seule). Icônes `sparkles`, `flag`, `chevronDown` ajoutées au jeu.
+- **Pourquoi** : aucune primitive n'existait (audit) ; `<details>` donne clavier et lecteur d'écran.
+
+### Écarts assumés vs maquette v3
+Sélecteurs libellés au lieu de pastilles-select ; pas de bouton « Actualiser » en topbar ;
+bouton « Signaler » en contour rouge (`danger`, pas de variante ambre dans `Button`) ; scores
+« x / 20 » sans pastilles ; pas de « résumé » de feedback (le champ n'existe pas) ; hors maquette
+mais demandés : filtre annotation, case comptes internes, historique des signalements, accès à
+l'annotation.

@@ -1,36 +1,21 @@
 import type { ReactNode } from "react";
 import type {
   AccomplissementPoint,
-  BandeCritere,
   EvaluationResultDto,
   ExempleCorrige,
   ObjectifAccomplissement,
   PointAmeliorer,
-  ScoreCritereFeedback,
 } from "../../../types/api";
 import {
-  BANDE_LABEL,
   CONFIANCE_LABEL,
-  CRITERES_OBSOLETES,
   NIVEAU_LABEL,
   NON_EVALUABLE_LABEL,
   OBJECTIF_LABEL,
-  critereLabel,
-  formatDecimal,
   isLegacyEvaluation,
   isNonEvaluable,
   normalizePointAmeliorer,
-  toNumber,
-} from "../calibrationHelpers";
-import styles from "./EvaluationReport.module.css";
-
-const BANDE_CLASS: Record<BandeCritere, string> = {
-  TRES_BONNE_MAITRISE: styles.bandeHaute,
-  SATISFAISANT: styles.bandeBonne,
-  EN_COURS_ACQUISITION: styles.bandeMoyenne,
-  FRAGILE: styles.bandeFragile,
-  NON_EVALUABLE: styles.bandeNeutre,
-};
+} from "../../../lib/evaluation";
+import styles from "./CandidateFeedback.module.css";
 
 const OBJECTIF_CLASS: Record<ObjectifAccomplissement, string> = {
   ATTEINT: styles.objectifAtteint,
@@ -38,18 +23,14 @@ const OBJECTIF_CLASS: Record<ObjectifAccomplissement, string> = {
   NON_ATTEINT: styles.objectifNonAtteint,
 };
 
-export function EvaluationReport({
-  evaluation,
-  rubricsVersion,
-  promptVersion,
-}: {
-  evaluation: EvaluationResultDto;
-  /** Grille appliquée. Null pour une évaluation antérieure à la colonne. */
-  rubricsVersion: string | null;
-  promptVersion: string | null;
-}) {
+/**
+ * Le retour tel que le candidat l'a reçu, rendu depuis `vueCandidat` (le DTO
+ * exact de l'endpoint candidat). Le détail par critère n'est pas répété : ce
+ * sont les mêmes `scores_criteres` que le bloc « Évaluation IA », qui les
+ * montre avec leur poids.
+ */
+export function CandidateFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
   const feedback = evaluation.feedback;
-  const criteres = feedback?.scores_criteres ?? [];
   const accomplissement = feedback?.accomplissement;
   const raisons = feedback?.confiance_raisons ?? [];
   const avertissements = feedback?.avertissements ?? [];
@@ -60,33 +41,14 @@ export function EvaluationReport({
   const objectif = accomplissement?.objectif ?? null;
   const objectifResume = accomplissement?.objectif_resume;
 
-  const head = (
+  const head = legacy ? (
     <div className={styles.head}>
-      <h3 className={styles.title}>Évaluation de l&apos;IA</h3>
-      <div className={styles.headTags}>
-        {legacy && (
-          <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
-            Format v3 — sans bandes ni preuves
-          </span>
-        )}
-        <span
-          className={styles.legacy}
-          title={
-            promptVersion
-              ? `Grille de notation appliquée · schéma de sortie ${promptVersion}`
-              : "Grille de notation appliquée"
-          }
-        >
-          Grille {rubricsVersion ?? "inconnue"}
-        </span>
-      </div>
+      <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
+        Format v3 — sans bandes ni preuves
+      </span>
     </div>
-  );
+  ) : null;
 
-  // Production écartée AVANT tout appel au correcteur : il n'y a ni note, ni
-  // niveau, ni score par critère à annoter. Afficher un « — / 20 » et un bloc
-  // « Détail par critère » vide laisserait croire à une évaluation ratée, alors
-  // que c'est un refus délibéré et documenté du serveur.
   if (isNonEvaluable(evaluation)) {
     return (
       <section className={styles.wrap}>
@@ -109,29 +71,20 @@ export function EvaluationReport({
     <section className={styles.wrap}>
       {head}
 
-      <div className={styles.summary}>
-        <div className={styles.scoreBlock}>
-          <span className={styles.scoreLabel}>Note globale</span>
-          <span className={styles.scoreValue}>
-            {evaluation.noteSurVingt === null
-              ? "—"
-              : formatDecimal(evaluation.noteSurVingt)}
-            <em> / 20</em>
-          </span>
-        </div>
-
-        <div className={styles.summaryMeta}>
-          <MetaLine label="Niveau observé">
-            {evaluation.niveauObserve
-              ? NIVEAU_LABEL[evaluation.niveauObserve]
-              : "Non renseigné"}
-          </MetaLine>
-          <MetaLine label="Confiance">
-            {evaluation.confiance
-              ? CONFIANCE_LABEL[evaluation.confiance]
-              : "Non renseignée"}
-          </MetaLine>
-        </div>
+      <div className={styles.summaryMeta}>
+        <MetaLine label="Niveau observé (tâche)">
+          {evaluation.niveauObserve
+            ? NIVEAU_LABEL[evaluation.niveauObserve]
+            : "Non montré au candidat"}
+        </MetaLine>
+        <MetaLine label="Position dans le niveau">
+          {evaluation.situationDansNiveauLabel ?? "Non disponible"}
+        </MetaLine>
+        <MetaLine label="Confiance">
+          {evaluation.confiance
+            ? CONFIANCE_LABEL[evaluation.confiance]
+            : "Non disponible"}
+        </MetaLine>
       </div>
 
       {evaluation.avertissementNiveau && (
@@ -145,22 +98,6 @@ export function EvaluationReport({
               <li key={index}>{raison}</li>
             ))}
           </ul>
-        </Block>
-      )}
-
-      {criteres.length > 0 ? (
-        <Block title="Détail par critère">
-          <ul className={styles.criteres}>
-            {criteres.map((critere, index) => (
-              <CritereRow key={`${critere.code}-${index}`} critere={critere} />
-            ))}
-          </ul>
-        </Block>
-      ) : (
-        <Block title="Détail par critère">
-          <p className={styles.none}>
-            Aucun score par critère n&apos;a été persisté pour cette évaluation.
-          </p>
         </Block>
       )}
 
@@ -240,42 +177,6 @@ function NonEvaluableBanner({ raisons }: { raisons: string[] }) {
         </ul>
       )}
     </div>
-  );
-}
-
-function CritereRow({ critere }: { critere: ScoreCritereFeedback }) {
-  const note = toNumber(critere.note_sur_20);
-  const obsolete = CRITERES_OBSOLETES.includes(critere.code);
-
-  return (
-    <li className={styles.critere}>
-      <div className={styles.critereHead}>
-        <span className={styles.critereName}>
-          {critereLabel(critere.code, critere.label)}
-          {obsolete && <em className={styles.obsolete}> grille précédente</em>}
-        </span>
-        <span className={styles.critereScore}>
-          {note === null ? "—" : `${formatDecimal(note)} / 20`}
-        </span>
-      </div>
-
-      <div className={styles.critereTags}>
-        <code className={styles.critereCode}>{critere.code}</code>
-        {critere.bande && (
-          <span className={`${styles.bande} ${BANDE_CLASS[critere.bande]}`}>
-            {BANDE_LABEL[critere.bande]}
-          </span>
-        )}
-      </div>
-
-      {critere.commentaire && (
-        <p className={styles.critereComment}>{critere.commentaire}</p>
-      )}
-
-      {critere.preuve && (
-        <blockquote className={styles.preuve}>{critere.preuve}</blockquote>
-      )}
-    </li>
   );
 }
 

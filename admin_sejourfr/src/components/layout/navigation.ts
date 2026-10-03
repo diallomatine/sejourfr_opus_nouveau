@@ -45,6 +45,7 @@ export const NAVIGATION: readonly NavSection[] = [
       { to: "/audio-questions/review", label: "Audio à valider", icon: "checkCircle", badge: "audioDrafts" },
       { to: "/audio-questions/logs", label: "Audit générations", icon: "history" },
       { to: "/example-audio/review", label: "Audios exemples EO", icon: "volume", badge: "exampleAudio" },
+      { to: "/productions-ia", label: "Productions IA", icon: "sparkles", detailLabel: "Production" },
       { to: "/calibration", label: "Calibration notation", icon: "sliders" },
       { to: "/couts-ia", label: "Coût de l'IA", icon: "coins" },
       { to: "/notions-civiques", label: "Notions civiques", icon: "book" },

@@ -56,9 +56,12 @@ src/
 │   │                        (userId/authorId null → coordonnées dans
 │   │                        userEmail/userFullName). « Répondre » envoie un
 │   │                        email au contact (MailService, Reply-To support).
+│   ├── productions/         « Productions IA » : liste `/productions-ia` et fiche
+│   │                        `/productions-ia/:id` des productions EE/EO corrigées
+│   │                        par IA, signalement. Détail dans la section plus bas.
 │   ├── calibration/         Calibration de la notation IA EO/EE : bandeau de
-│   │                        santé (biais vs dispersion), liste des productions
-│   │                        évaluées, fiche de détail + annotation humaine
+│   │                        santé (biais vs dispersion) + annotation humaine
+│   │                        (`HumanNoteModal`, ouverte depuis la fiche Productions IA)
 │   ├── skills/              Compétences TCF EE/EO : contenu éditorial (48
 │   │                        compétences, 240 petits sujets, 720 références).
 │   │                        Liste filtrée + détail + modals sujet/références
@@ -71,10 +74,12 @@ src/
 │   ├── useBodyScrollLock.ts Bloque le défilement de la page (modale, tiroir), compté
 │   ├── useDebouncedValue.ts
 │   └── useUrlListState.ts   État d'une liste paginée serveur dans l'URL (page,
-│                            taille, filtres, recherche debouncée, recalage de
-│                            page) — partagé par `subscriptions/` et `users/`
+│                            taille — défaut par écran —, filtres, `setFilters`
+│                            multi-clés, recherche debouncée, recalage de page)
+│                            — partagé par `subscriptions/`, `users/`, `productions/`
 ├── lib/
-│   ├── dates.ts             Affichage d'un instant servi en heure de Paris
+│   ├── dates.ts             Affichage d'un instant servi en heure de Paris + `parisToday()`
+│   ├── evaluation.ts        Lecture d'une évaluation IA EE/EO (libellés, JSONB, transcription)
 │   └── queryClient.ts       Config TanStack Query
 ├── pages/
 │   └── LoginPage.tsx        Page hors layout, accessible publiquement
@@ -127,17 +132,18 @@ Endpoints utilisés actuellement :
   `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
   refiltrer la page courante côté navigateur, le compteur et la pagination
   deviendraient faux.
-- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=…&limit=…`,
-  `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
+- `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=|from=&to=&includeInternal=&sort=&page=&size=`,
+  `GET /api/admin/productions/{id}`, `POST /api/admin/productions/{id}/flags`,
+  `POST /api/admin/productions/flags/{flagId}/verify|remove` (feature `productions/`,
+  contrat : `docs/api-endpoints.md` § « Admin — Productions IA »)
+- `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
   `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
-  (feature `calibration/`)
+  (feature `calibration/`). ⚠️ `GET /api/admin/calibration/submissions` est **supprimé**
+  (F-1 : la liste vit dans Productions IA)
 - `GET|POST|PATCH|DELETE /api/admin/skills[/{id}]`, `GET /api/admin/skills/stats?section=`,
   `GET|POST|PATCH|DELETE /api/admin/skill-prompts[/{id}]`,
   `PUT /api/admin/skill-prompts/{id}/references` (feature `skills/` — module
   Compétences TCF, §6 du contrat gelé)
-- `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
-  pour retrouver l'épreuve et la consigne d'une soumission (le DTO submission ne
-  porte que `productionTaskId`). Route authentifiée, pas `/api/admin/**`.
 - `GET /api/admin/production-tasks?epreuve=…&tacheNumero=…` +
   `PATCH /api/admin/production-tasks/{id}/titre` (feature `productionTasks/` —
   intitulés éditoriaux des sujets EE/EO)
@@ -380,6 +386,38 @@ question**, d'où une **carte de relecture** et non une ligne de tableau.
 - Le pré-tagging est **lu**, jamais produit ici : 🛑 **aucun appel LLM n'est
   déclenché depuis cet écran**.
 
+### Productions IA (`features/productions/`)
+
+Contrôler une production EE/EO corrigée par IA : **repérer → ouvrir → comprendre → signaler**
+(brief, audit et journal DI-01 → DI-33 : `docs/admin/productions_corrections/`). Maquette
+`sejourfr-admin-productions-ia-v3.html` : design repris, données fictives NON reproduites
+(pas de €, pas de /4, pas de « Prononciation », pas de lecteur audio).
+
+- **Routes** : `/productions-ia` (liste) et `/productions-ia/:id` (fiche). Entrée de nav
+  « Génération IA › Productions IA » (F-8).
+- **Liste** : pagination serveur **50** (F-9, `useUrlListState(50)`), état dans l'URL
+  (`useProductionListParams` : `?q&epreuve&tache&niveau&statut&signalement&annotation&periode|from+to&internes&sort&page&size`),
+  comptes internes exclus par défaut (case « Inclure les comptes internes », F-7). Plage
+  personnalisée = `from`/`to` posés ensemble (aujourd'hui Paris par défaut), jamais avec
+  `periode`. Recherche : email « contient » ou **UUID complet** (production ou utilisateur).
+- 🛑 **Rien n'est recalculé** : statut IA (4 états, F-6), contexte, état de signalement, calcul
+  du niveau, cohérence, écart IA ⇄ retenu sont servis. Les seuls libellés locaux sont ceux des
+  **valeurs de filtre** et des 6 motifs de la modale (`productionLabels.ts`, aucun endpoint ne
+  les liste).
+- **Libellés imposés** : « Niveau observé (tâche) », jamais « niveau final » (F-10) ; « Scores
+  retenus » et « JSON persisté après traitement serveur », jamais « brut » (F-4). EO : pas de
+  lecteur, « Audio non conservé » + durée + « Transcription automatique ».
+- **Fiche** (ordre du brief) : contexte → bandeau du signalement actif → sujet → réponse →
+  évaluation IA (critères /20 + poids + bande, « possiblement ramené » si au plafond de couplage)
+  → calcul SejourFR (bloc à liseré bleu ; `REGLE_NON_TRACABLE` ⇒ libellé servi + niveau enregistré
+  seulement, F-5) + niveau IA vs retenu → feedback candidat (`CandidateFeedback`, rendu de
+  `vueCandidat`) → infos techniques et JSON en `Collapsible` → historique des signalements.
+  Coût en **micro-USD** affiché en $ ; coût legacy en centimes d'€ à part, jamais additionné.
+- **Écritures** : seulement les gestes explicites (signaler, vérifier, retirer, annoter). Bouton
+  « Signaler » si `signalable` (NON_EVALUABLE compris) ; « Annoter » si statut `EVALUEE`.
+- **`queryKey`** : `["adminProductions", "list", filters]`, `["adminProductions", "detail", id]` ;
+  toute mutation de signalement invalide le préfixe `["adminProductions"]`.
+
 ### Calibration de la notation IA (`features/calibration/`)
 
 Écran qui répond à « est-ce que l'IA note juste ? ». Un correcteur annote de
@@ -390,24 +428,14 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   indulgente**. Contre-intuitif : l'écran l'écrit toujours en toutes lettres,
   jamais en brut. `ecartMoyen` = biais (dans quel sens), `ecartMoyenAbsolu` =
   dispersion (de combien) — deux cartes distinctes, avec la formule affichée.
-- `hasHumanNote=true|false` filtre réellement côté backend (annotées /
-  non-annotées) ; l'écran appelle chaque onglet avec le bon paramètre, sans
-  reconstitution côté front. `GET .../submissions/{id}/human-note` relit la
-  **dernière** note humaine d'une soumission (404 = jamais annotée, traité
-  comme `null`, pas comme une erreur) : à l'ouverture d'une production le
-  formulaire d'annotation se pré-remplit avec cette note et l'écart IA/humain
-  s'affiche immédiatement. Réenregistrer **ajoute** une observation (pas de
-  contrainte d'unicité en base) au lieu de remplacer — le tableau de bord ne
-  compte que la plus récente par soumission, donc réannoter ne fausse pas la
-  statistique.
-- **Version de grille** : la liste renvoie des `CalibrationSubmissionDto`
-  (`{ submission, rubricsVersion, promptVersion }`), pas des
-  `ProductionSubmissionDto` bruts. Une note produite avec la grille v3 et une
-  note v4.2 ne se comparent pas, donc la fiche affiche « Grille v4.2 » à côté
-  du badge de format ; `rubricsVersion` null (colonne ajoutée en V022) donne
-  « Grille inconnue », pas une erreur. Ces deux versions vivent dans un DTO
-  **admin** : ne pas les remonter dans `ProductionSubmissionDto` /
-  `EvaluationResultDto`, partagés avec le web et le mobile.
+- **Plus de liste ici** (F-1, 2026-10-03) : l'écran garde le bandeau de santé et deux liens
+  vers `/productions-ia?annotation=NON_ANNOTEES&statut=EVALUEE` / `?annotation=ANNOTEES`.
+  L'annotation (`components/HumanNoteModal` → `HumanNoteForm`) s'ouvre depuis la fiche d'une
+  production évaluée. `GET .../submissions/{id}/human-note` relit la **dernière** note humaine
+  (404 = jamais annotée, traité comme `null`) : le formulaire se pré-remplit et l'écart IA/humain
+  s'affiche. Réenregistrer **ajoute** une observation ; le tableau de bord ne compte que la plus
+  récente par soumission. Enregistrer invalide `["calibration"]` **et** `["adminProductions"]`
+  (le drapeau `annotee` de la liste change).
 - **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau`
   à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
   `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un
@@ -416,10 +444,9 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   `ProductionEvaluabilite`, **jamais `null`**, 2026-08-21) : le serveur a écarté
   la production (vide, quasi vide, langue non française, consigne recopiée)
   **avant tout appel au correcteur**, donc ni note, ni niveau, ni
-  `scores_criteres`. `isNonEvaluable()` (`calibrationHelpers`) est l'unique
-  lecture du fait ; la fiche remplace alors le résumé et le détail par critère
-  par un bandeau ambre + les raisons du serveur (**il n'y a rien à annoter**),
-  et la liste écrit « Non évaluable » dans la colonne Niveau.
+  `scores_criteres`. `isNonEvaluable()` (`lib/evaluation.ts`) est l'unique
+  lecture du fait côté vue candidat ; la fiche Productions IA lit le statut servi
+  `NON_EVALUABLE` (bandeau ambre, **rien à annoter**, mais signalable).
   🛑 **Le fait se lit sur ce champ, jamais sur la nullité d'un autre** :
   `isLegacyEvaluation()` répond à une tout autre question, et une évaluation
   ancienne n'a ni niveau ni bande sans être inexploitable. **Legacy intact** :
@@ -456,7 +483,7 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
 - **Pagination** : `components/ui/Pagination.tsx` (« x–y sur N », précédent/suivant,
   numéros avec « … », sélecteur de taille, repli « n / N » sous 720 px). Page
   indexée à 0 comme le `PageResponse` ; ne s'affiche pas sur une liste vide. Utilisée
-  par `/subscriptions` et `/users` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
+  par `/subscriptions`, `/users` et `/productions-ia` ; `questions/`, `skills/` et `audioQuestions/` ont encore leur
   précédent/suivant maison, à migrer au prochain passage.
 - Les couleurs sont dans `:root` de `styles/global.css`, alignées sur `docs/identite-visuelle.md`
   (D-35). **Ne jamais hardcoder une couleur, une ombre, un rayon ni une police** dans un module —
@@ -476,7 +503,8 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   | `red` CTA critique), `Tag` (pastille ; tons `info|success|danger|warning|neutral`, `dot`),
   `Modal` (`title`, `description`, `size`, pied empilé pleine largeur en mobile), `Toast`
   (`show(titre, ton, détail?)`), `Panel`, `PageHeader` (`description`), `Chips` (filtre exclusif,
-  défilement horizontal en mobile), `Avatar` (initiales), `Icon`.
+  défilement horizontal en mobile), `Avatar` (initiales), `Icon`, `Collapsible` (carte repliable,
+  `<details>` natif).
 - **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
   ajouter `tableStyles.cardTable` à la table, tous deux dans
   `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les

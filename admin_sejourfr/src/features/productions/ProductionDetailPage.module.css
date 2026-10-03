@@ -1,0 +1,237 @@
+.page {
+  max-width: 1080px;
+  min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  margin-bottom: 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+
+.back:hover {
+  background: var(--blue-50);
+}
+
+.back:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--blue);
+}
+
+.loading {
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 24px;
+}
+
+/* ---- Contexte ---- */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px 24px;
+  margin-bottom: 20px;
+  padding: 22px 24px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(145deg, var(--blue-50) 0%, var(--surface) 72%);
+  box-shadow: var(--shadow-panel);
+}
+
+.heroMain {
+  min-width: 0;
+}
+
+.heroTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.heroId {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.heroLevel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.levelRound {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1px solid var(--blue-line);
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.levelNone {
+  border-color: var(--rule);
+  background: var(--rule-2);
+  color: var(--muted-2);
+}
+
+.levelLabel {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.levelNote {
+  font-size: 11.5px;
+  color: var(--amber-ink);
+}
+
+.heroFacts {
+  grid-column: 1 / -1;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.heroNote {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.heroActions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.heroActions:empty {
+  display: none;
+}
+
+.inlineLink {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.inlineLink:hover {
+  text-decoration: underline;
+}
+
+/* ---- Blocs ---- */
+.sectionBody {
+  padding: 18px 20px 20px;
+  min-width: 0;
+}
+
+/* Le calcul SejourFR est séparé visuellement de l'évaluation IA. */
+.sectionCalc {
+  border-left: 4px solid var(--blue);
+  background: var(--surface-2);
+}
+
+.sujet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sujetTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.prose {
+  margin: 0;
+  max-width: 75ch;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.json {
+  margin: 0;
+  max-height: 560px;
+  overflow: auto;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-dark);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 720px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 16px;
+  }
+
+  .heroLevel {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    text-align: left;
+  }
+
+  .levelRound {
+    width: 64px;
+    height: 64px;
+    font-size: 20px;
+  }
+
+  .heroActions {
+    justify-content: stretch;
+  }
+
+  .heroActions > * {
+    flex: 1 1 auto;
+  }
+
+  .sectionBody {
+    padding: 16px 14px;
+  }
+}

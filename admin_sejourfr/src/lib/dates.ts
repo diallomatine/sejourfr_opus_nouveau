@@ -26,3 +26,17 @@ export function formatParisDateTime(iso: string | null | undefined): string {
     minute: "2-digit",
   });
 }
+
+/** Jour ISO `yyyy-MM-dd` à Paris, comme le backend : l'unique notion d'« aujourd'hui ». */
+export function parisToday(): string {
+  return new Intl.DateTimeFormat("fr-CA", { timeZone: PARIS }).format(new Date());
+}
+
+export function formatParisTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("fr-FR", {
+    timeZone: PARIS,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

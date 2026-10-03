@@ -7,12 +7,8 @@ import { FormRow, Input, Select, Textarea } from "../../../components/ui/Form";
 import { Spinner } from "../../../components/ui/Spinner";
 import { useToast } from "../../../components/ui/Toast";
 import type { HumanCalibrationNoteDto, NiveauCecrl } from "../../../types/api";
-import {
-  NIVEAU_LABEL,
-  NIVEAU_ORDER,
-  formatSigned,
-  readGap,
-} from "../calibrationHelpers";
+import { NIVEAU_LABEL, NIVEAU_ORDER, formatSigned } from "../../../lib/evaluation";
+import { readGap } from "../calibrationHelpers";
 import styles from "./HumanNoteForm.module.css";
 
 /** La note reste une chaîne dans le formulaire : un champ vide vaut "", jamais NaN. */
@@ -82,6 +78,7 @@ export function HumanNoteForm({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calibration"] });
+      queryClient.invalidateQueries({ queryKey: ["adminProductions"] });
       toast.show("Note humaine enregistrée", "success");
     },
     onError: (err) => toast.show((err as Error).message, "error"),

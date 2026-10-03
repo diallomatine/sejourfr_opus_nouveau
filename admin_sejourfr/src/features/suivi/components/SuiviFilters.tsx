@@ -1,5 +1,5 @@
 import type { SuiviPlatformFilter, SuiviTypeFilter } from "../../../types/api";
-import { parisToday } from "../dates";
+import { parisToday } from "../../../lib/dates";
 import { PLATFORM_OPTIONS, TYPE_OPTIONS, sourceLabel } from "../labels";
 import { PERIOD_OPTIONS, type PeriodId, type SuiviPatch } from "../useSuiviParams";
 import styles from "../suivi.module.css";

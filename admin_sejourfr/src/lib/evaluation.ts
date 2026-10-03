@@ -1,0 +1,251 @@
+/**
+ * Lecture d'une évaluation IA EE/EO côté console : libellés des valeurs
+ * servies, normalisation du JSONB persisté, mise en forme. Partagé par
+ * `features/productions/` (fiche) et `features/calibration/` (annotation,
+ * santé). Aucune règle de notation ici : rien n'est recalculé.
+ */
+
+import type {
+  BandeCritere,
+  ConfianceEvaluation,
+  CritereCode,
+  EvaluationResultDto,
+  NiveauCecrl,
+  ObjectifAccomplissement,
+  PointAmeliorer,
+} from "../types/api";
+
+export const NIVEAU_ORDER: NiveauCecrl[] = [
+  "A1_NON_ATTEINT",
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "C1",
+  "C2",
+];
+
+export const NIVEAU_LABEL: Record<NiveauCecrl, string> = {
+  A1_NON_ATTEINT: "A1 non atteint",
+  A1: "A1",
+  A2: "A2",
+  B1: "B1",
+  B2: "B2",
+  C1: "C1",
+  C2: "C2",
+};
+
+export const CONFIANCE_LABEL: Record<ConfianceEvaluation, string> = {
+  HAUTE: "Confiance haute",
+  MOYENNE: "Confiance moyenne",
+  FAIBLE: "Confiance faible",
+};
+
+/** Verdict global d'accomplissement de la consigne (v8), absent avant. */
+export const OBJECTIF_LABEL: Record<ObjectifAccomplissement, string> = {
+  ATTEINT: "Objectif atteint",
+  PARTIELLEMENT_ATTEINT: "Objectif partiellement atteint",
+  NON_ATTEINT: "Objectif non atteint",
+};
+
+export const BANDE_LABEL: Record<BandeCritere, string> = {
+  TRES_BONNE_MAITRISE: "Très bonne maîtrise",
+  SATISFAISANT: "Satisfaisant",
+  EN_COURS_ACQUISITION: "En cours d'acquisition",
+  FRAGILE: "Fragile",
+  NON_EVALUABLE: "Non évaluable",
+};
+
+/**
+ * Libellé de repli quand le feedback ne porte pas de `label` — les 4 premiers
+ * viennent de `production-rubrics-v5.json` et suivantes (notre grille SejourFR,
+ * qui couvre les dimensions évaluées au TCF sans reprendre la grille de
+ * correction de France Éducation international), les suivants de
+ * `production-rubrics-v4.json`/v3, accents rétablis.
+ */
+export const CRITERE_LABEL: Record<CritereCode, string> = {
+  communiquer: "Communiquer un message clair",
+  interagir: "Interagir avec l'interlocuteur",
+  lexique: "Étendue et maîtrise du lexique",
+  morphosyntaxe: "Correction morphosyntaxique",
+  realisation_consigne: "Réalisation de la consigne",
+  adequation_destinataire: "Adéquation au destinataire et au registre",
+  chronologie_recit: "Chronologie et repères temporels",
+  prise_position: "Prise de position claire",
+  argumentation: "Justification et développement des arguments",
+  developpement_reponses: "Développement des réponses",
+  conduite_echange: "Conduite de l'échange et obtention des informations",
+  coherence: "Clarté et enchaînement du message",
+  pertinence: "Pertinence",
+};
+
+/** Les 4 codes de la grille actuelle (v5). */
+export const CRITERES_ACTUELS: CritereCode[] = [
+  "communiquer",
+  "interagir",
+  "lexique",
+  "morphosyntaxe",
+];
+
+/** Codes disparus au fil des versions (v4 puis v3), encore présents sur les évaluations en base. */
+export const CRITERES_OBSOLETES: CritereCode[] = (
+  Object.keys(CRITERE_LABEL) as CritereCode[]
+).filter((code) => !CRITERES_ACTUELS.includes(code));
+
+/**
+ * Le feedback vient d'un JSONB non contraint : un champ annoncé numérique peut
+ * arriver en chaîne, ou manquer. On normalise avant tout affichage.
+ */
+export function toNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+export function formatDecimal(value: number, digits = 1): string {
+  return value.toLocaleString("fr-FR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+export function formatNote(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${formatDecimal(value)} / 20`;
+}
+
+/** Écart signé, avec un vrai signe moins typographique. */
+export function formatSigned(value: number, digits = 1): string {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${formatDecimal(Math.abs(value), digits)}`;
+}
+
+export function formatPercent(value: number): string {
+  return `${formatDecimal(value)} %`;
+}
+
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return "—";
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return min > 0 ? `${min} min ${String(sec).padStart(2, "0")}` : `${sec} s`;
+}
+
+// ---------------------------------------------------------------------------
+// Transcription
+// ---------------------------------------------------------------------------
+
+export type TranscriptSpeaker = "EXAMINER" | "CANDIDATE" | "UNKNOWN";
+
+export interface TranscriptTurn {
+  speaker: TranscriptSpeaker;
+  text: string;
+}
+
+const TURN_MARKERS: { speaker: TranscriptSpeaker; patterns: RegExp[] }[] = [
+  {
+    speaker: "EXAMINER",
+    patterns: [/^examinateur\s*:\s*/i, /^\[examinateur\]\s*/i],
+  },
+  {
+    speaker: "CANDIDATE",
+    patterns: [/^candidat(?:e)?\s*:\s*/i, /^\[candidat(?:e)?\]\s*/i],
+  },
+];
+
+/**
+ * Découpe une transcription en tours de parole. Une production non dialoguée
+ * (EE, ou EO monologuée) ressort en un seul tour `UNKNOWN` : c'est le cas
+ * normal, pas une erreur de parsing.
+ */
+export function parseTranscript(raw: string): TranscriptTurn[] {
+  const turns: TranscriptTurn[] = [];
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    let matched: TranscriptTurn | null = null;
+    for (const marker of TURN_MARKERS) {
+      const pattern = marker.patterns.find((p) => p.test(trimmed));
+      if (pattern) {
+        matched = {
+          speaker: marker.speaker,
+          text: trimmed.replace(pattern, "").trim(),
+        };
+        break;
+      }
+    }
+
+    if (matched) {
+      turns.push(matched);
+      continue;
+    }
+
+    const current = turns[turns.length - 1];
+    if (current) {
+      current.text = `${current.text} ${trimmed}`.trim();
+    } else {
+      turns.push({ speaker: "UNKNOWN", text: trimmed });
+    }
+  }
+
+  return turns;
+}
+
+export function isDialogue(turns: TranscriptTurn[]): boolean {
+  return turns.some((t) => t.speaker !== "UNKNOWN");
+}
+
+// ---------------------------------------------------------------------------
+// Rétrocompatibilité v3
+// ---------------------------------------------------------------------------
+
+/**
+ * Une évaluation antérieure à la v4 n'a ni confiance, ni bande, ni
+ * accomplissement. On le signale à l'écran pour que le correcteur sache
+ * pourquoi la fiche est moins fournie — l'absence reste un cas valide.
+ */
+export function isLegacyEvaluation(evaluation: EvaluationResultDto): boolean {
+  const feedback = evaluation.feedback;
+  if (evaluation.confiance !== null) return false;
+  if (!feedback) return true;
+  if (feedback.accomplissement) return false;
+  return !(feedback.scores_criteres ?? []).some((c) => c.bande !== undefined);
+}
+
+/**
+ * La production a-t-elle été jugée **inexploitable** par les contrôles
+ * déterministes du serveur (vide, quasi vide, langue non française, recopiage
+ * de la consigne) ? Aucun correcteur n'a alors été appelé : ni note, ni niveau,
+ * ni `scores_criteres` — seulement des raisons, rédigées pour le candidat.
+ *
+ * ⚠️ **Le fait se lit sur `evaluabilite`, jamais sur la nullité d'un autre
+ * champ** : une évaluation ancienne n'a ni niveau ni bande sans être
+ * inexploitable pour autant (c'est ce que dit {@link isLegacyEvaluation}, qui
+ * répond à une tout autre question). Un backend antérieur au champ ne le sert
+ * pas : l'absence vaut `EVALUABLE`, jamais l'inverse.
+ */
+export function isNonEvaluable(
+  evaluation: Pick<EvaluationResultDto, "evaluabilite"> | null | undefined,
+): boolean {
+  return evaluation?.evaluabilite === "NON_EVALUABLE";
+}
+
+/** Libellé du fait, gelé ici pour que la liste et la fiche disent le même mot. */
+export const NON_EVALUABLE_LABEL = "Non évaluable";
+
+export function critereLabel(code: CritereCode, label?: string): string {
+  return label ?? CRITERE_LABEL[code] ?? code;
+}
+
+/**
+ * Une évaluation antérieure à v5 porte `points_a_ameliorer` en simples
+ * chaînes — normalisées ici en `constat` seul, sans `comment` ni `exemple`.
+ */
+export function normalizePointAmeliorer(entry: string | PointAmeliorer): PointAmeliorer {
+  return typeof entry === "string" ? { constat: entry } : entry;
+}

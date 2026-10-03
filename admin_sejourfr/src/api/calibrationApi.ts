@@ -1,19 +1,11 @@
 import { apiRequest, HttpError } from "./http";
 import type {
   CalibrationStatsDto,
-  CalibrationSubmissionDto,
   HumanCalibrationNoteDto,
   NiveauCalibrationStatsDto,
 } from "../types/api";
 
 export const calibrationApi = {
-  submissions(hasHumanNote: boolean, limit: number) {
-    return apiRequest<CalibrationSubmissionDto[]>(
-      "/api/admin/calibration/submissions",
-      { query: { status: "evaluated", hasHumanNote, limit } },
-    );
-  },
-
   /** La dernière note humaine d'une submission, ou `null` si jamais annotée (404). */
   async humanNote(
     submissionId: string,

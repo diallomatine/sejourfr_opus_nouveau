@@ -34,7 +34,7 @@
 }
 
 .eyebrow {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -50,7 +50,7 @@
 }
 
 .verdict {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -102,7 +102,7 @@
 }
 
 .cardEyebrow {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -111,7 +111,7 @@
 }
 
 .cardValue {
-  font-family: "Fraunces", serif;
+  font-family: var(--font-display);
   font-size: 40px;
   line-height: 1;
   font-weight: 500;
@@ -128,7 +128,7 @@
 }
 
 .cardFormula {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--muted-2);
   border-top: 1px dashed var(--rule-2);
@@ -167,7 +167,7 @@
 }
 
 .tileLabel {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
