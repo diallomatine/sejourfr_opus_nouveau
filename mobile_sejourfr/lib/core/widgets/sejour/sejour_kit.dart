@@ -6703,87 +6703,92 @@ class SfProgressSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = AppColors.module(civique: civique);
     final big = AppFonts.display(size: 22, weight: FontWeight.w800, height: 1);
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(AppRadii.lg),
-      child: InkWell(
-        onTap: onTap,
+    // Fond blanc PORTÉ par la décoration : une ombre posée sur un conteneur
+    // sans couleur se voit au travers et grise la carte.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(AppRadii.lg),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: AppColors.line),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label.toUpperCase(),
-                      style: AppFonts.label(size: 11, color: AppColors.muted),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (from != null) ...[
-                          Text(from!, style: big),
-                          const SizedBox(width: 8),
-                          Text(
-                            '→',
-                            style: AppFonts.display(
-                              size: 19,
-                              weight: FontWeight.w800,
-                              height: 1,
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.md,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label.toUpperCase(),
+                        style: AppFonts.label(size: 11, color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (from != null) ...[
+                            Text(from!, style: big),
+                            const SizedBox(width: 8),
+                            Text(
+                              '→',
+                              style: AppFonts.display(
+                                size: 19,
+                                weight: FontWeight.w800,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Text(
+                              value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: big.copyWith(color: accent),
                             ),
                           ),
-                          const SizedBox(width: 8),
                         ],
-                        Flexible(
-                          child: Text(
-                            value,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: big.copyWith(color: accent),
+                      ),
+                      if (meta != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          meta!,
+                          style: AppFonts.ui(
+                            size: 14,
+                            color: AppColors.muted,
+                            height: 1.35,
                           ),
                         ),
                       ],
-                    ),
-                    if (meta != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        meta!,
-                        style: AppFonts.ui(
-                          size: 14,
-                          color: AppColors.muted,
-                          height: 1.35,
-                        ),
-                      ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      action,
+                      style: AppFonts.ui(
+                        size: 12,
+                        weight: FontWeight.w800,
+                        color: accent,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(LucideIcons.chevronRight, size: 17, color: accent),
                   ],
                 ),
-              ),
-              const SizedBox(width: 14),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    action,
-                    style: AppFonts.ui(
-                      size: 12,
-                      weight: FontWeight.w800,
-                      color: accent,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(LucideIcons.chevronRight, size: 17, color: accent),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
