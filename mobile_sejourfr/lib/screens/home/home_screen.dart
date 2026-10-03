@@ -36,11 +36,12 @@ import 'widgets/home_blocks.dart';
 /// ## L'ordre, de haut en bas
 ///
 /// Bandeau « Choisissez votre parcours » (compte sans démarche) → kicker
-/// « Objectif · {mention} », « Bonjour {nom} » et le sous-titre statique →
-/// **Mes objectifs** (une carte, deux lignes : TCF puis civique) → la carte du
-/// diagnostic rapide en cours, quand il y en a un → **À faire maintenant**
-/// (deux cartes : TCF puis civique) → l'invitation à déclarer un objectif →
-/// la note de non-affiliation.
+/// « Objectif · {mention} », « Bonjour {nom} » et le sous-titre statique → la
+/// carte du diagnostic rapide en cours, quand il y en a un → **À faire
+/// maintenant** (deux cartes : TCF puis civique) → l'invitation à déclarer un
+/// objectif → **Mes objectifs** (une carte, deux lignes : TCF puis civique) →
+/// la note de non-affiliation. Même ordre que le web (2026-10-03, demande du
+/// propriétaire — révoque D2 A, l'ordre propre à chaque maquette).
 ///
 /// 🛑 **Aucune bascule de module** : les deux parcours se lisent ensemble, la
 /// barre d'onglets porte la navigation. « Où vous en êtes » est supprimé — la
@@ -103,12 +104,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   lead: kHomeLead,
                 ),
               ),
-              SfSection(
-                title: kHomeObjectivesTitle,
-                lead: true,
-                flush: true,
-                child: _objectifs(context),
-              ),
               ..._diagnosticEnCours(context),
               SfSection(
                 title: kHomeNowTitle,
@@ -124,6 +119,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               ..._objectifADeclarer(context),
+              SfSection(
+                title: kHomeObjectivesTitle,
+                lead: true,
+                flush: true,
+                child: _objectifs(context),
+              ),
               const SizedBox(height: 24),
               const _IndependenceNote(),
               const SizedBox(height: 20),
