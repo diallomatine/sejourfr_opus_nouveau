@@ -169,9 +169,16 @@ export default function DashboardPage() {
                 />
             </Pad>
 
+            {/* Le diagnostic en cours vit AU-DESSUS de « À faire maintenant » : le
+                titre reste collé aux deux cartes de module, comme sur le mobile. */}
+            {diagnostic.data && (
+                <Pad className={sejourStyles.pageBody}>
+                    <CarteDiagnostic diagnostic={diagnostic.data}/>
+                </Pad>
+            )}
+
             <Section title={ACCUEIL_NOW_TITLE}>
                 <Pad>
-                    {diagnostic.data && <CarteDiagnostic diagnostic={diagnostic.data}/>}
                     <div className={sejourStyles.homeGrid}>
                         <ActionTcf
                             plan={plan}
