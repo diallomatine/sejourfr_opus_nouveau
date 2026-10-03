@@ -5823,6 +5823,46 @@ a.pRow:focus-visible {
   outline-offset: -2px;
 }
 
+/* Les TAILLES de l'en-tête d'avant (`.blocHead` : repère 42 px, titre
+   14 px / 850, méta 10,5 px, padding 15 px, gap 11 px) — l'info-card pleine
+   taille rendait un nom d'épreuve sur trois lignes au téléphone (2026-10-04,
+   demande du propriétaire). Seules les tailles changent, pas la structure. */
+.blocHeadInfo {
+  gap: 11px;
+  padding: 15px;
+}
+
+.blocHeadInfo .iconBox {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--sf-radius-sm);
+}
+
+.blocHeadInfo .iconBox svg {
+  width: 20px;
+  height: 20px;
+}
+
+.blocHeadInfo .infoTitle {
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.blocHeadInfo .infoTitle.hasCode {
+  margin-top: 4px;
+}
+
+.blocHeadInfo .infoMeta {
+  margin-top: 3px;
+  font-size: 10.5px;
+}
+
+.blocHeadInfo .badge {
+  margin-top: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
 @media (max-width: 360px) {
   .blocHeadInfo .infoTrailing {
     display: none;

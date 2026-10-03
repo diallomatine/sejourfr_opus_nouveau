@@ -3645,13 +3645,15 @@ class SfBlocAccordion extends StatelessWidget {
                 // Les valeurs de `.groupHead` dans
                 // `docs/progression/plan_cycle.html` : `42px 1fr auto`,
                 // `gap: 11px`, `padding: 15px`.
-                padding: EdgeInsets.all(pictogramme == null ? 15 : 16),
+                padding: const EdgeInsets.all(15),
                 child: Row(
                   children: [
                     if (pictogramme != null) ...[
+                      // Tailles de l'en-tête d'avant (repère 42, gap 11) —
+                      // 2026-10-04, demande du propriétaire.
                       _SfSoftIconBox(
-                          icon: pictogramme, civique: civique, size: 48),
-                      const SizedBox(width: 12),
+                          icon: pictogramme, civique: civique, size: 42),
+                      const SizedBox(width: 11),
                     ] else if (mark.isNotEmpty) ...[
                       Container(
                         width: 42,
@@ -3795,17 +3797,17 @@ class SfBlocAccordion extends StatelessWidget {
       children: [
         if (mark.isNotEmpty) ...[
           SfBadge(mark, civique: civique),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
         ],
         Text(
           title,
           style:
-              AppFonts.display(size: 18, weight: FontWeight.w700, height: 1.2),
+              AppFonts.display(size: 14, weight: FontWeight.w800, height: 1.25),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           meta,
-          style: AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+          style: AppFonts.ui(size: 10.5, color: AppColors.muted, height: 1.4),
         ),
       ],
     );
