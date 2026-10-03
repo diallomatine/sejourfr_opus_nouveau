@@ -172,12 +172,8 @@ export default function ProfilPage() {
     const cible = user.targetLevel ?? null;
     const isLocal = compteIsLocal(user.authProvider);
 
-    // ── 3 tuiles (parité mobile) ──────────────────────────────────────────
-    const masteryValue =
-        dashboard?.globalSuccessPercent != null
-            ? `${dashboard.globalSuccessPercent} %`
-            : "—";
-    const streakValue = dashboard ? `${dashboard.currentStreakDays} j` : "—";
+    // ── Tuile « Niveau estimé » (parité mobile ; Maîtrise et Série retirées
+    //    le 2026-10-03, demande du propriétaire) ───────────────────────────
     // Forme courte partagée (« <A1 » et pas « A1 »), jamais une table locale.
     const levelValue = niveauCecrlShort(dashboard?.estimatedTcfLevel ?? null);
     // Périmètre SERVI (épreuves comptées / attendues), une seule chaîne partagée.
@@ -234,10 +230,7 @@ export default function ProfilPage() {
                                     </Link>
                                 </section>
 
-                                {/* ---- 3 tuiles ---- */}
                                 <div className="pr-stats">
-                                    <StatTile label="Maîtrise" value={masteryValue}/>
-                                    <StatTile label="Série" value={streakValue} tone="red"/>
                                     <StatTile label="Niveau estimé" value={levelValue} meta={levelScope}/>
                                 </div>
                             </Pad>
@@ -587,7 +580,7 @@ const styles = `
   .pr-edit-btn:focus-visible { outline: 2px solid var(--color-module-tcf); outline-offset: 2px; }
 
   /* ---- Tuiles (gardées) ---- */
-  .pr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+  .pr-stats { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 14px; }
   .pr-stat {
     background: var(--color-white); border: 1px solid var(--color-line); border-radius: var(--sf-radius-2xl);
     padding: 17px 15px; min-width: 0; box-shadow: var(--sf-shadow-card-sm);

@@ -93,26 +93,6 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: StatValueCard(
-                    value: dash?.globalSuccessPercent != null
-                        ? '${dash!.globalSuccessPercent} %'
-                        : '—',
-                    label: 'Maîtrise',
-                    color: AppColors.blue,
-                    valueSize: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatValueCard(
-                    value: dash != null ? '${dash.currentStreakDays} j' : '—',
-                    label: 'Série',
-                    color: AppColors.red,
-                    valueSize: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatValueCard(
                     value: dash?.estimatedTcfLevel?.shortName ?? '—',
                     label: 'Niveau estimé',
                     color: AppColors.blue,
