@@ -128,7 +128,9 @@ class _PremiumView extends StatelessWidget {
 
   bool get _isIntegral => status.moduleAccess == ModuleAccess.integral;
 
-  String get _passName => _isIntegral ? 'Pass Intégral' : 'Pass Civique';
+  /// Le nom du pass : une seule autorité, [passAccessName] (X12).
+  String get _passName =>
+      passAccessName(premium: true, integral: _isIntegral);
 
   /// Nom commercial du plan quand il est encore au catalogue ; sinon le
   /// libellé dérivé du `moduleAccess` renvoyé par le backend. Un plan retiré
@@ -162,13 +164,13 @@ class _PremiumView extends StatelessWidget {
           )
         else ...[
           AppButton(
-            label: 'Prolonger mon Pass Civique',
+            label: 'Prolonger mon ${passAccessName(premium: true, integral: false)}',
             icon: LucideIcons.refreshCw,
             onPressed: onExtend,
           ),
           const SizedBox(height: 10),
           AppButton(
-            label: 'Passer au Pass Intégral',
+            label: 'Passer au ${passAccessName(premium: true, integral: true)}',
             icon: LucideIcons.zap,
             variant: AppButtonVariant.accent,
             onPressed: onChangeOffer,

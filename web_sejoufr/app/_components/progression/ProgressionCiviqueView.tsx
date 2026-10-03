@@ -1,27 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import {Suspense} from "react";
+import {Suspense, useEffect, useState} from "react";
 import {useSearchParams} from "next/navigation";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {
+    Badge,
+    BlockError,
+    BlockSkeleton,
     Card,
+    LevelList,
+    LevelRow,
     MicroNote,
+    Pad,
+    PageHead,
     PanelHead,
     ProgressDomainCard,
     ProgressGlobalExamRow,
     ProgressHero,
+    ProgressionHead,
     ProgressStatGrid,
     ProgressStatTile,
+    Section,
+    SejourApp,
+    Split,
+    Timeline,
     sejourStyles,
     type ProgressChip,
 } from "@/app/_components/sejour/SejourKit";
-import {progressionApi} from "@/lib/api";
+import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY, accueilPourcentage} from "@/lib/accueil";
+import {dashboardApi, progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {etatThemeCivique} from "@/lib/etats-servis";
+import {MODULE_CIVIQUE_KICKER} from "@/lib/module-ecrans";
+import {avancementSeriesCivique} from "@/lib/reviser";
 import {
     CIVIQUE_CARTE_SUB,
     CIVIQUE_HERO_LABEL,
     CIVIQUE_HINT,
-    CIVIQUE_LEAD,
     CIVIQUE_LISTE_SUB,
     CIVIQUE_LISTE_TITLE,
     CIVIQUE_LISTE_TOUS_LINK,
@@ -33,7 +49,17 @@ import {
     CIVIQUE_STAT_PREMIER,
     CIVIQUE_THEMES_SUB,
     CIVIQUE_THEMES_TITLE,
-    CIVIQUE_TITLE,
+    CIVIQUE_DU_PARCOURS,
+    CIVIQUE_EVOLUTION_SCORE_LABEL,
+    CIVIQUE_EXAMENS_BLANCS_TITLE,
+    CIVIQUE_MAITRISE_LABEL,
+    CIVIQUE_PAR_THEME_TITLE,
+    CIVIQUE_PROGRESSION_LEAD,
+    PROGRESSION_REPERES_MAX,
+    PROGRESSION_TITRE,
+    civiqueMeilleurScore,
+    civiqueSeriesTermineesLabel,
+    civiqueThemeCaption,
     PROGRESSION_ERROR,
     PROGRESSION_SANS_EXAMEN_THEME,
     PROGRESSION_VIDE,
@@ -62,18 +88,31 @@ import {
 } from "@/lib/progression";
 import {situationIcon} from "@/lib/situation-icons";
 import {themeSlug} from "@/lib/themes";
-import type {ProgressionCiviqueDto, ProgressionMesureDto} from "@/lib/types";
+import type {DashboardCategoryStat, DashboardSummaryResponse, ProgressionCiviqueDto, ProgressionMesureDto} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
-import {ProgressionEtat, ProgressionFrame, ProgressionSectionHead} from "./ProgressionFrame";
+import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
+import {ProchaineEtapeCivique} from "./ProchaineEtape";
 
 /**
- * **La progression civique globale** — maquette `progression_global_civique.html`.
+ * **La progression civique globale** — Navigation v2, phase 4 (maquette
+ * `docs/redesign/sejourfr-navigation-web.html`, `#civique-progression`), puis
+ * les blocs existants (maquette `progression_global_civique.html`), tous
+ * gardés.
+ *
+ * Ordre : en-tête → `Split` : à gauche « Maîtrise globale » (NOUVEAU : le %
+ * du parcours par `avancementSeriesCivique`, la fonction unique — 6ᵉ
+ * emplacement du même nombre), « Par thème » (% et séries du thème par la même
+ * fonction, état SERVI du dernier examen du thème, code = rang du thème), puis
+ * le héros /40, les tuiles, les cartes de thème et la liste des examens ; à
+ * droite la frise des taux servis des derniers examens globaux (aucun ⇒ état
+ * vide) et « Prochaine étape » (`journey.current` civique, geste de
+ * l'Accueil).
  *
  * Lit `GET /api/me/progression/civique[?tous=true]` : les examens GLOBAUX
  * (40 Q, hors diagnostic), leur échelle /40 et son seuil servis, l'état et
- * le verdict de seuil servis ; les 5 thèmes (et non 4) résumés sur leurs seuls
- * examens de thème (D10) ; les parts par thème d'un examen global en
- * « x / n posées » (D11).
+ * le verdict de seuil servis ; les 5 thèmes résumés sur leurs seuls examens de
+ * thème (D10) ; les parts par thème d'un examen global en « x / n posées »
+ * (D11).
  *
  * 🛑 Miroir de `ProgressionCiviqueScreen` côté mobile, brique pour brique.
  */
@@ -85,28 +124,186 @@ export function ProgressionCiviqueView() {
     );
 }
 
+/** Les séries par thème : `GET /api/me/dashboard` (mémo 30 s, partagé). */
+function useSeriesParTheme(actif: boolean) {
+    const [state, setState] = useState<{data: DashboardSummaryResponse | null; error: boolean}>({data: null, error: false});
+    const [tentative, setTentative] = useState(0);
+    useEffect(() => {
+        if (!actif) return;
+        let vivant = true;
+        dashboardApi
+            .summaryCached()
+            .then((data) => {
+                if (vivant) setState({data, error: false});
+            })
+            .catch(() => {
+                if (vivant) setState((s) => ({data: s.data, error: true}));
+            });
+        return () => {
+            vivant = false;
+        };
+    }, [actif, tentative]);
+    return {
+        themes: state.data?.civique ?? null,
+        error: state.error,
+        reload: () => {
+            setState((s) => ({data: s.data, error: false}));
+            setTentative((n) => n + 1);
+        },
+    };
+}
+
 function CiviqueScoped() {
     const {status} = useAuth();
     const tous = useSearchParams().get("tous") === "true";
+    const actif = status === "authenticated";
     const query = useCachedData<ProgressionCiviqueDto>(
-        status === "authenticated" ? progressionApi.civiqueKey(tous) : null,
+        actif ? progressionApi.civiqueKey(tous) : null,
         () => progressionApi.civique(tous),
         {errorMessage: PROGRESSION_ERROR},
     );
+    const series = useSeriesParTheme(actif);
+    useAppBarBack({fallbackHref: "/dashboard"});
     const dto = query.data;
 
     return (
-        <ProgressionFrame
-            backHref="/dashboard?module=CIVIQUE"
-            title={CIVIQUE_TITLE}
-            lead={CIVIQUE_LEAD}
-        >
-            {dto ? (
-                <CiviqueContenu dto={dto} tous={tous}/>
-            ) : (
-                <ProgressionEtat error={query.error} onRetry={query.reload}/>
-            )}
-        </ProgressionFrame>
+        <SejourApp className={sejourStyles.home}>
+            <Pad>
+                <PageHead
+                    kicker={MODULE_CIVIQUE_KICKER}
+                    tone="civique"
+                    title={PROGRESSION_TITRE}
+                    subtitle={CIVIQUE_PROGRESSION_LEAD}
+                />
+            </Pad>
+            <div className={sejourStyles.pageBody}>
+                <Split
+                    main={(
+                        <>
+                            <Pad>
+                                <MaitriseGlobale themes={series.themes} error={series.error} onRetry={series.reload}/>
+                            </Pad>
+                            <Section title={CIVIQUE_PAR_THEME_TITLE}>
+                                <Pad>
+                                    {dto ? (
+                                        <ParTheme dto={dto} stats={series.themes} error={series.error} onRetry={series.reload}/>
+                                    ) : query.error ? null : (
+                                        <BlockSkeleton height={320}/>
+                                    )}
+                                </Pad>
+                            </Section>
+                            <Pad>
+                                <div className={`${sejourStyles.pScreen} ${sejourStyles.pageBody}`}>
+                                    {dto ? (
+                                        <CiviqueContenu dto={dto} tous={tous}/>
+                                    ) : (
+                                        <ProgressionEtat error={query.error} onRetry={query.reload}/>
+                                    )}
+                                </div>
+                            </Pad>
+                        </>
+                    )}
+                    side={(
+                        <Pad>
+                            <div className={sejourStyles.splitSide}>
+                                {dto ? <EvolutionScore dto={dto}/> : null}
+                                <ProchaineEtapeCivique/>
+                            </div>
+                        </Pad>
+                    )}
+                />
+            </div>
+        </SejourApp>
+    );
+}
+
+/**
+ * **« Maîtrise globale »** — le pourcentage du parcours en séries
+ * (`avancementSeriesCivique`, la fonction unique) et le nombre de séries
+ * terminées, avec la barre du module. Bloc à états propres.
+ */
+function MaitriseGlobale({themes, error, onRetry}: {
+    themes: DashboardCategoryStat[] | null;
+    error: boolean;
+    onRetry: () => void;
+}) {
+    if (!themes) {
+        return error
+            ? <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>
+            : <BlockSkeleton height={130}/>;
+    }
+    const avancement = avancementSeriesCivique(themes);
+    return (
+        <ProgressionHead
+            module="civique"
+            label={CIVIQUE_MAITRISE_LABEL}
+            primary={{value: accueilPourcentage(avancement.pourcentage), label: CIVIQUE_DU_PARCOURS}}
+            secondary={{value: String(avancement.terminees), label: civiqueSeriesTermineesLabel(avancement.terminees)}}
+            progress={avancement.pourcentage / 100}
+        />
+    );
+}
+
+/**
+ * **« Par thème »** — une ligne par thème officiel (ordre servi par la
+ * progression) : rang du thème (aucune abréviation inventée), % du thème en
+ * séries (`avancementSeriesCivique([stat])`), « x/y séries · nom », et l'état
+ * SERVI du dernier examen du thème en pastille — absent ⇒ pas de pastille.
+ */
+function ParTheme({dto, stats, error, onRetry}: {
+    dto: ProgressionCiviqueDto;
+    stats: DashboardCategoryStat[] | null;
+    error: boolean;
+    onRetry: () => void;
+}) {
+    if (!stats) {
+        return error
+            ? <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>
+            : <BlockSkeleton height={320}/>;
+    }
+    return (
+        <LevelList>
+            {dto.themes.map((t, i) => {
+                const stat = stats.find((s) => s.themeId === t.themeId) ?? null;
+                const avancement = stat ? avancementSeriesCivique([stat]) : null;
+                const etat = t.resume.dernier?.etat ?? null;
+                const served = etat ? etatThemeCivique(etat) : null;
+                return (
+                    <LevelRow
+                        key={t.themeId}
+                        module="civique"
+                        code={String(i + 1)}
+                        value={avancement ? accueilPourcentage(avancement.pourcentage) : PROGRESSION_VIDE}
+                        caption={avancement
+                            ? civiqueThemeCaption(avancement.terminees, avancement.total, t.label)
+                            : t.label}
+                        trailing={served ? <Badge tone={served.tone}>{served.label}</Badge> : null}
+                        href={progressionThemeHref(themeSlug(t.code))}
+                    />
+                );
+            })}
+        </LevelList>
+    );
+}
+
+/**
+ * La frise des taux servis des derniers examens globaux, du plus ancien au
+ * plus récent ; « Meilleur score » et « au-dessus du seuil » seulement sur
+ * `seuilAtteint` servi. Aucun examen ⇒ la frise disparaît, l'invitation reste.
+ */
+function EvolutionScore({dto}: {dto: ProgressionCiviqueDto}) {
+    const reperes = dto.examens
+        .slice(0, PROGRESSION_REPERES_MAX)
+        .map(({mesure}) => progressionTaux(mesure.taux))
+        .filter((taux): taux is string => taux !== null)
+        .reverse();
+    return (
+        <Timeline
+            module="civique"
+            label={`${CIVIQUE_EXAMENS_BLANCS_TITLE} · ${CIVIQUE_EVOLUTION_SCORE_LABEL.toLowerCase()}`}
+            steps={reperes}
+            caption={civiqueMeilleurScore(dto.global.meilleur) ?? CIVIQUE_LISTE_VIDE}
+        />
     );
 }
 

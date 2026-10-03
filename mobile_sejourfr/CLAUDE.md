@@ -8,6 +8,47 @@ L'app sert d'**entraînement par QCM** (pas de cours magistral) : l'utilisateur 
 des examens réels, reçoit une correction expliquée après chaque réponse, et peut passer des examens blancs en
 conditions réelles.
 
+## Navigation v2 (2026-10-03) — onglets, Accueil, écrans re-logés
+
+🛑 **Fait foi sur tout ce qui suit** dans ce fichier (les sections historiques marquées
+« Périmé par la navigation v2 » sont conservées pour mémoire). Dossier du chantier :
+`docs/redesign/` (brief, maquettes, `AUDIT.md`, `DECISIONS.md` DEC-01→32, `JOURNAL.md`).
+
+- **Shell** : `StatefulShellRoute.indexedStack`, **4 onglets** Accueil · TCF · Civique ·
+  Profil (`core/router/shell_navigation.dart`, `screens/shell/main_shell.dart`), chacun avec sa
+  pile. Onglet Civique actif en rouge. Retour Android depuis une racine ≠ Accueil → Accueil.
+- **Écran de module** `screens/module/module_screen.dart` : `SfModuleHeader`, carte
+  `SfProgressSummary` « Ma progression » (→ écran Progression poussé dans la branche, lien
+  `SfBackLink` qui revient au segment d'origine), segment **Plan | Entraînement | Examens** en
+  sous-route (`/tcf/plan|entrainement|examens`, `/civique/…`). Corps : `plan_body.dart`,
+  `reviser_body.dart`, vues d'examens.
+- **Routes** : sous-écrans du Plan sous chaque module (`/tcf/plan/etape/…`,
+  `/civique/plan/…`, DEC-02) ; anciens `/plan`, `/reviser`, `/examens`,
+  `/tcf|civique/examens-blancs`, `/diagnostic-tcf` redirigés. Les plein écran (runner,
+  résultats, paywall, diagnostic, auth) restent sur le navigateur racine.
+- 🛑 **`pousserOuAller(context, location)`** pour toute navigation vers un écran d'onglet depuis
+  l'Accueil, le Profil ou un plein écran : un `context.push` direct fait planter go_router (clé
+  de page en double, DEC-03). Retour : `suivreLeRetour` / `cesserDeSuivreLeRetour` (un
+  observer par branche, DEC-04).
+- **Analytics** : les gabarits sont mappés sur les clés `TrackedScreen` existantes
+  (`tracked_screens.dart`) ; `PLAN_OPENED` part à l'affichage du segment Plan.
+- **Couleurs de module** : TCF bleu, civique rouge, via `AppColors.moduleTcf*` /
+  `moduleCivique*`, `AppColors.module(civique:)`, `AppGradients.module(civique:)` — jamais
+  `blue`/`red` pour dire un module. L'ancienne règle « TCF = rouge, Civique = bleu » est
+  révoquée. Polices inchangées (Bricolage + Hanken, X2).
+- **% civique** : `avancementSeriesCivique` (`reviser_labels.dart`), SEULE formule, miroir du
+  web. **États servis** : `etatEpreuveTcf` / `etatThemeCivique` (`progres_labels.dart`).
+  **Gestes** : `screens/plan/now_card_gestes.dart` (Accueil + Progression). **Pass** :
+  `passAccessName` (`billing_models.dart`).
+- **Kit** : `SfModuleHeader`, `SfProgressSummary`, `SfBackLink`, `SfActionCard`,
+  `SfObjectivesCard`/`SfObjectiveRow`, `SfBlockSkeleton`/`SfBlockError`, `SfHero`
+  (ex-`SfHeroBanner`), `SfInfoCard`, `SfMetric`, `SfLevelList`/`SfLevelRow`, `SfTimeline`,
+  `SfThemeCard`, `SfTipCard`, `SfProgressionHead`, `SfExamRow` (refait), `SfBadge`,
+  `SfChevron`, `SfTrailingText` ; ton servi = `SfTone` via `SfState`. Supprimés :
+  `SfTopSlot`, `SfModuleToggle`, `SfLevelLadder`, `SfLevelCard(Grid)`, `SfGoalBanner`,
+  `SfEpreuveRow`, `ProgressionBascule`, `parcoursSegments`, `parcoursCiviqueProvider`,
+  `examensParcoursProvider`, `plan_screen`, `reviser_screen`, `examens_screen`.
+
 ## Stack technique
 
 - **Flutter 3.6+ / Dart 3.6+**
@@ -464,6 +505,8 @@ activé (pas de clé à fournir).
   la case d'inscription). Ne liste que les providers réellement affichés.
 
 ## Bottom nav et hubs Civique / TCF
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 **Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets
 **Accueil · Plan · Réviser · Examens · Profil** :
@@ -1498,6 +1541,8 @@ uniquement » ne se lit pas.
 
 ### L'Accueil refait sur la maquette (2026-09-12, `screens/home/`)
 
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
+
 L'onglet **Accueil** est passé **sur le KIT** et suit la maquette du
 propriétaire (`~/Desktop/grok_ecran` — `src/components/sejour/screens/accueil.tsx`,
 captures `screenshots/accueil-mobile.png` et `accueil-civ-mobile.png`),
@@ -1782,6 +1827,8 @@ donc aucun paramètre de route n'est inventé.
 l'utilisait plus, `MesFavorisScreen` est son seul lecteur.
 
 ### L'écran Réviser refait sur la maquette (2026-09-12, `screens/reviser/`)
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 Maquette du propriétaire : `~/Desktop/sejourfr_ecrans/reviser_tcf.png` et
 `reviser_civique.png`. L'onglet est passé **sur le KIT**, bloc pour bloc avec le
@@ -3616,6 +3663,8 @@ des deux défauts. Le changer d'un seul côté rouvre l'écart.
 avec le mode « Sujets » TCF, qui est un tout autre écran (spec §4).
 
 ## Écrans de progression (2026-09-24, `screens/progression/`)
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 > Contrat : `docs/regles/progression.md` § « Écrans de progression » · arbitrages D1–D20 :
 > `docs/progression/ETUDE_FAISABILITE_ecrans_progression.md` · maquettes (état téléphone

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import {useRouter} from "next/navigation";
 import {useEffect, useRef, useState} from "react";
 import {
     ActionCard,
@@ -17,9 +16,7 @@ import {
     sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {IconEar, IconMap, IconShield, IconSparkle, IconTarget} from "@/app/_components/shell/ShellIcons";
-import {usePlanAssessment, usePlanExercise} from "@/app/_components/plan/use-plan-exercise";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
+import {useGesteEtapeCivique, useGesteEtapeTcf} from "@/app/_components/plan/now-card-gestes";
 import {civicPlanApi, dashboardApi, diagnosticApi, journeyApi, learningPlanApi, progressApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
@@ -80,7 +77,6 @@ import {
 } from "@/lib/journey";
 import {planHref} from "@/lib/module-switch";
 import {planNowCard} from "@/lib/plan-domain";
-import {planUnlockHref} from "@/lib/plan-unlock";
 import {DIAGNOSTIC_RAPIDE_START_HREF, objectifKicker} from "@/lib/preparation";
 import {progressionHref} from "@/lib/progression";
 import {avancementSeriesCivique} from "@/lib/reviser";
@@ -298,9 +294,7 @@ function ActionTcf({plan, journey, free}: {
     journey: Source<JourneyDto>;
     free: boolean;
 }) {
-    const router = useRouter();
-    const exercices = usePlanExercise();
-    const mesures = usePlanAssessment();
+    const geste = useGesteEtapeTcf("dashboard");
 
     const etat = etatBloc([plan, journey]);
     if (etat === "loading") return <BlockSkeleton height={154}/>;
@@ -311,24 +305,10 @@ function ActionTcf({plan, journey, free}: {
     const vue = planNowCard(plan.data, {free, journey: journey.data ?? null});
     if (!vue) return <CarteFinDeCycle module="tcf"/>;
 
-    const busy = exercices.starting || mesures.starting !== null;
-    const lancer = () => {
-        if (vue.mesure) {
-            void mesures.start(vue.mesure.assessment);
-            return;
-        }
-        if (vue.exercise) void exercices.start(vue.exercise);
-    };
-    const cta = vue.geste === "DEBLOQUER"
-        /* 🛑 Le libellé suit le droit réel : un verrou se DIT (« Débloquer
-           cette étape »), il ne se déguise pas en « Continuer ». */
-        ? {label: vue.cta, onClick: () => router.push(planUnlockHref("TCF"))}
-        : vue.geste === "OUVRIR_ETAPE" && vue.etapeHref
-            ? {label: ACCUEIL_TCF_CTA, href: vue.etapeHref}
-            : vue.geste === "LANCER"
-                ? {label: ACCUEIL_TCF_CTA, onClick: lancer, disabled: busy}
-                : null;
-    const erreur = exercices.error ?? mesures.error;
+    /* 🛑 Le libellé suit le droit réel : un verrou se DIT (« Débloquer cette
+       étape »), il ne se déguise pas en « Continuer » — `useGesteEtapeTcf`. */
+    const cta = geste.cta(vue);
+    const erreur = geste.erreur;
 
     return (
         <>
@@ -347,17 +327,7 @@ function ActionTcf({plan, journey, free}: {
                 ) : null}
                 {erreur ? <p className={sejourStyles.actionNote} role="alert">{erreur}</p> : null}
             </ActionCard>
-            <PaywallSheet
-                ctaLocation="LOCKED_PLAN"
-                screen="dashboard"
-                module="INTEGRAL"
-                journeyId={journey.data?.journeyId}
-                open={exercices.paywallOpen || mesures.paywallOpen}
-                onClose={() => {
-                    exercices.closePaywall();
-                    mesures.closePaywall();
-                }}
-            />
+            {geste.paywall(journey.data?.journeyId)}
         </>
     );
 }
@@ -377,9 +347,7 @@ function ActionCivique({plan, journey, free}: {
     journey: Source<JourneyDto>;
     free: boolean;
 }) {
-    const router = useRouter();
-    const lancerExamen = useMockExamLauncher();
-    const [paywall, setPaywall] = useState(false);
+    const geste = useGesteEtapeCivique("dashboard");
 
     const etat = etatBloc([plan, journey]);
     if (etat === "loading") return <BlockSkeleton height={154}/>;
@@ -390,19 +358,7 @@ function ActionCivique({plan, journey, free}: {
     const carte = civicNowCard(plan.data, {journey: journey.data ?? null, free, lancerExamen: true});
     if (!carte) return <CarteFinDeCycle module="civique"/>;
 
-    const examen = carte.examen;
-    const cta = carte.geste === "DEBLOQUER"
-        ? {label: carte.cta, onClick: () => router.push(planUnlockHref("CIVIQUE"))}
-        : carte.geste === "OUVRIR_ETAPE" && carte.etapeHref
-            ? {label: ACCUEIL_CIVIQUE_CTA, href: carte.etapeHref}
-            : carte.geste === "LANCER" && examen
-                ? {
-                    label: ACCUEIL_CIVIQUE_CTA,
-                    onClick: () => lancerExamen({kind: "CIVIQUE", ...examen, onPaywall: () => setPaywall(true)}),
-                }
-                : carte.geste === "LANCER"
-                    ? {label: ACCUEIL_CIVIQUE_CTA, href: planHref("CIVIQUE")}
-                    : null;
+    const cta = geste.cta(carte);
 
     return (
         <>
@@ -416,14 +372,7 @@ function ActionCivique({plan, journey, free}: {
                 cta={cta}
                 block
             />
-            <PaywallSheet
-                ctaLocation="LOCKED_PLAN"
-                screen="dashboard"
-                module="CIVIQUE"
-                journeyId={journey.data?.journeyId}
-                open={paywall}
-                onClose={() => setPaywall(false)}
-            />
+            {geste.paywall(journey.data?.journeyId)}
         </>
     );
 }

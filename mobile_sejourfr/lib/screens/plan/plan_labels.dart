@@ -1,4 +1,3 @@
-
 /// **Les phrases du Plan.**
 ///
 /// Le serveur expose des faits — un domaine évalué ou non, un palier qui
@@ -278,7 +277,6 @@ const String kPlanVerificationNote =
     'Assez travaillée en exercice ciblé : il reste à le prouver sur une vraie '
     'tâche, en situation.';
 
-
 /// « Série de 20 questions » — la taille est **décidée serveur**. Sans elle, on
 /// ne l'invente pas.
 String planSeriesLabel(int? questionCount) => questionCount == null
@@ -408,17 +406,6 @@ const String kPlanSerieNote =
 
 /* --------------------------------------------- l'écran « Mon plan » (kit)   */
 
-/// Le palier de repli du bandeau d'objectif. *null = inconnu, jamais mauvais* :
-/// on n'écrit ni A1 ni B2 par défaut.
-const String kPlanGoalUnknown = '—';
-
-/// Le **niveau actuel** du bandeau quand le serveur n'en sert aucun
-/// (`cycle.startingLevel` nul) : *inconnu*, jamais « A1 non atteint » — ce
-/// dernier est une MESURE, et il se lit par [NiveauCecrl.displayName], jamais
-/// par son code. Miroir mot pour mot de `PLAN_PROGRESS_LEVEL_UNKNOWN`
-/// (`web_sejoufr/lib/plan-domain.ts`).
-const String kPlanLevelUnknown = 'Pas encore mesuré';
-
 const String kPlanGoalPick = 'Choisir mon objectif';
 
 const String kPlanNowTitle = 'À faire maintenant';
@@ -530,8 +517,6 @@ String planNowVerifySubtitle(String title, SkillTaskCode? task) =>
 
 const String kPlanNowEmptyTitle = 'Rien à faire pour le moment';
 
-
-
 /// Le titre d'une carte de priorité : son domaine, et sa tâche quand il y en a
 /// une.
 String planPriorityGroupTitle({
@@ -562,3 +547,5 @@ const String kPlanDiagnosticSub = 'Résultat de départ et priorités initiales'
 const String kPlanErrorTitle = 'Votre plan n\'a pas pu être chargé';
 const String kPlanErrorRetry = 'Réessayer';
 
+/// L'erreur du bloc « Cycle » quand le parcours n'a pas pu être lu (brief §7).
+const String kPlanJourneyError = 'Votre parcours n\'a pas pu être chargé.';

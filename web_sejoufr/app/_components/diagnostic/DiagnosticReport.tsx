@@ -25,7 +25,7 @@ import {
   Card,
   CheckList,
   Cta,
-  ExamRow,
+  InfoCard,
   LevelTrack,
   NoteCard,
   Observation,
@@ -158,7 +158,7 @@ export function DiagnosticReport({
                 même écart de 10 px, le rendu mobile est celui d'avant. */}
             <Stack className={styles.deskGrid2}>
               {DIAGNOSTIC_SUITE_EPREUVES.map((epreuve) => (
-                <ExamRow key={epreuve.label} icon={epreuve.icon} title={epreuve.label} />
+                <InfoCard key={epreuve.label} icon={<epreuve.icon />} title={epreuve.label} />
               ))}
             </Stack>
             <Card>

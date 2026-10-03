@@ -46,20 +46,6 @@ import {
     type JourneyDto,
 } from "./types";
 
-/**
- * L'en-tête de l'écran. 🛑 **Deux eyebrows, un seul titre** : le parcours ne
- * change pas selon l'accès, seule la phrase qui le présente le fait — c'est la
- * forme du Plan TCF (`planTopKicker` / `kPlanTopKickerFree`).
- *
- * ⚠️ Ces trois chaînes étaient écrites **en dur** dans `CivicPlanPanel` alors
- * que le mobile les déclarait déjà (`kCivicPlanTopKicker*`,
- * `kCivicPlanScreenTitle`) : même famille que `DETTE-P1`, refermée ici.
- */
-export const CIVIC_PLAN_TOP_KICKER = "Votre préparation personnalisée à l'Examen civique";
-/** D-69 : un compte sans diagnostic civique a son Plan — plus « créé à partir de votre diagnostic ». */
-export const CIVIC_PLAN_TOP_KICKER_FREE = "Votre parcours personnalisé";
-export const CIVIC_PLAN_SCREEN_TITLE = "Mon plan du jour";
-
 /** Bloc 2 — à faire maintenant. */
 export const CIVIC_PLAN_NOW_TITLE = "À faire maintenant";
 

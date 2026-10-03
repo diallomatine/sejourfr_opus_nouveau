@@ -340,6 +340,7 @@ Ouvrir le fichier **avant** de coder, pas après.
 | un email (envoi, gabarit, préférence, désabonnement, scheduler d'engagement, `email_deliveries`), l'activité d'entraînement | `docs/regles/emails.md` |
 | le **cycle borné** du Plan, son cycle en attente, la fin de cycle, l'historique des cycles | `docs/regles/plan.md` § « Le CYCLE BORNÉ » |
 | la sémantique fine d'un enum métier | `docs/regles/domaine.md` |
+| la navigation (sidebar web, 4 onglets mobile), l'Accueil, un % civique, une couleur de module | `docs/redesign/` (brief, `DECISIONS.md`) + § « Navigation v2 » du `CLAUDE.md` de chaque front |
 | le détail du mode agent, de l'hygiène d'archi ou des gabarits de test backend | `docs/regles/collaboration.md` |
 
 ## Avant de CHANGER une règle — le journal (`docs/decisions/`)

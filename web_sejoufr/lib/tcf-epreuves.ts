@@ -44,6 +44,6 @@ export const TCF_COMPLEMENTAIRE_NOTE =
  */
 export const TCF_COMPLEMENTAIRE_NOTE_REVISER =
     "Structure de la langue n'est pas une épreuve du TCF IRN — les quatre " +
-    "épreuves officielles sont juste au-dessus. Le module reste très utile : " +
+    "épreuves officielles sont plus haut. Le module reste très utile : " +
     "chaque point de grammaire consolidé se retrouve en compréhension écrite, " +
     "en expression écrite et à l'oral.";

@@ -95,9 +95,6 @@ export function accueilTcfObjectifTitre(cible: TargetLevel | null | undefined): 
     return cible ? `Atteindre ${cible} partout` : JOURNEY_NEEDS_OBJECTIVE_TITLE;
 }
 
-/** La méta de la ligne TCF (maquette mobile). */
-export const ACCUEIL_TCF_OBJECTIF_META = "Progression vers l'objectif";
-
 /** « B1 → B2 » : niveau actuel estimé (servi) → niveau cible. */
 export function accueilTcfProgression(
     actuel: NiveauCecrl | null | undefined,
@@ -150,10 +147,6 @@ export function accueilCycleRatio(cycle: JourneyCycleDto | null | undefined): nu
 }
 
 export const ACCUEIL_CIVIQUE_OBJECTIF_TITRE = "Être prêt pour l'examen";
-
-/** « Objectif : avoir 32/40 » — seuil et format de l'arrêté (miroir gelé). */
-export const ACCUEIL_CIVIQUE_OBJECTIF_META =
-    `Objectif : avoir ${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`;
 
 /** « 32/40 » — la métrique « Objectif examen ». */
 export const ACCUEIL_CIVIQUE_SEUIL = `${CIVIQUE_EXAM_SEUIL}/${CIVIQUE_EXAM_QUESTIONS}`;

@@ -9,12 +9,26 @@ import {
     CircleHelp,
     GraduationCap,
     LogOut,
-    MapPin,
     PenLine,
-    Pencil,
     Target,
     X,
 } from "lucide-react";
+import {
+    Badge,
+    BlockError,
+    BlockSkeleton,
+    InfoCard,
+    ObjectiveRow,
+    ObjectivesCard,
+    Pad,
+    PageHead,
+    Section,
+    SejourApp,
+    Split,
+    TipCard,
+    sejourStyles,
+} from "@/app/_components/sejour/SejourKit";
+import {IconMap, IconShield, IconSparkle} from "@/app/_components/shell/ShellIcons";
 import {useAuth} from "@/lib/auth-context";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {accountApi, billingApi, dashboardApi} from "@/lib/api";
@@ -29,8 +43,20 @@ import {
     COMPTE_PROFIL_HREF,
     compteIsLocal,
 } from "@/lib/compte";
-import {CompteCard, CompteGate, CompteLoading, CompteRow} from "../../_components/compte/CompteParts";
-import {estimatedTcfLevelScopeLabel, niveauCecrlShort, niveauViseTcf} from "@/lib/types";
+import {
+    ACCUEIL_BLOCK_ERROR,
+    ACCUEIL_CIVIQUE_LABEL,
+    ACCUEIL_CIVIQUE_OBJECTIF_TITRE,
+    ACCUEIL_RETRY,
+    ACCUEIL_TCF_LABEL,
+    accueilPourcentage,
+    accueilTcfObjectifTitre,
+    accueilTcfProgression,
+} from "@/lib/accueil";
+import {progressionHref} from "@/lib/progression";
+import {avancementSeriesCivique} from "@/lib/reviser";
+import {CompteGate, CompteLoading} from "../../_components/compte/CompteParts";
+import {estimatedTcfLevelScopeLabel, niveauCecrlShort} from "@/lib/types";
 import type {
     DashboardSummaryResponse,
     SubscriptionStatusResponse,
@@ -38,20 +64,20 @@ import type {
 } from "@/lib/types";
 
 /**
- * Page profil web — maquette du propriétaire
- * (`docs/progression/maquettes-progression/profil.html`), en parité de contenu
- * avec l'onglet Profil mobile (`profile_screen.dart`). Sections :
- *   - barre de titre « Mon profil »
- *   - hero bleu : avatar, nom, e-mail, démarche, bouton « Modifier »
- *   - 3 tuiles (maîtrise / série / niveau estimé + périmètre) issues de /api/me/dashboard
- *   - grille « Mon pass » (subscription-status) | « Mon objectif » (démarche)
- *   - « Mon compte » : Mes informations (`/profil/informations`, ses trois pages
- *     d'édition), Notifications par e-mail (`/profil/notifications`), Mes
- *     favoris (`/favoris`), Aide & assistance (`/aide`). « Ma
- *     progression » est dans la barre latérale (« Progression »), pas ici.
- *   - déconnexion + suppression de compte (DELETE /api/account)
+ * **Le Profil web** — Navigation v2, phase 4 (maquette
+ * `docs/redesign/sejourfr-navigation-web.html`, `#profil`), en parité de
+ * contenu avec l'onglet Profil mobile (`profile_screen.dart`).
  *
- * Tout ce qui est affiché est servi : aucun nombre n'est classé ici.
+ * `Split` : à gauche la carte profil (initiales, nom, e-mail, « Objectif :
+ * {démarche} », pastilles pass + démarche, « Modifier »), les 3 tuiles
+ * (gardées), « Mon objectif » (gardé), « Mon compte » en `InfoCard` (Mon pass,
+ * Mes informations, Notifications, Mes favoris, Aide), la session
+ * (déconnexion, suppression) et la version ; à droite le « Résumé de
+ * préparation » (`ObjectivesCard`) et « Votre semaine » (`TipCard`).
+ *
+ * 🛑 Tout est servi : aucun nombre n'est classé ici. Le niveau cible est
+ * `AuthenticatedUser.targetLevel` (X13), seule source. « Membre depuis » :
+ * non servi ⇒ masqué. Le mot « abonnement » n'apparaît jamais (« Mon pass »).
  */
 export default function ProfilPage() {
     const router = useRouter();
@@ -66,6 +92,8 @@ export default function ProfilPage() {
     const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 
     const [dashboard, setDashboard] = useState<DashboardSummaryResponse | null>(null);
+    const [dashboardError, setDashboardError] = useState(false);
+    const [dashboardTentative, setDashboardTentative] = useState(0);
     const [subscription, setSubscription] = useState<SubscriptionStatusResponse | null>(null);
 
     useEffect(() => {
@@ -73,7 +101,17 @@ export default function ProfilPage() {
         let cancelled = false;
         void dashboardApi.summaryCached().then((d) => {
             if (!cancelled) setDashboard(d);
-        }).catch(() => {});
+        }).catch(() => {
+            if (!cancelled) setDashboardError(true);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [status, dashboardTentative]);
+
+    useEffect(() => {
+        if (status !== "authenticated") return;
+        let cancelled = false;
         void billingApi.getSubscriptionStatus().then((s) => {
             if (!cancelled) setSubscription(s);
         }).catch(() => {});
@@ -129,8 +167,9 @@ export default function ProfilPage() {
         (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
         (user.lastName?.[0]?.toUpperCase() ?? "");
     const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
-    // Le palier VISÉ, plancher de la démarche appliqué — pas une table locale.
-    const niveauVise = niveauViseTcf(user);
+    // X13 : le palier VISÉ est servi par `/api/auth/me` (plancher appliqué
+    // serveur) — aucun recalcul ici.
+    const cible = user.targetLevel ?? null;
     const isLocal = compteIsLocal(user.authProvider);
 
     // ── 3 tuiles (parité mobile) ──────────────────────────────────────────
@@ -149,138 +188,170 @@ export default function ProfilPage() {
     const access = subscription?.moduleAccess;
     const passName = passAccessName(premium, access === "INTEGRAL");
     const expiresAt = subscription?.expiresAt ?? user.premiumEndsAt ?? null;
-    const passSub = !premium
+    const passDetail = !premium
         ? "Accès limité — débloquez tout SejourFR"
         : expiresAt
             ? `Valable jusqu'au ${formatDate(expiresAt)}`
             : "Accès actif";
+    // « paiement unique, aucun renouvellement » : seulement sur un pass actif
+    // servi `oneTime` (R6 — un pass n'est jamais un abonnement).
+    const passMeta = [
+        passName,
+        premium && subscription?.oneTime ? "paiement unique, aucun renouvellement" : null,
+        passDetail,
+    ].filter(Boolean).join(" · ");
     const passHref = premium ? "/profil/abonnement" : "/paiement";
 
     return (
-        <main className="pr">
-            <div className="pr-shell">
-                {/* ---- Barre de titre ---- */}
-                <div className="pr-topbar">
-                    <span className="pr-topbar-slot" aria-hidden/>
-                    <div className="pr-page-title">Mon profil</div>
-                    <span className="pr-topbar-slot" aria-hidden/>
-                </div>
+        <SejourApp className={sejourStyles.home}>
+            <Pad>
+                <PageHead title="Profil" subtitle="Votre compte, votre objectif et vos réglages."/>
+            </Pad>
 
-                {/* ---- Hero ---- */}
-                <section className="pr-hero">
-                    <div className="pr-hero-head">
-                        <span className="pr-avatar" aria-hidden>{initials}</span>
-                        <div className="pr-identity">
-                            <h1>{fullName}</h1>
-                            <p>{user.email}</p>
-                            {proc && (
-                                <span className="pr-badge">
-                                    <MapPin size={13} aria-hidden/> {proc.short}
-                                </span>
-                            )}
-                        </div>
-                        <Link
-                            href={COMPTE_INFORMATIONS_HREF}
-                            className="pr-edit-btn"
-                            aria-label="Modifier mes informations"
-                        >
-                            <span className="pr-edit-txt">Modifier</span>
-                            <Pencil className="pr-edit-ico" size={16} aria-hidden/>
-                        </Link>
-                    </div>
-                </section>
+            <div className={sejourStyles.pageBody}>
+                <Split
+                    main={(
+                        <>
+                            {/* ---- Carte profil ---- */}
+                            <Pad>
+                                <section className="pr-card">
+                                    <span className="pr-avatar" aria-hidden>{initials}</span>
+                                    <div className="pr-identity">
+                                        <h2>{fullName}</h2>
+                                        <p className="pr-email">{user.email}</p>
+                                        {proc && <p className="pr-objectif">Objectif : {proc.title}</p>}
+                                        <div className="pr-badges">
+                                            <Badge tone={premium ? "success" : "neutral"}>{passName}</Badge>
+                                            {proc && <Badge module="tcf">{proc.short}</Badge>}
+                                        </div>
+                                    </div>
+                                    <Link
+                                        href={COMPTE_INFORMATIONS_HREF}
+                                        className="pr-edit-btn"
+                                        aria-label="Modifier mes informations"
+                                    >
+                                        Modifier
+                                    </Link>
+                                </section>
 
-                {/* ---- 3 tuiles ---- */}
-                <section className="pr-stats">
-                    <StatTile label="Maîtrise" value={masteryValue}/>
-                    <StatTile label="Série" value={streakValue} tone="red"/>
-                    <StatTile label="Niveau estimé" value={levelValue} meta={levelScope}/>
-                </section>
+                                {/* ---- 3 tuiles ---- */}
+                                <div className="pr-stats">
+                                    <StatTile label="Maîtrise" value={masteryValue}/>
+                                    <StatTile label="Série" value={streakValue} tone="red"/>
+                                    <StatTile label="Niveau estimé" value={levelValue} meta={levelScope}/>
+                                </div>
+                            </Pad>
 
-                <div className="pr-grid">
-                    {/* ---- Mon pass ---- */}
-                    <CompteCard title="Mon pass">
-                        <CompteRow
-                            href={passHref}
-                            icon={<GraduationCap size={21}/>}
-                            tone={premium ? "green" : "muted"}
-                            title={
-                                <>
-                                    {passName}
-                                    <span className={`pr-status ${premium ? "is-active" : "is-free"}`}>
-                                        {premium ? "Actif" : "Gratuit"}
-                                    </span>
-                                </>
-                            }
-                            sub={passSub}
-                        />
-                    </CompteCard>
+                            {/* ---- Mon objectif (gardé) ---- */}
+                            <Section title="Mon objectif">
+                                <Pad>
+                                    <InfoCard
+                                        icon={<Target/>}
+                                        title={proc ? proc.title : "Choisir mon parcours"}
+                                        meta={proc
+                                            ? (cible ? `Niveau de français visé : ${cible}` : null)
+                                            : "Définissez votre objectif administratif"}
+                                        trailing="chevron"
+                                        href={journeyTargetPathHref("/profil")}
+                                    />
+                                </Pad>
+                            </Section>
 
-                    {/* ---- Mon objectif ---- */}
-                    <CompteCard title="Mon objectif">
-                        <CompteRow
-                            href={journeyTargetPathHref("/profil")}
-                            icon={<Target size={21}/>}
-                            title={proc ? proc.title : "Choisir mon parcours"}
-                            sub={proc
-                                ? `Niveau de français visé : ${niveauVise}`
-                                : "Définissez votre objectif administratif"}
-                        />
-                    </CompteCard>
+                            {/* ---- Mon compte ---- */}
+                            <Section title="Mon compte">
+                                <Pad>
+                                    <div className="pr-list">
+                                        <InfoCard
+                                            icon={<GraduationCap/>}
+                                            title="Mon pass"
+                                            meta={passMeta}
+                                            trailing={(
+                                                <Badge tone={premium ? "success" : "neutral"}>
+                                                    {premium ? "Actif" : "Gratuit"}
+                                                </Badge>
+                                            )}
+                                            href={passHref}
+                                        />
+                                        <InfoCard
+                                            icon={<PenLine/>}
+                                            title="Mes informations"
+                                            meta={isLocal ? "Nom, prénom, e-mail et mot de passe" : "Nom et prénom"}
+                                            trailing="chevron"
+                                            href={COMPTE_INFORMATIONS_HREF}
+                                        />
+                                        <InfoCard
+                                            icon={<Bell/>}
+                                            title={COMPTE_NOTIF_ROW_TITLE}
+                                            meta={COMPTE_NOTIF_ROW_SUB}
+                                            trailing="chevron"
+                                            href={COMPTE_NOTIFICATIONS_HREF}
+                                        />
+                                        {/* « Ma progression » n'est PAS ici sur le web : elle vit dans
+                                            la barre latérale (une entrée par module). */}
+                                        <InfoCard
+                                            icon={<Bookmark/>}
+                                            title={FAVORIS_TITLE}
+                                            meta={FAVORIS_ROW_SUB}
+                                            trailing="chevron"
+                                            href={FAVORIS_HREF}
+                                        />
+                                        <InfoCard
+                                            icon={<CircleHelp/>}
+                                            title="Aide"
+                                            meta="Questions fréquentes et contact"
+                                            trailing="chevron"
+                                            href={AIDE_HREF}
+                                        />
+                                    </div>
+                                </Pad>
+                            </Section>
 
-                    {/* ---- Mon compte ---- */}
-                    <CompteCard title="Mon compte" className="pr-full">
-                        <CompteRow
-                            href={COMPTE_INFORMATIONS_HREF}
-                            icon={<PenLine size={20}/>}
-                            title="Mes informations"
-                            sub={isLocal ? "Nom, prénom, e-mail et mot de passe" : "Nom et prénom"}
-                        />
-                        <CompteRow
-                            href={COMPTE_NOTIFICATIONS_HREF}
-                            icon={<Bell size={20}/>}
-                            title={COMPTE_NOTIF_ROW_TITLE}
-                            sub={COMPTE_NOTIF_ROW_SUB}
-                        />
-                        {/* « Ma progression » n'est PAS ici sur le web : elle vit dans
-                            la barre latérale (« Progression », 2026-09-24). Le Profil
-                            mobile, sans barre latérale, garde sa ligne. */}
-                        <CompteRow
-                            href={FAVORIS_HREF}
-                            icon={<Bookmark size={20}/>}
-                            title={FAVORIS_TITLE}
-                            sub={FAVORIS_ROW_SUB}
-                        />
-                        <CompteRow
-                            href={AIDE_HREF}
-                            icon={<CircleHelp size={20}/>}
-                            title="Aide & assistance"
-                            sub="FAQ, CGU, confidentialité, contact"
-                        />
-                    </CompteCard>
-
-                    {/* ---- Session ---- */}
-                    <CompteCard className="pr-full">
-                        <CompteRow
-                            onClick={() => setShowLogoutConfirm(true)}
-                            icon={<LogOut size={20}/>}
-                            title="Se déconnecter"
-                            chevron={false}
-                        />
-                        <CompteRow
-                            onClick={() => {
-                                setDeleteError(null);
-                                setShowDeleteConfirm(true);
-                            }}
-                            icon={<X size={21}/>}
-                            tone="red"
-                            title="Supprimer mon compte"
-                            danger
-                        />
-                    </CompteCard>
-                </div>
-
-                <div className="pr-footer">SejourFR · v{process.env.NEXT_PUBLIC_APP_VERSION}</div>
+                            {/* ---- Session ---- */}
+                            <Pad>
+                                <div className="pr-list pr-session">
+                                    <InfoCard
+                                        icon={<LogOut/>}
+                                        title="Se déconnecter"
+                                        onClick={() => setShowLogoutConfirm(true)}
+                                    />
+                                    <InfoCard
+                                        module="civique"
+                                        icon={<X/>}
+                                        title="Supprimer mon compte"
+                                        trailing="chevron"
+                                        onClick={() => {
+                                            setDeleteError(null);
+                                            setShowDeleteConfirm(true);
+                                        }}
+                                    />
+                                </div>
+                                <div className="pr-footer">SejourFR · v{process.env.NEXT_PUBLIC_APP_VERSION}</div>
+                            </Pad>
+                        </>
+                    )}
+                    side={(
+                        <Pad>
+                            <div className={sejourStyles.splitSide}>
+                                <ResumePreparation
+                                    dashboard={dashboard}
+                                    error={dashboardError}
+                                    onRetry={() => {
+                                        setDashboardError(false);
+                                        setDashboardTentative((n) => n + 1);
+                                    }}
+                                    cible={cible}
+                                />
+                                {dashboard ? (
+                                    <TipCard
+                                        icon={<IconSparkle/>}
+                                        label="Votre semaine"
+                                        text={semaineTexte(dashboard.currentStreakDays)}
+                                    />
+                                ) : null}
+                            </div>
+                        </Pad>
+                    )}
+                />
             </div>
 
             {/* ---- MODALES ---- */}
@@ -327,13 +398,67 @@ export default function ProfilPage() {
             )}
 
             <style>{styles}</style>
-        </main>
+        </SejourApp>
     );
 }
 
 // ============================================================================
 // BRIQUES
 // ============================================================================
+
+/**
+ * **« Résumé de préparation »** — les deux objectifs, comme « Mes objectifs »
+ * de l'Accueil : TCF `{actuel|—} → {cible}` (niveau estimé servi, cible
+ * `targetLevel`), civique `{pct} %` par `avancementSeriesCivique`, la fonction
+ * unique. Chaque ligne ouvre la Progression du module.
+ */
+function ResumePreparation({dashboard, error, onRetry, cible}: {
+    dashboard: DashboardSummaryResponse | null;
+    error: boolean;
+    onRetry: () => void;
+    cible: Parameters<typeof accueilTcfObjectifTitre>[0];
+}) {
+    if (!dashboard) {
+        return error
+            ? <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>
+            : <BlockSkeleton height={200} radius={24}/>;
+    }
+    const civique = avancementSeriesCivique(dashboard.civique);
+    return (
+        <ObjectivesCard label="Résumé de préparation">
+            <ObjectiveRow
+                module="tcf"
+                icon={<IconMap/>}
+                label={ACCUEIL_TCF_LABEL}
+                title={accueilTcfObjectifTitre(cible)}
+                value={accueilTcfProgression(dashboard.estimatedTcfLevel, cible)}
+                href={progressionHref("TCF")}
+            />
+            <ObjectiveRow
+                module="civique"
+                icon={<IconShield/>}
+                label={ACCUEIL_CIVIQUE_LABEL}
+                title={ACCUEIL_CIVIQUE_OBJECTIF_TITRE}
+                value={accueilPourcentage(civique.pourcentage)}
+                href={progressionHref("CIVIQUE")}
+            />
+        </ObjectivesCard>
+    );
+}
+
+/**
+ * « Votre semaine » : la série de jours servie (`currentStreakDays`) et le
+ * texte éditorial de la maquette ; 0 jour ⇒ une invitation, jamais « 0 jour
+ * d'activité de suite ».
+ */
+function semaineTexte(jours: number): string {
+    if (jours <= 0) {
+        return "Une série aujourd'hui lance votre semaine : la régularité est le meilleur prédicteur de réussite aux deux examens.";
+    }
+    const mot = jours > 1 ? "jours" : "jour";
+    return `${jours} ${mot} d'activité de suite. Continuez ainsi : la régularité est le meilleur prédicteur de réussite aux deux examens.`;
+}
+
 function StatTile({
                       label,
                       value,
@@ -425,72 +550,50 @@ function formatDate(iso: string): string {
 }
 
 // ============================================================================
-// STYLES — géométrie de la maquette, couleurs et polices de l'application.
-// Aucune valeur hexadécimale : tokens `var(--color-*)`, `white`, `color-mix()`.
+// STYLES — géométrie de la maquette (`.profile-card`), couleurs et polices de
+// l'application. Aucune valeur hexadécimale : tokens `var(--color-*)`,
+// `color-mix()`.
 // ============================================================================
 const styles = `
-  .pr {
-    min-height: 100vh; padding: 24px 18px 48px;
+  /* ---- Carte profil (\`.card.profile-card\`) ---- */
+  .pr-card {
+    display: flex; align-items: center; gap: 18px; min-width: 0;
+    padding: 24px; border: 1px solid var(--color-line); border-radius: var(--sf-radius-4xl);
+    background: var(--color-white); box-shadow: var(--sf-shadow-card-sm);
   }
-  .pr-shell { width: min(980px, 100%); margin: 0 auto; }
-
-  /* ---- Barre de titre ---- */
-  .pr-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 48px; margin-bottom: 18px; }
-  .pr-topbar-slot { width: 48px; height: 48px; flex-shrink: 0; }
-  .pr-page-title {
-    font-family: var(--font-mono); font-size: 15px; font-weight: 700; letter-spacing: 0.16em;
-    text-transform: uppercase; color: var(--color-muted); text-align: center; min-width: 0;
-  }
-
-  /* ---- Hero ---- */
-  .pr-hero {
-    position: relative; overflow: hidden; border-radius: 30px; padding: 28px; color: white;
-    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-mid) 100%);
-    box-shadow: 0 16px 34px color-mix(in srgb, var(--color-blue) 18%, transparent);
-  }
-  .pr-hero::after {
-    content: ""; position: absolute; width: 220px; height: 220px; right: -80px; top: -90px;
-    border-radius: 50%; background: color-mix(in srgb, white 7%, transparent); pointer-events: none;
-  }
-  .pr-hero-head { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
   .pr-avatar {
-    width: 70px; height: 70px; flex: 0 0 70px; border-radius: 20px; background: white; color: var(--color-ink);
-    display: grid; place-items: center; font-family: var(--font-display); font-size: 27px; font-weight: 700;
-    box-shadow: 0 8px 22px color-mix(in srgb, var(--color-ink) 10%, transparent);
+    width: 74px; height: 74px; flex: 0 0 74px; border-radius: var(--sf-radius-3xl);
+    display: grid; place-items: center; color: var(--color-white);
+    background: var(--gradient-module-tcf); box-shadow: var(--sf-shadow-module-tcf);
+    font-family: var(--font-sans); font-size: 25px; font-weight: 800; letter-spacing: -0.02em;
   }
   .pr-identity { min-width: 0; flex: 1; }
-  .pr-identity h1 {
-    margin: 0 0 5px; font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.05;
-    letter-spacing: -0.01em; color: white; overflow-wrap: anywhere;
+  .pr-identity h2 {
+    margin: 0 0 4px; font-family: var(--font-sans); font-size: 20px; font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.2; color: var(--color-ink); overflow-wrap: anywhere;
   }
-  .pr-identity p {
-    margin: 0; font-size: 15px; color: color-mix(in srgb, white 84%, var(--color-blue));
+  .pr-email, .pr-objectif {
+    margin: 0; font-size: 14px; line-height: 1.45; color: var(--color-muted);
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   }
-  .pr-badge {
-    display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; padding: 7px 10px;
-    border-radius: 999px; background: color-mix(in srgb, white 13%, transparent); color: white;
-    font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
-  }
+  .pr-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .pr-edit-btn {
-    position: relative; z-index: 1; flex-shrink: 0; cursor: pointer;
-    border: 1px solid color-mix(in srgb, white 25%, transparent);
-    background: color-mix(in srgb, white 12%, transparent); color: white;
-    border-radius: 14px; padding: 11px 15px; font-family: var(--font-sans); font-size: 14px; font-weight: 700;
-    text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s;
+    flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    height: 44px; padding: 0 18px; border-radius: var(--sf-radius-md);
+    background: var(--color-paper-2); color: var(--color-ink); text-decoration: none;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 700; transition: background 0.15s;
   }
-  .pr-edit-btn:hover { background: color-mix(in srgb, white 20%, transparent); }
-  .pr-edit-btn:focus-visible { outline: 2px solid white; outline-offset: 2px; }
-  .pr-edit-ico { display: none; }
+  .pr-edit-btn:hover { background: var(--color-line); }
+  .pr-edit-btn:focus-visible { outline: 2px solid var(--color-module-tcf); outline-offset: 2px; }
 
-  /* ---- Tuiles ---- */
-  .pr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 14px 0 28px; }
+  /* ---- Tuiles (gardées) ---- */
+  .pr-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
   .pr-stat {
-    background: white; border: 1px solid var(--color-line); border-radius: 20px; padding: 17px 15px; min-width: 0;
-    box-shadow: 0 4px 18px color-mix(in srgb, var(--color-ink) 3.5%, transparent);
+    background: var(--color-white); border: 1px solid var(--color-line); border-radius: var(--sf-radius-2xl);
+    padding: 17px 15px; min-width: 0; box-shadow: var(--sf-shadow-card-sm);
   }
-  .pr-stat-value { font-family: var(--font-display); font-size: 25px; font-weight: 700; line-height: 1.15; }
-  .pr-stat-value.tone-blue { color: var(--color-blue); }
+  .pr-stat-value { font-family: var(--font-sans); font-size: 24px; font-weight: 800; line-height: 1.15; }
+  .pr-stat-value.tone-blue { color: var(--color-module-tcf); }
   .pr-stat-value.tone-red { color: var(--color-red); }
   .pr-stat-label {
     margin-top: 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
@@ -498,21 +601,12 @@ const styles = `
   }
   .pr-stat-meta { margin-top: 3px; font-size: 12px; line-height: 1.3; color: var(--color-muted-2); overflow-wrap: anywhere; }
 
-  /* ---- Grille de contenu (cartes et lignes : \`CompteCard\` / \`CompteRow\`) ---- */
-  .pr-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
-  .pr-full { grid-column: 1 / -1; }
-
-  /* ---- Pastille du pass ---- */
-  .pr-status {
-    display: inline-flex; align-items: center; margin-left: 8px; padding: 5px 9px; border-radius: 999px;
-    font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-    text-transform: uppercase; vertical-align: 2px;
-  }
-  .pr-status.is-active { background: var(--color-green-light); color: var(--color-green); }
-  .pr-status.is-free { background: var(--color-paper-2); color: var(--color-muted); }
+  /* ---- Listes de lignes (\`.stack\`) ---- */
+  .pr-list { display: grid; gap: 12px; }
+  .pr-session { margin-top: 18px; }
 
   .pr-footer {
-    margin-top: 28px; text-align: center; font-family: var(--font-mono); font-size: 12px;
+    margin-top: 24px; text-align: center; font-family: var(--font-mono); font-size: 12px;
     letter-spacing: 0.08em; color: var(--color-muted-2);
   }
 
@@ -549,33 +643,22 @@ const styles = `
   .pm-btn-danger:hover { background: var(--color-red-dark); }
   .pm-btn-neutral { background: var(--color-ink); color: white; }
   .pm-btn-neutral:hover { background: var(--color-ink-2); }
-  /* Dans le shell connecté, la marge haute est celle du contenu du shell (AppShell). */
-  .app-shell .pr { padding-top: 0; }
   /* ---- ≤ 760 px ---- */
   @media (max-width: 760px) {
-    .pr { padding: 16px 14px 34px; }
-    .pr-grid { grid-template-columns: minmax(0, 1fr); }
-    .pr-full { grid-column: auto; }
-    .pr-hero { padding: 22px 18px; border-radius: 26px; }
-    .pr-hero-head { align-items: flex-start; }
-    .pr-avatar { width: 60px; height: 60px; flex-basis: 60px; border-radius: 17px; font-size: 23px; }
-    .pr-identity h1 { font-size: 24px; }
-    .pr-identity p { font-size: 13px; }
-    .pr-edit-btn { padding: 9px 11px; font-size: 13px; }
-    .pr-stats { gap: 8px; margin-top: 10px; margin-bottom: 20px; }
-    .pr-stat { padding: 14px 10px; border-radius: 17px; }
-    .pr-stat-value { font-size: 22px; }
+    .pr-card { padding: 18px; gap: 14px; align-items: flex-start; }
+    .pr-avatar { width: 60px; height: 60px; flex-basis: 60px; font-size: 21px; }
+    .pr-stats { gap: 8px; }
+    .pr-stat { padding: 14px 10px; }
+    .pr-stat-value { font-size: 21px; }
     .pr-stat-label { font-size: 9px; letter-spacing: 0.1em; }
     .pr-stat-meta { font-size: 10px; }
     .pm-sheet { padding: 20px; }
   }
 
-  /* ---- ≤ 430 px ---- */
+  /* ---- ≤ 430 px : « Modifier » passe sous l'identité ---- */
   @media (max-width: 430px) {
-    .pr-hero-head { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; }
-    .pr-identity h1 { font-size: 22px; }
-    .pr-edit-btn { width: 38px; height: 38px; padding: 0; border-radius: 12px; }
-    .pr-edit-txt { display: none; }
-    .pr-edit-ico { display: block; }
+    .pr-card { flex-wrap: wrap; }
+    .pr-identity { flex-basis: calc(100% - 74px); }
+    .pr-edit-btn { width: 100%; }
   }
 `;

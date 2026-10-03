@@ -3,6 +3,48 @@
 Frontend web de SejourFR, plateforme d'entraînement aux examens **civique** (CSP, CR, naturalisation) et **TCF
 IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
 
+## Navigation v2 (2026-10-03) — shell, Accueil, écrans re-logés
+
+🛑 **Fait foi sur tout ce qui suit** dans ce fichier (les sections historiques marquées
+« Périmé par la navigation v2 » sont conservées pour mémoire). Dossier du chantier :
+`docs/redesign/` (brief, maquettes, `AUDIT.md`, `DECISIONS.md` DEC-01→32, `JOURNAL.md`).
+
+- **Shell connecté** `app/_components/shell/` (`AppShell`, `AppSidebar`, `AppTopBar`,
+  `ShellIcons`, `shell.module.css`), monté par `(app)/layout.tsx` et `DualChromeShell` pour un
+  compte connecté (un visiteur garde le chrome public). Sidebar 292 px : Accueil · bloc **TCF
+  IRN** (Mon plan, Entraînement, Examens blancs, Progression) · bloc **Examen civique** (Plan,
+  Entraînement, Examens, Progression) · Profil · carte utilisateur. Topbar sticky : burger
+  ≤ 1024, fil d'Ariane, avatar, flèche de retour des sous-écrans (`useAppBarBack`). Tiroir
+  ≤ 1024 (overlay, Échap, fermeture à la navigation, scroll bloqué). Bornes du shell :
+  1180 / 1024 / 760 / 520 ; le contenu du kit garde les siennes. Plus de logique 900 px, plus
+  de `--app-bar-gap`, plus de `ModuleToggle` pour un compte (visiteur de `/examens-blancs`
+  seulement, DEC-13).
+- **URL inchangées** (X5, à cause de `TrackedScreen` et des liens d'e-mails) : le module vit
+  dans `?module=TCF|CIVIQUE` (`/plan`, `/entrainement`, `/examens-blancs`) ; `/dashboard`
+  ignore `?module=`. Entrée active : `lib/shell-nav.ts`.
+- **Tails de la sidebar** : `lib/use-shell-nav.ts`, UNE source (desktop et tiroir sont le même
+  élément), uniquement le cache partagé (dashboard, `me`, progressions `progress:`). Un tail qui
+  demanderait une lecture de plus est supprimé, pas ajouté.
+- **Couleurs de module** : TCF bleu, civique rouge, toujours via `--color-module-tcf*` /
+  `--color-module-civique*`, `--gradient-module-*` (jamais `--color-blue/red` pour dire un
+  module). Les boutons du Plan civique sont rouges (DEC-26 révoque A46).
+- **% civique** : `avancementSeriesCivique` (`lib/reviser.ts`) est la SEULE formule
+  (`floor(Σ seriesDone / Σ seriesTotal × 100)`, toutes mentions, terminée = au moins une
+  fois). `moduleAverage` est supprimé. Miroir mobile du même nom.
+- **États servis → libellé + ton** : `lib/etats-servis.ts` (`etatEpreuveTcf`,
+  `etatThemeCivique`, `etatTon`), seul mapping. **Gestes « À faire maintenant / Prochaine
+  étape »** : `app/_components/plan/now-card-gestes.tsx`, lu par l'Accueil et la Progression.
+- **Nom du pass** : `passAccessName` (`lib/passes.ts`), jamais un libellé de pass en dur.
+- **Kit** : primitives v2 (fin de `SejourKit.tsx`) `PageHead`, `ActionCard`, `ObjCard`,
+  `ObjectivesCard`/`ObjectiveRow`, `BlockSkeleton`/`BlockError`, `Hero` (ex-`HeroBanner`),
+  `InfoCard`, `Metric`, `LevelList`/`LevelRow`, `Timeline`, `ThemeCard`, `TipCard`,
+  `ProgressionHead`, `ExamRow` (refait), `Badge`, `Split`/`Grid` (mise en page web seule).
+  Supprimées : `ModuleToggle`, `TopSlot`, `TopInAppBar`, `LevelLadder`, `LevelCard(Grid)`,
+  `GoalBanner`, `EpreuveRow`. Miroirs `Sf*` côté Flutter, mêmes noms.
+- **Écrans** : Accueil = kicker / « Bonjour » / À faire maintenant (2 cartes) / Mes objectifs
+  (2 `ObjCard`) ; Plan, Entraînement, Examens, Progression et Profil suivent la maquette
+  `docs/redesign/sejourfr-navigation-web.html`, blocs existants gardés en dessous.
+
 ## Stack
 
 - **Next.js 16.2.6** (App Router)
@@ -723,6 +765,8 @@ par `middleware.ts`, dont le test est un **préfixe** (`/paiement` couvre
 
 ## Le Profil (`/profil`) — maquette du propriétaire (2026-09-24)
 
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
+
 Maquette : `docs/progression/maquettes-progression/profil.html`. Refonte **visuelle web
 seule**, aucun endpoint ni DTO touché. `app/(app)/profil/page.tsx`, styles en `<style>`
 scoped (`.pr-*` pour la page, `.pm-*` pour les modales de confirmation) — **pas sur le
@@ -1300,6 +1344,8 @@ page et écrirait deux fois la même action.
 
 ### La barre latérale : sept entrées à icône, et AUCUNE bascule (2026-09-12)
 
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
+
 🛑 **Arbitrage du propriétaire**, verbatim : « **Non, le menu de gauche, faut le
 laisser comme il était.** Le choix entre examen civique et TCF, dans les écrans
 **dashboard, plan, entraînement (réviser)**. » Il **révoque** la bascule
@@ -1332,6 +1378,8 @@ du chemin et de `?module=` — une vraie correction du surlignage, indépendante
 avant cette refonte. Ne pas le réintroduire.
 
 #### Le choix TCF / Civique vit dans DEUX écrans
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 La même brique du kit (`ModuleToggle`, rendue par `.segWrap` / `.seg`), au même
 endroit visuel — sous l'en-tête —, sur les **deux écrans où elle change ce qui
@@ -1388,6 +1436,8 @@ de démarches du web. Elle était écrite en dur dans `AppSidebar` et l'Accueil
 allait en poser une deuxième copie.
 
 ### L'Accueil (`/dashboard`) — réorganisé sur la maquette (2026-09-12)
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 Il est passé **sur le KIT** (`SejourApp wide`), ce qui lui donne le scope
 `.app`, ses variables `--sf-*` et le palier desktop. Sa structure suit
@@ -1507,6 +1557,8 @@ rien** : elle est **omise**, pas fabriquée.
 `compteurLabel` le dit, au lieu d'écrire « compétences » à tort.
 
 #### L'Accueil est SCOPÉ au parcours choisi (2026-09-12)
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 🛑 Arbitrage du propriétaire : « **la bascule avec l'Examen civique doit
 afficher l'accueil de l'Examen civique** ». Même mécanique que le Plan —
@@ -1663,6 +1715,8 @@ bleue, `CheckList`, sélecteur de durée (`PassCard`) et `Sticky`. 🛑 **Aucun 
 « 14,99 €/mois » du mockup, qui n'a pas de serveur derrière lui.
 
 ### L'écran Réviser refait sur la maquette (2026-09-12)
+
+> ⚠️ **Périmé par la navigation v2 (2026-10-03)** — la règle en vigueur est au § « Navigation v2 » en tête de fichier ; ce qui suit est l'historique.
 
 Maquette du propriétaire : `~/Desktop/sejourfr_ecrans/reviser_tcf.png` et
 `reviser_civique.png`. `/entrainement?module=` est passé **sur le KIT**

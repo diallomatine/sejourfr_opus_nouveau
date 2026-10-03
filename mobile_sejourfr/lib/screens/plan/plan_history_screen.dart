@@ -84,16 +84,20 @@ class PlanHistoryScreen extends ConsumerWidget {
                 children: [
                   // 🛑 Le bandeau et ses compteurs restent dans TOUS les
                   // états : ils sont vrais même sans cycle terminé.
-                  SfHeroBanner(
-                    eyebrow: kJourneyHistoryEyebrow,
+                  SfHero(
+                    // Bleu dans les deux modules : le compteur accentué de la
+                    // grille est en rouge vif, illisible sur le dégradé rouge.
+                    civique: false,
+                    label: kJourneyHistoryEyebrow,
                     title: kJourneyHistoryHeadline,
-                    text: kJourneyHistoryLead,
+                    sub: kJourneyHistoryLead,
                     child: SfStatGrid(
                       onHero: true,
                       accentIndex: 1,
                       stats: [
                         (
-                          value: '${history?.stats.competencesTravaillees ?? 0}',
+                          value:
+                              '${history?.stats.competencesTravaillees ?? 0}',
                           label: journeyHistoryStatSkills(
                               history?.stats.competencesTravaillees ?? 0,
                               module),
@@ -128,8 +132,8 @@ class PlanHistoryScreen extends ConsumerWidget {
                             SfButton(
                               label: kJourneyHistoryRetry,
                               variant: SfButtonVariant.blue,
-                              onPressed: () =>
-                                  ref.invalidate(journeyHistoryProvider(module)),
+                              onPressed: () => ref
+                                  .invalidate(journeyHistoryProvider(module)),
                             ),
                           ],
                         ),

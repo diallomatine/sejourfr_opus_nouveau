@@ -1,9 +1,11 @@
 "use client";
 
-import {useCallback, useState} from "react";
+import {type ReactNode, useCallback, useState} from "react";
 import {useRouter} from "next/navigation";
 import {journeyApi} from "@/lib/api";
-import {planHref, type ParcoursModule} from "@/lib/module-switch";
+import {PLAN_PRIORITES_ACTION} from "@/lib/module-ecrans";
+import {entrainementHref, planHref, type ParcoursModule} from "@/lib/module-switch";
+import {situationIcon} from "@/lib/situation-icons";
 import {planSkillTargetLevelDeCode, planStepAction, planStepActionLocked} from "@/lib/plan-domain";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
@@ -11,6 +13,7 @@ import {
     JOURNEY_NEEDS_OBJECTIVE_CTA,
     JOURNEY_NEEDS_OBJECTIVE_TEXT,
     JOURNEY_NEEDS_OBJECTIVE_TITLE,
+    JOURNEY_PRIORITES_TITLE,
     JOURNEY_NEXT_STEP_BUSY,
     JOURNEY_NEXT_STEP_ERROR,
     JOURNEY_NEXT_STEP_EYEBROW,
@@ -61,12 +64,13 @@ import type {
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
     BlocAccordion,
+    type ModuleTone,
     Card,
     CycleProgress,
-    Cta,
     CycleRail,
     CycleRailEnd,
     CycleRailStep,
+    Cta,
     ExamStepAction,
     InfoNote,
     JourneyList,
@@ -82,24 +86,22 @@ import {ClosedExamStep} from "./PlanBits";
 import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
 
 /**
- * **Le cycle du Plan TCF** — tout ce que l'écran affiche à partir du titre
- * « Votre parcours vers le B2 » (D-22, 2026-09-18).
+ * **Le cycle du Plan** (TCF et civique) — la carte Cycle puis « Priorités
+ * actuelles ». Miroir : `plan_cycle_section.dart`.
  *
- * Maquettes du propriétaire : `docs/progression/plan_cycle.html` et
- * `docs/progression/cycle_termine.html`. Ordre, définitif :
+ * Navigation v2 (2026-10-03, maquette `#tcf-plan`) : le même contenu que la
+ * timeline du 2026-09-27 (D-22), en-têtes de bloc au format `.info-card`.
  *
- * 1. l'**encart de cycle** (`CycleProgress`) — la barre continue et son compteur ;
- * 2. la **timeline** (`CycleRail`, 2026-09-27) : un rond par bloc
- *    (`CycleRailStep`), puis la **dernière étape** « Fin du cycle »
- *    (`CycleRailEnd`) ;
- * 3. sur chaque rond, un **bloc d'épreuve** (`BlocAccordion`), un par entrée de
- *    `blocs`, **dans l'ordre servi**, le premier seul déplié — et dedans les
- *    **lignes d'étape** (`JourneyRow`) puis l'**encart d'examen**
- *    (`ExamStepAction`) ;
- * 4. la **note** de liberté d'ordre (`InfoNote`) ;
- * 5. sur un cycle terminé, la dernière étape **devient** la **carte de fin de
- *    cycle** (`NextStepCard`) — « Actualiser mon plan », sa seule issue depuis
- *    D-66 (2026-09-27).
+ * 1. la **carte Cycle** (`CycleProgress title`) — `Cycle {numero}`, « Votre
+ *    parcours vers le {objectif} », compteur, barre et phrase servis ;
+ * 2. `avantPriorites` — ce que l'écran pose entre les deux (Plan TCF :
+ *    « À faire maintenant » et le jalon) ;
+ * 3. **« Priorités actuelles »** : la timeline (`CycleRail`), un bloc par entrée
+ *    de `blocs` (`BlocAccordion icon`), **dans l'ordre servi**, le premier seul
+ *    déplié — dedans les lignes d'étape (`JourneyRow`) puis l'encart d'examen
+ *    (`ExamStepAction`) ; puis la fin du cycle « Actualiser mon plan »
+ *    (`CycleRailEnd`), qui devient la carte de fin (`NextStepCard`, D-66) ;
+ * 4. la **note** de liberté d'ordre (`InfoNote`).
  *
  * 🛑 **Rien n'est décidé ici.** L'ordre des blocs, leur état, le nombre de
  * compétences restantes, le verrou de chaque étape et « le cycle est-il
@@ -125,6 +127,7 @@ export function PlanCycleSection({
     journey,
     plan,
     module = "TCF",
+    avantPriorites,
 }: {
     /** `null` est un cas NORMAL — pas encore chargé, ou backend antérieur à
      *  l'endpoint : la section disparaît, elle n'affiche jamais un squelette. */
@@ -135,14 +138,20 @@ export function PlanCycleSection({
     /** 🛑 **Le module du cycle affiché** (D-50) : cette section est COMMUNE aux
      *  deux, et c'est le module qui dit où repartir après une fin de cycle. */
     module?: ParcoursModule;
+    /** Ce que l'écran pose ENTRE la carte Cycle et « Priorités actuelles »
+     *  (Plan TCF : « À faire maintenant » et le jalon — ordre du mobile).
+     *  Sans cycle, il est rendu seul, en tête. */
+    avantPriorites?: ReactNode;
 }) {
-    if (!journey) return null;
+    if (!journey) return <>{avantPriorites}</>;
 
     /* 🛑 **Aucun objectif déclaré ⇒ aucun parcours en base** (arbitrage D-3).
        Ce n'est pas un cycle vide : c'est l'absence de cycle, et le distinguer
        évite de féliciter un candidat qui n'a rien commencé. */
     if (journey.state === "NEEDS_OBJECTIVE") {
         return (
+            <>
+            {avantPriorites}
             <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
                 <Pad>
                     <Stack>
@@ -153,6 +162,7 @@ export function PlanCycleSection({
                     </Stack>
                 </Pad>
             </Section>
+            </>
         );
     }
 
@@ -161,6 +171,8 @@ export function PlanCycleSection({
        laisse rien « en attente ». */
     if (journey.state === "UP_TO_DATE") {
         return (
+            <>
+            {avantPriorites}
             <Section title={JOURNEY_UP_TO_DATE_TITLE}>
                 <Pad>
                     <Card>
@@ -171,11 +183,12 @@ export function PlanCycleSection({
                     </Card>
                 </Pad>
             </Section>
+            </>
         );
     }
 
-    if (!journey.cycle || journey.blocs.length === 0) return null;
-    return <CycleBody journey={journey} plan={plan} module={module} />;
+    if (!journey.cycle || journey.blocs.length === 0) return <>{avantPriorites}</>;
+    return <CycleBody journey={journey} plan={plan} module={module} avantPriorites={avantPriorites} />;
 }
 
 /**
@@ -183,10 +196,11 @@ export function PlanCycleSection({
  * quatre états, et appeler un hook au-dessus de ces retours anticipés ferait
  * dépendre l'ordre des hooks d'une branche.
  */
-function CycleBody({journey, plan, module}: {
+function CycleBody({journey, plan, module, avantPriorites}: {
     journey: JourneyDto;
     plan: LearningPlanDto | null;
     module: ParcoursModule;
+    avantPriorites?: ReactNode;
 }) {
     const cycle = journey.cycle!;
     const termine = journey.state === "CYCLE_COMPLETED";
@@ -373,69 +387,81 @@ function CycleBody({journey, plan, module}: {
         [actionDe, actionVerrouillee, module, routerCycle],
     );
 
+    const tone = module === "CIVIQUE" ? "civique" : "tcf";
+
     return (
         <>
-            <Section title={journeyTitle(journey.objectif)}>
+            {/* **La carte Cycle** (maquette `#tcf-plan`) : numéro, objectif,
+                compteur, barre et phrase servis. `complete` est SERVI, jamais
+                déduit de `done === total`. */}
+            <Pad>
+                <CycleProgress
+                    module={tone}
+                    label={journeyCycleLabel(cycle)}
+                    badge={journeyCycleBadge(cycle)}
+                    title={journeyTitle(journey.objectif)}
+                    done={cycle.etapesTerminees}
+                    total={cycle.etapesTotal}
+                    hint={journeyCycleHint(cycle)}
+                    complete={cycle.complete}
+                />
+            </Pad>
+
+            {avantPriorites}
+
+            {/* **« Priorités actuelles » = le cycle EXISTANT, restylé**
+                (en-têtes `.info-card`) — pas une liste de plus (brief §5). */}
+            <Section
+                title={JOURNEY_PRIORITES_TITLE}
+                action={{label: PLAN_PRIORITES_ACTION, href: entrainementHref(module)}}
+            >
                 <Pad>
                     <Stack>
-                        <CycleProgress
-                            label={journeyCycleLabel(cycle)}
-                            done={cycle.etapesTerminees}
-                            total={cycle.etapesTotal}
-                            badge={journeyCycleBadge(cycle)}
-                            hint={journeyCycleHint(cycle)}
-                            /* 🛑 **Servi, jamais déduit de `done === total`** :
-                               un cycle peut afficher « 8 sur 8 » sans être clos
-                               côté serveur. */
-                            complete={cycle.complete}
-                        />
-
-                        {/* 🛑 **L'ordre servi est l'autorité** : aucun `sort`,
-                            aucun filtre — les quatre épreuves sont là, même
-                            celles que la file n'a pas encore peuplées. Le rond
-                            de chaque bloc traduit son statut SERVI. */}
+                        {/* 🛑 **L'ordre servi est l'autorité** : aucun
+                            `sort`, aucun filtre. Le rond de chaque bloc traduit
+                            son statut SERVI. */}
                         <CycleRail>
-                            {journey.blocs.map((bloc) => (
-                                <CycleRailStep
-                                    key={bloc.bloc.code}
-                                    state={journeyBlocRailState(bloc.status)}
-                                >
-                                    <BlocAccordion
-                                        mark={journeyBlocMark(bloc.bloc)}
-                                        title={journeyBlocTitle(bloc.bloc)}
-                                        meta={bloc.meta}
-                                        status={journeyBlocStatus(bloc.status)}
-                                        current={bloc.status === "EN_COURS"}
-                                        open={ouvert === bloc.bloc.code}
-                                        onToggle={() =>
-                                            setChoix({
-                                                key: ouvert === bloc.bloc.code ? null : bloc.bloc.code,
-                                            })
-                                        }
-                                    >
-                                        <BlocBody
-                                            bloc={bloc}
-                                            /* 🛑 Un examen de thème civique
-                                               est lançable dès que son action
-                                               est SERVIE (`examenTheme`). */
-                                            examenLancable={
-                                                module !== "CIVIQUE"
-                                                || Boolean(bloc.exam?.examenTheme)
-                                            }
-                                            actionDe={actionDe}
-                                            gesteDe={gesteDe}
-                                            niveauDe={niveauDe}
-                                        />
-                                    </BlocAccordion>
-                                </CycleRailStep>
-                            ))}
+                            {journey.blocs.map((bloc) => {
+                                const code = bloc.bloc.code;
+                                const Icone = situationIcon(code);
+                                return (
+                                    <CycleRailStep key={code} state={journeyBlocRailState(bloc.status)}>
+                                        <BlocAccordion
+                                            module={tone}
+                                            icon={<Icone />}
+                                            mark={journeyBlocMark(bloc.bloc)}
+                                            title={journeyBlocTitle(bloc.bloc)}
+                                            meta={bloc.meta}
+                                            status={journeyBlocStatus(bloc.status)}
+                                            current={bloc.status === "EN_COURS"}
+                                            open={ouvert === code}
+                                            onToggle={() => setChoix({key: ouvert === code ? null : code})}
+                                        >
+                                            <BlocBody
+                                                bloc={bloc}
+                                                tone={tone}
+                                                /* 🛑 Un examen de thème civique
+                                                   est lançable dès que son
+                                                   action est SERVIE. */
+                                                examenLancable={
+                                                    module !== "CIVIQUE"
+                                                    || Boolean(bloc.exam?.examenTheme)
+                                                }
+                                                actionDe={actionDe}
+                                                gesteDe={gesteDe}
+                                                niveauDe={niveauDe}
+                                            />
+                                        </BlocAccordion>
+                                    </CycleRailStep>
+                                );
+                            })}
 
                             {/* 🛑 **La dernière étape : « Actualiser mon plan »**,
                                 la seule fin de cycle depuis D-66, avec le nombre
-                                SERVI de priorités du cycle suivant
-                                (`prioritesCycleSuivant`, D-67) et le compteur
-                                servi lu à l'envers. Atteinte — cycle terminé ET
-                                issue servie —, elle devient la carte de fin. */}
+                                SERVI de priorités du cycle suivant (D-67) et le
+                                compteur servi lu à l'envers. Atteinte — cycle
+                                terminé ET issue servie —, elle devient la carte
+                                de fin. */}
                             <CycleRailEnd
                                 eyebrow={JOURNEY_RAIL_END_EYEBROW}
                                 title={JOURNEY_RAIL_END_TITLE}
@@ -491,12 +517,15 @@ function CycleBody({journey, plan, module}: {
  */
 function BlocBody({
     bloc,
+    tone,
     examenLancable,
     actionDe,
     gesteDe,
     niveauDe,
 }: {
     bloc: JourneyBlocDto;
+    /** La couleur du module (le bouton d'examen est rouge en civique). */
+    tone: ModuleTone;
     /** L'étape d'examen porte-t-elle un bouton « Commencer » ? Toujours en
      *  TCF ; en civique, dès que l'examen de thème est **servi**
      *  (`examenTheme`, 2026-09-28 — révoque le « sans bouton » d'A86). Le
@@ -526,6 +555,7 @@ function BlocBody({
             exam={
                 bloc.exam && (
                     <ExamStep
+                        tone={tone}
                         exam={bloc.exam}
                         lancable={examenLancable}
                         actionDe={actionDe}
@@ -576,8 +606,9 @@ function BlocBody({
  * progression (D-15) ne se lève pas avec un pass, lui proposer l'offre serait
  * mentir sur ce qui l'ouvrira.
  */
-function ExamStep({exam, lancable, actionDe, gesteDe}: {
+function ExamStep({exam, tone, lancable, actionDe, gesteDe}: {
     exam: JourneyStepDto;
+    tone: ModuleTone;
     lancable: boolean;
     actionDe: (etape: JourneyStepDto) => (() => void) | undefined;
     gesteDe: (etape: JourneyStepDto) => {label: string; onClick: () => void} | undefined;
@@ -592,6 +623,7 @@ function ExamStep({exam, lancable, actionDe, gesteDe}: {
         : undefined;
     return (
         <ExamStepAction
+            module={tone}
             title={JOURNEY_EXAM_TITLE}
             subtitle={JOURNEY_EXAM_SUBTITLE}
             trailing={lancable

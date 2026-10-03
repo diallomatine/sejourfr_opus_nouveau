@@ -4,19 +4,35 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/models/preparation_labels.dart';
+import '../../core/models/progress_models.dart';
 import '../../core/models/progression_models.dart';
+import '../../core/providers/progress_provider.dart';
+import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/router/shell_navigation.dart';
 import '../../core/utils/situation_icons.dart';
+import '../../core/utils/tcf_epreuves.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../home/home_labels.dart';
 import '../plan/plan_labels.dart';
+import '../progres/progres_labels.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
+import 'widgets/prochaine_etape_hero.dart';
 import 'widgets/progression_page.dart';
 
-/// **La progression globale TCF** — maquette `progression_global_tcf.html`,
-/// état téléphone.
+/// **La progression globale TCF** — Navigation v2 (phase 4b) : maquette
+/// `docs/redesign/sejourfr-navigation-mobile.html` (`#tcfprogress`), puis la
+/// « Prochaine étape » de la maquette web ; sous eux, les blocs existants
+/// (maquette `progression_global_tcf.html`, état téléphone), tous gardés.
+///
+/// Ordre : titre + phrase → « Objectif global » (niveau actuel → objectif,
+/// **sans barre** à côté des niveaux) → « Par compétence » (état SERVI
+/// `StatutObjectif`, [etatEpreuveTcf]) → « Évolution » (paliers servis
+/// des derniers examens complets, sans « + ») → « Prochaine étape »
+/// (`journey.current`, geste de l'Accueil) → héros, tuiles, cartes d'épreuve,
+/// liste des examens. « Analyse IA » : absente, pas de donnée (X11).
 ///
 /// 🛑 **D6 : aucun score global.** La carte de tête porte le palier global
 /// **actuel** (servi), le dernier examen complet et l'évolution de PALIER.
@@ -35,6 +51,7 @@ class ProgressionTcfScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = progressionTcfProvider(tous);
+    final cible = ref.watch(userTargetLevelProvider)?.wire;
     return ProgressionPage<ProgressionTcf>(
       async: ref.watch(provider),
       barSub: kTcfLabel,
@@ -45,18 +62,25 @@ class ProgressionTcfScreen extends ConsumerWidget {
         repli: racineDuModule(ref, civique: false),
       ),
       onRefresh: () => ref.refresh(provider.future),
-      children: (data) => _corps(context, data),
-      entete: const [
-        SfProgressIntro(
-          eyebrow: kProgressionEyebrow,
-          title: kTcfTitle,
-          lead: kTcfLead,
+      children: (data) => _corps(context, data, cible),
+      entete: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+          child: SfModuleHeader(
+            civique: false,
+            title: kProgressionTitre,
+            lead: tcfProgressionLead(cible),
+          ),
         ),
       ],
     );
   }
 
-  List<Widget> _corps(BuildContext context, ProgressionTcf data) {
+  List<Widget> _corps(
+    BuildContext context,
+    ProgressionTcf data,
+    String? cible,
+  ) {
     final complets = data.examensComplets;
     final dernier = complets.dernier;
     final meilleur = complets.meilleur;
@@ -69,6 +93,23 @@ class ProgressionTcfScreen extends ConsumerWidget {
     return [
       ProgressionBlocs(
         children: [
+          SfProgressionHead(
+            label: kTcfObjectifGlobalLabel,
+            from: (
+              value: progressionPalier(niveau),
+              label: kTcfNiveauActuelLabel,
+            ),
+            to: (value: cible ?? kProgressionVide, label: kTcfObjectifLabel),
+          ),
+          ProgressionSection(
+            title: kTcfParCompetenceTitle,
+            child: _ParCompetence(cible: cible),
+          ),
+          ProgressionSection(
+            title: kTcfEvolutionTitle,
+            child: _evolution(data),
+          ),
+          const ProchaineEtapeHero(civique: false),
           SfProgressHero(
             label: kTcfHeroLabel,
             value: progressionPalier(niveau),
@@ -155,6 +196,25 @@ class ProgressionTcfScreen extends ConsumerWidget {
     ];
   }
 
+  /// « Évolution » : les paliers servis des derniers examens complets, du
+  /// plus ancien au plus récent (l'ordre servi est inverse). Un examen encore
+  /// sans palier (évaluation en vol) n'est pas posé : on ne place pas « — ».
+  /// Aucun examen ⇒ état vide (la frise disparaît, l'invitation reste).
+  Widget _evolution(ProgressionTcf data) {
+    final meilleur = data.examensComplets.meilleur?.niveau;
+    return SfTimeline(
+      label: kTcfDerniersReperesLabel,
+      steps: [
+        for (final e
+            in data.examens.take(kProgressionReperesMax).toList().reversed)
+          if (e.niveau != null) progressionPalier(e.niveau),
+      ],
+      caption: meilleur != null
+          ? tcfMeilleurNiveauObserve(progressionPalier(meilleur))
+          : kTcfNiveauInconnuNote,
+    );
+  }
+
   Widget _carte(
     BuildContext context,
     ProgressionCarte carte,
@@ -192,6 +252,68 @@ class ProgressionTcfScreen extends ConsumerWidget {
           ),
       ],
       onTap: () => context.push(AppRoutes.tcfFullExamBilanPath(e.attemptId)),
+    );
+  }
+}
+
+/// **« Par compétence »** — une ligne par épreuve officielle : code, palier
+/// servi (`null` ⇒ « — »), état SERVI face à l'objectif et son point,
+/// « → {cible} » ou la coche quand l'objectif est atteint.
+///
+/// Lit `GET /api/me/progress` ([progressProvider], déjà gardé en vie pour
+/// l'Accueil) : c'est la seule source de `StatutObjectif`. Bloc à états
+/// propres : squelette, erreur + « Réessayer ».
+class _ParCompetence extends ConsumerWidget {
+  const _ParCompetence({required this.cible});
+
+  final String? cible;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(progressProvider);
+    final progres = async.valueOrNull;
+    if (progres == null) {
+      if (async.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () => ref.invalidate(progressProvider),
+        );
+      }
+      return const SfBlockSkeleton(height: 280);
+    }
+    final epreuves = [
+      for (final e in progres.tcf.epreuves)
+        if (kTcfEpreuvesOfficielles.contains(e.epreuve.wire)) e,
+    ];
+    return SfLevelList(
+      rows: [for (final e in epreuves) _ligne(context, e)],
+    );
+  }
+
+  SfLevelRow _ligne(BuildContext context, ProgressEpreuve e) {
+    final atteint =
+        e.niveau != null && e.status == StatutObjectif.targetReached;
+    final Widget? bout;
+    if (atteint) {
+      bout = const SfBadge(
+        null,
+        tone: SfTone.ok,
+        check: true,
+        semanticLabel: kEtatObjectifAtteint,
+      );
+    } else if (cible != null) {
+      bout = SfTrailingText(tcfVersCible(cible!));
+    } else {
+      bout = null;
+    }
+    return SfLevelRow(
+      code: tcfEpreuveMark(e.epreuve),
+      value: progressionPalier(e.niveau),
+      state: etatEpreuveTcf(e.status, e.niveau),
+      trailing: bout,
+      onTap: () => context
+          .push(AppRoutes.progressionEpreuvePath(planDomainKey(e.epreuve))),
     );
   }
 }

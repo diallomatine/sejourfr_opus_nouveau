@@ -1,13 +1,13 @@
 "use client";
 
-import {Landmark, ListChecks} from "lucide-react";
+import {Landmark, ListChecks, RotateCcw} from "lucide-react";
 import {useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {useMockExamLauncher} from "@/app/_components/hub/MockExamLauncher";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {useCivicSerie} from "./useCivicSerie";
-import {civicDiagnosticApi, civicPlanApi, journeyApi} from "@/lib/api";
+import {civicDiagnosticApi, civicPlanApi, dashboardApi, journeyApi, progressionApi} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {useAuth} from "@/lib/auth-context";
@@ -16,9 +16,6 @@ import {
   CIVIC_PLAN_LOCKED_NOTE,
   CIVIC_PLAN_NOW_TITLE,
   CIVIC_PLAN_REVIEW_TITLE,
-  CIVIC_PLAN_SCREEN_TITLE,
-  CIVIC_PLAN_TOP_KICKER,
-  CIVIC_PLAN_TOP_KICKER_FREE,
   CIVIC_PLAN_WORK_CTA,
   civicCibleGeste,
   civicNowCard,
@@ -30,19 +27,47 @@ import {
   CIVIC_MAITRISE_LABEL,
   type CivicDiagnosticDto,
   type CivicPlanDto,
+  type DashboardSummaryResponse,
   type JourneyDto,
+  type ProgressionCiviqueDto,
 } from "@/lib/types";
 import {
-  Card,
+  Badge,
+  BlockError,
+  BlockSkeleton,
   Cta,
   GoalStrip,
+  Grid,
+  Hero,
+  InfoCard,
   NowCard,
   Pad,
+  PageHead,
   Section,
   Stack,
-  Top,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
+import {IconClock, IconTarget} from "@/app/_components/shell/ShellIcons";
+import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY, accueilPourcentage} from "@/lib/accueil";
+import {
+  MODULE_CIVIQUE_KICKER,
+  MODULE_VOIR_DETAIL,
+  PLAN_CIVIQUE_BADGE_SEUIL,
+  PLAN_CIVIQUE_EXAM_EMPTY,
+  PLAN_CIVIQUE_EXAM_LABEL,
+  PLAN_CIVIQUE_EXAM_TITLE,
+  PLAN_CIVIQUE_HERO_LABEL,
+  PLAN_CIVIQUE_HERO_STAT,
+  PLAN_CIVIQUE_HERO_SUB,
+  PLAN_CIVIQUE_SUBTITLE,
+  PLAN_CIVIQUE_TITLE,
+  planCiviqueDernierScore,
+  seriesTermineesTitre,
+} from "@/lib/module-ecrans";
+import {progressionHref, progressionScore, progressionSeuilVerdict} from "@/lib/progression";
+import {avancementSeriesCivique} from "@/lib/reviser";
+import {shellModuleHref} from "@/lib/shell-nav";
+import {type CachedData, useCachedData} from "@/lib/use-cached-data";
 import {PlanCycleSection} from "./PlanCycleSection";
 import {ExamenCompletJalon} from "./ExamenCompletJalon";
 import {useCivicUniteSerie} from "./use-civic-unite-serie";
@@ -78,10 +103,18 @@ import {PlanPaywall} from "./PlanPaywallCard";
  * « Vos priorités » et « Votre première étape est prête » sont **supprimées**.
  * C'est la transposition exacte de la passe TCF du même jour (A114).
  *
- * L'ordre est donc le même pour les deux : `Top` → bande objectif →
- * « À faire maintenant » → le **cycle** → « À revoir bientôt ». Seul le pied
- * change — l'offre pour un compte sans accès, « Aller plus loin » pour un
- * abonné.
+ * L'ordre est donc le même pour les deux — Navigation v2 (2026-10-03,
+ * maquette `#civique-plan`) : `PageHead` → **bandeau rouge** du % de séries
+ * (X8-A) → bande objectif → « À faire maintenant » (`Grid` : `NowCard` de
+ * l'étape courante + `InfoCard` « Examen blanc civique ») → jalon → le **cycle** →
+ * « À revoir bientôt ». Seul le pied change — l'offre pour un compte sans
+ * accès.
+ *
+ * ⚠️ **Les boutons de la carte d'action sont ROUGES** (token du module civique,
+ * arbitrage Navigation v2 — révoque DEC-06/A46 pour ce Plan, des deux côtés) :
+ * sur un compte sans accès, le geste de la carte EST « Débloquer », donc un
+ * seul geste dominant tient. La carte « Examen blanc civique » est une
+ * `InfoCard` cliquable, sans bouton.
  *
  * 🛑 **Ce qui TIENT** : « dans le plan, on ne travaille rien si on n'est pas
  * abonné » (D-33, que `CivicPlanService` oppose déjà en **403**). La garantie
@@ -136,10 +169,20 @@ export function CivicPlanPanel({diagnosticFait}: {diagnosticFait: boolean}) {
   }, [planShown, journeyRead, journeyId]);
 
   /* L'en-tête ne se fait jamais attendre : il est rendu dès le premier
-     passage, avant le plan. Même état que le chargement du plan TCF, qui rend
-     déjà son `Top` seul. */
+     passage, avant le plan, avec un squelette par bloc. */
   if (!plan) {
-    return <Top kicker={CIVIC_PLAN_TOP_KICKER} title={CIVIC_PLAN_SCREEN_TITLE} />;
+    return (
+      <>
+        <CiviqueHead />
+        <Pad className={sejourStyles.pageBody}>
+          <Stack>
+            <BlockSkeleton height={220} radius={30} />
+            <BlockSkeleton height={154} />
+            <BlockSkeleton height={280} />
+          </Stack>
+        </Pad>
+      </>
+    );
   }
 
   return (
@@ -149,6 +192,21 @@ export function CivicPlanPanel({diagnosticFait}: {diagnosticFait: boolean}) {
       free={!canAccessModule(user, "CIVIQUE")}
       diagnosticFait={diagnosticFait}
     />
+  );
+}
+
+/** L'en-tête de la maquette `#civique-plan` : kicker rouge, titre, seuil de l'arrêté. */
+function CiviqueHead() {
+  return (
+    <Pad>
+      <PageHead
+        tone="civique"
+        kicker={MODULE_CIVIQUE_KICKER}
+        title={PLAN_CIVIQUE_TITLE}
+        subtitle={PLAN_CIVIQUE_SUBTITLE}
+        aside={<Badge module="civique">{PLAN_CIVIQUE_BADGE_SEUIL}</Badge>}
+      />
+    </Pad>
   );
 }
 
@@ -181,22 +239,35 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
   const launchExam = useMockExamLauncher();
   const [examPaywall, setExamPaywall] = useState(false);
 
+  /* Les lectures du bandeau et de la carte d'examen sont celles, EN CACHE, de
+     l'Accueil, de la barre latérale et de l'écran Progression civique. */
+  const summary = useCachedData<DashboardSummaryResponse>("plan:dashboard", () => dashboardApi.summaryCached());
+  const progression = useCachedData<ProgressionCiviqueDto>(
+    progressionApi.civiqueKey(false),
+    () => progressionApi.civique(false),
+  );
+
   const carte = civicNowCard(plan, {journey, free, lancerExamen: true});
   const grainNote = civicPlanGrainNote(plan.grain);
   const erreur = serieCible.erreur ?? serieUnite.erreur;
 
   return (
     <>
-      <Top
-        kicker={free ? CIVIC_PLAN_TOP_KICKER_FREE : CIVIC_PLAN_TOP_KICKER}
-        title={CIVIC_PLAN_SCREEN_TITLE}
-      />
+      <CiviqueHead />
+
+      {/* **Hero rouge (X8-A)** : le pourcentage UNIQUE du parcours en séries
+          (`avancementSeriesCivique`), la même valeur que l'Accueil, la barre
+          latérale et l'écran Progression civique. Le cycle reste lisible dans
+          sa carte et ses blocs, plus bas. */}
+      <Pad className={sejourStyles.pageBody}>
+        <AvancementHero summary={summary} />
+      </Pad>
 
       {/* 🛑 LA BANDE OBJECTIF (D-50 §1) : la démarche visée et le seuil, deux
           FAITS du référentiel. ⛔ **Jamais un score d'entrée** — il se lirait
           comme un niveau acquis alors que c'est un résultat d'examen blanc. */}
       {journey?.objectif && (
-        <Pad>
+        <Pad className={sejourStyles.pageBody}>
           <GoalStrip
             currentLabel="Objectif"
             current={journey.objectif.label}
@@ -207,70 +278,72 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
       )}
 
       {/* 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
-          plan dérivé — la même forme que `planNowCard`. Le contenu est
-          identique pour les deux accès ; seul le geste change. */}
-      {carte && (
-        <Section title={CIVIC_PLAN_NOW_TITLE}>
-          <Pad>
-            <NowCard
-              icon={Landmark}
-              title={carte.title}
-              subtitle={carte.subtitle ?? undefined}
-              badge={carte.badge ?? undefined}
-              objectiveLabel={carte.objectiveLabel ?? undefined}
-              objective={carte.objective ?? undefined}
-              meta={carte.meta ? [{icon: ListChecks, label: carte.meta}] : undefined}
-            >
-              {/* 🛑 **Le geste vient de `civicNowCard`, il ne se redéduit pas
-                  ici.** `AUCUN` ⇒ aucun bouton (garde-fou du 2026-09-17) ;
-                  `DEBLOQUER` ⇒ l'offre, jamais un lanceur. En **bleu** : le
-                  seul bouton rouge de l'écran reste « Débloquer mon plan »,
-                  ancré en pied (A46). */}
-              {carte.geste === "DEBLOQUER" && (
-                <Cta variant="blue" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>{carte.cta}</Cta>
-              )}
-              {/* 🛑 **L'étape d'examen lance l'examen de thème SERVI**
-                  (`carte.examen`) — le même lanceur que la ligne du cycle. */}
-              {carte.geste === "LANCER" && carte.examen && (
-                <Cta
-                  variant="blue"
-                  onClick={() => launchExam({
-                    kind: "CIVIQUE",
-                    ...carte.examen!,
-                    onPaywall: () => setExamPaywall(true),
-                  })}
-                >
-                  {carte.cta}
-                </Cta>
-              )}
-              {carte.geste === "LANCER" && carte.source && (
-                <Cta
-                  variant="blue"
-                  disabled={enCoursSur(carte.source, serieCible.enCours, serieUnite.enCours)}
-                  onClick={() => lancer(carte.source!, serieCible, serieUnite)}
-                >
-                  {carte.cta}
-                </Cta>
-              )}
-              {/* 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
-                  travaille par séries — le même écran que la ligne du cycle, et
-                  la même autorité (`civicNowCard`) qui le décide. */}
-              {carte.geste === "OUVRIR_ETAPE" && carte.etapeHref && (
-                <Cta variant="blue" href={carte.etapeHref}>{carte.cta}</Cta>
-              )}
-            </NowCard>
-            {carte.geste === "DEBLOQUER" && (
-              <p className={sejourStyles.tiny}>{CIVIC_PLAN_LOCKED_NOTE}</p>
-            )}
-          </Pad>
-        </Section>
-      )}
-
-      {erreur && (
+          plan dérivé. Le contenu est identique pour les deux accès ; seul le
+          geste change. À côté, l'examen blanc civique et son dernier score
+          servi. */}
+      <Section title={CIVIC_PLAN_NOW_TITLE}>
         <Pad>
-          <p className={sejourStyles.tiny} role="alert">{erreur}</p>
+          <Grid cols={2}>
+            {carte && (
+              <div>
+                <NowCard
+                  icon={Landmark}
+                  title={carte.title}
+                  subtitle={carte.subtitle ?? undefined}
+                  badge={carte.badge ?? undefined}
+                  objectiveLabel={carte.objectiveLabel ?? undefined}
+                  objective={carte.objective ?? undefined}
+                  meta={carte.meta ? [{icon: ListChecks, label: carte.meta}] : undefined}
+                >
+                  {/* 🛑 **Le geste vient de `civicNowCard`, il ne se redéduit pas
+                      ici.** `AUCUN` ⇒ aucun bouton (garde-fou du 2026-09-17) ;
+                      `DEBLOQUER` ⇒ l'offre, jamais un lanceur. En **rouge**
+                      (token du module, Navigation v2 — révoque DEC-06/A46 pour
+                      ce Plan) : sur un compte gratuit le geste de cette carte
+                      EST « Débloquer », donc un seul geste dominant tient. */}
+                  {carte.geste === "DEBLOQUER" && (
+                    <Cta variant="civique" onClick={() => router.push(planUnlockHref("CIVIQUE"))}>{carte.cta}</Cta>
+                  )}
+                  {/* 🛑 **L'étape d'examen lance l'examen de thème SERVI**
+                      (`carte.examen`) — le même lanceur que la ligne du cycle. */}
+                  {carte.geste === "LANCER" && carte.examen && (
+                    <Cta
+                      variant="civique"
+                      onClick={() => launchExam({
+                        kind: "CIVIQUE",
+                        ...carte.examen!,
+                        onPaywall: () => setExamPaywall(true),
+                      })}
+                    >
+                      {carte.cta}
+                    </Cta>
+                  )}
+                  {carte.geste === "LANCER" && carte.source && (
+                    <Cta
+                      variant="civique"
+                      disabled={enCoursSur(carte.source, serieCible.enCours, serieUnite.enCours)}
+                      onClick={() => lancer(carte.source!, serieCible, serieUnite)}
+                    >
+                      {carte.cta}
+                    </Cta>
+                  )}
+                  {/* 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
+                      travaille par séries — le même écran que la ligne du cycle, et
+                      la même autorité (`civicNowCard`) qui le décide. */}
+                  {carte.geste === "OUVRIR_ETAPE" && carte.etapeHref && (
+                    <Cta variant="civique" href={carte.etapeHref}>{carte.cta}</Cta>
+                  )}
+                </NowCard>
+                {carte.geste === "DEBLOQUER" && (
+                  <p className={sejourStyles.tiny}>{CIVIC_PLAN_LOCKED_NOTE}</p>
+                )}
+              </div>
+            )}
+            <ExamenBlancCard progression={progression} />
+          </Grid>
+          {erreur && <p className={sejourStyles.tiny} role="alert">{erreur}</p>}
         </Pad>
-      )}
+      </Section>
 
       {/* 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
           servi, jamais décidé ici. En civique, le cycle d'examens porte un
@@ -287,44 +360,39 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
           acquis qu'on entretient. La **boîte** Leitner ne s'affiche pas — on
           montre l'état de maîtrise et l'échéance, tous deux servis. */}
       {plan.aRevoirVisibles.length > 0 && (
-        <Section title={CIVIC_PLAN_REVIEW_TITLE} flush>
-          <Card variant="soft">
-            <p className={sejourStyles.label}>Révision courte</p>
+        <Section title={CIVIC_PLAN_REVIEW_TITLE}>
+          <Pad>
             <Stack>
               {plan.aRevoirVisibles.map((cible) => {
                 const geste = civicCibleGeste(cible, {free});
+                const revue = civicRevueLabel(cible, maintenant);
                 return (
-                  <div key={cible.id}>
-                    <b>{cible.label}</b>
-                    <p className={sejourStyles.tiny}>
-                      {CIVIC_MAITRISE_LABEL[cible.maitrise]}
-                      {civicRevueLabel(cible, maintenant)
-                        ? ` · ${civicRevueLabel(cible, maintenant)}`
-                        : ""}
-                    </p>
-                    <button
-                      type="button"
-                      className={sejourStyles.link}
-                      disabled={serieCible.enCours === cible.id}
-                      onClick={() => {
+                  <InfoCard
+                    key={cible.id}
+                    module="civique"
+                    icon={<RotateCcw />}
+                    title={cible.label}
+                    meta={[CIVIC_MAITRISE_LABEL[cible.maitrise], revue].filter(Boolean).join(" · ")}
+                    trailing={
+                      <Badge module="civique">
+                        {geste === "DEBLOQUER" ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA}
+                      </Badge>
+                    }
+                    onClick={serieCible.enCours === cible.id
+                      ? null
+                      : () => {
                         if (geste === "DEBLOQUER") router.push(planUnlockHref("CIVIQUE"));
                         else void serieCible.commencer(cible);
                       }}
-                    >
-                      {geste === "DEBLOQUER" ? CIVIC_PLAN_LOCKED_CTA : CIVIC_PLAN_WORK_CTA}
-                    </button>
-                  </div>
+                  />
                 );
               })}
+              {/* 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3), et
+                  il le dit **ici** : c'est la dernière surface qui montre des
+                  cibles du plan dérivé. */}
+              {grainNote && <p className={sejourStyles.tiny}>{grainNote}</p>}
             </Stack>
-            {/* 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3), et il
-                le dit **ici** : c'est la dernière surface qui montre des cibles
-                du plan dérivé, donc la seule que cette note qualifie encore.
-                Elle vivait sur les deux écrans gratuits (A84) ; les deux
-                anatomies ayant fusionné, elle accompagne désormais ce qu'elle
-                décrit, abonné compris. */}
-            {grainNote && <p className={sejourStyles.tiny}>{grainNote}</p>}
-          </Card>
+          </Pad>
         </Section>
       )}
 
@@ -350,6 +418,66 @@ function CiviquePlan({plan, journey, free, diagnosticFait}: {
         }}
       />
     </>
+  );
+}
+
+/* ------------------------------------------------ les blocs de la maquette */
+
+/**
+ * **Le bandeau rouge « Progression globale »** : `{terminées} séries
+ * terminées`, `{pct} %` « du parcours », barre = pct — la fonction UNIQUE
+ * `avancementSeriesCivique` sur les thèmes servis par `/api/me/dashboard`.
+ * 0 série ⇒ « 0 % », jamais vide.
+ */
+function AvancementHero({summary}: {summary: CachedData<DashboardSummaryResponse>}) {
+  if (summary.loading) return <BlockSkeleton height={220} radius={30} />;
+  if (summary.error !== null || !summary.data) {
+    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />;
+  }
+  const avancement = avancementSeriesCivique(summary.data.civique);
+  return (
+    <Hero
+      module="civique"
+      icon={<IconTarget />}
+      label={PLAN_CIVIQUE_HERO_LABEL}
+      title={seriesTermineesTitre(avancement.terminees)}
+      sub={PLAN_CIVIQUE_HERO_SUB}
+      stat={{value: accueilPourcentage(avancement.pourcentage), label: PLAN_CIVIQUE_HERO_STAT}}
+      progress={avancement.pourcentage / 100}
+      cta={{label: MODULE_VOIR_DETAIL, href: progressionHref("CIVIQUE")}}
+    />
+  );
+}
+
+/**
+ * **La carte « Examen blanc civique »** (`InfoCard` cliquable) : le dernier score servi
+ * (`ProgressionCiviqueDto.global.dernier`) et son verdict face au seuil —
+ * `seuilAtteint` / `pointsManquants` servis, jamais un seuil appliqué ici —,
+ * puis l'accès aux examens blancs du module. Aucun examen ⇒ l'invitation au
+ * premier, à la place du score.
+ */
+function ExamenBlancCard({progression}: {progression: CachedData<ProgressionCiviqueDto>}) {
+  if (progression.loading) return <BlockSkeleton height={154} />;
+  if (progression.error !== null || !progression.data) {
+    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={progression.reload} />;
+  }
+  const dernier = progression.data.global.dernier;
+  const meta = dernier
+    ? [
+      planCiviqueDernierScore(progressionScore(dernier.score, dernier.max)),
+      progressionSeuilVerdict(dernier, progression.data.echelle.seuil),
+    ].filter(Boolean).join(" · ")
+    : PLAN_CIVIQUE_EXAM_EMPTY;
+  return (
+    <InfoCard
+      module="civique"
+      icon={<IconClock />}
+      code={PLAN_CIVIQUE_EXAM_LABEL}
+      title={PLAN_CIVIQUE_EXAM_TITLE}
+      meta={meta}
+      trailing="chevron"
+      href={shellModuleHref("examens", "CIVIQUE")}
+    />
   );
 }
 

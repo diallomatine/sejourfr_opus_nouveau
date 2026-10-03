@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../progres/progres_labels.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/analytics/analytics.dart';
 import '../../core/api/repositories.dart';
@@ -20,7 +21,6 @@ import 'learning_plan_provider.dart';
 import '../../core/widgets/paywall_context.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
-import '../diagnostic_civique/civic_diagnostic_blocks.dart';
 import '../diagnostic_civique/civic_diagnostic_labels.dart';
 import 'journey_labels.dart';
 import 'plan_labels.dart';
@@ -243,7 +243,7 @@ List<_Groupe> _groupesCivique(CivicDiagnosticResultDto r, Journey? journey) {
 _Groupe _groupeCivique(
     PlanUnlockModule module, CivicThemeResultat t, Journey? journey) {
   // `CivicThemeState.nonEvalue.label` vaut déjà « Non évalué ».
-  final status = (label: t.etat.label, tone: sfToneOf(t.etat));
+  final status = etatThemeCivique(t.etat);
   if (t.etat == CivicThemeState.nonEvalue) {
     return (
       key: t.code,

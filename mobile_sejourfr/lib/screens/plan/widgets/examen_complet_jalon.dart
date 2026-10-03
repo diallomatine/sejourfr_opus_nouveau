@@ -64,7 +64,10 @@ class _ExamenCompletJalonState extends ConsumerState<ExamenCompletJalon> {
             ),
             SfButton(
               label: _occupe ? kJourneyJalonBusy : kJourneyJalonCta,
-              variant: SfButtonVariant.blue,
+              // Bleu en TCF, rouge en civique (token du module, Navigation v2).
+              variant: widget.module == AppModule.civique
+                  ? SfButtonVariant.civique
+                  : SfButtonVariant.blue,
               onPressed: _occupe ? null : _confirmer,
             ),
             if (erreur != null)

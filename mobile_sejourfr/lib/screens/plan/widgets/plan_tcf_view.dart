@@ -11,10 +11,10 @@ import '../../../core/models/journey_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/list_group.dart';
 import '../../../core/widgets/premium_lock.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
 import '../journey_labels.dart';
+import '../learning_plan_provider.dart';
 import '../plan_actions.dart';
 import '../plan_cta.dart';
 import '../plan_labels.dart';
@@ -106,10 +106,11 @@ class PlanTcfView extends ConsumerWidget {
 
     return <Widget>[
       const SizedBox(height: 14),
-      _goalStrip(context),
+      ..._enTete(context, ref),
       SfSection(
         title: kPlanNowTitle,
         flush: true,
+        lead: true,
         child: _nowCard(context, ref),
       ),
       // 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
@@ -117,8 +118,8 @@ class PlanTcfView extends ConsumerWidget {
       ExamenCompletJalon(journey: journey, module: AppModule.tcf),
       // 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
       // bloc par épreuve, l'examen en fin de bloc, et la fin de cycle
-      // (« Actualiser mon plan », D-66).
-      PlanCycleSection(plan: plan, journey: journey),
+      // (« Actualiser mon plan », D-66). Sa carte « Cycle » est en tête.
+      PlanCycleSection(plan: plan, journey: journey, carteDeCycle: false),
       if (milestone != null) _milestoneSection(context, ref, milestone),
       _links(context),
       const SizedBox(height: 28),
@@ -146,10 +147,11 @@ class PlanTcfView extends ConsumerWidget {
 
   List<Widget> _free(BuildContext context, WidgetRef ref) => <Widget>[
         const SizedBox(height: 14),
-        _goalStrip(context),
+        ..._enTete(context, ref),
         SfSection(
           title: kPlanNowTitle,
           flush: true,
+          lead: true,
           child: _nowCard(context, ref, free: true),
         ),
         // Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il
@@ -165,7 +167,7 @@ class PlanTcfView extends ConsumerWidget {
         // ses trois puces vivent désormais sur l'écran de transition, et la
         // dire ici puis là-bas la disait deux fois de suite. Ne pas la
         // réintroduire.
-        PlanCycleSection(plan: plan, journey: journey),
+        PlanCycleSection(plan: plan, journey: journey, carteDeCycle: false),
         // ✅ **Visibles aussi sans accès** (demande du propriétaire,
         // 2026-09-20) : ce sont deux **constats** — ce qui a été mesuré, ce qui
         // a été fait — et rien ne s'y travaille. Les en priver n'ouvrait aucun
@@ -178,32 +180,45 @@ class PlanTcfView extends ConsumerWidget {
 
   /* ------------------------------------------------------------ blocs ----- */
 
-  /// « Niveau actuel → objectif ». Les deux paliers sont **servis** ; absents,
-  /// ils s'écrivent « Pas encore mesuré » / « — » : *null = inconnu, jamais
-  /// mauvais*. 🛑 Le niveau passe par [NiveauCecrl.displayName], l'autorité
-  /// d'affichage : jamais le code servi (`A1_NON_ATTEINT`).
-  Widget _goalStrip(BuildContext context) {
-    final cycle = plan.cycle;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SfGoalStrip(
-            current: cycle?.startingLevel?.displayName ?? kPlanLevelUnknown,
-            goal: objective?.wire ?? kPlanGoalUnknown,
+  /// **La tête du Plan TCF** (Navigation v2, maquette « Mon plan ») : la
+  /// carte « Cycle » ([PlanCycleCard]), puis, sans objectif déclaré, l'accès
+  /// au choix de la démarche.
+  ///
+  /// ⚠️ **Le bandeau « Niveau actuel → Objectif » (`SfGoalStrip`) est retiré**
+  /// (Navigation v2, phase 4) : la carte « Ma progression » de l'en-tête du module dit déjà
+  /// « niveau actuel → objectif », et le bandeau y opposait un AUTRE « niveau
+  /// actuel » (le niveau de départ du cycle). Le bouton « Choisir mon
+  /// objectif » qu'il portait reste.
+  ///
+  /// 🛑 **Le parcours a ses états** (brief §7) : lecture en cours ⇒ squelette
+  /// de la carte, échec ⇒ erreur + « Réessayer » dans le bloc.
+  List<Widget> _enTete(BuildContext context, WidgetRef ref) {
+    final etat = ref.watch(journeyProvider);
+    final parcours = journey;
+    final Widget? carte = parcours != null
+        ? PlanCycleCard(journey: parcours, module: AppModule.tcf)
+        : etat.hasError
+            ? SfBlockError(
+                message: kPlanJourneyError,
+                retryLabel: kPlanErrorRetry,
+                onRetry: () => ref.invalidate(journeyProvider),
+              )
+            : etat.isLoading
+                ? const SfBlockSkeleton(height: 150, radius: AppRadii.lg)
+                : null;
+    return <Widget>[
+      if (carte != null) Padding(padding: sfGutter, child: carte),
+      if (objective == null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, sfGap, 16, 0),
+          child: SfButton(
+            label: kPlanGoalPick,
+            variant: SfButtonVariant.line,
+            onPressed: () =>
+                context.push(AppRoutes.targetPathFrom(AppRoutes.tcfPlan)),
           ),
-          if (objective == null) ...[
-            const SizedBox(height: 10),
-            SfButton(
-              label: kPlanGoalPick,
-              variant: SfButtonVariant.line,
-              onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.tcfPlan)),
-            ),
-          ],
-        ],
-      ),
-    );
+        ),
+    ];
   }
 
   /// La carte d'action — **la même pour un abonné et pour un compte sans
@@ -315,6 +330,7 @@ class PlanTcfView extends ConsumerWidget {
     return SfSection(
       title: kPlanMilestoneSectionTitle,
       flush: true,
+      lead: true,
       child: SfNoteCard(
         icon: LucideIcons.graduationCap,
         title: milestone.displayTitle,
@@ -350,35 +366,34 @@ class PlanTcfView extends ConsumerWidget {
   /// retirés — le premier avec son écran, le second parce que l'onglet Examens
   /// de la barre de navigation y mène déjà. Ne pas les réintroduire.
   Widget _links(BuildContext context) {
+    // Les liens gardés, sous l'anatomie `.info-card` de la maquette.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
-      child: ListGroup(
+      child: SfStack(
+        pad: false,
         children: [
-          ListRow(
+          SfInfoCard(
             icon: LucideIcons.trendingUp,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
             title: kJourneyHistoryTitle,
-            sub: journeyHistorySub(),
+            meta: journeyHistorySub(),
+            trailing: const SfChevron(),
             onTap: () =>
                 context.push(AppRoutes.planProgressPath(civique: false)),
           ),
           // 🛑 **Seulement s'il y a un diagnostic CLOS à relire** : le
           // diagnostic n'est plus proposé sur le Plan.
           if (diagnosticFait)
-            ListRow(
+            SfInfoCard(
               icon: LucideIcons.clipboardCheck,
-              iconBg: AppColors.surface2,
-              iconColor: AppColors.muted,
               title: kPlanDiagnosticTitle,
-              sub: kPlanDiagnosticSub,
+              meta: kPlanDiagnosticSub,
+              trailing: const SfChevron(),
               onTap: () => context.push(AppRoutes.diagnostic),
             ),
         ],
       ),
     );
   }
-
 }
 
 /// Le geste de la barre basse : il nomme le palier visé quand il est connu,

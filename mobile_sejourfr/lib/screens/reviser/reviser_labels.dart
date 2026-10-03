@@ -263,20 +263,6 @@ String epreuveStatus(
   return kReviserNotStarted;
 }
 
-/// La part remplie de l'anneau, entre 0 et 1.
-///
-/// 🛑 **Ce n'est pas une note.** C'est une couverture — des séries parcourues,
-/// des sujets produits —, et un anneau vide veut dire « pas encore
-/// commencé », jamais « mauvais ».
-double epreuveRatio(DashboardCategoryStat stat) {
-  if (isProductionCode(stat.code)) {
-    if (stat.subjectsTotal <= 0) return 0;
-    return _clamp01(stat.subjectsDone / stat.subjectsTotal);
-  }
-  if (stat.seriesTotal <= 0) return 0;
-  return _clamp01(stat.seriesDone / stat.seriesTotal);
-}
-
 /// **L'avancement du parcours civique, en séries** — la fonction UNIQUE du
 /// mobile (Navigation v2, brief §6). Miroir exact côté web :
 /// `avancementSeriesCivique` (`web_sejoufr/lib/reviser.ts`).
@@ -290,8 +276,7 @@ double epreuveRatio(DashboardCategoryStat stat) {
 ///   civiques ne sont pas filtrés par mention côté serveur).
 /// - `floor` : jamais 100 % tant qu'il reste une série. Total nul ⇒ 0 %.
 ///
-/// 🛑 **Ce n'est pas une note ni un état** : c'est une couverture, comme
-/// [epreuveRatio]. Aucun écran ne la classe en niveau ni en ton.
+/// 🛑 **Ce n'est pas une note ni un état** : c'est une couverture. Aucun écran ne la classe en niveau ni en ton.
 /// Restreinte à un thème, passer `[stat]`.
 ({int pourcentage, int terminees, int total}) avancementSeriesCivique(
   Iterable<DashboardCategoryStat> themes,
@@ -309,11 +294,6 @@ double epreuveRatio(DashboardCategoryStat stat) {
     terminees: faites,
     total: total,
   );
-}
-
-double _clamp01(double value) {
-  if (value.isNaN || value.isInfinite) return 0;
-  return value.clamp(0, 1).toDouble();
 }
 
 /* -------------------------------------------------- Un thème du civique --- */

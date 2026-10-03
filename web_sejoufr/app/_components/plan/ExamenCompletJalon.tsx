@@ -63,7 +63,12 @@ export function ExamenCompletJalon({journey, module}: {
                 <Card variant="soft">
                     <Stack>
                         <p className={sejourStyles.sub}>{journeyJalonText(jalon, module)}</p>
-                        <Cta variant="blue" disabled={busy} onClick={() => setConfirming(true)}>
+                        {/* Bleu en TCF, rouge en civique (token du module, Navigation v2). */}
+                        <Cta
+                            variant={module === "CIVIQUE" ? "civique" : "blue"}
+                            disabled={busy}
+                            onClick={() => setConfirming(true)}
+                        >
                             {busy ? JOURNEY_JALON_BUSY : JOURNEY_JALON_CTA}
                         </Cta>
                         {error && (

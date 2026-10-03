@@ -2,19 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/dashboard_models.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/models/progression_models.dart';
+import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/router/shell_navigation.dart';
 import '../../core/utils/situation_icons.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../home/home_labels.dart';
+import '../module/module_labels.dart';
+import '../progres/progres_labels.dart';
+import '../reviser/reviser_labels.dart';
 import 'progression_labels.dart';
 import 'progression_providers.dart';
+import 'widgets/prochaine_etape_hero.dart';
 import 'widgets/progression_page.dart';
 
-/// **La progression globale civique** — maquette
-/// `progression_global_civique.html`, état téléphone.
+/// **La progression globale civique** — Navigation v2 (phase 4b) : maquette
+/// `docs/redesign/sejourfr-navigation-mobile.html` (`#civiqueprogress`), puis
+/// la « Prochaine étape » de la maquette web ; sous eux, les blocs existants
+/// (maquette `progression_global_civique.html`, état téléphone), tous gardés.
+///
+/// Ordre : titre + phrase → « Maîtrise globale » (NOUVEAU : le % du parcours
+/// par [avancementSeriesCivique], 6ᵉ emplacement du même nombre) → « Par
+/// thème » (% et séries du thème par la même fonction, état SERVI
+/// `CivicThemeState`, code = rang du thème) → « Examens blancs » (taux servis
+/// des derniers examens globaux ; aucun ⇒ état vide) → « Prochaine étape »
+/// (`journey.current` civique, geste de l'Accueil) → héros /40, tuiles, cartes
+/// de thème, liste des examens.
 ///
 /// 🛑 **Tout est servi** (`GET /api/me/progression/civique`) : score /40 et
 /// seuil 32, état (D12), écart et sens, anneau = taux servi + seuil atteint
@@ -43,10 +60,13 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
       onRefresh: () => ref.refresh(provider.future),
       children: (data) => _corps(context, data),
       entete: const [
-        SfProgressIntro(
-          eyebrow: kProgressionEyebrow,
-          title: kCiviqueTitle,
-          lead: kCiviqueLead,
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
+          child: SfModuleHeader(
+            civique: true,
+            title: kProgressionTitre,
+            lead: kCiviqueProgressionLead,
+          ),
         ),
       ],
     );
@@ -61,6 +81,27 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
     return [
       ProgressionBlocs(
         children: [
+          const _MaitriseGlobale(),
+          ProgressionSection(
+            title: kCiviqueParThemeTitle,
+            child: _ParTheme(themes: data.themes),
+          ),
+          ProgressionSection(
+            title: kCiviqueExamensBlancsTitle,
+            child: SfTimeline(
+              civique: true,
+              label: kCiviqueEvolutionScoreLabel,
+              steps: [
+                for (final e in data.examens
+                    .take(kProgressionReperesMax)
+                    .toList()
+                    .reversed)
+                  if (progressionTaux(e.mesure.taux) case final taux?) taux,
+              ],
+              caption: civiqueMeilleurScore(meilleur) ?? kCiviqueListeVide,
+            ),
+          ),
+          const ProchaineEtapeHero(civique: true),
           SfProgressHero(
             label: kCiviqueHeroLabel,
             value: progressionValeur(dernier?.score),
@@ -179,6 +220,116 @@ class ProgressionCiviqueScreen extends ConsumerWidget {
           (label: p.label, value: civiquePart(p.bonnes, p.posees)),
       ],
       onTap: rapport == null ? null : () => context.push(rapport),
+    );
+  }
+}
+
+/// **« Maîtrise globale »** — le pourcentage du parcours en séries
+/// ([avancementSeriesCivique], la fonction unique) et le nombre de séries
+/// terminées, avec la barre du module. Lit le tableau de bord (séries servies
+/// par thème) ; bloc à états propres.
+class _MaitriseGlobale extends ConsumerWidget {
+  const _MaitriseGlobale();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(dashboardProvider);
+    final themes = async.valueOrNull?.civique;
+    if (themes == null) {
+      if (async.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () => ref.invalidate(dashboardProvider),
+        );
+      }
+      return const SfBlockSkeleton(height: 130);
+    }
+    final avancement = avancementSeriesCivique(themes);
+    return SfProgressionHead(
+      civique: true,
+      label: kCiviqueMaitriseLabel,
+      primary: (
+        value: moduleCiviqueProgressValue(avancement.pourcentage),
+        label: kCiviqueDuParcours,
+      ),
+      secondary: (
+        value: '${avancement.terminees}',
+        label: civiqueSeriesTermineesLabel(avancement.terminees),
+      ),
+      progress: avancement.pourcentage / 100,
+    );
+  }
+}
+
+/// **« Par thème »** — une ligne par thème officiel (ordre servi par la
+/// progression) : rang du thème (aucune abréviation inventée), % du thème en
+/// séries (`avancementSeriesCivique([stat])`), « x/y séries · nom », et l'état
+/// SERVI du dernier examen du thème en pastille — absent ⇒ pas de pastille.
+class _ParTheme extends ConsumerWidget {
+  const _ParTheme({required this.themes});
+
+  final List<ProgressionCarte> themes;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(dashboardProvider);
+    final stats = async.valueOrNull?.civique;
+    if (stats == null) {
+      if (async.hasError) {
+        return SfBlockError(
+          message: kHomeBlockError,
+          retryLabel: kHomeRetry,
+          onRetry: () => ref.invalidate(dashboardProvider),
+        );
+      }
+      return const SfBlockSkeleton(height: 320);
+    }
+    return SfLevelList(
+      rows: [
+        for (var i = 0; i < themes.length; i++)
+          _ligne(context, i + 1, themes[i], _statDe(stats, themes[i].themeId)),
+      ],
+    );
+  }
+
+  DashboardCategoryStat? _statDe(
+    List<DashboardCategoryStat> stats,
+    String? themeId,
+  ) {
+    if (themeId == null) return null;
+    for (final s in stats) {
+      if (s.themeId == themeId) return s;
+    }
+    return null;
+  }
+
+  SfLevelRow _ligne(
+    BuildContext context,
+    int rang,
+    ProgressionCarte carte,
+    DashboardCategoryStat? stat,
+  ) {
+    final avancement = stat == null ? null : avancementSeriesCivique([stat]);
+    final etat = carte.resume.dernier?.etat;
+    final themeId = carte.themeId;
+    return SfLevelRow(
+      civique: true,
+      code: '$rang',
+      value: avancement == null
+          ? kProgressionVide
+          : moduleCiviqueProgressValue(avancement.pourcentage),
+      caption: avancement == null
+          ? carte.label
+          : civiqueThemeCaption(
+              avancement.terminees, avancement.total, carte.label),
+      trailing: etat == null
+          ? null
+          : SfBadge(etatThemeCivique(etat).label,
+              tone: etatThemeCivique(etat).tone),
+      onTap: themeId == null
+          ? null
+          : () => context.push(AppRoutes.progressionThemePath(themeId)),
     );
   }
 }

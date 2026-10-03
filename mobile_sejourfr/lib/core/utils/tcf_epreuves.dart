@@ -38,6 +38,6 @@ const String kTcfComplementaireNote =
 /// Le bandeau de **Réviser**, qui peut s'appuyer sur la liste juste au-dessus.
 const String kTcfComplementaireNoteReviser =
     'Structure de la langue n\'est pas une épreuve du TCF IRN — les quatre '
-    'épreuves officielles sont juste au-dessus. Le module reste très utile : '
+    'épreuves officielles sont plus haut. Le module reste très utile : '
     'chaque point de grammaire consolidé se retrouve en compréhension écrite, '
     'en expression écrite et à l\'oral.';

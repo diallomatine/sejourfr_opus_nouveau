@@ -43,7 +43,7 @@
 - Fichiers impactés : `app_router.dart`
 - Réversibilité : moyenne
 
-### DEC-06 — Mobile : boutons du Plan restés bleus en module civique
+### DEC-06 — Mobile : boutons du Plan restés bleus en module civique ⚠️ révoquée par DEC-26
 - Phase : 2
 - Contexte : X1 colore le module civique en rouge, mais les boutons du Plan (TCF et civique), de l'étape, du jalon et des diagnostics civiques sont bleus pour laisser le rouge à la seule barre « Débloquer » (arbitrage A46 existant).
 - Options envisagées : A les passer au token module (rouge en civique) · B garder le bleu (A46)
@@ -178,3 +178,115 @@
 - Choix : B, dans les deux kits : `LevelLadder`/`LadderStep`/`LevelCard`/`LevelCardGrid`/`GoalBanner` ⇄ `Sf*`, `SfTopSlot`, `parcoursSegments`, `moduleCiviqueParDefaut`, helpers `accueil*` de `progres.ts` ⇄ `progres_labels.dart`, `objectifLabel` → `objectifKicker`. Nouvelles primitives miroirs : `PageHead`⇄`SfModuleHeader`, `ActionCard`⇄`SfActionCard`, `ObjCard`/`ObjMetric`⇄`SfObjCard`/`SfObjMetric`, `ObjectivesCard`/`ObjectiveRow`⇄`SfObjectivesCard`/`SfObjectiveRow`, `BlockSkeleton`/`BlockError`⇄`SfBlockSkeleton`/`SfBlockError`.
 - Fichiers impactés : `SejourKit.tsx`, `sejour.module.css`, `sejour_kit.dart`, `lib/progres.ts`, `progres_labels.dart`
 - Réversibilité : moyenne (récupérables dans l'historique git)
+
+### DEC-23 — Briques de la maquette : on fait évoluer plutôt que doubler
+- Phase : 4
+- Contexte : `HeroBanner`/`SfHeroBanner` et `ExamRow`/`SfExamRow` existaient avec un autre dessin et un seul lecteur chacun.
+- Options envisagées : A nouvelles primitives à côté · B renommer/refaire (`Hero`/`SfHero`, `ExamRow`/`SfExamRow` au dessin maquette) et migrer le lecteur
+- Choix : B. L'historique des cycles passe sur `Hero` (bleu dans les deux parcours : le chiffre accentué rouge vif est illisible sur le dégradé rouge) ; le rapport de diagnostic passe de l'ancien `ExamRow` à `InfoCard`/`SfInfoCard`. `Ring`/`SfRing` gagnent une couleur de module (rendu inchangé sans elle). Ton servi : web `StateTone` (`success|warning|danger|neutral`) ⇄ mobile `SfTone` existant (`ok|warn|hot|muted`) via `SfState`, pas de 2ᵉ enum.
+- Fichiers impactés : `SejourKit.tsx`, `sejour.module.css`, `sejour_kit.dart`, `PlanHistoryView.tsx` ⇄ `plan_history_screen.dart`, `DiagnosticReport.tsx` ⇄ `diagnostic_result.dart`
+- Réversibilité : moyenne
+
+### DEC-24 — Un seul « niveau actuel » par écran du Plan TCF
+- Phase : 4
+- Contexte : le bandeau « Niveau actuel → Objectif » du Plan TCF (`GoalStrip`/`CycleGoal`) affichait le niveau de DÉPART du cycle, alors que l'en-tête / la carte « Ma progression » affichent le niveau estimé (`estimatedTcfLevel`). Deux « niveau actuel » différents sur le même écran.
+- Options envisagées : A garder les deux · B garder seulement le niveau estimé (celui de l'Accueil et de la sidebar)
+- Choix : B, des deux côtés ; le bouton « Choisir mon objectif » que portait le bandeau est conservé. Le bandeau reste sur le Plan civique (pas de doublon là).
+- Fichiers impactés : `LearningPlanView.tsx`, `plan_tcf_view.dart`
+- Réversibilité : facile
+
+### DEC-25 — « Priorités actuelles » = le cycle existant en cartes de la maquette
+- Phase : 4
+- Contexte : la maquette montre une liste plate de priorités ; l'existant est un cycle par blocs (frise + accordéons, règles D-64/D-66/D-69).
+- Options envisagées : A ajouter une liste de priorités en plus du cycle · B restyler le cycle en cartes `InfoCard` ouvrables (une par bloc), mêmes faits et gestes servis
+- Choix : B. La frise et le liseré « bloc courant » disparaissent du Plan (l'écran d'archive d'un cycle les garde). La carte Cycle (`Cycle N`, `x/y`, phrase servie) passe en tête.
+- Fichiers impactés : `PlanCycleSection.tsx`, `plan_cycle_section.dart`, `LearningPlanView.tsx`, `plan_tcf_view.dart`
+- Réversibilité : moyenne
+
+### DEC-26 — Boutons du Plan civique en rouge (révoque DEC-06 / A46)
+- Phase : 4
+- Contexte : en phase 2 le mobile avait gardé ces boutons bleus pour réserver le rouge à « Débloquer » (règle autonome A46) ; le web les a passés en rouge comme la maquette.
+- Options envisagées : A bleu partout (A46) · B rouge partout (maquette + X1)
+- Choix : B — X1 fait du rouge la couleur du module civique ; pour un compte gratuit, le geste de la carte d'action est justement « Débloquer », il reste donc un seul geste dominant. Exception : la carte « Examen blanc civique » du Plan reste une info-card cliquable, sans bouton.
+- Fichiers impactés : `CivicPlanPanel.tsx`, vues Plan civique mobile
+- Réversibilité : facile
+
+### DEC-27 — Ordre de TCF · Entraînement : grille → Entretien en temps réel → Renforcer mon français
+- Phase : 4
+- Contexte : la spec plaçait « Renforcer mon français » « sous la grille » ; la maquette web met le hero « Entretien en temps réel » juste après la grille. Les deux agents ont lu différemment.
+- Options envisagées : A grille → Renforcer → hero · B grille → hero → Renforcer
+- Choix : B des deux côtés (fidélité maquette ; Structure reste un complément, pas une 5ᵉ épreuve).
+- Fichiers impactés : `ReviserScreen.tsx`, `reviser_body.dart`
+- Réversibilité : facile
+
+### DEC-28 — États d'objectif servis : une fonction par front
+- Phase : 4
+- Contexte : tuiles, lignes de niveau et cartes de thème doivent porter un état et un ton SERVIS.
+- Options envisagées : A libellés de la maquette (« Solide », « Prioritaire »…) · B libellés de l'état servi
+- Choix : B. `StatutObjectif` → « Objectif atteint » (success) / « Proche de l'objectif » (warning) / « À renforcer » (danger) ; aucun niveau mesuré → « Non évalué » (neutral, « null = inconnu »). Web `lib/etats-servis.ts` (`etatEpreuveTcf`, `etatThemeCivique`) ⇄ mobile `etatObjectifEpreuve` (`progres_labels.dart`). Les états de thème civique de l'Entraînement gardent la ligne existante (`themeStatus`) en ton neutre ; ceux de la Progression civique = état servi du dernier examen du thème, aucun badge sans examen. « Prioritaire » de la maquette n'existe pas.
+- Fichiers impactés : `lib/etats-servis.ts`, `progres_labels.dart`
+- Réversibilité : facile
+
+### DEC-29 — Examens : badge « 2/20 » masqué, « réussi » civique retiré, stat civique renommée
+- Phase : 4
+- Contexte : (1) le badge `{faits}/{total}` doublonnait la tuile « Terminés » et `examensComplets.nombre` compte les rejeux ; (2) la maquette affiche « réussi » dans l'historique civique, mais aucun verdict n'est servi par créneau ; (3) la stat civique « Progression % » était, côté web, une moyenne des maîtrises de thème (`moduleAverage`) et, côté mobile, des créneaux faits en % — deux notions sous le nom du % du parcours.
+- Options envisagées : (3) A remplacer par `avancementSeriesCivique` · B renommer en « Terminés x/N » comme la tuile TCF
+- Choix : badge masqué ; « réussi » retiré ; (3) B, des deux côtés — aucune seconde notion n'est affichée sous le nom « Progression ». Hero : « Reprendre l'examen n » / « Commencer l'examen n » (1ᵉʳ créneau libre non verrouillé) / « Voir le pass Intégral » si tout est verrouillé / pas de bouton s'il n'y a rien à faire. Constantes 20/40/32/45 en dur supprimées (R7).
+- Fichiers impactés : `app/examens-blancs/page.tsx`, `lib/examens-blancs.ts`, `tcf_full_exams_screen.dart`, `civique_full_exams_screen.dart`, `full_exams_labels.dart`
+- Réversibilité : facile
+
+### DEC-30 — Écrans Progression : blocs maquette d'abord, existant ensuite
+- Phase : 4
+- Contexte : l'existant (hero, tuiles, cartes avec sparkline, liste d'examens) n'a pas d'équivalent dans la maquette ; R5 interdit de le perdre.
+- Options envisagées : A fondre l'existant dans les blocs maquette · B blocs maquette en tête (Objectif global / Maîtrise globale, Par compétence / Par thème, Évolution / Examens blancs, Prochaine étape), puis les blocs existants inchangés
+- Choix : B. « Objectif global » sans barre (règle de progression). Code de thème = rang (pas d'abréviation inventée). Frise plafonnée à 4 repères (plafond d'affichage). « Prochaine étape » = même geste que l'Accueil, code partagé (web `ProchaineEtape.tsx`, mobile `plan/now_card_gestes.dart`). « Analyse IA » masquée.
+- Fichiers impactés : `ProgressionTcfView.tsx`, `ProgressionCiviqueView.tsx`, `progression_tcf_screen.dart`, `progression_civique_screen.dart`
+- Réversibilité : moyenne (les écrans sont plus longs ; un allègement est à arbitrer après relecture à l'écran)
+
+### DEC-31 — Profil : « Mon compte » sans « Paramètres », carte profil locale
+- Phase : 4
+- Contexte : la maquette a une entrée « Paramètres » unique ; l'app a « Mes informations » et « Notifications ». La carte profil n'est pas un écran du kit.
+- Options envisagées : A créer un écran « Paramètres » · B garder les entrées existantes
+- Choix : B — « Mon compte » = Mon pass (+ « paiement unique, aucun renouvellement » si pass actif `oneTime`, web), Mes informations, Notifications, Aide (« Questions fréquentes et contact ») ; Mes favoris gardé (web dans « Mon compte »). Carte profil locale à chaque front (pas de primitive). « Membre depuis » masqué. Nom du pass : `passAccessName` des deux côtés (le mobile perd « Pass TCF » / « Pass actif »).
+- Fichiers impactés : `app/(app)/profil/page.tsx`, `profile_screen.dart`, `profile_labels.dart`, `billing_models.dart`
+- Réversibilité : facile
+
+### DEC-32 — Descriptions de thème civique affichées
+- Phase : 4
+- Contexte : l'audit hésitait sur l'existence de `ThemeUserResponse.description`.
+- Options envisagées : A masquer · B afficher si non vide
+- Choix : B — le champ est servi par le DTO Java, présent dans le miroir mobile, et renseigné pour les 5 thèmes en base ; ajouté au miroir web (`lib/types.ts`, champ optionnel). Masqué si vide.
+- Fichiers impactés : `web_sejoufr/lib/types.ts`, `ReviserScreen.tsx`, `reviser_body.dart`
+- Réversibilité : facile
+
+### DEC-33 — Emphases de bouton de carte alignées sur la maquette
+- Phase : 4 (QA)
+- Contexte : le CTA « soft » mobile était teinté du module, la maquette le veut gris ; le web avait trois emphases.
+- Options envisagées : A garder la teinte · B `solid | soft | ghost` des deux côtés (soft gris, ghost pour la carte de thème)
+- Choix : B.
+- Fichiers impactés : `sejour_kit.dart`, `SejourKit.tsx`
+- Réversibilité : facile
+
+### DEC-34 — Examens : « Offert » remplacé par le verrou servi, repli à 8, hero civique verrouillé
+- Phase : 4 (QA)
+- Contexte : la méta « Offert » était déduite du rang n° 1 (interdit : le verrou est servi) ; la liste se repliait à 7 sur le civique mobile et à 8 ailleurs ; le hero civique n'avait pas de bouton quand tout est verrouillé ; le web mettait en avant un autre créneau pendant un examen TCF en cours.
+- Options envisagées : A laisser chaque front · B une règle commune
+- Choix : B — « Disponible » / « Inclus dans le pass X » (nom via la table des pass) selon `locked` ; repli à 8 ; « Voir le pass Civique » (offre) quand tout est verrouillé, sur le modèle du TCF ; pas de mise en avant d'un autre créneau pendant un examen en cours ; un examen en attente d'évaluation s'affiche « Fait ».
+- Fichiers impactés : `app/examens-blancs/page.tsx`, `lib/examens-blancs.ts`, `full_exams_labels.dart`, vues d'examens mobiles
+- Réversibilité : facile
+
+### DEC-35 — Tous les boutons du Plan civique suivent le module
+- Phase : 4 (QA)
+- Contexte : extension de DEC-26 au jalon « examen blanc complet » et au bouton « Commencer » des blocs du cycle ; « À revoir bientôt » mobile avait un bouton bleu.
+- Options envisagées : A seulement la carte « À faire maintenant » · B tous les boutons du Plan civique
+- Choix : B (`ExamStepAction.module` ⇄ `SfExamStepAction.civique`, variantes `Cta tcf|civique`) ; « À revoir bientôt » en `InfoCard` + badge des deux côtés. Exception laissée : la carte de fin de cycle (`NextStepCard`, dégradé bleu des deux côtés).
+- Fichiers impactés : les deux kits, `ExamenCompletJalon`, `plan_cycle_section` web et mobile, `civic_plan_view.dart`
+- Réversibilité : facile
+
+### DEC-36 — Tuile d'épreuve sans « Niveau estimé » répété
+- Phase : 4 (QA)
+- Contexte : la méta de la tuile web répétait « Niveau estimé » sous une valeur qui est déjà ce niveau.
+- Options envisagées : A l'ajouter au mobile · B le retirer du web
+- Choix : B (doublon).
+- Fichiers impactés : `ReviserScreen.tsx`
+- Réversibilité : facile

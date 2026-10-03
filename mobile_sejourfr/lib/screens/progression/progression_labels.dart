@@ -67,6 +67,11 @@ const String kProgressionScoreLabel = 'Score';
 const String kProgressionTempsLabel = 'Temps';
 const String kProgressionVide = '—';
 
+/// Les repères montrés par la frise « Évolution » : plafond d'AFFICHAGE (la
+/// maquette en montre quatre), jamais un budget de lecture. Miroir
+/// `PROGRESSION_REPERES_MAX`.
+const int kProgressionReperesMax = 4;
+
 /// Le retour de l'historique complet à la vue courte (D8).
 const String kProgressionListeMoinsLink = 'Afficher les 3 derniers';
 
@@ -395,9 +400,6 @@ const String kEpreuveNote20Portee =
    Écran TCF GLOBAL (`progression_global_tcf.html`)
    ====================================================================== */
 
-const String kTcfTitle = 'Progression globale';
-const String kTcfLead =
-    "Suivez l'évolution de vos résultats sur toutes les épreuves du TCF.";
 const String kTcfHeroLabel = 'Niveau global estimé';
 const String kTcfStatNombre = 'Examens blancs';
 const String kTcfStatMeilleur = 'Meilleur résultat';
@@ -457,9 +459,6 @@ String tcfEpreuveNom(EpreuveType epreuve) => epreuve.displayLabel;
    Écran CIVIQUE GLOBAL (`progression_global_civique.html`)
    ====================================================================== */
 
-const String kCiviqueTitle = 'Examen civique';
-const String kCiviqueLead =
-    'Suivez votre progression globale et celle de chaque thème.';
 const String kCiviqueHeroLabel = 'Dernier résultat global';
 const String kCiviqueStatNombre = 'Examens globaux';
 const String kCiviqueStatMeilleur = 'Meilleur résultat';
@@ -521,3 +520,71 @@ String? themeMeilleurSub(ProgressionMesure? mesure) {
   final etat = progressionEtatLabel(mesure.etat);
   return etat == null ? jour : '$etat · $jour';
 }
+
+/* ======================================================================
+   NAVIGATION V2 (phase 4b, 2026-10-03) — blocs de la maquette
+   `docs/redesign/sejourfr-navigation-{mobile,web}.html` posés en tête des deux
+   écrans globaux. Textes éditoriaux repris tels quels (R8) ; toute valeur est
+   servie (ou agrégée par `avancementSeriesCivique`), jamais écrite ici.
+   ====================================================================== */
+
+/// Le titre des deux écrans globaux (`#tcfprogress`, `#civiqueprogress`).
+const String kProgressionTitre = 'Ma progression';
+
+/// « Votre niveau actuel et le chemin vers l'objectif B2. » — le palier visé
+/// est servi ; sans lui, la phrase ne nomme aucun palier.
+String tcfProgressionLead(String? cible) => cible == null
+    ? "Votre niveau actuel et le chemin vers votre objectif."
+    : "Votre niveau actuel et le chemin vers l'objectif $cible.";
+
+const String kCiviqueProgressionLead =
+    'Votre avancement par thème et vos résultats aux examens blancs.';
+
+/* ---------------------------------------------------------------- TCF */
+
+const String kTcfObjectifGlobalLabel = 'Objectif global';
+const String kTcfNiveauActuelLabel = 'Niveau actuel';
+const String kTcfObjectifLabel = 'Objectif';
+const String kTcfParCompetenceTitle = 'Par compétence';
+const String kTcfEvolutionTitle = 'Évolution';
+const String kTcfDerniersReperesLabel = 'Derniers repères';
+
+/// « → B2 » en bout de ligne d'une épreuve sous l'objectif.
+String tcfVersCible(String cible) => '→ $cible';
+
+/// « Meilleur niveau observé : B1 » — le palier du meilleur examen complet
+/// non partiel, servi (D7).
+String tcfMeilleurNiveauObserve(String niveau) =>
+    'Meilleur niveau observé : $niveau';
+
+/* ------------------------------------------------------------ civique */
+
+const String kCiviqueMaitriseLabel = 'Maîtrise globale';
+const String kCiviqueDuParcours = 'du parcours réalisé';
+const String kCiviqueParThemeTitle = 'Par thème';
+const String kCiviqueExamensBlancsTitle = 'Examens blancs';
+const String kCiviqueEvolutionScoreLabel = 'Évolution du score';
+
+/// « 17 séries terminées » / « 1 série terminée » — le libellé sous le nombre.
+String civiqueSeriesTermineesLabel(int terminees) =>
+    terminees > 1 ? 'séries terminées' : 'série terminée';
+
+/// « 3/5 séries · Principes et valeurs » — compteurs servis du thème.
+String civiqueThemeCaption(int faites, int total, String? nom) {
+  final compte = '$faites/$total séries';
+  return nom == null ? compte : '$compte · $nom';
+}
+
+/// « Meilleur score : {taux} % », et la suite seulement si le seuil servi est
+/// atteint (`seuilAtteint`, jamais une comparaison au seuil ici).
+String? civiqueMeilleurScore(ProgressionMesure? meilleur) {
+  final taux = progressionTaux(meilleur?.taux);
+  if (taux == null) return null;
+  return meilleur?.seuilAtteint == true
+      ? 'Meilleur score : $taux · vous êtes au-dessus du seuil de réussite.'
+      : 'Meilleur score : $taux';
+}
+
+/* ------------------------------------------------------ prochaine étape */
+
+const String kProchaineEtapeLabel = 'Prochaine étape';

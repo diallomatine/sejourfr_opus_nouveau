@@ -199,6 +199,8 @@ export interface ThemeUserResponse {
     module: Module;
     code: string;
     name: string;
+    /** Courte description éditoriale, servie (`themes.description`) ; `null` ⇒ rien. */
+    description?: string | null;
     displayOrder: number;
     questionCount?: number;
 }

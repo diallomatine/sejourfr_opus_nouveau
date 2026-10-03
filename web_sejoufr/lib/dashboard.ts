@@ -1,15 +1,4 @@
-// Helpers des catégories du GET /api/me/dashboard (hubs, examens blancs).
-
-import type { DashboardCategoryStat } from "./types";
-
-/** Moyenne des pourcentages renseignés d'un module (null si aucun). */
-export function moduleAverage(cats: DashboardCategoryStat[]): number | null {
-  const known = cats.filter((c) => c.percent !== null);
-  if (known.length === 0) return null;
-  return Math.round(
-    known.reduce((sum, c) => sum + (c.percent ?? 0), 0) / known.length,
-  );
-}
+// Helpers des catégories du GET /api/me/dashboard (hubs).
 
 /**
  * Badge d'une catégorie dans les hubs — **le seul fait qu'il énonce, c'est si

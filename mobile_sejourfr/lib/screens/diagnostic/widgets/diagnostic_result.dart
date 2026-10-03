@@ -89,7 +89,7 @@ class DiagnosticResultView extends ConsumerWidget {
           child: SfStack(
             children: [
               for (final e in kDiagnosticSuiteEpreuves)
-                SfExamRow(icon: e.icon, title: e.label),
+                SfInfoCard(icon: e.icon, title: e.label),
               const _PromiseCard(),
               SfButton(
                 label: kDiagnosticReportPlanCta,

@@ -12,9 +12,14 @@ import '../../core/models/enums.dart';
 import '../../core/models/journey_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/dashboard_provider.dart';
+import '../../core/router/shell_navigation.dart';
 import '../../core/utils/civique_examen.dart';
-import '../../core/widgets/list_group.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../module/module_labels.dart';
+import '../progression/progression_labels.dart';
+import '../progression/progression_providers.dart';
+import '../reviser/reviser_labels.dart' show avancementSeriesCivique;
 import 'plan_labels.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/civic_diagnostic_models.dart';
@@ -97,6 +102,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// **maintenu vivant par `PlanBody`**, qui observe les deux parcours : la
   /// bascule ne coûte plus aucun appel.
   String? _enCours;
+
   /// Le tiré-pour-rafraîchir, seul point qui redemande le plan — avec le retour
   /// d'un entraînement joué au-dessus (`PlanBody.didPopNext`).
   /// Même relecture que le tiré du Plan TCF : le plan civique ET son cycle
@@ -122,52 +128,53 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   Widget build(BuildContext context) {
     final async = ref.watch(civicPlanProvider);
     // 🛑 **Le plan déjà lu reste affiché pendant un rechargement** : sans ça, un
-    // tiré-pour-rafraîchir ramenait la roue par-dessus un écran qu'on avait.
-    if (async.isLoading && !async.hasValue) {
-      return ListView(
-        children: const [
-          SizedBox(height: 40),
-          Center(
-            child: CircularProgressIndicator(color: AppColors.moduleCivique),
-          ),
-        ],
-      );
-    }
+    // tiré-pour-rafraîchir ramenait le squelette par-dessus un écran qu'on avait.
     final plan = async.valueOrNull;
-    // 🛑 **D-69 : le Plan civique s'affiche TOUJOURS**, diagnostic civique fait
-    // ou non. `disponible` ne dit plus que « plan dérivé disponible » : sans
-    // lui, le cycle et « À faire maintenant » se lisent sur le parcours, et les
-    // listes du plan dérivé sont vides. Seul un plan illisible (erreur) garde
-    // l'en-tête seul — donc la bascule vers l'autre parcours.
-    if (plan == null) {
-      return ListView(
-        children: [
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: SfNoteCard(
-              icon: LucideIcons.cloudOff,
-              title: kPlanErrorTitle,
-              child: SfButton(
-                label: kPlanErrorRetry,
-                variant: SfButtonVariant.line,
-                onPressed: () => ref.invalidate(civicPlanProvider),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
     final auth = ref.watch(authControllerProvider);
     final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
 
+    // 🛑 **D-69 : le Plan civique s'affiche TOUJOURS**, diagnostic civique fait
+    // ou non. `disponible` ne dit plus que « plan dérivé disponible » : sans
+    // lui, le cycle et « À faire maintenant » se lisent sur le parcours, et les
+    // listes du plan dérivé sont vides. Chaque bloc porte ses états (brief §7) :
+    // le hero lit le tableau de bord, le reste le plan — l'un peut échouer sans
+    // l'autre.
     final liste = RefreshIndicator(
       color: AppColors.moduleCivique,
       onRefresh: _load,
-      child: ListView(children: _ecran(plan, free: free)),
+      child: ListView(
+        children: <Widget>[
+          const SizedBox(height: 14),
+          const Padding(padding: sfGutter, child: _HeroCivique()),
+          if (plan != null)
+            ..._ecran(plan, free: free)
+          else if (async.hasError)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 24),
+              child: SfBlockError(
+                message: kPlanErrorTitle,
+                retryLabel: kPlanErrorRetry,
+                onRetry: () => ref.invalidate(civicPlanProvider),
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, sfSectionGap, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SfBlockSkeleton(height: 96, radius: AppRadii.lg),
+                  SizedBox(height: sfSectionGap),
+                  SfBlockSkeleton(height: 220),
+                  SizedBox(height: sfSectionGap),
+                  SfBlockSkeleton(height: 150, radius: AppRadii.lg),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
-    if (!free) return liste;
+    if (!free || plan == null) return liste;
 
     return Column(
       children: [
@@ -198,7 +205,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     final parcours = ref.watch(journeyCiviqueProvider).valueOrNull;
     final objectif = parcours?.objectif;
     return <Widget>[
-      const SizedBox(height: 14),
+      const SizedBox(height: sfSectionGap),
 
       // 🛑 LA BANDE OBJECTIF (D-50 §1) : la démarche visée et le seuil, deux
       // FAITS du référentiel. ⛔ **Jamais un score d'entrée** — `entry_score`
@@ -220,7 +227,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // 🛑 « À FAIRE MAINTENANT » VIENT DU CYCLE (D-50 §2), avec repli sur le
       // plan dérivé quand `current` est nul ([civicNowCard]). Le contenu est
       // identique pour les deux accès ; seul le geste change.
-      ..._actionMaintenant(plan, parcours, free: free),
+      _actionMaintenant(plan, parcours, free: free),
 
       // 🛑 **Le jalon d'examen complet** (D-68), sous « À faire maintenant » :
       // servi, jamais décidé ici. En civique, le cycle d'examens porte un examen
@@ -231,7 +238,8 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       // 🛑 **Il reste ENTIER sans accès** : ses blocs et toutes leurs étapes
       // sont affichés à leur place, avec leur cadenas et le geste d'offre que
       // `PlanCycleSection` attache à une étape `locked`.
-      PlanCycleSection(plan: null, journey: parcours, module: AppModule.civique),
+      PlanCycleSection(
+          plan: null, journey: parcours, module: AppModule.civique),
 
       ..._reviewSection(plan, maintenant, free: free),
 
@@ -264,28 +272,31 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   /// compte sans accès » : la barre « Débloquer mon plan » reste la seule
   /// **action** dominante, et ces deux liens n'en sont pas une.
   Widget _allerPlusLoin(BuildContext context) {
+    // Les liens gardés, sous l'anatomie `.info-card` de la maquette — la même
+    // que `PlanTcfView._links`.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
-      child: ListGroup(
+      child: SfStack(
+        pad: false,
         children: [
-          ListRow(
+          SfInfoCard(
+            civique: true,
             icon: LucideIcons.trendingUp,
-            iconBg: AppColors.surface2,
-            iconColor: AppColors.muted,
             title: kJourneyHistoryTitle,
-            sub: journeyHistorySub(AppModule.civique),
+            meta: journeyHistorySub(AppModule.civique),
+            trailing: const SfChevron(),
             onTap: () =>
                 context.push(AppRoutes.planProgressPath(civique: true)),
           ),
           // 🛑 **Seulement s'il y a un diagnostic civique CLOS à relire** :
           // le diagnostic n'est plus proposé sur le Plan.
           if (widget.diagnosticFait)
-            ListRow(
+            SfInfoCard(
+              civique: true,
               icon: LucideIcons.clipboardCheck,
-              iconBg: AppColors.surface2,
-              iconColor: AppColors.muted,
               title: kPlanDiagnosticTitle,
-              sub: kPlanDiagnosticSub,
+              meta: kPlanDiagnosticSub,
+              trailing: const SfChevron(),
               // 🛑 Le diagnostic **civique** a sa propre porte — celle du TCF
               // ne raconte rien du civique.
               //
@@ -323,7 +334,7 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
   ///
   /// 🛑 `null` est un cas NORMAL : plus rien à faire. La carte disparaît, elle
   /// n'affiche jamais un squelette.
-  List<Widget> _actionMaintenant(
+  Widget _actionMaintenant(
     CivicPlan plan,
     Journey? parcours, {
     required bool free,
@@ -334,74 +345,82 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
       free: free,
       lancerExamen: true,
     );
-    if (carte == null) return const <Widget>[];
+    // Navigation v2 : la carte d'action, puis la carte « Examen blanc civique »
+    // de la maquette (web `grid-2`, ici empilées).
+    return SfSection(
+      title: kCivicPlanNowTitle,
+      flush: true,
+      lead: true,
+      child: SfStack(
+        pad: false,
+        children: [
+          if (carte != null) _carteAction(carte),
+          const _ExamenBlancCivique(),
+        ],
+      ),
+    );
+  }
+
+  Widget _carteAction(CivicNowCard carte) {
     final meta = carte.meta;
     final source = carte.source;
     final examen = carte.examen;
-    return <Widget>[
-      SfSection(
-        title: kCivicPlanNowTitle,
-        flush: true,
-        child: SfNowCard(
-          icon: LucideIcons.landmark,
-          title: carte.title,
-          subtitle: carte.subtitle,
-          badge: carte.badge,
-          objectiveLabel: carte.objectiveLabel,
-          objective: carte.objective,
-          meta: meta == null
-              ? const <SfMeta>[]
-              : [SfMeta(LucideIcons.list, meta)],
-          // 🛑 **Le geste vient de [civicNowCard], il ne se redéduit pas ici.**
-          // `aucun` ⇒ aucun bouton (garde-fou du 2026-09-17) ; `debloquer` ⇒
-          // l'offre, jamais un lanceur. En **bleu** : le seul bouton rouge de
-          // l'écran reste la barre basse « Débloquer mon plan » (A46).
-          action: switch (carte.geste) {
-            PlanNowGeste.aucun => null,
-            PlanNowGeste.debloquer => SfButton(
-                label: carte.cta,
-                variant: SfButtonVariant.blue,
-                onPressed: () => unawaited(_ouvrirOffre()),
-              ),
-            // 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
-            // travaille par séries — le même écran que la ligne du cycle, et la
-            // même autorité ([civicNowCard]) qui le décide.
-            PlanNowGeste.ouvrirEtape => SfButton(
-                label: carte.cta,
-                variant: SfButtonVariant.blue,
-                onPressed: carte.etapeRoute == null
-                    ? null
-                    : () => context.push(carte.etapeRoute!),
-              ),
-            // 🛑 **L'étape d'examen lance l'examen de thème SERVI**
-            // ([CivicNowCard.examen]) — le même lanceur que la ligne du cycle.
-            PlanNowGeste.lancer when examen != null => SfButton(
-                label: carte.cta,
-                variant: SfButtonVariant.blue,
-                onPressed: () => unawaited(launchCiviqueThemeExam(
-                  context,
-                  ref,
-                  themeId: examen.themeId,
-                  themeName: examen.themeName,
-                  slotNumber: examen.slotNumber,
-                )),
-              ),
-            PlanNowGeste.lancer => source == null
+    return SfNowCard(
+      icon: LucideIcons.landmark,
+      title: carte.title,
+      subtitle: carte.subtitle,
+      badge: carte.badge,
+      objectiveLabel: carte.objectiveLabel,
+      objective: carte.objective,
+      meta: meta == null ? const <SfMeta>[] : [SfMeta(LucideIcons.list, meta)],
+      // 🛑 **Le geste vient de [civicNowCard], il ne se redéduit pas ici.**
+      // `aucun` ⇒ aucun bouton (garde-fou du 2026-09-17) ; `debloquer` ⇒
+      // l'offre, jamais un lanceur. En **rouge** (token du module civique,
+      // Navigation v2 — révoque DEC-06/A46 pour ce Plan, comme le web) : sur
+      // un compte gratuit, le geste de cette carte EST « Débloquer ».
+      action: switch (carte.geste) {
+        PlanNowGeste.aucun => null,
+        PlanNowGeste.debloquer => SfButton(
+            label: carte.cta,
+            variant: SfButtonVariant.civique,
+            onPressed: () => unawaited(_ouvrirOffre()),
+          ),
+        // 🛑 **« Travailler » ouvre l'écran de l'étape** quand l'unité se
+        // travaille par séries — le même écran que la ligne du cycle, et la
+        // même autorité ([civicNowCard]) qui le décide.
+        PlanNowGeste.ouvrirEtape => SfButton(
+            label: carte.cta,
+            variant: SfButtonVariant.civique,
+            onPressed: carte.etapeRoute == null
                 ? null
-                : SfButton(
-                    label: carte.cta,
-                    variant: SfButtonVariant.blue,
-                    onPressed: _enCoursSur(source)
-                        ? null
-                        : () => unawaited(_lancer(source)),
-                  ),
-          },
-          caption: carte.geste == PlanNowGeste.debloquer
-              ? kCivicPlanLockedNote
-              : null,
-        ),
-      ),
-    ];
+                : () => context.push(carte.etapeRoute!),
+          ),
+        // 🛑 **L'étape d'examen lance l'examen de thème SERVI**
+        // ([CivicNowCard.examen]) — le même lanceur que la ligne du cycle.
+        PlanNowGeste.lancer when examen != null => SfButton(
+            label: carte.cta,
+            variant: SfButtonVariant.civique,
+            onPressed: () => unawaited(launchCiviqueThemeExam(
+              context,
+              ref,
+              themeId: examen.themeId,
+              themeName: examen.themeName,
+              slotNumber: examen.slotNumber,
+            )),
+          ),
+        PlanNowGeste.lancer => source == null
+            ? null
+            : SfButton(
+                label: carte.cta,
+                variant: SfButtonVariant.civique,
+                onPressed: _enCoursSur(source)
+                    ? null
+                    : () => unawaited(_lancer(source)),
+              ),
+      },
+      caption:
+          carte.geste == PlanNowGeste.debloquer ? kCivicPlanLockedNote : null,
+    );
   }
 
   /// Le témoin d'attente du lanceur **de ce grain-là**.
@@ -452,27 +471,14 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     return <Widget>[
       SfSection(
         title: kCivicPlanReviewTitle,
+        lead: true,
         child: SfStack(
           children: [
+            // Même anatomie que le web (`InfoCard` + `Badge`) : l'état de
+            // maîtrise et l'échéance servis, le geste en badge, la ligne
+            // entière ouvre la série — ou l'offre ([civicCibleGeste]).
             for (final cible in plan.aRevoirVisibles)
-              SfCard(
-                variant: SfCardVariant.soft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SfLabel(kCivicPlanReviewPill),
-                    const SizedBox(height: 4),
-                    Text(
-                      cible.label,
-                      style: AppFonts.display(size: 15, weight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    SfTiny(civicPlanReviewText(cible, maintenant)),
-                    const SizedBox(height: 10),
-                    _reviewAction(cible, free: free),
-                  ],
-                ),
-              ),
+              _reviewRow(cible, maintenant, free: free),
             // 🛑 **Le plan DIT à quel grain il travaille** (`20_` §3.3), et il
             // le dit **ici** : c'est la dernière surface qui montre des cibles
             // du plan dérivé, donc la seule que cette note qualifie encore. Elle
@@ -486,19 +492,112 @@ class _CivicPlanViewState extends ConsumerState<CivicPlanView> {
     ];
   }
 
-  /// Le geste d'une révision — **la même autorité que la carte d'action**.
-  Widget _reviewAction(CivicPlanCible cible, {required bool free}) {
+  /// Une révision — le geste vient de **la même autorité que la carte
+  /// d'action** ([civicCibleGeste]).
+  Widget _reviewRow(
+    CivicPlanCible cible,
+    DateTime maintenant, {
+    required bool free,
+  }) {
     final geste = civicCibleGeste(cible, free: free);
-    return SfButton(
-      label: geste == PlanNowGeste.debloquer
-          ? kCivicPlanLockedCta
-          : kCivicPlanWorkCta,
-      variant: SfButtonVariant.line,
-      onPressed: _enCours == cible.id
+    final revue = civicRevueLabel(cible, maintenant);
+    return SfInfoCard(
+      civique: true,
+      icon: LucideIcons.rotateCcw,
+      title: cible.label,
+      meta: [cible.maitrise.label, if (revue != null) revue].join(' · '),
+      trailing: SfBadge(
+        geste == PlanNowGeste.debloquer
+            ? kCivicPlanLockedCta
+            : kCivicPlanWorkCta,
+        civique: true,
+      ),
+      onTap: _enCours == cible.id
           ? null
           : () => unawaited(geste == PlanNowGeste.debloquer
               ? _ouvrirOffre()
               : _lancer(CivicNowCible(cible))),
+    );
+  }
+}
+
+/// **Le hero rouge du Plan civique** (X8 A, maquette `.hero.red`) : les séries
+/// terminées, le pourcentage du parcours et sa barre — la même valeur que la
+/// carte « Ma progression », l'Accueil et la barre latérale web, par la
+/// fonction unique [avancementSeriesCivique]. Le cycle reste dans ses blocs.
+///
+/// États du bloc (brief §7) : squelette, erreur + « Réessayer ».
+class _HeroCivique extends ConsumerWidget {
+  const _HeroCivique();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tableau = ref.watch(dashboardProvider);
+    final themes = tableau.valueOrNull?.civique;
+    if (themes == null) {
+      if (tableau.hasError) {
+        return SfBlockError(
+          message: kModuleBlockError,
+          retryLabel: kModuleRetry,
+          onRetry: () => ref.invalidate(dashboardProvider),
+        );
+      }
+      return const SfBlockSkeleton(height: 172);
+    }
+    final avancement = avancementSeriesCivique(themes);
+    return SfHero(
+      civique: true,
+      label: kCivicPlanHeroLabel,
+      title: moduleCiviqueProgressMeta(avancement.terminees),
+      sub: kCivicPlanHeroSub,
+      stat: (
+        value: moduleCiviqueProgressValue(avancement.pourcentage),
+        label: kCivicPlanHeroStat,
+      ),
+      progress: avancement.pourcentage / 100,
+    );
+  }
+}
+
+/// **La carte « Examen blanc civique »** de « À faire maintenant » (maquette
+/// web `.action-card`, ramenée à une `.info-card` portrait) : le dernier score
+/// SERVI et son verdict face au seuil (`seuilAtteint`, `pointsManquants`
+/// servis), ou l'invitation au premier examen. Elle mène au segment Examens.
+///
+/// En `.info-card` cliquable, sans bouton — comme le web.
+class _ExamenBlancCivique extends ConsumerWidget {
+  const _ExamenBlancCivique();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lecture = ref.watch(progressionCiviqueProvider(false));
+    final progression = lecture.valueOrNull;
+    if (progression == null) {
+      if (lecture.hasError) {
+        return SfBlockError(
+          message: kModuleBlockError,
+          retryLabel: kModuleRetry,
+          onRetry: () => ref.invalidate(progressionCiviqueProvider(false)),
+        );
+      }
+      return const SfBlockSkeleton(height: 86, radius: AppRadii.lg);
+    }
+    final dernier = progression.global.dernier;
+    final verdict = progressionSeuilVerdict(dernier, progression.echelle.seuil);
+    return SfInfoCard(
+      civique: true,
+      icon: LucideIcons.clock,
+      code: kCivicPlanExamLabel,
+      title: kCivicPlanExamTitle,
+      meta: dernier == null
+          ? kCivicPlanExamEmpty
+          : [
+              civicPlanExamLastScore(
+                  progressionScore(dernier.score, dernier.max)),
+              if (verdict != null) verdict,
+            ].join(' · '),
+      trailing: const SfChevron(),
+      onTap: () => context.go(ModuleSegment.examens.path(civique: true)),
     );
   }
 }

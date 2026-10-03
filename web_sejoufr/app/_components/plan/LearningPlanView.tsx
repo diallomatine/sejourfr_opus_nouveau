@@ -5,42 +5,72 @@ import {useEffect, useState} from "react";
 import {
   ChevronRight,
   Clock3,
+  Map as MapIcon,
   Target,
   type LucideIcon,
 } from "lucide-react";
-import {ApiException, journeyApi, learningPlanApi} from "@/lib/api";
+import {
+  ApiException,
+  dashboardApi,
+  journeyApi,
+  learningPlanApi,
+  PROGRESS_CACHE_PREFIX,
+  progressApi,
+} from "@/lib/api";
 import {track} from "@/lib/analytics";
 import {usePlanRelecture} from "@/lib/use-plan-relecture";
 import {withTrafficSource} from "@/lib/traffic-source";
 import {useAuth} from "@/lib/auth-context";
-import {
-  PLAN_PROGRESS_LEVEL_UNKNOWN,
-  PLAN_STARTING,
-  planNowCard,
-} from "@/lib/plan-domain";
+import {PLAN_STARTING, planNowCard} from "@/lib/plan-domain";
 import {journeyTargetPathHref} from "@/lib/journey";
 import {PlanLinks} from "./PlanLinks";
 import {planHref} from "@/lib/module-switch";
 import {
+  ACCUEIL_BLOCK_ERROR,
+  ACCUEIL_RETRY,
+  accueilEpreuvesAuNiveau,
+  accueilTcfProgression,
+} from "@/lib/accueil";
+import {
+  MODULE_TCF_KICKER,
+  MODULE_VOIR_DETAIL,
+  PLAN_TCF_HERO_LABEL,
+  PLAN_TCF_TITLE,
+  planTcfChipActuel,
+  planTcfChipObjectif,
+  planTcfHeroStat,
+  planTcfHeroStatLabel,
+  planTcfHeroSub,
+  planTcfSubtitle,
+} from "@/lib/module-ecrans";
+import {progressionHref} from "@/lib/progression";
+import {type CachedData, useCachedData} from "@/lib/use-cached-data";
+import {
   canAccessModule,
+  type DashboardSummaryResponse,
   type JourneyDto,
   type LearningPlanDto,
-  niveauCecrlLabel,
-  type PlanCycleDto,
+  niveauCecrlShort,
+  type ProgressDto,
+  type TargetLevel,
 } from "@/lib/types";
 import {useTrafficSource} from "@/lib/use-traffic-source";
 import {useRouter} from "next/navigation";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {planUnlockHref} from "@/lib/plan-unlock";
 import {
+  Badge,
+  BlockError,
+  BlockSkeleton,
   Card,
   Cta,
-  GoalStrip,
+  Hero,
   NowCard,
   Pad,
+  PageHead,
   Section,
+  Split,
   Stack,
-  Top,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {planNowIcon} from "./PlanBits";
@@ -76,20 +106,16 @@ import {usePlanAssessment, usePlanExercise} from "./use-plan-exercise";
  *
  * 🛑 **Aucun CSS d'écran** : tout passe par `SejourKit`.
  *
- * ## Le palier desktop (2026-09-12)
+ * ## Navigation v2 (2026-10-03) — maquette `#tcf-plan`
  *
- * La mise en page vient de `grok_ecran/screenshots/plan-web.png` et de
- * `screens/plan-premium.tsx` / `plan-gratuit.tsx`. 🛑 **Aucun composant
- * nouveau** : ce sont les mêmes briques, dans deux classes de grille du kit
- * (`deskPair`, `deskGrid`) qui ne déclarent rien sous 960 px.
- *
- * - **abonné** (`SejourApp wide`, 1080 px) : en-tête, objectif en pleine
- *   largeur, puis le cycle en pleine largeur ;
- * - **gratuit** (`SejourApp sticky`, 980 px) : la maquette n'y met **aucune**
- *   paire. 🛑 C'est voulu : sur cet écran, « Débloquer mon plan » doit rester
- *   la seule action dominante, et mettre deux blocs côte à côte au-dessus
- *   d'elle remplirait l'espace de choses à faire au lieu de mener au
- *   déblocage.
+ * `PageHead` (pastilles « Niveau actuel » / « Objectif »), puis `Split` :
+ * colonne principale (carte Cycle, « À faire maintenant », jalon,
+ * « Priorités actuelles ») et colonne latérale (bandeau « Ma progression »,
+ * accès). Sous 1 180 px les deux colonnes s'empilent. ⚠️ **Le `GoalStrip`
+ * « départ → objectif » est retiré** : les pastilles de l'en-tête disent la
+ * même chose, sur l'autorité d'affichage du niveau (`estimatedTcfLevel`, celle
+ * de l'Accueil) — le palier de départ du cycle (`startingLevel`) en aurait été
+ * une seconde lecture, différente, au même endroit.
  */
 
 /* ------------------------------------------------------------------ racine */
@@ -150,7 +176,7 @@ export function LearningPlanView({diagnosticFait}: {diagnosticFait: boolean}) {
   }, [planShown, journeyRead, journeyId]);
 
   if (authStatus === "loading" || (Boolean(user) && loading)) {
-    return <Top kicker="Votre parcours personnalisé" title="Mon plan du jour" />;
+    return <TcfPlanSquelette cible={user?.targetLevel ?? null} />;
   }
 
   if (!user) {
@@ -188,11 +214,15 @@ export function LearningPlanView({diagnosticFait}: {diagnosticFait: boolean}) {
      « diagnostic obligatoire ». 🛑 **Et la carte « Affinez votre plan avec le
      diagnostic » n'est PAS sur le Plan** (2026-09-28) : elle ne vit que sur
      l'Accueil. Ici, « À faire maintenant », le jalon éventuel et le cycle. */
-  const abonne = canAccessModule(user, "TCF");
-
-  return abonne
-    ? <TcfPlanPremium plan={plan} journey={journey} diagnosticFait={diagnosticFait} />
-    : <TcfPlanFree plan={plan} journey={journey} diagnosticFait={diagnosticFait} />;
+  return (
+    <TcfPlan
+      plan={plan}
+      journey={journey}
+      diagnosticFait={diagnosticFait}
+      free={!canAccessModule(user, "TCF")}
+      cible={user.targetLevel ?? null}
+    />
+  );
 }
 
 function PlanMessage({title, text, cta, href, alert}: {
@@ -204,7 +234,9 @@ function PlanMessage({title, text, cta, href, alert}: {
 }) {
   return (
     <>
-      <Top kicker="Votre parcours personnalisé" title="Mon plan du jour" />
+      <Pad>
+        <PageHead kicker={MODULE_TCF_KICKER} title={PLAN_TCF_TITLE} />
+      </Pad>
       <Section>
         <Pad>
           <Stack>
@@ -220,131 +252,191 @@ function PlanMessage({title, text, cta, href, alert}: {
   );
 }
 
-/* ----------------------------------------------------------------- abonné */
-
-function TcfPlanPremium({plan, journey, diagnosticFait}: {
-  plan: LearningPlanDto;
-  journey: JourneyDto | null;
-  diagnosticFait: boolean;
-}) {
-  const objective = plan.cycle.objectiveLevel;
-
+/** Le chargement : l'en-tête tout de suite, chaque bloc à ses dimensions. */
+function TcfPlanSquelette({cible}: {cible: TargetLevel | null}) {
   return (
     <>
-      <Top
-        kicker={objective ? `Votre parcours personnalisé vers ${objective}` : "Votre parcours personnalisé"}
-        title="Mon plan du jour"
-      />
-
       <Pad>
-        <CycleGoal cycle={plan.cycle} />
+        <PageHead kicker={MODULE_TCF_KICKER} title={PLAN_TCF_TITLE} subtitle={planTcfSubtitle(cible)} />
       </Pad>
-
-      <ActionMaintenant plan={plan} journey={journey} />
-
-      {/* 🛑 **Le jalon d'examen complet** (D-68) : sous « À faire maintenant »,
-          au-dessus du cycle — servi, jamais décidé ici. */}
-      <ExamenCompletJalon journey={journey} module="TCF" />
-
-      {/* 🛑 **Le CYCLE remplace la file plate** (D-12 / D-22, 2026-09-18) : un
-          bloc par épreuve, l'examen en fin de bloc, et la fin de cycle avec ses
-          deux issues. Il prend **toute la largeur** — quatre accordéons dans une
-          demi-colonne de tableau de bord ne se lisent plus. */}
-      <PlanCycleSection journey={journey} plan={plan} />
-
-      {/* ⚠️ Bloc conservé hors maquette : il porte une information qu'elle ne
-          couvre pas — un examen blanc mérité. */}
-      {plan.milestone && (
-        <PlanMilestoneCard milestone={plan.milestone} journeyId={journey?.journeyId ?? null} />
-      )}
-
-      <AllerPlusLoin diagnosticFait={diagnosticFait} />
-
-      <p className={sejourStyles.footNote}>
-        Estimation d&apos;entraînement SejourFR, non officielle : elle situe votre travail,
-        elle ne remplace pas le résultat du TCF.
-      </p>
-    </>
-  );
-}
-
-/* ---------------------------------------------------------------- gratuit */
-
-function TcfPlanFree({plan, journey, diagnosticFait}: {
-  plan: LearningPlanDto;
-  journey: JourneyDto | null;
-  diagnosticFait: boolean;
-}) {
-  const objective = plan.cycle.objectiveLevel;
-  return (
-    <>
-      <Top
-        kicker="Votre parcours personnalisé"
-        title={objective ? `Mon plan du jour ${objective}` : "Mon plan du jour"}
-      />
-
-      <Pad>
-        <CycleGoal cycle={plan.cycle} />
-      </Pad>
-
-      <ActionMaintenant plan={plan} journey={journey} free />
-
-      {/* Le jalon ne porte aucun verrou (D-68) : le cycle d'examens qu'il ouvre
-          porte, lui, les verrous d'accès servis de chaque examen. */}
-      <ExamenCompletJalon journey={journey} module="TCF" />
-
-      {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses quatre blocs et
-          toutes leurs étapes sont affichés à leur place, avec leur cadenas. Le
-          masquer priverait le candidat de l'information la plus utile qu'il
-          possède — c'est la contradiction #1 du dépôt, tranchée le 2026-08-21.
-          Le bouton « Débloquer mon plan » est **juste en dessous**. */}
-      <PlanCycleSection journey={journey} plan={plan} />
-
-      {/* ✅ **Visible aussi sans accès** (demande du propriétaire,
-          2026-09-20) : ce sont deux **constats** — ce qui a été mesuré, ce qui
-          a été fait — et rien ne s'y travaille. Les en priver n'ouvrait aucun
-          droit, ça retirait la lecture de son propre parcours à celui qui en a
-          le plus besoin. La barre « Débloquer mon plan » reste la seule
-          **action** dominante de l'écran. */}
-      <AllerPlusLoin diagnosticFait={diagnosticFait} />
-
-      <PlanPaywall
-        module="TCF"
-        cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
+      <Split
+        main={
+          <Pad className={sejourStyles.pageBody}>
+            <Stack>
+              <BlockSkeleton height={154} />
+              <BlockSkeleton height={96} />
+              <BlockSkeleton height={280} />
+            </Stack>
+          </Pad>
+        }
+        side={
+          <Pad className={sejourStyles.pageBody}>
+            <BlockSkeleton height={220} radius={30} />
+          </Pad>
+        }
       />
     </>
   );
 }
 
-/* ------------------------------------------------ objectif et niveau visé */
+/* ------------------------------------------------------------- l'écran */
 
 /**
- * 🛑 `objectiveLevel` est **nullable** — on n'écrit jamais « B2 » à la place
- * d'une démarche non déclarée. Le bandeau montre alors le **palier que le cycle
- * construit**, qui est servi, et propose de fixer l'objectif.
+ * **Le Plan TCF, abonné comme gratuit** — Navigation v2 (maquette `#tcf-plan`).
  *
- * 🛑 **Le niveau passe par `niveauCecrlLabel`, jamais le code brut** : le Plan
- * par défaut d'un compte sans diagnostic sert `startingLevel = A1_NON_ATTEINT`,
- * qui s'affichait tel quel. `null` reste « inconnu », distinct de
- * « A1 non atteint ». Miroir de `NiveauCecrl.displayName` côté mobile.
+ * En-tête (niveau actuel servi, objectif `AuthenticatedUser.targetLevel` — X13),
+ * puis `Split` : à gauche la carte Cycle, « À faire maintenant », le jalon et
+ * « Priorités actuelles » (le cycle par blocs), le jalon d'examen mérité ; à
+ * droite le bandeau « Ma progression » et les accès « Mes cycles » / « Mon
+ * diagnostic ». « Conseil du plan » de la maquette est **masqué** : rien ne
+ * le sert.
+ *
+ * 🛑 **`free` ne retire que des GESTES** (contradiction #1) : un compte sans
+ * accès lit exactement le même plan, cadenas compris, et la barre « Débloquer
+ * mon plan » reste la seule action dominante de l'écran.
  */
-function CycleGoal({cycle}: {cycle: PlanCycleDto}) {
+function TcfPlan({plan, journey, diagnosticFait, free, cible}: {
+  plan: LearningPlanDto;
+  journey: JourneyDto | null;
+  diagnosticFait: boolean;
+  free: boolean;
+  cible: TargetLevel | null;
+}) {
+  /* Les lectures du bandeau et de l'en-tête sont celles, EN CACHE, de
+     l'Accueil et de la barre latérale : aucun appel propre à cet écran. */
+  const summary = useCachedData<DashboardSummaryResponse>("plan:dashboard", () => dashboardApi.summaryCached());
+  const progres = useCachedData<ProgressDto>(`${PROGRESS_CACHE_PREFIX}current`, () => progressApi.get());
+  const objective = plan.cycle.objectiveLevel;
+
+  /* `null` = inconnu ⇒ « — » ; pendant la lecture, la pastille attend. */
+  const niveau = summary.data?.estimatedTcfLevel ?? null;
+  const chipActuel = summary.data !== undefined || summary.error !== null
+    ? planTcfChipActuel(niveau ? niveauCecrlShort(niveau) : null)
+    : null;
+
   return (
     <>
-      <GoalStrip
-        current={cycle.startingLevel
-          ? niveauCecrlLabel(cycle.startingLevel)
-          : PLAN_PROGRESS_LEVEL_UNKNOWN}
-        goalLabel={cycle.objectiveLevel ? "Objectif" : "Palier en cours"}
-        goal={cycle.objectiveLevel ?? cycle.targetLevel}
+      <Pad>
+        <PageHead
+          kicker={MODULE_TCF_KICKER}
+          title={PLAN_TCF_TITLE}
+          subtitle={planTcfSubtitle(cible)}
+          aside={
+            <>
+              {chipActuel && <Badge>{chipActuel}</Badge>}
+              {cible && <Badge tone="success">{planTcfChipObjectif(cible)}</Badge>}
+            </>
+          }
+        />
+        {/* 🛑 Sans démarche déclarée, aucun objectif n'est deviné : le lien
+            propose de le fixer (le Plan ne l'exige pas). */}
+        {!cible && (
+          <Link className={sejourStyles.link} href={journeyTargetPathHref(planHref("TCF"))}>
+            <Target size={15} aria-hidden /> Choisir ma démarche pour fixer mon objectif
+            <ChevronRight size={15} aria-hidden />
+          </Link>
+        )}
+      </Pad>
+
+      <Split
+        main={
+          <>
+            {/* 🛑 **Le cycle reste ENTIER, même sans accès** : ses blocs et
+                toutes leurs étapes sont affichés à leur place, avec leur
+                cadenas — c'est la contradiction #1 du dépôt, tranchée le
+                2026-08-21. Ordre (parité mobile) : carte Cycle → « À faire
+                maintenant » → jalon → « Priorités actuelles ». */}
+            <PlanCycleSection
+              journey={journey}
+              plan={plan}
+              avantPriorites={
+                <>
+                  <ActionMaintenant plan={plan} journey={journey} free={free} />
+                  {/* 🛑 **Le jalon d'examen complet** (D-68) : servi, jamais
+                      décidé ici. Il ne porte aucun verrou : le cycle d'examens
+                      qu'il ouvre porte les verrous d'accès servis. */}
+                  <ExamenCompletJalon journey={journey} module="TCF" />
+                </>
+              }
+            />
+
+            {/* ⚠️ Bloc conservé hors maquette : il porte une information
+                qu'elle ne couvre pas — un examen blanc mérité. */}
+            {!free && plan.milestone && (
+              <PlanMilestoneCard milestone={plan.milestone} journeyId={journey?.journeyId ?? null} />
+            )}
+          </>
+        }
+        side={
+          <>
+            <Pad>
+              <ProgressionHero
+                cible={cible}
+                summary={summary}
+                progres={progres}
+              />
+            </Pad>
+            {/* ✅ **Visible aussi sans accès** (demande du propriétaire,
+                2026-09-20) : ce sont deux **constats**, rien ne s'y travaille. */}
+            <AllerPlusLoin diagnosticFait={diagnosticFait} />
+          </>
+        }
       />
-      {!cycle.objectiveLevel && (
-        <Link className={sejourStyles.link} href={journeyTargetPathHref(planHref("TCF"))}>
-          <Target size={15} aria-hidden /> Choisir ma démarche pour fixer mon objectif
-          <ChevronRight size={15} aria-hidden />
-        </Link>
+
+      {!free && (
+        <p className={sejourStyles.footNote}>
+          Estimation d&apos;entraînement SejourFR, non officielle : elle situe votre travail,
+          elle ne remplace pas le résultat du TCF.
+        </p>
+      )}
+
+      {free && (
+        <PlanPaywall
+          module="TCF"
+          cta={objective ? `Débloquer mon plan ${objective}` : "Débloquer mon plan"}
+        />
       )}
     </>
+  );
+}
+
+/* ------------------------------------------------ « Ma progression » */
+
+/**
+ * **Le bandeau « Ma progression »** (`.hero` de la maquette) : niveau actuel
+ * estimé → objectif, `{n}/{nbEpreuves} épreuves au {cible}` (statut servi
+ * `TARGET_REACHED` sur une épreuve mesurée). Mêmes faits et mêmes fonctions que
+ * la carte d'objectif de l'Accueil. ⚠️ **Pas de barre ici** : l'avancement du
+ * cycle (D4-B) est déjà la barre de la carte Cycle, juste à gauche — même fait,
+ * et c'est là que le mobile le porte.
+ *
+ * 🛑 Le compteur d'épreuves ne se pose pas tant que la progression n'est pas
+ * lue : jamais un « 0/4 » inventé.
+ */
+function ProgressionHero({cible, summary, progres}: {
+  cible: TargetLevel | null;
+  summary: CachedData<DashboardSummaryResponse>;
+  progres: CachedData<ProgressDto>;
+}) {
+  if (summary.loading) return <BlockSkeleton height={220} radius={30} />;
+  if (summary.error !== null || !summary.data) {
+    return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />;
+  }
+  return (
+    <Hero
+      module="tcf"
+      icon={<MapIcon />}
+      label={PLAN_TCF_HERO_LABEL}
+      title={accueilTcfProgression(summary.data.estimatedTcfLevel, cible)}
+      sub={planTcfHeroSub(cible)}
+      stat={progres.data
+        ? {
+          value: planTcfHeroStat(accueilEpreuvesAuNiveau(progres.data.tcf.epreuves)),
+          label: planTcfHeroStatLabel(cible),
+        }
+        : null}
+      cta={{label: MODULE_VOIR_DETAIL, href: progressionHref("TCF")}}
+    />
   );
 }
 

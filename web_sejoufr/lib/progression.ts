@@ -370,7 +370,6 @@ export const EPREUVE_NOTE_20_PORTEE =
    ====================================================================== */
 
 export const TCF_TITLE = "Progression globale";
-export const TCF_LEAD = "Suivez l'évolution de vos résultats sur toutes les épreuves du TCF.";
 export const TCF_HERO_LABEL = "Niveau global estimé";
 export const TCF_STAT_NOMBRE = "Examens blancs";
 export const TCF_STAT_MEILLEUR = "Meilleur résultat";
@@ -437,7 +436,6 @@ export function tcfEpreuveNom(epreuve: EpreuveType): string {
    ====================================================================== */
 
 export const CIVIQUE_TITLE = "Examen civique";
-export const CIVIQUE_LEAD = "Suivez votre progression globale et celle de chaque thème.";
 export const CIVIQUE_HERO_LABEL = "Dernier résultat global";
 export const CIVIQUE_STAT_NOMBRE = "Examens globaux";
 export const CIVIQUE_STAT_MEILLEUR = "Meilleur résultat";
@@ -498,4 +496,79 @@ export function themeMeilleurSub(mesure: ProgressionMesureDto | null): string | 
     const jour = progressionDateJour(mesure.date);
     const etat = progressionEtatLabel(mesure.etat);
     return etat ? `${etat} · ${jour}` : jour;
+}
+
+/* ======================================================================
+   NAVIGATION V2 (phase 4b, 2026-10-03) — blocs de la maquette
+   `docs/redesign/sejourfr-navigation-web.html` (`#tcf-progression`,
+   `#civique-progression`) posés en tête des deux écrans globaux. Textes
+   éditoriaux repris tels quels (R8) ; toute valeur est servie (ou agrégée par
+   `avancementSeriesCivique`), jamais écrite ici. Miroir mot pour mot du bloc
+   du même nom de `progression_labels.dart`.
+   ====================================================================== */
+
+/** Le titre des deux écrans globaux. */
+export const PROGRESSION_TITRE = "Ma progression";
+
+/** « Votre niveau actuel et le chemin vers l'objectif B2. » — le palier visé
+ *  est servi ; sans lui, la phrase ne nomme aucun palier. */
+export function tcfProgressionLead(cible: string | null | undefined): string {
+    return cible
+        ? `Votre niveau actuel et le chemin vers l'objectif ${cible}.`
+        : "Votre niveau actuel et le chemin vers votre objectif.";
+}
+
+export const CIVIQUE_PROGRESSION_LEAD = "Votre avancement par thème et vos résultats aux examens blancs.";
+
+/* ---------------------------------------------------------------- TCF */
+
+export const TCF_OBJECTIF_GLOBAL_LABEL = "Objectif global";
+export const TCF_NIVEAU_ACTUEL_LABEL = "Niveau actuel";
+export const TCF_OBJECTIF_LABEL = "Objectif";
+export const TCF_PAR_COMPETENCE_TITLE = "Par compétence";
+export const TCF_EVOLUTION_TITLE = "Évolution";
+export const TCF_DERNIERS_REPERES_LABEL = "Derniers repères";
+
+/** « → B2 » en bout de ligne d'une épreuve sous l'objectif. */
+export function tcfVersCible(cible: string): string {
+    return `→ ${cible}`;
+}
+
+/** « Meilleur niveau observé : B1 » — le palier du meilleur examen complet
+ *  non partiel, servi (D7). */
+export function tcfMeilleurNiveauObserve(niveau: string): string {
+    return `Meilleur niveau observé : ${niveau}`;
+}
+
+/** Les repères montrés par la frise : plafond d'AFFICHAGE (la maquette en
+ *  montre quatre), jamais un budget de lecture. */
+export const PROGRESSION_REPERES_MAX = 4;
+
+/* ------------------------------------------------------------ civique */
+
+export const CIVIQUE_MAITRISE_LABEL = "Maîtrise globale";
+export const CIVIQUE_DU_PARCOURS = "du parcours réalisé";
+export const CIVIQUE_PAR_THEME_TITLE = "Par thème";
+export const CIVIQUE_EXAMENS_BLANCS_TITLE = "Examens blancs";
+export const CIVIQUE_EVOLUTION_SCORE_LABEL = "Évolution du score";
+
+/** « séries terminées » / « série terminée » — le libellé sous le nombre. */
+export function civiqueSeriesTermineesLabel(terminees: number): string {
+    return terminees > 1 ? "séries terminées" : "série terminée";
+}
+
+/** « 3/5 séries · Principes et valeurs » — compteurs servis du thème. */
+export function civiqueThemeCaption(faites: number, total: number, nom: string | null): string {
+    const compte = `${faites}/${total} séries`;
+    return nom ? `${compte} · ${nom}` : compte;
+}
+
+/** « Meilleur score : {taux} », et la suite seulement si le seuil servi est
+ *  atteint (`seuilAtteint`, jamais une comparaison au seuil ici). */
+export function civiqueMeilleurScore(meilleur: ProgressionMesureDto | null): string | null {
+    const taux = progressionTaux(meilleur?.taux ?? null);
+    if (taux == null) return null;
+    return meilleur?.seuilAtteint === true
+        ? `Meilleur score : ${taux} · vous êtes au-dessus du seuil de réussite.`
+        : `Meilleur score : ${taux}`;
 }

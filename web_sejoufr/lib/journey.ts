@@ -505,6 +505,9 @@ export function journeyBlocRailState(status: JourneyBlocStatus): RailState {
  * toujours « Actualiser mon plan » — `cycle.finDeCycle`, qui la servait, est
  * supprimé avec son autorité.
  */
+/** « Priorités actuelles » — le cycle en blocs (Navigation v2). Miroir : `kJourneyPrioritesTitle`. */
+export const JOURNEY_PRIORITES_TITLE = "Priorités actuelles";
+
 export const JOURNEY_RAIL_END_EYEBROW = "Fin du cycle";
 export const JOURNEY_RAIL_END_TITLE = "Actualiser mon plan";
 

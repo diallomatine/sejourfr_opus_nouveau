@@ -290,6 +290,20 @@ const List<PlanModuleTarget> kPassModulesInOrder = [
   PlanModuleTarget.civique,
 ];
 
+/// L'accès d'un compte sans pass (Profil). Miroir web : `PASS_FREE_NAME`.
+const String kPassFreeName = 'Découverte';
+
+/// **Le nom de l'accès d'un compte** — « Pass Intégral », « Pass Civique » ou
+/// « Découverte » —, déclaré une seule fois (X12, Navigation v2). [integral]
+/// vient d'un fait servi (`moduleAccess` Intégral, ou l'accès TCF, qu'ouvre
+/// seul l'Intégral). Miroir web : `passAccessName` (`lib/passes.ts`).
+String passAccessName({required bool premium, required bool integral}) {
+  if (!premium) return kPassFreeName;
+  final module =
+      integral ? PlanModuleTarget.integral : PlanModuleTarget.civique;
+  return 'Pass ${module.label}';
+}
+
 /// Dérive le `planCode` backend à partir d'un module + d'une périodicité.
 /// Doit rester aligné avec la table `plans` côté backend (migration V106).
 String planCodeFor(PlanModuleTarget module, PlanPeriodicity periodicity) {

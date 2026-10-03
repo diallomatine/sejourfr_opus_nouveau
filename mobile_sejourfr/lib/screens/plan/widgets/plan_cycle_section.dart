@@ -9,8 +9,11 @@ import '../../../core/models/diagnostic_models.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/journey_models.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/router/shell_navigation.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/dashboard_targets.dart';
 import '../../../core/widgets/sejour/sejour_kit.dart';
+import '../../module/module_labels.dart';
 import '../../module_detail/civique_theme_exam_launcher.dart';
 import '../journey_labels.dart';
 import '../learning_plan_provider.dart';
@@ -68,7 +71,13 @@ class PlanCycleSection extends ConsumerStatefulWidget {
     required this.plan,
     required this.journey,
     this.module = AppModule.tcf,
+    this.carteDeCycle = true,
   });
+
+  /// `false` ⇒ la carte « Cycle » ([PlanCycleCard]) est posée ailleurs par
+  /// l'écran — le Plan TCF l'ouvre, comme la maquette (Navigation v2) —, la
+  /// section ne rend plus que « Priorités actuelles ».
+  final bool carteDeCycle;
 
   /// Le Plan TCF, **seulement** pour résoudre l'action d'une étape TCF.
   /// 🛑 `null` côté civique : l'action y est la série sur l'**unité** servie, et
@@ -93,6 +102,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
   /// qu'il a touché un en-tête, c'est **son** choix qui vaut — y compris « tout
   /// replié » ([_choix] à `null`).
   bool _aChoisi = false;
+
   /// Le CODE du bloc ouvert, jamais un `EpreuveType` : le bloc est servi
   /// et sa clé vaut pour une épreuve TCF comme pour une thématique (D-47).
   String? _choix;
@@ -145,7 +155,8 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
                     kJourneyUpToDateText,
                     style: AppFonts.ui(size: 14, color: AppColors.inkSoft),
                   ),
-                  if (parcours.suggestion == JourneySuggestionType.mockExam) ...[
+                  if (parcours.suggestion ==
+                      JourneySuggestionType.mockExam) ...[
                     const SizedBox(height: 8),
                     Text(
                       kJourneySuggestionMockExam,
@@ -181,24 +192,29 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     final ouvert = _aChoisi ? _choix : (termine ? null : premier.bloc.code);
     final nextStep = parcours.nextStep;
 
+    final civique = widget.module == AppModule.civique;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.carteDeCycle)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
+            child: PlanCycleCard(journey: parcours, module: widget.module),
+          ),
+        // « Priorités actuelles » (Navigation v2) : c'est le cycle EXISTANT,
+        // restylé en `.info-card` — pas une liste de plus (brief §5).
         SfSection(
-          title: journeyTitle(parcours.objectif),
+          title: kJourneyPrioritesTitle,
+          lead: true,
+          // Le lien « Tout l'entraînement » du web (même destination : le
+          // segment Entraînement du module).
+          action: SfSectionAction(
+            label: kPlanPrioritesAction,
+            onTap: () => context.go(
+                ModuleSegment.entrainement.path(civique: civique)),
+          ),
           child: SfStack(
             children: [
-              SfCycleProgress(
-                label: journeyCycleLabel(cycle),
-                done: cycle.etapesTerminees,
-                total: cycle.etapesTotal,
-                badge: journeyCycleBadge(cycle),
-                hint: journeyCycleHint(cycle),
-                // 🛑 **Servi, jamais déduit de `done == total`** : un cycle peut
-                // afficher « 8 sur 8 » sans être clos côté serveur.
-                complete: cycle.complete,
-              ),
-
               // 🛑 **L'ordre servi est l'autorité** : aucun tri, aucun filtre —
               // les quatre épreuves sont là, même celles que la file n'a pas
               // encore peuplées. Le rond de chaque bloc traduit son statut
@@ -209,6 +225,8 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
                     SfCycleRailStep(
                       state: journeyBlocRailState(bloc.status),
                       child: SfBlocAccordion(
+                        icon: dashboardCategoryIcon(bloc.bloc.code),
+                        civique: civique,
                         mark: journeyBlocMark(bloc.bloc),
                         title: journeyBlocTitle(bloc.bloc),
                         meta: bloc.meta,
@@ -234,7 +252,8 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
                     note: journeyPrioritesIdentifiees(cycle),
                     remaining: journeyRailEndRemaining(cycle),
                     reached: termine && nextStep != null,
-                    child: termine && nextStep != null ? _finDeCycle(cycle) : null,
+                    child:
+                        termine && nextStep != null ? _finDeCycle(cycle) : null,
                   ),
                 ],
               ),
@@ -307,6 +326,7 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
         ? _gesteDe(exam)
         : null;
     return SfExamStepAction(
+      civique: widget.module == AppModule.civique,
       title: kJourneyExamTitle,
       subtitle: kJourneyExamSubtitle,
       trailing: lancable
@@ -416,7 +436,6 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     final action = planStepAction(plan, etape);
     return action != null && planStepActionLocked(action);
   }
-
 
   /// 🛑 **L'action d'une ligne passe par le MÊME chemin que la carte « À faire
   /// maintenant »** : [planStepAction] résout avec les deux autorités de
@@ -560,5 +579,42 @@ class _PlanCycleSectionState extends ConsumerState<PlanCycleSection> {
     } finally {
       if (mounted) setState(() => _occupe = false);
     }
+  }
+}
+
+/// **La carte « Cycle »** (Navigation v2, `.card.card-pad` de « Mon plan ») :
+/// « Cycle 2 », « Votre parcours vers le B2 », le compteur servi, la barre et
+/// la phrase du cycle — tout est **servi** (`JourneyCycle`), mis en mots par
+/// `journey_labels.dart`.
+///
+/// Rien à rendre sans cycle ouvert (parcours non lu, sans objectif, à jour) :
+/// [PlanCycleSection] porte alors l'état du parcours.
+class PlanCycleCard extends StatelessWidget {
+  const PlanCycleCard({super.key, required this.journey, required this.module});
+
+  final Journey journey;
+  final AppModule module;
+
+  @override
+  Widget build(BuildContext context) {
+    final cycle = journey.cycle;
+    if (cycle == null ||
+        journey.blocs.isEmpty ||
+        journey.state == JourneyState.needsObjective ||
+        journey.state == JourneyState.upToDate) {
+      return const SizedBox.shrink();
+    }
+    return SfCycleProgress(
+      title: journeyTitle(journey.objectif),
+      civique: module == AppModule.civique,
+      label: journeyCycleLabel(cycle),
+      done: cycle.etapesTerminees,
+      total: cycle.etapesTotal,
+      badge: journeyCycleBadge(cycle),
+      hint: journeyCycleHint(cycle),
+      // 🛑 **Servi, jamais déduit de `done == total`** : un cycle peut
+      // afficher « 8 sur 8 » sans être clos côté serveur.
+      complete: cycle.complete,
+    );
   }
 }

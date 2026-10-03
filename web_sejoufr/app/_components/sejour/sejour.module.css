@@ -523,22 +523,7 @@
   font-size: 16px;
 }
 
-/* ---------- Lignes d'épreuve ---------- */
-
-.exam {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  background: #fff;
-  border-radius: var(--sf-radius-md);
-  box-shadow: var(--sf-shadow-border);
-  padding: 11px 12px;
-}
-
-.exam.simple {
-  grid-template-columns: 40px 1fr;
-}
+/* ---------- Pictogramme d'une `NoteCard` ---------- */
 
 .examIco {
   width: 40px;
@@ -549,33 +534,6 @@
   background: var(--color-blue-light);
   color: var(--color-blue);
   flex: 0 0 auto;
-}
-
-.exam b {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-
-.exam small {
-  display: block;
-  margin-top: 1px;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.examEnd {
-  text-align: right;
-}
-
-.lvlChip {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 640;
-  letter-spacing: -0.03em;
-  color: var(--color-blue);
-  line-height: 1;
 }
 
 .status {
@@ -605,78 +563,7 @@
   color: var(--color-muted);
 }
 
-/* ---------- Une épreuve / un thème sur Réviser ---------- */
-
-.epreuve {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 40px;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-  min-height: 76px;
-  padding: 14px;
-  background: #fff;
-  border: 0;
-  border-radius: var(--sf-radius-lg);
-  box-shadow: var(--sf-shadow-border);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: transform var(--motion-quick, 120ms) ease-out;
-}
-
-.epreuve:active {
-  transform: scale(0.99);
-}
-
-.epreuve:focus-visible {
-  outline: 2px solid var(--color-blue);
-  outline-offset: 3px;
-}
-
-.epreuveIco {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: var(--color-blue-soft);
-  color: var(--color-blue);
-}
-
-.epreuveBody {
-  min-width: 0;
-}
-
-.epreuveBody b {
-  display: block;
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-}
-
-.epreuveBody span {
-  display: block;
-  margin-top: 3px;
-  font-size: 12.5px;
-  color: var(--color-muted);
-  line-height: 1.35;
-}
-
-/* Le compteur : c'est un nombre, il se lit en chiffres alignés. */
-.epreuveMeta {
-  font-weight: 700;
-  color: var(--color-ink-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.epreuveEnd {
-  display: grid;
-  place-items: center;
-  color: var(--color-muted-2);
-}
+/* ---------- Anneau de couverture ---------- */
 
 .ring {
   flex: 0 0 auto;
@@ -774,6 +661,26 @@
 
 .btnGhost:hover {
   background: var(--color-blue-dark);
+}
+
+.btnModTcf {
+  background: var(--color-module-tcf);
+  box-shadow: var(--sf-shadow-module-tcf);
+}
+
+.btnModTcf:hover {
+  background: var(--color-module-tcf-dark);
+}
+
+/* Le CTA d'un MODULE (Navigation v2, X1) : peint de la couleur du module.
+   Miroir Flutter : `SfButtonVariant.tcf` / `.civique`. */
+.btnModCivique {
+  background: var(--color-module-civique);
+  box-shadow: var(--sf-shadow-module-civique);
+}
+
+.btnModCivique:hover {
+  background: var(--color-module-civique-dark);
 }
 
 .btnLine {
@@ -2806,6 +2713,17 @@
   background: var(--color-blue-dark);
 }
 
+/* Le bouton d'un module (Navigation v2) : la couleur du module porteur. */
+.examAction.modTcf .examActionBtn:not(:disabled),
+.examAction.modCivique .examActionBtn:not(:disabled) {
+  background: var(--mod);
+}
+
+.examAction.modTcf .examActionBtn:hover:not(:disabled),
+.examAction.modCivique .examActionBtn:hover:not(:disabled) {
+  background: var(--mod-dark);
+}
+
 .examActionBtn:focus-visible {
   outline: 2px solid var(--color-blue);
   outline-offset: 2px;
@@ -2976,47 +2894,7 @@
   }
 }
 
-/* ---------- Le bandeau de tête d'un écran d'archive ---------- */
-
-.heroBanner {
-  position: relative;
-  overflow: hidden;
-  border-radius: 22px;
-  padding: 22px 18px;
-  color: white;
-  background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-  box-shadow: var(--sf-shadow-lift);
-}
-
-/* L'œil-de-bœuf du coin, comme `.hero` dans la maquette. */
-.heroBanner::after {
-  content: "";
-  position: absolute;
-  right: -34px;
-  top: -34px;
-  width: 132px;
-  height: 132px;
-  border-radius: 50%;
-  border: 20px solid color-mix(in srgb, white 6%, transparent);
-  pointer-events: none;
-}
-
-.heroBanner > * {
-  position: relative;
-  z-index: 1;
-}
-
-.heroEyebrow {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 0;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.075em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, white 74%, transparent);
-}
+/* ---------- La pastille rouge d'un œil-de-bœuf (`ProgressIntro`) ---------- */
 
 .heroDot {
   flex: 0 0 auto;
@@ -3025,40 +2903,6 @@
   border-radius: 50%;
   background: var(--color-red);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-red) 16%, transparent);
-}
-
-.heroTitle {
-  margin: 10px 0 8px;
-  max-width: 24ch;
-  font-family: var(--font-display);
-  font-size: 25px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-
-.heroText {
-  margin: 0;
-  max-width: 42ch;
-  font-size: 14px;
-  line-height: 1.5;
-  color: color-mix(in srgb, white 80%, transparent);
-}
-
-.heroBody {
-  margin-top: 18px;
-}
-
-/* ⚠️ Palier desktop : le bandeau respire, rien d'autre ne change. Une media
-   query n'est pas une primitive — aucun miroir Flutter. */
-@media (min-width: 960px) {
-  .heroBanner {
-    padding: 28px 26px;
-  }
-
-  .heroTitle {
-    font-size: 30px;
-  }
 }
 
 /* ============================================================================
@@ -4709,24 +4553,6 @@ a.pRow:focus-visible {
   color: var(--color-muted);
 }
 
-.actionBadge {
-  flex: 0 0 auto;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 26px;
-  padding: 0 9px;
-  border-radius: var(--sf-radius-pill);
-  background: var(--mod-light);
-  color: var(--mod);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
 .actionNote {
   margin: 0;
   font-size: 13px;
@@ -5126,4 +4952,1054 @@ a.pRow:focus-visible {
 .blockErrorRetry:focus-visible {
   outline: 2px solid var(--color-blue);
   outline-offset: 2px;
+}
+
+/* ==========================================================================
+   NAVIGATION V2 — PRIMITIVES DES ÉCRANS DE MODULE (phase 4a, 2026-10-03)
+
+   Maquette : `docs/redesign/sejourfr-navigation-web.html` (`.hero`,
+   `.info-card`, `.metric`, `.level-row`, `.timeline`, `.theme-card`, `.ring`,
+   `.tip-card`, `.exam-row`, `.badge`, `.cta.soft|ghost-*`, `.split`,
+   `.grid-2`, `.grid-4`). Géométrie de la maquette, couleurs = tokens de
+   module (`--mod*`, posées par `.modTcf` / `.modCivique`) et tokens d'état.
+   AUCUN hex. Graisses 850/900 → 800 (max Jakarta). Rayons hors échelle
+   arrondis au token voisin (13/14 px → `--sf-radius-sm|md`).
+
+   Primitives : `Badge`, `Hero`, `InfoCard`, `Metric`, `LevelList` +
+   `LevelRow`, `Timeline`, `ThemeCard`, `Ring` (variante module),
+   `TipCard`, `ProgressionHead`, `ExamRow`, `Split`, `Grid`. Miroirs
+   Flutter `Sf…` (`sejour_kit.dart`), sauf `Split` / `Grid` (mise en page).
+   ========================================================================== */
+
+/* ---------- Tons d'état SERVIS (jamais déduits d'un nombre) ---------- */
+
+.toneSuccess {
+  --tone: var(--color-green);
+  --tone-ink: var(--color-green-dark);
+  --tone-soft: var(--color-green-light);
+}
+
+.toneWarning {
+  --tone: var(--color-amber);
+  --tone-ink: var(--color-amber-dark);
+  --tone-soft: var(--color-amber-light);
+}
+
+.toneDanger {
+  --tone: var(--color-red);
+  --tone-ink: var(--color-red-dark);
+  --tone-soft: var(--color-red-light);
+}
+
+/* Le « non mesuré » : ni rassurant, ni alarmant. */
+.toneNeutral {
+  --tone: var(--color-muted-2);
+  --tone-ink: var(--color-muted);
+  --tone-soft: var(--color-paper-2);
+}
+
+.stateDot {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--tone, var(--color-muted-2));
+}
+
+/* ---------- CTA de module : variantes douces (`.cta.soft`, `.cta.ghost-*`) ---------- */
+
+.modCta.isSoft {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  box-shadow: none;
+}
+
+.modCta.isGhost {
+  background: var(--mod-light);
+  color: var(--mod);
+  box-shadow: none;
+}
+
+/* ---------- Une ligne / carte cliquable (lien ou bouton) ---------- */
+
+.isPressable {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.isPressable:focus-visible {
+  outline: 2px solid var(--mod, var(--color-blue));
+  outline-offset: 2px;
+}
+
+/* ---------- Badge — `.badge` ---------- */
+
+.modBadge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--mod-light);
+  color: var(--mod);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.modBadge.toneSuccess,
+.modBadge.toneWarning,
+.modBadge.toneDanger,
+.modBadge.toneNeutral {
+  background: var(--tone-soft);
+  color: var(--tone-ink);
+}
+
+.modBadge svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.6;
+}
+
+/* ---------- Pictogramme — `.iconbox.soft` / `.iconbox.blue|red` ---------- */
+
+.iconBox {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--sf-radius-md);
+  background: var(--mod-light);
+  color: var(--mod);
+}
+
+.iconBox.isSolid {
+  background: var(--mod);
+  color: var(--color-white);
+}
+
+.iconBox svg {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.1;
+}
+
+/* ---------- Barre de progression — `.progress` ---------- */
+
+.modBar {
+  display: block;
+  height: 8px;
+  margin-top: 13px;
+  overflow: hidden;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-paper-2);
+}
+
+.modBar > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--sf-radius-pill);
+  background: var(--mod);
+}
+
+/* `.progress.white` — posée sur un dégradé de module. */
+.modBar.isOnHero {
+  background: color-mix(in srgb, var(--color-white) 24%, transparent);
+}
+
+.modBar.isOnHero > span {
+  background: var(--color-white);
+}
+
+/* ---------- Hero — `.hero` / `.hero.red` ---------- */
+
+.modHero {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  padding: 26px;
+  border-radius: var(--sf-radius-5xl);
+  background: var(--mod-gradient);
+  box-shadow: var(--mod-shadow-hero);
+  color: var(--color-white);
+}
+
+/* Les deux halos clairs de la maquette. */
+.modHero::before,
+.modHero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.modHero::before {
+  right: -70px;
+  top: -90px;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-white) 16%, transparent),
+    transparent
+  );
+}
+
+.modHero::after {
+  right: 60px;
+  bottom: -130px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-white) 10%, transparent),
+    transparent
+  );
+}
+
+.modHero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.modHeroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modHeroId {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.modHeroIcon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--sf-radius-md);
+  background: color-mix(in srgb, var(--color-white) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-white) 22%, transparent);
+}
+
+.modHeroIcon svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.1;
+}
+
+.modHeroCopy {
+  min-width: 0;
+}
+
+.modHeroLabel {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-white) 82%, transparent);
+}
+
+.modHeroTitle {
+  margin: 7px 0 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.modHeroSub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-white) 86%, transparent);
+}
+
+.modHeroStat {
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.modHeroStat strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.modHeroStat span {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--color-white) 86%, transparent);
+}
+
+.modHeroBody {
+  margin-top: 18px;
+}
+
+.modHeroCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  padding: 11px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-white) 25%, transparent);
+  border-radius: var(--sf-radius-sm);
+  background: color-mix(in srgb, var(--color-white) 14%, transparent);
+  color: var(--color-white);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.modHeroCta svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.modHeroCta:hover {
+  background: color-mix(in srgb, var(--color-white) 22%, transparent);
+}
+
+.modHeroCta:focus-visible {
+  outline: 2px solid var(--color-white);
+  outline-offset: 3px;
+}
+
+.modHeroCta:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+@media (max-width: 760px) {
+  .modHero {
+    padding: 20px;
+  }
+
+  .modHeroStat strong {
+    font-size: 24px;
+  }
+}
+
+/* ---------- InfoCard — `.info-card` ---------- */
+
+.infoCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-2xl);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.infoCopy {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.infoTitle {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.infoTitle.hasCode {
+  margin-top: 6px;
+}
+
+.infoMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.infoChevron {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--color-muted-2);
+}
+
+.infoChevron svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.2;
+}
+
+.infoTrailing {
+  flex: 0 0 auto;
+}
+
+/* ---------- Metric — `.metric` ---------- */
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-xl);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+  color: var(--color-ink);
+}
+
+.metricHead {
+  display: flex;
+}
+
+.metricValue {
+  margin: 12px 0 0;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.metricState {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--tone-ink);
+}
+
+.metricMeta {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Le CTA se pose au pied de la tuile : les tuiles d'une rangée alignent
+   leurs boutons. */
+.metricCta {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .metric {
+    padding: 16px;
+  }
+
+  .metric .modCta {
+    padding: 0 10px;
+  }
+}
+
+/* ---------- LevelList + LevelRow — `.level-list` / `.level-row` ---------- */
+
+.levelList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.levelRow {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-lg);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.levelCode {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--sf-radius-sm);
+  background: var(--mod-light);
+  color: var(--mod);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.levelCopy {
+  display: block;
+  min-width: 0;
+}
+
+.levelValue {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.levelState {
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.levelTrail {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.levelTrailSlot {
+  display: flex;
+}
+
+/* ---------- Carte de module — `.card.card-pad` + `.label` + `.meta` ---------- */
+
+.modCard {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-4xl);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+  color: var(--color-ink);
+}
+
+.modLabel {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.modMeta {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* ---------- Timeline — `.timeline` / `.step` ---------- */
+
+.timeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timelineItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timelineStep {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.timelineStep.isActive {
+  background: var(--mod);
+  color: var(--color-white);
+}
+
+.timelineArrow {
+  font-size: 13px;
+  color: var(--color-muted-2);
+}
+
+/* ---------- Ring (variante module) — `.ring` / `.ring.red` ---------- */
+
+.modRing {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-grid;
+  width: 52px;
+  height: 52px;
+}
+
+.modRing svg {
+  display: block;
+}
+
+.modRingVal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+/* ---------- ThemeCard — `.theme-card` ---------- */
+
+.themeCardV2 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-3xl);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-card-sm);
+  color: var(--color-ink);
+}
+
+.themeHead {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+}
+
+.themeCopy {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.themeTitle {
+  display: block;
+  font-size: 16.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.themeFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.themeState {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+/* ---------- TipCard — `.tip-card` ---------- */
+
+.tipCard {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--color-tip-border);
+  border-radius: var(--sf-radius-3xl);
+  background: var(--gradient-tip);
+}
+
+.tipLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-amber-dark);
+}
+
+.tipIcon {
+  display: grid;
+  place-items: center;
+}
+
+.tipIcon svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+}
+
+.tipText {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-amber-dark) 72%, var(--color-ink));
+}
+
+.tipCta {
+  margin-top: 14px;
+}
+
+/* ---------- ProgressionHead — « Objectif global » / « Maîtrise globale » ---------- */
+
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.headValue {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+}
+
+.headValue span {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
+.headValue strong {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.headValue.isEnd {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.headValue.isModule strong {
+  color: var(--mod);
+}
+
+.headArrow {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--mod-light);
+  color: var(--mod);
+}
+
+.headArrow svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.1;
+}
+
+/* ---------- ExamRow — `.exam-row` ---------- */
+
+.examRow {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--sf-radius-2xl);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.examRow.isLocked {
+  opacity: 0.55;
+}
+
+.examNum {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sf-radius-md);
+  background: var(--mod-light);
+  color: var(--mod);
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.examNum.isSolid {
+  background: var(--mod);
+  color: var(--color-white);
+}
+
+.examCopy {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.examTitle {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.examStatus {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 8px 12px;
+  border-radius: var(--sf-radius-pill);
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.examStatus.isGo {
+  background: var(--mod);
+  color: var(--color-white);
+}
+
+@media (max-width: 420px) {
+  .examRow {
+    gap: 12px;
+    padding: 13px 14px;
+  }
+
+  .examNum {
+    width: 42px;
+    height: 42px;
+    font-size: 17px;
+  }
+}
+
+/* ---------- Survols (cartes cliquables de la maquette) ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .infoCard,
+  .levelRow,
+  .examRow,
+  .metric,
+  .themeCardV2 {
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .infoCard.isPressable:hover,
+  .levelRow.isPressable:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sf-shadow-card-sm);
+  }
+
+  .examRow.isPressable:not(.isLocked):hover {
+    transform: translateY(-2px);
+    box-shadow: var(--sf-shadow-card-sm);
+    border-color: var(--color-line-strong);
+  }
+
+  .metric:hover,
+  .themeCardV2:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--sf-shadow-hover);
+  }
+}
+
+/* ---------- Mise en page : Split et Grid (aucun miroir Flutter) ---------- */
+
+/* `.split` : 2 colonnes au-delà de 1 180 px de fenêtre, la borne de la
+   maquette (DEC-16) ; la colonne latérale empile ses blocs à 18 px. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.splitMain {
+  min-width: 0;
+}
+
+.splitSide {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.modGrid {
+  display: grid;
+}
+
+/* `.grid-4` : 4 → 2 colonnes sous 1 180 px (2 jusqu'au téléphone). */
+.modGrid.isFour {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* `.grid-2` : 2 → 1 colonne sous 760 px. */
+.modGrid.isTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* Une carte seule sur sa rangée la prend en entier (règle du kit). */
+.modGrid > :only-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .modGrid.isFour {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .modGrid.isTwo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .modGrid.isFour {
+    gap: 12px;
+  }
+}
+
+/* ---------- Le contenu sous un `PageHead` (`.page-head + .split|.hero`) ----------
+   La maquette pose le premier bloc d'un écran de module à 26 px de son
+   en-tête (`style="margin-top:26px"`). Une règle de mise en page, sans miroir
+   Flutter (l'en-tête mobile est `SfModuleHeader`). */
+.pageBody {
+  margin-top: 26px;
+}
+
+/* L'intertitre « Résumé de préparation » posé DANS une `ObjectivesCard`
+   (Profil web, `.card .label`). */
+.objectivesLabel {
+  margin: 0;
+  padding: 18px 21px 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* ---------- La carte « Cycle » (`CycleProgress title`, Navigation v2) ----------
+   `.card.card-pad` de « Mon plan » : intitulé mono, titre, compteur à droite,
+   barre du module, phrase servie. Miroir : `SfCycleProgress title`. */
+.cycleCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cycleCardCopy {
+  min-width: 0;
+}
+
+.cycleCardTitle {
+  margin: 5px 0 0;
+  font-size: 19px;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.cycleCardCount {
+  flex: 0 0 auto;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cycleCardHint {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Un cycle clos : la barre se termine en vert. */
+.modBar.isDone > span {
+  background: var(--color-green);
+}
+
+/* ---------- L'en-tête info-card d'un bloc (`BlocAccordion icon`) ----------
+   Miroir : `SfBlocAccordion icon`. Mêmes valeurs que `.infoCard`, posées dans
+   le cadre du bloc (`.blocGroup`), qui garde son corps dépliable. */
+.blocHeadInfo {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  font: inherit;
+  color: var(--color-ink);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.blocHeadInfo:focus-visible {
+  outline: 2px solid var(--mod, var(--color-blue));
+  outline-offset: -2px;
+}
+
+@media (max-width: 360px) {
+  .blocHeadInfo .infoTrailing {
+    display: none;
+  }
 }

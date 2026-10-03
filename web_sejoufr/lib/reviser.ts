@@ -41,41 +41,8 @@ import {
     type PlanNowVue,
 } from "./plan-domain";
 import {civicNowCard, type CivicNowVue} from "./civic-plan";
-import {CIVIQUE_LABEL, TCF_LABEL} from "./preparation";
 
 /* ------------------------------------------------------------------ En-tête */
-
-export const REVISER_TITLE = "Réviser";
-
-/**
- * **Le titre de l'écran, côté WEB : le parcours lui-même.**
- *
- * 🛑 **Divergence VOULUE avec le mobile** (demande du propriétaire,
- * 2026-09-13), et c'est la même raison qui fait qu'il n'y a pas de bascule de
- * parcours ici : sur le web on arrive par **une entrée de la barre latérale**,
- * « TCF IRN » ou « Examen civique », donc le choix est déjà fait — un titre
- * « Réviser » ne disait plus dans lequel des deux on venait d'entrer, alors que
- * les deux écrans se ressemblent. Sur le mobile, Réviser est un **onglet de la
- * barre du bas** qui porte sa propre bascule : le titre y nomme l'onglet, et
- * `kReviserTitle` ne bouge pas.
- *
- * 🛑 **Les deux noms viennent de `lib/preparation.ts`**, la seule table de noms
- * de parcours du web — celle que lit déjà « Ma préparation ». Ne pas en écrire
- * une troisième copie : la barre latérale en tient déjà une en dur.
- */
-export function reviserTitle(module: "TCF" | "CIVIQUE"): string {
-    return module === "TCF" ? TCF_LABEL : CIVIQUE_LABEL;
-}
-
-export const REVISER_SUBTITLE_TCF =
-    "Le test linguistique exigé pour la résidence et la naturalisation.";
-
-export const REVISER_SUBTITLE_CIVIQUE =
-    "Les thèmes officiels de l'Examen civique, travaillés notion par notion.";
-
-export function reviserSubtitle(module: "TCF" | "CIVIQUE"): string {
-    return module === "TCF" ? REVISER_SUBTITLE_TCF : REVISER_SUBTITLE_CIVIQUE;
-}
 
 /** « Les 4 épreuves » / « Les 5 thèmes » — le compte est **celui de la liste**. */
 export function reviserSectionTitle(module: "TCF" | "CIVIQUE", count: number): string {
@@ -305,23 +272,6 @@ export function epreuveStatus(
 }
 
 /**
- * La part remplie de l'anneau, entre 0 et 1.
- *
- * 🛑 **Ce n'est pas une note.** C'est une couverture — des séries parcourues,
- * des sujets produits —, et un anneau vide veut dire « pas encore
- * commencé », jamais « mauvais ».
- */
-export function epreuveRatio(stat: DashboardCategoryStat): number {
-    if (isProductionCode(stat.code)) {
-        const total = stat.subjectsTotal ?? 0;
-        if (total <= 0) return 0;
-        return clamp01((stat.subjectsDone ?? 0) / total);
-    }
-    if (stat.seriesTotal <= 0) return 0;
-    return clamp01(stat.seriesDone / stat.seriesTotal);
-}
-
-/**
  * **L'avancement du parcours civique, en séries** — la fonction UNIQUE du web
  * (X4-A, Navigation v2, brief §6). Miroir exact :
  * `avancementSeriesCivique` de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.
@@ -336,8 +286,7 @@ export function epreuveRatio(stat: DashboardCategoryStat): number {
  *   servis, rien n'est recompté ici.
  * - `floor` : jamais 100 % tant qu'il reste une série. Total nul ⇒ 0 %.
  *
- * 🛑 **Ce n'est pas une note ni un état** : c'est une couverture, comme
- * `epreuveRatio`. Aucun écran ne la classe en niveau ni en ton.
+ * 🛑 **Ce n'est pas une note ni un état** : c'est une couverture. Aucun écran ne la classe en niveau ni en ton.
  * Restreinte à un thème, passer `[stat]`.
  */
 export interface AvancementSeriesCivique {
@@ -358,11 +307,6 @@ export function avancementSeriesCivique(
     if (total <= 0) return {pourcentage: 0, terminees, total: 0};
     const faites = terminees > total ? total : terminees;
     return {pourcentage: Math.floor((faites * 100) / total), terminees: faites, total};
-}
-
-function clamp01(value: number): number {
-    if (!Number.isFinite(value)) return 0;
-    return Math.max(0, Math.min(1, value));
 }
 
 /* -------------------------------------------------- Un thème du civique --- */

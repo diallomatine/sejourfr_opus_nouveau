@@ -9,7 +9,7 @@ import {useCachedData} from "@/lib/use-cached-data";
 import {
     BlocAccordion,
     Card,
-    HeroBanner,
+    Hero,
     InfoNote,
     Pad,
     PanelHead,
@@ -123,10 +123,14 @@ function PlanHistoryScoped() {
                 <Stack>
                     {/* 🛑 Le bandeau et ses compteurs restent dans TOUS les
                         états : ils sont vrais même sans cycle terminé. */}
-                    <HeroBanner
-                        eyebrow={JOURNEY_HISTORY_EYEBROW}
+                    <Hero
+                        /* Bleu dans les deux parcours (comme le mobile) : le
+                           compteur accentué de `StatGrid onHero` est en rouge
+                           vif, illisible sur le dégradé civique. */
+                        module="tcf"
+                        label={JOURNEY_HISTORY_EYEBROW}
                         title={JOURNEY_HISTORY_HEADLINE}
-                        text={JOURNEY_HISTORY_LEAD}
+                        sub={JOURNEY_HISTORY_LEAD}
                     >
                         <StatGrid
                             onHero
@@ -149,7 +153,7 @@ function PlanHistoryScoped() {
                                 },
                             ]}
                         />
-                    </HeroBanner>
+                    </Hero>
 
                     {query.loading ? (
                         <Card>

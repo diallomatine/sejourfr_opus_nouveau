@@ -4,16 +4,21 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/analytics/analytics_events.dart';
-import '../../core/api/api_client.dart';
 import '../../core/models/civic_plan_models.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/progress_models.dart';
+import '../../core/models/question_models.dart' show ThemeDto;
+import '../../core/models/skill_models.dart';
 import '../../core/providers/dashboard_provider.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dashboard_targets.dart';
 import '../../core/widgets/sejour/sejour_kit.dart';
+import '../module/module_labels.dart';
+import '../module_detail/civique_hub_data.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/widgets/plan_reco_card.dart';
 import '../plan/civic_plan_provider.dart';
@@ -26,6 +31,7 @@ import '../plan/plan_actions.dart';
 import '../plan/plan_cta.dart';
 import '../plan/plan_labels.dart';
 import '../plan/plan_now_card.dart';
+import '../progres/progres_labels.dart';
 import 'reviser_labels.dart';
 
 /// **Le corps du segment « Entraînement »** d'un écran de module
@@ -33,7 +39,8 @@ import 'reviser_labels.dart';
 /// c'est l'onglet TCF ou Civique de la barre qui choisit le module.
 ///
 /// Deux blocs : la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
-/// liste des épreuves (TCF) ou des thèmes (civique).
+/// grille des épreuves (TCF, `.metric`) ou les cartes des thèmes (civique,
+/// `.theme-card`) — gabarit Navigation v2, phase 4.
 ///
 /// 🛑 **« Reprendre » vient du PLAN** (demande du propriétaire, 2026-09-12) :
 /// côté TCF c'est [planNowCard] — la **même** autorité que la carte « À faire
@@ -81,11 +88,15 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
         padding: const EdgeInsets.only(bottom: 28),
         children: [
           ...dashboard.when(
-            loading: () => const [_Loading()],
-            error: (e, _) => [
-              _ErrorCard(
-                message: ApiClient.toApiException(e).message,
-                onRetry: () => ref.invalidate(dashboardProvider),
+            loading: () => [_Loading(civique: civique)],
+            error: (_, __) => [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SfBlockError(
+                  message: kModuleBlockError,
+                  retryLabel: kModuleRetry,
+                  onRetry: () => ref.invalidate(dashboardProvider),
+                ),
               ),
             ],
             data: (d) => civique
@@ -151,37 +162,75 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
               const SfCard(child: Text(kJourneyNeedsObjectiveText)),
               SfButton(
                 label: kJourneyNeedsObjectiveCta,
-                onPressed: () => context.push(AppRoutes.targetPathFrom(AppRoutes.tcfEntrainement)),
+                onPressed: () => context
+                    .push(AppRoutes.targetPathFrom(AppRoutes.tcfEntrainement)),
               ),
             ],
           ),
         ),
+      // 🛑 **La grille des épreuves officielles** (`.grid-2` de `.metric`) :
+      // niveau servi, état servi et son ton (`etatEpreuveTcf`, la seule
+      // correspondance), compteurs servis, CTA vers le hub existant.
       SfSection(
-        title: reviserSectionTitle(AppModule.tcf, stats.length),
+        title: kModuleTcfEpreuvesTitle,
         flush: true,
-        child: SfStack(
-          pad: false,
+        lead: true,
+        child: _Grille2(
           children: [
             for (final stat in stats)
-              _epreuveRow(stat, domainForCode(plan, stat.code), profil),
+              _epreuveMetric(
+                stat,
+                domainForCode(plan, stat.code),
+                profil,
+                prioritaire: _prioritaire(parcours),
+              ),
           ],
         ),
       ),
+      // Le hero « Entretien en temps réel » (D3 B) : un lien vers le hub de
+      // l'expression orale, où la simulation se lance sur une tâche. Ordre de
+      // la maquette (et du web) : grille → hero → « Renforcer mon français ».
+      SfSection(
+        title: kModuleRealtimeTitle,
+        flush: true,
+        lead: true,
+        child: SfHero(
+          civique: false,
+          icon: LucideIcons.sparkles,
+          label: kModuleRealtimeLabel,
+          title: kModuleRealtimeHeadline,
+          sub: kModuleRealtimeSub,
+          stat: (value: SkillSection.eo.wire, label: kModuleRealtimeStat),
+          cta: kModuleRealtimeCta,
+          onPressed: () => context.push(AppRoutes.tcfEoEntry),
+        ),
+      ),
       // 🛑 Structure de la langue n'est PAS une cinquième épreuve du TCF IRN :
-      // elle sort de la liste et prend sa propre section, avec la note qui le
+      // elle sort de la grille et prend sa propre section, avec la note qui le
       // dit. Miroir web : ReviserScreen, section « Renforcer mon français ».
       if (complementaire != null)
         SfSection(
           title: kTcfComplementaireSectionTitle,
           flush: true,
+          lead: true,
           child: SfStack(
             pad: false,
             children: [
-              _epreuveRow(complementaire, null, profil),
-              const SfNoteCard(
+              SfInfoCard(
+                icon: dashboardCategoryIcon(complementaire.code),
+                title: complementaire.label,
+                meta: [
+                  epreuveStatus(complementaire, null, profil),
+                  epreuveMeta(complementaire),
+                ].whereType<String>().join(' · '),
+                trailing: const SfChevron(),
+                onTap: () =>
+                    context.push(dashboardCategoryRoute(complementaire)),
+              ),
+              const SfTipCard(
                 icon: LucideIcons.info,
-                title: kTcfComplementaireNoteTitle,
-                child: Text(kTcfComplementaireNoteReviser),
+                label: kTcfComplementaireNoteTitle,
+                text: kTcfComplementaireNoteReviser,
               ),
             ],
           ),
@@ -189,24 +238,76 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
     ];
   }
 
-  /// 🛑 [profil] est **l'autorité d'AFFICHAGE du niveau**, servie par le
-  /// tableau de bord déjà chargé — donc **aucun appel de plus**. C'est la même
-  /// valeur que l'Accueil, le Profil, l'écran Progrès et l'écran Diagnostic
-  /// (`TcfProfileService.levelProfileAccueil`). Réviser lisait le niveau du
-  /// Plan puis `stat.level` : trois autorités pour une phrase.
-  /// → `docs/regles/progression.md`.
-  Widget _epreuveRow(
+  /// La carte d'un thème — même composition que le web (`ReviserScreen`) : la
+  /// ligne d'état est composée sur des faits servis ([themeStatus]), jamais
+  /// déduite de l'anneau ; sans série servie, elle prend la place du compteur.
+  Widget _themeCard(
+    BuildContext context,
     DashboardCategoryStat stat,
-    PlanDomain? domain,
-    TcfDomainProfile? profil,
+    List<CivicPlanThemeLigne> themes,
+    List<ThemeDto>? descriptions,
   ) {
-    return SfEpreuveRow(
+    final statut = themeStatus(themeLigneFor(themes, stat.themeId), stat);
+    final compteur = epreuveMeta(stat);
+    return SfThemeCard(
       icon: dashboardCategoryIcon(stat.code),
       title: stat.label,
-      status: epreuveStatus(stat, domain, profil),
-      meta: epreuveMeta(stat),
-      ratio: epreuveRatio(stat),
-      onTap: () => context.push(dashboardCategoryRoute(stat)),
+      description: _description(descriptions, stat.themeId),
+      ring: avancementSeriesCivique([stat]).pourcentage,
+      count: compteur ?? statut,
+      state: compteur == null ? null : (label: statut, tone: SfTone.muted),
+      cta: kModuleThemeCta,
+      onPressed: () => context.push(dashboardCategoryRoute(stat)),
+    );
+  }
+
+  /// **L'épreuve que le serveur désigne** — celle de l'étape « À faire
+  /// maintenant » du parcours (`journey.current`), la même autorité que le
+  /// Plan et l'Accueil. `null` ⇒ aucune tuile n'a l'emphase pleine.
+  String? _prioritaire(Journey? parcours) {
+    final bloc = parcours?.current?.bloc;
+    return bloc != null && bloc.estEpreuve ? bloc.code : null;
+  }
+
+  /// La tuile d'une épreuve officielle.
+  ///
+  /// 🛑 Le **niveau** vient de [niveauActuelEpreuve] (l'autorité d'affichage) ;
+  /// l'**état** du `StatutObjectif` servi, lu par [etatEpreuveTcf] — rien
+  /// n'est classé ici. La méta garde ce que la ligne d'avant disait : le nom,
+  /// les séries ou sujets servis, et sur une production l'étape que le Plan
+  /// construit (« Prochaine étape : Tâche 2 », « 3 compétences acquises »).
+  Widget _epreuveMetric(
+    DashboardCategoryStat stat,
+    PlanDomain? domain,
+    TcfDomainProfile? profil, {
+    required String? prioritaire,
+  }) {
+    final epreuve = EpreuveType.fromWire(stat.code);
+    final niveau = niveauActuelEpreuve(profil, stat.code);
+    ProgressEpreuve? servie;
+    for (final e in ref.watch(progressProvider).valueOrNull?.tcf.epreuves ??
+        const <ProgressEpreuve>[]) {
+      if (e.epreuve == epreuve) servie = e;
+    }
+    final plan =
+        isProductionCode(stat.code) ? epreuveStatus(stat, domain, null) : null;
+    return SfMetric(
+      civique: false,
+      fill: true,
+      code: planDomainSection(epreuve)?.wire ?? stat.label,
+      value: niveau?.shortName ?? kModuleProgressUnknown,
+      state: servie == null
+          ? null
+          : etatEpreuveTcf(servie.status, servie.niveau),
+      meta: [
+        stat.label,
+        epreuveMeta(stat),
+        if (plan != null && plan != kReviserNotStarted) plan,
+      ].whereType<String>().join(' · '),
+      cta: kModuleTrainCta,
+      ctaEmphasis:
+          stat.code == prioritaire ? SfCtaEmphasis.solid : SfCtaEmphasis.soft,
+      onPressed: () => context.push(dashboardCategoryRoute(stat)),
     );
   }
 
@@ -254,8 +355,13 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
   ) {
     final auth = ref.watch(authControllerProvider);
     final free = !(auth is AuthAuthenticated && auth.user.hasCivique);
-    final resume = reviserResumeCivique(civicPlan, journey: parcours, free: free);
+    final resume =
+        reviserResumeCivique(civicPlan, journey: parcours, free: free);
     final themes = civicPlan?.themes ?? const <CivicPlanThemeLigne>[];
+    final global = avancementSeriesCivique(dashboard.civique);
+    // Observée, jamais attendue : sans elle, les cartes n'ont pas de
+    // description, rien d'autre.
+    final descriptions = ref.watch(civiqueThemesProvider).valueOrNull;
     return <Widget>[
       if (resume != null)
         PlanRecoCard(
@@ -277,25 +383,42 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
             _ => () => _reprendreCivique(resume.source),
           },
         ),
+      // Les thèmes en `.theme-card` : nom servi, description servie
+      // (`ThemeUserResponse.description`, masquée si absente), anneau et
+      // compteur sur les séries du thème (`avancementSeriesCivique([stat])`, la
+      // fonction unique), ligne d'état existante (`themeStatus`, faits servis)
+      // au ton neutre de la maquette — jamais déduite du %.
       SfSection(
         title: reviserSectionTitle(AppModule.civique, dashboard.civique.length),
         flush: true,
+        lead: true,
         child: SfStack(
           pad: false,
           children: [
-            for (final stat in dashboard.civique)
-              SfEpreuveRow(
-                icon: dashboardCategoryIcon(stat.code),
-                title: stat.label,
-                status: themeStatus(themeLigneFor(themes, stat.themeId), stat),
-                meta: epreuveMeta(stat),
-                ratio: epreuveRatio(stat),
-                onTap: () => context.push(dashboardCategoryRoute(stat)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SfBadge(
+                moduleCiviqueSeriesBadge(global.terminees, global.total),
+                civique: true,
               ),
+            ),
+            for (final stat in dashboard.civique)
+              _themeCard(context, stat, themes, descriptions),
           ],
         ),
       ),
     ];
+  }
+
+  /// La description **servie** d'un thème, ou `null` (absente, vide, ou
+  /// liste des thèmes pas encore lue) — la carte la masque alors.
+  String? _description(List<ThemeDto>? descriptions, String? themeId) {
+    for (final theme in descriptions ?? const <ThemeDto>[]) {
+      if (theme.id != themeId) continue;
+      final texte = theme.description?.trim();
+      return texte == null || texte.isEmpty ? null : texte;
+    }
+    return null;
   }
 
   /// 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité
@@ -331,44 +454,65 @@ class _ReviserBodyState extends ConsumerState<ReviserBody> {
   }
 }
 
+/// Le segment en cours de lecture : les squelettes de la grille des épreuves
+/// (TCF) ou des cartes de thème (civique), jamais une roue plein écran (§7).
 class _Loading extends StatelessWidget {
-  const _Loading();
+  const _Loading({required this.civique});
 
-  @override
-  Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.only(top: 60),
-        child: Center(child: CircularProgressIndicator()),
-      );
-}
-
-class _ErrorCard extends StatelessWidget {
-  const _ErrorCard({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
+  final bool civique;
 
   @override
   Widget build(BuildContext context) {
+    final rangee = civique
+        ? const SfBlockSkeleton(height: 168)
+        : const Row(
+            children: [
+              Expanded(
+                  child: SfBlockSkeleton(height: 190, radius: AppRadii.lg)),
+              SizedBox(width: 12),
+              Expanded(
+                  child: SfBlockSkeleton(height: 190, radius: AppRadii.lg)),
+            ],
+          );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: SfCard(
-        child: Column(
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: AppFonts.ui(size: 13.5, color: AppColors.muted),
-            ),
-            const SizedBox(height: 12),
-            SfButton(
-              label: 'Réessayer',
-              variant: SfButtonVariant.line,
-              icon: null,
-              onPressed: onRetry,
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.fromLTRB(16, sfSectionGap, 16, 0),
+      child: Column(
+        children: [rangee, const SizedBox(height: 12), rangee],
       ),
+    );
+  }
+}
+
+/// La grille portrait à deux colonnes (`.grid-2`, gap 12) : les tuiles d'une
+/// rangée prennent la hauteur de la plus haute, le CTA reste en bas.
+class _Grille2 extends StatelessWidget {
+  const _Grille2({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: children[i]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: i + 1 < children.length
+                      ? children[i + 1]
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

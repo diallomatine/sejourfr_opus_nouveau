@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/models/preparation_labels.dart';
 import '../../core/providers/preparation_provider.dart';
 import '../../core/providers/target_level_provider.dart';
@@ -96,8 +94,7 @@ class _PlanBodyState extends ConsumerState<PlanBody> with RouteAware {
       onRefresh: _refresh,
       child: plan.when(
         loading: () => const _LoadingPlan(),
-        error: (error, _) => _PlanError(
-          message: ApiClient.toApiException(error).message,
+        error: (_, __) => _PlanError(
           onRetry: () => ref.invalidate(learningPlanProvider),
         ),
         data: (value) => PlanTcfView(
@@ -113,46 +110,41 @@ class _PlanBodyState extends ConsumerState<PlanBody> with RouteAware {
   }
 }
 
+/// Le Plan en cours de lecture : un squelette par bloc, aux dimensions de la
+/// carte « Cycle », de « À faire maintenant » et des blocs du cycle (brief §7).
 class _LoadingPlan extends StatelessWidget {
   const _LoadingPlan();
 
   @override
   Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
         children: const [
-          SizedBox(height: 40),
-          Center(child: CircularProgressIndicator(color: AppColors.moduleTcf)),
+          SfBlockSkeleton(height: 150, radius: AppRadii.lg),
+          SizedBox(height: sfSectionGap),
+          SfBlockSkeleton(height: 220),
+          SizedBox(height: sfSectionGap),
+          SfBlockSkeleton(height: 84, radius: AppRadii.lg),
+          SizedBox(height: sfGap),
+          SfBlockSkeleton(height: 84, radius: AppRadii.lg),
         ],
       );
 }
 
+/// Le Plan illisible : l'erreur et « Réessayer » dans le bloc, l'en-tête du
+/// module et son segment restent utilisables (brief §7).
 class _PlanError extends StatelessWidget {
-  const _PlanError({required this.message, required this.onRetry});
+  const _PlanError({required this.onRetry});
 
-  final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
         children: [
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            child: SfNoteCard(
-              icon: LucideIcons.cloudOff,
-              title: kPlanErrorTitle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SfTiny(message),
-                  const SizedBox(height: 12),
-                  SfButton(
-                    label: kPlanErrorRetry,
-                    variant: SfButtonVariant.line,
-                    onPressed: onRetry,
-                  ),
-                ],
-              ),
-            ),
+          SfBlockError(
+            message: kPlanErrorTitle,
+            retryLabel: kPlanErrorRetry,
+            onRetry: onRetry,
           ),
         ],
       );

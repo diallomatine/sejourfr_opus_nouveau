@@ -7,7 +7,7 @@ import {withPurchaseOrigin} from "@/lib/purchase-origin";
 import {useAuth} from "@/lib/auth-context";
 import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {ApiException, billingApi} from "@/lib/api";
-import {PASS_FEATURES} from "@/lib/passes";
+import {PASS_FEATURES, passAccessName} from "@/lib/passes";
 import type {
     PlanPublicResponse,
     SubscriptionSource,
@@ -137,7 +137,8 @@ function PremiumView({
     plan: PlanPublicResponse | null;
 }) {
     const isIntegral = status.moduleAccess === "INTEGRAL";
-    const name = isIntegral ? "Pass Intégral" : "Pass Civique";
+    /* Le nom du pass : une seule autorité, `passAccessName` (X12). */
+    const name = passAccessName(true, isIntegral);
     const features = PASS_FEATURES[isIntegral ? "INTEGRAL" : "CIVIQUE"];
     // `plans` ne contient que les plans actifs : un accès payé sur un plan
     // retiré du catalogue (plan récurrent dormant, offre arrêtée) n'y est plus.
@@ -197,14 +198,14 @@ function PremiumView({
                             className="pass-btn pass-btn-primary"
                             onClick={() => trackAccessCta()}
                         >
-                            Prolonger mon Pass Civique
+                            Prolonger mon {passAccessName(true, false)}
                         </Link>
                         <Link
                             href={withPurchaseOrigin("/paiement?module=INTEGRAL", ACCESS_CTA)}
                             className="pass-btn pass-btn-accent"
                             onClick={() => trackAccessCta()}
                         >
-                            Passer au Pass Intégral
+                            Passer au {passAccessName(true, true)}
                         </Link>
                     </>
                 )}

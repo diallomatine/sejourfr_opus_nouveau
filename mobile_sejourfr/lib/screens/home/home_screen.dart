@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/analytics/analytics_events.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/diagnostic_models.dart';
@@ -23,11 +22,9 @@ import '../module/module_labels.dart';
 import '../module_detail/civique_theme_exam_launcher.dart';
 import '../plan/civic_plan_labels.dart';
 import '../plan/civic_plan_provider.dart';
-import '../plan/civic_serie_launcher.dart';
 import '../plan/journey_labels.dart';
 import '../plan/learning_plan_provider.dart';
-import '../plan/plan_actions.dart';
-import '../plan/plan_cta.dart';
+import '../plan/now_card_gestes.dart';
 import '../plan/plan_now_card.dart';
 import '../reviser/reviser_labels.dart';
 import 'home_labels.dart';
@@ -306,37 +303,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         carte.minutesLabel,
       ]),
       cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeTcfCta,
-      onPressed: _gesteTcf(context, carte),
+      onPressed: gesteEtapeTcf(context, ref, carte, lancer: _lancer),
     );
-  }
-
-  VoidCallback? _gesteTcf(BuildContext context, PlanNowCard carte) {
-    switch (carte.geste) {
-      case PlanNowGeste.aucun:
-        return null;
-      case PlanNowGeste.debloquer:
-        return () =>
-            pousserOuAller(context, AppRoutes.planUnlockPath(civique: false));
-      case PlanNowGeste.ouvrirEtape:
-        final route = carte.etapeRoute;
-        return route == null ? null : () => pousserOuAller(context, route);
-      case PlanNowGeste.lancer:
-        final mesure = carte.mesure;
-        final exercice = carte.exercise;
-        if (mesure == null && exercice == null) return null;
-        // Contrôle F : la carte relaie l'action du Plan — elle compte comme
-        // le Plan quand son parcours est connu (`PlanOrigine.relais`).
-        return () => unawaited(_lancer(() => mesure != null
-            ? startPlanSeanceItem(context, ref, mesure,
-                origine: PlanOrigine.relais)
-            : openPlanExercise(
-                context,
-                ref,
-                exercice!,
-                origine: PlanOrigine.relais,
-                masteryBefore: carte.priority?.masteryState,
-              )));
-    }
   }
 
   /* --------------------------------------- à faire maintenant — CIVIQUE */
@@ -397,58 +365,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       title: carte.title,
       meta: homeActionMeta([carte.subtitle, carte.meta]),
       cta: carte.geste == PlanNowGeste.debloquer ? carte.cta : kHomeCiviqueCta,
-      onPressed: _gesteCivique(context, carte),
+      onPressed: gesteEtapeCivique(context, ref, carte, lancer: _lancer),
     );
-  }
-
-  VoidCallback? _gesteCivique(BuildContext context, CivicNowCard carte) {
-    switch (carte.geste) {
-      case PlanNowGeste.aucun:
-        return null;
-      case PlanNowGeste.debloquer:
-        return () =>
-            pousserOuAller(context, AppRoutes.planUnlockPath(civique: true));
-      case PlanNowGeste.ouvrirEtape:
-        final route = carte.etapeRoute;
-        return route == null ? null : () => pousserOuAller(context, route);
-      case PlanNowGeste.lancer:
-        final examen = carte.examen;
-        if (examen != null) {
-          return () => unawaited(_lancer(() => launchCiviqueThemeExam(
-                context,
-                ref,
-                themeId: examen.themeId,
-                themeName: examen.themeName,
-                slotNumber: examen.slotNumber,
-              )));
-        }
-        final source = carte.source;
-        if (source == null) return null;
-        return () => unawaited(_lancer(() => _lancerSerieCivique(source)));
-    }
-  }
-
-  /// 🛑 **Un lanceur par GRAIN** (A87), comme sur le Plan civique : l'unité du
-  /// cycle et la cible du plan dérivé sont deux routes serveur distinctes.
-  Future<void> _lancerSerieCivique(CivicNowSource source) {
-    final cta = planCta(ref, PlanOrigine.relais,
-        horsPlan: AnalyticsCtaLocation.other, civique: true);
-    return switch (source) {
-      CivicNowUnite(code: final code) => startCivicUniteSerie(
-          context,
-          ref,
-          code,
-          ctaLocation: cta.ctaLocation,
-          journeyId: cta.journeyId,
-        ),
-      CivicNowCible(cible: final cible) => startCivicSerie(
-          context,
-          ref,
-          cible,
-          ctaLocation: cta.ctaLocation,
-          journeyId: cta.journeyId,
-        ),
-    };
   }
 
   Future<void> _lancer(Future<void> Function() geste) async {

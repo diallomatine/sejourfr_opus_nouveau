@@ -192,13 +192,18 @@ class _ModuleScreenState extends ConsumerState<ModuleScreen> {
 /// **« Ma progression » — TCF** : niveau actuel estimé (servi par le tableau de
 /// bord) → niveau visé du compte (plancher de la démarche appliqué par
 /// l'autorité `TargetProcedure.niveauVise`). Aucune valeur ⇒ « — ».
+///
+/// États du bloc (brief §7) : squelette tant que le tableau de bord n'est pas
+/// lu, erreur + « Réessayer » s'il a échoué.
 class _ProgressionTcf extends ConsumerWidget {
   const _ProgressionTcf();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final actuel =
-        ref.watch(dashboardProvider).valueOrNull?.estimatedTcfLevel?.shortName;
+    final tableau = ref.watch(dashboardProvider);
+    final etat = _etatDuBloc(ref, tableau);
+    if (etat != null) return etat;
+    final actuel = tableau.valueOrNull?.estimatedTcfLevel?.shortName;
     final cible = ref.watch(userTargetLevelProvider)?.wire;
     return SfProgressSummary(
       civique: false,
@@ -216,13 +221,16 @@ class _ProgressionTcf extends ConsumerWidget {
 
 /// **« Ma progression » — civique** : l'avancement en séries
 /// ([avancementSeriesCivique], la fonction unique), et le nombre de séries
-/// terminées. Tableau de bord pas encore lu ⇒ « — », sans méta.
+/// terminées. Mêmes états de bloc que la carte TCF.
 class _ProgressionCivique extends ConsumerWidget {
   const _ProgressionCivique();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themes = ref.watch(dashboardProvider).valueOrNull?.civique;
+    final tableau = ref.watch(dashboardProvider);
+    final etat = _etatDuBloc(ref, tableau);
+    if (etat != null) return etat;
+    final themes = tableau.valueOrNull?.civique;
     final avancement = themes == null ? null : avancementSeriesCivique(themes);
     return SfProgressSummary(
       civique: true,
@@ -237,4 +245,19 @@ class _ProgressionCivique extends ConsumerWidget {
       onTap: () => context.push(AppRoutes.progressionCivique),
     );
   }
+}
+
+/// Le squelette ou l'erreur de la carte « Ma progression », tant que le
+/// tableau de bord n'a pas de valeur ; `null` dès qu'il en a une (une relecture
+/// garde la carte affichée).
+Widget? _etatDuBloc(WidgetRef ref, AsyncValue<Object?> tableau) {
+  if (tableau.hasValue) return null;
+  if (tableau.hasError) {
+    return SfBlockError(
+      message: kModuleBlockError,
+      retryLabel: kModuleRetry,
+      onRetry: () => ref.invalidate(dashboardProvider),
+    );
+  }
+  return const SfBlockSkeleton(height: 104, radius: AppRadii.lg);
 }

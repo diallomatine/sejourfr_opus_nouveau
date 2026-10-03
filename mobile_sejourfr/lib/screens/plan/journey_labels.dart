@@ -44,7 +44,10 @@ String journeyStepTitle(JourneyStep step) {
     case JourneyStepType.trainSkill:
       // 🛑 L'UNITÉ EST SERVIE (D-50) : compétence TCF ou unité officielle
       // civique, même chemin. `skillTitle` reste pour ce qu'il porte d'autre.
-      return step.unite?.label ?? step.skillTitle ?? step.skillCode ?? 'À travailler';
+      return step.unite?.label ??
+          step.skillTitle ??
+          step.skillCode ??
+          'À travailler';
   }
 }
 
@@ -316,6 +319,10 @@ JourneyStep? journeyNowStep(Journey journey) {
 // fonctions qui changent, et elles seules.
 // ===========================================================================
 
+/// L'intertitre des blocs du cycle (Navigation v2, maquette « Mon plan ») —
+/// la section qui suit la carte « Cycle ». Miroir de `JOURNEY_PRIORITES_TITLE`.
+const String kJourneyPrioritesTitle = 'Priorités actuelles';
+
 /// Le compteur du cycle, en mots. Terminé, il dit l'état plutôt que le compte.
 String journeyCycleLabel(JourneyCycle cycle) {
   if (cycle.complete) return 'Cycle terminé';
@@ -391,7 +398,6 @@ String journeyBlocTitle(JourneyBlocRef bloc) => bloc.label;
 // dans son jumeau TypeScript — deux copies d'une phrase dont le MOT dépend du
 // grain du module (« compétence » / « unité »). Le serveur la sert désormais :
 // `bloc.meta`. Un fait de moins à tenir des deux côtés.
-
 
 /// La pastille d'état d'un bloc : son libellé **et** son ton, tous deux servis
 /// au kit — qui ne classe rien.
@@ -868,7 +874,9 @@ const String kJourneyArchiveNote =
 String journeyArchiveExamSubtitle(JourneyStep exam) {
   if (!journeyExamDone(exam)) return 'Non passé';
   final quand = exam.closedAt;
-  return quand == null ? 'Passé' : 'Passé le ${formatLongDate(quand.toLocal())}';
+  return quand == null
+      ? 'Passé'
+      : 'Passé le ${formatLongDate(quand.toLocal())}';
 }
 
 /// Ce que l'examen a donné, à droite de sa ligne — « Niveau B1 », « 17/20 ».
@@ -906,4 +914,3 @@ const String kJourneyArchiveError =
 // désormais le bloc SERVI, donc `journeyBlocMark` — qui rend une chaîne vide
 // pour une thématique. Deux tables d'initiales pour un même besoin, c'était une
 // copie de trop.
-

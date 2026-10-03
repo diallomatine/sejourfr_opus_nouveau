@@ -3,20 +3,37 @@
 import Link from "next/link";
 import {Suspense} from "react";
 import {useSearchParams} from "next/navigation";
+import {useAppBarBack} from "@/app/_components/AppBarTitle";
 import {
+    Badge,
+    BlockError,
+    BlockSkeleton,
     Card,
+    LevelList,
+    LevelRow,
     MicroNote,
+    Pad,
+    PageHead,
     PanelHead,
     ProgressDomainCard,
     ProgressGlobalExamRow,
     ProgressHero,
+    ProgressionHead,
     ProgressStatGrid,
     ProgressStatTile,
+    Section,
+    SejourApp,
+    Split,
+    Timeline,
     sejourStyles,
     type ProgressChip,
 } from "@/app/_components/sejour/SejourKit";
-import {progressionApi} from "@/lib/api";
+import {ACCUEIL_BLOCK_ERROR, ACCUEIL_RETRY} from "@/lib/accueil";
+import {PROGRESS_CACHE_PREFIX, progressApi, progressionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {etatEpreuveTcf} from "@/lib/etats-servis";
+import {MODULE_TCF_KICKER} from "@/lib/module-ecrans";
+import {TCF_EPREUVES_OFFICIELLES} from "@/lib/tcf-epreuves";
 import {
     PROGRESSION_ERROR,
     PROGRESSION_SANS_EXAMEN,
@@ -27,7 +44,6 @@ import {
     TCF_EPREUVES_TITLE,
     TCF_HERO_LABEL,
     TCF_HINT,
-    TCF_LEAD,
     PROGRESSION_LISTE_MOINS_LINK,
     TCF_LISTE_SUB,
     TCF_LISTE_TITLE,
@@ -40,7 +56,14 @@ import {
     TCF_STAT_MEILLEUR,
     TCF_STAT_NOMBRE,
     TCF_STAT_PREMIER,
-    TCF_TITLE,
+    PROGRESSION_REPERES_MAX,
+    PROGRESSION_TITRE,
+    TCF_DERNIERS_REPERES_LABEL,
+    TCF_EVOLUTION_TITLE,
+    TCF_NIVEAU_ACTUEL_LABEL,
+    TCF_OBJECTIF_GLOBAL_LABEL,
+    TCF_OBJECTIF_LABEL,
+    TCF_PAR_COMPETENCE_TITLE,
     examenBlancTitre,
     progressionAnnee,
     progressionDateCourte,
@@ -63,21 +86,31 @@ import {
     tcfExamenDate,
     tcfExamenSub,
     tcfNiveauPartielNote,
+    tcfMeilleurNiveauObserve,
+    tcfProgressionLead,
+    tcfVersCible,
 } from "@/lib/progression";
 import {situationIcon} from "@/lib/situation-icons";
-import type {ProgressionTcfDto} from "@/lib/types";
+import type {ProgressDto, ProgressionTcfDto, TargetLevel} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
-import {ProgressionEtat, ProgressionFrame, ProgressionSectionHead} from "./ProgressionFrame";
+import {ProgressionEtat, ProgressionSectionHead} from "./ProgressionFrame";
+import {ProchaineEtapeTcf} from "./ProchaineEtape";
 
 /**
- * **La progression globale TCF** — maquette `progression_global_tcf.html`.
+ * **La progression globale TCF** — Navigation v2, phase 4 (maquette
+ * `docs/redesign/sejourfr-navigation-web.html`, `#tcf-progression`), puis les
+ * blocs existants (maquette `progression_global_tcf.html`), tous gardés.
+ *
+ * Ordre : en-tête → `Split` : à gauche « Objectif global » (niveau actuel →
+ * objectif, **sans barre** à côté des niveaux), « Par compétence » (état
+ * SERVI `StatutObjectif`, `etatEpreuveTcf`), « Évolution » (paliers servis
+ * des derniers examens complets, sans « + »), puis le héros, les tuiles, les
+ * cartes d'épreuve et la liste des examens ; à droite « Prochaine étape »
+ * (`journey.current`, geste de l'Accueil). « Analyse IA » : absente, pas de
+ * donnée (X11).
  *
  * Lit `GET /api/me/progression/tcf[?tous=true]`. 🛑 **Aucun score global**
- * (D6) : la carte de tête porte le PALIER global actuel (le plancher servi),
- * le dernier examen complet et l'évolution de palier — servis. Les quatre
- * cartes sont le résumé de chaque épreuve, le même record que l'en-tête de
- * l'écran épreuve. Les examens complets : 3 derniers, puis tous avec
- * `?tous=true` (D8).
+ * (D6). Le niveau cible est `AuthenticatedUser.targetLevel` (X13).
  *
  * 🛑 Miroir de `ProgressionTcfScreen` côté mobile, brique pour brique.
  */
@@ -91,27 +124,144 @@ export function ProgressionTcfView() {
 }
 
 function TcfScoped() {
-    const {status} = useAuth();
+    const {user, status} = useAuth();
     const tous = useSearchParams().get("tous") === "true";
+    const actif = status === "authenticated";
     const query = useCachedData<ProgressionTcfDto>(
-        status === "authenticated" ? progressionApi.tcfKey(tous) : null,
+        actif ? progressionApi.tcfKey(tous) : null,
         () => progressionApi.tcf(tous),
         {errorMessage: PROGRESSION_ERROR},
     );
+    /* Les états par épreuve : la même lecture (en cache) que l'Accueil. */
+    const progres = useCachedData<ProgressDto>(
+        actif ? `${PROGRESS_CACHE_PREFIX}current` : null,
+        () => progressApi.get(),
+    );
+    useAppBarBack({fallbackHref: "/dashboard"});
     const dto = query.data;
+    const cible = user?.targetLevel ?? null;
 
     return (
-        <ProgressionFrame
-            backHref="/dashboard?module=TCF"
-            title={TCF_TITLE}
-            lead={TCF_LEAD}
-        >
-            {dto ? (
-                <TcfContenu dto={dto} tous={tous}/>
-            ) : (
-                <ProgressionEtat error={query.error} onRetry={query.reload}/>
-            )}
-        </ProgressionFrame>
+        <SejourApp className={sejourStyles.home}>
+            <Pad>
+                <PageHead
+                    kicker={MODULE_TCF_KICKER}
+                    title={PROGRESSION_TITRE}
+                    subtitle={tcfProgressionLead(cible)}
+                />
+            </Pad>
+            <div className={sejourStyles.pageBody}>
+                <Split
+                    main={(
+                        <>
+                            <Pad>
+                                {dto ? (
+                                    <ProgressionHead
+                                        module="tcf"
+                                        label={TCF_OBJECTIF_GLOBAL_LABEL}
+                                        from={{value: progressionPalier(dto.niveauActuel), label: TCF_NIVEAU_ACTUEL_LABEL}}
+                                        to={{value: cible ?? PROGRESSION_VIDE, label: TCF_OBJECTIF_LABEL}}
+                                    />
+                                ) : query.error ? null : (
+                                    <BlockSkeleton height={130}/>
+                                )}
+                            </Pad>
+                            <Section title={TCF_PAR_COMPETENCE_TITLE}>
+                                <Pad>
+                                    <ParCompetence progres={progres.data} error={progres.error} onRetry={progres.reload} cible={cible}/>
+                                </Pad>
+                            </Section>
+                            {dto ? (
+                                <>
+                                    <Section title={TCF_EVOLUTION_TITLE}>
+                                        <Pad>
+                                            <Evolution dto={dto}/>
+                                        </Pad>
+                                    </Section>
+                                    <Pad>
+                                        <div className={`${sejourStyles.pScreen} ${sejourStyles.pageBody}`}>
+                                            <TcfContenu dto={dto} tous={tous}/>
+                                        </div>
+                                    </Pad>
+                                </>
+                            ) : (
+                                <Pad>
+                                    <div className={sejourStyles.pageBody}>
+                                        <ProgressionEtat error={query.error} onRetry={query.reload}/>
+                                    </div>
+                                </Pad>
+                            )}
+                        </>
+                    )}
+                    side={(
+                        <Pad>
+                            <ProchaineEtapeTcf/>
+                        </Pad>
+                    )}
+                />
+            </div>
+        </SejourApp>
+    );
+}
+
+/**
+ * **« Par compétence »** — une ligne par épreuve officielle (miroir
+ * `tcf-epreuves`) : code, palier servi (« — » sans mesure), état SERVI et son
+ * point, « → {cible} » ou la coche quand l'objectif est atteint (statut
+ * servi). Toute la ligne ouvre l'écran de l'épreuve.
+ */
+function ParCompetence({progres, error, onRetry, cible}: {
+    progres: ProgressDto | undefined;
+    error: string | null;
+    onRetry: () => void;
+    cible: TargetLevel | null;
+}) {
+    if (error) return <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={onRetry}/>;
+    if (!progres) return <BlockSkeleton height={300}/>;
+    return (
+        <LevelList>
+            {TCF_EPREUVES_OFFICIELLES.map((code) => {
+                const epreuve = progres.tcf.epreuves.find((e) => e.epreuve === code) ?? null;
+                const etat = etatEpreuveTcf(epreuve);
+                const atteint = epreuve?.niveau != null && epreuve.status === "TARGET_REACHED";
+                return (
+                    <LevelRow
+                        key={code}
+                        module="tcf"
+                        code={tcfEpreuveMark(code)}
+                        value={progressionPalier(epreuve?.niveau ?? null)}
+                        state={etat}
+                        trailing={atteint
+                            ? <Badge tone="success" check label={etat?.label}/>
+                            : cible ? tcfVersCible(cible) : null}
+                        href={progressionEpreuveHref(code)}
+                    />
+                );
+            })}
+        </LevelList>
+    );
+}
+
+/**
+ * **« Évolution »** : les paliers servis des derniers examens complets, du
+ * plus ancien au plus récent (l'ordre servi est inverse). Un examen encore
+ * sans palier (évaluation en vol) n'est pas posé. Aucun examen ⇒ la frise
+ * disparaît, l'invitation reste.
+ */
+function Evolution({dto}: {dto: ProgressionTcfDto}) {
+    const meilleur = dto.examensComplets.meilleur?.niveau ?? null;
+    const reperes = dto.examens
+        .slice(0, PROGRESSION_REPERES_MAX)
+        .filter((e) => e.niveau !== null)
+        .map((e) => progressionPalier(e.niveau))
+        .reverse();
+    return (
+        <Timeline
+            module="tcf"
+            label={TCF_DERNIERS_REPERES_LABEL}
+            steps={reperes}
+            caption={meilleur ? tcfMeilleurNiveauObserve(progressionPalier(meilleur)) : TCF_NIVEAU_INCONNU_NOTE}
+        />
     );
 }
 

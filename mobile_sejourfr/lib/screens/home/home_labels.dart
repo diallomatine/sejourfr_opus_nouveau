@@ -10,6 +10,8 @@
 /// sauf quand ils portent une valeur — elle est alors servie.
 library;
 
+import '../module/module_labels.dart' show kModuleBlockError, kModuleRetry;
+
 import '../../core/models/diagnostic_models.dart';
 
 /* ------------------------------------------------------------- en-tête --- */
@@ -80,8 +82,8 @@ String? homeActionMeta(Iterable<String?> morceaux) {
 
 /* ------------------------------------------------------ états de bloc --- */
 
-const String kHomeBlockError = 'Ce bloc n\'a pas pu être chargé.';
-const String kHomeRetry = 'Réessayer';
+const String kHomeBlockError = kModuleBlockError;
+const String kHomeRetry = kModuleRetry;
 
 /* --------------------------------------- le diagnostic rapide en cours --- */
 

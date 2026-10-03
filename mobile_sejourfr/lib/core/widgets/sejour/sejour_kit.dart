@@ -925,91 +925,6 @@ class SfNoteCard extends StatelessWidget {
 
 /* ------------------------------------------------------------------ Lignes */
 
-/// Ligne d'épreuve : icône + libellé, et à droite le niveau et son état servi.
-class SfExamRow extends StatelessWidget {
-  const SfExamRow({
-    super.key,
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.level,
-    this.status,
-    this.tone,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final String? level;
-  final String? status;
-  final SfTone? tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, size: 20, color: AppColors.blue),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: AppFonts.ui(size: 14, weight: FontWeight.w700)),
-                if (subtitle != null)
-                  Text(subtitle!,
-                      style: AppFonts.ui(size: 12, color: AppColors.muted)),
-              ],
-            ),
-          ),
-          if (level != null || status != null) ...[
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (level != null)
-                  Text(
-                    level!,
-                    style: AppFonts.display(
-                        size: 22,
-                        weight: FontWeight.w600,
-                        color: AppColors.blue),
-                  ),
-                if (status != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    status!,
-                    style: AppFonts.ui(
-                      size: 11,
-                      weight: FontWeight.w700,
-                      color: (tone ?? SfTone.warn).text,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 /// **Anneau de couverture** — la part parcourue d'un ensemble, entre 0 et 1.
 ///
 /// 🛑 **Ce n'est pas une note et ce n'est pas un état pédagogique** : un seul
@@ -1025,6 +940,11 @@ class SfExamRow extends StatelessWidget {
 /// [reached] porte le fait **servi** « seuil atteint » — vert s'il l'est, bleu
 /// sinon. 🛑 Le kit ne compare le ratio à aucun seuil : sans [reached], seul un
 /// anneau plein passe au vert, comme avant. Miroir web : `Ring label reached`.
+///
+/// **Navigation v2 (phase 4a)** : [civique] peint l'anneau à la couleur du
+/// module (`.ring.red` de la maquette) — accent, piste et chiffre. `false` ⇒ le
+/// rendu bleu d'avant, inchangé pour les lecteurs existants. Miroir web :
+/// `Ring module`.
 class SfRing extends StatelessWidget {
   const SfRing({
     super.key,
@@ -1033,6 +953,7 @@ class SfRing extends StatelessWidget {
     this.stroke = 4,
     this.label,
     this.reached,
+    this.civique = false,
   });
 
   final double ratio;
@@ -1044,6 +965,8 @@ class SfRing extends StatelessWidget {
 
   /// Le seuil est-il atteint ? **Servi**, jamais déduit de [ratio].
   final bool? reached;
+
+  final bool civique;
 
   @override
   Widget build(BuildContext context) {
@@ -1058,7 +981,9 @@ class SfRing extends StatelessWidget {
         painter: _SfRingPainter(
           part: part,
           stroke: stroke,
-          color: vert ? AppColors.green : AppColors.blue,
+          color: vert ? AppColors.green : AppColors.module(civique: civique),
+          track:
+              civique ? AppColors.moduleLight(civique: true) : AppColors.line,
         ),
         child: texte == null
             ? null
@@ -1068,7 +993,7 @@ class SfRing extends StatelessWidget {
                   style: AppFonts.display(
                     size: size * 0.2,
                     weight: FontWeight.w800,
-                    color: AppColors.blueDark,
+                    color: AppColors.moduleDark(civique: civique),
                   ),
                 ),
               ),
@@ -1078,12 +1003,17 @@ class SfRing extends StatelessWidget {
 }
 
 class _SfRingPainter extends CustomPainter {
-  _SfRingPainter(
-      {required this.part, required this.stroke, required this.color});
+  _SfRingPainter({
+    required this.part,
+    required this.stroke,
+    required this.color,
+    required this.track,
+  });
 
   final double part;
   final double stroke;
   final Color color;
+  final Color track;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1095,7 +1025,7 @@ class _SfRingPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
-        ..color = AppColors.line,
+        ..color = track,
     );
     if (part <= 0) return;
     canvas.drawArc(
@@ -1113,120 +1043,10 @@ class _SfRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SfRingPainter old) =>
-      old.part != part || old.color != color || old.stroke != stroke;
-}
-
-/// **Ligne d'une épreuve ou d'un thème** sur l'écran Réviser : pictogramme,
-/// titre, ligne d'état **servie**, compteur, et à droite soit un anneau de
-/// couverture, soit un chevron.
-///
-/// 🛑 [status] et [meta] arrivent **composés** (`reviser_labels.dart` ⇄
-/// `lib/reviser.ts`) : cette brique ne classe rien et ne compte rien.
-///
-/// Miroir web : `EpreuveRow`.
-class SfEpreuveRow extends StatelessWidget {
-  const SfEpreuveRow({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.status,
-    required this.onTap,
-    this.meta,
-    this.ratio,
-  });
-
-  final IconData icon;
-  final String title;
-  final String status;
-  final String? meta;
-
-  /// Part parcourue (0-1). `null` ⇒ un chevron prend la place de l'anneau.
-  final double? ratio;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ratio = this.ratio;
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(AppRadii.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            boxShadow: AppShadows.card,
-          ),
-          padding: const EdgeInsets.all(14),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.blueSoft,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, size: 22, color: AppColors.blue),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppFonts.ui(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          height: 1.25,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        status,
-                        style: AppFonts.ui(
-                          size: 12.5,
-                          color: AppColors.muted,
-                          height: 1.35,
-                        ),
-                      ),
-                      if (meta != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 3),
-                          child: Text(
-                            meta!,
-                            style: AppFonts.ui(
-                              size: 12.5,
-                              weight: FontWeight.w700,
-                              color: AppColors.ink2,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                if (ratio != null)
-                  SfRing(ratio: ratio)
-                else
-                  const Icon(
-                    LucideIcons.arrowRight,
-                    size: 18,
-                    color: AppColors.muted2,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+      old.part != part ||
+      old.color != color ||
+      old.stroke != stroke ||
+      old.track != track;
 }
 
 /// Ligne de thème civique : pastille d'état + nom + libellé d'état servi.
@@ -2324,7 +2144,7 @@ class SfTop extends StatelessWidget {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: [for (final b in badges) SfBadge(b)],
+                    children: [for (final b in badges) _SfTopBadge(b)],
                   ),
                 ],
               ],
@@ -2422,9 +2242,12 @@ class SfSheetHead extends StatelessWidget {
   }
 }
 
-/// Le badge bleu de l'en-tête (`.sf-badge`).
-class SfBadge extends StatelessWidget {
-  const SfBadge(this.label, {super.key});
+/// Le badge bleu de l'en-tête [SfTop] (`.sf-badge`). Privé depuis la phase
+/// 4a de Navigation v2 : le nom public [SfBadge] est le miroir du `Badge` web
+/// (`.badge` de la maquette) ; côté web, cette pastille d'en-tête est elle
+/// aussi interne à `Top`.
+class _SfTopBadge extends StatelessWidget {
+  const _SfTopBadge(this.label);
 
   final String label;
 
@@ -2521,7 +2344,7 @@ class SfStatGrid extends StatelessWidget {
 
   final List<SfStat> stats;
 
-  /// Les compteurs sont posés **sur un fond de marque** ([SfHeroBanner]) :
+  /// Les compteurs sont posés **sur un fond de marque** ([SfHero]) :
   /// tuiles translucides, valeur blanche, libellé adouci, tout calé à gauche.
   /// Sans lui, la rangée est nue sur fond clair, valeur bleue et texte centré.
   final bool onHero;
@@ -3368,7 +3191,8 @@ class SfJourneyRow extends StatelessWidget {
           child: _sfCycleBullet(done: done, current: current, exam: exam),
         ),
         if (!last)
-          const Positioned(left: 0, right: 0, bottom: 0, child: _SfDashedLine()),
+          const Positioned(
+              left: 0, right: 0, bottom: 0, child: _SfDashedLine()),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
           child: Column(
@@ -3514,6 +3338,8 @@ class SfCycleProgress extends StatelessWidget {
     this.badge,
     this.hint,
     this.complete = false,
+    this.title,
+    this.civique = false,
   });
 
   /// Le compteur en mots (« 3 etapes sur 8 terminees »), **servi**.
@@ -3536,9 +3362,23 @@ class SfCycleProgress extends StatelessWidget {
   /// kit n'a pas a en decider.
   final bool complete;
 
+  /// **La carte « Cycle » de Navigation v2** (`.card.card-pad` de « Mon
+  /// plan », maquette `sejourfr-navigation-mobile.html`) : [badge] (ou [label]
+  /// sur un cycle clos) en intitulé, [title] (« Votre parcours vers le B2 ») en
+  /// titre, le compteur `done/total` servi à droite, la barre à la couleur du
+  /// module ([civique]), [hint] dessous. `null` ⇒ la forme historique.
+  ///
+  /// Miroir web : `CycleProgress title`.
+  final String? title;
+
+  /// La couleur de la barre de la variante [title].
+  final bool civique;
+
   @override
   Widget build(BuildContext context) {
     final ratio = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
+    final titre = title;
+    if (titre != null) return _carte(titre, ratio);
     final pct = complete && total <= 0 ? 100 : (ratio * 100).round();
     return SfCard(
       child: Column(
@@ -3609,6 +3449,66 @@ class SfCycleProgress extends StatelessWidget {
       ),
     );
   }
+
+  Widget _carte(String titre, double ratio) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (badge ?? label).toUpperCase(),
+                      style: AppFonts.label(size: 11, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      titre,
+                      style: AppFonts.display(
+                          size: 18, weight: FontWeight.w700, height: 1.2),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '$done/$total',
+                style: AppFonts.display(
+                    size: 20, weight: FontWeight.w800, height: 1),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          _SfBar(
+            part: complete ? 1 : ratio,
+            fill:
+                complete ? AppColors.green : AppColors.module(civique: civique),
+            track: AppColors.line,
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              hint!,
+              style:
+                  AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// **L'en-tete d'un bloc d'epreuve, depliable** — le `.examGroup` de
@@ -3651,6 +3551,8 @@ class SfBlocAccordion extends StatelessWidget {
     required VoidCallback this.onToggle,
     required Widget this.child,
     this.current = false,
+    this.icon,
+    this.civique = false,
   }) : onOpen = null;
 
   /// La variante lien : l'en-tête ouvre un écran ([onOpen]), il n'a pas de corps.
@@ -3664,7 +3566,9 @@ class SfBlocAccordion extends StatelessWidget {
     this.current = false,
   })  : open = false,
         onToggle = null,
-        child = null;
+        child = null,
+        icon = null,
+        civique = false;
 
   /// Le repere court de l'epreuve (« CO »), en etiquette technique.
   ///
@@ -3699,9 +3603,19 @@ class SfBlocAccordion extends StatelessWidget {
 
   final Widget? child;
 
+  /// **L'en-tête en `.info-card`** (Navigation v2, « Priorités actuelles ») :
+  /// pastille d'icône douce du module, [mark] en badge au-dessus du titre,
+  /// titre à l'encre, [meta] en clair, état en [SfBadge]. `null` ⇒ l'en-tête
+  /// historique de `plan_cycle.html`.
+  final IconData? icon;
+
+  /// La teinte de la pastille et du badge de la variante [icon].
+  final bool civique;
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(AppRadii.lg);
+    final pictogramme = icon;
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -3709,8 +3623,8 @@ class SfBlocAccordion extends StatelessWidget {
         borderRadius: radius,
         // `.examGroup` de la maquette : filet fin au repos, filet plus marque
         // et relief plus porte sur `.current`.
-        border: Border.all(
-            color: current ? AppColors.lineStrong : AppColors.line),
+        border:
+            Border.all(color: current ? AppColors.lineStrong : AppColors.line),
         boxShadow: current ? AppShadows.md : AppShadows.card,
       ),
       child: Column(
@@ -3725,10 +3639,14 @@ class SfBlocAccordion extends StatelessWidget {
                 // Les valeurs de `.groupHead` dans
                 // `docs/progression/plan_cycle.html` : `42px 1fr auto`,
                 // `gap: 11px`, `padding: 15px`.
-                padding: const EdgeInsets.all(15),
+                padding: EdgeInsets.all(pictogramme == null ? 15 : 16),
                 child: Row(
                   children: [
-                    if (mark.isNotEmpty) ...[
+                    if (pictogramme != null) ...[
+                      _SfSoftIconBox(
+                          icon: pictogramme, civique: civique, size: 48),
+                      const SizedBox(width: 12),
+                    ] else if (mark.isNotEmpty) ...[
                       Container(
                         width: 42,
                         height: 42,
@@ -3738,8 +3656,7 @@ class SfBlocAccordion extends StatelessWidget {
                           // La maquette dit 13 ; le token le plus proche vaut 12.
                           borderRadius: BorderRadius.circular(AppRadii.md),
                           border: Border.all(
-                              color:
-                                  current ? AppColors.blue : AppColors.line),
+                              color: current ? AppColors.blue : AppColors.line),
                         ),
                         child: Text(
                           mark,
@@ -3752,42 +3669,44 @@ class SfBlocAccordion extends StatelessWidget {
                       const SizedBox(width: 11),
                     ],
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            // `.groupTitle` : 14 px, poids 850 (w800 ici).
-                            //
-                            // 🛑 **Le titre d'une epreuve est BLEU** (arbitrage
-                            // du proprietaire, 2026-09-19). La capture montre
-                            // un bleu de navigateur ; c'est **notre** bleu de
-                            // marque qui est ecrit ici. Le bloc courant n'est
-                            // pas concerne : sa pastille d'initiale est bleue
-                            // PLEINE avec un texte blanc, le titre reste a cote
-                            // sur le fond blanc de la carte.
-                            //
-                            // ⚠️ [SfBlocAccordion] sert aussi « Ma
-                            // progression », ou le titre est « Cycle 2 » : il y
-                            // passe au bleu lui aussi, et c'est voulu.
-                            style: AppFonts.ui(
-                              size: 14,
-                              weight: FontWeight.w800,
-                              height: 1.25,
-                              color: AppColors.blue,
+                      child: pictogramme != null
+                          ? _enTeteInfoCard()
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  // `.groupTitle` : 14 px, poids 850 (w800 ici).
+                                  //
+                                  // 🛑 **Le titre d'une epreuve est BLEU** (arbitrage
+                                  // du proprietaire, 2026-09-19). La capture montre
+                                  // un bleu de navigateur ; c'est **notre** bleu de
+                                  // marque qui est ecrit ici. Le bloc courant n'est
+                                  // pas concerne : sa pastille d'initiale est bleue
+                                  // PLEINE avec un texte blanc, le titre reste a cote
+                                  // sur le fond blanc de la carte.
+                                  //
+                                  // ⚠️ [SfBlocAccordion] sert aussi « Ma
+                                  // progression », ou le titre est « Cycle 2 » : il y
+                                  // passe au bleu lui aussi, et c'est voulu.
+                                  style: AppFonts.ui(
+                                    size: 14,
+                                    weight: FontWeight.w800,
+                                    height: 1.25,
+                                    color: AppColors.blue,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  meta,
+                                  style: AppFonts.ui(
+                                    size: 10.5,
+                                    color: AppColors.muted,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            meta,
-                            style: AppFonts.ui(
-                              size: 10.5,
-                              color: AppColors.muted,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                     // 🛑 **Sous 360 px, la maquette MASQUE l'etat** et
                     // l'en-tete passe a deux colonnes
@@ -3813,10 +3732,13 @@ class SfBlocAccordion extends StatelessWidget {
                             SfCycleRail.retraitDe(context) >
                         366) ...[
                       const SizedBox(width: 11),
-                      SfPill(
-                          label: status.label,
-                          tone: status.tone.asBarTone,
-                          dense: true),
+                      if (pictogramme != null)
+                        SfBadge(status.label, tone: status.tone)
+                      else
+                        SfPill(
+                            label: status.label,
+                            tone: status.tone.asBarTone,
+                            dense: true),
                     ],
                     const SizedBox(width: 6),
                     // La seule affordance visible qu'un bloc se deplie. Le
@@ -3858,6 +3780,28 @@ class SfBlocAccordion extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _enTeteInfoCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (mark.isNotEmpty) ...[
+          SfBadge(mark, civique: civique),
+          const SizedBox(height: 6),
+        ],
+        Text(
+          title,
+          style:
+              AppFonts.display(size: 18, weight: FontWeight.w700, height: 1.2),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          meta,
+          style: AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+        ),
+      ],
     );
   }
 }
@@ -3904,6 +3848,7 @@ class SfExamStepDone extends SfExamStepTrailing {
 class SfExamStepAction extends StatelessWidget {
   const SfExamStepAction({
     super.key,
+    this.civique = false,
     required this.title,
     required this.subtitle,
     this.trailing,
@@ -3911,6 +3856,9 @@ class SfExamStepAction extends StatelessWidget {
     this.noteAction,
   });
 
+  /// La couleur du bouton : celle du module (civique rouge). Miroir web :
+  /// `ExamStepAction.module`.
+  final bool civique;
   final String title;
   final String subtitle;
   final SfExamStepTrailing? trailing;
@@ -3936,7 +3884,8 @@ class SfExamStepAction extends StatelessWidget {
             ),
           ],
         ),
-      final SfExamStepStart start => _SfExamStepButton(start),
+      final SfExamStepStart start =>
+        _SfExamStepButton(start, civique: civique),
       null => null,
     };
     final pied = note != null || noteAction != null;
@@ -4017,9 +3966,10 @@ class SfExamStepAction extends StatelessWidget {
 /// Le bouton « Commencer » de [SfExamStepAction] : bleu et actif, ou grisé et
 /// inactif, avec son cadenas quand l'étape est verrouillée.
 class _SfExamStepButton extends StatelessWidget {
-  const _SfExamStepButton(this.start);
+  const _SfExamStepButton(this.start, {required this.civique});
 
   final SfExamStepStart start;
+  final bool civique;
 
   @override
   Widget build(BuildContext context) {
@@ -4030,7 +3980,7 @@ class _SfExamStepButton extends StatelessWidget {
       button: true,
       enabled: actif,
       child: Material(
-        color: actif ? AppColors.blue : AppColors.line,
+        color: actif ? AppColors.module(civique: civique) : AppColors.line,
         borderRadius: radius,
         child: InkWell(
           onTap: start.onTap,
@@ -4134,8 +4084,8 @@ class SfNextStepCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -4162,8 +4112,7 @@ class SfNextStepCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   text,
-                  style:
-                      AppFonts.ui(size: 13, color: doux, height: 1.5),
+                  style: AppFonts.ui(size: 13, color: doux, height: 1.5),
                 ),
                 if (facts.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -4182,8 +4131,7 @@ class SfNextStepCard extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color:
-                                    AppColors.white.withValues(alpha: 0.10),
+                                color: AppColors.white.withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(13),
                                 border: Border.all(
                                   color:
@@ -4551,134 +4499,6 @@ class _SfDashedBoxPainter extends CustomPainter {
 }
 
 // =============================================================================
-// MA PROGRESSION — HISTORIQUE DES CYCLES (maquette du proprietaire,
-// 2026-09-18) — `docs/progression/histo_cycle.html`
-//
-// 🛑 Miroir de `HeroBanner` cote web (`app/_components/sejour/SejourKit.tsx` +
-// `sejour.module.css`). Les compteurs de la maquette passent par [SfStatGrid]
-// avec `onHero: true`.
-// =============================================================================
-
-/// **Le bandeau de tete d'un ecran d'archive** — le `.hero` de
-/// `histo_cycle.html` : fond de marque, oeil-de-boeuf, titre editorial, phrase
-/// de cadrage, puis ce que l'ecran y pose (les compteurs, dans la maquette).
-///
-/// 🛑 **Distinct de [SfNextStepCard]**, qu'il ne faut pas remplacer par lui :
-/// celle-ci porte une **action** — actualiser le plan. Ce bandeau, lui, n'a
-/// **aucune action** : il presente.
-///
-/// 🛑 **Aucune phrase n'est ecrite ici** : [eyebrow], [title] et [text]
-/// arrivent tous en parametres.
-///
-/// Miroir web : `HeroBanner`.
-class SfHeroBanner extends StatelessWidget {
-  const SfHeroBanner({
-    super.key,
-    required this.eyebrow,
-    required this.title,
-    this.text,
-    this.child,
-  });
-
-  final String eyebrow;
-  final String title;
-
-  /// La phrase de cadrage. `null` ⇒ rien a sa place.
-  final String? text;
-
-  /// Ce que l'ecran pose sous la phrase. `null` ⇒ le bandeau s'arrete la.
-  final Widget? child;
-
-  @override
-  Widget build(BuildContext context) {
-    final doux = AppColors.white.withValues(alpha: 0.80);
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.blue, AppColors.blueDark],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: AppShadows.md,
-      ),
-      child: Stack(
-        children: [
-          // L'oeil-de-boeuf du coin, comme `.hero` dans la maquette.
-          Positioned(
-            right: -34,
-            top: -34,
-            child: Container(
-              width: 132,
-              height: 132,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.white.withValues(alpha: 0.06),
-                  width: 20,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        eyebrow.toUpperCase(),
-                        style: AppFonts.label(
-                          size: 11,
-                          color: AppColors.white.withValues(alpha: 0.74),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: AppFonts.display(
-                    size: 25,
-                    weight: FontWeight.w600,
-                    color: AppColors.white,
-                    height: 1.15,
-                  ),
-                ),
-                if (text != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    text!,
-                    style: AppFonts.ui(size: 14, color: doux, height: 1.5),
-                  ),
-                ],
-                if (child != null) ...[
-                  const SizedBox(height: 18),
-                  child!,
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
 // LE BANDEAU D'OBJECTIF (template `docs/progression/ecran_progression_normal.html`,
 // 2026-09-19). ⚠️ L'écran « Votre progression » qui le portait est supprimé
 // (2026-09-24) ; le bandeau reste pour l'écran de déblocage du Plan. Ses
@@ -4693,7 +4513,7 @@ class SfHeroBanner extends StatelessWidget {
 /// paliers).
 ///
 /// 🛑 **Distinct du hero voisin**, qu'il ne faut pas remplacer par lui :
-/// - [SfHeroBanner] **presente** un ecran d'archive, sans aucun chiffre ;
+/// - [SfHero] **presente** un ecran ou un geste de module (Navigation v2) ;
 ///
 /// Celui-ci porte un **avancement** : un compteur, un rail et sa lecture en
 /// pourcentage. C'est ce qui lui evite d'en etre une variante.
@@ -4961,8 +4781,7 @@ class SfSerieProgress extends StatelessWidget {
                 children: [
                   Text(
                     note,
-                    style:
-                        AppFonts.ui(size: 13, weight: FontWeight.w700),
+                    style: AppFonts.ui(size: 13, weight: FontWeight.w700),
                   ),
                   Text(
                     noteSub,
@@ -5123,8 +4942,8 @@ class SfSerieCard extends StatelessWidget {
                           const SizedBox(width: 5),
                           Text(
                             duree!,
-                            style: AppFonts.ui(
-                                size: 12, color: AppColors.muted),
+                            style:
+                                AppFonts.ui(size: 12, color: AppColors.muted),
                           ),
                           const SizedBox(width: 12),
                         ],
@@ -5134,8 +4953,8 @@ class SfSerieCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             questions,
-                            style: AppFonts.ui(
-                                size: 12, color: AppColors.muted),
+                            style:
+                                AppFonts.ui(size: 12, color: AppColors.muted),
                           ),
                         ),
                       ],
@@ -5313,8 +5132,7 @@ class SfSerieCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           score!,
-                          style:
-                              AppFonts.ui(size: 12, color: AppColors.muted),
+                          style: AppFonts.ui(size: 12, color: AppColors.muted),
                         ),
                       ],
                     ],
@@ -6372,8 +6190,8 @@ class _SfProgressChartPainter extends CustomPainter {
     for (var i = 0; i < pts.length; i++) {
       final dernier = i == pts.length - 1;
       if (dernier) {
-        canvas.drawCircle(
-            pts[i], 11, Paint()..color = AppColors.blue.withValues(alpha: 0.14));
+        canvas.drawCircle(pts[i], 11,
+            Paint()..color = AppColors.blue.withValues(alpha: 0.14));
       }
       canvas.drawCircle(pts[i], dernier ? 6 : 5, fond);
       canvas.drawCircle(
@@ -7016,10 +6834,10 @@ class SfBackLink extends StatelessWidget {
 /* ==========================================================================
    NAVIGATION V2 — ACCUEIL (phase 3, 2026-10-03). Maquette :
    `docs/redesign/sejourfr-navigation-mobile.html` (`.objectives-card`,
-   `.objective-row`, `.objective-divider`, `.action-card`, `.iconbox`, `.cta`)
-   et, pour [SfObjCard], `sejourfr-navigation-web.html` (`.obj-card`).
+   `.objective-row`, `.objective-divider`, `.action-card`, `.iconbox`, `.cta`).
    Miroirs web, mêmes noms sans `Sf` : `ObjectivesCard`, `ObjectiveRow`,
-   `ActionCard`, `ObjCard` (+ `ObjMetric`), `BlockSkeleton`, `BlockError`.
+   `ActionCard`, `BlockSkeleton`, `BlockError`. (`SfObjCard` / `SfObjMetric`,
+   créés en phase 3 sans lecteur mobile, sont supprimés en phase 4a.)
    🛑 Aucune de ces briques ne calcule : l'écran passe des faits servis, ou
    leur agrégat documenté, déjà mis en mots.
    ========================================================================== */
@@ -7274,193 +7092,6 @@ class SfActionCard extends StatelessWidget {
   }
 }
 
-/// Une métrique d'une [SfObjCard] : la valeur en gros, son libellé dessous.
-class SfObjMetric {
-  const SfObjMetric({required this.value, required this.label});
-
-  final String value;
-  final String label;
-}
-
-/// **La carte objectif dégradée** (`.obj-card` de la maquette web) : pastille
-/// translucide, pastille du module, titre, description, barre blanche et
-/// trois métriques.
-///
-/// L'Accueil mobile ne l'emploie pas (sa maquette groupe les objectifs dans
-/// [SfObjectivesCard]) : elle existe pour garder le miroir du web.
-/// 🛑 [progress] est une **part** (0 → 1) déjà calculée par l'écran ;
-/// `null` ⇒ pas de barre.
-class SfObjCard extends StatelessWidget {
-  const SfObjCard({
-    super.key,
-    required this.civique,
-    required this.icon,
-    required this.pill,
-    required this.title,
-    this.description,
-    this.progress,
-    this.metrics = const <SfObjMetric>[],
-    this.onTap,
-  });
-
-  final bool civique;
-  final IconData icon;
-  final String pill;
-  final String title;
-  final String? description;
-  final double? progress;
-  final List<SfObjMetric> metrics;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final voile = AppColors.white.withValues(alpha: 0.15);
-    final filet = AppColors.white.withValues(alpha: 0.22);
-    final part = progress;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: AppGradients.module(civique: civique),
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        boxShadow: AppShadows.md,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.xl),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -80,
-                  top: -100,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 320,
-                      height: 320,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [voile, AppColors.white.withValues(alpha: 0)],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: voile,
-                              borderRadius: BorderRadius.circular(AppRadii.lg),
-                              border: Border.all(color: filet),
-                            ),
-                            child: Icon(icon, size: 26, color: AppColors.white),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: AppColors.white.withValues(alpha: 0.14),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadii.pill),
-                              border: Border.all(color: filet),
-                            ),
-                            child: Text(
-                              pill.toUpperCase(),
-                              style: AppFonts.label(
-                                  size: 11, color: AppColors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        title,
-                        style: AppFonts.display(
-                          size: 24,
-                          weight: FontWeight.w800,
-                          color: AppColors.white,
-                          height: 1.15,
-                        ),
-                      ),
-                      if (description != null) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          description!,
-                          style: AppFonts.ui(
-                            size: 13.5,
-                            color: AppColors.white.withValues(alpha: 0.82),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      if (part != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadii.pill),
-                          child: LinearProgressIndicator(
-                            value: part.clamp(0, 1).toDouble(),
-                            minHeight: 8,
-                            backgroundColor:
-                                AppColors.white.withValues(alpha: 0.24),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                AppColors.white),
-                          ),
-                        ),
-                      if (metrics.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 24,
-                          runSpacing: 12,
-                          children: [
-                            for (final m in metrics)
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    m.value,
-                                    style: AppFonts.display(
-                                      size: 22,
-                                      weight: FontWeight.w800,
-                                      color: AppColors.white,
-                                      height: 1.1,
-                                    ),
-                                  ),
-                                  Text(
-                                    m.label,
-                                    style: AppFonts.ui(
-                                      size: 11.5,
-                                      color: AppColors.white
-                                          .withValues(alpha: 0.75),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// **Le squelette d'un bloc qui charge** : un aplat aux dimensions du
 /// composant attendu, jamais une roue plein écran (brief §7).
 class SfBlockSkeleton extends StatelessWidget {
@@ -7534,6 +7165,1401 @@ class SfBlockError extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/* ==========================================================================
+   NAVIGATION V2 — PRIMITIVES DES ÉCRANS DE MODULE (phase 4a, 2026-10-03).
+   Maquette : `docs/redesign/sejourfr-navigation-mobile.html` (`.hero`,
+   `.info-card`, `.metric`, `.level-row`, `.timeline` / `.step`, `.ring`,
+   `.exam-row`, `.progression-head` / `.target`) et, pour [SfThemeCard] et
+   [SfTipCard] absents de la maquette mobile, `sejourfr-navigation-web.html`
+   (`.theme-card`, `.tip-card`) ramenés au portrait.
+   Miroirs web, mêmes noms sans `Sf` : `Hero`, `InfoCard`, `Metric`,
+   `LevelRow`, `LevelList`, `Timeline`, `ThemeCard`, `TipCard`,
+   `ProgressionHead`, `ExamRow`. Le `module: "tcf" | "civique"` du web est ici
+   `civique: bool`, comme [SfActionCard].
+   Rayons de la maquette (16 → 30 px) arrondis aux [AppRadii] (DEC-10).
+   🛑 Aucune de ces briques ne classe ni ne calcule : états, tons, niveaux,
+   compteurs et pourcentages arrivent servis (ou agrégés par la fonction
+   documentée de l'écran), déjà mis en mots.
+   ========================================================================== */
+
+/// Un état **servi** et son ton : « Objectif atteint » / [SfTone.ok],
+/// « À renforcer » / [SfTone.warn]… Le `tone` du web (`success | warning |
+/// danger | neutral`) se lit [SfTone.ok] / [SfTone.warn] / [SfTone.hot] /
+/// [SfTone.muted].
+typedef SfState = ({String label, SfTone tone});
+
+/// **La pastille de la maquette** (`.badge`, `.badge.red`, `.badge.green`,
+/// `.badge.amber`) : code court (« CO »), compteur (« {terminées}/{total} séries ») ou état
+/// servi.
+///
+/// - [tone] posé ⇒ couleurs de l'état servi ;
+/// - sinon ⇒ teinte douce du module ([civique]).
+/// - [check] ⇒ une coche avant le texte ; [label] `null` ⇒ la coche seule
+///   (nommée par [semanticLabel]).
+///
+/// Miroir web : `Badge` (`module`, `tone?`, `check`, `label`).
+class SfBadge extends StatelessWidget {
+  const SfBadge(
+    this.label, {
+    super.key,
+    this.civique = false,
+    this.tone,
+    this.check = false,
+    this.semanticLabel,
+  });
+
+  final String? label;
+  final bool civique;
+  final SfTone? tone;
+  final bool check;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final ton = tone;
+    final fond = ton?.soft ?? AppColors.moduleLight(civique: civique);
+    final encre = ton?.text ?? AppColors.module(civique: civique);
+    final texte = label;
+    return Semantics(
+      label: texte == null ? semanticLabel : null,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 26, minWidth: 26),
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        decoration: BoxDecoration(
+          color: fond,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (check) Icon(LucideIcons.check, size: 13, color: encre),
+            if (check && texte != null) const SizedBox(width: 5),
+            if (texte != null)
+              Text(
+                texte,
+                style: AppFonts.ui(
+                  size: 11,
+                  weight: FontWeight.w800,
+                  color: encre,
+                  letterSpacing: 0.3,
+                  height: 1,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// La pastille d'icône douce du module (`.iconbox.soft` / `.iconbox.soft-red`).
+class _SfSoftIconBox extends StatelessWidget {
+  const _SfSoftIconBox({
+    required this.icon,
+    required this.civique,
+    this.size = 54,
+  });
+
+  final IconData icon;
+  final bool civique;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.moduleLight(civique: civique),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+      ),
+      child: Icon(
+        icon,
+        size: size * 0.48,
+        color: AppColors.module(civique: civique),
+      ),
+    );
+  }
+}
+
+/// L'emphase d'un CTA de carte (`.cta` de la maquette) : [solid] = plein à la
+/// couleur du module (le geste que le serveur désigne), [soft] = gris doux,
+/// texte encre (`.cta.soft`, les autres tuiles d'épreuve), [ghost] = fond doux
+/// du module, texte du module (`.cta.ghost-*`, cartes de thème). Miroir web :
+/// `CtaEmphasis` (`"solid" | "soft" | "ghost"`).
+enum SfCtaEmphasis { solid, soft, ghost }
+
+/// Le CTA pleine largeur d'une carte de grille (`.cta` de `.metric` et de
+/// `.theme-card`) : plus compact que [SfButton] — il doit tenir dans une
+/// demi-largeur de téléphone ; flèche sur l'emphase pleine seulement.
+class _SfCardCta extends StatelessWidget {
+  const _SfCardCta({
+    required this.label,
+    required this.civique,
+    required this.emphasis,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool civique;
+  final SfCtaEmphasis emphasis;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final solid = emphasis == SfCtaEmphasis.solid;
+    final encre = switch (emphasis) {
+      SfCtaEmphasis.solid => AppColors.white,
+      SfCtaEmphasis.soft => AppColors.ink,
+      SfCtaEmphasis.ghost => AppColors.module(civique: civique),
+    };
+    return Material(
+      color: switch (emphasis) {
+        SfCtaEmphasis.solid => AppColors.module(civique: civique),
+        SfCtaEmphasis.soft => AppColors.surface3,
+        SfCtaEmphasis.ghost => AppColors.moduleLight(civique: civique),
+      },
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 15,
+                    weight: FontWeight.w800,
+                    color: encre,
+                  ),
+                ),
+              ),
+              if (solid) ...[
+                const SizedBox(width: 6),
+                const Icon(LucideIcons.arrowRight,
+                    size: 16, color: AppColors.white),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// La barre d'avancement d'une carte (`.progress`, `.progress.red`,
+/// `.progress.white`). 🛑 [part] est une part (0 → 1) **déjà calculée** par
+/// l'écran.
+class _SfBar extends StatelessWidget {
+  const _SfBar({required this.part, required this.fill, required this.track});
+
+  final double part;
+  final Color fill;
+  final Color track;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = part.isNaN || part.isInfinite ? 0.0 : part.clamp(0, 1).toDouble();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.pill),
+      child: LinearProgressIndicator(
+        value: p,
+        minHeight: 8,
+        backgroundColor: track,
+        valueColor: AlwaysStoppedAnimation<Color>(fill),
+      ),
+    );
+  }
+}
+
+/// **Le bandeau dégradé d'un module** (`.hero`, `.hero.red`) : intitulé,
+/// titre, phrase, chiffre clé à droite, barre blanche, CTA translucide.
+///
+/// Évolution de l'ancien `SfHeroBanner` (bandeau de l'historique des cycles),
+/// renommé en phase 4a pour ne pas doubler le motif : [child] reste le slot
+/// où cet écran pose ses compteurs ([SfStatGrid] `onHero`).
+///
+/// 🛑 Rien n'est composé ici : [stat], [progress] et les textes arrivent
+/// prêts. [progress] `null` ⇒ pas de barre ; [cta] ou [onPressed] `null` ⇒
+/// pas de bouton (jamais un bouton mort).
+///
+/// Miroir web : `Hero`.
+class SfHero extends StatelessWidget {
+  const SfHero({
+    super.key,
+    required this.civique,
+    required this.label,
+    required this.title,
+    this.sub,
+    this.stat,
+    this.progress,
+    this.cta,
+    this.onPressed,
+    this.icon,
+    this.child,
+  });
+
+  final bool civique;
+
+  /// L'intitulé en petites capitales (« Progression globale »).
+  final String label;
+  final String title;
+  final String? sub;
+
+  /// Le chiffre clé à droite (« {pct} % » / « du parcours »).
+  final SfStat? stat;
+
+  /// Part (0 → 1) de la barre blanche.
+  final double? progress;
+  final String? cta;
+  final VoidCallback? onPressed;
+
+  /// Le pictogramme posé devant l'intitulé. `null` ⇒ intitulé seul.
+  final IconData? icon;
+
+  /// Ce que l'écran pose sous le bandeau (compteurs de l'historique).
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final doux = AppColors.white.withValues(alpha: 0.84);
+    final chiffre = stat;
+    final part = progress;
+    final geste = cta;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppGradients.module(civique: civique),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        boxShadow: AppShadows.md,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        child: Stack(
+          children: [
+            // Les deux halos de `.hero::before` / `.hero::after`.
+            Positioned(
+              right: -70,
+              top: -90,
+              child: _SfHalo(size: 300, alpha: 0.16),
+            ),
+            Positioned(
+              right: 60,
+              bottom: -130,
+              child: _SfHalo(size: 240, alpha: 0.10),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (icon != null) ...[
+                                  Icon(icon, size: 14, color: doux),
+                                  const SizedBox(width: 6),
+                                ],
+                                Flexible(
+                                  child: Text(
+                                    label.toUpperCase(),
+                                    style:
+                                        AppFonts.label(size: 11, color: doux),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              title,
+                              style: AppFonts.display(
+                                size: 28,
+                                weight: FontWeight.w800,
+                                color: AppColors.white,
+                                height: 1.05,
+                              ),
+                            ),
+                            if (sub != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                sub!,
+                                style: AppFonts.ui(
+                                    size: 13, color: doux, height: 1.45),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      if (chiffre != null) ...[
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              chiffre.value,
+                              style: AppFonts.display(
+                                size: 28,
+                                weight: FontWeight.w800,
+                                color: AppColors.white,
+                                height: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              chiffre.label,
+                              style: AppFonts.ui(size: 11, color: doux),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (part != null) ...[
+                    const SizedBox(height: 14),
+                    _SfBar(
+                      part: part,
+                      fill: AppColors.white,
+                      track: AppColors.white.withValues(alpha: 0.24),
+                    ),
+                  ],
+                  if (geste != null && onPressed != null) ...[
+                    const SizedBox(height: 18),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _SfHeroCta(label: geste, onPressed: onPressed!),
+                    ),
+                  ],
+                  if (child != null) ...[
+                    const SizedBox(height: 18),
+                    child!,
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Un halo radial blanc décoratif d'un bandeau dégradé.
+class _SfHalo extends StatelessWidget {
+  const _SfHalo({required this.size, required this.alpha});
+
+  final double size;
+  final double alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              AppColors.white.withValues(alpha: alpha),
+              AppColors.white.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le bouton translucide d'un [SfHero] (`.hero-cta`).
+class _SfHeroCta extends StatelessWidget {
+  const _SfHeroCta({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: AppColors.white.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: AppFonts.ui(
+                    size: 14,
+                    weight: FontWeight.w800,
+                    color: AppColors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(LucideIcons.arrowRight,
+                  size: 16, color: AppColors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le petit texte discret en bout de ligne (« → B2 »). Miroir du `trailing`
+/// chaîne de `LevelRow` côté web (Dart n'a pas d'union `String | Widget`).
+class SfTrailingText extends StatelessWidget {
+  const SfTrailingText(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(text, style: AppFonts.ui(size: 12, color: AppColors.muted));
+  }
+}
+
+/// Le chevron d'une ligne cliquable (`.chev`) — le `trailing="chevron"` du
+/// web.
+class SfChevron extends StatelessWidget {
+  const SfChevron({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Icon(LucideIcons.chevronRight,
+        size: 18, color: AppColors.muted2);
+  }
+}
+
+/// Le cadre commun des lignes blanches cliquables (`.info-card`,
+/// `.level-row`, `.exam-row`).
+class _SfRowFrame extends StatelessWidget {
+  const _SfRowFrame({
+    required this.padding,
+    required this.child,
+    this.onTap,
+  });
+
+  final EdgeInsets padding;
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final rayon = BorderRadius.circular(AppRadii.lg);
+    return Material(
+      color: AppColors.white,
+      borderRadius: rayon,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: rayon,
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: rayon,
+            border: Border.all(color: AppColors.line),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// **La ligne d'information** (`.info-card`) : pastille d'icône douce, badge
+/// court optionnel, titre, méta, et en bout [trailing] — [SfChevron],
+/// [SfBadge] ou tout bloc court.
+///
+/// Miroir web : `InfoCard`.
+class SfInfoCard extends StatelessWidget {
+  const SfInfoCard({
+    super.key,
+    this.civique = false,
+    required this.icon,
+    this.code,
+    required this.title,
+    this.meta,
+    this.trailing,
+    this.onTap,
+  });
+
+  final bool civique;
+  final IconData icon;
+
+  /// Badge court au-dessus du titre (code d'épreuve). `null` ⇒ rien.
+  final String? code;
+  final String title;
+  final String? meta;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bout = trailing;
+    return _SfRowFrame(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          _SfSoftIconBox(icon: icon, civique: civique),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (code != null) ...[
+                  SfBadge(code!, civique: civique),
+                  const SizedBox(height: 6),
+                ],
+                Text(
+                  title,
+                  style: AppFonts.display(
+                      size: 18, weight: FontWeight.w700, height: 1.2),
+                ),
+                if (meta != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    meta!,
+                    style: AppFonts.ui(
+                        size: 14, color: AppColors.muted, height: 1.35),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (bout != null) ...[
+            const SizedBox(width: 12),
+            bout,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **La tuile d'épreuve** (`.metric`) : code, valeur en gros (niveau servi,
+/// « — » s'il manque), état servi au ton servi, méta, CTA.
+///
+/// 🛑 [ctaEmphasis] est une décision d'ÉCRAN lue sur un fait servi (l'épreuve
+/// que le serveur désigne prioritaire) — le kit n'élit rien. Dans une grille,
+/// la tuile s'étire à la hauteur reçue et pousse le CTA en bas.
+///
+/// Miroir web : `Metric`.
+class SfMetric extends StatelessWidget {
+  const SfMetric({
+    super.key,
+    required this.civique,
+    required this.code,
+    required this.value,
+    this.state,
+    this.meta,
+    this.cta,
+    this.onPressed,
+    this.ctaEmphasis = SfCtaEmphasis.soft,
+    this.fill = false,
+  });
+
+  final bool civique;
+  final String code;
+  final String value;
+  final SfState? state;
+  final String? meta;
+  final String? cta;
+  final VoidCallback? onPressed;
+  final SfCtaEmphasis ctaEmphasis;
+
+  /// La tuile reçoit une hauteur bornée par sa rangée (`IntrinsicHeight` +
+  /// `CrossAxisAlignment.stretch`, la `.grid-2` portrait) : elle s'étire sans
+  /// `LayoutBuilder`, qui ne sait pas répondre à une mesure intrinsèque.
+  final bool fill;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fill) return _tuile(etiree: true);
+    return LayoutBuilder(
+      builder: (context, box) => _tuile(etiree: box.hasBoundedHeight),
+    );
+  }
+
+  Widget _tuile({required bool etiree}) {
+    final etat = state;
+    final geste = cta;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: etiree ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          SfBadge(code, civique: civique),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style:
+                AppFonts.display(size: 28, weight: FontWeight.w800, height: 1),
+          ),
+          if (etat != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              etat.label,
+              style: AppFonts.ui(
+                size: 12,
+                weight: FontWeight.w700,
+                color: etat.tone.text,
+              ),
+            ),
+          ],
+          if (meta != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              meta!,
+              style:
+                  AppFonts.ui(size: 12, color: AppColors.muted, height: 1.35),
+            ),
+          ],
+          if (geste != null && onPressed != null) ...[
+            const SizedBox(height: 14),
+            if (etiree) const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: _SfCardCta(
+                label: geste,
+                civique: civique,
+                emphasis: ctaEmphasis,
+                onPressed: onPressed!,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **La ligne de niveau** (`.level-row`) : code dans sa pastille, valeur
+/// (niveau ou pourcentage servi), dessous l'état servi précédé d'un point au
+/// ton servi et/ou une ligne sans point ([caption], « {terminées}/{total}
+/// séries · {thème} » — l'état passe alors en [SfBadge] à droite), et en bout
+/// [trailing] ([SfTrailingText], [SfBadge] coche ou état).
+///
+/// Miroir web : `LevelRow`.
+class SfLevelRow extends StatelessWidget {
+  const SfLevelRow({
+    super.key,
+    this.civique = false,
+    required this.code,
+    required this.value,
+    this.state,
+    this.caption,
+    this.trailing,
+    this.onTap,
+  });
+
+  final bool civique;
+
+  /// Le code servi (« CO ») ou le rang du thème — jamais une abréviation
+  /// inventée.
+  final String code;
+  final String value;
+
+  /// L'état servi, avec son point coloré.
+  final SfState? state;
+
+  /// La ligne grise sans point.
+  final String? caption;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final etat = state;
+    final legende = caption;
+    final bout = trailing;
+    final gris = AppFonts.ui(size: 12, color: AppColors.muted, height: 1.3);
+    return _SfRowFrame(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.moduleLight(civique: civique),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Text(
+              code,
+              style: AppFonts.ui(
+                size: 13,
+                weight: FontWeight.w800,
+                color: AppColors.module(civique: civique),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: AppFonts.display(
+                      size: 18, weight: FontWeight.w800, height: 1.1),
+                ),
+                if (etat != null) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: etat.tone.mark,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(child: Text(etat.label, style: gris)),
+                    ],
+                  ),
+                ],
+                if (legende != null) ...[
+                  const SizedBox(height: 3),
+                  Text(legende, style: gris),
+                ],
+              ],
+            ),
+          ),
+          if (bout != null) ...[
+            const SizedBox(width: 12),
+            bout,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **La pile de lignes de niveau** (`.level-list`).
+///
+/// Miroir web : `LevelList`.
+class SfLevelList extends StatelessWidget {
+  const SfLevelList({super.key, required this.rows});
+
+  final List<SfLevelRow> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          rows[i],
+        ],
+      ],
+    );
+  }
+}
+
+/// **La frise des derniers repères** (`.card` + `.timeline` / `.step`) : un
+/// intitulé, des pastilles reliées par des flèches — la dernière active, à la
+/// couleur du module —, puis [caption] (« Meilleur niveau observé : B1 »).
+///
+/// 🛑 Les étapes sont des valeurs **servies**, déjà écrites (un palier, un taux),
+/// dans l'ordre servi ; liste vide ⇒ pas de frise (l'écran pose son état vide).
+///
+/// Miroir web : `Timeline`.
+class SfTimeline extends StatelessWidget {
+  const SfTimeline({
+    super.key,
+    this.civique = false,
+    required this.steps,
+    this.label,
+    this.caption,
+  });
+
+  final bool civique;
+  final List<String> steps;
+  final String? label;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (label != null)
+            Text(
+              label!.toUpperCase(),
+              style: AppFonts.label(size: 11, color: AppColors.muted),
+            ),
+          if (label != null && steps.isNotEmpty) const SizedBox(height: 14),
+          if (steps.isNotEmpty)
+            Wrap(
+              spacing: 7,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (var i = 0; i < steps.length; i++) ...[
+                  if (i > 0)
+                    Text(
+                      '→',
+                      style: AppFonts.ui(size: 13, color: AppColors.muted2),
+                    ),
+                  _SfTimelineStep(
+                    label: steps[i],
+                    active: i == steps.length - 1,
+                    civique: civique,
+                  ),
+                ],
+              ],
+            ),
+          if (caption != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              caption!,
+              style:
+                  AppFonts.ui(size: 14, color: AppColors.muted, height: 1.35),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SfTimelineStep extends StatelessWidget {
+  const _SfTimelineStep({
+    required this.label,
+    required this.active,
+    required this.civique,
+  });
+
+  final String label;
+  final bool active;
+  final bool civique;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 38, minHeight: 30),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? AppColors.module(civique: civique) : AppColors.surface3,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.ui(
+          size: 12,
+          weight: FontWeight.w800,
+          color: active ? AppColors.white : AppColors.muted,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// **La carte d'un thème civique** (`.theme-card`, maquette web ramenée au
+/// portrait) : pastille d'icône, nom, description, anneau d'avancement, puis
+/// le compteur de séries, l'état servi et le CTA doux.
+///
+/// 🛑 [ring] est le pourcentage **déjà calculé** par la fonction unique de
+/// l'écran (`avancementSeriesCivique([stat]).pourcentage`) ; l'anneau n'en
+/// tire aucun état et garde la teinte du module jusqu'au bout (jamais de
+/// vert). [description] `null` ⇒ rien à sa place.
+///
+/// [onPressed] sans [cta] ⇒ toute la carte agit ; avec [cta], seul le bouton.
+///
+/// Miroir web : `ThemeCard`.
+class SfThemeCard extends StatelessWidget {
+  const SfThemeCard({
+    super.key,
+    this.civique = true,
+    required this.icon,
+    required this.title,
+    this.description,
+    required this.ring,
+    required this.count,
+    this.state,
+    this.cta,
+    this.onPressed,
+  });
+
+  final bool civique;
+  final IconData icon;
+  final String title;
+  final String? description;
+
+  /// Pourcentage d'avancement, 0 → 100.
+  final int ring;
+
+  /// « {terminées}/{total} séries ».
+  final String count;
+  final SfState? state;
+  final String? cta;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final etat = state;
+    final geste = cta;
+    final rayon = BorderRadius.circular(AppRadii.xl);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: rayon,
+        boxShadow: AppShadows.card,
+      ),
+      child: Material(
+        color: AppColors.white,
+        borderRadius: rayon,
+        child: InkWell(
+          onTap: geste == null ? onPressed : null,
+          borderRadius: rayon,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: rayon,
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    _SfSoftIconBox(icon: icon, civique: civique, size: 48),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppFonts.display(
+                                size: 17, weight: FontWeight.w700, height: 1.2),
+                          ),
+                          if (description != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              description!,
+                              style: AppFonts.ui(
+                                  size: 13,
+                                  color: AppColors.muted,
+                                  height: 1.4),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SfRing(
+                      ratio: ring / 100,
+                      size: 52,
+                      stroke: 6,
+                      label: '$ring %',
+                      reached: false,
+                      civique: civique,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    SfBadge(count, civique: civique),
+                    const Spacer(),
+                    if (etat != null)
+                      Text(
+                        etat.label,
+                        style: AppFonts.ui(
+                          size: 12,
+                          weight: FontWeight.w700,
+                          color: etat.tone.text,
+                        ),
+                      ),
+                  ],
+                ),
+                if (geste != null && onPressed != null) ...[
+                  const SizedBox(height: 14),
+                  _SfCardCta(
+                    label: geste,
+                    civique: civique,
+                    emphasis: SfCtaEmphasis.ghost,
+                    onPressed: onPressed!,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **La carte conseil** (`.tip-card`, maquette web) : fond ambre doux,
+/// intitulé ambre, texte éditorial, CTA plein du module optionnel.
+///
+/// 🛑 Le texte est **éditorial ou servi** : la carte ne compose aucune phrase
+/// à partir d'un chiffre.
+///
+/// Miroir web : `TipCard`.
+class SfTipCard extends StatelessWidget {
+  const SfTipCard({
+    super.key,
+    this.civique = false,
+    this.icon,
+    required this.label,
+    required this.text,
+    this.cta,
+    this.onPressed,
+  });
+
+  /// La couleur du CTA.
+  final bool civique;
+  final IconData? icon;
+  final String label;
+  final String text;
+  final String? cta;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final geste = cta;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.amberBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: AppColors.amberDark),
+                const SizedBox(width: 7),
+              ],
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  style: AppFonts.label(size: 11, color: AppColors.amberDark),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: AppFonts.ui(size: 14, color: AppColors.ink2, height: 1.55),
+          ),
+          if (geste != null && onPressed != null) ...[
+            const SizedBox(height: 14),
+            SfButton(
+              label: geste,
+              variant: civique ? SfButtonVariant.civique : SfButtonVariant.tcf,
+              onPressed: onPressed,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **La tête d'un écran de progression** (`.progression-head` / `.target`).
+/// Deux formes :
+/// - [from] → [to] : niveau actuel, flèche, objectif (TCF) ;
+/// - [primary] + [secondary] : « {pct} % du parcours réalisé » / « {n} séries
+///   terminées » (civique), avec sa barre [progress].
+///
+/// 🛑 Valeurs **servies** ou agrégées par la fonction documentée de l'écran ;
+/// [progress] `null` ⇒ pas de barre (le TCF n'en pose pas à côté des
+/// niveaux).
+///
+/// Miroir web : `ProgressionHead`.
+class SfProgressionHead extends StatelessWidget {
+  const SfProgressionHead({
+    super.key,
+    this.civique = false,
+    required this.label,
+    this.from,
+    this.to,
+    this.primary,
+    this.secondary,
+    this.progress,
+  }) : assert((from != null && to != null) || primary != null,
+            'from + to, ou primary');
+
+  final bool civique;
+  final String label;
+
+  /// Niveau actuel (« B1 » / « Niveau actuel »), affiché au-dessus du libellé.
+  final SfStat? from;
+
+  /// Objectif (« B2 » / « Objectif »), à la couleur du module.
+  final SfStat? to;
+
+  /// Valeur mise en avant, à la couleur du module, libellé dessous.
+  final SfStat? primary;
+  final SfStat? secondary;
+
+  /// Part (0 → 1) de la barre du module.
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.module(civique: civique);
+    final depart = from;
+    final cible = to;
+    final tete = primary;
+    final second = secondary;
+    final part = progress;
+    final grand =
+        AppFonts.display(size: 31, weight: FontWeight.w800, height: 1);
+    final micro = AppFonts.ui(size: 12, color: AppColors.muted, height: 1.35);
+
+    final Widget corps;
+    if (depart != null && cible != null) {
+      corps = Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(depart.label, style: micro),
+                const SizedBox(height: 2),
+                Text(depart.value, style: grand),
+              ],
+            ),
+          ),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.moduleLight(civique: civique),
+            ),
+            child: Icon(LucideIcons.arrowRight, size: 20, color: accent),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(cible.label, style: micro, textAlign: TextAlign.right),
+                const SizedBox(height: 2),
+                Text(cible.value, style: grand.copyWith(color: accent)),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      corps = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tete!.value, style: grand.copyWith(color: accent)),
+                const SizedBox(height: 2),
+                Text(tete.label, style: micro),
+              ],
+            ),
+          ),
+          if (second != null) ...[
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(second.value, style: grand),
+                  const SizedBox(height: 2),
+                  Text(second.label, style: micro, textAlign: TextAlign.right),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.xl),
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: AppFonts.label(size: 11, color: AppColors.muted),
+          ),
+          const SizedBox(height: 8),
+          corps,
+          if (part != null) ...[
+            const SizedBox(height: 14),
+            _SfBar(part: part, fill: accent, track: AppColors.surface3),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Le statut d'un créneau d'examen, **lu sur l'état servi et le `locked`
+/// servi** par l'écran : [done] fait, [go] disponible (geste mis en avant),
+/// [locked] verrouillé, [neutral] tout le reste.
+enum SfExamStatus { done, go, locked, neutral }
+
+/// **La ligne d'un examen blanc** (`.exam-row`) : numéro dans sa pastille,
+/// titre, méta servie, statut en pastille.
+///
+/// Refaite en phase 4a sur la maquette ; l'ancienne ligne d'épreuve (icône +
+/// niveau) a cédé sa place à [SfInfoCard] chez son seul lecteur.
+///
+/// Miroir web : `ExamRow`.
+class SfExamRow extends StatelessWidget {
+  const SfExamRow({
+    super.key,
+    this.civique = false,
+    required this.number,
+    required this.title,
+    this.meta,
+    required this.status,
+    required this.statusLabel,
+    this.onTap,
+  });
+
+  final bool civique;
+  final int number;
+  final String title;
+  final String? meta;
+  final SfExamStatus status;
+  final String statusLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.module(civique: civique);
+    final plein = status == SfExamStatus.done || status == SfExamStatus.go;
+    final go = status == SfExamStatus.go;
+    return Opacity(
+      opacity: status == SfExamStatus.locked ? 0.55 : 1,
+      child: _SfRowFrame(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: plein ? accent : AppColors.surface2,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: Text(
+                '$number',
+                style: AppFonts.display(
+                  size: 20,
+                  weight: FontWeight.w800,
+                  color: plein ? AppColors.white : accent,
+                  height: 1,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppFonts.display(
+                        size: 17, weight: FontWeight.w700, height: 1.2),
+                  ),
+                  if (meta != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      meta!,
+                      style: AppFonts.ui(
+                          size: 13, color: AppColors.muted, height: 1.35),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: go ? accent : AppColors.surface2,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+              ),
+              child: Text(
+                statusLabel,
+                style: AppFonts.ui(
+                  size: 11,
+                  weight: FontWeight.w800,
+                  color: go ? AppColors.white : AppColors.muted,
+                  height: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

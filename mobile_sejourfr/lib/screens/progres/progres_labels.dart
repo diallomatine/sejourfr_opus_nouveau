@@ -1,5 +1,9 @@
+import '../../core/models/civic_diagnostic_models.dart';
 import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/progress_models.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
+import '../diagnostic_civique/civic_diagnostic_blocks.dart';
 
 /// L'**autorité d'affichage du niveau** d'une épreuve (Réviser, tableau de
 /// bord) — **pure**, miroir mot pour mot de `web_sejoufr/lib/progres.ts`.
@@ -39,3 +43,50 @@ NiveauCecrl? niveauActuelEpreuve(TcfDomainProfile? profil, String code) {
   }
   return null;
 }
+
+/* ------------------------ L'ÉTAT d'une épreuve face à l'objectif (servi) --- */
+
+const String kEtatObjectifAtteint = 'Objectif atteint';
+const String kEtatObjectifProche = "Proche de l'objectif";
+const String kEtatObjectifARenforcer = 'À renforcer';
+const String kEtatObjectifNonEvalue = 'Non évalué';
+
+/// **L'état d'une épreuve face à l'objectif, et son ton** — la seule
+/// correspondance du mobile entre le `StatutObjectif` **servi**
+/// (`ProgressDto.tcf.epreuves[].status`) et ce que l'écran affiche
+/// (Entraînement, Progression TCF).
+///
+/// 🛑 **Aucun seuil** : on lit un enum servi, jamais un nombre.
+/// 🛑 `TO_REINFORCE` recouvre aussi « jamais mesuré » : c'est [niveau] servi
+/// qui les distingue, et une épreuve sans palier se dit « Non évalué », au ton
+/// neutre — `null` = inconnu, jamais mauvais (V040/V041/V042).
+/// `status == null` (aucune démarche déclarée) ⇒ `null` : rien à comparer.
+///
+/// Miroir web : `etatEpreuveTcf` (`lib/etats-servis.ts`) — un seul mapping par
+/// front.
+SfState? etatEpreuveTcf(StatutObjectif? status, NiveauCecrl? niveau) {
+  if (niveau == null) {
+    return (label: kEtatObjectifNonEvalue, tone: SfTone.muted);
+  }
+  return switch (status) {
+    null => null,
+    StatutObjectif.targetReached => (
+        label: kEtatObjectifAtteint,
+        tone: SfTone.ok
+      ),
+    StatutObjectif.closeToTarget => (
+        label: kEtatObjectifProche,
+        tone: SfTone.warn
+      ),
+    StatutObjectif.toReinforce => (
+        label: kEtatObjectifARenforcer,
+        tone: SfTone.hot
+      ),
+  };
+}
+
+/// **L'état servi d'un thème civique** (`CivicThemeState`) et son ton
+/// ([sfToneOf]) — la seule correspondance du mobile. Miroir web :
+/// `etatThemeCivique` (`lib/etats-servis.ts`).
+SfState etatThemeCivique(CivicThemeState etat) =>
+    (label: etat.label, tone: sfToneOf(etat));

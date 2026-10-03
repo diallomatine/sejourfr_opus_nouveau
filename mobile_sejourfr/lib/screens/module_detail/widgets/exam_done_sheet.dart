@@ -15,9 +15,17 @@ class ExamDoneSheet extends StatelessWidget {
     required this.onViewDetail,
     required this.onResume,
     this.subtitle,
+    this.detailLabel = 'Voir le détail',
+    this.resumeLabel = 'Refaire',
   });
 
   final String title;
+
+  /// Libellés des deux gestes : les défauts servent les grilles d'examens de
+  /// thème / d'épreuve ; les segments « Examens » des modules passent ceux du
+  /// web (`EXAMENS_DONE_DETAIL` / `_RESUME`).
+  final String detailLabel;
+  final String resumeLabel;
   final String? subtitle;
   final Color accent;
   final VoidCallback onViewDetail;
@@ -60,7 +68,7 @@ class ExamDoneSheet extends StatelessWidget {
               ],
               const SizedBox(height: 18),
               _ExamSheetButton(
-                label: 'Voir le détail',
+                label: detailLabel,
                 icon: LucideIcons.fileText,
                 background: accent.withValues(alpha: 0.10),
                 foreground: accent,
@@ -68,7 +76,7 @@ class ExamDoneSheet extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _ExamSheetButton(
-                label: 'Refaire',
+                label: resumeLabel,
                 icon: LucideIcons.refreshCw,
                 background: AppColors.red,
                 foreground: AppColors.white,

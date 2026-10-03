@@ -1,6 +1,5 @@
 import {ClipboardCheck, TrendingUp} from "lucide-react";
-import {CompteCard, CompteRow} from "@/app/_components/compte/CompteParts";
-import {Pad} from "@/app/_components/sejour/SejourKit";
+import {InfoCard, Pad, Stack} from "@/app/_components/sejour/SejourKit";
 import {
     JOURNEY_HISTORY_TITLE,
     PLAN_DIAGNOSTIC_SUB,
@@ -11,8 +10,9 @@ import {
 import type {ParcoursModule} from "@/lib/module-switch";
 
 /**
- * Les deux accès sous le cycle du Plan, TCF comme civique : « Mes cycles » et
- * « Mon diagnostic », en lignes icône + titre + sous-titre + chevron.
+ * Les deux accès du Plan, TCF comme civique : « Mes cycles » et « Mon
+ * diagnostic », en `InfoCard` de la maquette (icône, titre, sous-titre,
+ * chevron — Navigation v2).
  * Miroir mobile : le `ListGroup` de `_links` (`plan_tcf_view.dart`,
  * `civic_plan_view.dart`).
  *
@@ -25,26 +25,29 @@ import type {ParcoursModule} from "@/lib/module-switch";
  * `diagnosticFait` (`lib/preparation.ts`), jamais ici.
  */
 export function PlanLinks({module, diagnosticHref}: {module: ParcoursModule; diagnosticHref: string | null}) {
+    const tone = module === "CIVIQUE" ? "civique" : "tcf";
     return (
         <Pad>
-            <CompteCard>
-                <CompteRow
+            <Stack>
+                <InfoCard
+                    module={tone}
                     href={journeyHistoryHref(module)}
-                    icon={<TrendingUp size={20}/>}
-                    tone="muted"
+                    icon={<TrendingUp/>}
                     title={JOURNEY_HISTORY_TITLE}
-                    sub={journeyHistorySub(module)}
+                    meta={journeyHistorySub(module)}
+                    trailing="chevron"
                 />
                 {diagnosticHref !== null && (
-                    <CompteRow
+                    <InfoCard
+                        module={tone}
                         href={diagnosticHref}
-                        icon={<ClipboardCheck size={20}/>}
-                        tone="muted"
+                        icon={<ClipboardCheck/>}
                         title={PLAN_DIAGNOSTIC_TITLE}
-                        sub={PLAN_DIAGNOSTIC_SUB}
+                        meta={PLAN_DIAGNOSTIC_SUB}
+                        trailing="chevron"
                     />
                 )}
-            </CompteCard>
+            </Stack>
         </Pad>
     );
 }

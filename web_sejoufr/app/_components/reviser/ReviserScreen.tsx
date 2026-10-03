@@ -1,11 +1,19 @@
 "use client";
 
 /**
- * **L'écran « Réviser »** — la maquette du propriétaire
- * (`~/Desktop/sejourfr_ecrans/reviser_{tcf,civique}.png`), montée sur le KIT.
+ * **L'écran « Entraînement »** d'un module (ex-« Réviser ») — Navigation v2
+ * (2026-10-03), maquettes `#tcf-entrainement` et `#civique-entrainement` de
+ * `docs/redesign/sejourfr-navigation-web.html`, montées sur le KIT.
  *
- * L'en-tête, la carte **« Reprendre là où vous vous êtes arrêté »**, puis la
- * liste des **quatre épreuves** du TCF IRN — ou des cinq thèmes en civique.
+ * TCF : `PageHead` (« 4 épreuves »), la carte « Recommandé par votre plan »
+ * (`ActionCard`), une `Metric` par épreuve officielle (niveau servi, état servi
+ * `StatutObjectif`, compteur, CTA plein sur l'épreuve de l'étape courante du
+ * parcours), le bandeau « Entretien en temps réel » (lien vers le hub EO,
+ * D3-B), puis « Renforcer mon français » — ordre de la maquette, le même sur
+ * le mobile. Civique : `PageHead` (thèmes, séries), la carte
+ * de reprise, une `ThemeCard` par thème (anneau = `avancementSeriesCivique`
+ * du thème, description servie). « Statistiques par thème » de la maquette
+ * est **masqué** : rien ne le sert.
  *
  * 🛑 **« Structure de la langue » n'est PAS une cinquième épreuve** (arbitrage
  * du propriétaire, 2026-09-13). Le TCF IRN en comporte quatre : CO, CE, EE,
@@ -27,23 +35,17 @@
  * premier examen du cycle pour un compte sans diagnostic. Un visiteur n'a pas
  * de Plan : il garde le catalogue et son bandeau de découverte.
  *
- * 🛑 **Pas de bascule de parcours ICI** (arbitrage du propriétaire,
- * 2026-09-12) : sur le web on arrive par la barre latérale, qui porte déjà ses
- * deux entrées « TCF IRN » et « Examen civique ». Le reste est **identique au
- * mobile**, qui garde la sienne parce que Réviser y est un onglet.
+ * 🛑 **Pas de bascule de parcours ICI** : on arrive par la barre latérale, qui
+ * porte une entrée « Entraînement » par module (Navigation v2).
  *
- * 🛑 **Aucune phrase n'est composée ici** : elles vivent dans `lib/reviser.ts`,
- * miroir mot pour mot de `mobile_sejourfr/lib/screens/reviser/reviser_labels.dart`.
+ * 🛑 **Aucune phrase n'est composée ici** : celles de Réviser vivent dans
+ * `lib/reviser.ts` (miroir de `reviser_labels.dart`), celles de la maquette
+ * dans `lib/module-ecrans.ts`, les états servis dans `lib/etats-servis.ts`.
  *
- * 🛑 **Colonne LARGE en desktop** (`<SejourApp wide>`), et c'est la maquette qui
- * tranche : `grok_ecran/screenshots/reviser-hub.png` mesure 960 px de contenu à
- * 1280 px de fenêtre — la colonne de 1080 px, exactement. Réviser est un
- * **catalogue**, pas un écran de lecture : sa grille d'épreuves à deux colonnes
- * tenait dans 720 px, où les titres passaient à la ligne et où le tiers droit de
- * l'écran restait blanc.
+ * Colonne : celle du shell (`home`) pour un compte ; un visiteur, hors shell,
+ * garde la colonne large du kit (`wide`).
  */
 
-import Link from "next/link";
 import { useMemo } from "react";
 import {
   BookOpen,
@@ -58,6 +60,7 @@ import {
   Mic,
   PenLine,
   Scale,
+  Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -66,9 +69,12 @@ import {
   dashboardApi,
   journeyApi,
   learningPlanApi,
+  PROGRESS_CACHE_PREFIX,
+  progressApi,
   publicThemeApi,
+  themeApi,
 } from "@/lib/api";
-import { useCachedData } from "@/lib/use-cached-data";
+import { type CachedData, useCachedData } from "@/lib/use-cached-data";
 import { themeSlug } from "@/lib/themes";
 import { entrainementHref } from "@/lib/module-switch";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -87,7 +93,9 @@ import {
   type DashboardSummaryResponse,
   type JourneyDto,
   type LearningPlanDto,
+  niveauCecrlShort,
   type PlanDomainDto,
+  type ProgressDto,
   type ThemeUserResponse,
 } from "@/lib/types";
 import {
@@ -96,28 +104,37 @@ import {
   productionEntryHref,
 } from "@/app/_components/production/config";
 import {
+  ActionCard,
+  type ActionCardCta,
+  Badge,
+  BlockError,
+  BlockSkeleton,
   Card,
   Cta,
-  EpreuveRow,
-  NoteCard,
+  Grid,
+  Hero,
+  InfoCard,
+  Metric,
   Pad,
+  PageHead,
   Section,
   SejourApp,
   Stack,
-  Top,
+  ThemeCard,
+  TipCard,
   sejourStyles,
 } from "@/app/_components/sejour/SejourKit";
 import {
+  avancementSeriesCivique,
   domainForCode,
   epreuveMeta,
-  epreuveRatio,
   epreuveStatus,
+  isProductionCode,
+  REVISER_NOT_STARTED,
   REVISER_RESUME_LABEL,
   reviserResumeCivique,
   reviserResumeTcf,
   reviserSectionTitle,
-  reviserSubtitle,
-  reviserTitle,
   themeLigneFor,
   REVISER_RENFORCER_NOTE,
   REVISER_RENFORCER_NOTE_TITLE,
@@ -127,6 +144,28 @@ import {
   TCF_EPREUVES_OFFICIELLES,
   themeStatus,
 } from "@/lib/reviser";
+import { niveauActuelEpreuve } from "@/lib/progres";
+import { etatEpreuveTcf } from "@/lib/etats-servis";
+import { ACCUEIL_BLOCK_ERROR, ACCUEIL_INCONNU, ACCUEIL_RETRY } from "@/lib/accueil";
+import { PLAN_DOMAIN_SECTION, type PlanDomainEpreuve } from "@/lib/plan-domain";
+import {
+  ENTRAINEMENT_METRIC_CTA,
+  ENTRAINEMENT_TCF_BADGE,
+  ENTRAINEMENT_TCF_SUBTITLE,
+  ENTRAINEMENT_THEME_CTA,
+  ENTRAINEMENT_TITLE,
+  ENTRETIEN_CTA,
+  ENTRETIEN_LABEL,
+  ENTRETIEN_SECTION_TITLE,
+  ENTRETIEN_STAT,
+  ENTRETIEN_SUB,
+  ENTRETIEN_TITLE,
+  entrainementCiviqueSubtitle,
+  entrainementSeriesBadge,
+  entrainementThemesBadge,
+  MODULE_CIVIQUE_KICKER,
+  MODULE_TCF_KICKER,
+} from "@/lib/module-ecrans";
 import {
   JOURNEY_NEEDS_OBJECTIVE_CTA,
   JOURNEY_NEEDS_OBJECTIVE_TEXT,
@@ -134,13 +173,10 @@ import {
   journeyTargetPathHref,
 } from "@/lib/journey";
 import {PASS_MODULE_NAME, PASS_OFFER_PLAN, PASS_PITCH, passModuleOfExam} from "@/lib/passes";
-import styles from "./reviser.module.css";
-import { PlanRecoCard } from "@/app/_components/plan/PlanRecoCard";
 
-/** Le pictogramme rendu à la taille de la carte : `PlanRecoCard` prend un
- *  nœud, pas un composant — ses appelants n'ont pas tous une `LucideIcon`. */
+/** Le pictogramme rendu à la taille d'une carte du kit. */
 function renderIcon(Icon: LucideIcon) {
-  return <Icon size={24} strokeWidth={2} aria-hidden />;
+  return <Icon aria-hidden />;
 }
 
 /** Pictogramme d'une catégorie — le même que sur le mobile et sur le Plan. */
@@ -159,6 +195,17 @@ const ICONS: Record<string, LucideIcon> = {
 
 function iconFor(code: string): LucideIcon {
   return ICONS[code] ?? BookOpen;
+}
+
+/** Le code court d'une épreuve (« CO »), lu sur la table du Plan. */
+function codeCourt(code: string): string {
+  return code in PLAN_DOMAIN_SECTION ? PLAN_DOMAIN_SECTION[code as PlanDomainEpreuve] : code;
+}
+
+/** Les parties non vides, jointes par « · ». */
+function joindre(parts: Array<string | null | undefined>): string | null {
+  const kept = parts.filter((p): p is string => Boolean(p && p.trim()));
+  return kept.length > 0 ? kept.join(" · ") : null;
 }
 
 /** Ordre canonique des **quatre** épreuves du TCF IRN — le serveur sert les
@@ -208,23 +255,19 @@ export function ReviserScreen({
     () => publicThemeApi.list("CIVIQUE"),
   );
 
+  /* 🛑 Le shell connecté porte la colonne de la maquette (`home`) ; un
+     visiteur garde le chrome public et la colonne large du kit. */
   return (
-    <SejourApp wide>
-      {/* 🛑 Le titre nomme le PARCOURS, pas l'écran (demande du propriétaire,
-          2026-09-13) — divergence voulue avec le mobile, cf. `reviserTitle`. */}
-      <Top title={reviserTitle(module)} />
-      <Pad>
-        <p className={styles.sub}>{reviserSubtitle(module)}</p>
-      </Pad>
+    <SejourApp wide={isGuest} className={isGuest ? undefined : sejourStyles.home}>
       {module === "TCF" ? (
         <TcfBody
-          summary={summary.data ?? null}
+          summary={summary}
           isGuest={isGuest}
           isPremium={isPremium}
         />
       ) : (
         <CiviqueBody
-          summary={summary.data ?? null}
+          summary={summary}
           guestThemes={guestThemes.data ?? []}
           isGuest={isGuest}
           isPremium={isPremium}
@@ -241,7 +284,7 @@ function TcfBody({
   isGuest,
   isPremium,
 }: {
-  summary: DashboardSummaryResponse | null;
+  summary: CachedData<DashboardSummaryResponse>;
   isGuest: boolean;
   isPremium: boolean;
 }) {
@@ -254,6 +297,13 @@ function TcfBody({
   const journey = useCachedData<JourneyDto>(
     isGuest ? null : journeyApi.cacheKey,
     () => journeyApi.getCached(),
+  );
+  /* L'état de chaque épreuve face à l'objectif (`StatutObjectif`), servi par
+     `/api/me/progress` — la lecture EN CACHE de l'Accueil. Son échec retire
+     seulement la ligne d'état : le reste de la tuile est servi ailleurs. */
+  const progres = useCachedData<ProgressDto>(
+    isGuest ? null : `${PROGRESS_CACHE_PREFIX}current`,
+    () => progressApi.get(),
   );
   /* 🛑 **Les mêmes lanceurs que le Plan**, jamais un second chemin : une
      ligne de séance est un exercice **ou** une mesure de domaine, et les
@@ -270,15 +320,20 @@ function TcfBody({
   /* 🛑 **L'autorité d'AFFICHAGE du niveau**, servie par le tableau de bord déjà
      chargé — donc **aucun appel de plus**. C'est la même valeur que l'Accueil,
      le Profil, l'écran Progrès et l'écran Diagnostic
-     (`TcfProfileService.levelProfileAccueil`). Réviser lisait le niveau du Plan
-     puis `stat.level` : trois autorités pour une phrase.
-     → `docs/regles/progression.md`. */
-  const profil = summary?.tcfDomainProfile ?? null;
+     (`TcfProfileService.levelProfileAccueil`). → `docs/regles/progression.md`. */
+  const profil = summary.data?.tcfDomainProfile ?? null;
 
-  const stats = useMemo(() => orderedTcf(summary), [summary]);
+  const stats = useMemo(() => orderedTcf(summary.data ?? null), [summary.data]);
   /* 🛑 Servie comme les autres, mais rangée à part : ce n'est pas une épreuve
      du TCF IRN. `orderedTcf` ne la trouve plus dans son ordre canonique. */
-  const complementaire = useMemo(() => statComplementaire(summary), [summary]);
+  const complementaire = useMemo(() => statComplementaire(summary.data ?? null), [summary.data]);
+
+  /* **L'épreuve que le serveur désigne** — celle de l'étape « À faire
+     maintenant » du parcours (`journey.current`), la même autorité que le Plan
+     et l'Accueil : sa tuile porte le CTA plein, les autres le doux. Aucune
+     désignation ⇒ tout en doux. Miroir : `_prioritaire` (mobile). */
+  const blocCourant = journey.data?.current?.bloc ?? null;
+  const prioritaire = blocCourant?.kind === "EPREUVE" ? blocCourant.code : null;
 
   /* 🛑 **Le même geste que le bouton du Plan**, sur la **même** action : une
      MESURE passe devant tout le reste, et c'est `planNowCard` qui l'a tranché —
@@ -291,38 +346,49 @@ function TcfBody({
     }
     if (carte.exercise) void exercise.start(carte.exercise);
   };
+  /* 🛑 **Le geste ET sa destination viennent du Plan** : `OUVRIR_ETAPE`
+     ouvre l'écran de l'étape (ses deux séries), `LANCER` démarre l'action, et
+     un geste d'achat passe par l'écran de transition (A145). */
+  const resumeCta: ActionCardCta | null = !resume
+    ? null
+    : resume.geste === "DEBLOQUER"
+      ? { label: resume.cta, href: planUnlockHref("TCF") }
+      : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+        ? { label: resume.cta, href: resume.etapeHref }
+        : { label: resume.cta, onClick: reprendre, disabled: busy };
+  const resumeError = exercise.error ?? assessment.error;
 
   return (
     <>
-      {resume ? (
-        <PlanRecoCard
-          label={REVISER_RESUME_LABEL}
-          /* Le domaine **réellement lancé** : celui de la mesure quand elle
-             passe devant, celui de la priorité sinon. */
-          icon={renderIcon(iconFor(sectionEpreuve(resume.section) ?? "TCF_CO"))}
-          title={resume.title}
-          subtitle={resume.subtitle}
-          cta={resume.cta}
-          /* 🛑 **Le geste vient du Plan, il ne se redéduit pas ici** — et un
-             geste d'achat passe par l'écran de transition (A145), jamais par
-             le paywall d'un coup. */
-          /* 🛑 **Le geste ET sa destination viennent du Plan** : `OUVRIR_ETAPE`
-             ouvre l'écran de l'étape (ses deux séries), `LANCER` démarre
-             l'action. Aucune condition sur « est-ce une série ? » ici. */
-          {...(resume.geste === "DEBLOQUER"
-            ? {href: planUnlockHref("TCF")}
-            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
-              ? {href: resume.etapeHref}
-              : {onClick: reprendre, busy, error: exercise.error ?? assessment.error})}
-          tone="primary"
+      <Pad>
+        <PageHead
+          kicker={MODULE_TCF_KICKER}
+          title={ENTRAINEMENT_TITLE}
+          subtitle={ENTRAINEMENT_TCF_SUBTITLE}
+          aside={<Badge>{ENTRAINEMENT_TCF_BADGE}</Badge>}
         />
+      </Pad>
+      {resume ? (
+        <Pad className={sejourStyles.pageBody}>
+          <ActionCard
+            module="tcf"
+            /* Le domaine **réellement lancé** : celui de la mesure quand elle
+               passe devant, celui de la priorité sinon. */
+            icon={renderIcon(iconFor(sectionEpreuve(resume.section) ?? "TCF_CO"))}
+            label={REVISER_RESUME_LABEL}
+            title={resume.title}
+            meta={resume.subtitle}
+            badge={resume.section}
+            cta={resumeCta}
+            block
+          >
+            {resumeError ? <p className={sejourStyles.actionNote} role="alert">{resumeError}</p> : null}
+          </ActionCard>
+        </Pad>
       ) : null}
       {/* 🛑 **L'invitation à déclarer un objectif se lit ici aussi** (arbitrage
-          du propriétaire, 2026-09-17). Réviser est la porte d'entrée d'un
-          compte gratuit : sans cette invitation, un candidat sans démarche
-          déclarée n'apprenait nulle part qu'elle lui ouvre un parcours. Elle
-          n'enlève rien — la reprise ci-dessus reste servie, le Plan n'exige pas
-          d'objectif. */}
+          du propriétaire, 2026-09-17). Elle n'enlève rien — la reprise
+          ci-dessus reste servie, le Plan n'exige pas d'objectif. */}
       {journey.data?.state === "NEEDS_OBJECTIVE" && (
         <Section title={JOURNEY_NEEDS_OBJECTIVE_TITLE}>
           <Pad>
@@ -336,10 +402,9 @@ function TcfBody({
       {/* 🛑 **« Reprendre » n'est PAS le Plan** (consigne du propriétaire,
           contrôle F, D113) : il ne compterait comme tel que si l'exercice repris
           avait été lancé depuis le Plan avec un marqueur PERSISTÉ au lancement,
-          et ce marqueur n'existe pas — la carte relance l'action calculée à la
-          lecture, pas une tentative en cours. Un 403 y prend donc le CTA de
-          l'écran d'arrivée, sans parcours : `MOCK_EXAM` pour une mesure (les
-          grilles d'examens), `OTHER` pour un exercice — miroir du mobile. */}
+          et ce marqueur n'existe pas. Un 403 y prend donc le CTA de l'écran
+          d'arrivée, sans parcours : `MOCK_EXAM` pour une mesure, `OTHER` pour
+          un exercice — miroir du mobile. */}
       <PaywallSheet
         ctaLocation={assessment.paywallOpen ? "MOCK_EXAM" : "OTHER"}
         screen="reviser"
@@ -354,45 +419,77 @@ function TcfBody({
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="TCF" />
       <Section title={reviserSectionTitle("TCF", stats.length)}>
         <Pad>
-          <Stack className={sejourStyles.deskGrid2}>
-            {stats.map((stat) => {
-              const domain: PlanDomainDto | null = domainForCode(
-                plan.data ?? null,
-                stat.code,
-              );
-              return (
-                <EpreuveRow
-                  key={stat.code}
-                  icon={iconFor(stat.code)}
-                  title={stat.label}
-                  status={epreuveStatus(stat, domain, profil)}
-                  meta={epreuveMeta(stat)}
-                  ratio={epreuveRatio(stat)}
-                  href={hrefFor(stat)}
-                />
-              );
-            })}
-          </Stack>
+          {summary.loading ? (
+            <Grid cols={4}>
+              {stats.map((stat) => <BlockSkeleton key={stat.code} height={236} />)}
+            </Grid>
+          ) : summary.error !== null ? (
+            <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />
+          ) : (
+            <Grid cols={4}>
+              {stats.map((stat) => {
+                const domain: PlanDomainDto | null = domainForCode(plan.data ?? null, stat.code);
+                const niveau = niveauActuelEpreuve(profil, stat.code);
+                const epreuve = progres.data?.tcf.epreuves.find((e) => e.epreuve === stat.code) ?? null;
+                /* Sans le profil : le niveau est déjà la valeur de la tuile, la méta ne
+                   le redit pas (parité mobile). */
+                const etape = isProductionCode(stat.code) ? epreuveStatus(stat, domain, null) : null;
+                return (
+                  <Metric
+                    key={stat.code}
+                    module="tcf"
+                    code={codeCourt(stat.code)}
+                    value={niveau ? niveauCecrlShort(niveau) : ACCUEIL_INCONNU}
+                    state={etatEpreuveTcf(epreuve)}
+                    /* Le nom, le compteur servi, puis — pour une production —
+                       l'étape que le Plan construit ou ce qui est acquis
+                       (`epreuveStatus`). Le niveau est déjà la valeur. */
+                    meta={joindre([
+                      stat.label,
+                      epreuveMeta(stat),
+                      etape !== REVISER_NOT_STARTED ? etape : null,
+                    ])}
+                    cta={{ label: ENTRAINEMENT_METRIC_CTA, href: hrefFor(stat) }}
+                    ctaEmphasis={prioritaire === stat.code ? "solid" : "soft"}
+                  />
+                );
+              })}
+            </Grid>
+          )}
+        </Pad>
+      </Section>
+      {/* **Entretien en temps réel** (D3-B) : le hub de l'expression orale, où
+          vit l'examinateur vocal. Texte statique de la maquette, aucune donnée
+          — le quota de simulations se lit là-bas. */}
+      <Section title={ENTRETIEN_SECTION_TITLE}>
+        <Pad>
+          <Hero
+            module="tcf"
+            icon={<Sparkles />}
+            label={ENTRETIEN_LABEL}
+            title={ENTRETIEN_TITLE}
+            sub={ENTRETIEN_SUB}
+            stat={ENTRETIEN_STAT}
+            cta={{ label: ENTRETIEN_CTA, href: productionEntryHref(EO_CONFIG.base) }}
+          />
         </Pad>
       </Section>
       <Section title={REVISER_RENFORCER_TITLE}>
         <Pad>
           <Stack>
-            <EpreuveRow
-              icon={iconFor(complementaire.code)}
+            <InfoCard
+              module="tcf"
+              icon={renderIcon(iconFor(complementaire.code))}
               title={complementaire.label}
-              status={epreuveStatus(complementaire, null, profil)}
-              meta={epreuveMeta(complementaire)}
-              ratio={epreuveRatio(complementaire)}
+              meta={joindre([epreuveStatus(complementaire, null, profil), epreuveMeta(complementaire)])}
+              trailing="chevron"
               href={hrefFor(complementaire)}
             />
-            <NoteCard
-              variant="soft"
-              icon={Info}
-              title={REVISER_RENFORCER_NOTE_TITLE}
-            >
-              <p className={styles.sub}>{REVISER_RENFORCER_NOTE}</p>
-            </NoteCard>
+            <TipCard
+              icon={<Info aria-hidden />}
+              label={REVISER_RENFORCER_NOTE_TITLE}
+              text={REVISER_RENFORCER_NOTE}
+            />
           </Stack>
         </Pad>
       </Section>
@@ -405,7 +502,7 @@ function TcfBody({
  *
  * Un visiteur n'a pas de tableau de bord : on rend le **catalogue** (les quatre
  * épreuves, à zéro), plutôt qu'un écran vide. Rien n'y est mesuré, et chaque
- * ligne le dit.
+ * tuile le dit (« — »).
  */
 function orderedTcf(
   summary: DashboardSummaryResponse | null,
@@ -475,7 +572,7 @@ function CiviqueBody({
   isGuest,
   isPremium,
 }: {
-  summary: DashboardSummaryResponse | null;
+  summary: CachedData<DashboardSummaryResponse>;
   guestThemes: ThemeUserResponse[];
   isGuest: boolean;
   isPremium: boolean;
@@ -490,17 +587,23 @@ function CiviqueBody({
   );
   /* 🛑 **Le CYCLE, comme sur le Plan** : « À faire maintenant » y lit
      `journey.current` depuis D-50 §2. Sans lui, Réviser annoncerait la cible du
-     plan dérivé pendant que le Plan annonce l'étape du cycle — deux reprises
-     différentes pour le même candidat, au même instant. */
+     plan dérivé pendant que le Plan annonce l'étape du cycle. */
   const journey = useCachedData<JourneyDto>(
     isGuest ? null : journeyApi.cacheKeyFor("CIVIQUE"),
     () => journeyApi.getCached("CIVIQUE"),
+  );
+  /* La description éditoriale de chaque thème (`ThemeUserResponse.description`,
+     servie) : un compte la lit sur `/api/themes`, un visiteur sur la liste
+     publique déjà chargée. Son échec retire seulement les descriptions. */
+  const themes = useCachedData<ThemeUserResponse[]>(
+    isGuest ? null : "reviser:themes",
+    () => themeApi.list("CIVIQUE"),
   );
   const prochaine: CivicPlanCibleDto | null = civicPlan.data?.prochaine ?? null;
   const resume = reviserResumeCivique(civicPlan.data ?? null, journey.data ?? null, !isPremium);
 
   const stats = useMemo(() => {
-    if (summary) return summary.civique;
+    if (summary.data) return summary.data.civique;
     return [...guestThemes]
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .map<DashboardCategoryStat>((t) => ({
@@ -518,56 +621,106 @@ function CiviqueBody({
         subjectsDone: 0,
         subjectsTotal: 0,
       }));
-  }, [summary, guestThemes]);
+  }, [summary.data, guestThemes]);
+
+  const descriptions = useMemo(() => {
+    const source = isGuest ? guestThemes : (themes.data ?? []);
+    return new Map(source.map((t) => [t.id, t.description?.trim() || null]));
+  }, [isGuest, guestThemes, themes.data]);
+
+  /* 🛑 Le pourcentage UNIQUE (`avancementSeriesCivique`), sur tous les thèmes
+     servis — la même valeur que l'Accueil et le Plan civique. */
+  const avancement = summary.data ? avancementSeriesCivique(summary.data.civique) : null;
+
+  const resumeCta: ActionCardCta | null = !resume
+    ? null
+    : resume.geste === "DEBLOQUER"
+      ? { label: resume.cta, href: planUnlockHref("CIVIQUE") }
+      : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
+        ? { label: resume.cta, href: resume.etapeHref }
+        : {
+          label: resume.cta,
+          disabled: enCours !== null || serieUnite.enCours !== null,
+          onClick: () => {
+            const source = resume.source;
+            if (!source) return;
+            if (source.kind === "UNITE") void serieUnite.start(source.code);
+            else void commencer(source.cible);
+          },
+        };
+  const resumeError = erreur ?? serieUnite.erreur;
 
   return (
     <>
-      {resume ? (
-        <PlanRecoCard
-          label={REVISER_RESUME_LABEL}
-          /* Le pictogramme du thème quand la reprise en a un ; une **unité** du
-             cycle n'en porte pas, on reprend alors la boussole du parcours. */
-          icon={renderIcon(prochaine ? iconFor(prochaine.themeCode) : Compass)}
-          title={resume.title}
-          subtitle={resume.subtitle}
-          cta={resume.cta}
-          {...(resume.geste === "DEBLOQUER"
-            ? {href: planUnlockHref("CIVIQUE")}
-            : resume.geste === "OUVRIR_ETAPE" && resume.etapeHref
-            ? {href: resume.etapeHref}
-            : {
-                  onClick: () => {
-                      const source = resume.source;
-                      if (!source) return;
-                      if (source.kind === "UNITE") void serieUnite.start(source.code);
-                      else void commencer(source.cible);
-                  },
-                  busy: enCours !== null || serieUnite.enCours !== null,
-                  error: erreur ?? serieUnite.erreur,
-              })}
-          error={erreur}
-          tone="blue"
+      <Pad>
+        <PageHead
+          tone="civique"
+          kicker={MODULE_CIVIQUE_KICKER}
+          title={ENTRAINEMENT_TITLE}
+          subtitle={entrainementCiviqueSubtitle(stats.length > 0 ? stats.length : null)}
+          aside={
+            <>
+              {stats.length > 0 && <Badge module="civique">{entrainementThemesBadge(stats.length)}</Badge>}
+              {avancement && avancement.total > 0 && (
+                <Badge module="civique">{entrainementSeriesBadge(avancement.terminees, avancement.total)}</Badge>
+              )}
+            </>
+          }
         />
+      </Pad>
+      {resume ? (
+        <Pad className={sejourStyles.pageBody}>
+          <ActionCard
+            module="civique"
+            /* Le pictogramme du thème quand la reprise en a un ; une **unité**
+               du cycle n'en porte pas, on reprend alors la boussole. */
+            icon={renderIcon(prochaine ? iconFor(prochaine.themeCode) : Compass)}
+            label={REVISER_RESUME_LABEL}
+            title={resume.title}
+            meta={resume.subtitle}
+            badge={resume.badge}
+            cta={resumeCta}
+            block
+          >
+            {resumeError ? <p className={sejourStyles.actionNote} role="alert">{resumeError}</p> : null}
+          </ActionCard>
+        </Pad>
       ) : null}
       <DemoLink isGuest={isGuest} isPremium={isPremium} module="CIVIQUE" />
       <Section title={reviserSectionTitle("CIVIQUE", stats.length)}>
         <Pad>
-          <Stack className={sejourStyles.deskGrid2}>
-            {stats.map((stat) => (
-              <EpreuveRow
-                key={stat.code}
-                icon={iconFor(stat.code)}
-                title={stat.label}
-                status={themeStatus(
-                  themeLigneFor(civicPlan.data?.themes, stat.themeId),
-                  stat,
-                )}
-                meta={epreuveMeta(stat)}
-                ratio={epreuveRatio(stat)}
-                href={hrefFor(stat)}
-              />
-            ))}
-          </Stack>
+          {summary.loading ? (
+            <Grid cols={2}>
+              <BlockSkeleton height={196} />
+              <BlockSkeleton height={196} />
+            </Grid>
+          ) : summary.error !== null ? (
+            <BlockError message={ACCUEIL_BLOCK_ERROR} retryLabel={ACCUEIL_RETRY} onRetry={summary.reload} />
+          ) : (
+            <Grid cols={2}>
+              {stats.map((stat) => {
+                const theme = avancementSeriesCivique([stat]);
+                /* La ligne d'état composée sur des faits servis (`themeStatus`) —
+                   jamais déduite de l'anneau. Sans série servie (visiteur),
+                   elle prend la place du compteur. */
+                const statut = themeStatus(themeLigneFor(civicPlan.data?.themes, stat.themeId), stat);
+                const compteur = epreuveMeta(stat);
+                return (
+                  <ThemeCard
+                    key={stat.code}
+                    module="civique"
+                    icon={renderIcon(iconFor(stat.code))}
+                    title={stat.label}
+                    description={stat.themeId ? descriptions.get(stat.themeId) ?? null : null}
+                    ring={theme.pourcentage}
+                    count={compteur ?? statut}
+                    state={compteur ? { label: statut, tone: "neutral" } : null}
+                    cta={{ label: ENTRAINEMENT_THEME_CTA, href: hrefFor(stat) }}
+                  />
+                );
+              })}
+            </Grid>
+          )}
         </Pad>
       </Section>
       {/* 🛑 La reprise civique relance l'action de `civicNowCard`, sans
@@ -590,11 +743,10 @@ function CiviqueBody({
 
 /* ----------------------------------------------------------- Les briques */
 
-
 /**
  * Le bandeau de découverte, **conservé de l'ancien hub** : c'est la surface de
  * conversion de la page, et `/entrainement` reste ouverte aux visiteurs. Il
- * disparaît dès que le module est accessible.
+ * disparaît dès que le module est accessible. Stylé en `InfoCard` (maquette).
  */
 function DemoLink({
   isGuest,
@@ -609,28 +761,19 @@ function DemoLink({
   const quoi = module === "TCF" ? "épreuve et niveau" : "thème";
   const passModule = passModuleOfExam(module);
   return (
-    <Pad className={styles.demoWrap}>
-      <Link
+    <Pad className={sejourStyles.pageBody}>
+      <InfoCard
+        module={module === "TCF" ? "tcf" : "civique"}
+        icon={<Sparkles aria-hidden />}
+        title={isGuest
+          ? `Découverte gratuite · 1 série offerte par ${quoi}`
+          : `Toutes les séries avec le pass ${PASS_MODULE_NAME[passModule]}`}
+        meta={isGuest
+          ? "Et le 1ᵉʳ examen blanc offert. Créez un compte gratuit pour sauvegarder vos résultats."
+          : PASS_PITCH[passModule]}
+        trailing="chevron"
         href={isGuest ? "/connexion" : `/paiement?plan=${PASS_OFFER_PLAN[passModule]}`}
-        className={styles.demo}
-      >
-        <span className={styles.demoBody}>
-          <b>
-            {isGuest
-              ? `Découverte gratuite · 1 série offerte par ${quoi}`
-              : `Toutes les séries avec le pass ${PASS_MODULE_NAME[passModule]}`}
-          </b>
-          <span>
-            {isGuest
-              ? "Et le 1ᵉʳ examen blanc offert. Créez un compte gratuit pour sauvegarder vos résultats."
-              : PASS_PITCH[passModule]}
-          </span>
-        </span>
-        <span className={styles.demoArrow} aria-hidden>
-          →
-        </span>
-      </Link>
+      />
     </Pad>
   );
 }
-

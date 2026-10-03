@@ -27,7 +27,7 @@
  */
 import {useEffect, useState} from "react";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {SejourApp} from "@/app/_components/sejour/SejourKit";
+import {SejourApp, sejourStyles} from "@/app/_components/sejour/SejourKit";
 import {userContentApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {moduleDeLUrl, type ParcoursModule} from "@/lib/module-switch";
@@ -98,17 +98,14 @@ export function PlanModules() {
         router.replace(`${pathname}?${params.toString()}`, {scroll: false});
     }, [demande, defaut, pathname, router, search]);
 
-    /* La **nature** de l'écran décide de la largeur de colonne au palier
-       desktop, et c'est ici qu'elle se connaît — seul endroit qui a à la fois le
-       module affiché et l'accès du compte. 🛑 L'accès se **lit**
-       (`canAccessModule`), il ne se devine pas.
-
-       - compte gratuit ⇒ `sticky`, la barre d'action porte le déblocage (980) ;
-       - abonné ⇒ `wide`, le Plan est un **tableau de bord** (1080). */
+    /* Navigation v2 : le Plan prend la colonne du shell, comme l'Accueil
+       (`home`, maquette). 🛑 L'accès se **lit** (`canAccessModule`), il ne se
+       devine pas : un compte sans accès réserve la place de la barre
+       « Débloquer mon plan » (`sticky`). */
     const abonne = canAccessModule(user, affiche);
 
     return (
-        <SejourApp sticky={!abonne} wide={abonne}>
+        <SejourApp sticky={!abonne} className={sejourStyles.home}>
             {affiche === "TCF" ? (
                 <LearningPlanView diagnosticFait={diagnosticFait(prep?.tcf ?? null, "TCF")} />
             ) : (

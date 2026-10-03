@@ -33,6 +33,7 @@ class ProgressionPage<T> extends StatelessWidget {
   });
 
   final AsyncValue<T> async;
+
   /// Le parcours sous le titre de la barre (« TCF IRN », « Examen civique »).
   final String barSub;
   final VoidCallback onBack;
@@ -113,14 +114,25 @@ class ProgressionPage<T> extends StatelessWidget {
   }
 }
 
+/// Le chargement : des squelettes aux dimensions des blocs, jamais une roue
+/// plein écran (brief §7).
 class _Chargement extends StatelessWidget {
   const _Chargement();
 
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.only(top: 120),
-      child: Center(child: CircularProgressIndicator()),
+      padding: EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SfBlockSkeleton(height: 120),
+          SizedBox(height: 14),
+          SfBlockSkeleton(height: 260),
+          SizedBox(height: 14),
+          SfBlockSkeleton(height: 140),
+        ],
+      ),
     );
   }
 }
@@ -169,6 +181,33 @@ class ProgressionBlocs extends StatelessWidget {
             if (i > 0) const SizedBox(height: 14),
             children[i],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// **Une section de la maquette** (`.section-head` + son contenu) dans un
+/// bloc déjà en gouttière : « Par compétence », « Évolution », « Par thème ».
+class ProgressionSection extends StatelessWidget {
+  const ProgressionSection({
+    super.key,
+    required this.title,
+    required this.child,
+  });
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SfSectionTitle(title, flush: true, lead: true),
+          child,
         ],
       ),
     );

@@ -13,14 +13,14 @@ import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
-import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/list_group.dart';
-import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/sejour/sejour_kit.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../favoris/favoris_labels.dart';
 import 'account_labels.dart';
+import 'profile_labels.dart';
 import '../../core/router/shell_navigation.dart';
 
 /// Statut d'abonnement pour la carte « Mon pass » du profil.
@@ -42,9 +42,15 @@ final _subscriptionStatusProvider =
   return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
 });
 
-/// Onglet « Profil » de la refonte 2026 (cf. `MProfil` maquette) : carte
-/// identité, 3 stats, carte « Mon pass », objectif, groupes Compte / Aide
-/// et actions (déconnexion, suppression).
+/// **Onglet « Profil »** — Navigation v2, phase 4b (maquette
+/// `docs/redesign/sejourfr-navigation-mobile.html`, `#profil`) : titre et
+/// phrase, carte profil, puis « Mon compte » en [SfInfoCard] — **Mon pass**
+/// (jamais « abonnement »), Mes informations et Notifications **gardées
+/// séparées** (pas d'écran « Paramètres »), Aide.
+///
+/// Gardés, hors maquette : e-mail et pastille de démarche (dans la carte),
+/// les 3 tuiles, « Mon objectif », Ma progression, Mes favoris, À propos,
+/// Supprimer mon compte / Se déconnecter (+ leurs feuilles) et la version.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -60,166 +66,172 @@ class ProfileScreen extends ConsumerWidget {
     final dashboard = ref.watch(dashboardProvider);
     final subscription = ref.watch(_subscriptionStatusProvider);
 
+    final dash = dashboard.valueOrNull;
+    final sub = subscription.valueOrNull;
+    final procedure = user.targetProcedure;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
           children: [
-            const ScreenHeader(title: 'Profil', large: true),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                children: [
-                  _IdentityCard(
-                    user: user,
-                    onTap: () => context.push(AppRoutes.personalInfo),
+            const SfModuleHeader(
+              civique: false,
+              title: kProfileTitle,
+              lead: kProfileLead,
+            ),
+            const SizedBox(height: 20),
+            _ProfileCard(
+              user: user,
+              passName: _passName(user, sub),
+              onTap: () => context.push(AppRoutes.personalInfo),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: StatValueCard(
+                    value: dash?.globalSuccessPercent != null
+                        ? '${dash!.globalSuccessPercent} %'
+                        : '—',
+                    label: 'Maîtrise',
+                    color: AppColors.blue,
+                    valueSize: 22,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StatValueCard(
-                          value: dashboard.valueOrNull?.globalSuccessPercent !=
-                                  null
-                              ? '${dashboard.valueOrNull!.globalSuccessPercent} %'
-                              : '—',
-                          label: 'Maîtrise',
-                          color: AppColors.blue,
-                          valueSize: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: StatValueCard(
-                          value: dashboard.valueOrNull != null
-                              ? '${dashboard.valueOrNull!.currentStreakDays} j'
-                              : '—',
-                          label: 'Série',
-                          color: AppColors.red,
-                          valueSize: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: StatValueCard(
-                          value: dashboard
-                                  .valueOrNull?.estimatedTcfLevel?.shortName ??
-                              '—',
-                          label: 'Niveau estimé',
-                          color: AppColors.blue,
-                          valueSize: 22,
-                          // Un niveau qui ne porte pas sur les 4 épreuves le
-                          // dit ici (parité web /profil).
-                          hint: estimatedTcfLevelScopeLabel(
-                              dashboard.valueOrNull),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StatValueCard(
+                    value: dash != null ? '${dash.currentStreakDays} j' : '—',
+                    label: 'Série',
+                    color: AppColors.red,
+                    valueSize: 22,
                   ),
-                  const SizedBox(height: 20),
-                  const SectionTitle(title: 'Mon pass'),
-                  const SizedBox(height: 12),
-                  _PassCard(
-                    user: user,
-                    subscription: subscription,
-                    onTap: () async {
-                      await context.push(AppRoutes.manageSubscription);
-                      // Filet de sécurité : si l'achat/la résiliation n'a pas
-                      // muté la signature Premium de l'auth (ex. statut
-                      // détaillé inchangé mais date d'échéance prolongée), on
-                      // refetch quand même au retour de l'écran de gestion.
-                      ref.invalidate(_subscriptionStatusProvider);
-                    },
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: StatValueCard(
+                    value: dash?.estimatedTcfLevel?.shortName ?? '—',
+                    label: 'Niveau estimé',
+                    color: AppColors.blue,
+                    valueSize: 22,
+                    // Un niveau qui ne porte pas sur les 4 épreuves le dit ici
+                    // (parité web /profil).
+                    hint: estimatedTcfLevelScopeLabel(dash),
                   ),
-                  const SizedBox(height: 20),
-                  const SectionTitle(title: 'Mon objectif'),
-                  const SizedBox(height: 12),
-                  _ObjectifCard(
-                    user: user,
-                    onTap: () =>
-                        context.push(AppRoutes.targetPathFrom(AppRoutes.profile)),
-                  ),
-                  const SizedBox(height: 20),
-                  const SectionTitle(title: 'Mon compte'),
-                  const SizedBox(height: 12),
-                  ListGroup(
-                    children: [
-                      ListRow(
-                        icon: LucideIcons.penLine,
-                        title: 'Mes informations',
-                        sub: user.email,
-                        onTap: () => context.push(AppRoutes.personalInfo),
-                      ),
-                      ListRow(
-                        icon: LucideIcons.bell,
-                        title: kCompteNotifRowTitle,
-                        sub: kCompteNotifRowSub,
-                        onTap: () => context.push(AppRoutes.notifications),
-                      ),
-                      // « Ma progression » ouvre l'écran de progression
-                      // GLOBAL TCF (D16, 2026-09-24), comme le web ; le global
-                      // civique s'atteint par le retour d'un écran de thème.
-                      ListRow(
-                        icon: LucideIcons.chartColumn,
-                        title: 'Ma progression',
-                        sub: 'Maîtrise par parcours et niveau estimé',
-                        onTap: () => pousserOuAller(context, AppRoutes.progressionTcf),
-                      ),
-                      ListRow(
-                        icon: LucideIcons.bookmark,
-                        title: kFavorisTitle,
-                        sub: kFavorisRowSub,
-                        onTap: () => context.push(AppRoutes.mesFavoris),
-                      ),
-                      ListRow(
-                        icon: LucideIcons.bookOpen,
-                        title: "Centre d'aide",
-                        sub: 'FAQ, CGU, confidentialité, contact',
-                        onTap: () => context.push(AppRoutes.helpCenter),
-                      ),
-                      ListRow(
-                        icon: LucideIcons.info,
-                        title: 'À propos de SejourFR',
-                        sub: 'Outil indépendant · sources officielles',
-                        onTap: () => context.push(AppRoutes.about),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ListGroup(
-                    children: [
-                      ListRow(
-                        icon: LucideIcons.x,
-                        iconBg: AppColors.redLight,
-                        iconColor: AppColors.red,
-                        title: 'Supprimer mon compte',
-                        onTap: () => _confirmDeleteAccount(context, ref),
-                        right: const SizedBox.shrink(),
-                      ),
-                      ListRow(
-                        icon: LucideIcons.arrowLeft,
-                        iconBg: AppColors.surface2,
-                        iconColor: AppColors.inkSoft,
-                        title: 'Se déconnecter',
-                        onTap: () => _confirmLogout(context, ref),
-                        right: const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    // La version vient de l'app installée (pubspec), jamais
-                    // d'une chaîne recopiée : « 0.1.3+19 » ⇒ « v0.1.3 (19) ».
-                    child: FutureBuilder<String?>(
-                      future: ClientContext.appVersion(),
-                      builder: (context, snapshot) => Text(
-                        profileVersionLabel(snapshot.data),
-                        style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            const SfSectionTitle(kProfileObjectifSection,
+                flush: true, lead: true),
+            SfInfoCard(
+              icon: LucideIcons.target,
+              title: procedure?.fullLabel ?? kProfileObjectifNone,
+              meta: procedure != null
+                  ? kProfileObjectifEdit
+                  : kProfileObjectifNoneMeta,
+              trailing: const SfChevron(),
+              onTap: () =>
+                  context.push(AppRoutes.targetPathFrom(AppRoutes.profile)),
+            ),
+            const SizedBox(height: 22),
+            const SfSectionTitle(kProfileAccountSection,
+                flush: true, lead: true),
+            SfStack(
+              pad: false,
+              children: [
+                _PassRow(
+                  user: user,
+                  subscription: sub,
+                  onTap: () async {
+                    await context.push(AppRoutes.manageSubscription);
+                    // Filet de sécurité : achat ou résiliation qui n'aurait
+                    // pas muté la signature d'accès (échéance prolongée).
+                    ref.invalidate(_subscriptionStatusProvider);
+                  },
+                ),
+                SfInfoCard(
+                  icon: LucideIcons.penLine,
+                  title: kProfileInfosTitle,
+                  meta: user.email,
+                  trailing: const SfChevron(),
+                  onTap: () => context.push(AppRoutes.personalInfo),
+                ),
+                SfInfoCard(
+                  icon: LucideIcons.bell,
+                  title: kCompteNotifRowTitle,
+                  meta: kCompteNotifRowSub,
+                  trailing: const SfChevron(),
+                  onTap: () => context.push(AppRoutes.notifications),
+                ),
+                // « Ma progression » ouvre l'écran de progression GLOBAL TCF
+                // (D16, 2026-09-24) ; le global civique s'atteint par la carte
+                // « Ma progression » du module Civique.
+                SfInfoCard(
+                  icon: LucideIcons.chartColumn,
+                  title: kProfileProgressionTitle,
+                  meta: kProfileProgressionMeta,
+                  trailing: const SfChevron(),
+                  onTap: () =>
+                      pousserOuAller(context, AppRoutes.progressionTcf),
+                ),
+                SfInfoCard(
+                  icon: LucideIcons.bookmark,
+                  title: kFavorisTitle,
+                  meta: kFavorisRowSub,
+                  trailing: const SfChevron(),
+                  onTap: () => context.push(AppRoutes.mesFavoris),
+                ),
+                SfInfoCard(
+                  icon: LucideIcons.circleHelp,
+                  title: kProfileHelpTitle,
+                  meta: kProfileHelpMeta,
+                  trailing: const SfChevron(),
+                  onTap: () => context.push(AppRoutes.helpCenter),
+                ),
+                SfInfoCard(
+                  icon: LucideIcons.info,
+                  title: kProfileAboutTitle,
+                  meta: kProfileAboutMeta,
+                  trailing: const SfChevron(),
+                  onTap: () => context.push(AppRoutes.about),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            ListGroup(
+              children: [
+                ListRow(
+                  icon: LucideIcons.x,
+                  iconBg: AppColors.redLight,
+                  iconColor: AppColors.red,
+                  title: 'Supprimer mon compte',
+                  onTap: () => _confirmDeleteAccount(context, ref),
+                  right: const SizedBox.shrink(),
+                ),
+                ListRow(
+                  icon: LucideIcons.arrowLeft,
+                  iconBg: AppColors.surface2,
+                  iconColor: AppColors.inkSoft,
+                  title: 'Se déconnecter',
+                  onTap: () => _confirmLogout(context, ref),
+                  right: const SizedBox.shrink(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              // La version vient de l'app installée (pubspec), jamais d'une
+              // chaîne recopiée : « 0.1.3+19 » ⇒ « v0.1.3 (19) ».
+              child: FutureBuilder<String?>(
+                future: ClientContext.appVersion(),
+                builder: (context, snapshot) => Text(
+                  profileVersionLabel(snapshot.data),
+                  style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                ),
               ),
             ),
           ],
@@ -227,6 +239,17 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
+  /// Le nom du pass (X12) : lu sur le statut servi, sinon sur l'accès du
+  /// compte — jamais un nom deviné.
+  static String _passName(AuthUser user, SubscriptionStatusResponse? sub) =>
+      passAccessName(
+        premium: sub?.isPremium ?? user.isPremium,
+        integral: sub != null
+            ? sub.moduleAccess == ModuleAccess.integral ||
+                sub.moduleAccess == ModuleAccess.tcf
+            : user.hasTcf,
+      );
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showAppSheet<bool>(
@@ -332,10 +355,21 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.user, required this.onTap});
+/// **La carte profil** (`.card.profile` de la maquette mobile) : avatar aux
+/// initiales sur le dégradé du module (token), nom, « Objectif : {démarche} »,
+/// puis — gardés de l'ancienne carte d'identité — l'e-mail, la pastille de
+/// démarche et le nom du pass (X12). « Membre depuis » : absent, la date
+/// d'inscription n'est pas servie (X11). Toute la carte et « Modifier » mènent
+/// à « Mes informations ».
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.user,
+    required this.passName,
+    required this.onTap,
+  });
 
   final AuthUser user;
+  final String passName;
   final VoidCallback onTap;
 
   String get _initials {
@@ -350,182 +384,145 @@ class _IdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-            child: Center(
-              child: Text(
-                _initials,
-                style: AppFonts.display(size: 26, color: AppColors.white),
-              ),
-            ),
+    final procedure = user.targetProcedure;
+    final rayon = BorderRadius.circular(AppRadii.xl);
+    return Material(
+      color: AppColors.white,
+      borderRadius: rayon,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: rayon,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 28, 18, 22),
+          decoration: BoxDecoration(
+            borderRadius: rayon,
+            border: Border.all(color: AppColors.line),
+            boxShadow: AppShadows.card,
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.display(size: 19),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
-                ),
-                if (user.targetProcedure != null) ...[
-                  const SizedBox(height: 6),
-                  AppTag(
-                    label: user.targetProcedure!.shortLabel,
-                    icon: LucideIcons.mapPin,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Row(
+          child: Column(
             children: [
-              Text(
-                'Modifier',
-                style: AppFonts.ui(
-                  size: 12.5,
-                  weight: FontWeight.w600,
-                  color: AppColors.blue,
+              Container(
+                width: 76,
+                height: 76,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.module(civique: false),
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
+                ),
+                child: Text(
+                  _initials,
+                  style: AppFonts.display(
+                    size: 26,
+                    weight: FontWeight.w800,
+                    color: AppColors.white,
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
-              const Icon(LucideIcons.chevronRight,
-                  size: 14, color: AppColors.blue),
+              const SizedBox(height: 14),
+              Text(
+                user.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppFonts.display(size: 18, weight: FontWeight.w700),
+              ),
+              if (procedure != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  profileObjectif(procedure.fullLabel),
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(size: 14, color: AppColors.muted),
+                ),
+              ],
+              const SizedBox(height: 2),
+              Text(
+                user.email,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SfBadge(passName),
+                  if (procedure != null)
+                    AppTag(
+                      label: procedure.shortLabel,
+                      icon: LucideIcons.mapPin,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    kProfileEdit,
+                    style: AppFonts.ui(
+                      size: 13,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(LucideIcons.chevronRight,
+                      size: 14, color: AppColors.blue),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Carte « Mon pass » : nom du pass + statut + échéance, tap → gestion.
-/// Compte gratuit : carte Découverte avec CTA vers la page d'abonnement.
-class _PassCard extends StatelessWidget {
-  const _PassCard({
+/// **« Mon pass »** (« Mon abonnement » de la maquette, R6) : nom du pass
+/// (X12), son état et son échéance servis, puis la gestion de l'accès.
+class _PassRow extends StatelessWidget {
+  const _PassRow({
     required this.user,
     required this.subscription,
     required this.onTap,
   });
 
   final AuthUser user;
-  final AsyncValue<SubscriptionStatusResponse> subscription;
+  final SubscriptionStatusResponse? subscription;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final sub = subscription.valueOrNull;
+    final sub = subscription;
     final premium = sub?.isPremium ?? user.isPremium;
-
-    final String name;
-    final Color accent;
-    if (!premium) {
-      name = 'Découverte';
-      accent = AppColors.inkSoft;
-    } else if (sub?.moduleAccess == ModuleAccess.integral ||
-        (sub == null && user.hasTcf && user.hasCivique)) {
-      name = 'Pass Intégral';
-      accent = AppColors.red;
-    } else if (sub?.moduleAccess == ModuleAccess.tcf ||
-        (sub == null && user.hasTcf)) {
-      name = 'Pass TCF';
-      accent = AppColors.blue;
-    } else if (sub?.moduleAccess == ModuleAccess.civique || user.hasCivique) {
-      name = 'Pass Civique';
-      accent = AppColors.blue;
-    } else {
-      // Premium annoncé sans périmètre connu (statut pas encore chargé) : on
-      // ne nomme pas un pass au hasard, ce serait mentir sur ce qui est ouvert.
-      name = 'Pass actif';
-      accent = AppColors.blue;
-    }
-
+    final nom = ProfileScreen._passName(user, sub);
     final expiresAt = sub?.expiresAt ?? user.premiumEndsAt;
-    final String subLabel;
+    final String detail;
     if (!premium) {
-      subLabel = 'Accès limité — débloquez tout SejourFR';
+      detail = kProfilePassFreeMeta;
     } else if (expiresAt != null) {
-      subLabel = "Valable jusqu'au ${_formatDate(expiresAt)}";
+      detail = profilePassUntil(_formatDate(expiresAt));
     } else {
-      subLabel = 'Accès actif';
+      detail = kProfilePassActiveMeta;
     }
-
-    return AppCard(
-      onTap: onTap,
-      child: Row(
+    return SfInfoCard(
+      icon: LucideIcons.creditCard,
+      title: kProfilePassTitle,
+      meta: profilePassMeta(nom, detail),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: premium ? accent : AppColors.surface3,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child: Icon(
-              LucideIcons.graduationCap,
-              size: 23,
-              color: premium ? AppColors.white : AppColors.inkSoft,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.ui(size: 16, weight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    if (premium)
-                      const AppTag(
-                        label: 'Actif',
-                        tone: TagTone.success,
-                        icon: LucideIcons.check,
-                      )
-                    else
-                      const AppTag(label: 'Gratuit', tone: TagTone.neutral),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.ui(size: 12.5, color: AppColors.inkSoft),
-                ),
-              ],
-            ),
-          ),
-          const Icon(LucideIcons.chevronRight,
-              size: 16, color: AppColors.inkFaint),
+          premium
+              ? const SfBadge(kProfilePassActive, tone: SfTone.ok, check: true)
+              : const SfBadge(kProfilePassFree, tone: SfTone.muted),
+          const SizedBox(width: 6),
+          const SfChevron(),
         ],
       ),
+      onTap: onTap,
     );
   }
 
@@ -545,57 +542,6 @@ class _PassCard extends StatelessWidget {
       'décembre',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-}
-
-class _ObjectifCard extends StatelessWidget {
-  const _ObjectifCard({required this.user, required this.onTap});
-
-  final AuthUser user;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final procedure = user.targetProcedure;
-    return AppCard(
-      color: AppColors.surface2,
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              border: Border.all(color: AppColors.line),
-              borderRadius: BorderRadius.circular(AppRadii.md),
-            ),
-            child:
-                const Icon(LucideIcons.target, size: 23, color: AppColors.blue),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  procedure?.fullLabel ?? 'Choisir mon parcours',
-                  style: AppFonts.ui(size: 15, weight: FontWeight.w700),
-                ),
-                Text(
-                  procedure != null
-                      ? 'Parcours visé — toucher pour modifier'
-                      : 'Définissez votre objectif administratif',
-                  style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
-                ),
-              ],
-            ),
-          ),
-          const Icon(LucideIcons.chevronRight,
-              size: 18, color: AppColors.inkFaint),
-        ],
-      ),
-    );
   }
 }
 

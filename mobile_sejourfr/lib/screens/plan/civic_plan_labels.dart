@@ -33,6 +33,27 @@ import 'plan_now_card.dart';
 /// Bloc 2 — à faire maintenant.
 const String kCivicPlanNowTitle = 'À faire maintenant';
 
+/* ------------------------------- Navigation v2 — hero et examen blanc --- */
+
+/// Le hero rouge du Plan civique (X8 A) : l'avancement en séries
+/// (`avancementSeriesCivique`, la fonction unique), même valeur que les autres
+/// emplacements du % civique. Textes éditoriaux de la maquette (R8).
+const String kCivicPlanHeroLabel = 'Progression globale';
+const String kCivicPlanHeroSub = 'Votre parcours avance thème par thème.';
+const String kCivicPlanHeroStat = 'du parcours';
+
+/// La carte « Examen blanc civique » de « À faire maintenant » : le dernier
+/// score SERVI (`ProgressionCiviqueDto`), jamais un « objectif 80 % ».
+/// Miroir mot pour mot de `PLAN_CIVIQUE_EXAM_*` (web `lib/module-ecrans.ts`).
+const String kCivicPlanExamLabel = 'Examen blanc';
+const String kCivicPlanExamTitle = 'Examen blanc civique';
+const String kCivicPlanExamEmpty =
+    'Passez votre premier examen blanc pour situer votre préparation.';
+
+/// « Votre dernier score : 29 / 40 » — le score déjà écrit par
+/// `progressionScore`. Miroir de `planCiviqueDernierScore`.
+String civicPlanExamLastScore(String score) => 'Votre dernier score : $score';
+
 /// Le geste d'une action **fermée** — la série, pas le plan entier.
 ///
 /// 🛑 **Aucune chaîne neuve n'est gelée** : elle existait déjà ici et n'avait
@@ -144,20 +165,6 @@ SfBarTone civicThemeBarTone(CivicThemeState etat) =>
 /// `reason_text`) : on nomme ce qu'on sait dire, c'est-à-dire **pourquoi** cette
 /// cible passe maintenant.
 const String kCivicPlanNowWhy = 'Pourquoi maintenant';
-
-const String kCivicPlanReviewPill = 'Révision courte';
-
-/// La ligne d'une révision d'entretien. 🛑 **La boîte Leitner ne s'affiche
-/// jamais** : on dit la maîtrise servie et l'échéance.
-String civicPlanReviewText(CivicPlanCible cible, DateTime maintenant) {
-  final revue = civicRevueLabel(cible, maintenant);
-  final base = '${cible.maitrise.label}.';
-  return revue == null
-      ? '$base Une courte révision est prévue pour vérifier qu\'elle tient '
-          'encore.'
-      : '$base Une courte révision est prévue $revue, pour vérifier qu\'elle '
-          'tient encore.';
-}
 
 /* --------------------------------------- l'offre d'un compte sans pass ---- */
 
