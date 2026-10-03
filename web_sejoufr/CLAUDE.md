@@ -41,6 +41,10 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
   `ProgressionHead`, `ExamRow` (refait), `Badge`, `Split`/`Grid` (mise en page web seule).
   Supprimées : `ModuleToggle`, `TopSlot`, `TopInAppBar`, `LevelLadder`, `LevelCard(Grid)`,
   `GoalBanner`, `EpreuveRow`. Miroirs `Sf*` côté Flutter, mêmes noms.
+- **Vocabulaire** : côté utilisateur, un *cycle* se dit **« plan »** (« Plan N », « Mes plans »,
+  « Plan terminé »…) depuis le 2026-10-03 ; le code, les routes, les DTO et la doc gardent
+  « cycle ». Sur l'écran Plan : « À faire maintenant » → jalon → carte du plan (sans phrase
+  d'explication) → « Priorités actuelles ». Les mentions « Mes cycles » plus bas sont historiques.
 - **Plan TCF** : la section « Votre prochain jalon » est **retirée** (DEC-38, demande du
   propriétaire) — `PlanMilestoneCard` / `plan_milestone_labels.dart` n'existent plus ; les
   mentions plus bas sont historiques. Le DTO `milestone` et `startPlanMilestone` restent.

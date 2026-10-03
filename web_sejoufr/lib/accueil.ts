@@ -132,7 +132,7 @@ export function accueilTcfMetricEpreuves(cible: TargetLevel | null | undefined):
 
 /** « Cycle 2 » — `JourneyCycleDto.numero`, servi. */
 export function accueilCycleLabel(cycle: JourneyCycleDto): string {
-    return `Cycle ${cycle.numero}`;
+    return `Plan ${cycle.numero}`;
 }
 
 export const ACCUEIL_TCF_METRIC_CYCLE = "En cours";

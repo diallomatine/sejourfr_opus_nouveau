@@ -2458,6 +2458,12 @@ premier cycle de tout compte étant un cycle d'examens de thème, la carte civiq
 n'aurait sinon jamais de bouton. L'Entraînement (ex-Réviser), sans ce lanceur, garde le geste
 `AUCUN` sur un examen.
 
+> 🗣️ **Vocabulaire affiché (2026-10-03, navigation v2)** : le candidat lit **« plan »** là où ce
+> document dit *cycle* — « Plan N », « Mes plans » (ex-« Mes cycles »), « Plan terminé ». Seuls
+> les libellés des fronts ont changé (`web_sejoufr/lib/journey.ts` ⇄
+> `mobile_sejourfr/lib/screens/plan/journey_labels.dart`) ; règles, routes et DTO gardent
+> « cycle ». La carte du plan n'a plus de phrase d'explication sous sa barre.
+
 ### Trois statuts de cycle, et un seul est persisté
 
 `journey.status` ∈ `EN_COURS` / `EN_ATTENTE` / `HISTORISE`, **un seul de chaque par
