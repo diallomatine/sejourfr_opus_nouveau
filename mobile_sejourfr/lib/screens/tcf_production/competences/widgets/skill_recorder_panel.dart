@@ -203,9 +203,8 @@ class SkillRecorderPanel extends StatelessWidget {
 /// la prononciation, l'accent ou l'intonation. Le dire ici évite qu'un candidat
 /// lise un retour « sur sa langue » en croyant qu'on a jugé sa voix.
 ///
-/// Il dit aussi ce que devient l'enregistrement : il sert à produire la
-/// transcription, puis il n'est pas conservé. C'est l'endroit exact où le
-/// candidat décide de parler. Miroir web : `EoTranscriptNotice`.
+/// Réduit à son titre (2026-10-05, demande du propriétaire). Miroir web :
+/// `EoTranscriptNotice`.
 class SkillTranscriptNotice extends StatelessWidget {
   const SkillTranscriptNotice({super.key});
 
@@ -213,12 +212,6 @@ class SkillTranscriptNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return const ProductionNotice(
       title: 'Évaluation basée sur la transcription',
-      body: 'La note porte sur le contenu et la langue (organisation, '
-          'vocabulaire, grammaire) de ce que tu dis. La prononciation, '
-          'l\'accent et l\'intonation ne sont pas évalués ici — ils compteront '
-          'le jour de l\'examen, face à un examinateur. Ton enregistrement '
-          'n\'est pas conservé : il sert à produire la transcription, puis il '
-          'est supprimé.',
       tone: AppColors.blue,
       toneSoft: AppColors.blueLight,
     );

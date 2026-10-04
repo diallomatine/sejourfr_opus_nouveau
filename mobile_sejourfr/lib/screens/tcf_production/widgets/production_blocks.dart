@@ -91,14 +91,14 @@ class ProductionNotice extends StatelessWidget {
   const ProductionNotice({
     super.key,
     required this.title,
-    required this.body,
+    this.body,
     this.icon = LucideIcons.info,
     this.tone = AppColors.amber,
     this.toneSoft = AppColors.amberLight,
   });
 
   final String title;
-  final String body;
+  final String? body;
   final IconData icon;
   final Color tone;
   final Color toneSoft;
@@ -113,7 +113,8 @@ class ProductionNotice extends StatelessWidget {
         border: Border.all(color: AppColors.line),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            body == null ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
           Container(
             width: 34,
@@ -134,15 +135,17 @@ class ProductionNotice extends StatelessWidget {
                   title,
                   style: AppFonts.ui(size: 12.5, weight: FontWeight.w800),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  body,
-                  style: AppFonts.ui(
-                    size: 12,
-                    height: 1.45,
-                    color: AppColors.inkSoft,
+                if (body != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    body!,
+                    style: AppFonts.ui(
+                      size: 12,
+                      height: 1.45,
+                      color: AppColors.inkSoft,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

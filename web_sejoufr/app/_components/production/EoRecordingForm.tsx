@@ -745,7 +745,7 @@ export function EoRecordingForm({
       >
         {/* En carte, l'avertissement passe SOUS l'enregistreur : il reste dit, il
           ne repousse plus le micro sous la ligne de flottaison. */}
-        {!answerCard && <EoTranscriptNotice voice={voice} />}
+        {!answerCard && <EoTranscriptNotice />}
 
         {answerCard ? (
           <section className={s.answerCard}>
@@ -780,7 +780,7 @@ export function EoRecordingForm({
           <div className={`${s.card} ${s.panel}`}>{recorder}</div>
         )}
 
-        {answerCard && <EoTranscriptNotice voice={voice} />}
+        {answerCard && <EoTranscriptNotice />}
 
         {(blockMsg || permError || sendError || error) && (
           <div className={s.error} role="alert">

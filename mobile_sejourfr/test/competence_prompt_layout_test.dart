@@ -198,9 +198,9 @@ void main() {
 
       expect(notice, findsOneWidget);
       expect(
-        find.textContaining('prononciation'),
+        find.text('Évaluation basée sur la transcription'),
         findsOneWidget,
-        reason: 'l\'avertissement ne dit pas ce qui n\'est PAS évalué',
+        reason: 'l\'avertissement ne dit pas sur quoi porte l\'évaluation',
       );
       expect(
         tester.getRect(notice).top,
