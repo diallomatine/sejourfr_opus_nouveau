@@ -1,6 +1,6 @@
 import {Suspense} from "react";
 import {ProductionSubjects} from "@/app/_components/production/ProductionSubjects";
-import {EO_CONFIG, PRODUCTION_TASK_PARAMS} from "@/app/_components/production/config";
+import {EO_CONFIG} from "@/app/_components/production/config";
 
 export default function EoTaskPage() {
   /* `Suspense` obligatoire : l'écran lit le marqueur de provenance du Plan
@@ -10,10 +10,4 @@ export default function EoTaskPage() {
       <ProductionSubjects config={EO_CONFIG} />
     </Suspense>
   );
-}
-
-/** Les 3 tâches sont prérendues : changer de mode ne redemande pas la page au
- *  serveur (cf. `PRODUCTION_TASK_PARAMS`). */
-export function generateStaticParams() {
-  return [...PRODUCTION_TASK_PARAMS];
 }

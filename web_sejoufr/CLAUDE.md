@@ -3773,10 +3773,11 @@ relançait les `fetch`. Trois décisions, dans l'ordre du moins coûteux au plus
    points suffisent à la fluidité : le catalogue de l'épreuve est déjà en cache,
    changer de tâche ne redemande rien.
 
-Les six routes `…/tache/[n]{,/competences,/exemples}` déclarent
-`generateStaticParams` (`PRODUCTION_TASK_PARAMS`) : prérendues, elles sont
-préchargées par les liens des onglets et des cartes de tâche, donc **une bascule
-ne redemande plus rien**, ni au backend ni au serveur Next.
+🛑 Les six routes `…/tache/[n]{,/competences,/exemples}` **ne déclarent plus
+`generateStaticParams`** (2026-10-04) : en dev, Next 16.2 (Turbopack) les
+servait en **404 au démarrage** jusqu'à la première modification d'un fichier
+(« Faire cette étape » du Plan cassé). Le prérendu ne servait qu'à l'ancienne
+bascule d'onglets, supprimée. Ne pas le remettre.
 
 **Ce qui reste frais — le piège de ce cache.** Le catalogue est éditorial, la
 **progression** ne l'est pas. Toute écriture invalide, **à la source dans
