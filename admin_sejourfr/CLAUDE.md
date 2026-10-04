@@ -84,7 +84,9 @@ src/
 │   └── useUrlListState.ts   État d'une liste paginée serveur dans l'URL (page,
 │                            taille — défaut par écran —, filtres, `setFilters`
 │                            multi-clés, recherche debouncée, recalage de page)
-│                            — partagé par `subscriptions/`, `users/`, `productions/`
+│                            — partagé par `subscriptions/`, `users/`, `productions/`, `questions/`
+│                            (filtres `?themeId&difficulty&type&active&media&q&page` ; la fiche
+│                            question reçoit `listSearch` en state et y revient filtrée)
 ├── lib/
 │   ├── dates.ts             Affichage d'un instant servi en heure de Paris + `parisToday()`,
 │   │                        `parisDay()`, `dayMonth()`, `formatRange()` (bornes servies)

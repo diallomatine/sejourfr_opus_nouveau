@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { questionsApi } from "../../api/questionsApi";
 import { themesApi } from "../../api/themesApi";
 import { Button } from "../../components/ui/Button";
@@ -10,7 +10,7 @@ import { RowMenu } from "../../components/ui/RowMenu";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useToast } from "../../components/ui/Toast";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { oneOf, useUrlListState, useUrlSearchInput } from "../../hooks/useUrlListState";
 import type {
   Difficulty,
   MediaType,
@@ -30,25 +30,20 @@ import {
 import tableStyles from "../../components/ui/DataTable.module.css";
 import styles from "./QuestionsPage.module.css";
 
-interface Filters {
-  themeId: string;
-  difficulty: string;
-  type: string;
-  active: string;
-  media: string;
-  search: string;
-}
-
-const EMPTY_FILTERS: Filters = {
-  themeId: "",
-  difficulty: "",
-  type: "",
-  active: "",
-  media: "",
-  search: "",
-};
+type FilterKey = "themeId" | "difficulty" | "type" | "active" | "media";
 
 const PAGE_SIZE = 20;
+
+const ACTIVE_VALUES = ["true", "false"] as const;
+const MEDIA_VALUES: readonly QuestionMediaFilter[] = [
+  "AUDIO",
+  "IMAGE",
+  "IMAGE_FILE",
+  "IMAGE_SVG",
+  "VIDEO",
+  "NONE",
+  "AUDIO_MISSING",
+];
 
 const MEDIA_ICON: Record<MediaType, string> = {
   AUDIO: "♪",
@@ -74,16 +69,35 @@ interface QuestionsPageContentProps {
 
 function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const supportsMedia = module === "TCF";
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [page, setPage] = useState(0);
+  const { params, page, setFilter, setPage, resetFilters } = useUrlListState(PAGE_SIZE);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<QuestionDto | null>(null);
 
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const debouncedSearch = useDebouncedValue(filters.search, 350);
+  const levels = levelsForModule(module);
+  const types = typesForModule(module);
+
+  const filters = useMemo(
+    () => ({
+      themeId: params.get("themeId") ?? "",
+      difficulty: oneOf(params.get("difficulty"), levels) ?? "",
+      type: oneOf(params.get("type"), types) ?? "",
+      active: oneOf(params.get("active"), ACTIVE_VALUES) ?? "",
+      media: supportsMedia ? (oneOf(params.get("media"), MEDIA_VALUES) ?? "") : "",
+      search: params.get("q")?.trim() ?? "",
+    }),
+    [params, levels, types, supportsMedia],
+  );
+
+  const commitSearch = useCallback(
+    (value: string | undefined) => setFilter("q", value, { replace: true }),
+    [setFilter],
+  );
+  const [searchInput, setSearchInput] = useUrlSearchInput(filters.search, commitSearch);
 
   const themesQuery = useQuery({
     queryKey: ["themes", module],
@@ -92,10 +106,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
 
   // Le filtre média n'est proposé que pour le TCF : le laisser partir sur le
   // module civique restreindrait la recherche sur un critère invisible à l'écran.
-  const mediaParam: QuestionMediaFilter | undefined =
-    supportsMedia && filters.media !== ""
-      ? (filters.media as QuestionMediaFilter)
-      : undefined;
+  const mediaParam: QuestionMediaFilter | undefined = filters.media || undefined;
 
   const queryParams = useMemo(
     () => ({
@@ -105,11 +116,11 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
       type: (filters.type as QuestionType) || undefined,
       active: filters.active === "" ? undefined : filters.active === "true",
       media: mediaParam,
-      search: debouncedSearch || undefined,
+      search: filters.search || undefined,
       page,
       size: PAGE_SIZE,
     }),
-    [module, filters.themeId, filters.difficulty, filters.type, filters.active, mediaParam, debouncedSearch, page],
+    [module, filters.themeId, filters.difficulty, filters.type, filters.active, mediaParam, filters.search, page],
   );
 
   const questionsQuery = useQuery({
@@ -140,14 +151,11 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
     onError: (err) => toast.show((err as Error).message, "error"),
   });
 
-  const updateFilter = (key: keyof Filters, value: string) => {
-    setFilters((f) => ({ ...f, [key]: value }));
-    setPage(0);
-  };
+  const updateFilter = (key: FilterKey, value: string) => setFilter(key, value || undefined);
 
-  const resetFilters = () => {
-    setFilters(EMPTY_FILTERS);
-    setPage(0);
+  const handleReset = () => {
+    setSearchInput("");
+    resetFilters();
   };
 
   const handleEdit = (q: QuestionDto) => {
@@ -171,13 +179,12 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   };
 
   const handleRowClick = (q: QuestionDto) => {
-    navigate(`/questions/${module.toLowerCase()}/${q.id}`);
+    navigate(`/questions/${module.toLowerCase()}/${q.id}`, {
+      state: { listSearch: location.search },
+    });
   };
 
   const moduleLabel = module === "CIVIQUE" ? "Examen civique" : "TCF";
-  const levels = levelsForModule(module);
-  const types = typesForModule(module);
-
   const data = questionsQuery.data;
   const isInitialLoading = questionsQuery.isLoading;
   const isError = questionsQuery.isError;
@@ -220,14 +227,17 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
             <input
               type="text"
               placeholder="Rechercher dans l'énoncé…"
-              value={filters.search}
-              onChange={(e) => updateFilter("search", e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
-            {filters.search && (
+            {searchInput && (
               <button
                 type="button"
                 className={styles.clearSearch}
-                onClick={() => updateFilter("search", "")}
+                onClick={() => {
+                  setSearchInput("");
+                  setFilter("q", undefined, { replace: true });
+                }}
                 aria-label="Effacer la recherche"
               >
                 ×
@@ -306,7 +316,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
               <button
                 type="button"
                 className={styles.resetBtn}
-                onClick={resetFilters}
+                onClick={handleReset}
               >
                 Réinitialiser ({activeFiltersCount})
               </button>
@@ -434,7 +444,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={data.first}
               >
                 ← Précédent
@@ -442,7 +452,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage(page + 1)}
                 disabled={data.last}
               >
                 Suivant →

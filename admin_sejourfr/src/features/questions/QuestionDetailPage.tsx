@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { passagesApi } from "../../api/passagesApi";
 import { questionsApi } from "../../api/questionsApi";
 import { Button } from "../../components/ui/Button";
@@ -31,6 +31,9 @@ export function QuestionDetailPage() {
   const id = params.id!;
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const listSearch = (location.state as { listSearch?: string } | null)?.listSearch ?? "";
+  const listHref = `/questions/${module.toLowerCase()}${listSearch}`;
   const queryClient = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
@@ -64,7 +67,7 @@ export function QuestionDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["themes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show("Question supprimée", "success");
-      navigate(`/questions/${module.toLowerCase()}`);
+      navigate(listHref);
     },
     onError: (err) => toast.show((err as Error).message, "error"),
   });
@@ -112,7 +115,7 @@ export function QuestionDetailPage() {
           <div className={styles.backRow}>
             <Button
               variant="ghost"
-              onClick={() => navigate(`/questions/${module.toLowerCase()}`)}
+              onClick={() => navigate(listHref)}
             >
               ← Retour à la liste
             </Button>
@@ -133,7 +136,7 @@ export function QuestionDetailPage() {
           <div className={styles.headerActions}>
             <Button
               variant="ghost"
-              onClick={() => navigate(`/questions/${module.toLowerCase()}`)}
+              onClick={() => navigate(listHref)}
             >
               ← Liste
             </Button>
