@@ -30,11 +30,16 @@ export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 
 /**
  * Miroir de l'enum backend `QuestionMediaFilter` : valeurs du paramètre
- * `GET /api/admin/questions?media=…`. `NONE` (majuscules, comme tout le reste)
- * cible les questions sans média — ce n'est pas un type de média, d'où l'enum
- * distincte de `MediaType`.
+ * `GET /api/admin/questions?media=…`. `NONE`, `IMAGE_FILE`, `IMAGE_SVG` et
+ * `AUDIO_MISSING` sont des critères de recherche, pas des types de média, d'où
+ * l'enum distincte de `MediaType`.
  */
-export type QuestionMediaFilter = MediaType | "NONE";
+export type QuestionMediaFilter =
+  | MediaType
+  | "NONE"
+  | "IMAGE_FILE"
+  | "IMAGE_SVG"
+  | "AUDIO_MISSING";
 
 export type PassageType = "TEXTE" | "AUDIO" | "DIALOGUE";
 
@@ -160,6 +165,8 @@ export interface QuestionDto {
   createdAt: string;
   updatedAt: string | null;
   choices: ChoiceDto[];
+  /** CO sans bande audio (`util/AudioManquant`) : jamais tirée tant qu'elle manque. */
+  audioMissing: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -514,6 +521,8 @@ export interface AudioDraftChoiceDto {
   label: string;
   isCorrect: boolean;
   displayOrder: number;
+  /** Proposition lue dans l'audio (brouillon importé CO image), `null` sinon. */
+  text: string | null;
 }
 
 export interface AudioDraftDto {
@@ -538,6 +547,8 @@ export interface AudioDraftDto {
   batchId: string | null;
   createdAt: string;
   rejectionReason: string | null;
+  /** Identifiant éditorial d'un brouillon importé par lot, `null` sinon. */
+  externalId: string | null;
 }
 
 export interface BatchGenerationOutcome {
@@ -2400,4 +2411,90 @@ export interface CivicTaggingQueue {
   questions: CivicTaggingQuestion[];
   /** Questions civiques actives encore sans notion, **tous thèmes**. */
   resteATaguer: number;
+}
+
+// ---------------------------------------------------------------------------
+// Import par lot des questions CO image
+// Voir backend : AdminQuestionImportController, dto/CoImageImport*.java
+// ---------------------------------------------------------------------------
+/** Miroir de `CoImageImportErrorCode` : un code ne se renomme pas, il s'ajoute. */
+export type CoImageImportErrorCode =
+  | "MANIFESTE_ILLISIBLE"
+  | "VERSION_INCONNUE"
+  | "FORMAT_INCONNU"
+  | "NOMBRE_QUESTIONS"
+  | "FICHIER_EN_TROP"
+  | "FICHIER_EN_DOUBLE"
+  | "QUESTION_ABSENTE"
+  | "EXTERNAL_ID_INVALIDE"
+  | "EXTERNAL_ID_EN_DOUBLE"
+  | "EXTERNAL_ID_DEJA_IMPORTE"
+  | "NIVEAU_INVALIDE"
+  | "THEME_INCONNU"
+  | "THEME_HORS_TCF"
+  | "CHOIX_NOMBRE"
+  | "CHOIX_VIDE"
+  | "CHOIX_TROP_LONG"
+  | "CHOIX_EN_DOUBLE"
+  | "BONNE_REPONSE_INVALIDE"
+  | "DESCRIPTION_SCENE_VIDE"
+  | "DESCRIPTION_SCENE_TROP_LONGUE"
+  | "EXPLICATION_TROP_LONGUE"
+  | "IMAGE_NON_RENSEIGNEE"
+  | "IMAGE_REFERENCEE_PLUSIEURS_FOIS"
+  | "IMAGE_ABSENTE"
+  | "IMAGE_TROP_LOURDE"
+  | "IMAGE_FORMAT_INVALIDE"
+  | "IMAGE_FORMAT_HORS_CHARTE"
+  | "IMAGE_ILLISIBLE"
+  | "IMAGE_TROP_PETITE"
+  | "IMAGE_RATIO"
+  | "IMAGE_TRANSPARENTE";
+
+export interface CoImageImportError {
+  code: CoImageImportErrorCode;
+  /** Champ fautif (relatif à la question, au manifeste ou nom de fichier), `null` = l'ensemble. */
+  field: string | null;
+  message: string;
+}
+
+export interface CoImageImportChoicePreview {
+  letter: string | null;
+  text: string | null;
+  correct: boolean;
+}
+
+export interface CoImageImportQuestionReport {
+  index: number;
+  externalId: string | null;
+  ok: boolean;
+  level: string | null;
+  themeCode: string | null;
+  themeName: string | null;
+  image: string | null;
+  imageFormat: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
+  imageSizeBytes: number | null;
+  sceneDescription: string | null;
+  choices: CoImageImportChoicePreview[];
+  correctAnswer: string | null;
+  explanation: string | null;
+  transcriptText: string | null;
+  errors: CoImageImportError[];
+  /** Renseignés seulement après un import réussi. */
+  draftId: string | null;
+  imageUrl: string | null;
+}
+
+export interface CoImageImportReport {
+  ok: boolean;
+  imported: boolean;
+  format: string;
+  charteVersion: string;
+  maxQuestions: number;
+  questionCount: number;
+  /** Erreurs de LOT (manifeste, fichiers en trop ou en double). */
+  errors: CoImageImportError[];
+  questions: CoImageImportQuestionReport[];
 }

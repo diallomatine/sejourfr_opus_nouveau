@@ -74,6 +74,8 @@ src/
 │   │                        + statistiques d'usage
 │   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
+│   ├── questionImport/      Import par lot des CO image (manifeste JSON + images →
+│   │                        brouillons audio). Détail dans la section plus bas.
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
 │                            EO (Expression Orale) — Azure Speech + R2 réutilisés
 ├── hooks/
@@ -148,9 +150,13 @@ Endpoints utilisés actuellement :
   Ne fait **pas** avancer `updatedAt`. La colonne « Maj » n'est plus affichée (2026-09-28) :
   la liste et la fiche lisent la date d'achat.
 - `GET|POST|PUT|PATCH|DELETE /api/admin/questions[…]` — la liste accepte
-  `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
+  `?media=AUDIO|IMAGE|VIDEO|NONE|IMAGE_FILE|IMAGE_SVG|AUDIO_MISSING` (majuscules,
+  miroir `QuestionMediaFilter`), **filtre serveur** : ne jamais
   refiltrer la page courante côté navigateur, le compteur et la pagination
-  deviendraient faux.
+  deviendraient faux. `QuestionDto.audioMissing` (servi) pose le badge
+  « Audio manquant » sur la liste TCF et la fiche — jamais déduit de `audioMediaUrl`.
+- `POST /api/admin/question-imports/co-image/analyze|import` (feature `questionImport/`,
+  multipart `manifest` + N `images`)
 - `GET /api/admin/productions?q=&epreuve=&tache=&niveau=&statut=&signalement=&annotation=&periode=|from=&to=&includeInternal=&sort=&page=&size=`,
   `GET /api/admin/productions/{id}`, `POST /api/admin/productions/{id}/flags`,
   `POST /api/admin/productions/flags/{flagId}/verify|remove` (feature `productions/`,
@@ -462,6 +468,35 @@ question**, d'où une **carte de relecture** et non une ligne de tableau.
   chaque geste invalide **les deux** : la file se vide, la couverture monte.
 - Le pré-tagging est **lu**, jamais produit ici : 🛑 **aucun appel LLM n'est
   déclenché depuis cet écran**.
+
+### Import des CO image (`features/questionImport/`)
+
+Route `/audio-questions/import-co-image`, entrée « Génération IA › Importer des CO image »
+(boutons d'accès aussi sur `/questions/tcf` et `/audio-questions/review`). Contrat et
+format : `docs/question-audio/audit-questions-co-images.md` §4.
+
+- **Deux zones** : manifeste JSON (collé, déposé ou choisi en `.json`) et N images PNG/WEBP
+  (glisser-déposer ou sélecteur ; un `.json` déposé dans la zone images remplit le manifeste).
+  Un fichier du même nom remplace le précédent. Les vignettes sont des URL d'objet, révoquées
+  au retrait, au remplacement et au démontage.
+- **Multipart** (`api/questionImportApi.ts`) : partie `manifest` (Blob `application/json`) +
+  une partie `images` par fichier, nom = `questions[].image`.
+- **« Analyser »** (`/analyze`, toujours 200, n'écrit rien) rend le rapport : erreurs de lot,
+  puis une carte par question (vignette LOCALE, niveau, thème résolu, description de scène,
+  propositions A–D avec la bonne marquée `✓ bonne réponse`, explication, transcription, erreurs).
+  Les messages d'erreur sont **ceux du serveur** (déjà en français), le code est affiché en
+  second ; aucune règle de validation n'est recopiée côté front.
+- **« Importer »** n'est actif que si la **dernière** analyse est `ok` ET que ni le manifeste ni
+  les images n'ont changé depuis (compteur de révision ; rapport estompé sinon). Le serveur
+  rejoue de toute façon la validation. 201 ⇒ écran de succès (nombre de brouillons, étapes :
+  générer l'audio, relire, valider) + lien `/audio-questions/review` ; 422 ⇒ le rapport, rien
+  d'écrit ; 409 / 413 / 5xx ⇒ alerte, analyse à relancer.
+- L'import crée des **brouillons** `TEXT_VALIDATED`, jamais des questions : ils apparaissent
+  dans « Audio à valider » après « Générer 10 audios ». Succès ⇒ invalide `["audioDrafts"]` et
+  `["dashboard"]`.
+- La revue des brouillons affiche `externalId` et, pour un brouillon importé, le texte de
+  chaque proposition (`choices[].text`) ; la lettre vient du rang (les `displayOrder` servis
+  commencent à 1).
 
 ### Productions IA (`features/productions/`)
 

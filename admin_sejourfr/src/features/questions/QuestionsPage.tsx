@@ -198,9 +198,19 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
         title="Questions ·"
         emphasis={moduleLabel}
         actions={
-          <Button variant="red" onClick={handleCreate}>
-            + Nouvelle question
-          </Button>
+          <>
+            {module === "TCF" && (
+              <Button
+                variant="default"
+                onClick={() => navigate("/audio-questions/import-co-image")}
+              >
+                Importer des CO image
+              </Button>
+            )}
+            <Button variant="red" onClick={handleCreate}>
+              + Nouvelle question
+            </Button>
+          </>
         }
       />
 
@@ -284,8 +294,11 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
               >
                 <option value="AUDIO">Audio</option>
                 <option value="IMAGE">Image</option>
+                <option value="IMAGE_FILE">Image (fichier)</option>
+                <option value="IMAGE_SVG">Image (SVG)</option>
                 <option value="VIDEO">Vidéo</option>
                 <option value="NONE">Sans média</option>
+                <option value="AUDIO_MISSING">Audio manquant</option>
               </FilterSelect>
             )}
 
@@ -361,21 +374,24 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
                     </td>
                     {supportsMedia && (
                       <td data-label="Média">
-                        {q.mediaType ? (
-                          <span
-                            className={styles.mediaCell}
-                            title={MEDIA_LABEL[q.mediaType]}
-                          >
-                            <span className={styles.mediaIcon}>
-                              {MEDIA_ICON[q.mediaType]}
+                        <span className={styles.mediaStack}>
+                          {q.mediaType ? (
+                            <span
+                              className={styles.mediaCell}
+                              title={MEDIA_LABEL[q.mediaType]}
+                            >
+                              <span className={styles.mediaIcon}>
+                                {MEDIA_ICON[q.mediaType]}
+                              </span>
+                              <span className={styles.mediaLabel}>
+                                {MEDIA_LABEL[q.mediaType]}
+                              </span>
                             </span>
-                            <span className={styles.mediaLabel}>
-                              {MEDIA_LABEL[q.mediaType]}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className={styles.mediaNone}>—</span>
-                        )}
+                          ) : (
+                            <span className={styles.mediaNone}>—</span>
+                          )}
+                          {q.audioMissing && <Tag tone="warning">Audio manquant</Tag>}
+                        </span>
                       </td>
                     )}
                     <td data-label="Statut">

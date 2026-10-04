@@ -168,6 +168,7 @@ export function QuestionDetailPage() {
             <Tag tone={q.active ? "active" : "draft"}>
               {q.active ? "Active" : "Inactive"}
             </Tag>
+            {q.audioMissing && <Tag tone="warning">Audio manquant</Tag>}
             <span className={styles.themePill}>{q.themeName}</span>
           </div>
 

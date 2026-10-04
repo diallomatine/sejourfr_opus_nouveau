@@ -19,6 +19,7 @@ import { ProfilePage } from "./features/profile/ProfilePage";
 import { ProductionDetailPage } from "./features/productions/ProductionDetailPage";
 import { ProductionsPage } from "./features/productions/ProductionsPage";
 import { ProductionTitlesPage } from "./features/productionTasks/ProductionTitlesPage";
+import { CoImageImportPage } from "./features/questionImport/CoImageImportPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
 import { SkillDetailPage } from "./features/skills/SkillDetailPage";
@@ -81,6 +82,10 @@ export function App() {
                 <Route
                   path="/audio-questions/review"
                   element={<AudioDraftReviewPage />}
+                />
+                <Route
+                  path="/audio-questions/import-co-image"
+                  element={<CoImageImportPage />}
                 />
                 <Route
                   path="/audio-questions/logs"

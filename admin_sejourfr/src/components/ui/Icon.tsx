@@ -111,6 +111,7 @@ const PATHS = {
   ),
   flag: <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1v12Zm0 7v-7" />,
   activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
+  upload: <path d="M12 16V4m-5 5 5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />,
   user: (
     <>
       <circle cx="12" cy="8" r="4" />

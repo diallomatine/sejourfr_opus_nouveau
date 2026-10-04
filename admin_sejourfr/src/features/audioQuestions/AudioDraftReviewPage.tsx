@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { audioDraftsApi } from "../../api/audioDraftsApi";
 import { sanitizeSvg } from "../../lib/sanitizeSvg";
 import { Button } from "../../components/ui/Button";
@@ -129,6 +130,9 @@ export function AudioDraftReviewPage() {
                 </button>
               ))}
             </div>
+            <Link to="/audio-questions/import-co-image" className={styles.importLink}>
+              Importer des CO image
+            </Link>
             <Button
               variant="primary"
               onClick={() => batchMutation.mutate()}
@@ -314,6 +318,11 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
     <article className={styles.card}>
       <header className={styles.cardHeader}>
         <div className={styles.cardMeta}>
+          {current.externalId && (
+            <span className={styles.externalId} title="Identifiant du lot importé">
+              {current.externalId}
+            </span>
+          )}
           {current.difficulty && (
             <Tag tone={current.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
               {current.difficulty}
@@ -401,18 +410,26 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
           <div className={styles.smallLabel}>Question</div>
           <p className={styles.statement}>{current.statement}</p>
           <ol className={styles.choices}>
-            {current.choices.map((c, idx) => (
-              <li
-                key={idx}
-                className={`${styles.choice} ${c.isCorrect ? styles.choiceCorrect : ""}`}
-              >
-                <span className={styles.choiceOrder}>
-                  {String.fromCharCode(65 + c.displayOrder)}
-                </span>
-                <span className={styles.choiceLabel}>{c.label}</span>
-                {c.isCorrect && <Tag tone="active">correct</Tag>}
-              </li>
-            ))}
+            {current.choices.map((c, idx) => {
+              const letter = String.fromCharCode(65 + idx);
+              const spoken = c.text ?? (c.label === letter ? null : c.label);
+              return (
+                <li
+                  key={idx}
+                  className={`${styles.choice} ${c.isCorrect ? styles.choiceCorrect : ""}`}
+                >
+                  <span className={styles.choiceOrder}>{letter}</span>
+                  {spoken ? (
+                    <span className={styles.choiceLabel}>{spoken}</span>
+                  ) : (
+                    <span className={`${styles.choiceLabel} ${styles.choiceAudioOnly}`}>
+                      Proposition lue dans l'audio
+                    </span>
+                  )}
+                  {c.isCorrect && <Tag tone="active">correct</Tag>}
+                </li>
+              );
+            })}
           </ol>
 
           {current.explanation && (

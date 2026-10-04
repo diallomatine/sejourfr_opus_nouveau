@@ -47,6 +47,7 @@ export const NAVIGATION: readonly NavSection[] = [
     label: "Génération IA",
     items: [
       { to: "/audio-questions/generate", label: "Générer un audio", icon: "mic" },
+      { to: "/audio-questions/import-co-image", label: "Importer des CO image", icon: "upload" },
       { to: "/audio-questions/review", label: "Audio à valider", icon: "checkCircle", badge: "audioDrafts" },
       { to: "/audio-questions/logs", label: "Audit générations", icon: "history" },
       { to: "/example-audio/review", label: "Audios exemples EO", icon: "volume", badge: "exampleAudio" },
