@@ -2,7 +2,6 @@
 
 import {
   Check,
-  ClipboardList,
   Clock,
   FileText,
   Hash,
@@ -10,6 +9,7 @@ import {
   History,
   ListOrdered,
   MapPin,
+  MessageSquareText,
   Quote,
   Tag,
   User,
@@ -51,17 +51,14 @@ export function constraintIcon(icon: string): LucideIcon {
 }
 
 /**
- * Intitulé du contexte du sujet.
- *
- * **Un label, pas un titre de carte** : c'est le **texte à traiter**, il ne doit
- * pas se lire comme un encart de conseil de plus, et il coûte une ligne de moins
- * au-dessus de la zone de production — le seul chiffre qui compte sur cet écran
- * (la carte « Ta réponse » commence à ~468 px sur un 360).
- *
- * Miroir mot pour mot de `kSkillSituationLabel` côté mobile
- * (`competences/widgets/prompt_guidance.dart`).
+ * Titre de la carte du contexte du sujet : c'est le **texte à traiter**, la
+ * carte principale de l'écran. Miroir mot pour mot de `kSkillSituationTitle`
+ * côté mobile (`competences/widgets/prompt_guidance.dart`).
  */
-const SITUATION_LABEL = "SITUATION";
+const SITUATION_TITLE = "Situation";
+
+/** Intitulé du panneau de la check-list, miroir de `kSkillChecklistLabel`. */
+const TODO_LABEL = "CE QU'IL FAUT FAIRE";
 
 /** En-tête d'une carte de guidage : pastille d'icône + titre. */
 function GuideHead({icon, title}: {icon: LucideIcon; title: string}) {
@@ -77,8 +74,8 @@ function GuideHead({icon, title}: {icon: LucideIcon; title: string}) {
 }
 
 /**
- * Le guidage d'un petit sujet, tel que la maquette client l'ordonne : **ce
- * qu'il faut faire**, **la situation**, puis les contraintes en puces. Il
+ * Le guidage d'un petit sujet, tel que le propriétaire l'ordonne (2026-10-04) : **la
+ * situation**, **ce qu'il faut faire**, puis les contraintes en puces. Il
  * remplace la carte d'exercice générique des formulaires partagés (prop
  * `promptSlot`) — l'écran ne raconte plus l'exercice, il le fait faire.
  *
@@ -99,12 +96,18 @@ export function PromptGuidance({prompt, oral}: {prompt: SkillPromptDto; oral: bo
 
   return (
     <>
-      {/* Filet d'accent sur la première carte seulement : c'est la seule chose
-          à lire avant d'écrire. Classe explicite plutôt qu'un `:first-of-type` —
-          ce bloc est injecté dans un formulaire partagé dont on ne contrôle pas
-          la fratrie. */}
-      <section className={`${s.guideCard} ${s.guideCardLead}`}>
-        <GuideHead icon={ClipboardList} title="Ce qu'il faut faire" />
+      {/* La SITUATION d'abord, en carte principale (demande du propriétaire,
+          2026-10-04) : c'est le texte à traiter. « Ce qu'il faut faire » suit,
+          en panneau teinté. Miroir de `SkillSituationCard` / `SkillChecklistCard` côté mobile. */}
+      {situation && (
+        <section className={`${s.guideCard} ${s.guideCardLead}`}>
+          <GuideHead icon={MessageSquareText} title={SITUATION_TITLE} />
+          <p className={`${s.guideText} ${s.situationText}`}>{situation}</p>
+        </section>
+      )}
+
+      <section className={s.situationPanel}>
+        <span className={s.situationLabel}>{TODO_LABEL}</span>
         {checklist.length > 0 ? (
           <ul className={s.checklist}>
             {checklist.map((item, i) => (
@@ -120,15 +123,6 @@ export function PromptGuidance({prompt, oral}: {prompt: SkillPromptDto; oral: bo
           <p className={s.guideText}>{prompt.instruction}</p>
         )}
       </section>
-
-      {/* Panneau, pas carte : fond teinté de l'accent et liseré de 3 px à
-          gauche, comme `SkillSituationCard` côté mobile. */}
-      {situation && (
-        <section className={s.situationPanel}>
-          <span className={s.situationLabel}>{SITUATION_LABEL}</span>
-          <p className={s.guideText}>{situation}</p>
-        </section>
-      )}
 
       {(length != null || tags.length > 0) && (
         <div className={s.chipRow}>

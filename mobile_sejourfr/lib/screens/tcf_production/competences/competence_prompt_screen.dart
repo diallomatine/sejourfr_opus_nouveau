@@ -531,14 +531,8 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                 ),
               ],
               const SizedBox(height: 12),
-              // Ce qu'il faut faire — la check-list remplace le critère
-              // abstrait. Sans check-list, elle retombe sur la consigne.
-              SkillChecklistCard(
-                checklist: skillChecklist(prompt),
-                fallback: prompt.instruction,
-                accent: _accent,
-              ),
-              const SizedBox(height: 10),
+              // La situation d'abord (le texte à traiter), puis ce qu'il faut
+              // faire — la check-list, qui retombe sur la consigne sans elle.
               if (prompt.context.trim().isNotEmpty) ...[
                 SkillSituationCard(
                   context: prompt.context.trim(),
@@ -546,6 +540,12 @@ class _PromptViewState extends ConsumerState<_PromptView> {
                 ),
                 const SizedBox(height: 10),
               ],
+              SkillChecklistCard(
+                checklist: skillChecklist(prompt),
+                fallback: prompt.instruction,
+                accent: _accent,
+              ),
+              const SizedBox(height: 10),
               _ConstraintRowSlot(prompt: prompt),
               SkillAnswerCard(
                 accent: _accent,

@@ -94,8 +94,12 @@ class SkillGuidanceCard extends StatelessWidget {
     required this.title,
     required this.accent,
     required this.child,
+    this.lead = false,
   });
 
+  /// Filet d'accent de 3 px à gauche (la carte principale), miroir de
+  /// `.guideCardLead` côté web.
+  final bool lead;
   final IconData icon;
   final String title;
   final Color accent;
@@ -108,8 +112,20 @@ class SkillGuidanceCard extends StatelessWidget {
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.line),
+        borderRadius: lead
+            ? const BorderRadius.horizontal(
+                left: Radius.circular(12),
+                right: Radius.circular(22),
+              )
+            : BorderRadius.circular(22),
+        border: lead
+            ? Border(
+                left: BorderSide(color: accent, width: 3),
+                top: const BorderSide(color: AppColors.line),
+                right: const BorderSide(color: AppColors.line),
+                bottom: const BorderSide(color: AppColors.line),
+              )
+            : Border.all(color: AppColors.line),
         boxShadow: AppShadows.card,
       ),
       child: Column(
@@ -148,10 +164,15 @@ class SkillGuidanceCard extends StatelessWidget {
   }
 }
 
+/// Intitulé du panneau de la check-list. Miroir mot pour mot de `TODO_LABEL`
+/// côté web (`app/_components/competences/PromptGuidance.tsx`).
+const String kSkillChecklistLabel = "CE QU'IL FAUT FAIRE";
+
 /// « Ce qu'il faut faire » — les 2 à 4 gestes à l'impératif, chacun précédé
-/// d'une pastille cochée.
+/// d'une pastille cochée, en **panneau** teinté de l'accent (liseré de 3 px à
+/// gauche) : depuis le 2026-10-04 la carte principale est la [SkillSituationCard].
 ///
-/// Sans check-list, la carte **retombe sur la consigne** ([fallback]) plutôt
+/// Sans check-list, le panneau **retombe sur la consigne** ([fallback]) plutôt
 /// que de disparaître : le candidat doit toujours savoir ce qu'on lui demande.
 class SkillChecklistCard extends StatelessWidget {
   const SkillChecklistCard({
@@ -167,74 +188,6 @@ class SkillChecklistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SkillGuidanceCard(
-      icon: LucideIcons.clipboardList,
-      title: "Ce qu'il faut faire",
-      accent: accent,
-      child: checklist.isEmpty
-          ? Text(
-              fallback,
-              style: AppFonts.ui(size: 13, height: 1.45),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < checklist.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Icon(
-                          LucideIcons.circleCheck,
-                          size: 16,
-                          color: accent,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          checklist[i],
-                          style: AppFonts.ui(
-                            size: 13,
-                            height: 1.4,
-                            weight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-    );
-  }
-}
-
-/// Intitulé du contexte du sujet. Miroir mot pour mot de `SITUATION_LABEL`
-/// côté web (`app/_components/competences/PromptGuidance.tsx`).
-const String kSkillSituationLabel = 'SITUATION';
-
-/// « Situation » — le contexte du sujet, resserré.
-///
-/// **Panneau, pas carte** : fond teinté de l'accent et liseré de 3 px à gauche,
-/// comme le mini-sujet de la maquette. Deux raisons, dans cet ordre : c'est le
-/// **texte à traiter**, il ne doit pas se lire comme un encart de conseil de
-/// plus ; et sans la rangée pastille + titre d'une [SkillGuidanceCard] il coûte
-/// une ligne de moins au-dessus de la zone de production.
-class SkillSituationCard extends StatelessWidget {
-  const SkillSituationCard({
-    super.key,
-    required this.context,
-    required this.accent,
-  });
-
-  final String context;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext buildContext) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
@@ -250,15 +203,73 @@ class SkillSituationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            kSkillSituationLabel,
+            kSkillChecklistLabel,
             style: AppFonts.label(size: 10, color: accent),
           ),
-          const SizedBox(height: 6),
-          Text(
-            context,
-            style: AppFonts.ui(size: 13.5, height: 1.45, color: AppColors.ink2),
-          ),
+          const SizedBox(height: 8),
+          if (checklist.isEmpty)
+            Text(fallback, style: AppFonts.ui(size: 13, height: 1.45))
+          else
+            for (var i = 0; i < checklist.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(
+                      LucideIcons.circleCheck,
+                      size: 16,
+                      color: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      checklist[i],
+                      style: AppFonts.ui(
+                        size: 13,
+                        height: 1.4,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
         ],
+      ),
+    );
+  }
+}
+
+/// Titre de la carte du contexte du sujet. Miroir mot pour mot de
+/// `SITUATION_TITLE` côté web (`app/_components/competences/PromptGuidance.tsx`).
+const String kSkillSituationTitle = 'Situation';
+
+/// « Situation » — le contexte du sujet, le **texte à traiter** : c'est la
+/// carte principale de l'écran (2026-10-04, demande du propriétaire), blanche,
+/// avec liseré d'accent, pastille et titre, texte plus lisible.
+class SkillSituationCard extends StatelessWidget {
+  const SkillSituationCard({
+    super.key,
+    required this.context,
+    required this.accent,
+  });
+
+  final String context;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext buildContext) {
+    return SkillGuidanceCard(
+      icon: LucideIcons.messageSquareText,
+      title: kSkillSituationTitle,
+      accent: accent,
+      lead: true,
+      child: Text(
+        context,
+        style: AppFonts.ui(size: 14.5, height: 1.5, weight: FontWeight.w600),
       ),
     );
   }

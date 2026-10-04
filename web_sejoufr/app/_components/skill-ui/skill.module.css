@@ -829,10 +829,9 @@
   color: var(--color-ink);
 }
 
-/* « Situation » — le contexte du sujet, en PANNEAU et non en carte : c'est le
-   texte à traiter, pas un encart de conseil de plus, et il coûte une ligne de
-   moins au-dessus de la zone de production. Miroir de `SkillSituationCard`
-   côté mobile. */
+/* « Ce qu'il faut faire » — la check-list, en PANNEAU teinté sous la carte
+   « Situation » (2026-10-04 : la situation est la carte principale). Miroir de
+   `SkillChecklistCard` côté mobile. */
 .situationPanel {
   display: grid;
   gap: 6px;
@@ -840,6 +839,12 @@
   border-radius: 8px 18px 18px 8px;
   border-left: 3px solid var(--skill-accent);
   background: color-mix(in srgb, var(--skill-accent) 7%, transparent);
+}
+
+.situationText {
+  font-size: 15.5px;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 .situationLabel {
@@ -3708,9 +3713,8 @@
 
 /* ------------------------------------- petit sujet : échelle de lecture web */
 
-/* La carte « Ce qu'il faut faire » prend le filet d'accent de la maquette : sur
-   l'écran de production, c'est la seule chose à lire avant d'écrire, et rien ne
-   la distinguait des deux autres cartes blanches. Classes **exclusives** à
+/* La carte « Situation » prend le filet d'accent : c'est le texte à traiter,
+   la première chose à lire avant de produire. Classes **exclusives** à
    `PromptGuidance` — aucune autre surface ne les monte. */
 .guideCardLead {
   border-left: 3px solid var(--skill-accent);
