@@ -1,4 +1,6 @@
 import type {
+  JourneyDto,
+  JourneyStepDto,
   LearningPlanCompletedStepDto,
   LearningPlanDto,
   LearningPlanPriorityDto,
@@ -104,9 +106,52 @@ function scopeOfCompleted(step: LearningPlanCompletedStepDto): PlanStepScope {
 }
 
 /**
- * L'étape du Plan qui porte cette compétence — priorité n°1 et **étape
- * franchie** comprises. Une étape franchie garde son périmètre : ouvrir une
- * carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+ * Le périmètre d'une étape **du cycle** (`JourneyStepDto`), tel que le serveur
+ * le sert sur l'étape elle-même. `null` hors étape d'expression ouverte, ou sur
+ * un backend antérieur au champ.
+ */
+function scopeOfJourneyStep(step: JourneyStepDto): PlanStepScope | null {
+  const ids = step.stepPromptIds ?? [];
+  const skillId = step.exercise?.skillId;
+  if (ids.length === 0 || !skillId || !step.progress) return null;
+  return {
+    skillId,
+    stepPromptCount: step.progress.quota,
+    stepAttemptedCount: step.progress.done,
+    stepValidatedCount: step.stepValidatedCount ?? 0,
+    stepPromptIds: ids,
+    stepCompleted: step.stepCompleted ?? false,
+    recommendedExercise: step.exercise,
+  };
+}
+
+/** L'étape ouverte du cycle qui travaille cette compétence, avec ses sujets. */
+function journeyStepScope(
+  journey: JourneyDto | null | undefined,
+  skillId: string,
+): PlanStepScope | null {
+  if (!journey) return null;
+  for (const bloc of journey.blocs) {
+    for (const step of bloc.steps) {
+      if (step.exercise?.skillId !== skillId) continue;
+      const scope = scopeOfJourneyStep(step);
+      if (scope) return scope;
+    }
+  }
+  return null;
+}
+
+/**
+ * L'étape du Plan qui porte cette compétence — priorité, **étape du cycle** et
+ * **étape franchie** comprises. Une étape franchie garde son périmètre : ouvrir
+ * une carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+ *
+ * 🛑 **Le cycle est lu aussi** (bug du 2026-10-04) : les priorités
+ * (`currentPriority` + `nextPriorities`) sont une **vue bornée**, que la file
+ * du cycle dépasse. « Faire cette étape » sur une étape EO absente de ces
+ * listes ouvrait la fiche des 15 sujets. Le périmètre de l'étape est servi sur
+ * l'étape du cycle (`JourneyStepDto.stepPromptIds`), depuis le même compteur
+ * que celui qui la clôt : rien n'est recalculé ici.
  *
  * `null` est un cas **normal et fréquent** : le Plan n'est pas chargé, ou la
  * compétence n'apparaît plus dans le parcours (une étape franchie sort du Plan
@@ -116,17 +161,17 @@ function scopeOfCompleted(step: LearningPlanCompletedStepDto): PlanStepScope {
 export function planStepFor(
   plan: LearningPlanDto | null | undefined,
   skillId: string,
+  journey?: JourneyDto | null,
 ): PlanStepScope | null {
-  if (!plan || !skillId) return null;
-  const priority = [plan.currentPriority, ...plan.nextPriorities].find(
-    (p) => p && p.skillId === skillId,
-  );
-  const scope = priority
-    ? scopeOfPriority(priority)
-    : (() => {
-        const done = (plan.completedSteps ?? []).find((s) => s.skillId === skillId);
-        return done ? scopeOfCompleted(done) : null;
-      })();
+  if (!skillId) return null;
+  const priority = plan
+    ? [plan.currentPriority, ...plan.nextPriorities].find((p) => p && p.skillId === skillId)
+    : undefined;
+  if (priority && priority.stepPromptIds.length > 0) return scopeOfPriority(priority);
+  const ofJourney = journeyStepScope(journey, skillId);
+  if (ofJourney) return ofJourney;
+  const done = (plan?.completedSteps ?? []).find((s) => s.skillId === skillId);
+  const scope = done ? scopeOfCompleted(done) : null;
   if (!scope || scope.stepPromptIds.length === 0) return null;
   return scope;
 }

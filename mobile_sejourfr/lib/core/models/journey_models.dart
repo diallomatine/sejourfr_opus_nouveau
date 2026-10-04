@@ -311,14 +311,14 @@ class JourneyProgress {
 
   final JourneyProgressUnit unit;
 
-  factory JourneyProgress.fromJson(Map<String, dynamic> json) => JourneyProgress(
+  factory JourneyProgress.fromJson(Map<String, dynamic> json) =>
+      JourneyProgress(
         done: (json['done'] as num?)?.toInt() ?? 0,
         quota: (json['quota'] as num?)?.toInt() ?? 0,
         unit: JourneyProgressUnit.fromWireNullable(json['unit'] as String?) ??
             JourneyProgressUnit.prompt,
       );
 }
-
 
 /// La nature de l'axe d'un bloc de cycle. Miroir de `JourneyBlocKind`.
 enum JourneyBlocKind {
@@ -328,8 +328,9 @@ enum JourneyBlocKind {
   const JourneyBlocKind(this.wire);
   final String wire;
 
-  static JourneyBlocKind fromWire(String? value) => JourneyBlocKind.values
-      .firstWhere((e) => e.wire == value, orElse: () => JourneyBlocKind.epreuve);
+  static JourneyBlocKind fromWire(String? value) =>
+      JourneyBlocKind.values.firstWhere((e) => e.wire == value,
+          orElse: () => JourneyBlocKind.epreuve);
 }
 
 /// Le **bloc** d'une étape ou d'un lot, **servi**.
@@ -400,6 +401,9 @@ class JourneyStep {
     this.closedAt,
     this.resultat,
     this.examenTheme,
+    this.stepPromptIds = const [],
+    this.stepValidatedCount = 0,
+    this.stepCompleted = false,
   });
 
   final String id;
@@ -511,11 +515,30 @@ class JourneyStep {
   /// `JourneyStepDto.examenTheme`.
   final JourneyThemeExam? examenTheme;
 
+  /// **Les sujets de cette étape** — le périmètre de l'écran d'étape d'une
+  /// compétence d'**expression**, dans l'ordre servi (`LearningPlanStep.scope`).
+  /// Vide hors `TRAIN_SKILL` d'expression, sur une étape close et sur un
+  /// backend antérieur au champ.
+  ///
+  /// 🛑 **Même cause que [exercise] (A24)** : les priorités du Plan sont une vue
+  /// bornée que la file dépasse. Une étape EO absente de ces listes ouvrait la
+  /// fiche des 15 sujets au lieu de ses 5 (bug du 2026-10-04). Ce sont
+  /// exactement les sujets qui closent l'étape — `planStepFor` les lit, rien ne
+  /// les recompose. Miroir web : `JourneyStepDto.stepPromptIds`.
+  final List<String> stepPromptIds;
+
+  /// Sujets de l'étape **validés** — `0` hors expression.
+  final int stepValidatedCount;
+
+  /// Tous les sujets de l'étape traités — servi, jamais comparé ici.
+  final bool stepCompleted;
+
   factory JourneyStep.fromJson(Map<String, dynamic> json) => JourneyStep(
         id: json['id'] as String,
         type: JourneyStepType.fromWireNullable(json['type'] as String?) ??
             JourneyStepType.trainSkill,
-        purpose: JourneyStepPurpose.fromWireNullable(json['purpose'] as String?),
+        purpose:
+            JourneyStepPurpose.fromWireNullable(json['purpose'] as String?),
         status: JourneyStepStatus.fromWireNullable(json['status'] as String?) ??
             JourneyStepStatus.upcoming,
         bloc: JourneyBlocRef.fromJsonNullable(json['bloc']),
@@ -529,7 +552,8 @@ class JourneyStep {
         position: (json['position'] as num?)?.toInt() ?? 0,
         progress: json['progress'] == null
             ? null
-            : JourneyProgress.fromJson(json['progress'] as Map<String, dynamic>),
+            : JourneyProgress.fromJson(
+                json['progress'] as Map<String, dynamic>),
         locked: json['locked'] as bool? ?? false,
         lockReason:
             JourneyLockReason.fromWireNullable(json['lockReason'] as String?),
@@ -552,6 +576,11 @@ class JourneyStep {
             ? null
             : JourneyThemeExam.fromJson(
                 json['examenTheme'] as Map<String, dynamic>),
+        stepPromptIds: (json['stepPromptIds'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .toList(),
+        stepValidatedCount: (json['stepValidatedCount'] as num?)?.toInt() ?? 0,
+        stepCompleted: json['stepCompleted'] as bool? ?? false,
       );
 }
 
@@ -702,8 +731,7 @@ class JourneyBloc {
         bloc: JourneyBlocRef.fromJson(json['bloc'] as Map<String, dynamic>),
         status: JourneyBlocStatus.fromWireNullable(json['status'] as String?) ??
             JourneyBlocStatus.aVenir,
-        etapesRestantes:
-            (json['etapesRestantes'] as num?)?.toInt() ?? 0,
+        etapesRestantes: (json['etapesRestantes'] as num?)?.toInt() ?? 0,
         meta: json['meta'] as String? ?? '',
         steps: (json['steps'] as List<dynamic>? ?? const [])
             .map((item) => JourneyStep.fromJson(item as Map<String, dynamic>))
@@ -754,7 +782,8 @@ enum JourneyJalonRaison {
 /// `JourneyExamenCompletDto`. 🛑 Sa **présence** est la proposition : aucun
 /// front ne recombine la condition.
 class JourneyExamenComplet {
-  const JourneyExamenComplet({required this.raison, required this.cyclesDeTravail});
+  const JourneyExamenComplet(
+      {required this.raison, required this.cyclesDeTravail});
 
   final JourneyJalonRaison raison;
 
@@ -789,7 +818,8 @@ class JourneyUniteRef {
   /// Ce que le **candidat lit**.
   final String label;
 
-  factory JourneyUniteRef.fromJson(Map<String, dynamic> json) => JourneyUniteRef(
+  factory JourneyUniteRef.fromJson(Map<String, dynamic> json) =>
+      JourneyUniteRef(
         code: json['code'] as String? ?? '',
         label: json['label'] as String? ?? '',
       );
@@ -914,13 +944,14 @@ class Journey {
             .toList(growable: false),
         nextStep: json['nextStep'] == null
             ? null
-            : JourneyNextStep.fromJson(json['nextStep'] as Map<String, dynamic>),
-        examenComplet: JourneyExamenComplet.fromJsonNullable(json['examenComplet']),
-        suggestion:
-            JourneySuggestionType.fromWireNullable(json['suggestion'] as String?),
+            : JourneyNextStep.fromJson(
+                json['nextStep'] as Map<String, dynamic>),
+        examenComplet:
+            JourneyExamenComplet.fromJsonNullable(json['examenComplet']),
+        suggestion: JourneySuggestionType.fromWireNullable(
+            json['suggestion'] as String?),
       );
 }
-
 
 /// Idem pour la tâche : `null` veut dire **compétence de compréhension**, un
 /// fait ordinaire — jamais une erreur de lecture.
@@ -1064,8 +1095,7 @@ class JourneyHistoryCycle {
             JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
         competences: (json['competences'] as num?)?.toInt() ?? 0,
         examens: (json['examens'] as num?)?.toInt() ?? 0,
-        entryLevel:
-            TargetLevel.fromWireNullable(json['entryLevel'] as String?),
+        entryLevel: TargetLevel.fromWireNullable(json['entryLevel'] as String?),
         exitLevel: TargetLevel.fromWireNullable(json['exitLevel'] as String?),
         entryScore: (json['entryScore'] as num?)?.toInt(),
         exitScore: (json['exitScore'] as num?)?.toInt(),
@@ -1147,8 +1177,7 @@ class JourneyCycleArchive {
         finDeCycle:
             JourneyFinDeCycle.fromWireNullable(json['finDeCycle'] as String?),
         objectif: JourneyObjectifRef.fromJsonNullable(json['objectif']),
-        entryLevel:
-            TargetLevel.fromWireNullable(json['entryLevel'] as String?),
+        entryLevel: TargetLevel.fromWireNullable(json['entryLevel'] as String?),
         exitLevel: TargetLevel.fromWireNullable(json['exitLevel'] as String?),
         entryScore: (json['entryScore'] as num?)?.toInt(),
         exitScore: (json['exitScore'] as num?)?.toInt(),

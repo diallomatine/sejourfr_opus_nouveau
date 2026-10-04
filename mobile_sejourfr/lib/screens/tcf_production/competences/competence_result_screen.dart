@@ -212,7 +212,8 @@ class _CompetenceResultScreenState
     if (prompt == null) return null;
     if (!widget.planStep) return prompt.nextPromptId;
     return planStepNextPromptId(
-      planStepFor(ref.watch(learningPlanProvider).valueOrNull, prompt.skillId),
+      planStepFor(ref.watch(learningPlanProvider).valueOrNull, prompt.skillId,
+          journey: ref.watch(journeyProvider).valueOrNull),
       prompt.id,
     );
   }
@@ -1263,8 +1264,9 @@ class _NextActionCard extends StatelessWidget {
             icon: action.kind == CompetenceNextKind.reessayer
                 ? LucideIcons.rotateCcw
                 : null,
-            variant:
-                module.isEo ? AppButtonVariant.accent : AppButtonVariant.primary,
+            variant: module.isEo
+                ? AppButtonVariant.accent
+                : AppButtonVariant.primary,
             height: 46,
             onPressed: switch (action.kind) {
               CompetenceNextKind.reessayer => rejouer,

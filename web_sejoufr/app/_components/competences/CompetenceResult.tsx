@@ -15,8 +15,9 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import {ApiException, learningPlanApi, skillApi} from "@/lib/api";
+import {ApiException, journeyApi, learningPlanApi, skillApi} from "@/lib/api";
 import {useCachedData} from "@/lib/use-cached-data";
+import {remplacerEcran} from "@/lib/retour";
 import {isPlanStep, planStepFor, planStepNextPromptId, withPlanStep} from "@/lib/plan-step";
 import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {useAuth} from "@/lib/auth-context";
@@ -143,7 +144,14 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
     step && status === "authenticated" ? learningPlanApi.cacheKey : null,
     () => learningPlanApi.getCached(),
   );
-  const scope = step ? planStepFor(planQuery.data, skillId) : null;
+  /* 🛑 Et le cycle : l'étape ouverte par « Faire cette étape » n'est pas
+     toujours une priorité du Plan (vue bornée) — son périmètre est servi sur
+     l'étape du cycle (`planStepFor`). */
+  const journeyQuery = useCachedData(
+    step && status === "authenticated" ? journeyApi.cacheKey : null,
+    () => journeyApi.getCached(),
+  );
+  const scope = step ? planStepFor(planQuery.data, skillId, journeyQuery.data) : null;
 
   const [attempt, setAttempt] = useState<SkillAttemptDto | null>(null);
   const [prompt, setPrompt] = useState<SkillPromptDto | null>(null);
@@ -296,6 +304,10 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
           Sujet pas encore chargé ⇒ « Résultat », jamais un titre inventé. */}
       <SkillShell
         backHref={skillHref}
+        /* Le retour remonte à l'écran précédent (la fiche, l'écran d'étape) ;
+           `skillHref` — marqueur d'étape conservé — n'est que le repli sans
+           historique. */
+        depile
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
         title={prompt?.title ?? "Résultat"}
         meta={prompt ? `${prompt.skillTitle} · ${config.label}` : config.label}
@@ -369,7 +381,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                     busy={retrying}
                     onRetry={() => void retry()}
                     onUnlock={() => setPaywallOpen(true)}
-                    onRequest={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
+                    onRequest={() => remplacerEcran(router, withPlanStep(`${base}/${skillId}/${promptId}`, step))}
                   />
                 )}
 
@@ -464,10 +476,10 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                     status={analysis.status}
                     hasNextPrompt={nextId != null}
                     onRetry={() =>
-                      router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))
+                      remplacerEcran(router, withPlanStep(`${base}/${skillId}/${promptId}`, step))
                     }
                     onNext={() =>
-                      nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))
+                      nextId && remplacerEcran(router, withPlanStep(`${base}/${skillId}/${nextId}`, step))
                     }
                   />
                 ) : (
@@ -481,7 +493,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                         : scope
                           ? "Les sujets de cette étape ont tous été traités."
                           : "Tous les sujets de cette compétence ont été traités."}
-                      onClick={() => nextId && router.push(withPlanStep(`${base}/${skillId}/${nextId}`, step))}
+                      onClick={() => nextId && remplacerEcran(router, withPlanStep(`${base}/${skillId}/${nextId}`, step))}
                     >
                       Sujet suivant
                       <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
@@ -489,7 +501,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                     <button
                       type="button"
                       className={`btn ${s.actionWide}`}
-                      onClick={() => router.push(withPlanStep(`${base}/${skillId}/${promptId}`, step))}
+                      onClick={() => remplacerEcran(router, withPlanStep(`${base}/${skillId}/${promptId}`, step))}
                     >
                       <RefreshCw size={15} strokeWidth={2.2} aria-hidden />
                       S&apos;entraîner sur ce point

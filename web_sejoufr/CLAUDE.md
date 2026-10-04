@@ -2410,6 +2410,20 @@ reste l'écran normal d'un lien profond ou d'un visiteur.
     Sans lui, `/plan` → « Toutes mes compétences » → une tâche → retour
     déposait le candidat dans `/entrainement`. Sans marqueur, l'écran de
     Réviser ne bouge pas d'un pixel.
+  - 🛑 **L'étape se cherche aussi dans le CYCLE** (2026-10-04) :
+    `planStepFor(plan, skillId, journey)` lit les priorités, puis
+    `JourneyStepDto.stepPromptIds` (servi sur l'étape du cycle), puis
+    `completedSteps`. Les trois écrans (`CompetenceDetail`, `CompetencePrompt`,
+    `CompetenceResult`) chargent le parcours au cache (`journeyApi.getCached`).
+    Sans lui, « Faire cette étape » sur une étape EO hors des priorités (vue
+    bornée) ouvrait « Tous · 15 ».
+  - 🛑 **Le retour DÉPILE** : `SkillShell depile` / `TaskChrome depile`
+    (`clicDeRetour` → `retourOuRepli`) sur la liste des compétences d'une
+    tâche, la fiche, le sujet et le résultat — `backHref` n'est que le repli
+    sans historique. Le marqueur des sujets suit `fromPlan`, jamais `scoped`.
+    Le résultat **remplace** le sujet et « Refaire / Sujet suivant »
+    remplacent le résultat (`remplacerEcran`, qui ne fausse pas le compteur
+    d'historique), comme les `pushReplacement` du mobile.
   - **Repli silencieux, obligatoire** : `stepPromptIds` vide, ou compétence
     **sortie des priorités** (cas **normal** — le serveur l'en sort dès qu'une
     vérification en situation a réussi) ⇒ on retombe sur la fiche complète. Ni

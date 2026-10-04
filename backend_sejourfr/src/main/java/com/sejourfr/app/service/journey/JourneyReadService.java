@@ -33,6 +33,7 @@ import com.sejourfr.app.service.NiveauActuelEpreuveResolver;
 import com.sejourfr.app.service.PlanDomainAssessmentResolver;
 import com.sejourfr.app.service.examenblanc.ExamenBlancAccessService;
 import com.sejourfr.app.service.ProductionAccessService;
+import com.sejourfr.app.service.LearningPlanStep;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.SkillAccessService;
 import com.sejourfr.app.service.SubscriptionService;
@@ -299,7 +300,7 @@ public class JourneyReadService {
         JourneyBlocResolver.Vue vue = blocResolver.lire(
                 rang, axeServi,
                 affichables, courante,
-                step -> dto(etats.get(step.getId()), exercices, resultats),
+                step -> dto(etats.get(step.getId()), exercices, resultats, progressionExpression),
                 jamaisMesure(userId, journey.getModule()),
                 affinage,
                 cycleSuivant.prioritesIdentifiees(journey));
@@ -313,7 +314,8 @@ public class JourneyReadService {
         return new JourneyDto(
                 journey.objectifRef(),
                 state,
-                courante == null ? null : dto(etats.get(courante.getId()), exercices, resultats),
+                courante == null ? null
+                        : dto(etats.get(courante.getId()), exercices, resultats, progressionExpression),
                 suggestion(state, userId),
                 vue.cycle(),
                 vue.blocs(),
@@ -396,7 +398,10 @@ public class JourneyReadService {
                 null,
                 step.getClosedAt(),
                 resultat,
-                null);
+                null,
+                List.of(),
+                0,
+                false);
     }
 
     private int numeroDuCycle(Journey journey) {
@@ -1243,9 +1248,11 @@ public class JourneyReadService {
 
     private JourneyStepDto dto(
             Etat etat, Map<UUID, PlanRecommendedExerciseDto> exercices,
-            Map<UUID, JourneyExamResultDto> resultats) {
+            Map<UUID, JourneyExamResultDto> resultats,
+            Map<UUID, SkillProgressCounter.SkillProgress> expression) {
         JourneyStep step = etat.step();
         Skill skill = step.getSkill();
+        LearningPlanStep.Progress etape = perimetreDe(step, expression);
         return new JourneyStepDto(
                 step.getId(),
                 step.getType(),
@@ -1276,7 +1283,33 @@ public class JourneyReadService {
                 // Le resultat d'un examen CLOS, servi aussi sur le Plan courant
                 // depuis D-69 ter (null = inconnu : « Passé », sans niveau).
                 resultats.get(step.getId()),
-                examenThemeDe(step));
+                examenThemeDe(step),
+                etape.promptIds(),
+                etape.validatedCount(),
+                etape.completed());
+    }
+
+    /**
+     * <b>Le perimetre servi d'une etape d'expression</b> — ses sujets, lus sur
+     * le <b>meme</b> compteur que {@link #progression} et que la cloture
+     * ({@link #etapesAuQuota}) : l'ecran d'etape montre exactement les sujets
+     * qui la valident, jamais une liste recomposee.
+     *
+     * <p>{@link LearningPlanStep.Progress#EMPTY} hors {@code TRAIN_SKILL}
+     * d'expression et sur une etape close (le compteur n'est lu que sur les
+     * etapes ouvertes) : le front retombe alors sur la fiche complete.
+     */
+    private static LearningPlanStep.Progress perimetreDe(
+            JourneyStep step, Map<UUID, SkillProgressCounter.SkillProgress> expression) {
+        if (step.getType() != JourneyStepType.TRAIN_SKILL || !step.estOuverte()) {
+            return LearningPlanStep.Progress.EMPTY;
+        }
+        Skill skill = step.getSkill();
+        if (skill == null || skill.getSection() == null || !skill.getSection().isProduction()) {
+            return LearningPlanStep.Progress.EMPTY;
+        }
+        SkillProgressCounter.SkillProgress progress = expression.get(skill.getId());
+        return progress == null ? LearningPlanStep.Progress.EMPTY : progress.step();
     }
 
     /**

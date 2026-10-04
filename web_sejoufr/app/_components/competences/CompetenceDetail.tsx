@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {useParams, useRouter, useSearchParams} from "next/navigation";
-import {useMemo, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {
   ArrowRight,
   Check,
@@ -155,7 +155,10 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   /* Les mêmes lanceurs que le Plan, jamais un second chemin. */
   const exercise = usePlanExercise();
   const assessment = usePlanAssessment();
-  const step = fromPlan ? planStepFor(planQuery.data, skillId) : null;
+  /* 🛑 L'étape se cherche AUSSI dans le cycle (bug du 2026-10-04) : « Faire
+     cette étape » ouvre une compétence que les priorités du Plan, vue bornée,
+     ne portent pas toujours. Le périmètre est servi sur l'étape du cycle. */
+  const step = fromPlan ? planStepFor(planQuery.data, skillId, journeyQuery.data) : null;
   /* Venu du Plan (marqueur), tout verrou de la fiche est le CTA du Plan
      (contrôle F) ; sinon, celui de l'écran. */
   const origin = usePlanStepPurchaseOrigin(fromPlan, "OTHER");
@@ -163,7 +166,10 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
      celui d'une étape : afficher la fiche complète en attendant la ferait
      passer de 15 sujets à 5 sous les yeux du candidat. On garde le
      squelette — il est déjà là pour la compétence elle-même. */
-  const planPending = fromPlan && planQuery.data === undefined && planQuery.error === null;
+  const planPending =
+    fromPlan &&
+    ((planQuery.data === undefined && planQuery.error === null) ||
+      (journeyQuery.data === undefined && journeyQuery.error === null));
 
   const [filter, setFilter] = useState<Filter>("all");
   const [infoOpen, setInfoOpen] = useState(false);
@@ -200,14 +206,17 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const stepPrompts = step ? planStepPrompts(allPrompts, step.stepPromptIds) : [];
   const scoped = step !== null && stepPrompts.length > 0;
   const prompts = scoped ? stepPrompts : allPrompts;
+  /* 🛑 Le marqueur suit la PROVENANCE (`fromPlan`), jamais la portée : sans
+     étape exploitable, un sujet ouvert depuis le Plan perdait le marqueur, et
+     son retour finissait par déposer le candidat dans `/entrainement`. */
   const promptHref = (promptId: string) =>
-    withPlanStep(`${base}/${skillId}/${promptId}`, scoped);
+    withPlanStep(`${base}/${skillId}/${promptId}`, fromPlan);
   /* L'écran de résultat d'une tentative de **compétence** — celui qui rend le
      verdict du critère, la carte de niveau et le plan d'action. Ce n'est ni le
      rapport d'une production TCF complète, ni une liste : on ouvre directement
      le dernier retour. */
   const resultHref = (promptId: string, attemptId: string) =>
-    withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attemptId}`, scoped);
+    withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attemptId}`, fromPlan);
   /* Taper un sujet : verrouillé ⇒ l'offre ; déjà traité et relisible ⇒ le
      choix ; sinon ⇒ production directe, exactement comme avant. Un sujet marqué
      traité mais **sans** `lastAttemptId` (ligne héritée) suit ce dernier chemin :
@@ -255,15 +264,17 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
   const suivante = stepDone
     ? journeyEtapeSuivante(journeyQuery.data ?? null, skill?.code ?? null)
     : null;
-  /* 🛑 Les mêmes lanceurs que le Plan, jamais un second chemin. */
-  const suivanteAction = useMemo(() => {
+  /* 🛑 Les mêmes lanceurs que le Plan, jamais un second chemin. Pas de
+     `useMemo` ici : on est APRÈS les retours anticipés du rendu, et un hook
+     appelé conditionnellement casse React au passage `loading` → connecté. */
+  const suivanteAction = (() => {
     const plan = planQuery.data;
     if (!suivante || !plan) return null;
     const action = planStepAction(plan, suivante);
     if (!action) return null;
     if (action.mesure) return () => void assessment.start(action.mesure!.assessment);
     return () => void exercise.start(action.exercise!);
-  }, [assessment, exercise, planQuery.data, suivante]);
+  })();
   /* Le sujet que l'étape propose de faire : **celui que le serveur a désigné**
      (`recommendedExercise.skillPromptId`), jamais un « premier sujet non
      validé » recalculé ici — le Plan désignerait alors un autre sujet que cet
@@ -294,6 +305,9 @@ export function CompetenceDetail({config}: {config: ProductionConfig}) {
            son Plan. La portée, elle, reste honnête : sans étape, on montre bien
            les 15 sujets. */
         backHref={fromPlan ? "/plan" : base}
+        /* Le retour remonte à l'écran précédent (le Plan, la liste) ;
+           `backHref` n'est que le repli sans historique. */
+        depile
         backLabel={fromPlan ? PLAN_STEP_BACK_LABEL : "Compétences"}
         /* 🛑 Le nom de la compétence vit ICI, et nulle part ailleurs — miroir
            de `ScreenHeader` côté mobile (titre = le nom, sous-titre =

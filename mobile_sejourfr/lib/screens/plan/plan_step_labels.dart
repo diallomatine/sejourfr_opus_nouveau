@@ -1,4 +1,5 @@
 import '../../core/models/diagnostic_models.dart';
+import '../../core/models/journey_models.dart';
 import '../../core/models/skill_models.dart';
 
 /// **Une compétence ouverte depuis le Plan reste dans son étape.**
@@ -68,6 +69,26 @@ class PlanStepScope {
         stepCompleted = false,
         recommendedExercise = null;
 
+  /// L'étape **du cycle** : son périmètre est servi sur l'étape elle-même.
+  /// `null` hors étape d'expression ouverte, ou sur un backend antérieur au
+  /// champ.
+  static PlanStepScope? ofJourneyStep(JourneyStep step) {
+    final skillId = step.exercise?.skillId;
+    final progress = step.progress;
+    if (step.stepPromptIds.isEmpty || skillId == null || progress == null) {
+      return null;
+    }
+    return PlanStepScope(
+      skillId: skillId,
+      stepPromptCount: progress.quota,
+      stepAttemptedCount: progress.done,
+      stepValidatedCount: step.stepValidatedCount,
+      stepPromptIds: step.stepPromptIds,
+      stepCompleted: step.stepCompleted,
+      recommendedExercise: step.exercise,
+    );
+  }
+
   final String skillId;
   final int stepPromptCount;
   final int stepAttemptedCount;
@@ -77,28 +98,49 @@ class PlanStepScope {
   final PlanRecommendedExercise? recommendedExercise;
 }
 
-/// L'étape du Plan qui porte cette compétence — priorité n°1 et **étape
-/// franchie** comprises. Une étape franchie garde son périmètre : ouvrir une
-/// carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+/// L'étape du Plan qui porte cette compétence — priorité, **étape du cycle** et
+/// **étape franchie** comprises. Une étape franchie garde son périmètre : ouvrir
+/// une carte cochée doit mener aux mêmes 5 sujets, pas à la fiche des 15.
+///
+/// 🛑 **Le cycle est lu aussi** (bug du 2026-10-04) : les priorités
+/// (`currentPriority` + `nextPriorities`) sont une **vue bornée**, que la file
+/// du cycle dépasse. « Faire cette étape » sur une étape EO absente de ces
+/// listes ouvrait la fiche des 15 sujets. Le périmètre est servi sur l'étape du
+/// cycle (`JourneyStep.stepPromptIds`), depuis le même compteur que celui qui
+/// la clôt : rien n'est recalculé ici. Miroir de `planStepFor` (web).
 ///
 /// `null` est un cas **normal et fréquent** : le Plan n'est pas chargé, ou la
 /// compétence n'apparaît plus dans le parcours (une étape franchie en sort quand
 /// la borne serveur est atteinte). L'appelant retombe alors silencieusement sur
 /// la fiche complète.
-PlanStepScope? planStepFor(LearningPlan? plan, String skillId) {
-  if (plan == null || skillId.isEmpty) return null;
-  final priorities = <LearningPlanPriority>[
-    if (plan.currentPriority != null) plan.currentPriority!,
-    ...plan.nextPriorities,
-  ];
-  for (final priority in priorities) {
-    if (priority.skillId == skillId) {
-      return priority.stepPromptIds.isEmpty
-          ? null
-          : PlanStepScope.ofPriority(priority);
+PlanStepScope? planStepFor(
+  LearningPlan? plan,
+  String skillId, {
+  Journey? journey,
+}) {
+  if (skillId.isEmpty) return null;
+  if (plan != null) {
+    final priorities = <LearningPlanPriority>[
+      if (plan.currentPriority != null) plan.currentPriority!,
+      ...plan.nextPriorities,
+    ];
+    for (final priority in priorities) {
+      if (priority.skillId == skillId && priority.stepPromptIds.isNotEmpty) {
+        return PlanStepScope.ofPriority(priority);
+      }
     }
   }
-  for (final step in plan.completedSteps) {
+  if (journey != null) {
+    for (final bloc in journey.blocs) {
+      for (final step in bloc.steps) {
+        if (step.exercise?.skillId != skillId) continue;
+        final scope = PlanStepScope.ofJourneyStep(step);
+        if (scope != null) return scope;
+      }
+    }
+  }
+  for (final step
+      in plan?.completedSteps ?? const <LearningPlanCompletedStep>[]) {
     if (step.skillId == skillId) {
       return step.stepPromptIds.isEmpty
           ? null
@@ -121,7 +163,8 @@ PlanStepScope? planStepFor(LearningPlan? plan, String skillId) {
 /// comportement strictement inchangé hors Plan.
 ///
 /// ⚠️ Miroir de `planStepPosition` (`web_sejoufr/lib/plan-step.ts`).
-({int rank, int total})? planStepPosition(PlanStepScope? scope, String promptId) {
+({int rank, int total})? planStepPosition(
+    PlanStepScope? scope, String promptId) {
   if (scope == null || promptId.isEmpty) return null;
   final index = scope.stepPromptIds.indexOf(promptId);
   if (index < 0) return null;

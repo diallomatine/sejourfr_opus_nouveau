@@ -183,8 +183,7 @@ class _LockedPromptView extends ConsumerWidget {
                   // Ouvert depuis le Plan : l'offre est celle du Plan
                   // (contrôle F), sinon celle du cadenas du module.
                   final cta = planStepCta(ref,
-                      planStep: planStep,
-                      horsPlan: AnalyticsCtaLocation.other);
+                      planStep: planStep, horsPlan: AnalyticsCtaLocation.other);
                   unawaited(showTcfLockPaywall(context,
                       ctaLocation: cta.ctaLocation, journeyId: cta.journeyId));
                 },
@@ -457,7 +456,8 @@ class _PromptViewState extends ConsumerState<_PromptView> {
       unawaited(ref.read(recordingControllerProvider.notifier).cancel());
     }
     context.pushReplacement(
-      competenceResultPath(widget.module, attempt.id, planStep: widget.planStep),
+      competenceResultPath(widget.module, attempt.id,
+          planStep: widget.planStep),
     );
   }
 
@@ -472,9 +472,8 @@ class _PromptViewState extends ConsumerState<_PromptView> {
     final recording = ref.watch(recordingControllerProvider);
     final submission = ref.watch(skillSubmissionProvider(prompt.id));
 
-    final hasProduction = _isEo
-        ? recording.isFinished
-        : _controller.text.trim().isNotEmpty;
+    final hasProduction =
+        _isEo ? recording.isFinished : _controller.text.trim().isNotEmpty;
     // Avertissement, pas verrou : le plafond de 400 mots est un garde-fou
     // serveur, il n'a pas à empêcher la validation côté client.
     final overCap = !_isEo && _wordCount > _kMaxWords;
@@ -797,7 +796,8 @@ class _SkillProgressBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Compteurs d'étape **servis** — on ne recompte rien.
     final etape = planStep
-        ? planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId)
+        ? planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId,
+            journey: ref.watch(journeyProvider).valueOrNull)
         : null;
     if (etape != null && etape.stepPromptCount > 0) {
       return _bar(etape.stepAttemptedCount, etape.stepPromptCount);
@@ -812,7 +812,6 @@ class _SkillProgressBar extends ConsumerWidget {
   }
 
   Widget _bar(int done, int count) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -873,7 +872,8 @@ class _PromptMetaRow extends ConsumerWidget {
     // un repli silencieux sur le compteur de compétence est le cas normal.
     final etape = planStep
         ? planStepPosition(
-            planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId),
+            planStepFor(ref.watch(learningPlanProvider).valueOrNull, skillId,
+                journey: ref.watch(journeyProvider).valueOrNull),
             prompt.id,
           )
         : null;

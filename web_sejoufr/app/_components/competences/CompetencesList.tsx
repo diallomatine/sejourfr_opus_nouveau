@@ -90,7 +90,7 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <SkillShell backHref={backHref} backLabel={backLabel}>
+        <SkillShell backHref={backHref} backLabel={backLabel} depile>
           <p className={s.empty}>Tâche inconnue.</p>
         </SkillShell>
       </DualChromeShell>
@@ -100,7 +100,13 @@ export function CompetencesList({config}: {config: ProductionConfig}) {
   return (
     <DualChromeShell>
       <SkillShell backHref={backHref} backLabel={backLabel} hideBack>
-        <TaskChrome config={config} taskNumero={n} backHref={backHref} backLabel={backLabel} />
+        <TaskChrome
+          config={config}
+          taskNumero={n}
+          backHref={backHref}
+          backLabel={backLabel}
+          depile
+        />
 
         <SectionHead
           title={`Compétences de la tâche ${n}`}

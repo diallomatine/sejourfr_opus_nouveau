@@ -136,9 +136,8 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
       return;
     }
     // Venu du Plan, on y retourne : l'étape est son écran, pas l'épreuve.
-    context.go(widget.planStep
-        ? AppRoutes.tcfPlan
-        : '/tcf/${widget.module.routeKey}');
+    context.go(
+        widget.planStep ? AppRoutes.tcfPlan : '/tcf/${widget.module.routeKey}');
   }
 
   /// L'origine de la fiche (contrôle F) : ouverte depuis le Plan (marqueur
@@ -242,9 +241,13 @@ class _CompetenceDetailScreenState extends ConsumerState<CompetenceDetailScreen>
   /// donc vivant et rend sa valeur **sans aucun appel réseau**.
   PlanStepScope? _step() {
     if (!widget.planStep) return null;
+    // 🛑 Et le cycle : l'étape ouverte par « Faire cette étape » n'est pas
+    // toujours une priorité du Plan (vue bornée) — son périmètre est servi sur
+    // l'étape du cycle.
     return planStepFor(
       ref.watch(learningPlanProvider).valueOrNull,
       widget.skillId,
+      journey: ref.watch(journeyProvider).valueOrNull,
     );
   }
 

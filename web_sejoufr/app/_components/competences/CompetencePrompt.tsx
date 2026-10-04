@@ -3,7 +3,7 @@
 import {useParams, useRouter, useSearchParams} from "next/navigation";
 import {useCallback, useEffect, useState} from "react";
 import {Check, Mic, PenLine} from "lucide-react";
-import {ApiException, learningPlanApi, skillApi} from "@/lib/api";
+import {ApiException, journeyApi, learningPlanApi, skillApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
   answerStarterOf,
@@ -12,6 +12,7 @@ import {
   tipOf,
 } from "@/lib/skill-guidance";
 import {useCachedData} from "@/lib/use-cached-data";
+import {remplacerEcran} from "@/lib/retour";
 import {useSubmissionKey} from "@/lib/idempotency";
 import {isPlanStep, planStepFor, planStepPosition, withPlanStep} from "@/lib/plan-step";
 import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
@@ -150,7 +151,14 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
     step && status === "authenticated" ? learningPlanApi.cacheKey : null,
     () => learningPlanApi.getCached(),
   );
-  const scope = step ? planStepFor(planQuery.data, skillId) : null;
+  /* 🛑 Et le cycle : l'étape ouverte par « Faire cette étape » n'est pas
+     toujours une priorité du Plan (vue bornée) — son périmètre est servi sur
+     l'étape du cycle (`planStepFor`). */
+  const journeyQuery = useCachedData(
+    step && status === "authenticated" ? journeyApi.cacheKey : null,
+    () => journeyApi.getCached(),
+  );
+  const scope = step ? planStepFor(planQuery.data, skillId, journeyQuery.data) : null;
 
   const submissionKey = useSubmissionKey();
 
@@ -258,7 +266,10 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
                 clientSubmissionId: submissionKey(promptId),
               });
         if (!oral) clearEeDraft(promptId);
-        router.push(withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attempt.id}`, step));
+        /* `replace`, comme le `pushReplacement` du mobile : le résultat
+           REMPLACE le sujet, donc son retour ramène à la fiche (l'écran
+           d'étape), jamais au formulaire qu'on vient de rendre. */
+        remplacerEcran(router, withPlanStep(`${base}/${skillId}/${promptId}/resultat/${attempt.id}`, step));
       } catch (e) {
         handleStartFailure(e, {
           onPaywall: () => setPaywallOpen(true),
@@ -375,6 +386,10 @@ export function CompetencePrompt({config}: {config: ProductionConfig}) {
           retour et la pastille de la carte de résumé. */}
       <SkillShell
         backHref={skillHref}
+        /* Le retour remonte à l'écran précédent (la fiche, l'écran d'étape) ;
+           `skillHref` — marqueur d'étape conservé — n'est que le repli sans
+           historique. */
+        depile
         backLabel={prompt?.skillTitle ?? "Petits sujets"}
         title={prompt?.title}
         meta={prompt?.taskTitle}

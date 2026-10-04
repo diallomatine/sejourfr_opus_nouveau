@@ -71,10 +71,43 @@ export function retourOuRepli(
         router.back();
         return;
     }
-    if (new URL(repli, window.location.origin).pathname !== window.location.pathname) {
+    remplacerEcran(router, repli);
+}
+
+/**
+ * **Remplace l'écran courant** par `href` (`router.replace`), sans fausser le
+ * compteur d'historique interne : un remplacement n'ajoute aucune entrée, et
+ * le compter (+1) ferait croire plus tard à un écran SejourFR derrière — un
+ * `retourOuRepli` sortirait alors du site. Miroir du `pushReplacement` mobile.
+ */
+export function remplacerEcran(router: {replace(href: string): void}, href: string): void {
+    if (new URL(href, window.location.origin).pathname !== window.location.pathname) {
         skipNextNavigation();
     }
-    router.replace(repli);
+    router.replace(href);
+}
+
+/**
+ * **Le clic d'un LIEN de retour qui remonte à l'écran précédent** — le lien
+ * garde son `href` (il se partage, s'ouvre dans un onglet, et c'est le repli
+ * sans historique), le clic simple fait `retourOuRepli`. Un clic modifié
+ * (nouvel onglet, fenêtre) suit le lien, comme tout lien.
+ */
+export function clicDeRetour(
+    router: {back(): void; replace(href: string): void},
+    repli: string,
+): (event: {
+    metaKey: boolean;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    button: number;
+    preventDefault(): void;
+}) => void {
+    return (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+        event.preventDefault();
+        retourOuRepli(router, repli);
+    };
 }
 
 /**

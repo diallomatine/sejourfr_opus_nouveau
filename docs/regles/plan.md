@@ -47,6 +47,24 @@
   deux vues assumées pour une même compétence. Ils **ne réimplémentent pas**
   « les 5 premiers par ordre d'affichage » : deux copies désigneraient deux
   étapes différentes.
+- 🛑 **Le périmètre est AUSSI servi sur l'étape du CYCLE** (2026-10-04) :
+  `JourneyStepDto.stepPromptIds` (+ `stepValidatedCount`, `stepCompleted`),
+  lus sur le **même** `SkillProgressCounter` que `progress` et que la clôture
+  (`JourneyReadService.etapesAuQuota`) — l'écran d'étape montre exactement les
+  sujets qui valident l'étape. Vide hors `TRAIN_SKILL` d'expression **ouverte**
+  (et sur une archive). Motif : `currentPriority` + `nextPriorities` est une
+  **vue bornée** que la file dépasse ; « Faire cette étape » sur une étape EO
+  absente de ces listes ouvrait la fiche des 15 sujets (« Tous · 15 »).
+  `planStepFor` (web `lib/plan-step.ts` ⇄ mobile `plan_step_labels.dart`) lit
+  les priorités, **puis le cycle**, puis `completedSteps` — jamais rien de
+  recalculé.
+- **Le retour d'un écran du module Compétences REMONTE à l'écran précédent**
+  (2026-10-04) : `retourOuRepli` côté web (`SkillShell`/`TaskChrome` `depile`),
+  `pop` côté mobile ; l'adresse déclarée (fiche avec `?etape=1`, Plan) n'est que
+  le repli sans historique. Le marqueur `?etape=1` suit la **provenance**
+  (venu du Plan), jamais la portée. Le résultat d'un petit sujet **remplace**
+  le sujet (`remplacerEcran` web ⇄ `pushReplacement` mobile), donc son retour
+  ramène à la fiche / l'écran d'étape, jamais au formulaire rendu.
 - **UNE SEULE définition de « transfert prouvé », et elle vit chez le moteur**
   (2026-08-16, `SkillMastery.transferProven()`) : l'état agrégé vaut `SOLID`,
   **ou** une réussite en situation (`SOLID` issu de `PRODUCTION_EE/EO` ou

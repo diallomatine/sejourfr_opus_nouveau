@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import {useRouter} from "next/navigation";
 import type {ReactNode} from "react";
 import {ArrowLeft} from "lucide-react";
 import {productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
+import {clicDeRetour} from "@/lib/retour";
 import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
 import {useCachedData} from "@/lib/use-cached-data";
 import {productionTaskIntro, TASK_BRIEF_LABEL} from "@/lib/production-task-labels";
@@ -60,13 +62,18 @@ export function TaskChrome({
   taskNumero,
   backHref,
   backLabel,
+  depile = false,
 }: {
   config: ProductionConfig;
   taskNumero: number;
   backHref: string;
   backLabel: string;
+  /** Le retour remonte à l'écran précédent (`retourOuRepli`), `backHref`
+   *  devenant le repli sans historique — même règle que `SkillShell`. */
+  depile?: boolean;
 }): ReactNode {
   const {status} = useAuth();
+  const router = useRouter();
   const ready = status === "authenticated";
 
   const tasksQuery = useCachedData(ready ? productionTasksKey(config.epreuve) : null, () =>
@@ -78,7 +85,12 @@ export function TaskChrome({
     <section className={s.taskBanner}>
       <div className={s.taskBannerGrid}>
         <div className={s.taskBannerHead}>
-          <Link href={backHref} className={s.taskBannerBack} aria-label={backLabel}>
+          <Link
+            href={backHref}
+            className={s.taskBannerBack}
+            aria-label={backLabel}
+            onClick={depile ? clicDeRetour(router, backHref) : undefined}
+          >
             <ArrowLeft size={19} aria-hidden />
           </Link>
           <div className={s.taskBannerBody}>

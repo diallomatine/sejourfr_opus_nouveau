@@ -774,6 +774,12 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
     petit sujet est un `pop`, il ramène naturellement dans l'étape.
   - **Zéro appel réseau de plus** : `learningPlanProvider` est **déjà vivant**
     (l'écran Plan reste monté sous celui-ci), on ne fait que le lire.
+  - 🛑 **L'étape se cherche aussi dans le CYCLE** (2026-10-04) :
+    `planStepFor(plan, skillId, journey: …)` lit les priorités, puis
+    `JourneyStep.stepPromptIds` (servi sur l'étape du cycle), puis
+    `completedSteps`. Fiche, sujet et résultat passent
+    `ref.watch(journeyProvider).valueOrNull`. Sans lui, « Faire cette étape »
+    sur une étape EO hors des priorités (vue bornée) ouvrait les 15 sujets.
   - **Repli silencieux, obligatoire** : Plan pas chargé, `stepPromptIds` vide,
     ou compétence **sortie des priorités** (cas **normal** — le serveur l'en
     sort dès qu'une vérification en situation a réussi) ⇒ on retombe sur la

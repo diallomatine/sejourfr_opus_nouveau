@@ -13,6 +13,8 @@ import {
   PenLine,
 } from "lucide-react";
 import type {ReactNode} from "react";
+import {useRouter} from "next/navigation";
+import {clicDeRetour} from "@/lib/retour";
 import {type ProductionConfig} from "@/app/_components/production/config";
 import {LEARNING_PLAN_SKILL_STATUS_LABEL} from "@/lib/diagnostic";
 import {
@@ -72,6 +74,7 @@ export function SkillShell({
   level,
   wide = false,
   hideBack = false,
+  depile = false,
   children,
 }: {
   backHref: string;
@@ -104,14 +107,23 @@ export function SkillShell({
    * `title` est renseigné (l'en-tête de parcours a déjà sa flèche).
    */
   hideBack?: boolean;
+  /**
+   * 🛑 **Le retour remonte à l'écran PRÉCÉDENT** (`retourOuRepli`) au lieu de
+   * pousser `backHref`, qui devient le repli sans historique. Le lien garde
+   * son `href`. Absent ⇒ simple lien, comportement historique des autres
+   * écrans montés dans cette coquille.
+   */
+  depile?: boolean;
   children: ReactNode;
 }) {
   useAppBarTitle(title ? {title} : null);
+  const router = useRouter();
+  const onBackClick = depile ? clicDeRetour(router, backHref) : undefined;
   return (
     <main className={`${s.wrap} ${wide ? s.wrapWide : ""}`}>
       {title ? (
         <header className={s.pageHead}>
-          <Link href={backHref} className={s.backDot} aria-label={backLabel}>
+          <Link href={backHref} className={s.backDot} aria-label={backLabel} onClick={onBackClick}>
             <ArrowLeft size={18} aria-hidden />
           </Link>
           <div className={s.pageHeadBody}>
@@ -127,7 +139,7 @@ export function SkillShell({
           )}
         </header>
       ) : hideBack ? null : (
-        <Link href={backHref} className={s.back}>
+        <Link href={backHref} className={s.back} onClick={onBackClick}>
           <ArrowLeft size={16} aria-hidden />
           {backLabel}
         </Link>

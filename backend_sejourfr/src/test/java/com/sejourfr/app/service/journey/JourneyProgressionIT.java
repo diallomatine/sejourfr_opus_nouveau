@@ -146,6 +146,54 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
     }
 
     /**
+     * 🛑 <b>Le perimetre de l'ecran d'etape est SERVI SUR L'ETAPE</b> (bug du
+     * 2026-10-04). Les fronts le cherchaient dans les priorites du Plan, une vue
+     * bornee que la file depasse : une etape EO absente de ces listes ouvrait la
+     * fiche des 15 sujets. Les sujets servis sont exactement ceux qui closent
+     * l'etape — meme compteur que {@code progress} et que {@code etapesAuQuota}.
+     */
+    @Test
+    @DisplayName("Expression : l'etape sert ses sujets (stepPromptIds), ceux-la memes qui la closent")
+    void lEtapeDExpressionSertSesSujets() {
+        User user = abonne();
+        Skill skill = skill(SkillTaskCode.EE1);
+        List<SkillPrompt> sujets = sujetsDeLEtape(skill);
+        UUID amorce = UUID.randomUUID();
+        observationDExamen(user, skill, amorce);
+        amorcer(user, amorce);
+
+        JourneyStepDto ouverte = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(ouverte.stepPromptIds())
+                .containsExactlyElementsOf(sujets.stream().map(SkillPrompt::getId).toList())
+                .hasSize(ouverte.progress().quota());
+        assertThat(ouverte.stepCompleted()).isFalse();
+        assertThat(ouverte.stepValidatedCount()).isZero();
+
+        // Un sujet traite : le perimetre ne bouge pas, le compteur avance.
+        data.userSkillAttempt(user, sujets.getFirst());
+        JourneyStepDto apresUn = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(apresUn.stepPromptIds()).isEqualTo(ouverte.stepPromptIds());
+        assertThat(apresUn.progress().done()).isEqualTo(1);
+        assertThat(apresUn.stepCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Comprehension : aucune liste de sujets servie (elle se travaille par series)")
+    void lEtapeDeComprehensionNeSertAucunSujet() {
+        User user = abonne();
+        Skill skill = comprehension(SkillSection.CO);
+        UUID examen = examenBlanc(user, EpreuveType.TCF_CO);
+        data.learningPlanObservation(user, skill, LearningPlanSourceType.TCF_CO,
+                LearningPlanSkillStatus.PRIORITY, ObservationConfidence.HIGH, null, HIER, examen);
+        journeyService.onAssessmentCompleted(user.getId(), new JourneyEvaluation(
+                examen, JourneyAssessmentKind.SECTION_EXAM, EpreuveType.TCF_CO, HIER));
+
+        JourneyStepDto etape = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
+        assertThat(etape.stepPromptIds()).isEmpty();
+        assertThat(etape.stepCompleted()).isFalse();
+    }
+
+    /**
      * 🛑 <b>2 series REUSSIES closent l'etape</b>, et « reussie » est
      * <b>litterale</b> depuis le 2026-09-20 : 16 bonnes reponses sur les 20 de
      * la serie, lues sur l'attempt ({@code JourneySerieVerdict}). Le seuil se

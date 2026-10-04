@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.JourneyStepType;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.SkillTaskCode;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -176,7 +177,34 @@ public record JourneyStepDto(
          * {@link #locked()} reste l'autorite du verrou de l'etape.
          * {@code null} sur un cycle clos (consultation, aucune action).
          */
-        JourneyThemeExamDto examenTheme
+        JourneyThemeExamDto examenTheme,
+        /**
+         * <b>Les sujets de cette etape</b> — le perimetre de l'ecran d'etape
+         * d'une competence d'<b>expression</b>, par rang d'affichage croissant
+         * ({@code LearningPlanStep.scope}). Jamais {@code null} : vide hors
+         * {@code TRAIN_SKILL} d'expression, sur une etape close et sur une
+         * archive.
+         *
+         * <h3>🛑 Meme cause qu'{@link #exercise()} (A24)</h3>
+         * <p>Les fronts retrouvaient ce perimetre dans
+         * {@code LearningPlanDto.currentPriority} + {@code nextPriorities} +
+         * {@code completedSteps} : une <b>vue bornee</b>, que la file depasse.
+         * Une etape EO du cycle absente de ces listes ouvrait la fiche des 15
+         * sujets (« Tous · 15 ») au lieu de ses 5 (bug du 2026-10-04). Le
+         * perimetre est donc servi sur l'etape elle-meme, depuis le <b>meme</b>
+         * compteur que {@link #progress()} et que la cloture
+         * ({@code etapesAuQuota}) : l'ecran montre exactement les sujets qui
+         * valident l'etape. {@code size() == progress.quota} quand l'etape en a.
+         */
+        List<UUID> stepPromptIds,
+        /** Sujets de l'etape <b>valides</b> — {@code 0} hors expression. */
+        int stepValidatedCount,
+        /**
+         * Tous les sujets de l'etape traites
+         * ({@code LearningPlanStep.Progress.completed()}), servi : aucun front
+         * ne compare {@code done} et {@code quota} lui-meme.
+         */
+        boolean stepCompleted
 ) {
 
     /**

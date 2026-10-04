@@ -5051,6 +5051,23 @@ export interface JourneyStepDto {
      * de ce cas, et absent sur un backend antérieur au champ.
      */
     examenTheme?: JourneyThemeExamDto | null;
+    /**
+     * **Les sujets de cette étape** — le périmètre de l'écran d'étape d'une
+     * compétence d'**expression**, dans l'ordre servi
+     * (`LearningPlanStep.scope`). Vide hors `TRAIN_SKILL` d'expression et sur
+     * une étape close ; absent sur un backend antérieur au champ.
+     *
+     * 🛑 **Même cause qu'`exercise` (A24)** : les priorités du Plan sont une vue
+     * bornée que la file dépasse. Une étape EO absente de ces listes ouvrait la
+     * fiche des 15 sujets au lieu de ses 5 (bug du 2026-10-04). Ce sont
+     * exactement les sujets qui closent l'étape — `planStepFor` les lit, rien
+     * ne les recompose.
+     */
+    stepPromptIds?: string[];
+    /** Sujets de l'étape **validés** — `0` hors expression. */
+    stepValidatedCount?: number;
+    /** Tous les sujets de l'étape traités — servi, jamais comparé ici. */
+    stepCompleted?: boolean;
 }
 
 /** Miroir de `JourneyThemeExamDto` (Java). */
