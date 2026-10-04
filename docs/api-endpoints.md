@@ -1023,10 +1023,21 @@ haut) et `POST /api/me/funnel-events` (cf. `docs/regles/mesure-audience.md`).
 
 - `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{stats,submissions/{id}/human-note},diagnostics,productions}`
 - `GET /api/admin/questions?module=&themeId=&difficulty=&type=&active=&media=&search=&page=&size=`
-  — `media` vaut `AUDIO | IMAGE | VIDEO | NONE` (`NONE` = questions sans média
-  principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
-  d'une `CO_IMAGE`). **Filtre serveur** : la console ne doit plus filtrer la
-  page affichée dans le navigateur.
+  — `media` vaut `AUDIO | IMAGE | VIDEO | NONE | IMAGE_FILE | IMAGE_SVG | AUDIO_MISSING`
+  (`NONE` = questions sans média principal ; `IMAGE_FILE` = image servie par URL ;
+  `IMAGE_SVG` = image en SVG inline sans URL — les CO image à remplacer ;
+  `AUDIO_MISSING` = CO_IMAGE sans `audioMedia` ou CO sans média principal AUDIO). Les
+  valeurs de type portent sur `question.media`, pas sur l'audio secondaire d'une
+  `CO_IMAGE`. **Filtre serveur** : la console ne doit plus filtrer la page affichée dans
+  le navigateur.
+- `QuestionDto` (admin seulement) porte `audioMissing` (même règle que
+  `media=AUDIO_MISSING`, autorité `util/AudioManquant`) : une telle question n'est jamais
+  tirée.
+- `PATCH /api/admin/questions/{id}/status` (et `active` du `PUT`) bascule **ensemble**
+  `is_active` et `status` : activer ⇒ `ACTIVE` ; désactiver une `ACTIVE` ⇒ `ARCHIVED` ;
+  une `DRAFT` ou une `ARCHIVED` désactivée garde son statut. Les tirages candidats
+  exigent `is_active` **et** `status = ACTIVE` (et l'audio pour une `CO_IMAGE`) :
+  `QuestionRepository.SERVABLE_JPQL`.
 - ⚠️ `GET /api/admin/calibration/submissions` est **supprimé** (404) le 2026-10-03 : la liste
   des productions vit dans `GET /api/admin/productions` (filtre `annotation` =
   `ANNOTEES|NON_ANNOTEES`). La calibration garde `GET /stats`, `GET /stats/niveau`,

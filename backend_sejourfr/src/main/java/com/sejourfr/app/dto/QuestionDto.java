@@ -31,5 +31,7 @@ public record QuestionDto(
         boolean active,
         Instant createdAt,
         Instant updatedAt,
-        List<ChoiceDto> choices
+        List<ChoiceDto> choices,
+        // CO sans bande audio (util/AudioManquant) : jamais tiree tant qu'elle manque.
+        boolean audioMissing
 ) {}

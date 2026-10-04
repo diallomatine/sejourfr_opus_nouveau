@@ -14,6 +14,7 @@ import com.sejourfr.app.entity.Passage;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.util.AudioManquant;
 import com.sejourfr.app.util.ReferenceChoixLettre;
 import org.springframework.stereotype.Component;
 
@@ -71,7 +72,8 @@ public class QuestionMapper {
                 q.isActive(),
                 q.getCreatedAt(),
                 q.getUpdatedAt(),
-                choices
+                choices,
+                AudioManquant.de(q)
         );
     }
 

@@ -112,6 +112,6 @@ class QuestionImageServiceTest {
         return new QuestionDto(
                 UUID.randomUUID(), null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
-                "stmt", null, true, null, null, java.util.List.of());
+                "stmt", null, true, null, null, java.util.List.of(), false);
     }
 }

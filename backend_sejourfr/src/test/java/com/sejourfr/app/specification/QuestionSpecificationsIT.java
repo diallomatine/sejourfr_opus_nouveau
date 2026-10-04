@@ -227,4 +227,48 @@ class QuestionSpecificationsIT extends AbstractIntegrationTest {
                 .extracting(Question::getId)
                 .containsExactlyInAnyOrder(audio.getId(), image.getId(), sansMedia.getId());
     }
+    /**
+     * Filtres ajoutes pour suivre les CO image : image FICHIER (url) contre image
+     * SVG inline (sans url, l'url primant a l'affichage), et « audio manquant »,
+     * dont la forme criteria doit designer exactement les lignes que
+     * {@code util/AudioManquant} (indicateur du DTO admin) designe.
+     */
+    @Test
+    void hasMediaDistingueImageFichierImageSvgEtAudioManquant() {
+        Theme theme = testData.theme();
+        Question fichier = question(theme, Module.TCF, Difficulty.A2, QuestionType.CO_IMAGE, true, "fichier");
+        fichier.setMedia(testData.media(MediaType.IMAGE));
+        fichier.setAudioMedia(testData.media(MediaType.AUDIO));
+        fichier = repository.save(fichier);
+        Question svg = question(theme, Module.TCF, Difficulty.A2, QuestionType.CO_IMAGE, true, "svg");
+        svg.setMedia(mediaSvg());
+        svg = repository.save(svg);
+        Question coSansMedia = question(theme, Module.TCF, Difficulty.A2, QuestionType.CO, true, "co-nu");
+        Question coAvecAudio = question(theme, Module.TCF, Difficulty.A2, QuestionType.CO, true, "co-audio");
+        coAvecAudio.setMedia(testData.media(MediaType.AUDIO));
+        coAvecAudio = repository.save(coAvecAudio);
+        Question ce = question(theme, Module.TCF, Difficulty.A2, QuestionType.CE, true, "ce");
+
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.IMAGE_FILE)))
+                .extracting(Question::getId).containsExactly(fichier.getId());
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.IMAGE_SVG)))
+                .extracting(Question::getId).containsExactly(svg.getId());
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.IMAGE)))
+                .extracting(Question::getId).containsExactlyInAnyOrder(fichier.getId(), svg.getId());
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.AUDIO_MISSING)))
+                .extracting(Question::getId).containsExactlyInAnyOrder(svg.getId(), coSansMedia.getId());
+
+        List<Question> toutes = findInTheme(theme, QuestionSpecifications.hasMedia(null));
+        assertThat(toutes).extracting(Question::getId)
+                .contains(ce.getId(), coAvecAudio.getId());
+        assertThat(toutes.stream().filter(com.sejourfr.app.util.AudioManquant::de).map(Question::getId))
+                .containsExactlyInAnyOrder(svg.getId(), coSansMedia.getId());
+    }
+
+    private com.sejourfr.app.entity.Media mediaSvg() {
+        com.sejourfr.app.entity.Media m = testData.media(MediaType.IMAGE);
+        m.setUrl(null);
+        m.setInlineSvg("<svg viewBox=\"0 0 4 3\"/>");
+        return m;
+    }
 }

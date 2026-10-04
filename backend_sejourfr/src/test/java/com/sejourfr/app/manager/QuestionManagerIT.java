@@ -110,7 +110,7 @@ class QuestionManagerIT extends AbstractIntegrationTest {
         Theme theme = testData.theme(Module.TCF, "qMatching", "Thème matching");
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, null);
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, null);
-        q(theme, Module.TCF, Difficulty.B1, QuestionType.CO_IMAGE, true, null);   // inclus par le filtre CO
+        coImageAvecAudio(theme);   // inclus par le filtre CO (une CO_IMAGE sans bande ne l'est pas)
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CE, true, null);
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, false, null);        // inactive → exclue
 
@@ -149,7 +149,7 @@ class QuestionManagerIT extends AbstractIntegrationTest {
         Question co1 = q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, null);
         Question co2 = q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, null);
         Question co3 = q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, null);
-        Question coImage = q(theme, Module.TCF, Difficulty.B1, QuestionType.CO_IMAGE, true, null);
+        Question coImage = coImageAvecAudio(theme);
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CE, true, null);       // mauvais type
         q(theme, Module.TCF, Difficulty.A2, QuestionType.CO, true, null);       // mauvaise difficulté
         q(theme, Module.TCF, Difficulty.B1, QuestionType.CO, false, null);      // inactive
@@ -276,6 +276,13 @@ class QuestionManagerIT extends AbstractIntegrationTest {
     }
 
     // ------------------------------------------------------------------------
+
+    /** Une CO_IMAGE tirable : avec sa bande audio (QuestionRepository.SERVABLE_JPQL). */
+    private Question coImageAvecAudio(Theme theme) {
+        Question qn = q(theme, Module.TCF, Difficulty.B1, QuestionType.CO_IMAGE, true, null);
+        qn.setAudioMedia(testData.media(com.sejourfr.app.enums.MediaType.AUDIO));
+        return manager.save(qn);
+    }
 
     private Question q(Theme theme, Module module, Difficulty difficulty,
                        QuestionType type, boolean active, Instant createdAt) {

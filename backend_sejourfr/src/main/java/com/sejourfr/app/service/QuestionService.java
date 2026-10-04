@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionMediaFilter;
+import com.sejourfr.app.enums.QuestionStatus;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -91,7 +92,7 @@ public class QuestionService {
 
     public QuestionDto setActive(UUID id, boolean active) {
         Question q = loadOrThrow(id);
-        q.setActive(active);
+        appliquerActivation(q, active);
         // `updatedAt` est posé par @PreUpdate au flush, donc APRÈS le mapping :
         // la réponse renvoyait l'ancienne date (et une activation/désactivation
         // ne se voyait pas dans la colonne « modifiée le » de la console).
@@ -127,10 +128,35 @@ public class QuestionService {
         q.setQuestionType(req.questionType());
         q.setStatement(req.statement());
         q.setExplanation(req.explanation());
-        if (req.active() != null) q.setActive(req.active());
+        if (req.active() != null) appliquerActivation(q, req.active());
 
         q.setPassage(req.passageId() == null ? null : loadPassage(req.passageId()));
         q.setMedia(req.mediaId() == null ? null : loadMedia(req.mediaId()));
+    }
+
+    /**
+     * Seul point ou la console change l'activite d'une question : {@code is_active}
+     * et {@code status} bougent ENSEMBLE, car les tirages exigent les deux
+     * ({@code QuestionRepository.SERVABLE_JPQL}).
+     * <ul>
+     *   <li>activer ⇒ {@code ACTIVE}, quel que soit le statut d'avant ;</li>
+     *   <li>desactiver une question {@code ACTIVE} ⇒ {@code ARCHIVED} (retiree du
+     *       service). Jamais {@code DRAFT} : ce statut veut dire « question generee
+     *       en attente de sa premiere validation », et
+     *       {@code DELETE /api/admin/audio-questions/{id}} SUPPRIME une CO {@code DRAFT}
+     *       — une question deja servie, avec son historique de reponses, ne doit
+     *       jamais devenir supprimable par ce chemin ;</li>
+     *   <li>desactiver une question {@code DRAFT} ou {@code ARCHIVED} ⇒ statut
+     *       inchange.</li>
+     * </ul>
+     */
+    static void appliquerActivation(Question q, boolean active) {
+        q.setActive(active);
+        if (active) {
+            q.setStatus(QuestionStatus.ACTIVE);
+        } else if (q.getStatus() == QuestionStatus.ACTIVE) {
+            q.setStatus(QuestionStatus.ARCHIVED);
+        }
     }
 
     private Passage loadPassage(UUID id) {

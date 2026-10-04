@@ -20,6 +20,38 @@ public interface QuestionRepository
         extends JpaRepository<Question, UUID>, JpaSpecificationExecutor<Question> {
 
     // ------------------------------------------------------------------------
+    // 🛑 « SERVABLE AU CANDIDAT » — autorite unique, en deux dialectes
+    //
+    // Une question n'entre dans un tirage, ni dans un stock qui annonce ce
+    // qu'un tirage peut servir, que si elle est :
+    //   - active (`is_active`) ET publiee (`status = ACTIVE`) : une question
+    //     generee a l'unite naissait `active=false, status=DRAFT`, et l'ancien
+    //     PATCH …/status ne basculait que `is_active` — elle pouvait etre tiree
+    //     encore DRAFT (V089 realigne les lignes, QuestionService.setActive
+    //     synchronise desormais les deux) ;
+    //   - pour une CO_IMAGE, pourvue de son AUDIO : sans bande, l'image seule
+    //     n'est pas une question.
+    // Toutes les requetes de tirage et de comptage ci-dessous concatenent l'un
+    // de ces deux fragments (JPQL / SQL natif, alias `q`). Un tirage et le stock
+    // qui l'annonce ne peuvent donc pas diverger. Revision, favoris et relecture
+    // de session (findById / findAllById) n'y passent PAS : deja vue, une
+    // question reste relisible.
+    // ------------------------------------------------------------------------
+
+    String SERVABLE_JPQL = """
+             q.active = true
+              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+              AND (q.questionType <> com.sejourfr.app.enums.QuestionType.CO_IMAGE
+                   OR q.audioMedia IS NOT NULL)
+            """;
+
+    String SERVABLE_SQL = """
+             q.is_active = true
+              AND q.status = 'ACTIVE'
+              AND (q.question_type <> 'CO_IMAGE' OR q.audio_media_id IS NOT NULL)
+            """;
+
+    // ------------------------------------------------------------------------
     // Sélection aléatoire pour le runner
     //
     // NB : filtrer sur questionType = CO inclut AUSSI les questions CO_IMAGE
@@ -42,9 +74,7 @@ public interface QuestionRepository
      * La limite est portée par le {@link Pageable} (passer
      * {@code PageRequest.of(0, size)} depuis le service).
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
@@ -72,9 +102,7 @@ public interface QuestionRepository
      * méthode publique {@link #findRandomExcluding} dispatche vers
      * {@link #findRandom} dans ce cas.
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
@@ -116,9 +144,7 @@ public interface QuestionRepository
      * <p>
      * Tri par {@code created_at, id} (ordre stable, indépendant des seeds DB).
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
             ORDER BY q.createdAt ASC, q.id ASC
             """)
@@ -134,9 +160,7 @@ public interface QuestionRepository
      * démo / non-premium pour garantir que rejouer un template free redonne
      * exactement la même série de questions.
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
@@ -156,9 +180,7 @@ public interface QuestionRepository
             Pageable pageable
     );
 
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
@@ -227,7 +249,7 @@ public interface QuestionRepository
                 WHERE a.user_id = :userId
                 GROUP BY aq.question_id
             ) vu ON vu.question_id = q.id
-            WHERE q.is_active = true
+            WHERE""" + SERVABLE_SQL + """
               AND q.module = :module
               AND q.difficulty = :difficulty
               AND (q.question_type = :questionType
@@ -263,7 +285,7 @@ public interface QuestionRepository
                 WHERE a.user_id = :userId
                 GROUP BY aq.question_id
             ) vu ON vu.question_id = q.id
-            WHERE q.is_active = true
+            WHERE""" + SERVABLE_SQL + """
               AND q.module = :module
               AND q.difficulty = :difficulty
               AND q.difficulty_band = :band
@@ -285,9 +307,7 @@ public interface QuestionRepository
      * Les questions TCF de comprehension d'un perimetre, pour l'export de
      * calibration (§7). Les deux filtres sont facultatifs et se cumulent.
      */
-    @Query(value = """
-            SELECT q.* FROM questions q
-            WHERE q.is_active = true
+    @Query(value = "SELECT q.* FROM questions q WHERE " + SERVABLE_SQL + """
               AND q.module = 'TCF'
               AND q.difficulty IN ('A2', 'B1', 'B2')
               AND (
@@ -302,9 +322,7 @@ public interface QuestionRepository
                                       @Param("difficulty") String difficulty);
 
     /** Combien de questions taguees d'une bande sont disponibles (§12 bis.5). */
-    @Query(value = """
-            SELECT COUNT(*) FROM questions q
-            WHERE q.is_active = true
+    @Query(value = "SELECT COUNT(*) FROM questions q WHERE " + SERVABLE_SQL + """
               AND q.module = :module
               AND q.difficulty = :difficulty
               AND q.difficulty_band = :band
@@ -328,7 +346,9 @@ public interface QuestionRepository
 
     long countByThemeId(UUID themeId);
 
-    long countByThemeIdAndActiveTrue(UUID themeId);
+    /** Stock servable d'un theme (taille de pool affichee au candidat). */
+    @Query("SELECT COUNT(q) FROM Question q WHERE " + SERVABLE_JPQL + " AND q.theme.id = :themeId")
+    long countServableByTheme(@Param("themeId") UUID themeId);
 
     long countByPassageId(UUID passageId);
 
@@ -342,10 +362,7 @@ public interface QuestionRepository
      * rendu tel quel — au caller de le replier sur `CO`, comme partout ailleurs
      * dans le dépôt.
      */
-    @Query("""
-            SELECT q.questionType, q.difficulty, COUNT(q)
-            FROM Question q
-            WHERE q.active = true
+    @Query("SELECT q.questionType, q.difficulty, COUNT(q) FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.questionType IN :types
             GROUP BY q.questionType, q.difficulty
             """)
@@ -358,9 +375,7 @@ public interface QuestionRepository
      * pour exposer le stock réellement disponible avant de proposer une règle,
      * et par LotService pour déterminer combien de lots peuvent être formés.
      */
-    @Query("""
-            SELECT COUNT(q) FROM Question q
-            WHERE q.active = true
+    @Query("SELECT COUNT(q) FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
@@ -392,9 +407,9 @@ public interface QuestionRepository
     //     en situation ne porte JAMAIS de notion (D-35) et n'en portera pas.
     // Un `CASE` dans le `WHERE` aurait cache cette asymetrie au lieu de la dire.
     //
-    // 🛑 LES DEUX FILTRENT `status` EN PLUS DE `active`. C'est le defaut que les
-    // quatre requetes de `CivicPlanRepository` portaient : un brouillon entrait
-    // dans le tirage.
+    // 🛑 LES DEUX FILTRENT `status` EN PLUS DE `active` (via SERVABLE_JPQL).
+    // C'est le defaut que les quatre requetes de `CivicPlanRepository` portaient :
+    // un brouillon entrait dans le tirage.
 
     /**
      * Les questions de CONNAISSANCE d'une unite officielle, tirage aleatoire.
@@ -404,10 +419,7 @@ public interface QuestionRepository
      * entier, pas sur une mention. Le parametre survit parce que l'admin et les
      * mesures s'en servent, jamais la composition officielle.
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
               AND q.civicNotion.officialUnit.id = :unitId
@@ -430,10 +442,7 @@ public interface QuestionRepository
      * « Principes et valeurs » (6) et « Droits et devoirs » (6). C'est l'unite
      * officielle qui dit lesquelles ; cette requete ne fait qu'obeir.
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
               AND q.theme.code = :themeCode
@@ -455,10 +464,7 @@ public interface QuestionRepository
     // sentinelle. C'est verbeux et c'est explicite, dans cet ordre de priorite.
 
     /** Variante sans exclusion de {@link #findRandomByOfficialUnitExcludingInternal}. */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
               AND q.civicNotion.officialUnit.id = :unitId
@@ -472,10 +478,7 @@ public interface QuestionRepository
     );
 
     /** Variante sans exclusion de {@link #findRandomMisesEnSituationExcludingInternal}. */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
               AND q.theme.code = :themeCode
@@ -493,10 +496,7 @@ public interface QuestionRepository
      * stable {@code created_at, id}, comme les series. Sert l'examen de theme
      * joue sans compte — rejouer redonne le meme examen (2026-09-24).
      */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.CONNAISSANCE
               AND q.civicNotion.officialUnit.id = :unitId
@@ -505,10 +505,7 @@ public interface QuestionRepository
     List<Question> findOrderedByOfficialUnit(@Param("unitId") UUID unitId, Pageable pageable);
 
     /** Variante deterministe de {@link #findRandomMisesEnSituation}. */
-    @Query("""
-            SELECT q FROM Question q
-            WHERE q.active = true
-              AND q.status = com.sejourfr.app.enums.QuestionStatus.ACTIVE
+    @Query("SELECT q FROM Question q WHERE " + SERVABLE_JPQL + """
               AND q.module = com.sejourfr.app.enums.Module.CIVIQUE
               AND q.questionType = com.sejourfr.app.enums.QuestionType.MISE_SITUATION
               AND q.theme.code = :themeCode

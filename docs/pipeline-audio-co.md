@@ -84,3 +84,12 @@ lot écrit ces brouillons depuis un manifeste JSON + des images ; il ne crée **
   conformes à la charte).
 - **Coût audio** : la synthèse batch prend 10 brouillons par clic — un lot de 20 demande
   deux clics « Générer l'audio ».
+
+## Garde-fou des tirages (2026-10-04)
+
+Une `CO_IMAGE` sans audio n'est **jamais** tirée, ni comptée dans un stock (lots, Plan,
+composition d'examen) : le prédicat « servable au candidat » de
+`QuestionRepository.SERVABLE_JPQL` / `SERVABLE_SQL` exige `is_active`, `status = ACTIVE`
+et, pour une `CO_IMAGE`, `audio_media_id` non nul. La console admin la signale
+(`QuestionDto.audioMissing`, filtre `media=AUDIO_MISSING`). Révision, favoris et relecture
+de session n'y passent pas : une question déjà vue reste relisible.

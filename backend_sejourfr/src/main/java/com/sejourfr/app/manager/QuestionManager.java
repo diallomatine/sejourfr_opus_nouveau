@@ -63,8 +63,9 @@ public class QuestionManager {
         return repository.findAllById(ids);
     }
 
+    /** Stock servable d'un theme ({@link QuestionRepository#SERVABLE_JPQL}). */
     public long countActiveByTheme(UUID themeId) {
-        return repository.countByThemeIdAndActiveTrue(themeId);
+        return repository.countServableByTheme(themeId);
     }
 
     /** Compteur total (inclut les questions inactives) — vue admin. */

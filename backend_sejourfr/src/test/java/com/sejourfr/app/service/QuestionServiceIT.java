@@ -3,11 +3,13 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.ChoiceWriteRequest;
 import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionWriteRequest;
+import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionMediaFilter;
+import com.sejourfr.app.enums.QuestionStatus;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -31,6 +33,9 @@ class QuestionServiceIT extends AbstractIntegrationTest {
 
     @Autowired
     private TestData testData;
+
+    @Autowired
+    private com.sejourfr.app.manager.QuestionManager questionManager;
 
     private QuestionWriteRequest req(UUID themeId, List<ChoiceWriteRequest> choices) {
         return new QuestionWriteRequest(
@@ -193,5 +198,87 @@ class QuestionServiceIT extends AbstractIntegrationTest {
                 Module.CIVIQUE, themeId, null, mediaId,
                 Difficulty.CSP, QuestionType.CONNAISSANCE,
                 "Question avec média ?", "Explication.", true, validChoices());
+    }
+    // ------------------------------------------------------------------------
+    // Activation : is_active et status bougent ENSEMBLE (les tirages exigent
+    // les deux, QuestionRepository.SERVABLE_JPQL).
+    // ------------------------------------------------------------------------
+
+    @Test
+    void activerUneQuestionDraftLaPublie() {
+        UUID id = questionService.create(req(testData.theme().getId(), validChoices())).id();
+        poserStatut(id, false, QuestionStatus.DRAFT);
+
+        QuestionDto dto = questionService.setActive(id, true);
+
+        assertThat(dto.active()).isTrue();
+        assertThat(statut(id)).isEqualTo(QuestionStatus.ACTIVE);
+    }
+
+    @Test
+    void desactiverUneQuestionActiveLArchiveJamaisDraft() {
+        UUID id = questionService.create(req(testData.theme().getId(), validChoices())).id();
+
+        questionService.setActive(id, false);
+
+        assertThat(statut(id)).isEqualTo(QuestionStatus.ARCHIVED);
+        questionService.setActive(id, true);
+        assertThat(statut(id)).as("une archivee se reactive").isEqualTo(QuestionStatus.ACTIVE);
+    }
+
+    @Test
+    void desactiverUneQuestionDraftLaLaisseDraft() {
+        UUID id = questionService.create(req(testData.theme().getId(), validChoices())).id();
+        poserStatut(id, true, QuestionStatus.DRAFT);
+
+        questionService.setActive(id, false);
+
+        assertThat(statut(id)).isEqualTo(QuestionStatus.DRAFT);
+    }
+
+    @Test
+    void lEditionCompleteSynchroniseAussiLeStatut() {
+        Theme theme = testData.theme();
+        UUID id = questionService.create(req(theme.getId(), validChoices())).id();
+        poserStatut(id, false, QuestionStatus.DRAFT);
+
+        questionService.update(id, req(theme.getId(), validChoices()));
+
+        assertThat(statut(id)).isEqualTo(QuestionStatus.ACTIVE);
+    }
+
+    @Test
+    void searchFiltreImageFichierImageSvgEtAudioManquantAvecIndicateur() {
+        Theme theme = testData.theme(Module.TCF, "co-img", "Thème CO image");
+        Question fichier = coImage(theme, testData.media(MediaType.IMAGE), testData.media(MediaType.AUDIO));
+        com.sejourfr.app.entity.Media svg = testData.media(MediaType.IMAGE);
+        svg.setUrl(null);
+        svg.setInlineSvg("<svg/>");
+        Question sansAudio = coImage(theme, svg, null);
+
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.IMAGE_FILE)).containsExactly(fichier.getId());
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.IMAGE_SVG)).containsExactly(sansAudio.getId());
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.AUDIO_MISSING)).containsExactly(sansAudio.getId());
+        assertThat(questionService.getById(sansAudio.getId()).audioMissing()).isTrue();
+        assertThat(questionService.getById(fichier.getId()).audioMissing()).isFalse();
+    }
+
+    private Question coImage(Theme theme, com.sejourfr.app.entity.Media image, com.sejourfr.app.entity.Media audio) {
+        Question q = testData.questionTcf(QuestionType.CO_IMAGE, Difficulty.A2);
+        q.setTheme(theme);
+        q.setMedia(image);
+        q.setAudioMedia(audio);
+        return questionManager.save(q);
+    }
+
+    private void poserStatut(UUID id, boolean active, QuestionStatus status) {
+        Question q = questionManager.findById(id).orElseThrow();
+        q.setActive(active);
+        q.setStatus(status);
+        questionManager.save(q);
+    }
+
+    private QuestionStatus statut(UUID id) {
+        return questionManager.findById(id).orElseThrow().getStatus();
     }
 }

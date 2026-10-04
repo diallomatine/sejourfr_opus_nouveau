@@ -6,6 +6,8 @@ import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionMediaFilter;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.entity.Media;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 import java.util.UUID;
@@ -36,10 +38,12 @@ public final class QuestionSpecifications {
 
     /**
      * Filtre « Média » de la console admin. {@code NONE} = questions sans média
-     * principal ; sinon on compare le type du média principal. Porte sur
-     * {@code question.media} (celui affiché en colonne « Média »), pas sur
-     * {@code audioMedia} — l'audio secondaire d'une CO_IMAGE reste rattaché à
-     * une question dont le média principal est l'IMAGE.
+     * principal ; {@code AUDIO}/{@code IMAGE}/{@code VIDEO} comparent le type du
+     * média principal ; {@code IMAGE_FILE} / {@code IMAGE_SVG} distinguent une
+     * image fichier d'une image SVG inline ; {@code AUDIO_MISSING} reprend
+     * {@link #audioManquant()}. Porte sur {@code question.media} (celui affiché
+     * en colonne « Média »), pas sur {@code audioMedia} — sauf
+     * {@code AUDIO_MISSING}, dont c'est l'objet.
      *
      * <p>Sans cette specification, la console filtrait en mémoire sur la page
      * courante : « aucune question » alors que 134 existaient.
@@ -47,9 +51,36 @@ public final class QuestionSpecifications {
     public static Specification<Question> hasMedia(QuestionMediaFilter media) {
         return (root, q, cb) -> {
             if (media == null) return null;
-            if (media == QuestionMediaFilter.NONE) return cb.isNull(root.get("media"));
-            MediaType type = media.toMediaType();
-            return cb.equal(root.join("media", JoinType.LEFT).get("type"), type);
+            return switch (media) {
+                case NONE -> cb.isNull(root.get("media"));
+                case AUDIO_MISSING -> audioManquant().toPredicate(root, q, cb);
+                case IMAGE_FILE -> {
+                    Join<Question, Media> m = root.join("media", JoinType.INNER);
+                    yield cb.and(cb.equal(m.get("type"), MediaType.IMAGE), cb.isNotNull(m.get("url")));
+                }
+                case IMAGE_SVG -> {
+                    Join<Question, Media> m = root.join("media", JoinType.INNER);
+                    yield cb.and(cb.equal(m.get("type"), MediaType.IMAGE),
+                            cb.isNotNull(m.get("inlineSvg")), cb.isNull(m.get("url")));
+                }
+                case AUDIO, IMAGE, VIDEO ->
+                        cb.equal(root.join("media", JoinType.LEFT).get("type"), media.toMediaType());
+            };
+        };
+    }
+
+    /**
+     * Forme criteria de {@code util/AudioManquant} : CO_IMAGE sans
+     * {@code audio_media_id}, ou CO sans média principal AUDIO.
+     */
+    public static Specification<Question> audioManquant() {
+        return (root, q, cb) -> {
+            Join<Question, Media> m = root.join("media", JoinType.LEFT);
+            return cb.or(
+                    cb.and(cb.equal(root.get("questionType"), QuestionType.CO_IMAGE),
+                            cb.isNull(root.get("audioMedia"))),
+                    cb.and(cb.equal(root.get("questionType"), QuestionType.CO),
+                            cb.or(cb.isNull(m.get("id")), cb.notEqual(m.get("type"), MediaType.AUDIO))));
         };
     }
 
