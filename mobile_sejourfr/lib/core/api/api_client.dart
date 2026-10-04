@@ -145,8 +145,8 @@ class ApiClient {
     if (status == 401 && opts.extra['skipRefresh'] != true) {
       // Tentative de récupération via refresh (une seule fois par requête).
       if (opts.extra['retry'] != true) {
-        final refreshed = await _tryRefresh();
-        if (refreshed) {
+        final outcome = await _refreshFor(opts);
+        if (outcome == _RefreshOutcome.ok) {
           try {
             final newAccess = await _tokenStorage.readAccess();
             final retried = await _dio.fetch(
@@ -166,8 +166,20 @@ class ApiClient {
             return;
           }
         }
+        if (outcome == _RefreshOutcome.unavailable) {
+          // 🛑 Le serveur n'a pas pu répondre au refresh (réseau, 5xx) : ce
+          // n'est pas un refus, la session survit. On remonte une erreur
+          // RÉSEAU (statusCode 0), que l'amorçage sait traiter sans
+          // effacer les jetons.
+          handler.reject(DioException(
+            requestOptions: opts,
+            type: DioExceptionType.connectionError,
+            error: err.error,
+          ));
+          return;
+        }
       }
-      // 401 non récupérable (refresh KO, ou requête déjà rejouée, ou refresh
+      // 401 non récupérable (refresh refusé, ou requête déjà rejouée, ou refresh
       // désactivé sur la requête) : session invalide → déconnexion globale.
       // Sans ça, le 401 remonte aux écrans qui affichent "Authentification
       // requise" au lieu de rebasculer vers l'écran de connexion.
@@ -186,23 +198,44 @@ class ApiClient {
   // ---------------------------------------------------------------------------
   // Refresh token (avec mutex pour éviter les appels parallèles)
   // ---------------------------------------------------------------------------
+  //
+  // Le serveur fait TOURNER le refresh token : l'ancien est révoqué dès qu'un
+  // successeur est émis. Un second refresh avec l'ancien jeton est donc refusé
+  // (« Session révoquée ») et déconnectait. D'où le mutex, et la relecture de
+  // l'access avant de rafraîchir : une requête partie avec un access que le
+  // storage a déjà remplacé n'a qu'à être rejouée.
 
-  Future<bool>? _refreshing;
+  Future<_RefreshOutcome>? _refreshing;
 
-  Future<bool> _tryRefresh() {
+  Future<_RefreshOutcome> _refreshFor(RequestOptions opts) async {
+    final current = await _tokenStorage.readAccess();
+    final sent = opts.headers['Authorization'];
+    if (current != null && sent != null && sent != 'Bearer $current') {
+      return _RefreshOutcome.ok;
+    }
+    return _tryRefresh();
+  }
+
+  Future<_RefreshOutcome> _tryRefresh() {
     _refreshing ??= _doRefresh().whenComplete(() {
       Timer(const Duration(milliseconds: 50), () => _refreshing = null);
     });
     return _refreshing!;
   }
 
-  Future<bool> _doRefresh() async {
+  /// 🛑 Seul un REFUS du serveur (4xx hors 408/429) met fin à la session. Une
+  /// coupure réseau, un timeout ou un 5xx gardent les jetons : le candidat
+  /// entré dans le métro ne doit pas retrouver l'écran de connexion. Miroir
+  /// de `isDefinitiveAuthFailure` (web, `lib/api.ts`).
+  Future<_RefreshOutcome> _doRefresh() async {
     final refresh = await _tokenStorage.readRefresh();
-    if (refresh == null) return false;
+    if (refresh == null) return _RefreshOutcome.rejected;
     try {
       final context = await _clientContext?.headers() ?? const {};
       final res = await Dio(BaseOptions(
         baseUrl: ApiConfig.baseUrl,
+        connectTimeout: ApiConfig.connectTimeout,
+        receiveTimeout: ApiConfig.receiveTimeout,
         headers: {
           ...context,
           'User-Agent': userAgent,
@@ -215,16 +248,23 @@ class ApiClient {
         '/api/auth/refresh',
         data: {'refreshToken': refresh},
       );
-      if (res.statusCode != 200) return false;
       final data = res.data as Map<String, dynamic>;
       await _tokenStorage.save(
         accessToken: data['accessToken'] as String,
         refreshToken: data['refreshToken'] as String,
         user: AuthUser.fromJson(data['user'] as Map<String, dynamic>),
       );
-      return true;
+      return _RefreshOutcome.ok;
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final refused = status != null &&
+          status >= 400 &&
+          status < 500 &&
+          status != 408 &&
+          status != 429;
+      return refused ? _RefreshOutcome.rejected : _RefreshOutcome.unavailable;
     } catch (_) {
-      return false;
+      return _RefreshOutcome.unavailable;
     }
   }
 
@@ -284,3 +324,5 @@ class ApiClient {
     return ApiException(statusCode: -1, message: error.toString());
   }
 }
+
+enum _RefreshOutcome { ok, rejected, unavailable }

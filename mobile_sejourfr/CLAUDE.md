@@ -302,7 +302,11 @@ Endpoints utilisés (à implémenter côté backend si pas encore fait) :
 - `GET /api/me/stats?module=...`
 
 **Auth JWT** : access token + refresh token. Le refresh est automatique au niveau de `ApiClient` quand une
-requête prend un 401 — pas besoin de le gérer dans les controllers ou les écrans.
+requête prend un 401 — pas besoin de le gérer dans les controllers ou les écrans. 🛑 Seul un **refus** du
+refresh (4xx hors 408/429) déconnecte ; réseau/timeout/5xx remontent une erreur réseau (`statusCode 0`) et
+gardent les jetons. Une requête partie avec un access déjà remplacé est rejouée sans nouveau refresh (le
+serveur fait tourner le refresh token : un second refresh avec l'ancien serait refusé). Miroir web :
+`isDefinitiveAuthFailure` (`lib/api.ts`).
 
 Les types Dart dans `core/models/` sont **alignés à la main** sur les DTOs Java du backend. Quand le backend
 change un DTO, mettre à jour le model Dart correspondant.

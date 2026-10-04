@@ -97,7 +97,16 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 - URL configurable via `NEXT_PUBLIC_API_BASE_URL` (cf. `.env.local.example`)
 - CORS allowed-origins inclut `http://localhost:3000` côté backend
 - Auth JWT : tokens stockés dans `localStorage` (clés `sejourfr.accessToken`, `sejourfr.refreshToken`) +
-  cookie `sejourfr.accessToken` pour le SSR
+  cookie `sejourfr.accessToken` = **marqueur de session** pour `middleware.ts` (valeur `1`, aucun jeton,
+  durée = `exp` du **refresh** token, posé par `tokenStorage.markSession`).
+- 🛑 **La session tient tant que le refresh token est valable (30 j).** `apiFetch` rafraîchit et rejoue
+  une fois toute requête `auth: true` qui prend un 401 — **`/api/auth/me` compris** (son exclusion faisait
+  de l'hydratation au retour sur le site, access expiré, une déconnexion sèche). Un seul refresh en vol
+  (promesse partagée + verrou `navigator.locks` entre onglets quand le contexte est sécurisé ; sinon,
+  après un refus, relecture du storage ~2 s pour adopter le jeton qu'un autre onglet vient de faire
+  tourner). Les jetons ne sont vidés que sur un refus **définitif** (`isDefinitiveAuthFailure` : 4xx hors
+  408/429), jamais sur une coupure réseau ou un 5xx ; `AuthProvider` retente alors au retour de l'onglet
+  ou du réseau. Miroir mobile : `ApiClient._doRefresh` (`_RefreshOutcome`).
 
 ### Endpoints utilisés
 
@@ -4752,14 +4761,11 @@ redirect `/`. Type miroir `AccountDeletionResponse` dans `lib/types.ts`.
 
 ## À faire ensuite (transverse, hors vagues)
 
-1. **Refresh token automatique** — intercepteur dans `apiFetch` qui rejoue la
-   requête après un 401 si un refresh token est disponible. Le mobile le fait
-   via Dio interceptor.
-2. **Étendre le Middleware Next si une nouvelle route privée apparaît** — il
+1. **Étendre le Middleware Next si une nouvelle route privée apparaît** — il
    lit déjà le cookie `sejourfr.accessToken` et protège `/dashboard`,
    `/paiement`, `/diagnostic` et `/plan`, avec retour `?next=`. Les autres
    écrans historiques restent encore gardés côté client par `useAuth`.
-3. **Mode sombre** — non prévu pour l'instant, mais le design system est
+2. **Mode sombre** — non prévu pour l'instant, mais le design system est
    compatible (variables CSS centralisées).
 
 ## Social sign-in Google

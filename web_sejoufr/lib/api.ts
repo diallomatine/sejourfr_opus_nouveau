@@ -317,11 +317,28 @@ export const tokenStorage = {
         oublierAccesServi();
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
-        // Cookie léger pour permettre au middleware/SSR de connaître l'état.
-        // `Secure` en prod (HTTPS) pour ne jamais transiter en clair ; omis en
-        // dev (http://localhost) sinon le navigateur refuse le cookie.
+        tokenStorage.markSession(tokens.refreshToken);
+    },
+    /**
+     * Pose le **marqueur de session** lu par `middleware.ts` : présence
+     * seule, aucune valeur secrète (le jeton ne voyage plus vers le serveur
+     * Next, qui ne s'en servait pas).
+     *
+     * 🛑 **Sa durée est celle du refresh token, pas de l'access.** Calé sur
+     * l'access (~60 min), le cookie disparaissait au bout d'une heure et le
+     * middleware renvoyait vers `/connexion` un candidat dont la session
+     * était encore valable 30 jours. L'échéance est lue dans le refresh
+     * token lui-même (`exp`), pour ne recopier aucune durée du backend.
+     * Reposé à chaque refresh et à chaque hydratation réussie.
+     */
+    markSession(refreshToken: string | null = tokenStorage.getRefresh()) {
+        if (typeof window === "undefined" || !refreshToken) return;
+        const exp = jwtExpiresAtSeconds(refreshToken);
+        const maxAge = exp === null ? "" : `; max-age=${Math.max(0, exp - Math.floor(Date.now() / 1000))}`;
+        // `Secure` en prod (HTTPS) ; omis en dev (http://…) sinon le
+        // navigateur refuse le cookie.
         const secure = window.location.protocol === "https:" ? "; Secure" : "";
-        document.cookie = `${ACCESS_TOKEN_KEY}=${tokens.accessToken}; path=/; max-age=${tokens.expiresInSeconds}; SameSite=Lax${secure}`;
+        document.cookie = `${ACCESS_TOKEN_KEY}=1; path=/${maxAge}; SameSite=Lax${secure}`;
     },
     clear() {
         if (typeof window === "undefined") return;
@@ -369,17 +386,100 @@ interface FetchOptions extends RequestInit {
     next?: { revalidate?: number | false; tags?: string[] };
 }
 
-// File d'attente partagée pour ne pas tenter plusieurs refresh en parallèle :
-// si une seconde requête prend un 401 pendant qu'on rafraîchit déjà, elle
-// attend la promesse en cours plutôt que de relancer un refresh concurrent.
-let refreshPromise: Promise<string | null> | null = null;
+/** Échéance (`exp`, en secondes) d'un JWT, lue sans vérifier la signature :
+ *  sert seulement à caler la durée du marqueur de session. */
+function jwtExpiresAtSeconds(jwt: string): number | null {
+    try {
+        const payload = jwt.split(".")[1];
+        if (!payload) return null;
+        const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+        const exp = (JSON.parse(json) as {exp?: unknown}).exp;
+        return typeof exp === "number" ? exp : null;
+    } catch {
+        return null;
+    }
+}
 
-async function refreshAccessToken(): Promise<string | null> {
+/**
+ * 🛑 **Seul un refus du serveur met fin à une session.** Un 4xx (refresh
+ * révoqué, expiré, inconnu → 422 ; jeton malformé → 400 ; 401/403) est
+ * définitif. Le réseau coupé, un 5xx, un 408 ou un 429 ne disent pas « tu
+ * n'es plus toi » mais « je n'ai pas pu répondre » : on garde les jetons.
+ * Seule autorité de cette distinction, pour `apiFetch` comme pour
+ * `AuthProvider`.
+ */
+export function isDefinitiveAuthFailure(err: unknown): boolean {
+    return err instanceof ApiException
+        && err.status >= 400 && err.status < 500
+        && err.status !== 408 && err.status !== 429;
+}
+
+type RefreshOutcome =
+    | {kind: "ok"; accessToken: string}
+    | {kind: "rejected"}
+    | {kind: "unavailable"; error: unknown};
+
+const REFRESH_LOCK_NAME = "sejourfr.auth.refresh";
+/** Après un refus, temps laissé à un autre onglet pour ranger le successeur
+ *  du refresh token qu'il vient de faire tourner (rotation concurrente). */
+const ROTATION_SETTLE_MS = 2000;
+const ROTATION_POLL_MS = 250;
+
+/**
+ * Exclusion entre onglets : `navigator.locks` quand il existe. Il n'existe
+ * qu'en contexte sécurisé (HTTPS, `localhost`) — pas sur `http://192.168.…`
+ * en dev — d'où le second filet de `refreshAccessToken` (relecture du
+ * storage après un refus).
+ */
+async function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+    const locks: LockManager | undefined =
+        typeof navigator !== "undefined" ? navigator.locks : undefined;
+    if (!locks) return fn();
+    return locks.request(REFRESH_LOCK_NAME, fn);
+}
+
+/** Le refresh token rangé a changé depuis `sent` : un autre onglet l'a fait
+ *  tourner. Rend l'access qui l'accompagne. */
+function rotatedElsewhere(sent: string): string | null {
+    const current = tokenStorage.getRefresh();
+    const access = tokenStorage.getAccess();
+    return current && current !== sent && access ? access : null;
+}
+
+async function waitForRotationElsewhere(sent: string): Promise<string | null> {
+    const deadline = Date.now() + ROTATION_SETTLE_MS;
+    for (;;) {
+        const access = rotatedElsewhere(sent);
+        if (access || Date.now() >= deadline) return access;
+        await new Promise((resolve) => setTimeout(resolve, ROTATION_POLL_MS));
+    }
+}
+
+/**
+ * Le refresh tourne (rotation serveur : l'ancien jeton est révoqué dès qu'un
+ * successeur est émis). Deux refresh concurrents avec le même jeton font donc
+ * refuser l'un des deux — et ce refus déconnectait. Trois garde-fous :
+ *   1. une seule promesse en vol par onglet ;
+ *   2. un verrou entre onglets (`navigator.locks`), sous lequel on relit le
+ *      storage : si un autre onglet a déjà tourné le jeton que la requête
+ *      avait, on reprend le sien sans rappeler le serveur ;
+ *   3. après un refus, on laisse à un autre onglet le temps de ranger son
+ *      successeur avant de conclure que la session est morte.
+ * Les jetons ne sont vidés que sur un refus définitif, jamais sur une erreur
+ * réseau ou un 5xx.
+ */
+let refreshPromise: Promise<RefreshOutcome> | null = null;
+
+function runRefresh(staleRefresh: string | null): Promise<RefreshOutcome> {
     if (refreshPromise) return refreshPromise;
 
-    refreshPromise = (async () => {
+    refreshPromise = withRefreshLock(async (): Promise<RefreshOutcome> => {
         const rt = tokenStorage.getRefresh();
-        if (!rt) return null;
+        if (!rt) return {kind: "rejected"};
+        const access = tokenStorage.getAccess();
+        if (staleRefresh && rt !== staleRefresh && access) {
+            return {kind: "ok", accessToken: access};
+        }
         try {
             const tokens = await rawFetch<TokenResponse>("/api/auth/refresh", {
                 method: "POST",
@@ -387,19 +487,28 @@ async function refreshAccessToken(): Promise<string | null> {
                 skipRefresh: true,
             });
             tokenStorage.set(tokens);
-            return tokens.accessToken;
-        } catch {
+            return {kind: "ok", accessToken: tokens.accessToken};
+        } catch (err) {
+            if (!isDefinitiveAuthFailure(err)) return {kind: "unavailable", error: err};
+            const adopted = await waitForRotationElsewhere(rt);
+            if (adopted) return {kind: "ok", accessToken: adopted};
             tokenStorage.clear();
-            return null;
-        } finally {
-            // Libère le slot pour les futurs refreshs.
-            setTimeout(() => {
-                refreshPromise = null;
-            }, 0);
+            return {kind: "rejected"};
         }
-    })();
+    }).finally(() => {
+        refreshPromise = null;
+    });
 
     return refreshPromise;
+}
+
+/** Access token frais, ou `null` si la session est morte (jetons vidés).
+ *  Une panne réseau / 5xx est relancée telle quelle : la session survit. */
+async function refreshAccessToken(staleRefresh: string | null = null): Promise<string | null> {
+    const outcome = await runRefresh(staleRefresh);
+    if (outcome.kind === "ok") return outcome.accessToken;
+    if (outcome.kind === "rejected") return null;
+    throw outcome.error;
 }
 
 async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
@@ -486,25 +595,36 @@ function redirectToLogin(): void {
 }
 
 async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+    // Le refresh token de la requête : s'il a tourné entre-temps (autre
+    // onglet, autre requête), le 401 est périmé et le refresh n'a pas à
+    // rappeler le serveur.
+    const sentRefresh = typeof window !== "undefined" ? tokenStorage.getRefresh() : null;
     try {
         return await rawFetch<T>(path, opts);
     } catch (err) {
-        // 401 sur endpoint protégé : tentative de refresh une fois, sinon redirect.
-        // On n'intercepte pas /api/auth/* pour ne pas casser les formulaires login/refresh.
+        // 401 sur requête porteuse d'un Bearer : refresh puis rejeu, une fois.
+        // Les formulaires `/api/auth/*` (login, register, refresh…) ne sont pas
+        // interceptés — un 401 y veut dire « mauvais identifiants ». 🛑 Mais
+        // `/api/auth/me` l'est (`auth: true`) : l'exclure faisait de
+        // l'hydratation au chargement, avec un access expiré, une
+        // déconnexion sèche alors que le refresh était valable 30 jours.
         if (
             err instanceof ApiException &&
             err.status === 401 &&
             !opts.skipRefresh &&
             typeof window !== "undefined" &&
-            !path.startsWith("/api/auth/")
+            (opts.auth === true || !path.startsWith("/api/auth/"))
         ) {
             if (tokenStorage.getRefresh()) {
-                const newToken = await refreshAccessToken();
+                // Panne réseau / 5xx du refresh : relancée ici, sans
+                // déconnexion ni redirection.
+                const newToken = await refreshAccessToken(sentRefresh);
                 if (newToken) {
                     return rawFetch<T>(path, opts);
                 }
             }
             if (opts.redirectOnUnauthorized !== false) redirectToLogin();
+            else tokenStorage.clear();
         }
         throw err;
     }
@@ -579,7 +699,13 @@ export const authApi = {
      * `noterAccesServi`.
      */
     async me(): Promise<AuthenticatedUser> {
-        const user = await apiFetch<AuthenticatedUser>("/api/auth/me", {auth: true});
+        // `redirectOnUnauthorized: false` : l'hydratation tourne sur toutes
+        // les pages, vitrine comprise. Une session morte y fait un visiteur,
+        // pas un renvoi vers `/connexion` — les pages protégées s'en chargent.
+        const user = await apiFetch<AuthenticatedUser>("/api/auth/me", {
+            auth: true,
+            redirectOnUnauthorized: false,
+        });
         noterAccesServi(user);
         return user;
     },

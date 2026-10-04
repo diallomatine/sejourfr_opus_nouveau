@@ -3,11 +3,13 @@ import type { NextRequest } from "next/server";
 
 const COOKIE_NAME = "sejourfr.accessToken";
 
-// Routes qui exigent un accessToken. Le check est sommaire (présence du
-// cookie, pas validation cryptographique) : la vraie autorisation est faite
-// par le backend Spring, qui rejette en 401 si le JWT est expiré ou mal
-// formé. Côté front, ce middleware sert juste à éviter un flash de la page
-// protégée avant que le client ne redirige.
+// Routes qui exigent une session. Le check est sommaire (présence du
+// cookie) : la vraie autorisation est faite par le backend Spring. Le cookie
+// est un MARQUEUR de session (valeur `1`, aucun jeton) posé par
+// `tokenStorage.markSession` pour la durée du REFRESH token : un access
+// expiré n'est pas une raison de renvoyer vers `/connexion`, le client le
+// rafraîchit lui-même. Si le marqueur manque alors qu'un refresh valide est
+// en localStorage, `/connexion` hydrate la session et renvoie vers `next`.
 // /entrainement, /examens-blancs et /sessions sont publics (mode démo guest).
 // /diagnostic aussi : le visiteur fait ses deux productions AVANT qu'on lui
 // demande un compte (le Plan, lui, reste derrière le login).
