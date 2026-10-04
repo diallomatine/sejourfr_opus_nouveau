@@ -19,7 +19,8 @@
 import type {SkillCriterionStatus} from "./types";
 
 /** Ce que la carte de fin propose. `SUJET_SUIVANT` est le défaut de travail. */
-export type CompetenceNextKind = "REESSAYER" | "SUJET_SUIVANT" | "PLAN";
+/** `LISTE` ramène à la liste des sujets (les 5 de l'étape quand on vient du Plan). */
+export type CompetenceNextKind = "REESSAYER" | "SUJET_SUIVANT" | "LISTE";
 
 export interface CompetenceNextAction {
     /** Le titre de la carte. Il dit où en est le candidat, pas ce qu'il a raté. */
@@ -64,15 +65,15 @@ export function competenceNextAction(
                 : {
                       title: "🎉 Cette compétence progresse",
                       hint: "Vous avez traité tous les sujets de cette compétence.",
-                      cta: "Continuer mon plan",
-                      kind: "PLAN",
+                      cta: "Continuer",
+                      kind: "LISTE",
                   };
         case "VALIDATED":
             return {
                 title: "✅ Compétence maîtrisée",
-                hint: "Votre plan vous emmène maintenant sur la priorité suivante.",
-                cta: "Continuer mon plan",
-                kind: "PLAN",
+                hint: "Retrouvez vos sujets pour continuer à travailler.",
+                cta: "Continuer",
+                kind: "LISTE",
             };
     }
 }

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import {ApiException, journeyApi, learningPlanApi, skillApi} from "@/lib/api";
 import {useCachedData} from "@/lib/use-cached-data";
-import {remplacerEcran} from "@/lib/retour";
+import {remplacerEcran, retourOuRepli} from "@/lib/retour";
 import {isPlanStep, planStepFor, planStepNextPromptId, withPlanStep} from "@/lib/plan-step";
 import {usePlanStepPurchaseOrigin} from "@/app/_components/plan/use-plan-journey-id";
 import {useAuth} from "@/lib/auth-context";
@@ -481,6 +481,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
                     onNext={() =>
                       nextId && remplacerEcran(router, withPlanStep(`${base}/${skillId}/${nextId}`, step))
                     }
+                    onContinue={() => retourOuRepli(router, skillHref)}
                   />
                 ) : (
                   <div className={s.actions}>
@@ -556,7 +557,7 @@ export function CompetenceResult({config}: {config: ProductionConfig}) {
  *
  * 🛑 « JAMAIS un simple « Retour » ». Trois sorties, une par verdict servi :
  * rejouer le même point quand le critère n'est pas atteint, enchaîner un sujet
- * quand ça progresse, revenir au plan quand c'est acquis. Enchaîner un sujet de
+ * quand ça progresse, revenir à la liste des sujets quand c'est acquis. Enchaîner un sujet de
  * plus sur une compétence non acquise n'empile que des échecs.
  *
  * Le libellé et le choix vivent dans `lib/competence-next-action.ts`, partagé
@@ -567,11 +568,14 @@ function NextActionCard({
   hasNextPrompt,
   onRetry,
   onNext,
+  onContinue,
 }: {
   status: SkillCriterionStatus;
   hasNextPrompt: boolean;
   onRetry: () => void;
   onNext: () => void;
+  /** Ramène à la liste des sujets (l'écran précédent, sinon la fiche). */
+  onContinue: () => void;
 }) {
   const action = competenceNextAction(status, hasNextPrompt);
   return (
@@ -579,11 +583,11 @@ function NextActionCard({
       <p className={s.nextActionTitle}>{action.title}</p>
       <p className={s.nextActionHint}>{action.hint}</p>
       <div className={s.actions}>
-        {action.kind === "PLAN" ? (
-          <Link href="/plan" className={`btn ${s.actionWide}`}>
+        {action.kind === "LISTE" ? (
+          <button type="button" className={`btn ${s.actionWide}`} onClick={onContinue}>
             {action.cta}
             <ArrowRight size={16} strokeWidth={2.2} aria-hidden />
-          </Link>
+          </button>
         ) : (
           <button
             type="button"

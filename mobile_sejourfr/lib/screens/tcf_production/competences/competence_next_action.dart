@@ -15,7 +15,7 @@ import '../../../core/models/skill_models.dart';
 /// Miroir mot pour mot de `web_sejoufr/lib/competence-next-action.ts`.
 
 /// Ce que la carte de fin propose.
-enum CompetenceNextKind { reessayer, sujetSuivant, plan }
+enum CompetenceNextKind { reessayer, sujetSuivant, liste }
 
 class CompetenceNextAction {
   const CompetenceNextAction({
@@ -51,7 +51,8 @@ CompetenceNextAction competenceNextAction(
       // sujet de plus sur une compétence non acquise empile des échecs.
       return const CompetenceNextAction(
         title: 'Essayez encore une fois',
-        hint: 'Reprenez ce point précis : c\'est en le rejouant qu\'il s\'installe.',
+        hint:
+            'Reprenez ce point précis : c\'est en le rejouant qu\'il s\'installe.',
         cta: 'S\'entraîner sur ce point',
         kind: CompetenceNextKind.reessayer,
       );
@@ -59,22 +60,23 @@ CompetenceNextAction competenceNextAction(
       return hasNextPrompt
           ? const CompetenceNextAction(
               title: '🎉 Cette compétence progresse',
-              hint: 'Un sujet de plus sur la même compétence, et elle sera acquise.',
+              hint:
+                  'Un sujet de plus sur la même compétence, et elle sera acquise.',
               cta: 'Passer au sujet suivant',
               kind: CompetenceNextKind.sujetSuivant,
             )
           : const CompetenceNextAction(
               title: '🎉 Cette compétence progresse',
               hint: 'Vous avez traité tous les sujets de cette compétence.',
-              cta: 'Continuer mon plan',
-              kind: CompetenceNextKind.plan,
+              cta: 'Continuer',
+              kind: CompetenceNextKind.liste,
             );
     case SkillCriterionStatus.validated:
       return const CompetenceNextAction(
         title: '✅ Compétence maîtrisée',
-        hint: 'Votre plan vous emmène maintenant sur la priorité suivante.',
-        cta: 'Continuer mon plan',
-        kind: CompetenceNextKind.plan,
+        hint: 'Retrouvez vos sujets pour continuer à travailler.',
+        cta: 'Continuer',
+        kind: CompetenceNextKind.liste,
       );
   }
 }

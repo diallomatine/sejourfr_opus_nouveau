@@ -17,7 +17,6 @@ import '../../../core/widgets/paywall_sheet.dart';
 import '../../../core/widgets/pressable_card.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../tcf_production_module.dart';
-import '../../../core/router/app_router.dart';
 import '../../../core/widgets/app_card.dart';
 import '../widgets/action_plan.dart';
 import '../widgets/evaluation_loading_view.dart';
@@ -481,6 +480,7 @@ class _CompetenceResultScreenState
             status: analysis.status,
             planStep: widget.planStep,
             nextInStep: _nextInStep(prompt),
+            onContinue: () => _back(prompt?.skillId),
           )
         else
           _Actions(
@@ -1215,11 +1215,15 @@ class _NextActionCard extends StatelessWidget {
     required this.status,
     required this.planStep,
     required this.nextInStep,
+    required this.onContinue,
   });
 
   final TcfProductionModule module;
   final SkillPromptDto? prompt;
   final SkillCriterionStatus status;
+
+  /// Ramène à la liste des sujets : l'écran précédent, sinon la fiche.
+  final VoidCallback onContinue;
   final bool planStep;
   final String? nextInStep;
 
@@ -1271,7 +1275,7 @@ class _NextActionCard extends StatelessWidget {
             onPressed: switch (action.kind) {
               CompetenceNextKind.reessayer => rejouer,
               CompetenceNextKind.sujetSuivant => suivant,
-              CompetenceNextKind.plan => () => context.go(AppRoutes.tcfPlan),
+              CompetenceNextKind.liste => onContinue,
             },
           ),
           const SizedBox(height: 8),
