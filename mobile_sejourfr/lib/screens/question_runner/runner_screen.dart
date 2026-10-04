@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
+import 'package:sejourfr_mobile/core/router/retour.dart';
 
 import '../../core/analytics/analytics_events.dart';
 import '../../core/analytics/diagnostic_run_tracker.dart';
@@ -470,9 +471,7 @@ class _RunnerView extends ConsumerWidget {
       await ref.read(runnerControllerProvider(attemptId).notifier).finish();
       if (!context.mounted) return;
       ref.invalidate(fullTcfExamProvider(fullExamId));
-      context.go(
-        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
-      );
+      context.go(fullExamHubLocation(context, fullExamId));
       return;
     }
 
@@ -821,9 +820,7 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     // l'instance existante du progress screen avec un state périmé, et
     // l'épreuve qu'on vient de terminer n'apparaît pas comme Done.
     ref.invalidate(fullTcfExamProvider(fullExamId));
-    context.go(
-      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
-    );
+    context.go(fullExamHubLocation(context, fullExamId));
     return;
   }
 

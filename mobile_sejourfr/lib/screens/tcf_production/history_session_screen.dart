@@ -10,6 +10,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import 'ee_session_controller.dart';
@@ -48,7 +49,7 @@ final _bilanProvider =
 ///
 /// Mode `live=1` (query param) : polling actif tant qu'une submission n'est
 /// pas dans un statut final (`EVALUATED` ou `FAILED`). Le CTA du bas devient
-/// "Terminer la session" et ramène au hub. Sinon (depuis historique) : CTA
+/// "Terminer la session" et ramène à l'écran de lancement. Sinon (depuis historique) : CTA
 /// "Retour" qui pop la stack.
 class HistorySessionScreen extends ConsumerStatefulWidget {
   const HistorySessionScreen({
@@ -179,13 +180,17 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
 
   void _onFinishLive() {
     // Reset le state du session controller (sinon le hub d'entraînement
-    // continue à voir l'attempt comme actif) puis go vers le hub.
+    // continue à voir l'attempt comme actif), puis retour à l'écran d'où
+    // l'examen a été lancé — Plan, Accueil, grille… : le lanceur a poussé la
+    // tâche 1, les tâches et ce bilan se sont remplacés, il est donc juste
+    // dessous. Même geste que la flèche de l'en-tête ; pile vide (lien
+    // profond) ⇒ l'Entraînement TCF, comme avant.
     if (widget.epreuve == EpreuveType.tcfEo) {
       ref.read(eoSessionProvider.notifier).reset();
     } else {
       ref.read(eeSessionProvider.notifier).reset();
     }
-    context.go(AppRoutes.tcfEntrainement);
+    retourOuRepli(context, repli: AppRoutes.tcfEntrainement);
   }
 
   @override

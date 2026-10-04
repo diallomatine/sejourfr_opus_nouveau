@@ -56,6 +56,20 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
 - **Écrans** : Accueil = kicker / « Bonjour » / À faire maintenant (2 cartes) / Mes objectifs
   (2 `ObjCard`) ; Plan, Entraînement, Examens, Progression et Profil suivent la maquette
   `docs/redesign/sejourfr-navigation-web.html`, blocs existants gardés en dessous.
+- 🛑 **« Retour » d'un examen blanc = l'écran d'où il a été lancé** (2026-10-05). Le lanceur
+  pose `?retour=<adresseCourante()>` sur la 1ʳᵉ page de l'examen : `MockExamLauncher.start`
+  (EE/EO/CO/CE/Structure/thème civique — grilles, Plan, Accueil, Réviser, Progression…),
+  `TcfFullExamBriefingSheet` et `usePlanExercise` (`FULL_TCF_MOCK_EXAM`) via `fullExamHubHref`,
+  le gabarit civique et la démo de `/examens-blancs`, `ExamBriefingClient`. Lecture :
+  **`retourExamenDe`** (`lib/retour.ts`, seule autorité) = garde de `retourDe` (chemin interne,
+  ni `//` ni `/\`) + refus des écrans d'examen (`/sessions/…`, `…/{ee,eo}/session/…`,
+  `/examens-blancs/tcf/<id>…`). Bilans : `/sessions/[id]` (« Retour » → `router.push(retour)`,
+  sinon `retourOuRepli` + `examReturnPath` comme avant ; « Refaire » et `quitHref` le gardent),
+  `ProductionSession` (lien du haut libellé **« Retour »** → `retour`, sinon la grille de
+  l'épreuve), hub et bilan de l'examen complet (`fullExamHubHref` / `fullExamBilanHref`
+  le font suivre d'une épreuve à l'autre ; « Retour » au lieu de « Retour aux examens » quand
+  il est connu). Absent ou invalide ⇒ destination historique. Miroir mobile :
+  `retourExamenDe` (`core/router/retour.dart`).
 
 ## Nouveau rapport du diagnostic rapide (2026-10-04)
 

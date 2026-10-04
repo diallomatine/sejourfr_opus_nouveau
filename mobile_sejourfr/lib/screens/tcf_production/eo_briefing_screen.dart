@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
@@ -383,7 +384,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       final id = session?.attempt?.id;
       ref.read(eoSessionProvider.notifier).reset();
       if (id != null) ref.invalidate(fullTcfExamProvider(fullExamId));
-      context.go('/tcf/examen-blanc/$fullExamId');
+      context.go(fullExamHubLocation(context, fullExamId));
       return;
     }
     final attemptId = session!.attempt!.id;
@@ -398,7 +399,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   String _fallbackRouteFor(BuildContext context) {
     final params = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = params['fullExamId'];
-    if (fullExamId != null) return '/tcf/examen-blanc/$fullExamId';
+    if (fullExamId != null) return fullExamHubLocation(context, fullExamId);
     return '/tcf/eo';
   }
 

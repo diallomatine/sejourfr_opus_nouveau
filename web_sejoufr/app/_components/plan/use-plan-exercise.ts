@@ -7,7 +7,7 @@ import {attemptApi, fullTcfExamApi} from "@/lib/api";
 import {recommendedExerciseHref} from "@/lib/diagnostic";
 import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
-import {adresseCourante, sessionHref} from "@/lib/retour";
+import {adresseCourante, fullExamHubHref, sessionHref} from "@/lib/retour";
 import {planSkillHref} from "@/lib/plan-domain";
 import type {
     PlanDomainAssessmentDto,
@@ -98,7 +98,7 @@ export function usePlanExercise() {
                     }
                     case "FULL_TCF_MOCK_EXAM": {
                         const exam = await fullTcfExamApi.start(exercise.slotNumber);
-                        router.push(`/examens-blancs/tcf/${exam.id}`);
+                        router.push(fullExamHubHref(exam.id, adresseCourante()));
                         break;
                     }
                     case "EPREUVE_MOCK_EXAM": {

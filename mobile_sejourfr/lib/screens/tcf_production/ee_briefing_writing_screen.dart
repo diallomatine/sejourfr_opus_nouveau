@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/query_propagation.dart';
@@ -178,7 +179,7 @@ class _EeBriefingWritingScreenState
         if (!mounted) return;
         ref.read(eeSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));
-        context.go('/tcf/examen-blanc/$fullExamId');
+        context.go(fullExamHubLocation(context, fullExamId));
       }
       return;
     }
@@ -273,7 +274,7 @@ class _EeBriefingWritingScreenState
       final id = ref.read(eeSessionProvider).value?.attempt?.id;
       ref.read(eeSessionProvider.notifier).reset();
       if (id != null) ref.invalidate(fullTcfExamProvider(fullExamId));
-      context.go('/tcf/examen-blanc/$fullExamId');
+      context.go(fullExamHubLocation(context, fullExamId));
       return;
     }
 
@@ -377,8 +378,9 @@ class _EeBriefingWritingScreenState
     // examen blanc complet où on retourne au progress de l'examen.
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
-    final fallbackRoute =
-        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
+    final fallbackRoute = fullExamId != null
+        ? fullExamHubLocation(context, fullExamId)
+        : '/tcf/ee';
     final session = sessionAsync.value;
     final isExam = session?.isExam ?? false;
     // Examen complet : `deadlineAt` du sous-attempt EE est **l'unique** source

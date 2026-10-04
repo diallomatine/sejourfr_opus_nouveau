@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sejourfr_mobile/core/router/route_observer.dart';
+import 'package:sejourfr_mobile/core/router/retour.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_report_screen.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 
@@ -178,11 +179,16 @@ class AppRoutes {
   // Push après création du parent via POST /api/full-tcf-exams.
   static const tcfFullExamProgress = '/tcf/examen-blanc/:parentId';
 
+  /// Le hub d'un examen complet ; `retour` = l'écran de lancement, que le hub
+  /// et le bilan rejoignent en sortant (`retourExamenDe`).
+  static String tcfFullExamProgressPath(String parentId, {String? retour}) =>
+      avecRetour('/tcf/examen-blanc/$parentId', retour);
+
   // Bilan final agrégé (niveau CECRL plancher + détail des 4 épreuves).
   static const tcfFullExamBilan = '/tcf/examen-blanc/:parentId/bilan';
 
-  static String tcfFullExamBilanPath(String parentId) =>
-      '/tcf/examen-blanc/$parentId/bilan';
+  static String tcfFullExamBilanPath(String parentId, {String? retour}) =>
+      avecRetour('/tcf/examen-blanc/$parentId/bilan', retour);
 
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
@@ -1142,12 +1148,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfFullExamProgress,
         builder: (_, state) => TcfFullExamProgressScreen(
           parentAttemptId: state.pathParameters['parentId']!,
+          retour: retourExamenDe(state.uri.queryParameters),
         ),
       ),
       GoRoute(
         path: AppRoutes.tcfFullExamBilan,
         builder: (_, state) => TcfFullExamBilanScreen(
           parentAttemptId: state.pathParameters['parentId']!,
+          retour: retourExamenDe(state.uri.queryParameters),
         ),
       ),
       // Bilan d'un lot terminé. moduleKey + level passés en query par le

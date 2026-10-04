@@ -30,6 +30,17 @@ conditions réelles.
   l'Accueil, le Profil ou un plein écran : un `context.push` direct fait planter go_router (clé
   de page en double, DEC-03). Retour : `suivreLeRetour` / `cesserDeSuivreLeRetour` (un
   observer par branche, DEC-04).
+- 🛑 **« Retour » d'un examen blanc = l'écran d'où il a été lancé** (2026-10-05, miroir du web
+  `?retour=`). Examens **poussés** (runner QCM, EE/EO) : la pile y suffit — le lanceur pousse,
+  les tâches et le résultat se remplacent (`pushReplacement`), donc la flèche, le « Retour »
+  d'`ExamResultScreen` et « Terminer la session » du bilan EE/EO (`retourOuRepli`, repli
+  Entraînement — il faisait `go(tcfEntrainement)`) dépilent sur le lanceur. **Examen complet**
+  (atteint par `go`, pile perdue) : `?retour=` posé par `startPlanMilestone` et
+  `TcfFullExamsScreen` (`adresseCourante`), lu par **`retourExamenDe`**
+  (`core/router/retour.dart`, chemin interne, jamais un écran d'examen) dans le builder du hub
+  et du bilan, suivi par chaque épreuve (`fullExamHubLocation`, `AppRoutes.tcfFullExamProgressPath`
+  / `tcfFullExamBilanPath(…, retour:)`) ; sortie du hub et « Retour » du bilan → `go(retour)`,
+  sinon comportement d'avant (« Retour aux examens »).
 - **Analytics** : les gabarits sont mappés sur les clés `TrackedScreen` existantes
   (`tracked_screens.dart`) ; `PLAN_OPENED` part à l'affichage du segment Plan.
 - **Couleurs de module** : TCF bleu, civique rouge, via `AppColors.moduleTcf*` /

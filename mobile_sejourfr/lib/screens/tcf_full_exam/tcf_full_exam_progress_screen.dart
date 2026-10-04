@@ -9,6 +9,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/widgets/app_button.dart';
@@ -67,9 +68,18 @@ import 'full_tcf_exam_provider.dart';
 /// par clôtures successives) : le CTA « Voir mon résultat » réapparaît, et
 /// c'est l'écran de bilan qui appelle `finish`.
 class TcfFullExamProgressScreen extends ConsumerStatefulWidget {
-  const TcfFullExamProgressScreen({super.key, required this.parentAttemptId});
+  const TcfFullExamProgressScreen({
+    super.key,
+    required this.parentAttemptId,
+    this.retour,
+  });
 
   final String parentAttemptId;
+
+  /// L'écran d'où l'examen a été lancé (`?retour=`, validé par
+  /// `retourExamenDe`) : il suit chaque épreuve et le bilan, et la sortie y
+  /// ramène. `null` ⇒ comportement historique (dépiler, sinon Examens).
+  final String? retour;
 
   @override
   ConsumerState<TcfFullExamProgressScreen> createState() =>
@@ -157,6 +167,7 @@ class _TcfFullExamProgressScreenState
                 }
                 return _ProgressView(
                   exam: exam,
+                  retour: widget.retour,
                   remaining: remaining,
                   suspending: _suspending,
                   onExit: () => _close(context),
@@ -244,6 +255,11 @@ class _TcfFullExamProgressScreenState
   }
 
   void _close(BuildContext context) {
+    final retour = widget.retour;
+    if (retour != null) {
+      context.go(retour);
+      return;
+    }
     if (context.canPop()) {
       context.pop();
     } else {
@@ -255,6 +271,7 @@ class _TcfFullExamProgressScreenState
 class _ProgressView extends ConsumerWidget {
   const _ProgressView({
     required this.exam,
+    required this.retour,
     required this.remaining,
     required this.suspending,
     required this.onExit,
@@ -262,6 +279,9 @@ class _ProgressView extends ConsumerWidget {
   });
 
   final FullTcfExamResponse exam;
+
+  /// L'écran de lancement, transmis aux épreuves et au bilan.
+  final String? retour;
 
   /// Temps restant sur l'**épreuve en cours**. `null` quand elle n'est pas
   /// encore lancée, qu'elle n'a pas de chrono (expression orale) ou que tout est
@@ -302,7 +322,7 @@ class _ProgressView extends ConsumerWidget {
               label: 'Voir mon résultat',
               icon: LucideIcons.crown,
               onPressed: () => context.go(
-                AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
+                AppRoutes.tcfFullExamBilanPath(exam.id, retour: retour),
               ),
             )
           else
@@ -357,8 +377,11 @@ class _ProgressView extends ConsumerWidget {
       case EpreuveType.tcfCo:
       case EpreuveType.tcfCe:
         context.push(
-          '${AppRoutes.runner.replaceFirst(':attemptId', sub.attemptId)}'
-          '?from=fullTcf&fullExamId=${exam.id}',
+          avecRetour(
+            '${AppRoutes.runner.replaceFirst(':attemptId', sub.attemptId)}'
+            '?from=fullTcf&fullExamId=${exam.id}',
+            retour,
+          ),
         );
         break;
       case EpreuveType.tcfEe:
@@ -367,7 +390,10 @@ class _ProgressView extends ConsumerWidget {
             ? AppRoutes.tcfExpressionEcrite
             : AppRoutes.tcfExpressionOrale;
         context.push(
-          '$base/t/0?from=fullTcf&fullExamId=${exam.id}&subAttemptId=${sub.attemptId}',
+          avecRetour(
+            '$base/t/0?from=fullTcf&fullExamId=${exam.id}&subAttemptId=${sub.attemptId}',
+            retour,
+          ),
         );
         break;
       default:

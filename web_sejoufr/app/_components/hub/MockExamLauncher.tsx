@@ -8,6 +8,7 @@ import {comprehensionExamIntro} from "@/lib/exam-intro";
 import {loadEpreuveTasks, productionTasksKey} from "@/lib/production-catalog";
 import {unlockCoAudio} from "@/lib/co-audio";
 import {handleStartFailure} from "@/lib/start-failure";
+import {adresseCourante, withRetour} from "@/lib/retour";
 import type {QuestionType} from "@/lib/types";
 import {useCachedData} from "@/lib/use-cached-data";
 import {EE_CONFIG, EO_CONFIG} from "@/app/_components/production/config";
@@ -127,6 +128,9 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
     if (request.kind === "COMPREHENSION" && request.questionType === "CO") unlockCoAudio();
     setError(null);
     setStarting(true);
+    // L'écran d'où l'examen part (la feuille est posée dessus) : le bilan y
+    // ramène par son « Retour » (`retourExamenDe`).
+    const origine = adresseCourante();
     try {
       if (request.kind === "PRODUCTION") {
         const config = request.epreuve === "TCF_EO" ? EO_CONFIG : EE_CONFIG;
@@ -136,7 +140,7 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
           exam: true,
           slotNumber: request.slotNumber,
         });
-        router.push(`${config.base}/session/${attempt.id}`);
+        router.push(withRetour(`${config.base}/session/${attempt.id}`, origine));
       } else if (request.kind === "CIVIQUE") {
         const body = {
           type: "MOCK_EXAM" as const,
@@ -147,7 +151,7 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
         const attempt = request.guest
           ? await publicAttemptApi.startDemo(body)
           : await attemptApi.start(body);
-        router.push(`/sessions/${attempt.id}`);
+        router.push(withRetour(`/sessions/${attempt.id}`, origine));
       } else {
         const body = {
           type: "MOCK_EXAM" as const,
@@ -159,7 +163,7 @@ export function MockExamLauncherProvider({children}: {children: ReactNode}) {
           ? await publicAttemptApi.startDemo(body)
           : await attemptApi.start(body);
         request.onStarted?.(attempt.id);
-        router.push(`/sessions/${attempt.id}`);
+        router.push(withRetour(`/sessions/${attempt.id}`, origine));
       }
       setRequest(null);
     } catch (e) {

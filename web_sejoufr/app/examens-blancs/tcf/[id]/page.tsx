@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Check, Lock, Timer } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
@@ -10,6 +10,7 @@ import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { unlockCoAudio } from "@/lib/co-audio";
+import { fullExamBilanHref, retourExamenDe, withRetour } from "@/lib/retour";
 import {
     examIsStale,
     scoreProgressionLabel,
@@ -75,7 +76,9 @@ function useEpreuveCountdown(deadlineAt: string | null | undefined) {
 export default function TcfFullExamProgressPage() {
   return (
     <DualChromeShell>
-      <ProgressInner />
+      <Suspense fallback={null}>
+        <ProgressInner />
+      </Suspense>
     </DualChromeShell>
   );
 }
@@ -84,6 +87,9 @@ function ProgressInner() {
   const params = useParams<{ id: string }>();
   const examId = params?.id ?? "";
   const router = useRouter();
+  /** L'écran d'où l'examen a été lancé : il suit chaque épreuve et le bilan,
+   *  et la sortie y ramène. `null` ⇒ la page des examens blancs. */
+  const retour = retourExamenDe(useSearchParams());
   const { user, status } = useAuth();
 
   const [exam, setExam] = useState<FullTcfExamResponse | null>(null);
@@ -150,8 +156,8 @@ function ProgressInner() {
         // best-effort : la sortie ne doit jamais être bloquée par un aléa réseau
       }
     }
-    router.push("/examens-blancs");
-  }, [exam, examId, suspending, router]);
+    router.push(retour ?? "/examens-blancs");
+  }, [exam, examId, suspending, retour, router]);
 
   // Une nouvelle épreuve courante remet le garde à plat : chaque épreuve a sa
   // propre échéance, donc sa propre expiration. Déclaré AVANT l'effet
@@ -178,8 +184,8 @@ function ProgressInner() {
     return (
       <div className={s.page}>
         <div className={s.error}>{error}</div>
-        <Link href="/examens-blancs" className="btn btn-ghost">
-          Retour aux examens
+        <Link href={retour ?? "/examens-blancs"} className="btn btn-ghost">
+          {retour ? "Retour" : "Retour aux examens"}
         </Link>
       </div>
     );
@@ -235,7 +241,7 @@ function ProgressInner() {
       {/* CTA */}
       <div className={s.ctaZone}>
         {allDone ? (
-          <Link href={`/examens-blancs/tcf/${examId}/bilan`} className="btn btn-red btn-lg">
+          <Link href={fullExamBilanHref(examId, retour)} className="btn btn-red btn-lg">
             Voir mon résultat
           </Link>
         ) : current ? (
@@ -248,7 +254,7 @@ function ProgressInner() {
                 if (starting) return;
                 // Dans le clic, avant tout `await` : la 1re question CO partira seule.
                 if (current.epreuve === "TCF_CO") unlockCoAudio();
-                const href = subAttemptHref(current, examId);
+                const href = withRetour(subAttemptHref(current, examId), retour);
                 // Pose l'échéance PROPRE de l'épreuve au moment de son
                 // lancement réel. Obligatoire sur les 4 épreuves : sans lui
                 // l'épreuve n'a aucune échéance (et l'EE, qui a un chrono, la

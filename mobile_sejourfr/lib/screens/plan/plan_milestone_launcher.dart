@@ -7,6 +7,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/utils/start_failure.dart';
 import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
@@ -54,7 +55,10 @@ Future<void> startPlanMilestone(
     if (!context.mounted) return;
     ref.invalidate(fullExamsHistoryProvider);
     context.go(
-      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+      AppRoutes.tcfFullExamProgressPath(
+        exam.id,
+        retour: adresseCourante(context),
+      ),
     );
   } catch (error) {
     if (!context.mounted) return;

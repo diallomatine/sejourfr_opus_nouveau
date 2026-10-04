@@ -23,7 +23,7 @@ import {
 } from "@/lib/api";
 import { trackDiagnosticAssessmentCompleted } from "@/lib/analytics";
 import { ensureDiagnosticRun } from "@/lib/diagnostic-run";
-import {retourDe, retourOuRepli} from "@/lib/retour";
+import {fullExamHubHref, retourDe, retourExamenDe, retourOuRepli, withRetour} from "@/lib/retour";
 import {passModuleOfExam} from "@/lib/passes";
 import {sessionAppBarInfo} from "@/lib/app-bar";
 import {
@@ -224,6 +224,12 @@ function SessionRunnerInner({ params }: PageProps) {
    * entraînement libre, et « Continuer » y ramène. Validé comme `?next=`.
    */
   const retour = retourDe(searchParams);
+  /**
+   * **L'écran d'où l'examen blanc a été lancé** (le lanceur, le hub d'un
+   * examen complet) : le « Retour » du rapport y ramène. Même paramètre que
+   * `retour`, lu avec la garde des examens ; `null` ⇒ destination historique.
+   */
+  const retourExamen = retourExamenDe(searchParams);
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -281,7 +287,7 @@ function SessionRunnerInner({ params }: PageProps) {
                 module: "TCF",
                 moduleExamQuestionType: attempt.moduleExamQuestionType ?? undefined,
               });
-        router.push(`/sessions/${a.id}`);
+        router.push(withRetour(`/sessions/${a.id}`, retourExamen));
         return;
       }
       // Série : mêmes paramètres que les pages séries.
@@ -361,7 +367,7 @@ function SessionRunnerInner({ params }: PageProps) {
           // Sous-épreuve CO/CE d'un examen complet déjà terminée : on ne montre
           // pas le rapport individuel, on renvoie au hub de progression.
           if (fullExamId) {
-            router.replace(`/examens-blancs/tcf/${fullExamId}`);
+            router.replace(fullExamHubHref(fullExamId, retourExamen));
             return;
           }
           if (civicDiagnosticId) {
@@ -398,7 +404,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status, fullExamId, civicDiagnosticId, router]);
+  }, [attemptId, status, fullExamId, civicDiagnosticId, retourExamen, router]);
 
   useAppBarTitle(
     attempt && (phase === "running" || phase === "result")
@@ -466,6 +472,12 @@ function SessionRunnerInner({ params }: PageProps) {
     // (nouvel onglet, lien partagé). 🛑 La règle vit dans `retourOuRepli` —
     // c'était la première des deux surfaces à l'avoir écrite.
     const goBack = () => {
+      // Examen blanc lancé depuis un écran connu : on y retourne, quelle que
+      // soit l'histoire de l'onglet (corrigé ouvert, « Refaire »…).
+      if (isExam && retourExamen) {
+        router.push(retourExamen);
+        return;
+      }
       retourOuRepli(
         router,
         isExam
@@ -670,11 +682,11 @@ function SessionRunnerInner({ params }: PageProps) {
         }
         quitHref={
           fullExamId
-            ? `/examens-blancs/tcf/${fullExamId}`
+            ? fullExamHubHref(fullExamId, retourExamen)
             : civicDiagnosticId
               ? civicDiagnosticResultHref(civicDiagnosticId)
               : isExam
-                ? examReturnPath(attempt)
+                ? (retourExamen ?? examReturnPath(attempt))
                 : (lotQuitHref ?? "/entrainement")
         }
         // Une épreuve COMMENCÉE ne se reprend jamais : quitter la clôture, ici
@@ -707,7 +719,7 @@ function SessionRunnerInner({ params }: PageProps) {
           // Épreuve d'un examen complet : retour au hub (qui débloque la
           // suivante) au lieu d'afficher le rapport individuel.
           if (fullExamId) {
-            router.push(`/examens-blancs/tcf/${fullExamId}`);
+            router.push(fullExamHubHref(fullExamId, retourExamen));
             return;
           }
           // 🛑 Le diagnostic civique mène DROIT au résultat : sans ce renvoi,

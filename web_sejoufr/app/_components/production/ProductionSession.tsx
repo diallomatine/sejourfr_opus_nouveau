@@ -7,6 +7,8 @@ import { Check, ChevronRight, Lightbulb } from "lucide-react";
 import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { useSubmissionKey } from "@/lib/idempotency";
+import { fullExamHubHref, retourExamenDe } from "@/lib/retour";
+import { safeInternalPath } from "@/lib/security";
 import {
   cecrlIndex,
   correspondanceTcfPhrase,
@@ -99,7 +101,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const fullExamId = searchParams.get("fullExamId");
   /** URL de retour quand on CONSULTE le bilan de l'épreuve (depuis le bilan de
    *  l'examen complet) — distinct de fullExamId qui pilote une épreuve ACTIVE. */
-  const backTo = searchParams.get("backTo");
+  const backTo = safeInternalPath(searchParams.get("backTo"), "") || null;
+  /** L'écran d'où l'examen a été lancé (`?retour=`, posé par le lanceur ou par
+   *  le hub de l'examen complet) : le « Retour » du bilan y ramène, et il suit
+   *  le candidat jusqu'au hub. `null` ⇒ la grille d'examens de l'épreuve. */
+  const retour = retourExamenDe(searchParams);
+  /** Le hub de l'examen complet, avec l'écran de lancement à rejoindre. */
+  const fullExamHub = fullExamId ? fullExamHubHref(fullExamId, retour) : "";
   const { user, status } = useAuth();
 
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
@@ -265,7 +273,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           // l'examen complet on a `backTo` (et pas `fullExamId`) → on reste sur
           // le bilan de l'épreuve.
           if (fullExamId && allSubmitted) {
-            router.replace(`/examens-blancs/tcf/${fullExamId}`);
+            router.replace(fullExamHub);
             return;
           }
           finishedRef.current = true;
@@ -373,7 +381,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             // Fallback : le backend pose finishedAt dès que la 3ᵉ submission
             // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
           }
-          router.push(`/examens-blancs/tcf/${fullExamId}`);
+          router.push(fullExamHub);
         } else {
           await goToBilan();
         }
@@ -413,7 +421,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     } else if (fullExamId) {
       finishedRef.current = true;
       await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
-      router.push(`/examens-blancs/tcf/${fullExamId}`);
+      router.push(fullExamHub);
     } else {
       await goToBilan();
     }
@@ -495,7 +503,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       if (fullExamId) {
         finishedRef.current = true;
         await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
-        router.push(`/examens-blancs/tcf/${fullExamId}`);
+        router.push(fullExamHub);
       } else {
         await goToBilan();
       }
@@ -513,7 +521,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (fullExamId) {
       await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
-      if (!cancelledRef.current) router.push(`/examens-blancs/tcf/${fullExamId}`);
+      if (!cancelledRef.current) router.push(fullExamHub);
     } else {
       await attemptApi.finish(attemptId).catch(() => undefined);
       if (cancelledRef.current) return;
@@ -521,7 +529,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       setPhase("bilan");
       startBilanPolling();
     }
-  }, [attemptId, fullExamId, config.epreuve, router, startBilanPolling]);
+  }, [attemptId, fullExamId, fullExamHub, config.epreuve, router, startBilanPolling]);
 
   /**
    * Quitter une épreuve d'examen complet : **elle est close sur-le-champ**,
@@ -534,9 +542,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (fullExamId) {
       await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
-      router.push(`/examens-blancs/tcf/${fullExamId}`);
+      router.push(fullExamHub);
     }
-  }, [fullExamId, config.epreuve, router]);
+  }, [fullExamId, fullExamHub, config.epreuve, router]);
 
   const onEeTimeout = useCallback(
     async (texte: string, recevable: boolean) => {
@@ -612,9 +620,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     <DualChromeShell>
       <DetailShell
         backHref={
-          backTo ?? (fullExamId ? `/examens-blancs/tcf/${fullExamId}` : `${config.base}/examens`)
+          backTo ?? (fullExamId ? fullExamHub : (retour ?? `${config.base}/examens`))
         }
-        backLabel={backTo ? "Bilan de l'examen" : fullExamId ? "Examen complet" : "Examens blancs"}
+        // Examen joué seul : « Retour » vers l'écran de lancement (Plan,
+        // Accueil, grille…), la grille d'examens de l'épreuve à défaut.
+        backLabel={backTo ? "Bilan de l'examen" : fullExamId ? "Examen complet" : "Retour"}
         // Épreuve d'examen complet en cours : sortir la clôture, donc on demande
         // avant. En consultation de bilan (`backTo`) il n'y a plus rien à clore.
         onBack={

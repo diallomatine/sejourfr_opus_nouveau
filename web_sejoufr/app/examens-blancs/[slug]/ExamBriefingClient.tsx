@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { attemptApi, publicAttemptApi } from "@/lib/api";
+import {adresseCourante, withRetour} from "@/lib/retour";
 import { unlockCoAudio } from "@/lib/co-audio";
 import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
@@ -134,7 +135,7 @@ function ExamBriefingInner({
             examTemplateId: exam.id,
             slotNumber,
           });
-      router.push(`/sessions/${a.id}`);
+      router.push(withRetour(`/sessions/${a.id}`, adresseCourante()));
     } catch (e) {
       handleStartFailure(e, {
         onPaywall: () => setShowPaywall(true),

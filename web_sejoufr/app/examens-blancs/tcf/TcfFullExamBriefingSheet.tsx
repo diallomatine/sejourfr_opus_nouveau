@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fullTcfExamApi } from "@/lib/api";
+import { adresseCourante, fullExamHubHref } from "@/lib/retour";
 import { handleStartFailure } from "@/lib/start-failure";
 import {
   EPREUVE_PRESENTATION,
@@ -51,7 +52,7 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
     setError(null);
     try {
       const exam = await fullTcfExamApi.start(slotNumber);
-      router.push(`/examens-blancs/tcf/${exam.id}`);
+      router.push(fullExamHubHref(exam.id, adresseCourante()));
     } catch (e) {
       let handedToPaywall = false;
       handleStartFailure(e, {

@@ -27,6 +27,7 @@ import {
 import {IconShield, IconTarget} from "@/app/_components/shell/ShellIcons";
 import {examSlotGrid} from "@/lib/exam-slots";
 import {moduleDeLUrl, type ParcoursModule} from "@/lib/module-switch";
+import {adresseCourante, withRetour} from "@/lib/retour";
 import {useExamSlotGrid} from "@/lib/use-exam-slot-locks";
 import {EPREUVE_PRESENTATION, FULL_TCF_EXAM_INDICATIVE_SEC, minutesLabel, plannedEpreuveLabel} from "@/lib/exam-durations";
 import {isCompleteExamResult} from "@/lib/exam-levels";
@@ -332,7 +333,7 @@ function ExamsConnectedHome() {
                 examTemplateId: civiqueTemplate?.id,
                 slotNumber: civiqueSlot,
             });
-            router.push(`/sessions/${a.id}`);
+            router.push(withRetour(`/sessions/${a.id}`, adresseCourante()));
         } catch (e) {
             handleStartFailure(e, {
                 onPaywall: () => {
@@ -853,7 +854,7 @@ function ExamsGuestHome() {
         setDemoError(null);
         try {
             const a = await publicAttemptApi.startDemo({type: "MOCK_EXAM", module: introModule, examTemplateId: tpl.id});
-            router.push(`/sessions/${a.id}`);
+            router.push(withRetour(`/sessions/${a.id}`, adresseCourante()));
         } catch (e) {
             handleStartFailure(e, {
                 onPaywall: () => {

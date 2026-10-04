@@ -7,7 +7,9 @@ import {safeInternalPath} from "./security";
  *
  * - `retourOuRepli` — le geste « remonter » d'une page, côté navigateur ;
  * - `RETOUR_PARAM` / `retourDe` / `withRetour` — le **chemin** d'où le candidat
- *   est parti acheter, qui voyage jusqu'à Stripe et en revient.
+ *   est parti acheter, qui voyage jusqu'à Stripe et en revient ; le même
+ *   paramètre porte l'écran de lancement d'une série (`sessionHref`) et d'un
+ *   examen blanc (`retourExamenDe`).
  */
 
 export const RETOUR_PARAM = "retour";
@@ -138,4 +140,44 @@ export function sessionHref(
 /** L'adresse de l'écran courant, pour la reposer en `retour`. Client seulement. */
 export function adresseCourante(): string {
     return `${window.location.pathname}${window.location.search}`;
+}
+
+/**
+ * **Les écrans d'un examen blanc** — runner QCM, session EE/EO, hub et bilan de
+ * l'examen complet. Un `retour` qui en désigne un est refusé : le « Retour »
+ * d'un bilan ne doit jamais rouvrir l'examen qu'il vient de clore.
+ */
+const ECRANS_D_EXAMEN = [
+    /^\/sessions\//,
+    /^\/entrainement\/tcf\/(ee|eo)\/session\//,
+    /^\/examens-blancs\/tcf\/[^/]+/,
+];
+
+/**
+ * **L'écran d'où un examen blanc a été lancé**, lu et validé, ou `null`.
+ *
+ * Le lanceur (`MockExamLauncher`, les feuilles de l'examen complet, le Plan)
+ * pose l'adresse de l'écran courant en `?retour=` sur la première page de
+ * l'examen ; chaque page de l'examen la fait suivre ; le bilan s'en sert pour
+ * son lien « Retour ». 🛑 Même garde que `retourDe` (chemin interne, jamais
+ * `//` ni `/\`), plus le refus des écrans d'examen. `null` (lien direct, ancien
+ * lien, valeur trafiquée) ⇒ le bilan garde sa destination historique.
+ *
+ * Miroir mobile : `retourExamenDe` (`core/router/retour.dart`).
+ */
+export function retourExamenDe(params: {get(key: string): string | null}): string | null {
+    const sur = retourDe(params);
+    if (!sur) return null;
+    const chemin = sur.split(/[?#]/)[0];
+    return ECRANS_D_EXAMEN.some((motif) => motif.test(chemin)) ? null : sur;
+}
+
+/** Le hub d'un examen blanc TCF complet, avec l'écran de lancement à rejoindre. */
+export function fullExamHubHref(examId: string, retour: string | null): string {
+    return withRetour(`/examens-blancs/tcf/${examId}`, retour);
+}
+
+/** Le bilan d'un examen blanc TCF complet, avec l'écran de lancement à rejoindre. */
+export function fullExamBilanHref(examId: string, retour: string | null): string {
+    return withRetour(`/examens-blancs/tcf/${examId}/bilan`, retour);
 }

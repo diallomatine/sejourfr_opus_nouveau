@@ -25,9 +25,17 @@ import 'full_tcf_exam_provider.dart';
 /// `_pollExhausted` qui remplace le spinner du badge par une icône
 /// "Actualiser" — et le pull-to-refresh relance un cycle complet.
 class TcfFullExamBilanScreen extends ConsumerStatefulWidget {
-  const TcfFullExamBilanScreen({super.key, required this.parentAttemptId});
+  const TcfFullExamBilanScreen({
+    super.key,
+    required this.parentAttemptId,
+    this.retour,
+  });
 
   final String parentAttemptId;
+
+  /// L'écran d'où l'examen a été lancé (`?retour=`, suivi depuis le hub) : le
+  /// « Retour » y ramène. `null` ⇒ dépiler, sinon les examens.
+  final String? retour;
 
   @override
   ConsumerState<TcfFullExamBilanScreen> createState() => _TcfFullExamBilanScreenState();
@@ -223,6 +231,7 @@ class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen>
               color: AppColors.red,
               child: _BilanView(
                 exam: exam,
+                retour: widget.retour,
                 pollExhausted: effectiveExhausted,
                 onManualRefresh: _onPullToRefresh,
               ),
@@ -237,11 +246,13 @@ class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen>
 class _BilanView extends StatelessWidget {
   const _BilanView({
     required this.exam,
+    required this.retour,
     required this.pollExhausted,
     required this.onManualRefresh,
   });
 
   final FullTcfExamResponse exam;
+  final String? retour;
   final bool pollExhausted;
   final Future<void> Function() onManualRefresh;
 
@@ -274,7 +285,7 @@ class _BilanView extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         AppButton(
-          label: 'Retour aux examens',
+          label: retour != null ? 'Retour' : 'Retour aux examens',
           icon: LucideIcons.arrowLeft,
           onPressed: () => _backToExams(context),
         ),
@@ -283,6 +294,12 @@ class _BilanView extends StatelessWidget {
   }
 
   void _backToExams(BuildContext context) {
+    // Examen lancé depuis un écran connu (Plan, Examens…) : on y retourne.
+    final retour = this.retour;
+    if (retour != null) {
+      context.go(retour);
+      return;
+    }
     // Revenir à la page précédente quand on a été poussé dessus (consultation
     // d'un examen depuis la liste). Sinon (arrivée via `go` après avoir fini un
     // examen → pile remplacée), repli sur la liste des examens.

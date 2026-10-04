@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Lock, RotateCw, TriangleAlert } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
 import { ApiException, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { fullExamBilanHref, retourExamenDe } from "@/lib/retour";
 import {
   examIsStale,
   floorMarks,
@@ -43,7 +44,9 @@ const EPREUVE_META: Record<string, { icon: string; label: string }> = {
 export default function TcfFullExamBilanPage() {
   return (
     <DualChromeShell>
-      <BilanInner />
+      <Suspense fallback={null}>
+        <BilanInner />
+      </Suspense>
     </DualChromeShell>
   );
 }
@@ -52,6 +55,9 @@ function BilanInner() {
   const params = useParams<{ id: string }>();
   const examId = params?.id ?? "";
   const { user, status } = useAuth();
+  /** L'écran d'où l'examen a été lancé (`?retour=`, suivi depuis le hub) :
+   *  le « Retour » y ramène. `null` ⇒ la page des examens blancs. */
+  const retour = retourExamenDe(useSearchParams());
 
   const [exam, setExam] = useState<FullTcfExamResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,8 +183,8 @@ function BilanInner() {
     return (
       <div className={s.page}>
         <div className={s.error}>{error}</div>
-        <Link href="/examens-blancs" className="btn btn-ghost">
-          Retour aux examens
+        <Link href={retour ?? "/examens-blancs"} className="btn btn-ghost">
+          {retour ? "Retour" : "Retour aux examens"}
         </Link>
       </div>
     );
@@ -260,14 +266,15 @@ function BilanInner() {
             sa={sa}
             view={views[i]}
             examId={examId}
+            retour={retour}
             isFloor={marks[i]}
             onRefresh={handleRefresh}
           />
         ))}
       </div>
 
-      <Link href="/examens-blancs" className="btn btn-ghost" style={{ width: "100%" }}>
-        Retour aux examens
+      <Link href={retour ?? "/examens-blancs"} className="btn btn-ghost" style={{ width: "100%" }}>
+        {retour ? "Retour" : "Retour aux examens"}
       </Link>
     </div>
   );
@@ -277,12 +284,14 @@ function SubAttemptCard({
   sa,
   view,
   examId,
+  retour,
   isFloor,
   onRefresh,
 }: {
   sa: FullTcfExamSubAttempt;
   view: SubAttemptView;
   examId: string;
+  retour: string | null;
   /** Épreuve qui tire le résultat global vers le bas. Signalée **en toutes
    *  lettres** : la couleur, elle, ne dit que le palier (cf. `epreuveLevelTone`). */
   isFloor: boolean;
@@ -298,7 +307,7 @@ function SubAttemptCard({
 
   // Le détail d'une épreuve revient au bilan de l'examen (pas vers les examens
   // de l'épreuve) : on transmet `backTo` aux sessions de production.
-  const backTo = `/examens-blancs/tcf/${examId}/bilan`;
+  const backTo = fullExamBilanHref(examId, retour);
   const href = isProduction
     ? `/entrainement/tcf/${sa.epreuve === "TCF_EE" ? "ee" : "eo"}/session/${sa.attemptId}?backTo=${encodeURIComponent(backTo)}`
     : `/sessions/${sa.attemptId}`;

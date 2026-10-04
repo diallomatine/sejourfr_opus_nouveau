@@ -12,6 +12,7 @@ import '../../core/models/enums.dart';
 import '../../core/models/exam_slots.dart';
 import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
+import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/selected_module.dart';
@@ -96,7 +97,10 @@ class TcfFullExamsView extends ConsumerWidget {
             if (!context.mounted) return;
             ref.invalidate(fullExamsHistoryProvider);
             context.go(
-              AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+              AppRoutes.tcfFullExamProgressPath(
+                exam.id,
+                retour: adresseCourante(context),
+              ),
             );
           } catch (e) {
             if (!context.mounted) return;
@@ -110,7 +114,10 @@ class TcfFullExamsView extends ConsumerWidget {
     }
 
     void resume(FullTcfExamSummary exam) => context.go(
-          AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+          AppRoutes.tcfFullExamProgressPath(
+            exam.id,
+            retour: adresseCourante(context),
+          ),
         );
 
     final history = historyAsync.valueOrNull;
@@ -195,7 +202,10 @@ class TcfFullExamsView extends ConsumerWidget {
     // un examen « déjà fait »).
     if (exam.status == FullTcfExamStatus.inProgress) {
       context.go(
-        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+        AppRoutes.tcfFullExamProgressPath(
+          exam.id,
+          retour: adresseCourante(context),
+        ),
       );
       return;
     }
