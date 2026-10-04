@@ -209,6 +209,12 @@ export function QuestionDetailPage() {
             </div>
           )}
 
+          {module === "TCF" && q.audioMediaUrl && (
+            <div className={styles.mediaBlock}>
+              <MediaPreview url={q.audioMediaUrl} type="AUDIO" />
+            </div>
+          )}
+
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
               <span className={styles.sectionLabel}>Choix de réponse</span>
