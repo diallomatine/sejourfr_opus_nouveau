@@ -43,7 +43,9 @@ class DiagnosticServiceTest {
             mock(DiagnosticProductionAnalysisManager.class), skills, exerciseSelector,
             mock(ProductionEvaluationService.class),
             mock(DiagnosticSessionCoordinator.class), mock(RateLimitGuard.class),
-            mock(com.sejourfr.app.service.diagnosticrun.DiagnosticRunService.class));
+            mock(com.sejourfr.app.service.diagnosticrun.DiagnosticRunService.class),
+            mock(DiagnosticPlanPriorities.class),
+            mock(com.sejourfr.app.manager.UserManager.class));
 
     @Test
     void resultatSansPrioriteProposeQuandMemeUnMicroExerciceDisponible() {

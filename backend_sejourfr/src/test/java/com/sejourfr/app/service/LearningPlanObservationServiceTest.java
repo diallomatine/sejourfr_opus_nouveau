@@ -16,6 +16,7 @@ import com.sejourfr.app.enums.SkillCriterionStatus;
 import com.sejourfr.app.progression.service.ProductiveEvidenceAdapter;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserSkillAttemptManager;
+import com.sejourfr.app.util.OrdreDesPriorites;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -209,6 +211,67 @@ class LearningPlanObservationServiceTest {
         verify(observationManager).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(LearningPlanSkillStatus.TO_REINFORCE);
         assertThat(saved.getValue().isObserved()).isTrue();
+    }
+
+    /**
+     * 🔴 <b>AR-3 — reproduction du bug de departage</b> (audit du 2026-10-04).
+     *
+     * <p>Le correcteur rend ses competences dans l'ordre editorial. L'ancien
+     * code posait {@code Instant.now()} a CHAQUE ligne : la derniere ecrite
+     * etait donc « la plus recente », et l'ordre de gravite — qui departage par
+     * la recence — la mettait en tete. Le lot du Plan retenait EE3-C4, C3, C2
+     * la ou le rang editorial dit C1, C2, C3.
+     */
+    @Test
+    void toutesLesObservationsDUneProductionPortentLeMemeInstantEtLOrdreEstEditorial() {
+        ProductionSubmission submission = submission(EpreuveType.TCF_EE);
+        when(observationManager.findBySource(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+        List<Skill> allowlist = List.of(
+                skill("EE3-C1", 1), skill("EE3-C2", 2), skill("EE3-C3", 3), skill("EE3-C4", 4));
+
+        service.recordProduction(submission, allowlist, analyseAEgalite(allowlist), true);
+
+        ArgumentCaptor<LearningPlanObservation> saved =
+                ArgumentCaptor.forClass(LearningPlanObservation.class);
+        verify(observationManager, times(4)).save(saved.capture());
+        List<LearningPlanObservation> ecrites = saved.getAllValues();
+        assertThat(ecrites).extracting(LearningPlanObservation::getObservedAt)
+                .as("un seul instant pour toute la production").containsOnly(
+                        ecrites.getFirst().getObservedAt());
+        assertThat(codes(ecrites.stream().sorted(OrdreDesPriorites.PAR_GRAVITE).limit(3).toList()))
+                .containsExactly("EE3-C1", "EE3-C2", "EE3-C3");
+
+        // L'ANCIEN COMPORTEMENT, rejoue : un instant par ligne, croissant dans
+        // l'ordre d'ecriture. La recence retenait la derniere competence ecrite.
+        for (int i = 0; i < ecrites.size(); i++) {
+            ecrites.get(i).setObservedAt(Instant.parse("2026-10-04T00:17:12.213287Z")
+                    .plusNanos(i * 7_000L));
+        }
+        assertThat(codes(ecrites.stream().sorted(OrdreDesPriorites.PAR_GRAVITE).limit(3).toList()))
+                .containsExactly("EE3-C4", "EE3-C3", "EE3-C2");
+    }
+
+    private static List<String> codes(List<LearningPlanObservation> observations) {
+        return observations.stream().map(item -> item.getSkill().getCode()).toList();
+    }
+
+    private static Map<String, Object> analyseAEgalite(List<Skill> skills) {
+        return Map.of("skills", skills.stream().map(skill -> Map.<String, Object>of(
+                "skill_code", skill.getCode(),
+                "observed", true,
+                "status", "TO_REINFORCE",
+                "evidence", "Extrait.",
+                "explanation", "Constat.",
+                "confidence", "MEDIUM")).toList());
+    }
+
+    private static Skill skill(String code, int rang) {
+        Skill skill = new Skill();
+        skill.setId(UUID.randomUUID());
+        skill.setCode(code);
+        skill.setDisplayOrder((short) rang);
+        return skill;
     }
 
     private static Map<String, Object> analyse(String status) {

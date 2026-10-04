@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.DiagnosticFormatDto;
 import com.sejourfr.app.dto.DiagnosticProductionResultDto;
 import com.sejourfr.app.dto.DiagnosticResponse;
 import com.sejourfr.app.dto.DiagnosticExempleCibleDto;
+import com.sejourfr.app.dto.DiagnosticPlanPriorityDto;
 import com.sejourfr.app.dto.DiagnosticResultDto;
 import com.sejourfr.app.dto.DiagnosticSkillObservationDto;
 import com.sejourfr.app.dto.PlanRecommendedExerciseDto;
@@ -14,6 +15,7 @@ import com.sejourfr.app.entity.DiagnosticSession;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Skill;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.ClientPlatform;
 import com.sejourfr.app.enums.DiagnosticJourneyStatus;
 import com.sejourfr.app.enums.DiagnosticSessionStatus;
@@ -21,11 +23,15 @@ import com.sejourfr.app.enums.DiagnosticStep;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.ObservationConfidence;
+import com.sejourfr.app.enums.SituationObjectif;
+import com.sejourfr.app.enums.TargetLevel;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.DiagnosticProductionAnalysisManager;
 import com.sejourfr.app.manager.DiagnosticSessionManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.SkillManager;
+import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import com.sejourfr.app.service.RecommendedExerciseSelector;
 import com.sejourfr.app.service.diagnostic.exemplecible.DiagnosticExempleCibleFields;
@@ -64,6 +70,8 @@ public class DiagnosticService {
     private final DiagnosticSessionCoordinator coordinator;
     private final RateLimitGuard rateLimitGuard;
     private final DiagnosticRunService diagnosticRunService;
+    private final DiagnosticPlanPriorities planPriorities;
+    private final UserManager userManager;
 
     public DiagnosticResponse current(UUID userId) {
         String code = content.activeCode();
@@ -253,12 +261,30 @@ public class DiagnosticService {
         List<DiagnosticSkillObservationDto> priorities = strings(summary.get("priority_skill_codes"))
                 .stream().map(observations::get).filter(Objects::nonNull).limit(3).toList();
         PlanRecommendedExerciseDto next = recommendedAction(userId, observations, priorities);
+        Map<UUID, DiagnosticSkillObservationDto> constats = new LinkedHashMap<>();
+        observations.values().forEach(item -> constats.putIfAbsent(item.skillId(), item));
+        List<DiagnosticPlanPriorityDto> lot = planPriorities.lire(userId, session.getId(), constats);
+        TargetLevel objectif = objectif(userId);
         return new DiagnosticResultDto(
                 written, oral, strings(summary.get("strengths")), priorities,
                 nullableText(summary.get("main_priority_explanation")), next,
                 exempleCible(writtenAnalysis),
                 fragileSkillCount(observations.values()),
-                solidSkillCount(observations.values()));
+                solidSkillCount(observations.values()),
+                lot, objectif,
+                SituationObjectif.de(written == null ? null : written.levelEstimate(), objectif));
+    }
+
+    /**
+     * L'objectif du candidat, par l'autorite unique
+     * ({@link TargetProcedure#niveauVise}) — la meme valeur que
+     * {@code AuthenticatedUser.targetLevel}, donc le rapport et l'en-tete ne
+     * peuvent pas annoncer deux objectifs. {@code null} = objectif inconnu.
+     */
+    private TargetLevel objectif(UUID userId) {
+        User user = userManager.findById(userId).orElse(null);
+        if (user == null) return null;
+        return TargetProcedure.niveauVise(user.getTargetProcedure(), user.getTargetLevel());
     }
 
     /**

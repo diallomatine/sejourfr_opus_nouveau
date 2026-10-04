@@ -2,14 +2,13 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.LearningPlanObservation;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
-import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
+import com.sejourfr.app.util.OrdreDesPriorites;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +107,7 @@ public class LearningPlanPriorityResolver {
     /**
      * <b>TOUTES</b> les priorites, deja ordonnees : {@code PRIORITY} avant
      * {@code TO_REINFORCE}, puis <b>confiance decroissante</b>, puis
-     * l'observation la plus recente.
+     * l'observation la plus recente, puis le rang editorial et le code.
      *
      * <p>🛑 <b>Aucun plafond ici depuis le 2026-08-26.</b> Cette methode rendait
      * au plus cinq lignes, et {@code LearningPlanService} s'en servait comme
@@ -131,14 +130,13 @@ public class LearningPlanPriorityResolver {
      * reussi, on passe a la competence suivante » : c'est ce qui fait avancer le
      * Plan d'une etape.
      *
-     * <p><b>La confiance departage avant la recence</b>, et ce n'est pas un
-     * detail : c'est ce qui empeche cette methode et
-     * {@code DiagnosticPriorityRanking} de designer deux etapes n&deg;1
-     * differentes. Les deux productions du diagnostic sont observees au meme
-     * instant — la recence n'y trie rien, la confiance si, et c'est le premier
-     * critere de la regle du diagnostic. Deux surfaces qui repondent
-     * differemment a la meme question, c'est le defaut deja corrige sur le
-     * niveau TCF estime.
+     * <p><b>L'ordre est {@link OrdreDesPriorites#PAR_GRAVITE}</b> — le meme
+     * objet que celui du lot du parcours ({@code JourneyLotBuilder}) : statut,
+     * confiance decroissante, recence, rang editorial, code. Toutes les
+     * observations d'une meme production portent le meme instant (AR-3,
+     * 2026-10-04) : a l'interieur d'une production, la recence ne trie donc
+     * rien, et c'est le rang editorial de la competence qui tranche — plus
+     * l'ordre dans lequel les lignes ont ete ecrites.
      *
      * @param observations tout l'historique du candidat, <b>de la plus recente a
      *                     la plus ancienne</b>. L'historique entier est
@@ -169,19 +167,15 @@ public class LearningPlanPriorityResolver {
                 .filter(item -> !etapeVerifiee(mastery, item))
                 .filter(item -> item.getStatus() == LearningPlanSkillStatus.PRIORITY
                         || item.getStatus() == LearningPlanSkillStatus.TO_REINFORCE)
-                .sorted(Comparator
-                        .comparingInt((LearningPlanObservation item) ->
-                                item.getStatus() == LearningPlanSkillStatus.PRIORITY ? 0 : 1)
-                        .thenComparingInt(item -> -confidenceRank(item.getConfidence()))
-                        .thenComparing(LearningPlanObservation::getObservedAt,
-                                Comparator.reverseOrder()))
+                .sorted(OrdreDesPriorites.PAR_GRAVITE)
                 .toList();
     }
 
     /**
      * Les <b>etapes franchies</b> : la derniere observation probante de chaque
      * competence dont le transfert est prouve, <b>de la plus recente a la plus
-     * ancienne</b> et departagee par code pour rester deterministe.
+     * ancienne</b>, departagee par {@link OrdreDesPriorites#PLUS_RECENTE_D_ABORD}
+     * (rang editorial puis code) pour rester deterministe.
      *
      * <p>Exactement le complement de {@link #actionable} : ce que l'une ecarte,
      * l'autre le rend. Une competence franchie ne <b>disparait</b> donc plus du
@@ -195,10 +189,7 @@ public class LearningPlanPriorityResolver {
             Map<UUID, SkillMasteryEngine.SkillMastery> mastery) {
         return latestObservedBySkill(observations).values().stream()
                 .filter(item -> transfertProuve(mastery, item))
-                .sorted(Comparator
-                        .comparing(LearningPlanObservation::getObservedAt,
-                                Comparator.reverseOrder())
-                        .thenComparing(item -> item.getSkill().getCode()))
+                .sorted(OrdreDesPriorites.PLUS_RECENTE_D_ABORD)
                 .toList();
     }
 
@@ -256,19 +247,5 @@ public class LearningPlanPriorityResolver {
             List<LearningPlanObservation> observations) {
         return masteryResolver.fromObservations(
                 observations, latestObservedBySkill(observations).keySet());
-    }
-
-    /**
-     * {@code HIGH} 3, {@code MEDIUM} 2, tout le reste 1 — miroir de
-     * {@code DiagnosticPriorityRanking.confidenceRank}, sur l'observation
-     * persistee au lieu du JSON du correcteur.
-     */
-    private static int confidenceRank(ObservationConfidence confidence) {
-        if (confidence == null) return 1;
-        return switch (confidence) {
-            case HIGH -> 3;
-            case MEDIUM -> 2;
-            case LOW -> 1;
-        };
     }
 }

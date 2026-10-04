@@ -6,11 +6,11 @@ import com.sejourfr.app.entity.Skill;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.NiveauCecrl;
-import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.dto.TcfDomainProfileDto;
 import com.sejourfr.app.service.journey.JourneyObservationSources.Sources;
+import com.sejourfr.app.util.OrdreDesPriorites;
 import com.sejourfr.app.util.TcfDomaine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -29,19 +29,20 @@ import java.util.UUID;
  * epreuve (R2), et dans quel ordre les lots entrent dans la file (R10 bis).
  *
  * <h2>🛑 Aucune regle de gravite n'est ecrite ici</h2>
- * <p>L'ordre des priorites est celui de
- * {@code LearningPlanPriorityResolver.actionable()} — statut, puis <b>confiance
- * decroissante</b>, puis recence — et il est <b>reproduit</b>, pas reinvente :
- * ce comparateur est le meme, departage par {@code skillCode} pour rester
- * deterministe a egalite parfaite (les deux productions d'un diagnostic sont
- * observees au meme instant, donc la recence n'y trie rien).
+ * <p>L'ordre des priorites est {@link OrdreDesPriorites#PAR_GRAVITE} — statut,
+ * confiance decroissante, recence, rang editorial, code —, le <b>meme objet</b>
+ * que celui de {@code LearningPlanPriorityResolver.actionable()}. Il n'est plus
+ * reproduit ici : la copie privee qui vivait dans cette classe departageait par
+ * une recence faussee (un instant par LIGNE d'observation, donc « la derniere
+ * competence ecrite gagne ») et finissait par le code, sans rang editorial
+ * (AR-3, 2026-10-04).
  *
- * <p>Pourquoi le reproduire plutot que l'appeler : le resolveur travaille sur
- * <b>la derniere observation de chaque competence</b>, tous historiques
- * confondus, et rend le pool <b>courant</b> du candidat. Le lot, lui, est la
- * photographie de ce qu'<b>UNE evaluation donnee</b> a designe — un fait date,
- * pas un etat. Les deux questions sont differentes ; le critere de tri est le
- * meme, et c'est tout ce qui doit l'etre.
+ * <p>Pourquoi ne pas appeler le resolveur : il travaille sur <b>la derniere
+ * observation de chaque competence</b>, tous historiques confondus, et rend le
+ * pool <b>courant</b> du candidat. Le lot, lui, est la photographie de ce
+ * qu'<b>UNE evaluation donnee</b> a designe — un fait date, pas un etat. Les
+ * deux questions sont differentes ; le critere de tri est le meme, et c'est
+ * tout ce qui doit l'etre.
  *
  * <h2>Le plafond est un budget de FILE, et c'est assume</h2>
  * <p>{@code maxPrioritiesPerLot} borne ce que la file <b>met en attente</b> : les
@@ -242,7 +243,7 @@ public class JourneyLotBuilder {
         parEpreuve.forEach((epreuve, fragilites) -> {
             List<Priorite> priorites = new ArrayList<>();
             fragilites.stream()
-                    .sorted(PAR_GRAVITE)
+                    .sorted(OrdreDesPriorites.PAR_GRAVITE)
                     .map(LearningPlanObservation::getSkill)
                     // R13 — pas deux fois la meme competence dans un lot. Une
                     // evaluation peut l'observer sur deux taches ; c'est une
@@ -263,30 +264,6 @@ public class JourneyLotBuilder {
         lotsParEpreuve(observations, maitriseesCeJour).forEach((epreuve, priorites) ->
                 lots.add(new Lot(epreuve, source.apply(epreuve), priorites)));
         return lots;
-    }
-
-    /**
-     * L'ordre de gravite, <b>le meme</b> que
-     * {@code LearningPlanPriorityResolver.actionable()} : {@code PRIORITY} avant
-     * {@code TO_REINFORCE}, puis confiance <b>decroissante</b>, puis observation
-     * la plus recente — et enfin le code, pour qu'une egalite parfaite reste
-     * deterministe.
-     */
-    private static final Comparator<LearningPlanObservation> PAR_GRAVITE = Comparator
-            .comparingInt((LearningPlanObservation item) ->
-                    item.getStatus() == LearningPlanSkillStatus.PRIORITY ? 0 : 1)
-            .thenComparingInt(item -> -confiance(item.getConfidence()))
-            .thenComparing(LearningPlanObservation::getObservedAt, Comparator.reverseOrder())
-            .thenComparing(item -> item.getSkill().getCode());
-
-    /** {@code HIGH} 3, {@code MEDIUM} 2, tout le reste 1 — miroir du resolveur du Plan. */
-    private static int confiance(ObservationConfidence confidence) {
-        if (confidence == null) return 1;
-        return switch (confidence) {
-            case HIGH -> 3;
-            case MEDIUM -> 2;
-            case LOW -> 1;
-        };
     }
 
     // -------------------------------------------------------------- R10 bis

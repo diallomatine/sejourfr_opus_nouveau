@@ -1,5 +1,8 @@
 package com.sejourfr.app.dto;
 
+import com.sejourfr.app.enums.SituationObjectif;
+import com.sejourfr.app.enums.TargetLevel;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -28,6 +31,30 @@ import java.util.Objects;
  *                          le compte réel des points forts. {@code strengths},
  *                          lui, est plafonné à 3 <b>à l'écriture</b> du résumé et
  *                          ne peut donc porter aucun compteur.
+ * @param planPriorities    🛑 <b>les priorités du LOT DU PLAN</b>, seule
+ *                          autorité des priorités que montrent le rapport, la
+ *                          transition et le Plan (par {@code skillId}) : les
+ *                          étapes {@code TRAIN_SKILL} dont
+ *                          {@code source_assessment_id} est cette session, dans
+ *                          l'ordre du lot. <b>Jamais {@code null}</b> ; vide
+ *                          quand aucun lot n'existe (zéro fragilité, parcours
+ *                          pas encore écrit, session antérieure au parcours) —
+ *                          sans repli sur {@code priorities}. Cf.
+ *                          {@link DiagnosticPlanPriorityDto}.
+ * @param objectiveLevel    l'objectif du candidat
+ *                          ({@code TargetProcedure.niveauVise}), la même valeur
+ *                          que {@code /api/auth/me → targetLevel}. {@code null}
+ *                          = inconnu.
+ * @param situationObjectif le niveau estimé de l'écrit
+ *                          ({@code written.levelEstimate}) situé par rapport à
+ *                          {@code objectiveLevel}. {@code null} si l'un des deux
+ *                          est inconnu — les fronts se taisent alors.
+ *
+ * <p>⚠️ {@code priorities} et {@code mainPriorityExplanation} sont les
+ * priorités du <b>diagnostic</b> (≤ 2 par production, règle de
+ * {@code DiagnosticPriorityRanking}) : elles ne coïncident pas avec le Plan et
+ * ne doivent plus être affichées comme « vos priorités ». Elles restent servies
+ * pour les clients installés et nourrissent {@code nextAction}.
  */
 public record DiagnosticResultDto(
         DiagnosticProductionResultDto written,
@@ -38,11 +65,15 @@ public record DiagnosticResultDto(
         PlanRecommendedExerciseDto nextAction,
         DiagnosticExempleCibleDto exempleCible,
         int fragileSkillCount,
-        int solidSkillCount
+        int solidSkillCount,
+        List<DiagnosticPlanPriorityDto> planPriorities,
+        TargetLevel objectiveLevel,
+        SituationObjectif situationObjectif
 ) {
     public DiagnosticResultDto {
         // Critère d'acceptation du parcours : un résultat terminé donne
         // toujours une action immédiatement réalisable dans le catalogue.
         Objects.requireNonNull(nextAction, "nextAction");
+        planPriorities = planPriorities == null ? List.of() : List.copyOf(planPriorities);
     }
 }

@@ -179,12 +179,12 @@ class PlanActionRankerTest {
     private static PlanActionRanker.Action fragilite(String code, SkillSection section) {
         return new PlanActionRanker.Action(UUID.randomUUID(), code, section,
                 PlanActionNature.A_RENFORCER, ObservationConfidence.HIGH,
-                Instant.parse("2026-08-20T10:00:00Z"));
+                Instant.parse("2026-08-20T10:00:00Z"), 1);
     }
 
     private static PlanActionRanker.Action acquisition(String code, SkillSection section) {
         return new PlanActionRanker.Action(UUID.randomUUID(), code, section,
-                PlanActionNature.A_ACQUERIR, null, null);
+                PlanActionNature.A_ACQUERIR, null, null, 1);
     }
 
     private static Map<SkillSection, PlanDomainDto> domaines(

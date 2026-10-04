@@ -61,6 +61,14 @@ public class LearningPlanObservationService {
         LearningPlanSourceType sourceType = sourceType(submission, baseline);
         Object raw = analysis.get("skills");
         if (!(raw instanceof List<?> observations)) return;
+        // 🛑 UN instant pour toute la production (AR-3, 2026-10-04). Un
+        // Instant.now() par ligne etalait les huit observations d'un diagnostic
+        // sur une vingtaine de millisecondes, dans l'ordre des skills[]
+        // rendus par le correcteur : le departage « la plus recente d'abord »
+        // du lot et du Plan retenait alors la DERNIERE competence ecrite. Une
+        // production est observee a un instant ; l'ordre d'ecriture n'est pas
+        // un fait sur le candidat.
+        Instant observeLe = Instant.now();
         for (Object item : observations) {
             if (!(item instanceof Map<?, ?> value)) continue;
             Skill skill = skillsByCode.get(text(value.get("skill_code")));
@@ -83,10 +91,10 @@ public class LearningPlanObservationService {
             observation.setExplanation(nullableText(value.get("explanation")));
             observation.setConfidence(ObservationConfidence.valueOf(text(value.get("confidence"))));
             observation.setBaseline(baseline);
-            observation.setObservedAt(Instant.now());
+            observation.setObservedAt(observeLe);
             saveIdempotently(observation);
         }
-        recordProductionProgression(submission, allowedSkills, analysis, baseline);
+        recordProductionProgression(submission, allowedSkills, analysis, baseline, observeLe);
     }
 
     /**
@@ -102,7 +110,8 @@ public class LearningPlanObservationService {
      */
     private void recordProductionProgression(ProductionSubmission submission,
                                              List<Skill> allowedSkills,
-                                             Map<String, Object> analysis, boolean baseline) {
+                                             Map<String, Object> analysis, boolean baseline,
+                                             Instant observeLe) {
         if (submission.getUser() == null) {
             return;
         }
@@ -134,7 +143,7 @@ public class LearningPlanObservationService {
                             : com.sejourfr.app.enums.SkillSection.EE,
                     sourceProgression(submission, baseline),
                     entryPointProgression(submission, baseline),
-                    Instant.now(),
+                    observeLe,
                     pourLeMoteur);
         } catch (RuntimeException echec) {
             log.warn("Progression non alimentée pour la production {} : {}",

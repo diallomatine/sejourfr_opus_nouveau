@@ -16,7 +16,6 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.LearningPlanSkillStatus;
 import com.sejourfr.app.enums.LearningPlanState;
 import com.sejourfr.app.dto.PlanDomainAssessmentDto;
-import com.sejourfr.app.enums.ObservationConfidence;
 import com.sejourfr.app.enums.PlanActionNature;
 import com.sejourfr.app.enums.PlanCycleState;
 import com.sejourfr.app.enums.PlanExerciseKind;
@@ -24,6 +23,7 @@ import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.manager.LearningPlanObservationManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.service.plan.PlanConfig;
+import com.sejourfr.app.util.OrdreDesPriorites;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -175,7 +175,7 @@ public class LearningPlanService {
                         .limit(MAX_COMPLETED_STEPS)
                         .toList();
         List<LearningPlanObservation> observedItems = latest.values().stream()
-                .sorted(Comparator.comparing(LearningPlanObservation::getObservedAt).reversed())
+                .sorted(OrdreDesPriorites.PLUS_RECENTE_D_ABORD)
                 .limit(8)
                 .toList();
 
@@ -356,12 +356,14 @@ public class LearningPlanService {
                     skill.getId(), skill.getCode(), skill.getSection(),
                     Boolean.TRUE.equals(readyToVerify.get(skill.getId()))
                             ? PlanActionNature.A_VERIFIER : PlanActionNature.A_RENFORCER,
-                    item.getConfidence(), item.getObservedAt()));
+                    item.getConfidence(), item.getObservedAt(),
+                    OrdreDesPriorites.rangEditorial(skill)));
         }
         for (Skill skill : acquisitions) {
             actions.add(new PlanActionRanker.Action(
                     skill.getId(), skill.getCode(), skill.getSection(),
-                    PlanActionNature.A_ACQUERIR, null, null));
+                    PlanActionNature.A_ACQUERIR, null, null,
+                    OrdreDesPriorites.rangEditorial(skill)));
         }
         Map<com.sejourfr.app.enums.SkillSection, PlanDomainDto> domainesParSection =
                 new LinkedHashMap<>();
@@ -566,7 +568,8 @@ public class LearningPlanService {
         LearningPlanObservation confirmed = fromSubmission.stream()
                 .filter(item -> item.getStatus() == LearningPlanSkillStatus.SOLID)
                 .min(Comparator
-                        .comparingInt(LearningPlanService::confidenceRank)
+                        .comparingInt((LearningPlanObservation item) ->
+                                -OrdreDesPriorites.rangConfiance(item.getConfidence()))
                         .thenComparing(item -> item.getSkill().getCode()))
                 .orElse(null);
 
@@ -585,17 +588,6 @@ public class LearningPlanService {
         return Optional.of(new PlanChangeDto(
                 confirmed == null ? null : ref(confirmed),
                 nouvelle ? ref(top) : null));
-    }
-
-    /** La plus sure d'abord : a plusieurs confirmations, on n'en annonce qu'une. */
-    private static int confidenceRank(LearningPlanObservation observation) {
-        ObservationConfidence confidence = observation.getConfidence();
-        if (confidence == null) return 1;
-        return switch (confidence) {
-            case HIGH -> 0;
-            case MEDIUM -> 1;
-            case LOW -> 2;
-        };
     }
 
     private static PlanSkillRefDto ref(LearningPlanObservation observation) {

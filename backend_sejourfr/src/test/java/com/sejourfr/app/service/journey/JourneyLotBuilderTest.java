@@ -295,6 +295,35 @@ class JourneyLotBuilderTest {
                 NiveauCecrl.A1, TargetLevel.B2, referentiel, Set.of())).isNull();
     }
 
+    @Test
+    @DisplayName("🔴 AR-3 — à égalité parfaite, le lot suit le rang éditorial, pas le code ni l'ordre d'écriture")
+    void aEgaliteLeLotSuitLeRangEditorial() {
+        UUID evaluation = UUID.randomUUID();
+        // Ecrites dans le desordre editorial, toutes au MEME instant (une
+        // production = un instant), et des codes qui contrediraient le rang.
+        List<LearningPlanObservation> observations = List.of(
+                observation(evaluation, skill(SkillTaskCode.EE1, "EE1-C8", 8),
+                        LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM, T0),
+                observation(evaluation, skill(SkillTaskCode.EE3, "EE3-C2", 2),
+                        LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM, T0),
+                observation(evaluation, skill(SkillTaskCode.EE2, "EE2-C7", 7),
+                        LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM, T0),
+                observation(evaluation, skill(SkillTaskCode.EE1, "EE1-C7", 5),
+                        LearningPlanSkillStatus.TO_REINFORCE, ObservationConfidence.MEDIUM, T0));
+
+        List<JourneyLotBuilder.Lot> lots = builder.depuisEvaluation(
+                sources(evaluation), observations, Set.of(), TargetLevel.B2, profil(null, null, null, null));
+
+        assertThat(lots.getFirst().priorites().stream().map(p -> p.skill().getCode()))
+                .containsExactly("EE3-C2", "EE1-C7", "EE2-C7");
+    }
+
+    private static Skill skill(SkillTaskCode taskCode, String code, int rang) {
+        Skill skill = skill(taskCode, code);
+        skill.setDisplayOrder((short) rang);
+        return skill;
+    }
+
     private static List<Skill> referentielComprehension() {
         List<Skill> referentiel = new ArrayList<>();
         for (SkillSection section : List.of(SkillSection.CO, SkillSection.CE)) {

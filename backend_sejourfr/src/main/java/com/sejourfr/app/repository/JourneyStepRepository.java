@@ -168,4 +168,34 @@ public interface JourneyStepRepository extends JpaRepository<JourneyStep, UUID> 
             ORDER BY s.position ASC
             """)
     List<Skill> findCompetencesOuvertes(@Param("userId") UUID userId, Pageable pageable);
+
+    /**
+     * <b>Les priorites qu'UNE evaluation a versees au parcours TCF</b> : les
+     * etapes {@code TRAIN_SKILL} dont {@code source_assessment_id} est cette
+     * evaluation, tous cycles confondus, cycle et competence charges.
+     *
+     * <p>C'est la lecture du rapport du diagnostic rapide : le lot du Plan est
+     * l'<b>unique autorite</b> des priorites montrees par le rapport, la
+     * transition et le Plan. 🛑 <b>Une requete</b> ; le filtre par candidat
+     * emprunte {@code idx_journey_user_module_status}, puis
+     * {@code uq_journey_step_position} par cycle — {@code source_assessment_id}
+     * n'est pas indexe, et un balayage de toute la table par lecture de rapport
+     * ne passerait pas a l'echelle.
+     *
+     * <p>Ordre : le cycle le plus recent d'abord, puis l'ordre de la file
+     * ({@code position}, qui suit le {@code severity_rank} a l'interieur d'un
+     * lot). L'appelant choisit le cycle.
+     */
+    @Query("""
+            SELECT s FROM JourneyStep s
+            JOIN FETCH s.journey j
+            JOIN FETCH s.skill
+            WHERE j.user.id = :userId
+              AND j.module = com.sejourfr.app.enums.Module.TCF
+              AND s.sourceAssessmentId = :assessmentId
+              AND s.type = com.sejourfr.app.enums.JourneyStepType.TRAIN_SKILL
+            ORDER BY j.createdAt DESC, s.position ASC
+            """)
+    List<JourneyStep> findEntrainementsDeLEvaluation(
+            @Param("userId") UUID userId, @Param("assessmentId") UUID assessmentId);
 }

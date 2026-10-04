@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.PlanDomainPriority;
 import com.sejourfr.app.enums.SkillSection;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.service.plan.PlanConfig;
+import com.sejourfr.app.util.OrdreDesPriorites;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -67,6 +68,10 @@ public class PlanActionRanker {
      *                   confiance a lire
      * @param observedAt la date de l'observation, {@code null} sur une
      *                   acquisition
+     * @param editorialRank le rang editorial de la competence dans sa tache
+     *                   ({@code skills.display_order}) : departage avant le
+     *                   code, le meme que celui du lot du parcours
+     *                   ({@link OrdreDesPriorites#departage})
      */
     public record Action(
             UUID skillId,
@@ -74,7 +79,8 @@ public class PlanActionRanker {
             SkillSection section,
             PlanActionNature nature,
             ObservationConfidence confidence,
-            Instant observedAt) {}
+            Instant observedAt,
+            int editorialRank) {}
 
     /**
      * Le pool classe, puis compose : les {@code display.todayMaxActions}
@@ -100,10 +106,8 @@ public class PlanActionRanker {
         classe.sort(Comparator
                 .comparingInt((Action action) -> action.skillId().equals(focusSkillId) ? 0 : 1)
                 .thenComparingInt(action -> -score(action, domaines, objectif))
-                .thenComparing(Action::observedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(Action::skillCode,
-                        Comparator.nullsLast(Comparator.naturalOrder())));
+                .thenComparing(OrdreDesPriorites.departage(
+                        Action::observedAt, Action::editorialRank, Action::skillCode)));
         return composer(classe, domaines);
     }
 

@@ -57,6 +57,15 @@ public class JourneyStepManager {
         return (int) repository.countEntrainementsOuverts(journeyId);
     }
 
+    /**
+     * Les etapes d'entrainement qu'<b>une evaluation</b> a versees au parcours
+     * TCF de ce candidat, tous cycles confondus — le plus recent d'abord, puis
+     * l'ordre de la file. <b>Une requete.</b>
+     */
+    public List<JourneyStep> findEntrainementsDeLEvaluation(UUID userId, UUID assessmentId) {
+        return repository.findEntrainementsDeLEvaluation(userId, assessmentId);
+    }
+
     public JourneyStep save(JourneyStep step) {
         return repository.save(step);
     }
