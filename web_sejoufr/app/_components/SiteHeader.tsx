@@ -25,6 +25,7 @@ const NAV_LINKS = [
     {href: "/entrainement?module=CIVIQUE", label: "Examen civique"},
     {href: "/examens-blancs", label: "Examens blancs"},
     {href: "/tarifs", label: "Tarifs"},
+    {href: "/contact", label: "Contact"},
 ];
 
 /** Décompose un href de nav en path + module (les liens /entrainement ne
