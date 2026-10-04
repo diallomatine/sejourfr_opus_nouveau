@@ -1,0 +1,84 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 1180px) {
+  .layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
+
+.summary {
+  min-width: 0;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-panel);
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.heroText {
+  min-width: 0;
+}
+
+.heroText strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.heroText span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facts {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+.facts > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+
+.facts dt {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.email {
+  overflow-wrap: anywhere;
+}
+
+.forms {
+  min-width: 0;
+}

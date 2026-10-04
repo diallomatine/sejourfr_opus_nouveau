@@ -193,11 +193,19 @@ export function AppLayout() {
         </nav>
 
         <div className={styles.adminCard}>
-          <Avatar name={user?.firstName ? adminName : "Admin"} email={user?.email ?? "admin"} />
-          <div className={styles.adminMeta}>
-            <strong>{adminName}</strong>
-            <span>{user?.email}</span>
-          </div>
+          <NavLink
+            to="/profil"
+            className={({ isActive }) => `${styles.adminLink} ${isActive ? styles.adminLinkActive : ""}`}
+            onClick={() => setDrawerOpen(false)}
+            aria-label={`Mon profil — ${adminName}`}
+            title="Mon profil"
+          >
+            <Avatar name={user?.firstName ? adminName : "Admin"} email={user?.email ?? "admin"} />
+            <span className={styles.adminMeta}>
+              <strong>{adminName}</strong>
+              <span>{user?.email}</span>
+            </span>
+          </NavLink>
           <button
             type="button"
             className={styles.logout}

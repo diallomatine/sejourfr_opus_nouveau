@@ -165,14 +165,44 @@
   margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 4px;
+  padding: 6px;
   border: 1px solid var(--rule);
   border-radius: 15px;
   background: var(--surface-2);
 }
 
+.adminLink {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.adminLink:hover {
+  background: var(--surface);
+  border-color: var(--rule);
+}
+
+.adminLinkActive,
+.adminLinkActive:hover {
+  background: var(--blue-soft);
+  border-color: var(--blue-line);
+}
+
+.adminLinkActive .adminMeta strong {
+  color: var(--blue);
+}
+
 .adminMeta {
+  display: block;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -213,6 +243,7 @@
 }
 
 .logout:focus-visible,
+.adminLink:focus-visible,
 .drawerClose:focus-visible,
 .burger:focus-visible,
 .refresh:focus-visible {
@@ -394,8 +425,13 @@
 
   .adminCard {
     flex-direction: column;
-    padding: 8px;
+    padding: 6px;
     gap: 6px;
+  }
+
+  .adminLink {
+    flex: 0 0 auto;
+    justify-content: center;
   }
 
   .adminMeta {
@@ -476,8 +512,13 @@
 
   .adminCard {
     flex-direction: row;
-    padding: 12px;
-    gap: 10px;
+    padding: 6px;
+    gap: 4px;
+  }
+
+  .adminLink {
+    flex: 1 1 auto;
+    justify-content: flex-start;
   }
 
   .adminMeta {

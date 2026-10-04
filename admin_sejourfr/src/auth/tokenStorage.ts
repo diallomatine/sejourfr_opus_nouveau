@@ -25,6 +25,9 @@ export const tokenStorage = {
     localStorage.setItem(REFRESH_KEY, refresh);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
   },
+  setUser(user: AuthenticatedUser) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  },
   clear() {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);

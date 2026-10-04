@@ -38,6 +38,9 @@ src/
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, Icon, Avatar,
 │                            Chips, Panel, Pagination, Toast, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
+│   ├── profile/             « Mon profil » (`/profil`) : le compte de l'admin connecté,
+│   │                        ouvert depuis la carte de la barre latérale. Détail
+│   │                        dans la section « Mon profil » plus bas.
 │   ├── users/               Console « Utilisateurs » : liste `/users`, fiche
 │   │                        `/users/:id`, modale unique des actions d'accès.
 │   │                        Détail dans la section « Utilisateurs » plus bas.
@@ -105,6 +108,8 @@ L'API Java/Spring Boot 4 tourne en parallèle (par défaut `http://localhost:808
 
 Endpoints utilisés actuellement :
 - `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`
+- `PATCH /api/me/profile`, `POST /api/me/change-password`, `POST /api/me/change-email-request`
+  (feature `profile/` — les mêmes routes que le compte web et mobile, aucune route admin dédiée)
 - `GET /api/admin/dashboard`
 - `GET|POST|PUT|PATCH|DELETE /api/admin/questions[/{id}[/status]]`
 - `GET|POST|PUT|DELETE /api/admin/themes[/{id}]`
@@ -168,6 +173,30 @@ Endpoints utilisés actuellement :
   `GET /api/admin/civic-notions/questions?theme=…&tagged=false&limit=&offset=`,
   `PUT /api/admin/civic-notions/questions/{questionId}`
   `{notionCode, verdict}` (feature `civicNotions/`)
+
+### Mon profil (`features/profile/`)
+
+Route `/profil`, **ouverte par la carte utilisateur en bas de la barre latérale** (un
+`NavLink`, actif sur la route ; l'icône de déconnexion reste un `<button>` **frère**, jamais
+imbriqué dans le lien). Entrée `hidden` de la section « Compte » de `navigation.ts` (fil
+d'Ariane seulement).
+
+- **Lecture** : `GET /api/auth/me` (`queryKey: ["me"]`) — prénom, nom, e-mail, rôle, mode de
+  connexion (`authProvider`, ajouté au miroir `AuthenticatedUser`).
+- **Identité** : `PATCH /api/me/profile`, puis relecture de `/api/auth/me` poussée dans
+  `useAuth().updateUser` (la carte de la barre latérale suit).
+- **E-mail** : `POST /api/me/change-email-request` `{newEmail, currentPassword}`. Rien ne
+  change avant le clic sur le lien envoyé à la nouvelle adresse (1 h) ; ce lien ouvre une page
+  HTML **servie par le backend** (`GET /api/auth/confirm-email-change`), pas le site web. La
+  confirmation ferme toutes les sessions du compte.
+- **Mot de passe** : `POST /api/me/change-password` `{currentPassword, newPassword}` (8–128).
+  Le serveur vérifie l'ancien, refuse un nouveau identique, hache avec le `PasswordEncoder` de
+  l'auth et **révoque tous les refresh tokens, celui de la console compris** : l'écran le dit
+  et propose « Se reconnecter maintenant » (sinon la session tombe à l'expiration du jeton
+  d'accès, 60 min au plus).
+- Compte GOOGLE / APPLE : e-mail et mot de passe non modifiables (message, comme web/mobile).
+- Validation à l'envoi (`profileForm.ts`, bornes miroirs des DTO) ; erreurs serveur :
+  `fieldErrors` sous le champ, le reste (« Mot de passe actuel incorrect. ») en alerte.
 
 ### Utilisateurs (`features/users/`)
 

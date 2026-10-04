@@ -9,6 +9,8 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<AuthenticatedUser>;
     logout: () => void;
+    /** Remplace l'utilisateur affiché (barre latérale) par celui relu sur le serveur. */
+    updateUser: (user: AuthenticatedUser) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -51,14 +53,20 @@ export function AuthProvider({children}: { children: ReactNode }) {
         setUser(null);
     }, []);
 
+    const updateUser = useCallback((next: AuthenticatedUser) => {
+        tokenStorage.setUser(next);
+        setUser(next);
+    }, []);
+
     const value = useMemo<AuthContextValue>(
         () => ({
             user,
             isAuthenticated: !!user,
             login,
             logout,
+            updateUser,
         }),
-        [user, login, logout],
+        [user, login, logout, updateUser],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -15,6 +15,7 @@ import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
 import { ExamsPage } from "./features/exams/ExamsPage";
 import { PlansPage } from "./features/plans/PlansPage";
+import { ProfilePage } from "./features/profile/ProfilePage";
 import { ProductionDetailPage } from "./features/productions/ProductionDetailPage";
 import { ProductionsPage } from "./features/productions/ProductionsPage";
 import { ProductionTitlesPage } from "./features/productionTasks/ProductionTitlesPage";
@@ -97,6 +98,7 @@ export function App() {
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
+                <Route path="/profil" element={<ProfilePage />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

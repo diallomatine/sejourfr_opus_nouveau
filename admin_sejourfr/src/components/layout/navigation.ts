@@ -67,6 +67,10 @@ export const NAVIGATION: readonly NavSection[] = [
     label: "Échanges",
     items: [{ to: "/conversations", label: "Conversations", icon: "message", badge: "unreadConversations" }],
   },
+  {
+    label: "Compte",
+    items: [{ to: "/profil", label: "Mon profil", icon: "user", hidden: true }],
+  },
 ];
 
 /** Entrée de navigation qui couvre `pathname` (préfixe le plus long), pour le fil d'Ariane. */

@@ -47,6 +47,9 @@ export interface AuthenticatedUser {
   firstName: string | null;
   lastName: string | null;
   role: Role;
+  /** LOCAL seul a un mot de passe SejourFR : e-mail et mot de passe d'un compte
+   *  GOOGLE / APPLE se gèrent chez le fournisseur (le serveur répond 400). */
+  authProvider: AdminUserAuthProvider;
   /** Servi par le backend (`ProfilObligatoire`) ; toujours `false` pour un
    *  ADMIN — la console ne le lit pas, il est là pour la parité du DTO. */
   profileIncomplete?: boolean;
