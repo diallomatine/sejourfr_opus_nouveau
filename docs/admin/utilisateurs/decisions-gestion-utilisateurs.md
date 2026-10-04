@@ -959,3 +959,20 @@ d'aperçu mimées.
   Raccourcir, Terminer, Corriger le produit, Donner un accès, Réactiver). « Donner un accès »
   apparaît aussi sur une carte active (programmer une décision future, GO §4). Pas de
   statistiques (D-27). Liste et fiche sur deux routes (D-26).
+
+### D-56 — Liste : les comptes supprimés n'apparaissent plus (révise D-18)
+
+- **Contexte** : consigne du propriétaire (2026-10-04). Dans `/users`, un compte supprimé par son
+  titulaire ne doit être ni compté ni listé. D-18 les listait, avec le statut de compte servi.
+- **Options envisagées** : (a) garder D-18 ; (b) un filtre « Comptes supprimés » facultatif ;
+  (c) les exclure de la liste, toujours.
+- **Choix retenu** : (c). `UserSpecifications.notDeleted()` (`deleted_at IS NULL`) est posé en
+  tête de la spécification de `AdminUserService.list`. Il s'applique donc à tous les filtres, à la
+  recherche (y compris par UUID complet) et à `totalElements`.
+  - La **fiche** `/users/{id}` reste lisible par lien direct : historique d'achats et journal
+    admin pour le support. Elle garde son statut « Compte supprimé ».
+  - Le badge « Compte supprimé » de la **liste**, devenu inutile, est retiré.
+- **Impact** : `UserSpecifications`, `AdminUserService`, `UsersPage.tsx` (+ `.module.css`),
+  `AdminUserControllerIT.listeExclutLesComptesSupprimes`.
+- **Réversibilité** : facile (retirer le prédicat).
+

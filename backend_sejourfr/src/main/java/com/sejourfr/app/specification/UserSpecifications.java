@@ -48,6 +48,11 @@ public final class UserSpecifications {
         };
     }
 
+    /** Exclut les comptes supprimés par leur titulaire (`deleted_at` posé, données anonymisées). */
+    public static Specification<User> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
     public static Specification<User> idIn(Collection<UUID> ids) {
         return (root, query, cb) -> ids.isEmpty() ? cb.disjunction() : root.get("id").in(ids);
     }

@@ -84,7 +84,8 @@ public class AdminUserService {
         int safePage = Math.max(page, 0);
         Instant now = Instant.now();
 
-        Specification<User> spec = Specification.where(UserSpecifications.search(q));
+        Specification<User> spec = Specification.where(UserSpecifications.notDeleted())
+                .and(UserSpecifications.search(q));
         AdminUserFilter f = filter == null ? AdminUserFilter.ALL : filter;
         switch (f) {
             case ALL -> { }

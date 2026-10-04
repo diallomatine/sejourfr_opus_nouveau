@@ -467,6 +467,24 @@ class AdminUserControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("Liste : un compte supprimé par son titulaire n'est ni listé ni compté, même par son id")
+    void listeExclutLesComptesSupprimes() throws Exception {
+        String tag = "supprime" + UUID.randomUUID().toString().substring(0, 8);
+        User actif = data.user(tag + "-actif@test.sejourfr");
+        User supprime = data.user(tag + "-supprime@test.sejourfr");
+        achat(supprime, ModuleAccess.INTEGRAL, Instant.now().minus(JOUR), Instant.now().plus(JOUR.multipliedBy(20)));
+        supprime.setDeletedAt(Instant.now());
+        userManager.save(supprime);
+        em.flush();
+
+        JsonNode page = liste("q", tag);
+        assertThat(emails(page)).containsExactly(actif.getEmail());
+        assertThat(page.get("totalElements").asLong()).isEqualTo(1);
+        assertThat(emails(liste("q", tag, "filter", "TCF_ACTIVE"))).isEmpty();
+        assertThat(emails(liste("q", supprime.getId().toString()))).isEmpty();
+    }
+
+    @Test
     @DisplayName("Liste : coût constant d'une page (égalité du nombre de requêtes, 2 comptes ou 6)")
     void listeCoutConstant() throws Exception {
         String tag = "cout" + UUID.randomUUID().toString().substring(0, 8);

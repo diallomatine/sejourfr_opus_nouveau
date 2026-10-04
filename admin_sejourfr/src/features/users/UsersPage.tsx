@@ -169,11 +169,6 @@ export function UsersPage() {
                             <span className={`${styles.subLine} ${styles.signupInline}`}>
                               Inscrit le {formatParisDate(u.createdAt)}
                             </span>
-                            {u.accountStatus !== "ACTIVE" && (
-                              <span className={styles.accountTag}>
-                                <Tag tone="danger">Compte {u.accountStatusLabel.toLowerCase()}</Tag>
-                              </span>
-                            )}
                           </div>
                         </div>
                       </td>
