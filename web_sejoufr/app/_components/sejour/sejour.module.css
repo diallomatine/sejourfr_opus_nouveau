@@ -5896,8 +5896,51 @@ a.pRow:focus-visible {
    colle au chevron (2026-10-04, demande du propriétaire) ; le desktop garde
    la pastille pleine taille. */
 @media (max-width: 760px) {
+  /* Cartes plus compactes au téléphone (2026-10-05, demande du propriétaire). */
   .blocHeadInfo {
     gap: 8px;
+    padding: 12px;
+  }
+
+  .blocHeadInfo .iconBox {
+    width: 36px;
+    height: 36px;
+  }
+
+  .blocHeadInfo .iconBox svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .blocHeadInfo .infoTitle {
+    font-size: 13px;
+  }
+
+  .blocHeadInfo .infoMeta {
+    font-size: 10px;
+  }
+
+  .blocHeadInfo .badge {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .railEndBox {
+    padding: 11px 13px;
+  }
+
+  .railEndEyebrow,
+  .railEndNote {
+    font-size: 11px;
+  }
+
+  .railEndTitle {
+    font-size: 14px;
+  }
+
+  /* Rond de la timeline recentré : 12 px de marge + 18 px (repère de 36) − 7. */
+  .rail {
+    --rail-dot-top: 23px;
   }
 
   .blocHeadInfo .infoTrailing .badge {
