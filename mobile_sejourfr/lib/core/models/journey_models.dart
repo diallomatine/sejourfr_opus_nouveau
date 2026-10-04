@@ -517,8 +517,9 @@ class JourneyStep {
 
   /// **Les sujets de cette étape** — le périmètre de l'écran d'étape d'une
   /// compétence d'**expression**, dans l'ordre servi (`LearningPlanStep.scope`).
-  /// Vide hors `TRAIN_SKILL` d'expression, sur une étape close et sur un
-  /// backend antérieur au champ.
+  /// Vide hors `TRAIN_SKILL` d'expression, sur une étape remplacée
+  /// (`SUPERSEDED`) et sur un backend antérieur au champ. Une étape franchie
+  /// garde ses sujets.
   ///
   /// 🛑 **Même cause que [exercise] (A24)** : les priorités du Plan sont une vue
   /// bornée que la file dépasse. Une étape EO absente de ces listes ouvrait la

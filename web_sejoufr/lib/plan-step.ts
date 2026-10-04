@@ -107,8 +107,8 @@ function scopeOfCompleted(step: LearningPlanCompletedStepDto): PlanStepScope {
 
 /**
  * Le périmètre d'une étape **du cycle** (`JourneyStepDto`), tel que le serveur
- * le sert sur l'étape elle-même. `null` hors étape d'expression ouverte, ou sur
- * un backend antérieur au champ.
+ * le sert sur l'étape elle-même, ouverte ou franchie. `null` hors étape
+ * d'expression, sur une étape remplacée, ou sur un backend antérieur au champ.
  */
 function scopeOfJourneyStep(step: JourneyStepDto): PlanStepScope | null {
   const ids = step.stepPromptIds ?? [];
@@ -125,7 +125,7 @@ function scopeOfJourneyStep(step: JourneyStepDto): PlanStepScope | null {
   };
 }
 
-/** L'étape ouverte du cycle qui travaille cette compétence, avec ses sujets. */
+/** L'étape du cycle (ouverte ou franchie) qui travaille cette compétence, avec ses sujets. */
 function journeyStepScope(
   journey: JourneyDto | null | undefined,
   skillId: string,

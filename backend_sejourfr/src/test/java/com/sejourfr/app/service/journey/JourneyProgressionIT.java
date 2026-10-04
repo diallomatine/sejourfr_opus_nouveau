@@ -179,6 +179,14 @@ class JourneyProgressionIT extends AbstractIntegrationTest {
         JourneyStepDto close = etapeDe(journeyService.lire(user.getId(), Module.TCF), skill);
         assertThat(close.status()).isIn(JourneyStepStatus.COMPLETED, JourneyStepStatus.SKIPPED);
         assertThat(resolutionEnBase(stepId)).isEqualTo(JourneyStepResolution.QUOTA_REACHED.name());
+        // 🛑 Une etape franchie se rouvre sur SES sujets, jamais sur la fiche
+        // des 15 (bug du 2026-10-04) : le perimetre reste servi une fois close.
+        assertThat(close.stepPromptIds())
+                .containsExactlyElementsOf(sujets.stream().map(SkillPrompt::getId).toList());
+        assertThat(close.stepCompleted()).isTrue();
+        assertThat(close.exercise()).isNotNull();
+        assertThat(close.progress())
+                .isEqualTo(new JourneyStepDto.JourneyProgressDto(3, 3, JourneyProgressUnit.PROMPT));
     }
 
     /**

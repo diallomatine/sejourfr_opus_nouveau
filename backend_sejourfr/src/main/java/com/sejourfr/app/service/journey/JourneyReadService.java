@@ -200,8 +200,13 @@ public class JourneyReadService {
                 .filter(JourneyStep::estOuverte)
                 .toList();
 
+        // Les etapes CLOSES (hors SUPERSEDED) sont comptees aussi : leur ecran
+        // d'etape montre toujours leurs sujets (bug du 2026-10-04 — une etape
+        // franchie rouvrait la fiche des 15 sujets).
         Map<UUID, SkillProgressCounter.SkillProgress> progressionExpression =
-                progressionDesCompetencesDExpression(userId, ouvertes);
+                progressionDesCompetencesDExpression(userId, toutesLesEtapes.stream()
+                        .filter(JourneyReadService::perimetreServi)
+                        .toList());
 
         // 🛑 PLUS AUCUNE PREMIERE ETAPE A DEVERROUILLER (D-18) : l'exemption du
         // 2026-08-21 (« un candidat non abonne pourra travailler sa priorite 1,
@@ -1296,12 +1301,22 @@ public class JourneyReadService {
      * qui la valident, jamais une liste recomposee.
      *
      * <p>{@link LearningPlanStep.Progress#EMPTY} hors {@code TRAIN_SKILL}
-     * d'expression et sur une etape close (le compteur n'est lu que sur les
-     * etapes ouvertes) : le front retombe alors sur la fiche complete.
+     * d'expression et sur une etape remplacee ({@code SUPERSEDED}) : le front
+     * retombe alors sur la fiche complete. Une etape franchie garde ses sujets.
      */
+    /**
+     * Une etape dont on sert le perimetre : ouverte, ou close autrement que
+     * par remplacement. Une etape franchie se rouvre sur SES sujets — jamais
+     * sur la fiche complete de la competence. Une etape SUPERSEDED n'a plus
+     * d'ecran d'etape.
+     */
+    private static boolean perimetreServi(JourneyStep step) {
+        return step.estOuverte() || step.getResolution() != JourneyStepResolution.SUPERSEDED;
+    }
+
     private static LearningPlanStep.Progress perimetreDe(
             JourneyStep step, Map<UUID, SkillProgressCounter.SkillProgress> expression) {
-        if (step.getType() != JourneyStepType.TRAIN_SKILL || !step.estOuverte()) {
+        if (step.getType() != JourneyStepType.TRAIN_SKILL || !perimetreServi(step)) {
             return LearningPlanStep.Progress.EMPTY;
         }
         Skill skill = step.getSkill();

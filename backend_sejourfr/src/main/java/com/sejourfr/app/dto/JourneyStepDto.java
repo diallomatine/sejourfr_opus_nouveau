@@ -182,8 +182,9 @@ public record JourneyStepDto(
          * <b>Les sujets de cette etape</b> — le perimetre de l'ecran d'etape
          * d'une competence d'<b>expression</b>, par rang d'affichage croissant
          * ({@code LearningPlanStep.scope}). Jamais {@code null} : vide hors
-         * {@code TRAIN_SKILL} d'expression, sur une etape close et sur une
-         * archive.
+         * {@code TRAIN_SKILL} d'expression, sur une etape remplacee
+         * ({@code SUPERSEDED}) et sur une archive. Une etape franchie garde
+         * ses sujets.
          *
          * <h3>🛑 Meme cause qu'{@link #exercise()} (A24)</h3>
          * <p>Les fronts retrouvaient ce perimetre dans
