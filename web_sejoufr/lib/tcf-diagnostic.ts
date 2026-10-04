@@ -16,43 +16,50 @@
  * par épreuve, lues sur le Plan. Leur miroir Dart est supprimé dans la même
  * passe. Aucun état pédagogique n'est dérivé ici : les paliers arrivent servis.
  */
-import type {NiveauCecrl} from "./types";
+import {niveauCecrlShort, type NiveauCecrl} from "./types";
 
 /**
- * Les trois paliers de la piste de niveau du kit (`LevelTrack`).
+ * **L'échelle de la piste de niveau** : les cinq paliers du TCF IRN, du plus
+ * bas au plus haut, sous leur forme AFFICHÉE (`A1_NON_ATTEINT` ⇒ « <A1 »,
+ * jamais « A1 »).
  *
- * 🛑 C'est l'échelle du TCF IRN telle qu'elle est **affichée**, pas une échelle
- * de classement : rien ici ne décide d'un niveau, on place un palier déjà servi.
+ * 🛑 C'est une échelle d'affichage, pas de classement : rien ici ne décide d'un
+ * niveau, on place des paliers déjà servis. Miroir mot pour mot de
+ * `cecrlTrack` (`mobile_sejourfr/lib/core/utils/cecrl_track.dart`).
  */
-const NIVEAU_TRACK: readonly string[] = ["A2", "B1", "B2"];
+const ECHELLE: readonly NiveauCecrl[] = ["A1_NON_ATTEINT", "A1", "A2", "B1", "B2"];
 
-/** Le palier sur l'échelle affichée, ou `null` s'il en sort (A1, C1…). */
-function railLevel(niveau: NiveauCecrl | null): "A2" | "B1" | "B2" | null {
-    switch (niveau) {
-        case "A2":
-        case "B1":
-        case "B2":
-            return niveau;
-        default:
-            return null;
-    }
-}
+/** Le moins de colonnes qu'une piste montre, quand l'échelle le permet. */
+const COLONNES_MIN = 3;
 
 /**
- * Où poser « Vous » et « Objectif » sur la piste.
+ * Où poser « Vous » et « Objectif » sur la piste — **la règle unique**, servie
+ * au rapport du diagnostic rapide et au héros de l'écran de déblocage du Plan.
  *
- * `null` — donc **aucune piste dessinée** — dès que l'un des deux paliers sort
- * de l'échelle A2/B1/B2 (`A1`, `A1_NON_ATTEINT`, `C1`, `C2`, ou aucun objectif
- * déclaré) : on préfère ne rien montrer plutôt que de rabattre le candidat sur
- * un palier qui n'est pas le sien.
+ * - `null` — **aucune piste** — si le niveau ou l'objectif manque, ou si l'un
+ *   des deux sort de l'échelle (`C1`, `C2`) : mieux vaut rien qu'un candidat
+ *   rabattu sur un palier qui n'est pas le sien.
+ * - la fenêtre va d'**un palier sous le plus bas des deux** jusqu'au **plus
+ *   haut**, puis s'étend **vers le bas** jusqu'à trois colonnes si l'échelle le
+ *   permet : B1 → B2 ⇒ A2 · B1 · B2 ; B2 → B2 ⇒ A2 · B1 · B2 ; A1 → A2 ⇒
+ *   <A1 · A1 · A2.
+ *
+ * Jamais de pourcentage : la piste situe deux paliers, elle ne mesure rien.
  */
 export function levelTrackPosition(
     niveau: NiveauCecrl | null,
     cible: string | null,
 ): {levels: readonly string[]; currentIndex: number; goalIndex: number} | null {
-    const current = railLevel(niveau);
-    if (!current || !cible) return null;
-    const goalIndex = NIVEAU_TRACK.indexOf(cible);
-    if (goalIndex < 0) return null;
-    return {levels: NIVEAU_TRACK, currentIndex: NIVEAU_TRACK.indexOf(current), goalIndex};
+    if (!niveau || !cible) return null;
+    const courant = ECHELLE.indexOf(niveau);
+    const vise = ECHELLE.indexOf(cible as NiveauCecrl);
+    if (courant < 0 || vise < 0) return null;
+    const fin = Math.max(courant, vise);
+    let debut = Math.max(Math.min(courant, vise) - 1, 0);
+    while (fin - debut + 1 < COLONNES_MIN && debut > 0) debut -= 1;
+    return {
+        levels: ECHELLE.slice(debut, fin + 1).map((n) => niveauCecrlShort(n)),
+        currentIndex: courant - debut,
+        goalIndex: vise - debut,
+    };
 }

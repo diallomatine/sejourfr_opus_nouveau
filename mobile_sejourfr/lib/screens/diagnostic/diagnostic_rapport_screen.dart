@@ -5,15 +5,14 @@ import '../../core/analytics/analytics.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/diagnostic_run_models.dart';
-import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/retour.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/screen_header.dart';
+import 'diagnostic_rapport_labels.dart';
 import 'widgets/diagnostic_common.dart';
-import 'widgets/diagnostic_report_labels.dart';
 import 'widgets/diagnostic_result.dart';
 
 /// Une session de diagnostic TCF lue par son identifiant
@@ -75,7 +74,6 @@ class _DiagnosticRapportScreenState
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(diagnosticSessionProvider(widget.sessionId));
-    final objective = ref.watch(userTargetLevelProvider);
     final journey = session.valueOrNull;
     final rapport = journey != null && _aUnRapport(journey);
     if (rapport) _trackReportViewed();
@@ -107,7 +105,7 @@ class _DiagnosticRapportScreenState
                 data: (value) => _aUnRapport(value)
                     ? DiagnosticResultView(
                         result: value.result!,
-                        objective: objective,
+                        sessionId: widget.sessionId,
                       )
                     : const _RapportIndisponible(),
               ),

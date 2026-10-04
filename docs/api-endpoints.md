@@ -621,6 +621,38 @@ sourcées ; une ligne `NOT_OBSERVED` reste historisée mais n'efface jamais une
 preuve antérieure. Le Plan reste séparé de l'historique et des statistiques de
 progression.
 
+**Rapport du diagnostic rapide — champs servis depuis le 2026-10-04** (AR-3/AR-4,
+`docs/diagnostic/audit-nouveau-rapport-diagnostic.md`) : la route reste
+`GET /api/diagnostics/{sessionId}` (le web l'appelle avec
+`prep.estimationSessionId`), `result` gagne trois champs additifs — un client
+ancien les ignore.
+
+- `result.planPriorities: DiagnosticPlanPriorityDto[]` — 🛑 **les priorités du
+  LOT DU PLAN**, seule autorité des priorités montrées par le rapport, la
+  transition et le Plan : étapes `TRAIN_SKILL` dont `source_assessment_id` est la
+  session, dans l'ordre du lot. Chaque élément : `skillId`, `skillCode`,
+  `skillTitle`, `section` (`EE|EO|CO|CE`), `taskCode` (`EE1..EO3`), `rank`
+  (1..n), `explanation` (constat de l'analyse du diagnostic pour cette
+  compétence, `null` s'il manque), `generalCriterion` (`skills.general_criterion`),
+  `inCurrentCycle` (`true` = cycle `EN_COURS` et étape non `SUPERSEDED` ; `false`
+  = lot en attente, cycle historisé ou étape remplacée). **Jamais `null`** ; vide
+  = aucun lot — **aucun repli** sur `priorities`. Plusieurs cycles portent le lot
+  ⇒ `EN_COURS`, sinon `EN_ATTENTE`, sinon le plus récent.
+- `result.objectiveLevel: TargetLevel | null` — `TargetProcedure.niveauVise`,
+  même valeur que `/api/auth/me → targetLevel`.
+- `result.situationObjectif: OBJECTIF_ATTEINT | UN_PALIER_SOUS_OBJECTIF |
+  PLUSIEURS_PALIERS_SOUS_OBJECTIF | null` — `written.levelEstimate` situé par
+  `TcfDomaine.ecartAuNiveauCible` ; `null` si le niveau (`NON_EVALUABLE`) ou
+  l'objectif est inconnu.
+
+⚠️ `result.priorities` / `result.mainPriorityExplanation` restent servis
+(clients installés, `nextAction`) mais sont les priorités **du diagnostic**
+(≤ 2 par production) : ils ne coïncident pas avec le Plan et ne s'affichent plus
+comme « vos priorités ». **« Revoir ma réponse »** : aucune route nouvelle — la
+consigne est `written.instruction`, le texte `texteSoumis` de
+`GET /api/production-submissions/{written.submissionId}` (propriétaire seul,
+404 sinon, production de diagnostic comprise).
+
 ## Diagnostic civique (L9)
 
 Le pendant civique du diagnostic TCF. 🛑 **Ce n'est PAS l'examen blanc civique**

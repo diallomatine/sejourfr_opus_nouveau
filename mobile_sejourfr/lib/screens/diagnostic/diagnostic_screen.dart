@@ -11,20 +11,19 @@ import '../../core/analytics/diagnostic_run_tracker.dart';
 import '../../core/models/diagnostic_models.dart';
 import '../../core/models/diagnostic_run_models.dart';
 import '../../core/models/preparation_labels.dart';
-import '../../core/models/enums.dart';
-import '../../core/providers/target_level_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/word_count.dart';
 import '../../core/widgets/screen_header.dart';
 import '../tcf_production/audio_recorder_service.dart';
 import 'diagnostic_controller.dart';
+import 'diagnostic_rapport_labels.dart';
 import 'widgets/diagnostic_account_gate.dart';
 import 'widgets/diagnostic_analysis.dart';
 import 'widgets/diagnostic_choice.dart';
 import 'widgets/diagnostic_common.dart';
 import 'widgets/diagnostic_intro.dart';
 import 'widgets/diagnostic_oral.dart';
-import 'widgets/diagnostic_report_labels.dart';
 import 'widgets/diagnostic_result.dart';
 import 'widgets/diagnostic_sync.dart';
 import 'widgets/diagnostic_written.dart';
@@ -174,12 +173,12 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _writingController.text = text;
-      setState(() => _wordCount = _countWords(text));
+      setState(() => _wordCount = compterMots(text));
     });
   }
 
   void _onWritingChanged(String text, {required bool isGuest}) {
-    setState(() => _wordCount = _countWords(text));
+    setState(() => _wordCount = compterMots(text));
     if (!isGuest) return;
     _autosave?.cancel();
     _autosave = Timer(_autosaveDelay, () {
@@ -209,7 +208,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
     final text =
         ref.read(diagnosticControllerProvider).draft?.writtenText ?? '';
     _writingController.text = text;
-    setState(() => _wordCount = _countWords(text));
+    setState(() => _wordCount = compterMots(text));
   }
 
   /// « ← Modifier mon texte » (écran de compte) : l'écrit rouvert, pré-rempli.
@@ -351,7 +350,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(diagnosticControllerProvider);
     final recording = ref.watch(recordingControllerProvider);
-    final objective = ref.watch(userTargetLevelProvider);
     _hydrateWriting(state);
     _demarrerDirectSiDemande(state);
     // 🛑 « Diagnostic terminé » n'est PAS un événement : il se lit sur
@@ -440,7 +438,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
                 child: _content(
                   state: state,
                   recording: recording,
-                  objective: objective,
                 ),
               ),
             ],
@@ -453,7 +450,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
   Widget _content({
     required DiagnosticFlowState state,
     required RecordingState recording,
-    required TargetLevel? objective,
   }) {
     if (state.isGuest) {
       return _guestContent(state: state, recording: recording);
@@ -546,7 +542,7 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
         ),
       DiagnosticStep.result when journey.result != null => DiagnosticResultView(
           result: journey.result!,
-          objective: objective,
+          sessionId: journey.sessionId,
         ),
       _ => DiagnosticLoadState(
           isLoading: state.isLoading,
@@ -722,15 +718,6 @@ class _DiagnosticScreenState extends ConsumerState<DiagnosticScreen> {
       return '';
     }
     return _stepLabel(journey.nextStep, hasOral: journey.oral != null);
-  }
-
-  static int _countWords(String text) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return 0;
-    return trimmed
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty)
-        .length;
   }
 
   static String _stepLabel(DiagnosticStep step, {required bool hasOral}) =>

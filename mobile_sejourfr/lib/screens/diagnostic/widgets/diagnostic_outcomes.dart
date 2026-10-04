@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../diagnostic_civique/civic_diagnostic_labels.dart';
-import 'diagnostic_report_labels.dart';
+import '../diagnostic_rapport_labels.dart';
 
 /// Ce qu'un diagnostic rend au candidat — déclaré une fois.
 ///
@@ -35,7 +35,8 @@ const List<DiagnosticOutcome> kDiagnosticOutcomes = [
   kDiagnosticOutcomePlan,
 ];
 
-const String kDiagnosticDisclaimer = 'Estimation d’entraînement, non officielle.';
+const String kDiagnosticDisclaimer =
+    'Estimation d’entraînement, non officielle.';
 
 /// Écran de compte du diagnostic TCF : ce que l'analyse rendra. Le niveau
 /// porte l'intitulé EXACT du rapport — jamais « votre niveau TCF ».
@@ -48,7 +49,8 @@ final List<DiagnosticOutcome> kTcfDiagnosticGateOutcomes = [
 
 /// Écran de compte du diagnostic civique : les blocs du résultat, sous leurs
 /// intitulés. 🛑 Aucun score : c'est ce qu'on échange contre le compte.
-const String kCivicDiagnosticGatePanelTitle = 'Ce que votre résultat vous montrera';
+const String kCivicDiagnosticGatePanelTitle =
+    'Ce que votre résultat vous montrera';
 final List<DiagnosticOutcome> kCivicDiagnosticGateOutcomes = [
   const DiagnosticOutcome(
       kCivicScoreLabel, 'Comparées au seuil de réussite de l’examen'),

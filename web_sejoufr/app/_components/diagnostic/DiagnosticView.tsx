@@ -42,7 +42,6 @@ import {
   DIAGNOSTIC_WRITTEN_EDITOR_TITLE,
   type DiagnosticExerciseContent,
   type DiagnosticExerciseKind,
-  diagnosticConsigneBlocks,
   diagnosticEditNote,
   diagnosticExerciseAsProductionTask,
   diagnosticExerciseSub,
@@ -64,11 +63,20 @@ import type {
   PublicDiagnosticResponse,
 } from "@/lib/types";
 import {DiagnosticAccountGate} from "./DiagnosticAccountGate";
+import {DiagnosticConsigne} from "./DiagnosticConsigne";
 import {DiagnosticChoice} from "./DiagnosticChoice";
-import {demarrageDirectDemande} from "@/lib/preparation";
+import {demarrageDirectDemande, diagnosticRapportHref} from "@/lib/preparation";
 import {planHref} from "@/lib/module-switch";
 import {DiagnosticIntro} from "./DiagnosticIntro";
-import {DIAGNOSTIC_REPORT_BACK_HREF} from "./report-labels";
+import {
+  DIAGNOSTIC_RAPPORT_INDISPONIBLE,
+  DIAGNOSTIC_RAPPORT_LOAD_ERROR,
+  DIAGNOSTIC_REPORT_BACK_HREF,
+  diagnosticReponseHref,
+  diagnosticTransitionHref,
+} from "@/lib/diagnostic-rapport";
+import {DiagnosticPlanTransition} from "./DiagnosticPlanTransition";
+import {DiagnosticReponse} from "./DiagnosticReponse";
 import {DiagnosticReport} from "./DiagnosticReport";
 import {DiagnosticSteps} from "./DiagnosticSteps";
 import {
@@ -174,10 +182,6 @@ export function DiagnosticView() {
 // RELECTURE d'un diagnostic clos, par son identifiant (`/diagnostic/rapport/…`)
 // ============================================================================
 
-/** Le texte servi quand la session désignée n'a pas (ou plus) de rapport. */
-const DIAGNOSTIC_RAPPORT_INDISPONIBLE =
-  "Ce diagnostic n'a pas de rapport à relire pour l'instant.";
-
 /**
  * **La relecture d'un diagnostic TCF CLOS**, désigné par son identifiant —
  * la destination de « Mon diagnostic » du Plan (`diagnosticRapportHref`).
@@ -195,8 +199,18 @@ const DIAGNOSTIC_RAPPORT_INDISPONIBLE =
  *
  * Le rendu est le MÊME `DiagnosticReport` que celui de `/diagnostic` : aucun
  * second écran de rapport. Miroir mobile : `DiagnosticRapportScreen`.
+ *
+ * `vue` choisit l'écran rendu sur la même session : le rapport, sa transition
+ * « Votre plan commence ici » (`/plan`) ou « Revoir ma réponse » (`/reponse`).
+ * Le chargement, la porte de connexion et les états d'erreur sont communs.
  */
-export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
+export function DiagnosticRapportView({
+  sessionId,
+  vue = "rapport",
+}: {
+  sessionId: string;
+  vue?: "rapport" | "plan" | "reponse";
+}) {
   const {status, user} = useAuth();
   const [diagnostic, setDiagnostic] = useState<DiagnosticResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +222,7 @@ export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
     try {
       setDiagnostic(await diagnosticApi.get(sessionId));
     } catch (cause) {
-      setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+      setError(errorMessage(cause, DIAGNOSTIC_RAPPORT_LOAD_ERROR));
     } finally {
       setLoading(false);
     }
@@ -222,7 +236,7 @@ export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
         if (!annule) setDiagnostic(fresh);
       },
       (cause: unknown) => {
-        if (!annule) setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+        if (!annule) setError(errorMessage(cause, DIAGNOSTIC_RAPPORT_LOAD_ERROR));
       },
     ).finally(() => {
       if (!annule) setLoading(false);
@@ -237,15 +251,19 @@ export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
     && (diagnostic.status === "COMPLETED" || diagnostic.nextStep === "RESULT");
 
   useEffect(() => {
-    if (rapport && diagnostic?.sessionId) {
+    if (vue === "rapport" && rapport && diagnostic?.sessionId) {
       trackDiagnosticReportViewed("QUICK_TCF", diagnostic.sessionId);
     }
-  }, [rapport, diagnostic?.sessionId]);
+  }, [vue, rapport, diagnostic?.sessionId]);
 
   if (status === "loading") return <DiagnosticSkeleton />;
 
   if (status !== "authenticated" || !user) {
-    const retour = `/diagnostic/rapport/${encodeURIComponent(sessionId)}`;
+    const retour = vue === "plan"
+      ? diagnosticTransitionHref(sessionId)
+      : vue === "reponse"
+        ? diagnosticReponseHref(sessionId)
+        : diagnosticRapportHref(sessionId);
     return (
       <DualChromeShell>
         <DiagnosticShell guest>
@@ -298,11 +316,13 @@ export function DiagnosticRapportView({sessionId}: {sessionId: string}) {
 
   return (
     <DualChromeShell>
-      <DiagnosticReport
-        diagnostic={diagnostic}
-        targetLevel={user.targetLevel ?? null}
-        backTo={planHref("TCF")}
-      />
+      {vue === "plan" ? (
+        <DiagnosticPlanTransition sessionId={sessionId} result={diagnostic.result} />
+      ) : vue === "reponse" ? (
+        <DiagnosticReponse sessionId={sessionId} written={diagnostic.written} />
+      ) : (
+        <DiagnosticReport diagnostic={diagnostic} backTo={planHref("TCF")} />
+      )}
     </DualChromeShell>
   );
 }
@@ -672,7 +692,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     try {
       setDiagnostic(await diagnosticApi.current());
     } catch (cause) {
-      setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+      setError(errorMessage(cause, DIAGNOSTIC_RAPPORT_LOAD_ERROR));
     } finally {
       setLoading(false);
     }
@@ -857,7 +877,7 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
         setDiagnostic(current);
         setError(null);
       } catch (cause) {
-        setError(errorMessage(cause, "Impossible de charger votre diagnostic."));
+        setError(errorMessage(cause, DIAGNOSTIC_RAPPORT_LOAD_ERROR));
       } finally {
         setLoading(false);
       }
@@ -1273,7 +1293,6 @@ function ConnectedDiagnostic({onStartTcf}: {onStartTcf: () => void}) {
     return (
       <DiagnosticReport
         diagnostic={diagnostic}
-        targetLevel={user.targetLevel ?? null}
         notice={notice}
         backTo={DIAGNOSTIC_REPORT_BACK_HREF}
       />
@@ -1491,37 +1510,6 @@ function WrittenExercise({
   );
 }
 
-/** La consigne servie, mise en forme sans être réécrite : paragraphes, et
- *  listes à puces précédées de leur amorce. */
-function Consigne({text}: {text: string}) {
-  return (
-    <div className={styles.instruction}>
-      {diagnosticConsigneBlocks(text).map((block, index) =>
-        block.kind === "paragraph" ? (
-          <p key={index}>{block.text}</p>
-        ) : (
-          <div key={index} className={styles.instructionList}>
-            {block.lead && <p className={styles.instructionLead}>{block.lead}</p>}
-            {block.ordered ? (
-              <ol>
-                {block.items.map((item, itemIndex) => (
-                  <li key={itemIndex}>{item}</li>
-                ))}
-              </ol>
-            ) : (
-              <ul>
-                {block.items.map((item, itemIndex) => (
-                  <li key={itemIndex}>{item}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ),
-      )}
-    </div>
-  );
-}
-
 function ExercisePrompt({
   exercise,
   kind,
@@ -1533,7 +1521,7 @@ function ExercisePrompt({
     <section className={styles.prompt} aria-labelledby={`${kind}-prompt-title`}>
       <p className={styles.promptTag}>{DIAGNOSTIC_SUBJECT_TAG}</p>
       <h2 id={`${kind}-prompt-title`} className={styles.promptTitle}>{exercise.title}</h2>
-      <Consigne text={exercise.instruction} />
+      <DiagnosticConsigne text={exercise.instruction} />
       {kind === "oral" && exercise.durationMaxSeconds != null && (
         <div className={styles.constraints}>
           <span><Clock3 size={14} aria-hidden /> Jusqu&apos;à {Math.ceil(exercise.durationMaxSeconds / 60)} min</span>

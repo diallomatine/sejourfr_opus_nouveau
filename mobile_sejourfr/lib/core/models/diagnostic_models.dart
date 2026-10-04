@@ -871,6 +871,9 @@ class DiagnosticResult {
     this.exempleCible,
     this.fragileSkillCount = 0,
     this.solidSkillCount = 0,
+    this.planPriorities = const <DiagnosticPlanPriority>[],
+    this.objectiveLevel,
+    this.situationObjectif,
   });
 
   final DiagnosticProductionResult? written;
@@ -901,6 +904,23 @@ class DiagnosticResult {
   /// plafonnée à 3 **à l'écriture** du résumé côté serveur.
   final int solidSkillCount;
 
+  /// 🛑 **Les priorités du LOT DU PLAN** — seule autorité des priorités que
+  /// montrent le rapport, la transition et le Plan (par `skillId`), dans
+  /// l'ordre du lot. Vide = aucun lot : aucune priorité affichée, **jamais**
+  /// [priorities] en repli. Absent sur un backend antérieur ⇒ liste vide.
+  /// ⚠️ [priorities] / [mainPriorityExplanation] sont celles du diagnostic,
+  /// qui ne coïncident pas avec le Plan : ne plus les afficher comme « vos
+  /// priorités ».
+  final List<DiagnosticPlanPriority> planPriorities;
+
+  /// L'objectif du candidat — même valeur que `/api/auth/me → targetLevel`.
+  /// `null` = inconnu.
+  final TargetLevel? objectiveLevel;
+
+  /// Le niveau estimé de l'écrit situé par rapport à l'objectif. `null` =
+  /// inconnu : aucune phrase.
+  final SituationObjectif? situationObjectif;
+
   factory DiagnosticResult.fromJson(Map<String, dynamic> json) =>
       DiagnosticResult(
         written: json['written'] == null
@@ -929,7 +949,89 @@ class DiagnosticResult {
             DiagnosticExempleCible.fromJsonNullable(json['exempleCible']),
         fragileSkillCount: _count(json['fragileSkillCount']),
         solidSkillCount: _count(json['solidSkillCount']),
+        planPriorities: _objectList(json['planPriorities'])
+            .map(DiagnosticPlanPriority.fromJson)
+            .toList(growable: false),
+        objectiveLevel: _targetLevel(json['objectiveLevel']),
+        situationObjectif:
+            SituationObjectif.fromWire(json['situationObjectif']),
       );
+}
+
+/// Où se situe le niveau estimé du diagnostic par rapport à l'objectif.
+/// Servi, jamais recalculé ; les phrases vivent une fois par front.
+enum SituationObjectif {
+  objectifAtteint('OBJECTIF_ATTEINT'),
+  unPalierSousObjectif('UN_PALIER_SOUS_OBJECTIF'),
+  plusieursPaliersSousObjectif('PLUSIEURS_PALIERS_SOUS_OBJECTIF');
+
+  const SituationObjectif(this.wire);
+
+  final String wire;
+
+  /// `null` sur une valeur absente ou inconnue : inconnu, jamais un verdict.
+  static SituationObjectif? fromWire(Object? value) {
+    for (final situation in SituationObjectif.values) {
+      if (situation.wire == value) return situation;
+    }
+    return null;
+  }
+}
+
+/// Une priorité du lot du Plan, servie sur le rapport du diagnostic rapide.
+class DiagnosticPlanPriority {
+  const DiagnosticPlanPriority({
+    required this.skillId,
+    required this.skillCode,
+    required this.skillTitle,
+    required this.section,
+    required this.rank,
+    required this.generalCriterion,
+    required this.inCurrentCycle,
+    this.taskCode,
+    this.explanation,
+  });
+
+  final String skillId;
+  final String skillCode;
+  final String skillTitle;
+  final SkillSection section;
+  final SkillTaskCode? taskCode;
+
+  /// 1..n, l'ordre du lot. Aucun front ne retrie.
+  final int rank;
+
+  /// Le constat de l'analyse du diagnostic pour cette compétence ; `null`
+  /// s'il n'y en a pas.
+  final String? explanation;
+
+  /// `skills.general_criterion` — l'explication pédagogique générique.
+  final String generalCriterion;
+
+  /// `true` = l'étape est dans le cycle en cours et visible dans le Plan.
+  /// `false` = lot en attente, cycle historisé ou étape remplacée : « déjà
+  /// intégrées à votre plan » ne s'affiche que sur `true`.
+  final bool inCurrentCycle;
+
+  factory DiagnosticPlanPriority.fromJson(Map<String, dynamic> json) =>
+      DiagnosticPlanPriority(
+        skillId: json['skillId'] as String,
+        skillCode: json['skillCode'] as String? ?? '',
+        skillTitle: json['skillTitle'] as String? ?? '',
+        section: SkillSection.fromWire(json['section'] as String),
+        taskCode: SkillTaskCode.fromSkillCode(json['taskCode'] as String?),
+        rank: _count(json['rank']),
+        explanation: _trimmedOrNull(json['explanation']),
+        generalCriterion: json['generalCriterion'] as String? ?? '',
+        inCurrentCycle: json['inCurrentCycle'] as bool? ?? false,
+      );
+}
+
+TargetLevel? _targetLevel(Object? raw) {
+  for (final level in TargetLevel.values) {
+    if (level.wire == raw) return level;
+  }
+  return null;
 }
 
 /// **Le FORMAT du diagnostic** — combien d'exercices, et de quoi en annoncer
@@ -1177,8 +1279,8 @@ class LearningPlanPriority {
             LearningPlanSkillStatus.fromWireNullable(json['status'] as String?),
         explanation: _trimmedOrNull(json['explanation']),
         evidence: _trimmedOrNull(json['evidence']),
-        confidence:
-            ObservationConfidence.fromWireNullable(json['confidence'] as String?),
+        confidence: ObservationConfidence.fromWireNullable(
+            json['confidence'] as String?),
         observedAt: _date(json['observedAt']),
         recommendedExercise: json['recommendedExercise'] == null
             ? null
@@ -1416,7 +1518,6 @@ enum PlanCycleState {
     return null;
   }
 }
-
 
 /// Le parcours **déjà existant** par lequel se mesure un domaine jamais évalué.
 /// Miroir de `PlanDomainAssessmentKind`.
@@ -1699,9 +1800,9 @@ class PlanDomainSkill {
         tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
         targetLevel:
             TargetLevel.fromWireNullable(json['targetLevel'] as String?),
-        status:
-            LearningPlanSkillStatus.fromWireNullable(json['status'] as String?) ??
-                LearningPlanSkillStatus.notObserved,
+        status: LearningPlanSkillStatus.fromWireNullable(
+                json['status'] as String?) ??
+            LearningPlanSkillStatus.notObserved,
         masteryState:
             SkillMasteryState.fromWireNullable(json['masteryState'] as String?),
         nature: PlanActionNature.fromWireNullable(json['nature'] as String?),
@@ -1841,7 +1942,6 @@ class PlanCycle {
   static PlanCycle? fromJsonOrNull(Object? value) =>
       value is Map<String, dynamic> ? PlanCycle.fromJson(value) : null;
 }
-
 
 /// Ce qu'il faut lancer pour mesurer un domaine du TCF qui ne l'a **jamais**
 /// été. Miroir de `PlanDomainAssessmentDto`.
@@ -2204,7 +2304,8 @@ class LearningPlan {
     this.domaines = const <PlanDomain>[],
     this.cycle,
     this.domainesAEvaluer = const <PlanDomainAssessment>[],
-    this.seance = const PlanSeance(items: <PlanSeanceItem>[], estimatedMinutes: 0),
+    this.seance =
+        const PlanSeance(items: <PlanSeanceItem>[], estimatedMinutes: 0),
     this.recentChanges,
   });
 

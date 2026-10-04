@@ -57,6 +57,26 @@ IRN** (A2/B1/B2), obligatoires depuis le 1er janvier 2026.
   (2 `ObjCard`) ; Plan, Entraînement, Examens, Progression et Profil suivent la maquette
   `docs/redesign/sejourfr-navigation-web.html`, blocs existants gardés en dessous.
 
+## Nouveau rapport du diagnostic rapide (2026-10-04)
+
+> Règles et écrans : `docs/regles/diagnostic.md` (« Les trois écrans du rapport rapide »).
+> ⚠️ Prime sur « Écran de RÉSULTAT du diagnostic » plus bas (historique).
+
+- **Trois écrans, une seule vue de chargement** : `DiagnosticRapportView({sessionId, vue})`
+  (`DiagnosticView.tsx`) rend `DiagnosticReport` (`/diagnostic/rapport/[sessionId]`, et
+  `/diagnostic` après analyse), `DiagnosticPlanTransition` (`…/plan`) ou `DiagnosticReponse`
+  (`…/reponse`). Consigne partagée : `DiagnosticConsigne.tsx`.
+- **Textes** : `lib/diagnostic-rapport.ts`, miroir mot pour mot de
+  `mobile_sejourfr/lib/screens/diagnostic/diagnostic_rapport_labels.dart`.
+  `report-labels.ts` est **supprimé**.
+- 🛑 Priorités = `result.planPriorities` seules (jamais `priorities`), ni triées ni tronquées ;
+  objectif = `result.objectiveLevel` (plus `user.targetLevel`) ; état des 4 épreuves =
+  `plan.domaines[].evaluated` ; prochaine étape = `journey.current`.
+- **Kit** (miroirs `Sf*`) : `LevelGoal`, `DoneHero`, `NumberedSteps`, `EpreuveTiles`,
+  `TextLink` ; variantes `LevelTrack.caption`, `NextStepCard.primary` facultatif. La piste
+  calcule sa demi-colonne d'inset (2 à 5 paliers), `levelTrackPosition` étant une fenêtre
+  sur `<A1 · A1 · A2 · B1 · B2`.
+
 ## Stack
 
 - **Next.js 16.2.6** (App Router)

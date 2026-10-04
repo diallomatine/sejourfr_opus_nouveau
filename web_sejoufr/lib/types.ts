@@ -1332,6 +1332,52 @@ export interface DiagnosticResultDto {
      * plafonnée à 3 **à l'écriture** du résumé côté serveur.
      */
     solidSkillCount: number;
+    /**
+     * 🛑 **Les priorités du LOT DU PLAN** — seule autorité des priorités que
+     * montrent le rapport, la transition et le Plan (par `skillId`). Lues sur
+     * les étapes du parcours que cette session a créées, dans l'ordre du lot.
+     * Vide = aucun lot (aucune fragilité, parcours pas encore écrit, session
+     * ancienne) : on n'affiche alors aucune priorité, **jamais** `priorities`
+     * en repli. Absent sur un backend antérieur ⇒ traiter comme `[]`.
+     * ⚠️ `priorities` / `mainPriorityExplanation` sont celles du diagnostic,
+     * qui ne coïncident pas avec le Plan : ne plus les afficher comme « vos
+     * priorités ».
+     */
+    planPriorities?: DiagnosticPlanPriorityDto[];
+    /** L'objectif du candidat — même valeur que `/api/auth/me → targetLevel`. `null` = inconnu. */
+    objectiveLevel?: TargetLevel | null;
+    /**
+     * Le niveau estimé de l'écrit situé par rapport à l'objectif. `null` (ou
+     * absent) = inconnu : aucune phrase. Les phrases vivent une fois par front.
+     */
+    situationObjectif?: SituationObjectif | null;
+}
+
+/** Où se situe le niveau estimé du diagnostic par rapport à l'objectif. Servi, jamais recalculé. */
+export type SituationObjectif =
+    | "OBJECTIF_ATTEINT"
+    | "UN_PALIER_SOUS_OBJECTIF"
+    | "PLUSIEURS_PALIERS_SOUS_OBJECTIF";
+
+/** Une priorité du lot du Plan, servie sur le rapport du diagnostic rapide. */
+export interface DiagnosticPlanPriorityDto {
+    skillId: string;
+    skillCode: string;
+    skillTitle: string;
+    section: SkillSection;
+    taskCode: SkillTaskCode | null;
+    /** 1..n, l'ordre du lot. Aucun front ne retrie. */
+    rank: number;
+    /** Le constat de l'analyse du diagnostic pour cette compétence ; `null` s'il n'y en a pas. */
+    explanation: string | null;
+    /** `skills.general_criterion` — l'explication pédagogique générique, jamais nulle. */
+    generalCriterion: string;
+    /**
+     * `true` = l'étape est dans le cycle en cours et visible dans le Plan.
+     * `false` = lot en attente (cycle suivant), cycle historisé ou étape
+     * remplacée. « Déjà intégrées à votre plan » ne s'affiche que sur `true`.
+     */
+    inCurrentCycle: boolean;
 }
 
 /**

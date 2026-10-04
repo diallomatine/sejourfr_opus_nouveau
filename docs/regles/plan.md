@@ -219,7 +219,9 @@
 - 🛑 **La PRIORITÉ COURANTE est ÉPINGLÉE — une nouvelle observation ne la
   remplace pas** (règle produit du **2026-09-13**, arbitrée par le propriétaire).
   L'ordre des priorités se termine par la **récence** (`LearningPlanPriorityResolver
-  .actionable` : statut, puis confiance, puis `observedAt` décroissant). Une
+  .actionable` : statut, puis confiance, puis `observedAt` décroissant — depuis le
+  2026-10-04 suivis du rang éditorial puis du code, `util/OrdreDesPriorites`,
+  cf. § « Ordre des fragilités » plus bas). Une
   production rendue sur une **autre** compétence prenait donc la première place
   par sa seule fraîcheur, et l'étape commencée disparaissait de l'écran **au
   milieu de son cycle**. Cas réel signalé : EE3 « Développer un argument »
@@ -782,8 +784,9 @@ Le Plan servait **2 actions**, toutes en écrit, et la carte d'expression orale 
   sans lui, toute compétence CO/CE serait jugée inexécutable et le Plan perdrait des
   fragilités réelles.
 - 🆕 **Classement et composition configurables** (`PlanActionRanker`) : score additif
-  `nature + urgence du domaine + écart à l'objectif + confiance`, départages `observedAt` puis
-  code. 🛑 **Aucune horloge** — la récence est un *départage*, jamais un poids, sinon la
+  `nature + urgence du domaine + écart à l'objectif + confiance`, départages `observedAt`, rang
+  éditorial (`skills.display_order`) puis code — `OrdreDesPriorites.departage`, le même que le
+  lot (AR-3, 2026-10-04). 🛑 **Aucune horloge** — la récence est un *départage*, jamais un poids, sinon la
   stickiness de la séance ne serait plus gratuite. **La première place est épinglée** :
   c'est celle que le freemium ouvre (`PlanFocusResolver`), un classement qui la déplacerait
   cadenasserait l'étape n°1. **Composition d'Aujourd'hui** : au plus
@@ -2948,4 +2951,26 @@ Demande du propriétaire. `PlanEtapeView.tsx` ⇄ `plan_etape_screen.dart`, mots
   actuelles. Verrouillé par `JourneyStepSeriesIT`.
 - Le pied de l'écran (encarts, bouton, validation) prend la gouttière d'une **section** du kit
   (22 px) : web `Section` sans intertitre, mobile `sfSectionGap`.
+
+## Ordre des fragilités — UN comparateur (AR-3, 2026-10-04)
+
+🛑 **`util/OrdreDesPriorites.PAR_GRAVITE` est l'unique ordre de gravité** du lot du parcours
+(`JourneyLotBuilder`, lots d'examens blancs compris) et des priorités de `/api/me/plan`
+(`LearningPlanPriorityResolver.actionable`) ; son départage final
+(`OrdreDesPriorites.departage`) sert aussi `PlanActionRanker`, les étapes franchies et les
+observations récentes du Plan. Ordre : `PRIORITY` avant `TO_REINFORCE`, confiance décroissante,
+observation la plus récente, **rang éditorial** (`skills.display_order`, croissant), code.
+
+- **Un instant par PRODUCTION** (`LearningPlanObservationService.recordProduction`) : l'ancien
+  `Instant.now()` par ligne faisait gagner la **dernière compétence écrite** à égalité de
+  statut et de confiance (le lot retenait `EE1-C8`, rang 8 de l'allowlist, dans 4 diagnostics
+  sur 7). À l'intérieur d'une production, la récence ne trie plus rien ; c'est le rang
+  éditorial qui tranche. Entre deux productions (les trois tâches d'un examen blanc, ou deux
+  évaluations), la récence reste le critère, inchangé.
+- **Pourquoi `skills.display_order`** et pas `diagnostic_task_skills.display_order` : porté par
+  la compétence déjà chargée (coût de `/api/me/plan` inchangé), valable pour toutes les sources,
+  et le rapport du diagnostic lit désormais le lot lui-même (`DiagnosticResultDto.planPriorities`,
+  `docs/regles/diagnostic.md`) — la cohérence rapport ⇄ Plan ne dépend plus de l'alignement de
+  deux règles.
+- **Futurs calculs seulement** : un lot persisté est un fait daté, il n'est pas réécrit.
 

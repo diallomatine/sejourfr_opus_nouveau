@@ -2273,37 +2273,6 @@ class _SfTopBadge extends StatelessWidget {
   }
 }
 
-/// « Votre objectif : **B2** » (`.sf-goal-line`), sous le niveau d'une carte
-/// hero.
-///
-/// 🛑 Le palier est **servi** : cette ligne n'est pas rendue quand la démarche
-/// du candidat n'est pas déclarée.
-class SfGoalLine extends StatelessWidget {
-  const SfGoalLine({super.key, required this.prefix, required this.goal});
-
-  /// « Votre objectif : » ou « Objectif : » selon l'écran — la maquette ne dit
-  /// pas la même chose sur l'estimation rapide et sur le bilan complet.
-  final String prefix;
-  final String goal;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        text: prefix,
-        style: AppFonts.ui(size: 15, color: AppColors.ink),
-        children: [
-          TextSpan(
-            text: goal,
-            style: AppFonts.ui(
-                size: 15, weight: FontWeight.w800, color: AppColors.blue),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// La phrase en emphase d'un encart (`.sf-emphasis`) : « Votre niveau peut donc
 /// être différent selon les épreuves. »
 class SfEmphasis extends StatelessWidget {
@@ -4038,7 +4007,7 @@ class SfNextStepCard extends StatelessWidget {
     required this.title,
     required this.text,
     required this.facts,
-    required this.primary,
+    this.primary,
   });
 
   final String eyebrow;
@@ -4048,7 +4017,10 @@ class SfNextStepCard extends StatelessWidget {
   /// Les reperes de la carte. Vide ⇒ aucune grille.
   final List<SfNextStepFact> facts;
 
-  final ({String label, VoidCallback onPressed}) primary;
+  /// L'action de la carte. `null` ⇒ carte d'annonce sans bouton (la
+  /// transition du diagnostic rapide, 2026-10-04, dont le CTA vit sous la
+  /// carte). Miroir web : `NextStepCard primary?`.
+  final ({String label, VoidCallback onPressed})? primary;
 
   @override
   Widget build(BuildContext context) {
@@ -4174,13 +4146,15 @@ class SfNextStepCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 15),
-                // Le CTA rouge est celui du kit : une seule definition de
-                // bouton principal, ici comme partout.
-                SfButton(
-                  label: primary.label,
-                  onPressed: primary.onPressed,
-                ),
+                if (primary != null) ...[
+                  const SizedBox(height: 15),
+                  // Le CTA rouge est celui du kit : une seule definition de
+                  // bouton principal, ici comme partout.
+                  SfButton(
+                    label: primary!.label,
+                    onPressed: primary!.onPressed,
+                  ),
+                ],
               ],
             ),
           ),
@@ -8379,6 +8353,356 @@ class SfExamRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/* ==========================================================================
+   DIAGNOSTIC RAPIDE — le nouveau rapport (2026-10-04). Maquette :
+   `docs/diagnostic/maquette-rapport-diagnostic-premium.html` (`.levelrow`,
+   `.target`, `.secondary` / `.backlink`, `.transitionHero`, `.step`,
+   `.exams`). Miroirs web, mêmes noms sans `Sf` : `LevelGoal`, `TextLink`,
+   `DoneHero`, `NumberedSteps`, `EpreuveTiles`.
+   🛑 Aucune de ces briques ne compose de phrase ni ne classe : l'écran passe
+   des faits servis déjà mis en mots.
+   ========================================================================== */
+
+/// **Le grand niveau et, à droite, l'objectif** (`.levelrow` + `.target`).
+///
+/// [goal] `null` ⇒ le bloc objectif n'est pas rendu : un objectif inconnu ne
+/// s'invente pas. Miroir web : `LevelGoal`.
+class SfLevelGoal extends StatelessWidget {
+  const SfLevelGoal({
+    super.key,
+    required this.level,
+    this.goalLabel,
+    this.goal,
+  });
+
+  final String level;
+  final String? goalLabel;
+  final String? goal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(child: SfLevel(level)),
+        if (goal != null) ...[
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (goalLabel != null)
+                Text(
+                  goalLabel!,
+                  textAlign: TextAlign.right,
+                  style: AppFonts.ui(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: AppColors.ink,
+                    height: 1.35,
+                  ),
+                ),
+              Text(
+                goal!,
+                style: AppFonts.display(
+                  size: 20,
+                  weight: FontWeight.w700,
+                  color: AppColors.blue,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// **Le lien texte centré** (`.secondary`, `.backlink`) : « Revoir ma
+/// réponse », « ← Revenir au rapport ». Zone tactile de 44 px.
+/// Miroir web : `TextLink`.
+class SfTextLink extends StatelessWidget {
+  const SfTextLink({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: AppFonts.ui(
+                    size: 13.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// **La tête centrée d'un écran d'aboutissement** (`.transitionHero`) :
+/// pastille à coche verte, kicker, titre, phrase. Miroir web : `DoneHero`.
+class SfDoneHero extends StatelessWidget {
+  const SfDoneHero({
+    super.key,
+    required this.kicker,
+    required this.title,
+    this.text,
+  });
+
+  final String kicker;
+  final String title;
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: AppColors.greenLight,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child:
+              const Icon(LucideIcons.check, size: 32, color: AppColors.green),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          kicker,
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(
+            size: 14,
+            weight: FontWeight.w700,
+            color: AppColors.muted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style:
+              AppFonts.display(size: 28, weight: FontWeight.w700, height: 1.1),
+        ),
+        if (text != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            text!,
+            textAlign: TextAlign.center,
+            style: AppFonts.ui(size: 15, color: AppColors.muted, height: 1.5),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Une étape de [SfNumberedSteps] : son numéro **servi**, son titre, son texte.
+typedef SfNumberedStep = ({int number, String title, String? text});
+
+/// **La liste d'étapes numérotées et reliées** (`.step` + `.num`).
+///
+/// 🛑 Le numéro est **servi** (le rang du lot) ; la brique ne trie ni ne
+/// renumérote. [SfNumberedStep.text] `null` ⇒ pas de ligne. Miroir web :
+/// `NumberedSteps`.
+class SfNumberedSteps extends StatelessWidget {
+  const SfNumberedSteps({super.key, required this.steps});
+
+  final List<SfNumberedStep> steps;
+
+  static const double _dot = 36;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < steps.length; i++)
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: _dot,
+                  child: Column(
+                    children: [
+                      SizedBox(height: i == 0 ? 0 : 12),
+                      Container(
+                        width: _dot,
+                        height: _dot,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.blueLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${steps[i].number}',
+                          style: AppFonts.ui(
+                            size: 14,
+                            weight: FontWeight.w800,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                      ),
+                      if (i < steps.length - 1)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            margin: const EdgeInsets.only(top: 4),
+                            color: AppColors.line,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: i == 0 ? 6 : 18,
+                      bottom: i == steps.length - 1 ? 0 : 2,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          steps[i].title,
+                          style: AppFonts.ui(
+                            size: 16,
+                            weight: FontWeight.w800,
+                            height: 1.28,
+                          ),
+                        ),
+                        if (steps[i].text != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            steps[i].text!,
+                            style: AppFonts.ui(
+                              size: 13.5,
+                              color: AppColors.muted,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Une tuile de [SfEpreuveTiles] : le code court de l'épreuve, son nom complet
+/// (lu par le lecteur d'écran) et son état **déjà mis en mots** — `null` tant
+/// que le fait servi n'est pas connu (rien n'est affiché à sa place).
+typedef SfEpreuveTile = ({
+  String code,
+  String name,
+  String? state,
+  bool done,
+});
+
+/// **Les quatre épreuves en tuiles** (`.exams` / `.exam`) : code court dans
+/// sa pastille, puis l'état servi. [SfEpreuveTile.done] ⇒ état en vert.
+/// Miroir web : `EpreuveTiles`.
+class SfEpreuveTiles extends StatelessWidget {
+  const SfEpreuveTiles({super.key, required this.tiles});
+
+  final List<SfEpreuveTile> tiles;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < tiles.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: Semantics(
+                label: [
+                  tiles[i].name,
+                  if (tiles[i].state != null) tiles[i].state
+                ].join(', '),
+                excludeSemantics: true,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AppRadii.lg),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.blueLight,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Text(
+                          tiles[i].code,
+                          style: AppFonts.ui(
+                            size: 12,
+                            weight: FontWeight.w900,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                      ),
+                      if (tiles[i].state != null) ...[
+                        const SizedBox(height: 7),
+                        Text(
+                          tiles[i].state!,
+                          textAlign: TextAlign.center,
+                          style: AppFonts.ui(
+                            size: 11,
+                            weight: FontWeight.w700,
+                            color: tiles[i].done
+                                ? AppColors.greenDark
+                                : AppColors.muted,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

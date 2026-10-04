@@ -312,17 +312,6 @@
   color: var(--color-blue);
 }
 
-.goalLine {
-  margin: 10px 0 0;
-  font-size: 14.5px;
-  font-weight: 650;
-  color: var(--color-ink);
-}
-
-.goalLine span {
-  color: var(--color-blue);
-}
-
 .insight {
   margin: 16px 0 0;
   font-size: 14px;
@@ -354,8 +343,8 @@
 .track::before {
   content: "";
   position: absolute;
-  left: 16%;
-  right: 16%;
+  left: var(--sf-track-inset, 16%);
+  right: var(--sf-track-inset, 16%);
   top: 9px;
   height: 3px;
   background: var(--color-line-strong);
@@ -366,7 +355,7 @@
 .track::after {
   content: "";
   position: absolute;
-  left: 16%;
+  left: var(--sf-track-inset, 16%);
   width: var(--sf-track-fill, 0%);
   top: 9px;
   height: 3px;
@@ -434,6 +423,46 @@
   color: var(--color-muted);
   white-space: nowrap;
   line-height: 16px;
+}
+
+/* La légende sous la piste (`LevelTrack caption`). */
+.trackCaption {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+/* ---------- Niveau + objectif sur une ligne (`LevelGoalRow`) ---------- */
+
+.levelGoalRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.levelGoalMain {
+  min-width: 0;
+}
+
+.levelGoalAside {
+  margin: 0;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1.3;
+}
+
+.levelGoalAside b {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-blue);
 }
 
 /* ---------- Observations (points positifs / à améliorer) ---------- */
@@ -5886,4 +5915,185 @@ a.pRow:focus-visible {
   .blocHeadInfo .infoTrailing {
     display: none;
   }
+}
+
+/* ==========================================================================
+   Le rapport du diagnostic rapide et sa transition (2026-10-04)
+   `EpreuveTiles`, `NumberedList`, `TextLink` — miroirs `Sf*` côté Flutter.
+   ========================================================================== */
+
+.epreuveTiles {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.epreuveTile {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 4px;
+  border-radius: var(--sf-radius-md);
+  background: var(--color-white);
+  box-shadow: var(--sf-shadow-border);
+  text-align: center;
+}
+
+.epreuveTileCode {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  background: var(--mod-light);
+  color: var(--mod);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.epreuveTileState {
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.epreuveTileState.isDone {
+  color: var(--color-green-dark);
+}
+
+/* ---------- Tête d'un écran d'aboutissement (`DoneHero`) ---------- */
+
+.doneHero {
+  display: grid;
+  justify-items: center;
+  padding: 18px 18px 4px;
+  text-align: center;
+}
+
+.doneHeroIco {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: 22px;
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.doneHeroKicker {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.doneHeroTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+
+.doneHeroText {
+  max-width: 560px;
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+.numbered {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.numberedItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.numberedItem:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 50px;
+  bottom: -10px;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.numberedN {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--mod-light);
+  color: var(--mod);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.numberedCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.numberedTitle {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.28;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.numberedText {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+.textLinkRow {
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+.textLink {
+  display: inline-block;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.textLink:hover,
+.textLink:focus-visible {
+  color: var(--color-ink);
+  text-decoration: underline;
 }

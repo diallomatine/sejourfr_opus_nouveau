@@ -11,6 +11,8 @@ import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/diagnostic/diagnostic_rapport_screen.dart';
+import '../../screens/diagnostic/diagnostic_reponse_screen.dart';
+import '../../screens/diagnostic/diagnostic_transition_screen.dart';
 import '../../screens/diagnostic/diagnostic_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
@@ -111,6 +113,7 @@ class AppRoutes {
       civique ? civiqueExamens : tcfExamens;
 
   static const civique = '/civique';
+
   /// Ancienne page plein écran des examens blancs civiques GLOBAUX : elle
   /// **redirige** vers le segment Examens du module Civique (X10).
   static const civiqueExamsBlanc = '/civique/examens-blancs';
@@ -134,6 +137,7 @@ class AppRoutes {
   static const tcfCoExams = '/tcf/co/examens';
   static const tcfCeExams = '/tcf/ce/examens';
   static const tcfStructureExams = '/tcf/structure/examens';
+
   /// **Entrée d'une épreuve d'Expression** (depuis Réviser, l'Accueil ou le
   /// Plan) : la **liste de ses trois tâches**, niveau 1 du
   /// parcours. C'est aussi la « racine de l'épreuve » sur laquelle retombent
@@ -198,6 +202,21 @@ class AppRoutes {
   static String diagnosticRapportPath(String sessionId) =>
       '/diagnostic/rapport/${Uri.encodeComponent(sessionId)}';
 
+  /// **La transition « Votre plan commence ici »** du rapport (2026-10-04).
+  /// Miroir web : `/diagnostic/rapport/[sessionId]/plan`.
+  static const diagnosticRapportPlan = '/diagnostic/rapport/:sessionId/plan';
+
+  static String diagnosticRapportPlanPath(String sessionId) =>
+      '${diagnosticRapportPath(sessionId)}/plan';
+
+  /// **« Revoir ma réponse »** du rapport (2026-10-04). Miroir web :
+  /// `/diagnostic/rapport/[sessionId]/reponse`.
+  static const diagnosticRapportReponse =
+      '/diagnostic/rapport/:sessionId/reponse';
+
+  static String diagnosticRapportReponsePath(String sessionId) =>
+      '${diagnosticRapportPath(sessionId)}/reponse';
+
   /// **Le lien « Continuer sur l'application »** du diagnostic web (lot 3b) :
   /// universal link iOS / App Link Android, `#run=…&token=…`. Jamais un
   /// écran : le `redirect` le consomme ([AppLinkClaim]) et repart aussitôt.
@@ -217,10 +236,12 @@ class AppRoutes {
   /// Le diagnostic CIVIQUE (L9). 🛑 Un seul, comme le TCF depuis le retrait de
   /// son diagnostic complet (2026-09-26).
   static const civicDiagnostic = '/diagnostic-civique';
-  static const civicDiagnosticResult = '/diagnostic-civique/:sessionId/resultat';
+  static const civicDiagnosticResult =
+      '/diagnostic-civique/:sessionId/resultat';
 
   static String civicDiagnosticResultPath(String sessionId) =>
       '/diagnostic-civique/$sessionId/resultat';
+
   /// L'ancienne adresse de l'onglet Plan : **redirige** vers le segment Plan
   /// du module (`?module=CIVIQUE` ⇒ civique, sinon TCF).
   static const plan = '/plan';
@@ -241,7 +262,6 @@ class AppRoutes {
 
   static String planUnlockPath({required bool civique}) =>
       civique ? '$planUnlock?module=CIVIQUE' : planUnlock;
-
 
   /// Bilan d'une **série ciblée de compréhension**, poussé par le runner quand
   /// la route porte `from=planSerie` (même montage que `tcfLotResult`).
@@ -548,7 +568,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (state.uri.path == AppRoutes.continuerSurApp) {
         final claim = AppLinkClaim.fromUri(state.uri);
         if (claim != null) {
-          unawaited(ref.read(diagnosticRunTrackerProvider).receiveAppLink(claim));
+          unawaited(
+              ref.read(diagnosticRunTrackerProvider).receiveAppLink(claim));
         }
         if (auth is AuthLoading) return AppRoutes.splash;
         return auth is AuthAuthenticated ? AppRoutes.home : AppRoutes.register;
@@ -726,8 +747,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.progressionEpreuve,
                 builder: (_, state) {
-                  final epreuve =
-                      planDomainFromKey(state.pathParameters['domainKey'] ?? '');
+                  final epreuve = planDomainFromKey(
+                      state.pathParameters['domainKey'] ?? '');
                   // Une clé inconnue ne fabrique pas d'épreuve : on retombe
                   // sur la progression globale plutôt que d'inventer un
                   // domaine.
@@ -770,8 +791,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'examens',
-                    builder: (_, __) => const TcfQcmExamsScreen(
-                        module: TcfQcmModule.structure),
+                    builder: (_, __) =>
+                        const TcfQcmExamsScreen(module: TcfQcmModule.structure),
                   ),
                 ],
               ),
@@ -1033,6 +1054,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.diagnosticRapport,
         builder: (_, state) => DiagnosticRapportScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.diagnosticRapportPlan,
+        builder: (_, state) => DiagnosticTransitionScreen(
+          sessionId: state.pathParameters['sessionId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.diagnosticRapportReponse,
+        builder: (_, state) => DiagnosticReponseScreen(
           sessionId: state.pathParameters['sessionId']!,
         ),
       ),

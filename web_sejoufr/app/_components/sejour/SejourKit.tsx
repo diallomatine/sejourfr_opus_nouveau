@@ -349,17 +349,26 @@ export function LevelTrack({
   goalIndex,
   youLabel = "Vous",
   goalLabel = "Objectif",
+  caption,
 }: {
   levels: string[];
   currentIndex: number;
   goalIndex: number;
   youLabel?: string;
   goalLabel?: string;
+  /**
+   * La légende sous la piste (« Votre progression vers l'objectif »).
+   * 🛑 Une variante, pas une primitive de plus. Miroir Flutter :
+   * `SfLevelTrack.caption`.
+   */
+  caption?: string;
 }) {
   const n = Math.max(levels.length, 1);
-  // La piste va du centre de la 1ʳᵉ colonne au centre de la dernière : 16 % de
-  // chaque côté. On remplit au prorata du palier courant.
-  const span = 100 - 16 * 2;
+  // La piste va du centre de la 1ʳᵉ colonne au centre de la dernière : une
+  // demi-colonne de chaque côté, quel que soit le nombre de paliers (la fenêtre
+  // en montre de 2 à 5). On remplit au prorata du palier courant.
+  const inset = 50 / n;
+  const span = 100 - inset * 2;
   const fill = n > 1 ? (span * Math.max(currentIndex, 0)) / (n - 1) : 0;
 
   return (
@@ -373,6 +382,7 @@ export function LevelTrack({
         style={
           {
             gridTemplateColumns: `repeat(${n}, 1fr)`,
+            "--sf-track-inset": `${inset}%`,
             "--sf-track-fill": `${fill}%`,
           } as CSSProperties
         }
@@ -380,16 +390,48 @@ export function LevelTrack({
         {levels.map((lvl, i) => {
           const state =
             i === currentIndex ? styles.isNow : i === goalIndex ? styles.isGoal : i < currentIndex ? styles.isDone : "";
-          const caption = i === currentIndex ? youLabel : i === goalIndex ? goalLabel : " ";
+          const cap = i === currentIndex ? youLabel : i === goalIndex ? goalLabel : " ";
           return (
             <div key={lvl} className={cx(styles.trackCol, state)}>
               <span className={styles.dot} />
               <span className={styles.lvl}>{lvl}</span>
-              <span className={styles.cap}>{caption}</span>
+              <span className={styles.cap}>{cap}</span>
             </div>
           );
         })}
       </div>
+      {caption ? <p className={styles.trackCaption}>{caption}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * **Le niveau et son objectif, sur une ligne** (`.levelrow` / `.target` de la
+ * maquette du rapport) : à gauche le niveau en très gros (« — » quand il n'y en
+ * a pas), à droite « Votre objectif » et le palier visé.
+ *
+ * 🛑 `goal` **nul ⇒ aucun bloc objectif** : on n'invente pas un palier que le
+ * candidat n'a pas déclaré. Le kit ne compose aucun mot. Miroir Flutter :
+ * `SfLevelGoal`.
+ */
+export function LevelGoal({
+  level,
+  goalLabel,
+  goal,
+}: {
+  level: string;
+  goalLabel?: string | null;
+  goal?: string | null;
+}) {
+  return (
+    <div className={styles.levelGoalRow}>
+      <p className={cx(styles.level, styles.levelGoalMain)}>{level}</p>
+      {goal ? (
+        <p className={styles.levelGoalAside}>
+          {goalLabel ? <span>{goalLabel}</span> : null}
+          <b>{goal}</b>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -1746,7 +1788,13 @@ export function NextStepCard({
   text: string;
   /** Les repères de la carte. Vide ⇒ aucune grille. */
   facts: NextStepFact[];
-  primary: { label: string; onClick: () => void };
+  /**
+   * L'action de la carte. **Absente ⇒ carte d'annonce, sans bouton** — la
+   * transition du rapport de diagnostic nomme l'étape suivante et porte son
+   * CTA sous la carte. 🛑 Une variante, pas une primitive de plus. Miroir
+   * Flutter : `SfNextStepCard.primary` nullable.
+   */
+  primary?: { label: string; onClick: () => void } | null;
 }) {
   return (
     <section className={styles.nextStep}>
@@ -1763,11 +1811,13 @@ export function NextStepCard({
           ))}
         </div>
       ) : null}
-      <div className={styles.nextActions}>
-        {/* Le CTA rouge est celui du kit : une seule définition de bouton
-            principal, ici comme partout. */}
-        <Cta onClick={primary.onClick}>{primary.label}</Cta>
-      </div>
+      {primary ? (
+        <div className={styles.nextActions}>
+          {/* Le CTA rouge est celui du kit : une seule définition de bouton
+              principal, ici comme partout. */}
+          <Cta onClick={primary.onClick}>{primary.label}</Cta>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -3727,4 +3777,147 @@ export function Split({ main, side }: { main: ReactNode; side?: ReactNode }) {
  */
 export function Grid({ cols, children }: { cols: 2 | 4; children: ReactNode }) {
   return <div className={cx(styles.modGrid, cols === 4 ? styles.isFour : styles.isTwo)}>{children}</div>;
+}
+
+/* ==========================================================================
+   Le rapport du diagnostic rapide et sa transition (2026-10-04,
+   `docs/diagnostic/maquette-rapport-diagnostic-premium.html`)
+
+   🛑 Miroirs de `SfDoneHero`, `SfNumberedSteps`, `SfEpreuveTiles` et
+   `SfTextLink` côté Flutter (avec `SfLevelGoal`, plus haut). Aucune ne compose
+   de phrase ni ne classe un état : tout arrive servi, déjà mis en mots.
+   ========================================================================== */
+
+/**
+ * **La tête d'un écran d'aboutissement** (`.transitionHero`) : pastille coche
+ * verte, kicker, titre, phrase — centrés. Miroir Flutter : `SfDoneHero`.
+ */
+export function DoneHero({
+  kicker,
+  title,
+  text,
+}: {
+  kicker: string;
+  title: string;
+  text?: string | null;
+}) {
+  return (
+    <header className={styles.doneHero}>
+      <span className={styles.doneHeroIco} aria-hidden>
+        <Check size={32} strokeWidth={2.6} />
+      </span>
+      <p className={styles.doneHeroKicker}>{kicker}</p>
+      <h1 className={styles.doneHeroTitle}>{title}</h1>
+      {text ? <p className={styles.doneHeroText}>{text}</p> : null}
+    </header>
+  );
+}
+
+/**
+ * Une tuile d'épreuve : son code court, son nom complet (lecteur d'écran
+ * seulement) et son état servi déjà mis en mots — `null` = inconnu, aucun état.
+ */
+export type EpreuveTile = { code: string; name: string; state: string | null; done: boolean };
+
+/**
+ * **Les quatre épreuves en tuiles** (`.exams` de la maquette) : code en
+ * pastille douce du module, puis l'état (« Évaluée » en vert, « À mesurer »
+ * neutre). Le nom complet est porté par `aria-label`.
+ *
+ * 🛑 L'état est **lu**, jamais déduit ici. Miroir Flutter : `SfEpreuveTiles`.
+ */
+export function EpreuveTiles({
+  tiles,
+  module = "tcf",
+}: {
+  tiles: EpreuveTile[];
+  module?: ModuleTone;
+}) {
+  return (
+    <ul className={cx(styles.epreuveTiles, moduleToneClass[module])}>
+      {tiles.map((tile) => (
+        <li
+          key={tile.code}
+          className={styles.epreuveTile}
+          aria-label={[tile.name, tile.state].filter(Boolean).join(", ")}
+        >
+          <span className={styles.epreuveTileCode} aria-hidden>
+            {tile.code}
+          </span>
+          {tile.state ? (
+            <span
+              className={cx(styles.epreuveTileState, tile.done && styles.isDone)}
+              aria-hidden
+            >
+              {tile.state}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Une étape numérotée : son numéro servi, son titre, sa phrase facultative. */
+export type NumberedStep = { number: number; title: string; text?: string | null };
+
+/**
+ * **Des étapes numérotées reliées par un trait** (`.step` de la maquette) :
+ * numéro dans un rond doux du module, titre, phrase.
+ *
+ * 🛑 Le numéro est **passé** (un rang servi), jamais l'index de la boucle, et
+ * l'ordre est celui de l'appelant : le kit ne trie rien. Miroir Flutter :
+ * `SfNumberedSteps`.
+ */
+export function NumberedSteps({
+  steps,
+  module = "tcf",
+}: {
+  steps: NumberedStep[];
+  module?: ModuleTone;
+}) {
+  return (
+    <ol className={cx(styles.numbered, moduleToneClass[module])}>
+      {steps.map((step) => (
+        <li key={`${step.number}-${step.title}`} className={styles.numberedItem}>
+          <span className={styles.numberedN} aria-hidden>
+            {step.number}
+          </span>
+          <span className={styles.numberedCopy}>
+            <span className={styles.numberedTitle}>{step.title}</span>
+            {step.text ? <span className={styles.numberedText}>{step.text}</span> : null}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * **Le lien texte discret, centré** (`.secondary` / `.backlink` de la
+ * maquette) : « Revoir ma réponse », « ← Revenir au rapport ». Sous un CTA,
+ * jamais à sa place. Miroir Flutter : `SfTextLink`.
+ */
+export function TextLink({
+  href,
+  onClick,
+  children,
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <p className={styles.textLinkRow}>
+      {href ? (
+        <Link href={href} className={styles.textLink} onClick={onClick}>
+          {children}
+        </Link>
+      ) : (
+        <button type="button" className={styles.textLink} onClick={onClick}>
+          {children}
+        </button>
+      )}
+    </p>
+  );
 }

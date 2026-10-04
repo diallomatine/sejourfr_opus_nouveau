@@ -167,7 +167,7 @@ type Heros = Pick<Matiere, "heroValue" | "heroPill" | "heroRatio" | "heroMeta">;
  * ancien résultat existe (le parcours est retiré des fronts depuis le
  * 2026-09-26, ses résultats restent lus).
  *
- * 🛑 Le rail est celui du kit (`levelTrackPosition`, A2 · B1 · B2) : c'est la
+ * 🛑 Le rail est celui du kit (`levelTrackPosition`, fenêtre sur <A1…B2) : c'est la
  * seule échelle affichée du dépôt, et en inventer une seconde ici ferait deux
  * positions différentes pour le même palier.
  */

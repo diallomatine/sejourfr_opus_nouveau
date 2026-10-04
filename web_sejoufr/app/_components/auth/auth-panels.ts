@@ -13,7 +13,7 @@ import {
   DIAGNOSTIC_OUTCOME_PLAN,
   DIAGNOSTIC_OUTCOME_PRIORITIES,
 } from "../diagnostic/diagnostic-outcomes";
-import { DIAGNOSTIC_LEVEL_EYEBROW } from "../diagnostic/report-labels";
+import { DIAGNOSTIC_LEVEL_EYEBROW } from "@/lib/diagnostic-rapport";
 
 /**
  * 🛑 Le panneau d'argumentaire des écrans d'auth. **Presque aucun texte

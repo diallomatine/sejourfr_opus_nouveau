@@ -380,13 +380,95 @@ de rubriques et files de calibration doivent garder le filtre
   faiblesse observée ⇒ zéro priorité, état légitime. Bornes inchangées (2 par
   production, 3 après fusion, alternance écrit/oral), comptage
   `DiagnosticReconciliationMetrics.PRIORITE_DERIVEE_DE_FAIBLESSE`.
-  **Le Plan applique la même règle** : `LearningPlanPriorityResolver.actionable`
-  traite une observation `TO_REINFORCE` comme une priorité dérivée et départage
-  par **confiance** avant la récence, miroir de `DiagnosticPriorityRanking` — les
-  deux productions du diagnostic sont observées au même instant, la récence n'y
-  trie rien. `/api/me/plan` et `GET /api/diagnostics/{id}` ne peuvent donc plus
-  désigner deux étapes n°1 différentes, et le freemium suit
-  (`SkillAccessService` ouvre la compétence de la priorité, dérivée comprise).
+  **Le Plan dérive aussi** : `LearningPlanPriorityResolver.actionable` traite
+  une observation `TO_REINFORCE` comme une priorité dérivée et départage par
+  **confiance** avant la récence. ⚠️ **Ces priorités du diagnostic
+  (`summary_json.priority_skill_codes`, `result.priorities`) ne sont PAS celles
+  du Plan**, et l'ancienne affirmation « `/api/me/plan` et
+  `GET /api/diagnostics/{id}` ne peuvent plus désigner deux étapes n°1
+  différentes » était **fausse** (audit du 2026-10-04, §3.3 : sur 7 sessions
+  ayant un lot, aucune ne montrait les mêmes compétences des deux côtés, une
+  n'en avait aucune en commun). Deux causes : deux règles et deux plafonds (≤ 2
+  par production côté diagnostic, ≤ 3 par lot côté Plan), et un **bug** de
+  départage (ci-dessous). D'où la règle qui suit.
+- 🛑 **Le LOT DU PLAN est l'unique autorité des priorités montrées par le
+  rapport, l'écran de transition et le Plan, par `skill_id`** (2026-10-04,
+  AR-3). Le rapport lit `result.planPriorities` : les étapes `TRAIN_SKILL` dont
+  `source_assessment_id` est la session (`DiagnosticPlanPriorities`, une
+  requête), dans l'ordre du lot, avec le constat de l'analyse joint par
+  `skillId` (`explanation`, `null` s'il manque), `skills.general_criterion` et
+  `inCurrentCycle` (cycle `EN_COURS` et étape non `SUPERSEDED`). **Aucun repli**
+  sur `priority_skill_codes` : une seconde source recréerait la divergence. Pas
+  de lot (zéro fragilité, crochet du parcours pas encore rattrapé, session
+  antérieure au parcours) ⇒ liste **vide**. Plusieurs cycles portent le lot
+  (cycle historisé puis remplacé, V082) ⇒ `EN_COURS`, sinon `EN_ATTENTE`, sinon
+  le plus récent. `result.priorities` / `mainPriorityExplanation` restent servis
+  (clients installés, `nextAction`) mais ne s'affichent plus comme « vos
+  priorités ». Verrouillé par `DiagnosticRapportPrioritesDuPlanIT`.
+- 🛑 **Correctif de départage (AR-3, 2026-10-04) — un instant par
+  PRODUCTION, puis le rang éditorial.** `LearningPlanObservationService
+  .recordProduction` posait `Instant.now()` à **chaque ligne**, dans l'ordre des
+  `skills[]` du correcteur (= ordre de l'allowlist) : les huit observations
+  s'étalaient sur ~21 ms, et le départage « la plus récente d'abord » du lot
+  retenait **la dernière compétence écrite** (`EE1-C8`, rang 8, dans 4 lots sur
+  7 ; `EE1-C7`, rang 1, dans aucun). Désormais **un seul instant par
+  soumission**, et l'ordre de gravité est **un seul comparateur**,
+  `util/OrdreDesPriorites.PAR_GRAVITE` : statut (`PRIORITY` d'abord), confiance
+  décroissante, récence, **rang éditorial** (`skills.display_order`, l'ordre
+  d'importance des 8 compétences de chaque tâche), puis code. Il sert le lot
+  (`JourneyLotBuilder`, examens blancs compris), `/api/me/plan`
+  (`LearningPlanPriorityResolver`) et le départage du classement de la séance
+  (`PlanActionRanker`, via `OrdreDesPriorites.departage`). Rang de la taxonomie
+  plutôt que celui de `diagnostic_task_skills` : porté par la compétence déjà
+  chargée (aucune requête, coût de `/api/me/plan` inchangé) et valable pour
+  toutes les sources ; la cohérence rapport ⇄ Plan est tenue par
+  `planPriorities`, plus par l'alignement de deux règles. **Futurs calculs
+  seulement** : les lots déjà persistés ne sont pas réécrits. Tests :
+  `OrdreDesPrioritesTest`, `LearningPlanObservationServiceTest` (reproduction du
+  bug), `JourneyLotBuilderTest`, `DiagnosticRapportPrioritesDuPlanIT`.
+- **Situation par rapport à l'objectif, servie** (2026-10-04) :
+  `result.objectiveLevel` (`TargetProcedure.niveauVise`, la valeur de
+  `/api/auth/me`) et `result.situationObjectif` (`OBJECTIF_ATTEINT` /
+  `UN_PALIER_SOUS_OBJECTIF` / `PLUSIEURS_PALIERS_SOUS_OBJECTIF`), calculée par
+  `TcfDomaine.ecartAuNiveauCible` sur `written.levelEstimate`. `null` = niveau ou
+  objectif inconnu ⇒ les fronts se taisent. Remplace la phrase fixe « Vous avez
+  déjà les bases pour viser {objectif} », fausse pour un A1 visant B2 comme
+  au-dessus de l'objectif. Les phrases vivent une fois par front.
+- **Synthèse du rapport composée SANS IA** (AR-4) : phrase 1 indexée sur
+  `written.communicationStatus` (`EFFECTIVE|PARTIAL|INEFFECTIVE`, enum du
+  tool-schema, `null` si `NON_EVALUABLE` ⇒ phrase absente) ; phrase 2 =
+  `objectiveLevel` + `planPriorities[0].skillTitle`. Aucun texte servi, aucun
+  contrat IA touché : `summary` (LLM, tronqué dans 6 analyses sur 11) n'est plus
+  la synthèse affichée.
+- **Les trois écrans du rapport rapide** (2026-10-04, maquette
+  `docs/diagnostic/maquette-rapport-diagnostic-premium.html`, audit
+  `docs/diagnostic/audit-nouveau-rapport-diagnostic.md`). Mêmes routes, mêmes
+  textes et mêmes briques de kit des deux côtés ; textes : web
+  `lib/diagnostic-rapport.ts` ⇄ mobile `diagnostic_rapport_labels.dart`, mot pour mot.
+  1. **Rapport** (`/diagnostic` après analyse et `/diagnostic/rapport/{sessionId}`,
+     un seul composant par front) : niveau estimé + objectif (`objectiveLevel`,
+     bloc masqué si `null`), phrase de `situationObjectif`, piste de niveau
+     (`levelTrackPosition` ⇄ `cecrlTrack`, règle unique : fenêtre d'un palier sous
+     le plus bas jusqu'au plus haut, étendue vers le bas à 3 colonnes, aucune piste
+     si un palier manque ou vaut C1/C2, jamais de %), synthèse composée sans IA,
+     « Ce que nous avons observé » = au plus 1 point fort puis **toutes** les
+     `planPriorities` (aucun flou, aucune offre), encart « Une première estimation… »,
+     CTA « Découvrir mon plan » → transition, lien « Revoir ma réponse ».
+     `NON_EVALUABLE` servi ⇒ « — » + « Évaluation incomplète », sans situation,
+     piste ni phrase de communication. Sans `sessionId` : CTA vers le Plan, pas de lien.
+  2. **Transition « Votre plan commence ici »** (`…/rapport/{sessionId}/plan`) :
+     priorités du lot numérotées par `rank` avec `generalCriterion`, pastille
+     d'épreuve si toutes de la même section, note sur `inCurrentCycle` de la
+     première ; encart ambre avec les 4 épreuves dont l'état « Évaluée » /
+     « À mesurer » se lit sur `plan.domaines[].evaluated` (`GET /api/me/plan`) —
+     **jamais** sur `journey.blocs[].status` (un bloc `EN_COURS` peut n'avoir jamais
+     été mesuré) ; Plan non lu ⇒ aucun état. Carte « Votre prochaine étape » =
+     `journey.current` nommée comme le Plan (examen ⇒ « {épreuve} · Mesurer mon
+     niveau | Examen blanc », compétence ⇒ son titre), masquée si `null`.
+  3. **« Revoir ma réponse »** (`…/rapport/{sessionId}/reponse`) : la consigne
+     (`written.instruction`, mise en forme `diagnosticConsigneBlocks`) et le texte
+     rendu (`texteSoumis` de `GET /api/production-submissions/{submissionId}`) avec
+     son nombre de mots. Lecture seule.
 - **Contenu et audio seed-only** : V755 crée la version `INITIAL_TCF/1`, ses deux
   sujets et leurs allowlists de huit compétences. La console de sujets standard
   refuse de les modifier. V755 ne génère aucun média : elle référence l'objet R2

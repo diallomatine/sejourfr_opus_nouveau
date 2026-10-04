@@ -1,75 +1,78 @@
 "use client";
 
 /**
- * **Le résultat du diagnostic RAPIDE TCF.**
+ * **Le rapport du diagnostic RAPIDE TCF** (2026-10-04,
+ * `docs/diagnostic/maquette-rapport-diagnostic-premium.html`, écran 1).
  *
  * Une seule production écrite a été observée : l'écran annonce une
- * *estimation*, dit ce qu'il a vu, dit **ce qu'il n'a pas vu**, puis mène au
- * **Plan**, qu'il affine (D-69 : le Plan existe pour tout compte). Il ne
- * pousse aucun abonnement : c'est le Plan qui s'en charge.
+ * *estimation*, la situe face à l'objectif, dit ce qu'il a vu — le point fort,
+ * puis **les priorités du lot du Plan** (`planPriorities`, la seule autorité) —,
+ * dit **ce qu'il n'a pas vu**, puis mène à la transition « Votre plan commence
+ * ici ». Il ne pousse aucune offre : un constat mesuré se montre en clair,
+ * l'offre vit dans le Plan.
  *
  * 🛑 **Aucun style local.** Tout l'habillage vient du kit partagé
- * `app/_components/sejour/` (miroir du kit Flutter). Un motif qui manque
- * s'ajoute là-bas, jamais ici.
+ * `app/_components/sejour/` (miroir du kit Flutter).
  *
  * 🛑 **`null` = inconnu, jamais mauvais.** Une production inexploitable
- * (`NON_EVALUABLE`) n'a pas de niveau : on écrit « — » et on dit ce qui manque.
- * Afficher A1 serait rendre un verdict que personne n'a rendu (V040/V041/V042).
+ * (`NON_EVALUABLE`, le fait servi) n'a pas de niveau : « — » et la pastille
+ * « Évaluation incomplète », sans situation, sans piste, sans phrase de
+ * communication. Afficher A1 serait rendre un verdict que personne n'a rendu.
  *
- * Il est la page `/diagnostic` quand la session est close.
+ * Il est la page `/diagnostic` quand la session est close, et la relecture
+ * `/diagnostic/rapport/[sessionId]` : un seul composant de rapport.
+ * Miroir mobile : `DiagnosticResultView`.
  */
 
 import type {ReactNode} from "react";
 import {ArrowUp, Check, Info} from "lucide-react";
 import {
   Card,
-  CheckList,
   Cta,
-  InfoCard,
+  LevelGoal,
   LevelTrack,
   NoteCard,
   Observation,
   Pad,
+  Pill,
   SejourApp,
   Section,
   Stack,
+  TextLink,
   Top,
   sejourStyles as styles,
 } from "@/app/_components/sejour/SejourKit";
 import {planHref} from "@/lib/module-switch";
 import {levelTrackPosition} from "@/lib/tcf-diagnostic";
 import {
-  DIAGNOSTIC_GOAL_PREFIX,
-  DIAGNOSTIC_INCOMPLETE_TEXT,
+  DIAGNOSTIC_GOAL_LABEL,
+  DIAGNOSTIC_INCOMPLETE_TAG,
   DIAGNOSTIC_LEVEL_EYEBROW,
   DIAGNOSTIC_LEVEL_UNKNOWN,
-  DIAGNOSTIC_OBJECTIVE_UNKNOWN,
+  DIAGNOSTIC_NOTE_TEXT,
+  DIAGNOSTIC_NOTE_TITLE,
   DIAGNOSTIC_OBSERVE_TITLE,
   DIAGNOSTIC_REPORT_KICKER,
   DIAGNOSTIC_REPORT_PLAN_CTA,
-  DIAGNOSTIC_SUITE_BENEFITS,
-  DIAGNOSTIC_SUITE_EPREUVES,
-  DIAGNOSTIC_SUITE_PROMISE,
-  DIAGNOSTIC_SUITE_TITLE,
+  DIAGNOSTIC_REPORT_REPONSE_LINK,
   DIAGNOSTIC_REPORT_TITLE,
-  DIAGNOSTIC_TRANSITION_EMPHASIS,
-  DIAGNOSTIC_TRANSITION_TEXT,
-  DIAGNOSTIC_TRANSITION_TITLE,
+  DIAGNOSTIC_TRACK_CAPTION,
+  DIAGNOSTIC_TRACK_GOAL,
+  diagnosticReponseHref,
+  diagnosticSituationPhrase,
+  diagnosticSynthese,
+  diagnosticTrackLevels,
+  diagnosticTransitionHref,
   observationLines,
-} from "./report-labels";
+} from "@/lib/diagnostic-rapport";
 import {niveauCecrlShort, type DiagnosticResultDto} from "@/lib/types";
-
-/* ------------------------------------------------------------------- écran */
 
 export function DiagnosticReport({
   diagnostic,
-  targetLevel,
   notice,
   backTo = null,
 }: {
-  diagnostic: {result: DiagnosticResultDto | null};
-  /** Palier visé, servi par `/api/auth/me`. `null` = démarche non déclarée. */
-  targetLevel: string | null;
+  diagnostic: {sessionId: string | null; result: DiagnosticResultDto | null};
   notice?: ReactNode;
   /**
    * Le retour de l'en-tête. `null` ⇒ aucun : le rapport est alors un écran
@@ -84,42 +87,70 @@ export function DiagnosticReport({
   // 🛑 Seule la valeur `NON_EVALUABLE` **explicite** se lit « rendue, rien à
   // observer » : l'absence du champ, elle, ne veut rien dire (backend ancien).
   const inexploitable = written?.evaluabilite === "NON_EVALUABLE";
-  const niveau = written?.levelEstimate ?? null;
-  const analyse = inexploitable ? DIAGNOSTIC_INCOMPLETE_TEXT : written?.summary ?? null;
-  const track = levelTrackPosition(niveau, targetLevel);
+  const niveau = inexploitable ? null : written?.levelEstimate ?? null;
+  const objectif = result?.objectiveLevel ?? null;
+  const situation = inexploitable
+    ? null
+    : diagnosticSituationPhrase(result?.situationObjectif, objectif);
+  const track = inexploitable ? null : levelTrackPosition(niveau, objectif);
+  const synthese = diagnosticSynthese(result, inexploitable);
   const observations = observationLines(result);
+  const sessionId = diagnostic.sessionId;
 
-  const blocs = (
-    <>
-      {/* 1 — le niveau. L'élément dominant de l'écran. */}
+  return (
+    /* 🛑 `report` : 980 px de conteneur, 720 px de texte. La grille des
+       observations prend la largeur, la carte de niveau garde sa colonne. */
+    <SejourApp report>
+      {notice}
+      <Top
+        backTo={backTo ?? undefined}
+        kicker={DIAGNOSTIC_REPORT_KICKER}
+        title={DIAGNOSTIC_REPORT_TITLE}
+      />
+
+      {/* 1 — le niveau face à l'objectif. L'élément dominant de l'écran. */}
       <Pad>
         <Card variant="hero">
           <p className={styles.label}>{DIAGNOSTIC_LEVEL_EYEBROW}</p>
-          <p className={styles.level}>{niveau ? niveauCecrlShort(niveau) : DIAGNOSTIC_LEVEL_UNKNOWN}</p>
-          <p className={styles.goalLine}>
-            {DIAGNOSTIC_GOAL_PREFIX} <span>{targetLevel ?? DIAGNOSTIC_OBJECTIVE_UNKNOWN}</span>
-          </p>
-          {/* Piste absente quand un palier sort de l'échelle affichée : mieux
-              vaut rien qu'un candidat rabattu sur un palier qui n'est pas le sien. */}
+          <LevelGoal
+            level={niveau ? niveauCecrlShort(niveau) : DIAGNOSTIC_LEVEL_UNKNOWN}
+            goalLabel={DIAGNOSTIC_GOAL_LABEL}
+            goal={objectif}
+          />
+          {inexploitable && (
+            <div className={styles.insight}>
+              <Pill label={DIAGNOSTIC_INCOMPLETE_TAG} tone="muted" />
+            </div>
+          )}
+          {situation && (
+            <div className={styles.insight}>
+              <Card variant="soft">
+                <span className={styles.emphasis}>{situation}</span>
+              </Card>
+            </div>
+          )}
+          {/* Piste absente quand un palier manque ou sort de l'échelle :
+              mieux vaut rien qu'un candidat rabattu sur un palier qui n'est
+              pas le sien. Jamais de pourcentage. */}
           {track && (
             <LevelTrack
-              levels={[...track.levels]}
+              levels={diagnosticTrackLevels(track)}
               currentIndex={track.currentIndex}
               goalIndex={track.goalIndex}
+              youLabel=""
+              goalLabel={DIAGNOSTIC_TRACK_GOAL}
+              caption={DIAGNOSTIC_TRACK_CAPTION}
             />
           )}
-          {analyse && <p className={styles.insight}>{analyse}</p>}
+          {synthese && <p className={styles.insight}>{synthese}</p>}
         </Card>
       </Pad>
 
-      {/* 2 — ce que nous avons observé. Absent quand le serveur n'a rien
-          classé : un bloc vide ne se remplit pas. */}
+      {/* 2 — ce que nous avons observé : le point fort, puis TOUTES les
+          priorités du lot du Plan. Absent quand rien n'est servi. */}
       {observations.length > 0 && (
         <Section title={DIAGNOSTIC_OBSERVE_TITLE}>
           <Pad>
-            {/* `sf-obs-grid` de la maquette (`diagnostic-rapide.tsx` l. 26) :
-                les observations se rangent en 2 colonnes à 960 px, 3 à 1100 px.
-                Sous 960 px la classe ne déclare rien — c'est le `Stack` d'avant. */}
             <Stack className={styles.deskGrid}>
               {observations.map((line) => (
                 <Observation
@@ -136,56 +167,28 @@ export function DiagnosticReport({
         </Section>
       )}
 
-      {/* 3 — la transition. Ce n'est pas décoratif, c'est une obligation
-          d'honnêteté : le diagnostic rapide n'observe qu'un écrit. */}
+      {/* 3 — l'encart d'honnêteté : le rapide n'observe qu'un écrit. */}
       <Section>
         <Pad>
-          <NoteCard variant="soft" icon={Info} title={DIAGNOSTIC_TRANSITION_TITLE}>
-            <p className={styles.insight}>{DIAGNOSTIC_TRANSITION_TEXT}</p>
-            <span className={styles.emphasis}>{DIAGNOSTIC_TRANSITION_EMPHASIS}</span>
-          </NoteCard>
-        </Pad>
-      </Section>
-
-      {/* 4 — la suite : le Plan, qui mesure les autres épreuves par examen blanc. */}
-      <Section title={DIAGNOSTIC_SUITE_TITLE}>
-        <Pad>
           <Stack>
-            {/* `sf-exam-grid` de la maquette (`diagnostic-rapide.tsx` l. 86) :
-                elle n'enveloppe QUE les quatre épreuves — la carte de promesse
-                et le CTA restent en pleine largeur sous elles, comme là-bas.
-                D'où le `Stack` imbriqué : sous 960 px les deux niveaux ont le
-                même écart de 10 px, le rendu mobile est celui d'avant. */}
-            <Stack className={styles.deskGrid2}>
-              {DIAGNOSTIC_SUITE_EPREUVES.map((epreuve) => (
-                <InfoCard key={epreuve.label} icon={<epreuve.icon />} title={epreuve.label} />
-              ))}
-            </Stack>
-            <Card>
-              <p className={styles.label}>{DIAGNOSTIC_SUITE_PROMISE}</p>
-              <CheckList items={DIAGNOSTIC_SUITE_BENEFITS} />
-            </Card>
-            {/* Le Plan. 🛑 Jamais l'entrée du diagnostic complet (arbitrage
-                du 2026-09-26 : il n'est plus un parcours proposé). */}
-            <Cta href={planHref("TCF")}>{DIAGNOSTIC_REPORT_PLAN_CTA}</Cta>
+            <NoteCard variant="soft" icon={Info} title={DIAGNOSTIC_NOTE_TITLE}>
+              <p className={styles.insight}>{DIAGNOSTIC_NOTE_TEXT}</p>
+            </NoteCard>
+            {/* 4 — la suite : la transition vers le Plan. Sans identifiant de
+                session (jamais en pratique), on rejoint le Plan directement. */}
+            <div>
+              <Cta href={sessionId ? diagnosticTransitionHref(sessionId) : planHref("TCF")}>
+                {DIAGNOSTIC_REPORT_PLAN_CTA}
+              </Cta>
+              {sessionId && (
+                <TextLink href={diagnosticReponseHref(sessionId)}>
+                  {DIAGNOSTIC_REPORT_REPONSE_LINK}
+                </TextLink>
+              )}
+            </div>
           </Stack>
         </Pad>
       </Section>
-    </>
-  );
-
-  return (
-    /* 🛑 `report` : 980 px de conteneur, 720 px de texte. Les deux grilles
-       ci-dessus (observations, épreuves) prennent la largeur, le hero et la
-       note de transition gardent leur colonne de lecture. */
-    <SejourApp report>
-      {notice}
-      <Top
-        backTo={backTo ?? undefined}
-        kicker={DIAGNOSTIC_REPORT_KICKER}
-        title={DIAGNOSTIC_REPORT_TITLE}
-      />
-      {blocs}
     </SejourApp>
   );
 }

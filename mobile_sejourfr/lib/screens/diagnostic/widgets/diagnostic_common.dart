@@ -352,7 +352,7 @@ class DiagnosticExerciseCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(exercise.title, style: AppFonts.display(size: 21)),
                   const SizedBox(height: 14),
-                  _Consigne(text: exercise.instruction),
+                  DiagnosticConsigne(text: exercise.instruction),
                   if (exercise.helperText.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     const Divider(height: 1, color: AppColors.line2),
@@ -411,8 +411,10 @@ class _FlagRule extends StatelessWidget {
   }
 }
 
-class _Consigne extends StatelessWidget {
-  const _Consigne({required this.text});
+/// La consigne servie mise en forme par [diagnosticConsigneBlocks] — partagée
+/// par la carte du sujet et « Revoir ma réponse ».
+class DiagnosticConsigne extends StatelessWidget {
+  const DiagnosticConsigne({super.key, required this.text});
 
   final String text;
 

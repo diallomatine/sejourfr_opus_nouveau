@@ -11,6 +11,7 @@ import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/epreuve_duration.dart';
 import '../../core/utils/query_propagation.dart';
+import '../../core/utils/word_count.dart';
 import '../../core/widgets/app_button.dart';
 import '../question_runner/widgets/exam_timer.dart';
 import '../tcf_full_exam/full_exam_exit_labels.dart';
@@ -102,11 +103,6 @@ class _EeBriefingWritingScreenState
     _scrollController.dispose();
     _controller.dispose();
     super.dispose();
-  }
-
-  int _countWords(String text) {
-    if (text.trim().isEmpty) return 0;
-    return text.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
   }
 
   void _onTextChanged(String value, ProductionTaskDto task) {
@@ -248,7 +244,7 @@ class _EeBriefingWritingScreenState
   Future<void> _handleTimeout(ProductionTaskDto task) async {
     if (_timedOut || !mounted) return;
     _timedOut = true;
-    final wordCount = _countWords(_controller.text);
+    final wordCount = compterMots(_controller.text);
     final recevable = isEeWordCountWithinBounds(task, wordCount);
 
     final goState = GoRouterState.of(context);
@@ -469,7 +465,7 @@ class _EeBriefingWritingScreenState
               controller: _controller,
               focusNode: _writingFocusNode,
               scrollController: _scrollController,
-              wordCount: _countWords(_controller.text),
+              wordCount: compterMots(_controller.text),
               onChanged: (v) => _onTextChanged(v, task),
               onSubmit: () => _submit(task),
               onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),

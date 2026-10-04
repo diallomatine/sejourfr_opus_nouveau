@@ -673,57 +673,42 @@ Plan propose (`PlanDomainAssessmentDto`). **Ne pas recréer** le parcours.
   de `diagnostic-outcomes.ts` + `auth-panels.ts` ; `diagnostic_choice.dart` y lit aussi sa
   carte « ce que vous obtenez ». Il ouvre l'inscription **ou** la connexion avec
   `redirect=/diagnostic`.
-- **Écran de RÉSULTAT — la maquette de référence est `MDiag`, étape `result`**
-  (`widgets/diagnostic_result.dart`, phrases dans `widgets/diagnostic_report_labels.dart`).
-  🛑 **Ce n'est PAS `MRapportGratuit`**, qui est le rapport du **visiteur non connecté**. Une
-  passe du 2026-08-21 a refondu cet écran sur la mauvaise des deux : « Mon profil TCF » y avait
-  disparu au profit d'une **bande de quatre colonnes** qui n'appartient qu'au rapport visiteur.
-  Rectifié le même jour — vérifier la maquette avant de toucher à l'ordre des blocs.
-  Ordre figé : **héros** (niveau estimé, « Objectif X » **sur la même ligne**, phrase, rail) →
-  **« Mon profil TCF »** → **compléter mon profil** → **« Vos points forts »** →
-  **« Vos priorités »** → *Votre plan personnalisé est prêt* → carte d'offre → note
-  d'estimation. En-tête d'écran : **« Diagnostic »** + « Estimation d'entraînement Séjour » /
-  « Rapport complet ». ⚠️ Les points forts passent **avant** les priorités, et le héros n'a
-  **aucune bande de quatre colonnes**.
-  - **« Mon profil TCF »** est une vraie section : une ligne d'en-tête « N domaine(s) sur 4
-    évalué(s) » (`planProfileCoverage`, partagé avec le Plan) + 4 pastilles pleines/vides, puis
-    **une ligne par domaine** dans l'**ordre servi** (le serveur trie par urgence, aucun front
-    ne retrie), avec l'icône du domaine, son libellé, `diagnosticDomainSubtitle` et la pilule
-    `PlanDomainPriorityTag` (« À évaluer » quand il n'est pas mesuré). 🛑 **Chaque ligne ouvre
-    la fiche de son domaine** (`openPlanDomain`, le lanceur partagé — `nav.push("compdetail")`
-    de la maquette).
-    ⚠️ Volontairement **distincte de `PlanProfileSection`** : même structure, mais les
-    sous-titres diffèrent (le Plan dit *par quoi mesurer*, le bilan dit *où en est le profil*).
-    Ce n'est pas une copie qui a dérivé.
-  - **« Compléter maintenant · N min »** : carte rendue **seulement** s'il reste un domaine de
-    **compréhension** à mesurer (`domainesAEvaluer` filtré CO/CE) ; elle repart par
-    `openPlanAssessment`, l'autorité unique. ⚠️ **La durée est la somme des `estimatedMinutes`
-    servis** (lus serveur chez `DureeEpreuve`), jamais le « 14 min » de la maquette, qui n'est
-    la durée d'aucune de nos épreuves. Aucune durée servie ⇒ le bouton n'annonce pas de chiffre.
-  - 🛑 **Chaque ligne de « Vos priorités » ouvre la fiche de sa compétence** (`openPlanSkill`,
-    `nav.push("skill")` de la maquette). Elle ne déplie donc **plus** le rapport du correcteur
-    en place : `explanation` / `evidence` vivent sur la fiche et sur le rapport de production.
-    Une ligne de repli tirée des `weaknesses` n'a pas de compétence : elle reste **inerte**,
-    sans chevron.
-  - 🛑 **Restent hors de cet écran** : le « avant / après » (`exempleCible` —
-    `ActionPlanExempleCard` reste intacte, elle sert les rapports EE/EO et le résultat de
-    compétence) et le **détail des deux productions**.
-  - 🛑 **Le niveau global et le palier du rail viennent du serveur** (`cycle.startingLevel` /
-    `cycle.targetLevel`) : le plancher des quatre domaines est une règle serveur
-    (`TcfProfileService`), aucun front ne la rejoue à partir des deux estimations de production.
-  - ⚠️ **Vouvoiement** : la maquette tutoie, mais elle ne donne que la direction **visuelle**.
-    Toutes les phrases sont des **miroirs mot pour mot du web** et vivent en constantes — les
-    capitales sont posées à l'affichage (`toUpperCase()`), le CSS s'en chargeant côté web.
-  - **Freemium** : **2 points forts** + **1 priorité** + 1 entraînement en clair (seuils de la
-    maquette : `forces.slice(0, 2)`, `priorites.slice(0, 1)`), le reste flouté
-    (`_LockedPreview` / `BlurredContent`, `ExcludeSemantics` + `IgnorePointer`) avec un
-    compteur qui vient **du serveur** (`fragileSkillCount` / `solidSkillCount`), jamais
-    recalculé — `0` ⇒ aucun bloc. Le sous-titre des priorités ne compte que pour un compte
-    gratuit (un abonné les voit toutes, il n'y a rien à lui compter). Corollaire à ne jamais
-    casser : **aucune surface de cet écran ne nomme en clair ce que le rideau prétend cacher**
-    — c'est précisément pourquoi le détail des productions (qui listait « À travailler ») n'y
-    a plus sa place. **Le profil TCF, lui, reste entier** : ce sont ses mesures, pas une
-    action verrouillée.
+- **Nouveau rapport du diagnostic rapide (2026-10-04)** — maquette
+  `docs/diagnostic/maquette-rapport-diagnostic-premium.html`, audit
+  `docs/diagnostic/audit-nouveau-rapport-diagnostic.md`, règles `docs/regles/diagnostic.md`.
+  Miroir web posé dans la même passe. ⚠️ **Révoque** l'ancien écran `MDiag` (héros + « Mon
+  profil TCF » + offre + flous) : `widgets/diagnostic_report_labels.dart` est **supprimé**.
+  - **Un seul composant de rapport** : `DiagnosticResultView(result, sessionId)`
+    (`widgets/diagnostic_result.dart`), rendu par `/diagnostic` après l'analyse **et** par
+    `/diagnostic/rapport/:sessionId`. Carte de niveau (`SfLevelGoal` : niveau + « Votre
+    objectif » masqué si `objectiveLevel` null ; phrase de `situationObjectif` servi ; piste
+    `cecrlTrack` ; synthèse sans IA) → « Ce que nous avons observé » (point fort, même source
+    qu'avant, puis **une carte par `planPriorities`**, toutes, ordre servi) → encart d'honnêteté
+    → « Découvrir mon plan » → « Revoir ma réponse ». **Aucun flou, aucune offre** sur le rapport.
+  - 🛑 **`result.planPriorities` est la SEULE source des priorités** (rapport et transition) ;
+    `priorities` / `mainPriorityExplanation` ne s'affichent plus. Le résumé LLM (`summary`) non plus.
+  - **Non évaluable** (`written.evaluabilite == NON_EVALUABLE`) : niveau « — » + pastille
+    « Évaluation incomplète », ni situation, ni piste, ni phrase 1.
+  - 🛑 **`cecrlTrack` (règle unique, miroir `levelTrackPosition`)** : `null` si niveau ou
+    objectif inconnu ou C1/C2 ; fenêtre d'un palier sous le plus bas au plus haut, étendue vers
+    le bas à 3 colonnes. Sert aussi `plan_unlock_screen` (sans objectif ⇒ plus de rail).
+  - **Transition** `AppRoutes.diagnosticRapportPlan` (`/diagnostic/rapport/:sessionId/plan`,
+    `diagnostic_transition_screen.dart`) : `SfDoneHero`, priorités en `SfNumberedSteps`
+    (rang servi, `generalCriterion`), pastille d'épreuve si section unique, encart ambre avec
+    `SfEpreuveTiles` (état lu sur `plan.domaines[].evaluated`), `SfNextStepCard` **sans bouton**
+    sur `journey.current` (titre `diagnosticNextStepTitle`, libellés du parcours), « Voir mon
+    plan » → `context.go(tcfPlan)`.
+  - **Revoir ma réponse** `AppRoutes.diagnosticRapportReponse` (`…/reponse`,
+    `diagnostic_reponse_screen.dart`) : consigne servie par `DiagnosticConsigne` (ex-`_Consigne`
+    de `diagnostic_common.dart`), `texteSoumis` de `GET /api/production-submissions/{id}`,
+    compteur `compterMots` (`core/utils/word_count.dart`, extrait à sa 3ᵉ copie).
+  - **Phrases** : `screens/diagnostic/diagnostic_rapport_labels.dart`, **miroir mot pour mot**
+    de `web_sejoufr/lib/diagnostic-rapport.ts`. Navigation : `context.push` vers la transition
+    et la réponse (routes racine), retours `retourOuRepli(repli: rapport)`.
+  - **Kit** (miroirs web `LevelGoal`, `TextLink`, `DoneHero`, `NumberedSteps`,
+    `EpreuveTiles`) : `SfLevelGoal`, `SfTextLink`, `SfDoneHero`, `SfNumberedSteps`,
+    `SfEpreuveTiles` ; `SfNextStepCard.primary` devient **optionnel**. `SfGoalLine` est
+    **supprimée** (dernier lecteur parti).
 - **Revenir à son écrit depuis l'écran de compte** (2026-09-26, miroir du web) :
   `DiagnosticAccountGate.onEditWritten` (« ← Modifier mon texte ») →
   `DiagnosticController.editGuestWritten()` rouvre l'écrit **pré-rempli** avec la
@@ -1237,7 +1222,7 @@ avoir constaté que les écrans livrés ne correspondaient pas à la demande. Le
 
 - **`core/widgets/sejour/sejour_kit.dart`** — les primitives : `SfTop`,
   `SfBadge`, `SfCard`, `SfLevel`, `SfScore`, `SfLevelTrack`, `SfGoalStrip`,
-  `SfGoalLine`, `SfEmphasis`, `SfObservation`, `SfNoteCard`, `SfExamRow`,
+  `SfEmphasis`, `SfObservation`, `SfNoteCard`, `SfExamRow`,
   `SfThemeLine`, `SfPrio`, `SfProgressMini`, `SfSkillRow`, `SfPathCard`,
   `SfNowCard`, `SfMiniPlan`, `SfLockRow`, `SfLockItem`, `SfCheckRow`, `SfPill`,
   `SfPillMeta`, `SfChoiceCard`, `SfButton`, `SfStatGrid`, `SfBulletList`,
