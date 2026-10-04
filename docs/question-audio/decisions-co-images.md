@@ -37,6 +37,10 @@
 | D-30 | 1b | Erreurs 409 / 413 / 5xx | Message brut ; message selon le statut | Une phrase par statut, plus le message serveur ; réanalyse exigée avant d'importer | `CoImageImportPage.tsx` |
 | D-31 | 1c | Badge « audio manquant » | Déduit de `audioMediaUrl` ; champ servi | Lu sur `audioMissing`, servi par le backend (ni recalcul ni déduction côté front) : liste et fiche question | `QuestionsPage.tsx`, `QuestionDetailPage.tsx` |
 | D-32 | 1c | **Bug de la revue découvert** : les choix étaient lettrés **B–E** (`65 + displayOrder`, alors que l'ordre commence à 1) | Garder ; lettrer selon le rang | Lettrés selon le **rang** (A–D). Si le brouillon porte le texte importé, il s'affiche ; sinon « Proposition lue dans l'audio » | `AudioDraftReviewPage.tsx` |
+| D-33 | suivi | Une question **ARCHIVED** (désactivée, D-22) doit rester trouvable dans `/questions/tcf` pour être réactivée | Ajouter un filtre de statut ; ne rien changer | **Rien à corriger** : `GET /api/admin/questions` n'a aucun prédicat de statut (`QuestionSpecifications` filtre module, thème, difficulté, type, `active`, média, texte) et l'admin part de `active: ""` (aucun filtre). Vérifié sur la base locale : la liste par défaut rend 1 933 TCF / 1 028 civiques, soit tout `questions`, archivées comprises ; « Inactives » les isole. Réactiver ⇒ `ACTIVE`. Comportement verrouillé par un test. | `QuestionServiceIT` (test ajouté) |
+| D-34 | suivi | `IMAGE_TRANSPARENTE` : refuser sur des pixels réellement transparents, jamais sur la seule présence d'un canal alpha | Seuil « alpha < 255 » ; seuil toléré (≥ 250) ; proportion de pixels. WEBP : drapeau VP8X ; données d'alpha ; dépendance (TwelveMonkeys) | **Un seul pixel d'alpha < 255 refuse** (règle simple, identique à `WebPPictureHasTransparency` de libwebp ; une RGBA opaque passe). PNG : décodage complet pixel par pixel (palette `tRNS` comprise), plafonné à **16 Mpx** (bombe de décompression). WEBP, **sans dépendance** : on lit les **données** d'alpha, pas le drapeau. Bloc `ALPH` brut non filtré lu octet par octet ; `ALPH` compressé ou filtré, ou indice VP8L `alpha_is_used` = transparence (libwebp ne les écrit que si un pixel l'est) ; drapeau VP8X sans `ALPH` = opaque. Un verdict invérifiable (PNG illisible, > 16 Mpx, WEBP tronqué ou animé) rend `IMAGE_ILLISIBLE` avec un message dédié, jamais une acceptation silencieuse (l'ancien code acceptait un PNG indécodable). Aucun code d'erreur ajouté : l'admin n'a rien à changer. | `ImageUploadSupport` (`transparence()` : `AUCUNE` / `PRESENTE` / `INVERIFIABLE`), `CoImageImportValidator`, `ImagesDeTest`, `ImageUploadSupportTest`, `CoImageImportValidatorTest`, `docs/pipeline-audio-co.md` |
+| D-35 | suivi | La signature des octets (D-13) a-t-elle cassé un envoi de SVG ? | Ajouter un reniflage `<svg` ; constater | **Aucun chemin SVG n'existait en fichier** : `ImageUploadSupport` n'a jamais admis que jpeg/png/webp (liste blanche d'avant D-13), et `/api/admin/media/upload` (`LocalFileStorageService`, hors `ImageUploadSupport`, non touché) n'admet que `image/png,image/jpeg,image/webp` depuis l'origine. Le SVG ne vit qu'en **`inline_svg`** (texte : brouillons générés, `QuestionWriteRequest`), sans contrôle d'octets. Pas de reniflage ajouté : ce serait ouvrir un format, pas réparer. Tests : SVG déclaré refusé, SVG déguisé en PNG refusé, remplacement d'une CO_IMAGE SVG par un PNG (URL posée, `inline_svg` vidé). À noter : `/api/admin/media/upload` ne lit **pas** la signature (D-13 disait « partout ») ; hors périmètre, laissé tel quel. | `ImageUploadSupportTest`, `LocalFileStorageServiceTest`, `QuestionImageServiceTest` |
+| D-36 | suivi | V088 et V089 sont numérotées sous des versions déjà appliquées (V8xx, V901) sur la base locale et en prod | Renuméroter (V9xx) ; activer `outOfOrder` | **Ni renumérotation ni changement de config** : `out-of-order: true` est déjà posé dans `application.yaml` (dev **et** prod, qui ne surchargent que `locations`) et dans `application-test.yaml` (Zonky) ; V083 à V087 sont déjà passées ainsi après V901. Renuméroter vers le haut aurait déplacé du DDL après le contenu sur base neuve. Constaté sur `sejourfr_db` : V088 (rang 396) et V089 (rang 397) appliquées avec succès le 2026-10-04 à 22:27:31 (boot IDE du propriétaire), colonne `external_id varchar(64)` + index `uq_audio_draft_external_id`, 0 question `is_active` avec `status <> 'ACTIVE'`. Base neuve : couverte par les IT Zonky (`QuestionStatusAlignementIT`, `AudioQuestionDraftManagerIT`, `CoImageImportServiceIT`). | `docs/migrations-flyway.md` |
 
 ---
 
@@ -59,6 +63,8 @@
 
 **Rien n'a été poussé ni déployé. Aucune API payante n'a été appelée.**
 
+**Suivi (2026-10-04, D-33 à D-36) :** opacité lue sur les pixels (PNG) et sur les données d'alpha (WEBP), chemins SVG vérifiés intacts, liste admin des archivées vérifiée, migrations V088/V089 appliquées sur la base locale grâce à `out-of-order: true` (déjà actif en dev, prod et tests).
+
 ### Écarts par rapport au rapport d'audit
 
 1. Upload R2 **dans** la transaction, et non avant (D-19). L'import reste en tout ou rien, avec compensation.
@@ -73,9 +79,13 @@
 ### Procédure de test de bout en bout
 
 **Prérequis**
-1. **Redémarrer le backend** pour appliquer V089 et le nouveau code :
-   `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`
-   Le processus démarré avant ces changements est encore sur le port 8080.
+1. **Backend** : V088 et V089 sont **déjà appliquées** sur `sejourfr_db` (D-36) et le
+   backend tourne avec le code à jour (`./mvnw spring-boot:run -Dspring-boot.run.profiles=dev`).
+   Après tout nouveau changement : arrêter le processus du port 8080
+   (`lsof -i :8080 -sTCP:LISTEN`, puis `kill <PID>`), relancer, et vérifier
+   `select version, success from flyway_schema_history where version in ('088','089');`.
+   En prod, rien de particulier : `out-of-order: true` appliquera V088 puis V089 au
+   premier boot.
 2. La configuration R2 et Azure doit être présente dans `backend_sejourfr/.env`.
 3. Relancer `npm run dev-admin`.
 

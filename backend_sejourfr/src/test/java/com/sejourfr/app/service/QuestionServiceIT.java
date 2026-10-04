@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.UUID;
@@ -224,6 +225,35 @@ class QuestionServiceIT extends AbstractIntegrationTest {
         assertThat(statut(id)).isEqualTo(QuestionStatus.ARCHIVED);
         questionService.setActive(id, true);
         assertThat(statut(id)).as("une archivee se reactive").isEqualTo(QuestionStatus.ACTIVE);
+    }
+
+    @Test
+    void uneQuestionArchiveeResteVisibleAvecLesFiltresParDefautEtSeReactive() {
+        Theme theme = testData.theme(Module.TCF, "archive", "Thème archive");
+        Question q = testData.questionTcf(QuestionType.CO_IMAGE, Difficulty.A2);
+        q.setTheme(theme);
+        UUID id = questionManager.save(q).getId();
+        questionService.setActive(id, false);
+        assertThat(statut(id)).isEqualTo(QuestionStatus.ARCHIVED);
+
+        // Requete par defaut de /questions/tcf : module seul, aucun filtre d'activite
+        // ni de statut, premiere page triee par date de creation (comme le controleur).
+        assertThat(questionService.search(Module.TCF, null, null, null, null, null, null,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(QuestionDto::id).getContent()).contains(id);
+        assertThat(rechercheActivite(theme.getId(), false)).containsExactly(id);
+        assertThat(rechercheActivite(theme.getId(), true)).isEmpty();
+
+        QuestionDto reactivee = questionService.setActive(id, true);
+
+        assertThat(reactivee.active()).isTrue();
+        assertThat(statut(id)).isEqualTo(QuestionStatus.ACTIVE);
+        assertThat(rechercheActivite(theme.getId(), true)).containsExactly(id);
+    }
+
+    private List<UUID> rechercheActivite(UUID themeId, boolean active) {
+        return questionService.search(null, themeId, null, null, active, null, null,
+                PageRequest.of(0, 50)).map(QuestionDto::id).getContent();
     }
 
     @Test

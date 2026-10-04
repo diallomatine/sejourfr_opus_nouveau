@@ -285,7 +285,13 @@ postérieures alimentent se numérote APRÈS elles.**
   générateur `tools/competences/` et régénérer (cf. règle ci-dessus).
 
 `out-of-order: true` est activé : l'ordre d'ajout n'est pas contraint tant que les numéros
-restent uniques.
+restent uniques. Il est posé dans `application.yaml` (donc pour **dev et prod**, qui ne
+surchargent que `locations`) et dans `application-test.yaml` (Zonky). C'est lui qui fait
+appliquer un nouveau `V0xx` sur une base existante dont la version max est déjà V8xx/V901
+(cas de V083 → V089, appliqués après V901) : **ne jamais renuméroter** une migration
+`00_schema` vers le haut pour « passer devant » — sur une base neuve, elle s'exécuterait
+après le contenu et changerait l'ordre logique. Contrôle après un boot :
+`select version, success from flyway_schema_history order by installed_rank desc limit 5;`
 
 ## Réinitialiser une base de dev / recette
 
