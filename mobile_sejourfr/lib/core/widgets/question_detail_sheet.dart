@@ -140,9 +140,11 @@ class QuestionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                for (final choice in question.choices)
+                for (final (i, choice) in question.choices.indexed)
                   QuestionChoiceRow(
-                    label: choice.label,
+                    label: question.isLetterKeyQuestion
+                        ? question.choiceKeyLetter(i)
+                        : choice.label,
                     correct: choice.correct,
                     selectedWrong:
                         !choice.correct && _selected.contains(choice.id),

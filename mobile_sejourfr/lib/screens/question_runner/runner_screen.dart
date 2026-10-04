@@ -337,7 +337,9 @@ class _RunnerView extends ConsumerWidget {
                           selected: isSelected,
                           showCorrection: showCorr,
                           isCorrect: isCorrect,
-                          letterKeyMode: question.usesLetterKeyChoices,
+                          keyLetter: question.isLetterKeyQuestion
+                              ? question.choiceKeyLetter(i)
+                              : null,
                           onTap: () => ref
                               .read(
                                   runnerControllerProvider(attemptId).notifier)

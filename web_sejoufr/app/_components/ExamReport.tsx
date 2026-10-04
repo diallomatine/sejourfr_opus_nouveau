@@ -16,6 +16,7 @@ import {
 import { MediaView } from "./MediaView";
 import { epreuveLevelTone, floorMarks } from "@/lib/exam-levels";
 import { niveauCecrlLabel } from "@/lib/types";
+import { choiceKeyLetter, isLetterKeyQuestion } from "@/lib/choice-key-letters";
 import type {
   AttemptQuestionResponse,
   AttemptResponse,
@@ -471,6 +472,7 @@ function ReportRow({
   onToggle: () => void;
 }) {
   const q = aq.question;
+  const letterKey = isLetterKeyQuestion(q);
   const state: "right" | "wrong" | "skipped" = !aq.answered
     ? "skipped"
     : aq.correct
@@ -520,13 +522,10 @@ function ReportRow({
 
           <div className="rpt-choices">
             {q.choices.map((c, i) => {
-              // FULL_AUDIO : label réduit à une lettre (clé citée par
-              // l'explication) → on l'affiche dans la pastille, on masque le
-              // texte redondant ; l'ordre reçu suit déjà les lettres (garanti
-              // serveur par QuestionMapper.ordreReference).
-              const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-              const letter = letterOnly
-                ? letterOnly[1].toUpperCase()
+              // Lettre-clé (CO / CO_IMAGE) : la pastille porte la lettre, le
+              // texte est masqué (il se lit dans la transcription).
+              const letter = letterKey
+                ? choiceKeyLetter(c.label, i)
                 : String.fromCharCode(65 + i);
               const wasSelected = aq.selectedChoiceIds.includes(c.id);
               const isCorrect = c.correct === true;
@@ -541,7 +540,7 @@ function ReportRow({
               return (
                 <div key={c.id} className={cls}>
                   <span className="rpt-letter">{letter}</span>
-                  <span className="rpt-choice-label">{letterOnly ? "" : c.label}</span>
+                  <span className="rpt-choice-label">{letterKey ? "" : c.label}</span>
                   {isCorrect && (
                     <span className="rpt-icon-good" aria-label="Bonne réponse">
                       ✓

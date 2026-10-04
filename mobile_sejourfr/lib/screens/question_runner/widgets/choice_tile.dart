@@ -19,7 +19,7 @@ class ChoiceTile extends StatelessWidget {
     required this.showCorrection,
     required this.onTap,
     this.isCorrect,
-    this.letterKeyMode = false,
+    this.keyLetter,
   });
 
   final ChoiceDto choice;
@@ -28,11 +28,10 @@ class ChoiceTile extends StatelessWidget {
   final bool showCorrection;
   final VoidCallback? onTap;
 
-  /// Mode TCF CO FULL_AUDIO : le label du choix est une lettre-clé (A/B/C/D)
-  /// citée par l'audio. On affiche cette lettre dans la pastille et on masque
-  /// le texte. Décidé au niveau de la question ([QuestionDto.usesLetterKeyChoices])
-  /// pour ne PAS s'appliquer à un choix isolé d'une autre épreuve (ex. « y »).
-  final bool letterKeyMode;
+  /// Lettre-clé du choix (CO / CO_IMAGE), décidée par la question
+  /// ([QuestionDto.isLetterKeyQuestion] / [QuestionDto.choiceKeyLetter]) :
+  /// non nulle, la pastille porte cette lettre et le texte est masqué.
+  final String? keyLetter;
 
   /// Vraie source de vérité quand le backend ne renvoie pas `correct` sur la
   /// question elle-même (cas standard pendant un attempt) : fournie par le
@@ -74,13 +73,9 @@ class ChoiceTile extends StatelessWidget {
       letterColor = AppColors.white;
     }
 
-    // Mode TCF CO FULL_AUDIO : la pastille affiche la lettre-clé du label
-    // (A/B/C/D citée par l'audio) et le texte redondant est masqué. Sinon la
-    // pastille suit l'index d'affichage. Le mode est décidé par la question,
-    // pas par la forme d'un choix isolé.
-    final letter = letterKeyMode
-        ? choice.label.trim().toUpperCase()
-        : String.fromCharCode('A'.codeUnitAt(0) + index);
+    final letterKeyMode = keyLetter != null;
+    final letter =
+        keyLetter ?? String.fromCharCode('A'.codeUnitAt(0) + index);
 
     final emphasized =
         selected || (showCorrection && (isCorrect ?? choice.correct));

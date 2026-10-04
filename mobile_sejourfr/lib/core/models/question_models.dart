@@ -86,7 +86,7 @@ class ChoiceDto {
       );
 }
 
-final _singleLetterChoice = RegExp(r'^[A-Za-z]$');
+final _letterKeyLabel = RegExp(r'^(?:r[ée]ponse\s+)?([A-D])$', caseSensitive: false);
 
 class QuestionDto {
   QuestionDto({
@@ -133,20 +133,30 @@ class QuestionDto {
   bool get hasImage => media?.type == MediaType.image;
   bool get hasVideo => media?.type == MediaType.video;
 
-  /// Questions TCF CO en mode FULL_AUDIO : le contenu des réponses vit dans
-  /// l'audio, les labels en base ne sont que des lettres A/B/C/D (la clé citée
-  /// par l'audio et l'explication). Le runner affiche alors cette lettre dans
-  /// la pastille et masque le texte redondant.
+  /// Propositions réduites à une lettre-clé : la pastille porte la lettre, le
+  /// texte du choix n'est jamais affiché (runner, rapport, favoris). Miroir web :
+  /// `isLetterKeyQuestion` (`web_sejoufr/lib/choice-key-letters.ts`).
   ///
-  /// Restreint aux types CO et CO_IMAGE : sans ce garde-fou, une question
-  /// STRUCTURE dont une réponse est une lettre isolée (« y », « en »…)
-  /// déclenchait à tort ce mode et affichait « Y » à la place de la pastille C.
-  /// En CO_IMAGE les propositions sont toujours des lettres nues (le contenu
-  /// vit dans l'audio).
-  bool get usesLetterKeyChoices =>
-      isComprehensionOrale &&
-      choices.isNotEmpty &&
-      choices.every((c) => _singleLetterChoice.hasMatch(c.label.trim()));
+  /// - CO_IMAGE : toujours, le texte des propositions vit dans l'audio — même
+  ///   si `label` n'est pas une lettre, il ne doit jamais s'afficher.
+  /// - CO (FULL_AUDIO) : quand tous les labels sont une lettre (« A » ou
+  ///   « Réponse A »).
+  /// - Aucun autre type : une question STRUCTURE dont un choix est « a »
+  ///   (verbe avoir) garde son texte.
+  bool get isLetterKeyQuestion =>
+      questionType == QuestionType.coImage ||
+      (questionType == QuestionType.co &&
+          choices.isNotEmpty &&
+          choices.every((c) => _letterKeyLabel.hasMatch(c.label.trim())));
+
+  /// Lettre du choix d'indice [index] : celle du label quand il en est une,
+  /// sinon celle de sa position (l'ordre servi suit déjà les lettres).
+  String choiceKeyLetter(int index) {
+    final match = _letterKeyLabel.firstMatch(choices[index].label.trim());
+    return match != null
+        ? match.group(1)!.toUpperCase()
+        : String.fromCharCode('A'.codeUnitAt(0) + index);
+  }
 
   /// CO ou CO_IMAGE : l'audio de la question se lance seul dans le runner.
   bool get isComprehensionOrale =>

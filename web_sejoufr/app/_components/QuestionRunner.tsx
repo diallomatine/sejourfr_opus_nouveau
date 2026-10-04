@@ -24,6 +24,7 @@ import {
   MOCK_EXAM_QUIT_MESSAGE,
   MOCK_EXAM_QUIT_TITLE,
 } from "@/lib/mock-exam-exit";
+import { choiceKeyLetter, isLetterKeyQuestion } from "@/lib/choice-key-letters";
 
 export type RunnerMode = "training" | "exam";
 
@@ -533,10 +534,8 @@ export function QuestionRunner({
   }
 
   const q = current.question;
-  // CO_IMAGE : image affichée + propositions lues en audio, choix réduits à des
-  // lettres A→D. On force le rendu en pastilles-lettres (texte masqué) sur tout
-  // ce type, en plus de la détection par label déjà en place pour le FULL_AUDIO.
   const isCoImage = q.questionType === "CO_IMAGE";
+  const letterKey = isLetterKeyQuestion(q);
   // CO : audio lancé automatiquement à l'arrivée sur la question. En examen,
   // une seule écoute sans contrôles ; en entraînement, pause et réécoute
   // libres (cf. MediaView coAudio).
@@ -703,18 +702,10 @@ export function QuestionRunner({
         {/* CHOICES */}
         <div className="qr-options" role="radiogroup">
           {q.choices.map((c, i) => {
-            // TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
-            // l'audio, le label se réduit à une lettre ("A" ou "Réponse A") qui
-            // est la clé de réponse citée par l'explication. On affiche cette
-            // lettre dans la pastille et on masque le texte redondant. L'ordre
-            // reçu suit déjà les lettres : le serveur le garantit (QuestionMapper
-            // .ordreReference), aucun tri local ne doit le défaire.
-            const letterMatch = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            // En CO_IMAGE le texte des choix vit dans l'audio : on masque le
-            // label dans tous les cas et on pose la lettre par position.
-            const letterOnly = isCoImage || letterMatch !== null;
-            const letter = letterMatch
-              ? letterMatch[1].toUpperCase()
+            // Lettre-clé (CO / CO_IMAGE) : la pastille porte la lettre, le
+            // texte est masqué. Aucun tri local : l'ordre reçu suit les lettres.
+            const letter = letterKey
+              ? choiceKeyLetter(c.label, i)
               : String.fromCharCode(65 + i);
             const isSel = selected.includes(c.id);
             const isThisCorrect = showCorrection && correctIds.includes(c.id);
@@ -739,7 +730,7 @@ export function QuestionRunner({
                 disabled={state.submitting || hasFeedback}
               >
                 <span className="qr-opt-letter">{letter}</span>
-                <span className="qr-opt-label">{letterOnly ? "" : c.label}</span>
+                <span className="qr-opt-label">{letterKey ? "" : c.label}</span>
                 {isThisCorrect && (
                   <span className="qr-opt-icon" aria-hidden>
                     <CheckIcon />

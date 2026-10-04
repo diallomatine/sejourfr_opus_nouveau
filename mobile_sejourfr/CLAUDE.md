@@ -2249,11 +2249,15 @@ Le `RunnerScreen` est l'écran le plus complexe. Il gère :
 
 **Ordre des choix** : le backend shuffle les choix (seedé par `AttemptQuestion.id`, donc stable
 runner ↔ rapport pour un même attempt). Le mapping réponse cliquée → enregistrée → affichée se fait
-**toujours par ID de choix réel**, jamais par position. Le tri d'affichage est centralisé dans
-`orderedDisplayChoices()` (`core/models/question_models.dart`), partagé par le runner et le rapport
-(`question_detail_sheet.dart`) : pour les questions TCF CO `FULL_AUDIO` (labels mono-lettre A/B/C/D),
-on re-trie A→D ; les autres gardent l'ordre shuffle. À réutiliser partout où on rend des choix pour
-garder runner et rapport cohérents.
+**toujours par ID de choix réel**, jamais par position. **Aucun tri local** : une question à
+repères alphabétiques est servie dans l'ordre de ses lettres (`QuestionMapper.ordreReference`).
+
+**Lettre-clé** (2026-10-04) : `QuestionDto.isLetterKeyQuestion` + `choiceKeyLetter(i)`
+(`core/models/question_models.dart`) sont la seule autorité, lue par le runner (`ChoiceTile.keyLetter`)
+et par `question_detail_sheet.dart` (rapport d'examen et favoris). `CO_IMAGE` ⇒ toujours (le texte des
+propositions vit dans l'audio, jamais affiché, même si `label` n'est pas une lettre : lettre par position) ;
+`CO` ⇒ quand tous les labels valent `A`…`D` ou `Réponse A`… ; aucun autre type (un choix STRUCTURE « a »
+garde son texte). Miroir web : `web_sejoufr/lib/choice-key-letters.ts`.
 
 **Reprise d'un attempt** : si l'utilisateur quitte le runner avant de finir, l'attempt reste en cours côté
 backend. À la reprise, `RunnerController._load()` recalcule l'index de départ : première question non

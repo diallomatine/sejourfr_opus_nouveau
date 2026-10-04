@@ -179,7 +179,7 @@ class _ZoomableImage extends StatelessWidget {
                   strokeWidth: 2.4,
                   value: value,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppColors.white,
+                    AppColors.blue,
                   ),
                 ),
               ),
@@ -188,7 +188,7 @@ class _ZoomableImage extends StatelessWidget {
           errorBuilder: (_, __, ___) => const Center(
             child: Icon(
               LucideIcons.imageOff,
-              color: Colors.white70,
+              color: AppColors.muted,
               size: 48,
             ),
           ),
@@ -287,7 +287,7 @@ class _MediaViewerRoute<T> extends PageRoute<T> {
   final String heroTag;
 
   @override
-  Color? get barrierColor => Colors.black;
+  Color? get barrierColor => AppColors.ink;
 
   @override
   String? get barrierLabel => 'Fermer';
@@ -325,26 +325,42 @@ class _FullscreenMediaViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Chrome sombre, image sur une surface blanche opaque : un PNG transparent
+    // à traits noirs disparaîtrait sur le fond sombre.
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.ink,
       body: SafeArea(
         child: Stack(
           children: [
             Positioned.fill(
-              child: Hero(tag: heroTag, child: child),
+              left: 12,
+              top: 64,
+              right: 12,
+              bottom: 12,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+                child: ColoredBox(
+                  color: AppColors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Hero(tag: heroTag, child: child),
+                  ),
+                ),
+              ),
             ),
             Positioned(
               top: 8,
               right: 8,
               child: Material(
-                color: Colors.white24,
+                color: AppColors.white.withValues(alpha: 0.16),
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () => Navigator.of(context).pop(),
                   child: const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Icon(LucideIcons.x, color: Colors.white, size: 22),
+                    child:
+                        Icon(LucideIcons.x, color: AppColors.white, size: 22),
                   ),
                 ),
               ),

@@ -12,6 +12,7 @@ import {
   favoriDetailEyebrow,
 } from "@/lib/favoris";
 import {type QuestionReviewResponse, questionTypeLabel} from "@/lib/types";
+import {choiceKeyLetter, isLetterKeyQuestion} from "@/lib/choice-key-letters";
 import {MediaView} from "../MediaView";
 import s from "./favoris.module.css";
 
@@ -89,6 +90,7 @@ export function FavoriDetailSheet({
 
   const q = detail ?? fallback;
   const passage = q.passageText?.trim();
+  const letterKey = isLetterKeyQuestion(q);
 
   return (
     <div className={s.sheetRoot} role="dialog" aria-modal="true" onClick={onClose}>
@@ -142,12 +144,12 @@ export function FavoriDetailSheet({
         <p className={s.sheetStatement}>{q.statement}</p>
 
         <div className={s.choices}>
-          {q.choices.map((c) => (
+          {q.choices.map((c, i) => (
             <div key={c.id} className={`${s.choice} ${c.correct ? s.choiceCorrect : ""}`}>
               <span className={s.choiceIcon} aria-hidden>
                 {c.correct ? <Check size={14}/> : <Circle size={14}/>}
               </span>
-              <span className={s.choiceLabel}>{c.label}</span>
+              <span className={s.choiceLabel}>{letterKey ? choiceKeyLetter(c.label, i) : c.label}</span>
             </div>
           ))}
         </div>
